@@ -205,6 +205,24 @@
           </button>
         </div>
 
+        <!-- Field reveal — what the chosen players actually see -->
+        <div v-if="isShared(popoverNpc)" class="border-t border-border pt-2 space-y-1">
+          <p class="font-cinzel text-[9px] tracking-widest text-muted-foreground px-1">REVEALED FIELDS</p>
+          <label
+            v-for="f in NPC_PLAYER_FIELDS"
+            :key="f.key"
+            class="flex items-center gap-2 px-2 py-1 rounded cursor-pointer hover:bg-muted/50"
+          >
+            <input
+              type="checkbox"
+              class="accent-primary"
+              :checked="isFieldVisible(f.key)"
+              @change="toggleField(f.key)"
+            />
+            <span class="font-fell text-xs text-foreground">{{ f.label }}</span>
+          </label>
+        </div>
+
         <!-- Divider + unshare -->
         <div class="border-t border-border pt-1">
           <button
@@ -242,7 +260,7 @@ import { useUiStore } from "@/stores/ui";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
-import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
+import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint, NPC_PLAYER_FIELDS, type NpcPlayerFieldKey } from "@/lib/npcDisplay";
 import { NPC_RELATIONSHIP_COLORS, type Npc, type NpcRelationship, type NpcStatus } from "@/types/npc.types";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useQuota } from "@/composables/useQuota";
@@ -401,11 +419,26 @@ function allPartyIds(): string[] {
   return party.value?.map((m) => m.id) ?? [];
 }
 
+// Without any fields revealed, sharing an NPC is a no-op for the player.
+// Pre-fill name + portrait on first reveal so the toggle is immediately useful.
+const DEFAULT_FIELDS: NpcPlayerFieldKey[] = ["name", "portrait"];
+function fieldsForFirstReveal(npc: Npc): string[] {
+  return (npc.player_visible_fields?.length ?? 0) > 0
+    ? npc.player_visible_fields
+    : [...DEFAULT_FIELDS];
+}
+
 function setWholeParty() {
   const npc = popoverNpc.value;
   if (!npc) return;
   const wasHidden = !isShared(npc);
-  updateNpc({ id: npc.id, update: { player_visible_to: [...new Set(allPartyIds())] } });
+  updateNpc({
+    id: npc.id,
+    update: {
+      player_visible_to: [...new Set(allPartyIds())],
+      player_visible_fields: fieldsForFirstReveal(npc),
+    },
+  });
   if (wasHidden && ui.dmMode === "play") {
     void sendNarrativeEvent(`The party encounters ${npc.name}.`);
   }
@@ -417,7 +450,13 @@ function toggleMember(memberId: string) {
   const current = [...npc.player_visible_to];
   const idx = current.indexOf(memberId);
   const next = idx === -1 ? [...current, memberId] : current.filter((id) => id !== memberId);
-  updateNpc({ id: npc.id, update: { player_visible_to: next } });
+  updateNpc({
+    id: npc.id,
+    update: {
+      player_visible_to: next,
+      player_visible_fields: next.length > 0 ? fieldsForFirstReveal(npc) : npc.player_visible_fields,
+    },
+  });
   if (idx === -1 && ui.dmMode === "play") {
     const memberName = party.value?.find((m) => m.id === memberId)?.name;
     const who = memberName ?? "A party member";
@@ -430,5 +469,18 @@ function unshare() {
   if (!npc) return;
   updateNpc({ id: npc.id, update: { player_visible_to: [] } });
   closePopover();
+}
+
+function isFieldVisible(key: string): boolean {
+  const npc = popoverNpc.value;
+  return !!npc && (npc.player_visible_fields?.includes(key) ?? false);
+}
+
+function toggleField(key: string) {
+  const npc = popoverNpc.value;
+  if (!npc) return;
+  const set = new Set(npc.player_visible_fields ?? []);
+  if (set.has(key)) set.delete(key); else set.add(key);
+  updateNpc({ id: npc.id, update: { player_visible_fields: Array.from(set) } });
 }
 </script>

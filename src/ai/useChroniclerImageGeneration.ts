@@ -224,7 +224,19 @@ export async function generateChroniclerImage(params: {
     const { data, error } = await supabase.functions.invoke("generate-chronicle-image", {
       body: { campaign_id: campaignId, scene_text: sceneText, portrait_urls, text_descriptions, size, image_model: imageModel, kind },
     });
-    if (error) throw new Error(error.message);
+    // supabase-js wraps a non-2xx as a FunctionsHttpError and discards the JSON
+    // body unless we read it explicitly. The edge function returns structured
+    // codes like { error: "insufficient_credits", balance } that the user needs
+    // to see — otherwise they get the generic "non-2xx status code" string.
+    if (error) {
+      let body: { error?: string; balance?: number } | null = null;
+      try { body = (await (error as { context?: Response }).context?.json()) ?? null; } catch { /* not JSON */ }
+      if (body?.error === "insufficient_credits") {
+        const left = body.balance != null ? ` (${body.balance} left)` : "";
+        throw new Error(`Insufficient credits${left}. Buy a credit pack or wait for the monthly refresh.`);
+      }
+      throw new Error(body?.error ?? error.message);
+    }
     if (data?.error) throw new Error(data.error);
 
     const jobId = (data as { job_id?: string }).job_id;

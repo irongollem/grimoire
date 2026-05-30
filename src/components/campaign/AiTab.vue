@@ -82,14 +82,17 @@
 
         <div v-for="p in providerDefs" :key="p.id" class="flex flex-col gap-1">
           <div class="flex items-center justify-between">
-            <label class="font-cinzel text-xs text-muted-foreground tracking-wide">{{ p.label }}</label>
+            <label class="font-cinzel text-xs text-muted-foreground tracking-wide">
+              {{ p.label }}
+              <span v-if="providerHasKey(p.id) && !form.keys[p.id].trim()" class="ml-1.5 font-fell text-[10px] normal-case tracking-normal text-primary/80">— key on file (leave blank to keep)</span>
+            </label>
             <a :href="p.link" target="_blank" rel="noopener noreferrer" class="font-fell text-xs text-primary hover:underline">Get key →</a>
           </div>
           <div class="relative">
             <input
               v-model="form.keys[p.id]"
               :type="showKeys[p.id] ? 'text' : 'password'"
-              :placeholder="p.placeholder"
+              :placeholder="providerHasKey(p.id) ? 'Enter a new key to replace…' : p.placeholder"
               class="field-input pr-10 w-full"
               autocomplete="off"
               spellcheck="false"
@@ -240,7 +243,7 @@ import { ref, computed, reactive, watch } from "vue";
 import { IconDM, IconHide, IconReveal } from '@/lib/icons';
 import { useCampaignStore } from "@/stores/campaign";
 import { useUpdateCampaign } from "@/composables/useCampaigns";
-import { encryptApiKey, primeDecryptCache } from "@/lib/apiKeyVault";
+import { encryptApiKey, decryptApiKey, primeDecryptCache } from "@/lib/apiKeyVault";
 import { getSetting } from "@/settings/index";
 import { useSubscription } from "@/composables/useSubscription";
 import { useStripe } from "@/composables/useStripe";
@@ -271,11 +274,15 @@ const providerDefs: ProviderDef[] = [
 const campaign = useCampaignStore();
 const { mutateAsync: updateCampaign } = useUpdateCampaign();
 
+// Keys must NEVER be initialised from the DB value — that field holds the
+// encrypted ciphertext, not the plaintext. Treating it as user input meant
+// (a) the input field rendered ciphertext as "the key", and (b) toggling
+// local mode would write that ciphertext to localStorage as the new "key"
+// while wiping the real one from the DB. The form input is always empty;
+// entering a value replaces the stored key, leaving it empty preserves
+// whatever's currently stored (see save()).
 function initialKeys(): Record<string, string> {
-  const c = campaign.activeCampaign;
-  return Object.fromEntries(
-    providerDefs.map((p) => [p.id, (c?.[p.dbField as keyof typeof c] as string | null) ?? ""])
-  );
+  return Object.fromEntries(providerDefs.map((p) => [p.id, ""]));
 }
 
 const form = ref({
@@ -311,11 +318,13 @@ const BYOK_IMAGE_OPTIONS = [
 
 function providerHasKey(providerId: string): boolean {
   if (form.value.keys[providerId].trim()) return true;
+  const p = providerDefs.find((d) => d.id === providerId);
+  if (!p) return false;
   if (localModeEnabled.value) {
-    const p = providerDefs.find((d) => d.id === providerId);
-    return p ? !!localStorage.getItem(p.localKey) : false;
+    return !!localStorage.getItem(p.localKey);
   }
-  return false;
+  const c = campaign.activeCampaign;
+  return !!(c?.[p.dbField as keyof typeof c] as string | null);
 }
 
 const hasByokTextKey  = computed(() => BYOK_TEXT_OPTIONS.some((o) => providerHasKey(o.keyProvider)));
@@ -353,8 +362,9 @@ watch(
       form.value.image_provider   = c.image_provider ?? "openai";
       form.value.ai_setting_prompt = c.ai_setting_prompt ?? "";
       form.value.allow_chronicle_promotion = c.allow_chronicle_promotion ?? false;
+      // Inputs deliberately stay empty — see initialKeys() for the reasoning.
       for (const p of providerDefs) {
-        form.value.keys[p.id] = (c[p.dbField as keyof typeof c] as string | null) ?? "";
+        form.value.keys[p.id] = "";
       }
     }
   },
@@ -365,24 +375,46 @@ async function save() {
   isSaving.value = true;
   try {
     const encryptedKeys: Record<string, string | null> = {};
+    const c = campaign.activeCampaign;
 
+    // Per-provider save rules:
+    //   - Non-empty input: store in the active location (local or DB), clear the other.
+    //   - Empty input: preserve whatever's stored. If the user switched modes and
+    //     the new location is empty but the old one has a key, migrate it so
+    //     toggling the local-mode checkbox doesn't silently destroy the user's key.
     if (localModeEnabled.value) {
       for (const p of providerDefs) {
-        const trimmed = form.value.keys[p.id].trim();
-        if (trimmed) localStorage.setItem(p.localKey, trimmed);
-        else         localStorage.removeItem(p.localKey);
+        const trimmed   = form.value.keys[p.id].trim();
+        const existingDb = (c[p.dbField as keyof typeof c] as string | null) ?? null;
+        const existingLocal = localStorage.getItem(p.localKey);
+
+        if (trimmed) {
+          localStorage.setItem(p.localKey, trimmed);
+        } else if (!existingLocal && existingDb) {
+          try {
+            const decrypted = await decryptApiKey(existingDb);
+            if (decrypted) localStorage.setItem(p.localKey, decrypted);
+          } catch (e) { console.error(`Failed to migrate ${p.id} key to local mode:`, e); }
+        }
         encryptedKeys[p.dbField] = null;
       }
       localStorage.setItem(LOCAL_MODE_KEY, "local");
     } else {
       for (const p of providerDefs) {
-        const trimmed = form.value.keys[p.id].trim();
+        const trimmed   = form.value.keys[p.id].trim();
+        const existingDb = (c[p.dbField as keyof typeof c] as string | null) ?? null;
+        const existingLocal = localStorage.getItem(p.localKey);
+
         if (trimmed) {
           const enc = await encryptApiKey(trimmed);
           primeDecryptCache(enc, trimmed);
           encryptedKeys[p.dbField] = enc;
+        } else if (!existingDb && existingLocal) {
+          const enc = await encryptApiKey(existingLocal);
+          primeDecryptCache(enc, existingLocal);
+          encryptedKeys[p.dbField] = enc;
         } else {
-          encryptedKeys[p.dbField] = null;
+          encryptedKeys[p.dbField] = existingDb;
         }
         localStorage.removeItem(p.localKey);
       }

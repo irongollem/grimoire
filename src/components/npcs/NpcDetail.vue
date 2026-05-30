@@ -4,7 +4,7 @@
     <RevealedFieldsPanel
       v-if="npc?.id"
       :model-value="form.player_visible_fields"
-      :fields="PLAYER_FIELDS"
+      :fields="NPC_PLAYER_FIELDS"
       :visible-to="form.player_visible_to"
       @update:model-value="form.player_visible_fields = $event"
     >
@@ -197,6 +197,7 @@ import PlayerNotesWidget from '@/components/common/PlayerNotesWidget.vue'
 import PaywallModal from '@/components/common/PaywallModal.vue'
 import { isQuotaExceeded } from '@/lib/quotaError'
 import RevealedFieldsPanel from '@/components/common/RevealedFieldsPanel.vue'
+import { NPC_PLAYER_FIELDS } from '@/lib/npcDisplay'
 import TabBar from '@/components/common/TabBar.vue'
 import StatBlockEditor from '@/components/common/StatBlockEditor.vue'
 
@@ -213,15 +214,6 @@ const TABS = [
 type TabKey = typeof TABS[number]['key']
 const TABS_BAR = TABS.map(t => ({ id: t.key, label: t.label }))
 
-const PLAYER_FIELDS = [
-  { key: 'portrait',     label: 'Portrait' },
-  { key: 'name',         label: 'Name' },
-  { key: 'status',       label: 'Alive / Dead status' },
-  { key: 'race',         label: 'Species' },
-  { key: 'occupation',   label: 'Occupation' },
-  { key: 'relationship', label: 'Party stance (friendly/hostile…)' },
-  { key: 'location',     label: 'Location' },
-]
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
