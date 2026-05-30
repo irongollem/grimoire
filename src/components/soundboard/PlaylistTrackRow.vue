@@ -22,7 +22,7 @@
     <!-- Remove button -->
     <button
       type="button"
-      class="shrink-0 text-muted-foreground/40 hover:text-destructive transition-colors opacity-0 group-hover/row:opacity-100"
+      class="shrink-0 text-muted-foreground/40 hover:text-destructive transition-colors opacity-60 group-hover/row:opacity-100"
       title="Remove from playlist"
       @click="$emit('remove')"
     >
