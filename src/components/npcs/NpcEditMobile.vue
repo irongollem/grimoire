@@ -281,7 +281,7 @@ import NpcIdentitySection from "./NpcIdentitySection.vue";
 import RelationshipWheel from "./RelationshipWheel.vue";
 import NpcLoreTab from "./NpcLoreTab.vue";
 import NpcRelationsSection from "./NpcRelationsSection.vue";
-import MobileAccordionSection from "./MobileAccordionSection.vue";
+import MobileAccordionSection from "@/components/common/MobileAccordionSection.vue";
 import { IconDelete, IconGenerate, IconScrollText } from "@/lib/icons";
 
 type ArtTab = "true-form" | "alter-ego";
