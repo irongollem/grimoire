@@ -1,5 +1,16 @@
 <template>
-  <PageHeader :title="displayName" :description="hero ? subtitle : ''">
+  <!-- Mobile read view (<md): standalone scrollable layer with its own app bar.
+       Desktop falls through to the PageHeader block below, byte-identical. -->
+  <HeroSheetMobile
+    v-if="showMobileRead && hero"
+    :hero="hero"
+    :has-campaign="hasCampaign"
+    :is-importing="isImporting"
+    :is-app-admin="isAppAdmin"
+    @import="handleImport"
+  />
+
+  <PageHeader v-else :title="displayName" :description="hero ? subtitle : ''">
     <template v-if="hero" #actions>
       <RouterLink
         v-if="isAppAdmin"
@@ -168,7 +179,8 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { IconAdd, IconEdit } from '@/lib/icons';
+import { useMediaQuery } from "@vueuse/core";
+import { IconAdd, IconEdit } from "@/lib/icons";
 import { useHallOfHero, useImportHero } from "@/composables/useHallOfHeroes";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
@@ -176,6 +188,7 @@ import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import HeroSheetMobile from "@/components/hall-of-heroes/HeroSheetMobile.vue";
 import { DND_SETTINGS } from "@/data/dndSettings";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -200,6 +213,11 @@ const campaign = useCampaignStore();
 const heroId = computed(() => route.params.id as string);
 const isAppAdmin = computed(() => auth.isAppAdmin);
 const hasCampaign = computed(() => !!campaign.activeCampaignId);
+
+// Mobile-only read layer (<md). Desktop keeps the existing PageHeader chrome,
+// byte-identical to before.
+const isMobile = useMediaQuery("(max-width: 767px)");
+const showMobileRead = computed(() => isMobile.value);
 
 const { data: hero, isLoading } = useHallOfHero(heroId);
 const { mutate: importHero } = useImportHero();

@@ -23,6 +23,33 @@
       No locations match your filters.
     </p>
 
+    <!-- ── Mobile list (<md): compact rows / gallery ─────────────────────── -->
+    <template v-else-if="isMobile">
+      <MobileEntityMetaRow
+        v-model:layout="layout"
+        :shown="filtered.length"
+        :total="locations?.length ?? 0"
+        plural="locations"
+      />
+      <div
+        :class="layout === 'gallery'
+          ? 'grid grid-cols-2 gap-3 pb-2'
+          : 'flex flex-col gap-2 pb-2'"
+      >
+        <EntityMobileCard
+          v-for="loc in filtered"
+          :key="loc.id"
+          :layout="layout"
+          :to="`/locations/${loc.id}`"
+          :title="loc.name || 'Unnamed Location'"
+          :subtitle="LOCATION_TYPE_LABELS[loc.location_type]"
+          :image-url="loc.image_url"
+          placeholder="/assets/placeholders/location.webp"
+        />
+      </div>
+    </template>
+
+    <!-- ── Desktop grid (≥md): unchanged ─────────────────────────────────── -->
     <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
       <LocationCard
         v-for="loc in filtered"
@@ -33,7 +60,7 @@
       />
     </div>
 
-    <p v-if="filtered.length" class="mt-4 font-fell text-xs text-muted-foreground italic text-right">
+    <p v-if="filtered.length && !isMobile" class="mt-4 font-fell text-xs text-muted-foreground italic text-right">
       {{ filtered.length }} of {{ locations?.length ?? 0 }} locations
     </p>
   </div>
@@ -41,17 +68,29 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { useMediaQuery } from "@vueuse/core";
 import { useAllLocations } from "@/composables/useLocations";
+import { useUiStore } from "@/stores/ui";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
+import EntityMobileCard from "@/components/common/EntityMobileCard.vue";
+import MobileEntityMetaRow from "@/components/common/MobileEntityMetaRow.vue";
 import { extractTiptapText } from "@/lib/utils";
 import LocationCard from "@/components/locations/LocationCard.vue";
+import { LOCATION_TYPE_LABELS } from "@/types/location.types";
 import type { Location } from "@/types/location.types";
 
 const props = defineProps<{
   search: string;
   typeFilter: string;
 }>();
+
+const ui = useUiStore();
+const isMobile = useMediaQuery("(max-width: 767px)");
+const layout = computed({
+  get: () => ui.entityListLayout,
+  set: (v: "rows" | "gallery") => { ui.entityListLayout = v; },
+});
 
 const { data: locations, isLoading } = useAllLocations();
 

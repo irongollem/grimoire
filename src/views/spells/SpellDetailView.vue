@@ -1,5 +1,20 @@
 <template>
-  <PageHeader :title="spell?.name ?? 'New Spell'" :description="subtitle">
+  <!-- Mobile read view (<md): standalone scrollable layer with its own app bar.
+       Desktop and all edit modes fall through to the PageHeader block below,
+       which is unchanged. -->
+  <SpellSheetMobile v-if="showMobileRead && spell" :spell="spell" />
+
+  <!-- Mobile edit view (<md): SpellDetail renders its own SpellEditMobile layer
+       (app bar + stacked cards + save bar). It does not need the PageHeader
+       chrome, so we render SpellDetail directly. -->
+  <SpellDetail
+    v-else-if="showMobileEdit"
+    :key="id"
+    :spell="isNew ? null : (spell ?? null)"
+    :is-srd="isSrdId"
+  />
+
+  <PageHeader v-else :title="spell?.name ?? 'New Spell'" :description="subtitle">
     <template v-if="!isNew && canEdit" #actions>
       <PageHeaderAction
         v-if="!isEditing"
@@ -31,6 +46,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { useMediaQuery } from "@vueuse/core";
 import { IconDocument, IconEdit } from '@/lib/icons';
 import { useSpell, useSrdSpell } from "@/composables/useSpells";
 import { useSrdSpellArt } from "@/composables/useSrdSpellArt";
@@ -42,6 +58,7 @@ import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import SpellDetail from "@/components/spells/SpellDetail.vue";
 import SpellSheet from "@/components/spells/SpellSheet.vue";
+import SpellSheetMobile from "@/components/spells/SpellSheetMobile.vue";
 
 const auth = useAuthStore();
 const ui = useUiStore();
@@ -54,6 +71,14 @@ const id = computed(() => route.params.id as string | undefined);
 const isNew = computed(() => !id.value || id.value === "new");
 const isSrdId = computed(() => !!id.value?.startsWith("srd_"));
 const isEditing = computed(() => (isNew.value || route.query.edit === "true") && canEdit.value);
+
+// Mobile-only layers (<md). Desktop keeps the existing PageHeader +
+// SpellSheet/SpellDetail chrome, byte-identical to before.
+const isMobile = useMediaQuery("(max-width: 767px)");
+const showMobileRead = computed(() => isMobile.value && !isEditing.value && !isNew.value);
+// Mobile edit: new spell, or existing spell opened with ?edit=true (DM-gated via
+// isEditing). SpellDetail owns its own mobile chrome (SpellEditMobile).
+const showMobileEdit = computed(() => isMobile.value && isEditing.value && !isLoading.value);
 
 function startEditing() {
   router.replace({ query: { ...route.query, edit: "true" } });

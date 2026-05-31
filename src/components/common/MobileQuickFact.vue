@@ -1,6 +1,6 @@
 <template>
   <!--
-    Mobile-only (<md) quick-fact cell for the 2-col NPC detail grid.
+    Mobile-only (<md) quick-fact cell for the 2-col entity detail grid.
     Renders nothing when the value is blank so the grid collapses gracefully.
     A tiny uppercase Cinzel label sits above the value (IM Fell body).
   -->

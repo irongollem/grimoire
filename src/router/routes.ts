@@ -358,13 +358,15 @@ export const routes: RouteRecordRaw[] = [
     path: "/spells/new",
     name: "spell-new",
     component: () => import("@/views/spells/SpellDetailView.vue"),
-    meta: { requiresAuth: true, title: "New Spell" },
+    // fullscreenMobile: mobile detail/edit is a full-screen takeover with its
+    // own bars; DefaultLayout suppresses the global top bar + DM nav on phones.
+    meta: { requiresAuth: true, title: "New Spell", fullscreenMobile: true },
   },
   {
     path: "/spells/:id",
     name: "spell-detail",
     component: () => import("@/views/spells/SpellDetailView.vue"),
-    meta: { requiresAuth: true, title: "Spell" },
+    meta: { requiresAuth: true, title: "Spell", fullscreenMobile: true },
   },
 
   // Vault (Items)
@@ -378,13 +380,15 @@ export const routes: RouteRecordRaw[] = [
     path: "/vault/new",
     name: "item-new",
     component: () => import("@/views/items/ItemDetailView.vue"),
-    meta: { requiresAuth: true, title: "New Item" },
+    // fullscreenMobile: mobile detail/edit is a full-screen takeover with its
+    // own bars; DefaultLayout suppresses the global top bar + DM nav on phones.
+    meta: { requiresAuth: true, title: "New Item", fullscreenMobile: true },
   },
   {
     path: "/vault/:id",
     name: "item-detail",
     component: () => import("@/views/items/ItemDetailView.vue"),
-    meta: { requiresAuth: true, title: "Item" },
+    meta: { requiresAuth: true, title: "Item", fullscreenMobile: true },
   },
 
   // Dungeon Craft (tabbed hub: features + traps + puzzles)
@@ -572,19 +576,25 @@ export const routes: RouteRecordRaw[] = [
     path: "/hall-of-heroes/:id",
     name: "hero-detail",
     component: () => import("@/views/HeroDetailView.vue"),
-    meta: { requiresAuth: true, title: "Hero" },
+    // fullscreenMobile: the mobile read screen is a full-screen takeover with
+    // its own top + bottom bars, so the global AppTopBar / DmBottomNav are
+    // suppressed on phones to avoid two stacked, overlapping bars. Desktop is
+    // unaffected (the flag only applies below md).
+    meta: { requiresAuth: true, title: "Hero", fullscreenMobile: true },
   },
   {
     path: "/hall-of-heroes/new",
     name: "hero-new",
     component: () => import("@/views/HeroEditorView.vue"),
-    meta: { requiresAuth: true, title: "New Hero" },
+    // See /hall-of-heroes/:id above — full-screen mobile takeover (edit).
+    meta: { requiresAuth: true, title: "New Hero", fullscreenMobile: true },
   },
   {
     path: "/hall-of-heroes/:id/edit",
     name: "hero-edit",
     component: () => import("@/views/HeroEditorView.vue"),
-    meta: { requiresAuth: true, title: "Edit Hero" },
+    // See /hall-of-heroes/:id above — full-screen mobile takeover (edit).
+    meta: { requiresAuth: true, title: "Edit Hero", fullscreenMobile: true },
   },
 
   // Encounters

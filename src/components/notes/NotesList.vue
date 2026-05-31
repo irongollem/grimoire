@@ -1,11 +1,11 @@
 <template>
   <div>
-    <!-- Filters -->
-    <div class="flex flex-wrap items-center gap-2 mb-5">
+    <!-- Desktop filters (hidden on mobile — view owns the mobile chrome) -->
+    <div v-if="!isMobile" class="flex flex-wrap items-center gap-2 mb-5">
       <div class="relative flex-1 min-w-48">
         <IconSearch class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
         <input
-          v-model="search"
+          v-model="ui.notesSearchQuery"
           type="text"
           placeholder="Search notes…"
           class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -16,10 +16,10 @@
           v-for="cat in CATEGORY_OPTIONS"
           :key="cat.value"
           class="px-2.5 py-1.5 transition-colors"
-          :class="categoryFilter === cat.value
+          :class="ui.notesFilterCategory === cat.value
             ? 'bg-primary text-primary-foreground'
             : 'bg-card text-muted-foreground hover:text-foreground'"
-          @click="categoryFilter = cat.value"
+          @click="ui.notesFilterCategory = cat.value as NoteCategory | 'all'"
         >
           {{ cat.label }}
         </button>
@@ -31,7 +31,7 @@
     </div>
 
     <EmptyState
-      v-else-if="!filtered.length && !search && categoryFilter === 'all'"
+      v-else-if="!filtered.length && !ui.notesSearchQuery && ui.notesFilterCategory === 'all'"
       title="No notes yet"
       description="Begin recording your campaign's history, lore, and secrets."
     >
@@ -50,6 +50,35 @@
       No notes match your filters.
     </p>
 
+    <!-- ── Mobile list (<md): compact rows ───────────────────────────────── -->
+    <template v-else-if="isMobile">
+      <MobileEntityMetaRow
+        v-model:layout="layout"
+        :shown="filtered.length"
+        :total="notes?.length ?? 0"
+        plural="notes"
+      />
+      <div
+        :class="layout === 'gallery'
+          ? 'grid grid-cols-2 gap-3 pb-2'
+          : 'flex flex-col gap-2 pb-2'"
+      >
+        <EntityMobileCard
+          v-for="note in filtered"
+          :key="note.id"
+          :layout="layout"
+          :to="`/notes/${note.id}`"
+          :title="note.title || 'Untitled Note'"
+          :subtitle="noteSubtitle(note)"
+          :image-url="null"
+          placeholder="/assets/placeholders/background.webp"
+          :badge-text="note.category"
+          :badge-color="categoryColor(note.category)"
+        />
+      </div>
+    </template>
+
+    <!-- ── Desktop grid (≥md): unchanged ─────────────────────────────────── -->
     <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
       <div
         v-for="note in filtered"
@@ -122,7 +151,7 @@
       </div>
     </div>
 
-    <p v-if="filtered.length" class="mt-4 font-fell text-xs text-muted-foreground italic text-right">
+    <p v-if="filtered.length && !isMobile" class="mt-4 font-fell text-xs text-muted-foreground italic text-right">
       {{ filtered.length }} of {{ notes?.length ?? 0 }} notes
     </p>
   </div>
@@ -133,10 +162,14 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
+import { useMediaQuery } from "@vueuse/core";
 import { IconLock, IconPin, IconReveal, IconSearch } from '@/lib/icons';
 import { useNotes } from "@/composables/useNotes";
+import { useUiStore } from "@/stores/ui";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
+import EntityMobileCard from "@/components/common/EntityMobileCard.vue";
+import MobileEntityMetaRow from "@/components/common/MobileEntityMetaRow.vue";
 import { timeAgo, extractTiptapText } from "@/lib/utils";
 import type { Note, NoteCategory } from "@/types/notes.types";
 import PaywallModal from "@/components/common/PaywallModal.vue";
@@ -150,6 +183,13 @@ function handleNew() {
   if (!canCreate.value) { showPaywall.value = true; return; }
   router.push("/notes/new");
 }
+
+const ui = useUiStore();
+const isMobile = useMediaQuery("(max-width: 767px)");
+const layout = computed({
+  get: () => ui.entityListLayout,
+  set: (v: "rows" | "gallery") => { ui.entityListLayout = v; },
+});
 
 const CATEGORY_OPTIONS = [
   { value: "all", label: "All" },
@@ -170,8 +210,6 @@ const CATEGORY_COLORS: Record<NoteCategory, string> = {
   faction:  "#dc2626",
 };
 
-const search = ref("");
-const categoryFilter = ref("all");
 const { data: notes, isLoading } = useNotes();
 
 const lockedNoteIds = computed((): Set<string> => {
@@ -188,9 +226,9 @@ const filtered = computed(() => {
   let list = [...(notes.value ?? [])];
   // pinned first
   list.sort((a, b) => Number(b.is_pinned) - Number(a.is_pinned) || new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
-  if (categoryFilter.value !== "all") list = list.filter((n) => n.category === categoryFilter.value);
-  if (search.value.trim()) {
-    const q = search.value.trim().toLowerCase();
+  if (ui.notesFilterCategory !== "all") list = list.filter((n) => n.category === ui.notesFilterCategory);
+  if (ui.notesSearchQuery.trim()) {
+    const q = ui.notesSearchQuery.trim().toLowerCase();
     list = list.filter((n) =>
       n.title.toLowerCase().includes(q) ||
       n.tags.some((t) => t.toLowerCase().includes(q))
@@ -205,5 +243,11 @@ function categoryColor(cat: NoteCategory): string {
 
 function contentPreview(note: Note): string {
   return extractTiptapText(note.content);
+}
+
+function noteSubtitle(note: Note): string {
+  const parts: string[] = [note.category];
+  if (note.session_num) parts.push(`Session ${note.session_num}`);
+  return parts.join(" · ");
 }
 </script>

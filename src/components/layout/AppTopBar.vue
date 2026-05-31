@@ -1,8 +1,8 @@
 <template>
   <header
-    class="md:hidden flex items-center gap-3 px-4 py-3 border-b border-border bg-card sticky top-0 z-30"
+    class="md:hidden flex items-center gap-2 px-4 py-3 border-b border-border bg-card sticky top-0 z-30"
   >
-    <h1 class="font-cinzel text-lg font-semibold text-gold-500 tracking-wider flex-1 truncate">
+    <h1 class="font-cinzel text-lg font-semibold text-gold-500 tracking-wider flex-1 min-w-0 truncate mr-1">
       {{ pageTitle }}
     </h1>
 
@@ -29,15 +29,7 @@
       <span class="px-1" :class="ui.dmMode === 'play' ? '' : 'opacity-50'">PLAY</span>
     </button>
 
-    <button
-      class="text-muted-foreground hover:text-foreground transition-colors"
-      aria-label="Report a bug"
-      @click="bugReportOpen = true"
-    >
-      <IconBug class="h-5 w-5" />
-    </button>
-    <SoundboardWidgetToggle class="px-1.5! py-1!" />
-    <DiceRoller />
+    <SoundboardWidgetToggle />
     <BugReportModal v-model="bugReportOpen" />
 
     <!-- Mobile search overlay -->
@@ -104,10 +96,9 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from "vue";
 import { useRoute } from "vue-router";
-import { IconBug, IconClose, IconLoading, IconSearch } from '@/lib/icons';
+import { IconClose, IconLoading, IconSearch } from '@/lib/icons';
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
-import DiceRoller from "@/components/common/DiceRoller.vue";
 import SoundboardWidgetToggle from "@/components/soundboard/SoundboardWidgetToggle.vue";
 import BugReportModal from "@/components/common/BugReportModal.vue";
 import { useGlobalSearch } from "@/composables/useGlobalSearch";

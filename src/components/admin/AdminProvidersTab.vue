@@ -202,7 +202,7 @@
                   placeholder="e.g. lyria-3-clip-preview"
                 />
                 <datalist :id="`audio-models-${row.provider}`">
-                  <option v-for="m in providerModelOptions[row.provider]" :key="m" :value="m" />
+                  <option v-for="m in KNOWN_AUDIO_MODELS[row.provider] ?? []" :key="m" :value="m" />
                 </datalist>
               </div>
               <div class="space-y-1">
@@ -422,10 +422,18 @@ async function saveProvider(provider: string) {
 }
 
 // ── Provider model options (datalists) ────────────────────────────────────
-const isActive = computed(() => true);
-const openaiModelList    = useProviderModels("openai",    isActive);
-const anthropicModelList = useProviderModels("anthropic", isActive);
-const geminiModelList    = useProviderModels("gemini",    isActive);
+const KNOWN_AUDIO_MODELS: Record<string, string[]> = {
+  gemini: ["lyria-3-clip-preview", "lyria-3-pro-preview"],
+  openai: ["tts-1", "tts-1-hd", "gpt-4o-audio-preview"],
+};
+
+const openaiActive    = computed(() => isKeySet("openai" as KeyProvider));
+const anthropicActive = computed(() => isKeySet("anthropic" as KeyProvider));
+const geminiActive    = computed(() => isKeySet("gemini" as KeyProvider));
+
+const openaiModelList    = useProviderModels("openai",    openaiActive);
+const anthropicModelList = useProviderModels("anthropic", anthropicActive);
+const geminiModelList    = useProviderModels("gemini",    geminiActive);
 
 const providerModelOptions = computed<Record<string, string[]>>(() => ({
   openai:    openaiModelList.data.value    ?? [],
@@ -485,7 +493,10 @@ const modelsByProvider = computed(() => {
     if (draft.text_model)  items.push({ model: draft.text_model,  model_type: "text" });
     if (draft.image_model) items.push({ model: draft.image_model, model_type: "image" });
     if (draft.audio_model) items.push({ model: draft.audio_model, model_type: "audio" });
-    if (items.length) map[provider] = items;
+    // Only show pricing rows for models that have been persisted (initialized in draftModelPricing).
+    // This prevents a crash when the user is mid-type in a model name input.
+    const initialized = items.filter(item => item.model in draftModelPricing);
+    if (initialized.length) map[provider] = initialized;
   }
   return map;
 });

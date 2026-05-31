@@ -12,7 +12,61 @@
     @update:school="school = $event as SpellSchool"
   />
 
-  <div class="flex flex-col gap-6">
+  <!-- Mobile edit layer (<md): app bar + stacked section cards + save bar.
+       Renders only on mobile; desktop uses the multi-column form below,
+       byte-identical to before. SpellDetail's own refs stay the single source
+       of truth — this layer mutates them via props-down / emit-up. -->
+  <SpellEditMobile
+    v-if="isMobile"
+    :name="name"
+    :level="level"
+    :school="school"
+    :casting-time="castingTime"
+    :casting-time-custom="castingTimeCustom"
+    :range="range"
+    :range-custom="rangeCustom"
+    :duration="duration"
+    :duration-custom="durationCustom"
+    :concentration="concentration"
+    :ritual="ritual"
+    :components="components"
+    :material="material"
+    :description="description"
+    :higher-levels="higherLevels"
+    :classes="classes"
+    :tags="tags"
+    :is-srd="isSrd"
+    :is-new="isNew"
+    :is-saving="isSaving"
+    :is-deleting="isDeleting"
+    :is-sending-to-scriptorium="isSendingToScriptorium"
+    :is-ai-enabled="isAiEnabled"
+    :can-save="!!name.trim()"
+    @save="save"
+    @cancel="onCancel"
+    @delete="confirmDelete"
+    @generate="showGenerateDialog = true"
+    @scriptorium="sendToScriptorium"
+    @update:name="name = $event"
+    @update:level="level = $event"
+    @update:school="school = $event"
+    @update:casting-time="castingTime = $event"
+    @update:casting-time-custom="castingTimeCustom = $event"
+    @update:range="range = $event"
+    @update:range-custom="rangeCustom = $event"
+    @update:duration="duration = $event"
+    @update:duration-custom="durationCustom = $event"
+    @update:concentration="concentration = $event"
+    @update:ritual="ritual = $event"
+    @update:components="components = $event"
+    @update:material="material = $event"
+    @update:description="description = $event"
+    @update:higher-levels="higherLevels = $event"
+    @update:classes="classes = $event"
+    @update:tags="tags = $event"
+  />
+
+  <div v-else class="flex flex-col gap-6">
     <!-- ── Header actions ─────────────────────────────────────────────────── -->
     <SpellDetailHeader
       :has-spell="!!spell"
@@ -238,6 +292,7 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed, reactive, watch } from "vue";
 import { useRouter } from "vue-router";
+import { useMediaQuery } from "@vueuse/core";
 import SpellGenerateDialog from "@/ai/SpellGenerateDialog.vue";
 import SpellLevelAdvisorModal from "./SpellLevelAdvisorModal.vue";
 import SpellLevelAdvisorPanel from "./SpellLevelAdvisorPanel.vue";
@@ -246,6 +301,7 @@ import SpellMechanicsSection from "./SpellMechanicsSection.vue";
 import SpellClassesSection from "./SpellClassesSection.vue";
 import SpellTimingSection from "./SpellTimingSection.vue";
 import SpellDetailHeader from "./SpellDetailHeader.vue";
+import SpellEditMobile from "./SpellEditMobile.vue";
 import { spellInsertFromAi } from "@/ai/spellAiAdapter";
 import type { SpellAiGenerated } from "@/ai/types";
 import { useCampaignStore } from "@/stores/campaign";
@@ -277,6 +333,16 @@ const router = useRouter();
 
 const { mutateAsync: upsertSrdArt } = useUpsertSrdSpellArt();
 const isSrd = computed(() => !!props.isSrd);
+
+// Mobile edit layer (<md) — desktop keeps the multi-column form, byte-identical.
+const isMobile = useMediaQuery("(max-width: 767px)");
+
+// Cancel from the mobile edit bar: back to the spell's read view, or to the
+// list for a new spell. (Desktop uses the View toggle in SpellDetailView.)
+function onCancel() {
+  if (props.spell) router.replace(`/spells/${props.spell.id}`);
+  else router.push("/spells");
+}
 
 // ── Core fields ───────────────────────────────────────────────────────────────
 const name = ref(props.spell?.name ?? "");

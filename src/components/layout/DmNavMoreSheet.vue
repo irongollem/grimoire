@@ -1,5 +1,11 @@
 <template>
   <MobileSheet :open="open" title="All sections" @update:open="emit('update:open', $event)">
+    <!-- Campaign switcher — replaces the old mobile drawer's campaign picker.
+         Lives at the top of the More sheet so it's always one tap away. -->
+    <div class="-mx-4 -mt-2 mb-4 border-b border-border">
+      <CampaignSwitcher />
+    </div>
+
     <!-- Context-aware create — the create path in Play mode (whose center FAB
          is the dice roller, not "+"). Shown whenever the current section has a
          create route. -->
@@ -69,14 +75,37 @@
     <p class="mt-4 px-1 text-center text-2xs font-fell text-muted-foreground/60">
       Dot = currently pinned to the {{ ui.dmMode }} bar.
     </p>
+
+    <!-- Footer: settings + bug report -->
+    <div class="mt-4 flex items-center justify-center gap-4 border-t border-border pt-3">
+      <RouterLink
+        to="/campaign/settings"
+        class="flex items-center gap-1.5 font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors"
+        @click="emit('update:open', false)"
+      >
+        <IconSettings class="h-4 w-4" />
+        Settings
+      </RouterLink>
+      <button
+        type="button"
+        class="flex items-center gap-1.5 font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors"
+        @click="bugReportOpen = true"
+      >
+        <IconBug class="h-4 w-4" />
+        Report a bug
+      </button>
+    </div>
+    <BugReportModal v-model="bugReportOpen" />
   </MobileSheet>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import MobileSheet from "@/components/common/MobileSheet.vue";
-import { IconAdd } from "@/lib/icons";
+import CampaignSwitcher from "@/components/layout/CampaignSwitcher.vue";
+import BugReportModal from "@/components/common/BugReportModal.vue";
+import { IconAdd, IconBug, IconSettings } from "@/lib/icons";
 import { NAV_GROUPS, type NavItem } from "@/lib/nav";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
@@ -91,6 +120,8 @@ const { open = false, barRoutes = [], create = null } = defineProps<{
 }>();
 
 const emit = defineEmits<{ "update:open": [boolean] }>();
+
+const bugReportOpen = ref(false);
 
 const route = useRoute();
 const router = useRouter();

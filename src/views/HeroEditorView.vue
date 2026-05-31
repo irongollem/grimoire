@@ -1,5 +1,19 @@
 <template>
+  <!-- Mobile edit view (<md): full-screen takeover with its own app bar +
+       stacked section cards + save bar. Admin-only guard is enforced below.
+       Desktop falls through to the PageHeader block, byte-identical. -->
+  <HeroEditMobile
+    v-if="showMobileEdit && isAppAdmin"
+    :form="form"
+    :is-new="isNew"
+    :is-saving="isSaving"
+    @save="save"
+    @cancel="router.push(isNew ? '/hall-of-heroes' : `/hall-of-heroes/${heroId}`)"
+    @delete="handleDelete"
+  />
+
   <PageHeader
+    v-else
     :title="isNew ? 'New Hero' : (hero?.name ?? 'Edit Hero')"
     :description="
       isNew ? 'Add a hero to the Hall of Heroes' : 'Edit hero details'
@@ -227,6 +241,7 @@
 <script setup lang="ts">
 import { computed, reactive, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { useMediaQuery } from "@vueuse/core";
 import {
   useHallOfHero,
   useCreateHero,
@@ -239,6 +254,7 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import TagInput from "@/components/common/TagInput.vue";
+import HeroEditMobile from "@/components/hall-of-heroes/HeroEditMobile.vue";
 import type { HallOfHeroInsert } from "@/types/npc.types";
 import { DND_SETTINGS } from "@/data/dndSettings";
 
@@ -264,6 +280,11 @@ const auth = useAuthStore();
 const isAppAdmin = computed(() => auth.isAppAdmin);
 const isNew = computed(() => route.name === "hero-new");
 const heroId = computed(() => (isNew.value ? "" : (route.params.id as string)));
+
+// Mobile edit layer (<md). Admin-only — non-admins can still reach the page URL,
+// but both mobile and desktop show a permission message in that case.
+const isMobile = useMediaQuery("(max-width: 767px)");
+const showMobileEdit = computed(() => isMobile.value);
 
 const { data: hero, isLoading: heroLoading } = useHallOfHero(heroId);
 const isLoading = computed(() => !isNew.value && heroLoading.value);
