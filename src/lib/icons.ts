@@ -20,7 +20,7 @@ import {
   KeyRound, Landmark, Layers, LayoutDashboard, LayoutGrid, LayoutList,
   Leaf, Library, LibraryBig, Lightbulb, Link, Link2, List, ListOrdered, ListTodo,
   Loader2, LoaderCircle, Lock, LogOut,
-  Map, MapPin, Maximize2, Megaphone, Menu, MessageCircle, MessageSquare, Minus, Monitor,
+  Map, MapPin, Maximize2, Megaphone, Menu, MessageCircle, MessageSquare, Minus, Monitor, MoreHorizontal,
   Moon, MoveHorizontal, MoveVertical, Music, Music2,
   Navigation, Network,
   Package, PackageOpen, PackagePlus, PaintBucket, Paintbrush, Pause, PawPrint, Pen, PenLine, Pencil,
@@ -108,6 +108,7 @@ export { Highlighter as IconHighlight }
 
 // ── Navigation / Layout ───────────────────────────────────────────────────────
 export { Menu as IconMenu }
+export { MoreHorizontal as IconMore }
 export { Home as IconHome }
 export { LayoutDashboard as IconDashboard }
 export { LayoutList as IconListView }

@@ -27,6 +27,38 @@
       No monsters match your filters.
     </p>
 
+    <!-- ── Mobile list (<md): compact rows / gallery ─────────────────────── -->
+    <template v-else-if="isMobile">
+      <MobileEntityMetaRow
+        v-model:layout="layout"
+        :shown="filtered.length"
+        :total="allMonsters?.length ?? 0"
+        plural="monsters"
+      />
+      <div
+        :class="layout === 'gallery'
+          ? 'grid grid-cols-2 gap-3 pb-2'
+          : 'flex flex-col gap-2 pb-2'"
+      >
+        <EntityMobileCard
+          v-for="monster in visibleItems"
+          :key="monster.id"
+          :layout="layout"
+          :to="`/monsters/${monster.id}`"
+          :title="monster.name"
+          :subtitle="monsterSubtitle(monster)"
+          :image-url="monster.image_url"
+          :focal-point="monster.portrait_focal_point"
+          placeholder="/assets/placeholders/monster.webp"
+          :badge-text="`CR ${monster.stat_block.challenge_rating}`"
+          :badge-color="crColor(monster.stat_block.challenge_rating)"
+          :location="monster.habitat || undefined"
+          :shared="isDiscovered(monster)"
+        />
+      </div>
+    </template>
+
+    <!-- ── Desktop grid (≥md): unchanged ─────────────────────────────────── -->
     <div
       v-else
       class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"
@@ -119,24 +151,24 @@
         <RouterLink
           v-if="!monster.is_srd"
           :to="`/monsters/${monster.id}?edit=true`"
-          class="absolute top-2 left-2 z-10 flex items-center gap-1 rounded px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
+          class="absolute top-2 left-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
           title="Edit monster"
         >
-          <IconEdit class="h-3 w-3" />
+          <IconEdit class="max-md:h-4 max-md:w-4 h-3 w-3" />
           Edit
         </RouterLink>
         <!-- Player visibility button (floats top-right, opens share popover) -->
         <button
           type="button"
-          class="absolute top-2 right-2 z-10 flex items-center gap-1 rounded px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider transition-opacity cursor-pointer"
+          class="absolute top-2 right-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:min-w-11 max-md:px-3 max-md:py-2 px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider transition-opacity cursor-pointer"
           :class="isDiscovered(monster)
             ? 'text-primary bg-black/60 opacity-100'
             : 'text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100'"
           :title="isDiscovered(monster) ? 'Shared — click to manage' : 'Hidden — click to share'"
           @click.prevent.stop="openPopover(monster, $event)"
         >
-          <IconReveal v-if="isDiscovered(monster)" class="h-3 w-3" />
-          <IconHide v-else class="h-3 w-3" />
+          <IconReveal v-if="isDiscovered(monster)" class="max-md:h-4 max-md:w-4 h-3 w-3" />
+          <IconHide v-else class="max-md:h-4 max-md:w-4 h-3 w-3" />
         </button>
       </div>
     </div>
@@ -144,7 +176,7 @@
     <div ref="sentinelRef" />
 
     <p
-      v-if="filtered.length"
+      v-if="filtered.length && !isMobile"
       class="mt-4 font-fell text-xs text-muted-foreground italic text-right"
     >
       {{ filtered.length }} of {{ allMonsters?.length ?? 0 }} monsters
@@ -238,6 +270,7 @@
 <script setup lang="ts">
 import { ref, computed, reactive } from "vue";
 import { useRouter } from "vue-router";
+import { useMediaQuery } from "@vueuse/core";
 import { formatHitPoints } from "@/lib/utils";
 import { IconChart, IconEdit, IconHide, IconLock, IconParty, IconReveal } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
@@ -249,6 +282,8 @@ import type { Monster, DiscoveredMonster } from "@/types/monster.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
+import EntityMobileCard from "@/components/common/EntityMobileCard.vue";
+import MobileEntityMetaRow from "@/components/common/MobileEntityMetaRow.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useQuota } from "@/composables/useQuota";
 
@@ -265,6 +300,11 @@ const ui = useUiStore();
 const search = computed(() => ui.monstersSearch);
 const typeFilter = computed(() => ui.monstersFilterType);
 const sourceFilter = computed(() => ui.monstersFilterSource);
+const isMobile = useMediaQuery("(max-width: 767px)");
+const layout = computed({
+  get: () => ui.entityListLayout,
+  set: (v: "rows" | "gallery") => { ui.entityListLayout = v; },
+});
 
 const { data: allMonsters, isLoading } = useAllMonsters();
 
@@ -360,5 +400,10 @@ function crColor(cr: string): string {
   if (num <= 9) return "#f97316";
   if (num <= 15) return "#dc2626";
   return "#7c3aed";
+}
+
+// Mobile-card subtitle — mirrors the desktop "{size} {type}" line.
+function monsterSubtitle(monster: Monster): string {
+  return `${monster.size} ${monster.monster_type}`;
 }
 </script>

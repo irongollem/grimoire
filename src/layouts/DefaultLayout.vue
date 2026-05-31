@@ -4,15 +4,28 @@
        below Safari's URL bar. h-screen would overflow on mobile Safari. -->
   <div class="flex h-dvh overflow-hidden bg-background">
     <AppSidebar />
-    <AppMobileNav />
 
     <div class="flex-1 flex flex-col min-w-0">
-      <AppTopBar />
+      <!-- Suppressed on mobile full-screen takeover routes (NPC detail/edit),
+           which render their own top app bar — avoids two stacked top bars. -->
+      <AppTopBar v-if="!fullscreenMobile" />
 
-      <main class="flex flex-1 min-h-0 flex-col overflow-y-auto">
+      <!-- Mobile bottom padding reserves room for the docked DM bottom nav so
+           page/list bottoms aren't hidden behind it; reset at md+ where the
+           desktop sidebar (not a bottom bar) is used, and dropped entirely on
+           full-screen takeover routes (which own their full viewport). -->
+      <main
+        class="flex flex-1 min-h-0 flex-col overflow-y-auto md:pb-0"
+        :class="fullscreenMobile ? '' : 'pb-[calc(4.5rem+env(safe-area-inset-bottom))]'"
+      >
         <slot />
       </main>
     </div>
+
+    <!-- Docked, mode-aware DM bottom navigation (mobile only). Hidden on
+         full-screen takeover routes so it doesn't collide with the screen's
+         own bottom action bar. -->
+    <DmBottomNav v-if="!fullscreenMobile" />
 
     <CampaignChat />
 
@@ -49,9 +62,11 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { useRoute } from "vue-router";
+import { useMediaQuery } from "@vueuse/core";
 import AppSidebar from "@/components/layout/AppSidebar.vue";
 import AppTopBar from "@/components/layout/AppTopBar.vue";
-import AppMobileNav from "@/components/layout/AppMobileNav.vue";
+import DmBottomNav from "@/components/layout/DmBottomNav.vue";
 import CampaignChat from "@/components/chat/CampaignChat.vue";
 import NpcGeneratorPanel from "@/components/npcs/NpcGeneratorPanel.vue";
 import MonsterGeneratorPanel from "@/components/monsters/MonsterGeneratorPanel.vue";
@@ -76,6 +91,13 @@ import { initPlaceholderFocalPoints } from "@/lib/placeholderFocalPoints";
 // Eagerly pre-fetch admin-configured placeholder focal points so FocalImage
 // has the data available before it runs smartcrop as a fallback.
 void initPlaceholderFocalPoints();
+
+// Full-screen mobile takeover routes (e.g. NPC detail/edit) render their own
+// top + bottom bars, so the global AppTopBar / DmBottomNav are suppressed and
+// the <main> bottom padding dropped. Only below md — desktop is never affected.
+const route = useRoute();
+const isMobile = useMediaQuery("(max-width: 767px)");
+const fullscreenMobile = computed(() => isMobile.value && !!route.meta.fullscreenMobile);
 
 useCampaignPresence();
 useCampaignLiveSync();

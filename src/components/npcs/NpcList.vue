@@ -34,6 +34,39 @@
       No NPCs match your filters.
     </p>
 
+    <!-- ── Mobile list (<md): compact rows / gallery ─────────────────────── -->
+    <template v-else-if="isMobile">
+      <MobileEntityMetaRow
+        v-model:layout="layout"
+        :shown="filtered.length"
+        :total="npcs?.length ?? 0"
+        plural="NPCs"
+      />
+      <div
+        :class="layout === 'gallery'
+          ? 'grid grid-cols-2 gap-3 pb-2'
+          : 'flex flex-col gap-2 pb-2'"
+      >
+        <EntityMobileCard
+          v-for="npc in visibleItems"
+          :key="npc.id"
+          :layout="layout"
+          :to="`/npcs/${npc.id}`"
+          :title="getNpcDisplayName(npc)"
+          :subtitle="npcSubtitle(npc)"
+          :image-url="getNpcDisplayPortrait(npc)"
+          :focal-point="getNpcDisplayFocalPoint(npc)"
+          placeholder="/assets/placeholders/npc.webp"
+          :badge-text="npc.relationship"
+          :badge-color="relColor(npc.relationship)"
+          :status-color="statusColor(npc.status)"
+          :location="npc.location_id ? locationName(npc.location_id) : undefined"
+          :shared="isShared(npc)"
+        />
+      </div>
+    </template>
+
+    <!-- ── Desktop grid (≥md): unchanged ─────────────────────────────────── -->
     <div
       v-else
       class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"
@@ -126,23 +159,23 @@
         <div class="absolute top-2 left-2 z-10 flex items-center gap-1.5">
           <RouterLink
             :to="`/npcs/${npc.id}?edit=true`"
-            class="flex items-center gap-1 rounded px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
+            class="flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
             title="Edit NPC"
           >
-            <IconEdit class="h-3 w-3" />
+            <IconEdit class="max-md:h-4 max-md:w-4 h-3 w-3" />
             Edit
           </RouterLink>
           <button
             type="button"
-            class="flex items-center gap-1 rounded px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider transition-opacity cursor-pointer"
+            class="flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:min-w-11 max-md:px-3 max-md:py-2 px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider transition-opacity cursor-pointer"
             :class="isShared(npc)
               ? 'text-primary bg-black/60 opacity-100'
               : 'text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100'"
             :title="isShared(npc) ? 'Shared — click to manage' : 'Hidden — click to share'"
             @click.prevent.stop="openPopover(npc, $event)"
           >
-            <IconReveal v-if="isShared(npc)" class="h-3 w-3" />
-            <IconHide v-else class="h-3 w-3" />
+            <IconReveal v-if="isShared(npc)" class="max-md:h-4 max-md:w-4 h-3 w-3" />
+            <IconHide v-else class="max-md:h-4 max-md:w-4 h-3 w-3" />
           </button>
         </div>
       </div>
@@ -151,7 +184,7 @@
     <div ref="sentinelRef" />
 
     <p
-      v-if="filtered.length"
+      v-if="filtered.length && !isMobile"
       class="mt-4 font-fell text-xs text-muted-foreground italic text-right"
     >
       {{ filtered.length }} of {{ npcs?.length ?? 0 }} NPCs
@@ -248,6 +281,7 @@
 <script setup lang="ts">
 import { ref, computed, reactive } from "vue";
 import { useRouter } from "vue-router";
+import { useMediaQuery } from "@vueuse/core";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";
 import { IconEdit, IconHide, IconLock, IconParty, IconReveal } from '@/lib/icons';
@@ -260,6 +294,8 @@ import { useUiStore } from "@/stores/ui";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
+import EntityMobileCard from "@/components/common/EntityMobileCard.vue";
+import MobileEntityMetaRow from "@/components/common/MobileEntityMetaRow.vue";
 import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint, NPC_PLAYER_FIELDS, type NpcPlayerFieldKey } from "@/lib/npcDisplay";
 import { NPC_RELATIONSHIP_COLORS, type Npc, type NpcRelationship, type NpcStatus } from "@/types/npc.types";
 import PaywallModal from "@/components/common/PaywallModal.vue";
@@ -287,6 +323,11 @@ const { data: npcs, isLoading } = useNpcs();
 const { data: party } = useParty();
 const { sendNarrativeEvent } = useCampaignMessages();
 const ui = useUiStore();
+const isMobile = useMediaQuery("(max-width: 767px)");
+const layout = computed({
+  get: () => ui.entityListLayout,
+  set: (v: "rows" | "gallery") => { ui.entityListLayout = v; },
+});
 
 const { data: connectedNpcIds } = useNpcPcNotesByPartyMember(computed(() => props.partyMemberFilter));
 const { mutate: updateNpc } = useUpdateNpc();
@@ -381,6 +422,13 @@ function relColor(rel: NpcRelationship) {
 }
 function statusColor(s: NpcStatus) {
   return STATUS_COLORS[s] ?? "#6b7280";
+}
+
+// Mobile-card subtitle — mirrors the desktop "{race} - {occupation}" line,
+// gracefully collapsing when one half is missing.
+function npcSubtitle(npc: Npc): string | undefined {
+  const parts = [npc.race, npc.occupation].filter(Boolean) as string[];
+  return parts.length ? parts.join(" - ") : undefined;
 }
 
 // ── Sharing ───────────────────────────────────────────────────────────────────

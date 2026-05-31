@@ -282,7 +282,11 @@ export const routes: RouteRecordRaw[] = [
     path: "/npcs/new",
     name: "npc-new",
     component: () => import("@/views/npcs/NpcDetailView.vue"),
-    meta: { requiresAuth: true, title: "New NPC" },
+    // fullscreenMobile: the mobile edit screen is a full-screen takeover with
+    // its own top + bottom bars, so the global AppTopBar / DmBottomNav are
+    // suppressed on phones to avoid two stacked, overlapping bars. Desktop is
+    // unaffected (the flag only applies below md).
+    meta: { requiresAuth: true, title: "New NPC", fullscreenMobile: true },
   },
   {
     path: "/npcs/web",
@@ -294,7 +298,8 @@ export const routes: RouteRecordRaw[] = [
     path: "/npcs/:id",
     name: "npc-detail",
     component: () => import("@/views/npcs/NpcDetailView.vue"),
-    meta: { requiresAuth: true, title: "NPC Sheet" },
+    // See /npcs/new above — full-screen mobile takeover (read + edit).
+    meta: { requiresAuth: true, title: "NPC Sheet", fullscreenMobile: true },
   },
 
   // Monsters

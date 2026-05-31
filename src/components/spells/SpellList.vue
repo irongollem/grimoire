@@ -124,10 +124,10 @@
           <RouterLink
             v-if="!props.playerMemberId && !spell.id.startsWith('srd_')"
             :to="`/spells/${spell.id}?edit=true`"
-            class="absolute top-2 left-2 z-10 flex items-center gap-1 rounded px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
+            class="absolute top-2 left-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
             title="Edit spell"
           >
-            <IconEdit class="h-3 w-3" />
+            <IconEdit class="max-md:h-4 max-md:w-4 h-3 w-3" />
             Edit
           </RouterLink>
 
@@ -135,23 +135,23 @@
           <template v-if="showLearnButton">
             <button
               v-if="!isKnown(spell.id)"
-              class="absolute bottom-2 right-2 z-10 flex items-center gap-1 rounded px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider text-white bg-primary/80 hover:bg-primary [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-40 cursor-pointer"
+              class="absolute bottom-2 right-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider text-white bg-primary/80 hover:bg-primary [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-40 cursor-pointer"
               :disabled="isAdding"
               @click.prevent.stop="addSpell({ partyMemberId: props.playerMemberId!, spellId: spell.id, isPrepared: props.casterType === 'prepared' })"
             >
-              <IconAddBook class="h-3 w-3" />
+              <IconAddBook class="max-md:h-4 max-md:w-4 h-3 w-3" />
               {{ learnLabel(spell.level === 0) }}
             </button>
             <button
               v-else
-              class="absolute bottom-2 right-2 z-10 flex items-center gap-1 rounded px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-40 cursor-pointer"
+              class="absolute bottom-2 right-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-40 cursor-pointer"
               :class="isRemoving ? 'text-muted-foreground' : 'text-emerald-400 hover:text-red-400'"
               :disabled="isRemoving"
               :title="props.casterType === 'prepared' ? 'Unprepare' : 'Remove from spellbook'"
               @click.prevent.stop="removeSpell({ partyMemberId: props.playerMemberId!, spellId: spell.id })"
             >
-              <IconCheck v-if="!isRemoving" class="h-3 w-3" />
-              <IconClose v-else class="h-3 w-3" />
+              <IconCheck v-if="!isRemoving" class="max-md:h-4 max-md:w-4 h-3 w-3" />
+              <IconClose v-else class="max-md:h-4 max-md:w-4 h-3 w-3" />
               {{ learnedLabel(spell.level === 0) }}
             </button>
           </template>
