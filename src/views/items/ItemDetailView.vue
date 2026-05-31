@@ -1,5 +1,21 @@
 <template>
+  <!-- Mobile read view (<md): standalone scrollable layer with its own app bar.
+       Desktop and all edit modes fall through to the PageHeader block below,
+       which is unchanged. -->
+  <ItemSheetMobile v-if="showMobileRead && item" :item="item" />
+
+  <!-- Mobile edit view (<md): ItemDetail renders its own ItemEditMobile layer
+       (app bar + stacked cards + save bar). It does not need the PageHeader
+       chrome, so we render ItemDetail directly. -->
+  <ItemDetail
+    v-else-if="showMobileEdit"
+    :key="id"
+    :item="isNewItem ? null : (item ?? null)"
+    :prefill-name="isNewItem ? (route.query.name as string | undefined) : undefined"
+  />
+
   <PageHeader
+    v-else
     :title="item?.name ?? 'New Item'"
     :description="item ? subtitle : 'Fill in the details to add an item to your vault'"
   >
@@ -82,6 +98,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { useMediaQuery } from "@vueuse/core";
 import { IconCopy, IconDelete, IconDocument, IconEdit, IconSave, IconScrollText } from '@/lib/icons';
 import { useItem } from "@/composables/useItems";
 import { ITEM_TYPE_LABELS, ITEM_RARITY_LABELS } from "@/types/item.types";
@@ -90,6 +107,7 @@ import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import ItemDetail from "@/components/items/ItemDetail.vue";
 import ItemSheet from "@/components/items/ItemSheet.vue";
+import ItemSheetMobile from "@/components/items/ItemSheetMobile.vue";
 import ItemSendMenu from "@/components/items/ItemSendMenu.vue";
 
 const route = useRoute();
@@ -112,6 +130,14 @@ function stopEditing() {
 
 const { data: item, isLoading: itemLoading } = useItem(id);
 const isLoading = computed(() => !isNewItem.value && itemLoading.value);
+
+// Mobile-only layers (<md). Desktop keeps the existing PageHeader +
+// ItemSheet/ItemDetail chrome, byte-identical to before.
+const isMobile = useMediaQuery("(max-width: 767px)");
+const showMobileRead = computed(() => isMobile.value && !isEditing.value && !isNewItem.value);
+// Mobile edit: new item, or existing item opened with ?edit=true. ItemDetail
+// owns its own mobile chrome (ItemEditMobile), so no PageHeader here.
+const showMobileEdit = computed(() => isMobile.value && isEditing.value && !isLoading.value);
 
 const subtitle = computed(() => {
   if (!item.value) return "";

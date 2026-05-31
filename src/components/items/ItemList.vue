@@ -16,6 +16,35 @@
       "
     />
 
+    <!-- ── Mobile list (<md): compact rows / gallery ─────────────────────── -->
+    <template v-else-if="isMobile">
+      <MobileEntityMetaRow
+        v-model:layout="layout"
+        :shown="filtered.length"
+        :total="items?.length ?? 0"
+        plural="items"
+      />
+      <div
+        :class="layout === 'gallery'
+          ? 'grid grid-cols-2 gap-3 pb-2'
+          : 'flex flex-col gap-2 pb-2'"
+      >
+        <EntityMobileCard
+          v-for="item in visibleItems"
+          :key="item.id"
+          :layout="layout"
+          :to="`/vault/${item.id}`"
+          :title="item.name"
+          :subtitle="itemSubtitle(item)"
+          :image-url="item.image_url"
+          :focal-point="item.image_focal_point"
+          placeholder="/assets/placeholders/item.webp"
+          :badge-text="ITEM_RARITY_LABELS[item.rarity]"
+          :badge-color="rarityColor(item.rarity)"
+        />
+      </div>
+    </template>
+
     <!-- Grid -->
     <div
       v-else
@@ -158,13 +187,17 @@ const ITEM_TYPE_ICONS: Record<ItemType, VueComponent> = {
 function itemTypeIcon(type: ItemType): VueComponent {
   return ITEM_TYPE_ICONS[type] ?? IconComponent;
 }
+import { useMediaQuery } from "@vueuse/core";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";
 import { useItems } from "@/composables/useItems";
-import { ITEM_RARITY_LABELS, RARITY_BADGE_COLORS } from "@/types/item.types";
-import type { ItemRarity } from "@/types/item.types";
+import { useUiStore } from "@/stores/ui";
+import { ITEM_RARITY_LABELS, ITEM_TYPE_LABELS, RARITY_BADGE_COLORS } from "@/types/item.types";
+import type { Item, ItemRarity } from "@/types/item.types";
 import EmptyState from "@/components/common/EmptyState.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import EntityMobileCard from "@/components/common/EntityMobileCard.vue";
+import MobileEntityMetaRow from "@/components/common/MobileEntityMetaRow.vue";
 
 const props = defineProps<{
   search: string;
@@ -175,6 +208,19 @@ const props = defineProps<{
 }>();
 
 const { data: items, isLoading } = useItems(() => ({ includeAllScopes: !!props.showAllScopes }));
+
+const ui = useUiStore();
+const isMobile = useMediaQuery("(max-width: 767px)");
+const layout = computed({
+  get: () => ui.entityListLayout,
+  set: (v: "rows" | "gallery") => { ui.entityListLayout = v; },
+});
+
+// Mobile-card subtitle — mirrors the desktop "{type} · {rarity}" line.
+function itemSubtitle(item: Item): string | undefined {
+  const parts = [ITEM_TYPE_LABELS[item.item_type] ?? item.item_type, ITEM_RARITY_LABELS[item.rarity]].filter(Boolean);
+  return parts.length ? parts.join(" · ") : undefined;
+}
 
 const filtered = computed(() => {
   const q = props.search.trim().toLowerCase();

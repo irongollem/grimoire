@@ -26,6 +26,37 @@
       No spells match your filters.
     </p>
 
+    <!-- ── Mobile DM list (<md, DM mode only): compact rows / gallery ──────
+         Player mode keeps the existing grid below (it owns the Learn/Remove
+         buttons + modal-open click behaviour, which the generic card lacks). -->
+    <template v-else-if="isMobile && !props.playerMemberId">
+      <MobileEntityMetaRow
+        v-model:layout="layout"
+        :shown="filtered.length"
+        :total="allSpells?.length ?? 0"
+        plural="spells"
+      />
+      <div
+        :class="layout === 'gallery'
+          ? 'grid grid-cols-2 gap-3 pb-2'
+          : 'flex flex-col gap-2 pb-2'"
+      >
+        <EntityMobileCard
+          v-for="spell in visibleItems"
+          :key="spell.id"
+          :layout="layout"
+          :to="`/spells/${spell.id}`"
+          :title="spell.name"
+          :subtitle="spellSubtitle(spell)"
+          :image-url="spell.image_url"
+          :focal-point="spell.image_focal_point"
+          placeholder="/assets/placeholders/spell.webp"
+          :badge-text="spell.level === 0 ? 'C' : `L${spell.level}`"
+          :badge-color="SCHOOL_COLORS[spell.school]"
+        />
+      </div>
+    </template>
+
     <template v-else>
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
         <div
@@ -157,31 +188,36 @@
           </template>
         </div>
       </div>
-
-      <div ref="sentinelRef" />
-
-      <p
-        v-if="filtered.length"
-        class="mt-4 font-fell text-xs text-muted-foreground italic text-right"
-      >
-        {{ filtered.length }} spells
-      </p>
     </template>
+
+    <!-- Infinite-scroll sentinel — shared by mobile + desktop forks -->
+    <div v-if="filtered.length" ref="sentinelRef" />
+
+    <!-- Desktop-only count (mobile shows it in MobileEntityMetaRow) -->
+    <p
+      v-if="filtered.length && !(isMobile && !props.playerMemberId)"
+      class="mt-4 font-fell text-xs text-muted-foreground italic text-right"
+    >
+      {{ filtered.length }} spells
+    </p>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconAddBook, IconCheck, IconClose, IconEdit } from '@/lib/icons';
-import { refDebounced } from "@vueuse/core";
+import { refDebounced, useMediaQuery } from "@vueuse/core";
 import { useAllSpells } from "@/composables/useSpells";
 import { useAddCharacterSpell, useRemoveCharacterSpell } from "@/composables/useCharacterSpells";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";
+import { useUiStore } from "@/stores/ui";
 import { SCHOOL_COLORS, spellLevelLabel } from "@/types/spell.types";
 import type { CasterType, Spell } from "@/types/spell.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
+import EntityMobileCard from "@/components/common/EntityMobileCard.vue";
+import MobileEntityMetaRow from "@/components/common/MobileEntityMetaRow.vue";
 
 const props = defineProps<{
   search: string;
@@ -205,6 +241,22 @@ const emit = defineEmits<{
 
 const { mutate: addSpell, isPending: isAdding } = useAddCharacterSpell();
 const { mutate: removeSpell, isPending: isRemoving } = useRemoveCharacterSpell();
+
+// ── Mobile layout (<md, DM mode only) — reuses the shared rows/gallery pref ─────
+const ui = useUiStore();
+const isMobile = useMediaQuery("(max-width: 767px)");
+const layout = computed({
+  get: () => ui.entityListLayout,
+  set: (v: "rows" | "gallery") => { ui.entityListLayout = v; },
+});
+
+// Mobile-card subtitle — "Cantrip · School" or "Level N · School", mirroring the
+// desktop card's level/school line (capitalised school).
+function spellSubtitle(spell: Spell): string {
+  const lvl = spell.level === 0 ? "Cantrip" : `Level ${spell.level}`;
+  const school = spell.school.charAt(0).toUpperCase() + spell.school.slice(1);
+  return `${lvl} · ${school}`;
+}
 
 const showLearnButton = computed(() => !!props.playerMemberId && props.casterType !== "none");
 

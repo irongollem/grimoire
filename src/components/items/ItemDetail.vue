@@ -1,5 +1,27 @@
 <template>
-  <div class="flex flex-col gap-6">
+  <!-- Mobile edit view (<md): standalone app bar + stacked cards + save bar.
+       Desktop falls through to the grid form below, which is unchanged. The
+       `form` proxy is shared by reference so form state stays single-source. -->
+  <ItemEditMobile
+    v-if="isMobile"
+    :form="mobileForm"
+    :item="props.item"
+    :is-new="!props.item"
+    :is-saving="isSaving"
+    :is-deleting="isDeleting"
+    :is-cloning="isCloning"
+    :is-sending-to-scriptorium="isSendingToScriptorium"
+    :save-error="saveError"
+    :active-campaign-id="activeCampaignId"
+    :scope-campaign-name="scopeCampaignName"
+    @save="save"
+    @cancel="onCancel"
+    @delete="confirmDelete"
+    @clone="cloneItem"
+    @scriptorium="sendToScriptorium"
+  />
+
+  <div v-else class="flex flex-col gap-6">
     <p v-if="saveError" class="text-destructive font-fell text-sm">{{ saveError }}</p>
 
     <div class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">
@@ -367,11 +389,13 @@
 import { IconClose } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm, notify } = useConfirm();
-import { ref, computed } from "vue";
+import { ref, computed, reactive } from "vue";
 import { useRouter, useRoute } from "vue-router";
+import { useMediaQuery } from "@vueuse/core";
 import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
 import ItemWeaponBlock from "@/components/items/ItemWeaponBlock.vue";
 import ItemArmorBlock from "@/components/items/ItemArmorBlock.vue";
+import ItemEditMobile from "@/components/items/ItemEditMobile.vue";
 import { useCreateItem, useUpdateItem, useDeleteItem } from "@/composables/useItems";
 import { useSpells } from "@/composables/useSpells";
 import { useCampaigns } from "@/composables/useCampaigns";
@@ -633,6 +657,60 @@ async function sendToScriptorium() {
     isSendingToScriptorium.value = false;
   }
 }
+
+// ── Mobile edit layer (<md) ─────────────────────────────────────────────────
+// ItemEditMobile owns the mobile chrome (app bar + stacked cards + save bar) and
+// binds against `mobileForm` — a reactive proxy whose properties are get/set
+// bindings over the existing refs above, so mutations flow back into the single
+// source of truth. Desktop keeps the grid form, byte-identical to before.
+const isMobile = useMediaQuery("(max-width: 767px)");
+
+function onCancel() {
+  if (props.item) {
+    const q = { ...route.query };
+    delete q.edit;
+    router.replace({ path: `/vault/${props.item.id}`, query: q });
+  } else {
+    router.push("/vault");
+  }
+}
+
+const mobileForm = reactive({
+  get name() { return name.value; }, set name(v: string) { name.value = v; },
+  get itemType() { return itemType.value; }, set itemType(v: ItemType) { itemType.value = v; },
+  get subtype() { return subtype.value; }, set subtype(v: string) { subtype.value = v; },
+  get rarity() { return rarity.value; }, set rarity(v: ItemRarity) { rarity.value = v; },
+  get weight() { return weight.value; }, set weight(v: number | null) { weight.value = v; },
+  get cost() { return cost.value; }, set cost(v: string) { cost.value = v; },
+  get imageUrl() { return imageUrl.value; }, set imageUrl(v: string) { imageUrl.value = v; },
+  get imageFocalPoint() { return imageFocalPoint.value; },
+  set imageFocalPoint(v: { x: number; y: number } | null) { imageFocalPoint.value = v; },
+  get mundaneImageUrl() { return mundaneImageUrl.value; }, set mundaneImageUrl(v: string) { mundaneImageUrl.value = v; },
+  get mundaneImageFocalPoint() { return mundaneImageFocalPoint.value; },
+  set mundaneImageFocalPoint(v: { x: number; y: number } | null) { mundaneImageFocalPoint.value = v; },
+  get artTab() { return artTab.value; }, set artTab(v: "identified" | "mundane") { artTab.value = v; },
+  get tags() { return tags.value; }, set tags(v: string[]) { tags.value = v; },
+  get damageRolls() { return damageRolls.value; }, set damageRolls(v: DamageRoll[]) { damageRolls.value = v; },
+  get properties() { return properties.value; }, set properties(v: string[]) { properties.value = v; },
+  get weaponRange() { return weaponRange.value; }, set weaponRange(v: string) { weaponRange.value = v; },
+  get versatileDamage() { return versatileDamage.value; }, set versatileDamage(v: string) { versatileDamage.value = v; },
+  get armorClass() { return armorClass.value; }, set armorClass(v: string) { armorClass.value = v; },
+  get requiresAttunement() { return requiresAttunement.value; }, set requiresAttunement(v: boolean) { requiresAttunement.value = v; },
+  get attunementRequirements() { return attunementRequirements.value; }, set attunementRequirements(v: string) { attunementRequirements.value = v; },
+  get charges() { return charges.value; }, set charges(v: number | null) { charges.value = v; },
+  get rechargeRoll() { return rechargeRoll.value; }, set rechargeRoll(v: string | null) { rechargeRoll.value = v; },
+  get rechargeWhen() { return rechargeWhen.value; }, set rechargeWhen(v: string) { rechargeWhen.value = v; },
+  get isArcaneFocus() { return isArcaneFocus.value; }, set isArcaneFocus(v: boolean) { isArcaneFocus.value = v; },
+  get isContainer() { return isContainer.value; }, set isContainer(v: boolean) { isContainer.value = v; },
+  get bundleItems() { return bundleItems.value; }, set bundleItems(v: Array<{ name: string; quantity: number }>) { bundleItems.value = v; },
+  get description() { return description.value; }, set description(v: string) { description.value = v; },
+  get mundaneDescription() { return mundaneDescription.value; }, set mundaneDescription(v: string) { mundaneDescription.value = v; },
+  get dmNotes() { return dmNotes.value; }, set dmNotes(v: string) { dmNotes.value = v; },
+  get isCursed() { return isCursed.value; }, set isCursed(v: boolean) { isCursed.value = v; },
+  get curseDescription() { return curseDescription.value; }, set curseDescription(v: string) { curseDescription.value = v; },
+  get campaignId() { return campaignId.value; }, set campaignId(v: string | null) { campaignId.value = v; },
+  get source() { return source.value; }, set source(v: string) { source.value = v; },
+});
 
 defineExpose({
   isSaving,
