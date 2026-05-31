@@ -19,8 +19,8 @@
       </template>
     </EmptyState>
 
-    <!-- Kanban board -->
-    <template v-else-if="isKanban">
+    <!-- Kanban board (desktop only — forceList disables it on mobile) -->
+    <template v-else-if="isKanban && !forceList">
       <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <div
           v-for="col in kanbanColumns"
@@ -83,7 +83,40 @@
       </div>
     </template>
 
-    <!-- List view -->
+    <!-- ── Mobile list (<md): compact rows ────────────────────────────────── -->
+    <template v-else-if="isMobile">
+      <p v-if="!filtered.length" class="text-center font-fell text-sm text-muted-foreground italic py-12">
+        No quests match your search.
+      </p>
+      <template v-else>
+        <MobileEntityMetaRow
+          v-model:layout="layout"
+          :shown="filtered.length"
+          :total="allQuests?.length ?? 0"
+          plural="quests"
+        />
+        <div
+          :class="layout === 'gallery'
+            ? 'grid grid-cols-2 gap-3 pb-2'
+            : 'flex flex-col gap-2 pb-2'"
+        >
+          <EntityMobileCard
+            v-for="quest in filtered"
+            :key="quest.id"
+            :layout="layout"
+            :to="`/quests/${quest.id}`"
+            :title="quest.title || 'Untitled Quest'"
+            :subtitle="QUEST_STATUS_LABELS[quest.status]"
+            :image-url="null"
+            placeholder="/assets/placeholders/background.webp"
+            :badge-text="QUEST_STATUS_LABELS[quest.status]"
+            :badge-color="QUEST_STATUS_COLORS[quest.status]"
+          />
+        </div>
+      </template>
+    </template>
+
+    <!-- ── Desktop list view (≥md) ─────────────────────────────────────────── -->
     <template v-else>
       <p v-if="!filtered.length" class="text-center font-fell text-sm text-muted-foreground italic py-12">
         No quests match your search.
@@ -152,12 +185,15 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
+import { useMediaQuery } from "@vueuse/core";
 import { IconScrollText } from '@/lib/icons';
 import { useAllQuests, useUpdateQuest, scheduleQuestTriggers } from "@/composables/useQuests";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
+import EntityMobileCard from "@/components/common/EntityMobileCard.vue";
+import MobileEntityMetaRow from "@/components/common/MobileEntityMetaRow.vue";
 import { timeAgo } from "@/lib/utils";
 import {
   QUEST_STATUSES,
@@ -166,11 +202,22 @@ import {
   type QuestStatus,
 } from "@/types/quest.types";
 
+const { forceList = false } = defineProps<{
+  /** When true, suppress kanban view (e.g. on mobile where kanban is unusable). */
+  forceList?: boolean;
+}>();
+
 const router = useRouter();
 const ui = useUiStore();
 const campaign = useCampaignStore();
 const search = computed(() => ui.questsSearch);
 const isKanban = computed(() => ui.questsIsKanban);
+
+const isMobile = useMediaQuery("(max-width: 767px)");
+const layout = computed({
+  get: () => ui.entityListLayout,
+  set: (v: "rows" | "gallery") => { ui.entityListLayout = v; },
+});
 
 const { data: allQuests, isLoading } = useAllQuests();
 const { mutateAsync: updateQuest } = useUpdateQuest();
@@ -211,7 +258,6 @@ function onDragEnd() {
 }
 
 function onColDragLeave(status: QuestStatus, e: DragEvent) {
-  // Only clear if leaving the column entirely (not entering a child element)
   const related = e.relatedTarget as HTMLElement | null;
   if (!e.currentTarget || !(e.currentTarget as HTMLElement).contains(related)) {
     if (dragOverCol.value === status) dragOverCol.value = null;

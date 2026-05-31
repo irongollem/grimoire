@@ -27,6 +27,35 @@
       No encounters match your search.
     </p>
 
+    <!-- ── Mobile list (<md): compact rows / gallery ─────────────────────── -->
+    <template v-else-if="isMobile">
+      <MobileEntityMetaRow
+        v-model:layout="layout"
+        :shown="filtered.length"
+        :total="encounters?.length ?? 0"
+        plural="encounters"
+      />
+      <div
+        :class="layout === 'gallery'
+          ? 'grid grid-cols-2 gap-3 pb-2'
+          : 'flex flex-col gap-2 pb-2'"
+      >
+        <EntityMobileCard
+          v-for="encounter in filtered"
+          :key="encounter.id"
+          :layout="layout"
+          :to="`/encounters/${encounter.id}`"
+          :title="encounter.name"
+          :subtitle="encounterSubtitle(encounter)"
+          :image-url="null"
+          placeholder="/assets/placeholders/dungeonfeature.webp"
+          :badge-text="encounter.is_finished ? 'Done' : (isEncounterRunning(encounter.id) ? 'Live' : encounterDifficultyLabel(encounter))"
+          :badge-color="encounter.is_finished ? '#6b7280' : (isEncounterRunning(encounter.id) ? '#22c55e' : encounterDifficultyColor(encounter))"
+        />
+      </div>
+    </template>
+
+    <!-- ── Desktop grid (≥md): unchanged ─────────────────────────────────── -->
     <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
       <div
         v-for="encounter in filtered"
@@ -117,7 +146,7 @@
     </div>
 
     <p
-      v-if="filtered.length"
+      v-if="filtered.length && !isMobile"
       class="mt-4 font-fell text-xs text-muted-foreground italic text-right"
     >
       {{ filtered.length }} of {{ encounters?.length ?? 0 }} encounters
@@ -130,6 +159,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
+import { useMediaQuery } from "@vueuse/core";
 import { IconCheckDouble, IconLock, IconMonster, IconParty } from '@/lib/icons';
 import { useEncounters } from "@/composables/useEncounters";
 import { useRunningEncounters } from "@/composables/useEncounterLive";
@@ -145,6 +175,8 @@ import { useEncountersInRollTables } from "@/composables/useRollTables";
 import { useUiStore } from "@/stores/ui";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
+import EntityMobileCard from "@/components/common/EntityMobileCard.vue";
+import MobileEntityMetaRow from "@/components/common/MobileEntityMetaRow.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useQuota } from "@/composables/useQuota";
 
@@ -162,22 +194,24 @@ const search = computed(() => ui.encountersSearch);
 const hideFinished = computed(() => ui.encountersHideFinished);
 const questFilter = computed(() => ui.encountersFilterQuestId);
 
+const isMobile = useMediaQuery("(max-width: 767px)");
+const layout = computed({
+  get: () => ui.entityListLayout,
+  set: (v: "rows" | "gallery") => { ui.entityListLayout = v; },
+});
+
 const { data: encounters, isLoading } = useEncounters();
 const { data: monsters } = useAllMonsters();
 const { data: questLinks } = useEncounterQuestLinks();
 const { isEncounterRunning } = useRunningEncounters();
 const rollTableEncounterIds = useEncountersInRollTables();
 
-// "Assigned" = linked to at least one quest OR cited by at least one roll table.
-// The Unassigned filter hides any encounter that's claimed by either, so a DM
-// only sees orphans they still need to slot somewhere.
 const linkedEncounterIds = computed(() => {
   const ids = new Set<string>(rollTableEncounterIds.value);
   for (const link of questLinks.value ?? []) ids.add(link.encounterId);
   return ids;
 });
 
-// Map from questId → Set of encounter IDs
 const questEncounterMap = computed(() => {
   const map = new Map<string, Set<string>>();
   for (const link of questLinks.value ?? []) {
@@ -237,13 +271,11 @@ function encounterDifficultyLabel(encounter: Encounter): string {
   if (!encounter.combatants.length) return "Trivial";
   const monsterMap = new Map((monsters.value ?? []).map((m) => [m.id, m]));
 
-  // Only enemy-faction combatants count
   const enemyFactionIds = new Set(
     encounter.factions
       .filter((f) => f.hostile_to.includes("players"))
       .map((f) => f.id),
   );
-  // Also include "enemy" by default
   enemyFactionIds.add("enemy");
 
   const enemyEntries = encounter.combatants
@@ -259,7 +291,6 @@ function encounterDifficultyLabel(encounter: Encounter): string {
 
   if (!enemyEntries.length) return "Trivial";
 
-  // No party info in the list — just show based on raw XP
   const result = calculateDifficulty(
     enemyEntries,
     Array(Math.max(encounter.party_member_ids.length, 1)).fill(3),
@@ -272,5 +303,10 @@ function encounterDifficultyColor(encounter: Encounter): string {
   return (
     DIFFICULTY_COLORS[label as keyof typeof DIFFICULTY_COLORS] ?? "#6B7280"
   );
+}
+
+function encounterSubtitle(encounter: Encounter): string {
+  const count = totalMonsterCount(encounter);
+  return `${count} monster${count !== 1 ? "s" : ""} · ${encounter.party_member_ids.length} player${encounter.party_member_ids.length !== 1 ? "s" : ""}`;
 }
 </script>
