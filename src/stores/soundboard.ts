@@ -168,6 +168,10 @@ export const useSoundboardStore = defineStore("soundboard", () => {
   // Floating widget visibility
   const widgetOpen = ref(false);
 
+  // True while a Google Cast session is active — local audio.play() is skipped
+  // so the Cast device plays instead. Set externally by useCast composable.
+  const isCasting = ref(false);
+
   // Active playlist run states
   const activeMusicPlaylist = ref<MusicPlaylistRunState | null>(null);
   const activeAmbientPlaylist = ref<AmbientPlaylistRunState | null>(null);
@@ -216,10 +220,12 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     const state = getState(soundId);
     audio.volume = state.volume;
     audio.loop = state.isLooping;
-    audio.play().catch(() => {
-      // Browser may block autoplay; silently ignore — the button stays in
-      // "stopped" state so the user can retry.
-    });
+    if (!isCasting.value) {
+      audio.play().catch(() => {
+        // Browser may block autoplay; silently ignore — the button stays in
+        // "stopped" state so the user can retry.
+      });
+    }
     state.isPlaying = true;
     audio.ontimeupdate = () => {
       const s = playbackStates.value[soundId];
@@ -517,6 +523,16 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     soundEffects.value[soundId] = preset;
   }
 
+  /**
+   * Pause the local audio element for a sound without touching Pinia state.
+   * Used by the Cast integration to silence local playback when Cast takes over,
+   * while keeping isPlaying = true so the UI reflects that audio is playing (via Cast).
+   */
+  function pauseForCast(soundId: string): void {
+    const audio = audioInstances.get(soundId);
+    if (audio) audio.pause();
+  }
+
   /** Call when a sound is deleted from the library to clean up the engine. */
   function releaseSound(soundId: string): void {
     destroyEffectChain(soundId); // disconnect AudioContext nodes before destroying element
@@ -545,6 +561,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     activeMusicPlaylist,
     activeAmbientPlaylist,
     soundEffects,
+    isCasting,
     getState,
     play,
     pause,
@@ -554,6 +571,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     toggleLoop,
     stopAll,
     releaseSound,
+    pauseForCast,
     toggleWidget,
     warmup,
     playMusicPlaylist,
