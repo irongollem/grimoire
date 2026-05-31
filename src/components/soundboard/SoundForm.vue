@@ -141,13 +141,14 @@
       <div v-else-if="activeSourceTab === 'generate'" class="space-y-3">
         <!-- Style -->
         <div class="space-y-1">
-          <label class="font-fell text-xs text-muted-foreground">Musical style</label>
+          <label class="font-fell text-xs text-muted-foreground">Describe the music</label>
           <textarea
             v-model="generatePrompt"
             rows="2"
-            placeholder="e.g. epic fantasy ballad, orchestral strings, soaring female vocals, heroic"
+            placeholder="e.g. tense dungeon exploration, low strings building slowly, distant dripping water, no percussion"
             class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm font-fell text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-violet-500 resize-none"
           />
+          <p class="font-fell text-[10px] text-muted-foreground/60">Plain language — your text provider expands this into a full Lyria prompt before generation.</p>
         </div>
 
         <!-- Lyrics -->
@@ -169,7 +170,7 @@
             class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm font-fell text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-violet-500 resize-none"
           />
           <p class="font-fell text-[10px] text-muted-foreground/60">
-            Best paired with Full Song. Use [Verse], [Chorus], [Bridge] markers.
+            Best paired with Full Song. Use [Verse], [Chorus], [Build], [Bridge] markers.
           </p>
         </div>
 
@@ -195,8 +196,19 @@
           </div>
         </div>
 
+        <!-- Structured prompt preview -->
+        <details v-if="structuredPrompt" class="group">
+          <summary class="font-fell text-[10px] text-muted-foreground/60 cursor-pointer hover:text-muted-foreground transition-colors select-none">
+            Expanded prompt ▸
+          </summary>
+          <p class="mt-1 font-fell text-[10px] text-muted-foreground/80 whitespace-pre-wrap leading-relaxed">{{ structuredPrompt }}</p>
+        </details>
+
         <!-- Status / error -->
-        <p v-if="isGenerating" class="font-fell text-xs text-muted-foreground text-center">
+        <p v-if="isStructuring" class="font-fell text-xs text-muted-foreground text-center">
+          Expanding prompt…
+        </p>
+        <p v-else-if="isGenerating" class="font-fell text-xs text-muted-foreground text-center">
           Generating… this can take up to 30 s
         </p>
         <p v-if="isBusy && !isGenerating" class="font-fell text-xs text-muted-foreground text-center">
@@ -268,7 +280,7 @@
 import { ref, computed, nextTick, onMounted, onUnmounted } from "vue";
 import { useCreateSound, useSoundUpload } from "@/composables/useSounds";
 import { useSpotifyStore } from "@/stores/spotify";
-import { generateMusicWithLyria, LYRIA_MODELS, LYRICS_MAX_CHARS, type LyriaModel } from "@/lib/aiMusic";
+import { generateMusicWithLyria, structureMusicPrompt, LYRIA_MODELS, LYRICS_MAX_CHARS, type LyriaModel } from "@/lib/aiMusic";
 import { logUsage } from "@/composables/useAiCredits";
 import SoundFreesoundBrowser from "@/components/soundboard/SoundFreesoundBrowser.vue";
 import type { SoundCategory } from "@/types/sound.types";
@@ -412,14 +424,16 @@ const isValidSpotifyUrl = computed(() =>
 const generatePrompt = ref("");
 const generateLyrics = ref("");
 const generateModel = ref<LyriaModel>("lyria-3-clip-preview");
+const isStructuring = ref(false);
 const isGenerating = ref(false);
 const generateError = ref("");
+const structuredPrompt = ref("");
 
 const lyricsCharsLeft = computed(() => LYRICS_MAX_CHARS - generateLyrics.value.length);
 
 // ── Submit state ──────────────────────────────────────────────────────────
 
-const anyBusy = computed(() => isBusy.value || isPending.value || isGenerating.value);
+const anyBusy = computed(() => isBusy.value || isPending.value || isStructuring.value || isGenerating.value);
 
 const submitDisabled = computed(() => {
   if (anyBusy.value) return true;
@@ -430,6 +444,7 @@ const submitDisabled = computed(() => {
 
 const submitLabel = computed(() => {
   if (isPending.value) return "Saving…";
+  if (isStructuring.value) return "Expanding…";
   if (isGenerating.value) return "Generating…";
   if (isBusy.value) return statusText.value || "Uploading…";
   if (activeSourceTab.value === "generate") return "Generate & Add";
@@ -487,11 +502,28 @@ async function handleSubmit() {
 
   if (activeSourceTab.value === "generate") {
     if (!geminiApiKey) return;
+
+    // Step 1: expand the plain description into a structured Lyria prompt
+    let finalPrompt = generatePrompt.value.trim();
+    structuredPrompt.value = "";
+    isStructuring.value = true;
+    try {
+      const { structured, textUsage } = await structureMusicPrompt(finalPrompt, generateModel.value, generateLyrics.value.trim() || undefined);
+      structuredPrompt.value = structured;
+      finalPrompt = structured;
+      logUsage({ reason: "music_prompt_structure", textUsage });
+    } catch {
+      // Fall back to raw prompt if text provider unavailable
+    } finally {
+      isStructuring.value = false;
+    }
+
+    // Step 2: generate music with Lyria
     isGenerating.value = true;
     let file: File;
     try {
       file = await generateMusicWithLyria(
-        generatePrompt.value.trim(),
+        finalPrompt,
         generateModel.value,
         geminiApiKey,
         generateLyrics.value.trim() || undefined,
@@ -563,5 +595,6 @@ function resetForm() {
   generatePrompt.value = "";
   generateLyrics.value = "";
   generateError.value = "";
+  structuredPrompt.value = "";
 }
 </script>
