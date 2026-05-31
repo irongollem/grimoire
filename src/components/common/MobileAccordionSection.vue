@@ -1,8 +1,9 @@
 <template>
   <!--
-    Mobile-only (<md) collapsible card section for the NPC detail screen.
-    A tappable header (Cinzel title + rotating chevron) toggles the body.
-    Open state is owned by the parent via `v-model:open`.
+    Mobile-only (<md) collapsible card section for entity detail/edit screens
+    (NPC, Monster, and other sections). A tappable header (Cinzel title +
+    rotating chevron) toggles the body. Open state is owned by the parent via
+    `v-model:open` so callers decide defaults (e.g. Lore open, others closed).
   -->
   <section class="overflow-hidden rounded-xl border border-border bg-card">
     <button

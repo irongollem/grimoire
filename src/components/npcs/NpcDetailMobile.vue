@@ -136,10 +136,10 @@
         v-if="hasAnyQuickFact"
         class="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border bg-border"
       >
-        <NpcQuickFact label="Location" :value="locationName" class="bg-card" />
-        <NpcQuickFact label="Alignment" :value="npc.alignment" class="bg-card" />
-        <NpcQuickFact label="Age" :value="npc.age" class="bg-card" />
-        <NpcQuickFact label="Faction" :value="factionLine" class="bg-card" />
+        <MobileQuickFact label="Location" :value="locationName" class="bg-card" />
+        <MobileQuickFact label="Alignment" :value="npc.alignment" class="bg-card" />
+        <MobileQuickFact label="Age" :value="npc.age" class="bg-card" />
+        <MobileQuickFact label="Faction" :value="factionLine" class="bg-card" />
       </div>
 
       <!-- 4. Tags -->
@@ -154,7 +154,7 @@
       </div>
 
       <!-- 5. Accordion sections -->
-      <NpcAccordionSection v-model:open="openSections.lore" title="Lore">
+      <MobileAccordionSection v-model:open="openSections.lore" title="Lore">
         <div class="flex flex-col gap-4">
           <div v-if="npc.appearance" class="flex flex-col gap-1">
             <h3 class="font-cinzel text-xs font-bold uppercase tracking-wider text-primary">Appearance</h3>
@@ -179,17 +179,17 @@
             No lore recorded for this NPC.
           </p>
         </div>
-      </NpcAccordionSection>
+      </MobileAccordionSection>
 
-      <NpcAccordionSection v-model:open="openSections.inventory" title="Inventory">
+      <MobileAccordionSection v-model:open="openSections.inventory" title="Inventory">
         <NpcInventorySection :npc-id="npc.id" :npc-name="npc.name" />
-      </NpcAccordionSection>
+      </MobileAccordionSection>
 
-      <NpcAccordionSection v-model:open="openSections.relations" title="Relations">
+      <MobileAccordionSection v-model:open="openSections.relations" title="Relations">
         <NpcRelationsSection :npc-id="npc.id" />
-      </NpcAccordionSection>
+      </MobileAccordionSection>
 
-      <NpcAccordionSection v-model:open="openSections.combat" title="Combat">
+      <MobileAccordionSection v-model:open="openSections.combat" title="Combat">
         <div v-if="npc.stat_block" class="flex flex-col gap-4">
           <StatBlockPanel :sb="npc.stat_block" />
           <TraitList title="Special Abilities" :traits="npc.stat_block.special_abilities" />
@@ -201,7 +201,7 @@
           <TraitList title="Lair Actions" :traits="npc.stat_block.lair_actions" />
         </div>
         <p v-else class="font-fell text-sm italic text-muted-foreground">No stat block defined for this NPC.</p>
-      </NpcAccordionSection>
+      </MobileAccordionSection>
     </div>
 
     <!-- ── 6. Fixed bottom action bar ─────────────────────────────────────── -->
@@ -282,8 +282,8 @@ import SpellcastingList from "@/components/common/SpellcastingList.vue";
 import MobileSheet from "@/components/common/MobileSheet.vue";
 import NpcInventorySection from "@/components/npcs/NpcInventorySection.vue";
 import NpcRelationsSection from "@/components/npcs/NpcRelationsSection.vue";
-import NpcQuickFact from "@/components/npcs/NpcQuickFact.vue";
-import NpcAccordionSection from "@/components/npcs/NpcAccordionSection.vue";
+import MobileQuickFact from "@/components/common/MobileQuickFact.vue";
+import MobileAccordionSection from "@/components/common/MobileAccordionSection.vue";
 import NpcRevealSheet from "@/components/npcs/NpcRevealSheet.vue";
 import { IconDelete, IconEdit, IconGenerate, IconHide, IconReveal, IconScrollText, IconTag } from "@/lib/icons";
 import { useDeleteNpc } from "@/composables/useNpcs";

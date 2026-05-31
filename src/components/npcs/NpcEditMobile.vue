@@ -137,7 +137,7 @@
       </section>
 
       <!-- Lore card (collapsible) -->
-      <NpcAccordionSection v-model:open="loreOpen" title="Lore">
+      <MobileAccordionSection v-model:open="loreOpen" title="Lore">
         <NpcLoreTab
           :npc-name="form.name"
           :appearance="form.appearance"
@@ -149,7 +149,7 @@
           @update:backstory="form.backstory = $event"
           @update:notes="form.notes = $event"
         />
-      </NpcAccordionSection>
+      </MobileAccordionSection>
 
       <!-- Relations card (existing NPCs only) -->
       <section v-if="npc?.id" class="rounded-xl border border-border bg-card p-4">
@@ -281,7 +281,7 @@ import NpcIdentitySection from "./NpcIdentitySection.vue";
 import RelationshipWheel from "./RelationshipWheel.vue";
 import NpcLoreTab from "./NpcLoreTab.vue";
 import NpcRelationsSection from "./NpcRelationsSection.vue";
-import NpcAccordionSection from "./NpcAccordionSection.vue";
+import MobileAccordionSection from "./MobileAccordionSection.vue";
 import { IconDelete, IconGenerate, IconScrollText } from "@/lib/icons";
 
 type ArtTab = "true-form" | "alter-ego";

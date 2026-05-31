@@ -138,10 +138,10 @@
     <div class="flex flex-col gap-4 bg-background px-4 pt-4 pb-32">
       <!-- 3. Quick-facts grid (2×2, hairline-separated) -->
       <div class="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border bg-border">
-        <NpcQuickFact label="Type" :value="monster.monster_type" class="bg-card capitalize" />
-        <NpcQuickFact label="Size" :value="monster.size" class="bg-card capitalize" />
-        <NpcQuickFact label="Alignment" :value="monster.alignment" class="bg-card capitalize" />
-        <NpcQuickFact label="Habitat" :value="monster.habitat" class="bg-card" />
+        <MobileQuickFact label="Type" :value="monster.monster_type" class="bg-card capitalize" />
+        <MobileQuickFact label="Size" :value="monster.size" class="bg-card capitalize" />
+        <MobileQuickFact label="Alignment" :value="monster.alignment" class="bg-card capitalize" />
+        <MobileQuickFact label="Habitat" :value="monster.habitat" class="bg-card" />
       </div>
 
       <!-- 4. Tags -->
@@ -156,7 +156,7 @@
       </div>
 
       <!-- 5. Accordion sections -->
-      <NpcAccordionSection v-model:open="openSections.lore" title="Lore">
+      <MobileAccordionSection v-model:open="openSections.lore" title="Lore">
         <div class="flex flex-col gap-4">
           <div v-if="monster.description" class="flex flex-col gap-1">
             <h3 class="font-cinzel text-xs font-bold uppercase tracking-wider text-primary">Description</h3>
@@ -173,9 +173,9 @@
             No lore recorded for this monster.
           </p>
         </div>
-      </NpcAccordionSection>
+      </MobileAccordionSection>
 
-      <NpcAccordionSection v-model:open="openSections.combat" title="Combat">
+      <MobileAccordionSection v-model:open="openSections.combat" title="Combat">
         <div class="flex flex-col gap-4">
           <StatBlockPanel :sb="monster.stat_block" />
           <TraitList title="Special Abilities" :traits="monster.stat_block.special_abilities" />
@@ -186,7 +186,7 @@
           <TraitList title="Legendary Actions" :traits="monster.stat_block.legendary_actions" />
           <TraitList title="Lair Actions" :traits="monster.stat_block.lair_actions" />
         </div>
-      </NpcAccordionSection>
+      </MobileAccordionSection>
     </div>
 
     <!-- ── 6. Fixed bottom action bar ─────────────────────────────────────── -->
@@ -273,8 +273,8 @@ import StatBlockPanel from "@/components/common/StatBlockPanel.vue";
 import TraitList from "@/components/common/TraitList.vue";
 import SpellcastingList from "@/components/common/SpellcastingList.vue";
 import MobileSheet from "@/components/common/MobileSheet.vue";
-import NpcQuickFact from "@/components/npcs/NpcQuickFact.vue";
-import NpcAccordionSection from "@/components/npcs/NpcAccordionSection.vue";
+import MobileQuickFact from "@/components/common/MobileQuickFact.vue";
+import MobileAccordionSection from "@/components/common/MobileAccordionSection.vue";
 import MonsterRevealSheet from "@/components/monsters/MonsterRevealSheet.vue";
 import { IconCopy, IconDelete, IconEdit, IconHide, IconReveal, IconScrollText } from "@/lib/icons";
 import { useCloneSrdMonster, useDeleteMonster } from "@/composables/useMonsters";
