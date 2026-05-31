@@ -5,7 +5,7 @@ export type { LucideIcon as AppIcon } from 'lucide-vue-next'
 import {
   AlertCircle, AlertTriangle, AlignCenter, AlignLeft, AlignRight,
   Archive, ArrowUpFromLine, Award, Axe,
-  Backpack, BarChart2, BetweenHorizontalEnd, BetweenVerticalEnd,
+  Backpack, BarChart2, BetweenHorizontalEnd, BetweenVerticalEnd, Cast,
   BookMarked, BookOpen, BookPlus, BookText, BookUser, Bookmark, Box, Brain, BrickWall, Brush, Bug,
   Calendar, CalendarCheck, CalendarDays, CalendarPlus, CalendarX,
   Check, CheckCheck, CheckCircle, ChevronDown, ChevronLeft, ChevronRight, ChevronUp,
@@ -216,6 +216,7 @@ export { Shuffle as IconShuffle }
 export { VolumeX as IconMute }
 export { Music as IconMusic }
 export { Music2 as IconMusicNote }
+export { Cast as IconCast }
 
 // ── Content / Rich Text ───────────────────────────────────────────────────────
 export { AlignLeft as IconAlignLeft }

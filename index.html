@@ -25,5 +25,10 @@
   <body>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
+    <!-- Google Cast Sender SDK — must be loaded before the app bundle so the
+         __onGCastApiAvailable callback fires reliably. Only active in Chrome/Edge;
+         other browsers silently ignore it (no API surface exposed). -->
+    <script>window['__onGCastApiAvailable'] = function(a) { window.__castApiAvailable = a; window.dispatchEvent(new Event('cast-api-available')); };</script>
+    <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
   </body>
 </html>

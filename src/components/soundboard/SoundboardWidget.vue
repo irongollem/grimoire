@@ -20,6 +20,7 @@
         >
           <IconMusicNote class="h-3.5 w-3.5 text-gold-400 shrink-0" />
           <span class="font-cinzel text-xs font-semibold text-foreground flex-1 tracking-wide">Soundboard</span>
+          <CastButton />
           <button
             v-if="store.playingCount > 0 || spotifyStore.isPlaying"
             class="font-fell text-[10px] text-muted-foreground hover:text-destructive transition-colors px-1.5 py-0.5 rounded border border-border hover:border-destructive/40"
@@ -283,6 +284,7 @@ import { useSoundboardStore } from "@/stores/soundboard";
 import { useSpotifyStore } from "@/stores/spotify";
 import { useSounds } from "@/composables/useSounds";
 import SoundEffectPicker from "./SoundEffectPicker.vue";
+import CastButton from "./CastButton.vue";
 
 const store = useSoundboardStore();
 const spotifyStore = useSpotifyStore();
