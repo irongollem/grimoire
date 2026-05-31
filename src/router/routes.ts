@@ -576,19 +576,25 @@ export const routes: RouteRecordRaw[] = [
     path: "/hall-of-heroes/:id",
     name: "hero-detail",
     component: () => import("@/views/HeroDetailView.vue"),
-    meta: { requiresAuth: true, title: "Hero" },
+    // fullscreenMobile: the mobile read screen is a full-screen takeover with
+    // its own top + bottom bars, so the global AppTopBar / DmBottomNav are
+    // suppressed on phones to avoid two stacked, overlapping bars. Desktop is
+    // unaffected (the flag only applies below md).
+    meta: { requiresAuth: true, title: "Hero", fullscreenMobile: true },
   },
   {
     path: "/hall-of-heroes/new",
     name: "hero-new",
     component: () => import("@/views/HeroEditorView.vue"),
-    meta: { requiresAuth: true, title: "New Hero" },
+    // See /hall-of-heroes/:id above — full-screen mobile takeover (edit).
+    meta: { requiresAuth: true, title: "New Hero", fullscreenMobile: true },
   },
   {
     path: "/hall-of-heroes/:id/edit",
     name: "hero-edit",
     component: () => import("@/views/HeroEditorView.vue"),
-    meta: { requiresAuth: true, title: "Edit Hero" },
+    // See /hall-of-heroes/:id above — full-screen mobile takeover (edit).
+    meta: { requiresAuth: true, title: "Edit Hero", fullscreenMobile: true },
   },
 
   // Encounters
