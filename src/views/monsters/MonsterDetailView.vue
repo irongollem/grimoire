@@ -1,5 +1,19 @@
 <template>
-  <PageHeader :title="pageTitle" :description="pageDescription">
+  <!-- Mobile read view (<md): standalone scrollable layer with its own app bar.
+       Desktop and all edit modes fall through to the PageHeader block below,
+       which is unchanged. -->
+  <MonsterSheetMobile v-if="showMobileRead && resolvedMonster" :monster="resolvedMonster" />
+
+  <!-- Mobile edit view (<md): MonsterDetail renders its own MonsterEditMobile
+       layer (app bar + stacked cards + save bar). It does not need the
+       PageHeader chrome, so we render MonsterDetail directly. -->
+  <MonsterDetail
+    v-else-if="showMobileEdit"
+    :key="id"
+    :monster="isNew ? null : resolvedMonster"
+  />
+
+  <PageHeader v-else :title="pageTitle" :description="pageDescription">
     <template v-if="!isNew" #actions>
       <PageHeaderAction
         type="button"
@@ -122,6 +136,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { useMediaQuery } from "@vueuse/core";
 import { IconChart, IconChevronLeft, IconEdit, IconHide, IconParty, IconReveal } from '@/lib/icons';
 import { useMonster, useSrdMonster } from "@/composables/useMonsters";
 import { useSrdMonsterArt } from "@/composables/useSrdMonsterArt";
@@ -131,6 +146,7 @@ import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import MonsterDetail from "@/components/monsters/MonsterDetail.vue";
 import MonsterSheet from "@/components/monsters/MonsterSheet.vue";
+import MonsterSheetMobile from "@/components/monsters/MonsterSheetMobile.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -139,6 +155,14 @@ const isNew = computed(() => route.name === "monster-new");
 const id = computed(() => (isNew.value ? "" : (route.params.id as string)));
 const isSrdId = computed(() => id.value.startsWith("srd_"));
 const isEditing = computed(() => isNew.value || route.query.edit === "true");
+
+// Mobile-only layers (<md). Desktop keeps the existing PageHeader +
+// MonsterSheet/MonsterDetail chrome, byte-identical to before.
+const isMobile = useMediaQuery("(max-width: 767px)");
+const showMobileRead = computed(() => isMobile.value && !isEditing.value && !isNew.value);
+// Mobile edit: new monster, or existing monster opened with ?edit=true.
+// MonsterDetail owns its own mobile chrome (MonsterEditMobile), so no PageHeader.
+const showMobileEdit = computed(() => isMobile.value && isEditing.value && !isLoading.value);
 
 function startEditing() {
   router.replace({ query: { ...route.query, edit: "true" } });

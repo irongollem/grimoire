@@ -278,6 +278,7 @@ import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";
 import { useAllMonsters } from "@/composables/useMonsters";
 import { useMonsterVisibility } from "@/composables/useMonsterVisibility";
+import { crColor } from "@/lib/monsterDisplay";
 import type { Monster, DiscoveredMonster } from "@/types/monster.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
@@ -386,21 +387,6 @@ const lockedMonsterIds = computed((): Set<string> => {
   );
   return new Set(sorted.slice(-overCount).map(m => m.id));
 });
-
-function parseFraction(s: string): number {
-  const [a, b] = s.split("/");
-  return parseFloat(a) / parseFloat(b);
-}
-
-function crColor(cr: string): string {
-  const num =
-    cr === "0" ? 0 : cr.includes("/") ? parseFraction(cr) : parseFloat(cr);
-  if (num <= 0.5) return "#22c55e";
-  if (num <= 4) return "#eab308";
-  if (num <= 9) return "#f97316";
-  if (num <= 15) return "#dc2626";
-  return "#7c3aed";
-}
 
 // Mobile-card subtitle — mirrors the desktop "{size} {type}" line.
 function monsterSubtitle(monster: Monster): string {

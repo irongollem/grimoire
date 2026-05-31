@@ -313,13 +313,18 @@ export const routes: RouteRecordRaw[] = [
     path: "/monsters/new",
     name: "monster-new",
     component: () => import("@/views/monsters/MonsterDetailView.vue"),
-    meta: { requiresAuth: true, title: "New Monster" },
+    // fullscreenMobile: the mobile edit screen is a full-screen takeover with
+    // its own top + bottom bars, so the global AppTopBar / DmBottomNav are
+    // suppressed on phones to avoid two stacked, overlapping bars. Desktop is
+    // unaffected (the flag only applies below md).
+    meta: { requiresAuth: true, title: "New Monster", fullscreenMobile: true },
   },
   {
     path: "/monsters/:id",
     name: "monster-detail",
     component: () => import("@/views/monsters/MonsterDetailView.vue"),
-    meta: { requiresAuth: true, title: "Monster" },
+    // See /monsters/new above — full-screen mobile takeover (read + edit).
+    meta: { requiresAuth: true, title: "Monster", fullscreenMobile: true },
   },
 
   // Party
