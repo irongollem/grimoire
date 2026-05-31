@@ -40,19 +40,6 @@
     <DiceRoller />
     <BugReportModal v-model="bugReportOpen" />
 
-    <!-- Mobile nav FAB — bottom-left, thumb-friendly.
-         Bottom/left offsets include env(safe-area-inset-*) so the FAB clears
-         both the home-indicator and landscape notches. -->
-    <Teleport to="body">
-      <button
-        class="md:hidden fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom))] left-[calc(1rem+env(safe-area-inset-left))] z-[60] flex items-center justify-center w-12 h-12 rounded-full bg-card border border-border shadow-lg text-muted-foreground hover:text-foreground active:scale-95 transition-all"
-        aria-label="Open navigation"
-        @click="ui.toggleMobileNav()"
-      >
-        <IconMenu class="h-5 w-5" />
-      </button>
-    </Teleport>
-
     <!-- Mobile search overlay -->
     <Teleport to="body">
       <div
@@ -117,7 +104,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from "vue";
 import { useRoute } from "vue-router";
-import { IconBug, IconClose, IconLoading, IconMenu, IconSearch } from '@/lib/icons';
+import { IconBug, IconClose, IconLoading, IconSearch } from '@/lib/icons';
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import DiceRoller from "@/components/common/DiceRoller.vue";

@@ -9,7 +9,9 @@
     14 list views. On mobile, non-primary variants collapse to icon-only to
     stop the action bar from overflowing the viewport (the user's tap target
     is the whole button; the `title` attribute exposes the label for
-    accessibility and long-press).
+    accessibility and long-press). The button is ≥44px tall on mobile
+    (min-h-11) for a comfortable tap target; on ≥md the height reverts to py-2
+    (md:min-h-0) so the desktop look is unchanged.
   -->
   <component
     :is="rootTag"
@@ -114,7 +116,7 @@ function onClick(ev: MouseEvent) {
 }
 
 const base =
-  "inline-flex items-center gap-1.5 rounded-md px-3 py-2 font-cinzel text-xs font-semibold tracking-wider transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0";
+  "inline-flex items-center max-md:justify-center gap-1.5 rounded-md px-3 min-h-11 py-2 md:min-h-0 font-cinzel text-xs font-semibold tracking-wider transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0";
 
 const variantClass = computed(() => {
   switch (variant) {
