@@ -1,5 +1,11 @@
 <template>
   <MobileSheet :open="open" title="All sections" @update:open="emit('update:open', $event)">
+    <!-- Campaign switcher — replaces the old mobile drawer's campaign picker.
+         Lives at the top of the More sheet so it's always one tap away. -->
+    <div class="-mx-4 -mt-2 mb-4 border-b border-border">
+      <CampaignSwitcher />
+    </div>
+
     <!-- Context-aware create — the create path in Play mode (whose center FAB
          is the dice roller, not "+"). Shown whenever the current section has a
          create route. -->
@@ -76,6 +82,7 @@
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import MobileSheet from "@/components/common/MobileSheet.vue";
+import CampaignSwitcher from "@/components/layout/CampaignSwitcher.vue";
 import { IconAdd } from "@/lib/icons";
 import { NAV_GROUPS, type NavItem } from "@/lib/nav";
 import { useUiStore } from "@/stores/ui";
