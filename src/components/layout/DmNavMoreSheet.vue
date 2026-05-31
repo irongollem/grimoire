@@ -79,7 +79,7 @@
     <!-- Footer: settings + bug report -->
     <div class="mt-4 flex items-center justify-center gap-4 border-t border-border pt-3">
       <RouterLink
-        to="/settings"
+        to="/campaign/settings"
         class="flex items-center gap-1.5 font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors"
         @click="emit('update:open', false)"
       >
