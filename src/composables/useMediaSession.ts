@@ -17,6 +17,13 @@ export function useMediaSession() {
 
   const store = useSoundboardStore();
 
+  // When the PWA returns to the foreground (screen unlocked, CarPlay interaction,
+  // alt-tab back), iOS may have suspended the AudioContext or paused audio
+  // elements. Resume everything so playback continues without manual intervention.
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") store.resumeAudioEngine();
+  });
+
   // ── Metadata + handlers — refreshed whenever the active track changes ──
 
   watch(

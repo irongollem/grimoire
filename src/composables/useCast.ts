@@ -98,7 +98,7 @@ interface CastFramework {
 interface CastWindow {
   cast?: { framework?: CastFramework };
   chrome?: { cast?: ChromeCastAPI };
-  __castApiAvailable?: boolean;
+  __onGCastApiAvailable?: (available: boolean) => void;
 }
 
 // ── Singleton module-level state ──────────────────────────────────────────────
@@ -212,11 +212,23 @@ function useCastStore() {
   return useSoundboardStore();
 }
 
-// ── Initialization (runs once after Cast SDK fires __onGCastApiAvailable) ─────
+// ── Initialization (runs once when the soundboard widget first opens) ─────────
 
 function _init(): void {
-  window.addEventListener("cast-api-available", onSdkReady, { once: true });
-  if ((window as CastWindow).__castApiAvailable) onSdkReady();
+  // Register the callback BEFORE injecting the script — the Cast SDK invokes
+  // __onGCastApiAvailable synchronously as the script executes, so the
+  // assignment must already be in place.
+  (window as CastWindow).__onGCastApiAvailable = (available: boolean) => {
+    if (available) onSdkReady();
+  };
+
+  // Lazily inject the Cast SDK only when the user first opens the soundboard
+  // widget. Loading it at app startup caused the SDK's continuous mDNS device
+  // discovery to starve audio streaming bandwidth, producing crackling every
+  // ~1.3 seconds on remote audio.
+  const s = document.createElement("script");
+  s.src = "https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1";
+  document.head.appendChild(s);
 }
 
 function onSdkReady(): void {

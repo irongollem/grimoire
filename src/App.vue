@@ -49,7 +49,6 @@ import { useTheme } from "@/composables/useTheme";
 import { useAuthStore } from "@/stores/auth";
 import { updateAvailable, reloadApp } from "@/composables/useAppUpdate";
 import { useMediaSession } from "@/composables/useMediaSession";
-import { useCast } from "@/composables/useCast";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCampaignById } from "@/composables/useCampaigns";
 import { usePullToRefresh } from "@/composables/usePullToRefresh";
@@ -110,7 +109,6 @@ const { pullPx, readyToReload } = usePullToRefresh();
 
 if (!import.meta.env.SSR) useTheme().initTheme();
 if (!import.meta.env.SSR) useMediaSession();
-if (!import.meta.env.SSR) useCast();
 
 // When the Supabase session expires mid-session (refresh token exhausted or
 // network failure), onAuthStateChange emits SIGNED_OUT and sets user to null.
