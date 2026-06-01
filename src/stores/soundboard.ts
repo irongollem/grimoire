@@ -215,6 +215,15 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     audioInstances.set(soundId, fresh);
   }
 
+  function retryLoad(soundId: string, fileUrl: string): void {
+    getState(soundId).loadError = false;
+    retriedIds.delete(soundId);
+    destroyAudio(soundId);
+    const fresh = makeAudio(fileUrl);
+    fresh.onerror = () => handleLoadError(soundId, fileUrl);
+    audioInstances.set(soundId, fresh);
+  }
+
   function play(soundId: string, fileUrl: string): void {
     const audio = getOrCreate(soundId, fileUrl);
     const state = getState(soundId);
@@ -586,5 +595,6 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     stopAmbientPlaylist,
     setEffect,
     setMusicPlaylistEffect,
+    retryLoad,
   };
 });
