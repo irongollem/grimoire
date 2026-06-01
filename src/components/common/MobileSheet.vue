@@ -17,10 +17,7 @@
         aria-modal="true"
       >
         <!-- Dimmed backdrop -->
-        <div
-          class="absolute inset-0 bg-black/60"
-          @click="open = false"
-        />
+        <div class="absolute inset-0 bg-black/60" @click="open = false" />
 
         <!-- Sheet panel -->
         <div
@@ -36,7 +33,9 @@
             v-if="title"
             class="flex shrink-0 items-center justify-between gap-3 px-4 pb-2"
           >
-            <h2 class="font-cinzel text-base font-bold tracking-wide text-foreground">
+            <h2
+              class="font-cinzel text-base font-bold tracking-wide text-foreground"
+            >
               {{ title }}
             </h2>
             <button
@@ -61,7 +60,7 @@
           >
             <slot name="footer" />
           </div>
-          <div v-else class="shrink-0 pb-[env(safe-area-inset-bottom)]" />
+          <div v-else class="shrink-0 pb-safe" />
         </div>
       </div>
     </Transition>

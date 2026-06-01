@@ -46,17 +46,24 @@
         v-else
         type="button"
         class="flex flex-col items-center gap-0.5 py-1.5 transition-colors"
-        :class="isActive(slot.tab.to) ? 'text-primary' : 'text-muted-foreground'"
+        :class="
+          isActive(slot.tab.to) ? 'text-primary' : 'text-muted-foreground'
+        "
         @click="go(slot.tab.to)"
       >
         <span class="relative flex h-6 w-6 items-center justify-center">
           <span
             v-if="isActive(slot.tab.to)"
-            class="absolute inset-x-[-0.75rem] inset-y-[-0.1875rem] rounded-full bg-primary/15"
+            class="absolute -inset-x-3 -inset-y-0.75 rounded-full bg-primary/15"
           />
-          <component :is="slot.tab.icon" class="relative h-[1.45rem] w-[1.45rem]" />
+          <component
+            :is="slot.tab.icon"
+            class="relative h-[1.45rem] w-[1.45rem]"
+          />
         </span>
-        <span class="font-cinzel text-2xs leading-none">{{ slot.tab.label }}</span>
+        <span class="font-cinzel text-2xs leading-none">{{
+          slot.tab.label
+        }}</span>
       </button>
     </template>
   </nav>
