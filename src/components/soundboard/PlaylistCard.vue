@@ -84,7 +84,7 @@
         </button>
       </template>
 
-      <!-- Music: prev / next when active -->
+      <!-- Music: prev / next / cast when active -->
       <template v-if="isActive && playlist.playlist_type === 'music'">
         <button
           class="p-1.5 rounded-md border border-border text-muted-foreground hover:text-foreground transition-colors"
@@ -100,6 +100,7 @@
         >
           <IconSkipForward class="h-3.5 w-3.5" />
         </button>
+        <CastButton class="p-1.5 rounded-md border border-border" />
       </template>
 
       <!-- Edit -->
@@ -129,6 +130,7 @@ import { IconPlay, IconPause, IconStop, IconSkipBack, IconSkipForward, IconEdit,
 import { useSoundboardStore } from "@/stores/soundboard";
 import { usePlaylistTracks } from "@/composables/useSoundboardPlaylists";
 import type { SoundboardPlaylist } from "@/types/sound.types";
+import CastButton from "./CastButton.vue";
 
 const { playlist } = defineProps<{ playlist: SoundboardPlaylist }>();
 defineEmits<{ edit: []; delete: [] }>();
