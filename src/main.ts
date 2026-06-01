@@ -45,6 +45,15 @@ export const createApp = ViteSSG(
     setupRouterGuard(router);
 
     if (!import.meta.env.SSR) {
+      // Declare background playback intent for iOS PWA (standalone) mode.
+      // Safari browser manages the audio session automatically for any page that
+      // plays audio. A standalone PWA gets no such treatment — without this hint
+      // iOS assigns a restrictive default session that throttles background audio
+      // and breaks CarPlay routing. 'playback' grants the same priority as music apps.
+      if ("audioSession" in navigator) {
+        (navigator as Navigator & { audioSession: { type: string } }).audioSession.type = "playback";
+      }
+
       // Browser-only imports and setup.
       Promise.all([
         import("./composables/useWakeLock"),
