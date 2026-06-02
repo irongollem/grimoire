@@ -543,25 +543,18 @@ export const useSoundboardStore = defineStore("soundboard", () => {
   }
 
   /**
-   * Resume audio after an OS interruption (screen-lock, phone call, PWA backgrounding).
-   * Resumes the Web Audio graph if iOS suspended it, and re-plays any element that
-   * should be audible but got paused without updating our state.
+   * Resume the Web Audio graph after an OS suspension (screen-lock, PWA backgrounding).
    * Called from useMediaSession on visibilitychange → "visible".
+   *
+   * Only the AudioContext is resumed here. Re-playing HTMLAudioElements that
+   * were paused by an interruption is intentionally omitted: doing so races with
+   * the play() → onended → musicPlaylistNext() chain and can cause an AbortError
+   * that silently kills auto-advance.
    */
   function resumeAudioEngine(): void {
     if (sharedAudioCtx?.state === "suspended") {
       void sharedAudioCtx.resume();
     }
-    if (isCasting.value) return;
-    audioInstances.forEach((audio, id) => {
-      if (playbackStates.value[id]?.isPlaying && audio.paused) {
-        void audio.play().catch(() => {
-          // Play() still requires a user gesture in some contexts; if it fails,
-          // reflect reality rather than lying about the playing state.
-          if (playbackStates.value[id]) playbackStates.value[id].isPlaying = false;
-        });
-      }
-    });
   }
 
   function toggleWidget(): void {
