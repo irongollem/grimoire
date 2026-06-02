@@ -5,11 +5,12 @@
   <div class="flex h-dvh overflow-hidden bg-background">
     <AppSidebar />
     <AppMobileNav />
+    <AppBottomNav />
 
     <div class="flex-1 flex flex-col min-w-0">
       <AppTopBar />
 
-      <main class="flex flex-1 min-h-0 flex-col overflow-y-auto">
+      <main class="flex flex-1 min-h-0 flex-col overflow-y-auto pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
         <slot />
       </main>
     </div>
@@ -52,6 +53,7 @@ import { computed } from "vue";
 import AppSidebar from "@/components/layout/AppSidebar.vue";
 import AppTopBar from "@/components/layout/AppTopBar.vue";
 import AppMobileNav from "@/components/layout/AppMobileNav.vue";
+import AppBottomNav from "@/components/layout/AppBottomNav.vue";
 import CampaignChat from "@/components/chat/CampaignChat.vue";
 import NpcGeneratorPanel from "@/components/npcs/NpcGeneratorPanel.vue";
 import MonsterGeneratorPanel from "@/components/monsters/MonsterGeneratorPanel.vue";
