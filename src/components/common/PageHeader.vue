@@ -19,7 +19,7 @@
       <div
         class="flex min-w-0 max-w-full flex-col gap-2 lg:flex-row lg:items-start lg:justify-between lg:gap-4"
       >
-        <div class="min-w-0 max-w-full">
+        <div class="min-w-0 max-w-full hidden md:block">
           <h1
             class="wrap-break-word font-cinzel text-2xl md:text-3xl font-bold text-foreground tracking-wide"
           >
