@@ -6,10 +6,11 @@
     @click="store.toggleWidget()"
   >
     <IconMusicNote class="h-3.5 w-3.5 shrink-0" />
-    <span class="font-fell">Soundboard</span>
+    <span v-if="!iconOnly" class="font-fell">Soundboard</span>
     <span
       v-if="totalPlaying > 0"
-      class="ml-auto flex items-center justify-center h-4 w-4 rounded-full bg-gold-500/20 border border-gold-500/40 text-gold-300 text-[9px] font-cinzel"
+      class="flex items-center justify-center h-4 w-4 rounded-full bg-gold-500/20 border border-gold-500/40 text-gold-300 text-[9px] font-cinzel"
+      :class="iconOnly ? '' : 'ml-auto'"
     >
       {{ totalPlaying }}
     </span>
@@ -21,6 +22,8 @@ import { computed } from "vue";
 import { IconMusicNote } from '@/lib/icons';
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSpotifyStore } from "@/stores/spotify";
+
+defineProps<{ iconOnly?: boolean }>();
 
 const store = useSoundboardStore();
 const spotifyStore = useSpotifyStore();

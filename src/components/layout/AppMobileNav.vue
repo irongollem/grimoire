@@ -81,6 +81,13 @@
           </button>
           <button
             class="hover:text-foreground transition-colors"
+            title="Report a bug"
+            @click="ui.toggleMobileNav(); bugReportOpen = true"
+          >
+            <IconBug class="h-4 w-4" />
+          </button>
+          <button
+            class="hover:text-foreground transition-colors"
             title="Sign out"
             @click="handleSignOut"
           >
@@ -90,12 +97,15 @@
       </div>
     </aside>
   </Transition>
+
+  <BugReportModal v-model="bugReportOpen" />
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { IconClose, IconDownload, IconLogOut, IconShieldCheck } from '@/lib/icons';
+import { IconBug, IconClose, IconDownload, IconLogOut, IconShieldCheck } from '@/lib/icons';
+import BugReportModal from "@/components/common/BugReportModal.vue";
 import { usePwaInstall } from "@/composables/usePwaInstall";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
@@ -109,6 +119,7 @@ const ui = useUiStore();
 const router = useRouter();
 const route = useRoute();
 const { canInstall, hasNativePrompt, install } = usePwaInstall();
+const bugReportOpen = ref(false);
 
 // Close drawer on any navigation (handles campaign switcher, settings link, etc.)
 watch(() => route.path, () => { if (ui.mobileNavOpen) ui.toggleMobileNav(); });
