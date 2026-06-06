@@ -88,7 +88,13 @@ export const createApp = ViteSSG(
         window.addEventListener("load", () => {
           navigator.serviceWorker.register("/sw.js").catch(() => {});
         });
+        // Capture whether a SW was already controlling the page BEFORE we add
+        // the listener. controllerchange also fires on first install (when
+        // clients.claim() runs), which is not an update — only treat it as one
+        // if there was a previous controller.
+        const hadController = !!navigator.serviceWorker.controller;
         navigator.serviceWorker.addEventListener("controllerchange", () => {
+          if (!hadController) return;
           const p = window.location.pathname;
           // Auth pages reload immediately — the user isn't mid-task and the
           // fresh SW is needed to serve up-to-date login/signup assets.
@@ -96,9 +102,8 @@ export const createApp = ViteSSG(
             window.location.reload();
             return;
           }
-          // For all other pages, surface a banner instead of force-reloading.
-          // The new service worker is already active and will serve fresh assets
-          // for any subsequent fetches; the user can reload at a convenient moment.
+          // For all other pages, signal via updateAvailable so the More menus
+          // can surface a "Reload to update" action at the user's convenience.
           updateAvailable.value = true;
         });
       }
