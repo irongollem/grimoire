@@ -69,6 +69,16 @@
     <p class="mt-4 px-1 text-center text-2xs font-fell text-muted-foreground/60">
       Dot = currently pinned to the {{ ui.dmMode }} bar.
     </p>
+
+    <button
+      v-if="updateAvailable"
+      type="button"
+      class="mt-4 flex w-full items-center justify-center gap-2 rounded-md border border-primary/40 bg-primary/10 px-3 py-3 font-cinzel text-xs font-bold tracking-wider text-primary transition-colors hover:bg-primary/20"
+      @click="reloadApp"
+    >
+      <IconRefresh class="h-4 w-4 shrink-0" />
+      Reload to update
+    </button>
   </MobileSheet>
 </template>
 
@@ -76,8 +86,9 @@
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import MobileSheet from "@/components/common/MobileSheet.vue";
-import { IconAdd } from "@/lib/icons";
+import { IconAdd, IconRefresh } from "@/lib/icons";
 import { NAV_GROUPS, type NavItem } from "@/lib/nav";
+import { updateAvailable, reloadApp } from "@/composables/useAppUpdate";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/useOptionalRules";

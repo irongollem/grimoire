@@ -3,7 +3,7 @@
        left sidebar. Only DMs see it; players have their own portal nav. -->
   <nav
     v-if="isDm"
-    class="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 items-end border-t border-border bg-card/95 px-1.5 backdrop-blur md:hidden"
+    class="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 items-end border-t border-border bg-card px-1.5 md:hidden"
     :style="barStyle"
   >
     <template v-for="slot in barSlots" :key="slot.key">
