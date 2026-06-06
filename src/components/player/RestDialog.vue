@@ -171,6 +171,7 @@ import { useClassByName } from "@/composables/useCustomClasses";
 import { abilityModifier } from "@/lib/utils";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { restoreInnateUses } from "@/composables/useCharacterSpells";
+import { getExhaustionLevel, setExhaustionLevel } from "@/lib/conditions";
 import type { DieSize } from "@/lib/dice";
 
 const props = defineProps<{
@@ -343,6 +344,12 @@ function confirm() {
     // Wild Shape: revert active form and reset uses
     update.wildshapes_used = 0;
     update.wildshape_state = null;
+
+    // Exhaustion: long rest reduces level by 1 (SRD 5e)
+    const exhaustionLevel = getExhaustionLevel(props.member.conditions);
+    if (exhaustionLevel > 0) {
+      update.conditions = setExhaustionLevel(props.member.conditions, exhaustionLevel - 1);
+    }
   }
 
   emit("confirm", update);
