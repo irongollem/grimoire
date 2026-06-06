@@ -79,14 +79,25 @@
       <IconRefresh class="h-4 w-4 shrink-0" />
       Reload to update
     </button>
+
+    <button
+      type="button"
+      class="mt-2 flex w-full items-center justify-center gap-2 rounded-md border border-border px-3 py-2.5 font-cinzel text-xs tracking-wider text-muted-foreground transition-colors hover:text-foreground"
+      @click="emit('update:open', false); bugReportOpen = true"
+    >
+      <IconBug class="h-4 w-4 shrink-0" />
+      Report a bug
+    </button>
+    <BugReportModal v-model="bugReportOpen" />
   </MobileSheet>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import MobileSheet from "@/components/common/MobileSheet.vue";
-import { IconAdd, IconRefresh } from "@/lib/icons";
+import BugReportModal from "@/components/common/BugReportModal.vue";
+import { IconAdd, IconBug, IconRefresh } from "@/lib/icons";
 import { NAV_GROUPS, type NavItem } from "@/lib/nav";
 import { updateAvailable, reloadApp } from "@/composables/useAppUpdate";
 import { useUiStore } from "@/stores/ui";
@@ -102,6 +113,8 @@ const { open = false, barRoutes = [], create = null } = defineProps<{
 }>();
 
 const emit = defineEmits<{ "update:open": [boolean] }>();
+
+const bugReportOpen = ref(false);
 
 const route = useRoute();
 const router = useRouter();
