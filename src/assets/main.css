@@ -352,6 +352,15 @@
   padding-right: env(safe-area-inset-right);
 }
 
+/* Hide the native scrollbar while keeping the element scrollable (used by the
+   soundboard page tabs, which cue overflow with edge fades + chevrons). */
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 /* ─────────────────────────────────────────────────────────────────────────────
    Hide number input spinners globally
 ───────────────────────────────────────────────────────────────────────────── */

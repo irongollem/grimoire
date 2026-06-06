@@ -68,7 +68,26 @@
           @click="startArtistEdit"
         >{{ sound.artist || 'Add artist…' }}</p>
 
-        <p class="font-fell text-[10px] text-muted-foreground/60 italic capitalize">{{ sound.category }}</p>
+        <!-- Category (inline editable; click to change type) -->
+        <select
+          v-if="editingCategory"
+          ref="categoryInput"
+          :value="sound.category"
+          class="w-full rounded border border-gold-500/50 bg-background px-1 py-0.5 font-fell text-[10px] text-foreground capitalize focus:outline-none focus:ring-1 focus:ring-gold-500"
+          @change="saveCategory(($event.target as HTMLSelectElement).value)"
+          @blur="editingCategory = false"
+        >
+          <option value="ambient">Ambient</option>
+          <option value="music">Music</option>
+          <option value="effects">Effects</option>
+          <option value="misc">Misc</option>
+        </select>
+        <p
+          v-else
+          class="font-fell text-[10px] text-muted-foreground/60 italic capitalize cursor-pointer hover:text-muted-foreground"
+          title="Change category"
+          @click="startCategoryEdit"
+        >{{ sound.category }}</p>
       </div>
 
       <!-- Edit name button -->
@@ -275,8 +294,10 @@
     </template>
 
     <!-- ── Page picker (audio sounds only; multiple pages exist) ────────── -->
+    <!-- Always shown so a sound can be moved between boards, not only assigned
+         when unassigned. -->
     <div
-      v-if="!isSpotify && pages && pages.length > 1 && !sound.page_id"
+      v-if="!isSpotify && pages && pages.length > 1"
       class="flex items-center gap-1.5 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
     >
       <IconLayers class="h-3 w-3 text-muted-foreground/50 shrink-0" />
@@ -383,7 +404,7 @@ import SoundEffectPicker from "./SoundEffectPicker.vue";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSpotifyStore } from "@/stores/spotify";
 import { useUpdateSound, useMoveSound, useSoundThumbnailUpload } from "@/composables/useSounds";
-import type { Sound, SoundboardPage } from "@/types/sound.types";
+import type { Sound, SoundboardPage, SoundCategory } from "@/types/sound.types";
 
 const IS_SAFARI = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
@@ -563,5 +584,22 @@ function saveArtist() {
 
 function cancelArtistEdit() {
   editingArtist.value = false;
+}
+
+// ── Inline category editing ───────────────────────────────────────────────
+
+const editingCategory = ref(false);
+const categoryInput = ref<HTMLSelectElement | null>(null);
+
+function startCategoryEdit() {
+  editingCategory.value = true;
+  nextTick(() => categoryInput.value?.focus());
+}
+
+function saveCategory(value: string) {
+  if (value && value !== props.sound.category) {
+    updateSound({ id: props.sound.id, update: { category: value as SoundCategory } });
+  }
+  editingCategory.value = false;
 }
 </script>
