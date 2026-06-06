@@ -91,6 +91,7 @@
       :open="showForm"
       :page-id="newSoundPageId"
       :gemini-api-key="geminiApiKey"
+      :campaign-id="activeCampaignId ?? null"
       @close="showForm = false"
     />
 
@@ -186,7 +187,7 @@ const soundboardStore = useSoundboardStore();
 const spotifyStore = useSpotifyStore();
 const campaignStore = useCampaignStore();
 const { activeCampaignId } = storeToRefs(campaignStore);
-const geminiApiKey = computed(() => campaignStore.activeCampaign?.gemini_api_key ?? null);
+const geminiApiKey = computed(() => campaignStore.decryptedGeminiKey || null);
 
 onMounted(() => spotifyStore.initSDK());
 

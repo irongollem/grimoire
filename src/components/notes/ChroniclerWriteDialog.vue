@@ -115,9 +115,11 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { AI_PROMPT_LIMIT_LONG } from "@/ai/utils";
 
-const NOTES_LIMIT = AI_PROMPT_LIMIT_LONG;
+// Chronicler accepts a larger fact-dump than other prompts — a full session's
+// raw notes run long. Input is wrapped (not truncated) before sending, so this
+// is purely the UI/validation ceiling.
+const NOTES_LIMIT = 3000;
 import { IconNote } from '@/lib/icons';
 import {
   useChroniclerTextGeneration,

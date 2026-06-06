@@ -141,10 +141,11 @@
         <div class="space-y-1.5">
           <p class="font-fell text-xs text-muted-foreground">Real-world date (optional)</p>
           <VueDatePicker
-            v-model="sessionRealDateObj"
+            v-model="sessionRealDate"
             :dark="true"
             :enable-time-picker="false"
             :teleport="true"
+            model-type="yyyy-MM-dd"
             format="yyyy-MM-dd"
             placeholder="Pick real-world date…"
             class="grimoire-datepicker"
@@ -311,23 +312,6 @@ const sessionEndMonth   = ref<number | null>(props.note?.session_end_month ?? nu
 const sessionEndDay     = ref<number | null>(props.note?.session_end_day ?? null);
 const sessionRealDate   = ref<string | null>(props.note?.session_real_date ?? null);
 
-// VueDatePicker works with Date objects internally; we store as YYYY-MM-DD strings.
-const sessionRealDateObj = computed<Date | null>({
-  get: () => {
-    if (!sessionRealDate.value) return null;
-    // Handle both "YYYY-MM-DD" and legacy locale strings gracefully
-    const d = new Date(sessionRealDate.value);
-    return isNaN(d.getTime()) ? null : d;
-  },
-  set: (d: Date | null) => {
-    if (!d) { sessionRealDate.value = null; return; }
-    const year  = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, "0");
-    const day   = String(d.getDate()).padStart(2, "0");
-    sessionRealDate.value = `${year}-${month}-${day}`;
-  },
-});
-
 const calendarStore = useCalendarStore();
 const calendarAdapter = computed(() => calendarStore.adapter);
 
@@ -376,7 +360,10 @@ const campaignStore = useCampaignStore();
 const isOpenAiImageProvider = computed(
   () => (campaignStore.activeCampaign?.image_provider ?? "openai") === "openai",
 );
-const hasTextProvider = computed(() => !!campaignStore.decryptedApiKey);
+// Text generation works on both BYOK and platform keys via the edge function,
+// so the toolbar button only needs a campaign + configured provider — not a
+// decrypted client-side key.
+const hasTextProvider = computed(() => !!(campaignStore.activeCampaign?.text_provider ?? "openai"));
 
 const { isPro } = useSubscription();
 
@@ -523,6 +510,7 @@ async function save() {
         void sendCampaignAnnouncement(
           activeCampaignId.value,
           `📜 Note shared: "${title.value.trim()}"`,
+          { entity_type: "note", entity_id: props.note.id },
         );
       router.push("/notes");
     } else {
@@ -532,6 +520,7 @@ async function save() {
         void sendCampaignAnnouncement(
           activeCampaignId.value,
           `📜 Note shared: "${created.title}"`,
+          { entity_type: "note", entity_id: created.id },
         );
       router.replace(`/notes/${created.id}`);
     }

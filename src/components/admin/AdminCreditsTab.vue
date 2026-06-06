@@ -100,6 +100,13 @@
         </div>
 
         <div v-if="usageStats.modelStats.value.length" class="space-y-1">
+          <!-- Column headers -->
+          <div class="flex items-center gap-2 px-2.5 pb-0.5">
+            <span class="flex-1 font-cinzel text-[10px] uppercase tracking-wider text-muted-foreground">Model</span>
+            <span class="font-cinzel text-[10px] uppercase tracking-wider text-muted-foreground shrink-0 w-10 text-right">Gens</span>
+            <span class="font-cinzel text-[10px] uppercase tracking-wider text-muted-foreground shrink-0 w-20 text-right">Total</span>
+            <span class="font-cinzel text-[10px] uppercase tracking-wider text-muted-foreground shrink-0 w-20 text-right">Avg/gen</span>
+          </div>
           <div
             v-for="stat in usageStats.modelStats.value"
             :key="stat.model"
@@ -109,9 +116,12 @@
               <span class="font-cinzel text-xs font-semibold text-foreground">{{ stat.model }}</span>
               <span class="font-fell text-[11px] text-muted-foreground italic ml-1">· {{ stat.provider }}</span>
             </div>
-            <span class="font-fell text-xs text-muted-foreground shrink-0">{{ stat.count }}×</span>
-            <span class="font-cinzel text-xs text-foreground shrink-0 w-16 text-right">
+            <span class="font-fell text-xs text-muted-foreground shrink-0 w-10 text-right">{{ stat.count }}×</span>
+            <span class="font-cinzel text-xs text-foreground shrink-0 w-20 text-right">
               ${{ stat.estimated_cost_usd.toFixed(3) }}
+            </span>
+            <span class="font-cinzel text-xs text-muted-foreground shrink-0 w-20 text-right">
+              ${{ stat.avg_cost_usd.toFixed(4) }}
             </span>
           </div>
         </div>

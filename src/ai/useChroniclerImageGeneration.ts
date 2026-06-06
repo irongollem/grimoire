@@ -4,11 +4,12 @@ import { getCurrentUser, supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { fetchImageBasePrompt } from "./systemPrompts";
 import { OPENAI_IMAGE_MODEL_KEY } from "@/ai/providers/index";
-import type { ChroniclerSize } from "@/types/chronicler.types";
+import type { ChroniclerSize, ImageJobKind } from "@/types/chronicler.types";
 import type { Npc } from "@/types/npc.types";
 import type { Monster } from "@/types/monster.types";
 import type { PartyMember } from "@/types/party.types";
 import { logUsage } from "@/composables/useAiCredits";
+import { waitForImageJob } from "@/ai/useImageJob";
 
 const LOCAL_MODE_KEY = "grimoire_key_local_mode";
 
@@ -199,8 +200,9 @@ export async function generateChroniclerImage(params: {
   sceneText: string;
   entities: ResolvedEntity[];
   size: ChroniclerSize;
+  kind?: ImageJobKind;
 }): Promise<string> {
-  const { sceneText, entities, size } = params;
+  const { sceneText, entities, size, kind = "chronicler" } = params;
   const store = useCampaignStore();
   const imageModel = store.activeCampaign?.image_provider === "openai-mini"
     ? "gpt-image-1-mini"
@@ -212,27 +214,34 @@ export async function generateChroniclerImage(params: {
     typeof localStorage !== "undefined" &&
     localStorage.getItem(LOCAL_MODE_KEY) === "local";
 
-  // ── Server-side path ────────────────────────────────────────────────────────
+  // ── Server-side path (async job pattern) ───────────────────────────────────
+  // Edge function returns a job id immediately; OpenAI call continues in
+  // EdgeRuntime.waitUntil and the storage URL lands on the job row when ready.
   if (!isLocalMode && campaignId) {
     const portrait_urls = entities.filter((e) => e.portraitUrl).map((e) => e.portraitUrl!);
     const text_descriptions = entities.map((e) => e.textDescription).filter((d): d is string => !!d);
 
     const { data, error } = await supabase.functions.invoke("generate-chronicle-image", {
-      body: { campaign_id: campaignId, scene_text: sceneText, portrait_urls, text_descriptions, size, image_model: imageModel },
+      body: { campaign_id: campaignId, scene_text: sceneText, portrait_urls, text_descriptions, size, image_model: imageModel, kind },
     });
-    if (error) throw new Error(error.message);
+    // supabase-js wraps a non-2xx as a FunctionsHttpError and discards the JSON
+    // body unless we read it explicitly. The edge function returns structured
+    // codes like { error: "insufficient_credits", balance } that the user needs
+    // to see — otherwise they get the generic "non-2xx status code" string.
+    if (error) {
+      let body: { error?: string; balance?: number } | null = null;
+      try { body = (await (error as { context?: Response }).context?.json()) ?? null; } catch { /* not JSON */ }
+      if (body?.error === "insufficient_credits") {
+        const left = body.balance != null ? ` (${body.balance} left)` : "";
+        throw new Error(`Insufficient credits${left}. Buy a credit pack or wait for the monthly refresh.`);
+      }
+      throw new Error(body?.error ?? error.message);
+    }
     if (data?.error) throw new Error(data.error);
 
-    const blob = b64ToBlob((data as { image_b64: string }).image_b64, "image/webp");
-    const user = getCurrentUser();
-    const url = await uploadToBucket({
-      bucket: "chronicle",
-      blob,
-      path: `${user!.id}/scene-${Date.now()}.webp`,
-      contentType: "image/webp",
-    });
-    if (!url) throw new Error("Failed to upload scene image.");
-    return url;
+    const jobId = (data as { job_id?: string }).job_id;
+    if (!jobId) throw new Error("Server did not return a job id.");
+    return await waitForImageJob(jobId);
   }
 
   // ── Client-side path (BYOK local mode) ─────────────────────────────────────
@@ -258,6 +267,23 @@ export async function generateChroniclerImage(params: {
   const prompt = buildPrompt(sceneText, textDescriptions, settingPrompt, imageBasePrompt);
 
   let b64: string;
+  // Token usage for accurate (token-based) image cost. The edit branch feeds
+  // reference portraits in, so its image-input tokens can be substantial.
+  let imgInputTokens = 0;
+  let imgInputImageTokens = 0;
+  let imgOutputTokens = 0;
+  const captureUsage = (data: {
+    usage?: {
+      input_tokens?: number;
+      input_tokens_details?: { text_tokens?: number; image_tokens?: number };
+      output_tokens?: number;
+    };
+  }) => {
+    const u = data.usage;
+    imgInputTokens      += u?.input_tokens_details?.text_tokens  ?? u?.input_tokens ?? 0;
+    imgInputImageTokens += u?.input_tokens_details?.image_tokens ?? 0;
+    imgOutputTokens     += u?.output_tokens ?? 0;
+  };
 
   if (portraitBlobs.length > 0) {
     // Multi-image edit endpoint — composes reference portraits into the scene
@@ -279,7 +305,9 @@ export async function generateChroniclerImage(params: {
       const body = await res.json().catch(() => ({}));
       throw new Error(body?.error?.message ?? `OpenAI image edit error ${res.status}`);
     }
-    b64 = (await res.json()).data[0].b64_json as string;
+    const json = await res.json();
+    b64 = json.data[0].b64_json as string;
+    captureUsage(json);
   } else {
     // Standard generation — text-only prompt
     const res = await fetch(GENERATE_URL, {
@@ -291,10 +319,20 @@ export async function generateChroniclerImage(params: {
       const body = await res.json().catch(() => ({}));
       throw new Error(body?.error?.message ?? `OpenAI image generation error ${res.status}`);
     }
-    b64 = (await res.json()).data[0].b64_json as string;
+    const json = await res.json();
+    b64 = json.data[0].b64_json as string;
+    captureUsage(json);
   }
 
-  logUsage({ reason: "chronicler_image", imageUsage: { model: imageModel, provider: "openai", image_count: 1 } });
+  logUsage({
+    reason: "chronicler_image",
+    imageUsage: {
+      model: imageModel, provider: "openai", image_count: 1,
+      input_tokens:       imgInputTokens      || undefined,
+      input_image_tokens: imgInputImageTokens || undefined,
+      output_tokens:      imgOutputTokens     || undefined,
+    },
+  });
 
   // Upload to chronicle bucket
   const blob = b64ToBlob(b64, "image/webp");
@@ -306,5 +344,19 @@ export async function generateChroniclerImage(params: {
     contentType: "image/webp",
   });
   if (!url) throw new Error("Failed to upload scene image.");
+
+  // Mirror the server-side behavior — gallery row creation lives here so the
+  // caller sees the same outcome on both paths. Skipped for non-chronicler
+  // kinds (e.g. group_portrait, which writes back to its own entity).
+  if (kind === "chronicler" && campaignId && user) {
+    await supabase.from("chronicler_images").insert({
+      campaign_id: campaignId,
+      user_id:     user.id,
+      image_url:   url,
+      prompt:      sceneText.slice(0, 500),
+      size,
+    });
+  }
+
   return url;
 }

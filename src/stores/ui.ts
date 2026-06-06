@@ -312,12 +312,12 @@ export const useUiStore = defineStore("ui", () => {
     else playerInnateOpenSources.value.push(label);
   }
 
-  // Mobile nav
-  const mobileNavOpen = ref(false);
-
-  function toggleMobileNav() {
-    mobileNavOpen.value = !mobileNavOpen.value;
-  }
+  // Entity list layout (mobile rows/gallery toggle) — persisted across sessions.
+  // Shared by the NPC + Monster mobile list screens (<md only).
+  const entityListLayout = useLocalStorage<"rows" | "gallery">(
+    "grimoire:entity-list-layout",
+    "rows",
+  );
 
   // Chat panel
   const chatOpen = ref(false);
@@ -511,8 +511,7 @@ export const useUiStore = defineStore("ui", () => {
     togglePlayerInnateSource,
 
     // Layout
-    mobileNavOpen,
-    toggleMobileNav,
+    entityListLayout,
     chatOpen,
     chatHasUnread,
     toggleChat,

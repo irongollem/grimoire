@@ -23,8 +23,8 @@
         <IconUser class="h-10 w-10" />
       </div>
       <EntityNewDot :is-new="isNew ?? false" class="absolute top-1.5 left-1.5 z-10" />
+      <!-- Relationship always shown — "unknown" is a valid soft-hidden state. -->
       <span
-        v-if="npc.player_visible_fields.includes('relationship')"
         class="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[10px] font-cinzel font-bold tracking-wider uppercase text-white"
         :style="{ backgroundColor: relColor(npc.relationship) + 'EE' }"
       >{{ npc.relationship }}</span>
@@ -35,7 +35,8 @@
       <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight truncate">
         {{ npc.player_visible_fields.includes('name') ? displayName : '???' }}
       </h3>
-      <p v-if="npc.player_visible_fields.includes('status')" class="flex items-center gap-1 font-fell text-xs text-muted-foreground">
+      <!-- Status always shown — "unknown" is a valid soft-hidden state. -->
+      <p class="flex items-center gap-1 font-fell text-xs text-muted-foreground">
         <span class="w-1.5 h-1.5 rounded-full shrink-0" :style="{ backgroundColor: statusColor(npc.status) }" />
         {{ npc.status }}
       </p>

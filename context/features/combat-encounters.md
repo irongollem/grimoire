@@ -147,7 +147,7 @@ Pre-scripted automation that fires automatically or on demand during the run. Ea
 **Options:**
 
 - `fire_once` — if checked, the event is greyed out after firing and won't repeat
-- `is_player_visible` — whether players see the event name in the combat panel (not yet fully surfaced in the player UI)
+- `is_player_visible` — when set, fired events appear as parchment-style narrative beat callouts in the player's combat panel (`PlayerEncounterPanel`). If the event has a `broadcast_message` action, that message text is shown prominently; the event name is shown as a smaller label below it. Events appear in the order they were defined and remain visible for the rest of the encounter.
 
 ### Boss Mechanics
 

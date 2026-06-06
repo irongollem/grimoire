@@ -11,8 +11,13 @@ export interface SoundboardPage {
   updated_at: string;
 }
 
-export type SoundboardPageInsert = Omit<SoundboardPage, "id" | "user_id" | "created_at" | "updated_at">;
-export type SoundboardPageUpdate = Partial<Pick<SoundboardPage, "name" | "sort_order">>;
+export type SoundboardPageInsert = Omit<
+  SoundboardPage,
+  "id" | "user_id" | "created_at" | "updated_at"
+>;
+export type SoundboardPageUpdate = Partial<
+  Pick<SoundboardPage, "name" | "sort_order">
+>;
 
 export interface Sound {
   id: string;
@@ -28,13 +33,16 @@ export interface Sound {
   sort_order: number;
   attribution: string | null; // e.g. "Sound by FreesoundUser (CC-BY)" — only set when license requires it
   attribution_url: string | null; // link back to the source page
-  thumbnail_url: string | null;   // optional cover art — used by Media Session (CarPlay, lock screen, etc.)
-  artist: string | null;          // e.g. "Vindsvept" — shown in Media Session; defaults to "Dungeon Grimoire"
+  thumbnail_url: string | null; // optional cover art — used by Media Session (CarPlay, lock screen, etc.)
+  artist: string | null; // e.g. "Vindsvept" — shown in Media Session; defaults to "Dungeon Grimoire"
   created_at: string;
   updated_at: string;
 }
 
-export type SoundInsert = Omit<Sound, "id" | "user_id" | "created_at" | "updated_at">;
+export type SoundInsert = Omit<
+  Sound,
+  "id" | "user_id" | "created_at" | "updated_at"
+>;
 export type SoundUpdate = Partial<SoundInsert>;
 
 export interface SoundPlaybackState {
@@ -42,13 +50,20 @@ export interface SoundPlaybackState {
   volume: number; // 0–1
   isLooping: boolean;
   currentTime: number; // seconds
-  duration: number;    // seconds (0 = unknown / not yet loaded)
-  loadError: boolean;  // true after a load failure persists past one retry
+  duration: number; // seconds (0 = unknown / not yet loaded)
+  loadError: boolean; // true after a load failure persists past one retry
 }
 
 // ── Audio effects ─────────────────────────────────────────────────────────
 
-export type AudioEffectPreset = "none" | "through_door" | "through_wall" | "distant" | "underwater";
+export type AudioEffectPreset =
+  | "none"
+  | "through_door"
+  | "through_wall"
+  | "distant"
+  | "underwater"
+  | "cave"
+  | "sewer";
 
 // ── Playlists ─────────────────────────────────────────────────────────────
 
@@ -68,8 +83,16 @@ export interface SoundboardPlaylist {
   updated_at: string;
 }
 
-export type SoundboardPlaylistInsert = Omit<SoundboardPlaylist, "id" | "user_id" | "created_at" | "updated_at">;
-export type SoundboardPlaylistUpdate = Partial<Pick<SoundboardPlaylist, "name" | "playlist_type" | "shuffle" | "repeat" | "sort_order">>;
+export type SoundboardPlaylistInsert = Omit<
+  SoundboardPlaylist,
+  "id" | "user_id" | "created_at" | "updated_at"
+>;
+export type SoundboardPlaylistUpdate = Partial<
+  Pick<
+    SoundboardPlaylist,
+    "name" | "playlist_type" | "shuffle" | "repeat" | "sort_order"
+  >
+>;
 
 export interface PlaylistTrack {
   id: string;

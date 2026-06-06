@@ -9,6 +9,11 @@ export interface ImageUsage {
   model: string;
   provider: string;
   image_count: number;
+  // Token usage for token-priced image models (OpenAI gpt-image). Optional —
+  // flat-priced providers (fal.ai) and older responses omit them.
+  input_tokens?: number;       // text-prompt tokens (text-input rate)
+  input_image_tokens?: number; // reference/seed-image tokens on edits (image-input rate)
+  output_tokens?: number;      // generated-image tokens (image-output rate, dominant)
 }
 
 export interface TextProvider {

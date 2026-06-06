@@ -1,5 +1,17 @@
 import type { Npc } from "@/types/npc.types";
 
+// Per-field reveal toggles surfaced to the DM. Status + relationship are
+// intentionally absent — both have an "unknown" value, so they're always
+// shown to players and read as "unknown" until the DM sets them otherwise.
+export const NPC_PLAYER_FIELDS = [
+  { key: "portrait",   label: "Portrait" },
+  { key: "name",       label: "Name" },
+  { key: "race",       label: "Species" },
+  { key: "occupation", label: "Occupation" },
+  { key: "location",   label: "Location" },
+] as const;
+export type NpcPlayerFieldKey = typeof NPC_PLAYER_FIELDS[number]["key"];
+
 export function isNpcConcealed(npc: Pick<Npc, "disguise_name" | "disguise_portrait_url" | "is_revealed">): boolean {
   return !!(npc.disguise_name || npc.disguise_portrait_url) && !npc.is_revealed;
 }

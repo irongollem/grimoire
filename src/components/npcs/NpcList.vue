@@ -34,6 +34,39 @@
       No NPCs match your filters.
     </p>
 
+    <!-- ── Mobile list (<md): compact rows / gallery ─────────────────────── -->
+    <template v-else-if="isMobile">
+      <MobileEntityMetaRow
+        v-model:layout="layout"
+        :shown="filtered.length"
+        :total="npcs?.length ?? 0"
+        plural="NPCs"
+      />
+      <div
+        :class="layout === 'gallery'
+          ? 'grid grid-cols-2 gap-3 pb-2'
+          : 'flex flex-col gap-2 pb-2'"
+      >
+        <EntityMobileCard
+          v-for="npc in visibleItems"
+          :key="npc.id"
+          :layout="layout"
+          :to="`/npcs/${npc.id}`"
+          :title="getNpcDisplayName(npc)"
+          :subtitle="npcSubtitle(npc)"
+          :image-url="getNpcDisplayPortrait(npc)"
+          :focal-point="getNpcDisplayFocalPoint(npc)"
+          placeholder="/assets/placeholders/npc.webp"
+          :badge-text="npc.relationship"
+          :badge-color="relColor(npc.relationship)"
+          :status-color="statusColor(npc.status)"
+          :location="npc.location_id ? locationName(npc.location_id) : undefined"
+          :shared="isShared(npc)"
+        />
+      </div>
+    </template>
+
+    <!-- ── Desktop grid (≥md): unchanged ─────────────────────────────────── -->
     <div
       v-else
       class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"
@@ -126,23 +159,23 @@
         <div class="absolute top-2 left-2 z-10 flex items-center gap-1.5">
           <RouterLink
             :to="`/npcs/${npc.id}?edit=true`"
-            class="flex items-center gap-1 rounded px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
+            class="flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
             title="Edit NPC"
           >
-            <IconEdit class="h-3 w-3" />
+            <IconEdit class="max-md:h-4 max-md:w-4 h-3 w-3" />
             Edit
           </RouterLink>
           <button
             type="button"
-            class="flex items-center gap-1 rounded px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider transition-opacity cursor-pointer"
+            class="flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:min-w-11 max-md:px-3 max-md:py-2 px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider transition-opacity cursor-pointer"
             :class="isShared(npc)
               ? 'text-primary bg-black/60 opacity-100'
               : 'text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100'"
             :title="isShared(npc) ? 'Shared — click to manage' : 'Hidden — click to share'"
             @click.prevent.stop="openPopover(npc, $event)"
           >
-            <IconReveal v-if="isShared(npc)" class="h-3 w-3" />
-            <IconHide v-else class="h-3 w-3" />
+            <IconReveal v-if="isShared(npc)" class="max-md:h-4 max-md:w-4 h-3 w-3" />
+            <IconHide v-else class="max-md:h-4 max-md:w-4 h-3 w-3" />
           </button>
         </div>
       </div>
@@ -151,7 +184,7 @@
     <div ref="sentinelRef" />
 
     <p
-      v-if="filtered.length"
+      v-if="filtered.length && !isMobile"
       class="mt-4 font-fell text-xs text-muted-foreground italic text-right"
     >
       {{ filtered.length }} of {{ npcs?.length ?? 0 }} NPCs
@@ -205,6 +238,24 @@
           </button>
         </div>
 
+        <!-- Field reveal — what the chosen players actually see -->
+        <div v-if="isShared(popoverNpc)" class="border-t border-border pt-2 space-y-1">
+          <p class="font-cinzel text-[9px] tracking-widest text-muted-foreground px-1">REVEALED FIELDS</p>
+          <label
+            v-for="f in NPC_PLAYER_FIELDS"
+            :key="f.key"
+            class="flex items-center gap-2 px-2 py-1 rounded cursor-pointer hover:bg-muted/50"
+          >
+            <input
+              type="checkbox"
+              class="accent-primary"
+              :checked="isFieldVisible(f.key)"
+              @change="toggleField(f.key)"
+            />
+            <span class="font-fell text-xs text-foreground">{{ f.label }}</span>
+          </label>
+        </div>
+
         <!-- Divider + unshare -->
         <div class="border-t border-border pt-1">
           <button
@@ -230,6 +281,7 @@
 <script setup lang="ts">
 import { ref, computed, reactive } from "vue";
 import { useRouter } from "vue-router";
+import { useMediaQuery } from "@vueuse/core";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";
 import { IconEdit, IconHide, IconLock, IconParty, IconReveal } from '@/lib/icons';
@@ -242,7 +294,9 @@ import { useUiStore } from "@/stores/ui";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
-import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
+import EntityMobileCard from "@/components/common/EntityMobileCard.vue";
+import MobileEntityMetaRow from "@/components/common/MobileEntityMetaRow.vue";
+import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint, NPC_PLAYER_FIELDS, type NpcPlayerFieldKey } from "@/lib/npcDisplay";
 import { NPC_RELATIONSHIP_COLORS, type Npc, type NpcRelationship, type NpcStatus } from "@/types/npc.types";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useQuota } from "@/composables/useQuota";
@@ -269,6 +323,11 @@ const { data: npcs, isLoading } = useNpcs();
 const { data: party } = useParty();
 const { sendNarrativeEvent } = useCampaignMessages();
 const ui = useUiStore();
+const isMobile = useMediaQuery("(max-width: 767px)");
+const layout = computed({
+  get: () => ui.entityListLayout,
+  set: (v: "rows" | "gallery") => { ui.entityListLayout = v; },
+});
 
 const { data: connectedNpcIds } = useNpcPcNotesByPartyMember(computed(() => props.partyMemberFilter));
 const { mutate: updateNpc } = useUpdateNpc();
@@ -365,6 +424,13 @@ function statusColor(s: NpcStatus) {
   return STATUS_COLORS[s] ?? "#6b7280";
 }
 
+// Mobile-card subtitle — mirrors the desktop "{race} - {occupation}" line,
+// gracefully collapsing when one half is missing.
+function npcSubtitle(npc: Npc): string | undefined {
+  const parts = [npc.race, npc.occupation].filter(Boolean) as string[];
+  return parts.length ? parts.join(" - ") : undefined;
+}
+
 // ── Sharing ───────────────────────────────────────────────────────────────────
 
 function isShared(npc: Npc): boolean {
@@ -401,13 +467,28 @@ function allPartyIds(): string[] {
   return party.value?.map((m) => m.id) ?? [];
 }
 
+// Without any fields revealed, sharing an NPC is a no-op for the player.
+// Pre-fill name + portrait on first reveal so the toggle is immediately useful.
+const DEFAULT_FIELDS: NpcPlayerFieldKey[] = ["name", "portrait"];
+function fieldsForFirstReveal(npc: Npc): string[] {
+  return (npc.player_visible_fields?.length ?? 0) > 0
+    ? npc.player_visible_fields
+    : [...DEFAULT_FIELDS];
+}
+
 function setWholeParty() {
   const npc = popoverNpc.value;
   if (!npc) return;
   const wasHidden = !isShared(npc);
-  updateNpc({ id: npc.id, update: { player_visible_to: [...new Set(allPartyIds())] } });
+  updateNpc({
+    id: npc.id,
+    update: {
+      player_visible_to: [...new Set(allPartyIds())],
+      player_visible_fields: fieldsForFirstReveal(npc),
+    },
+  });
   if (wasHidden && ui.dmMode === "play") {
-    void sendNarrativeEvent(`The party encounters ${npc.name}.`);
+    void sendNarrativeEvent(`The party encounters ${npc.name}.`, npc.id);
   }
 }
 
@@ -417,11 +498,17 @@ function toggleMember(memberId: string) {
   const current = [...npc.player_visible_to];
   const idx = current.indexOf(memberId);
   const next = idx === -1 ? [...current, memberId] : current.filter((id) => id !== memberId);
-  updateNpc({ id: npc.id, update: { player_visible_to: next } });
+  updateNpc({
+    id: npc.id,
+    update: {
+      player_visible_to: next,
+      player_visible_fields: next.length > 0 ? fieldsForFirstReveal(npc) : npc.player_visible_fields,
+    },
+  });
   if (idx === -1 && ui.dmMode === "play") {
     const memberName = party.value?.find((m) => m.id === memberId)?.name;
     const who = memberName ?? "A party member";
-    void sendNarrativeEvent(`${who} encounters ${npc.name}.`);
+    void sendNarrativeEvent(`${who} encounters ${npc.name}.`, npc.id);
   }
 }
 
@@ -430,5 +517,18 @@ function unshare() {
   if (!npc) return;
   updateNpc({ id: npc.id, update: { player_visible_to: [] } });
   closePopover();
+}
+
+function isFieldVisible(key: string): boolean {
+  const npc = popoverNpc.value;
+  return !!npc && (npc.player_visible_fields?.includes(key) ?? false);
+}
+
+function toggleField(key: string) {
+  const npc = popoverNpc.value;
+  if (!npc) return;
+  const set = new Set(npc.player_visible_fields ?? []);
+  if (set.has(key)) set.delete(key); else set.add(key);
+  updateNpc({ id: npc.id, update: { player_visible_fields: Array.from(set) } });
 }
 </script>

@@ -18,6 +18,7 @@
     <div v-if="activeSourceTab !== 'browse'" class="space-y-1">
       <label class="font-fell text-xs text-muted-foreground">Name</label>
       <input
+        ref="nameInputRef"
         v-model="form.name"
         type="text"
         required
@@ -82,7 +83,7 @@
           Spotify
         </button>
         <button
-          v-if="geminiApiKey"
+          v-if="geminiApiKey || campaignId"
           type="button"
           class="flex-1 py-1.5 rounded-md border text-xs font-cinzel tracking-wide transition-colors"
           :class="
@@ -189,13 +190,26 @@
               @click="generateModel = m.id"
             >
               <span>{{ m.label }}</span>
-              <span class="font-fell text-[10px] opacity-70 normal-case tracking-normal">{{ m.detail }}</span>
+              <span class="font-fell text-[10px] opacity-70 normal-case tracking-normal">
+                {{ geminiApiKey ? 'BYOK' : `${costOf(m.generationType)} cr` }} · {{ m.hint }}
+              </span>
             </button>
           </div>
         </div>
 
+        <!-- Structured prompt preview -->
+        <details v-if="structuredPrompt" class="group">
+          <summary class="font-fell text-[10px] text-muted-foreground/60 cursor-pointer hover:text-muted-foreground transition-colors select-none">
+            Expanded prompt ▸
+          </summary>
+          <p class="mt-1 font-fell text-[10px] text-muted-foreground/80 whitespace-pre-wrap leading-relaxed">{{ structuredPrompt }}</p>
+        </details>
+
         <!-- Status / error -->
-        <p v-if="isGenerating" class="font-fell text-xs text-muted-foreground text-center">
+        <p v-if="isStructuring" class="font-fell text-xs text-muted-foreground text-center">
+          Expanding prompt…
+        </p>
+        <p v-else-if="isGenerating" class="font-fell text-xs text-muted-foreground text-center">
           Generating… this can take up to 30 s
         </p>
         <p v-if="isBusy && !isGenerating" class="font-fell text-xs text-muted-foreground text-center">
@@ -267,16 +281,19 @@
 import { ref, computed, nextTick, onMounted, onUnmounted } from "vue";
 import { useCreateSound, useSoundUpload } from "@/composables/useSounds";
 import { useSpotifyStore } from "@/stores/spotify";
-import { generateMusicWithLyria, LYRIA_MODELS, LYRICS_MAX_CHARS, type LyriaModel } from "@/lib/aiMusic";
-import { logUsage } from "@/composables/useAiCredits";
+import { generateMusicWithLyria, structureMusicPrompt, LYRIA_MODELS, LYRICS_MAX_CHARS, type LyriaModel } from "@/lib/aiMusic";
+import { logUsage, useAiCredits } from "@/composables/useAiCredits";
+import { supabase } from "@/lib/supabase";
 import SoundFreesoundBrowser from "@/components/soundboard/SoundFreesoundBrowser.vue";
 import type { SoundCategory } from "@/types/sound.types";
 
 const spotifyStore = useSpotifyStore();
+const { costOf } = useAiCredits();
 
-const { pageId = null, geminiApiKey = null } = defineProps<{
+const { pageId = null, geminiApiKey = null, campaignId = null } = defineProps<{
   pageId?: string | null;
   geminiApiKey?: string | null;
+  campaignId?: string | null;
 }>();
 
 const emit = defineEmits<{
@@ -302,7 +319,17 @@ const form = ref<{ name: string; category: SoundCategory; external_url: string }
 const selectedFile = ref<File | null>(null);
 const uploadError = ref("");
 const fileInputRef = ref<HTMLInputElement | null>(null);
+const nameInputRef = ref<HTMLInputElement | null>(null);
 const MAX_FILE_SIZE_MB = 20;
+
+function applyFilenameToName(file: File) {
+  if (form.value.name.trim()) return;
+  form.value.name = file.name.replace(/\.[^.]+$/, "");
+  nextTick(() => {
+    nameInputRef.value?.focus();
+    nameInputRef.value?.select();
+  });
+}
 
 function setSelectedFile(file: File | null): boolean {
   uploadError.value = "";
@@ -327,7 +354,8 @@ function setSelectedFile(file: File | null): boolean {
 function handleFileChange(e: Event) {
   const input = e.target as HTMLInputElement;
   const file = input.files?.[0] ?? null;
-  if (!setSelectedFile(file)) input.value = "";
+  if (!setSelectedFile(file)) { input.value = ""; return; }
+  if (file) applyFilenameToName(file);
 }
 
 async function onUploadTabClick() {
@@ -372,7 +400,7 @@ function onWindowDrop(e: DragEvent) {
   const file = e.dataTransfer?.files?.[0] ?? null;
   if (!file) return;
   activeSourceTab.value = "upload";
-  setSelectedFile(file);
+  if (setSelectedFile(file)) applyFilenameToName(file);
 }
 
 onMounted(() => {
@@ -400,14 +428,16 @@ const isValidSpotifyUrl = computed(() =>
 const generatePrompt = ref("");
 const generateLyrics = ref("");
 const generateModel = ref<LyriaModel>("lyria-3-clip-preview");
+const isStructuring = ref(false);
 const isGenerating = ref(false);
 const generateError = ref("");
+const structuredPrompt = ref("");
 
 const lyricsCharsLeft = computed(() => LYRICS_MAX_CHARS - generateLyrics.value.length);
 
 // ── Submit state ──────────────────────────────────────────────────────────
 
-const anyBusy = computed(() => isBusy.value || isPending.value || isGenerating.value);
+const anyBusy = computed(() => isBusy.value || isPending.value || isStructuring.value || isGenerating.value);
 
 const submitDisabled = computed(() => {
   if (anyBusy.value) return true;
@@ -418,6 +448,7 @@ const submitDisabled = computed(() => {
 
 const submitLabel = computed(() => {
   if (isPending.value) return "Saving…";
+  if (isStructuring.value) return "Expanding…";
   if (isGenerating.value) return "Generating…";
   if (isBusy.value) return statusText.value || "Uploading…";
   if (activeSourceTab.value === "generate") return "Generate & Add";
@@ -474,17 +505,56 @@ async function handleSubmit() {
   }
 
   if (activeSourceTab.value === "generate") {
-    if (!geminiApiKey) return;
+    if (!geminiApiKey && !campaignId) return;
+
+    // Step 1: expand the plain description into a structured Lyria prompt
+    let finalPrompt = generatePrompt.value.trim();
+    structuredPrompt.value = "";
+    isStructuring.value = true;
+    try {
+      const { structured, textUsage } = await structureMusicPrompt(finalPrompt, generateModel.value, generateLyrics.value.trim() || undefined);
+      structuredPrompt.value = structured;
+      finalPrompt = structured;
+      void textUsage; // internal step — not logged separately
+    } catch {
+      // Fall back to raw prompt if text provider unavailable
+    } finally {
+      isStructuring.value = false;
+    }
+
+    // Step 2: generate music with Lyria — client-side (local BYOK) or edge function
     isGenerating.value = true;
     let file: File;
+    const isLocalMode = typeof localStorage !== "undefined" && localStorage.getItem("grimoire_key_local_mode") === "local";
+
     try {
-      file = await generateMusicWithLyria(
-        generatePrompt.value.trim(),
-        generateModel.value,
-        geminiApiKey,
-        generateLyrics.value.trim() || undefined,
-      );
-      logUsage({ reason: "music_generation", imageUsage: { model: generateModel.value, provider: "google", image_count: 1 } });
+      if (isLocalMode && geminiApiKey) {
+        file = await generateMusicWithLyria(
+          finalPrompt,
+          generateModel.value,
+          geminiApiKey,
+          generateLyrics.value.trim() || undefined,
+        );
+        logUsage({ reason: "music_generation", imageUsage: { model: generateModel.value, provider: "google", image_count: 1 } });
+      } else {
+        if (!campaignId) throw new Error("No campaign or API key configured for music generation.");
+        const { data, error } = await supabase.functions.invoke("generate-music", {
+          body: {
+            campaign_id: campaignId,
+            style: finalPrompt,
+            model: generateModel.value,
+            lyrics: generateLyrics.value.trim() || undefined,
+          },
+        });
+        if (error) throw new Error(error.message);
+        if (data?.error) throw new Error(data.error);
+
+        const binary = atob(data.audio_base64 as string);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        const blob = new Blob([bytes], { type: (data.mime_type as string) ?? "audio/mpeg" });
+        file = new File([blob], `ai-generated-${Date.now()}.mp3`, { type: "audio/mpeg" });
+      }
     } catch (err) {
       generateError.value = err instanceof Error ? err.message : "Generation failed.";
       return;
@@ -508,7 +578,7 @@ async function handleSubmit() {
       sort_order: 0,
       attribution: null,
       attribution_url: null,
-      artist: null,
+      artist: "Grimoire AI",
       thumbnail_url: null,
     });
     emit("saved");
@@ -551,5 +621,6 @@ function resetForm() {
   generatePrompt.value = "";
   generateLyrics.value = "";
   generateError.value = "";
+  structuredPrompt.value = "";
 }
 </script>

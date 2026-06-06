@@ -3,10 +3,10 @@
     Standard filter-row container for list pages. Applies the responsive
     `flex flex-wrap gap-2` pattern and hooks up the Clear button.
 
-    `min-w-max md:min-w-0` is the key responsive trick: on mobile the bar
-    sizes to its content (so the parent's overflow-x-auto in
-    ListPageLayout.#filters actually has something to scroll), on desktop it
-    shrinks back into wrap mode.
+    On mobile the bar has no min-width, so its `flex-wrap` children wrap onto
+    multiple lines and no control is pushed off-screen. On desktop it keeps
+    `md:min-w-0` — identical to the previous behaviour — so it shrinks/wraps the
+    same way it always has within the static (non-scrolling) filter row.
 
     Multi-row layouts (e.g. search on top, filters below) compose two
     ListFilterBar instances inside a `flex flex-col gap-2` wrapper, or use
@@ -20,7 +20,7 @@
       <slot name="above" />
     </div>
 
-    <div class="flex flex-wrap items-center gap-2 min-w-max md:min-w-0">
+    <div class="flex flex-wrap items-center gap-2 md:min-w-0">
       <slot />
 
       <!--

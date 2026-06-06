@@ -66,6 +66,14 @@ function splitProficiencies(raw: string | null | undefined): string[] {
   if (!trimmed || trimmed === "—" || trimmed === "-" || trimmed.toLowerCase() === "none") {
     return [];
   }
+  // Choice prose ("X, and either A, B, or C." / "Two of your choice.") must NOT
+  // be comma-split — doing so shatters "either A, B, or C" into separate array
+  // entries that downstream code then grants as if each were a fixed skill,
+  // turning a "choose one" into "grant all". Keep such prose intact as a single
+  // element; parseBackgroundSkills() reconstructs the fixed/choice split at use.
+  if (/\b(either|your choice|from among|between|plus)\b/i.test(trimmed)) {
+    return [trimmed.replace(/\s*\.\s*$/, "")];
+  }
   return trimmed
     .split(/[,;]+/)
     .map((s) => s.trim())

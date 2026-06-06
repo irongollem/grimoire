@@ -84,6 +84,13 @@ export interface FlavorMetadata {
   skill_label: string;
 }
 
+export type EntityLinkType = 'note' | 'quest' | 'npc' | 'location' | 'calendar_event';
+
+export interface EntityLinkMetadata {
+  entity_type: EntityLinkType;
+  entity_id: string;
+}
+
 // ── Loot chest (issue #121, part B) ──────────────────────────────────────────
 //
 // Posted by the DM via the "Drop in chat" button on a loot table. Each
@@ -150,7 +157,7 @@ export interface CampaignMessage {
   sender_name: string | null;
   message: string;
   type: MessageType;
-  metadata: RollMetadata | ItemDropMetadata | CurrencyDropMetadata | VendorOfferMetadata | PlayerOfferMetadata | FlavorMetadata | LootChestMetadata | null;
+  metadata: RollMetadata | ItemDropMetadata | CurrencyDropMetadata | VendorOfferMetadata | PlayerOfferMetadata | FlavorMetadata | LootChestMetadata | EntityLinkMetadata | null;
   created_at: string;
 }
 

@@ -92,14 +92,16 @@
       </span>
 
       <!-- Source unavailable (e.g. Freesound 502 after retry) -->
-      <span
+      <button
         v-if="audioState.loadError"
-        class="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-cinzel text-amber-400/80 bg-amber-500/10 border border-amber-500/20"
-        title="The source server didn't return this file. May be temporary — try again later, or delete and re-add."
+        type="button"
+        class="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-cinzel text-amber-400/80 bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 hover:text-amber-300 transition-colors"
+        title="Source failed to load — click to retry"
+        @click.stop="soundboardStore.retryLoad(props.sound.id, props.sound.file_url)"
       >
         <IconWarning class="h-2.5 w-2.5 shrink-0" />
-        Source error
-      </span>
+        Retry
+      </button>
 
       <!-- Loop toggle (audio only) -->
       <button

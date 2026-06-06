@@ -5,7 +5,7 @@ export type { LucideIcon as AppIcon } from 'lucide-vue-next'
 import {
   AlertCircle, AlertTriangle, AlignCenter, AlignLeft, AlignRight,
   Archive, ArrowUpFromLine, Award, Axe,
-  Backpack, BarChart2, BetweenHorizontalEnd, BetweenVerticalEnd,
+  Backpack, BarChart2, BetweenHorizontalEnd, BetweenVerticalEnd, Cast,
   BookMarked, BookOpen, BookPlus, BookText, BookUser, Bookmark, Box, Brain, BrickWall, Brush, Bug,
   Calendar, CalendarCheck, CalendarDays, CalendarPlus, CalendarX,
   Check, CheckCheck, CheckCircle, ChevronDown, ChevronLeft, ChevronRight, ChevronUp,
@@ -20,7 +20,7 @@ import {
   KeyRound, Landmark, Layers, LayoutDashboard, LayoutGrid, LayoutList,
   Leaf, Library, LibraryBig, Lightbulb, Link, Link2, List, ListOrdered, ListTodo,
   Loader2, LoaderCircle, Lock, LogOut,
-  Map, MapPin, Maximize2, Megaphone, Menu, MessageCircle, MessageSquare, Minus, Monitor,
+  Map, MapPin, Maximize2, Megaphone, Menu, MessageCircle, MessageSquare, Minus, Monitor, MoreHorizontal,
   Moon, MoveHorizontal, MoveVertical, Music, Music2,
   Navigation, Network,
   Package, PackageOpen, PackagePlus, PaintBucket, Paintbrush, Pause, PawPrint, Pen, PenLine, Pencil,
@@ -108,6 +108,7 @@ export { Highlighter as IconHighlight }
 
 // ── Navigation / Layout ───────────────────────────────────────────────────────
 export { Menu as IconMenu }
+export { MoreHorizontal as IconMore }
 export { Home as IconHome }
 export { LayoutDashboard as IconDashboard }
 export { LayoutList as IconListView }
@@ -216,6 +217,7 @@ export { Shuffle as IconShuffle }
 export { VolumeX as IconMute }
 export { Music as IconMusic }
 export { Music2 as IconMusicNote }
+export { Cast as IconCast }
 
 // ── Content / Rich Text ───────────────────────────────────────────────────────
 export { AlignLeft as IconAlignLeft }

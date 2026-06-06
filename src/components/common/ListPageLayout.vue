@@ -28,7 +28,9 @@
     Slots:
       - `actions`  — right-aligned on ≥md, wraps into a scrollable row on mobile
       - `filters`  — below the divider (sticky). Free-form; caller supplies
-                     their own flex wrapper
+                     their own flex wrapper. On mobile the filter controls wrap
+                     onto multiple lines (no horizontal scroll) so none are lost
+                     off-screen; on ≥md the row is static as before.
       - default    — list body
       - `footer`   — optional; rendered below the body (e.g. "N of M" counts)
   -->
@@ -81,10 +83,16 @@
 
       <div class="gold-divider mt-3 md:mt-4" />
 
-      <!-- Filters row (caller provides layout) -->
+      <!--
+        Filters row (caller provides layout).
+        On mobile the controls wrap onto multiple lines (ListFilterBar drops its
+        `min-w-max` below md) so no control is ever pushed off-screen behind a
+        horizontal scroll. On ≥md the row stays static (overflow-visible) exactly
+        as before.
+      -->
       <div
         v-if="hasFilters"
-        class="py-3 -mx-4 px-4 md:mx-0 md:px-0 overflow-x-auto md:overflow-visible list-filters-row"
+        class="py-3 md:mx-0 md:px-0 md:overflow-visible list-filters-row"
       >
         <slot name="filters" />
       </div>
@@ -119,9 +127,11 @@ const hasFooter = computed(() => !!slots.footer);
 
 <style scoped>
 /*
- * Hide the horizontal scrollbar on the mobile action/filter rows — the
- * behaviour (scroll on overflow) is still active, but a visible scrollbar in
- * a header strip reads as chrome noise.
+ * Hide the horizontal scrollbar on the mobile action row — the behaviour
+ * (scroll on overflow) is still active, but a visible scrollbar in a header
+ * strip reads as chrome noise. The filters row no longer scrolls (it wraps on
+ * mobile), so this only meaningfully applies to the actions row; the
+ * .list-filters-row rule is kept as a harmless no-op hook.
  */
 .list-actions-row,
 .list-filters-row {

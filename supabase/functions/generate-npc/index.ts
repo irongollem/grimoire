@@ -359,6 +359,16 @@ serve(async (req: Request) => {
   let portrait_b64: string | null = null;
   let disguise_portrait_b64: string | null = null;
   let totalImageCount = 0;
+  // Accumulate OpenAI image token usage across the generation + optional edit so
+  // the ledger can compute the real, fully token-based image cost:
+  //   • input_tokens       — text prompt tokens (text-input rate)
+  //   • input_image_tokens — seed-image tokens on edit calls (image-input rate; the
+  //     disguise edit feeds the generated portrait back in, which drives input up)
+  //   • output_tokens      — generated-image tokens (image-output rate, dominant)
+  // (fal.ai is flat-priced and reports no tokens — left at 0 → flat fallback.)
+  let imgInputTokens = 0;
+  let imgInputImageTokens = 0;
+  let imgOutputTokens = 0;
   const imgModelConfig = providerConfigs[imageProvider as keyof typeof providerConfigs]?.image_model;
   const imgModel = imgModelConfig ?? (imageProvider === "falai" ? "fal-ai/flux-2/flex" : "gpt-image-1.5");
 
@@ -375,9 +385,12 @@ serve(async (req: Request) => {
         portrait_b64 = b64;
         totalImageCount++;
       } else if (openaiKey) {
-        const { b64 } = await openaiImageGenerate(openaiKey, imgModel, imagePrompt, "1024x1536");
+        const { b64, usage } = await openaiImageGenerate(openaiKey, imgModel, imagePrompt, "1024x1536");
         portrait_b64 = b64;
         totalImageCount++;
+        imgInputTokens      += usage.input_tokens       ?? 0;
+        imgInputImageTokens += usage.input_image_tokens ?? 0;
+        imgOutputTokens     += usage.output_tokens      ?? 0;
       }
     } catch (e) {
       console.error("Portrait generation failed:", e);
@@ -392,9 +405,12 @@ serve(async (req: Request) => {
         subject: npcData.disguise_image_prompt,
       });
       try {
-        const { b64 } = await openaiImageEdit(openaiKey, imgModel, portrait_b64, disguisePrompt, "1024x1536");
+        const { b64, usage } = await openaiImageEdit(openaiKey, imgModel, portrait_b64, disguisePrompt, "1024x1536");
         disguise_portrait_b64 = b64;
         totalImageCount++;
+        imgInputTokens      += usage.input_tokens       ?? 0;
+        imgInputImageTokens += usage.input_image_tokens ?? 0;
+        imgOutputTokens     += usage.output_tokens      ?? 0;
       } catch (e) {
         console.error("Disguise portrait generation failed (non-fatal):", e);
       }
@@ -411,6 +427,9 @@ serve(async (req: Request) => {
   if (totalImageCount > 0) {
     recordPromises.push(recordGeneration(admin, user.id, "portrait", imageIsByok, portraitCostEach * totalImageCount, {
       model: imgModel, provider: imageProvider, image_count: totalImageCount,
+      input_tokens:       imgInputTokens      || undefined,
+      input_image_tokens: imgInputImageTokens || undefined,
+      output_tokens:      imgOutputTokens     || undefined,
     }));
   }
   await Promise.allSettled(recordPromises);

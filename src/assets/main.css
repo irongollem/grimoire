@@ -7,6 +7,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "@vuepic/vue-datepicker/dist/main.css";
+@import "./scriptorium-editor.css";
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Tailwind v4: @theme maps CSS variables to utility classes.
@@ -498,10 +499,26 @@ input[type="number"] {
   border-color: var(--border) !important;
 }
 .dp__time_col,
-.dp__time_display {
+.dp__time_display,
+.dp__time_col_btn,
+.dp__inc_dec_button,
+.dp__tp_inline_btn_bar {
   color: var(--foreground) !important;
 }
-.dp__time_col_btn:hover {
+/* Time-selection overlay grid (shown when clicking the HH/MM value). Without an
+   explicit base colour these number cells inherit nothing visible and only
+   appear on hover, which made the time look stuck (e.g. always "02:00"). */
+.dp__overlay_cell {
+  color: var(--foreground) !important;
+}
+.dp__overlay_cell_disabled {
+  color: var(--muted-foreground) !important;
+}
+.dp__inc_dec_button svg {
+  color: var(--foreground) !important;
+}
+.dp__time_col_btn:hover,
+.dp__inc_dec_button:hover {
   background: var(--muted) !important;
 }
 .dp__action_select {

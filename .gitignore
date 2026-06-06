@@ -26,6 +26,9 @@ TODO_SETUP.md
 # Supabase CLI temp files (project metadata, not secrets but not needed in repo)
 supabase/.temp/
 
+# Campaign-specific NPC importer sidecars — content for a private campaign, not software
+scripts/chapter_npc_configs/
+
 # Editor
 .vscode/*
 !.vscode/extensions.json

@@ -60,12 +60,14 @@ export interface QuotaResult {
 
 export type CreditPackId = 'starter' | 'standard' | 'bulk'
 
-export type AiGenerationType = 'portrait' | 'npc_text' | 'monster_stat_block'
+export type AiGenerationType = 'portrait' | 'npc_text' | 'monster_stat_block' | 'music_clip' | 'music_full_song'
 
 export const CREDIT_COST: Record<AiGenerationType, number> = {
   portrait:           2,
   npc_text:           1,
   monster_stat_block: 1,
+  music_clip:         1,
+  music_full_song:    2,
 } as const
 
 export const CREDIT_PACKS: Record<CreditPackId, { label: string; credits: number; eur: number }> = {

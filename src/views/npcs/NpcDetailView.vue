@@ -1,5 +1,20 @@
 <template>
+  <!-- Mobile read view (<md): standalone scrollable layer with its own app bar.
+       Desktop and all edit modes fall through to the PageHeader block below,
+       which is unchanged. -->
+  <NpcDetailMobile v-if="showMobileRead && npc" :npc="npc" />
+
+  <!-- Mobile edit view (<md): NpcDetail renders its own NpcEditMobile layer
+       (app bar + stacked cards + save bar). It does not need the PageHeader
+       chrome, so we render NpcDetail directly. -->
+  <NpcDetail
+    v-else-if="showMobileEdit"
+    :key="id"
+    :npc="isNewNpc ? null : (npc ?? null)"
+  />
+
   <PageHeader
+    v-else
     :title="displayName"
     :description="npc ? subtitle : 'Fill in the details below to add a new NPC to your realm'"
   >
@@ -86,6 +101,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { useMediaQuery } from "@vueuse/core";
 import { IconDelete, IconDocument, IconEdit, IconGenerate, IconHide, IconReveal, IconScrollText } from '@/lib/icons';
 import { useNpc } from "@/composables/useNpcs";
 import { useRecentNpcs } from "@/composables/useRecentNpcs";
@@ -94,6 +110,7 @@ import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import NpcDetail from "@/components/npcs/NpcDetail.vue";
 import NpcSheet from "@/components/npcs/NpcSheet.vue";
+import NpcDetailMobile from "@/components/npcs/NpcDetailMobile.vue";
 import PlayerVisibilityToggle from "@/components/common/PlayerVisibilityToggle.vue";
 
 const route = useRoute();
@@ -102,6 +119,14 @@ const router = useRouter();
 const isNewNpc = computed(() => route.name === "npc-new");
 const id = computed(() => (isNewNpc.value ? "" : (route.params.id as string)));
 const isEditing = computed(() => isNewNpc.value || route.query.edit === "true");
+
+// Mobile-only layers (<md). Desktop keeps the existing PageHeader +
+// NpcSheet/NpcDetail chrome, byte-identical to before.
+const isMobile = useMediaQuery("(max-width: 767px)");
+const showMobileRead = computed(() => isMobile.value && !isEditing.value && !isNewNpc.value);
+// Mobile edit: new NPC, or existing NPC opened with ?edit=true. NpcDetail owns
+// its own mobile chrome (NpcEditMobile), so no PageHeader here.
+const showMobileEdit = computed(() => isMobile.value && isEditing.value && !isLoading.value);
 
 function startEditing() {
   router.replace({ query: { ...route.query, edit: "true" } });

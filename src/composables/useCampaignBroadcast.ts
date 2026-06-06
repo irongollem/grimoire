@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/supabase";
+import type { EntityLinkMetadata } from "@/types/chat.types";
 
 /**
  * Write a system message into the campaign chat so all participants
@@ -7,7 +8,11 @@ import { getCurrentUser } from "@/lib/supabase";
  * No separate realtime channel needed — the chat already subscribes to
  * campaign_messages via Supabase Realtime.
  */
-export async function sendCampaignAnnouncement(campaignId: string, text: string): Promise<void> {
+export async function sendCampaignAnnouncement(
+  campaignId: string,
+  text: string,
+  entityLink?: EntityLinkMetadata,
+): Promise<void> {
   const user = getCurrentUser();
   if (!user) return;
   await supabase.from("campaign_messages").insert({
@@ -17,6 +22,6 @@ export async function sendCampaignAnnouncement(campaignId: string, text: string)
     sender_name: null,
     message: text,
     type: "system",
-    metadata: null,
+    metadata: entityLink ?? null,
   });
 }

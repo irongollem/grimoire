@@ -649,8 +649,12 @@ const editor = useEditor({
   onTransaction({ editor: e }) {
     twoColumn.value = e.state.doc.attrs.twoColumn ?? false;
   },
-  onUpdate() {
-    emit("update:modelValue", JSON.stringify(editor.value?.getJSON() ?? {}));
+  onUpdate({ editor: e }) {
+    // Use the editor instance from the callback, not the `editor` ref: during
+    // editor construction onUpdate can fire before useEditor() has assigned the
+    // ref, leaving editor.value null. The old `?? {}` fallback then emitted "{}",
+    // which silently overwrote real notes with an empty object on load.
+    emit("update:modelValue", JSON.stringify(e.getJSON()));
   },
 });
 

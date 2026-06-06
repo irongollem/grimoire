@@ -111,10 +111,10 @@
         <RouterLink
           v-if="!readonly && !selectMode"
           :to="`/species/${s.id}?edit=true`"
-          class="absolute top-2 left-2 z-10 flex items-center gap-1 rounded px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
+          class="absolute top-2 left-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
           title="Edit species"
         >
-          <IconEdit class="h-3 w-3" />
+          <IconEdit class="max-md:h-4 max-md:w-4 h-3 w-3" />
           Edit
         </RouterLink>
       </div>

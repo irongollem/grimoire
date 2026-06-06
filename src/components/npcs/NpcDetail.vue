@@ -1,10 +1,36 @@
 <template>
-  <form id="npc-detail-form" class="max-w-full min-w-0" @submit.prevent="save">
+  <!-- Mobile edit layer (<md): own app bar + stacked cards + save bar. Drives
+       the same reactive form/statBlock and handlers that live in this file. -->
+  <NpcEditMobile
+    v-if="isMobile"
+    :form="form"
+    :stat-block="statBlock"
+    :has-stat-block="hasStatBlock"
+    :art-tab="artTab"
+    :location-options="locationOptions"
+    :all-monsters="allMonsters ?? []"
+    :npc="npc"
+    :is-new="!npc"
+    :is-saving="isSaving"
+    :is-sending-to-scriptorium="isSendingToScriptorium"
+    :is-ai-enabled="isAiEnabled"
+    @save="save"
+    @cancel="onMobileCancel"
+    @delete="confirmDelete"
+    @generate="showGenerateDialog = true"
+    @scriptorium="sendToScriptorium"
+    @apply-template="applyTemplate"
+    @link-monster="onMonsterLinked"
+    @update:has-stat-block="hasStatBlock = $event"
+    @update:art-tab="artTab = $event"
+  />
+
+  <form v-else id="npc-detail-form" class="max-w-full min-w-0" @submit.prevent="save">
 
     <RevealedFieldsPanel
       v-if="npc?.id"
       :model-value="form.player_visible_fields"
-      :fields="PLAYER_FIELDS"
+      :fields="NPC_PLAYER_FIELDS"
       :visible-to="form.player_visible_to"
       @update:model-value="form.player_visible_fields = $event"
     >
@@ -173,6 +199,7 @@
 import { useConfirm } from "@/composables/useConfirm";
 import { ref, reactive, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useMediaQuery } from '@vueuse/core'
 import NpcGenerateDialog from '@/ai/NpcGenerateDialog.vue'
 import { toTiptapJson } from '@/ai/useNpcGeneration'
 import type { NpcAiGenerated } from '@/ai/types'
@@ -190,6 +217,7 @@ import NpcInventorySection from '@/components/npcs/NpcInventorySection.vue'
 import NpcLoreTab from '@/components/npcs/NpcLoreTab.vue'
 import NpcIdentitySection from '@/components/npcs/NpcIdentitySection.vue'
 import NpcSidebar from '@/components/npcs/NpcSidebar.vue'
+import NpcEditMobile from '@/components/npcs/NpcEditMobile.vue'
 import type { Npc, NpcInsert, StatBlock } from '@/types/npc.types'
 import { useCampaignStore } from '@/stores/campaign'
 import EntityCombobox from '@/components/common/EntityCombobox.vue'
@@ -197,6 +225,7 @@ import PlayerNotesWidget from '@/components/common/PlayerNotesWidget.vue'
 import PaywallModal from '@/components/common/PaywallModal.vue'
 import { isQuotaExceeded } from '@/lib/quotaError'
 import RevealedFieldsPanel from '@/components/common/RevealedFieldsPanel.vue'
+import { NPC_PLAYER_FIELDS } from '@/lib/npcDisplay'
 import TabBar from '@/components/common/TabBar.vue'
 import StatBlockEditor from '@/components/common/StatBlockEditor.vue'
 
@@ -213,19 +242,14 @@ const TABS = [
 type TabKey = typeof TABS[number]['key']
 const TABS_BAR = TABS.map(t => ({ id: t.key, label: t.label }))
 
-const PLAYER_FIELDS = [
-  { key: 'portrait',     label: 'Portrait' },
-  { key: 'name',         label: 'Name' },
-  { key: 'status',       label: 'Alive / Dead status' },
-  { key: 'race',         label: 'Species' },
-  { key: 'occupation',   label: 'Occupation' },
-  { key: 'relationship', label: 'Party stance (friendly/hostile…)' },
-  { key: 'location',     label: 'Location' },
-]
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
 const props = defineProps<{ npc?: Npc | null }>()
+
+// Mobile (<md) renders NpcEditMobile instead of the desktop grid form. Desktop
+// markup is unchanged and only conditionally rendered (v-if on the <form>).
+const isMobile = useMediaQuery('(max-width: 767px)')
 
 // ── Store + mutations ─────────────────────────────────────────────────────────
 
@@ -535,6 +559,7 @@ async function save() {
     const isNowVisible = form.player_visible_to.length > 0;
     const becameVisible = wasHidden && isNowVisible;
 
+    let savedNpcId = props.npc?.id ?? null;
     if (props.npc?.id) {
       // Exclude campaign_id: it must not be overwritten on update (could be null
       // if activeCampaignId hasn't loaded yet, severing the campaign link).
@@ -542,13 +567,14 @@ async function save() {
       await updateNpc({ id: props.npc.id, update: updatePayload })
     } else {
       const created = await createNpc(payload)
+      savedNpcId = created.id;
       // Stay on the detail page after create so faction/relation links can be added immediately
       router.push(`/npcs/${created.id}`)
     }
 
     if (becameVisible && ui.dmMode === 'play' && form.name.trim()) {
       // Fire-and-forget — chat failure must not block the save navigation.
-      void sendNarrativeEvent(`You encounter ${form.name.trim()}.`)
+      void sendNarrativeEvent(`You encounter ${form.name.trim()}.`, savedNpcId ?? undefined)
     }
 
     if (props.npc?.id) router.push('/npcs')
@@ -567,6 +593,13 @@ async function confirmDelete() {
   } catch {
     notify('Failed to delete NPC. Please try again.')
   }
+}
+
+// Mobile-only cancel: return to the read view for an existing NPC, or the list
+// for a brand-new one (desktop uses the PageHeader View/Edit toggle instead).
+function onMobileCancel() {
+  if (props.npc?.id) router.push(`/npcs/${props.npc.id}`)
+  else router.push('/npcs')
 }
 
 defineExpose({

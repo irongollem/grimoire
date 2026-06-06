@@ -12,10 +12,13 @@
       @blur="onBlur"
     />
 
-    <!-- Mention dropdown — anchored above the textarea -->
+    <!-- Mention dropdown — teleported to body with fixed positioning so it is
+         never clipped by an ancestor's overflow (e.g. the Chronicler modal). -->
+    <Teleport to="body">
     <div
       v-if="dropdownVisible"
-      class="absolute bottom-full left-0 mb-1 z-9999 min-w-50 max-w-75 bg-card border border-border rounded-lg shadow-lg overflow-hidden flex flex-col"
+      :style="dropdownStyle"
+      class="z-9999 min-w-50 max-w-75 bg-card border border-border rounded-lg shadow-lg overflow-hidden flex flex-col"
     >
       <button
         v-for="(item, idx) in filteredItems"
@@ -35,6 +38,7 @@
         {{ item.label }}
       </button>
     </div>
+    </Teleport>
   </div>
 </template>
 
@@ -100,6 +104,21 @@ const dropdownVisible = computed(
   () => mentionQuery.value !== null && filteredItems.value.length > 0,
 );
 
+// Fixed-position style for the teleported dropdown, derived from the textarea's
+// viewport rect. Opens upward when there's more room above than below.
+const dropdownStyle = ref<Record<string, string>>({});
+
+function positionDropdown() {
+  const ta = textareaRef.value;
+  if (!ta) return;
+  const rect = ta.getBoundingClientRect();
+  const spaceBelow = window.innerHeight - rect.bottom;
+  const openUp = spaceBelow < 260 && rect.top > spaceBelow;
+  dropdownStyle.value = openUp
+    ? { position: "fixed", left: `${rect.left}px`, bottom: `${window.innerHeight - rect.top + 4}px` }
+    : { position: "fixed", left: `${rect.left}px`, top: `${rect.bottom + 4}px` };
+}
+
 function onInput(e: Event) {
   const ta = e.target as HTMLTextAreaElement;
   model.value = ta.value;
@@ -108,6 +127,7 @@ function onInput(e: Event) {
     mentionQuery.value  = result.query;
     mentionStart.value  = result.start;
     selectedIndex.value = 0;
+    positionDropdown();
   } else {
     mentionQuery.value = null;
   }

@@ -5,7 +5,7 @@ import { useParty, useCreatePartyMember, useUpdatePartyMember } from "@/composab
 import { useAddCharacterClass } from "@/composables/useCharacterClasses";
 import { useAddInventoryItem } from "@/composables/usePartyInventory";
 import { useCampaignMembers, useUpdateCampaignMember } from "@/composables/useCampaignMembers";
-import { SKILLS } from "@/types/party.types";
+import { parseBackgroundSkills, type SkillKey } from "@/lib/backgroundSkills";
 import { useAllSystemClasses, useAllCustomClasses } from "@/composables/useCustomClasses";
 import { useAllCustomSubclasses } from "@/composables/useCustomSubclasses";
 import { useAllSpecies } from "@/composables/useSpecies";
@@ -274,6 +274,19 @@ export function useCharacterCreationForm() {
   // the player can untick it on the Background step.
   const importBackgroundEquipment = ref(true);
 
+  // Exact record of the proficiencies the *currently selected* background
+  // granted. Used to undo them when the player switches background — otherwise
+  // each newly-picked background's skills/tools/languages accumulate on top of
+  // the previous one's, and the orphaned skills wrongly count against the class
+  // skill budget (they're no longer recognised as background-granted).
+  const bgGrantedSkills = ref<SkillKey[]>([]);
+  const bgGrantedTools = ref<string[]>([]);
+  const bgGrantedLanguages = ref<string[]>([]);
+  // Subset of bgGrantedSkills the player actively chose for a background "choose
+  // one of …" clause (vs. the unconditional fixed grants). Drives the picker's
+  // selected state and enforces the choice's pick count.
+  const bgChosenSkills = ref<SkillKey[]>([]);
+
   // Class starting equipment: choice A or B, and whether to seed inventory.
   const classEquipmentChoice = ref<"a" | "b">("a");
   const importClassEquipment  = ref(true);
@@ -398,19 +411,53 @@ export function useCharacterCreationForm() {
 
   function onBackgroundSelect(id: string) {
     const bg = (allBackgrounds.value ?? []).find(b => b.id === id);
+
+    // Undo the previously-selected background's grants first, so switching
+    // backgrounds replaces rather than accumulates. Only remove skills still at
+    // exactly "proficient" (expertise would have come from the class, not here).
+    for (const key of bgGrantedSkills.value) {
+      if ((f.skill_proficiencies[key] ?? "none") === "proficient") {
+        f.skill_proficiencies[key] = "none";
+      }
+    }
+    for (const tool of bgGrantedTools.value) {
+      const idx = f.tool_proficiencies.indexOf(tool);
+      if (idx >= 0) f.tool_proficiencies.splice(idx, 1);
+    }
+    for (const lang of bgGrantedLanguages.value) {
+      const idx = f.languages.indexOf(lang);
+      if (idx >= 0) f.languages.splice(idx, 1);
+    }
+    bgGrantedSkills.value = [];
+    bgGrantedTools.value = [];
+    bgGrantedLanguages.value = [];
+    bgChosenSkills.value = [];
+
     f.background_id = id || null;
     if (!bg) return;
-    for (const skill of bg.skill_proficiencies ?? []) {
-      const key = SKILLS.find(s => s.label.toLowerCase() === skill.toLowerCase())?.key;
-      if (key && (f.skill_proficiencies[key] ?? "none") === "none") {
+
+    // Only auto-grant the background's FIXED skills. Choice skills ("either A
+    // or B") are picked separately, so a choice background no longer toggles
+    // every option on at once. Each grant is recorded so it can be undone above
+    // when the background changes.
+    const { fixed } = parseBackgroundSkills(bg.skill_proficiencies);
+    for (const key of fixed) {
+      if ((f.skill_proficiencies[key] ?? "none") === "none") {
         f.skill_proficiencies[key] = "proficient";
+        bgGrantedSkills.value.push(key);
       }
     }
     for (const tool of bg.tool_proficiencies ?? []) {
-      if (!f.tool_proficiencies.includes(tool)) f.tool_proficiencies.push(tool);
+      if (!f.tool_proficiencies.includes(tool)) {
+        f.tool_proficiencies.push(tool);
+        bgGrantedTools.value.push(tool);
+      }
     }
     for (const lang of bg.languages ?? []) {
-      if (!f.languages.includes(lang)) f.languages.push(lang);
+      if (!f.languages.includes(lang)) {
+        f.languages.push(lang);
+        bgGrantedLanguages.value.push(lang);
+      }
     }
     // 2024 PHB: record background feat grant in class_choices so it surfaces
     // in the character's features tab.
@@ -420,6 +467,45 @@ export function useCharacterCreationForm() {
       const { background_feat: _removed, ...rest } = f.class_choices as Record<string, unknown>;
       void _removed;
       f.class_choices = rest;
+    }
+  }
+
+  /** Parsed "choose N of …" skill clauses for the selected background, if any. */
+  const bgSkillChoices = computed(() =>
+    selectedBg.value ? parseBackgroundSkills(selectedBg.value.skill_proficiencies).choices : [],
+  );
+
+  /** Total picks the background's choice clauses allow (used to cap selection). */
+  const bgChoiceLimit = computed(() =>
+    bgSkillChoices.value.reduce((sum, c) => sum + c.count, 0),
+  );
+
+  /** All skills the current background grants for free: fixed + actively chosen. */
+  const bgFreeSkills = computed<SkillKey[]>(() => {
+    const fixed = selectedBg.value
+      ? parseBackgroundSkills(selectedBg.value.skill_proficiencies).fixed
+      : [];
+    return [...new Set([...fixed, ...bgChosenSkills.value])];
+  });
+
+  /** Toggle a background choice-skill. Honors the choice's pick limit and keeps
+   *  the grant tracked so it's freed on background switch and excluded from the
+   *  class skill budget. */
+  function toggleBgSkillChoice(key: SkillKey) {
+    const chosen = bgChosenSkills.value.includes(key);
+    if (chosen) {
+      bgChosenSkills.value = bgChosenSkills.value.filter(k => k !== key);
+      bgGrantedSkills.value = bgGrantedSkills.value.filter(k => k !== key);
+      if ((f.skill_proficiencies[key] ?? "none") === "proficient") {
+        f.skill_proficiencies[key] = "none";
+      }
+      return;
+    }
+    if (bgChosenSkills.value.length >= bgChoiceLimit.value) return; // at limit
+    bgChosenSkills.value.push(key);
+    if ((f.skill_proficiencies[key] ?? "none") === "none") {
+      f.skill_proficiencies[key] = "proficient";
+      bgGrantedSkills.value.push(key);
     }
   }
 
@@ -662,9 +748,12 @@ export function useCharacterCreationForm() {
     pointsRemaining, suggestedHp, profBonus,
     derivedHp, derivedAc, derivedSpeed, derivedInitiative,
     passivePerception, passiveInsight, passiveInvestigation,
+    // background skill grants/choices
+    bgSkillChoices, bgChosenSkills, bgChoiceLimit, bgFreeSkills,
     // methods
     mod, setSkillProf, skillBonus, toggleSave, saveBonus,
     resetSlotsToDefault, onSpeciesSelect, onClassSelect, onBackgroundSelect,
+    toggleBgSkillChoice,
     save,
   };
 }
