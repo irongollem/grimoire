@@ -203,6 +203,13 @@
       </div>
     </div>
 
+    <!-- Your AI usage — platform-credit users only (BYOK pays their own provider) -->
+    <AiUsageStatsPanel
+      v-if="!localModeEnabled"
+      title="Your AI Usage"
+      subtitle="Generations charged to your credits, with estimated cost. BYOK calls (your own key) are billed by your provider, not here."
+    />
+
     <!-- Promotional consent -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-3 border-b border-border bg-muted/20">
@@ -248,6 +255,7 @@ import { getSetting } from "@/settings/index";
 import { useSubscription } from "@/composables/useSubscription";
 import { useStripe } from "@/composables/useStripe";
 import { useProviderConfig, PROVIDER_DISPLAY } from "@/composables/useProviderConfig";
+import AiUsageStatsPanel from "@/components/common/AiUsageStatsPanel.vue";
 
 const { isPro } = useSubscription();
 const { loading: stripeLoading, createCheckoutSession } = useStripe();
