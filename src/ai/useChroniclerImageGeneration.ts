@@ -232,7 +232,7 @@ export async function generateChroniclerImage(params: {
       let body: { error?: string; balance?: number } | null = null;
       try { body = (await (error as { context?: Response }).context?.json()) ?? null; } catch { /* not JSON */ }
       if (body?.error === "insufficient_credits") {
-        const left = body.balance != null ? ` (${body.balance} left)` : "";
+        const left = body.balance !== undefined ? ` (${body.balance} left)` : "";
         throw new Error(`Insufficient credits${left}. Buy a credit pack or wait for the monthly refresh.`);
       }
       throw new Error(body?.error ?? error.message);

@@ -24,18 +24,46 @@
       @update:model-value="emit('update:modelValue', $event ?? '')"
       @update:focal-point="emit('update:focalPoint', $event)"
     />
+
+    <!-- AI generation — only when the parent opts in and the campaign allows AI -->
+    <div v-if="showAiButton" class="mt-2 flex flex-col gap-1">
+      <button
+        type="button"
+        :disabled="isGenerating || disabled"
+        class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 font-cinzel text-[11px] font-semibold tracking-wider border border-border rounded-md hover:bg-muted disabled:opacity-50 transition-colors"
+        @click="runGenerate"
+      >
+        <IconGenerate class="h-3.5 w-3.5" :class="isGenerating ? 'animate-pulse text-primary' : ''" />
+        {{ isGenerating ? "Generating…" : (modelValue ? "Regenerate with AI" : "Generate with AI") }}
+      </button>
+      <p v-if="isGenerating" class="font-fell text-[11px] text-muted-foreground italic text-center">
+        {{ currentLoadingQuote }}
+      </p>
+      <p v-if="error" class="font-fell text-[11px] text-destructive">{{ error }}</p>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import ImageUpload from "@/components/common/ImageUpload.vue";
+import { IconGenerate } from "@/lib/icons";
+import { useCampaignStore } from "@/stores/campaign";
+import { useEntityImageGeneration } from "@/ai/useEntityImageGeneration";
+import { currentLoadingQuote } from "@/ai/aiGenerationState";
 
 export interface ImageVariant {
   id: string;
   label: string;
 }
 
-defineProps<{
+const {
+  modelValue,
+  bucket,
+  disabled = false,
+  aiKind,
+  aiContext,
+} = defineProps<{
   modelValue: string | null | undefined;
   focalPoint?: { x: number; y: number } | null;
   bucket: string;
@@ -44,6 +72,10 @@ defineProps<{
   disabled?: boolean;
   variants?: ReadonlyArray<ImageVariant>;
   activeVariantId?: string;
+  /** Image-job kind (npc_portrait, monster, item, …). Enables the "Generate with AI" button. */
+  aiKind?: string;
+  /** Entity facts the AI authors a prompt from. Button only shows when both aiKind + aiContext are set. */
+  aiContext?: string;
 }>();
 
 const emit = defineEmits<{
@@ -51,4 +83,21 @@ const emit = defineEmits<{
   (e: "update:focalPoint", value: { x: number; y: number } | null): void;
   (e: "update:activeVariantId", value: string): void;
 }>();
+
+const campaign = useCampaignStore();
+const { isGenerating, error, generate } = useEntityImageGeneration(bucket);
+
+const showAiButton = computed(
+  () => !!aiKind && !!aiContext?.trim() && !disabled && campaign.isAiEnabled,
+);
+
+async function runGenerate() {
+  if (!aiKind || !aiContext?.trim()) return;
+  const url = await generate({ kind: aiKind, context: aiContext });
+  if (url) {
+    emit("update:modelValue", url);
+    // New art has no curated focal point yet — default to dead-center.
+    emit("update:focalPoint", { x: 50, y: 50 });
+  }
+}
 </script>

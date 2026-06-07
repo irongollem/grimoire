@@ -21,6 +21,8 @@
           :focal-point="form.focal_point"
           show-focal-point
           bucket="asset-images"
+          ai-kind="species"
+          :ai-context="aiContext"
           @update:model-value="form.image_url = $event ?? ''"
           @update:focal-point="form.focal_point = $event"
         />
@@ -217,6 +219,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, watch, computed } from "vue";
+import { buildEntityContext, toPlainText } from "@/ai/utils";
 import { useRouter } from "vue-router";
 import { useCreateSpecies, useUpdateSpecies, useDeleteSpecies } from "@/composables/useSpecies";
 import { useConfirm } from "@/composables/useConfirm";
@@ -322,6 +325,10 @@ function toggleCampaignSpecific() {
 }
 
 const form = reactive(makeForm(props.species));
+
+const aiContext = computed(() =>
+  buildEntityContext([form.name, toPlainText(form.description)]),
+);
 
 watch(() => props.species, (s) => {
   Object.assign(form, makeForm(s));

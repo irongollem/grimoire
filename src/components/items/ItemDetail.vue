@@ -13,6 +13,8 @@
           :focal-point="artTab === 'identified' ? imageFocalPoint : mundaneImageFocalPoint"
           :variants="[{ id: 'identified', label: 'Identified' }, { id: 'mundane', label: 'Mundane' }]"
           :active-variant-id="artTab"
+          ai-kind="item"
+          :ai-context="aiContext"
           @update:model-value="artTab === 'identified' ? (imageUrl = $event) : (mundaneImageUrl = $event)"
           @update:focal-point="artTab === 'identified' ? (imageFocalPoint = $event) : (mundaneImageFocalPoint = $event)"
           @update:active-variant-id="artTab = $event as 'identified' | 'mundane'"
@@ -395,6 +397,7 @@ import {
 } from "@/types/item.types";
 import type { Item, ItemType, ItemRarity } from "@/types/item.types";
 import type { DamageRoll } from "@/lib/dice";
+import { buildEntityContext, toPlainText } from "@/ai/utils";
 
 const props = defineProps<{ item: Item | null; prefillName?: string }>();
 const router = useRouter();
@@ -420,6 +423,14 @@ const mundaneImageUrl = ref(props.item?.mundane_image_url ?? "");
 const mundaneImageFocalPoint = ref(props.item?.mundane_image_focal_point ?? null);
 const artTab = ref<'identified' | 'mundane'>('identified');
 const tags = ref<string[]>(props.item?.tags ?? []);
+
+const aiContext = computed(() => {
+  const base = [name.value, ITEM_TYPE_LABELS[itemType.value], ITEM_RARITY_LABELS[rarity.value]];
+  return artTab.value === 'identified'
+    ? buildEntityContext([...base, toPlainText(description.value)])
+    // Mundane art shows the item before identification — describe only its plain form.
+    : buildEntityContext([name.value, ITEM_TYPE_LABELS[itemType.value], toPlainText(mundaneDescription.value)]);
+});
 
 // ── Weapon fields ─────────────────────────────────────────────────────────────
 const damageRolls = ref<DamageRoll[]>(props.item?.damage_rolls ?? []);

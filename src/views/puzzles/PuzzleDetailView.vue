@@ -165,6 +165,8 @@
                 :focal-point="form.image_focal_point"
                 bucket="puzzle-images"
                 show-focal-point
+                ai-kind="puzzle"
+                :ai-context="aiContext"
                 @update:model-value="form.image_url = $event"
                 @update:focal-point="form.image_focal_point = $event"
               />
@@ -308,6 +310,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { buildEntityContext, toPlainText } from "@/ai/utils";
 import { IconDelete, IconEdit, IconHide, IconReveal } from '@/lib/icons';
 import { usePuzzle, useCreatePuzzle, useUpdatePuzzle, useDeletePuzzle } from "@/composables/usePuzzles";
 import { useCampaignStore } from "@/stores/campaign";
@@ -355,6 +358,14 @@ const form = reactive({
   tags:                [] as string[],
   notes:               null as string | null,
 });
+
+const aiContext = computed(() =>
+  buildEntityContext([
+    form.name,
+    `${form.puzzle_type} puzzle`,
+    toPlainText(form.description),
+  ]),
+);
 
 watch(puzzle, (p) => {
   if (!p) return;

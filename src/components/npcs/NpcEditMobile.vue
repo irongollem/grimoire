@@ -58,6 +58,8 @@
           show-focal-point
           :variants="ART_VARIANTS"
           :active-variant-id="artTab"
+          ai-kind="npc_portrait"
+          :ai-context="aiContext"
           @update:model-value="form.portrait_url = $event || null"
           @update:focal-point="form.portrait_focal_point = $event"
           @update:active-variant-id="emit('update:artTab', $event as ArtTab)"
@@ -268,6 +270,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import { buildEntityContext, toPlainText } from "@/ai/utils";
 import type { Npc, NpcInsert, NpcStatus, StatBlock } from "@/types/npc.types";
 import type { Monster } from "@/types/monster.types";
 import type { Location } from "@/types/location.types";
@@ -341,6 +344,15 @@ const STATUS_OPTIONS: { value: NpcStatus; label: string; color: string }[] = [
 
 const showMenu = ref(false);
 const loreOpen = ref(true);
+
+const aiContext = computed(() =>
+  buildEntityContext([
+    form.name,
+    [form.race, form.occupation].filter(Boolean).join(", "),
+    toPlainText(form.appearance),
+    toPlainText(form.personality),
+  ]),
+);
 
 const title = computed(() => {
   if (isNew) return "New NPC";

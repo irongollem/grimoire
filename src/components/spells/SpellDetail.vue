@@ -38,6 +38,8 @@
           :model-value="imageUrl || null"
           show-focal-point
           :focal-point="imageFocalPoint"
+          ai-kind="spell"
+          :ai-context="aiContext"
           @update:model-value="onImageUrlUpdate($event)"
           @update:focal-point="onImageFocalUpdate($event)"
         />
@@ -237,6 +239,7 @@
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed, reactive, watch } from "vue";
+import { buildEntityContext, toPlainText } from "@/ai/utils";
 import { useRouter } from "vue-router";
 import SpellGenerateDialog from "@/ai/SpellGenerateDialog.vue";
 import SpellLevelAdvisorModal from "./SpellLevelAdvisorModal.vue";
@@ -298,6 +301,14 @@ const classes = ref<string[]>(props.spell?.classes ?? []);
 const source = ref(props.spell?.source ?? "");
 const imageUrl = ref(props.spell?.image_url ?? "");
 const imageFocalPoint = ref(props.spell?.image_focal_point ?? null);
+
+const aiContext = computed(() =>
+  buildEntityContext([
+    name.value,
+    `${level.value === 0 ? "cantrip" : `level ${level.value}`} ${school.value} spell`,
+    toPlainText(description.value),
+  ]),
+);
 const tags = ref<string[]>(props.spell?.tags ?? []);
 // Campaign-only flag: null = universal/library spell, set = exclusive to that campaign.
 const campaignId = ref<string | null>(props.spell?.campaign_id ?? null);

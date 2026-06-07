@@ -9,6 +9,8 @@
       show-focal-point
       :variants="ART_VARIANTS"
       :active-variant-id="artTab"
+      ai-kind="npc_portrait"
+      :ai-context="aiContext"
       @update:model-value="emit('update:portraitUrl', $event ?? '')"
       @update:focal-point="emit('update:portraitFocalPoint', $event)"
       @update:active-variant-id="emit('update:artTab', $event as ArtTab)"
@@ -90,6 +92,7 @@ const {
   relationship,
   status,
   tags,
+  aiContext = "",
 } = defineProps<{
   artTab: ArtTab
   portraitUrl?: string | null
@@ -99,6 +102,8 @@ const {
   relationship: NpcRelationship
   status: NpcStatus
   tags: string[]
+  /** Facts the AI authors the portrait prompt from (built by the parent). */
+  aiContext?: string
 }>()
 
 const emit = defineEmits<{

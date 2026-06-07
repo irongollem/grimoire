@@ -102,6 +102,8 @@
           :focal-point="form.portrait_focal_point"
           bucket="monster-images"
           show-focal-point
+          ai-kind="monster"
+          :ai-context="aiContext"
           @update:model-value="onPortraitUrlUpdate($event)"
           @update:focal-point="onPortraitFocalUpdate($event)"
         />
@@ -234,6 +236,7 @@ import { IconCopy, IconGenerate, IconScrollText } from "@/lib/icons";
 import MonsterEditMobile from "@/components/monsters/MonsterEditMobile.vue";
 import MonsterGenerateDialog from "@/ai/MonsterGenerateDialog.vue";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
+import { buildEntityContext, toPlainText } from "@/ai/utils";
 import { useCampaignStore } from "@/stores/campaign";
 import type { MonsterAiGenerated } from "@/ai/types";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
@@ -299,6 +302,16 @@ const props = defineProps<{ monster: Monster | null }>();
 const router = useRouter();
 
 const isSrd = computed(() => !!props.monster?.is_srd);
+
+const aiContext = computed(() =>
+  buildEntityContext([
+    form.name,
+    `${form.size} ${form.monster_type}`,
+    form.alignment,
+    form.habitat,
+    toPlainText(form.description),
+  ]),
+);
 
 // Mobile-only edit layer (<md). Desktop keeps the existing two-column grid form,
 // byte-identical to before.

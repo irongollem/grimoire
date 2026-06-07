@@ -28,3 +28,35 @@ export const AI_PROMPT_LIMIT_LONG = 2000;
 export function wrapUserInput(input: string): string {
   return `<user_input>\n${input}\n</user_input>`;
 }
+
+interface TiptapNode { text?: string; content?: TiptapNode[] }
+
+/**
+ * Flatten content to plain text. Accepts a Tiptap JSON string (extracts all
+ * text nodes) or a plain string (returned trimmed). Safe on null/invalid JSON.
+ * Used to build AI image-prompt context from entity description fields.
+ */
+export function toPlainText(content: string | null | undefined): string {
+  if (!content) return "";
+  const trimmed = content.trim();
+  if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return trimmed;
+  try {
+    const parts: string[] = [];
+    const walk = (n: TiptapNode) => {
+      if (n.text) parts.push(n.text);
+      n.content?.forEach(walk);
+    };
+    walk(JSON.parse(trimmed) as TiptapNode);
+    return parts.join(" ").trim();
+  } catch {
+    return trimmed;
+  }
+}
+
+/**
+ * Join entity facts into a single context string for the AI prompt author,
+ * dropping empty parts. e.g. buildEntityContext(["Gnarl", "goblin", "", "sneaky"]).
+ */
+export function buildEntityContext(parts: (string | null | undefined)[]): string {
+  return parts.map((p) => p?.trim()).filter(Boolean).join(". ");
+}

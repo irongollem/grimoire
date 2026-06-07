@@ -56,6 +56,7 @@
         :relationship="form.relationship"
         :status="form.status"
         :tags="form.tags"
+        :ai-context="aiContext"
         @update:art-tab="artTab = $event"
         @update:portrait-url="form.portrait_url = $event"
         @update:portrait-focal-point="form.portrait_focal_point = $event"
@@ -217,6 +218,7 @@ import NpcInventorySection from '@/components/npcs/NpcInventorySection.vue'
 import NpcLoreTab from '@/components/npcs/NpcLoreTab.vue'
 import NpcIdentitySection from '@/components/npcs/NpcIdentitySection.vue'
 import NpcSidebar from '@/components/npcs/NpcSidebar.vue'
+import { buildEntityContext, toPlainText } from '@/ai/utils'
 import NpcEditMobile from '@/components/npcs/NpcEditMobile.vue'
 import type { Npc, NpcInsert, StatBlock } from '@/types/npc.types'
 import { useCampaignStore } from '@/stores/campaign'
@@ -430,6 +432,15 @@ const form = reactive<NpcInsert>({
   player_visible_fields: [...(props.npc?.player_visible_fields ?? [])],
   player_visible_to: props.npc?.player_visible_to ?? [],
 })
+
+const aiContext = computed(() =>
+  buildEntityContext([
+    form.name,
+    [form.race, form.occupation].filter(Boolean).join(', '),
+    toPlainText(form.appearance),
+    toPlainText(form.personality),
+  ]),
+)
 
 // Sync sharing fields if the prop updates after mount (e.g. list popover saved first)
 watch(() => props.npc?.player_visible_to, (val) => {

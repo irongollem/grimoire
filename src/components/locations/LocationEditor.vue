@@ -70,6 +70,8 @@
         <EntityImageBlock
           :model-value="imageUrl"
           bucket="location-images"
+          ai-kind="location"
+          :ai-context="aiContext"
           @update:model-value="imageUrl = $event"
         />
       </div>
@@ -197,6 +199,7 @@
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed, watch } from "vue";
+import { buildEntityContext, toPlainText } from "@/ai/utils";
 import { useRoute, useRouter } from "vue-router";
 import { IconTag } from '@/lib/icons';
 import EntityEditorActionBar from "@/components/common/EntityEditorActionBar.vue";
@@ -336,6 +339,14 @@ const saveError = ref("");
 
 // ── Description ────────────────────────────────────────────────────────────────
 const description = ref<string>(props.location?.description ?? "");
+
+const aiContext = computed(() =>
+  buildEntityContext([
+    name.value,
+    LOCATION_TYPE_LABELS[locationType.value],
+    toPlainText(description.value),
+  ]),
+);
 
 // ── Player sharing ─────────────────────────────────────────────────────────────
 const playerVisibleTo = ref<string[]>(props.location?.player_visible_to ?? []);

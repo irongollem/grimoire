@@ -1,0 +1,162 @@
+import { ref } from "vue";
+import { useCampaignStore } from "@/stores/campaign";
+import { useImageUpload } from "@/composables/useImageUpload";
+import { supabase } from "@/lib/supabase";
+import { getTextProvider, getImageProvider, OPENAI_IMAGE_MODEL_KEY } from "./providers";
+import { fetchImageBasePrompt } from "./systemPrompts";
+import { buildImagePromptAuthorSystem, buildSimpleImagePrompt } from "./imagePrompt";
+import { buildCampaignContext, b64ToBlob, wrapUserInput } from "./utils";
+import { startAiQuotes, stopAiQuotes } from "./aiGenerationState";
+import { logUsage } from "@/composables/useAiCredits";
+
+const LOCAL_MODE_KEY = "grimoire_key_local_mode";
+const IMAGE_SIZE = "1024x1536";
+/** Mirror of the edge function's AI_PROMPT_LIMIT_LONG — clamp entity facts before sending. */
+const CONTEXT_LIMIT = 2000;
+
+interface GenerateEntityImageResponse {
+  image_b64: string | null;
+  error?: string;
+}
+
+export interface GenerateEntityImageOptions {
+  /** Image-job kind — selects the subject noun for the prompt author (npc_portrait, monster, item, …). */
+  kind: string;
+  /** The entity's salient facts (name, type, appearance, description) the text model authors a prompt from. */
+  context: string;
+}
+
+/**
+ * Generate AI art for an entity that ALREADY exists.
+ *
+ * Mirrors the create-flow's two-step "AI weighs in → image" pipeline: a text
+ * model first authors a visual prompt from the entity's facts, then the image
+ * model renders it. The resulting art is uploaded (with FocalImage variants)
+ * and the public URL is returned for the caller to persist.
+ *
+ * `bucketId` is the storage bucket *id* (e.g. "monster-images") — the same value
+ * EntityImageBlock already passes to ImageUpload.
+ */
+export function useEntityImageGeneration(bucketId: string) {
+  const campaign = useCampaignStore();
+  const { upload } = useImageUpload(bucketId);
+
+  const isGenerating = ref(false);
+  const error = ref<string | null>(null);
+
+  async function uploadB64(b64: string): Promise<string | null> {
+    const file = new File([b64ToBlob(b64)], "ai-art.webp", { type: "image/webp" });
+    const url = await upload(file);
+    if (!url) throw new Error("Failed to upload the generated image.");
+    return url;
+  }
+
+  async function generate(options: GenerateEntityImageOptions): Promise<string | null> {
+    if (isGenerating.value) return null;
+    if (!campaign.isAiEnabled) {
+      error.value = "AI features are disabled for this campaign.";
+      return null;
+    }
+    const campaignId = campaign.activeCampaign?.id;
+    if (!campaignId) {
+      error.value = "No active campaign selected.";
+      return null;
+    }
+
+    isGenerating.value = true;
+    error.value = null;
+    startAiQuotes("text");
+
+    const clamped: GenerateEntityImageOptions = {
+      kind: options.kind,
+      context: options.context.slice(0, CONTEXT_LIMIT),
+    };
+
+    try {
+      const isLocalMode =
+        typeof localStorage !== "undefined" &&
+        localStorage.getItem(LOCAL_MODE_KEY) === "local";
+
+      return isLocalMode
+        ? await generateClientSide(clamped)
+        : await generateServerSide(clamped, campaignId);
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : "Generation failed";
+      return null;
+    } finally {
+      isGenerating.value = false;
+      stopAiQuotes();
+    }
+  }
+
+  // ── Server-side path (platform / campaign key, decrypted in the Edge Function) ──
+  async function generateServerSide(
+    options: GenerateEntityImageOptions,
+    campaignId: string,
+  ): Promise<string | null> {
+    const imageModel =
+      (typeof localStorage !== "undefined" ? localStorage.getItem(OPENAI_IMAGE_MODEL_KEY) : null) ??
+      "gpt-image-2";
+
+    const { data, error: fnError } = await supabase.functions.invoke("generate-entity-image", {
+      body: {
+        campaign_id: campaignId,
+        kind:        options.kind,
+        context:     options.context,
+        image_model: imageModel,
+      },
+    });
+
+    // supabase-js wraps a non-2xx as FunctionsHttpError and discards the JSON body
+    // unless we read it explicitly — surface structured codes like insufficient_credits.
+    if (fnError) {
+      let body: { error?: string; balance?: number } | null = null;
+      try { body = (await (fnError as { context?: Response }).context?.json()) ?? null; } catch { /* not JSON */ }
+      if (body?.error === "insufficient_credits") {
+        const left = body.balance !== undefined ? ` (${body.balance} left)` : "";
+        throw new Error(`Insufficient credits${left}. Buy a credit pack or wait for the monthly refresh.`);
+      }
+      throw new Error(body?.error ?? fnError.message);
+    }
+    const res = data as GenerateEntityImageResponse;
+    if (res?.error) throw new Error(res.error);
+    if (!res?.image_b64) throw new Error("The image generator returned no image.");
+
+    startAiQuotes("image");
+    return await uploadB64(res.image_b64);
+  }
+
+  // ── Client-side path (BYOK local mode — key never leaves the browser) ──────────
+  async function generateClientSide(options: GenerateEntityImageOptions): Promise<string | null> {
+    const settingPrompt = campaign.activeCampaign?.ai_setting_prompt ?? "";
+
+    // 1. Author a visual prompt from the entity's facts (the "AI weighs in" step).
+    const textProvider = getTextProvider();
+    const authorSystem =
+      buildImagePromptAuthorSystem(options.kind) +
+      buildCampaignContext({ setting: settingPrompt });
+    const { content: subject, usage: textUsage } = await textProvider.complete(
+      authorSystem,
+      wrapUserInput(options.context),
+    );
+    logUsage({ reason: "entity_image_prompt", textUsage });
+
+    if (!subject.trim()) throw new Error("The AI did not return an image description.");
+
+    // 2. Render the image, layering the campaign style + setting under the subject.
+    startAiQuotes("image");
+    const imageBasePrompt = await fetchImageBasePrompt();
+    const imageProvider = getImageProvider();
+    const imagePrompt = buildSimpleImagePrompt({
+      base: imageBasePrompt,
+      setting: settingPrompt,
+      subject,
+    });
+    const { b64, usage: imageUsage } = await imageProvider.generate(imagePrompt, IMAGE_SIZE);
+    logUsage({ reason: "entity_image", imageUsage });
+
+    return await uploadB64(b64);
+  }
+
+  return { isGenerating, error, generate };
+}

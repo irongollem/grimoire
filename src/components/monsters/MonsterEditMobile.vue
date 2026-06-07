@@ -81,6 +81,8 @@
           :focal-point="form.portrait_focal_point"
           bucket="monster-images"
           show-focal-point
+          ai-kind="monster"
+          :ai-context="aiContext"
           @update:model-value="emit('update:imageUrl', $event)"
           @update:focal-point="emit('update:focalPoint', $event)"
         />
@@ -238,6 +240,7 @@ import StatBlockEditor from "@/components/common/StatBlockEditor.vue";
 import MobileSheet from "@/components/common/MobileSheet.vue";
 import { IconCopy, IconDelete, IconGenerate, IconScrollText } from "@/lib/icons";
 import type { MonsterStatBlock, MonsterType, MonsterSize } from "@/types/monster.types";
+import { buildEntityContext, toPlainText } from "@/ai/utils";
 
 // The reactive shape MonsterDetail's `form` exposes. Structural (not the
 // MonsterInsert payload) because the form holds "" rather than null for blanks.
@@ -287,6 +290,16 @@ const emit = defineEmits<{
   "update:imageUrl": [value: string];
   "update:focalPoint": [value: { x: number; y: number } | null];
 }>();
+
+const aiContext = computed(() =>
+  buildEntityContext([
+    form.name,
+    `${form.size} ${form.monster_type}`,
+    form.alignment,
+    form.habitat,
+    toPlainText(form.description),
+  ]),
+);
 
 const ALIGNMENTS = [
   "Lawful Good",
