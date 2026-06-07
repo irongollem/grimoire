@@ -1,5 +1,7 @@
 # Bugs
 
+- [x] Marketing/commercial pages (`/`, `/pricing`, `/privacy`, `/terms`) overflowed the viewport but could not scroll — the first thing a logged-out visitor lands on. Global CSS sets `html, body { overflow: hidden }` so all scrolling must happen inside per-layout scroll containers, but `MarketingLayout.vue` rendered its slot in a plain `min-h-screen` div with no scroll container (unlike `DefaultLayout`/`PlayerLayout`/`AuthLayout`). Changed the layout root to `h-screen overflow-y-auto` so it scrolls; the `fixed inset-0` noise overlay stays pinned to the viewport. (`src/layouts/MarketingLayout.vue`)
+
 - [x] DM clicking "Add Hero" / "Add first hero" on the Party Tracker was redirected to `/dashboard` — the button pointed to `/play/character/create` which carries `requiresPlayer: true`, so the router guard bounced DMs. Fixed by adding a new `/party/new` route without `requiresPlayer`, updating both buttons to point there, and adjusting the character creation composable to skip auto-linking to the DM's membership (`owner_user_id` left null) and navigate to `/party` after save so the character is left unclaimed for a player to pick up. (#403)
 
 - [x] Mobile nav FAB (hamburger) was inaccessible while NPC/Monster visibility popovers were open — the popovers use `fixed inset-0 z-50` backdrops that covered the FAB at `z-40`. Raised FAB to `z-[60]` in `AppTopBar.vue`. (#412)
