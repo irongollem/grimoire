@@ -99,7 +99,7 @@ import { IconClose, IconGenerate } from "@/lib/icons";
 import { useUiStore } from "@/stores/ui";
 import { useCreateNpc } from "@/composables/useNpcs";
 import { useAiCredits } from "@/composables/useAiCredits";
-import { useProviderConfig } from "@/composables/useProviderConfig";
+import { useProviderConfig, PORTRAIT_SIZE_BY_PROVIDER } from "@/composables/useProviderConfig";
 import { getNpcTemplate } from "@/data/npcTemplates";
 import type { NpcInsert, NpcRelationship, NpcRelationshipType } from "@/types/npc.types";
 import { NPC_RELATIONSHIP_TYPE_LABELS } from "@/types/npc.types";
@@ -169,7 +169,8 @@ const effectiveCreditCost = computed(() => {
   }
   if (generateImage.value && !imageIsByok.value) {
     const n = generateAlterEgo.value ? 2 : 1;
-    cost += Math.round(costOf("portrait") * imageMultiplierFor(imageProvider.value) * n * 100) / 100;
+    const size = PORTRAIT_SIZE_BY_PROVIDER[imageProvider.value] ?? PORTRAIT_SIZE_BY_PROVIDER.openai;
+    cost += Math.round(costOf("portrait", { size }) * imageMultiplierFor(imageProvider.value) * n * 100) / 100;
   }
   return cost;
 });

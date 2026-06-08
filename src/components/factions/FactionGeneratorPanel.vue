@@ -133,6 +133,12 @@
 
       <!-- Footer -->
       <div class="px-5 py-4 border-t border-border flex flex-col gap-2 shrink-0">
+        <GenerationCostBadge
+          v-if="isPro && isAiEnabled"
+          :credits="textCreditCost"
+          :byok="textIsByok"
+          class="self-center"
+        />
         <button
           v-if="isPro && isAiEnabled"
           type="button"
@@ -179,7 +185,10 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useCreateFaction, useAddFactionNpc, useAddFactionLocation } from "@/composables/useFactions";
 import { useSubscription } from "@/composables/useSubscription";
 import PaywallModal from "@/components/common/PaywallModal.vue";
+import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import { useAiCredits } from "@/composables/useAiCredits";
+import { useProviderConfig } from "@/composables/useProviderConfig";
 import { useFactionGeneration } from "@/ai/useFactionGeneration";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
@@ -203,6 +212,14 @@ const aiApiKey = computed(() => campaign.decryptedApiKey);
 const isAiEnabled = computed(() => campaign.isAiEnabled);
 const { isPro } = useSubscription();
 const showPaywall = ref(false);
+
+const { costOf } = useAiCredits();
+const { textMultiplierFor } = useProviderConfig();
+const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
+const textIsByok = computed(() => !!campaign.decryptedApiKey);
+const textCreditCost = computed(
+  () => Math.round(costOf("faction_generation") * textMultiplierFor(textProvider.value) * 100) / 100,
+);
 
 const concept                = ref("");
 const constraints            = reactive({ faction_type: "", alignment: "" });

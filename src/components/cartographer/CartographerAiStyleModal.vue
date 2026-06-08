@@ -52,7 +52,8 @@
             />
             <p v-if="error" class="mt-2 font-fell text-xs text-destructive">{{ error }}</p>
           </div>
-          <div class="flex justify-end gap-2 px-5 pb-5 pt-2">
+          <div class="flex justify-end items-center gap-2 px-5 pb-5 pt-2">
+            <GenerationCostBadge :credits="credits" :byok="byok" class="mr-auto" />
             <button
               type="button"
               class="px-4 py-1.5 rounded-md border border-border font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors tracking-wider"
@@ -142,6 +143,7 @@
 
 <script setup lang="ts">
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 
 interface Preset {
   id: string;
@@ -168,6 +170,8 @@ const {
   atlasTargetHasMap,
   atlasError,
   atlasSaving,
+  credits,
+  byok,
 } = defineProps<{
   showPicker: boolean;
   showResult: boolean;
@@ -181,6 +185,8 @@ const {
   atlasTargetHasMap: boolean;
   atlasError: string | null;
   atlasSaving: boolean;
+  credits: number;
+  byok: boolean;
 }>();
 
 defineEmits<{

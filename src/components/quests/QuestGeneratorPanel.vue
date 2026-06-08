@@ -186,7 +186,13 @@
       </div>
 
       <!-- Footer -->
-      <div class="px-5 py-4 border-t border-border shrink-0">
+      <div class="px-5 py-4 border-t border-border shrink-0 flex flex-col gap-2">
+        <GenerationCostBadge
+          v-if="isPro && isAiEnabled && !hooks.length"
+          :credits="textCreditCost"
+          :byok="textIsByok"
+          class="self-center"
+        />
         <button
           v-if="isPro && isAiEnabled && !hooks.length"
           type="button"
@@ -241,6 +247,9 @@ import { useSubscription } from "@/composables/useSubscription";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import PaywallModal from "@/components/common/PaywallModal.vue";
+import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
+import { useAiCredits } from "@/composables/useAiCredits";
+import { useProviderConfig } from "@/composables/useProviderConfig";
 import type { QuestHookResult } from "@/ai/types";
 
 const ui = useUiStore();
@@ -272,6 +281,14 @@ const { mutateAsync: createQuest } = useCreateQuest();
 const { mutateAsync: createObjective } = useCreateObjective();
 
 const isAiEnabled = computed(() => campaign.isAiEnabled);
+
+const { costOf } = useAiCredits();
+const { textMultiplierFor } = useProviderConfig();
+const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
+const textIsByok = computed(() => !!campaign.decryptedApiKey);
+const textCreditCost = computed(
+  () => Math.round(costOf("quest_generation") * textMultiplierFor(textProvider.value) * 100) / 100,
+);
 
 const partyLevelDisplay = computed(() => {
   const levels = (party.value ?? []).map((m) => m.level);

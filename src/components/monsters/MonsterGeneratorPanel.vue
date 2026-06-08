@@ -119,6 +119,12 @@
 
       <!-- Footer -->
       <div class="px-5 py-4 border-t border-border flex flex-col gap-2 shrink-0">
+        <GenerationCostBadge
+          v-if="isPro && isAiEnabled"
+          :credits="textCreditCost"
+          :byok="textIsByok"
+          class="self-center"
+        />
         <button
           v-if="isPro && isAiEnabled"
           type="button"
@@ -162,6 +168,9 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useCreateMonster } from "@/composables/useMonsters";
 import { useSubscription } from "@/composables/useSubscription";
 import PaywallModal from "@/components/common/PaywallModal.vue";
+import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
+import { useAiCredits } from "@/composables/useAiCredits";
+import { useProviderConfig } from "@/composables/useProviderConfig";
 import { useMonsterGeneration } from "@/ai/useMonsterGeneration";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
@@ -184,6 +193,14 @@ const aiApiKey = computed(() => campaign.decryptedApiKey);
 const isAiEnabled = computed(() => campaign.isAiEnabled);
 const { isPro } = useSubscription();
 const showPaywall = ref(false);
+
+const { costOf } = useAiCredits();
+const { textMultiplierFor } = useProviderConfig();
+const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
+const textIsByok = computed(() => !!campaign.decryptedApiKey);
+const textCreditCost = computed(
+  () => Math.round(costOf("monster_stat_block") * textMultiplierFor(textProvider.value) * 100) / 100,
+);
 
 const concept = ref("");
 const constraints = reactive({ challenge_rating: "", monster_type: "", size: "" });

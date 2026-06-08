@@ -36,6 +36,9 @@
         <IconGenerate class="h-3.5 w-3.5" :class="isGenerating ? 'animate-pulse text-primary' : ''" />
         {{ isGenerating ? "Generating…" : (modelValue ? "Regenerate with AI" : "Generate with AI") }}
       </button>
+      <div v-if="!isGenerating" class="flex justify-center">
+        <GenerationCostBadge :credits="imageCost" :byok="imageByok" :show-balance="false" />
+      </div>
       <p v-if="isGenerating" class="font-fell text-[11px] text-muted-foreground italic text-center">
         {{ currentLoadingQuote }}
       </p>
@@ -47,10 +50,13 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import ImageUpload from "@/components/common/ImageUpload.vue";
+import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import { IconGenerate } from "@/lib/icons";
 import { useCampaignStore } from "@/stores/campaign";
 import { useEntityImageGeneration } from "@/ai/useEntityImageGeneration";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
+import { useAiCredits } from "@/composables/useAiCredits";
+import { useProviderConfig } from "@/composables/useProviderConfig";
 
 export interface ImageVariant {
   id: string;
@@ -86,6 +92,14 @@ const emit = defineEmits<{
 
 const campaign = useCampaignStore();
 const { isGenerating, error, generate } = useEntityImageGeneration(bucket);
+
+// Entity portraits always render via OpenAI at 1024×1536 (portrait → 1.5× cost).
+const { costOf } = useAiCredits();
+const { imageMultiplierFor } = useProviderConfig();
+const imageByok = computed(() => !!campaign.decryptedOpenAiKey);
+const imageCost = computed(
+  () => Math.round(costOf("entity_image", { size: "1024x1536" }) * imageMultiplierFor("openai") * 100) / 100,
+);
 
 const showAiButton = computed(
   () => !!aiKind && !!aiContext?.trim() && !disabled && campaign.isAiEnabled,
