@@ -196,7 +196,7 @@
         <button
           v-if="isPro && isAiEnabled && !hooks.length"
           type="button"
-          :disabled="isAnyAiGenerating"
+          :disabled="isAnyAiGenerating || !affordable(textCreditCost, textIsByok)"
           :title="
             isAnyAiGenerating && !isGenerating
               ? 'Another generation is already in progress'
@@ -282,7 +282,7 @@ const { mutateAsync: createObjective } = useCreateObjective();
 
 const isAiEnabled = computed(() => campaign.isAiEnabled);
 
-const { costOf } = useAiCredits();
+const { costOf, affordable } = useAiCredits();
 const { textMultiplierFor } = useProviderConfig();
 const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
 const textIsByok = computed(() => !!campaign.decryptedApiKey);

@@ -83,6 +83,16 @@ export function useAiCredits() {
     return (balance.value ?? 0) >= costOf(generationType)
   }
 
+  /**
+   * Whether a generation costing `credits` is affordable. BYOK is always
+   * affordable (the user pays their own API bill), and we never block while the
+   * balance is still loading. Shared by GenerationCostBadge and the generate
+   * buttons so the disabled state and the cost tint stay in sync.
+   */
+  function affordable(credits: number, byok = false): boolean {
+    return byok || isLoading.value || (balance.value ?? 0) >= credits
+  }
+
   async function deductCredit(reason: string, amount = 1): Promise<boolean> {
     const { data, error } = await supabase.functions.invoke('deduct-ai-credit', {
       body: { reason, amount },
@@ -119,6 +129,7 @@ export function useAiCredits() {
     formattedBalance,
     isLoading,
     canGenerate,
+    affordable,
     costOf,
     deductCredit,
     logUsage: logUsage,

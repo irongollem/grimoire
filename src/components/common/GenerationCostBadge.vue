@@ -34,12 +34,12 @@ const {
   showBalance?: boolean;
 }>();
 
-const { balance, isLoading } = useAiCredits();
+const { balance, affordable: canAfford } = useAiCredits();
 
 const rounded = computed(() => Math.round(credits * 100) / 100);
 const creditLabel = computed(() => `${rounded.value === 1 ? "1 credit" : `${rounded.value} credits`}`);
 const balanceLabel = computed(() => `${Math.round(((balance.value ?? 0) as number) * 100) / 100}`);
-const affordable = computed(() => byok || isLoading.value || (balance.value ?? 0) >= rounded.value);
+const affordable = computed(() => canAfford(rounded.value, byok));
 const title = computed(() =>
   byok
     ? "Using your own API key — no credits are charged"

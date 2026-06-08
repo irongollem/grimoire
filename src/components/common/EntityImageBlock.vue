@@ -29,7 +29,7 @@
     <div v-if="showAiButton" class="mt-2 flex flex-col gap-1">
       <button
         type="button"
-        :disabled="isGenerating || disabled"
+        :disabled="isGenerating || disabled || !affordable(imageCost, imageByok)"
         class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 font-cinzel text-[11px] font-semibold tracking-wider border border-border rounded-md hover:bg-muted disabled:opacity-50 transition-colors"
         @click="runGenerate"
       >
@@ -94,7 +94,7 @@ const campaign = useCampaignStore();
 const { isGenerating, error, generate } = useEntityImageGeneration(bucket);
 
 // Entity portraits always render via OpenAI at 1024×1536 (portrait → 1.5× cost).
-const { costOf } = useAiCredits();
+const { costOf, affordable } = useAiCredits();
 const { imageMultiplierFor } = useProviderConfig();
 const imageByok = computed(() => !!campaign.decryptedOpenAiKey);
 const imageCost = computed(

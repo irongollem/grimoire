@@ -67,7 +67,7 @@
             <button
               type="button"
               class="inline-flex items-center gap-1.5 px-4 py-1.5 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
-              :disabled="isGenerating || !rawText.trim() || rawText.length > NOTES_LIMIT"
+              :disabled="isGenerating || !rawText.trim() || rawText.length > NOTES_LIMIT || !affordable(textCreditCost, textIsByok)"
               @click="generate"
             >
               <IconNote class="h-3 w-3" :class="isGenerating ? 'animate-pulse' : ''" />
@@ -159,7 +159,7 @@ const { isGenerating, generate: generateChronicle } = useChroniclerTextGeneratio
 const { mentionItems, partyMembers, npcs, monsters } = useEntityMentionItems();
 
 const campaign = useCampaignStore();
-const { costOf } = useAiCredits();
+const { costOf, affordable } = useAiCredits();
 const { textMultiplierFor } = useProviderConfig();
 const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
 const textIsByok = computed(() => !!campaign.decryptedApiKey);

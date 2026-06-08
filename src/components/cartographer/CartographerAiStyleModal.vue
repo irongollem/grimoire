@@ -61,7 +61,7 @@
             >Cancel</button>
             <button
               type="button"
-              :disabled="generating"
+              :disabled="generating || !canAfford"
               class="px-4 py-1.5 rounded-md font-cinzel text-xs font-semibold tracking-wider bg-amber-500 text-black hover:bg-amber-400 transition-colors disabled:opacity-50"
               @click="$emit('generate')"
             >{{ generating ? "Generating…" : "Generate" }}</button>
@@ -142,8 +142,10 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
+import { useAiCredits } from "@/composables/useAiCredits";
 
 interface Preset {
   id: string;
@@ -200,6 +202,9 @@ defineEmits<{
   "update:selectedPresetId": [id: string];
   "update:promptSuffix": [value: string];
 }>();
+
+const { affordable } = useAiCredits();
+const canAfford = computed(() => affordable(credits, byok));
 
 const atlasLocationId = defineModel<string>("atlasLocationId", { default: "" });
 </script>

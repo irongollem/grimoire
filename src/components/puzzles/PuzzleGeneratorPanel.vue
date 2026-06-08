@@ -126,7 +126,7 @@
         <button
           v-if="isPro && isAiEnabled"
           type="button"
-          :disabled="isAnyAiGenerating || !concept.trim()"
+          :disabled="isAnyAiGenerating || !concept.trim() || !affordable(textCreditCost, textIsByok)"
           :title="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
           class="w-full inline-flex items-center justify-center gap-1.5 py-2 font-cinzel text-xs font-semibold tracking-wider rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
           @click="generateAndCreate"
@@ -189,7 +189,7 @@ const isAiEnabled = computed(() => campaign.isAiEnabled);
 const { isPro } = useSubscription();
 const showPaywall = ref(false);
 
-const { costOf } = useAiCredits();
+const { costOf, affordable } = useAiCredits();
 const { textMultiplierFor } = useProviderConfig();
 const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
 const textIsByok = computed(() => !!campaign.decryptedApiKey);

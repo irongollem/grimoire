@@ -94,7 +94,7 @@
           <button
             type="button"
             class="inline-flex items-center gap-1.5 px-4 py-1.5 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
-            :disabled="generating || !scenePrompt.trim() || scenePrompt.length > SCENE_LIMIT"
+            :disabled="generating || !scenePrompt.trim() || scenePrompt.length > SCENE_LIMIT || !affordable(selectedCost, byok)"
             @click="generate"
           >
             <IconGenerate class="h-3 w-3" :class="generating ? 'animate-pulse' : ''" />
@@ -190,7 +190,7 @@ const { user } = storeToRefs(useAuthStore());
 
 // Live credit cost — chronicle images always render via OpenAI; cost scales with
 // the chosen shape's output area (landscape = 1.5× square). BYOK = no credits.
-const { costOf } = useAiCredits();
+const { costOf, affordable } = useAiCredits();
 const { imageMultiplierFor } = useProviderConfig();
 const byok = computed(() => !!campaignStore.decryptedOpenAiKey);
 function shapeCost(s: ChroniclerSize): number {
