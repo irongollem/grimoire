@@ -37,13 +37,24 @@ function buildPrompt(sceneText: string, textDescriptions: string[], settingPromp
 async function uploadResult(b64: string, userId: string): Promise<string> {
   const bin = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
   const path = `${userId}/scene-${Date.now()}.webp`;
-  const { error } = await admin.storage.from("chronicle").upload(path, bin, {
-    contentType: "image/webp",
-    upsert: false,
-  });
-  if (error) throw new Error(`Upload failed: ${error.message}`);
-  const { data } = admin.storage.from("chronicle").getPublicUrl(path);
-  return data.publicUrl;
+  // Storage occasionally returns a transient 502/Bad Gateway. The generated
+  // image is already in memory and re-running the OpenAI call is expensive, so
+  // retry the upload a few times with backoff before giving up. upsert:true so a
+  // partially-written object from a failed attempt doesn't cause a 409.
+  let lastErr = "";
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    const { error } = await admin.storage.from("chronicle").upload(path, bin, {
+      contentType: "image/webp",
+      upsert: true,
+    });
+    if (!error) {
+      const { data } = admin.storage.from("chronicle").getPublicUrl(path);
+      return data.publicUrl;
+    }
+    lastErr = error.message;
+    if (attempt < 4) await new Promise((r) => setTimeout(r, 500 * attempt));
+  }
+  throw new Error(`Upload failed after 4 attempts: ${lastErr}`);
 }
 
 async function runGeneration(args: {
