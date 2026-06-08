@@ -28,6 +28,16 @@ export function logUsage(params: {
   imageUsage?: ImageUsage;
 }): void {
   const { reason, textUsage, imageUsage } = params
+  const inputTokens      = textUsage?.input_tokens  ?? imageUsage?.input_tokens
+  const inputImageTokens = imageUsage?.input_image_tokens
+  const outputTokens     = textUsage?.output_tokens ?? imageUsage?.output_tokens
+
+  // Policy: only record BYOK usage when we actually know the token counts.
+  // A token-less BYOK row can't inform our cost prediction — it just muddies the
+  // analytics (and falls back to a flat per-image estimate), so we skip it.
+  const isNil = (v: number | null | undefined) => v === null || v === undefined
+  if (isNil(inputTokens) && isNil(inputImageTokens) && isNil(outputTokens)) return
+
   supabase.functions.invoke('deduct-ai-credit', {
     body: {
       reason,
@@ -38,9 +48,9 @@ export function logUsage(params: {
       // Token-based image models (OpenAI gpt-image) report tokens on imageUsage;
       // text generators report on textUsage. Forward whichever is present so the
       // ledger can compute real cost on every path.
-      input_tokens:       textUsage?.input_tokens  ?? imageUsage?.input_tokens,
-      input_image_tokens: imageUsage?.input_image_tokens,
-      output_tokens:      textUsage?.output_tokens ?? imageUsage?.output_tokens,
+      input_tokens:       inputTokens,
+      input_image_tokens: inputImageTokens,
+      output_tokens:      outputTokens,
       image_count:        imageUsage?.image_count,
     },
   }).catch(() => { /* analytics logging failure is never fatal */ })
