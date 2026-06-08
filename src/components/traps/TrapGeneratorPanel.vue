@@ -208,14 +208,21 @@ const { isPro } = useSubscription();
 const showPaywall = ref(false);
 
 const { costOf, balance, isLoading: creditsLoading } = useAiCredits();
-const { textMultiplierFor } = useProviderConfig();
+const { textMultiplierFor, imageMultiplierFor } = useProviderConfig();
 
 const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
 const textIsByok   = computed(() => !!campaign.decryptedApiKey);
+const imageIsByok  = computed(() => !!campaign.decryptedOpenAiKey);
 
 const effectiveCreditCost = computed(() => {
-  if (textIsByok.value) return 0;
-  return Math.round(costOf("trap_generation") * textMultiplierFor(textProvider.value) * 100) / 100;
+  let cost = textIsByok.value
+    ? 0
+    : Math.round(costOf("trap_generation") * textMultiplierFor(textProvider.value) * 100) / 100;
+  // The illustration is a separate entity_image charge (portrait → 1.5×).
+  if (generateImage.value && !imageIsByok.value) {
+    cost += Math.round(costOf("entity_image", { size: "1024x1536" }) * imageMultiplierFor("openai") * 100) / 100;
+  }
+  return cost;
 });
 
 const canAfford  = computed(() => creditsLoading.value || (balance.value ?? 0) >= effectiveCreditCost.value);

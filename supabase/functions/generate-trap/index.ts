@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { decryptValue } from "../_shared/vault.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
-import { fetchCreditCost, fetchUserBalance, recordGeneration } from "../_shared/credits.ts";
+import { fetchCreditCost, fetchUserBalance, recordGeneration, sizeMultiplier } from "../_shared/credits.ts";
 import {
   AI_PROMPT_LIMIT,
   INJECTION_GUARD_SUFFIX,
@@ -248,9 +248,19 @@ serve(async (req: Request) => {
   // ── Pre-flight credit check ────────────────────────────────────────────────
   const baseTrapCost = textIsByok ? 0 : await fetchCreditCost(admin, "trap_generation");
   const trapCost = applyMultiplier(baseTrapCost, providerConfigs[textProvider as keyof typeof providerConfigs]?.text_multiplier);
-  if (trapCost > 0) {
+  // The illustration is its own charge, reusing the entity_image cost (portrait
+  // 1024×1536 → 1.5×). Images render via OpenAI, so BYOK is keyed on the OpenAI key.
+  const imageIsByok = !!campaignOpenai;
+  const trapImageCost = (generate_image && !imageIsByok)
+    ? Math.round(
+        applyMultiplier(await fetchCreditCost(admin, "entity_image"), providerConfigs.openai?.image_multiplier) *
+        sizeMultiplier("1024x1536") * 100,
+      ) / 100
+    : 0;
+  const trapTotalCost = trapCost + trapImageCost;
+  if (trapTotalCost > 0) {
     const balance = await fetchUserBalance(admin, user.id);
-    if (balance < trapCost) {
+    if (balance < trapTotalCost) {
       return new Response(
         JSON.stringify({ error: "insufficient_credits", balance }),
         { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -311,10 +321,9 @@ serve(async (req: Request) => {
     input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
   });
 
-  // Log image generation as a separate analytics-only row so the image model's
-  // token pricing is used for cost estimation (delta=0, cost already covered above)
+  // Charge the illustration as its own entity_image row (or delta=0 on BYOK).
   if (imgResult) {
-    await recordGeneration(admin, user.id, "trap_generation", false, 0, {
+    await recordGeneration(admin, user.id, "entity_image", imageIsByok, trapImageCost, {
       model: imgModel, provider: "openai", image_count: 1,
       input_tokens:       imgResult.input_tokens || undefined,
       input_image_tokens: imgResult.input_image_tokens || undefined,

@@ -103,7 +103,13 @@
         <tbody class="divide-y divide-border">
           <tr v-for="gen in pricingQuery.generationCosts.data.value" :key="gen.generation_type">
             <td class="py-2">
-              <p class="font-fell text-foreground">{{ gen.label }}</p>
+              <p class="font-fell text-foreground">
+                {{ gen.label }}
+                <span
+                  class="ml-1 rounded px-1 py-0.5 font-cinzel text-[9px] tracking-wider align-middle"
+                  :class="CATEGORY_CLASS[categoryOf(gen.generation_type)]"
+                >{{ categoryOf(gen.generation_type) }}</span>
+              </p>
               <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider">{{ gen.generation_type }}</p>
             </td>
             <td class="py-2 text-right">
@@ -232,6 +238,26 @@ async function savePack(pack: CreditPackConfig) {
   } finally {
     packSaving[pack.pack_id] = false;
   }
+}
+
+// What each generation_type charges for, so the admin can see at a glance which
+// rows are text vs image vs audio (and that some generators bill BOTH — e.g. a
+// trap is trap_generation [text] + entity_image [image] when illustrated).
+type CostCategory = "text" | "image" | "audio";
+const COST_CATEGORY: Record<string, CostCategory> = {
+  npc_text: "text", monster_stat_block: "text", item_generation: "text",
+  spell_generation: "text", trap_generation: "text", location_generation: "text",
+  faction_generation: "text", puzzle_generation: "text", chronicle_text: "text",
+  portrait: "image", entity_image: "image", chronicle_image: "image", map_style_generation: "image",
+  music_clip: "audio", music_full_song: "audio",
+};
+const CATEGORY_CLASS: Record<CostCategory, string> = {
+  text:  "bg-sky-500/15 text-sky-500",
+  image: "bg-violet-500/15 text-violet-500",
+  audio: "bg-amber-500/15 text-amber-500",
+};
+function categoryOf(generationType: string): CostCategory {
+  return COST_CATEGORY[generationType] ?? "text";
 }
 
 // Generation types whose renders are non-square — the credit_cost above is the

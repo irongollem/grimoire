@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { decryptValue } from "../_shared/vault.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
-import { fetchCreditCost, fetchUserBalance, recordGeneration } from "../_shared/credits.ts";
+import { fetchCreditCost, fetchUserBalance, recordGeneration, sizeMultiplier } from "../_shared/credits.ts";
 import {
   AI_PROMPT_LIMIT,
   INJECTION_GUARD_SUFFIX,
@@ -217,9 +217,17 @@ serve(async (req: Request) => {
   // ── Pre-flight credit check ────────────────────────────────────────────────
   const baseLocationCost = textIsByok ? 0 : await fetchCreditCost(admin, "location_generation");
   const locationCost = applyMultiplier(baseLocationCost, providerConfigs[textProvider as keyof typeof providerConfigs]?.text_multiplier);
-  if (locationCost > 0) {
+  // The scene and map are each their own charge, reusing the entity_image cost
+  // (square 1024×1024 → 1.0×). Images render via OpenAI → BYOK on the OpenAI key.
+  const imageIsByok = !!campaignOpenai;
+  const baseImageCost = imageIsByok ? 0 : await fetchCreditCost(admin, "entity_image");
+  const perImageCost = Math.round(
+    applyMultiplier(baseImageCost, providerConfigs.openai?.image_multiplier) * sizeMultiplier("1024x1024") * 100,
+  ) / 100;
+  const locationTotalCost = locationCost + (generate_image ? perImageCost : 0) + (generate_map ? perImageCost : 0);
+  if (locationTotalCost > 0) {
     const balance = await fetchUserBalance(admin, user.id);
-    if (balance < locationCost) {
+    if (balance < locationTotalCost) {
       return new Response(
         JSON.stringify({ error: "insufficient_credits", balance }),
         { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -288,9 +296,9 @@ serve(async (req: Request) => {
     input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
   });
 
-  // Log each image as a separate analytics-only row so image model token pricing is used
+  // Charge each image as its own entity_image row (or delta=0 on BYOK).
   if (sceneImgResult) {
-    await recordGeneration(admin, user.id, "location_generation", false, 0, {
+    await recordGeneration(admin, user.id, "entity_image", imageIsByok, perImageCost, {
       model: imgModel, provider: "openai", image_count: 1,
       input_tokens:       sceneImgResult.input_tokens || undefined,
       input_image_tokens: sceneImgResult.input_image_tokens || undefined,
@@ -298,7 +306,7 @@ serve(async (req: Request) => {
     });
   }
   if (mapImgResult) {
-    await recordGeneration(admin, user.id, "location_generation", false, 0, {
+    await recordGeneration(admin, user.id, "entity_image", imageIsByok, perImageCost, {
       model: imgModel, provider: "openai", image_count: 1,
       input_tokens:       mapImgResult.input_tokens || undefined,
       input_image_tokens: mapImgResult.input_image_tokens || undefined,

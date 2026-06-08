@@ -209,14 +209,23 @@ const { isPro } = useSubscription();
 const showPaywall = ref(false);
 
 const { costOf, balance, isLoading: creditsLoading } = useAiCredits();
-const { textMultiplierFor } = useProviderConfig();
+const { textMultiplierFor, imageMultiplierFor } = useProviderConfig();
 
 const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
 const textIsByok   = computed(() => !!campaign.decryptedApiKey);
+const imageIsByok  = computed(() => !!campaign.decryptedOpenAiKey);
 
 const effectiveCreditCost = computed(() => {
-  if (textIsByok.value) return 0;
-  return Math.round(costOf("location_generation") * textMultiplierFor(textProvider.value) * 100) / 100;
+  let cost = textIsByok.value
+    ? 0
+    : Math.round(costOf("location_generation") * textMultiplierFor(textProvider.value) * 100) / 100;
+  // Scene + map are each a separate entity_image charge (square → 1.0×).
+  if (!imageIsByok.value) {
+    const perImage = Math.round(costOf("entity_image", { size: "1024x1024" }) * imageMultiplierFor("openai") * 100) / 100;
+    if (generateImage.value) cost += perImage;
+    if (generateMap.value)   cost += perImage;
+  }
+  return cost;
 });
 
 const canAfford  = computed(() => creditsLoading.value || (balance.value ?? 0) >= effectiveCreditCost.value);
