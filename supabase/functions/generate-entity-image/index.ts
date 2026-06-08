@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { decryptValue } from "../_shared/vault.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
-import { fetchCreditCost, fetchUserBalance, recordGeneration } from "../_shared/credits.ts";
+import { fetchCreditCost, fetchUserBalance, recordGeneration, sizeMultiplier } from "../_shared/credits.ts";
 import {
   AI_PROMPT_LIMIT_LONG,
   INJECTION_GUARD_SUFFIX,
@@ -16,6 +16,9 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// Entity portraits always render portrait-orientation.
+const ENTITY_IMAGE_SIZE = "1024x1536";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -196,8 +199,13 @@ serve(async (req: Request) => {
   const isByok = !!campaignOpenai;
 
   // ── Pre-flight credit check ────────────────────────────────────────────────
+  // Entity portraits render at ENTITY_IMAGE_SIZE; cost scales with output area
+  // (portrait = 1.5× a square render).
   const baseCost = isByok ? 0 : await fetchCreditCost(admin, "entity_image");
-  const cost = applyMultiplier(baseCost, providerConfigs.openai?.image_multiplier);
+  const cost = Math.round(
+    applyMultiplier(baseCost, providerConfigs.openai?.image_multiplier) *
+    sizeMultiplier(ENTITY_IMAGE_SIZE) * 100,
+  ) / 100;
   if (cost > 0) {
     const balance = await fetchUserBalance(admin, user.id);
     if (balance < cost) {
@@ -253,7 +261,7 @@ serve(async (req: Request) => {
 
   let imgResult: ImgResult;
   try {
-    imgResult = await openaiImageGenerate(openaiKey, imgModel, imagePrompt, "1024x1536");
+    imgResult = await openaiImageGenerate(openaiKey, imgModel, imagePrompt, ENTITY_IMAGE_SIZE);
   } catch (e) {
     console.error("Entity image generation failed:", e);
     return new Response(

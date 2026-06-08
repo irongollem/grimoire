@@ -5,6 +5,22 @@ import { CREDIT_COST } from '@/types/subscription.types'
 import { useGenerationCreditCosts } from '@/composables/useCreditConfig'
 import type { TextUsage, ImageUsage } from '@/ai/providers/types'
 
+/**
+ * Credit multiplier for an image render based on its pixel area, relative to a
+ * 1024×1024 square baseline (= 1.0). A 1536×1024 / 1024×1536 render is 1.5×.
+ * Mirrors `sizeMultiplier()` in the edge functions' `_shared/credits.ts` so the
+ * cost shown in the UI matches what the server charges. Returns 1 for unknown
+ * or blank sizes (text generations, fixed-square functions).
+ */
+export function sizeMultiplier(size: string | null | undefined): number {
+  if (!size) return 1
+  const m = /^(\d+)\s*x\s*(\d+)$/i.exec(size.trim())
+  if (!m) return 1
+  const area = Number(m[1]) * Number(m[2])
+  if (!Number.isFinite(area) || area <= 0) return 1
+  return area / (1024 * 1024)
+}
+
 /** Log a BYOK generation for cost analytics. Fire-and-forget — never blocks the caller. */
 export function logUsage(params: {
   reason: string;
@@ -56,11 +72,11 @@ export function useAiCredits() {
 
   const { data: generationCosts } = useGenerationCreditCosts()
 
-  function costOf(generationType: string): number {
+  function costOf(generationType: string, opts?: { size?: string | null }): number {
     const row = generationCosts.value?.find((r) => r.generation_type === generationType)
-    if (row) return row.credit_cost
     // Fallback to hardcoded constant while DB value is loading
-    return (CREDIT_COST as Record<string, number>)[generationType] ?? 1
+    const base = row ? row.credit_cost : ((CREDIT_COST as Record<string, number>)[generationType] ?? 1)
+    return Math.round(base * sizeMultiplier(opts?.size) * 100) / 100
   }
 
   function canGenerate(generationType: string): boolean {
