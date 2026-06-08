@@ -69,6 +69,7 @@ const {
   disabled = false,
   aiKind,
   aiContext,
+  aiTargetId,
 } = defineProps<{
   modelValue: string | null | undefined;
   focalPoint?: { x: number; y: number } | null;
@@ -82,6 +83,8 @@ const {
   aiKind?: string;
   /** Entity facts the AI authors a prompt from. Button only shows when both aiKind + aiContext are set. */
   aiContext?: string;
+  /** Source entity id — recorded on the Gallery row so generated art links back to its entity. */
+  aiTargetId?: string | null;
 }>();
 
 const emit = defineEmits<{
@@ -107,7 +110,7 @@ const showAiButton = computed(
 
 async function runGenerate() {
   if (!aiKind || !aiContext?.trim()) return;
-  const url = await generate({ kind: aiKind, context: aiContext });
+  const url = await generate({ kind: aiKind, context: aiContext, targetId: aiTargetId ?? null });
   if (url) {
     emit("update:modelValue", url);
     // New art has no curated focal point yet — default to dead-center.

@@ -14,6 +14,7 @@
           :variants="[{ id: 'identified', label: 'Identified' }, { id: 'mundane', label: 'Mundane' }]"
           :active-variant-id="artTab"
           ai-kind="item"
+          :ai-target-id="props.item?.id"
           :ai-context="aiContext"
           @update:model-value="artTab === 'identified' ? (imageUrl = $event) : (mundaneImageUrl = $event)"
           @update:focal-point="artTab === 'identified' ? (imageFocalPoint = $event) : (mundaneImageFocalPoint = $event)"

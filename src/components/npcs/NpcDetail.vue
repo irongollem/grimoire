@@ -49,6 +49,7 @@
       <!-- ── Left: portrait + meta ────────────────────────────────── -->
       <NpcSidebar
         :art-tab="artTab"
+        :npc-id="npc?.id"
         :portrait-url="form.portrait_url"
         :portrait-focal-point="form.portrait_focal_point"
         :disguise-portrait-url="form.disguise_portrait_url"

@@ -8,6 +8,7 @@ import { buildImagePromptAuthorSystem, buildSimpleImagePrompt } from "./imagePro
 import { buildCampaignContext, b64ToBlob, wrapUserInput } from "./utils";
 import { startAiQuotes, stopAiQuotes } from "./aiGenerationState";
 import { logUsage } from "@/composables/useAiCredits";
+import { useImageGenerationLog, type ImageGenKind } from "@/composables/useImageGenerationLog";
 
 const LOCAL_MODE_KEY = "grimoire_key_local_mode";
 const IMAGE_SIZE = "1024x1536";
@@ -24,6 +25,8 @@ export interface GenerateEntityImageOptions {
   kind: string;
   /** The entity's salient facts (name, type, appearance, description) the text model authors a prompt from. */
   context: string;
+  /** Source entity id — recorded on the Gallery row so the image links back to its entity. */
+  targetId?: string | null;
 }
 
 /**
@@ -40,6 +43,7 @@ export interface GenerateEntityImageOptions {
 export function useEntityImageGeneration(bucketId: string) {
   const campaign = useCampaignStore();
   const { upload } = useImageUpload(bucketId);
+  const { logImageGeneration } = useImageGenerationLog();
 
   const isGenerating = ref(false);
   const error = ref<string | null>(null);
@@ -77,9 +81,21 @@ export function useEntityImageGeneration(bucketId: string) {
         typeof localStorage !== "undefined" &&
         localStorage.getItem(LOCAL_MODE_KEY) === "local";
 
-      return isLocalMode
+      const url = isLocalMode
         ? await generateClientSide(clamped)
         : await generateServerSide(clamped, campaignId);
+
+      if (url) {
+        void logImageGeneration({
+          kind: options.kind as ImageGenKind,
+          imageUrl: url,
+          prompt: clamped.context,
+          size: IMAGE_SIZE,
+          provider: "openai",
+          targetId: options.targetId ?? null,
+        });
+      }
+      return url;
     } catch (e) {
       error.value = e instanceof Error ? e.message : "Generation failed";
       return null;

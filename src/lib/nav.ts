@@ -8,6 +8,7 @@ import {
   IconFaction,
   IconFire,
   IconGenerate,
+  IconImages,
   IconLandmark,
   IconLayers,
   IconLibrary,
@@ -161,6 +162,13 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: "Assets",
     items: [
+      {
+        label: "Gallery",
+        to: "/gallery",
+        icon: IconImages,
+        description: "Every image you've generated, in one place",
+        requiresCampaign: true,
+      },
       {
         label: "Bestiary",
         to: "/monsters",

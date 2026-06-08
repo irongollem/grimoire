@@ -180,6 +180,7 @@ import { IconClose, IconGenerate } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCreateLocation, useLocationTree } from "@/composables/useLocations";
+import { useImageGenerationLog } from "@/composables/useImageGenerationLog";
 import { useSubscription } from "@/composables/useSubscription";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
@@ -198,6 +199,7 @@ const ui       = useUiStore();
 const router   = useRouter();
 const campaign = useCampaignStore();
 const { mutateAsync: createLocation } = useCreateLocation();
+const { logImageGeneration } = useImageGenerationLog();
 const { locationOptions } = useLocationTree();
 const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted, generate } = useLocationGeneration();
 
@@ -269,6 +271,20 @@ async function generateAndCreate() {
     is_battle_map:         false,
     grid_calibration:      null,
   });
+
+  // Log generated scene + map to the Gallery, linked back to the new location.
+  if (result.image_url) {
+    void logImageGeneration({
+      kind: "location", imageUrl: result.image_url, prompt: genConcept.value,
+      targetId: location.id, targetColumn: "image_url",
+    });
+  }
+  if (result.map_url) {
+    void logImageGeneration({
+      kind: "map", imageUrl: result.map_url, prompt: genConcept.value,
+      targetId: location.id, targetColumn: "map_url",
+    });
+  }
 
   completedEntityId.value = location.id;
   ui.locationGeneratorOpen = false;

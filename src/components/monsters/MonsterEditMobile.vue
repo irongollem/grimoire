@@ -82,6 +82,7 @@
           bucket="monster-images"
           show-focal-point
           ai-kind="monster"
+          :ai-target-id="monsterId"
           :ai-context="aiContext"
           @update:model-value="emit('update:imageUrl', $event)"
           @update:focal-point="emit('update:focalPoint', $event)"
@@ -260,6 +261,7 @@ interface MonsterEditForm {
 
 const {
   form,
+  monsterId = null,
   isSrd = false,
   isNew = false,
   isSaving = false,
@@ -270,6 +272,7 @@ const {
 } = defineProps<{
   form: MonsterEditForm;
   sb: MonsterStatBlock;
+  monsterId?: string | null;
   isSrd?: boolean;
   isNew?: boolean;
   isSaving?: boolean;

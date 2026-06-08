@@ -59,6 +59,7 @@
           :variants="ART_VARIANTS"
           :active-variant-id="artTab"
           ai-kind="npc_portrait"
+          :ai-target-id="npc?.id"
           :ai-context="aiContext"
           @update:model-value="form.portrait_url = $event || null"
           @update:focal-point="form.portrait_focal_point = $event"

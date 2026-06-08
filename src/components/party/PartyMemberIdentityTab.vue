@@ -8,6 +8,7 @@
         :focal-point="focalPoint"
         show-focal-point
         ai-kind="party_member"
+        :ai-target-id="memberId"
         :ai-context="aiContext"
         @update:model-value="emit('update:portraitUrl', $event ?? '')"
         @update:focal-point="emit('update:focalPoint', $event)"

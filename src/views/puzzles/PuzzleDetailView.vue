@@ -166,6 +166,7 @@
                 bucket="puzzle-images"
                 show-focal-point
                 ai-kind="puzzle"
+                :ai-target-id="puzzle?.id"
                 :ai-context="aiContext"
                 @update:model-value="form.image_url = $event"
                 @update:focal-point="form.image_focal_point = $event"

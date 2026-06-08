@@ -302,6 +302,13 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, title: "NPC Sheet", fullscreenMobile: true },
   },
 
+  // Gallery — account-wide library of every generated image
+  {
+    path: "/gallery",
+    name: "gallery",
+    component: () => import("@/views/gallery/GalleryView.vue"),
+    meta: { requiresAuth: true, title: "Gallery" },
+  },
   // Monsters
   {
     path: "/monsters",

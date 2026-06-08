@@ -22,6 +22,7 @@
           show-focal-point
           bucket="asset-images"
           ai-kind="species"
+          :ai-target-id="props.species?.id"
           :ai-context="aiContext"
           @update:model-value="form.image_url = $event ?? ''"
           @update:focal-point="form.focal_point = $event"

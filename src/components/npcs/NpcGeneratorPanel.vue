@@ -98,6 +98,7 @@ import { useRouter } from "vue-router";
 import { IconClose, IconGenerate } from "@/lib/icons";
 import { useUiStore } from "@/stores/ui";
 import { useCreateNpc } from "@/composables/useNpcs";
+import { useImageGenerationLog } from "@/composables/useImageGenerationLog";
 import { useAiCredits } from "@/composables/useAiCredits";
 import { useProviderConfig, PORTRAIT_SIZE_BY_PROVIDER } from "@/composables/useProviderConfig";
 import { getNpcTemplate } from "@/data/npcTemplates";
@@ -133,6 +134,7 @@ function randomName(): string {
 const ui = useUiStore();
 const router = useRouter();
 const { mutateAsync: createNpc, isPending: isCreating } = useCreateNpc();
+const { logImageGeneration } = useImageGenerationLog();
 const campaign = useCampaignStore();
 const {
   isGenerating,
@@ -265,6 +267,21 @@ async function generateAndCreate() {
   };
 
   const created = await createNpc(payload);
+
+  // Log generated portraits to the Gallery, linked back to the new NPC.
+  if (result.portrait_url) {
+    void logImageGeneration({
+      kind: "npc_portrait", imageUrl: result.portrait_url, prompt: genConcept.value,
+      targetId: created.id, targetColumn: "portrait_url",
+    });
+  }
+  if (result.disguise_portrait_url) {
+    void logImageGeneration({
+      kind: "npc_portrait", imageUrl: result.disguise_portrait_url, prompt: result.disguise_name ?? genConcept.value,
+      targetId: created.id, targetColumn: "disguise_portrait_url",
+    });
+  }
+
   await applyPostCreate(created.id);
 
   if (ui.npcGeneratorOpen) {

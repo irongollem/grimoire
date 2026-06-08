@@ -39,6 +39,7 @@
           show-focal-point
           :focal-point="imageFocalPoint"
           ai-kind="spell"
+          :ai-target-id="props.spell?.id"
           :ai-context="aiContext"
           @update:model-value="onImageUrlUpdate($event)"
           @update:focal-point="onImageFocalUpdate($event)"

@@ -71,6 +71,7 @@
           :model-value="imageUrl"
           bucket="location-images"
           ai-kind="location"
+          :ai-target-id="props.location?.id"
           :ai-context="aiContext"
           @update:model-value="imageUrl = $event"
         />

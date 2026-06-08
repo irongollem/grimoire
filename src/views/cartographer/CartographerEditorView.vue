@@ -250,6 +250,7 @@ import { useNotes } from "@/composables/useNotes";
 import { useEncounters } from "@/composables/useEncounters";
 import { useAiCredits } from "@/composables/useAiCredits";
 import { useProviderConfig } from "@/composables/useProviderConfig";
+import { useImageGenerationLog } from "@/composables/useImageGenerationLog";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAllLocations, useUpdateLocationMapUrl, useUpdateLocationGridCalibration } from "@/composables/useLocations";
 import { bakeMap, bakeMapAsPng, bakeMapForAI, computeBakedDimensions } from "@/cartographer/bake";
@@ -342,6 +343,7 @@ const mapStyleCampaign = useCampaignStore();
 const { costOf: costOfCredits } = useAiCredits();
 const { imageMultiplierFor: mapImageMultiplierFor } = useProviderConfig();
 const styleByok = computed(() => !!mapStyleCampaign.decryptedOpenAiKey);
+const { logImageGeneration } = useImageGenerationLog();
 const styleCost = computed(
   () => Math.round(costOfCredits("map_style_generation") * mapImageMultiplierFor("openai") * 100) / 100,
 );
@@ -1761,6 +1763,11 @@ async function onSaveStyledToAtlas(): Promise<void> {
       id: styleAtlasLocationId.value,
       mapUrl: url,
       sourceMapId: loadedMap.value.id,
+    });
+    // Log the restyled map to the Gallery, linked back to the location.
+    void logImageGeneration({
+      kind: "map", imageUrl: url, prompt: `${name.value || "Map"} — ${selectedPresetId.value} style`,
+      targetId: styleAtlasLocationId.value, targetColumn: "map_url",
     });
     showStyleResult.value = false;
     styleAtlasLocationId.value = "";

@@ -293,6 +293,18 @@ export const useUiStore = defineStore("ui", () => {
     soundboardSearchQuery.value = "";
   }
 
+  // Gallery (generated-image library) — active kind tab + search.
+  const galleryActiveKind = ref<string>("all");
+  const gallerySearch = ref("");
+  const galleryHasActiveFilters = computed(
+    () => galleryActiveKind.value !== "all" || gallerySearch.value !== "",
+  );
+
+  function resetGalleryFilters() {
+    galleryActiveKind.value = "all";
+    gallerySearch.value = "";
+  }
+
   // 'sounds' = standard grid; 'playlists' = playlist panel
   const soundboardViewMode = ref<"sounds" | "playlists">("sounds");
 
@@ -548,6 +560,10 @@ export const useUiStore = defineStore("ui", () => {
     resetHallOfHeroesFilters,
 
     // Soundboard
+    galleryActiveKind,
+    gallerySearch,
+    galleryHasActiveFilters,
+    resetGalleryFilters,
     soundboardFilterCategory,
     soundboardSearchQuery,
     soundboardActivePage,

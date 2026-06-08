@@ -5,6 +5,7 @@
     v-if="isMobile"
     :form="form"
     :sb="sb"
+    :monster-id="props.monster?.id"
     :is-srd="isSrd"
     :is-new="!props.monster"
     :is-saving="saving"
@@ -103,6 +104,7 @@
           bucket="monster-images"
           show-focal-point
           ai-kind="monster"
+          :ai-target-id="props.monster?.id"
           :ai-context="aiContext"
           @update:model-value="onPortraitUrlUpdate($event)"
           @update:focal-point="onPortraitFocalUpdate($event)"

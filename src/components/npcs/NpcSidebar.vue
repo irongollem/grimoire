@@ -10,6 +10,7 @@
       :variants="ART_VARIANTS"
       :active-variant-id="artTab"
       ai-kind="npc_portrait"
+      :ai-target-id="npcId"
       :ai-context="aiContext"
       @update:model-value="emit('update:portraitUrl', $event ?? '')"
       @update:focal-point="emit('update:portraitFocalPoint', $event)"
@@ -85,6 +86,7 @@ const STATUS_OPTIONS: { value: NpcStatus; label: string; color: string }[] = [
 
 const {
   artTab,
+  npcId = null,
   portraitUrl = null,
   portraitFocalPoint = null,
   disguisePortraitUrl = null,
@@ -95,6 +97,7 @@ const {
   aiContext = "",
 } = defineProps<{
   artTab: ArtTab
+  npcId?: string | null
   portraitUrl?: string | null
   portraitFocalPoint?: FocalPoint
   disguisePortraitUrl?: string | null

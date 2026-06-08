@@ -182,6 +182,7 @@ import { IconClose, IconGenerate } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCreateTrap } from "@/composables/useTraps";
+import { useImageGenerationLog } from "@/composables/useImageGenerationLog";
 import { useSubscription } from "@/composables/useSubscription";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useTrapGeneration } from "@/ai/useTrapGeneration";
@@ -196,6 +197,7 @@ const ui       = useUiStore();
 const router   = useRouter();
 const campaign = useCampaignStore();
 const { mutateAsync: createTrap } = useCreateTrap();
+const { logImageGeneration } = useImageGenerationLog();
 const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted, generate } = useTrapGeneration();
 
 const aiApiKey      = computed(() => campaign.decryptedApiKey);
@@ -266,6 +268,14 @@ async function generateAndCreate() {
     image_url:          result.image_url,
     image_focal_point:  null,
   });
+
+  // Log the generated illustration to the Gallery, linked back to the new trap.
+  if (result.image_url) {
+    void logImageGeneration({
+      kind: "trap", imageUrl: result.image_url, prompt: genConcept.value,
+      targetId: trap.id, targetColumn: "image_url",
+    });
+  }
 
   completedEntityId.value = trap.id;
   ui.trapGeneratorOpen = false;
