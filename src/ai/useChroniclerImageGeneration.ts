@@ -28,7 +28,9 @@ export interface EntityMentionRef {
   label: string;
 }
 
-export function extractEntityMentions(content: string | null): EntityMentionRef[] {
+export function extractEntityMentions(
+  content: string | null,
+): EntityMentionRef[] {
   if (!content) return [];
   try {
     const doc = JSON.parse(content) as TiptapNode;
@@ -47,7 +49,9 @@ export function extractEntityMentions(content: string | null): EntityMentionRef[
       }
     });
     // Deduplicate by id
-    return mentions.filter((m, i, arr) => arr.findIndex((x) => x.id === m.id) === i);
+    return mentions.filter(
+      (m, i, arr) => arr.findIndex((x) => x.id === m.id) === i,
+    );
   } catch {
     return [];
   }
@@ -85,14 +89,14 @@ function normName(s: string): string {
 }
 
 function nameMatches(entityName: string, token: string): boolean {
-  const name  = entityName.toLowerCase();
-  const tok   = token.toLowerCase().replace(/[^a-z0-9]/g, "");
-  const norm  = normName(entityName);
+  const name = entityName.toLowerCase();
+  const tok = token.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const norm = normName(entityName);
   return (
     norm === tok ||
     norm.startsWith(tok) ||
     name.startsWith(token.toLowerCase()) ||
-    tok.length >= 3 && norm.includes(tok)
+    (tok.length >= 3 && norm.includes(tok))
   );
 }
 
@@ -104,8 +108,10 @@ export function parseSceneEntities(
   groupPortraitUrl?: string | null,
 ): ResolvedEntity[] {
   // Extract @Token — stops at whitespace and common punctuation
-  const tokens = [...text.matchAll(/@([A-Za-z][^\s,.'":;!?@]*)/g)].map((m) => m[1]);
-  const unique  = [...new Set(tokens)];
+  const tokens = [...text.matchAll(/@([A-Za-z][^\s,.'":;!?@]*)/g)].map(
+    (m) => m[1],
+  );
+  const unique = [...new Set(tokens)];
 
   const allEntities: ResolvedEntity[] = [];
   const seen = new Set<string>();
@@ -115,7 +121,11 @@ export function parseSceneEntities(
     if (tok.toLowerCase() === "party" && groupPortraitUrl) {
       if (!seen.has("Party")) {
         seen.add("Party");
-        allEntities.push({ label: "Party", portraitUrl: groupPortraitUrl, textDescription: "The adventuring party" });
+        allEntities.push({
+          label: "Party",
+          portraitUrl: groupPortraitUrl,
+          textDescription: "The adventuring party",
+        });
       }
       continue;
     }
@@ -124,7 +134,11 @@ export function parseSceneEntities(
 
     for (const pm of partyMembers ?? []) {
       if (nameMatches(pm.name, tok)) {
-        found = { label: pm.name, portraitUrl: pm.portrait_url ?? null, textDescription: pm.name };
+        found = {
+          label: pm.name,
+          portraitUrl: pm.portrait_url ?? null,
+          textDescription: pm.name,
+        };
         break;
       }
     }
@@ -164,8 +178,8 @@ export function parseSceneEntities(
 
 // ── Image generation ──────────────────────────────────────────────────────────
 
-const EDIT_URL        = "https://api.openai.com/v1/images/edits";
-const GENERATE_URL    = "https://api.openai.com/v1/images/generations";
+const EDIT_URL = "https://api.openai.com/v1/images/edits";
+const GENERATE_URL = "https://api.openai.com/v1/images/generations";
 
 async function fetchPortraitBlob(url: string): Promise<Blob | null> {
   try {
@@ -189,7 +203,12 @@ function buildPrompt(
   if (textDescriptions.length > 0) {
     parts.push(
       "The following characters appear — use the provided reference portraits where available, and the written descriptions for those without one:\n" +
-      textDescriptions.map((d) => `• ${d}`).join("\n"),
+        textDescriptions.map((d) => `• ${d}`).join("\n"),
+    );
+    parts.push(
+      "Character rules:\n" +
+        "• Render each character exactly once. If a character belongs to a group or party reference and is also named individually, depict them a single time only — never duplicate the same character in the scene unless specifically asked.\n" +
+        "• Reference portraits — including any group or party portrait — define each character's face, build, and costume ONLY. Do not copy their poses, expressions, framing, or the reference's composition. Re-pose and re-stage every character naturally for this specific scene and its action.",
     );
   }
   parts.push(`\nScene: ${sceneText}`);
@@ -204,9 +223,12 @@ export async function generateChroniclerImage(params: {
 }): Promise<string> {
   const { sceneText, entities, size, kind = "chronicler" } = params;
   const store = useCampaignStore();
-  const imageModel = store.activeCampaign?.image_provider === "openai-mini"
-    ? "gpt-image-1-mini"
-    : ((typeof localStorage !== "undefined" ? localStorage.getItem(OPENAI_IMAGE_MODEL_KEY) : null) ?? "gpt-image-2");
+  const imageModel =
+    store.activeCampaign?.image_provider === "openai-mini"
+      ? "gpt-image-1-mini"
+      : ((typeof localStorage !== "undefined"
+          ? localStorage.getItem(OPENAI_IMAGE_MODEL_KEY)
+          : null) ?? "gpt-image-2");
   const settingPrompt = store.activeCampaign?.ai_setting_prompt ?? "";
   const campaignId = store.activeCampaign?.id;
 
@@ -218,22 +240,45 @@ export async function generateChroniclerImage(params: {
   // Edge function returns a job id immediately; OpenAI call continues in
   // EdgeRuntime.waitUntil and the storage URL lands on the job row when ready.
   if (!isLocalMode && campaignId) {
-    const portrait_urls = entities.filter((e) => e.portraitUrl).map((e) => e.portraitUrl!);
-    const text_descriptions = entities.map((e) => e.textDescription).filter((d): d is string => !!d);
+    const portrait_urls = entities
+      .filter((e) => e.portraitUrl)
+      .map((e) => e.portraitUrl!);
+    const text_descriptions = entities
+      .map((e) => e.textDescription)
+      .filter((d): d is string => !!d);
 
-    const { data, error } = await supabase.functions.invoke("generate-chronicle-image", {
-      body: { campaign_id: campaignId, scene_text: sceneText, portrait_urls, text_descriptions, size, image_model: imageModel, kind },
-    });
+    const { data, error } = await supabase.functions.invoke(
+      "generate-chronicle-image",
+      {
+        body: {
+          campaign_id: campaignId,
+          scene_text: sceneText,
+          portrait_urls,
+          text_descriptions,
+          size,
+          image_model: imageModel,
+          kind,
+        },
+      },
+    );
     // supabase-js wraps a non-2xx as a FunctionsHttpError and discards the JSON
     // body unless we read it explicitly. The edge function returns structured
     // codes like { error: "insufficient_credits", balance } that the user needs
     // to see — otherwise they get the generic "non-2xx status code" string.
     if (error) {
       let body: { error?: string; balance?: number } | null = null;
-      try { body = (await (error as { context?: Response }).context?.json()) ?? null; } catch { /* not JSON */ }
+      try {
+        body =
+          (await (error as { context?: Response }).context?.json()) ?? null;
+      } catch {
+        /* not JSON */
+      }
       if (body?.error === "insufficient_credits") {
-        const left = body.balance !== undefined ? ` (${body.balance} left)` : "";
-        throw new Error(`Insufficient credits${left}. Buy a credit pack or wait for the monthly refresh.`);
+        const left =
+          body.balance !== undefined ? ` (${body.balance} left)` : "";
+        throw new Error(
+          `Insufficient credits${left}. Buy a credit pack or wait for the monthly refresh.`,
+        );
       }
       throw new Error(body?.error ?? error.message);
     }
@@ -246,7 +291,10 @@ export async function generateChroniclerImage(params: {
 
   // ── Client-side path (BYOK local mode) ─────────────────────────────────────
   const apiKey = store.decryptedOpenAiKey;
-  if (!apiKey) throw new Error("No OpenAI API key configured. Add one in Campaign Settings → AI.");
+  if (!apiKey)
+    throw new Error(
+      "No OpenAI API key configured. Add one in Campaign Settings → AI.",
+    );
 
   // Collect portrait blobs and text descriptions in parallel
   const portraitBlobs: Blob[] = [];
@@ -264,7 +312,12 @@ export async function generateChroniclerImage(params: {
   );
 
   const imageBasePrompt = await fetchImageBasePrompt();
-  const prompt = buildPrompt(sceneText, textDescriptions, settingPrompt, imageBasePrompt);
+  const prompt = buildPrompt(
+    sceneText,
+    textDescriptions,
+    settingPrompt,
+    imageBasePrompt,
+  );
 
   let b64: string;
   // Token usage for accurate (token-based) image cost. The edit branch feeds
@@ -280,9 +333,10 @@ export async function generateChroniclerImage(params: {
     };
   }) => {
     const u = data.usage;
-    imgInputTokens      += u?.input_tokens_details?.text_tokens  ?? u?.input_tokens ?? 0;
+    imgInputTokens +=
+      u?.input_tokens_details?.text_tokens ?? u?.input_tokens ?? 0;
     imgInputImageTokens += u?.input_tokens_details?.image_tokens ?? 0;
-    imgOutputTokens     += u?.output_tokens ?? 0;
+    imgOutputTokens += u?.output_tokens ?? 0;
   };
 
   if (portraitBlobs.length > 0) {
@@ -294,7 +348,10 @@ export async function generateChroniclerImage(params: {
     form.append("output_format", "webp");
     form.append("n", "1");
     portraitBlobs.forEach((blob, i) => {
-      form.append("image[]", new File([blob], `ref_${i}.webp`, { type: "image/webp" }));
+      form.append(
+        "image[]",
+        new File([blob], `ref_${i}.webp`, { type: "image/webp" }),
+      );
     });
     const res = await fetch(EDIT_URL, {
       method: "POST",
@@ -303,7 +360,9 @@ export async function generateChroniclerImage(params: {
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
-      throw new Error(body?.error?.message ?? `OpenAI image edit error ${res.status}`);
+      throw new Error(
+        body?.error?.message ?? `OpenAI image edit error ${res.status}`,
+      );
     }
     const json = await res.json();
     b64 = json.data[0].b64_json as string;
@@ -312,12 +371,22 @@ export async function generateChroniclerImage(params: {
     // Standard generation — text-only prompt
     const res = await fetch(GENERATE_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ model: imageModel, prompt, size, output_format: "webp" }),
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: imageModel,
+        prompt,
+        size,
+        output_format: "webp",
+      }),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
-      throw new Error(body?.error?.message ?? `OpenAI image generation error ${res.status}`);
+      throw new Error(
+        body?.error?.message ?? `OpenAI image generation error ${res.status}`,
+      );
     }
     const json = await res.json();
     b64 = json.data[0].b64_json as string;
@@ -327,10 +396,12 @@ export async function generateChroniclerImage(params: {
   logUsage({
     reason: "chronicler_image",
     imageUsage: {
-      model: imageModel, provider: "openai", image_count: 1,
-      input_tokens:       imgInputTokens      || undefined,
+      model: imageModel,
+      provider: "openai",
+      image_count: 1,
+      input_tokens: imgInputTokens || undefined,
       input_image_tokens: imgInputImageTokens || undefined,
-      output_tokens:      imgOutputTokens     || undefined,
+      output_tokens: imgOutputTokens || undefined,
     },
   });
 
@@ -351,9 +422,9 @@ export async function generateChroniclerImage(params: {
   if (kind === "chronicler" && campaignId && user) {
     await supabase.from("chronicler_images").insert({
       campaign_id: campaignId,
-      user_id:     user.id,
-      image_url:   url,
-      prompt:      sceneText.slice(0, 500),
+      user_id: user.id,
+      image_url: url,
+      prompt: sceneText.slice(0, 500),
       size,
     });
   }

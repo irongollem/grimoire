@@ -8,14 +8,6 @@
       <div class="bg-card rounded-lg border border-border p-5 max-w-lg w-full mx-4 flex flex-col gap-4">
         <h3 class="font-cinzel text-sm font-bold tracking-wider">Generate Scene Illustration</h3>
 
-        <!-- Cost warning — compact single line -->
-        <div class="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 flex gap-2 items-start">
-          <span class="text-amber-500 shrink-0 text-xs mt-px">⚠</span>
-          <p class="font-fell text-xs text-amber-600 dark:text-amber-400 leading-snug">
-            Image generation costs roughly <strong>$0.20–0.35 (square)</strong> or <strong>$0.40–0.65 (landscape)</strong> per image, and rises with each reference portrait included.
-          </p>
-        </div>
-
         <!-- Scene prompt -->
         <div class="flex flex-col gap-1">
           <label class="font-cinzel text-xs text-muted-foreground tracking-wide">Scene prompt</label>
@@ -70,16 +62,27 @@
               @click="size = s.value"
             >
               <span class="font-cinzel text-xs">{{ s.label }}</span>
-              <span class="font-fell text-[10px] opacity-60">{{ s.cost }}</span>
+              <span class="font-fell text-[10px] opacity-60">{{ byok ? 'BYOK' : `${shapeCost(s.value)} cr` }}</span>
             </button>
           </div>
+        </div>
+
+        <!-- Generating status — rotating flavor quote + elapsed timer -->
+        <div
+          v-if="generating"
+          class="flex items-center gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-2"
+        >
+          <IconGenerate class="h-3.5 w-3.5 text-primary animate-pulse shrink-0" />
+          <p class="font-fell text-xs text-muted-foreground leading-snug">{{ currentLoadingQuote }}</p>
+          <span class="ml-auto font-fell text-xs tabular-nums text-muted-foreground/60 shrink-0">{{ elapsedLabel }}</span>
         </div>
 
         <!-- Error -->
         <p v-if="error" class="font-fell text-xs text-destructive">{{ error }}</p>
 
         <!-- Actions -->
-        <div class="flex gap-2 justify-end">
+        <div class="flex gap-2 justify-end items-center">
+          <GenerationCostBadge :credits="selectedCost" :byok="byok" class="mr-auto" />
           <button
             type="button"
             class="px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
@@ -104,8 +107,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, onUnmounted } from "vue";
 import { AI_PROMPT_LIMIT_SHORT } from "@/ai/utils";
+import { startAiQuotes, stopAiQuotes, currentLoadingQuote } from "@/ai/aiGenerationState";
 
 const SCENE_LIMIT = AI_PROMPT_LIMIT_SHORT;
 import { IconGenerate } from '@/lib/icons';
@@ -115,7 +119,10 @@ import { useAuthStore } from "@/stores/auth";
 import { storeToRefs } from "pinia";
 import type { ChroniclerSize } from "@/types/chronicler.types";
 import MentionTextarea from "@/components/common/MentionTextarea.vue";
+import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import { useEntityMentionItems } from "@/composables/useEntityMentionItems";
+import { useAiCredits } from "@/composables/useAiCredits";
+import { useProviderConfig } from "@/composables/useProviderConfig";
 
 const props = defineProps<{ visible: boolean; initialPrompt?: string }>();
 
@@ -124,15 +131,37 @@ const emit = defineEmits<{
   generated: [url: string];
 }>();
 
-const SHAPES: { label: string; value: ChroniclerSize; cost: string }[] = [
-  { label: "Square",    value: "1024x1024",  cost: "~$0.20–0.35" },
-  { label: "Landscape", value: "1536x1024",  cost: "~$0.40–0.65" },
+const SHAPES: { label: string; value: ChroniclerSize }[] = [
+  { label: "Square",    value: "1024x1024" },
+  { label: "Landscape", value: "1536x1024" },
 ];
 
 const scenePrompt = ref("");
 const size        = ref<ChroniclerSize>("1024x1024");
 const generating  = ref(false);
 const error       = ref("");
+
+// Elapsed-time counter shown alongside the rotating flavor quote while waiting.
+const elapsed = ref(0);
+let elapsedTimer: ReturnType<typeof setInterval> | null = null;
+const elapsedLabel = computed(() => {
+  const m = Math.floor(elapsed.value / 60);
+  const s = elapsed.value % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
+});
+
+function startWaitingUi() {
+  elapsed.value = 0;
+  startAiQuotes("image");
+  elapsedTimer = setInterval(() => { elapsed.value += 1; }, 1000);
+}
+
+function stopWaitingUi() {
+  stopAiQuotes();
+  if (elapsedTimer) { clearInterval(elapsedTimer); elapsedTimer = null; }
+}
+
+onUnmounted(stopWaitingUi);
 
 watch(() => props.visible, (v) => {
   if (v) {
@@ -159,10 +188,21 @@ const campaignStore = useCampaignStore();
 const { activeCampaignId } = storeToRefs(campaignStore);
 const { user } = storeToRefs(useAuthStore());
 
+// Live credit cost — chronicle images always render via OpenAI; cost scales with
+// the chosen shape's output area (landscape = 1.5× square). BYOK = no credits.
+const { costOf } = useAiCredits();
+const { imageMultiplierFor } = useProviderConfig();
+const byok = computed(() => !!campaignStore.decryptedOpenAiKey);
+function shapeCost(s: ChroniclerSize): number {
+  return Math.round(costOf("chronicle_image", { size: s }) * imageMultiplierFor("openai") * 100) / 100;
+}
+const selectedCost = computed(() => (byok.value ? 0 : shapeCost(size.value)));
+
 async function generate() {
   if (!activeCampaignId.value || !scenePrompt.value.trim() || !user.value) return;
   generating.value = true;
   error.value = "";
+  startWaitingUi();
   try {
     const url = await generateChroniclerImage({
       sceneText: scenePrompt.value,
@@ -175,6 +215,7 @@ async function generate() {
     error.value = e instanceof Error ? e.message : "Generation failed.";
   } finally {
     generating.value = false;
+    stopWaitingUi();
   }
 }
 </script>
