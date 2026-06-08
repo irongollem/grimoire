@@ -422,6 +422,7 @@ const ENTITY_TYPE_LABELS: Record<EntityType, string> = {
 const {
   modelValue,
   placeholder,
+  allowUpload,
   allowCalendarEvents,
   entityMentionItems,
   stickyToolbar,
@@ -599,6 +600,16 @@ const editor = useEditor({
   ],
   editorProps: {
     handlePaste(view, event) {
+      // Pasted image (e.g. screenshot) → convert + upload + insert, mirroring
+      // the toolbar upload button instead of embedding a huge data URL.
+      if (allowUpload) {
+        const img = firstImageFile(event.clipboardData ?? null);
+        if (img) {
+          event.preventDefault();
+          void uploadImageToEditor(img);
+          return true;
+        }
+      }
       const raw = event.clipboardData?.getData("text/plain") ?? "";
       const text = sanitizePasteText(raw);
       if (!looksLikeMarkdown(text)) return false;
@@ -644,6 +655,15 @@ const editor = useEditor({
         }
       });
       return div.innerHTML;
+    },
+    handleDrop(_view, event) {
+      // Dropped image file → same convert + upload + insert path as paste.
+      if (!allowUpload) return false;
+      const img = firstImageFile((event as DragEvent).dataTransfer ?? null);
+      if (!img) return false;
+      event.preventDefault();
+      void uploadImageToEditor(img);
+      return true;
     },
   },
   onTransaction({ editor: e }) {
@@ -716,11 +736,10 @@ function insertImage() {
   fileInput.value?.click();
 }
 
-async function onFileSelected(e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0];
-  if (!file || !editor.value) return;
-  (e.target as HTMLInputElement).value = "";
-
+/** Convert → upload → insert an image File at the current selection. Shared by
+ * the toolbar file picker and the paste/drop handlers. */
+async function uploadImageToEditor(file: File): Promise<void> {
+  if (!editor.value) return;
   uploadingImage.value = true;
   try {
     const user = getCurrentUser();
@@ -738,6 +757,20 @@ async function onFileSelected(e: Event) {
   } finally {
     uploadingImage.value = false;
   }
+}
+
+async function onFileSelected(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (!file) return;
+  (e.target as HTMLInputElement).value = "";
+  await uploadImageToEditor(file);
+}
+
+/** First image file on the clipboard/drag payload, if any. */
+function firstImageFile(data: DataTransfer | null): File | null {
+  if (!data) return null;
+  const file = Array.from(data.files).find((f) => f.type.startsWith("image/"));
+  return file ?? null;
 }
 
 function toggleLink() {
