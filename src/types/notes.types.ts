@@ -26,12 +26,13 @@ export interface Note {
   session_end_day: number | null;
   session_real_date: string | null; // real-world date "YYYY-MM-DD"
   linked_calendar_event_id: string | null;
+  sort_order: number | null; // manual drag order; null until the user reorders
   created_at: string;
   updated_at: string;
 }
 
 export type NoteInsert = Omit<
   Note,
-  "id" | "user_id" | "created_at" | "updated_at"
+  "id" | "user_id" | "created_at" | "updated_at" | "sort_order"
 >;
 export type NoteUpdate = Partial<NoteInsert>;

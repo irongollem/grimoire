@@ -100,3 +100,19 @@ export function useDeleteNote() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
   });
 }
+
+async function reorderNotes(orderedIds: string[]): Promise<void> {
+  await Promise.all(
+    orderedIds.map((id, index) =>
+      supabase.from("notes").update({ sort_order: index }).eq("id", id),
+    ),
+  );
+}
+
+export function useReorderNotes() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: reorderNotes,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+  });
+}

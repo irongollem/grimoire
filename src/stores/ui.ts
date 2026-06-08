@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { useLocalStorage } from "@vueuse/core";
 import type { NoteCategory } from "@/types/notes.types";
+import type { SortField, SortDir } from "@/lib/noteSort";
 import type { NpcStatus, NpcRelationship } from "@/types/npc.types";
 import type { ScriptoriumDocType } from "@/types/scriptorium.types";
 import type { ItemType, ItemRarity } from "@/types/item.types";
@@ -14,6 +15,11 @@ export const useUiStore = defineStore("ui", () => {
   const notesFilterTags = ref<string[]>([]);
   const notesSearchQuery = ref("");
   const activeNoteId = ref<string | null>(null);
+  // Sort state — DM notes list and player journal (shared default: newest created first)
+  const notesSortBy = ref<SortField>("created");
+  const notesSortDir = ref<SortDir>("desc");
+  const journalSortBy = ref<SortField>("created");
+  const journalSortDir = ref<SortDir>("desc");
 
   // Calendar UI state
   const calendarViewMode = ref<"year" | "month">("month");
@@ -406,6 +412,10 @@ export const useUiStore = defineStore("ui", () => {
     notesFilterTags,
     notesSearchQuery,
     activeNoteId,
+    notesSortBy,
+    notesSortDir,
+    journalSortBy,
+    journalSortDir,
     resetNotesFilters,
 
     // Calendar

@@ -1,17 +1,25 @@
 <template>
   <div class="space-y-4">
     <!-- Header -->
-    <div class="flex items-center justify-between">
+    <div class="flex items-center justify-between gap-2">
       <h2 class="font-cinzel text-xl font-bold text-foreground">Adventure Journal</h2>
-      <button
-        v-if="activeTab !== 'dm-notes' && activeTab !== 'quest-log' && activeTab !== 'puzzles'"
-        type="button"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
-        @click="openNew"
-      >
-        <IconAdd class="h-3.5 w-3.5" />
-        New Entry
-      </button>
+      <div class="flex items-center gap-2">
+        <SortControl
+          v-if="showSort"
+          v-model:sort-by="sortBy"
+          v-model:sort-dir="sortDir"
+          :options="sortOptions"
+        />
+        <button
+          v-if="activeTab !== 'dm-notes' && activeTab !== 'quest-log' && activeTab !== 'puzzles'"
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+          @click="openNew"
+        >
+          <IconAdd class="h-3.5 w-3.5" />
+          New Entry
+        </button>
+      </div>
     </div>
 
     <!-- New entry form -->
@@ -159,6 +167,7 @@
       v-else
       :is-loading="isLoading"
       :visible-entries="visibleEntries"
+      :sort-by="sortBy"
       :filter-category="filterCategory"
       :expanded="expanded"
       :editing-id="editingId"
@@ -177,6 +186,7 @@
       @edit-form-change="(patch) => Object.assign(editForm, patch)"
       @cancel-edit="cancelEdit"
       @submit-edit="submitEdit"
+      @reorder="reorderMyEntries"
     />
   </div>
 </template>
@@ -188,6 +198,7 @@ import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconAdd, IconCalendarDays, IconDocument, IconFeather, IconLoading, IconLocation, IconLock, IconMessage, IconPopulate, IconReveal, IconSave, IconScrollText, IconSearch, IconShield, IconStar } from '@/lib/icons';
 import TabBar from "@/components/common/TabBar.vue";
+import SortControl from "@/components/common/SortControl.vue";
 import PlayerJournalMyTab from "./PlayerJournalMyTab.vue";
 import PlayerJournalPartyTab from "./PlayerJournalPartyTab.vue";
 import PlayerJournalDmNotesTab from "./PlayerJournalDmNotesTab.vue";
@@ -197,8 +208,12 @@ import type { Component } from "vue";
 import {
   useMyJournalEntries, useSharedJournalEntries,
   useCreateJournalEntry, useUpdateJournalEntry, useDeleteJournalEntry,
+  useReorderJournalEntries,
   JOURNAL_CATEGORIES, JOURNAL_CATEGORY_LIST,
 } from "@/composables/usePlayerJournal";
+import { useUiStore } from "@/stores/ui";
+import { storeToRefs } from "pinia";
+import { sortEntities, type SortField } from "@/lib/noteSort";
 import { useReadItems, useMarkRead } from "@/composables/useReadItems";
 import type { JournalCategory, PlayerJournalEntry, JournalRefType } from "@/composables/usePlayerJournal";
 import { usePlayerVisibleQuests } from "@/composables/useQuests";
@@ -242,6 +257,28 @@ const { data: allEncounters }     = useEncounters();
 const { mutateAsync: create } = useCreateJournalEntry();
 const { mutateAsync: update } = useUpdateJournalEntry();
 const { mutateAsync: del }    = useDeleteJournalEntry();
+const { mutate: reorderJournal } = useReorderJournalEntries();
+
+// ── Sort ────────────────────────────────────────────────────────────────────────
+const { journalSortBy: sortBy, journalSortDir: sortDir } = storeToRefs(useUiStore());
+
+const SORT_OPTIONS_FULL = [
+  { value: "created", label: "Created" },
+  { value: "updated", label: "Updated" },
+  { value: "title", label: "Title A–Z" },
+  { value: "manual", label: "Manual" },
+] as const satisfies readonly { value: SortField; label: string }[];
+// Party Journal holds other players' entries, which the current player can't reorder.
+const SORT_OPTIONS_NO_MANUAL = SORT_OPTIONS_FULL.filter((o) => o.value !== "manual");
+
+const showSort = computed(() => ["mine", "party", "dm-notes"].includes(activeTab.value));
+const sortOptions = computed(() =>
+  activeTab.value === "party" ? SORT_OPTIONS_NO_MANUAL : SORT_OPTIONS_FULL,
+);
+
+function reorderMyEntries(ids: string[]) {
+  reorderJournal(ids);
+}
 
 // ── Category icon map ─────────────────────────────────────────────────────────
 const CAT_ICONS: Record<JournalCategory, Component> = {
@@ -258,19 +295,15 @@ function categoryIcon(cat: string): Component {
 
 // ── DM Notes ──────────────────────────────────────────────────────────────────
 const { data: notesRaw, isLoading: loadingNotes } = useNotes();
-const dmNotes = computed(() =>
-  (notesRaw.value ?? []).slice().sort((a, b) => {
-    if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
-    if (a.category === "session" && b.category === "session") {
-      if (a.session_num !== null && b.session_num !== null) return a.session_num - b.session_num;
-      if (a.session_num !== null) return -1;
-      if (b.session_num !== null) return 1;
-    }
-    if (a.category === "session" && b.category !== "session") return -1;
-    if (a.category !== "session" && b.category === "session") return 1;
-    return a.title.localeCompare(b.title);
-  }),
-);
+const dmNotes = computed(() => {
+  const list = notesRaw.value ?? [];
+  // Pinned float to the top (except in manual mode, which is a pure user order);
+  // within each group apply the chosen sort.
+  if (sortBy.value === "manual") return sortEntities(list, "manual", sortDir.value);
+  const pinned = sortEntities(list.filter((n) => n.is_pinned), sortBy.value, sortDir.value);
+  const rest = sortEntities(list.filter((n) => !n.is_pinned), sortBy.value, sortDir.value);
+  return [...pinned, ...rest];
+});
 
 const NOTE_CATEGORIES: Record<NoteCategory, { label: string; color: string; icon: Component }> = {
   general:  { label: "General",  color: "#6b7280", icon: IconDocument },
@@ -323,13 +356,13 @@ const questGroups = computed<[string, Quest[]][]>(() => [
 const filterCategory = ref<JournalCategory | null>(null);
 
 const visibleEntries = computed(() => {
-  const entries = activeTab.value === "mine"
+  let entries = activeTab.value === "mine"
     ? (myEntries.value ?? [])
     : (sharedEntries.value ?? []);
   if (filterCategory.value) {
-    return entries.filter((e) => e.category === filterCategory.value);
+    entries = entries.filter((e) => e.category === filterCategory.value);
   }
-  return entries;
+  return sortEntities(entries, sortBy.value, sortDir.value);
 });
 
 // ── Expand/collapse ───────────────────────────────────────────────────────────

@@ -36,11 +36,12 @@ export interface PlayerJournalEntry {
   ref_type: JournalRefType | null;
   ref_id: string | null;
   ref_label: string | null;
+  sort_order: number | null; // manual drag order; null until the user reorders
   created_at: string;
   updated_at: string;
 }
 
-export type PlayerJournalEntryInsert = Omit<PlayerJournalEntry, "id" | "user_id" | "created_at" | "updated_at">;
+export type PlayerJournalEntryInsert = Omit<PlayerJournalEntry, "id" | "user_id" | "created_at" | "updated_at" | "sort_order">;
 export type PlayerJournalEntryUpdate = Partial<Omit<PlayerJournalEntryInsert, "campaign_id">>;
 
 // ── Query key ─────────────────────────────────────────────────────────────────
@@ -148,6 +149,22 @@ export function useDeleteJournalEntry() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deleteEntry,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [KEY] }),
+  });
+}
+
+async function reorderEntries(orderedIds: string[]): Promise<void> {
+  await Promise.all(
+    orderedIds.map((id, index) =>
+      supabase.from("player_journal_entries").update({ sort_order: index }).eq("id", id),
+    ),
+  );
+}
+
+export function useReorderJournalEntries() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: reorderEntries,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [KEY] }),
   });
 }
