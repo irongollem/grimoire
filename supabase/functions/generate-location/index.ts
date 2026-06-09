@@ -4,6 +4,7 @@ import { decryptValue } from "../_shared/vault.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
 import { fetchCreditCost, fetchUserBalance, recordGeneration, sizeMultiplier } from "../_shared/credits.ts";
+import { generateImage, resolveImageProvider } from "../_shared/imageGen.ts";
 import {
   AI_PROMPT_LIMIT,
   INJECTION_GUARD_SUFFIX,
@@ -103,29 +104,6 @@ async function geminiText(apiKey: string, model: string, system: string, user: s
   };
 }
 
-// ── Image provider ────────────────────────────────────────────────────────────
-
-interface ImgResult { b64: string; input_tokens: number; input_image_tokens: number; output_tokens: number }
-
-async function openaiImageGenerate(apiKey: string, model: string, prompt: string, size: string): Promise<ImgResult> {
-  const res = await fetch("https://api.openai.com/v1/images/generations", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({ model, prompt, size, output_format: "webp" }),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body?.error?.message ?? `OpenAI image error ${res.status}`);
-  }
-  const data = await res.json();
-  return {
-    b64: data.data[0].b64_json as string,
-    input_tokens:       data.usage?.input_tokens_details?.text_tokens  ?? data.usage?.input_tokens ?? 0,
-    input_image_tokens: 0,
-    output_tokens:      data.usage?.output_tokens ?? 0,
-  };
-}
-
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 serve(async (req: Request) => {
@@ -164,7 +142,7 @@ serve(async (req: Request) => {
 
   const { data: campaign } = await admin
     .from("campaigns")
-    .select("id, user_id, text_provider, ai_setting_prompt, openai_api_key, anthropic_api_key, gemini_api_key")
+    .select("id, user_id, text_provider, image_provider, ai_setting_prompt, openai_api_key, anthropic_api_key, gemini_api_key, falai_api_key")
     .eq("id", campaign_id)
     .maybeSingle();
   if (!campaign) return new Response("Campaign not found", { status: 404 });
@@ -188,18 +166,27 @@ serve(async (req: Request) => {
     try { return await decryptValue(enc); } catch { return null; }
   }
 
-  const [[campaignOpenai, campaignAnthropic, campaignGemini], platformKeys, providerConfigs] = await Promise.all([
+  const [[campaignOpenai, campaignAnthropic, campaignGemini, campaignFalai], platformKeys, providerConfigs] = await Promise.all([
     Promise.all([
       decryptKey(campaign.openai_api_key),
       decryptKey(campaign.anthropic_api_key),
       decryptKey(campaign.gemini_api_key),
+      decryptKey(campaign.falai_api_key),
     ]),
-    fetchPlatformKeys(admin, ["openai", "anthropic", "gemini"]),
-    fetchProviderConfigs(admin, ["openai", "anthropic", "gemini"]),
+    fetchPlatformKeys(admin, ["openai", "anthropic", "gemini", "falai"]),
+    fetchProviderConfigs(admin, ["openai", "anthropic", "gemini", "falai"]),
   ]);
   const openaiKey    = campaignOpenai    ?? platformKeys.openai    ?? null;
   const anthropicKey = campaignAnthropic ?? platformKeys.anthropic ?? null;
   const geminiKey    = campaignGemini    ?? platformKeys.gemini    ?? null;
+
+  // Resolve the campaign's chosen image provider (openai / openai-mini / falai / gemini).
+  const img = resolveImageProvider({
+    imageProvider: campaign.image_provider,
+    campaignKeys: { openai: campaignOpenai, falai: campaignFalai, gemini: campaignGemini },
+    platformKeys: { openai: platformKeys.openai, falai: platformKeys.falai, gemini: platformKeys.gemini },
+    providerConfigs,
+  });
 
   const systemContent = promptRow.content + buildCampaignContext(campaign.ai_setting_prompt) + INJECTION_GUARD_SUFFIX;
 
@@ -218,12 +205,14 @@ serve(async (req: Request) => {
   const baseLocationCost = textIsByok ? 0 : await fetchCreditCost(admin, "location_generation");
   const locationCost = applyMultiplier(baseLocationCost, providerConfigs[textProvider as keyof typeof providerConfigs]?.text_multiplier);
   // The scene and map are each their own charge, reusing the entity_image cost
-  // (square 1024×1024 → 1.0×). Images render via OpenAI → BYOK on the OpenAI key.
-  const imageIsByok = !!campaignOpenai;
-  const baseImageCost = imageIsByok ? 0 : await fetchCreditCost(admin, "entity_image");
-  const perImageCost = Math.round(
-    applyMultiplier(baseImageCost, providerConfigs.openai?.image_multiplier) * sizeMultiplier("1024x1024") * 100,
-  ) / 100;
+  // (square 1024×1024 → 1.0×). BYOK + multiplier come from the resolved image provider.
+  const imageIsByok = img?.isByok ?? false;
+  const baseImageCost = (img && !imageIsByok) ? await fetchCreditCost(admin, "entity_image") : 0;
+  const perImageCost = img
+    ? Math.round(
+        applyMultiplier(baseImageCost, img.imageMultiplier) * sizeMultiplier("1024x1024") * 100,
+      ) / 100
+    : 0;
   const locationTotalCost = locationCost + (generate_image ? perImageCost : 0) + (generate_map ? perImageCost : 0);
   if (locationTotalCost > 0) {
     const balance = await fetchUserBalance(admin, user.id);
@@ -236,7 +225,6 @@ serve(async (req: Request) => {
   }
 
   const textModel = providerConfigs[textProvider as keyof typeof providerConfigs]?.text_model;
-  const imgModel = providerConfigs.openai?.image_model ?? "gpt-image-1.5";
 
   let textResult: TextResult;
 
@@ -262,24 +250,29 @@ serve(async (req: Request) => {
   // ── Images in parallel ────────────────────────────────────────────────────
   let image_b64: string | null = null;
   let map_b64: string | null = null;
+  type ImgResult = Awaited<ReturnType<typeof generateImage>>;
   let sceneImgResult: ImgResult | null = null;
   let mapImgResult: ImgResult | null = null;
 
-  if (openaiKey && (generate_image || generate_map)) {
+  if (img && (generate_image || generate_map)) {
     const [imgSettled, mapSettled] = await Promise.allSettled([
       generate_image
-        ? openaiImageGenerate(openaiKey, imgModel,
-            buildSimpleImagePrompt({
+        ? generateImage({
+            provider: img.provider, model: img.model, apiKey: img.apiKey,
+            prompt: buildSimpleImagePrompt({
               base: imageBasePrompt,
               setting: campaign.ai_setting_prompt ?? "",
               subject: locationData.image_prompt,
             }),
-            "1024x1024")
+            size: "1024x1024",
+          })
         : Promise.resolve(null),
       generate_map
-        ? openaiImageGenerate(openaiKey, imgModel,
-            [MAP_BASE_PROMPT, locationData.map_prompt].filter(Boolean).join(" — "),
-            "1024x1024")
+        ? generateImage({
+            provider: img.provider, model: img.model, apiKey: img.apiKey,
+            prompt: [MAP_BASE_PROMPT, locationData.map_prompt].filter(Boolean).join(" — "),
+            size: "1024x1024",
+          })
         : Promise.resolve(null),
     ]);
 
@@ -299,18 +292,18 @@ serve(async (req: Request) => {
   // Charge each image as its own entity_image row (or delta=0 on BYOK).
   if (sceneImgResult) {
     await recordGeneration(admin, user.id, "entity_image", imageIsByok, perImageCost, {
-      model: imgModel, provider: "openai", image_count: 1,
-      input_tokens:       sceneImgResult.input_tokens || undefined,
-      input_image_tokens: sceneImgResult.input_image_tokens || undefined,
-      output_tokens:      sceneImgResult.output_tokens || undefined,
+      model: img!.model, provider: sceneImgResult.usage.provider, image_count: 1,
+      input_tokens:       sceneImgResult.usage.input_tokens       || undefined,
+      input_image_tokens: sceneImgResult.usage.input_image_tokens || undefined,
+      output_tokens:      sceneImgResult.usage.output_tokens      || undefined,
     });
   }
   if (mapImgResult) {
     await recordGeneration(admin, user.id, "entity_image", imageIsByok, perImageCost, {
-      model: imgModel, provider: "openai", image_count: 1,
-      input_tokens:       mapImgResult.input_tokens || undefined,
-      input_image_tokens: mapImgResult.input_image_tokens || undefined,
-      output_tokens:      mapImgResult.output_tokens || undefined,
+      model: img!.model, provider: mapImgResult.usage.provider, image_count: 1,
+      input_tokens:       mapImgResult.usage.input_tokens       || undefined,
+      input_image_tokens: mapImgResult.usage.input_image_tokens || undefined,
+      output_tokens:      mapImgResult.usage.output_tokens      || undefined,
     });
   }
 

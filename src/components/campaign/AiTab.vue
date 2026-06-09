@@ -153,7 +153,7 @@
           <p class="font-fell text-xs text-muted-foreground italic">
             Used for portrait and artwork generation.
             <span v-if="form.image_provider === 'falai'" class="text-yellow-600 dark:text-yellow-500">
-              fal.ai does not support alter-ego disguise portraits — that requires OpenAI.
+              fal.ai does not support alter-ego / reference portraits — that needs OpenAI or Gemini.
             </span>
           </p>
           <select
@@ -161,16 +161,16 @@
             v-model="form.image_provider"
             class="field-input text-sm"
           >
-            <option v-for="o in availableImageProviders" :key="o.value" :value="o.value">{{ o.label }}</option>
+            <option v-for="o in availableImageProviders" :key="o.value" :value="o.value">{{ o.label }} · {{ imageSpeed(o.value) }}</option>
           </select>
           <div v-else class="field-input text-sm opacity-50 cursor-not-allowed select-none text-muted-foreground">
             No provider available
           </div>
-          <p v-if="!hasByokImageKey" class="font-fell text-xs text-muted-foreground">
-            Using platform credits · model configured by Grimoire
-          </p>
-          <p v-else class="font-fell text-xs text-muted-foreground">
-            Your key · no credits charged
+          <!-- Cost + speed for the chosen provider, so the trade-off is clear -->
+          <p class="font-fell text-xs text-muted-foreground">
+            <template v-if="!hasByokImageKey">≈ {{ selectedImageCredits }} credits / image</template>
+            <template v-else>Your key · no credits charged</template>
+            · {{ imageSpeed(selectedImageProvider) }} per image<span v-if="selectedImageProvider === 'gemini'"> — much faster than gpt-image</span>
           </p>
         </div>
 
@@ -255,6 +255,7 @@ import { getSetting } from "@/settings/index";
 import { useSubscription } from "@/composables/useSubscription";
 import { useStripe } from "@/composables/useStripe";
 import { useProviderConfig, PROVIDER_DISPLAY } from "@/composables/useProviderConfig";
+import { useAiCredits } from "@/composables/useAiCredits";
 import AiUsageStatsPanel from "@/components/common/AiUsageStatsPanel.vue";
 
 const { isPro } = useSubscription();
@@ -310,7 +311,25 @@ const activeSetting        = computed(() => getSetting(campaign.activeCampaign?.
 const settingDefaultPrompt = computed(() => activeSetting.value?.defaultAiPrompt ?? "");
 const settingLabel         = computed(() => activeSetting.value?.label ?? "Setting");
 
-const { enabledImageProviders, enabledTextProviders } = useProviderConfig();
+const { enabledImageProviders, enabledTextProviders, imageMultiplierFor } = useProviderConfig();
+const { costOf } = useAiCredits();
+
+// Per-provider speed + a one-line characterisation, shown so the choice makes sense.
+const IMAGE_PROVIDER_INFO: Record<string, { speed: string }> = {
+  openai:        { speed: "1–3 min" },
+  "openai-mini": { speed: "1–3 min" },
+  gemini:        { speed: "~8–15 s" },
+  falai:         { speed: "speed varies" },
+};
+function imageSpeed(provider: string): string {
+  return IMAGE_PROVIDER_INFO[provider]?.speed ?? "speed varies";
+}
+const selectedImageProvider = computed(() => form.value.image_provider ?? "openai");
+// Representative price: one portrait-orientation image (entity_image × 1.5 × provider multiplier).
+const selectedImageCredits = computed(() => {
+  const base = selectedImageProvider.value === "openai-mini" ? "openai" : selectedImageProvider.value;
+  return Math.round(costOf("entity_image") * 1.5 * imageMultiplierFor(base));
+});
 
 // BYOK provider options (shown when the user has entered their own keys)
 const BYOK_TEXT_OPTIONS = [
@@ -320,8 +339,9 @@ const BYOK_TEXT_OPTIONS = [
 ] as const;
 
 const BYOK_IMAGE_OPTIONS = [
-  { value: "openai", label: "OpenAI",          keyProvider: "openai" },
-  { value: "falai",  label: "fal.ai — FLUX",   keyProvider: "falai"  },
+  { value: "openai", label: "OpenAI — gpt-image",     keyProvider: "openai" },
+  { value: "gemini", label: "Google — Nano Banana",   keyProvider: "gemini" },
+  { value: "falai",  label: "fal.ai — FLUX",          keyProvider: "falai"  },
 ] as const;
 
 function providerHasKey(providerId: string): boolean {

@@ -4,6 +4,7 @@ import { decryptValue } from "../_shared/vault.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
 import { fetchCreditCost, fetchUserBalance, recordGeneration, sizeMultiplier } from "../_shared/credits.ts";
+import { generateImage, resolveImageProvider } from "../_shared/imageGen.ts";
 import {
   AI_PROMPT_LIMIT_LONG,
   INJECTION_GUARD_SUFFIX,
@@ -101,28 +102,6 @@ async function geminiText(apiKey: string, model: string, system: string, user: s
   };
 }
 
-// ── Image provider (OpenAI gpt-image) ───────────────────────────────────────────
-
-interface ImgResult { b64: string; input_tokens: number; output_tokens: number }
-
-async function openaiImageGenerate(apiKey: string, model: string, prompt: string, size: string): Promise<ImgResult> {
-  const res = await fetch("https://api.openai.com/v1/images/generations", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({ model, prompt, size, output_format: "webp" }),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body?.error?.message ?? `OpenAI image error ${res.status}`);
-  }
-  const data = await res.json();
-  return {
-    b64: data.data[0].b64_json as string,
-    input_tokens:  data.usage?.input_tokens_details?.text_tokens ?? data.usage?.input_tokens ?? 0,
-    output_tokens: data.usage?.output_tokens ?? 0,
-  };
-}
-
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 serve(async (req: Request) => {
@@ -157,7 +136,7 @@ serve(async (req: Request) => {
 
   const { data: campaign } = await admin
     .from("campaigns")
-    .select("id, user_id, ai_enabled, text_provider, ai_setting_prompt, openai_api_key, anthropic_api_key, gemini_api_key")
+    .select("id, user_id, ai_enabled, text_provider, image_provider, ai_setting_prompt, openai_api_key, anthropic_api_key, gemini_api_key, falai_api_key")
     .eq("id", campaign_id)
     .maybeSingle();
   if (!campaign) return new Response("Campaign not found", { status: 404 });
@@ -180,30 +159,36 @@ serve(async (req: Request) => {
     try { return await decryptValue(enc); } catch { return null; }
   }
 
-  const [[campaignOpenai, campaignAnthropic, campaignGemini], platformKeys, providerConfigs] = await Promise.all([
+  const [[campaignOpenai, campaignAnthropic, campaignGemini, campaignFalai], platformKeys, providerConfigs] = await Promise.all([
     Promise.all([
       decryptKey(campaign.openai_api_key),
       decryptKey(campaign.anthropic_api_key),
       decryptKey(campaign.gemini_api_key),
+      decryptKey(campaign.falai_api_key),
     ]),
-    fetchPlatformKeys(admin, ["openai", "anthropic", "gemini"]),
-    fetchProviderConfigs(admin, ["openai", "anthropic", "gemini"]),
+    fetchPlatformKeys(admin, ["openai", "anthropic", "gemini", "falai"]),
+    fetchProviderConfigs(admin, ["openai", "anthropic", "gemini", "falai"]),
   ]);
   const openaiKey    = campaignOpenai    ?? platformKeys.openai    ?? null;
   const anthropicKey = campaignAnthropic ?? platformKeys.anthropic ?? null;
   const geminiKey    = campaignGemini    ?? platformKeys.gemini    ?? null;
 
-  // The image is the dominant cost (~$0.19 vs ~$0.0001 for the prompt-author text
-  // call), so the single charge tracks the OpenAI image key's ownership.
-  if (!openaiKey) return new Response("No OpenAI API key configured", { status: 422 });
-  const isByok = !!campaignOpenai;
+  // Resolve the campaign's chosen image provider (openai / openai-mini / falai / gemini).
+  const img = resolveImageProvider({
+    imageProvider: campaign.image_provider,
+    campaignKeys: { openai: campaignOpenai, falai: campaignFalai, gemini: campaignGemini },
+    platformKeys: { openai: platformKeys.openai, falai: platformKeys.falai, gemini: platformKeys.gemini },
+    providerConfigs,
+  });
+  if (!img) return new Response("No image API key configured", { status: 422 });
+  const isByok = img.isByok;
 
   // ── Pre-flight credit check ────────────────────────────────────────────────
   // Entity portraits render at ENTITY_IMAGE_SIZE; cost scales with output area
-  // (portrait = 1.5× a square render).
+  // (portrait = 1.5× a square render) and the chosen provider's multiplier.
   const baseCost = isByok ? 0 : await fetchCreditCost(admin, "entity_image");
   const cost = Math.round(
-    applyMultiplier(baseCost, providerConfigs.openai?.image_multiplier) *
+    applyMultiplier(baseCost, img.imageMultiplier) *
     sizeMultiplier(ENTITY_IMAGE_SIZE) * 100,
   ) / 100;
   if (cost > 0) {
@@ -252,16 +237,18 @@ serve(async (req: Request) => {
   }
 
   // ── 2. Render the image ────────────────────────────────────────────────────
-  const imgModel = providerConfigs.openai?.image_model ?? "gpt-image-1.5";
   const imagePrompt = buildSimpleImagePrompt({
     base: imageBasePrompt,
     setting: campaign.ai_setting_prompt ?? "",
     subject,
   });
 
-  let imgResult: ImgResult;
+  let imgResult;
   try {
-    imgResult = await openaiImageGenerate(openaiKey, imgModel, imagePrompt, ENTITY_IMAGE_SIZE);
+    imgResult = await generateImage({
+      provider: img.provider, model: img.model, apiKey: img.apiKey,
+      prompt: imagePrompt, size: ENTITY_IMAGE_SIZE,
+    });
   } catch (e) {
     console.error("Entity image generation failed:", e);
     return new Response(
@@ -272,9 +259,10 @@ serve(async (req: Request) => {
 
   // Charge once for the image (delta = -cost, or 0 on BYOK).
   await recordGeneration(admin, user.id, "entity_image", isByok, cost, {
-    model: imgModel, provider: "openai", image_count: 1,
-    input_tokens:  imgResult.input_tokens  || undefined,
-    output_tokens: imgResult.output_tokens || undefined,
+    model: img.model, provider: imgResult.usage.provider, image_count: 1,
+    input_tokens:       imgResult.usage.input_tokens       || undefined,
+    input_image_tokens: imgResult.usage.input_image_tokens || undefined,
+    output_tokens:      imgResult.usage.output_tokens      || undefined,
   });
   // Analytics-only row for the prompt-author text tokens (no extra deduction).
   await recordGeneration(admin, user.id, "entity_image_prompt", isByok, 0, {

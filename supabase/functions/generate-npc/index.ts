@@ -2,19 +2,32 @@ import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { decryptValue } from "../_shared/vault.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
-import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
-import { fetchCreditCost, fetchUserBalance, recordGeneration, sizeMultiplier } from "../_shared/credits.ts";
+import {
+  fetchProviderConfigs,
+  applyMultiplier,
+} from "../_shared/provider-config.ts";
+import {
+  fetchCreditCost,
+  fetchUserBalance,
+  recordGeneration,
+  sizeMultiplier,
+} from "../_shared/credits.ts";
+import { resolveImageProvider } from "../_shared/imageGen.ts";
 import {
   AI_PROMPT_LIMIT,
   INJECTION_GUARD_SUFFIX,
   validatePromptInput,
   wrapUserInput,
 } from "../_shared/ai-prompt.ts";
-import { buildLabelledImagePrompt, buildSimpleImagePrompt } from "../_shared/image-prompt.ts";
+import {
+  buildLabelledImagePrompt,
+  buildSimpleImagePrompt,
+} from "../_shared/image-prompt.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
 const admin = createClient(
@@ -25,7 +38,8 @@ const admin = createClient(
 // Portrait render size per image provider — drives the area-based cost multiplier.
 const PORTRAIT_SIZE_BY_PROVIDER: Record<string, string> = {
   openai: "1024x1536",
-  falai:  "768x1152",
+  falai: "768x1152",
+  gemini: "1024x1536",
 };
 
 function buildCampaignContext(setting: string | null | undefined): string {
@@ -36,17 +50,36 @@ function buildCampaignContext(setting: string | null | undefined): string {
 
 // ── Text providers ────────────────────────────────────────────────────────────
 
-interface TextUsage { input_tokens: number; output_tokens: number; model: string; provider: string }
-interface TextResult { content: string; usage: TextUsage }
+interface TextUsage {
+  input_tokens: number;
+  output_tokens: number;
+  model: string;
+  provider: string;
+}
+interface TextResult {
+  content: string;
+  usage: TextUsage;
+}
 
-async function openaiText(apiKey: string, model: string, system: string, user: string): Promise<TextResult> {
+async function openaiText(
+  apiKey: string,
+  model: string,
+  system: string,
+  user: string,
+): Promise<TextResult> {
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
     body: JSON.stringify({
       model,
       response_format: { type: "json_object" },
-      messages: [{ role: "system", content: system }, { role: "user", content: user }],
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
     }),
   });
   if (!res.ok) {
@@ -65,7 +98,12 @@ async function openaiText(apiKey: string, model: string, system: string, user: s
   };
 }
 
-async function anthropicText(apiKey: string, model: string, system: string, user: string): Promise<TextResult> {
+async function anthropicText(
+  apiKey: string,
+  model: string,
+  system: string,
+  user: string,
+): Promise<TextResult> {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -76,7 +114,9 @@ async function anthropicText(apiKey: string, model: string, system: string, user
     body: JSON.stringify({
       model,
       max_tokens: 4096,
-      system: system + "\n\nRespond with a valid JSON object only, no markdown fencing.",
+      system:
+        system +
+        "\n\nRespond with a valid JSON object only, no markdown fencing.",
       messages: [{ role: "user", content: user }],
     }),
   });
@@ -96,7 +136,12 @@ async function anthropicText(apiKey: string, model: string, system: string, user
   };
 }
 
-async function geminiText(apiKey: string, model: string, system: string, user: string): Promise<TextResult> {
+async function geminiText(
+  apiKey: string,
+  model: string,
+  system: string,
+  user: string,
+): Promise<TextResult> {
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
     {
@@ -126,91 +171,13 @@ async function geminiText(apiKey: string, model: string, system: string, user: s
   };
 }
 
-// ── Image providers ───────────────────────────────────────────────────────────
-
-interface ImageUsage {
-  model: string;
-  provider: string;
-  image_count: number;
-  input_tokens?: number;
-  input_image_tokens?: number;
-  output_tokens?: number;
-}
-interface ImageResult { b64: string; usage: ImageUsage }
-
-function extractOpenAiImageUsage(data: { usage?: { input_tokens?: number; input_tokens_details?: { text_tokens?: number; image_tokens?: number }; output_tokens?: number } }, model: string): ImageUsage {
-  const u = data.usage;
-  return {
-    model,
-    provider: "openai",
-    image_count: 1,
-    input_tokens:       u?.input_tokens_details?.text_tokens ?? u?.input_tokens ?? 0,
-    input_image_tokens: u?.input_tokens_details?.image_tokens ?? 0,
-    output_tokens:      u?.output_tokens ?? 0,
-  };
-}
-
-async function openaiImageGenerate(apiKey: string, model: string, prompt: string, size: string): Promise<ImageResult> {
-  const res = await fetch("https://api.openai.com/v1/images/generations", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({ model, prompt, size, output_format: "webp" }),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body?.error?.message ?? `OpenAI image error ${res.status}`);
-  }
-  const data = await res.json();
-  return { b64: data.data[0].b64_json as string, usage: extractOpenAiImageUsage(data, model) };
-}
-
-async function openaiImageEdit(apiKey: string, model: string, sourceB64: string, prompt: string, size: string): Promise<ImageResult> {
-  const bytes = Uint8Array.from(atob(sourceB64), (c) => c.charCodeAt(0));
-  const blob = new Blob([bytes], { type: "image/webp" });
-  const form = new FormData();
-  form.append("model", model);
-  form.append("image[]", new File([blob], "portrait.webp", { type: "image/webp" }));
-  form.append("prompt", prompt);
-  form.append("size", size);
-  form.append("output_format", "webp");
-  form.append("n", "1");
-  const res = await fetch("https://api.openai.com/v1/images/edits", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}` },
-    body: form,
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body?.error?.message ?? `OpenAI image edit error ${res.status}`);
-  }
-  const data = await res.json();
-  return { b64: data.data[0].b64_json as string, usage: extractOpenAiImageUsage(data, model) };
-}
-
-async function falaiImageGenerate(apiKey: string, model: string, prompt: string): Promise<ImageResult> {
-  const res = await fetch(`https://fal.run/${model}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Key ${apiKey}` },
-    body: JSON.stringify({ prompt, image_size: { width: 768, height: 1152 } }),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body?.error?.message ?? `fal.ai error ${res.status}`);
-  }
-  const { images } = await res.json();
-  const imgRes = await fetch(images[0].url);
-  if (!imgRes.ok) throw new Error(`fal.ai image fetch error ${imgRes.status}`);
-  const bytes = new Uint8Array(await imgRes.arrayBuffer());
-  let binary = "";
-  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
-  return { b64: btoa(binary), usage: { model, provider: "falai", image_count: 1 } };
-}
-
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 serve(async (req: Request) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
+  if (req.method === "OPTIONS")
+    return new Response("ok", { headers: corsHeaders });
+  if (req.method !== "POST")
+    return new Response("Method not allowed", { status: 405 });
 
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) return new Response("Unauthorized", { status: 401 });
@@ -220,7 +187,10 @@ serve(async (req: Request) => {
     Deno.env.get("SUPABASE_ANON_KEY")!,
     { global: { headers: { Authorization: authHeader } } },
   );
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
   if (authError || !user) return new Response("Unauthorized", { status: 401 });
 
   // ── Parse body ──────────────────────────────────────────────────────────────
@@ -231,13 +201,15 @@ serve(async (req: Request) => {
 
   try {
     const body = await req.json();
-    campaign_id      = body.campaign_id;
-    prompt           = body.prompt;
+    campaign_id = body.campaign_id;
+    prompt = body.prompt;
     generateAlterEgo = body.generate_alter_ego === true;
-    generateImage    = body.generate_image !== false;
+    generateImage = body.generate_image !== false;
     if (!campaign_id || !prompt) throw new Error("invalid");
   } catch {
-    return new Response("Invalid body — need { campaign_id, prompt }", { status: 400 });
+    return new Response("Invalid body — need { campaign_id, prompt }", {
+      status: 400,
+    });
   }
 
   const promptCheck = validatePromptInput(prompt, AI_PROMPT_LIMIT);
@@ -246,7 +218,9 @@ serve(async (req: Request) => {
   // ── Fetch campaign + verify access ──────────────────────────────────────────
   const { data: campaign } = await admin
     .from("campaigns")
-    .select("id, user_id, text_provider, image_provider, ai_setting_prompt, openai_api_key, anthropic_api_key, gemini_api_key, falai_api_key")
+    .select(
+      "id, user_id, text_provider, image_provider, ai_setting_prompt, openai_api_key, anthropic_api_key, gemini_api_key, falai_api_key",
+    )
     .eq("id", campaign_id)
     .maybeSingle();
 
@@ -258,7 +232,8 @@ serve(async (req: Request) => {
     .select("generator_type, content")
     .in("generator_type", ["npc", "image_base"]);
   const promptRow = promptRows?.find((r) => r.generator_type === "npc");
-  const imageBasePrompt = promptRows?.find((r) => r.generator_type === "image_base")?.content ?? "";
+  const imageBasePrompt =
+    promptRows?.find((r) => r.generator_type === "image_base")?.content ?? "";
   if (!promptRow) return new Response("Prompt not configured", { status: 500 });
 
   if (campaign.user_id !== user.id) {
@@ -274,10 +249,18 @@ serve(async (req: Request) => {
   // ── Decrypt API keys ────────────────────────────────────────────────────────
   async function decryptKey(encrypted: string | null): Promise<string | null> {
     if (!encrypted) return null;
-    try { return await decryptValue(encrypted); } catch { return null; }
+    try {
+      return await decryptValue(encrypted);
+    } catch {
+      return null;
+    }
   }
 
-  const [[campaignOpenai, campaignAnthropic, campaignGemini, campaignFalai], platformKeys, providerConfigs] = await Promise.all([
+  const [
+    [campaignOpenai, campaignAnthropic, campaignGemini, campaignFalai],
+    platformKeys,
+    providerConfigs,
+  ] = await Promise.all([
     Promise.all([
       decryptKey(campaign.openai_api_key),
       decryptKey(campaign.anthropic_api_key),
@@ -287,33 +270,59 @@ serve(async (req: Request) => {
     fetchPlatformKeys(admin, ["openai", "anthropic", "gemini", "falai"]),
     fetchProviderConfigs(admin, ["openai", "anthropic", "gemini", "falai"]),
   ]);
-  const openaiKey    = campaignOpenai    ?? platformKeys.openai    ?? null;
+  const openaiKey = campaignOpenai ?? platformKeys.openai ?? null;
   const anthropicKey = campaignAnthropic ?? platformKeys.anthropic ?? null;
-  const geminiKey    = campaignGemini    ?? platformKeys.gemini    ?? null;
-  const falaiKey     = campaignFalai     ?? platformKeys.falai     ?? null;
+  const geminiKey = campaignGemini ?? platformKeys.gemini ?? null;
+
+  // Resolve the campaign's chosen image provider (openai / openai-mini / falai / gemini).
+  const img = resolveImageProvider({
+    imageProvider: campaign.image_provider,
+    campaignKeys: {
+      openai: campaignOpenai,
+      falai: campaignFalai,
+      gemini: campaignGemini,
+    },
+    platformKeys: {
+      openai: platformKeys.openai,
+      falai: platformKeys.falai,
+      gemini: platformKeys.gemini,
+    },
+    providerConfigs,
+  });
 
   // ── Determine provider + isByok before generating (needed for credit check) ──
-  const textProvider  = campaign.text_provider  ?? "openai";
-  const imageProvider = campaign.image_provider ?? "openai";
+  const textProvider = campaign.text_provider ?? "openai";
 
-  const textIsByok = textProvider === "anthropic" ? !!campaignAnthropic
-    : textProvider === "gemini"    ? !!campaignGemini
-    : !!campaignOpenai;
-  const imageIsByok = imageProvider === "falai" ? !!campaignFalai : !!campaignOpenai;
+  const textIsByok =
+    textProvider === "anthropic"
+      ? !!campaignAnthropic
+      : textProvider === "gemini"
+        ? !!campaignGemini
+        : !!campaignOpenai;
+  const imageIsByok = img?.isByok ?? false;
 
   // ── Pre-flight credit check ────────────────────────────────────────────────
   const [baseTextCost, basePortraitCost] = await Promise.all([
     textIsByok ? Promise.resolve(0) : fetchCreditCost(admin, "npc_text"),
-    imageIsByok || !generateImage ? Promise.resolve(0) : fetchCreditCost(admin, "portrait"),
+    imageIsByok || !generateImage || !img
+      ? Promise.resolve(0)
+      : fetchCreditCost(admin, "portrait"),
   ]);
-  const textMultiplier  = providerConfigs[textProvider as keyof typeof providerConfigs]?.text_multiplier;
-  const imageMultiplier = providerConfigs[imageProvider as keyof typeof providerConfigs]?.image_multiplier;
-  const npcTextCost    = applyMultiplier(baseTextCost, textMultiplier);
+  const textMultiplier =
+    providerConfigs[textProvider as keyof typeof providerConfigs]
+      ?.text_multiplier;
+  const npcTextCost = applyMultiplier(baseTextCost, textMultiplier);
   // Portrait cost scales with output area vs a 1024² square baseline.
-  const portraitSize = PORTRAIT_SIZE_BY_PROVIDER[imageProvider] ?? PORTRAIT_SIZE_BY_PROVIDER.openai;
-  const portraitCostEach = Math.round(
-    applyMultiplier(basePortraitCost, imageMultiplier) * sizeMultiplier(portraitSize) * 100,
-  ) / 100;
+  const portraitSize = img
+    ? (PORTRAIT_SIZE_BY_PROVIDER[img.base] ?? "1024x1536")
+    : "1024x1536";
+  const portraitCostEach = img
+    ? Math.round(
+        applyMultiplier(basePortraitCost, img.imageMultiplier) *
+          sizeMultiplier(portraitSize) *
+          100,
+      ) / 100
+    : 0;
   const maxImages = generateImage ? (generateAlterEgo ? 2 : 1) : 0;
   const totalNeeded = npcTextCost + portraitCostEach * maxImages;
   if (totalNeeded > 0) {
@@ -321,7 +330,10 @@ serve(async (req: Request) => {
     if (balance < totalNeeded) {
       return new Response(
         JSON.stringify({ error: "insufficient_credits", balance }),
-        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        {
+          status: 402,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
   }
@@ -329,37 +341,69 @@ serve(async (req: Request) => {
   let textResult: TextResult;
 
   const systemContent =
-    promptRow.content + buildCampaignContext(campaign.ai_setting_prompt) + INJECTION_GUARD_SUFFIX;
+    promptRow.content +
+    buildCampaignContext(campaign.ai_setting_prompt) +
+    INJECTION_GUARD_SUFFIX;
 
   const userContent = generateAlterEgo
     ? `${wrapUserInput(prompt)}\n\nThis NPC has a disguise identity — populate disguise_name and disguise_image_prompt.`
     : wrapUserInput(prompt);
 
-  const textModel = providerConfigs[textProvider as keyof typeof providerConfigs]?.text_model;
+  const textModel =
+    providerConfigs[textProvider as keyof typeof providerConfigs]?.text_model;
 
   try {
     if (textProvider === "anthropic" && anthropicKey) {
-      textResult = await anthropicText(anthropicKey, textModel ?? "claude-haiku-3-20240307", systemContent, userContent);
+      textResult = await anthropicText(
+        anthropicKey,
+        textModel ?? "claude-haiku-3-20240307",
+        systemContent,
+        userContent,
+      );
     } else if (textProvider === "gemini" && geminiKey) {
-      textResult = await geminiText(geminiKey, textModel ?? "gemini-2.5-flash", systemContent, userContent);
+      textResult = await geminiText(
+        geminiKey,
+        textModel ?? "gemini-2.5-flash",
+        systemContent,
+        userContent,
+      );
     } else {
-      if (!openaiKey) return new Response("No OpenAI API key configured", { status: 422 });
-      textResult = await openaiText(openaiKey, textModel ?? "gpt-4o-mini", systemContent, userContent);
+      if (!openaiKey)
+        return new Response("No OpenAI API key configured", { status: 422 });
+      textResult = await openaiText(
+        openaiKey,
+        textModel ?? "gpt-4o-mini",
+        systemContent,
+        userContent,
+      );
     }
   } catch (e) {
     console.error("NPC text generation failed:", e);
     return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Text generation failed" }),
-      { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      JSON.stringify({
+        error: e instanceof Error ? e.message : "Text generation failed",
+      }),
+      {
+        status: 502,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
     );
   }
 
   const npcData = JSON.parse(textResult.content);
 
-  if (generateAlterEgo && (!npcData.disguise_name || !npcData.disguise_image_prompt)) {
+  if (
+    generateAlterEgo &&
+    (!npcData.disguise_name || !npcData.disguise_image_prompt)
+  ) {
     return new Response(
-      JSON.stringify({ error: "AI response was missing disguise fields — please try again." }),
-      { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      JSON.stringify({
+        error: "AI response was missing disguise fields — please try again.",
+      }),
+      {
+        status: 502,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
     );
   }
 
@@ -377,10 +421,9 @@ serve(async (req: Request) => {
   let imgInputTokens = 0;
   let imgInputImageTokens = 0;
   let imgOutputTokens = 0;
-  const imgModelConfig = providerConfigs[imageProvider as keyof typeof providerConfigs]?.image_model;
-  const imgModel = imgModelConfig ?? (imageProvider === "falai" ? "fal-ai/flux-2/flex" : "gpt-image-1.5");
+  let imgResultProvider: string | null = null;
 
-  if (generateImage && npcData.true_portrait_prompt) {
+  if (img && generateImage && npcData.true_portrait_prompt) {
     const imagePrompt = buildLabelledImagePrompt({
       base: imageBasePrompt,
       setting: campaign.ai_setting_prompt ?? "",
@@ -388,37 +431,51 @@ serve(async (req: Request) => {
     });
 
     try {
-      if (imageProvider === "falai" && falaiKey) {
-        const { b64 } = await falaiImageGenerate(falaiKey, imgModel, imagePrompt);
-        portrait_b64 = b64;
-        totalImageCount++;
-      } else if (openaiKey) {
-        const { b64, usage } = await openaiImageGenerate(openaiKey, imgModel, imagePrompt, "1024x1536");
-        portrait_b64 = b64;
-        totalImageCount++;
-        imgInputTokens      += usage.input_tokens       ?? 0;
-        imgInputImageTokens += usage.input_image_tokens ?? 0;
-        imgOutputTokens     += usage.output_tokens      ?? 0;
-      }
+      const { b64, usage } = await generateImage({
+        provider: img.provider,
+        model: img.model,
+        apiKey: img.apiKey,
+        prompt: imagePrompt,
+        size: portraitSize,
+      });
+      portrait_b64 = b64;
+      totalImageCount++;
+      imgResultProvider = usage.provider;
+      imgInputTokens += usage.input_tokens ?? 0;
+      imgInputImageTokens += usage.input_image_tokens ?? 0;
+      imgOutputTokens += usage.output_tokens ?? 0;
     } catch (e) {
       console.error("Portrait generation failed:", e);
       // non-fatal — continue without portrait
     }
 
-    // Alter-ego disguise uses OpenAI edit — skip if using fal.ai (no edit endpoint)
-    if (imageProvider !== "falai" && generateAlterEgo && portrait_b64 && npcData.disguise_image_prompt && openaiKey) {
+    // Alter-ego disguise edits off the true-form portrait. fal.ai has no edit
+    // endpoint and degrades to plain generate (loosely matches the prior skip).
+    if (generateAlterEgo && portrait_b64 && npcData.disguise_image_prompt) {
       const disguisePrompt = buildSimpleImagePrompt({
         base: imageBasePrompt,
         setting: campaign.ai_setting_prompt ?? "",
         subject: npcData.disguise_image_prompt,
       });
       try {
-        const { b64, usage } = await openaiImageEdit(openaiKey, imgModel, portrait_b64, disguisePrompt, "1024x1536");
+        const seedBytes = Uint8Array.from(atob(portrait_b64), (c) =>
+          c.charCodeAt(0),
+        );
+        const seedBlob = new Blob([seedBytes], { type: "image/webp" });
+        const { b64, usage } = await generateImage({
+          provider: img.provider,
+          model: img.model,
+          apiKey: img.apiKey,
+          prompt: disguisePrompt,
+          size: portraitSize,
+          sourceImages: [seedBlob],
+        });
         disguise_portrait_b64 = b64;
         totalImageCount++;
-        imgInputTokens      += usage.input_tokens       ?? 0;
+        imgResultProvider = usage.provider;
+        imgInputTokens += usage.input_tokens ?? 0;
         imgInputImageTokens += usage.input_image_tokens ?? 0;
-        imgOutputTokens     += usage.output_tokens      ?? 0;
+        imgOutputTokens += usage.output_tokens ?? 0;
       } catch (e) {
         console.error("Disguise portrait generation failed (non-fatal):", e);
       }
@@ -428,17 +485,30 @@ serve(async (req: Request) => {
   // ── Record usage (deduct credits for platform-key, log-only for BYOK) ────────
   const recordPromises: Promise<void>[] = [
     recordGeneration(admin, user.id, "npc_text", textIsByok, npcTextCost, {
-      model: textResult.usage.model, provider: textResult.usage.provider,
-      input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
+      model: textResult.usage.model,
+      provider: textResult.usage.provider,
+      input_tokens: textResult.usage.input_tokens,
+      output_tokens: textResult.usage.output_tokens,
     }),
   ];
   if (totalImageCount > 0) {
-    recordPromises.push(recordGeneration(admin, user.id, "portrait", imageIsByok, portraitCostEach * totalImageCount, {
-      model: imgModel, provider: imageProvider, image_count: totalImageCount,
-      input_tokens:       imgInputTokens      || undefined,
-      input_image_tokens: imgInputImageTokens || undefined,
-      output_tokens:      imgOutputTokens     || undefined,
-    }));
+    recordPromises.push(
+      recordGeneration(
+        admin,
+        user.id,
+        "portrait",
+        imageIsByok,
+        portraitCostEach * totalImageCount,
+        {
+          model: img!.model,
+          provider: imgResultProvider ?? img!.provider,
+          image_count: totalImageCount,
+          input_tokens: imgInputTokens || undefined,
+          input_image_tokens: imgInputImageTokens || undefined,
+          output_tokens: imgOutputTokens || undefined,
+        },
+      ),
+    );
   }
   await Promise.allSettled(recordPromises);
 

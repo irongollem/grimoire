@@ -1,6 +1,6 @@
 import type { TextProvider, ImageProvider } from "./types";
 import { createOpenAiTextProvider, createOpenAiImageProvider } from "./openai";
-import { createGeminiTextProvider } from "./gemini";
+import { createGeminiTextProvider, createGeminiImageProvider } from "./gemini";
 import { createAnthropicTextProvider } from "./anthropic";
 import { createFalAiImageProvider } from "./falai";
 import { useCampaignStore } from "@/stores/campaign";
@@ -40,6 +40,7 @@ export function getImageProvider(): ImageProvider {
   const key = resolveKey(provider);
   switch (provider) {
     case "falai":        return createFalAiImageProvider(key);
+    case "gemini":       return createGeminiImageProvider(key);
     case "openai-mini":  return createOpenAiImageProvider(key, "gpt-image-1-mini");
     default: {
       const model = (typeof localStorage !== "undefined" ? localStorage.getItem(OPENAI_IMAGE_MODEL_KEY) : null) ?? "gpt-image-1.5";

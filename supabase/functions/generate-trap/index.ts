@@ -4,6 +4,7 @@ import { decryptValue } from "../_shared/vault.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
 import { fetchCreditCost, fetchUserBalance, recordGeneration, sizeMultiplier } from "../_shared/credits.ts";
+import { generateImage, resolveImageProvider } from "../_shared/imageGen.ts";
 import {
   AI_PROMPT_LIMIT,
   INJECTION_GUARD_SUFFIX,
@@ -102,60 +103,6 @@ async function geminiText(apiKey: string, model: string, system: string, user: s
   };
 }
 
-// ── Image providers ───────────────────────────────────────────────────────────
-
-interface ImgResult { b64: string; input_tokens: number; input_image_tokens: number; output_tokens: number }
-
-async function openaiImageGenerate(apiKey: string, model: string, prompt: string, size: string): Promise<ImgResult> {
-  const res = await fetch("https://api.openai.com/v1/images/generations", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({ model, prompt, size, output_format: "webp" }),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body?.error?.message ?? `OpenAI image error ${res.status}`);
-  }
-  const data = await res.json();
-  return {
-    b64: data.data[0].b64_json as string,
-    input_tokens:       data.usage?.input_tokens_details?.text_tokens  ?? data.usage?.input_tokens ?? 0,
-    input_image_tokens: 0,
-    output_tokens:      data.usage?.output_tokens ?? 0,
-  };
-}
-
-async function openaiImageEdit(apiKey: string, model: string, portraitUrl: string, prompt: string, size: string): Promise<ImgResult> {
-  const portraitRes = await fetch(portraitUrl);
-  if (!portraitRes.ok) throw new Error(`Failed to fetch portrait: ${portraitRes.status}`);
-  const blob = await portraitRes.blob();
-
-  const form = new FormData();
-  form.append("model", model);
-  form.append("image[]", new File([blob], "party.webp", { type: "image/webp" }));
-  form.append("prompt", prompt);
-  form.append("size", size);
-  form.append("output_format", "webp");
-  form.append("n", "1");
-
-  const res = await fetch("https://api.openai.com/v1/images/edits", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}` },
-    body: form,
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body?.error?.message ?? `OpenAI image edit error ${res.status}`);
-  }
-  const data = await res.json();
-  return {
-    b64: data.data[0].b64_json as string,
-    input_tokens:       data.usage?.input_tokens_details?.text_tokens  ?? data.usage?.input_tokens ?? 0,
-    input_image_tokens: data.usage?.input_tokens_details?.image_tokens ?? 0,
-    output_tokens:      data.usage?.output_tokens ?? 0,
-  };
-}
-
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 serve(async (req: Request) => {
@@ -195,7 +142,7 @@ serve(async (req: Request) => {
 
   const { data: campaign } = await admin
     .from("campaigns")
-    .select("id, user_id, text_provider, ai_setting_prompt, openai_api_key, anthropic_api_key, gemini_api_key")
+    .select("id, user_id, text_provider, image_provider, ai_setting_prompt, openai_api_key, anthropic_api_key, gemini_api_key, falai_api_key")
     .eq("id", campaign_id)
     .maybeSingle();
   if (!campaign) return new Response("Campaign not found", { status: 404 });
@@ -219,18 +166,27 @@ serve(async (req: Request) => {
     try { return await decryptValue(enc); } catch { return null; }
   }
 
-  const [[campaignOpenai, campaignAnthropic, campaignGemini], platformKeys, providerConfigs] = await Promise.all([
+  const [[campaignOpenai, campaignAnthropic, campaignGemini, campaignFalai], platformKeys, providerConfigs] = await Promise.all([
     Promise.all([
       decryptKey(campaign.openai_api_key),
       decryptKey(campaign.anthropic_api_key),
       decryptKey(campaign.gemini_api_key),
+      decryptKey(campaign.falai_api_key),
     ]),
-    fetchPlatformKeys(admin, ["openai", "anthropic", "gemini"]),
-    fetchProviderConfigs(admin, ["openai", "anthropic", "gemini"]),
+    fetchPlatformKeys(admin, ["openai", "anthropic", "gemini", "falai"]),
+    fetchProviderConfigs(admin, ["openai", "anthropic", "gemini", "falai"]),
   ]);
   const openaiKey    = campaignOpenai    ?? platformKeys.openai    ?? null;
   const anthropicKey = campaignAnthropic ?? platformKeys.anthropic ?? null;
   const geminiKey    = campaignGemini    ?? platformKeys.gemini    ?? null;
+
+  // Resolve the campaign's chosen image provider (openai / openai-mini / falai / gemini).
+  const img = resolveImageProvider({
+    imageProvider: campaign.image_provider,
+    campaignKeys: { openai: campaignOpenai, falai: campaignFalai, gemini: campaignGemini },
+    platformKeys: { openai: platformKeys.openai, falai: platformKeys.falai, gemini: platformKeys.gemini },
+    providerConfigs,
+  });
 
   const systemContent = promptRow.content + buildCampaignContext(campaign.ai_setting_prompt) + INJECTION_GUARD_SUFFIX;
 
@@ -249,11 +205,11 @@ serve(async (req: Request) => {
   const baseTrapCost = textIsByok ? 0 : await fetchCreditCost(admin, "trap_generation");
   const trapCost = applyMultiplier(baseTrapCost, providerConfigs[textProvider as keyof typeof providerConfigs]?.text_multiplier);
   // The illustration is its own charge, reusing the entity_image cost (portrait
-  // 1024×1536 → 1.5×). Images render via OpenAI, so BYOK is keyed on the OpenAI key.
-  const imageIsByok = !!campaignOpenai;
-  const trapImageCost = (generate_image && !imageIsByok)
+  // 1024×1536 → 1.5×). BYOK + multiplier come from the resolved image provider.
+  const imageIsByok = img?.isByok ?? false;
+  const trapImageCost = (generate_image && img && !imageIsByok)
     ? Math.round(
-        applyMultiplier(await fetchCreditCost(admin, "entity_image"), providerConfigs.openai?.image_multiplier) *
+        applyMultiplier(await fetchCreditCost(admin, "entity_image"), img.imageMultiplier) *
         sizeMultiplier("1024x1536") * 100,
       ) / 100
     : 0;
@@ -269,7 +225,6 @@ serve(async (req: Request) => {
   }
 
   const textModel = providerConfigs[textProvider as keyof typeof providerConfigs]?.text_model;
-  const imgModel = providerConfigs.openai?.image_model ?? "gpt-image-1.5";
 
   let textResult: TextResult;
 
@@ -294,9 +249,9 @@ serve(async (req: Request) => {
 
   // ── Image generation ─────────────────────────────────────────────────────
   let image_b64: string | null = null;
-  let imgResult: ImgResult | null = null;
+  let imgResult: Awaited<ReturnType<typeof generateImage>> | null = null;
 
-  if (generate_image && openaiKey) {
+  if (generate_image && img) {
     try {
       const imagePrompt = buildSimpleImagePrompt({
         base: imageBasePrompt,
@@ -304,11 +259,21 @@ serve(async (req: Request) => {
         subject: trapData.image_prompt,
       });
 
+      // With a party portrait, compose it into the scene (PARTY_SUFFIX explains its
+      // role). fal.ai has no edit endpoint and degrades to plain generate.
+      let sourceImages: Blob[] | undefined;
+      let finalPrompt = imagePrompt;
       if (group_portrait_url) {
-        imgResult = await openaiImageEdit(openaiKey, imgModel, group_portrait_url, [imagePrompt, PARTY_SUFFIX].join(" — "), "1024x1536");
-      } else {
-        imgResult = await openaiImageGenerate(openaiKey, imgModel, imagePrompt, "1024x1536");
+        const portraitRes = await fetch(group_portrait_url);
+        if (!portraitRes.ok) throw new Error(`Failed to fetch portrait: ${portraitRes.status}`);
+        sourceImages = [await portraitRes.blob()];
+        finalPrompt = [imagePrompt, PARTY_SUFFIX].join(" — ");
       }
+
+      imgResult = await generateImage({
+        provider: img.provider, model: img.model, apiKey: img.apiKey,
+        prompt: finalPrompt, size: "1024x1536", sourceImages,
+      });
       image_b64 = imgResult.b64;
     } catch (e) {
       console.error("Trap image generation failed (non-fatal):", e);
@@ -324,10 +289,10 @@ serve(async (req: Request) => {
   // Charge the illustration as its own entity_image row (or delta=0 on BYOK).
   if (imgResult) {
     await recordGeneration(admin, user.id, "entity_image", imageIsByok, trapImageCost, {
-      model: imgModel, provider: "openai", image_count: 1,
-      input_tokens:       imgResult.input_tokens || undefined,
-      input_image_tokens: imgResult.input_image_tokens || undefined,
-      output_tokens:      imgResult.output_tokens || undefined,
+      model: img!.model, provider: imgResult.usage.provider, image_count: 1,
+      input_tokens:       imgResult.usage.input_tokens       || undefined,
+      input_image_tokens: imgResult.usage.input_image_tokens || undefined,
+      output_tokens:      imgResult.usage.output_tokens      || undefined,
     });
   }
 

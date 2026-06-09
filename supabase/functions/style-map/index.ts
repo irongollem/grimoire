@@ -4,6 +4,7 @@ import { decryptValue } from "../_shared/vault.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
 import { fetchCreditCost, fetchUserBalance, recordGeneration } from "../_shared/credits.ts";
+import { generateImage, resolveImageProvider } from "../_shared/imageGen.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -81,7 +82,7 @@ serve(async (req: Request) => {
 
   const { data: campaign } = await admin
     .from("campaigns")
-    .select("id, user_id, openai_api_key")
+    .select("id, user_id, image_provider, openai_api_key, gemini_api_key, falai_api_key")
     .eq("id", campaign_id)
     .maybeSingle();
   if (!campaign) return new Response("Campaign not found", { status: 404 });
@@ -98,20 +99,30 @@ serve(async (req: Request) => {
     try { return await decryptValue(enc); } catch { return null; }
   }
 
-  const [campaignOpenai, platformKeys, providerConfigs] = await Promise.all([
-    decryptKey(campaign.openai_api_key),
-    fetchPlatformKeys(admin, ["openai"]),
-    fetchProviderConfigs(admin, ["openai"]),
+  const [[campaignOpenai, campaignGemini, campaignFalai], platformKeys, providerConfigs] = await Promise.all([
+    Promise.all([
+      decryptKey(campaign.openai_api_key),
+      decryptKey(campaign.gemini_api_key),
+      decryptKey(campaign.falai_api_key),
+    ]),
+    fetchPlatformKeys(admin, ["openai", "gemini", "falai"]),
+    fetchProviderConfigs(admin, ["openai", "gemini", "falai"]),
   ]);
-  const openaiKey = campaignOpenai ?? platformKeys.openai ?? null;
-  if (!openaiKey) {
-    return new Response("No OpenAI API key configured", { status: 422 });
-  }
-  const isByok = !!campaignOpenai;
 
-  const imgModel = providerConfigs.openai?.image_model ?? "gpt-image-1";
+  // Resolve the campaign's chosen image provider (openai / openai-mini / falai / gemini).
+  const img = resolveImageProvider({
+    imageProvider: campaign.image_provider,
+    campaignKeys: { openai: campaignOpenai, falai: campaignFalai, gemini: campaignGemini },
+    platformKeys: { openai: platformKeys.openai, falai: platformKeys.falai, gemini: platformKeys.gemini },
+    providerConfigs,
+  });
+  if (!img) {
+    return new Response("No image API key configured", { status: 422 });
+  }
+  const isByok = img.isByok;
+
   const baseCost = isByok ? 0 : await fetchCreditCost(admin, "map_style_generation");
-  const cost = applyMultiplier(baseCost, providerConfigs.openai?.image_multiplier);
+  const cost = applyMultiplier(baseCost, img.imageMultiplier);
 
   if (cost > 0) {
     const balance = await fetchUserBalance(admin, user.id);
@@ -125,49 +136,35 @@ serve(async (req: Request) => {
 
   const prompt = buildPrompt(preset_id, map_name, map_description, prompt_suffix);
 
-  // Decode base64 PNG to bytes for multipart upload
+  // Decode base64 PNG to bytes — the client-supplied map is restyled (edit/compose).
   const byteStr = atob(image_b64);
   const bytes = new Uint8Array(byteStr.length);
   for (let i = 0; i < byteStr.length; i++) bytes[i] = byteStr.charCodeAt(i);
-  const imageBlob = new Blob([bytes], { type: "image/png" });
+  const mapBlob = new Blob([bytes], { type: "image/png" });
 
-  const form = new FormData();
-  form.append("model", imgModel);
-  form.append("image", imageBlob, "map.png");
-  form.append("prompt", prompt);
-  form.append("n", "1");
-  form.append("size", "1024x1024");
-  form.append("output_format", "webp");
-
-  const imgRes = await fetch("https://api.openai.com/v1/images/edits", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${openaiKey}` },
-    body: form,
-  });
-
-  if (!imgRes.ok) {
-    const body = await imgRes.json().catch(() => ({}));
-    const msg = (body as { error?: { message?: string } })?.error?.message ?? `OpenAI error ${imgRes.status}`;
+  let imgResult: Awaited<ReturnType<typeof generateImage>>;
+  try {
+    imgResult = await generateImage({
+      provider: img.provider, model: img.model, apiKey: img.apiKey,
+      prompt, size: "1024x1024", sourceImages: [mapBlob],
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Image generation failed";
     return new Response(
       JSON.stringify({ error: msg }),
       { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 
-  const imgData = await imgRes.json() as {
-    data: Array<{ b64_json: string }>;
-    usage?: { input_tokens?: number; input_image_tokens?: number; output_tokens?: number };
-  };
-  const result_b64 = imgData.data[0].b64_json;
-  const usage = imgData.usage ?? {};
+  const result_b64 = imgResult.b64;
 
   await recordGeneration(admin, user.id, "map_style_generation", isByok, cost, {
-    model: imgModel,
-    provider: "openai",
+    model: img.model,
+    provider: imgResult.usage.provider,
     image_count: 1,
-    input_tokens:       usage.input_tokens       ?? undefined,
-    input_image_tokens: usage.input_image_tokens ?? undefined,
-    output_tokens:      usage.output_tokens      ?? undefined,
+    input_tokens:       imgResult.usage.input_tokens       || undefined,
+    input_image_tokens: imgResult.usage.input_image_tokens || undefined,
+    output_tokens:      imgResult.usage.output_tokens      || undefined,
   });
 
   return new Response(
