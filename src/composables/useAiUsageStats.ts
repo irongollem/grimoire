@@ -32,7 +32,9 @@ export interface ModelStat {
   avg_cost_usd: number
   /** Credits actually charged (−delta summed; BYOK rows contribute 0). */
   credits: number
-  /** Mean credits per generation (credits / count). */
+  /** Charged (non-BYOK) generation count — credits only apply to these. */
+  charged_count: number
+  /** Mean credits per *charged* generation (credits / charged_count). */
   avg_credits: number
 }
 
@@ -88,12 +90,14 @@ export function useAiUsageStats() {
           estimated_cost_usd: 0,
           avg_cost_usd: 0,
           credits: 0,
+          charged_count: 0,
           avg_credits: 0,
         })
       }
       const stat = map.get(key)!
       stat.count++
       if (row.is_byok) stat.byok_count++
+      else stat.charged_count++
       stat.total_input_tokens       += row.input_tokens       ?? 0
       stat.total_input_image_tokens += row.input_image_tokens ?? 0
       stat.total_output_tokens      += row.output_tokens      ?? 0
@@ -104,7 +108,7 @@ export function useAiUsageStats() {
     const stats = [...map.values()]
     for (const s of stats) {
       s.avg_cost_usd = s.count ? s.estimated_cost_usd / s.count : 0
-      s.avg_credits  = s.count ? s.credits / s.count : 0
+      s.avg_credits  = s.charged_count ? s.credits / s.charged_count : 0
     }
     return stats.sort((a, b) => b.count - a.count)
   })

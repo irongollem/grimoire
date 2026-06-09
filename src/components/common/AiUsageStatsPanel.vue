@@ -26,7 +26,7 @@
         </div>
       </div>
 
-      <div v-if="stats.modelStats.value.length" class="space-y-1">
+      <div v-if="displayStats.length" class="space-y-1">
         <div class="flex items-center gap-2 px-2.5 pb-0.5">
           <span class="flex-1 font-cinzel text-[10px] uppercase tracking-wider text-muted-foreground">Model</span>
           <span class="font-cinzel text-[10px] uppercase tracking-wider text-muted-foreground shrink-0 w-10 text-right">Gens</span>
@@ -34,7 +34,7 @@
           <span class="font-cinzel text-[10px] uppercase tracking-wider text-muted-foreground shrink-0 w-20 text-right">Avg/gen</span>
         </div>
         <div
-          v-for="stat in stats.modelStats.value"
+          v-for="stat in displayStats"
           :key="stat.model"
           class="flex items-center gap-2 rounded-md bg-muted/20 px-2.5 py-1.5"
         >
@@ -42,7 +42,7 @@
             <span class="font-cinzel text-xs font-semibold text-foreground">{{ stat.model }}</span>
             <span class="font-fell text-[11px] text-muted-foreground italic ml-1">· {{ stat.provider }}</span>
           </div>
-          <span class="font-fell text-xs text-muted-foreground shrink-0 w-10 text-right">{{ stat.count }}×</span>
+          <span class="font-fell text-xs text-muted-foreground shrink-0 w-10 text-right">{{ currency === 'credits' ? stat.charged_count : stat.count }}×</span>
           <template v-if="currency === 'credits'">
             <span class="font-cinzel text-xs text-foreground shrink-0 w-20 text-right">{{ Math.round(stat.credits) }} cr</span>
             <span class="font-cinzel text-xs text-muted-foreground shrink-0 w-20 text-right">{{ stat.avg_credits.toFixed(1) }} cr</span>
@@ -60,6 +60,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import { useAiUsageStats } from "@/composables/useAiUsageStats";
 
 const { title = "AI Usage Stats", subtitle = "", currency = "usd" } = defineProps<{
@@ -71,4 +72,11 @@ const { title = "AI Usage Stats", subtitle = "", currency = "usd" } = defineProp
 
 // RLS-scoped to the current user's own ledger, so this shows the viewer's usage.
 const stats = useAiUsageStats();
+
+// In the customer credits view, hide models that only ran BYOK (0 credits spent).
+const displayStats = computed(() =>
+  currency === "credits"
+    ? stats.modelStats.value.filter((s) => s.charged_count > 0)
+    : stats.modelStats.value,
+);
 </script>
