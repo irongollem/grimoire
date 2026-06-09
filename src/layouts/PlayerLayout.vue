@@ -171,6 +171,9 @@
 
   <BugReportModal v-model="bugReportOpen" />
 
+  <!-- Location quick-view opened from @location chips in rich text -->
+  <PlayerLocationDialog />
+
   <!-- Hamburger dropdown -->
   <Teleport to="body">
     <div v-if="showMenu" class="fixed inset-0 z-50" @click="showMenu = false">
@@ -314,6 +317,7 @@ import PlayerEncounterPanel from "@/components/player/PlayerEncounterPanel.vue";
 import PlayerBottomNav from "@/components/layout/PlayerBottomNav.vue";
 import PlayerNavGrid from "@/components/layout/PlayerNavGrid.vue";
 import BugReportModal from "@/components/common/BugReportModal.vue";
+import PlayerLocationDialog from "@/components/play/PlayerLocationDialog.vue";
 import NewCampaignModal from "@/components/campaign/NewCampaignModal.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useQuota } from "@/composables/useQuota";

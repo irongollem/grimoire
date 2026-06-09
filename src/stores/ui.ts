@@ -390,6 +390,17 @@ export const useUiStore = defineStore("ui", () => {
     atlasDetailOpen.value = new Set();
   }
 
+  // Player location quick-view dialog — opened from @location chips in rich text
+  // (journal, quests, etc.) so a player can peek at a location without leaving
+  // the page they're reading. Null = closed.
+  const playerLocationDialogId = ref<string | null>(null);
+  function openPlayerLocationDialog(id: string) {
+    playerLocationDialogId.value = id;
+  }
+  function closePlayerLocationDialog() {
+    playerLocationDialogId.value = null;
+  }
+
   // Cartographer (map editor) — list filter state
   const cartographerSearch = ref("");
   const cartographerFilterPack = ref("");
@@ -609,6 +620,9 @@ export const useUiStore = defineStore("ui", () => {
     atlasChildrenOpen,
     atlasDetailOpen,
     resetAtlasOpenState,
+    playerLocationDialogId,
+    openPlayerLocationDialog,
+    closePlayerLocationDialog,
 
     cartographerSearch,
     cartographerFilterPack,

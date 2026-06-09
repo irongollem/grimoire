@@ -32,6 +32,7 @@
 import { computed } from "vue";
 import { nodeViewProps, NodeViewWrapper } from "@tiptap/vue-3";
 import { useRouter, useRoute } from "vue-router";
+import { useUiStore } from "@/stores/ui";
 import type { EntityType } from "@/lib/tiptap/EntityMention";
 
 const props = defineProps({ ...nodeViewProps });
@@ -43,6 +44,7 @@ const entityId = computed(() => props.node.attrs.id as string);
 
 const router = useRouter();
 const route = useRoute();
+const ui = useUiStore();
 
 // DM side has per-entity detail routes — append the ID.
 const DM_ENTITY_ROUTES: Record<EntityType, string> = {
@@ -64,6 +66,12 @@ const PLAYER_LIST_ROUTES: Record<EntityType, string> = {
 
 function navigate() {
   if (route.path.startsWith("/play/")) {
+    // Locations open in a quick-view dialog over the current page rather than
+    // yanking the player off to the Atlas list (issue #442).
+    if (entityType.value === "location") {
+      ui.openPlayerLocationDialog(entityId.value);
+      return;
+    }
     const target = PLAYER_LIST_ROUTES[entityType.value];
     if (target) void router.push(target);
   } else {

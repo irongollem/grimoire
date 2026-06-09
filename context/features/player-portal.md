@@ -250,6 +250,8 @@ Interactive map/location browser. Shows only locations the DM has shared (`useSh
 - Map pins can navigate to a child location ("Go") or open a Watch panel with art + summary + notes
 - **Favourites** — star icon on every location card; starred locations appear in a pinned section above the main list (hidden when searching/filtering); persisted in `player_favourites` table (`entity_type = 'location'`); composable: `usePlayerFavourites('location')` in `src/composables/usePlayerFavourites.ts`
 
+**Location quick-view dialog** (`PlayerLocationDialog.vue`, mounted once in `PlayerLayout`): clicking an `@location` chip in any player-portal rich text (journal, quests, etc.) opens this dialog over the current page instead of navigating to the Atlas (issue #442). Driven by `useUiStore().playerLocationDialogId` (set by `EntityMentionChip.navigate()` for `location` chips in `/play/*`). It resolves the location from `useSharedLocations()`, reuses `PlayerLocationDetailPanel` + `PlayerPartyNpcLightbox`, marks the location read, lets map-pin clicks swap to shared child locations, and offers a "View in Atlas →" link that deep-links to `/play/atlas?open=<id>`. Other entity-chip types still navigate to their list pages.
+
 ### Bestiary
 
 Route: `/play/bestiary` (`PlayerBestiaryView.vue`)
