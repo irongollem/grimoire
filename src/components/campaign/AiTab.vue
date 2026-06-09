@@ -73,11 +73,11 @@
     <!-- Provider Keys -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-3 border-b border-border bg-muted/20">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">API Keys</span>
+        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">API Keys · BYOK</span>
       </div>
       <div class="p-4 flex flex-col gap-4">
         <p class="font-fell text-xs text-muted-foreground italic">
-          Store keys for every provider you want to use. Choose which provider is active for text and image generation below.
+          Bring your own key (BYOK): store keys for any providers you want to use, and your own provider bills you directly instead of spending credits. Choose which provider is active for text and image generation below.
         </p>
 
         <div v-for="p in providerDefs" :key="p.id" class="flex flex-col gap-1">
@@ -207,7 +207,8 @@
     <AiUsageStatsPanel
       v-if="!localModeEnabled"
       title="Your AI Usage"
-      subtitle="Generations charged to your credits, with estimated cost. BYOK calls (your own key) are billed by your provider, not here."
+      currency="credits"
+      subtitle="Credits spent per generation. BYOK calls (your own key) are billed by your provider, not here."
     />
 
     <!-- Promotional consent -->

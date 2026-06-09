@@ -30,6 +30,10 @@ export interface ModelStat {
   estimated_cost_usd: number
   /** Mean estimated cost per generation (estimated_cost_usd / count). */
   avg_cost_usd: number
+  /** Credits actually charged (−delta summed; BYOK rows contribute 0). */
+  credits: number
+  /** Mean credits per generation (credits / count). */
+  avg_credits: number
 }
 
 async function fetchGenerationCosts(): Promise<AiGenerationCostRow[]> {
@@ -62,6 +66,11 @@ export function useAiUsageStats() {
     return sum / 100
   })
 
+  /** Credits actually spent across all generations (−delta; BYOK = 0). */
+  const totalCreditsSpent = computed(() =>
+    rows.value.reduce((acc, r) => acc + (r.delta < 0 ? -r.delta : 0), 0),
+  )
+
   const modelStats = computed((): ModelStat[] => {
     const map = new Map<string, ModelStat>()
     for (const row of rows.value) {
@@ -78,6 +87,8 @@ export function useAiUsageStats() {
           total_images: 0,
           estimated_cost_usd: 0,
           avg_cost_usd: 0,
+          credits: 0,
+          avg_credits: 0,
         })
       }
       const stat = map.get(key)!
@@ -88,9 +99,13 @@ export function useAiUsageStats() {
       stat.total_output_tokens      += row.output_tokens      ?? 0
       stat.total_images             += row.image_count        ?? 0
       stat.estimated_cost_usd       += (row.estimated_cost_usd_cents ?? 0) / 100
+      stat.credits                  += row.delta < 0 ? -row.delta : 0
     }
     const stats = [...map.values()]
-    for (const s of stats) s.avg_cost_usd = s.count ? s.estimated_cost_usd / s.count : 0
+    for (const s of stats) {
+      s.avg_cost_usd = s.count ? s.estimated_cost_usd / s.count : 0
+      s.avg_credits  = s.count ? s.credits / s.count : 0
+    }
     return stats.sort((a, b) => b.count - a.count)
   })
 
@@ -100,6 +115,7 @@ export function useAiUsageStats() {
     totalGenerations,
     byokCount,
     totalEstimatedCostUsd,
+    totalCreditsSpent,
     modelStats,
     refetch: query.refetch,
   }

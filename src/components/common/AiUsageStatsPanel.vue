@@ -16,8 +16,9 @@
           <p class="font-fell text-[11px] text-muted-foreground italic">Total gens</p>
         </div>
         <div class="rounded-md bg-muted/30 border border-border px-3 py-2 text-center">
-          <p class="font-cinzel text-base font-bold text-foreground">${{ stats.totalEstimatedCostUsd.value.toFixed(2) }}</p>
-          <p class="font-fell text-[11px] text-muted-foreground italic">Est. cost (USD)</p>
+          <p v-if="currency === 'credits'" class="font-cinzel text-base font-bold text-foreground">{{ Math.round(stats.totalCreditsSpent.value) }}</p>
+          <p v-else class="font-cinzel text-base font-bold text-foreground">${{ stats.totalEstimatedCostUsd.value.toFixed(2) }}</p>
+          <p class="font-fell text-[11px] text-muted-foreground italic">{{ currency === 'credits' ? 'Credits used' : 'Est. cost (USD)' }}</p>
         </div>
         <div class="rounded-md bg-muted/30 border border-border px-3 py-2 text-center">
           <p class="font-cinzel text-base font-bold text-foreground">{{ stats.byokCount.value }}</p>
@@ -42,8 +43,14 @@
             <span class="font-fell text-[11px] text-muted-foreground italic ml-1">· {{ stat.provider }}</span>
           </div>
           <span class="font-fell text-xs text-muted-foreground shrink-0 w-10 text-right">{{ stat.count }}×</span>
-          <span class="font-cinzel text-xs text-foreground shrink-0 w-20 text-right">${{ stat.estimated_cost_usd.toFixed(3) }}</span>
-          <span class="font-cinzel text-xs text-muted-foreground shrink-0 w-20 text-right">${{ stat.avg_cost_usd.toFixed(4) }}</span>
+          <template v-if="currency === 'credits'">
+            <span class="font-cinzel text-xs text-foreground shrink-0 w-20 text-right">{{ Math.round(stat.credits) }} cr</span>
+            <span class="font-cinzel text-xs text-muted-foreground shrink-0 w-20 text-right">{{ stat.avg_credits.toFixed(1) }} cr</span>
+          </template>
+          <template v-else>
+            <span class="font-cinzel text-xs text-foreground shrink-0 w-20 text-right">${{ stat.estimated_cost_usd.toFixed(3) }}</span>
+            <span class="font-cinzel text-xs text-muted-foreground shrink-0 w-20 text-right">${{ stat.avg_cost_usd.toFixed(4) }}</span>
+          </template>
         </div>
       </div>
 
@@ -55,9 +62,11 @@
 <script setup lang="ts">
 import { useAiUsageStats } from "@/composables/useAiUsageStats";
 
-const { title = "AI Usage Stats", subtitle = "" } = defineProps<{
+const { title = "AI Usage Stats", subtitle = "", currency = "usd" } = defineProps<{
   title?: string;
   subtitle?: string;
+  /** "usd" for the admin/company view, "credits" for the customer view. */
+  currency?: "usd" | "credits";
 }>();
 
 // RLS-scoped to the current user's own ledger, so this shows the viewer's usage.
