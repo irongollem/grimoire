@@ -18,6 +18,22 @@ let costCache: Map<string, number> | null = null;
 let costCacheExpiry = 0;
 const COST_TTL_MS = 5 * 60 * 1000;
 
+/**
+ * Credit multiplier for an image render based on its pixel area, relative to a
+ * 1024×1024 square baseline (= 1.0). A 1536×1024 / 1024×1536 render is 1.5×.
+ * Output-image tokens — and therefore real cost — scale with output area, so
+ * non-square renders are charged proportionally. Returns 1 for unknown/blank
+ * sizes (text generations, fixed-square functions).
+ */
+export function sizeMultiplier(size: string | null | undefined): number {
+  if (!size) return 1;
+  const m = /^(\d+)\s*x\s*(\d+)$/i.exec(size.trim());
+  if (!m) return 1;
+  const area = Number(m[1]) * Number(m[2]);
+  if (!Number.isFinite(area) || area <= 0) return 1;
+  return area / (1024 * 1024);
+}
+
 export async function fetchCreditCost(
   admin: SupabaseClient,
   generationType: string,

@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { decryptValue } from "../_shared/vault.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
-import { fetchCreditCost, fetchUserBalance, recordGeneration } from "../_shared/credits.ts";
+import { fetchCreditCost, fetchUserBalance, recordGeneration, sizeMultiplier } from "../_shared/credits.ts";
 import { createImageJob, completeImageJob, failImageJob, type ImageJobKind } from "../_shared/imageJob.ts";
 
 const corsHeaders = {
@@ -23,6 +23,11 @@ function buildPrompt(sceneText: string, textDescriptions: string[], settingPromp
     parts.push(
       "The following characters appear — use the provided reference portraits where available, and the written descriptions for those without one:\n" +
       textDescriptions.map((d) => `• ${d}`).join("\n"),
+    );
+    parts.push(
+      "Character rules:\n" +
+      "• Render each character exactly once. If a character belongs to a group or party reference and is also named individually, depict them a single time only — never duplicate the same character in the scene unless specifically asked.\n" +
+      "• Reference portraits — including any group or party portrait — define each character's face, build, and costume ONLY. Do not copy their poses, expressions, framing, or the reference's composition. Re-pose and re-stage every character naturally for this specific scene and its action.",
     );
   }
   parts.push(`\nScene: ${sceneText}`);
@@ -130,12 +135,15 @@ async function runGeneration(args: {
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 
+const text = (msg: string, status: number) =>
+  new Response(msg, { status, headers: corsHeaders });
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
+  if (req.method !== "POST") return text("Method not allowed", 405);
 
   const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return new Response("Unauthorized", { status: 401 });
+  if (!authHeader) return text("Unauthorized", 401);
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -143,7 +151,7 @@ serve(async (req: Request) => {
     { global: { headers: { Authorization: authHeader } } },
   );
   const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return new Response("Unauthorized", { status: 401 });
+  if (authError || !user) return text("Unauthorized", 401);
 
   let campaign_id: string, scene_text: string, portrait_urls: string[],
       text_descriptions: string[], size: string, image_model: string, kind: ImageJobKind;
@@ -159,7 +167,7 @@ serve(async (req: Request) => {
     kind              = (body.kind as ImageJobKind | undefined) ?? "chronicler";
     if (!campaign_id || !scene_text) throw new Error("invalid");
   } catch {
-    return new Response("Invalid body — need { campaign_id, scene_text }", { status: 400 });
+    return text("Invalid body — need { campaign_id, scene_text }", 400);
   }
 
   const { data: campaign } = await admin
@@ -167,13 +175,13 @@ serve(async (req: Request) => {
     .select("id, user_id, ai_setting_prompt, openai_api_key")
     .eq("id", campaign_id)
     .maybeSingle();
-  if (!campaign) return new Response("Campaign not found", { status: 404 });
+  if (!campaign) return text("Campaign not found", 404);
 
   if (campaign.user_id !== user.id) {
     const { data: membership } = await admin
       .from("campaign_members").select("role")
       .eq("campaign_id", campaign_id).eq("user_id", user.id).maybeSingle();
-    if (!membership) return new Response("Forbidden", { status: 403 });
+    if (!membership) return text("Forbidden", 403);
   }
 
   const campaignOpenai = campaign.openai_api_key
@@ -182,10 +190,13 @@ serve(async (req: Request) => {
   const platformKeys = !campaignOpenai ? await fetchPlatformKeys(admin, ["openai"]) : {};
   const openaiKey = campaignOpenai ?? platformKeys.openai ?? null;
   const isByok = !!campaignOpenai;
-  if (!openaiKey) return new Response("No OpenAI API key configured", { status: 422 });
+  if (!openaiKey) return text("No OpenAI API key configured", 422);
 
-  // Pre-flight credit check (deduction happens after generation, in the bg task)
-  const chronicleImageCost = isByok ? 0 : await fetchCreditCost(admin, "chronicle_image");
+  // Pre-flight credit check (deduction happens after generation, in the bg task).
+  // Cost scales with output area — a landscape/portrait render is 1.5× a square one.
+  const chronicleImageCost = isByok
+    ? 0
+    : Math.round(await fetchCreditCost(admin, "chronicle_image") * sizeMultiplier(size) * 100) / 100;
   if (chronicleImageCost > 0) {
     const balance = await fetchUserBalance(admin, user.id);
     if (balance < chronicleImageCost) {

@@ -36,6 +36,7 @@
             <SoundForm
               :page-id="pageId"
               :gemini-api-key="geminiApiKey"
+              :campaign-id="campaignId"
               @saved="$emit('close')"
               @cancel="$emit('close')"
             />
@@ -54,6 +55,7 @@ defineProps<{
   open: boolean;
   pageId?: string | null;
   geminiApiKey?: string | null;
+  campaignId?: string | null;
 }>();
 
 defineEmits<{

@@ -1,5 +1,31 @@
 <template>
-  <form id="npc-detail-form" class="max-w-full min-w-0" @submit.prevent="save">
+  <!-- Mobile edit layer (<md): own app bar + stacked cards + save bar. Drives
+       the same reactive form/statBlock and handlers that live in this file. -->
+  <NpcEditMobile
+    v-if="isMobile"
+    :form="form"
+    :stat-block="statBlock"
+    :has-stat-block="hasStatBlock"
+    :art-tab="artTab"
+    :location-options="locationOptions"
+    :all-monsters="allMonsters ?? []"
+    :npc="npc"
+    :is-new="!npc"
+    :is-saving="isSaving"
+    :is-sending-to-scriptorium="isSendingToScriptorium"
+    :is-ai-enabled="isAiEnabled"
+    @save="save"
+    @cancel="onMobileCancel"
+    @delete="confirmDelete"
+    @generate="showGenerateDialog = true"
+    @scriptorium="sendToScriptorium"
+    @apply-template="applyTemplate"
+    @link-monster="onMonsterLinked"
+    @update:has-stat-block="hasStatBlock = $event"
+    @update:art-tab="artTab = $event"
+  />
+
+  <form v-else id="npc-detail-form" class="max-w-full min-w-0" @submit.prevent="save">
 
     <RevealedFieldsPanel
       v-if="npc?.id"
@@ -30,6 +56,7 @@
         :relationship="form.relationship"
         :status="form.status"
         :tags="form.tags"
+        :ai-context="aiContext"
         @update:art-tab="artTab = $event"
         @update:portrait-url="form.portrait_url = $event"
         @update:portrait-focal-point="form.portrait_focal_point = $event"
@@ -173,6 +200,7 @@
 import { useConfirm } from "@/composables/useConfirm";
 import { ref, reactive, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useMediaQuery } from '@vueuse/core'
 import NpcGenerateDialog from '@/ai/NpcGenerateDialog.vue'
 import { toTiptapJson } from '@/ai/useNpcGeneration'
 import type { NpcAiGenerated } from '@/ai/types'
@@ -190,6 +218,8 @@ import NpcInventorySection from '@/components/npcs/NpcInventorySection.vue'
 import NpcLoreTab from '@/components/npcs/NpcLoreTab.vue'
 import NpcIdentitySection from '@/components/npcs/NpcIdentitySection.vue'
 import NpcSidebar from '@/components/npcs/NpcSidebar.vue'
+import { buildEntityContext, toPlainText } from '@/ai/utils'
+import NpcEditMobile from '@/components/npcs/NpcEditMobile.vue'
 import type { Npc, NpcInsert, StatBlock } from '@/types/npc.types'
 import { useCampaignStore } from '@/stores/campaign'
 import EntityCombobox from '@/components/common/EntityCombobox.vue'
@@ -218,6 +248,10 @@ const TABS_BAR = TABS.map(t => ({ id: t.key, label: t.label }))
 // ── Props ─────────────────────────────────────────────────────────────────────
 
 const props = defineProps<{ npc?: Npc | null }>()
+
+// Mobile (<md) renders NpcEditMobile instead of the desktop grid form. Desktop
+// markup is unchanged and only conditionally rendered (v-if on the <form>).
+const isMobile = useMediaQuery('(max-width: 767px)')
 
 // ── Store + mutations ─────────────────────────────────────────────────────────
 
@@ -399,6 +433,15 @@ const form = reactive<NpcInsert>({
   player_visible_to: props.npc?.player_visible_to ?? [],
 })
 
+const aiContext = computed(() =>
+  buildEntityContext([
+    form.name,
+    [form.race, form.occupation].filter(Boolean).join(', '),
+    toPlainText(form.appearance),
+    toPlainText(form.personality),
+  ]),
+)
+
 // Sync sharing fields if the prop updates after mount (e.g. list popover saved first)
 watch(() => props.npc?.player_visible_to, (val) => {
   form.player_visible_to = val ?? []
@@ -561,6 +604,13 @@ async function confirmDelete() {
   } catch {
     notify('Failed to delete NPC. Please try again.')
   }
+}
+
+// Mobile-only cancel: return to the read view for an existing NPC, or the list
+// for a brand-new one (desktop uses the PageHeader View/Edit toggle instead).
+function onMobileCancel() {
+  if (props.npc?.id) router.push(`/npcs/${props.npc.id}`)
+  else router.push('/npcs')
 }
 
 defineExpose({

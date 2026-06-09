@@ -70,6 +70,7 @@ Key columns:
 | `session_end_year/month/day`   | integer                   | in-game end date (optional)           |
 | `session_real_date`            | text                      | real-world "YYYY-MM-DD"               |
 | `linked_calendar_event_id`     | uuid FK → calendar_events | auto-managed; null on event delete    |
+| `sort_order`                   | integer                   | manual drag order; null until reordered (migration `20260608000002`) |
 
 **RLS (current):** `auth.uid() = user_id` gives DM full access. Players select where their `party_member_id` is in `player_visible_to`:
 
@@ -106,11 +107,12 @@ TanStack Query key: `"notes"`.
 
 | Export                     | Returns                  | Description                                              |
 | -------------------------- | ------------------------ | -------------------------------------------------------- |
-| `useNotes()`               | `UseQueryResult<Note[]>` | All notes for active campaign, ordered `updated_at DESC` |
+| `useNotes()`               | `UseQueryResult<Note[]>` | All notes for active campaign (fetched `updated_at DESC`; the view re-sorts client-side via `sortEntities`) |
 | `useNote(id: Ref<string>)` | `UseQueryResult<Note>`   | Single note by ID                                        |
 | `useCreateNote()`          | `UseMutationResult`      | `mutationFn: (note: Omit<NoteInsert, "campaign_id">)`    |
 | `useUpdateNote()`          | `UseMutationResult`      | `mutationFn: ({ id, update })`                           |
 | `useDeleteNote()`          | `UseMutationResult`      | `mutationFn: (id: string)`                               |
+| `useReorderNotes()`        | `UseMutationResult`      | `mutationFn: (orderedIds: string[])` — writes `sort_order = index` (manual drag) |
 
 All mutations call `queryClient.invalidateQueries({ queryKey: ["notes"] })` on success.
 
@@ -134,10 +136,12 @@ All mutations call `queryClient.invalidateQueries({ queryKey: ["notes"] })` on s
 
 - Consumes `useNotes()` and `useQuota("notes")`
 - Client-side filtering: free-text search (title + tags), category pill buttons
-- Sort: pinned-first, then `updated_at DESC`
+- **Sort:** a `SortControl` (`src/components/common/SortControl.vue`) exposes four modes — Created / Updated / Title A–Z / Manual — with an asc/desc toggle. Sort preference lives in `useUiStore` (`notesSortBy`, `notesSortDir`). Default is **Created, descending** (newest first). Ordering uses the shared `sortEntities` util (`src/lib/noteSort.ts`). Pinned notes float to the top in every mode (rendered as a separate static group); in **Manual** mode only the unpinned remainder is draggable (`VueDraggable`, handle `.note-drag-handle`), persisted via `useReorderNotes()` writing `sort_order = index`.
+- Each card is the extracted `NoteCard` (`src/components/notes/NoteCard.vue`), reused by both the static grid and the draggable grid
 - Category colour map: `general=#6b7280`, `session=#2563eb`, `lore=#7c3aed`, `location=#059669`, `quest=#d97706`, `faction=#dc2626`
 - Content preview via `extractTiptapText(note.content)` from `src/lib/utils.ts`
-- Filter state is stored in local `ref`s (not `useUiStore`) — this is the one exception to the filter-in-store rule because it is a very simple two-field filter
+- Filter state (search + category) is stored in local `ref`s; sort state is in `useUiStore`
+- **Session sequence:** filter to the Session category + Manual sort to drag session notes into the order they should read (the `Session N` label / `session_num` is unaffected — `sort_order` is a separate column)
 
 **`src/components/notes/NoteEditor.vue`**
 
@@ -240,11 +244,12 @@ TanStack Query key: `"player_journal"`.
 
 | Export                      | Returns                                | Description                                        |
 | --------------------------- | -------------------------------------- | -------------------------------------------------- |
-| `useMyJournalEntries()`     | `UseQueryResult<PlayerJournalEntry[]>` | Current user's own entries, `created_at DESC`      |
-| `useSharedJournalEntries()` | `UseQueryResult<PlayerJournalEntry[]>` | Other players' non-private entries                 |
-| `useCreateJournalEntry()`   | `UseMutationResult`                    | `mutationFn: (entry: Omit<Insert, "campaign_id">)` |
-| `useUpdateJournalEntry()`   | `UseMutationResult`                    | `mutationFn: ({ id, update })`                     |
-| `useDeleteJournalEntry()`   | `UseMutationResult`                    | `mutationFn: (id: string)`                         |
+| `useMyJournalEntries()`       | `UseQueryResult<PlayerJournalEntry[]>` | Current user's own entries (fetched `created_at DESC`; the view re-sorts) |
+| `useSharedJournalEntries()`   | `UseQueryResult<PlayerJournalEntry[]>` | Other players' non-private entries                 |
+| `useCreateJournalEntry()`     | `UseMutationResult`                    | `mutationFn: (entry: Omit<Insert, "campaign_id">)` |
+| `useUpdateJournalEntry()`     | `UseMutationResult`                    | `mutationFn: ({ id, update })`                     |
+| `useDeleteJournalEntry()`     | `UseMutationResult`                    | `mutationFn: (id: string)`                         |
+| `useReorderJournalEntries()`  | `UseMutationResult`                    | `mutationFn: (orderedIds: string[])` — writes `sort_order = index` (My Journal manual drag) |
 
 `JOURNAL_CATEGORIES` and `JOURNAL_CATEGORY_LIST` are exported constants for colour/label display. `is_private = true` entries are filtered by RLS; players cannot see other players' private entries.
 

@@ -193,17 +193,30 @@
             </div>
             <template v-if="draftProviders[row.provider]?.audio_model !== null && draftProviders[row.provider]?.audio_model !== undefined">
               <div class="space-y-1">
-                <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground">Model</label>
-                <input
-                  v-model="draftProviders[row.provider].audio_model"
-                  :list="`audio-models-${row.provider}`"
-                  type="text"
-                  class="w-full bg-background border border-border rounded px-2.5 py-1.5 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                  placeholder="e.g. lyria-3-clip-preview"
-                />
-                <datalist :id="`audio-models-${row.provider}`">
-                  <option v-for="m in providerModelOptions[row.provider]" :key="m" :value="m" />
-                </datalist>
+                <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground">Models</label>
+                <!-- Multiple known models: show as static list; user selects in the app UI -->
+                <template v-if="(KNOWN_AUDIO_MODELS[row.provider] ?? []).length > 1">
+                  <div class="space-y-0.5">
+                    <div
+                      v-for="m in KNOWN_AUDIO_MODELS[row.provider]"
+                      :key="m"
+                      class="font-mono text-[10px] text-muted-foreground px-2 py-1 rounded bg-muted/30"
+                    >{{ m }}</div>
+                  </div>
+                </template>
+                <!-- Single configurable model -->
+                <template v-else>
+                  <input
+                    v-model="draftProviders[row.provider].audio_model"
+                    :list="`audio-models-${row.provider}`"
+                    type="text"
+                    class="w-full bg-background border border-border rounded px-2.5 py-1.5 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                    placeholder="e.g. lyria-3-clip-preview"
+                  />
+                  <datalist :id="`audio-models-${row.provider}`">
+                    <option v-for="m in KNOWN_AUDIO_MODELS[row.provider] ?? []" :key="m" :value="m" />
+                  </datalist>
+                </template>
               </div>
               <div class="space-y-1">
                 <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground">Multiplier</label>
@@ -243,8 +256,9 @@
                 <div class="flex items-center gap-1 shrink-0">
                   <span class="font-cinzel text-[9px] text-muted-foreground">TXT-IN $</span>
                   <input
-                    v-model.number="draftModelPricing[m.model].input_cost_per_million_tokens"
-                    type="number" step="0.001" min="0"
+                    type="text" inputmode="decimal"
+                    :value="draftModelPricing[m.model].input_cost_per_million_tokens ?? ''"
+                    @blur="(e) => setDecimal(draftModelPricing[m.model], 'input_cost_per_million_tokens', e)"
                     class="w-16 bg-background border border-border rounded px-1.5 py-0.5 font-mono text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
                   />
                   <span class="font-cinzel text-[9px] text-muted-foreground">/M</span>
@@ -252,8 +266,9 @@
                 <div class="flex items-center gap-1 shrink-0">
                   <span class="font-cinzel text-[9px] text-muted-foreground">OUT $</span>
                   <input
-                    v-model.number="draftModelPricing[m.model].output_cost_per_million_tokens"
-                    type="number" step="0.001" min="0"
+                    type="text" inputmode="decimal"
+                    :value="draftModelPricing[m.model].output_cost_per_million_tokens ?? ''"
+                    @blur="(e) => setDecimal(draftModelPricing[m.model], 'output_cost_per_million_tokens', e)"
                     class="w-16 bg-background border border-border rounded px-1.5 py-0.5 font-mono text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
                   />
                   <span class="font-cinzel text-[9px] text-muted-foreground">/M</span>
@@ -263,8 +278,9 @@
                 <div class="flex items-center gap-1 shrink-0">
                   <span class="font-cinzel text-[9px] text-muted-foreground">TXT-IN $</span>
                   <input
-                    v-model.number="draftModelPricing[m.model].input_cost_per_million_tokens"
-                    type="number" step="0.001" min="0"
+                    type="text" inputmode="decimal"
+                    :value="draftModelPricing[m.model].input_cost_per_million_tokens ?? ''"
+                    @blur="(e) => setDecimal(draftModelPricing[m.model], 'input_cost_per_million_tokens', e)"
                     class="w-14 bg-background border border-border rounded px-1.5 py-0.5 font-mono text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
                   />
                   <span class="font-cinzel text-[9px] text-muted-foreground">/M</span>
@@ -272,8 +288,9 @@
                 <div class="flex items-center gap-1 shrink-0">
                   <span class="font-cinzel text-[9px] text-muted-foreground">IMG-IN $</span>
                   <input
-                    v-model.number="draftModelPricing[m.model].image_input_cost_per_million_tokens"
-                    type="number" step="0.001" min="0"
+                    type="text" inputmode="decimal"
+                    :value="draftModelPricing[m.model].image_input_cost_per_million_tokens ?? ''"
+                    @blur="(e) => setDecimal(draftModelPricing[m.model], 'image_input_cost_per_million_tokens', e)"
                     class="w-14 bg-background border border-border rounded px-1.5 py-0.5 font-mono text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
                   />
                   <span class="font-cinzel text-[9px] text-muted-foreground">/M</span>
@@ -281,8 +298,9 @@
                 <div class="flex items-center gap-1 shrink-0">
                   <span class="font-cinzel text-[9px] text-muted-foreground">IMG-OUT $</span>
                   <input
-                    v-model.number="draftModelPricing[m.model].image_output_cost_per_million_tokens"
-                    type="number" step="0.001" min="0"
+                    type="text" inputmode="decimal"
+                    :value="draftModelPricing[m.model].image_output_cost_per_million_tokens ?? ''"
+                    @blur="(e) => setDecimal(draftModelPricing[m.model], 'image_output_cost_per_million_tokens', e)"
                     class="w-14 bg-background border border-border rounded px-1.5 py-0.5 font-mono text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
                   />
                   <span class="font-cinzel text-[9px] text-muted-foreground">/M</span>
@@ -293,8 +311,9 @@
                 <div class="flex items-center gap-1 shrink-0">
                   <span class="font-cinzel text-[9px] text-muted-foreground">PER GEN $</span>
                   <input
-                    v-model.number="draftModelPricing[m.model].cost_per_image_usd"
-                    type="number" step="0.001" min="0"
+                    type="text" inputmode="decimal"
+                    :value="draftModelPricing[m.model].cost_per_image_usd ?? ''"
+                    @blur="(e) => setDecimal(draftModelPricing[m.model], 'cost_per_image_usd', e)"
                     class="w-20 bg-background border border-border rounded px-1.5 py-0.5 font-mono text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
                   />
                 </div>
@@ -434,6 +453,12 @@ const providerModelOptions = computed<Record<string, string[]>>(() => ({
   falai:     [],
 }));
 
+// ── Known audio models per provider ──────────────────────────────────────
+const KNOWN_AUDIO_MODELS: Record<string, string[]> = {
+  gemini: ["lyria-3-clip-preview", "lyria-3-pro-preview"],
+  openai: ["tts-1", "tts-1-hd", "gpt-4o-audio-preview"],
+};
+
 // ── Model pricing ──────────────────────────────────────────────────────────
 const modelPricingQuery = useAdminModelPricing();
 
@@ -451,24 +476,36 @@ const modelPricingSaving = reactive<Record<string, boolean>>({});
 watch(
   [() => providersQuery.data.value, () => modelPricingQuery.query.data.value],
   ([providers, pricingRows]) => {
+    // Wait until both data sources are loaded before initialising drafts.
+    // Without this guard, the watch fires immediately (providers loaded, pricing
+    // still undefined), seeds every model with all-null values, and then when
+    // pricing data arrives the "already in map" guard prevents re-initialisation.
+    if (!providers || pricingRows === undefined) return;
+
     const pricingByModel = new Map((pricingRows ?? []).map((r) => [r.model, r]));
+
+    function initModel(model: string | null | undefined) {
+      if (!model || model in draftModelPricing) return;
+      const pricing = pricingByModel.get(model);
+      draftModelPricing[model] = {
+        input_cost_per_million_tokens:        pricing?.input_cost_per_million_tokens        ?? null,
+        output_cost_per_million_tokens:       pricing?.output_cost_per_million_tokens       ?? null,
+        image_input_cost_per_million_tokens:  pricing?.image_input_cost_per_million_tokens  ?? null,
+        image_output_cost_per_million_tokens: pricing?.image_output_cost_per_million_tokens ?? null,
+        cost_per_image_usd:                   pricing?.cost_per_image_usd                   ?? null,
+        last_verified_at:                     pricing?.last_verified_at                     ?? null,
+      };
+    }
+
     for (const p of providers ?? []) {
-      const entries = [
-        [p.text_model,  "text"],
-        [p.image_model, "image"],
-        [p.audio_model, "audio"],
-      ] as const;
-      for (const [model, _type] of entries) {
-        if (!model || model in draftModelPricing) continue;
-        const pricing = pricingByModel.get(model);
-        draftModelPricing[model] = {
-          input_cost_per_million_tokens:        pricing?.input_cost_per_million_tokens        ?? null,
-          output_cost_per_million_tokens:       pricing?.output_cost_per_million_tokens       ?? null,
-          image_input_cost_per_million_tokens:  pricing?.image_input_cost_per_million_tokens  ?? null,
-          image_output_cost_per_million_tokens: pricing?.image_output_cost_per_million_tokens ?? null,
-          cost_per_image_usd:                   pricing?.cost_per_image_usd                   ?? null,
-          last_verified_at:                     pricing?.last_verified_at                     ?? null,
-        };
+      initModel(p.text_model);
+      initModel(p.image_model);
+      // For audio: initialize all known models for the provider, not just the DB-configured one.
+      const knownAudio = KNOWN_AUDIO_MODELS[p.provider];
+      if (knownAudio?.length && p.audio_model) {
+        knownAudio.forEach(initModel);
+      } else {
+        initModel(p.audio_model);
       }
     }
   },
@@ -484,11 +521,25 @@ const modelsByProvider = computed(() => {
     const items: ModelConfigItem[] = [];
     if (draft.text_model)  items.push({ model: draft.text_model,  model_type: "text" });
     if (draft.image_model) items.push({ model: draft.image_model, model_type: "image" });
-    if (draft.audio_model) items.push({ model: draft.audio_model, model_type: "audio" });
-    if (items.length) map[provider] = items;
+    const knownAudio = KNOWN_AUDIO_MODELS[provider];
+    if (knownAudio?.length && draft.audio_model) {
+      knownAudio.forEach((m) => items.push({ model: m, model_type: "audio" }));
+    } else if (draft.audio_model) {
+      items.push({ model: draft.audio_model, model_type: "audio" });
+    }
+    // Only show pricing rows for models that have been persisted (initialized in draftModelPricing).
+    // This prevents a crash when the user is mid-type in a model name input.
+    const initialized = items.filter(item => item.model in draftModelPricing);
+    if (initialized.length) map[provider] = initialized;
   }
   return map;
 });
+
+function setDecimal(obj: Record<string, unknown>, key: string, e: Event): void {
+  const raw = (e.target as HTMLInputElement).value.replace(',', '.');
+  const v = parseFloat(raw);
+  obj[key] = isNaN(v) ? null : v;
+}
 
 async function saveModelPricing(model: string, provider: string, model_type: "text" | "image" | "audio") {
   modelPricingSaving[model] = true;

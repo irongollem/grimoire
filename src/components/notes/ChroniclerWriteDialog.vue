@@ -50,7 +50,12 @@
           <p v-if="error" class="font-fell text-xs text-destructive shrink-0">{{ error }}</p>
 
           <!-- Actions -->
-          <div class="flex gap-2 justify-end shrink-0">
+          <div class="flex gap-2 justify-end items-center shrink-0">
+            <GenerationCostBadge
+              :credits="textCreditCost"
+              :byok="textIsByok"
+              class="mr-auto"
+            />
             <button
               type="button"
               class="px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
@@ -62,7 +67,7 @@
             <button
               type="button"
               class="inline-flex items-center gap-1.5 px-4 py-1.5 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
-              :disabled="isGenerating || !rawText.trim() || rawText.length > NOTES_LIMIT"
+              :disabled="isGenerating || !rawText.trim() || rawText.length > NOTES_LIMIT || !affordable(textCreditCost, textIsByok)"
               @click="generate"
             >
               <IconNote class="h-3 w-3" :class="isGenerating ? 'animate-pulse' : ''" />
@@ -129,8 +134,12 @@ import {
 } from "@/ai/useChroniclerTextGeneration";
 import { useEntityMentionItems } from "@/composables/useEntityMentionItems";
 import { markdownToTiptapJson } from "@/lib/markdownToTiptap";
+import { useCampaignStore } from "@/stores/campaign";
+import { useAiCredits } from "@/composables/useAiCredits";
+import { useProviderConfig } from "@/composables/useProviderConfig";
 import MentionTextarea from "@/components/common/MentionTextarea.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 
 const TONES = CHRONICLER_TONES;
 
@@ -148,6 +157,15 @@ const error            = ref("");
 
 const { isGenerating, generate: generateChronicle } = useChroniclerTextGeneration();
 const { mentionItems, partyMembers, npcs, monsters } = useEntityMentionItems();
+
+const campaign = useCampaignStore();
+const { costOf, affordable } = useAiCredits();
+const { textMultiplierFor } = useProviderConfig();
+const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
+const textIsByok = computed(() => !!campaign.decryptedApiKey);
+const textCreditCost = computed(
+  () => Math.round(costOf("chronicle_text") * textMultiplierFor(textProvider.value) * 100) / 100,
+);
 
 watch(() => props.visible, (v) => {
   if (v) {

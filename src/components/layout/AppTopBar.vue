@@ -14,44 +14,21 @@
       <IconSearch class="h-5 w-5" />
     </button>
 
-    <!-- DM Prep/Play toggle (#133) — mirrors the sidebar pill for mobile. -->
+    <!-- DM Prep/Play toggle — compact single-word pill showing current state. -->
     <button
       v-if="isDm"
       type="button"
       :title="ui.dmMode === 'play' ? 'Play mode — click to stop broadcasting' : 'Prep mode — click to broadcast'"
-      class="flex items-center gap-0.5 rounded border px-1 py-0.5 font-cinzel text-[9px] tracking-widest font-bold transition-colors shrink-0"
+      class="rounded border px-2 py-0.5 font-cinzel text-[9px] tracking-widest font-bold transition-colors shrink-0"
       :class="ui.dmMode === 'play'
         ? 'border-primary/60 bg-primary/15 text-primary'
         : 'border-border text-muted-foreground'"
       @click="ui.toggleDmMode()"
     >
-      <span class="px-1" :class="ui.dmMode === 'prep' ? '' : 'opacity-50'">PREP</span>
-      <span class="px-1" :class="ui.dmMode === 'play' ? '' : 'opacity-50'">PLAY</span>
+      {{ ui.dmMode === 'play' ? 'PLAY' : 'PREP' }}
     </button>
 
-    <button
-      class="text-muted-foreground hover:text-foreground transition-colors"
-      aria-label="Report a bug"
-      @click="bugReportOpen = true"
-    >
-      <IconBug class="h-5 w-5" />
-    </button>
-    <SoundboardWidgetToggle class="px-1.5! py-1!" />
-    <DiceRoller />
-    <BugReportModal v-model="bugReportOpen" />
-
-    <!-- Mobile nav FAB — bottom-left, thumb-friendly.
-         Bottom/left offsets include env(safe-area-inset-*) so the FAB clears
-         both the home-indicator and landscape notches. -->
-    <Teleport to="body">
-      <button
-        class="md:hidden fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom))] left-[calc(1rem+env(safe-area-inset-left))] z-[60] flex items-center justify-center w-12 h-12 rounded-full bg-card border border-border shadow-lg text-muted-foreground hover:text-foreground active:scale-95 transition-all"
-        aria-label="Open navigation"
-        @click="ui.toggleMobileNav()"
-      >
-        <IconMenu class="h-5 w-5" />
-      </button>
-    </Teleport>
+    <SoundboardWidgetToggle :icon-only="true" class="px-1.5! py-1!" />
 
     <!-- Mobile search overlay -->
     <Teleport to="body">
@@ -117,18 +94,15 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from "vue";
 import { useRoute } from "vue-router";
-import { IconBug, IconClose, IconLoading, IconMenu, IconSearch } from '@/lib/icons';
+import { IconClose, IconLoading, IconSearch } from '@/lib/icons';
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
-import DiceRoller from "@/components/common/DiceRoller.vue";
 import SoundboardWidgetToggle from "@/components/soundboard/SoundboardWidgetToggle.vue";
-import BugReportModal from "@/components/common/BugReportModal.vue";
 import { useGlobalSearch } from "@/composables/useGlobalSearch";
 
 const route = useRoute();
 const ui = useUiStore();
 const auth = useAuthStore();
-const bugReportOpen = ref(false);
 const isDm = computed(() => auth.currentRole === "dm");
 
 const pageTitle = computed(() => (route.meta.title as string | undefined) ?? "Grimoire");

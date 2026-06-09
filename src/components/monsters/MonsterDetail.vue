@@ -1,5 +1,30 @@
 <template>
-  <div class="flex flex-col gap-5 min-w-0 max-w-full">
+  <!-- Mobile edit (<md): full-screen takeover with its own app bar + save bar.
+       Form state lives here; MonsterEditMobile owns layout only. -->
+  <MonsterEditMobile
+    v-if="isMobile"
+    :form="form"
+    :sb="sb"
+    :is-srd="isSrd"
+    :is-new="!props.monster"
+    :is-saving="saving"
+    :is-cloning="cloning"
+    :is-duplicating="duplicating"
+    :is-sending-to-scriptorium="sendingToScriptorium"
+    :is-ai-enabled="isAiEnabled"
+    @save="save"
+    @cancel="onCancel"
+    @delete="remove"
+    @duplicate="duplicate"
+    @customize="customize"
+    @scriptorium="sendToScriptorium"
+    @generate="showGenerateDialog = true"
+    @update:image-url="onPortraitUrlUpdate($event)"
+    @update:focal-point="onPortraitFocalUpdate($event)"
+  />
+
+  <!-- Desktop (≥md): unchanged two-column grid form -->
+  <div v-else class="flex flex-col gap-5 min-w-0 max-w-full">
     <!-- Read-only SRD banner -->
     <div
       v-if="isSrd"
@@ -77,6 +102,8 @@
           :focal-point="form.portrait_focal_point"
           bucket="monster-images"
           show-focal-point
+          ai-kind="monster"
+          :ai-context="aiContext"
           @update:model-value="onPortraitUrlUpdate($event)"
           @update:focal-point="onPortraitFocalUpdate($event)"
         />
@@ -204,9 +231,12 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, reactive, computed, watch } from "vue";
 import { useRouter } from "vue-router";
+import { useMediaQuery } from "@vueuse/core";
 import { IconCopy, IconGenerate, IconScrollText } from "@/lib/icons";
+import MonsterEditMobile from "@/components/monsters/MonsterEditMobile.vue";
 import MonsterGenerateDialog from "@/ai/MonsterGenerateDialog.vue";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
+import { buildEntityContext, toPlainText } from "@/ai/utils";
 import { useCampaignStore } from "@/stores/campaign";
 import type { MonsterAiGenerated } from "@/ai/types";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
@@ -272,6 +302,31 @@ const props = defineProps<{ monster: Monster | null }>();
 const router = useRouter();
 
 const isSrd = computed(() => !!props.monster?.is_srd);
+
+const aiContext = computed(() =>
+  buildEntityContext([
+    form.name,
+    `${form.size} ${form.monster_type}`,
+    form.alignment,
+    form.habitat,
+    toPlainText(form.description),
+  ]),
+);
+
+// Mobile-only edit layer (<md). Desktop keeps the existing two-column grid form,
+// byte-identical to before.
+const isMobile = useMediaQuery("(max-width: 767px)");
+
+// Leaving edit mode on mobile: existing monsters drop the ?edit=true flag (back
+// to the read view); a brand-new monster has no detail page to fall back to, so
+// it returns to the list — the post-mutation/cancel feedback surface.
+function onCancel() {
+  if (props.monster) {
+    void router.replace(`/monsters/${props.monster.id}`);
+  } else {
+    void router.push("/monsters");
+  }
+}
 
 const { mutateAsync: upsertSrdArt } = useUpsertSrdMonsterArt();
 

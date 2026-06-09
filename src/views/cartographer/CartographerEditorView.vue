@@ -72,6 +72,8 @@
         :atlas-target-has-map="styleAtlasTargetHasMap"
         :atlas-error="styleAtlasError"
         :atlas-saving="styleAtlasSaving"
+        :credits="styleCost"
+        :byok="styleByok"
         @close-picker="showStylePicker = false"
         @close-result="showStyleResult = false"
         @generate="onGenerateStyle"
@@ -246,6 +248,9 @@ import {
 import { useConfirm } from "@/composables/useConfirm";
 import { useNotes } from "@/composables/useNotes";
 import { useEncounters } from "@/composables/useEncounters";
+import { useAiCredits } from "@/composables/useAiCredits";
+import { useProviderConfig } from "@/composables/useProviderConfig";
+import { useCampaignStore } from "@/stores/campaign";
 import { useAllLocations, useUpdateLocationMapUrl, useUpdateLocationGridCalibration } from "@/composables/useLocations";
 import { bakeMap, bakeMapAsPng, bakeMapForAI, computeBakedDimensions } from "@/cartographer/bake";
 import { CARTOGRAPHER_STYLE_PRESETS } from "@/cartographer/stylePresets";
@@ -332,6 +337,14 @@ const updateLocationMapUrl = useUpdateLocationMapUrl();
 const updateLocationGridCalibration = useUpdateLocationGridCalibration();
 
 // M8 — AI Map Styler
+// Map restyle renders square (1024×1024) via OpenAI → flat cost, no size scaling.
+const mapStyleCampaign = useCampaignStore();
+const { costOf: costOfCredits } = useAiCredits();
+const { imageMultiplierFor: mapImageMultiplierFor } = useProviderConfig();
+const styleByok = computed(() => !!mapStyleCampaign.decryptedOpenAiKey);
+const styleCost = computed(
+  () => Math.round(costOfCredits("map_style_generation") * mapImageMultiplierFor("openai") * 100) / 100,
+);
 const showStylePicker = ref(false);
 const showStyleResult = ref(false);
 const selectedPresetId = ref("playable");

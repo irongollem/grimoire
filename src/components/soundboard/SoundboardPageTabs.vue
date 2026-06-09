@@ -1,6 +1,6 @@
 <template>
-  <div class="flex items-center gap-1 min-w-0 overflow-x-auto pb-1 mb-4 border-b border-border/50">
-    <!-- "All" virtual tab -->
+  <div class="flex items-center gap-1 pb-1 mb-4 border-b border-border/50">
+    <!-- "All" virtual tab (pinned — stays visible while named tabs scroll) -->
     <button
       class="shrink-0 px-3 py-1 rounded-md text-xs font-cinzel tracking-wide transition-colors"
       :class="
@@ -13,15 +13,40 @@
       All
     </button>
 
-    <!-- Named page tabs (draggable) -->
-    <VueDraggable
-      v-model="orderedPages"
-      class="flex items-center gap-1"
-      handle=".page-drag-handle"
-      :animation="150"
-      ghost-class="opacity-40"
-      @end="persistPageOrder"
-    >
+    <!-- Named page tabs (draggable) — scrolls horizontally when they overflow.
+         Edge fades + chevron buttons cue (and trigger) the hidden tabs. -->
+    <div class="relative flex-1 min-w-0">
+      <!-- Left fade + scroll button -->
+      <button
+        v-show="canScrollLeft"
+        type="button"
+        class="absolute inset-y-0 left-0 z-10 flex items-center pr-4 pl-0.5 bg-linear-to-r from-card via-card/90 to-transparent text-muted-foreground hover:text-foreground transition-colors"
+        title="Scroll left"
+        @click="scrollByStep(-1)"
+      >
+        <IconChevronLeft class="h-3.5 w-3.5" />
+      </button>
+
+      <!-- Right fade + scroll button -->
+      <button
+        v-show="canScrollRight"
+        type="button"
+        class="absolute inset-y-0 right-0 z-10 flex items-center pl-4 pr-0.5 justify-end bg-linear-to-l from-card via-card/90 to-transparent text-muted-foreground hover:text-foreground transition-colors"
+        title="Scroll right"
+        @click="scrollByStep(1)"
+      >
+        <IconChevronRight class="h-3.5 w-3.5" />
+      </button>
+
+      <VueDraggable
+        ref="scroller"
+        v-model="orderedPages"
+        class="flex items-center gap-1 overflow-x-auto scrollbar-none"
+        handle=".page-drag-handle"
+        :animation="150"
+        ghost-class="opacity-40"
+        @end="persistPageOrder"
+      >
       <div
         v-for="page in orderedPages"
         :key="page.id"
@@ -70,7 +95,8 @@
           <IconClose class="h-2.5 w-2.5" />
         </button>
       </div>
-    </VueDraggable>
+      </VueDraggable>
+    </div>
 
     <!-- Add page button -->
     <button
@@ -85,8 +111,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick } from "vue";
-import { IconAdd, IconClose, IconDrag } from '@/lib/icons';
+import { ref, watch, nextTick, onMounted, onBeforeUnmount } from "vue";
+import type { ComponentPublicInstance } from "vue";
+import { IconAdd, IconChevronLeft, IconChevronRight, IconClose, IconDrag } from '@/lib/icons';
 import { VueDraggable } from "vue-draggable-plus";
 import {
   useCreateSoundboardPage,
@@ -119,6 +146,56 @@ function persistPageOrder() {
   reorderPages(orderedPages.value.map((p) => p.id));
 }
 
+// ── Overflow cues ───────────────────────────────────────────────────────────
+// When the named tabs overflow their row, fade + chevron buttons appear on the
+// scrollable edges so the DM knows there are more tabs (and can click to reach
+// them). Recomputed on scroll, resize, and whenever the tab set changes.
+
+const scroller = ref<ComponentPublicInstance | null>(null);
+const canScrollLeft = ref(false);
+const canScrollRight = ref(false);
+
+function scrollEl(): HTMLElement | undefined {
+  return scroller.value?.$el as HTMLElement | undefined;
+}
+
+function updateScrollCues() {
+  const el = scrollEl();
+  if (!el) {
+    canScrollLeft.value = false;
+    canScrollRight.value = false;
+    return;
+  }
+  // 1px tolerance: scrollWidth can be a hair larger than scrollLeft+clientWidth
+  // at the extremes due to sub-pixel rounding, which would otherwise keep the
+  // chevron visible at the very end.
+  const maxScroll = el.scrollWidth - el.clientWidth;
+  canScrollLeft.value = el.scrollLeft > 1;
+  canScrollRight.value = el.scrollLeft < maxScroll - 1;
+}
+
+function scrollByStep(direction: 1 | -1) {
+  scrollEl()?.scrollBy({ left: direction * 160, behavior: "smooth" });
+}
+
+let resizeObserver: ResizeObserver | undefined;
+
+onMounted(() => {
+  updateScrollCues();
+  const el = scrollEl();
+  if (!el) return;
+  el.addEventListener("scroll", updateScrollCues, { passive: true });
+  if (typeof ResizeObserver !== "undefined") {
+    resizeObserver = new ResizeObserver(() => updateScrollCues());
+    resizeObserver.observe(el);
+  }
+});
+
+onBeforeUnmount(() => {
+  scrollEl()?.removeEventListener("scroll", updateScrollCues);
+  resizeObserver?.disconnect();
+});
+
 // ── Add ───────────────────────────────────────────────────────────────────
 
 function addPage() {
@@ -128,7 +205,12 @@ function addPage() {
     {
       onSuccess: (page) => {
         activePageId.value = page.id;
-        nextTick(() => startRename(page));
+        // Open the title for editing, but the input only renders once the
+        // refetched `pages` prop includes the new page — defer the focus until
+        // it appears (see the orderedPages watcher below).
+        editingId.value = page.id;
+        nameDraft.value = page.name;
+        awaitingFocusId.value = page.id;
       },
     },
   );
@@ -139,17 +221,30 @@ function addPage() {
 const editingId = ref<string | null>(null);
 const nameDraft = ref("");
 const renameInput = ref<HTMLInputElement | null>(null);
+const awaitingFocusId = ref<string | null>(null);
+
+function focusRenameInput() {
+  nextTick(() => {
+    const el = Array.isArray(renameInput.value) ? renameInput.value[0] : renameInput.value;
+    el?.focus();
+    el?.select();
+  });
+}
+
+// Focus the rename input for a newly created page once its tab has rendered;
+// also refresh the overflow cues since the tab set (and its width) changed.
+watch(orderedPages, () => {
+  if (awaitingFocusId.value && orderedPages.value.some((p) => p.id === awaitingFocusId.value)) {
+    awaitingFocusId.value = null;
+    focusRenameInput();
+  }
+  nextTick(updateScrollCues);
+});
 
 function startRename(page: SoundboardPage) {
   editingId.value = page.id;
   nameDraft.value = page.name;
-  nextTick(() => {
-    if (Array.isArray(renameInput.value)) {
-      renameInput.value[0]?.select();
-    } else {
-      renameInput.value?.select();
-    }
-  });
+  focusRenameInput();
 }
 
 function saveRename(id: string) {

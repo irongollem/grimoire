@@ -7,6 +7,8 @@
         :model-value="portraitUrl || null"
         :focal-point="focalPoint"
         show-focal-point
+        ai-kind="party_member"
+        :ai-context="aiContext"
         @update:model-value="emit('update:portraitUrl', $event ?? '')"
         @update:focal-point="emit('update:focalPoint', $event)"
       />
@@ -194,10 +196,12 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import type { IdentityFormSlice } from "./partyMemberForm.types";
+import { buildEntityContext } from "@/ai/utils";
 
 interface CampaignMemberOption {
   id: string;
@@ -247,6 +251,15 @@ const {
   /** map of species id → name for disguise lookup */
   allSpeciesMap: Record<string, string>;
 }>();
+
+const aiContext = computed(() =>
+  buildEntityContext([
+    form.name,
+    [allSpeciesMap[form.species_id ?? ""], form.subrace].filter(Boolean).join(" "),
+    [form.class, form.subclass].filter(Boolean).join(" "),
+    form.level ? `level ${form.level}` : "",
+  ]),
+);
 
 const emit = defineEmits<{
   "update:form": [patch: Partial<IdentityFormSlice>];

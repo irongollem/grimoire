@@ -34,20 +34,37 @@
     <p class="font-fell text-xs text-muted-foreground italic">Record your adventures, clues, and discoveries.</p>
   </div>
 
-  <!-- Entry feed -->
-  <div v-else class="flex flex-col gap-2">
-    <JournalCard
-      v-for="entry in visibleEntries"
+  <!-- Entry feed (draggable in manual sort, static otherwise) -->
+  <component
+    :is="sortBy === 'manual' ? VueDraggable : 'div'"
+    v-else
+    v-bind="dragBindings"
+    class="flex flex-col gap-2"
+  >
+    <div
+      v-for="entry in (sortBy === 'manual' ? dragEntries : visibleEntries)"
       :key="entry.id"
-      :color="JOURNAL_CATEGORIES[entry.category]?.color ?? '#6b7280'"
-      :icon="categoryIcon(entry.category)"
-      :category-label="JOURNAL_CATEGORIES[entry.category]?.label ?? ''"
-      :title="entry.title || contentPreview(entry.content)"
-      :preview="entry.title ? contentPreview(entry.content) : undefined"
-      :date="formatDate(entry.created_at)"
-      :expanded="expanded === entry.id"
-      @toggle="$emit('toggle', entry.id)"
+      class="relative"
     >
+      <!-- Drag handle (manual sort only) -->
+      <div
+        v-if="sortBy === 'manual'"
+        class="journal-drag-handle absolute left-1.5 top-1/2 -translate-y-1/2 z-10 cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground/80 transition-colors"
+        title="Drag to reorder"
+      >
+        <IconDrag class="h-3.5 w-3.5" />
+      </div>
+      <JournalCard
+        :class="sortBy === 'manual' ? 'pl-5' : ''"
+        :color="JOURNAL_CATEGORIES[entry.category]?.color ?? '#6b7280'"
+        :icon="categoryIcon(entry.category)"
+        :category-label="JOURNAL_CATEGORIES[entry.category]?.label ?? ''"
+        :title="entry.title || contentPreview(entry.content)"
+        :preview="entry.title ? contentPreview(entry.content) : undefined"
+        :date="formatDate(entry.created_at)"
+        :expanded="expanded === entry.id"
+        @toggle="$emit('toggle', entry.id)"
+      >
       <template #meta>
         <span v-if="entry.ref_label" class="font-fell text-xs text-muted-foreground/70 italic truncate max-w-32">{{ entry.ref_label }}</span>
         <span
@@ -182,24 +199,29 @@
           </div>
         </div>
       </div>
-    </JournalCard>
-  </div>
+      </JournalCard>
+    </div>
+  </component>
 </template>
 
 <script setup lang="ts">
-import { IconLoading, IconLock, IconPopulate, IconReveal, IconSave } from '@/lib/icons';
+import { ref, computed, watch } from 'vue';
+import { VueDraggable } from 'vue-draggable-plus';
+import { IconDrag, IconLoading, IconLock, IconPopulate, IconReveal, IconSave } from '@/lib/icons';
 import JournalCard from '@/components/player/JournalCard.vue';
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue';
 import RichTextEditor from '@/components/common/RichTextEditor.vue';
 import RichTextViewer from '@/components/common/RichTextViewer.vue';
 import { JOURNAL_CATEGORIES, JOURNAL_CATEGORY_LIST } from '@/composables/usePlayerJournal';
 import type { JournalCategory, PlayerJournalEntry } from '@/composables/usePlayerJournal';
+import type { SortField } from '@/lib/noteSort';
 import type { EntityMentionItem } from '@/lib/tiptap/EntityMention';
 import type { Component } from 'vue';
 
 const {
   isLoading,
   visibleEntries,
+  sortBy,
   filterCategory,
   expanded,
   editingId,
@@ -214,6 +236,7 @@ const {
 } = defineProps<{
   isLoading: boolean;
   visibleEntries: PlayerJournalEntry[];
+  sortBy: SortField;
   filterCategory: JournalCategory | null;
   expanded: string | null;
   editingId: string | null;
@@ -235,7 +258,7 @@ const {
   isRteEmpty: (val: string) => boolean;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   (e: 'update:filterCategory', value: JournalCategory | null): void;
   (e: 'toggle', id: string): void;
   (e: 'startEdit', entry: PlayerJournalEntry): void;
@@ -243,5 +266,30 @@ defineEmits<{
   (e: 'editFormChange', patch: Partial<typeof editForm>): void;
   (e: 'cancelEdit'): void;
   (e: 'submitEdit'): void;
+  (e: 'reorder', ids: string[]): void;
 }>();
+
+// Local mutable copy for drag-and-drop (manual sort); kept in sync with the
+// parent-supplied list and persisted on drag end.
+const dragEntries = ref<PlayerJournalEntry[]>([]);
+watch(() => visibleEntries, (list) => { dragEntries.value = [...list]; }, { immediate: true });
+
+function persistOrder() {
+  emit('reorder', dragEntries.value.map((entry) => entry.id));
+}
+
+// VueDraggable props are only bound when manual sort is active, so the static
+// <div> fallback never receives stray drag attributes.
+const dragBindings = computed(() =>
+  sortBy === 'manual'
+    ? {
+        modelValue: dragEntries.value,
+        'onUpdate:modelValue': (v: PlayerJournalEntry[]) => { dragEntries.value = v; },
+        handle: '.journal-drag-handle',
+        animation: 150,
+        ghostClass: 'opacity-40',
+        onEnd: persistOrder,
+      }
+    : {},
+);
 </script>

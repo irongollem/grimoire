@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { decryptValue } from "../_shared/vault.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
-import { fetchCreditCost, fetchUserBalance, recordGeneration } from "../_shared/credits.ts";
+import { fetchCreditCost, fetchUserBalance, recordGeneration, sizeMultiplier } from "../_shared/credits.ts";
 import {
   AI_PROMPT_LIMIT,
   INJECTION_GUARD_SUFFIX,
@@ -22,7 +22,11 @@ const admin = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
-
+// Portrait render size per image provider — drives the area-based cost multiplier.
+const PORTRAIT_SIZE_BY_PROVIDER: Record<string, string> = {
+  openai: "1024x1536",
+  falai:  "768x1152",
+};
 
 function buildCampaignContext(setting: string | null | undefined): string {
   const s = setting?.trim();
@@ -305,7 +309,11 @@ serve(async (req: Request) => {
   const textMultiplier  = providerConfigs[textProvider as keyof typeof providerConfigs]?.text_multiplier;
   const imageMultiplier = providerConfigs[imageProvider as keyof typeof providerConfigs]?.image_multiplier;
   const npcTextCost    = applyMultiplier(baseTextCost, textMultiplier);
-  const portraitCostEach = applyMultiplier(basePortraitCost, imageMultiplier);
+  // Portrait cost scales with output area vs a 1024² square baseline.
+  const portraitSize = PORTRAIT_SIZE_BY_PROVIDER[imageProvider] ?? PORTRAIT_SIZE_BY_PROVIDER.openai;
+  const portraitCostEach = Math.round(
+    applyMultiplier(basePortraitCost, imageMultiplier) * sizeMultiplier(portraitSize) * 100,
+  ) / 100;
   const maxImages = generateImage ? (generateAlterEgo ? 2 : 1) : 0;
   const totalNeeded = npcTextCost + portraitCostEach * maxImages;
   if (totalNeeded > 0) {

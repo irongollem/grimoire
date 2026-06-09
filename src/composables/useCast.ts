@@ -246,12 +246,10 @@ function onSdkReady(): void {
   remotePlayer     = new fw.RemotePlayer();
   playerController = new fw.RemotePlayerController(remotePlayer);
 
-  const initialState = ctx.getCastState();
-  isCastAvailable.value = initialState !== fw.CastState.NO_DEVICES_AVAILABLE;
-
-  ctx.addEventListener(fw.CastContextEventType.CAST_STATE_CHANGED, (e) => {
-    isCastAvailable.value = (e as CastStateEvent).castState !== fw.CastState.NO_DEVICES_AVAILABLE;
-  });
+  // Mark as available as soon as the SDK is loaded — device discovery is async
+  // and getCastState() often returns NO_DEVICES_AVAILABLE on the first call even
+  // when speakers are on the network. The picker handles the no-device case.
+  isCastAvailable.value = true;
 
   ctx.addEventListener(fw.CastContextEventType.SESSION_STATE_CHANGED, (e) => {
     onSessionStateChanged(e as SessionStateEvent);

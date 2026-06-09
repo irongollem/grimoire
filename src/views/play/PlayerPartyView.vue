@@ -137,7 +137,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { IconSearch } from "@/lib/icons";
 import ImageLightbox from "@/components/common/ImageLightbox.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -164,6 +165,8 @@ import { useSpeciesNameMap } from "@/composables/useSpecies";
 import type { Npc } from "@/types/npc.types";
 import type { HealthVisibility } from "@/types/encounter.types";
 
+const route = useRoute();
+const router = useRouter();
 const auth = useAuthStore();
 const ui = useUiStore();
 const campaign = useCampaignStore();
@@ -339,6 +342,20 @@ function openNpc(npc: Npc) {
 function closeNpc() {
   selectedNpc.value = null;
 }
+
+// Auto-open NPC lightbox when navigated from a chat "View →" link (?npc=<id>)
+watch(
+  () => [route.query.npc, allSharedNpcs.value] as const,
+  ([npcId]) => {
+    if (!npcId || typeof npcId !== "string" || !allSharedNpcs.value) return;
+    const npc = allSharedNpcs.value.find((n) => n.id === npcId);
+    if (!npc) return;
+    openNpc(npc);
+    const { npc: _npc, ...rest } = route.query;
+    router.replace({ query: rest });
+  },
+  { immediate: true },
+);
 
 // ── Companion lightbox ────────────────────────────────────────────────────────
 const selectedCompanion = ref<Companion | null>(null);

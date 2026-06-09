@@ -117,10 +117,16 @@
 
       <!-- Footer -->
       <div class="px-5 py-4 border-t border-border flex flex-col gap-2 shrink-0">
+        <GenerationCostBadge
+          v-if="isPro && isAiEnabled"
+          :credits="textCreditCost"
+          :byok="textIsByok"
+          class="self-center"
+        />
         <button
           v-if="isPro && isAiEnabled"
           type="button"
-          :disabled="isAnyAiGenerating || !concept.trim()"
+          :disabled="isAnyAiGenerating || !concept.trim() || !affordable(textCreditCost, textIsByok)"
           :title="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
           class="w-full inline-flex items-center justify-center gap-1.5 py-2 font-cinzel text-xs font-semibold tracking-wider rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
           @click="generateAndCreate"
@@ -163,6 +169,9 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useCreatePuzzle } from "@/composables/usePuzzles";
 import { useSubscription } from "@/composables/useSubscription";
 import PaywallModal from "@/components/common/PaywallModal.vue";
+import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
+import { useAiCredits } from "@/composables/useAiCredits";
+import { useProviderConfig } from "@/composables/useProviderConfig";
 import { usePuzzleGeneration } from "@/ai/usePuzzleGeneration";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
@@ -179,6 +188,14 @@ const aiApiKey = computed(() => campaign.decryptedApiKey);
 const isAiEnabled = computed(() => campaign.isAiEnabled);
 const { isPro } = useSubscription();
 const showPaywall = ref(false);
+
+const { costOf, affordable } = useAiCredits();
+const { textMultiplierFor } = useProviderConfig();
+const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
+const textIsByok = computed(() => !!campaign.decryptedApiKey);
+const textCreditCost = computed(
+  () => Math.round(costOf("puzzle_generation") * textMultiplierFor(textProvider.value) * 100) / 100,
+);
 
 const concept       = ref("");
 const constraints   = reactive({ puzzle_type: "", difficulty: "" });

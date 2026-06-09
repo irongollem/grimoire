@@ -134,9 +134,11 @@ async function handleSubmit() {
   errorMessage.value = "";
   successMessage.value = "";
   try {
-    await auth.signUp(email.value, password.value, displayName.value.trim() || undefined);
-    // Consume the invite token after successful signup
-    await supabase.rpc("consume_app_invite", { p_token: token });
+    // Pass the invite token through signup metadata — the on-insert subscription
+    // trigger consumes it and applies the granted plan server-side. (The old
+    // post-signup consume_app_invite RPC ran before a session existed, so
+    // auth.uid() was null and tester/admin grants silently no-op'd.)
+    await auth.signUp(email.value, password.value, displayName.value.trim() || undefined, undefined, token);
     successMessage.value = "Check your email to confirm your account, then sign in.";
     email.value = "";
     password.value = "";

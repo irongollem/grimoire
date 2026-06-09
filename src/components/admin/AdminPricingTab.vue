@@ -112,6 +112,11 @@
                 type="number" min="0"
                 class="w-24 bg-muted border border-border rounded px-2 py-1 font-fell text-sm text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
               />
+              <p
+                v-if="derivedNonSquare(gen.generation_type)"
+                class="font-fell text-[10px] text-muted-foreground/60 mt-0.5 whitespace-nowrap"
+                title="Non-square renders are charged base × pixel-area (1.5× for 3:2 / 2:3). This is derived, not separately editable."
+              >{{ derivedNonSquare(gen.generation_type)!.label }} ×1.5 = {{ derivedNonSquare(gen.generation_type)!.cost }}</p>
             </td>
             <td class="py-2 pl-4 text-right">
               <span v-if="calibrationQuery.isPending.value" class="font-fell text-[10px] text-muted-foreground/40">…</span>
@@ -159,6 +164,7 @@
 
 <script setup lang="ts">
 import { reactive, computed, watch } from "vue";
+import { sizeMultiplier } from "@/composables/useAiCredits";
 import { useAdminPricing } from "@/composables/useAdminPricing";
 import type { CreditPackConfig, GenerationCreditCost } from "@/composables/useAdminPricing";
 import { useCheckoutConfig } from "@/composables/useCheckoutConfig";
@@ -226,6 +232,22 @@ async function savePack(pack: CreditPackConfig) {
   } finally {
     packSaving[pack.pack_id] = false;
   }
+}
+
+// Generation types whose renders are non-square — the credit_cost above is the
+// 1024² square baseline, and the effective charge is base × area-multiplier.
+// Surfaced read-only so the admin sees what's actually charged.
+const NON_SQUARE_NOTE: Record<string, { label: string; size: string }> = {
+  chronicle_image: { label: "landscape", size: "1536x1024" },
+  entity_image:    { label: "portrait",  size: "1024x1536" },
+  portrait:        { label: "portrait",  size: "1024x1536" },
+};
+
+function derivedNonSquare(generationType: string): { label: string; cost: number } | null {
+  const note = NON_SQUARE_NOTE[generationType];
+  const base = draftGenCosts[generationType];
+  if (!note || typeof base !== "number" || Number.isNaN(base)) return null;
+  return { label: note.label, cost: Math.round(base * sizeMultiplier(note.size) * 100) / 100 };
 }
 
 const draftGenCosts = reactive<Record<string, number>>({});

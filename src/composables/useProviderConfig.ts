@@ -19,6 +19,16 @@ export const PROVIDER_DISPLAY: Record<string, string> = {
   falai:     "fal.ai — FLUX",
 };
 
+/**
+ * Portrait render size per image provider. Mirrors `PORTRAIT_SIZE_BY_PROVIDER`
+ * in the generate-npc edge function so the UI's credit estimate matches the
+ * server's area-based cost (`costOf("portrait", { size })`).
+ */
+export const PORTRAIT_SIZE_BY_PROVIDER: Record<string, string> = {
+  openai: "1024x1536",
+  falai:  "768x1152",
+};
+
 export function useProviderConfig() {
   const query = useQuery({
     queryKey: ["provider-config"],
