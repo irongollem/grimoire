@@ -817,6 +817,22 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, requiresAdmin: true, title: "Admin" },
   },
 
+  // Dev-only: Paged.js spike harness for the Scriptorium re-architecture
+  // Phase B go/no-go (SCRIPTORIUM_PLAN.md §3 / issue #330). Not registered
+  // in production builds.
+  ...(import.meta.env.DEV
+    ? [
+        {
+          path: "/spike/pagedjs",
+          name: "spike-pagedjs",
+          // No auth: lets headless Chrome print-to-PDF hit it directly.
+          // Dev-only — this route does not exist in production builds.
+          component: () => import("@/views/spike/SpikePagedJsView.vue"),
+          meta: { requiresAuth: false, title: "Paged.js Spike" },
+        },
+      ]
+    : []),
+
   // 404
   {
     path: "/:pathMatch(.*)*",
