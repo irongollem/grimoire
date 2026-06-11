@@ -297,7 +297,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from "vue";
+import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import { IconAdd, IconBug, IconCalendarDays, IconClose, IconEncounter, IconLogOut, IconMenu, IconMessage, IconPopulate, IconReveal, IconSettingsAlt } from '@/lib/icons';
@@ -322,12 +322,6 @@ import NewCampaignModal from "@/components/campaign/NewCampaignModal.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useQuota } from "@/composables/useQuota";
 import type { Campaign } from "@/types/campaign.types";
-
-// Tell App.vue's update banner how tall our fixed bottom nav is so it can
-// float above it instead of overlapping it on mobile.
-const BOTTOM_NAV_H = "calc(4rem + env(safe-area-inset-bottom))";
-onMounted(() => document.documentElement.style.setProperty("--bottom-nav-h", BOTTOM_NAV_H));
-onUnmounted(() => document.documentElement.style.removeProperty("--bottom-nav-h"));
 
 const auth = useAuthStore();
 const ui = useUiStore();
