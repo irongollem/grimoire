@@ -1,5 +1,10 @@
 <template>
   <MobileSheet :open="open" title="All sections" @update:open="emit('update:open', $event)">
+    <!-- Active campaign + switcher — the desktop sidebar (hidden md:flex) is the
+         only other place this lives, so mobile/PWA DMs get it here. Full-bleed
+         to align with the sheet's title divider. -->
+    <CampaignSwitcher class="-mx-4 mb-4" />
+
     <!-- Context-aware create — the create path in Play mode (whose center FAB
          is the dice roller, not "+"). Shown whenever the current section has a
          create route. -->
@@ -96,6 +101,7 @@
 import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import MobileSheet from "@/components/common/MobileSheet.vue";
+import CampaignSwitcher from "@/components/layout/CampaignSwitcher.vue";
 import BugReportModal from "@/components/common/BugReportModal.vue";
 import { IconAdd, IconBug, IconRefresh } from "@/lib/icons";
 import { NAV_GROUPS, type NavItem } from "@/lib/nav";
