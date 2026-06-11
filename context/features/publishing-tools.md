@@ -10,7 +10,9 @@ These are DM-only tools for creating physical and printed campaign materials. Th
 
 Route: `/scriptorium`, `/scriptorium/new`, `/scriptorium/:id`
 
-A Homebrewery-style document editor that produces output styled after the official D&D books. The DM writes in a rich Tiptap editor on the left and sees a live paginated preview on the right.
+A document publisher that produces output styled after the official D&D books. The DM writes in a rich Tiptap editor on the left and sees a live paginated preview on the right.
+
+> **Re-architecture in progress** — see [`SCRIPTORIUM_PLAN.md`](../../SCRIPTORIUM_PLAN.md) (repo root). The Homebrewery-style two-pane model is being rebuilt as "Canva for D&D": themed editable galley + live auto-paginated book (Paged.js), vector PDF export, template gallery, and drag-on-page decorations. Phases A–E tracked in the Scriptorium EPIC GitHub issue; this section describes the *current* shipped behavior and is updated as phases land.
 
 ### Document Types
 

@@ -37,6 +37,7 @@
 - [x] Scriptorium asset insert panel — browse and inject NPCs / monsters / locations as new pages
 - [x] Image controls in Scriptorium editor (size presets S/M/L/XL, float left / center / right)
 - [x] Scriptorium page numbers + footer (#225) — per-document `show_page_numbers` / `footer_text` / `page_number_start` settings; preview and PDF both render a footer bar with italic small-caps footer text (left) and page number (right); Skip # and Reset # atom nodes in the block registry allow skipping a page's number or resetting the counter; cover/back-cover pages are always unnumbered
+- [x] Scriptorium re-architecture Phase A (#454, EPIC #457) — "Canva for D&D" reframing per `SCRIPTORIUM_PLAN.md`: theme CSS unified into a single source of truth (`src/assets/scriptorium/theme-base.css` + variable-only theme files) consumed by preview, editor, and PDF export (killed the 3-way duplication); editor pane rebuilt as a themed parchment galley that tracks document theme + ink-friendly mode; `blockId` Tiptap extension adds stable block UUIDs (groundwork for Phase B click-to-edit and Phase D furniture anchors); Alegreya (OFL) wired as PHB-style body face. Fixed three latent PDF bugs: two-column layout silently dropped on export, 380px image cap diverging from preview, and a nonexistent `page-border.png` injected into every export
 
 ### Game Entities
 

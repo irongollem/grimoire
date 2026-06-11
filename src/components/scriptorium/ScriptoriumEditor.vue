@@ -92,9 +92,18 @@
           @set-image-pos="setImagePos"
         />
 
-        <!-- Tiptap content -->
+        <!-- Tiptap content — the themed galley. The sc-theme + theme-* classes
+             pull the shared book styling (src/assets/scriptorium/) onto the
+             editing surface so the manuscript looks like the book. -->
         <div class="p-4 lg:flex-1 lg:overflow-auto lg:min-h-0 relative">
-          <EditorContent :editor="editor" class="phb-editor h-full" />
+          <EditorContent
+            :editor="editor"
+            class="phb-editor sc-theme h-full"
+            :class="[
+              theme === 'phb2014' ? 'theme-phb2014' : 'theme-onednd2024',
+              { 'ink-friendly': inkFriendly },
+            ]"
+          />
 
           <!-- AI Enhance bubble menu -->
           <BubbleMenu
@@ -373,6 +382,7 @@ const {
   inkFriendly,
   pageFooters,
   footerText,
+  isTwoColumn,
 );
 
 // ── AI text enhancement ───────────────────────────────────────────────────────

@@ -28,6 +28,7 @@ import { QuoteBlock } from "@/lib/tiptap/quoteBlock";
 import { Attribution } from "@/lib/tiptap/attribution";
 import { TocBlock } from "@/lib/tiptap/tocBlock";
 import { CoverPage } from "@/lib/tiptap/coverPage";
+import { BlockId } from "@/lib/tiptap/blockId";
 
 /*
  * Tiptap nodes don't have a public-facing generic for `extend()`'s config that
@@ -84,5 +85,6 @@ export function createScriptoriumExtensions() {
     Attribution,
     TocBlock,
     CoverPage,
+    BlockId,
   ];
 }

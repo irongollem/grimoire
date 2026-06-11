@@ -1,14 +1,22 @@
 /*
- * Scriptorium editor — ProseMirror / Tiptap dark-app-theme styles
+ * Scriptorium editor galley — ProseMirror / Tiptap editing-surface styles.
  *
- * All rules are scoped under .phb-editor so they only apply inside the
- * Scriptorium editor pane. This file is imported globally from main.css
- * (rather than being a scoped Vue style block) so the file size of
- * ScriptoriumEditor.vue stays within the 600-line soft limit.
+ * The galley is a THEMED manuscript: the editor wrapper carries the
+ * `sc-theme` scope class plus the document's theme class
+ * (`theme-onednd2024` | `theme-phb2014`), so ALL content styling (headings,
+ * callouts, stat blocks, tables, quotes) comes from the shared theme files in
+ * src/assets/scriptorium/ — the same CSS that styles the preview pages and
+ * the PDF export. This file contains ONLY:
+ *   1. the manuscript sheet itself (parchment surface, page text width)
+ *   2. editor-only affordances: placeholder, selection outlines, and
+ *      flattened/labelled placeholders for nodes that only make sense on a
+ *      real paginated page (covers, watermarks, page-break markers, spacers).
+ *
+ * All rules are scoped under .phb-editor. Imported globally from main.css
+ * (after the theme files, so equal-specificity affordances win the cascade).
  *
  * NOTE: No @reference needed here — this file is @import'd into main.css
- * which already has the full Tailwind + @theme context. Adding @reference
- * to main.css would create a circular dependency (main → editor → main).
+ * which already has the full Tailwind + @theme context.
  */
 
 /* ── Transition: AI enhance error toast ───────────────────────────────────── */
@@ -21,64 +29,75 @@
   opacity: 0;
 }
 
-/* ── Editor (dark app theme) ─────────────────────────────────────────────── */
+/* ── The manuscript sheet ─────────────────────────────────────────────────── */
+/* Page text width = A4 page (794px) minus the .phb-page side padding (2×68px),
+   so galley line lengths track the single-column book measure. px here is
+   intrinsic page geometry, matching EDITOR_PAGE_DIMENSIONS_PX. */
 .phb-editor .ProseMirror {
-  @apply font-fell text-foreground outline-none;
+  background:
+    url("/assets/scriptorium/page-background.webp") center / cover repeat-y,
+    var(--sc-page-bg);
+  max-width: 658px;
   min-height: 100%;
-  line-height: 1.75;
-  font-size: 0.9375rem;
+  margin-inline: auto;
+  padding: 2.5rem 2rem 3rem;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
+  font-family: var(--sc-body-font);
+  color: var(--sc-ink);
+  line-height: 1.65;
+  font-size: 15px;
+  outline: none;
 }
+.phb-editor.ink-friendly .ProseMirror {
+  background: #fff;
+}
+
 .phb-editor .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
-  @apply text-muted-foreground;
+  color: color-mix(in srgb, var(--sc-ink) 45%, transparent);
+  font-style: italic;
   float: left;
   pointer-events: none;
   height: 0;
 }
-.phb-editor .ProseMirror h1 {
-  @apply font-cinzel text-2xl font-bold mt-4 mb-2;
-}
-.phb-editor .ProseMirror h2 {
-  @apply font-cinzel text-xl font-bold mt-3 mb-1.5;
-}
-.phb-editor .ProseMirror h3 {
-  @apply font-cinzel text-base font-semibold mt-2 mb-1;
-}
-.phb-editor .ProseMirror ul,
-.phb-editor .ProseMirror ol {
-  @apply pl-6 my-2;
-}
-.phb-editor .ProseMirror p {
-  font-style: normal;
-}
-.phb-editor .ProseMirror .sc-descriptive p,
-.phb-editor .ProseMirror blockquote p,
-.phb-editor .ProseMirror .sc-quote p {
-  font-style: italic;
-}
-.phb-editor .ProseMirror blockquote {
-  @apply border-l-4 border-primary pl-3 text-muted-foreground italic my-2;
-}
-.phb-editor .ProseMirror hr {
-  @apply border-border my-4;
-}
-.phb-editor .ProseMirror code {
-  @apply bg-muted px-1 rounded text-sm font-mono;
-}
-.phb-editor .ProseMirror pre {
-  @apply bg-muted p-3 rounded my-2 text-sm;
-}
+
 .phb-editor .ProseMirror img {
   max-width: 100%;
   max-height: 640px;
-  border-radius: 6px;
-  object-fit: cover;
+}
+
+/* ── Page break marker (hr) ───────────────────────────────────────────────── */
+/* theme-base hides <hr> on rendered pages; in the galley it must stay visible
+   as the explicit page-break marker. */
+.phb-editor .ProseMirror hr {
+  display: block;
+  height: 0;
+  border: none;
+  border-top: 1px dashed color-mix(in srgb, var(--sc-accent) 55%, transparent);
+  margin: 1rem 0;
+  position: relative;
+  overflow: visible;
+}
+.phb-editor .ProseMirror hr::after {
+  content: "page break";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: system-ui, sans-serif;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--sc-accent) 70%, transparent);
+  background: var(--sc-page-bg);
+  padding: 0 0.4rem;
+  pointer-events: none;
 }
 
 /* ── Spacer nodes ────────────────────────────────────────────────────────── */
 .phb-editor .ProseMirror .sc-spacer-v {
   display: block;
-  border: 1px dashed color-mix(in srgb, currentColor 35%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--sc-ink) 35%, transparent);
   border-radius: 2px;
   position: relative;
   min-height: 4px;
@@ -92,22 +111,26 @@
   justify-content: center;
   font-family: system-ui, sans-serif;
   font-size: 10px;
-  color: color-mix(in srgb, currentColor 45%, transparent);
+  color: color-mix(in srgb, var(--sc-ink) 45%, transparent);
   pointer-events: none;
   letter-spacing: 0.04em;
 }
 .phb-editor .ProseMirror .sc-spacer-h {
-  border-bottom: 1px dashed color-mix(in srgb, currentColor 35%, transparent);
+  display: inline-block;
+  border: none;
+  border-bottom: 1px dashed color-mix(in srgb, var(--sc-ink) 35%, transparent);
   vertical-align: bottom;
   min-width: 4px;
   height: 1em;
 }
 
 /* ── Column break ────────────────────────────────────────────────────────── */
+/* The galley is single-column; show the marker as a labelled divider. */
 .phb-editor .ProseMirror .sc-column-break {
+  break-before: auto;
   display: block;
   height: 0;
-  border-top: 1px dashed color-mix(in srgb, var(--sc-col-rule, currentColor) 60%, transparent);
+  border-top: 1px dashed color-mix(in srgb, var(--sc-col-rule, currentColor) 80%, transparent);
   margin: 0.5rem 0;
   position: relative;
 }
@@ -120,54 +143,16 @@
   font-family: system-ui, sans-serif;
   font-size: 9px;
   letter-spacing: 0.06em;
-  color: color-mix(in srgb, currentColor 40%, transparent);
-  background: var(--background, #fff);
+  color: color-mix(in srgb, var(--sc-ink) 40%, transparent);
+  background: var(--sc-page-bg);
   padding: 0 0.4rem;
   pointer-events: none;
 }
 
-/* ── Watercolor image ────────────────────────────────────────────────────── */
-.phb-editor .ProseMirror img[data-type="watercolor"] {
-  outline: 1px dashed color-mix(in srgb, currentColor 40%, transparent);
-  outline-offset: 2px;
-  border-radius: 2px;
-  mix-blend-mode: multiply;
-}
-
-/* ── Watermark node ──────────────────────────────────────────────────────── */
-.phb-editor .ProseMirror div[data-type="watermark"] {
-  position: static !important;
-  display: block;
-  border: 1px dashed color-mix(in srgb, currentColor 35%, transparent);
-  border-radius: 2px;
-  padding: 0.25rem 0.75rem;
-  margin: 0.5rem 0;
-  overflow: hidden;
-  max-height: 3rem;
-}
-.phb-editor .ProseMirror div[data-type="watermark"] span {
-  position: static !important;
-  font-size: 1.25rem;
-  transform: none !important;
-  opacity: 0.45;
-}
-
-/* ── Artist credit node ──────────────────────────────────────────────────── */
-.phb-editor .ProseMirror div[data-type="artistCredit"] {
-  position: static !important;
-  display: block;
-  border: 1px dashed color-mix(in srgb, currentColor 35%, transparent);
-  border-radius: 2px;
-  padding: 0.15rem 0.5rem;
-  margin: 0.25rem 0;
-  font-size: 0.7rem;
-  font-style: italic;
-  opacity: 0.65;
-}
-
-/* ── Wide element ────────────────────────────────────────────────────────── */
+/* ── Wide block (column-span only means something on a two-column page) ───── */
 .phb-editor .ProseMirror .sc-wide {
-  outline: 1px dashed color-mix(in srgb, currentColor 35%, transparent);
+  column-span: none;
+  outline: 1px dashed color-mix(in srgb, var(--sc-ink) 35%, transparent);
   outline-offset: 3px;
   border-radius: 2px;
   padding: 0.25rem;
@@ -182,15 +167,55 @@
   font-family: system-ui, sans-serif;
   font-size: 9px;
   letter-spacing: 0.06em;
-  color: color-mix(in srgb, currentColor 45%, transparent);
+  color: color-mix(in srgb, var(--sc-ink) 45%, transparent);
   pointer-events: none;
 }
 
-/* ── Cover page atom ─────────────────────────────────────────────────────── */
+/* ── Watercolor image (kept in flow, marked) ─────────────────────────────── */
+.phb-editor .ProseMirror img[data-type="watercolor"] {
+  outline: 1px dashed color-mix(in srgb, var(--sc-ink) 40%, transparent);
+  outline-offset: 2px;
+  border-radius: 2px;
+  mix-blend-mode: multiply;
+}
+
+/* ── Watermark node (flattened placeholder) ──────────────────────────────── */
+.phb-editor .ProseMirror div[data-type="watermark"] {
+  position: static !important;
+  display: block;
+  border: 1px dashed color-mix(in srgb, var(--sc-ink) 35%, transparent);
+  border-radius: 2px;
+  padding: 0.25rem 0.75rem;
+  margin: 0.5rem 0;
+  overflow: hidden;
+  max-height: 3rem;
+}
+.phb-editor .ProseMirror div[data-type="watermark"] span {
+  position: static !important;
+  font-size: 1.25rem;
+  transform: none !important;
+  opacity: 0.45;
+}
+
+/* ── Artist credit node (flattened placeholder) ──────────────────────────── */
+.phb-editor .ProseMirror div[data-type="artistCredit"] {
+  position: static !important;
+  display: block;
+  border: 1px dashed color-mix(in srgb, var(--sc-ink) 35%, transparent);
+  border-radius: 2px;
+  padding: 0.15rem 0.5rem;
+  margin: 0.25rem 0;
+  font-size: 0.7rem;
+  font-style: italic;
+  opacity: 0.65;
+}
+
+/* ── Cover page atom (collapsed placeholder card) ────────────────────────── */
 .phb-editor .ProseMirror div[data-type="coverPage"] {
   position: relative;
+  inset: auto;
   display: block;
-  border: 2px dashed color-mix(in srgb, currentColor 30%, transparent);
+  border: 2px dashed color-mix(in srgb, var(--sc-ink) 30%, transparent);
   border-radius: 4px;
   min-height: 8rem;
   margin: 0.75rem 0;
@@ -208,7 +233,7 @@
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: color-mix(in srgb, currentColor 45%, transparent);
+  color: color-mix(in srgb, var(--sc-ink) 45%, transparent);
   pointer-events: none;
   white-space: nowrap;
 }
@@ -216,19 +241,19 @@
   display: none;
 }
 
-/* ── Page numbering markers ──────────────────────────────────────────────── */
+/* ── Page numbering markers (visible pills in the galley) ────────────────── */
 .phb-editor .ProseMirror .sc-skip-counting,
 .phb-editor .ProseMirror .sc-reset-counting {
   display: inline-flex;
   align-items: center;
   padding: 0.1rem 0.5rem;
-  border: 1px dashed color-mix(in srgb, currentColor 40%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--sc-ink) 40%, transparent);
   border-radius: 3px;
   font-family: system-ui, sans-serif;
   font-size: 10px;
   letter-spacing: 0.05em;
-  color: color-mix(in srgb, currentColor 55%, transparent);
-  background: color-mix(in srgb, currentColor 5%, transparent);
+  color: color-mix(in srgb, var(--sc-ink) 55%, transparent);
+  background: color-mix(in srgb, var(--sc-ink) 5%, transparent);
   cursor: default;
   user-select: none;
   margin: 0.25rem 0;
@@ -243,7 +268,7 @@
 /* ── Table of contents placeholder ──────────────────────────────────────── */
 .phb-editor .ProseMirror nav[data-type="toc"] {
   display: block;
-  border: 1px dashed color-mix(in srgb, currentColor 35%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--sc-ink) 35%, transparent);
   border-radius: 4px;
   padding: 0.75rem 1rem;
   margin: 0.75rem 0;
@@ -251,71 +276,18 @@
   font-size: 0.75rem;
   text-align: center;
   letter-spacing: 0.05em;
-  color: color-mix(in srgb, currentColor 45%, transparent);
+  color: color-mix(in srgb, var(--sc-ink) 45%, transparent);
+}
+.phb-editor .ProseMirror nav[data-type="toc"] > * {
+  display: none;
 }
 .phb-editor .ProseMirror nav[data-type="toc"]::after {
   content: "Table of Contents (auto-generated on preview)";
 }
 
-/* ── Class table ─────────────────────────────────────────────────────────── */
-.phb-editor .ProseMirror .sc-class-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-family: var(--sc-body-font, Georgia, serif);
-  font-size: 0.6875rem;
-  color: var(--sc-ink, #1a1a1a);
-  line-height: 1.3;
-  margin: 0.75rem 0;
-}
-.phb-editor .ProseMirror .sc-class-table th {
-  font-family: var(--sc-heading-font, "Cinzel", Georgia, serif);
-  font-size: 0.75rem;
-  font-variant: small-caps;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-align: center;
-  color: var(--sc-accent-contrast, #f9f6ef);
-  background: var(--sc-accent, #1b3a4b);
-  padding: 0.3rem 0.5rem;
-  border: 1px solid var(--sc-accent, #1b3a4b);
-  white-space: normal;
-  min-width: 0;
-}
-.phb-editor .ProseMirror .sc-class-table td {
-  text-align: center;
-  padding: 0.2rem 0.4rem;
-  border: 1px solid color-mix(in srgb, var(--sc-accent, #1b3a4b) 30%, transparent);
-  vertical-align: middle;
-}
-.phb-editor .ProseMirror .sc-class-table td p,
-.phb-editor .ProseMirror .sc-class-table th p {
-  margin: 0;
-}
-.phb-editor .ProseMirror .sc-class-table tr:nth-child(odd) td {
-  background: color-mix(in srgb, var(--sc-accent, #1b3a4b) 8%, transparent);
-}
-.phb-editor .ProseMirror .sc-class-table td:first-child {
-  font-weight: 700;
-}
-
-/* ── Ability table ───────────────────────────────────────────────────────── */
-.phb-editor .ProseMirror .sc-ability-table th {
-  background: color-mix(in srgb, var(--sc-accent) 8%, transparent);
-}
-.phb-editor .ProseMirror .sc-ability-table--2024 td.sc-abil-name,
-.phb-editor .ProseMirror .sc-ability-table--2024 thead th:not(.sc-abil-gap) {
-  background: color-mix(in srgb, currentColor 30%, transparent);
-  font-weight: 700;
-  font-variant: small-caps;
-}
-.phb-editor .ProseMirror .sc-ability-table--2024 .sc-abil-gap {
-  width: 1rem;
-  border: none;
-  background: transparent;
-}
-
-/* ── Absolutely-positioned image outline ─────────────────────────────────── */
+/* ── Absolutely-positioned image: kept in flow in the galley ─────────────── */
 .phb-editor .ProseMirror .sc-img-wrap--absolute {
+  position: static;
   outline: 2px dashed oklch(0.7 0.15 250 / 0.6);
   outline-offset: 2px;
 }
@@ -331,44 +303,4 @@
   outline: 2px solid oklch(0.6 0.2 250);
   outline-offset: 0px;
   background: oklch(0.6 0.2 250 / 0.2);
-}
-
-/* ── Note / callout block ────────────────────────────────────────────────── */
-.phb-editor .ProseMirror .sc-note {
-  border-left: 3px solid color-mix(in srgb, var(--primary, currentColor) 60%, transparent);
-  background: color-mix(in srgb, var(--primary, currentColor) 8%, transparent);
-  border-radius: 0 4px 4px 0;
-  padding: 0.5rem 0.75rem;
-  margin: 0.5rem 0;
-}
-.phb-editor .ProseMirror .sc-note p {
-  font-style: italic;
-}
-
-/* ── Descriptive / read-aloud block ──────────────────────────────────────── */
-.phb-editor .ProseMirror .sc-descriptive {
-  border: 2px solid color-mix(in srgb, var(--primary, currentColor) 50%, transparent);
-  background: color-mix(in srgb, var(--primary, currentColor) 6%, transparent);
-  border-radius: 4px;
-  padding: 0.75rem;
-  margin: 0.5rem 0;
-  font-style: italic;
-}
-
-/* ── Pull quote ──────────────────────────────────────────────────────────── */
-.phb-editor .ProseMirror .sc-quote {
-  border-left: 2px solid color-mix(in srgb, currentColor 30%, transparent);
-  padding: 0.25rem 0.75rem;
-  margin: 0.5rem 0;
-  font-style: italic;
-  color: color-mix(in srgb, currentColor 75%, transparent);
-}
-.phb-editor .ProseMirror .sc-attribution {
-  font-style: normal;
-  font-variant: small-caps;
-  font-size: 0.875em;
-  opacity: 0.75;
-}
-.phb-editor .ProseMirror .sc-attribution::before {
-  content: "\2014\00A0";
 }

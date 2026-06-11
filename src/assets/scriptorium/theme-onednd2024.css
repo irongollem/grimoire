@@ -1,0 +1,30 @@
+/*
+ * Scriptorium theme: OneDnD 2024 — variable values ONLY.
+ * Structural rules live in theme-base.css. Plain CSS, no Tailwind directives.
+ * Each theme file is self-contained (full variable set) so a consumer can
+ * load theme-base.css + exactly one theme file.
+ */
+.theme-onednd2024 {
+  --sc-heading-font: "Cinzel", Georgia, serif;
+  --sc-body-font: "Alegreya", Georgia, "Times New Roman", serif;
+  --sc-ink: #1a1a1a;
+  --sc-accent: #7d1c1c;
+  --sc-accent-contrast: #f9f6ef;
+  --sc-page-bg: #f9f6ef;
+  --sc-callout-bg: #f5ece8;
+  --sc-callout-border: var(--sc-accent);
+  --sc-code-bg: #e4ddd0;
+  --sc-col-rule: #c9b99a;
+  --sc-h1-bg: var(--sc-accent);
+  --sc-h1-color: var(--sc-accent-contrast);
+  --sc-h1-border-b: none;
+  --sc-h1-padding: 0.35rem 1rem;
+  --sc-decoration-watermark: var(--sc-accent);
+  --sc-decoration-credit: var(--sc-ink);
+  --sc-callout-note-bg: var(--sc-callout-bg);
+  --sc-callout-note-border: var(--sc-callout-border);
+  --sc-callout-desc-bg: color-mix(in srgb, var(--sc-accent) 12%, var(--sc-page-bg));
+  --sc-callout-desc-border: var(--sc-accent);
+  --sc-callout-quote-color: var(--sc-ink);
+  --sc-callout-attr-color: color-mix(in srgb, var(--sc-accent) 80%, var(--sc-ink));
+}

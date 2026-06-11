@@ -1,0 +1,30 @@
+/*
+ * Scriptorium theme: Classic PHB 2014 — variable values ONLY.
+ * Structural rules live in theme-base.css. Plain CSS, no Tailwind directives.
+ * Each theme file is self-contained (full variable set) so a consumer can
+ * load theme-base.css + exactly one theme file.
+ */
+.theme-phb2014 {
+  --sc-heading-font: "Cinzel", Georgia, serif;
+  --sc-body-font: "Alegreya", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --sc-ink: #1a1a1a;
+  --sc-accent: #58180d;
+  --sc-accent-contrast: #eeeadf;
+  --sc-page-bg: #eeeadf;
+  --sc-callout-bg: #e0e5c1;
+  --sc-callout-border: var(--sc-accent);
+  --sc-code-bg: #e4ddd0;
+  --sc-col-rule: #c9b99a;
+  --sc-h1-bg: transparent;
+  --sc-h1-color: var(--sc-accent);
+  --sc-h1-border-b: 3px double var(--sc-accent);
+  --sc-h1-padding: 0.35rem 0 0.25rem;
+  --sc-decoration-watermark: var(--sc-accent);
+  --sc-decoration-credit: var(--sc-ink);
+  --sc-callout-note-bg: #e0e5c1;
+  --sc-callout-note-border: var(--sc-accent);
+  --sc-callout-desc-bg: #ddd8c4;
+  --sc-callout-desc-border: var(--sc-accent);
+  --sc-callout-quote-color: var(--sc-ink);
+  --sc-callout-attr-color: var(--sc-accent);
+}
