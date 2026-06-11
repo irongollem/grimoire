@@ -469,8 +469,12 @@
   border-bottom: 1px solid var(--sc-accent);
 }
 
+/* Fixed layout + full width so the table can never exceed its column —
+   with `auto` + nowrap its min-content width (~370px) overflows a two-column
+   measure (~317px) and multicol lets it bleed into the neighbouring column. */
 .sc-theme .sc-ability-table--2024 {
-  table-layout: auto;
+  table-layout: fixed;
+  width: 100%;
 }
 .sc-theme .sc-ability-table--2024 thead th:not(.sc-abil-gap) {
   background: var(--sc-accent);
@@ -481,9 +485,9 @@
   font-weight: 700;
   letter-spacing: 0.05em;
   text-align: center;
-  padding: 4px 6px;
+  padding: 4px 2px;
   border: none;
-  white-space: nowrap;
+  overflow: hidden;
 }
 .sc-theme .sc-ability-table--2024 tbody td.sc-abil-name {
   background: var(--sc-accent);
@@ -494,9 +498,9 @@
   font-variant: small-caps;
   letter-spacing: 0.05em;
   text-align: center;
-  padding: 3px 8px;
+  padding: 3px 2px;
   border: none;
-  white-space: nowrap;
+  overflow: hidden;
 }
 .sc-theme .sc-ability-table--2024 tbody td:not(.sc-abil-gap):not(.sc-abil-name) {
   font-size: 0.875rem;
