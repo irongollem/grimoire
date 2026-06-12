@@ -32,6 +32,7 @@
       :exists="!isNew"
       :can-save="!!name.trim()"
       :saving="saving"
+      :deleting="deleting"
       :error="saveError"
       :visible-to="!isNew ? playerVisibleTo : undefined"
       @update:title="name = $event"
@@ -336,6 +337,7 @@ const tags = ref<string[]>(
 );
 const imageUrl = ref<string | null>(props.location?.image_url ?? null);
 const saving = ref(false);
+const deleting = ref(false);
 const saveError = ref("");
 
 // ── Description ────────────────────────────────────────────────────────────────
@@ -463,14 +465,20 @@ async function save() {
 
 async function remove() {
   if (!props.location) return;
+  if (deleting.value) return;
   if (
     !(await confirm(
       `Delete "${props.location.name}"? Sub-locations will also be deleted.`,
     ))
   )
     return;
-  const parentId = props.location.parent_id;
-  await del(props.location.id);
-  router.push(parentId ? `/locations/${parentId}` : "/locations");
+  deleting.value = true;
+  try {
+    const parentId = props.location.parent_id;
+    await del(props.location.id);
+    router.push(parentId ? `/locations/${parentId}` : "/locations");
+  } finally {
+    deleting.value = false;
+  }
 }
 </script>

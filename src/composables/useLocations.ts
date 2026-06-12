@@ -123,13 +123,17 @@ async function updateLocation(id: string, update: LocationUpdate): Promise<Locat
 }
 
 async function deleteLocation(id: string): Promise<void> {
-  // Remove this location from any quest_refs that reference it
-  await supabase.from("quest_refs").delete().eq("ref_type", "location").eq("ref_id", id);
-  // Null out quests that have this location set as their primary location
-  await supabase.from("quests").update({ location_id: null }).eq("location_id", id);
+  // Delete the location row FIRST. Its foreign keys handle the rest: quests and
+  // npcs location_id are ON DELETE SET NULL, child locations / faction_locations
+  // / calendar_events cascade. Only after the delete succeeds do we run the
+  // irreversible cleanup — previously quest_refs were wiped and quests delinked
+  // BEFORE the delete, so a failed delete destroyed those references while the
+  // location still existed.
   const { data: loc } = await supabase.from("locations").select("image_url, map_url").eq("id", id).single();
   const { error } = await supabase.from("locations").delete().eq("id", id);
   if (error) throw error;
+  // quest_refs is polymorphic (ref_type/ref_id, no FK) so it needs manual cleanup.
+  await supabase.from("quest_refs").delete().eq("ref_type", "location").eq("ref_id", id);
   if (loc) await deleteByPublicUrl(loc.image_url, loc.map_url);
 }
 

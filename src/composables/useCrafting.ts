@@ -14,7 +14,6 @@ import type {
   CraftingOutputInsert,
   CraftingAttemptResult,
 } from "@/types/crafting.types";
-import type { PartyInventoryInsert } from "@/types/inventory.types";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 
 const RECIPES_KEY    = "crafting-recipes";
@@ -434,61 +433,37 @@ export function useAttemptCraft() {
       const outcome =
         diff >= 0 ? "success" : diff <= -5 ? "ruin" : "fail";
 
-      // 2. Consume all ingredients
-      if (ingredientInventoryIds.length > 0) {
-        const { error } = await supabase
-          .from("party_inventory")
-          .delete()
-          .in("id", ingredientInventoryIds);
-        if (error) throw error;
-      }
+      // 2 + 3. Consume ingredients AND create the output/ruined item in one
+      // atomic RPC (craft_apply) — see migration 20260613000002. Previously
+      // these were two separate requests; a failure between them destroyed the
+      // ingredients with nothing created.
+      const successRows =
+        outcome === "success"
+          ? outputs.map((output) => ({
+              campaign_id: recipe.campaign_id,
+              item_id: output.item_id,
+              name: output.item_id ? (outputItemNames[output.item_id] ?? "") : "",
+              quantity: output.quantity,
+              carried_by: partyMemberId,
+            }))
+          : [];
+      const ruinedRow =
+        outcome === "ruin"
+          ? {
+              campaign_id: primaryInventoryItem.campaign_id,
+              item_id: primaryInventoryItem.item_id,
+              name: `Ruined: ${primaryInventoryItem.name}`,
+              carried_by: primaryInventoryItem.carried_by,
+            }
+          : null;
 
-      const uid = getCurrentUser()!.id;
-
-      if (outcome === "success") {
-        // 3a. Add all crafted outputs to inventory
-        const rows = outputs.map((output) => {
-          const insert: PartyInventoryInsert = {
-            campaign_id: recipe.campaign_id,
-            item_id: output.item_id,
-            name: output.item_id ? (outputItemNames[output.item_id] ?? "") : "",
-            quantity: output.quantity,
-            carried_by: partyMemberId,
-            location: "backpack",
-            slot: null,
-            is_container: false,
-            container_id: null,
-            is_attuned: false,
-            is_equipped: false,
-            notes: null,
-            is_ruined: false,
-          };
-          return { ...insert, user_id: uid };
-        });
-        if (rows.length > 0) {
-          const { error } = await supabase.from("party_inventory").insert(rows);
-          if (error) throw error;
-        }
-      } else if (outcome === "ruin") {
-        // 3b. Re-add primary ingredient as ruined
-        const { error } = await supabase.from("party_inventory").insert({
-          campaign_id: primaryInventoryItem.campaign_id,
-          user_id: uid,
-          item_id: primaryInventoryItem.item_id,
-          name: `Ruined: ${primaryInventoryItem.name}`,
-          quantity: 1,
-          carried_by: primaryInventoryItem.carried_by,
-          location: "backpack",
-          slot: null,
-          is_container: false,
-          container_id: null,
-          is_attuned: false,
-          is_equipped: false,
-          notes: "Ruined during a failed crafting attempt.",
-          is_ruined: true,
-        });
-        if (error) throw error;
-      }
+      const { error } = await supabase.rpc("craft_apply", {
+        p_ingredient_ids: ingredientInventoryIds,
+        p_outcome: outcome,
+        p_success_rows: successRows,
+        p_ruined_row: ruinedRow,
+      });
+      if (error) throw error;
 
       return { roll, roll2, total, diff, outcome, hasDisadvantage: !hasTools };
     },

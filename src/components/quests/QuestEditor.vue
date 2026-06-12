@@ -7,6 +7,7 @@
       :exists="!isNew"
       :can-save="!!title.trim()"
       :saving="saving"
+      :deleting="deleting"
       :error="saveError"
       :visible-to="playerVisibleTo"
       @update:title="title = $event"
@@ -341,6 +342,7 @@ const rewards = ref(props.quest?.rewards ?? "");
 const tags = ref<string[]>(props.quest?.tags ? [...props.quest.tags] : []);
 const playerVisibleTo = ref<string[]>(props.quest?.player_visible_to ?? []);
 const saving = ref(false);
+const deleting = ref(false);
 const saveError = ref("");
 
 const rewardItemIds = ref<string[]>([...(props.quest?.reward_item_ids ?? [])]);
@@ -457,10 +459,16 @@ async function save() {
 
 async function remove() {
   if (!props.quest) return;
+  if (deleting.value) return;
   if (!(await confirm(`Delete "${props.quest.title || "this quest"}"?`)))
     return;
-  await del(props.quest.id);
-  router.push("/quests");
+  deleting.value = true;
+  try {
+    await del(props.quest.id);
+    router.push("/quests");
+  } finally {
+    deleting.value = false;
+  }
 }
 
 // ── Scriptorium ────────────────────────────────────────────────────────────────

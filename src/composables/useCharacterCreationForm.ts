@@ -650,56 +650,68 @@ export function useCharacterCreationForm() {
         // ── Create flow ───────────────────────────────────────────────────────
         const created = await create({ ...basePayload, owner_user_id: isDmCreate.value ? null : (auth.user?.id ?? null) });
 
-        // Link as active character for this player (skip when DM creates an unclaimed character)
-        if (!isDmCreate.value) {
-          const myMembership = (campaignMembers.value ?? []).find((cm) => cm.user_id === auth.user?.id);
-          if (myMembership) {
-            await updateCampaignMember({ id: myMembership.id, update: { party_member_id: created.id } });
-          }
-        }
-
-        // Seed level 1 character_classes row
-        if (f.class) {
-          await addCharacterClass({
-            party_member_id: created.id,
-            class_name:      f.class,
-            subclass_name:   null,          // subclass comes from LevelUpWizard
-            levels:          1,
-            is_primary:      true,
-            hit_dice_used:   0,
-            sort_order:      0,
-          });
-        }
-
-        if (selectedSpecies.value) {
-          await applySpeciesSpellGrants(created.id, selectedSpecies.value, 1, f.subrace || null);
-        }
-
-        // Seed class starting equipment with vault lookup (packs expand into their contents)
-        if (importClassEquipment.value && f.class) {
-          const classPack = CLASS_EQUIPMENT[f.class];
-          if (classPack) {
-            const bundle = classEquipmentChoice.value === "a" ? classPack.a : classPack.b;
-            const uniqueNames = [...new Set(bundle.items.map(e => e.name))];
-            const vaultMap = await lookupVaultItems(uniqueNames);
-            for (const entry of bundle.items) {
-              await seedEquipmentEntry(entry, vaultMap, created.id);
+        // The shell row now exists but the character isn't usable until its
+        // class/spells/equipment are seeded. If any seeding step fails, roll the
+        // whole thing back so we don't leave an orphaned, broken half-character
+        // (which a retry would then duplicate). party_members delete cascades
+        // character_classes/character_spells and SET-NULLs the campaign_member
+        // link; seeded inventory only SET-NULLs carried_by, so delete it first.
+        try {
+          // Link as active character for this player (skip when DM creates an unclaimed character)
+          if (!isDmCreate.value) {
+            const myMembership = (campaignMembers.value ?? []).find((cm) => cm.user_id === auth.user?.id);
+            if (myMembership) {
+              await updateCampaignMember({ id: myMembership.id, update: { party_member_id: created.id } });
             }
           }
-        }
 
-        // Seed background starting equipment as inventory rows (text-based, no vault lookup)
-        if (importBackgroundEquipment.value && f.background_id) {
-          const bg = (allBackgrounds.value ?? []).find((b) => b.id === f.background_id);
-          for (const entry of parseEquipmentList(bg?.equipment ?? "")) {
-            await addInventoryItem({
-              item_id: null, name: entry, quantity: 1,
-              carried_by: created.id, location: "backpack",
-              slot: null, is_container: false, container_id: null,
-              is_attuned: false, is_equipped: false, notes: null,
-              current_charges: null, is_identified: true, is_ruined: false, sort_order: 0,
+          // Seed level 1 character_classes row
+          if (f.class) {
+            await addCharacterClass({
+              party_member_id: created.id,
+              class_name:      f.class,
+              subclass_name:   null,          // subclass comes from LevelUpWizard
+              levels:          1,
+              is_primary:      true,
+              hit_dice_used:   0,
+              sort_order:      0,
             });
           }
+
+          if (selectedSpecies.value) {
+            await applySpeciesSpellGrants(created.id, selectedSpecies.value, 1, f.subrace || null);
+          }
+
+          // Seed class starting equipment with vault lookup (packs expand into their contents)
+          if (importClassEquipment.value && f.class) {
+            const classPack = CLASS_EQUIPMENT[f.class];
+            if (classPack) {
+              const bundle = classEquipmentChoice.value === "a" ? classPack.a : classPack.b;
+              const uniqueNames = [...new Set(bundle.items.map(e => e.name))];
+              const vaultMap = await lookupVaultItems(uniqueNames);
+              for (const entry of bundle.items) {
+                await seedEquipmentEntry(entry, vaultMap, created.id);
+              }
+            }
+          }
+
+          // Seed background starting equipment as inventory rows (text-based, no vault lookup)
+          if (importBackgroundEquipment.value && f.background_id) {
+            const bg = (allBackgrounds.value ?? []).find((b) => b.id === f.background_id);
+            for (const entry of parseEquipmentList(bg?.equipment ?? "")) {
+              await addInventoryItem({
+                item_id: null, name: entry, quantity: 1,
+                carried_by: created.id, location: "backpack",
+                slot: null, is_container: false, container_id: null,
+                is_attuned: false, is_equipped: false, notes: null,
+                current_charges: null, is_identified: true, is_ruined: false, sort_order: 0,
+              });
+            }
+          }
+        } catch (seedErr) {
+          await supabase.from("party_inventory").delete().eq("carried_by", created.id);
+          await supabase.from("party_members").delete().eq("id", created.id);
+          throw seedErr;
         }
 
         await auth.refreshMembership();

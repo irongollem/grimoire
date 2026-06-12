@@ -63,7 +63,8 @@
       <button
         v-if="props.note"
         type="button"
-        class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
+        :disabled="deleting"
+        class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
         @click="remove"
       >
         <IconDelete class="h-3.5 w-3.5" />
@@ -299,6 +300,7 @@ const isPinned = ref(props.note?.is_pinned ?? false);
 const playerVisibleTo = ref<string[]>(props.note?.player_visible_to ?? []);
 const tags = ref<string[]>(props.note?.tags ? [...props.note.tags] : []);
 const saving = ref(false);
+const deleting = ref(false);
 const showPaywall = ref(false);
 const saveError = ref("");
 const user = getCurrentUser();
@@ -534,14 +536,20 @@ async function save() {
 
 async function remove() {
   if (!props.note) return;
+  if (deleting.value) return;
   if (!(await confirm(`Delete "${props.note.title}"? This cannot be undone.`)))
     return;
-  const oldContent = props.note.content;
-  if (props.note.linked_calendar_event_id)
-    await deleteCalEvent(props.note.linked_calendar_event_id);
-  await del(props.note.id);
-  removeRichTextImages(oldContent);
-  router.push("/notes");
+  deleting.value = true;
+  try {
+    const oldContent = props.note.content;
+    if (props.note.linked_calendar_event_id)
+      await deleteCalEvent(props.note.linked_calendar_event_id);
+    await del(props.note.id);
+    removeRichTextImages(oldContent);
+    router.push("/notes");
+  } finally {
+    deleting.value = false;
+  }
 }
 </script>
 

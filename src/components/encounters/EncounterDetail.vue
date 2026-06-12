@@ -23,7 +23,8 @@
         <button
           v-if="props.encounter"
           type="button"
-          class="inline-flex items-center gap-1.5 rounded-md border px-3 py-2 font-cinzel text-xs font-semibold transition-colors"
+          :disabled="updateEncounterMutation.isPending.value"
+          class="inline-flex items-center gap-1.5 rounded-md border px-3 py-2 font-cinzel text-xs font-semibold transition-colors disabled:opacity-50"
           :class="
             props.encounter.is_finished
               ? 'border-border text-muted-foreground hover:text-foreground'
@@ -38,8 +39,8 @@
         <button
           v-if="props.encounter"
           type="button"
-          class="inline-flex items-center gap-1.5 rounded-md border border-destructive/40 px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
-          :disabled="deleteEncounter.isPending.value"
+          class="inline-flex items-center gap-1.5 rounded-md border border-destructive/40 px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+          :disabled="deleting"
           @click="handleDelete"
         >
           <IconClose class="h-3.5 w-3.5" />
@@ -280,6 +281,7 @@ import PaywallModal from "@/components/common/PaywallModal.vue";
 import { isQuotaExceeded } from "@/lib/quotaError";
 
 const showPaywall = ref(false);
+const deleting = ref(false);
 
 const props = defineProps<{
   encounter: Encounter | null;
@@ -570,17 +572,19 @@ function removeAllOfItem(id: string) {
 
 async function handleDelete() {
   if (!props.encounter) return;
+  if (deleting.value) return;
   if (
     !(await confirm(
       `Delete encounter "${props.encounter.name}"? This cannot be undone.`,
     ))
   )
     return;
-  const id = props.encounter.id;
-  router.push("/encounters");
+  deleting.value = true;
   try {
-    await deleteEncounter.mutateAsync(id);
-  } catch (e) {
+    await deleteEncounter.mutateAsync(props.encounter.id);
+    router.push("/encounters");
+  } finally {
+    deleting.value = false;
   }
 }
 </script>

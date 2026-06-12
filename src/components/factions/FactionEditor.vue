@@ -111,7 +111,8 @@
         <button
           v-if="!isNew"
           type="button"
-          class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
+          :disabled="deleting"
+          class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
           @click="handleDelete"
         >
           <IconDelete class="h-3.5 w-3.5" />
@@ -183,6 +184,7 @@ const createFaction = useCreateFaction();
 const updateFaction = useUpdateFaction();
 const deleteFaction = useDeleteFaction();
 const saving = ref(false);
+const deleting = ref(false);
 const uploading = ref(false);
 const fileInput = ref<HTMLInputElement | null>(null);
 const tags = ref<string[]>([]);
@@ -237,9 +239,15 @@ async function handleSave() {
 
 async function handleDelete() {
   if (!props.faction) return;
+  if (deleting.value) return;
   if (!(await confirm(`Delete "${props.faction.name}"? This cannot be undone.`))) return;
-  await deleteFaction.mutateAsync(props.faction.id);
-  router.push("/factions");
+  deleting.value = true;
+  try {
+    await deleteFaction.mutateAsync(props.faction.id);
+    router.push("/factions");
+  } finally {
+    deleting.value = false;
+  }
 }
 
 // Cancel strips ?edit=true, preserving any other query params.
