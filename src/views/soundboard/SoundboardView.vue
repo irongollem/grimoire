@@ -261,7 +261,13 @@ watch(
 );
 
 function persistOrder() {
-  reorderSounds(orderedSounds.value.map((s) => s.id));
+  const updates = orderedSounds.value
+    .map((s, index) => ({ id: s.id, sort_order: index }))
+    .filter(({ id, sort_order }) => {
+      const original = (sounds.value ?? []).find((s) => s.id === id);
+      return original === undefined || original.sort_order !== sort_order;
+    });
+  reorderSounds(updates);
 }
 
 // ── Delete ────────────────────────────────────────────────────────────────

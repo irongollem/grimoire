@@ -435,11 +435,11 @@ export function useAttemptCraft() {
         diff >= 0 ? "success" : diff <= -5 ? "ruin" : "fail";
 
       // 2. Consume all ingredients
-      for (const invId of ingredientInventoryIds) {
+      if (ingredientInventoryIds.length > 0) {
         const { error } = await supabase
           .from("party_inventory")
           .delete()
-          .eq("id", invId);
+          .in("id", ingredientInventoryIds);
         if (error) throw error;
       }
 
@@ -447,7 +447,7 @@ export function useAttemptCraft() {
 
       if (outcome === "success") {
         // 3a. Add all crafted outputs to inventory
-        for (const output of outputs) {
+        const rows = outputs.map((output) => {
           const insert: PartyInventoryInsert = {
             campaign_id: recipe.campaign_id,
             item_id: output.item_id,
@@ -463,7 +463,10 @@ export function useAttemptCraft() {
             notes: null,
             is_ruined: false,
           };
-          const { error } = await supabase.from("party_inventory").insert({ ...insert, user_id: uid });
+          return { ...insert, user_id: uid };
+        });
+        if (rows.length > 0) {
+          const { error } = await supabase.from("party_inventory").insert(rows);
           if (error) throw error;
         }
       } else if (outcome === "ruin") {

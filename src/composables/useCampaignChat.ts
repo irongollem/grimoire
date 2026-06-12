@@ -25,6 +25,7 @@ const QUERY_KEY = "campaign-messages";
 // Module-level realtime channel singleton
 let chatChannel: ReturnType<typeof supabase.channel> | null = null;
 let chatRefCount = 0;
+let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function useCampaignChat() {
   const campaign = useCampaignStore();
@@ -61,9 +62,13 @@ export function useCampaignChat() {
           filter: `campaign_id=eq.${campaignId.value}`,
         },
         () => {
-          void queryClient.invalidateQueries({
-            queryKey: [QUERY_KEY, campaignId.value],
-          });
+          if (flushTimer) clearTimeout(flushTimer);
+          flushTimer = setTimeout(() => {
+            flushTimer = null;
+            void queryClient.invalidateQueries({
+              queryKey: [QUERY_KEY, campaignId.value],
+            });
+          }, 250);
         },
       )
       .subscribe();
@@ -75,6 +80,7 @@ export function useCampaignChat() {
   onUnmounted(() => {
     chatRefCount--;
     if (chatRefCount === 0 && chatChannel) {
+      if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
       supabase.removeChannel(chatChannel);
       chatChannel = null;
     }

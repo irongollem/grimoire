@@ -2,6 +2,7 @@ import { ref, computed, type Ref, type ComputedRef } from "vue";
 import { useConfirm } from "@/composables/useConfirm";
 import {
   useAddInventoryItem,
+  useAddInventoryItems,
   useUpdateInventoryItem,
   useRemoveInventoryItem,
   useReorderInventoryItems,
@@ -33,6 +34,7 @@ export function useInventoryMutations({
 }: UseInventoryMutationsOptions) {
   const { confirm } = useConfirm();
   const { mutateAsync: addInventoryItem } = useAddInventoryItem();
+  const { mutateAsync: addInventoryItems } = useAddInventoryItems();
   const { mutateAsync: updateInventoryItem } = useUpdateInventoryItem();
   const { mutateAsync: removeInventoryItem } = useRemoveInventoryItem();
   const { mutate: reorderInventoryItems } = useReorderInventoryItems();
@@ -221,27 +223,29 @@ export function useInventoryMutations({
         is_ruined: false,
         is_identified: true,
       });
-      for (const sub of bundleItems) {
-        const subVault =
-          (allItems.value ?? []).find(
-            (i) => i.name.toLowerCase() === sub.name.toLowerCase(),
-          ) ?? null;
-        await addInventoryItem({
-          name: sub.name,
-          quantity: sub.quantity ?? 1,
-          item_id: subVault?.id ?? null,
-          carried_by: resolvedMemberId.value ?? null,
-          location: "container",
-          slot: null,
-          is_container: subVault?.tags.includes("container") ?? false,
-          container_id: packRow.id,
-          is_attuned: false,
-          is_equipped: false,
-          notes: null,
-          is_ruined: false,
-          is_identified: !subVault || subVault.rarity === "mundane",
-        });
-      }
+      await addInventoryItems(
+        bundleItems.map((sub) => {
+          const subVault =
+            (allItems.value ?? []).find(
+              (i) => i.name.toLowerCase() === sub.name.toLowerCase(),
+            ) ?? null;
+          return {
+            name: sub.name,
+            quantity: sub.quantity ?? 1,
+            item_id: subVault?.id ?? null,
+            carried_by: resolvedMemberId.value ?? null,
+            location: "container" as const,
+            slot: null,
+            is_container: subVault?.tags.includes("container") ?? false,
+            container_id: packRow.id,
+            is_attuned: false,
+            is_equipped: false,
+            notes: null,
+            is_ruined: false,
+            is_identified: !subVault || subVault.rarity === "mundane",
+          };
+        }),
+      );
     } else {
       await addInventoryItem({
         name,

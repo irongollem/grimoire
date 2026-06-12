@@ -16,6 +16,12 @@
           class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-green-500/15 border border-green-500/30 font-cinzel text-xs font-semibold text-green-500 tracking-wider animate-pulse"
         >● In Progress</span>
 
+        <!-- Difficulty badge -->
+        <span
+          class="inline-flex items-center px-2.5 py-1.5 rounded-md font-cinzel text-xs font-semibold tracking-wider text-white"
+          :style="{ backgroundColor: difficultyColor }"
+        >{{ difficulty.label }}</span>
+
         <button
           type="button"
           class="inline-flex items-center gap-1.5 rounded-md border px-3 py-2 font-cinzel text-xs font-semibold transition-colors"
@@ -194,6 +200,13 @@
       </div>
     </section>
 
+    <!-- Difficulty Analysis -->
+    <EncounterDifficulty
+      :difficulty="difficulty"
+      :threshold-tiers="thresholdTiers"
+      :enemy-entries="enemyEntries"
+    />
+
     <!-- Loot -->
     <section v-if="hasLoot" class="flex flex-col gap-2">
       <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Loot</h2>
@@ -254,9 +267,12 @@ import { useNpcs } from "@/composables/useNpcs";
 import { useItems } from "@/composables/useItems";
 import { useTraps } from "@/composables/useTraps";
 import { useAllLocations } from "@/composables/useLocations";
+import { useEncounterDifficulty } from "@/composables/useEncounterDifficulty";
 import { formatCoinParts } from "@/lib/currency";
+import { DIFFICULTY_COLORS } from "@/types/encounter.types";
 import type { Encounter } from "@/types/encounter.types";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import EncounterDifficulty from "@/components/encounters/EncounterDifficulty.vue";
 
 const props = defineProps<{ encounter: Encounter }>();
 const route  = useRoute();
@@ -281,6 +297,24 @@ const { data: npcs }         = useNpcs();
 const { data: allItems }     = useItems();
 const { data: traps }        = useTraps();
 const { data: allLocs }      = useAllLocations();
+
+// ── Difficulty ─────────────────────────────────────────────────────────────
+const { difficulty, thresholdTiers, enemyEntries } = useEncounterDifficulty({
+  combatants:     computed(() => props.encounter.combatants ?? []),
+  factions:       computed(() => props.encounter.factions ?? []),
+  partyMemberIds: computed(() => props.encounter.party_member_ids ?? []),
+  companionIds:   computed(() => props.encounter.companion_ids ?? []),
+  trapIds:        computed(() => props.encounter.trap_ids ?? []),
+  monsters:       computed(() => monsters.value ?? []),
+  npcs:           computed(() => npcs.value ?? []),
+  party,
+  companions,
+  allTraps: traps,
+});
+
+const difficultyColor = computed(
+  () => DIFFICULTY_COLORS[difficulty.value.label] ?? "#6B7280",
+);
 
 const encounterLocation = computed(
   () => (allLocs.value ?? []).find((l) => l.id === props.encounter.location_id) ?? null,

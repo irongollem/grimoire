@@ -105,11 +105,13 @@ export function useReorderSoundboardPages() {
   const { activeCampaignId } = storeToRefs(useCampaignStore());
 
   return useMutation({
-    mutationFn: async (orderedIds: string[]) => {
-      const updates = orderedIds.map((id, index) =>
-        supabase.from("soundboard_pages").update({ sort_order: index }).eq("id", id),
+    mutationFn: async (updates: Array<{ id: string; sort_order: number }>) => {
+      if (updates.length === 0) return;
+      await Promise.all(
+        updates.map(({ id, sort_order }) =>
+          supabase.from("soundboard_pages").update({ sort_order }).eq("id", id),
+        ),
       );
-      await Promise.all(updates);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QUERY_KEY, activeCampaignId.value] });

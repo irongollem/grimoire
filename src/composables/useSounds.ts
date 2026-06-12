@@ -154,12 +154,13 @@ export function useReorderSounds() {
   const { activeCampaignId } = storeToRefs(useCampaignStore());
 
   return useMutation({
-    mutationFn: async (orderedIds: string[]) => {
-      // Upsert sort_order for each id in the new order
-      const updates = orderedIds.map((id, index) =>
-        supabase.from("sounds").update({ sort_order: index }).eq("id", id),
+    mutationFn: async (updates: Array<{ id: string; sort_order: number }>) => {
+      if (updates.length === 0) return;
+      await Promise.all(
+        updates.map(({ id, sort_order }) =>
+          supabase.from("sounds").update({ sort_order }).eq("id", id),
+        ),
       );
-      await Promise.all(updates);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QUERY_KEY, activeCampaignId.value] });

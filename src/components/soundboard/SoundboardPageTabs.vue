@@ -143,7 +143,13 @@ watch(
 );
 
 function persistPageOrder() {
-  reorderPages(orderedPages.value.map((p) => p.id));
+  const updates = orderedPages.value
+    .map((p, index) => ({ id: p.id, sort_order: index }))
+    .filter(({ id, sort_order }) => {
+      const original = pages.find((p) => p.id === id);
+      return original === undefined || original.sort_order !== sort_order;
+    });
+  reorderPages(updates);
 }
 
 // ── Overflow cues ───────────────────────────────────────────────────────────

@@ -64,6 +64,24 @@ export function useAddInventoryItem() {
   });
 }
 
+async function addItems(items: PartyInventoryInsert[]): Promise<void> {
+  const user = getCurrentUser();
+  const { error } = await supabase
+    .from("party_inventory")
+    .insert(items.map((i) => ({ ...i, user_id: user!.id })));
+  if (error) throw error;
+}
+
+export function useAddInventoryItems() {
+  const queryClient = useQueryClient();
+  const campaign = useCampaignStore();
+  return useMutation({
+    mutationFn: (items: Omit<PartyInventoryInsert, "campaign_id">[]) =>
+      addItems(items.map((i) => ({ ...i, campaign_id: campaign.activeCampaignId! }))),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+  });
+}
+
 export function useUpdateInventoryItem() {
   const queryClient = useQueryClient();
   const campaign = useCampaignStore();

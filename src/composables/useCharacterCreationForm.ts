@@ -3,7 +3,7 @@ import { useRouter, useRoute } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { useParty, useCreatePartyMember, useUpdatePartyMember } from "@/composables/useParty";
 import { useAddCharacterClass } from "@/composables/useCharacterClasses";
-import { useAddInventoryItem } from "@/composables/usePartyInventory";
+import { useAddInventoryItem, useAddInventoryItems } from "@/composables/usePartyInventory";
 import { useCampaignMembers, useUpdateCampaignMember } from "@/composables/useCampaignMembers";
 import { parseBackgroundSkills, type SkillKey } from "@/lib/backgroundSkills";
 import { useAllSystemClasses, useAllCustomClasses } from "@/composables/useCustomClasses";
@@ -170,7 +170,8 @@ export function useCharacterCreationForm() {
   const { mutateAsync: create }               = useCreatePartyMember();
   const { mutateAsync: update }               = useUpdatePartyMember();
   const { mutateAsync: addCharacterClass }    = useAddCharacterClass();
-  const { mutateAsync: addInventoryItem }     = useAddInventoryItem();
+  const { mutateAsync: addInventoryItem }      = useAddInventoryItem();
+  const { mutateAsync: addInventoryItems }     = useAddInventoryItems();
   const { mutateAsync: updateCampaignMember } = useUpdateCampaignMember();
 
   const editMemberId = computed(() =>
@@ -334,19 +335,21 @@ export function useCharacterCreationForm() {
         is_attuned: false, is_equipped: false, notes: null,
         current_charges: null, is_identified: true, is_ruined: false, sort_order: 0,
       });
-      // Look up the sub-items and insert them inside the pack
+      // Look up the sub-items and batch-insert them inside the pack
       const subNames = [...new Set(bundleItems.map(b => b.name))];
       const subMap = await lookupVaultItems(subNames);
-      for (const sub of bundleItems) {
-        const subVault = subMap.get(sub.name.toLowerCase()) ?? null;
-        await addInventoryItem({
-          item_id: subVault?.id ?? null, name: sub.name, quantity: sub.quantity ?? 1,
-          carried_by: carrierId, location: "container",
-          slot: null, is_container: false, container_id: packRow.id,
-          is_attuned: false, is_equipped: false, notes: null,
-          current_charges: null, is_identified: true, is_ruined: false, sort_order: 0,
-        });
-      }
+      await addInventoryItems(
+        bundleItems.map((sub) => {
+          const subVault = subMap.get(sub.name.toLowerCase()) ?? null;
+          return {
+            item_id: subVault?.id ?? null, name: sub.name, quantity: sub.quantity ?? 1,
+            carried_by: carrierId, location: "container" as const,
+            slot: null, is_container: false, container_id: packRow.id,
+            is_attuned: false, is_equipped: false, notes: null,
+            current_charges: null, is_identified: true, is_ruined: false, sort_order: 0,
+          };
+        }),
+      );
     } else {
       // Plain item
       await addInventoryItem({

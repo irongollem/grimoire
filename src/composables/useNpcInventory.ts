@@ -22,7 +22,28 @@ async function addItem(item: NpcInventoryInsert): Promise<NpcInventoryItem> {
     .insert({ ...item, user_id: user!.id })
     .select()
     .single();
-  if (error) throw error;
+  if (error) {
+    // Unique (npc_id, item_id) violation — the NPC already holds this item;
+    // merge into the existing stack instead of surfacing an error.
+    if (error.code === "23505" && item.item_id) {
+      const { data: existing, error: fetchError } = await supabase
+        .from("npc_inventory")
+        .select("id, quantity")
+        .eq("npc_id", item.npc_id)
+        .eq("item_id", item.item_id)
+        .single();
+      if (fetchError) throw fetchError;
+      const { data: merged, error: updateError } = await supabase
+        .from("npc_inventory")
+        .update({ quantity: existing.quantity + (item.quantity ?? 1) })
+        .eq("id", existing.id)
+        .select()
+        .single();
+      if (updateError) throw updateError;
+      return merged as NpcInventoryItem;
+    }
+    throw error;
+  }
   return data as NpcInventoryItem;
 }
 

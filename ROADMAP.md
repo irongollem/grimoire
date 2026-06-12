@@ -78,6 +78,7 @@
 ### Encounters & Combat
 
 - [x] Encounters — builder (combatants + NPC combatants, factions, XP difficulty calculator with ally offset); combatant entries and monster search results now show AC and Speed alongside CR/XP
+- [x] Encounter difficulty in view mode — the computed tier (easy/medium/hard/deadly) was only visible while editing; the read-only EncounterSheet now shows a color-coded difficulty badge in the header action bar plus the full EncounterDifficulty panel (XP breakdown, threshold bars, enemy table) after the combatants section, using real party levels (`src/components/encounters/EncounterSheet.vue`)
 - [x] Encounter Runner — live combat with initiative, HP, conditions, death saves
 - [x] Encounter Runner — spawn monsters/NPCs mid-encounter via ⚔ SPAWN panel (EntityCombobox + faction + count, stacked with traps in shared sidebar column)
 - [x] Named curses in encounter runner (separate from flat conditions, syncs back to party on end combat)
