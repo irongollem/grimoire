@@ -72,7 +72,7 @@
                       <IconShield class="h-4 w-4 text-muted-foreground shrink-0" />
                       <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">AC</span>
                     </div>
-                    <span class="font-cinzel text-sm font-bold text-foreground">{{ member.ac }}</span>
+                    <span class="font-cinzel text-sm font-bold text-foreground">{{ displayAc }}</span>
                   </div>
 
                   <!-- Species chip — clickable -->
@@ -195,6 +195,7 @@ import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { useSpecies, useSpeciesNameMap } from "@/composables/useSpecies";
+import { useShieldAcBonus } from "@/composables/useShieldAc";
 import { getDisplayRace, getDisplaySpeciesId } from "@/lib/partyMemberDisplay";
 import type { PartyMember } from "@/types/party.types";
 import type { HealthVisibility } from "@/types/encounter.types";
@@ -209,6 +210,12 @@ const campaign = useCampaignStore();
 const speciesNameMap = useSpeciesNameMap();
 
 const speciesModalOpen = ref(false);
+
+const { bonusFor: shieldAcBonusFor } = useShieldAcBonus();
+const displayAc = computed(() => {
+  if (!props.member) return 0;
+  return props.member.wildshape_state?.beast_ac ?? props.member.ac + shieldAcBonusFor(props.member.id);
+});
 
 const healthVis = computed<HealthVisibility>(
   () => (campaign.activeCampaign?.health_visibility as HealthVisibility) ?? "strategic",

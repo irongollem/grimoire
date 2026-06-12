@@ -112,8 +112,8 @@ describe("plan field-preview shape (for dry-run output readability)", () => {
 });
 
 describe("TABLE_FIELDS — schema invariants", () => {
-  it("covers exactly the 3 expected tables", () => {
-    expect(Object.keys(TABLE_FIELDS).sort()).toEqual(["deities", "npcs", "pantheons"]);
+  it("covers exactly the 4 expected tables", () => {
+    expect(Object.keys(TABLE_FIELDS).sort()).toEqual(["deities", "locations", "npcs", "pantheons"]);
   });
 
   it("npcs has the 4 rich-text columns", () => {
@@ -126,5 +126,9 @@ describe("TABLE_FIELDS — schema invariants", () => {
 
   it("pantheons has description only", () => {
     expect([...TABLE_FIELDS.pantheons]).toEqual(["description"]);
+  });
+
+  it("locations has description + notes", () => {
+    expect([...TABLE_FIELDS.locations]).toEqual(["description", "notes"]);
   });
 });

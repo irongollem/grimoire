@@ -48,7 +48,7 @@
       <div class="flex items-center gap-2 flex-wrap">
         <span class="flex items-center gap-1">
           <IconShield class="h-3 w-3 text-muted-foreground shrink-0" />
-          <span class="font-cinzel text-xs font-bold text-foreground">{{ member.ac }}</span>
+          <span class="font-cinzel text-xs font-bold text-foreground">{{ displayAc }}</span>
         </span>
         <span
           v-for="cond in (member.conditions ?? []).slice(0, 2)"
@@ -64,9 +64,11 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import { IconShield } from "@/lib/icons";
 import FocalImage from "@/components/common/FocalImage.vue";
 import { useHpDisplay } from "@/composables/useHpDisplay";
+import { useShieldAcBonus } from "@/composables/useShieldAc";
 import type { PartyMember } from "@/types/party.types";
 
 const { member, isOwn, showNumericHp, subtitle } = defineProps<{
@@ -81,5 +83,10 @@ defineEmits<{ click: [] }>();
 const { hpColor, hpBarColor, immersiveHpLabel } = useHpDisplay(
   () => member.current_hp,
   () => member.max_hp
+);
+
+const { bonusFor: shieldAcBonusFor } = useShieldAcBonus();
+const displayAc = computed(
+  () => member.wildshape_state?.beast_ac ?? member.ac + shieldAcBonusFor(member.id),
 );
 </script>

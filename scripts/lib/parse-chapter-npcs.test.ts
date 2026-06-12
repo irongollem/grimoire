@@ -319,7 +319,7 @@ describe("applySidecar", () => {
       },
     };
     applySidecar([r], cfg);
-    expect(r.relationship).toBe("ally");
+    expect(r.relationship).toBe("helpful");
     expect(r.relevance).toBe(4);
     expect(r.tags).toEqual(["chapter-5", "sugarspun", "child", "bow-keeper"]);
     expect(r.location_key).toBe("carnival");

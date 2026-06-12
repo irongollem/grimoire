@@ -155,6 +155,7 @@ A full equipment and item management system. Full detail documented separately i
 - Clicking a filled slot opens the item detail panel; clicking an empty slot opens a slot assignment modal listing eligible inventory items
 - Attunement pip indicator (filled/empty dots for 0–3 attuned slots)
 - Equipped weight displayed
+- Equipping a shield (item_type `shield`, non-ruined) adds its AC bonus to the character's displayed AC everywhere via `useShieldAcBonus()` — stored `party_members.ac` is shieldless (see party-characters.md → Shield AC)
 
 **Coin purse:**
 

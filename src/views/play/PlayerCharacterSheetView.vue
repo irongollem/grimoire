@@ -58,6 +58,7 @@
             :theme="theme"
             :species-name="speciesName"
             :background-name="backgroundName"
+            :ac-bonus="acBonus"
           />
         </div>
       </div>
@@ -80,6 +81,7 @@ import {
 } from "@/composables/useCharacterSheetPdf";
 import { useSpeciesNameMap } from "@/composables/useSpecies";
 import { useBackgroundNameMap } from "@/composables/useBackgrounds";
+import { useShieldAcBonus } from "@/composables/useShieldAc";
 import CharacterSheetRenderer from "@/components/character-sheet/CharacterSheetRenderer.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 
@@ -113,6 +115,9 @@ const backgroundName = computed(() =>
   member.value?.background_id ? (backgroundMap.value.get(member.value.background_id) ?? null) : null,
 );
 
+const { bonusFor: shieldAcBonusFor } = useShieldAcBonus();
+const acBonus = computed(() => shieldAcBonusFor(member.value?.id));
+
 const pageSize = ref<SheetPageSize>("A4");
 
 // Theme preference — persisted per character in localStorage
@@ -133,6 +138,7 @@ async function doExport() {
     theme: theme.value,
     speciesName: speciesName.value,
     backgroundName: backgroundName.value,
+    acBonus: acBonus.value,
   });
 }
 </script>

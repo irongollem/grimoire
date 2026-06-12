@@ -25,6 +25,8 @@ export interface SheetExportOptions {
   theme?: SheetTheme;
   speciesName?: string | null;
   backgroundName?: string | null;
+  /** AC bonus from equipped shields — computed by the caller via useShieldAcBonus(). */
+  acBonus?: number;
 }
 
 const PAGE_DIMS_PX: Record<SheetPageSize, { w: number; h: number }> = {
@@ -43,7 +45,7 @@ export function useCharacterSheetPdf() {
   async function exportPdf(
     member: PartyMember,
     inventory: PartyInventoryItem[],
-    { pageSize = "A4", theme = "default", speciesName = null, backgroundName = null }: SheetExportOptions = {},
+    { pageSize = "A4", theme = "default", speciesName = null, backgroundName = null, acBonus = 0 }: SheetExportOptions = {},
   ): Promise<void> {
     isGenerating.value = true;
 
@@ -63,6 +65,7 @@ export function useCharacterSheetPdf() {
       theme,
       speciesName,
       backgroundName,
+      acBonus,
     });
     app.mount(container);
 

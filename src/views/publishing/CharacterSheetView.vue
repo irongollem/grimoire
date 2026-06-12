@@ -57,6 +57,7 @@
             :theme="theme"
             :species-name="speciesName"
             :background-name="backgroundName"
+            :ac-bonus="acBonus"
           />
         </div>
       </div>
@@ -80,6 +81,7 @@ import {
 } from "@/composables/useCharacterSheetPdf";
 import { useSpeciesNameMap } from "@/composables/useSpecies";
 import { useBackgroundNameMap } from "@/composables/useBackgrounds";
+import { useShieldAcBonus } from "@/composables/useShieldAc";
 import { useAuthStore } from "@/stores/auth";
 
 const route = useRoute();
@@ -110,6 +112,9 @@ const backgroundName = computed(() =>
   member.value?.background_id ? (backgroundMap.value.get(member.value.background_id) ?? null) : null,
 );
 
+const { bonusFor: shieldAcBonusFor } = useShieldAcBonus();
+const acBonus = computed(() => shieldAcBonusFor(member.value?.id));
+
 /** Players go back to /play, the DM goes back to /party */
 const backRoute = computed(() => auth.isDM ? "/party" : "/play");
 
@@ -133,6 +138,7 @@ async function doExport() {
     theme: theme.value,
     speciesName: speciesName.value,
     backgroundName: backgroundName.value,
+    acBonus: acBonus.value,
   });
 }
 </script>

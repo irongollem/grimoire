@@ -14,7 +14,7 @@
     </p>
     <div class="detail-divider" />
     <div class="detail-stats">
-      <div class="detail-stat"><span>AC</span><strong>{{ member.ac }}</strong></div>
+      <div class="detail-stat"><span>AC</span><strong>{{ member.ac + shieldAcBonusFor(member.id) }}</strong></div>
       <div class="detail-stat"><span>HP</span><strong>{{ member.current_hp }}/{{ member.max_hp }}</strong></div>
       <div class="detail-stat"><span>Speed</span><strong>{{ member.speed }} ft.</strong></div>
       <div class="detail-stat"><span>Prof</span><strong>+{{ profBonus }}</strong></div>
@@ -107,6 +107,7 @@ import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useSpeciesNameMap } from "@/composables/useSpecies";
 import { useCharacterSpellsWithDetails } from "@/composables/useCharacterSpells";
 import { useClassByName } from "@/composables/useCustomClasses";
+import { useShieldAcBonus } from "@/composables/useShieldAc";
 
 const { combatant, member, monsters } = defineProps<{
   combatant: RunCombatant;
@@ -125,6 +126,7 @@ const emit = defineEmits<{
 
 const store = useEncounterRunStore();
 const speciesNameMap = useSpeciesNameMap();
+const { bonusFor: shieldAcBonusFor } = useShieldAcBonus();
 
 const memberId = computed(() => member.id);
 

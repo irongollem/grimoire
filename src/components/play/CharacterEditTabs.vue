@@ -110,6 +110,7 @@
               <input v-if="acFormulaType === 'natural'" v-model.number="naturalBase" type="number" min="1" class="field-input w-20" placeholder="Base AC" />
             </template>
           </div>
+          <p class="font-fell text-xs text-muted-foreground italic mt-1">Without shield — an equipped shield adds its bonus automatically.</p>
         </div>
         <label class="block"><span class="field-label">Speed (ft)</span><input v-model.number="f.speed" type="number" min="0" step="5" class="field-input w-full" /></label>
         <label class="block"><span class="field-label">Initiative Bonus</span><input v-model.number="f.initiative_bonus" type="number" class="field-input w-full" placeholder="= DEX mod" /></label>

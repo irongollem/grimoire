@@ -115,7 +115,7 @@
           <div class="cs-section-title">Combat</div>
           <div class="cs-section-body">
             <div class="cs-combat-stat">
-              <div class="cs-combat-value">{{ member.ac }}</div>
+              <div class="cs-combat-value">{{ member.ac + acBonus }}</div>
               <div class="cs-combat-label">Armor Class</div>
             </div>
             <div class="cs-combat-stat">
@@ -303,13 +303,17 @@ import type { PartyInventoryItem } from "@/types/inventory.types";
 import { getCastingAbility } from "@/types/spell.types";
 import type { SheetPageSize, SheetTheme } from "@/composables/useCharacterSheetPdf";
 
-const { member, inventory, theme = "default", speciesName = null, backgroundName = null } = defineProps<{
+// acBonus is passed in (not derived here) because this component is also
+// mounted via a bare createApp for PDF export, where query composables
+// have no QueryClient to attach to.
+const { member, inventory, theme = "default", speciesName = null, backgroundName = null, acBonus = 0 } = defineProps<{
   member: PartyMember;
   inventory: PartyInventoryItem[];
   pageSize?: SheetPageSize;
   theme?: SheetTheme;
   speciesName?: string | null;
   backgroundName?: string | null;
+  acBonus?: number;
 }>();
 
 const ABILITIES = [

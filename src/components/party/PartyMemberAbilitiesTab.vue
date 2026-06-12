@@ -70,6 +70,7 @@
         class="field-input w-full"
         @change="patch({ ac: Number(($event.target as HTMLInputElement).value) })"
       />
+      <span class="font-fell text-xs text-muted-foreground italic">Without shield — an equipped shield adds its bonus automatically.</span>
     </label>
     <label class="block">
       <span class="field-label">Speed (ft)</span>

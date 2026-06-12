@@ -142,7 +142,7 @@
         <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-0.5 font-cinzel text-xs">
           <span class="flex items-baseline justify-between gap-1 min-w-0">
             <span class="text-muted-foreground truncate">AC</span>
-            <span class="font-bold text-foreground shrink-0">{{ member.ac }}</span>
+            <span class="font-bold text-foreground shrink-0">{{ displayAc }}</span>
           </span>
           <span class="flex items-baseline justify-between gap-1 min-w-0">
             <span class="text-muted-foreground truncate">Speed</span>
@@ -237,6 +237,7 @@ import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { IconGenerate, IconLocation, IconReveal, IconScrollText } from '@/lib/icons';
 import { useUpdatePartyMember } from "@/composables/useParty";
+import { useShieldAcBonus } from "@/composables/useShieldAc";
 import { useReadItems } from "@/composables/useReadItems";
 import PlayerJournalDmModal from "./PlayerJournalDmModal.vue";
 import type { PlayerJournalEntry } from "@/composables/usePlayerJournal";
@@ -338,6 +339,11 @@ function profAdd(profs: SkillProficiencies, key: keyof SkillProficiencies, profB
   const level: SkillProfLevel = profs[key] ?? "none";
   return level === "proficient" ? profBonus : level === "expertise" ? profBonus * 2 : 0;
 }
+
+const { bonusFor: shieldAcBonusFor } = useShieldAcBonus();
+const displayAc = computed(
+  () => member.wildshape_state?.beast_ac ?? member.ac + shieldAcBonusFor(member.id),
+);
 
 const passivePerception = computed(() => 10 + mod(member.wis) + profAdd(member.skill_proficiencies, "perception", member.proficiency_bonus));
 const passiveInsight = computed(() => 10 + mod(member.wis) + profAdd(member.skill_proficiencies, "insight", member.proficiency_bonus));

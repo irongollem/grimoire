@@ -4,6 +4,7 @@ import { useParty } from "@/composables/useParty";
 import { useAllMonsters } from "@/composables/useMonsters";
 import { useAutoDiscoverMonsters } from "@/composables/useDiscoveredMonsters";
 import { useConcentration } from "@/composables/useConcentration";
+import { useShieldAcBonus } from "@/composables/useShieldAc";
 import {
   getExhaustionLevel,
   setExhaustionLevel,
@@ -24,6 +25,7 @@ export function useRunnerCombatant(getCombatant: MaybeRefOrGetter<RunCombatant>)
   const { data: monsters } = useAllMonsters();
   const { mutateAsync: autoDiscover } = useAutoDiscoverMonsters();
   const { rollConcentrationSave, endConcentration } = useConcentration();
+  const { bonusFor: shieldAcBonusFor } = useShieldAcBonus();
 
   const partyMap = computed(
     () => new Map(partyList.value?.map((m) => [m.id, m]) ?? []),
@@ -62,7 +64,7 @@ export function useRunnerCombatant(getCombatant: MaybeRefOrGetter<RunCombatant>)
     const c = combatant.value;
     if (c.type === "player") {
       const m = partyMap.value.get(c.party_member_id ?? "");
-      if (m) return m.wildshape_state?.beast_ac ?? String(m.ac);
+      if (m) return m.wildshape_state?.beast_ac ?? String(m.ac + shieldAcBonusFor(m.id));
     }
     return c.wildshape?.beast_ac ?? c.ac;
   });

@@ -107,6 +107,8 @@ Clicking a member's name navigates to `/party/:id` (`PartyMemberView.vue`), whic
 - **Saving throw proficiencies** checkboxes (6 stats)
 - **Skill Proficiencies** grid: None / Proficient / Expertise per skill
 
+**Shield AC** — the stored `party_members.ac` is the armor class WITHOUT shield. An equipped (non-ruined) shield in the paper doll adds its `armor_class` bonus at display time via `useShieldAcBonus()` (`src/composables/useShieldAc.ts`, pure logic + tests in `src/lib/shieldAc.ts`). Wired into: PlayerCharacterHeader, PlayerPartyMemberCard, PartyMemberLightbox, PartyTrackerRow, RunnerPcPanel, useRunnerCombatant, and CharacterSheetRenderer (via `acBonus` prop — the renderer is mounted with a bare `createApp` for PDF export, so it can't use query composables). Wildshaped characters show the beast AC with no shield bonus. Both AC edit fields (CharacterEditTabs, PartyMemberAbilitiesTab) carry a "without shield" hint.
+
 ### Equipment Tab
 
 - Free-text armor, weapons, items fields plus worn slots (ring1/ring2/waist etc.)
@@ -447,7 +449,7 @@ The player can toggle their own disguise on/off using DB functions `set_shapeshi
 | `level`                         | int    | Level (legacy; superseded by `character_classes` rows) |
 | `str/dex/con/int/wis/cha`       | int    | Ability scores                                         |
 | `max_hp/current_hp/temp_hp`     | int    | Hit points                                             |
-| `ac`                            | int    | Armor class                                            |
+| `ac`                            | int    | Armor class WITHOUT shield — see shield AC note below  |
 | `speed`                         | int    | Speed in feet                                          |
 | `initiative_bonus`              | int    | Custom initiative modifier                             |
 | `proficiency_bonus`             | int    | Computed from level                                    |
