@@ -27,8 +27,20 @@ export function useCampaignLiveSync() {
         if (!campaignId) return;
 
         const f = `campaign_id=eq.${campaignId}`;
+        // Coalesce bursts of realtime events (bulk reorders, multi-row inserts
+        // emit one event per row) into a single refetch per key — otherwise a
+        // 50-row write storms every connected client with 50 refetches.
+        const pendingKeys = new Set<string>();
+        let flushTimer: ReturnType<typeof setTimeout> | null = null;
         const invalidate = (key: string) => () => {
-          void qc.invalidateQueries({ queryKey: [key] });
+          pendingKeys.add(key);
+          if (flushTimer) clearTimeout(flushTimer);
+          flushTimer = setTimeout(() => {
+            flushTimer = null;
+            const keys = [...pendingKeys];
+            pendingKeys.clear();
+            for (const k of keys) void qc.invalidateQueries({ queryKey: [k] });
+          }, 250);
         };
 
         activeChannel = supabase

@@ -105,9 +105,14 @@ export function useInventoryMutations({
   }
 
   function handleReorder(items: PartyInventoryItem[]) {
-    reorderInventoryItems(
-      items.map((item, i) => ({ id: item.id, sort_order: i * 100 })),
-    );
+    // Only write rows whose sort_order actually changes — in the steady state
+    // (list already spaced i * 100) a single drag touches a handful of rows,
+    // not the whole inventory, and each PATCH fans out to every client via
+    // the realtime channel.
+    const updates = items
+      .map((item, i) => ({ id: item.id, sort_order: i * 100 }))
+      .filter((u, i) => items[i].sort_order !== u.sort_order);
+    if (updates.length > 0) reorderInventoryItems(updates);
   }
 
   async function removeItem(id: string) {
