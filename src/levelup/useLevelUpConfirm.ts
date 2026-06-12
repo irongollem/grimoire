@@ -75,6 +75,14 @@ export function useLevelUpConfirm(opts: ConfirmOptions) {
       selectedSpellIds, selectedCantripIds, newClassName,
     } = opts;
 
+    // Backstop: a level-up must know which class entry it is bumping. Without
+    // this, party_members gets the new level while character_classes is
+    // silently skipped, leaving the two tables out of sync.
+    if (!isAddingNewClass.value && !chosenExistingEntry.value && existingClassOptions.value.length > 0) {
+      error.value = "Select which class you are leveling in before confirming.";
+      return;
+    }
+
     const update: Record<string, unknown> = {
       level: nextLevel.value,
       proficiency_bonus: newProfBonus.value,

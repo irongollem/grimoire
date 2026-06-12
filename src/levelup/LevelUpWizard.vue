@@ -153,7 +153,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { RouterLink } from "vue-router";
 import LevelUpClassPicker from "./LevelUpClassPicker.vue";
 import LevelUpFeaturesGained from "./LevelUpFeaturesGained.vue";
@@ -207,18 +207,19 @@ const chosenClassSelector = ref<string>("");
 /** When adding a new class, which class is being taken. */
 const newClassName = ref<string>("");
 
-// Seed the picker on mount / when member classes load.
-const initClassSelectorOnce = computed(() => {
-  if (chosenClassSelector.value) return true;
-  const primary = existingClassOptions.value.find(c => c.is_primary) ?? existingClassOptions.value[0];
-  if (primary) {
-    chosenClassSelector.value = primary.id;
-    return true;
-  }
-  return false;
-});
-// Touch the computed so it runs its seeding effect.
-void initClassSelectorOnce;
+// Seed the picker on mount / when member classes load. Must be a watch — a
+// lazy computed that is never read in the template would never run, leaving
+// chosenClassSelector "" and silently skipping the character_classes update
+// on confirm.
+watch(
+  existingClassOptions,
+  (options) => {
+    if (chosenClassSelector.value) return;
+    const primary = options.find(c => c.is_primary) ?? options[0];
+    if (primary) chosenClassSelector.value = primary.id;
+  },
+  { immediate: true },
+);
 
 const isAddingNewClass = computed(() => chosenClassSelector.value === "__new__");
 
