@@ -96,6 +96,34 @@ export function useAddStoreItem() {
   });
 }
 
+/**
+ * Bulk insert in a single request. Quick-fill previously fired one POST per
+ * item (up to 99 concurrent), which jammed the connection pool and timed out
+ * the store query. Duplicates are silently skipped via the
+ * (location_id, item_id) unique constraint so filling against a stale view
+ * is harmless.
+ */
+async function addStoreItems(inserts: StoreItemInsert[]): Promise<void> {
+  const user = getCurrentUser();
+  const rows = inserts.map((i) => ({ ...i, user_id: user!.id }));
+  const { error } = await supabase
+    .from("store_items")
+    .upsert(rows, { onConflict: "location_id,item_id", ignoreDuplicates: true });
+  if (error) throw error;
+}
+
+export function useAddStoreItems() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: addStoreItems,
+    onSuccess: (_data, vars) => {
+      if (vars.length > 0) {
+        queryClient.invalidateQueries({ queryKey: [QUERY_KEY, vars[0].location_id] });
+      }
+    },
+  });
+}
+
 export function useUpdateStoreItem(locationId: Ref<string | undefined>) {
   const queryClient = useQueryClient();
   return useMutation({

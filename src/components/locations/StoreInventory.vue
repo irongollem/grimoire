@@ -169,12 +169,12 @@
       </select>
       <button
         type="button"
-        :disabled="fillPoolSize === 0"
+        :disabled="fillPoolSize === 0 || isFilling"
         class="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 font-cinzel text-[11px] font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-40"
         @click="quickFill"
       >
         <IconShuffle class="size-3" />
-        Fill
+        {{ isFilling ? "Filling…" : "Fill" }}
       </button>
       <span class="font-fell text-[10px] text-muted-foreground italic">
         {{ fillPoolSize }} available
@@ -222,6 +222,7 @@ import { useItems } from "@/composables/useItems";
 import {
   useStoreItems,
   useAddStoreItem,
+  useAddStoreItems,
   useUpdateStoreItem,
   useRemoveStoreItem,
 } from "@/composables/useStoreItems";
@@ -238,6 +239,7 @@ const locationIdRef = computed(() => props.locationId);
 const { data: items } = useStoreItems(locationIdRef);
 const { data: allItems } = useItems();
 const { mutate: add } = useAddStoreItem();
+const { mutate: addMany, isPending: isFilling } = useAddStoreItems();
 const { mutate: update } = useUpdateStoreItem(locationIdRef);
 const { mutate: removeItem } = useRemoveStoreItem(locationIdRef);
 const { sendVendorOffer } = useCampaignMessages();
@@ -310,10 +312,11 @@ function quickFill() {
     const j = Math.floor(Math.random() * (i + 1));
     [pool[i], pool[j]] = [pool[j], pool[i]];
   }
-  const picks = pool.slice(0, fillCount.value);
-  for (const item of picks) {
-    add({ location_id: props.locationId, item_id: item.id });
-  }
+  // The input's max attribute doesn't stop typed values — clamp to 1..20.
+  const count = Math.min(Math.max(1, Math.floor(fillCount.value || 1)), 20);
+  const picks = pool.slice(0, count);
+  if (picks.length === 0) return;
+  addMany(picks.map((item) => ({ location_id: props.locationId, item_id: item.id })));
 }
 
 // ── Vendor offer form ───────────────────────────────────────────────────────────
