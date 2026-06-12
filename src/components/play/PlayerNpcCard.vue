@@ -49,17 +49,7 @@
       <p v-if="location" class="font-fell text-xs text-muted-foreground truncate">📍 {{ location }}</p>
 
       <!-- Relevance stars — pinned to bottom -->
-      <div class="flex items-center gap-0.5 pt-1 mt-auto" @click.stop>
-        <button
-          v-for="n in [1,2,3,4,5]"
-          :key="n"
-          type="button"
-          class="text-base leading-none transition-colors"
-          :class="n <= rating ? 'text-yellow-400' : 'text-muted-foreground/25 hover:text-yellow-400/60'"
-          :title="n === 1 ? 'Not relevant' : n === 5 ? 'Very relevant' : `Relevance ${n}`"
-          @click.stop="setRating(npc.id, n)"
-        >★</button>
-      </div>
+      <NpcRatingStars :npc-id="npc.id" class="pt-1 mt-auto" />
     </div>
   </div>
 </template>
@@ -69,7 +59,7 @@ import { computed } from "vue";
 import { IconUser } from '@/lib/icons';
 import FocalImage from "@/components/common/FocalImage.vue";
 import EntityNewDot from "@/components/common/EntityNewDot.vue";
-import { usePlayerNpcRatings } from "@/composables/usePlayerNpcRatings";
+import NpcRatingStars from "@/components/play/NpcRatingStars.vue";
 import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
 import { NPC_RELATIONSHIP_COLORS, type Npc, type NpcRelationship, type NpcStatus } from "@/types/npc.types";
 
@@ -81,17 +71,9 @@ const props = defineProps<{
 
 defineEmits<{ click: [] }>();
 
-const { getRating, setRating, ratingTick } = usePlayerNpcRatings();
-
 const displayName = computed(() => getNpcDisplayName(props.npc));
 const displayPortrait = computed(() => getNpcDisplayPortrait(props.npc));
 const displayFocalPoint = computed(() => getNpcDisplayFocalPoint(props.npc));
-
-// Reactive rating for this specific NPC
-const rating = computed(() => {
-  void ratingTick.value;
-  return getRating(props.npc.id);
-});
 
 const STATUS_COLORS: Record<NpcStatus, string> = {
   alive: "#22c55e", dead: "#ef4444", missing: "#f59e0b", unknown: "#6b7280",

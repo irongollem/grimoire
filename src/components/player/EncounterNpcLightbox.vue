@@ -11,17 +11,7 @@
         <h2 class="font-cinzel text-lg font-bold text-foreground">
           {{ npc?.player_visible_fields.includes('name') ? display.name : '???' }}
         </h2>
-        <div v-if="npc" class="flex items-center gap-0.5 shrink-0 pt-1" @click.stop>
-          <button
-            v-for="n in [1,2,3,4,5]"
-            :key="n"
-            type="button"
-            class="text-lg leading-none transition-colors"
-            :class="n <= getRating(npc.id) ? 'text-yellow-400' : 'text-muted-foreground/25 hover:text-yellow-400/60'"
-            :title="n === 1 ? 'Not relevant' : n === 5 ? 'Very relevant' : `Relevance ${n}`"
-            @click="setRating(npc.id, n)"
-          >★</button>
-        </div>
+        <NpcRatingStars v-if="npc" :npc-id="npc.id" size="lg" class="shrink-0 pt-1" />
       </div>
       <div v-if="npc" class="flex flex-wrap gap-2 mt-1">
         <span
@@ -57,15 +47,13 @@ import { computed } from "vue";
 import EntityLightbox from "@/components/common/EntityLightbox.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
-import { usePlayerNpcRatings } from "@/composables/usePlayerNpcRatings";
+import NpcRatingStars from "@/components/play/NpcRatingStars.vue";
 import { useMyNpcPcNote } from "@/composables/useNpcPcNotes";
 import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
 import { NPC_RELATIONSHIP_COLORS, type Npc, type NpcRelationship, type NpcStatus } from "@/types/npc.types";
 
 const { npc } = defineProps<{ npc: Npc | null }>();
 defineEmits<{ close: [] }>();
-
-const { getRating, setRating } = usePlayerNpcRatings();
 
 const npcId = computed(() => npc?.id ?? "");
 const { data: myNpcPcNote } = useMyNpcPcNote(npcId);
