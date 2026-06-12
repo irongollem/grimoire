@@ -23,7 +23,7 @@ const route = useRoute();
 const isNew = computed(() => route.name === "scriptorium-new");
 const id = computed(() => (isNew.value ? "" : (route.params.id as string)));
 
-const { data: doc, isLoading: docLoading } = useScriptoriumDocument(id.value);
+const { data: doc, isLoading: docLoading } = useScriptoriumDocument(id);
 
 const isLoading = computed(() => !isNew.value && docLoading.value);
 </script>

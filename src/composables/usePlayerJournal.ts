@@ -154,11 +154,13 @@ export function useDeleteJournalEntry() {
 }
 
 async function reorderEntries(orderedIds: string[]): Promise<void> {
-  await Promise.all(
+  const results = await Promise.all(
     orderedIds.map((id, index) =>
       supabase.from("player_journal_entries").update({ sort_order: index }).eq("id", id),
     ),
   );
+  const firstError = results.find((r) => r.error)?.error;
+  if (firstError) throw firstError;
 }
 
 export function useReorderJournalEntries() {

@@ -86,7 +86,8 @@
         <button
           v-if="props.member"
           type="button"
-          class="font-cinzel text-xs text-destructive hover:opacity-80 transition-opacity"
+          :disabled="saving"
+          class="font-cinzel text-xs text-destructive hover:opacity-80 transition-opacity disabled:opacity-50"
           @click="remove"
         >
           Remove from party
@@ -101,7 +102,7 @@
           </button>
           <button
             type="button"
-            :disabled="!form.name.trim()"
+            :disabled="!form.name.trim() || saving"
             class="px-4 py-2 font-cinzel text-xs font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
             @click="save"
           >
@@ -431,7 +432,11 @@ const { mutateAsync: create } = useCreatePartyMember();
 const { mutateAsync: update } = useUpdatePartyMember();
 const { mutateAsync: del } = useDeletePartyMember();
 
+const saving = ref(false);
+
 async function save() {
+  if (saving.value) return;
+  saving.value = true;
   const selectedPlayer = players.value.find((m) => m.id === selectedCampaignMemberId.value);
   const payload = {
     ...form,
@@ -463,36 +468,46 @@ async function save() {
       .filter((s) => s.max > 0),
   };
 
-  let partyMemberId = props.member?.id;
-  if (props.member) {
-    const { campaign_id: _cid, ...updatePayload } = payload;
-    await update({ id: props.member.id, update: updatePayload });
-  } else {
-    const created = await create(payload);
-    partyMemberId = created.id;
-  }
+  try {
+    let partyMemberId = props.member?.id;
+    if (props.member) {
+      const { campaign_id: _cid, ...updatePayload } = payload;
+      await update({ id: props.member.id, update: updatePayload });
+    } else {
+      const created = await create(payload);
+      partyMemberId = created.id;
+    }
 
-  if (partyMemberId) {
-    for (const m of players.value) {
-      if (m.party_member_id === partyMemberId && m.id !== selectedCampaignMemberId.value) {
-        await updateCampaignMember({ id: m.id, update: { party_member_id: null } });
+    if (partyMemberId) {
+      for (const m of players.value) {
+        if (m.party_member_id === partyMemberId && m.id !== selectedCampaignMemberId.value) {
+          await updateCampaignMember({ id: m.id, update: { party_member_id: null } });
+        }
+      }
+      if (selectedCampaignMemberId.value) {
+        await updateCampaignMember({
+          id: selectedCampaignMemberId.value,
+          update: { party_member_id: partyMemberId },
+        });
       }
     }
-    if (selectedCampaignMemberId.value) {
-      await updateCampaignMember({
-        id: selectedCampaignMemberId.value,
-        update: { party_member_id: partyMemberId },
-      });
-    }
-  }
 
-  emit("close");
+    emit("close");
+  } finally {
+    saving.value = false;
+  }
 }
 
 async function remove() {
   if (!props.member) return;
+  if (saving.value) return;
   if (!await confirm(`Remove ${props.member.name} from the party?`)) return;
-  await del(props.member);
-  emit("close");
+  saving.value = true;
+  try {
+    await del(props.member);
+    emit("close");
+  } finally {
+    saving.value = false;
+  }
 }
 </script>

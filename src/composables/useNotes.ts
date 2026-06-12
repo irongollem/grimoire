@@ -102,11 +102,13 @@ export function useDeleteNote() {
 }
 
 async function reorderNotes(orderedIds: string[]): Promise<void> {
-  await Promise.all(
+  const results = await Promise.all(
     orderedIds.map((id, index) =>
       supabase.from("notes").update({ sort_order: index }).eq("id", id),
     ),
   );
+  const firstError = results.find((r) => r.error)?.error;
+  if (firstError) throw firstError;
 }
 
 export function useReorderNotes() {

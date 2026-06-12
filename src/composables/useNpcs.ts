@@ -146,14 +146,16 @@ export function useSharedNpcs() {
   return useQuery({
     queryKey: computed(() => [QUERY_KEY, "shared", campaignId.value]),
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("npcs")
-        .select("*")
-        .eq("campaign_id", campaignId.value!)
-        .not("player_visible_to", "is", null)
-        .order("name", { ascending: true });
+      // Server-side projection: strips DM-only columns and swaps disguised NPCs
+      // to their cover identity so the real one never reaches the client. See
+      // migration 20260613000001 (get_player_visible_npcs).
+      const { data, error } = await supabase.rpc("get_player_visible_npcs", {
+        p_campaign_id: campaignId.value!,
+      });
       if (error) throw error;
-      return data as Npc[];
+      return ((data ?? []) as Npc[]).sort((a, b) =>
+        (a.name ?? "").localeCompare(b.name ?? ""),
+      );
     },
     enabled: () => !!campaignId.value,
   });
@@ -165,14 +167,14 @@ export function useSharedNpcsByLocations(locationIds: Ref<string[]>) {
     queryKey: computed(() => [QUERY_KEY, "shared-by-locations", locationIds.value]),
     queryFn: async () => {
       if (!locationIds.value.length) return [];
-      const { data, error } = await supabase
-        .from("npcs")
-        .select("*")
-        .in("location_id", locationIds.value)
-        .or("player_visible_to.not.is.null,player_visible_to.neq.{}")
-        .order("name", { ascending: true });
+      // Same projection RPC as useSharedNpcs, filtered by location.
+      const { data, error } = await supabase.rpc("get_player_visible_npcs", {
+        p_location_ids: locationIds.value,
+      });
       if (error) throw error;
-      return data as Npc[];
+      return ((data ?? []) as Npc[]).sort((a, b) =>
+        (a.name ?? "").localeCompare(b.name ?? ""),
+      );
     },
     enabled: () => locationIds.value.length > 0,
   });

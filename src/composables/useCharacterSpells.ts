@@ -314,7 +314,7 @@ export async function restoreInnateUses(
   if (error) throw error;
   if (!data?.length) return;
 
-  await Promise.all(
+  const results = await Promise.all(
     data.map((row) =>
       supabase
         .from("character_spells")
@@ -322,6 +322,8 @@ export async function restoreInnateUses(
         .eq("id", row.id),
     ),
   );
+  const firstError = results.find((r) => r.error)?.error;
+  if (firstError) throw firstError;
 }
 
 /**

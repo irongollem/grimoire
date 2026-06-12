@@ -1,3 +1,4 @@
+import { computed, type Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type {
@@ -61,11 +62,11 @@ export function useScriptoriumDocuments() {
   return useQuery({ queryKey: [QUERY_KEY], queryFn: fetchDocuments });
 }
 
-export function useScriptoriumDocument(id: string) {
+export function useScriptoriumDocument(id: Ref<string>) {
   return useQuery({
-    queryKey: [QUERY_KEY, id],
-    queryFn: () => fetchDocument(id),
-    enabled: !!id,
+    queryKey: computed(() => [QUERY_KEY, id.value]),
+    queryFn: () => fetchDocument(id.value),
+    enabled: () => !!id.value,
   });
 }
 

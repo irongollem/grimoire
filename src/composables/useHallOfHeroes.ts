@@ -230,7 +230,7 @@ export function usePopulateAllSettingHeroes() {
         }
       }
 
-      const [insertResult] = await Promise.all([
+      const [insertResult, ...updateResults] = await Promise.all([
         toInsert.length
           ? supabase.from("hall_of_heroes").insert(toInsert).select("id")
           : Promise.resolve({ data: [], error: null }),
@@ -240,6 +240,8 @@ export function usePopulateAllSettingHeroes() {
       ]);
 
       if (insertResult.error) throw insertResult.error;
+      const firstUpdateError = updateResults.find((r) => r.error)?.error;
+      if (firstUpdateError) throw firstUpdateError;
 
       return {
         inserted: (insertResult.data ?? []).length,
