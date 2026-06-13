@@ -83,10 +83,12 @@ export function createOpenAiImageProvider(
       };
     },
 
-    async edit(source: Blob, prompt: string, size: string) {
+    async edit(sources: Blob[], prompt: string, size: string) {
       const form = new FormData();
       form.append("model", model);
-      form.append("image[]", new File([source], "portrait.webp", { type: "image/webp" }));
+      sources.forEach((source, i) =>
+        form.append("image[]", new File([source], `ref_${i}.webp`, { type: "image/webp" })),
+      );
       form.append("prompt", prompt);
       form.append("size", size);
       form.append("output_format", "webp");

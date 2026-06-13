@@ -256,7 +256,7 @@ export function useNpcGeneration() {
         });
         try {
           const { b64: disguiseB64, usage: disguiseUsage } = await imageProvider.edit(
-            b64ToBlob(portraitB64),
+            [b64ToBlob(portraitB64)],
             disguisePrompt,
             "1024x1536",
           );

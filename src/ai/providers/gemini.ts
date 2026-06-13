@@ -54,9 +54,11 @@ export function createGeminiTextProvider(apiKey: string, model = MODEL): TextPro
 
 /** Gemini "Nano Banana" image generation — supports reference images via inline_data. */
 export function createGeminiImageProvider(apiKey: string, model = IMAGE_MODEL): ImageProvider {
-  async function call(prompt: string, size: string, source?: Blob) {
+  async function call(prompt: string, size: string, sources?: Blob[]) {
     const parts: unknown[] = [{ text: prompt }];
-    if (source) parts.push({ inline_data: { mime_type: source.type || "image/webp", data: await blobToBase64(source) } });
+    for (const source of sources ?? []) {
+      parts.push({ inline_data: { mime_type: source.type || "image/webp", data: await blobToBase64(source) } });
+    }
     const { aspectRatio, imageSize } = sizeToAspect(size);
     const res = await fetch(`${BASE_URL}/${model}:generateContent?key=${apiKey}`, {
       method: "POST",
@@ -85,6 +87,6 @@ export function createGeminiImageProvider(apiKey: string, model = IMAGE_MODEL): 
   }
   return {
     generate: (prompt, size) => call(prompt, size),
-    edit:     (source, prompt, size) => call(prompt, size, source),
+    edit:     (sources, prompt, size) => call(prompt, size, sources),
   };
 }

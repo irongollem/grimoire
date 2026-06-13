@@ -163,7 +163,7 @@ All note creation and editing happens here. Key integrations:
 
 7. **VueDatePicker** (`@vuepic/vue-datepicker`) for `session_real_date` — stored as "YYYY-MM-DD" string; two-way computed converts to/from `Date`
 
-8. **Chronicler AI image generation** (DM-only, shown when `campaign.activeCampaign.image_provider === "openai"`):
+8. **Chronicler AI image generation** (DM-only, shown whenever `campaign.activeCampaign.image_provider` is configured — `hasImageProvider`). Works with every provider we expose (OpenAI, Google Gemini, fal.ai) on both the server-side edge-function path and the BYOK local-vault path, which routes through the shared `getImageProvider()` abstraction (`src/ai/providers/`):
    - `ChroniclerGenerateDialog` (`src/components/notes/ChroniclerGenerateDialog.vue`) — AI scene illustration using `useChroniclerImages` composable (`src/composables/useChroniclerImages.ts`)
    - `ChroniclerLibraryPicker` (`src/components/notes/ChroniclerLibraryPicker.vue`) — browse and insert previously generated images
    - Both call `rteRef.value?.insertImageAtCursor(url)` on the editor ref

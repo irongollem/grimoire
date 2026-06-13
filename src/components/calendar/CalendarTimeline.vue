@@ -168,11 +168,11 @@
 
         <!-- Session events — every session is a bar in the dedicated strip -->
         <template v-for="pe in positionedSessionEvents" :key="pe.event.id">
-          <!-- Bar: spans full days if multi-day, minimum 8px for single-day; same-day sessions hug each other -->
+          <!-- Bar width is sqrt-compressed (see sessionBarWidth) so long sessions don't over-extend the strip; same-day sessions hug each other -->
           <div
             :style="{
               left: pe.x + 'px',
-              width: Math.max(8, (pe.endX ?? pe.naturalX) - pe.naturalX) + 'px',
+              width: pe.barWidth + 'px',
               top: SESSION_STRIP_Y - SESSION_STRIP_HEIGHT / 2 + 'px',
               height: SESSION_STRIP_HEIGHT + 'px',
               backgroundColor: eventColor(pe.event) + '55',
@@ -184,7 +184,7 @@
             @click="!readOnly && emit('edit-event', pe.event)"
           >
             <span
-              v-if="Math.max(8, (pe.endX ?? pe.naturalX) - pe.naturalX) >= 36"
+              v-if="pe.barWidth >= 36"
               class="font-fell text-[10px] font-semibold whitespace-nowrap px-1 leading-none pointer-events-none truncate"
               :style="{ color: eventColor(pe.event) }"
             >
@@ -193,7 +193,7 @@
           </div>
           <!-- Label above the bar for narrow sessions -->
           <div
-            v-if="Math.max(8, (pe.endX ?? pe.naturalX) - pe.naturalX) < 36"
+            v-if="pe.barWidth < 36"
             :style="{
               left: pe.x + 'px',
               top: SESSION_STRIP_Y - SESSION_STRIP_HEIGHT / 2 - 14 + 'px',
@@ -333,6 +333,23 @@ const LANE_HEIGHT = 30; // px between stacked event lanes
 const CONTAINER_HEIGHT = 330;
 const SESSION_STRIP_Y = 280;
 const SESSION_STRIP_HEIGHT = 22;
+
+// Chronicle bar width is sqrt-compressed: the raw duration-in-pixels is mapped
+// through a sublinear curve so short and long sessions land in a tight band
+// (MIN…MAX px) instead of scaling 1:1 with the time axis. Without this, at high
+// zoom a single in-game day is ~100px, so a run of full-day sessions butts
+// together and over-extends off the strip. Longer sessions still read as wider,
+// just compressed. A zero-length (single-moment) session renders at MIN.
+const SESSION_BAR_MIN = 8;
+const SESSION_BAR_MAX = 160;
+const SESSION_BAR_GAIN = 4.5; // px per √px — tunes how fast width grows with duration
+function sessionBarWidth(rawWidthPx: number): number {
+  if (rawWidthPx <= 0) return SESSION_BAR_MIN;
+  return Math.min(
+    SESSION_BAR_MAX,
+    SESSION_BAR_MIN + SESSION_BAR_GAIN * Math.sqrt(rawWidthPx),
+  );
+}
 
 const EVENT_ICONS: Record<string, Component> = {
   campaign: IconStar,
@@ -589,8 +606,9 @@ interface PositionedEvent {
 interface PositionedSessionEvent {
   event: CalendarEvent;
   x: number; // display x (may be pushed right to avoid overlap)
-  naturalX: number; // true date position (used for width calc)
+  naturalX: number; // true date position
   endX: number | null;
+  barWidth: number; // normalized render width (sqrt-compressed; see sessionBarWidth)
 }
 
 // Max lanes that fit without overflowing: above goes up toward y=0, below must
@@ -695,10 +713,10 @@ const positionedSessionEvents = computed((): PositionedSessionEvent[] => {
     const naturalX = fractionalYearToX(eventToFrac(event));
     const ef = endFracForEvent(event);
     const endX = ef !== null ? fractionalYearToX(ef) : null;
-    const barWidth = Math.max(8, (endX ?? naturalX) - naturalX);
+    const barWidth = sessionBarWidth((endX ?? naturalX) - naturalX);
     const x = Math.max(naturalX, rightEdge);
     rightEdge = x + barWidth + 1;
-    return { event, x, naturalX, endX };
+    return { event, x, naturalX, endX, barWidth };
   });
 });
 

@@ -177,7 +177,7 @@
       @insert-calendar-event="showEventModal = true"
       @illustration-click="onIllustrationClick"
     >
-      <template v-if="isOpenAiImageProvider || hasTextProvider" #toolbar-end>
+      <template v-if="hasImageProvider || hasTextProvider" #toolbar-end>
         <div class="w-px h-5 bg-border mx-0.5" />
         <button
           v-if="hasTextProvider"
@@ -188,7 +188,7 @@
         >
           <IconNote class="h-3.5 w-3.5" />
         </button>
-        <template v-if="isOpenAiImageProvider">
+        <template v-if="hasImageProvider">
           <button
             type="button"
             title="Generate scene illustration"
@@ -359,9 +359,11 @@ const showChroniclerWrite    = ref(false);
 const showAiPaywall          = ref(false);
 
 const campaignStore = useCampaignStore();
-const isOpenAiImageProvider = computed(
-  () => (campaignStore.activeCampaign?.image_provider ?? "openai") === "openai",
-);
+// Image generation runs through the shared provider abstraction on both the
+// server-side and BYOK local-vault paths, and both support every provider we
+// expose (OpenAI, Google Gemini, fal.ai). The button only needs a configured
+// image provider — not specifically OpenAI.
+const hasImageProvider = computed(() => !!(campaignStore.activeCampaign?.image_provider ?? "openai"));
 // Text generation works on both BYOK and platform keys via the edge function,
 // so the toolbar button only needs a campaign + configured provider — not a
 // decrypted client-side key.

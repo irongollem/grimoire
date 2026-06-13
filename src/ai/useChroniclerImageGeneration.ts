@@ -3,7 +3,7 @@ import { uploadToBucket } from "@/lib/storage";
 import { getCurrentUser, supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { fetchImageBasePrompt } from "./systemPrompts";
-import { OPENAI_IMAGE_MODEL_KEY } from "@/ai/providers/index";
+import { OPENAI_IMAGE_MODEL_KEY, getImageProvider } from "@/ai/providers/index";
 import type { ChroniclerSize, ImageJobKind } from "@/types/chronicler.types";
 import type { Npc } from "@/types/npc.types";
 import type { Monster } from "@/types/monster.types";
@@ -178,9 +178,6 @@ export function parseSceneEntities(
 
 // ── Image generation ──────────────────────────────────────────────────────────
 
-const EDIT_URL = "https://api.openai.com/v1/images/edits";
-const GENERATE_URL = "https://api.openai.com/v1/images/generations";
-
 async function fetchPortraitBlob(url: string): Promise<Blob | null> {
   try {
     const res = await fetch(url);
@@ -290,11 +287,10 @@ export async function generateChroniclerImage(params: {
   }
 
   // ── Client-side path (BYOK local mode) ─────────────────────────────────────
-  const apiKey = store.decryptedOpenAiKey;
-  if (!apiKey)
-    throw new Error(
-      "No OpenAI API key configured. Add one in Campaign Settings → AI.",
-    );
+  // Resolve the campaign's chosen image provider (OpenAI, Gemini, or fal.ai)
+  // from the local vault — same abstraction every other generator uses — so
+  // local mode reaches full provider parity with the server-side path above.
+  const provider = getImageProvider();
 
   // Collect portrait blobs and text descriptions in parallel
   const portraitBlobs: Blob[] = [];
@@ -319,91 +315,15 @@ export async function generateChroniclerImage(params: {
     imageBasePrompt,
   );
 
-  let b64: string;
-  // Token usage for accurate (token-based) image cost. The edit branch feeds
-  // reference portraits in, so its image-input tokens can be substantial.
-  let imgInputTokens = 0;
-  let imgInputImageTokens = 0;
-  let imgOutputTokens = 0;
-  const captureUsage = (data: {
-    usage?: {
-      input_tokens?: number;
-      input_tokens_details?: { text_tokens?: number; image_tokens?: number };
-      output_tokens?: number;
-    };
-  }) => {
-    const u = data.usage;
-    imgInputTokens +=
-      u?.input_tokens_details?.text_tokens ?? u?.input_tokens ?? 0;
-    imgInputImageTokens += u?.input_tokens_details?.image_tokens ?? 0;
-    imgOutputTokens += u?.output_tokens ?? 0;
-  };
+  // Composite reference portraits into the scene when the provider supports it
+  // (OpenAI edits, Gemini inline references); fal.ai is generate-only and
+  // falls back to a text-only prompt.
+  const { b64, usage } =
+    portraitBlobs.length > 0 && provider.edit
+      ? await provider.edit(portraitBlobs, prompt, size)
+      : await provider.generate(prompt, size);
 
-  if (portraitBlobs.length > 0) {
-    // Multi-image edit endpoint — composes reference portraits into the scene
-    const form = new FormData();
-    form.append("model", imageModel);
-    form.append("prompt", prompt);
-    form.append("size", size);
-    form.append("output_format", "webp");
-    form.append("n", "1");
-    portraitBlobs.forEach((blob, i) => {
-      form.append(
-        "image[]",
-        new File([blob], `ref_${i}.webp`, { type: "image/webp" }),
-      );
-    });
-    const res = await fetch(EDIT_URL, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}` },
-      body: form,
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new Error(
-        body?.error?.message ?? `OpenAI image edit error ${res.status}`,
-      );
-    }
-    const json = await res.json();
-    b64 = json.data[0].b64_json as string;
-    captureUsage(json);
-  } else {
-    // Standard generation — text-only prompt
-    const res = await fetch(GENERATE_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: imageModel,
-        prompt,
-        size,
-        output_format: "webp",
-      }),
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new Error(
-        body?.error?.message ?? `OpenAI image generation error ${res.status}`,
-      );
-    }
-    const json = await res.json();
-    b64 = json.data[0].b64_json as string;
-    captureUsage(json);
-  }
-
-  logUsage({
-    reason: "chronicler_image",
-    imageUsage: {
-      model: imageModel,
-      provider: "openai",
-      image_count: 1,
-      input_tokens: imgInputTokens || undefined,
-      input_image_tokens: imgInputImageTokens || undefined,
-      output_tokens: imgOutputTokens || undefined,
-    },
-  });
+  logUsage({ reason: "chronicler_image", imageUsage: usage });
 
   // Upload to chronicle bucket
   const blob = b64ToBlob(b64, "image/webp");

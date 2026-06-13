@@ -22,5 +22,10 @@ export interface TextProvider {
 
 export interface ImageProvider {
   generate(prompt: string, size: string): Promise<{ b64: string; usage: ImageUsage }>;
-  edit?(source: Blob, prompt: string, size: string): Promise<{ b64: string; usage: ImageUsage }>;
+  /**
+   * Compose one or more reference images into a new image (e.g. character
+   * portraits into a scene). Providers that support only a single reference use
+   * the first blob; generate-only providers (fal.ai) omit `edit` entirely.
+   */
+  edit?(sources: Blob[], prompt: string, size: string): Promise<{ b64: string; usage: ImageUsage }>;
 }
