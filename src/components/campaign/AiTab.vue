@@ -84,16 +84,32 @@
           <div class="flex items-center justify-between">
             <label class="font-cinzel text-xs text-muted-foreground tracking-wide">
               {{ p.label }}
-              <span v-if="providerHasKey(p.id) && !form.keys[p.id].trim()" class="ml-1.5 font-fell text-[10px] normal-case tracking-normal text-primary/80">— key on file (leave blank to keep)</span>
+              <span v-if="clearedKeys[p.id]" class="ml-1.5 font-fell text-[10px] normal-case tracking-normal text-yellow-600 dark:text-yellow-500">— will be removed on save</span>
+              <span v-else-if="providerHasKey(p.id) && !form.keys[p.id].trim()" class="ml-1.5 font-fell text-[10px] normal-case tracking-normal text-primary/80">— key on file (leave blank to keep)</span>
             </label>
-            <a :href="p.link" target="_blank" rel="noopener noreferrer" class="font-fell text-xs text-primary hover:underline">Get key →</a>
+            <div class="flex items-center gap-3">
+              <button
+                v-if="clearedKeys[p.id]"
+                type="button"
+                class="font-fell text-xs text-muted-foreground hover:underline"
+                @click="undoClearKey(p.id)"
+              >Undo</button>
+              <button
+                v-else-if="providerHasKeyStored(p.id)"
+                type="button"
+                class="font-fell text-xs text-destructive hover:underline"
+                @click="clearKey(p.id)"
+              >Clear</button>
+              <a :href="p.link" target="_blank" rel="noopener noreferrer" class="font-fell text-xs text-primary hover:underline">Get key →</a>
+            </div>
           </div>
           <div class="relative">
             <input
               v-model="form.keys[p.id]"
               :type="showKeys[p.id] ? 'text' : 'password'"
-              :placeholder="providerHasKey(p.id) ? 'Enter a new key to replace…' : p.placeholder"
-              class="field-input pr-10 w-full"
+              :disabled="clearedKeys[p.id]"
+              :placeholder="clearedKeys[p.id] ? 'Will use platform credits' : (providerHasKey(p.id) ? 'Enter a new key to replace…' : p.placeholder)"
+              class="field-input pr-10 w-full disabled:opacity-50"
               autocomplete="off"
               spellcheck="false"
             />
@@ -252,6 +268,7 @@ import { IconDM, IconHide, IconReveal } from '@/lib/icons';
 import { useCampaignStore } from "@/stores/campaign";
 import { useUpdateCampaign } from "@/composables/useCampaigns";
 import { encryptApiKey, decryptApiKey, primeDecryptCache } from "@/lib/apiKeyVault";
+import { encryptLocalKey, decryptLocalKey, isLocalCiphertext } from "@/lib/localKeyVault";
 import { getSetting } from "@/settings/index";
 import { useSubscription } from "@/composables/useSubscription";
 import { useStripe } from "@/composables/useStripe";
@@ -305,7 +322,18 @@ const form = ref({
 });
 
 const showKeys     = reactive<Record<string, boolean>>(Object.fromEntries(providerDefs.map((p) => [p.id, false])));
+// Staged removal: a provider whose stored key should be deleted on save, so the
+// user can fall back to platform credits instead of being forced to replace it.
+const clearedKeys  = reactive<Record<string, boolean>>(Object.fromEntries(providerDefs.map((p) => [p.id, false])));
 const isSaving     = ref(false);
+
+function clearKey(id: string) {
+  clearedKeys[id] = true;
+  form.value.keys[id] = "";
+}
+function undoClearKey(id: string) {
+  clearedKeys[id] = false;
+}
 const localModeEnabled = ref(typeof localStorage !== "undefined" && localStorage.getItem(LOCAL_MODE_KEY) === "local");
 
 const activeSetting        = computed(() => getSetting(campaign.activeCampaign?.calendar_id ?? ""));
@@ -347,11 +375,24 @@ const BYOK_IMAGE_OPTIONS = [
 
 function providerHasKey(providerId: string): boolean {
   if (form.value.keys[providerId].trim()) return true;
+  // A staged clear means "no key" immediately, so the provider drops out of the
+  // active-provider pickers and the UI falls back to platform credits.
+  if (clearedKeys[providerId]) return false;
   const p = providerDefs.find((d) => d.id === providerId);
   if (!p) return false;
   if (localModeEnabled.value) {
     return !!localStorage.getItem(p.localKey);
   }
+  const c = campaign.activeCampaign;
+  return !!(c?.[p.dbField as keyof typeof c] as string | null);
+}
+
+// Whether a key is actually persisted (DB or local) right now — drives the
+// "Clear" affordance, independent of form input or staged-clear state.
+function providerHasKeyStored(providerId: string): boolean {
+  const p = providerDefs.find((d) => d.id === providerId);
+  if (!p) return false;
+  if (localModeEnabled.value) return !!localStorage.getItem(p.localKey);
   const c = campaign.activeCampaign;
   return !!(c?.[p.dbField as keyof typeof c] as string | null);
 }
@@ -394,6 +435,7 @@ watch(
       // Inputs deliberately stay empty — see initialKeys() for the reasoning.
       for (const p of providerDefs) {
         form.value.keys[p.id] = "";
+        clearedKeys[p.id] = false;
       }
     }
   },
@@ -417,12 +459,15 @@ async function save() {
         const existingDb = (c[p.dbField as keyof typeof c] as string | null) ?? null;
         const existingLocal = localStorage.getItem(p.localKey);
 
-        if (trimmed) {
-          localStorage.setItem(p.localKey, trimmed);
+        if (clearedKeys[p.id]) {
+          localStorage.removeItem(p.localKey);
+        } else if (trimmed) {
+          // Encrypted at rest with the local vault — never sent to our server.
+          localStorage.setItem(p.localKey, await encryptLocalKey(trimmed));
         } else if (!existingLocal && existingDb) {
           try {
             const decrypted = await decryptApiKey(existingDb);
-            if (decrypted) localStorage.setItem(p.localKey, decrypted);
+            if (decrypted) localStorage.setItem(p.localKey, await encryptLocalKey(decrypted));
           } catch (e) { console.error(`Failed to migrate ${p.id} key to local mode:`, e); }
         }
         encryptedKeys[p.dbField] = null;
@@ -434,13 +479,19 @@ async function save() {
         const existingDb = (c[p.dbField as keyof typeof c] as string | null) ?? null;
         const existingLocal = localStorage.getItem(p.localKey);
 
-        if (trimmed) {
+        if (clearedKeys[p.id]) {
+          encryptedKeys[p.dbField] = null;
+        } else if (trimmed) {
           const enc = await encryptApiKey(trimmed);
           primeDecryptCache(enc, trimmed);
           encryptedKeys[p.dbField] = enc;
         } else if (!existingDb && existingLocal) {
-          const enc = await encryptApiKey(existingLocal);
-          primeDecryptCache(enc, existingLocal);
+          // Migrate a local key into the cloud vault. The stored local value is
+          // local-vault ciphertext, so decrypt it client-side before re-encrypting
+          // with the server vault.
+          const plain = isLocalCiphertext(existingLocal) ? await decryptLocalKey(existingLocal) : existingLocal;
+          const enc = await encryptApiKey(plain);
+          primeDecryptCache(enc, plain);
           encryptedKeys[p.dbField] = enc;
         } else {
           encryptedKeys[p.dbField] = existingDb;

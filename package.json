@@ -64,6 +64,7 @@
     "@types/node": "^22.13.10",
     "@vitejs/plugin-vue": "^6.0.6",
     "@vue/test-utils": "^2.4.10",
+    "fake-indexeddb": "^6.2.5",
     "happy-dom": "^20.9.0",
     "oxlint": "^1.60.0",
     "portless": "^0.10.2",

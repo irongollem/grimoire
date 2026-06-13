@@ -3,6 +3,7 @@ import { ref, computed, watch } from "vue";
 import type { Campaign } from "@/types/campaign.types";
 import { useTheme } from "@/composables/useTheme";
 import { decryptApiKey } from "@/lib/apiKeyVault";
+import { isLocalCiphertext, encryptLocalKey, decryptLocalKey } from "@/lib/localKeyVault";
 
 const STORAGE_KEY      = "grimoire_active_campaign";
 const LOCAL_MODE_KEY   = "grimoire_key_local_mode";
@@ -53,13 +54,48 @@ export const useCampaignStore = defineStore("campaign", () => {
     else localStorage.removeItem(STORAGE_KEY);
   });
 
+  // Resolve a BYOK-local key into its plaintext (in-memory) form, decrypting
+  // the local-vault ciphertext. Legacy values — pre-vault plaintext, or a
+  // server `enc:v1:` blob left over from a cloud→local switch — are surfaced
+  // immediately and then re-encrypted into the local vault so at-rest storage
+  // is always ciphertext going forward.
+  function loadLocalKey(localKey: string, ref_: ReturnType<typeof ref<string>>) {
+    const stored = localStorage.getItem(localKey) ?? "";
+    if (!stored) { ref_.value = ""; return; }
+
+    if (isLocalCiphertext(stored)) {
+      decryptLocalKey(stored)
+        .then((key) => { ref_.value = key; })
+        .catch(() => { ref_.value = ""; });
+      return;
+    }
+
+    const migrate = (plaintext: string) => {
+      ref_.value = plaintext;
+      if (!plaintext) return;
+      encryptLocalKey(plaintext)
+        .then((enc) => { if (enc) localStorage.setItem(localKey, enc); })
+        .catch(() => { /* keep plaintext fallback; retried next load */ });
+    };
+
+    if (stored.startsWith("enc:v1:")) {
+      // Server-encrypted blob wrongly left in localStorage — decrypt via the
+      // server vault once, then hand it to the local vault.
+      decryptApiKey(stored)
+        .then((key) => migrate(key))
+        .catch(() => { ref_.value = ""; });
+    } else {
+      migrate(stored);
+    }
+  }
+
   function loadProviderKeys(campaign: Campaign) {
     const localMode = localStorage.getItem(LOCAL_MODE_KEY) === "local";
     for (const [provider, localKey] of Object.entries(LOCAL_KEYS)) {
       const ref_ = providerKeyRefs[provider];
       if (!ref_) continue;
       if (localMode) {
-        ref_.value = localStorage.getItem(localKey) ?? "";
+        loadLocalKey(localKey, ref_);
       } else {
         const dbField = DB_KEY_FIELDS[provider];
         const encrypted = campaign[dbField] as string | null | undefined;
