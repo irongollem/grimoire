@@ -438,6 +438,7 @@ serve(async (req: Request) => {
         prompt: imagePrompt,
         size: portraitSize,
         quality: img.imageQuality,
+        boostStyle: true,
       });
       portrait_b64 = b64;
       totalImageCount++;
@@ -470,6 +471,7 @@ serve(async (req: Request) => {
           prompt: disguisePrompt,
           size: portraitSize,
           quality: img.imageQuality,
+          boostStyle: true,
           sourceImages: [seedBlob],
         });
         disguise_portrait_b64 = b64;

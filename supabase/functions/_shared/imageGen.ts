@@ -42,6 +42,16 @@ const OPENAI_QUALITIES = new Set(["low", "medium", "high", "auto"]);
 /** Valid Gemini `imageConfig.imageSize` values; falls back to "1K". */
 const GEMINI_IMAGE_SIZES = new Set(["1K", "2K", "4K"]);
 
+/**
+ * Art-direction suffix appended to Gemini prompts for scene/character/illustration
+ * work (NOT maps). Gemini-flash follows the prompt literally and the shared
+ * image_base style asks for a muted, restrained, "avoid cinematic" look — which
+ * renders flat on Gemini while gpt-image's baked-in bias overrides it. This
+ * pushes Gemini back toward painterly depth without changing OpenAI's output.
+ */
+const GEMINI_STYLE_BOOSTER =
+  "dramatic volumetric lighting with a strong directional key light and deep chiaroscuro shadows, warm rim light, rich tonal range, layered foreground-to-background atmospheric depth, painterly dimensionality and confident form modeling; avoid flat, evenly-lit, washed-out rendering";
+
 /** Map a "WxH" size to Gemini's aspectRatio; resolution comes from the admin quality knob. */
 function sizeToAspect(size: string, quality?: string | null): { aspectRatio: string; imageSize: string } {
   const { w, h } = sizeDims(size);
@@ -160,12 +170,21 @@ export async function generateImage(opts: {
   size: string;
   /** Provider-specific quality lever from provider_config (OpenAI quality / Gemini imageSize). */
   quality?: string | null;
+  /**
+   * Append GEMINI_STYLE_BOOSTER (Gemini only) for scene/character/illustration
+   * work to counter flash-image's flat literalness. Leave false for maps —
+   * dramatic lighting/depth ruins top-down cartography.
+   */
+  boostStyle?: boolean;
   sourceImages?: Blob[];
 }): Promise<ImageGenResult> {
-  const { provider, model, apiKey, prompt, size, quality, sourceImages } = opts;
+  const { provider, model, apiKey, prompt, size, quality, boostStyle, sourceImages } = opts;
   switch (provider) {
     case "falai":  return falaiGenerate(apiKey, model, prompt, size);
-    case "gemini": return geminiGenerate(apiKey, model, prompt, size, quality, sourceImages);
+    case "gemini": {
+      const geminiPrompt = boostStyle ? `${prompt} — ${GEMINI_STYLE_BOOSTER}` : prompt;
+      return geminiGenerate(apiKey, model, geminiPrompt, size, quality, sourceImages);
+    }
     default:       return openaiGenerate(apiKey, model, prompt, size, quality, sourceImages); // openai + openai-mini
   }
 }

@@ -264,7 +264,7 @@ serve(async (req: Request) => {
               setting: campaign.ai_setting_prompt ?? "",
               subject: locationData.image_prompt,
             }),
-            size: "1024x1024", quality: img.imageQuality,
+            size: "1024x1024", quality: img.imageQuality, boostStyle: true,
           })
         : Promise.resolve(null),
       generate_map

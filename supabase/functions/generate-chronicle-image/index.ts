@@ -87,7 +87,7 @@ async function runGeneration(args: {
     }
 
     const { b64, usage } = await generateImage({
-      provider, model, apiKey, prompt, size, quality,
+      provider, model, apiKey, prompt, size, quality, boostStyle: true,
       sourceImages: portraitBlobs.length > 0 ? portraitBlobs : undefined,
     });
 
