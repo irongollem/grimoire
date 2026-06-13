@@ -272,7 +272,7 @@ serve(async (req: Request) => {
 
       imgResult = await generateImage({
         provider: img.provider, model: img.model, apiKey: img.apiKey,
-        prompt: finalPrompt, size: "1024x1536", sourceImages,
+        prompt: finalPrompt, size: "1024x1536", quality: img.imageQuality, sourceImages,
       });
       image_b64 = imgResult.b64;
     } catch (e) {

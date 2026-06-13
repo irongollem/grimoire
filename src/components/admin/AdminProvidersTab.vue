@@ -160,6 +160,22 @@
                   <option v-for="m in providerModelOptions[row.provider]" :key="m" :value="m" />
                 </datalist>
               </div>
+              <div v-if="IMAGE_QUALITY_OPTIONS[row.provider]" class="space-y-1">
+                <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground">Quality</label>
+                <div class="flex gap-1">
+                  <button
+                    v-for="opt in IMAGE_QUALITY_OPTIONS[row.provider]"
+                    :key="opt.value"
+                    type="button"
+                    class="flex-1 px-1.5 py-1 font-cinzel text-[10px] font-semibold tracking-wider rounded border transition-colors"
+                    :class="draftProviders[row.provider]?.image_quality === opt.value
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-background text-muted-foreground border-border hover:text-foreground'"
+                    @click="draftProviders[row.provider].image_quality = opt.value"
+                  >{{ opt.label }}</button>
+                </div>
+                <p class="font-fell text-[9px] text-muted-foreground/60 italic">Higher = more output tokens = higher real cost.</p>
+              </div>
               <div class="space-y-1">
                 <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground">Multiplier</label>
                 <input
@@ -417,6 +433,7 @@ watch(
           provider:         r.provider,
           text_model:       r.text_model,
           image_model:      r.image_model,
+          image_quality:    r.image_quality,
           audio_model:      r.audio_model,
           text_multiplier:  r.text_multiplier,
           image_multiplier: r.image_multiplier,
@@ -452,6 +469,24 @@ const providerModelOptions = computed<Record<string, string[]>>(() => ({
   gemini:    geminiModelList.data.value    ?? [],
   falai:     [],
 }));
+
+// ── Image quality options per provider ───────────────────────────────────
+// Vocabulary is provider-specific (see _shared/imageGen.ts): OpenAI sends these
+// as `quality`; Gemini sends them as imageConfig.imageSize. Higher = more output
+// tokens = higher real cost. fal.ai is flat-priced, so no quality lever.
+const IMAGE_QUALITY_OPTIONS: Record<string, { value: string; label: string }[]> = {
+  openai: [
+    { value: "auto",   label: "Auto" },
+    { value: "low",    label: "Low" },
+    { value: "medium", label: "Medium" },
+    { value: "high",   label: "High" },
+  ],
+  gemini: [
+    { value: "1K", label: "1K" },
+    { value: "2K", label: "2K" },
+    { value: "4K", label: "4K" },
+  ],
+};
 
 // ── Known audio models per provider ──────────────────────────────────────
 const KNOWN_AUDIO_MODELS: Record<string, string[]> = {

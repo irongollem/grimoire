@@ -5,6 +5,7 @@ export interface ProviderConfig {
   provider: string;
   text_model: string | null;
   image_model: string | null;
+  image_quality: string | null;
   audio_model: string | null;
   text_multiplier: number | null;
   image_multiplier: number | null;

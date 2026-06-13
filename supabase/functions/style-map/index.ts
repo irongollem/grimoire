@@ -146,7 +146,7 @@ serve(async (req: Request) => {
   try {
     imgResult = await generateImage({
       provider: img.provider, model: img.model, apiKey: img.apiKey,
-      prompt, size: "1024x1024", sourceImages: [mapBlob],
+      prompt, size: "1024x1024", quality: img.imageQuality, sourceImages: [mapBlob],
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Image generation failed";

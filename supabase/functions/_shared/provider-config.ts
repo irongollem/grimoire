@@ -9,6 +9,7 @@ import type { Provider } from "./platform-keys.ts";
 export interface ProviderRow {
   text_model: string | null;
   image_model: string | null;
+  image_quality: string | null;
   text_multiplier: number | null;
   image_multiplier: number | null;
 }
@@ -24,7 +25,7 @@ export async function fetchProviderConfigs(
   if (!providerCache || Date.now() >= providerCacheExpiry) {
     const { data } = await admin
       .from("provider_config")
-      .select("provider, text_model, image_model, text_multiplier, image_multiplier");
+      .select("provider, text_model, image_model, image_quality, text_multiplier, image_multiplier");
     providerCache = Object.fromEntries(
       (data ?? []).map((row: { provider: string } & ProviderRow) => [row.provider, row]),
     ) as Partial<Record<Provider, ProviderRow>>;

@@ -247,7 +247,7 @@ serve(async (req: Request) => {
   try {
     imgResult = await generateImage({
       provider: img.provider, model: img.model, apiKey: img.apiKey,
-      prompt: imagePrompt, size: ENTITY_IMAGE_SIZE,
+      prompt: imagePrompt, size: ENTITY_IMAGE_SIZE, quality: img.imageQuality,
     });
   } catch (e) {
     console.error("Entity image generation failed:", e);

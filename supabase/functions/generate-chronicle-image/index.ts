@@ -67,11 +67,12 @@ async function runGeneration(args: {
   apiKey: string;
   prompt: string;
   size: string;
+  quality: string | null;
   portrait_urls: string[];
   isByok: boolean;
   cost: number;
 }) {
-  const { jobId, userId, provider, model, apiKey, prompt, size, portrait_urls, isByok, cost } = args;
+  const { jobId, userId, provider, model, apiKey, prompt, size, quality, portrait_urls, isByok, cost } = args;
 
   try {
     // Fetch reference portrait blobs in parallel (openai + gemini compose them).
@@ -86,7 +87,7 @@ async function runGeneration(args: {
     }
 
     const { b64, usage } = await generateImage({
-      provider, model, apiKey, prompt, size,
+      provider, model, apiKey, prompt, size, quality,
       sourceImages: portraitBlobs.length > 0 ? portraitBlobs : undefined,
     });
 
@@ -213,7 +214,7 @@ serve(async (req: Request) => {
   // @ts-ignore — EdgeRuntime is a Deno Deploy global, not in Deno's type defs.
   EdgeRuntime.waitUntil(runGeneration({
     jobId, userId: user.id, provider: img.provider, model, apiKey: img.apiKey,
-    prompt, size, portrait_urls, isByok, cost: chronicleImageCost,
+    prompt, size, quality: img.imageQuality, portrait_urls, isByok, cost: chronicleImageCost,
   }));
 
   return new Response(

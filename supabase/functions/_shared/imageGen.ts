@@ -37,12 +37,18 @@ function sizeDims(size: string): { w: number; h: number } {
   return { w: Number(m[1]), h: Number(m[2]) };
 }
 
-/** Map a "WxH" size to Gemini's aspectRatio + imageSize. */
-function sizeToAspect(size: string): { aspectRatio: string; imageSize: string } {
+/** Valid OpenAI gpt-image `quality` values; anything else is omitted (API default). */
+const OPENAI_QUALITIES = new Set(["low", "medium", "high", "auto"]);
+/** Valid Gemini `imageConfig.imageSize` values; falls back to "1K". */
+const GEMINI_IMAGE_SIZES = new Set(["1K", "2K", "4K"]);
+
+/** Map a "WxH" size to Gemini's aspectRatio; resolution comes from the admin quality knob. */
+function sizeToAspect(size: string, quality?: string | null): { aspectRatio: string; imageSize: string } {
   const { w, h } = sizeDims(size);
   const r = w / h;
   const aspectRatio = r > 1.2 ? "3:2" : r < 0.83 ? "2:3" : "1:1";
-  return { aspectRatio, imageSize: "1K" };
+  const imageSize = quality && GEMINI_IMAGE_SIZES.has(quality) ? quality : "1K";
+  return { aspectRatio, imageSize };
 }
 
 // ── OpenAI ──────────────────────────────────────────────────────────────────
@@ -59,12 +65,14 @@ function openaiUsage(data: {
   };
 }
 
-async function openaiGenerate(apiKey: string, model: string, prompt: string, size: string, sources?: Blob[]): Promise<ImageGenResult> {
+async function openaiGenerate(apiKey: string, model: string, prompt: string, size: string, quality?: string | null, sources?: Blob[]): Promise<ImageGenResult> {
+  const q = quality && OPENAI_QUALITIES.has(quality) ? quality : null;
   if (sources && sources.length > 0) {
     const form = new FormData();
     form.append("model", model);
     form.append("prompt", prompt);
     form.append("size", size);
+    if (q) form.append("quality", q);
     form.append("output_format", "webp");
     form.append("n", "1");
     sources.forEach((b, i) => form.append("image[]", new File([b], `ref_${i}.webp`, { type: "image/webp" })));
@@ -78,7 +86,7 @@ async function openaiGenerate(apiKey: string, model: string, prompt: string, siz
   const res = await fetch("https://api.openai.com/v1/images/generations", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({ model, prompt, size, output_format: "webp" }),
+    body: JSON.stringify({ model, prompt, size, output_format: "webp", ...(q ? { quality: q } : {}) }),
   });
   if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error?.message ?? `OpenAI image error ${res.status}`);
   const data = await res.json();
@@ -103,12 +111,12 @@ async function falaiGenerate(apiKey: string, model: string, prompt: string, size
 
 // ── Gemini ("Nano Banana") — supports reference images via inline_data ─────────
 
-async function geminiGenerate(apiKey: string, model: string, prompt: string, size: string, sources?: Blob[]): Promise<ImageGenResult> {
+async function geminiGenerate(apiKey: string, model: string, prompt: string, size: string, quality?: string | null, sources?: Blob[]): Promise<ImageGenResult> {
   const parts: unknown[] = [{ text: prompt }];
   for (const b of sources ?? []) {
     parts.push({ inline_data: { mime_type: b.type || "image/webp", data: await blobToBase64(b) } });
   }
-  const { aspectRatio, imageSize } = sizeToAspect(size);
+  const { aspectRatio, imageSize } = sizeToAspect(size, quality);
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
     {
@@ -150,13 +158,15 @@ export async function generateImage(opts: {
   apiKey: string;
   prompt: string;
   size: string;
+  /** Provider-specific quality lever from provider_config (OpenAI quality / Gemini imageSize). */
+  quality?: string | null;
   sourceImages?: Blob[];
 }): Promise<ImageGenResult> {
-  const { provider, model, apiKey, prompt, size, sourceImages } = opts;
+  const { provider, model, apiKey, prompt, size, quality, sourceImages } = opts;
   switch (provider) {
     case "falai":  return falaiGenerate(apiKey, model, prompt, size);
-    case "gemini": return geminiGenerate(apiKey, model, prompt, size, sourceImages);
-    default:       return openaiGenerate(apiKey, model, prompt, size, sourceImages); // openai + openai-mini
+    case "gemini": return geminiGenerate(apiKey, model, prompt, size, quality, sourceImages);
+    default:       return openaiGenerate(apiKey, model, prompt, size, quality, sourceImages); // openai + openai-mini
   }
 }
 
@@ -177,6 +187,8 @@ export interface ResolvedImageProvider {
   isByok: boolean;
   /** Credit multiplier from provider_config (1.0 if unset). */
   imageMultiplier: number;
+  /** Provider-specific quality lever from provider_config (null = provider default). */
+  imageQuality: string | null;
 }
 
 /**
@@ -188,7 +200,7 @@ export function resolveImageProvider(args: {
   imageProvider: string | null | undefined;
   campaignKeys: Partial<Record<"openai" | "falai" | "gemini", string | null>>;
   platformKeys: Partial<Record<"openai" | "falai" | "gemini", string | null>>;
-  providerConfigs: Partial<Record<string, { image_model?: string | null; image_multiplier?: number | null } | undefined>>;
+  providerConfigs: Partial<Record<string, { image_model?: string | null; image_multiplier?: number | null; image_quality?: string | null } | undefined>>;
   /** Client-requested OpenAI sub-model (gpt-image-1.5/2). Honored only for plain "openai". */
   requestedModel?: string | null;
 }): ResolvedImageProvider | null {
@@ -212,5 +224,6 @@ export function resolveImageProvider(args: {
     apiKey,
     isByok: !!campaignKey,
     imageMultiplier: args.providerConfigs[base]?.image_multiplier ?? 1.0,
+    imageQuality: args.providerConfigs[base]?.image_quality ?? null,
   };
 }

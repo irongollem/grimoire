@@ -264,14 +264,14 @@ serve(async (req: Request) => {
               setting: campaign.ai_setting_prompt ?? "",
               subject: locationData.image_prompt,
             }),
-            size: "1024x1024",
+            size: "1024x1024", quality: img.imageQuality,
           })
         : Promise.resolve(null),
       generate_map
         ? generateImage({
             provider: img.provider, model: img.model, apiKey: img.apiKey,
             prompt: [MAP_BASE_PROMPT, locationData.map_prompt].filter(Boolean).join(" — "),
-            size: "1024x1024",
+            size: "1024x1024", quality: img.imageQuality,
           })
         : Promise.resolve(null),
     ]);
