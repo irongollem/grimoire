@@ -15,7 +15,11 @@ export function waitForImageJob(
   jobId: string,
   opts: { timeoutMs?: number; pollIntervalMs?: number } = {},
 ): Promise<string> {
-  const timeoutMs = opts.timeoutMs ?? 5 * 60 * 1000;
+  // 8 min: gpt-image legitimately runs ~5 min on a busy day, so a tighter
+  // window risks "timing out" a job that is about to succeed. A pg_cron sweep
+  // is the authority that fails truly-stuck jobs (>10 min) — the client never
+  // mutates job status, it only observes, so it can't clobber a late success.
+  const timeoutMs = opts.timeoutMs ?? 8 * 60 * 1000;
   const pollIntervalMs = opts.pollIntervalMs ?? 4_000;
 
   return new Promise((resolve, reject) => {
@@ -67,7 +71,9 @@ export function waitForImageJob(
       if (settled) return;
       settled = true;
       cleanup();
-      reject(new Error("Image generation timed out"));
+      reject(new Error(
+        "This image is taking longer than expected. It may still finish and appear in your gallery shortly — if it doesn't, the job will be marked failed automatically and you can try again.",
+      ));
     }, timeoutMs);
   });
 }
