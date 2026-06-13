@@ -2,6 +2,7 @@ import { computed } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
+import { useToast } from "@/composables/useToast";
 import type {
   CampaignMember,
   CampaignMemberUpdate,
@@ -77,9 +78,11 @@ export function useUpdateCampaignMember() {
 
 export function useRemoveCampaignMember() {
   const queryClient = useQueryClient();
+  const toast = useToast();
   return useMutation({
     mutationFn: removeMember,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [MEMBERS_KEY] }),
+    onError: (e) => toast.error(toast.fromError(e)),
   });
 }
 
@@ -133,9 +136,11 @@ export function useCreateCampaignInvite() {
 
 export function useRevokeInvite() {
   const queryClient = useQueryClient();
+  const toast = useToast();
   return useMutation({
     mutationFn: revokeInvite,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [INVITES_KEY] }),
+    onError: (e) => toast.error(toast.fromError(e)),
   });
 }
 

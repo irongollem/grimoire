@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
+import { useToast } from "@/composables/useToast";
 import { EVENT_TYPE_COLORS } from "@/types/calendar.types";
 import type {
   Quest,
@@ -245,9 +246,11 @@ export function useUpdateQuest() {
 
 export function useDeleteQuest() {
   const queryClient = useQueryClient();
+  const toast = useToast();
   return useMutation({
     mutationFn: deleteQuest,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUESTS_KEY] }),
+    onError: (e) => toast.error(toast.fromError(e)),
   });
 }
 
@@ -283,10 +286,12 @@ export function useUpdateObjective() {
 
 export function useDeleteObjective() {
   const queryClient = useQueryClient();
+  const toast = useToast();
   return useMutation({
     mutationFn: ({ id }: { id: string; questId: string }) => deleteObjective(id),
     onSuccess: (_data, { questId }) =>
       queryClient.invalidateQueries({ queryKey: [OBJECTIVES_KEY, questId] }),
+    onError: (e) => toast.error(toast.fromError(e)),
   });
 }
 
@@ -322,10 +327,12 @@ export function useUpdateQuestRef() {
 
 export function useDeleteQuestRef() {
   const queryClient = useQueryClient();
+  const toast = useToast();
   return useMutation({
     mutationFn: ({ id }: { id: string; questId: string }) => deleteRef(id),
     onSuccess: (_data, { questId }) =>
       queryClient.invalidateQueries({ queryKey: [REFS_KEY, questId] }),
+    onError: (e) => toast.error(toast.fromError(e)),
   });
 }
 

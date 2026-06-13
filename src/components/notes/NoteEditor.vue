@@ -547,6 +547,8 @@ async function remove() {
     await del(props.note.id);
     removeRichTextImages(oldContent);
     router.push("/notes");
+  } catch {
+    // failure is surfaced to the user by the mutation's onError toast
   } finally {
     deleting.value = false;
   }

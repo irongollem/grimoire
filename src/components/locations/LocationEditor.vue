@@ -477,6 +477,8 @@ async function remove() {
     const parentId = props.location.parent_id;
     await del(props.location.id);
     router.push(parentId ? `/locations/${parentId}` : "/locations");
+  } catch {
+    // failure is surfaced to the user by the mutation's onError toast
   } finally {
     deleting.value = false;
   }

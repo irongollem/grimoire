@@ -470,6 +470,8 @@ export function useAttemptCraft() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["party-inventory"] });
     },
+    // No onError toast here: CraftAttemptDialog already surfaces failures inline
+    // via attemptError. A toast would be redundant double-feedback.
   });
 }
 

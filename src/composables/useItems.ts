@@ -7,6 +7,7 @@ import type { Item, ItemInsert, ItemUpdate } from "@/types/item.types";
 import { deleteByPublicUrl } from "@/lib/storage";
 import { useSrdArtDefaults } from "@/composables/useSrdArtDefaults";
 import { useCampaignStore } from "@/stores/campaign";
+import { useToast } from "@/composables/useToast";
 
 interface ItemSource {
   slug: string;
@@ -157,12 +158,14 @@ export function useUpdateItem() {
 
 export function useDeleteItem() {
   const queryClient = useQueryClient();
+  const toast = useToast();
   return useMutation({
     mutationFn: deleteItem,
     onSuccess: (_data, id) => {
       queryClient.removeQueries({ queryKey: [QUERY_KEY, id] });
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
     },
+    onError: (e) => toast.error(toast.fromError(e)),
   });
 }
 

@@ -5,6 +5,7 @@
       <RouterView />
     </component>
     <ConfirmDialog />
+    <ToastHost />
     <ManualRollPrompt />
     <ImportBundleModal v-if="auth.isAuthenticated" v-model="bundleImportOpen" />
   </template>
@@ -33,6 +34,7 @@ import AuthLayout from "@/layouts/AuthLayout.vue";
 import PlayerLayout from "@/layouts/PlayerLayout.vue";
 import MarketingLayout from "@/layouts/MarketingLayout.vue";
 import ConfirmDialog from "@/components/common/ConfirmDialog.vue";
+import ToastHost from "@/components/common/ToastHost.vue";
 import ManualRollPrompt from "@/components/common/ManualRollPrompt.vue";
 import ImportBundleModal from "@/components/campaign/ImportBundleModal.vue";
 import { pendingBundleFile } from "@/composables/usePendingBundle";

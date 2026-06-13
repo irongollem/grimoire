@@ -466,6 +466,8 @@ async function remove() {
   try {
     await del(props.quest.id);
     router.push("/quests");
+  } catch {
+    // failure is surfaced to the user by the mutation's onError toast
   } finally {
     deleting.value = false;
   }

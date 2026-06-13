@@ -245,6 +245,8 @@ async function handleDelete() {
   try {
     await deleteFaction.mutateAsync(props.faction.id);
     router.push("/factions");
+  } catch {
+    // failure is surfaced to the user by the mutation's onError toast
   } finally {
     deleting.value = false;
   }

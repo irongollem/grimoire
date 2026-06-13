@@ -3,6 +3,7 @@ import type { Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
+import { useToast } from "@/composables/useToast";
 import { getSetting } from "@/settings/index";
 import type { Npc, NpcInsert, NpcUpdate } from "@/types/npc.types";
 import { removeStorageImages } from "@/composables/useImageUpload";
@@ -130,11 +131,13 @@ export function useUpdateNpc() {
 
 export function useDeleteNpc() {
   const queryClient = useQueryClient();
+  const toast = useToast();
   return useMutation({
     mutationFn: deleteNpc,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
     },
+    onError: (e) => toast.error(toast.fromError(e)),
   });
 }
 

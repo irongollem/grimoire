@@ -583,6 +583,8 @@ async function handleDelete() {
   try {
     await deleteEncounter.mutateAsync(props.encounter.id);
     router.push("/encounters");
+  } catch {
+    // failure is surfaced to the user by the mutation's onError toast
   } finally {
     deleting.value = false;
   }

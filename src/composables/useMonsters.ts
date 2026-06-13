@@ -3,6 +3,7 @@ import { computed, type Ref } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useEnabledSources } from "@/composables/useEnabledSources";
 import type { Monster, MonsterInsert, MonsterUpdate } from "@/types/monster.types";
+import { useToast } from "@/composables/useToast";
 import { deleteByPublicUrl } from "@/lib/storage";
 
 
@@ -163,9 +164,11 @@ export function useUpdateMonster() {
 
 export function useDeleteMonster() {
   const queryClient = useQueryClient();
+  const toast = useToast();
   return useMutation({
     mutationFn: deleteMonster,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+    onError: (e) => toast.error(toast.fromError(e)),
   });
 }
 

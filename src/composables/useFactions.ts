@@ -3,6 +3,7 @@ import { computed, type Ref } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { getSetting } from "@/settings/index";
+import { useToast } from "@/composables/useToast";
 import type {
   Faction,
   FactionNpc,
@@ -116,12 +117,14 @@ export function useUpdateFaction() {
 export function useDeleteFaction() {
   const qc = useQueryClient();
   const campaign = useCampaignStore();
+  const toast = useToast();
   return useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("factions").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["factions", campaign.activeCampaignId] }),
+    onError: (e) => toast.error(toast.fromError(e)),
   });
 }
 

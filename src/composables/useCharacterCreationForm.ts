@@ -16,6 +16,7 @@ import type { SpeciesSpellGrant } from "@/types/species.types";
 import { computeAc } from "@/types/party.types";
 import type { PartyMemberInsert, SkillProfLevel, SaveKey, SpellSlotEntry } from "@/types/party.types";
 import { supabase } from "@/lib/supabase";
+import { useToast } from "@/composables/useToast";
 import { CLASS_EQUIPMENT } from "@/data/classEquipment";
 import type { BundleItemEntry } from "@/types/item.types";
 
@@ -723,6 +724,11 @@ export function useCharacterCreationForm() {
           router.push("/play/champions");
         }
       }
+    } catch (e) {
+      // Surface the failure (incl. a rolled-back partial creation) to the user
+      // instead of letting it become an unhandled rejection from the @click.
+      const toast = useToast();
+      toast.error(toast.fromError(e, "Couldn't save the character. Please try again."));
     } finally {
       saving.value = false;
     }

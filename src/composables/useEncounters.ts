@@ -5,6 +5,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import type { Encounter, EncounterInsert, EncounterUpdate } from "@/types/encounter.types";
 import type { Ref } from "vue";
 import { isRef } from "vue";
+import { useToast } from "@/composables/useToast";
 
 const QUERY_KEY = "encounters";
 
@@ -113,6 +114,7 @@ export function useUpdateEncounter() {
 
 export function useDeleteEncounter() {
   const queryClient = useQueryClient();
+  const toast = useToast();
   return useMutation({
     mutationFn: deleteEncounter,
     onSuccess: (_data, id) => {
@@ -120,6 +122,7 @@ export function useDeleteEncounter() {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
       queryClient.invalidateQueries({ queryKey: ["quests"] });
     },
+    onError: (e) => toast.error(toast.fromError(e)),
   });
 }
 

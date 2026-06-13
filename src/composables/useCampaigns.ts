@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
 import type { Campaign, CampaignInsert, CampaignUpdate } from "@/types/campaign.types";
+import { useToast } from "@/composables/useToast";
 
 // All campaign-scoped tables whose orphaned rows (campaign_id IS NULL) can be claimed
 const CAMPAIGN_SCOPED_TABLES = [
@@ -138,9 +139,11 @@ export function useUpdateCampaign() {
 
 export function useDeleteCampaign() {
   const queryClient = useQueryClient();
+  const toast = useToast();
   return useMutation({
     mutationFn: deleteCampaign,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+    onError: (e) => toast.error(toast.fromError(e)),
   });
 }
 

@@ -7,6 +7,7 @@ import { removeStorageImages } from "@/composables/useImageUpload";
 import { useSrdArtDefaults } from "@/composables/useSrdArtDefaults";
 import { useEnabledSources } from "@/composables/useEnabledSources";
 import { useCampaignStore } from "@/stores/campaign";
+import { useToast } from "@/composables/useToast";
 
 const SRD_QUERY_KEY = "srd-spells";
 
@@ -278,9 +279,11 @@ export function useUpdateSpell() {
 
 export function useDeleteSpell() {
   const queryClient = useQueryClient();
+  const toast = useToast();
   return useMutation({
     mutationFn: deleteSpell,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+    onError: (e) => toast.error(toast.fromError(e)),
   });
 }
 

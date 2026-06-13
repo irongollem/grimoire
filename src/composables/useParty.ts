@@ -5,6 +5,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import type { PartyMember, PartyMemberInsert, PartyMemberUpdate } from "@/types/party.types";
 import { removeStorageImages } from "@/composables/useImageUpload";
+import { useToast } from "@/composables/useToast";
 
 const QUERY_KEY = "party";
 
@@ -137,9 +138,11 @@ export function usePartyLive() {
 
 export function useDeletePartyMember() {
   const queryClient = useQueryClient();
+  const toast = useToast();
   return useMutation({
     mutationFn: deletePartyMember,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+    onError: (e) => toast.error(toast.fromError(e)),
   });
 }
 

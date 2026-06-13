@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
+import { useToast } from "@/composables/useToast";
 import type { GridCalibration, Location, LocationInsert, LocationUpdate } from "@/types/location.types";
 import { deleteByPublicUrl } from "@/lib/storage";
 import { VAGUE_LOCATION_TYPES } from "@/types/location.types";
@@ -309,6 +310,7 @@ export function useUpdateLocationGridCalibration() {
 
 export function useDeleteLocation() {
   const queryClient = useQueryClient();
+  const toast = useToast();
   return useMutation({
     mutationFn: deleteLocation,
     onSuccess: (_data, id) => {
@@ -318,6 +320,7 @@ export function useDeleteLocation() {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
       queryClient.invalidateQueries({ queryKey: ["quests"] });
     },
+    onError: (e) => toast.error(toast.fromError(e)),
   });
 }
 

@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import type { Note, NoteInsert, NoteUpdate } from "@/types/notes.types";
 import { storeToRefs } from "pinia";
+import { useToast } from "@/composables/useToast";
 
 const QUERY_KEY = "notes";
 
@@ -95,9 +96,11 @@ export function useUpdateNote() {
 
 export function useDeleteNote() {
   const queryClient = useQueryClient();
+  const toast = useToast();
   return useMutation({
     mutationFn: deleteNote,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+    onError: (e) => toast.error(toast.fromError(e)),
   });
 }
 
