@@ -21,20 +21,42 @@
               {{ plan.id }}
             </span>
           </div>
-          <span
-            v-if="plan.id !== 'free'"
-            class="font-cinzel text-xs font-semibold tracking-wider text-amber-400 border border-amber-400/40 px-2 py-0.5 rounded"
-          >
-            Unlimited
-          </span>
-          <button
-            v-else
-            class="px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
-            :disabled="planSaving[plan.id]"
-            @click="savePlanQuotas(plan)"
-          >
-            {{ planSaving[plan.id] ? 'Saving…' : 'Save' }}
-          </button>
+          <div class="flex items-center gap-2">
+            <span
+              v-if="plan.id !== 'free'"
+              class="font-cinzel text-xs font-semibold tracking-wider text-amber-400 border border-amber-400/40 px-2 py-0.5 rounded"
+            >
+              Unlimited
+            </span>
+            <button
+              class="px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+              :disabled="planSaving[plan.id]"
+              @click="savePlan(plan)"
+            >
+              {{ planSaving[plan.id] ? 'Saving…' : 'Save' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Monthly included AI credits — configurable on every plan -->
+        <div class="rounded-md bg-muted/40 border border-border p-3 space-y-1">
+          <label class="block font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
+            Monthly Included Credits
+          </label>
+          <div class="flex items-center gap-3">
+            <input
+              v-model.number="draftMonthlyCredits[plan.id]"
+              type="number"
+              min="0"
+              class="w-32 bg-background border border-border rounded px-2.5 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+            <p class="font-fell text-[11px] text-muted-foreground italic">
+              {{ creditsHelper(draftMonthlyCredits[plan.id]) }}
+            </p>
+          </div>
+          <p class="font-fell text-[10px] text-muted-foreground/60 italic">
+            Use-it-or-lose-it allowance granted each billing period. Resets monthly; purchased packs are separate and permanent.
+          </p>
         </div>
 
         <!-- Free plan: editable quota inputs -->
@@ -132,9 +154,21 @@
 <script setup lang="ts">
 import { reactive, watch } from "vue";
 import { useAdminPlans } from "@/composables/useAdminPlans";
+import { useGenerationCreditCosts } from "@/composables/useCreditConfig";
+import { sizeMultiplier } from "@/composables/useAiCredits";
 import type { Plan, QuotaResource } from "@/types/subscription.types";
 
-const { LABELS, updateQuotas, syncPlanPrices: syncPlanPricesMutation, ...plansQuery } = useAdminPlans();
+const { LABELS, updateQuotas, updateMonthlyCredits, syncPlanPrices: syncPlanPricesMutation, ...plansQuery } = useAdminPlans();
+
+// Credits → "≈ N portraits" helper, using the live entity_image cost × portrait area.
+const { data: generationCosts } = useGenerationCreditCosts();
+function creditsHelper(credits: number | undefined): string {
+  if (!credits || credits <= 0) return "No included credits";
+  const base = generationCosts.value?.find((r) => r.generation_type === "entity_image")?.credit_cost ?? 50;
+  const perPortrait = base * sizeMultiplier("1024x1536");
+  const portraits = Math.floor(credits / perPortrait);
+  return `≈ ${portraits} portrait image${portraits === 1 ? "" : "s"} / month (or ${credits} text gens)`;
+}
 
 const QUOTA_RESOURCES: QuotaResource[] = [
   "campaigns",
@@ -147,6 +181,7 @@ const QUOTA_RESOURCES: QuotaResource[] = [
 
 type QuotaDraft = Record<string, Record<QuotaResource, number>>;
 const draftQuotas = reactive<QuotaDraft>({});
+const draftMonthlyCredits = reactive<Record<string, number>>({});
 const planSaving = reactive<Record<string, boolean>>({});
 
 watch(
@@ -157,6 +192,9 @@ watch(
       if (plan.id === "free") {
         draftQuotas[plan.id] = { ...defaultQuotaRecord(), ...plan.quotas } as Record<QuotaResource, number>;
       }
+      if (!(plan.id in draftMonthlyCredits)) {
+        draftMonthlyCredits[plan.id] = plan.monthly_credits ?? 0;
+      }
     }
   },
   { immediate: true },
@@ -166,10 +204,14 @@ function defaultQuotaRecord(): Record<QuotaResource, number> {
   return { campaigns: 0, npcs: 0, monsters: 0, encounters: 0, scriptorium_documents: 0, notes: 0, sounds: 0, soundboard_pages: 0, soundboard_playlists: 0 };
 }
 
-async function savePlanQuotas(plan: Plan) {
+async function savePlan(plan: Plan) {
   planSaving[plan.id] = true;
   try {
-    await updateQuotas.mutateAsync({ planId: plan.id, quotas: draftQuotas[plan.id] });
+    // Quotas are only editable on Free; monthly credits are configurable on every plan.
+    if (plan.id === "free") {
+      await updateQuotas.mutateAsync({ planId: plan.id, quotas: draftQuotas[plan.id] });
+    }
+    await updateMonthlyCredits.mutateAsync({ planId: plan.id, monthlyCredits: draftMonthlyCredits[plan.id] ?? 0 });
   } finally {
     planSaving[plan.id] = false;
   }

@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@14?target=deno";
+import { resetDelta } from "../_shared/credit-math.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
   apiVersion: "2024-06-20",
@@ -41,12 +42,37 @@ async function getUserIdByCustomer(customerId: string): Promise<string | null> {
   return data.user_id;
 }
 
+/** The monthly included-credit allowance for a user's current plan (0 if none). */
+async function fetchPlanMonthlyCredits(userId: string): Promise<number> {
+  const { data: subRow } = await admin
+    .from("user_subscriptions")
+    .select("plan_id")
+    .eq("user_id", userId)
+    .maybeSingle();
+  const planId = (subRow as { plan_id: string } | null)?.plan_id;
+  if (!planId) return 0;
+  const { data: plan } = await admin
+    .from("plans")
+    .select("monthly_credits")
+    .eq("id", planId)
+    .maybeSingle();
+  return (plan as { monthly_credits: number } | null)?.monthly_credits ?? 0;
+}
+
+/**
+ * Reset the subscription bucket to this period's allowance — use-it-or-lose-it.
+ * Idempotent per period. Rather than ADDING credits (which would let unused
+ * credits accumulate), we write a single delta that sets the subscription
+ * bucket's running sum to exactly `allowance`, expiring whatever was left over
+ * from last period. Purchased pack credits live in a separate bucket and are
+ * untouched.
+ */
 async function topUpSubscriptionCredits(
   userId: string,
   subscriptionId: string,
   periodStart: string,
 ) {
-  // Idempotency: only credit once per subscription period
+  // Idempotency: only reset once per subscription period
   const { data: existing } = await admin
     .from("ai_credit_ledger")
     .select("id")
@@ -54,16 +80,85 @@ async function topUpSubscriptionCredits(
     .eq("reason", "subscription_topup")
     .eq("subscription_period_start", periodStart)
     .maybeSingle();
+  if (existing) return; // already reset this period
 
-  if (existing) return; // already credited this period
+  const allowance = await fetchPlanMonthlyCredits(userId);
 
+  // Current subscription-bucket sum (may include last period's unused credits,
+  // or be negative from an over-draw). delta restores it to exactly `allowance`.
+  const { data: bucket } = await admin
+    .from("ai_credit_buckets")
+    .select("subscription_balance")
+    .eq("user_id", userId)
+    .maybeSingle();
+  const current = Number((bucket as { subscription_balance: number } | null)?.subscription_balance ?? 0);
+  const delta = resetDelta(allowance, current);
+
+  // Always write exactly one row per period — even a delta of 0 — so it serves
+  // as the idempotency marker. Omitting it would let a replayed webhook re-reset
+  // the allowance mid-period after the user had already spent some.
   const { error } = await admin.from("ai_credit_ledger").insert({
     user_id: userId,
-    delta: 5,
+    delta,
     reason: "subscription_topup",
+    bucket: "subscription",
     subscription_period_start: periodStart,
   });
-  if (error) throw error;
+  // 23505 = unique violation: a concurrent delivery already reset this period. Safe to ignore.
+  if (error && error.code !== "23505") throw error;
+}
+
+/**
+ * Keep our cached prices in lock-step with Stripe so the UI never shows a stale
+ * amount. Fired on price.created/price.updated. Re-fetches the price (to get
+ * currency_options, which webhook payloads omit) and refreshes whichever
+ * plan (monthly or annual) or credit pack references it. The actual CHARGE is
+ * always the live Stripe price (checkout passes price IDs) — this only keeps the
+ * DISPLAY cache honest.
+ */
+async function syncPriceCacheFromStripe(priceId: string) {
+  let price: Stripe.Price;
+  try {
+    price = await stripe.prices.retrieve(priceId, { expand: ["currency_options"] });
+  } catch (err) {
+    console.error(`Price ${priceId} retrieve failed:`, err);
+    return;
+  }
+
+  // Plan — monthly price column
+  const { data: monthlyPlan } = await admin
+    .from("plans").select("id").eq("stripe_price_id", priceId).maybeSingle();
+  if (monthlyPlan) {
+    await admin.from("plans").update({
+      stripe_monthly_unit_amount: price.unit_amount,
+      stripe_currency: price.currency,
+      stripe_monthly_currency_options: price.currency_options ?? null,
+    }).eq("id", (monthlyPlan as { id: string }).id);
+  }
+
+  // Plan — annual price column
+  const { data: annualPlan } = await admin
+    .from("plans").select("id, stripe_currency").eq("stripe_annual_price_id", priceId).maybeSingle();
+  if (annualPlan) {
+    const row = annualPlan as { id: string; stripe_currency: string | null };
+    const upd: Record<string, unknown> = {
+      stripe_annual_unit_amount: price.unit_amount,
+      stripe_annual_currency_options: price.currency_options ?? null,
+    };
+    if (!row.stripe_currency) upd.stripe_currency = price.currency;
+    await admin.from("plans").update(upd).eq("id", row.id);
+  }
+
+  // Credit pack
+  const { data: pack } = await admin
+    .from("credit_pack_config").select("pack_id").eq("stripe_price_id", priceId).maybeSingle();
+  if (pack) {
+    await admin.from("credit_pack_config").update({
+      stripe_unit_amount: price.unit_amount,
+      stripe_currency: price.currency,
+      stripe_currency_options: price.currency_options ?? null,
+    }).eq("pack_id", (pack as { pack_id: string }).pack_id);
+  }
 }
 
 async function creditPackPurchase(
@@ -84,9 +179,11 @@ async function creditPackPurchase(
     user_id: userId,
     delta: credits,
     reason: "pack_purchase",
+    bucket: "purchased", // permanent overage — never expires
     stripe_payment_intent_id: paymentIntentId,
   });
-  if (error) throw error;
+  // 23505 = unique violation: this payment intent was already credited. Safe to ignore.
+  if (error && error.code !== "23505") throw error;
 }
 
 serve(async (req: Request) => {
@@ -154,7 +251,7 @@ serve(async (req: Request) => {
           current_period_end: toIso(sub.current_period_end),
         });
 
-        // Top up 5 AI credits per billing period (idempotent)
+        // Reset the subscription credit bucket to the plan's monthly allowance (idempotent per period)
         const userId = await getUserIdByCustomer(invoice.customer as string);
         if (userId && invoice.period_start) {
           const periodStart = toDateStr(invoice.period_start);
@@ -190,6 +287,13 @@ serve(async (req: Request) => {
           stripe_subscription_id: null,
           current_period_end: null,
         });
+        break;
+      }
+
+      case "price.created":
+      case "price.updated": {
+        const price = event.data.object as Stripe.Price;
+        await syncPriceCacheFromStripe(price.id);
         break;
       }
 

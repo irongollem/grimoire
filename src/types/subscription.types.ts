@@ -19,6 +19,8 @@ export interface Plan {
   stripe_annual_currency_options: Record<string, { unit_amount: number }> | null
   prices: Record<string, PlanPrice>
   quotas: Partial<Record<QuotaResource, number>>
+  /** Monthly included AI credits granted each billing period (use-it-or-lose-it). 0 = none. */
+  monthly_credits: number
 }
 
 export type QuotaResource =
@@ -76,11 +78,19 @@ export const CREDIT_COST: Record<AiGenerationType, number> = {
   music_full_song:    2,
 } as const
 
+// Display fallback only — real packs (credits + Stripe-synced prices) come from
+// credit_pack_config via useCreditPacks(). Kept in sync with that table's seed.
 export const CREDIT_PACKS: Record<CreditPackId, { label: string; credits: number; eur: number }> = {
-  starter:  { label: 'Starter',  credits: 15, eur: 5  },
-  standard: { label: 'Standard', credits: 35, eur: 10 },
-  bulk:     { label: 'Bulk',     credits: 80, eur: 20 },
+  starter:  { label: 'Starter',  credits: 400,  eur: 5  },
+  standard: { label: 'Standard', credits: 1000, eur: 10 },
+  bulk:     { label: 'Bulk',     credits: 2600, eur: 20 },
 } as const
+
+/** Split credit balance: subscription bucket (resets monthly) + purchased (permanent). */
+export interface CreditBuckets {
+  subscription_balance: number
+  purchased_balance: number
+}
 
 export interface AiCreditLedgerRow {
   id: string

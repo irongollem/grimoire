@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { supabase } from '@/lib/supabase'
-import { CREDIT_COST } from '@/types/subscription.types'
+import { CREDIT_COST, type CreditBuckets } from '@/types/subscription.types'
 import { useGenerationCreditCosts } from '@/composables/useCreditConfig'
 import type { TextUsage, ImageUsage } from '@/ai/providers/types'
 
@@ -70,6 +70,24 @@ async function fetchBalance(): Promise<number> {
   return (data?.balance as number) ?? 0
 }
 
+async function fetchBuckets(): Promise<CreditBuckets> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { subscription_balance: 0, purchased_balance: 0 }
+
+  const { data, error } = await supabase
+    .from('ai_credit_buckets')
+    .select('subscription_balance, purchased_balance')
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (error) throw error
+  // subscription_balance can be transiently negative (concurrent over-draw); clamp for display.
+  return {
+    subscription_balance: Math.max(0, (data?.subscription_balance as number) ?? 0),
+    purchased_balance: Math.max(0, (data?.purchased_balance as number) ?? 0),
+  }
+}
+
 export function useAiCredits() {
   const purchaseLoading = ref(false)
   const purchaseError = ref<string | null>(null)
@@ -79,6 +97,15 @@ export function useAiCredits() {
     queryFn: fetchBalance,
     staleTime: 30_000,
   })
+
+  const { data: buckets, refetch: refetchBuckets } = useQuery({
+    queryKey: ['ai-credit-buckets'],
+    queryFn: fetchBuckets,
+    staleTime: 30_000,
+  })
+
+  const subscriptionBalance = computed(() => buckets.value?.subscription_balance ?? 0)
+  const purchasedBalance = computed(() => buckets.value?.purchased_balance ?? 0)
 
   const { data: generationCosts } = useGenerationCreditCosts()
 
@@ -137,6 +164,8 @@ export function useAiCredits() {
   return {
     balance,
     formattedBalance,
+    subscriptionBalance,
+    purchasedBalance,
     isLoading,
     canGenerate,
     affordable,
@@ -147,5 +176,6 @@ export function useAiCredits() {
     purchaseLoading,
     purchaseError,
     refetch,
+    refetchBuckets,
   }
 }

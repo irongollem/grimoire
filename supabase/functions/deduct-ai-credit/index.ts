@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { recordSpend } from "../_shared/credits.ts";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -100,11 +101,8 @@ serve(async (req: Request) => {
     );
   }
 
-  const { error } = await admin.from("ai_credit_ledger").insert({
-    user_id: user.id,
-    delta: -amount,
-    reason,
-    is_byok: false,
+  // Subscription-first deduction (writes one or two bucketed rows).
+  await recordSpend(admin, user.id, reason, amount, {
     model,
     provider,
     input_tokens,
@@ -112,11 +110,6 @@ serve(async (req: Request) => {
     output_tokens,
     image_count,
   });
-
-  if (error) {
-    console.error("Failed to deduct credits:", error);
-    return new Response("Internal server error", { status: 500 });
-  }
 
   return new Response(
     JSON.stringify({ ok: true, balance: currentBalance - amount }),

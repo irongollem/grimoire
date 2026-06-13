@@ -211,7 +211,7 @@ import { usePlan } from "@/composables/usePlan";
 useHead({
   title: "Pricing — Grimoire D&D Campaign Manager",
   meta: [
-    { name: "description", content: "Free tier for Dungeon Masters plus a Pro plan with unlimited campaigns, NPCs, monsters, and 5 AI credits per month. Players always join and play for free." },
+    { name: "description", content: "Free tier for Dungeon Masters plus a Pro plan with unlimited campaigns, NPCs, monsters, and included AI credits every month. Players always join and play for free." },
     { property: "og:title", content: "Pricing — Grimoire" },
     { property: "og:description", content: "Free tier for DMs + Pro plan with unlimited content and AI credits. Players always free." },
     { property: "og:type", content: "website" },
@@ -232,6 +232,9 @@ const { data: freePlan } = usePlan("free");
 const { data: proPlan } = usePlan("pro");
 
 const currency = ref(detectCurrency());
+
+/** Pro plan's monthly included-credit allowance (0 until configured). */
+const proMonthlyCredits = computed(() => proPlan.value?.monthly_credits ?? 0);
 
 const planCurrencies = computed(() =>
   availableCurrencies(
@@ -317,9 +320,9 @@ const featureRows = computed(() => {
     ...quotaRows,
     {
       key: "ai",
-      label: "AI generation (NPCs, monsters, artwork…)",
+      label: "AI credits / month (NPCs, monsters, artwork…)",
       freeText: "—",
-      proText: "✓",
+      proText: proMonthlyCredits.value > 0 ? proMonthlyCredits.value.toLocaleString() : "✓",
       freeAvail: false,
       proAvail: true,
     },

@@ -106,7 +106,7 @@ import { usePlan } from "@/composables/usePlan";
 import { useStripe } from "@/composables/useStripe";
 import { QUOTA_RESOURCE_LABELS } from "@/types/subscription.types";
 import type { QuotaResource } from "@/types/subscription.types";
-import { detectCurrency, formatCents } from "@/lib/pricing";
+import { detectCurrency, formatCents, resolveAmount } from "@/lib/pricing";
 
 const open = defineModel<boolean>({ required: true })
 const props = defineProps<{
@@ -120,25 +120,40 @@ const { loading: stripeLoading, createCheckoutSession } = useStripe()
 
 const currency = detectCurrency()
 
-const priceEntry = computed(() => {
-  const prices = proPlan.value?.prices
-  if (!prices) return null
-  return prices[currency] ?? prices['USD'] ?? null
+// Prices come from the Stripe-synced columns (single source of truth) — NOT the
+// legacy `prices` JSONB, which the admin Stripe sync doesn't populate and would
+// drift from the real charged amount.
+const monthlyResolved = computed(() =>
+  resolveAmount(
+    proPlan.value?.stripe_monthly_unit_amount,
+    proPlan.value?.stripe_currency,
+    proPlan.value?.stripe_monthly_currency_options,
+    currency,
+  )
+)
+const annualResolved = computed(() =>
+  resolveAmount(
+    proPlan.value?.stripe_annual_unit_amount,
+    proPlan.value?.stripe_currency,
+    proPlan.value?.stripe_annual_currency_options,
+    currency,
+  )
+)
+
+const monthlyLabel = computed(() =>
+  monthlyResolved.value ? formatCents(monthlyResolved.value.amount, monthlyResolved.value.currency) : null,
+)
+const yearlyLabel = computed(() =>
+  annualResolved.value ? formatCents(annualResolved.value.amount, annualResolved.value.currency) : null,
+)
+const savedMonths = computed(() => {
+  const mo = monthlyResolved.value
+  const yr = annualResolved.value
+  if (!mo || !yr) return 0
+  return Math.round((mo.amount * 12 - yr.amount) / mo.amount)
 })
 
-const monthlyLabel = computed(() => {
-  const p = priceEntry.value
-  return p ? formatCents(p.monthly, currency) : null
-})
-const yearlyLabel = computed(() => {
-  const p = priceEntry.value
-  return p ? formatCents(p.yearly, currency) : null
-})
-const savedMonths = computed(() => {
-  const p = priceEntry.value
-  if (!p) return 0
-  return Math.round((p.monthly * 12 - p.yearly) / p.monthly)
-})
+const proMonthlyCredits = computed(() => proPlan.value?.monthly_credits ?? 0)
 
 const limitText = computed(() => {
   if (!props.resource) return ''
@@ -147,13 +162,15 @@ const limitText = computed(() => {
   return limit !== null && limit >= 0 ? `${limit} ${label}` : label
 })
 
-const BENEFITS = [
+const BENEFITS = computed(() => [
   "Unlimited campaigns, NPCs, monsters, encounters & notes",
-  "AI generation — NPCs, monsters, items, spells & artwork",
+  proMonthlyCredits.value > 0
+    ? `${proMonthlyCredits.value.toLocaleString()} AI credits / month — NPCs, monsters, items, spells & artwork`
+    : "AI generation — NPCs, monsters, items, spells & artwork",
   "Soundboard uploads, AI music, and unlimited pages & playlists",
   "Full world-building, combat, and publishing toolkit",
   "Your whole table plays free — always",
-]
+])
 
 function close() {
   open.value = false

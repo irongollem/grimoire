@@ -4,6 +4,7 @@
  * Platform-key calls deduct from the user's credit balance.
  */
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.43.0";
+import { splitSpend, sizeMultiplier as sizeMultiplierMath } from "./credit-math.ts";
 
 export interface CreditLogFields {
   model?: string;
@@ -25,14 +26,7 @@ const COST_TTL_MS = 5 * 60 * 1000;
  * non-square renders are charged proportionally. Returns 1 for unknown/blank
  * sizes (text generations, fixed-square functions).
  */
-export function sizeMultiplier(size: string | null | undefined): number {
-  if (!size) return 1;
-  const m = /^(\d+)\s*x\s*(\d+)$/i.exec(size.trim());
-  if (!m) return 1;
-  const area = Number(m[1]) * Number(m[2]);
-  if (!Number.isFinite(area) || area <= 0) return 1;
-  return area / (1024 * 1024);
-}
+export const sizeMultiplier = sizeMultiplierMath;
 
 export async function fetchCreditCost(
   admin: SupabaseClient,
@@ -65,10 +59,56 @@ export async function fetchUserBalance(
   return (data as { balance: number } | null)?.balance ?? 0;
 }
 
+/** Current subscription-bucket balance (clamped ≥ 0) — the monthly allowance left this period. */
+async function fetchSubscriptionBalance(
+  admin: SupabaseClient,
+  userId: string,
+): Promise<number> {
+  const { data } = await admin
+    .from("ai_credit_buckets")
+    .select("subscription_balance")
+    .eq("user_id", userId)
+    .maybeSingle();
+  return Math.max(0, Number((data as { subscription_balance: number } | null)?.subscription_balance ?? 0));
+}
+
+/**
+ * Deduct `cost` credits, subscription-bucket first then purchased — the single
+ * source of truth for spending. Writes one ledger row, or two when the spend
+ * straddles the bucket boundary. The cost-bearing analytics fields (model,
+ * tokens, image_count) are attached to exactly ONE row so the
+ * ai_generation_costs view never double-counts a single generation.
+ *
+ * Callers must do their own pre-flight balance check (fetchUserBalance) — this
+ * helper assumes the spend is already authorized.
+ */
+export async function recordSpend(
+  admin: SupabaseClient,
+  userId: string,
+  reason: string,
+  cost: number,
+  logFields: CreditLogFields = {},
+): Promise<void> {
+  if (cost <= 0) return;
+  const subBalance = await fetchSubscriptionBalance(admin, userId);
+  const { subSpend, purSpend } = splitSpend(cost, subBalance);
+
+  const rows: Record<string, unknown>[] = [];
+  if (subSpend > 0) {
+    rows.push({ user_id: userId, delta: -subSpend, reason, is_byok: false, bucket: "subscription", ...logFields });
+  }
+  if (purSpend > 0) {
+    // logFields only on the purchased row if the subscription row didn't already carry them.
+    rows.push({ user_id: userId, delta: -purSpend, reason, is_byok: false, bucket: "purchased", ...(subSpend > 0 ? {} : logFields) });
+  }
+  const { error } = await admin.from("ai_credit_ledger").insert(rows);
+  if (error) console.error(`Failed to record spend (${reason}):`, error);
+}
+
 /**
  * Records a generation in the ledger.
  * - isByok=true  → delta=0  (analytics only, user pays their own API bill)
- * - isByok=false → delta=-cost (deducts from platform-key user's credit balance)
+ * - isByok=false → subscription-first deduction via recordSpend()
  */
 export async function recordGeneration(
   admin: SupabaseClient,
@@ -78,12 +118,16 @@ export async function recordGeneration(
   cost: number,
   logFields: CreditLogFields = {},
 ): Promise<void> {
-  const { error } = await admin.from("ai_credit_ledger").insert({
-    user_id: userId,
-    delta: isByok ? 0 : -cost,
-    reason: generationType,
-    is_byok: isByok,
-    ...logFields,
-  });
-  if (error) console.error(`Failed to record generation (${generationType}):`, error);
+  if (isByok) {
+    const { error } = await admin.from("ai_credit_ledger").insert({
+      user_id: userId,
+      delta: 0,
+      reason: generationType,
+      is_byok: true,
+      ...logFields,
+    });
+    if (error) console.error(`Failed to record generation (${generationType}):`, error);
+    return;
+  }
+  await recordSpend(admin, userId, generationType, cost, logFields);
 }

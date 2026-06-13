@@ -31,6 +31,20 @@ export function useAdminPlans() {
     onSettled: () => qc.invalidateQueries({ queryKey: ['admin', 'plans'] }),
   })
 
+  const updateMonthlyCredits = useMutation({
+    mutationFn: async ({ planId, monthlyCredits }: { planId: string; monthlyCredits: number }) => {
+      const { error } = await supabase
+        .from('plans')
+        .update({ monthly_credits: monthlyCredits })
+        .eq('id', planId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'plans'] })
+      qc.invalidateQueries({ queryKey: ['plan'] })
+    },
+  })
+
   const syncPlanPrices = useMutation({
     mutationFn: async (args: { planId: string; monthlyPriceId?: string; annualPriceId?: string }) => {
       const { data: { session } } = await supabase.auth.getSession()
@@ -57,5 +71,5 @@ export function useAdminPlans() {
     },
   })
 
-  return { ...query, updateQuotas, syncPlanPrices, LABELS }
+  return { ...query, updateQuotas, updateMonthlyCredits, syncPlanPrices, LABELS }
 }

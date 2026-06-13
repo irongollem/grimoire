@@ -226,17 +226,22 @@
       </div>
 
       <div class="flex items-end gap-2">
-        <span class="font-cinzel text-3xl font-bold text-amber-400">{{
-          annual ? proAnnualDisplay : proMonthlyDisplay
-        }}</span>
+        <span class="font-cinzel text-3xl font-bold text-amber-400">{{ activeProPrice ?? "—" }}</span>
         <span class="font-fell text-sm text-muted-foreground italic mb-1">{{
           annual ? "/ year" : "/ month"
         }}</span>
       </div>
 
+      <p
+        v-if="proMonthlyCredits > 0"
+        class="font-fell text-xs text-amber-400/90 italic -mt-2"
+      >
+        Includes {{ proMonthlyCredits.toLocaleString() }} AI credits every month.
+      </p>
+
       <button
-        class="w-full py-2.5 rounded-md bg-amber-500 text-black font-cinzel text-xs font-semibold tracking-wider hover:bg-amber-400 transition-colors disabled:opacity-60"
-        :disabled="stripeLoading"
+        class="w-full py-2.5 rounded-md bg-amber-500 text-black font-cinzel text-xs font-semibold tracking-wider hover:bg-amber-400 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+        :disabled="stripeLoading || !activeProPrice"
         @click="createCheckoutSession(annual ? 'year' : 'month')"
       >
         <IconLoading
@@ -246,9 +251,11 @@
         {{
           stripeLoading
             ? "Redirecting…"
-            : annual
-              ? `Upgrade — ${proAnnualDisplay}/year`
-              : `Upgrade — ${proMonthlyDisplay}/month`
+            : !activeProPrice
+              ? "Pricing unavailable"
+              : annual
+                ? `Upgrade — ${activeProPrice}/year`
+                : `Upgrade — ${activeProPrice}/month`
         }}
       </button>
 
@@ -275,10 +282,30 @@
         </span>
       </div>
 
+      <!-- Bucket breakdown: monthly allowance (resets) vs purchased (permanent) -->
+      <div
+        v-if="!creditsLoading && (subscriptionBalance > 0 || purchasedBalance > 0)"
+        class="flex flex-wrap gap-x-4 gap-y-1 text-xs"
+      >
+        <span class="font-fell text-muted-foreground">
+          <span class="font-semibold text-foreground">{{ subscriptionBalance.toLocaleString() }}</span>
+          monthly<span v-if="renewalDate"> · resets {{ renewalDate }}</span>
+        </span>
+        <span class="font-fell text-muted-foreground">
+          <span class="font-semibold text-foreground">{{ purchasedBalance.toLocaleString() }}</span>
+          purchased · never expires
+        </span>
+      </div>
+
       <p class="font-fell text-xs text-muted-foreground italic leading-relaxed">
-        Pro subscribers receive 5 credits each billing period. Use credits to
-        generate NPC portraits (2 credits), text descriptions (1 credit), and
-        monster stat blocks (1 credit).
+        <template v-if="isPro && proMonthlyCredits > 0">
+          Your Pro plan includes {{ proMonthlyCredits.toLocaleString() }} credits each billing period
+          (use-it-or-lose-it). Purchased packs are permanent and top up whenever you need more.
+        </template>
+        <template v-else>
+          Credits power AI generation — portraits, scenes, stat blocks and more. Purchased packs never expire;
+          upgrade to Pro for a monthly included allowance.
+        </template>
       </p>
 
       <!-- Credit pack purchase -->
@@ -344,6 +371,8 @@ const {
 } = useStripe();
 const {
   formattedBalance,
+  subscriptionBalance,
+  purchasedBalance,
   isLoading: creditsLoading,
   purchasePack,
   purchaseLoading,
@@ -367,25 +396,33 @@ const pricingCurrencies = computed(() =>
   )
 );
 
-const proMonthlyDisplay = computed(() => {
+// Prices come exclusively from Stripe (synced into the plans table). No hardcoded
+// fallback — if a price isn't configured yet we show "—" rather than a fake one.
+const proMonthlyDisplay = computed<string | null>(() => {
   const r = resolveAmount(
     proPlan.value?.stripe_monthly_unit_amount,
     proPlan.value?.stripe_currency,
     proPlan.value?.stripe_monthly_currency_options,
     currency.value,
   );
-  return r ? formatCents(r.amount, r.currency) : "€12.99";
+  return r ? formatCents(r.amount, r.currency) : null;
 });
 
-const proAnnualDisplay = computed(() => {
+const proAnnualDisplay = computed<string | null>(() => {
   const r = resolveAmount(
     proPlan.value?.stripe_annual_unit_amount,
     proPlan.value?.stripe_currency,
     proPlan.value?.stripe_annual_currency_options,
     currency.value,
   );
-  return r ? formatCents(r.amount, r.currency) : "€99";
+  return r ? formatCents(r.amount, r.currency) : null;
 });
+
+/** The active price for the selected billing interval, or null if unconfigured. */
+const activeProPrice = computed(() => (annual.value ? proAnnualDisplay.value : proMonthlyDisplay.value));
+
+/** Monthly included-credit allowance for the Pro plan (0 until configured). */
+const proMonthlyCredits = computed(() => proPlan.value?.monthly_credits ?? 0);
 
 function formatPackPrice(pack: { stripe_unit_amount: number | null; stripe_currency: string | null; stripe_currency_options: Record<string, { unit_amount: number }> | null }): string {
   if (!pack.stripe_unit_amount || !pack.stripe_currency) return "";
@@ -458,10 +495,12 @@ const freeFeatures = computed(() => {
   ]
 })
 
-const proFeatures = [
+const proFeatures = computed(() => [
   "Unlimited campaigns & content",
-  "5 AI credits / month",
+  proMonthlyCredits.value > 0
+    ? `${proMonthlyCredits.value.toLocaleString()} AI credits / month`
+    : "Included AI credits / month",
   "Full player portal",
   "No player fees — ever",
-]
+])
 </script>
