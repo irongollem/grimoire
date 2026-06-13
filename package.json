@@ -72,11 +72,11 @@
     "stripe": "^22.1.0",
     "tailwindcss": "^4.0.0",
     "tsx": "^4.22.1",
-    "typescript": "~5.7.2",
+    "typescript": "~6.0.3",
     "vite": "^8.0.8",
     "vite-ssg": "^28.3.0",
     "vitest": "^4.1.5",
-    "vue-tsc": "^2.2.0"
+    "vue-tsc": "^2.2.12"
   },
   "optionalDependencies": {
     "@rolldown/binding-darwin-arm64": "^1.0.0-rc.15"

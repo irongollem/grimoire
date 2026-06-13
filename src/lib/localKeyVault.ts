@@ -102,8 +102,15 @@ function toBase64(bytes: Uint8Array): string {
   return btoa(s);
 }
 
-function fromBase64(b64: string): Uint8Array {
-  return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+// Return type is intentionally inferred (not annotated `Uint8Array`): a bare
+// `Uint8Array` annotation widens to `Uint8Array<ArrayBufferLike>`, which newer
+// lib.dom typings reject as a WebCrypto `BufferSource`. A freshly-allocated
+// array is `ArrayBuffer`-backed, which is what `crypto.subtle.*` wants.
+function fromBase64(b64: string) {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
 }
 
 /** Encrypt a plaintext API key for at-rest local storage. Returns `lck:v1:<iv>:<ct>`. */
@@ -114,11 +121,10 @@ export async function encryptLocalKey(plaintext: string): Promise<string> {
   }
   const key = await getOrCreateKey();
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const ct = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv },
-    key,
-    new TextEncoder().encode(plaintext),
-  );
+  // Re-wrap in a fresh Uint8Array so the encoded bytes are ArrayBuffer-backed
+  // (TextEncoder().encode() is typed ArrayBufferLike, rejected by WebCrypto).
+  const data = new Uint8Array(new TextEncoder().encode(plaintext));
+  const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, data);
   return `${PREFIX}${toBase64(iv)}:${toBase64(new Uint8Array(ct))}`;
 }
 
