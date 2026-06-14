@@ -17,6 +17,9 @@ dist-ssr/
 .env.*.local
 .env.test
 
+# Supabase edge-function secret files (Stripe keys etc.) — never commit
+supabase/.env*
+
 # Personal setup notes (gitignored — edit freely)
 TODO_SETUP.md
 
