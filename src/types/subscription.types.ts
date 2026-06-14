@@ -28,6 +28,9 @@ export type QuotaResource =
   | 'encounters'
   | 'scriptorium_documents'
   | 'notes'
+  | 'sounds'
+  | 'soundboard_pages'
+  | 'soundboard_playlists'
 
 export const QUOTA_RESOURCE_LABELS: Record<QuotaResource, string> = {
   campaigns:             'Campaigns',
@@ -36,6 +39,9 @@ export const QUOTA_RESOURCE_LABELS: Record<QuotaResource, string> = {
   encounters:            'Encounters',
   scriptorium_documents: 'Scriptorium documents',
   notes:                 'Notes',
+  sounds:                'Sounds',
+  soundboard_pages:      'Soundboard pages',
+  soundboard_playlists:  'Playlists',
 } as const
 
 export interface UserSubscription {

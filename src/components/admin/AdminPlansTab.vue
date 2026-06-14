@@ -163,7 +163,7 @@ watch(
 );
 
 function defaultQuotaRecord(): Record<QuotaResource, number> {
-  return { campaigns: 0, npcs: 0, monsters: 0, encounters: 0, scriptorium_documents: 0, notes: 0 };
+  return { campaigns: 0, npcs: 0, monsters: 0, encounters: 0, scriptorium_documents: 0, notes: 0, sounds: 0, soundboard_pages: 0, soundboard_playlists: 0 };
 }
 
 async function savePlanQuotas(plan: Plan) {

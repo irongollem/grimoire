@@ -59,15 +59,19 @@
         </button>
         <button
           type="button"
-          class="flex-1 py-1.5 rounded-md border text-xs font-cinzel tracking-wide transition-colors"
+          class="flex-1 py-1.5 rounded-md border text-xs font-cinzel tracking-wide transition-colors relative"
           :class="
             activeSourceTab === 'upload'
               ? 'bg-gold-500/20 border-gold-500/60 text-gold-300'
-              : 'border-border text-muted-foreground hover:text-foreground'
+              : isPro
+                ? 'border-border text-muted-foreground hover:text-foreground'
+                : 'border-border text-muted-foreground/40 cursor-not-allowed'
           "
-          @click="onUploadTabClick"
+          :title="isPro ? undefined : 'Pro feature — upgrade to upload your own audio files'"
+          @click="isPro ? onUploadTabClick() : undefined"
         >
           Upload
+          <span v-if="!isPro" class="absolute -top-1.5 -right-1.5 px-1 rounded text-[9px] font-cinzel bg-amber-500 text-black leading-4">PRO</span>
         </button>
         <button
           v-if="spotifyStore.isEnabled"
@@ -85,15 +89,19 @@
         <button
           v-if="geminiApiKey || campaignId"
           type="button"
-          class="flex-1 py-1.5 rounded-md border text-xs font-cinzel tracking-wide transition-colors"
+          class="flex-1 py-1.5 rounded-md border text-xs font-cinzel tracking-wide transition-colors relative"
           :class="
             activeSourceTab === 'generate'
               ? 'bg-violet-500/20 border-violet-500/60 text-violet-300'
-              : 'border-border text-muted-foreground hover:text-foreground'
+              : isPro
+                ? 'border-border text-muted-foreground hover:text-foreground'
+                : 'border-border text-muted-foreground/40 cursor-not-allowed'
           "
-          @click="activeSourceTab = 'generate'"
+          :title="isPro ? undefined : 'Pro feature — upgrade to generate AI music'"
+          @click="isPro ? (activeSourceTab = 'generate') : undefined"
         >
           Generate
+          <span v-if="!isPro" class="absolute -top-1.5 -right-1.5 px-1 rounded text-[9px] font-cinzel bg-amber-500 text-black leading-4">PRO</span>
         </button>
         <button
           type="button"
@@ -281,6 +289,7 @@
 import { ref, computed, nextTick, onMounted, onUnmounted } from "vue";
 import { useCreateSound, useSoundUpload } from "@/composables/useSounds";
 import { useSpotifyStore } from "@/stores/spotify";
+import { useSubscription } from "@/composables/useSubscription";
 import { generateMusicWithLyria, structureMusicPrompt, LYRIA_MODELS, LYRICS_MAX_CHARS, type LyriaModel } from "@/lib/aiMusic";
 import { logUsage, useAiCredits } from "@/composables/useAiCredits";
 import { supabase } from "@/lib/supabase";
@@ -289,6 +298,7 @@ import type { SoundCategory } from "@/types/sound.types";
 
 const spotifyStore = useSpotifyStore();
 const { costOf } = useAiCredits();
+const { isPro } = useSubscription();
 
 const { pageId = null, geminiApiKey = null, campaignId = null } = defineProps<{
   pageId?: string | null;
