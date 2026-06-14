@@ -100,14 +100,17 @@
 
     <!-- Add page button -->
     <button
-      class="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md border border-dashed border-border text-xs font-cinzel text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors"
-      title="Add page"
+      class="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md border border-dashed border-border text-xs font-cinzel text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors relative"
+      :title="canCreatePage ? 'Add page' : 'Pro feature — upgrade to create multiple soundboard pages'"
       @click="addPage"
     >
       <IconAdd class="h-3 w-3" />
       Add Page
+      <span v-if="!canCreatePage" class="absolute -top-1.5 -right-1.5 px-1 rounded text-[9px] font-cinzel bg-amber-500 text-black leading-4">PRO</span>
     </button>
   </div>
+
+  <PaywallModal v-model="showPagePaywall" resource="soundboard_pages" />
 </template>
 
 <script setup lang="ts">
@@ -121,6 +124,8 @@ import {
   useDeleteSoundboardPage,
   useReorderSoundboardPages,
 } from "@/composables/useSoundboardPages";
+import { useQuota } from "@/composables/useQuota";
+import PaywallModal from "@/components/common/PaywallModal.vue";
 import type { SoundboardPage } from "@/types/sound.types";
 
 const activePageId = defineModel<string | null>({ required: true });
@@ -132,6 +137,8 @@ const { mutate: createPage } = useCreateSoundboardPage();
 const { mutate: updatePage } = useUpdateSoundboardPage();
 const { mutate: deletePage_m } = useDeleteSoundboardPage();
 const { mutate: reorderPages } = useReorderSoundboardPages();
+const { canCreate: canCreatePage } = useQuota("soundboard_pages");
+const showPagePaywall = ref(false);
 
 // Local ordered copy for drag-and-drop
 const orderedPages = ref<SoundboardPage[]>([]);
@@ -199,6 +206,7 @@ onBeforeUnmount(() => {
 // ── Add ───────────────────────────────────────────────────────────────────
 
 function addPage() {
+  if (!canCreatePage.value) { showPagePaywall.value = true; return; }
   const nextOrder = (orderedPages.value.at(-1)?.sort_order ?? -1) + 1;
   createPage(
     { name: "New Page", sort_order: nextOrder },

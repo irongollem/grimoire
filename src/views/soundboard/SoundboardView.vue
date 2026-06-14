@@ -32,9 +32,9 @@
       <ListActionButton
         v-if="ui.soundboardViewMode === 'sounds'"
         :icon="IconAdd"
-        label="Add Sound"
+        :label="soundQuota?.unlimited === false ? `Add Sound (${soundQuota.current}/${soundQuota.limit})` : 'Add Sound'"
         variant="primary"
-        @click="showForm = !showForm"
+        @click="openAddSound()"
       />
     </template>
 
@@ -95,6 +95,8 @@
       @close="showForm = false"
     />
 
+    <PaywallModal v-model="showSoundPaywall" resource="sounds" />
+
     <!-- Loading -->
     <LoadingSpinner v-if="isPending" />
 
@@ -105,7 +107,7 @@
       title="No sounds yet"
       description="Add ambient tracks, music, and effects for your sessions."
       action-label="Add Sound"
-      @action="showForm = true"
+      @action="openAddSound()"
     />
 
     <div
@@ -166,6 +168,7 @@ import { useSoundboardPages, useCreateSoundboardPage } from "@/composables/useSo
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSpotifyStore } from "@/stores/spotify";
 import { useUiStore } from "@/stores/ui";
+import { useQuota } from "@/composables/useQuota";
 import { storeToRefs } from "pinia";
 import { useCampaignStore } from "@/stores/campaign";
 import type { Sound } from "@/types/sound.types";
@@ -175,6 +178,7 @@ import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
+import PaywallModal from "@/components/common/PaywallModal.vue";
 import SoundCard from "@/components/soundboard/SoundCard.vue";
 import AddSoundDialog from "@/components/soundboard/AddSoundDialog.vue";
 import SoundCategoryFilter from "@/components/soundboard/SoundCategoryFilter.vue";
@@ -185,6 +189,8 @@ import PlaylistsPanel from "@/components/soundboard/PlaylistsPanel.vue";
 const ui = useUiStore();
 const soundboardStore = useSoundboardStore();
 const spotifyStore = useSpotifyStore();
+const { canCreate: canCreateSound, quota: soundQuota } = useQuota("sounds");
+const showSoundPaywall = ref(false);
 const campaignStore = useCampaignStore();
 const { activeCampaignId } = storeToRefs(campaignStore);
 const geminiApiKey = computed(() => campaignStore.decryptedGeminiKey || null);
@@ -215,6 +221,11 @@ watch(
 );
 
 const showForm = ref(false);
+
+function openAddSound() {
+  if (!canCreateSound.value) { showSoundPaywall.value = true; return; }
+  showForm.value = true;
+}
 
 // Page to assign new sounds to:
 // - specific page active → use it

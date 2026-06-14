@@ -150,6 +150,7 @@ const limitText = computed(() => {
 const BENEFITS = [
   "Unlimited campaigns, NPCs, monsters, encounters & notes",
   "AI generation — NPCs, monsters, items, spells & artwork",
+  "Soundboard uploads, AI music, and unlimited pages & playlists",
   "Full world-building, combat, and publishing toolkit",
   "Your whole table plays free — always",
 ]
