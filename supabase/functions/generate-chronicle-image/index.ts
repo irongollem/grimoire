@@ -6,11 +6,8 @@ import { fetchCreditCost, fetchUserBalance, recordGeneration, sizeMultiplier } f
 import { createImageJob, completeImageJob, failImageJob, type ImageJobKind } from "../_shared/imageJob.ts";
 import { fetchProviderConfigs } from "../_shared/provider-config.ts";
 import { generateImage, resolveImageProvider, type ImageProviderKey } from "../_shared/imageGen.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { corsHeaders } from "../_shared/cors.ts";
+import { isSafeStorageUrl } from "../_shared/storage-url.ts";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -77,9 +74,16 @@ async function runGeneration(args: {
   try {
     // Fetch reference portrait blobs in parallel (openai + gemini compose them).
     const portraitBlobs: Blob[] = [];
-    if (portrait_urls.length > 0) {
+    // SSRF guard: only ever fetch our own Supabase Storage public URLs. Unsafe
+    // URLs are skipped (mirrors the existing "skip non-ok fetches" behavior).
+    const safeUrls = portrait_urls.filter((url) => {
+      if (isSafeStorageUrl(url)) return true;
+      console.warn("Rejected unsafe portrait_url — skipping");
+      return false;
+    });
+    if (safeUrls.length > 0) {
       const results = await Promise.allSettled(
-        portrait_urls.map((url) => fetch(url).then((r) => r.ok ? r.blob() : null)),
+        safeUrls.map((url) => fetch(url).then((r) => r.ok ? r.blob() : null)),
       );
       for (const r of results) {
         if (r.status === "fulfilled" && r.value) portraitBlobs.push(r.value);
@@ -110,11 +114,12 @@ async function runGeneration(args: {
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 
-const text = (msg: string, status: number) =>
-  new Response(msg, { status, headers: corsHeaders });
-
 serve(async (req: Request) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const cors = corsHeaders(req);
+  const text = (msg: string, status: number) =>
+    new Response(msg, { status, headers: cors });
+
+  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return text("Method not allowed", 405);
 
   const authHeader = req.headers.get("Authorization");
@@ -186,7 +191,7 @@ serve(async (req: Request) => {
     if (balance < chronicleImageCost) {
       return new Response(
         JSON.stringify({ error: "insufficient_credits", balance }),
-        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        { status: 402, headers: { ...cors, "Content-Type": "application/json" } },
       );
     }
   }
@@ -219,6 +224,6 @@ serve(async (req: Request) => {
 
   return new Response(
     JSON.stringify({ job_id: jobId }),
-    { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    { headers: { ...cors, "Content-Type": "application/json" } },
   );
 });

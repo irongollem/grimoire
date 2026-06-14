@@ -28,12 +28,13 @@ project_id = "grimoire"
 [functions.ical-feed]
 verify_jwt = false
 
-# API key vault decryption endpoint — called by the browser with the user's
-# access token via the client SDK, not via `fetch(authorization:...)`, so we
-# have to turn off the gateway check and rely on the function's own
-# `auth.uid()` lookup to scope the read.
+# API key vault encrypt/decrypt endpoint — holds the master VAULT_KEY. Called by
+# the browser via the client SDK, which forwards the user's access token in the
+# Authorization header, so the gateway JWT check works. The function ALSO does
+# its own getUser() + per-blob ownership check (decrypt is scoped to the
+# caller's own campaign keys, or platform keys for admins) — defense in depth.
 [functions.api-key-vault]
-verify_jwt = false
+verify_jwt = true
 
 # In-app bug reporter — called by the browser on behalf of any logged-in user.
 # The gateway check is off because we want anonymous reports too (e.g. users

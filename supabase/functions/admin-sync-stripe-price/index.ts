@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@14?target=deno";
+import { corsHeaders } from "../_shared/cors.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
   apiVersion: "2024-06-20",
@@ -12,14 +13,10 @@ const admin = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
 serve(async (req: Request) => {
+  const cors = corsHeaders(req);
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response("ok", { headers: cors });
   }
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
@@ -30,7 +27,8 @@ serve(async (req: Request) => {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  // Verify caller is an admin
+  // Verify caller is an admin from their verified JWT (app_metadata.role is
+  // server-controlled and signed), mirroring is_app_admin() in the DB.
   const caller = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_ANON_KEY")!,
@@ -41,9 +39,7 @@ serve(async (req: Request) => {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  const { data: isAdmin } = await admin.rpc("get_admin_users");
-  const adminIds: string[] = (isAdmin ?? []).map((r: { user_id: string }) => r.user_id);
-  if (!adminIds.includes(user.id)) {
+  if (user.app_metadata?.role !== "admin") {
     return new Response("Forbidden", { status: 403 });
   }
 
@@ -96,6 +92,6 @@ serve(async (req: Request) => {
       stripe_currency: stripePrice.currency,
       stripe_currency_options: stripePrice.currency_options ?? null,
     }),
-    { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    { headers: { ...cors, "Content-Type": "application/json" } },
   );
 });

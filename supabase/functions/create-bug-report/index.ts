@@ -1,13 +1,20 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { corsHeaders } from "../_shared/cors.ts";
 
-// Public endpoint — no JWT required. Anyone using the app can file a report.
-// Security: we only create issues (no reads, no destructive ops). The
-// GITHUB_TOKEN secret is scoped to `issues: write` on irongollem/grimoire.
+// Authenticated endpoint. `verify_jwt = false` in config.toml so we can return
+// CORS-friendly errors, but auth is enforced in code below: a valid Supabase
+// user is required. We only create GitHub issues (no reads, no destructive
+// ops). The GITHUB_TOKEN secret is scoped to `issues: write` on
+// irongollem/grimoire.
 
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+// Cap decoded screenshot size at ~5MB and only accept image uploads.
+const MAX_SCREENSHOT_BYTES = 5 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/gif",
+]);
 
 interface BugReportPayload {
   where: string;
@@ -20,31 +27,49 @@ interface BugReportPayload {
 }
 
 Deno.serve(async (req: Request) => {
+  const cors = corsHeaders(req);
+
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: CORS_HEADERS });
+    return new Response(null, { headers: cors });
   }
 
   if (req.method !== "POST") {
-    return new Response("Method Not Allowed", { status: 405, headers: CORS_HEADERS });
+    return new Response("Method Not Allowed", { status: 405, headers: cors });
+  }
+
+  // Enforce auth in code (config.toml keeps verify_jwt=false). A valid Supabase
+  // user is required to file a report.
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader) {
+    return new Response("Unauthorized", { status: 401, headers: cors });
+  }
+  const caller = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_ANON_KEY")!,
+    { global: { headers: { Authorization: authHeader } } },
+  );
+  const { data: { user }, error: authError } = await caller.auth.getUser();
+  if (authError || !user) {
+    return new Response("Unauthorized", { status: 401, headers: cors });
   }
 
   let payload: BugReportPayload;
   try {
     payload = await req.json();
   } catch {
-    return new Response("Invalid JSON", { status: 400, headers: CORS_HEADERS });
+    return new Response("Invalid JSON", { status: 400, headers: cors });
   }
 
   const { where, action, expected, actual, screenshot, screenshotName, submittedBy } = payload;
 
   if (!where?.trim() || !action?.trim() || !expected?.trim() || !actual?.trim()) {
-    return new Response("Missing required fields", { status: 400, headers: CORS_HEADERS });
+    return new Response("Missing required fields", { status: 400, headers: cors });
   }
 
   const githubToken = Deno.env.get("GITHUB_TOKEN");
   if (!githubToken) {
     console.error("GITHUB_TOKEN secret is not set");
-    return new Response("Server misconfigured", { status: 500, headers: CORS_HEADERS });
+    return new Response("Server misconfigured", { status: 500, headers: cors });
   }
 
   // Ensure the `user-report` label exists on the repo (idempotent).
@@ -79,6 +104,19 @@ Deno.serve(async (req: Request) => {
 
       const base64Data = screenshot.split(",")[1];
       const mimeType = screenshot.split(";")[0].split(":")[1] ?? "image/jpeg";
+
+      // Restrict to images and cap decoded size (~5MB) — defense against
+      // arbitrary/oversized uploads. Non-fatal: skip the screenshot on reject.
+      if (!ALLOWED_IMAGE_TYPES.has(mimeType)) {
+        throw new Error(`Unsupported screenshot type: ${mimeType}`);
+      }
+      // base64 decodes to ~3/4 of its length; check before atob to avoid
+      // materializing an oversized buffer.
+      const approxBytes = Math.floor((base64Data?.length ?? 0) * 3 / 4);
+      if (approxBytes > MAX_SCREENSHOT_BYTES) {
+        throw new Error("Screenshot exceeds 5MB limit");
+      }
+
       const byteCharacters = atob(base64Data);
       const byteArray = new Uint8Array(byteCharacters.length);
       for (let i = 0; i < byteCharacters.length; i++) {
@@ -155,13 +193,13 @@ Deno.serve(async (req: Request) => {
   if (!ghResponse.ok) {
     const errText = await ghResponse.text();
     console.error("GitHub API error:", ghResponse.status, errText);
-    return new Response("Failed to create issue", { status: 502, headers: CORS_HEADERS });
+    return new Response("Failed to create issue", { status: 502, headers: cors });
   }
 
   const issue = await ghResponse.json() as { number: number; html_url: string };
 
   return new Response(
     JSON.stringify({ issueNumber: issue.number, issueUrl: issue.html_url }),
-    { status: 201, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
+    { status: 201, headers: { ...cors, "Content-Type": "application/json" } },
   );
 });

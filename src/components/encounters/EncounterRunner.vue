@@ -297,6 +297,13 @@ watch(
 
 let partyMembersChannel: ReturnType<typeof supabase.channel> | null = null;
 
+// Route the store's player-combatant persistence through the party-member
+// mutation so the party query cache is invalidated on every write (HP, temp
+// HP, conditions, wildshape, …). The store stays UI-only.
+store.setPersistHandler((id, update) => {
+  void updatePartyMember({ id, update });
+});
+
 onMounted(() => {
   const campaignId = campaign.activeCampaignId;
   if (!campaignId) return;
@@ -322,6 +329,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  store.setPersistHandler(null);
   if (partyHpTimer) clearTimeout(partyHpTimer);
   if (partyMembersChannel) {
     supabase.removeChannel(partyMembersChannel);

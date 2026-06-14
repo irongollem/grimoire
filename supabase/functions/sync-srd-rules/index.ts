@@ -83,8 +83,46 @@ function buildRows(sections: Open5eV1Section[]): Row[] {
   });
 }
 
-Deno.serve(async (_req) => {
+Deno.serve(async (req) => {
   try {
+    // Admin-only: this triggers a full canonical srd_rules re-sync. The gateway
+    // verifies the JWT (verify_jwt default), but any authenticated user would
+    // otherwise reach this handler, so gate on the caller's verified admin
+    // claim (app_metadata.role is server-controlled and signed), mirroring
+    // is_app_admin() in the DB.
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ ok: false, error: "Unauthorized" }),
+        { status: 401, headers: { "Content-Type": "application/json" } },
+      );
+    }
+    // Allow the trusted cron/service-role caller (it passes the service-role key
+    // as the bearer token); otherwise require a verified admin user. Either way,
+    // an ordinary authenticated user cannot trigger a canonical re-sync.
+    const bearer = authHeader.replace(/^Bearer\s+/i, "");
+    const isServiceRole = bearer === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!isServiceRole) {
+      const caller = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: authHeader } } },
+      );
+      const { data: { user }, error: authError } = await caller.auth.getUser();
+      if (authError || !user) {
+        return new Response(
+          JSON.stringify({ ok: false, error: "Unauthorized" }),
+          { status: 401, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      if (user.app_metadata?.role !== "admin") {
+        return new Response(
+          JSON.stringify({ ok: false, error: "Forbidden" }),
+          { status: 403, headers: { "Content-Type": "application/json" } },
+        );
+      }
+    }
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,

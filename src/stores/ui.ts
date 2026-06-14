@@ -228,6 +228,32 @@ export const useUiStore = defineStore("ui", () => {
     speciesFilterSource.value = "all";
   }
 
+  // Dungeon Craft (Dungeon Features) UI state
+  const dungeonFeaturesSearch = ref("");
+  const dungeonFeaturesFilterType = ref("");
+
+  const dungeonFeaturesHasActiveFilters = computed(
+    () => dungeonFeaturesSearch.value !== "" || dungeonFeaturesFilterType.value !== "",
+  );
+
+  function resetDungeonFeaturesFilters() {
+    dungeonFeaturesSearch.value = "";
+    dungeonFeaturesFilterType.value = "";
+  }
+
+  // Custom Rules UI state
+  const customRulesSearch = ref("");
+  const customRulesFilterCategory = ref("");
+
+  const customRulesHasActiveFilters = computed(
+    () => customRulesSearch.value !== "" || customRulesFilterCategory.value !== "",
+  );
+
+  function resetCustomRulesFilters() {
+    customRulesSearch.value = "";
+    customRulesFilterCategory.value = "";
+  }
+
   // Class Features (Abilities) UI state
   const featuresSearch = ref("");
   const featuresFilterType = ref("all");
@@ -278,6 +304,10 @@ export const useUiStore = defineStore("ui", () => {
 
   // Character Codex — active tab in the consolidated player-options page.
   const codexActiveTab = ref<"species" | "backgrounds" | "classes" | "archetypes" | "abilities">("species");
+
+  // Character Codex — Open5e background-import source selection (doc slugs).
+  // Empty array = import from every source. Survives navigation within session.
+  const codexBackgroundImportSources = ref<string[]>([]);
 
   // Soundboard UI state
   const soundboardFilterCategory = ref<SoundCategory | "all">("all");
@@ -590,6 +620,18 @@ export const useUiStore = defineStore("ui", () => {
     speciesHasActiveFilters,
     resetSpeciesFilters,
 
+    // Dungeon Craft
+    dungeonFeaturesSearch,
+    dungeonFeaturesFilterType,
+    dungeonFeaturesHasActiveFilters,
+    resetDungeonFeaturesFilters,
+
+    // Custom Rules
+    customRulesSearch,
+    customRulesFilterCategory,
+    customRulesHasActiveFilters,
+    resetCustomRulesFilters,
+
     // Class Features (Abilities)
     featuresSearch,
     featuresFilterType,
@@ -615,6 +657,7 @@ export const useUiStore = defineStore("ui", () => {
 
     // Character Codex
     codexActiveTab,
+    codexBackgroundImportSources,
 
     // Player Atlas
     atlasChildrenOpen,

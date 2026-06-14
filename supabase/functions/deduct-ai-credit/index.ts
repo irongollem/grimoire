@@ -1,18 +1,15 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { recordSpend } from "../_shared/credits.ts";
+import { spendCredits } from "../_shared/credits.ts";
+import { corsHeaders as buildCors } from "../_shared/cors.ts";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
 serve(async (req: Request) => {
+  const corsHeaders = buildCors(req);
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -85,34 +82,28 @@ serve(async (req: Request) => {
     );
   }
 
-  // Platform-key path: check balance and deduct.
-  const { data: balanceRow } = await admin
-    .from("ai_credit_balance")
-    .select("balance")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  // Platform-key path: atomic affordability gate + subscription-first deduction.
+  // spend_credits() recomputes the balance under a per-user advisory lock and
+  // refuses (writes nothing) when the user can't afford it — so N concurrent
+  // requests can't all pass a stale balance check and over-draw.
+  const result = await spendCredits(
+    admin,
+    user.id,
+    reason,
+    amount,
+    { model, provider, input_tokens, input_image_tokens, output_tokens, image_count },
+    false, // gate: do not allow the balance to go negative
+  );
 
-  const currentBalance: number = balanceRow?.balance ?? 0;
-
-  if (currentBalance < amount) {
+  if (!result.ok) {
     return new Response(
-      JSON.stringify({ error: "insufficient_credits", balance: currentBalance }),
+      JSON.stringify({ error: "insufficient_credits", balance: result.balance }),
       { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 
-  // Subscription-first deduction (writes one or two bucketed rows).
-  await recordSpend(admin, user.id, reason, amount, {
-    model,
-    provider,
-    input_tokens,
-    input_image_tokens,
-    output_tokens,
-    image_count,
-  });
-
   return new Response(
-    JSON.stringify({ ok: true, balance: currentBalance - amount }),
+    JSON.stringify({ ok: true, balance: result.balance }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } },
   );
 });

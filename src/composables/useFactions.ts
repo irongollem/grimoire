@@ -133,7 +133,7 @@ export function useDeleteFaction() {
 export interface FactionNpcWithNpc extends FactionNpc {
   npc: Pick<
     Npc,
-    "id" | "name" | "occupation" | "race" | "status" | "portrait_url"
+    "id" | "name" | "occupation" | "race" | "status" | "portrait_url" | "portrait_focal_point"
   >;
 }
 
@@ -143,7 +143,7 @@ export function useFactionNpcs(factionId: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("faction_npcs")
-        .select("*, npc:npcs(id, name, occupation, race, status, portrait_url)")
+        .select("*, npc:npcs(id, name, occupation, race, status, portrait_url, portrait_focal_point)")
         .eq("faction_id", factionId)
         .order("created_at", { ascending: true });
       if (error) throw error;
@@ -160,12 +160,12 @@ export function usePlayerFactionPartyMembers(factionId: Ref<string>, enabled: Re
     queryFn: async () => {
       const { data, error } = await supabase
         .from("faction_party_members")
-        .select("*, party_member:party_members(id, name, class, species_id, level, portrait_url)")
+        .select("*, party_member:party_members(id, name, class, species_id, level, portrait_url, portrait_focal_point)")
         .eq("faction_id", factionId.value)
         .order("created_at", { ascending: true });
       if (error) throw error;
       return data as (FactionPartyMember & {
-        party_member: Pick<PartyMember, "id" | "name" | "class" | "species_id" | "level" | "portrait_url">;
+        party_member: Pick<PartyMember, "id" | "name" | "class" | "species_id" | "level" | "portrait_url" | "portrait_focal_point">;
       })[];
     },
     enabled: computed(() => !!factionId.value && enabled.value),
@@ -615,7 +615,7 @@ export function useDeleteFactionRelation() {
 // ── Faction Party Members ──────────────────────────────────────────────────────
 
 export interface FactionPartyMemberWithMember extends FactionPartyMember {
-  party_member: Pick<PartyMember, "id" | "name" | "class" | "species_id" | "level" | "portrait_url">;
+  party_member: Pick<PartyMember, "id" | "name" | "class" | "species_id" | "level" | "portrait_url" | "portrait_focal_point">;
 }
 
 export function useFactionPartyMembers(factionId: string) {
@@ -624,7 +624,7 @@ export function useFactionPartyMembers(factionId: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("faction_party_members")
-        .select("*, party_member:party_members(id, name, class, species_id, level, portrait_url)")
+        .select("*, party_member:party_members(id, name, class, species_id, level, portrait_url, portrait_focal_point)")
         .eq("faction_id", factionId)
         .order("created_at", { ascending: true });
       if (error) throw error;

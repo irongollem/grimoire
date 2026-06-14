@@ -36,6 +36,14 @@
           <option value="">All Types</option>
           <option v-for="t in DUNGEON_FEATURE_TYPES" :key="t" :value="t">{{ t }}</option>
         </select>
+        <button
+          v-if="ui.dungeonFeaturesHasActiveFilters"
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors shrink-0"
+          @click="ui.resetDungeonFeaturesFilters()"
+        >
+          Clear
+        </button>
       </div>
 
       <p v-if="!filtered.length" class="text-center font-fell text-sm text-muted-foreground italic py-8">
@@ -105,12 +113,20 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
+import { useUiStore } from "@/stores/ui";
 
 const router = useRouter();
+const ui = useUiStore();
 const { data: features, isLoading } = useDungeonFeatures();
 
-const search     = ref("");
-const typeFilter = ref("");
+const search = computed({
+  get: () => ui.dungeonFeaturesSearch,
+  set: (v) => { ui.dungeonFeaturesSearch = v; },
+});
+const typeFilter = computed({
+  get: () => ui.dungeonFeaturesFilterType,
+  set: (v) => { ui.dungeonFeaturesFilterType = v; },
+});
 
 const populateMutation = usePopulateDungeonFeatures();
 const populateStatus   = ref<"idle" | "done" | "uptodate">("idle");

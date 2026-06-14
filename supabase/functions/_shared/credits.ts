@@ -4,7 +4,7 @@
  * Platform-key calls deduct from the user's credit balance.
  */
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.43.0";
-import { splitSpend, sizeMultiplier as sizeMultiplierMath } from "./credit-math.ts";
+import { sizeMultiplier as sizeMultiplierMath } from "./credit-math.ts";
 
 export interface CreditLogFields {
   model?: string;
@@ -59,28 +59,48 @@ export async function fetchUserBalance(
   return (data as { balance: number } | null)?.balance ?? 0;
 }
 
-/** Current subscription-bucket balance (clamped ≥ 0) — the monthly allowance left this period. */
-async function fetchSubscriptionBalance(
-  admin: SupabaseClient,
-  userId: string,
-): Promise<number> {
-  const { data } = await admin
-    .from("ai_credit_buckets")
-    .select("subscription_balance")
-    .eq("user_id", userId)
-    .maybeSingle();
-  return Math.max(0, Number((data as { subscription_balance: number } | null)?.subscription_balance ?? 0));
+export interface SpendResult {
+  ok: boolean;
+  balance: number;
+  insufficient?: boolean;
 }
 
 /**
- * Deduct `cost` credits, subscription-bucket first then purchased — the single
- * source of truth for spending. Writes one ledger row, or two when the spend
- * straddles the bucket boundary. The cost-bearing analytics fields (model,
- * tokens, image_count) are attached to exactly ONE row so the
+ * Atomic, race-free credit spend via the spend_credits() RPC (advisory-locked
+ * per user, subscription-bucket first). The cost-bearing analytics fields
+ * (model, tokens, image_count) are attached to exactly ONE ledger row so the
  * ai_generation_costs view never double-counts a single generation.
  *
- * Callers must do their own pre-flight balance check (fetchUserBalance) — this
- * helper assumes the spend is already authorized.
+ * @param allowNegative when true, records a spend for work already performed
+ *   (the generator already called the paid AI API) — never refused. When false,
+ *   it is an atomic affordability GATE: nothing is written if the user can't pay.
+ */
+export async function spendCredits(
+  admin: SupabaseClient,
+  userId: string,
+  reason: string,
+  cost: number,
+  logFields: CreditLogFields = {},
+  allowNegative = true,
+): Promise<SpendResult> {
+  if (cost <= 0) return { ok: true, balance: await fetchUserBalance(admin, userId) };
+  const { data, error } = await admin.rpc("spend_credits", {
+    p_user_id: userId,
+    p_reason: reason,
+    p_cost: cost,
+    p_log: logFields,
+    p_allow_negative: allowNegative,
+  });
+  if (error) {
+    console.error(`Failed to record spend (${reason}):`, error);
+    return { ok: false, balance: 0 };
+  }
+  return data as SpendResult;
+}
+
+/**
+ * Record a spend for work already performed (generation already happened).
+ * Thin wrapper kept for the generator call sites that pre-checked the balance.
  */
 export async function recordSpend(
   admin: SupabaseClient,
@@ -89,20 +109,7 @@ export async function recordSpend(
   cost: number,
   logFields: CreditLogFields = {},
 ): Promise<void> {
-  if (cost <= 0) return;
-  const subBalance = await fetchSubscriptionBalance(admin, userId);
-  const { subSpend, purSpend } = splitSpend(cost, subBalance);
-
-  const rows: Record<string, unknown>[] = [];
-  if (subSpend > 0) {
-    rows.push({ user_id: userId, delta: -subSpend, reason, is_byok: false, bucket: "subscription", ...logFields });
-  }
-  if (purSpend > 0) {
-    // logFields only on the purchased row if the subscription row didn't already carry them.
-    rows.push({ user_id: userId, delta: -purSpend, reason, is_byok: false, bucket: "purchased", ...(subSpend > 0 ? {} : logFields) });
-  }
-  const { error } = await admin.from("ai_credit_ledger").insert(rows);
-  if (error) console.error(`Failed to record spend (${reason}):`, error);
+  await spendCredits(admin, userId, reason, cost, logFields, true);
 }
 
 /**

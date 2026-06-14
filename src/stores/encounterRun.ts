@@ -4,18 +4,31 @@ import type { RunCombatant, FactionDef, RevealState, EncounterEvent, EventTrigge
 import type { Monster } from "@/types/monster.types";
 import type { Npc } from "@/types/npc.types";
 import type { Trap } from "@/types/trap.types";
-import { supabase } from "@/lib/supabase";
+import type { PartyMemberUpdate } from "@/types/party.types";
 import { sizeToFootprint } from "@/lib/tokenFootprint";
 
-/** Fire-and-forget write to party_members for player combatants.
- *  The store is the immediate source of truth for DM display; this call
- *  persists the change so the player's sheet and future sessions see it too. */
-function persistPlayer(c: RunCombatant, patch: Record<string, unknown>) {
-  if (c.type !== "player" || !c.party_member_id) return;
-  void supabase.from("party_members").update(patch).eq("id", c.party_member_id);
-}
+/** Persists a player-combatant change to party_members and invalidates the
+ *  party query cache. The store stays UI-only — the actual DB write + cache
+ *  invalidation is owned by a TanStack Query mutation registered by the
+ *  encounter runner via `setPersistHandler`. */
+export type PersistPlayerHandler = (partyMemberId: string, patch: PartyMemberUpdate) => void;
 
 export const useEncounterRunStore = defineStore("encounterRun", () => {
+  /** Registered by the encounter runner; routes persistence through the
+   *  `useUpdatePartyMember` mutation so the party cache is invalidated. */
+  let persistHandler: PersistPlayerHandler | null = null;
+
+  function setPersistHandler(handler: PersistPlayerHandler | null) {
+    persistHandler = handler;
+  }
+
+  /** The store is the immediate source of truth for DM display; this call
+   *  persists the change so the player's sheet and future sessions see it too. */
+  function persistPlayer(c: RunCombatant, patch: PartyMemberUpdate) {
+    if (c.type !== "player" || !c.party_member_id) return;
+    persistHandler?.(c.party_member_id, patch);
+  }
+
   const encounterId = ref<string | null>(null);
   const encounterName = ref("");
   const round = ref(1);
@@ -536,6 +549,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     checkEvents,
     clearPendingBroadcast,
     reset,
+    setPersistHandler,
     hydrateFromLive,
     // Boss mechanics helpers
     setBossMechanics,

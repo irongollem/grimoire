@@ -4,47 +4,29 @@
 
     <!-- Active members -->
     <div v-if="activeMembers.length" class="flex flex-col gap-1.5">
-      <div
+      <FactionMemberRow
         v-for="m in activeMembers"
         :key="m.id"
-        class="flex items-center gap-3 rounded-md border border-border bg-card px-3 py-2"
+        :portrait-url="m.npc.portrait_url"
+        :portrait-focal-point="m.npc.portrait_focal_point"
+        :fallback-icon="IconUser"
+        :role="m.role ?? null"
+        :status="m.status ?? null"
+        @update:role="updateRole(m, $event)"
+        @update:status="updateStatus(m, $event)"
+        @remove="removeMember(m)"
       >
-        <div class="h-8 w-8 shrink-0 rounded-full border border-border bg-muted overflow-hidden">
-          <img v-if="m.npc.portrait_url" :src="m.npc.portrait_url" alt="" class="w-full h-full object-cover" />
-          <div v-else class="w-full h-full flex items-center justify-center">
-            <IconUser class="h-3.5 w-3.5 text-muted-foreground/50" />
-          </div>
-        </div>
-
-        <div class="flex-1 min-w-0">
+        <template #name>
           <RouterLink :to="`/npcs/${m.npc.id}`" class="font-cinzel text-xs font-semibold text-foreground hover:text-primary transition-colors truncate block">
             {{ m.npc.name }}
           </RouterLink>
+        </template>
+        <template #subtitle>
           <p v-if="m.npc.occupation || m.npc.race" class="font-fell text-[11px] text-muted-foreground italic truncate">
             {{ [m.npc.race, m.npc.occupation].filter(Boolean).join(" · ") }}
           </p>
-        </div>
-
-        <select
-          :value="m.role ?? 'Member'"
-          class="bg-muted border border-border rounded px-2 py-0.5 font-cinzel text-[10px] text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shrink-0"
-          @change="updateRole(m, ($event.target as HTMLSelectElement).value)"
-        >
-          <option v-for="r in NPC_FACTION_ROLES" :key="r" :value="r">{{ r }}</option>
-        </select>
-
-        <!-- Status — active members can be set to a former status -->
-        <select
-          :value="m.status ?? 'Active'"
-          class="bg-muted border border-border rounded px-2 py-0.5 font-cinzel text-[10px] focus:outline-none focus:ring-1 focus:ring-ring shrink-0"
-          :style="{ color: NPC_FACTION_STATUS_COLORS[m.status as NpcFactionStatus] ?? NPC_FACTION_STATUS_COLORS.Active }"
-          @change="updateStatus(m, ($event.target as HTMLSelectElement).value)"
-        >
-          <option v-for="s in NPC_FACTION_STATUSES" :key="s" :value="s">{{ s }}</option>
-        </select>
-
-        <button type="button" class="shrink-0 text-muted-foreground hover:text-destructive transition-colors text-base leading-none" @click="removeMember(m)">×</button>
-      </div>
+        </template>
+      </FactionMemberRow>
     </div>
 
     <!-- Former members -->
@@ -59,42 +41,30 @@
       </button>
 
       <div v-if="showFormer" class="flex flex-col gap-1.5">
-        <div
+        <FactionMemberRow
           v-for="m in formerMembers"
           :key="m.id"
-          class="flex items-center gap-3 rounded-md border border-border bg-muted/30 px-3 py-2 opacity-70"
+          former
+          readonly-role
+          :portrait-url="m.npc.portrait_url"
+          :portrait-focal-point="m.npc.portrait_focal_point"
+          :fallback-icon="IconUser"
+          :role="m.role ?? null"
+          :status="m.status ?? null"
+          @update:status="updateStatus(m, $event)"
+          @remove="removeMember(m)"
         >
-          <div class="h-8 w-8 shrink-0 rounded-full border border-border bg-muted overflow-hidden">
-            <img v-if="m.npc.portrait_url" :src="m.npc.portrait_url" alt="" class="w-full h-full object-cover" />
-            <div v-else class="w-full h-full flex items-center justify-center">
-              <IconUser class="h-3.5 w-3.5 text-muted-foreground/50" />
-            </div>
-          </div>
-
-          <div class="flex-1 min-w-0">
+          <template #name>
             <RouterLink :to="`/npcs/${m.npc.id}`" class="font-cinzel text-xs font-semibold text-foreground hover:text-primary transition-colors truncate block">
               {{ m.npc.name }}
             </RouterLink>
+          </template>
+          <template #subtitle>
             <p v-if="m.npc.occupation || m.npc.race" class="font-fell text-[11px] text-muted-foreground italic truncate">
               {{ [m.npc.race, m.npc.occupation].filter(Boolean).join(" · ") }}
             </p>
-          </div>
-
-          <!-- Role (read-only look, but still editable) -->
-          <span class="font-cinzel text-[10px] text-muted-foreground shrink-0">{{ m.role ?? "Member" }}</span>
-
-          <!-- Status badge — can reinstate to Active -->
-          <select
-            :value="m.status"
-            class="bg-muted border border-border rounded px-2 py-0.5 font-cinzel text-[10px] focus:outline-none focus:ring-1 focus:ring-ring shrink-0"
-            :style="{ color: NPC_FACTION_STATUS_COLORS[m.status as NpcFactionStatus] ?? NPC_FACTION_STATUS_COLORS.Active }"
-            @change="updateStatus(m, ($event.target as HTMLSelectElement).value)"
-          >
-            <option v-for="s in NPC_FACTION_STATUSES" :key="s" :value="s">{{ s }}</option>
-          </select>
-
-          <button type="button" class="shrink-0 text-muted-foreground hover:text-destructive transition-colors text-base leading-none" @click="removeMember(m)">×</button>
-        </div>
+          </template>
+        </FactionMemberRow>
       </div>
     </div>
 
@@ -132,8 +102,8 @@ import {
   type FactionNpcWithNpc,
 } from "@/composables/useFactions";
 import { useNpcs } from "@/composables/useNpcs";
-import { NPC_FACTION_ROLES, NPC_FACTION_STATUSES, NPC_FACTION_STATUS_COLORS, type NpcFactionStatus } from "@/types/faction.types";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import FactionMemberRow from "@/components/factions/FactionMemberRow.vue";
 
 const props = defineProps<{ factionId: string }>();
 

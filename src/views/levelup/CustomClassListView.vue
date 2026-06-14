@@ -214,7 +214,7 @@ function featureLevelCount(cls: CustomClass): number {
 async function duplicate(cls: SystemClass) {
   duplicating.value = cls.id;
   try {
-    const created = await create({
+    await create({
       class_name: cls.class_name + " (copy)",
       campaign_id: null,
       hit_die: cls.hit_die,
@@ -236,7 +236,7 @@ async function duplicate(cls: SystemClass) {
       resources: cls.resources,
       source: null,
     });
-    router.push(`/levelup/classes/${created.id}`);
+    router.push("/codex/classes");
   } finally {
     duplicating.value = null;
   }

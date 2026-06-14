@@ -19,6 +19,15 @@
         <option value="">All categories</option>
         <option v-for="cat in RULE_CATEGORIES" :key="cat" :value="cat">{{ cat }}</option>
       </select>
+
+      <button
+        v-if="ui.customRulesHasActiveFilters"
+        type="button"
+        class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors shrink-0"
+        @click="ui.resetCustomRulesFilters()"
+      >
+        Clear
+      </button>
     </div>
 
     <!-- ── Active built-in optional rules ──────────────────────────────── -->
@@ -123,7 +132,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, shallowRef } from "vue";
+import { computed, shallowRef } from "vue";
 import { IconChevronRight, IconReveal, IconSearch } from '@/lib/icons';
 import { useRules } from "@/composables/useRules";
 import { RULE_CATEGORIES } from "@/types/rule.types";
@@ -131,11 +140,19 @@ import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/useOpt
 import { listOptionalRules } from "@/rules/optionalRules";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
+import { useUiStore } from "@/stores/ui";
 
 const { data: rules, isLoading } = useRules();
 const { data: campaignRules } = useOptionalRules();
-const search = ref("");
-const categoryFilter = ref("");
+const ui = useUiStore();
+const search = computed({
+  get: () => ui.customRulesSearch,
+  set: (v) => { ui.customRulesSearch = v; },
+});
+const categoryFilter = computed({
+  get: () => ui.customRulesFilterCategory,
+  set: (v) => { ui.customRulesFilterCategory = v; },
+});
 
 const enabledBuiltIns = computed(() =>
   listOptionalRules().filter((def) => isRuleEffectivelyEnabled(campaignRules.value, def.key)),

@@ -20,7 +20,12 @@
 <script setup lang="ts">
 import { computed, type Component } from "vue";
 
-const props = withDefaults(defineProps<{
+const {
+  variant = "default",
+  type = "button",
+  hideLabelOnMobile = true,
+  compact = true,
+} = defineProps<{
   label: string;
   mobileLabel?: string;
   title?: string;
@@ -30,18 +35,13 @@ const props = withDefaults(defineProps<{
   disabled?: boolean;
   hideLabelOnMobile?: boolean;
   compact?: boolean;
-}>(), {
-  variant: "default",
-  type: "button",
-  hideLabelOnMobile: true,
-  compact: true,
-});
+}>();
 
 const variantClasses = computed(() => {
-  if (props.variant === "primary") {
+  if (variant === "primary") {
     return "border-primary bg-primary text-primary-foreground hover:opacity-90";
   }
-  if (props.variant === "destructive") {
+  if (variant === "destructive") {
     return "border-destructive/40 text-destructive hover:bg-destructive/10";
   }
   return "border-border text-muted-foreground hover:text-foreground hover:border-foreground/40 hover:bg-muted/40";

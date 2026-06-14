@@ -77,11 +77,13 @@ Players join any campaign for free via an invite link and get their own portal:
 
 ## Pricing
 
-| Plan        | Who             | What                                                                               |
-| ----------- | --------------- | ---------------------------------------------------------------------------------- |
-| **Free DM** | Dungeon Masters | 1 campaign, 10 NPCs, 3 custom monsters, 5 encounters, 3 Scriptorium docs, 10 notes |
-| **Pro DM**  | Dungeon Masters | Unlimited content + 5 AI generation credits/month                                  |
-| **Player**  | Anyone          | Always free — join any campaign with an invite link                                |
+| Plan        | Who             | What                                                                                                                          |
+| ----------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| **Free DM** | Dungeon Masters | 1 campaign, 10 NPCs, 3 custom monsters, 5 encounters, 3 Scriptorium docs, 10 notes, 20 sounds, 1 soundboard page, 3 playlists |
+| **Pro DM**  | Dungeon Masters | Unlimited content + 1,500 AI credits/month (monthly allowance, resets each cycle)                                             |
+| **Player**  | Anyone          | Always free — join any campaign with an invite link                                                                           |
+
+AI credits are also sold as permanent packs that never expire — purchased credits act as an overage buffer on top of the monthly Pro allowance. Spends draw from the expiring monthly bucket first.
 
 Full pricing at [dungeongrimoire.com/pricing](https://dungeongrimoire.com/pricing).
 

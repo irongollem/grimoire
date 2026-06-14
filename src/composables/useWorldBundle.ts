@@ -4,9 +4,16 @@ import { computed } from "vue";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { Campaign } from "@/types/campaign.types";
+import {
+  sortByHierarchy,
+  buildIdMapFromArrays,
+  remapKeep as rLib,
+  remapOrNull as rCamp,
+  freshId,
+  type IdMap,
+} from "@/lib/campaignSerialization";
 
 type Row = Record<string, unknown>;
-type IdMap = Map<string, string>;
 
 // ── Entity type registry ─────────────────────────────────────────────────────
 
@@ -452,30 +459,8 @@ async function downloadBundle(bundle: GrimoireBundle): Promise<void> {
 
 // ── Import ───────────────────────────────────────────────────────────────────
 
-function sortByHierarchy(rows: Row[], parentField: string): Row[] {
-  const result: Row[] = [];
-  const seenIds = new Set<string>();
-  const remaining = [...rows];
-  let maxPasses = rows.length + 1;
-
-  while (remaining.length > 0 && maxPasses-- > 0) {
-    for (let i = remaining.length - 1; i >= 0; i--) {
-      const row = remaining[i];
-      const parentId = row[parentField] as string | null | undefined;
-      if (!parentId || seenIds.has(parentId)) {
-        result.push(row);
-        seenIds.add(row.id as string);
-        remaining.splice(i, 1);
-      }
-    }
-  }
-  result.push(...remaining);
-  return result;
-}
-
 export function buildIdMap(bundle: GrimoireBundle): IdMap {
-  const map: IdMap = new Map();
-  const allArrays = [
+  return buildIdMapFromArrays([
     bundle.npcs, bundle.npc_relationships,
     bundle.locations, bundle.store_items,
     bundle.factions, bundle.faction_npcs, bundle.faction_locations,
@@ -486,26 +471,7 @@ export function buildIdMap(bundle: GrimoireBundle): IdMap {
     bundle.custom_classes, bundle.custom_subclasses,
     bundle.monsters, bundle.items, bundle.spells, bundle.species,
     bundle.scriptorium_documents,
-  ];
-  for (const arr of allArrays) {
-    if (!arr) continue;
-    for (const row of arr) {
-      if (row.id) map.set(row.id as string, crypto.randomUUID());
-    }
-  }
-  return map;
-}
-
-/** Remap a campaign-entity FK — null if not found (entity not in bundle). */
-function rCamp(id: unknown, map: IdMap): string | null {
-  if (id === null || id === undefined || id === "") return null;
-  return map.get(id as string) ?? null;
-}
-
-/** Remap a library-entity FK — preserve original if not in bundle (importer may have it). */
-function rLib(id: unknown, map: IdMap): string | null {
-  if (id === null || id === undefined || id === "") return null;
-  return map.get(id as string) ?? (id as string);
+  ]);
 }
 
 // ── Character-import remappers ───────────────────────────────────────────────
@@ -515,10 +481,6 @@ export interface ImportRemapCtx {
   idMap: IdMap;
   campaignId: string;
   userId: string;
-}
-
-function freshId(id: unknown, map: IdMap): string {
-  return map.get(id as string) ?? crypto.randomUUID();
 }
 
 export function remapSpeciesForImport(sp: Row, ctx: ImportRemapCtx): Row {

@@ -1,11 +1,7 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { corsHeaders } from "../_shared/cors.ts";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -51,24 +47,25 @@ async function listGeminiModels(apiKey: string): Promise<string[]> {
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 serve(async (req: Request) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  if (req.method !== "POST") return new Response("Method not allowed", { status: 405, headers: corsHeaders });
+  const cors = corsHeaders(req);
+  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  if (req.method !== "POST") return new Response("Method not allowed", { status: 405, headers: cors });
 
   const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return new Response("Unauthorized", { status: 401, headers: corsHeaders });
+  if (!authHeader) return new Response("Unauthorized", { status: 401, headers: cors });
 
   // Admin-only: verify the caller is authenticated and is a platform admin.
+  // Admin is determined from the caller's verified JWT (app_metadata.role is
+  // server-controlled and signed), mirroring is_app_admin() in the DB.
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_ANON_KEY")!,
     { global: { headers: { Authorization: authHeader } } },
   );
   const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return new Response("Unauthorized", { status: 401, headers: corsHeaders });
+  if (authError || !user) return new Response("Unauthorized", { status: 401, headers: cors });
 
-  const { data: adminUsers } = await admin.rpc("get_admin_users");
-  const adminIds: string[] = (adminUsers ?? []).map((r: { user_id: string }) => r.user_id);
-  if (!adminIds.includes(user.id)) return new Response("Forbidden", { status: 403, headers: corsHeaders });
+  if (user.app_metadata?.role !== "admin") return new Response("Forbidden", { status: 403, headers: cors });
 
   let provider: string;
   try {
@@ -76,7 +73,7 @@ serve(async (req: Request) => {
     provider = body.provider;
     if (!provider) throw new Error("invalid");
   } catch {
-    return new Response("Invalid body — need { provider }", { status: 400, headers: corsHeaders });
+    return new Response("Invalid body — need { provider }", { status: 400, headers: cors });
   }
 
   const keys = await fetchPlatformKeys(admin, [provider as "openai" | "anthropic" | "gemini" | "falai"]);
@@ -84,7 +81,7 @@ serve(async (req: Request) => {
   if (!apiKey) {
     return new Response(
       JSON.stringify({ error: "no_key", message: "No platform API key configured for this provider" }),
-      { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      { status: 422, headers: { ...cors, "Content-Type": "application/json" } },
     );
   }
 
@@ -99,20 +96,20 @@ serve(async (req: Request) => {
     } else {
       return new Response(
         JSON.stringify({ error: "unsupported_provider" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        { status: 400, headers: { ...cors, "Content-Type": "application/json" } },
       );
 
     }
 
     return new Response(
       JSON.stringify({ models }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      { headers: { ...cors, "Content-Type": "application/json" } },
     );
   } catch (e) {
     console.error(`list-provider-models failed for ${provider}:`, e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Failed to list models" }),
-      { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      { status: 502, headers: { ...cors, "Content-Type": "application/json" } },
     );
   }
 });

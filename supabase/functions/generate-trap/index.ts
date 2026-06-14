@@ -12,11 +12,8 @@ import {
   wrapUserInput,
 } from "../_shared/ai-prompt.ts";
 import { buildSimpleImagePrompt } from "../_shared/image-prompt.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { corsHeaders } from "../_shared/cors.ts";
+import { isSafeStorageUrl } from "../_shared/storage-url.ts";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -106,7 +103,8 @@ async function geminiText(apiKey: string, model: string, system: string, user: s
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 serve(async (req: Request) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const cors = corsHeaders(req);
+  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
 
   const authHeader = req.headers.get("Authorization");
@@ -219,7 +217,7 @@ serve(async (req: Request) => {
     if (balance < trapTotalCost) {
       return new Response(
         JSON.stringify({ error: "insufficient_credits", balance }),
-        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        { status: 402, headers: { ...cors, "Content-Type": "application/json" } },
       );
     }
   }
@@ -241,7 +239,7 @@ serve(async (req: Request) => {
     console.error("Trap text generation failed:", e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Text generation failed" }),
-      { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      { status: 502, headers: { ...cors, "Content-Type": "application/json" } },
     );
   }
 
@@ -263,11 +261,15 @@ serve(async (req: Request) => {
       // role). fal.ai has no edit endpoint and degrades to plain generate.
       let sourceImages: Blob[] | undefined;
       let finalPrompt = imagePrompt;
-      if (group_portrait_url) {
+      // SSRF guard: only ever fetch our own Supabase Storage public URLs. An
+      // unsafe URL is skipped (image block is non-fatal) rather than fetched.
+      if (group_portrait_url && isSafeStorageUrl(group_portrait_url)) {
         const portraitRes = await fetch(group_portrait_url);
         if (!portraitRes.ok) throw new Error(`Failed to fetch portrait: ${portraitRes.status}`);
         sourceImages = [await portraitRes.blob()];
         finalPrompt = [imagePrompt, PARTY_SUFFIX].join(" — ");
+      } else if (group_portrait_url) {
+        console.warn("Rejected unsafe group_portrait_url — skipping party portrait");
       }
 
       imgResult = await generateImage({
@@ -298,6 +300,6 @@ serve(async (req: Request) => {
 
   return new Response(
     JSON.stringify({ ...trapData, image_b64 }),
-    { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    { headers: { ...cors, "Content-Type": "application/json" } },
   );
 });

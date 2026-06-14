@@ -2,10 +2,16 @@ import { ref } from "vue";
 import { useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { Campaign } from "@/types/campaign.types";
+import {
+  sortByHierarchy,
+  buildIdMapFromArrays,
+  remapKeep as r,
+  remapKeepArr as rArr,
+  type IdMap,
+} from "@/lib/campaignSerialization";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = Record<string, any>;
-type IdMap = Map<string, string>;
 
 export interface GrimoireBackup {
   version: "1";
@@ -303,33 +309,8 @@ function remapMapPins(pins: unknown, map: IdMap): unknown {
   }));
 }
 
-/** Sort rows so parents come before children (topological order). */
-function sortByHierarchy(rows: Row[], parentField: string): Row[] {
-  const result: Row[] = [];
-  const seenOldIds = new Set<string>();
-  const remaining = [...rows];
-  let maxPasses = rows.length + 1;
-
-  while (remaining.length > 0 && maxPasses-- > 0) {
-    for (let i = remaining.length - 1; i >= 0; i--) {
-      const row = remaining[i];
-      const parentId = row[parentField] as string | null | undefined;
-      if (!parentId || seenOldIds.has(parentId)) {
-        result.push(row);
-        seenOldIds.add(row.id as string);
-        remaining.splice(i, 1);
-      }
-    }
-  }
-  // Append anything left (circular refs or missing parents — shouldn't happen)
-  result.push(...remaining);
-  return result;
-}
-
 /** Build a Map<oldId → newId> for all entities that have their own UUID id column. */
 function buildIdMap(backup: GrimoireBackup): IdMap {
-  const map: IdMap = new Map();
-
   const entityArrays: Row[][] = [
     backup.party_members,
     backup.character_classes,
@@ -372,13 +353,7 @@ function buildIdMap(backup: GrimoireBackup): IdMap {
     backup.chronicler_images,
   ];
 
-  for (const rows of entityArrays) {
-    for (const row of rows) {
-      if (row.id) map.set(row.id as string, crypto.randomUUID());
-    }
-  }
-
-  return map;
+  return buildIdMapFromArrays(entityArrays);
 }
 
 /** Insert rows in batches, omitting specified fields. */
@@ -394,16 +369,6 @@ async function batchInsert(table: string, rows: Row[], omit: string[] = []): Pro
     const { error } = await (supabase.from(table as never) as ReturnType<typeof supabase.from>).insert(batch as never);
     if (error) throw new Error(`Insert into ${table} failed: ${error.message}`);
   }
-}
-
-function r(id: unknown, map: IdMap): string | null {
-  if (id === null || id === undefined || id === "") return null;
-  return map.get(id as string) ?? (id as string);
-}
-
-function rArr(ids: unknown, map: IdMap): string[] {
-  if (!Array.isArray(ids)) return [];
-  return ids.map((id) => r(id, map) ?? (id as string));
 }
 
 async function executeImport(

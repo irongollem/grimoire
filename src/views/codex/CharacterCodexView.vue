@@ -213,7 +213,7 @@
 import { computed, ref, watch, onMounted, onBeforeUnmount } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
-import { useLocalStorage, onClickOutside } from "@vueuse/core";
+import { onClickOutside } from "@vueuse/core";
 import { IconAdd, IconBookUser, IconDownload, IconLevel, IconLightning, IconLoading, IconPopulate, IconSettings, IconSpecies } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
@@ -297,7 +297,12 @@ const archetypeClassNames = computed(() => {
 const archetypeListRef = ref<InstanceType<typeof ArchetypeList> | null>(null);
 
 // ── Backgrounds: Open5e source picker ────────────────────────────────────────
-const selectedSources = useLocalStorage<string[]>("grimoire:background-import-sources", []);
+// Source selection lives in useUiStore so it survives navigation within a
+// session without permanently polluting localStorage.
+const selectedSources = computed({
+  get: () => ui.codexBackgroundImportSources,
+  set: (v) => { ui.codexBackgroundImportSources = v; },
+});
 const showSourcePicker = ref(false);
 const sourcePickerRef = ref<HTMLElement | null>(null);
 onClickOutside(sourcePickerRef, () => { showSourcePicker.value = false; });
