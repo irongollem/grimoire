@@ -14,8 +14,10 @@
 -- downgrade doesn't break other edits) — only newly-set/changed keys are gated.
 
 -- ── 1. Plan helper ───────────────────────────────────────────────────────────
--- True when the user has an active/trialing subscription on a paid plan.
--- 'tester' counts as Pro. App admins are always allowed (handled in the trigger).
+-- True when the user holds Pro-equivalent privileges. App admins and 'tester'
+-- plan holders rank the same as a paid 'pro' subscriber. This is the single
+-- source of truth used by both the write-time trigger below and the
+-- generation-time BYOK gate in the edge functions (_shared/plan.ts).
 create or replace function public.is_user_pro(p_user_id uuid)
 returns boolean
 language sql
@@ -23,17 +25,27 @@ stable
 security definer
 set search_path = public
 as $$
-  select exists (
-    select 1
-    from user_subscriptions s
-    where s.user_id = p_user_id
-      and s.status in ('active', 'trialing')
-      and s.plan_id in ('pro', 'tester')
-  );
+  select
+    exists (
+      select 1
+      from user_subscriptions s
+      where s.user_id = p_user_id
+        and s.status in ('active', 'trialing')
+        and s.plan_id in ('pro', 'tester')
+    )
+    or exists (
+      -- App admins always rank as Pro, even without a subscription row.
+      select 1
+      from auth.users u
+      where u.id = p_user_id
+        and (u.raw_app_meta_data ->> 'role') = 'admin'
+    );
 $$;
 
-revoke execute on function public.is_user_pro(uuid) from anon;
-grant execute on function public.is_user_pro(uuid) to authenticated;
+-- EXECUTE defaults to PUBLIC on create; revoke that and grant only the roles
+-- that should call it (authenticated users + the service-role edge functions).
+revoke execute on function public.is_user_pro(uuid) from public;
+grant execute on function public.is_user_pro(uuid) to authenticated, service_role;
 
 -- ── 2. Trigger: block BYOK key writes for non-Pro owners ─────────────────────
 create or replace function public.enforce_byok_pro_only()

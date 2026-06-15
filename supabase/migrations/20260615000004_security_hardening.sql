@@ -35,9 +35,13 @@ alter table public.app_invites
     or (expires_at is not null and max_uses is not null)
   );
 
--- ── 4. Revoke anon EXECUTE on identity-requiring invite RPCs ─────────────────
+-- ── 4. Lock identity-requiring invite RPCs to authenticated only ─────────────
 -- These are SECURITY DEFINER and act on auth.uid(); they already no-op for anon
 -- (auth.uid() is null), but the unauthenticated role has no business calling
--- privilege-affecting RPCs. Defense in depth — keep them to authenticated only.
-revoke execute on function public.consume_app_invite(uuid) from anon;
-revoke execute on function public.join_campaign_via_invite(uuid) from anon;
+-- privilege-affecting RPCs. EXECUTE defaulted to PUBLIC at creation, and
+-- revoking from `anon` alone would NOT remove that PUBLIC grant — so revoke
+-- PUBLIC and re-grant only authenticated. Defense in depth.
+revoke execute on function public.consume_app_invite(uuid) from public;
+grant execute on function public.consume_app_invite(uuid) to authenticated;
+revoke execute on function public.join_campaign_via_invite(uuid) from public;
+grant execute on function public.join_campaign_via_invite(uuid) to authenticated;
