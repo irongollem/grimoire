@@ -123,8 +123,11 @@
       </template>
     </template>
 
-    <template v-if="activeTab === 'species'" #filters>
+    <!-- One #filters slot; the active tab picks which filter bar renders.
+         (Multiple same-named slot templates trigger Vue's "duplicate slot" warning.) -->
+    <template #filters>
       <ListFilterBar
+        v-if="activeTab === 'species'"
         :has-active-filters="ui.speciesHasActiveFilters"
         @clear="ui.resetSpeciesFilters()"
       >
@@ -135,9 +138,8 @@
           aria-label="Species size filter"
         />
       </ListFilterBar>
-    </template>
-    <template v-if="activeTab === 'backgrounds'" #filters>
       <ListFilterBar
+        v-else-if="activeTab === 'backgrounds'"
         :has-active-filters="ui.backgroundsHasActiveFilters"
         @clear="ui.resetBackgroundsFilters()"
       >
@@ -148,17 +150,15 @@
           aria-label="Background source filter"
         />
       </ListFilterBar>
-    </template>
-    <template v-if="activeTab === 'classes'" #filters>
       <ListFilterBar
+        v-else-if="activeTab === 'classes'"
         :has-active-filters="ui.customClassesHasActiveFilters"
         @clear="ui.resetCustomClassesFilters()"
       >
         <ListSearchInput v-model="ui.customClassesSearch" placeholder="Search classes…" />
       </ListFilterBar>
-    </template>
-    <template v-if="activeTab === 'archetypes'" #filters>
       <ListFilterBar
+        v-else-if="activeTab === 'archetypes'"
         :has-active-filters="ui.archetypesHasActiveFilters"
         @clear="ui.resetArchetypesFilters()"
       >
@@ -168,9 +168,8 @@
           <option v-for="cls in archetypeClassNames" :key="cls" :value="cls">{{ cls }}</option>
         </ListFilterSelect>
       </ListFilterBar>
-    </template>
-    <template v-if="activeTab === 'abilities'" #filters>
       <ListFilterBar
+        v-else-if="activeTab === 'abilities'"
         :has-active-filters="ui.featuresHasActiveFilters"
         @clear="ui.resetFeaturesFilters()"
       >
