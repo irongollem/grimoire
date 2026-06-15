@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { decryptValue } from "../_shared/vault.ts";
+import { isUserPro } from "../_shared/plan.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
 import { fetchCreditCost, fetchUserBalance, recordGeneration, sizeMultiplier } from "../_shared/credits.ts";
@@ -159,8 +160,10 @@ serve(async (req: Request) => {
   const imageBasePrompt = promptRows?.find((r) => r.generator_type === "image_base")?.content ?? "";
   if (!promptRow) return new Response("Prompt not configured", { status: 500 });
 
+  // BYOK is Pro-only: ignore stored campaign keys unless the owner is currently Pro.
+  const ownerIsPro = await isUserPro(admin, campaign.user_id);
   async function decryptKey(enc: string | null): Promise<string | null> {
-    if (!enc) return null;
+    if (!enc || !ownerIsPro) return null;
     try { return await decryptValue(enc); } catch { return null; }
   }
 

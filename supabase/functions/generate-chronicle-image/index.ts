@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { decryptValue } from "../_shared/vault.ts";
+import { isUserPro } from "../_shared/plan.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchCreditCost, fetchUserBalance, recordGeneration, sizeMultiplier } from "../_shared/credits.ts";
 import { createImageJob, completeImageJob, failImageJob, type ImageJobKind } from "../_shared/imageJob.ts";
@@ -164,7 +165,9 @@ serve(async (req: Request) => {
     if (!membership) return text("Forbidden", 403);
   }
 
-  const decryptKey = (enc: string | null) => enc ? decryptValue(enc).catch(() => null) : Promise.resolve(null);
+  // BYOK is Pro-only: ignore stored campaign keys unless the owner is currently Pro.
+  const ownerIsPro = await isUserPro(admin, campaign.user_id);
+  const decryptKey = (enc: string | null) => (enc && ownerIsPro) ? decryptValue(enc).catch(() => null) : Promise.resolve(null);
   const [[campaignOpenai, campaignGemini, campaignFalai], platformKeys, providerConfigs] = await Promise.all([
     Promise.all([decryptKey(campaign.openai_api_key), decryptKey(campaign.gemini_api_key), decryptKey(campaign.falai_api_key)]),
     fetchPlatformKeys(admin, ["openai", "gemini", "falai"]),

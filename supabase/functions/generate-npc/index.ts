@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { decryptValue } from "../_shared/vault.ts";
+import { isUserPro } from "../_shared/plan.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import {
   fetchProviderConfigs,
@@ -247,8 +248,11 @@ serve(async (req: Request) => {
   }
 
   // ── Decrypt API keys ────────────────────────────────────────────────────────
+  // BYOK is Pro-only: only honor a campaign's stored keys while the owner is on
+  // a paid plan, so a lapsed-Pro user's old key is no longer treated as BYOK.
+  const ownerIsPro = await isUserPro(admin, campaign.user_id);
   async function decryptKey(encrypted: string | null): Promise<string | null> {
-    if (!encrypted) return null;
+    if (!encrypted || !ownerIsPro) return null;
     try {
       return await decryptValue(encrypted);
     } catch {
