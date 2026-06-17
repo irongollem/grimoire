@@ -69,7 +69,11 @@
       class="phb-bg lg:flex-1 lg:overflow-auto lg:min-h-0"
       style="touch-action: pan-x pan-y"
     >
-      <div class="paged-scale" :style="{ zoom: effectiveZoom }">
+      <!-- Zoom is neutralised (1) while Paged.js renders: it measures the live
+           DOM against the unscaled @page height, so an active zoom makes
+           overflowing content look like it fits and pagination stops at one
+           page. Display zoom is reapplied once the render settles. -->
+      <div class="paged-scale" :style="{ zoom: isPaging ? 1 : effectiveZoom }">
         <div
           ref="pagedContainerRef"
           class="sc-theme paged-book"
