@@ -9,6 +9,7 @@
  */
 
 import type { ScriptoriumPageSize } from "@/types/scriptorium.types";
+import { EDITOR_PAGE_DIMENSIONS_PX } from "@/lib/scriptorium/editorConstants";
 
 /** @page size keyword per page size. */
 const PAGE_SIZE_KEYWORD: Record<ScriptoriumPageSize, string> = {
@@ -22,9 +23,19 @@ export interface PagedPreviewCssOptions {
   inkFriendly: boolean;
 }
 
+// @page vertical margins (top 56 + bottom 53) — keep in sync with the @page
+// rule below; covers are sized to the resulting content area so they fill their
+// page exactly without overflowing into a fragment.
+const PAGE_VERTICAL_MARGIN_PX = 56 + 53;
+// A few px under the exact content height: an exact fit rounds up and overflows
+// into a blank continuation page in Paged.js.
+const COVER_FIT_SLACK_PX = 8;
+
 export function buildPagedPreviewCss(opts: PagedPreviewCssOptions): string {
   const { pageSize, inkFriendly } = opts;
   const size = PAGE_SIZE_KEYWORD[pageSize];
+  const coverHeightPx =
+    EDITOR_PAGE_DIMENSIONS_PX[pageSize].h - PAGE_VERTICAL_MARGIN_PX - COVER_FIT_SLACK_PX;
 
   // Parchment chrome on the rendered page boxes (omitted in ink-friendly mode).
   const pageChrome = inkFriendly
@@ -46,6 +57,18 @@ hr, .sc-page-break {
   height: 0;
   margin: 0;
   border: none;
+}
+/* Cover pages own a full page. The cover's inner art/overlay are absolutely
+   positioned, so the cover itself has no intrinsic height — give it exactly the
+   page content-area height so it fills its page without overflowing into a
+   fragment. break-before starts it on a fresh page; its full height pushes the
+   following content onto the next page (no break-after → no trailing blank);
+   break-inside: avoid keeps it from splitting. (Edge-to-edge full bleed needs a
+   zero-margin named page — tracked as a refinement on #455.) */
+.sc-cover {
+  break-before: page;
+  break-inside: avoid;
+  height: ${coverHeightPx}px;
 }
 .pagedjs_page {
   ${pageChrome}

@@ -214,34 +214,41 @@
 }
 
 /* ── Cover page atom (collapsed placeholder card) ────────────────────────── */
+/* The real cover is a full-page art layout — it renders correctly in the book
+   preview. In the narrow galley that full design just overflows into a mess,
+   so here we collapse the cover to a clean labelled placeholder. The cover's
+   inner uses inline styles, so the children must be hidden with !important. */
 .phb-editor .ProseMirror div[data-type="coverPage"] {
-  position: relative;
-  inset: auto;
-  display: block;
-  border: 2px dashed color-mix(in srgb, var(--sc-ink) 30%, transparent);
-  border-radius: 4px;
-  min-height: 8rem;
+  position: relative !important;
+  inset: auto !important;
+  /* The paged stylesheet sets .sc-cover { height } and Paged.js injects it
+     globally; override it so the galley placeholder stays compact. */
+  height: auto !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  min-height: 5rem;
   margin: 0.75rem 0;
+  padding: 1.25rem;
+  border: 2px dashed color-mix(in srgb, var(--sc-accent) 40%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--sc-accent) 6%, var(--sc-page-bg));
   overflow: hidden;
   cursor: default;
 }
 .phb-editor .ProseMirror div[data-type="coverPage"]::before {
-  content: "cover: " attr(data-variant);
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-family: system-ui, sans-serif;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: color-mix(in srgb, var(--sc-ink) 45%, transparent);
+  content: attr(data-variant) " cover — full-page art, edit in the preview";
+  font-family: var(--sc-heading-font, "Cinzel", serif);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: capitalize;
+  color: color-mix(in srgb, var(--sc-accent) 75%, var(--sc-ink));
+  text-align: center;
   pointer-events: none;
-  white-space: nowrap;
 }
 .phb-editor .ProseMirror div[data-type="coverPage"] > * {
-  display: none;
+  display: none !important;
 }
 
 /* ── Page numbering markers (visible pills in the galley) ────────────────── */

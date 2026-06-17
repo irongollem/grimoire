@@ -193,8 +193,14 @@ import ScriptoriumPreviewPane from "@/components/scriptorium/ScriptoriumPreviewP
 import { isQuotaExceeded } from "@/lib/quotaError";
 import { useTextEnhancement } from "@/ai/useTextEnhancement";
 import { parseMarkdown } from "@/lib/markdownToTiptap";
+import type { JSONContent } from "@tiptap/core";
+import type { ScriptoriumTemplateSettings } from "@/data/scriptoriumTemplates/types";
 
-const props = defineProps<{ doc: ScriptoriumDocument | null }>();
+const props = defineProps<{
+  doc: ScriptoriumDocument | null;
+  /** For a NEW document, pre-populate content + settings from a gallery template. */
+  seed?: { docType: ScriptoriumDocType; content: JSONContent; settings: ScriptoriumTemplateSettings } | null;
+}>();
 const router = useRouter();
 
 // Panels
@@ -203,18 +209,20 @@ const showBlockPicker = ref(false);
 const showCoverInspector = ref(false);
 const showArtPicker = ref(false);
 
-// Metadata
+// Metadata. For a new document seeded from a template, fall back to the
+// template's docType/settings before the hard defaults.
+const seedSettings = props.seed?.settings;
 const title = ref(props.doc?.title ?? "");
-const docType = ref<ScriptoriumDocType>(props.doc?.doc_type ?? "custom");
+const docType = ref<ScriptoriumDocType>(props.doc?.doc_type ?? props.seed?.docType ?? "custom");
 const isPublished = ref(props.doc?.is_published ?? false);
-const isTwoColumn = ref(props.doc?.is_two_column ?? false);
-const theme = ref<ScriptoriumTheme>(props.doc?.theme ?? "onednd2024");
-const pageSize = ref<ScriptoriumPageSize>(props.doc?.page_size ?? "A4");
-const inkFriendly = ref(props.doc?.ink_friendly ?? false);
-const tags = ref<string[]>(props.doc?.tags ?? []);
-const showPageNumbers = ref(props.doc?.show_page_numbers ?? false);
-const footerText = ref(props.doc?.footer_text ?? "");
-const pageNumberStart = ref(props.doc?.page_number_start ?? 1);
+const isTwoColumn = ref(props.doc?.is_two_column ?? seedSettings?.isTwoColumn ?? false);
+const theme = ref<ScriptoriumTheme>(props.doc?.theme ?? seedSettings?.theme ?? "onednd2024");
+const pageSize = ref<ScriptoriumPageSize>(props.doc?.page_size ?? seedSettings?.pageSize ?? "A4");
+const inkFriendly = ref(props.doc?.ink_friendly ?? seedSettings?.inkFriendly ?? false);
+const tags = ref<string[]>(props.doc?.tags ?? seedSettings?.tags ?? []);
+const showPageNumbers = ref(props.doc?.show_page_numbers ?? seedSettings?.showPageNumbers ?? false);
+const footerText = ref(props.doc?.footer_text ?? seedSettings?.footerText ?? "");
+const pageNumberStart = ref(props.doc?.page_number_start ?? seedSettings?.pageNumberStart ?? 1);
 
 // Editor
 const previewHtml = ref("");
@@ -227,12 +235,14 @@ function updateDerived(html: string, text: string) {
 
 const editor = useEditor({
   content: (() => {
-    if (!props.doc?.content) return "";
-    try {
-      return JSON.parse(props.doc.content);
-    } catch {
-      return props.doc.content;
+    if (props.doc?.content) {
+      try {
+        return JSON.parse(props.doc.content);
+      } catch {
+        return props.doc.content;
+      }
     }
+    return props.seed?.content ?? "";
   })(),
   extensions: createScriptoriumExtensions(),
   onCreate({ editor }) {

@@ -2,8 +2,10 @@
  * Cover page Tiptap-JSON factories.
  *
  * Each function returns an insertContent-compatible JSON snippet for a
- * specific cover variant, wrapped between two `horizontalRule` nodes so
- * the ScriptoriumEditor page-splitter isolates the cover onto its own page.
+ * specific cover variant. The cover isolates itself onto its own page via the
+ * `.sc-cover { break-before/after: page }` rule in the paged stylesheet
+ * (buildPagedPreviewCss) — no surrounding `horizontalRule` sentinels needed
+ * (those stacked into blank pages under Paged.js auto-pagination).
  *
  * Callers (blockRegistry action) can pass partial overrides to pre-fill
  * fields; anything omitted falls back to the placeholder text baked into
@@ -13,7 +15,7 @@
 import type { CoverPageVariant, CoverPageAttrs } from "@/lib/tiptap/coverPage";
 
 export type CoverPageJSON = {
-  type: "horizontalRule" | "coverPage";
+  type: "coverPage";
   attrs?: Partial<CoverPageAttrs & { variant: CoverPageVariant }>;
 }[];
 
@@ -21,11 +23,7 @@ function makeCover(
   variant: CoverPageVariant,
   overrides: Partial<Omit<CoverPageAttrs, "variant">> = {},
 ): CoverPageJSON {
-  return [
-    { type: "horizontalRule" },
-    { type: "coverPage", attrs: { variant, ...overrides } },
-    { type: "horizontalRule" },
-  ];
+  return [{ type: "coverPage", attrs: { variant, ...overrides } }];
 }
 
 /** Front cover — title, subtitle, art slot, HOMEBREW banner + footnote. */

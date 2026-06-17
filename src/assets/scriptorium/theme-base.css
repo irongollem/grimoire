@@ -216,15 +216,18 @@
   overflow: hidden;
 }
 
-/* ── Cover page (fills the physical page) ────────────────────────────────── */
+/* ── Cover page ──────────────────────────────────────────────────────────── */
+/* An in-flow, full-height block (NOT position:absolute) so Paged.js gives the
+   cover a real page — an absolute cover has zero in-flow height, which made the
+   page breaks around it land on blank pages. The cover's inner art/overlay are
+   positioned absolutely against this relative box. break-before/after (in the
+   paged stylesheet) isolate it; footers on front/back covers are suppressed by
+   the numbering pass (pageNumbering.ts). */
 .sc-theme div[data-type="coverPage"] {
-  position: absolute;
-  inset: 0;
+  position: relative;
+  display: block;
+  width: 100%;
   overflow: hidden;
-}
-.phb-page:has(div[data-type="coverPage"][data-variant="front"]) .sc-footer,
-.phb-page:has(div[data-type="coverPage"][data-variant="back"]) .sc-footer {
-  display: none;
 }
 
 /* ── Footer / page numbers ───────────────────────────────────────────────── */
