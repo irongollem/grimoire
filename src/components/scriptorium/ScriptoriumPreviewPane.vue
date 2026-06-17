@@ -18,20 +18,6 @@
           {{ docTypeLabel(docType) }}
         </span>
 
-        <!-- Auto-pagination (Paged.js) toggle — beta -->
-        <button
-          type="button"
-          :title="pagedMode ? 'Auto-paginated preview (beta) — click for legacy' : 'Switch to auto-paginated preview (beta)'"
-          class="inline-flex items-center gap-1 px-2 h-6.5 rounded border font-cinzel text-[9px] font-semibold tracking-wider uppercase transition-colors"
-          :class="pagedMode
-            ? 'border-primary/50 text-primary bg-primary/10'
-            : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted'"
-          @click="pagedMode = !pagedMode"
-        >
-          Auto-pages
-          <span class="text-[8px] opacity-70">{{ pagedMode ? "BETA" : "off" }}</span>
-        </button>
-
         <!-- Zoom controls -->
         <div class="flex items-center rounded border border-border overflow-hidden">
           <button
@@ -77,44 +63,13 @@
       </div>
     </div>
 
+    <!-- The auto-paginated book (Paged.js) — the live preview. -->
     <div
       ref="containerRef"
       class="phb-bg lg:flex-1 lg:overflow-auto lg:min-h-0"
       style="touch-action: pan-x pan-y"
     >
-      <!-- Legacy manual-pagination preview (split on page breaks) -->
-      <template v-if="!pagedMode">
-        <div
-          v-for="(pageHtml, pageIndex) in pages"
-          :key="pageIndex"
-          :style="pageWrapperStyle"
-        >
-          <div
-            class="phb-page"
-            :class="[themeInfo.class, { 'ink-friendly': inkFriendly }]"
-            :style="pageInnerStyle"
-          >
-            <div
-              class="phb-body sc-theme"
-              :class="[themeInfo.class, { 'phb-two-col': isTwoColumn }]"
-              v-html="pageHtml"
-            />
-            <div
-              v-if="pageFooters[pageIndex] !== null"
-              class="sc-footer"
-              :class="pageIndex % 2 === 0 ? 'sc-footer--recto' : 'sc-footer--verso'"
-            >
-              <span class="sc-footer-num sc-footer-num--left">{{ pageFooters[pageIndex] }}</span>
-              <span class="sc-footer-text">{{ footerText }}</span>
-              <span class="sc-footer-num sc-footer-num--right">{{ pageFooters[pageIndex] }}</span>
-            </div>
-          </div>
-        </div>
-        <p class="phb-hint">── use the Page Break button (—) to start a new page ──</p>
-      </template>
-
-      <!-- Auto-paginated preview (Paged.js) — the real book -->
-      <div v-show="pagedMode" class="paged-scale" :style="{ zoom: effectiveZoom }">
+      <div class="paged-scale" :style="{ zoom: effectiveZoom }">
         <div
           ref="pagedContainerRef"
           class="sc-theme paged-book"
@@ -124,7 +79,7 @@
         />
         <p v-if="pagedError" class="phb-hint text-destructive">{{ pagedError }}</p>
         <p v-else-if="isPaging" class="phb-hint">repaginating…</p>
-        <p v-else-if="pagedMode" class="phb-hint">{{ pageCount }} pages · {{ layoutMs }} ms</p>
+        <p v-else class="phb-hint">{{ pageCount }} pages · {{ layoutMs }} ms</p>
       </div>
     </div>
   </div>
@@ -138,11 +93,10 @@ import { useScriptoriumZoom } from "@/composables/useScriptoriumZoom";
 import { usePagedPreview } from "@/composables/usePagedPreview";
 import { buildPagedPreviewCss } from "@/lib/scriptorium/pagedPreviewCss";
 import { injectPagedFooters } from "@/lib/scriptorium/pagedFooters";
+import { injectPagedToc } from "@/lib/scriptorium/pagedToc";
 import type { ScriptoriumDocType, ScriptoriumTheme, ScriptoriumPageSize } from "@/types/scriptorium.types";
 
 const {
-  pages,
-  pageFooters,
   bodyHtml,
   footerText,
   showPageNumbers = false,
@@ -154,9 +108,7 @@ const {
   isTwoColumn,
   isGeneratingPdf = false,
 } = defineProps<{
-  pages: string[];
-  pageFooters: (string | null)[];
-  /** Full unsplit document HTML — fed to the Paged.js path. */
+  /** Full document HTML — paginated by Paged.js into the book. */
   bodyHtml: string;
   footerText: string;
   showPageNumbers?: boolean;
@@ -186,11 +138,6 @@ function onPagedClick(e: MouseEvent) {
 const containerRef = ref<HTMLElement | null>(null);
 const pagedContainerRef = ref<HTMLElement | null>(null);
 
-// The Paged.js book is the default preview. The toggle still allows dropping
-// to the legacy manual-pagination view (which also feeds the current PDF
-// export) until the print-iframe export replaces it.
-const pagedMode = ref(true);
-
 const pageSizeRef = computed(() => pageSize);
 const {
   zoomMode,
@@ -199,8 +146,6 @@ const {
   zoomIn,
   zoomOut,
   zoomFit,
-  pageWrapperStyle,
-  pageInnerStyle,
 } = useScriptoriumZoom(pageSizeRef, containerRef);
 
 const themeInfo = computed(() =>
@@ -210,41 +155,33 @@ const themeInfo = computed(() =>
 );
 
 // ── Paged.js live preview ──────────────────────────────────────────────────
-// Content is empty until the mode is on, so Paged.js doesn't run for users who
-// stay on the legacy preview. Wrapping in .phb-two-col makes the whole body a
-// two-column flow that Paged.js fragments across pages.
+// Wrapping in .phb-two-col makes the whole body a two-column flow that Paged.js
+// fragments across pages.
 const {
   pageCount,
   layoutMs,
   isRendering: isPaging,
   error: pagedError,
+  scheduleRender,
 } = usePagedPreview({
-  content: () => {
-    if (!pagedMode.value) return "";
-    return isTwoColumn ? `<div class="phb-two-col">${bodyHtml}</div>` : bodyHtml;
-  },
+  content: () => (isTwoColumn ? `<div class="phb-two-col">${bodyHtml}</div>` : bodyHtml),
   stylesheets: () => [
     { "scriptorium-paged.css": buildPagedPreviewCss({ pageSize, inkFriendly }) },
   ],
   container: pagedContainerRef,
-  afterRender: (el) =>
-    injectPagedFooters(el, { showPageNumbers, footerText, start: pageNumberStart }),
+  afterRender: (el) => {
+    // Footers and the TOC both derive page numbers from the laid-out pages,
+    // so they run together after each render.
+    injectPagedFooters(el, { showPageNumbers, footerText, start: pageNumberStart });
+    injectPagedToc(el, { showPageNumbers, start: pageNumberStart });
+  },
 });
 
-// Footer settings don't change content, so they don't trigger a re-render —
-// re-inject footers in place when they change (cheap, no re-pagination).
-watch(
-  () => [showPageNumbers, footerText, pageNumberStart] as const,
-  () => {
-    if (pagedMode.value && pagedContainerRef.value) {
-      injectPagedFooters(pagedContainerRef.value, {
-        showPageNumbers,
-        footerText,
-        start: pageNumberStart,
-      });
-    }
-  },
-);
+// Footer/numbering settings aren't part of the content or stylesheets, so they
+// don't auto-trigger a render — but they change footer labels AND TOC page
+// numbers, and the TOC placeholder is consumed on first injection. Re-render
+// (debounced) so both stay consistent. These settings change rarely.
+watch(() => [showPageNumbers, footerText, pageNumberStart] as const, () => scheduleRender());
 
 watch(() => pageSize, () => {
   zoomFit();

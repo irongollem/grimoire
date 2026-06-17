@@ -136,8 +136,6 @@
 
       <!-- Preview pane -->
       <ScriptoriumPreviewPane
-        :pages="pages"
-        :page-footers="pageFooters"
         :body-html="previewHtml"
         :footer-text="footerText"
         :show-page-numbers="showPageNumbers"
@@ -177,8 +175,6 @@ import {
   cleanupRemovedRichTextImages,
 } from "@/composables/useImageUpload";
 import { useScriptoriumPrint } from "@/composables/useScriptoriumPrint";
-import { buildTocPages } from "@/lib/tiptap/tocBlock";
-import { flagsFromHtml, computePageLabels } from "@/lib/scriptorium/pageNumbering";
 import type {
   ScriptoriumDocument,
   ScriptoriumDocType,
@@ -349,25 +345,6 @@ async function save() {
     isSaving.value = false;
   }
 }
-
-// Body extracted to keep `computed` single-return — oxlint's
-// `vue/return-in-computed-property` rule reports a false positive when while
-// loops appear inside the getter body.
-function htmlToPages(html: string): string[] {
-  const parts = html.split(/<hr\s*\/?\s*>/gi);
-  while (parts.length > 1 && !parts[0].trim()) parts.shift();
-  while (parts.length > 1 && !parts[parts.length - 1].trim()) parts.pop();
-  const rawPages = parts.length ? parts : [""];
-  return buildTocPages(rawPages);
-}
-const pages = computed(() => htmlToPages(previewHtml.value || ""));
-
-const pageFooters = computed<(string | null)[]>(() =>
-  computePageLabels(pages.value.map(flagsFromHtml), {
-    showPageNumbers: showPageNumbers.value,
-    start: pageNumberStart.value,
-  }),
-);
 
 const { isPrinting, printDocument } = useScriptoriumPrint();
 
