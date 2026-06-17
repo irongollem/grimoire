@@ -135,6 +135,7 @@ import { docTypeLabel, docTypeColor } from "@/lib/scriptorium/editorConstants";
 import { useScriptoriumZoom } from "@/composables/useScriptoriumZoom";
 import { usePagedPreview } from "@/composables/usePagedPreview";
 import { buildPagedPreviewCss } from "@/lib/scriptorium/pagedPreviewCss";
+import { injectPagedFooters } from "@/lib/scriptorium/pagedFooters";
 import type { ScriptoriumDocType, ScriptoriumTheme, ScriptoriumPageSize } from "@/types/scriptorium.types";
 
 const {
@@ -143,6 +144,7 @@ const {
   bodyHtml,
   footerText,
   showPageNumbers = false,
+  pageNumberStart = 1,
   docType,
   theme,
   pageSize,
@@ -156,6 +158,7 @@ const {
   bodyHtml: string;
   footerText: string;
   showPageNumbers?: boolean;
+  pageNumberStart?: number;
   docType: ScriptoriumDocType;
   theme: ScriptoriumTheme;
   pageSize: ScriptoriumPageSize;
@@ -171,8 +174,10 @@ defineEmits<{
 const containerRef = ref<HTMLElement | null>(null);
 const pagedContainerRef = ref<HTMLElement | null>(null);
 
-// Auto-pagination is opt-in while it matures (footer parity follow-ups on #330).
-const pagedMode = ref(false);
+// The Paged.js book is the default preview. The toggle still allows dropping
+// to the legacy manual-pagination view (which also feeds the current PDF
+// export) until the print-iframe export replaces it.
+const pagedMode = ref(true);
 
 const pageSizeRef = computed(() => pageSize);
 const {
@@ -207,18 +212,27 @@ const {
     return isTwoColumn ? `<div class="phb-two-col">${bodyHtml}</div>` : bodyHtml;
   },
   stylesheets: () => [
-    {
-      "scriptorium-paged.css": buildPagedPreviewCss({
-        pageSize,
-        theme,
-        showPageNumbers,
-        footerText,
-        inkFriendly,
-      }),
-    },
+    { "scriptorium-paged.css": buildPagedPreviewCss({ pageSize, inkFriendly }) },
   ],
   container: pagedContainerRef,
+  afterRender: (el) =>
+    injectPagedFooters(el, { showPageNumbers, footerText, start: pageNumberStart }),
 });
+
+// Footer settings don't change content, so they don't trigger a re-render —
+// re-inject footers in place when they change (cheap, no re-pagination).
+watch(
+  () => [showPageNumbers, footerText, pageNumberStart] as const,
+  () => {
+    if (pagedMode.value && pagedContainerRef.value) {
+      injectPagedFooters(pagedContainerRef.value, {
+        showPageNumbers,
+        footerText,
+        start: pageNumberStart,
+      });
+    }
+  },
+);
 
 watch(() => pageSize, () => {
   zoomFit();

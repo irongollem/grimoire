@@ -149,6 +149,7 @@
         :body-html="previewHtml"
         :footer-text="footerText"
         :show-page-numbers="showPageNumbers"
+        :page-number-start="pageNumberStart"
         :doc-type="docType"
         :theme="theme"
         :page-size="pageSize"
@@ -184,6 +185,7 @@ import {
 } from "@/composables/useImageUpload";
 import { useScriptoriumPdf } from "@/composables/useScriptoriumPdf";
 import { buildTocPages } from "@/lib/tiptap/tocBlock";
+import { flagsFromHtml, computePageLabels } from "@/lib/scriptorium/pageNumbering";
 import type {
   ScriptoriumDocument,
   ScriptoriumDocType,
@@ -344,29 +346,12 @@ function htmlToPages(html: string): string[] {
 }
 const pages = computed(() => htmlToPages(previewHtml.value || ""));
 
-const pageFooters = computed<(string | null)[]>(() => {
-  if (!showPageNumbers.value) return pages.value.map(() => null);
-
-  const skipTag = 'data-type="skip-counting"';
-  const resetTag = 'data-type="reset-counting"';
-  let counter = pageNumberStart.value;
-  return pages.value.map((html, _idx) => {
-    if (
-      html.includes('data-type="coverPage"') &&
-      (html.includes('data-variant="front"') ||
-        html.includes('data-variant="back"'))
-    ) {
-      return null;
-    }
-    const hasSkip = html.includes(skipTag);
-    const hasReset = html.includes(resetTag);
-    if (hasReset) counter = pageNumberStart.value;
-    if (hasSkip) return null;
-    const label = String(counter);
-    counter++;
-    return label;
-  });
-});
+const pageFooters = computed<(string | null)[]>(() =>
+  computePageLabels(pages.value.map(flagsFromHtml), {
+    showPageNumbers: showPageNumbers.value,
+    start: pageNumberStart.value,
+  }),
+);
 
 const {
   showPdfPreview,
