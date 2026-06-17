@@ -25,8 +25,8 @@ declare module "@tiptap/core" {
  *
  * Accepts `paragraph` and `attribution` children.
  *
- * Styled through CSS custom properties — see ScriptoriumEditor.vue and
- * RENDER_CSS in `useScriptoriumPdf.ts`.
+ * Styled through CSS custom properties — see the shared theme files under
+ * `src/assets/scriptorium/`.
  */
 export const QuoteBlock = Node.create({
   name: "quoteBlock",

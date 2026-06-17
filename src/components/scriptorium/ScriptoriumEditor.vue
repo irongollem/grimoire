@@ -1,12 +1,4 @@
 <template>
-  <PdfPreviewDialog
-    :show="showPdfPreview"
-    :blob-url="pdfBlobUrl"
-    :title="title"
-    :broken-images="pdfBrokenImages"
-    @close="closePdfPreview"
-    @save="savePdf"
-  />
   <AssetInsertPanel
     :show="showAssetPanel"
     :editor="editor"
@@ -155,7 +147,7 @@
         :page-size="pageSize"
         :ink-friendly="inkFriendly"
         :is-two-column="isTwoColumn"
-        :is-generating-pdf="isGeneratingPdf"
+        :is-generating-pdf="isPrinting"
         @export-pdf="exportPdf"
       />
     </div>
@@ -183,7 +175,7 @@ import {
   removeRichTextImages,
   cleanupRemovedRichTextImages,
 } from "@/composables/useImageUpload";
-import { useScriptoriumPdf } from "@/composables/useScriptoriumPdf";
+import { useScriptoriumPrint } from "@/composables/useScriptoriumPrint";
 import { buildTocPages } from "@/lib/tiptap/tocBlock";
 import { flagsFromHtml, computePageLabels } from "@/lib/scriptorium/pageNumbering";
 import type {
@@ -192,7 +184,6 @@ import type {
   ScriptoriumTheme,
   ScriptoriumPageSize,
 } from "@/types/scriptorium.types";
-import PdfPreviewDialog from "@/components/scriptorium/PdfPreviewDialog.vue";
 import AssetInsertPanel from "@/components/scriptorium/AssetInsertPanel.vue";
 import BlockPickerPanel from "@/components/scriptorium/BlockPickerPanel.vue";
 import CoverPageInspector from "@/components/scriptorium/CoverPageInspector.vue";
@@ -353,24 +344,21 @@ const pageFooters = computed<(string | null)[]>(() =>
   }),
 );
 
-const {
-  showPdfPreview,
-  pdfBlobUrl,
-  isGeneratingPdf,
-  pdfBrokenImages,
-  exportPdf,
-  savePdf,
-  closePdfPreview,
-} = useScriptoriumPdf(
-  pages,
-  title,
-  theme,
-  pageSize,
-  inkFriendly,
-  pageFooters,
-  footerText,
-  isTwoColumn,
-);
+const { isPrinting, printDocument } = useScriptoriumPrint();
+
+function exportPdf() {
+  void printDocument({
+    bodyHtml: previewHtml.value,
+    title: title.value,
+    theme: theme.value,
+    pageSize: pageSize.value,
+    inkFriendly: inkFriendly.value,
+    isTwoColumn: isTwoColumn.value,
+    showPageNumbers: showPageNumbers.value,
+    footerText: footerText.value,
+    pageNumberStart: pageNumberStart.value,
+  });
+}
 
 // ── AI text enhancement ───────────────────────────────────────────────────────
 

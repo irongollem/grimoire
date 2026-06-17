@@ -1,10 +1,9 @@
 /*
- * Editor / preview pixel dimensions at 96 dpi.
+ * Editor / preview page pixel dimensions at 96 dpi (1 CSS px ≈ 0.265 mm).
  *
- * Calibrated to the mm dimensions in `useScriptoriumPdf.ts` so html2canvas
- * captures match the jsPDF page exactly (1 CSS px ≈ 0.265 mm at 96 dpi).
- * Both tables are keyed by `ScriptoriumPageSize` — change a row in one,
- * change the matching row in the other.
+ * Used by the zoom composable's fit-to-width math. Paged.js sizes its own
+ * pages from the @page CSS (see buildPagedPreviewCss); keep these in step with
+ * the physical page sizes if a new size is added.
  */
 
 import type { ScriptoriumPageSize, ScriptoriumDocType } from "@/types/scriptorium.types";

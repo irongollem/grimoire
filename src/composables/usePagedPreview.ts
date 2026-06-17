@@ -45,6 +45,15 @@ export function usePagedPreview(opts: UsePagedPreviewOptions) {
   let timer: ReturnType<typeof setTimeout> | null = null;
   let renderToken = 0; // discards stale renders that finish out of order
   let pendingRerender = false;
+  // Paged.js appends a <style> to document.head per Previewer (via insertRule)
+  // and never removes it. We re-create a Previewer every render, so track the
+  // previous render's injected styles and drop them to avoid head bloat over a
+  // long editing session.
+  let injectedStyles: HTMLStyleElement[] = [];
+
+  function headStyles(): Set<HTMLStyleElement> {
+    return new Set(document.head.querySelectorAll("style"));
+  }
 
   async function renderNow() {
     const el = container.value;
@@ -69,9 +78,16 @@ export function usePagedPreview(opts: UsePagedPreviewOptions) {
         layoutMs.value = 0;
         return;
       }
+      const stylesBefore = headStyles();
       const previewer = new Previewer();
       const flow = await previewer.preview(html, stylesheets(), el);
       if (token !== renderToken) return; // superseded by a newer render
+      // Drop the previous render's injected styles; keep this render's.
+      const added = Array.from(document.head.querySelectorAll("style")).filter(
+        (s) => !stylesBefore.has(s),
+      );
+      injectedStyles.forEach((s) => s.remove());
+      injectedStyles = added;
       pageCount.value = flow.total;
       layoutMs.value = Math.round(performance.now() - t0);
       afterRender?.(el);
@@ -102,6 +118,8 @@ export function usePagedPreview(opts: UsePagedPreviewOptions) {
   onUnmounted(() => {
     if (timer) clearTimeout(timer);
     renderToken++; // invalidate any in-flight render
+    injectedStyles.forEach((s) => s.remove());
+    injectedStyles = [];
   });
 
   return { pageCount, layoutMs, isRendering, error, renderNow, scheduleRender };

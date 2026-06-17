@@ -46,9 +46,10 @@ function strAttr(key: string, fallback: string) {
  *   back    — art strip + subtitle + three blurb paragraphs + tagline + URL
  *
  * A cover page occupies its own physical page. Insertion (via coverTemplates.ts
- * factories) wraps the node between two <hr> sentinels so the ScriptoriumEditor
- * page-splitter isolates it. The PDF renderer hides the title bar / border via
- * :has() rules in RENDER_CSS.
+ * factories) wraps the node between two <hr> sentinels, which the Paged.js
+ * renderer treats as page breaks (break-before: page) so the cover lands on
+ * its own page. Front/back covers are left unnumbered by the footer pass
+ * (see pageNumbering.ts / pagedFooters.ts).
  */
 export const CoverPage = Node.create({
   name: "coverPage",

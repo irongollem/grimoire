@@ -19,8 +19,8 @@ declare module "@tiptap/core" {
  * A quote block with no attribution renders cleanly; the em-dash is supplied
  * by the element's ::before pseudo-element so it never appears when empty.
  *
- * Styled through CSS custom properties — see ScriptoriumEditor.vue and
- * RENDER_CSS in `useScriptoriumPdf.ts`.
+ * Styled through CSS custom properties — see the shared theme files under
+ * `src/assets/scriptorium/`.
  */
 export const Attribution = Node.create({
   name: "attribution",

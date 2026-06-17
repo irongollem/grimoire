@@ -13,9 +13,9 @@
  *     (matching the DB-sourced formatter output from `scriptoriumImport.ts`).
  *   - The wide monster variant additionally wraps in `<div data-type="wide-block">`.
  *
- * CSS for these templates lives in:
- *   • ScriptoriumEditor.vue  (scoped `<style>` — preview + editor)
- *   • useScriptoriumPdf.ts   (RENDER_CSS — PDF export)
+ * CSS for these templates lives in the shared theme files under
+ * `src/assets/scriptorium/` — the single source of truth consumed by the
+ * editor galley, the Paged.js preview, and the print/PDF export.
  *
  * Registered in `blockRegistry.ts` under the "Templates" group.
  */

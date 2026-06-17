@@ -19,8 +19,8 @@ declare module "@tiptap/core" {
  * 2024 theme: teal-tinted rounded rect with 1 px accent left border.
  * Classic theme: parchment-olive background with a top/bottom double rule.
  *
- * Styled entirely through CSS custom properties — see ScriptoriumEditor.vue
- * (scoped `<style>`) and RENDER_CSS in `useScriptoriumPdf.ts` for both themes.
+ * Styled entirely through CSS custom properties — see the shared theme files
+ * under `src/assets/scriptorium/` (single source of truth for both themes).
  */
 export const NoteBlock = Node.create({
   name: "noteBlock",
