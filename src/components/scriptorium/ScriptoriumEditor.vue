@@ -149,6 +149,7 @@
         :is-two-column="isTwoColumn"
         :is-generating-pdf="isPrinting"
         @export-pdf="exportPdf"
+        @edit-block="focusBlock"
       />
     </div>
   </div>
@@ -159,7 +160,7 @@
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
-import { ref, computed, onUnmounted } from "vue";
+import { ref, computed, nextTick, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import { BubbleMenu } from "@tiptap/vue-3/menus";
@@ -245,6 +246,30 @@ const editor = useEditor({
     updateDerived(editor.getHTML(), editor.getText());
   },
 });
+
+// Click-to-edit bridge: the preview emits the clicked block's id; locate that
+// node in the doc, put the cursor there, and scroll the galley to it. Block
+// ids come from the BlockId extension and survive Paged.js fragmentation.
+function focusBlock(blockId: string) {
+  const ed = editor.value;
+  if (!ed) return;
+  let targetPos: number | null = null;
+  ed.state.doc.descendants((node, pos) => {
+    if (targetPos !== null) return false;
+    if (node.attrs?.blockId === blockId) {
+      targetPos = pos;
+      return false;
+    }
+    return true;
+  });
+  if (targetPos === null) return;
+  ed.chain().focus().setTextSelection(targetPos + 1).run();
+  void nextTick(() => {
+    document
+      .querySelector(`.phb-editor [data-block-id="${CSS.escape(blockId)}"]`)
+      ?.scrollIntoView({ block: "center", behavior: "smooth" });
+  });
+}
 
 function setImagePos(
   side: "posTop" | "posLeft" | "posRight" | "posBottom",

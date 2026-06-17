@@ -113,12 +113,14 @@
         <p class="phb-hint">── use the Page Break button (—) to start a new page ──</p>
       </template>
 
-      <!-- Auto-paginated preview (Paged.js) — the real book, beta -->
+      <!-- Auto-paginated preview (Paged.js) — the real book -->
       <div v-show="pagedMode" class="paged-scale" :style="{ zoom: effectiveZoom }">
         <div
           ref="pagedContainerRef"
-          class="sc-theme"
+          class="sc-theme paged-book"
           :class="themeInfo.class"
+          title="Click any block to edit it"
+          @click="onPagedClick"
         />
         <p v-if="pagedError" class="phb-hint text-destructive">{{ pagedError }}</p>
         <p v-else-if="isPaging" class="phb-hint">repaginating…</p>
@@ -167,9 +169,19 @@ const {
   isGeneratingPdf?: boolean;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   exportPdf: [];
+  editBlock: [blockId: string];
 }>();
+
+// Click-to-edit: resolve the clicked block's stable id (data-block-id, set by
+// the BlockId extension and preserved through Paged.js fragmentation) and ask
+// the editor to focus it in the galley.
+function onPagedClick(e: MouseEvent) {
+  const el = (e.target as HTMLElement).closest<HTMLElement>("[data-block-id]");
+  const id = el?.dataset.blockId;
+  if (id) emit("editBlock", id);
+}
 
 const containerRef = ref<HTMLElement | null>(null);
 const pagedContainerRef = ref<HTMLElement | null>(null);
@@ -263,6 +275,16 @@ watch(() => pageSize, () => {
 .paged-scale {
   width: 100%;
   align-self: stretch;
+}
+
+/* Click-to-edit affordance: hovering a block in the book hints it's editable. */
+.paged-book :deep([data-block-id]) {
+  cursor: pointer;
+}
+.paged-book :deep([data-block-id]:hover) {
+  outline: 2px solid color-mix(in srgb, var(--sc-accent, #7d1c1c) 45%, transparent);
+  outline-offset: 3px;
+  border-radius: 2px;
 }
 
 .phb-hint {
