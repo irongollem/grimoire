@@ -166,11 +166,14 @@
 }
 
 /* ── Page-break markers ──────────────────────────────────────────────────── */
-/* Legacy <hr> hard breaks are invisible on rendered pages; the explicit
-   pageBreak node forces a new page (Paged.js / print honour break-before). */
-.sc-theme hr {
-  display: none;
-}
+/* Both the explicit pageBreak node and a legacy <hr> force a new page in the
+   rendered book — under the old manual-pagination model every <hr> WAS a hard
+   break, so honouring it here makes existing documents paginate identically in
+   the Paged.js renderer with no data migration. The galley overrides <hr> with
+   a visible labelled marker (scriptorium-editor.css). Manual-preview pages
+   never contain an <hr> (it's consumed by the htmlToPages split), so this rule
+   is inert there. */
+.sc-theme hr,
 .sc-theme .sc-page-break {
   display: block;
   height: 0;

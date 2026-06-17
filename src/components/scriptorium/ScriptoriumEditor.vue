@@ -146,7 +146,9 @@
       <ScriptoriumPreviewPane
         :pages="pages"
         :page-footers="pageFooters"
+        :body-html="previewHtml"
         :footer-text="footerText"
+        :show-page-numbers="showPageNumbers"
         :doc-type="docType"
         :theme="theme"
         :page-size="pageSize"

@@ -18,6 +18,20 @@
           {{ docTypeLabel(docType) }}
         </span>
 
+        <!-- Auto-pagination (Paged.js) toggle — beta -->
+        <button
+          type="button"
+          :title="pagedMode ? 'Auto-paginated preview (beta) — click for legacy' : 'Switch to auto-paginated preview (beta)'"
+          class="inline-flex items-center gap-1 px-2 h-6.5 rounded border font-cinzel text-[9px] font-semibold tracking-wider uppercase transition-colors"
+          :class="pagedMode
+            ? 'border-primary/50 text-primary bg-primary/10'
+            : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted'"
+          @click="pagedMode = !pagedMode"
+        >
+          Auto-pages
+          <span class="text-[8px] opacity-70">{{ pagedMode ? "BETA" : "off" }}</span>
+        </button>
+
         <!-- Zoom controls -->
         <div class="flex items-center rounded border border-border overflow-hidden">
           <button
@@ -62,38 +76,54 @@
         </button>
       </div>
     </div>
+
     <div
       ref="containerRef"
       class="phb-bg lg:flex-1 lg:overflow-auto lg:min-h-0"
       style="touch-action: pan-x pan-y"
     >
-      <div
-        v-for="(pageHtml, pageIndex) in pages"
-        :key="pageIndex"
-        :style="pageWrapperStyle"
-      >
+      <!-- Legacy manual-pagination preview (split on page breaks) -->
+      <template v-if="!pagedMode">
         <div
-          class="phb-page"
-          :class="[themeInfo.class, { 'ink-friendly': inkFriendly }]"
-          :style="pageInnerStyle"
+          v-for="(pageHtml, pageIndex) in pages"
+          :key="pageIndex"
+          :style="pageWrapperStyle"
         >
           <div
-            class="phb-body sc-theme"
-            :class="[themeInfo.class, { 'phb-two-col': isTwoColumn }]"
-            v-html="pageHtml"
-          />
-          <div
-            v-if="pageFooters[pageIndex] !== null"
-            class="sc-footer"
-            :class="pageIndex % 2 === 0 ? 'sc-footer--recto' : 'sc-footer--verso'"
+            class="phb-page"
+            :class="[themeInfo.class, { 'ink-friendly': inkFriendly }]"
+            :style="pageInnerStyle"
           >
-            <span class="sc-footer-num sc-footer-num--left">{{ pageFooters[pageIndex] }}</span>
-            <span class="sc-footer-text">{{ footerText }}</span>
-            <span class="sc-footer-num sc-footer-num--right">{{ pageFooters[pageIndex] }}</span>
+            <div
+              class="phb-body sc-theme"
+              :class="[themeInfo.class, { 'phb-two-col': isTwoColumn }]"
+              v-html="pageHtml"
+            />
+            <div
+              v-if="pageFooters[pageIndex] !== null"
+              class="sc-footer"
+              :class="pageIndex % 2 === 0 ? 'sc-footer--recto' : 'sc-footer--verso'"
+            >
+              <span class="sc-footer-num sc-footer-num--left">{{ pageFooters[pageIndex] }}</span>
+              <span class="sc-footer-text">{{ footerText }}</span>
+              <span class="sc-footer-num sc-footer-num--right">{{ pageFooters[pageIndex] }}</span>
+            </div>
           </div>
         </div>
+        <p class="phb-hint">── use the Page Break button (—) to start a new page ──</p>
+      </template>
+
+      <!-- Auto-paginated preview (Paged.js) — the real book, beta -->
+      <div v-show="pagedMode" class="paged-scale" :style="{ zoom: effectiveZoom }">
+        <div
+          ref="pagedContainerRef"
+          class="sc-theme"
+          :class="themeInfo.class"
+        />
+        <p v-if="pagedError" class="phb-hint text-destructive">{{ pagedError }}</p>
+        <p v-else-if="isPaging" class="phb-hint">repaginating…</p>
+        <p v-else-if="pagedMode" class="phb-hint">{{ pageCount }} pages · {{ layoutMs }} ms</p>
       </div>
-      <p class="phb-hint">── use the Page Break button (—) to start a new page ──</p>
     </div>
   </div>
 </template>
@@ -103,12 +133,16 @@ import { computed, ref, watch } from "vue";
 import { IconExport, IconLoading, IconZoomIn, IconZoomOut } from "@/lib/icons";
 import { docTypeLabel, docTypeColor } from "@/lib/scriptorium/editorConstants";
 import { useScriptoriumZoom } from "@/composables/useScriptoriumZoom";
+import { usePagedPreview } from "@/composables/usePagedPreview";
+import { buildPagedPreviewCss } from "@/lib/scriptorium/pagedPreviewCss";
 import type { ScriptoriumDocType, ScriptoriumTheme, ScriptoriumPageSize } from "@/types/scriptorium.types";
 
 const {
   pages,
   pageFooters,
+  bodyHtml,
   footerText,
+  showPageNumbers = false,
   docType,
   theme,
   pageSize,
@@ -118,7 +152,10 @@ const {
 } = defineProps<{
   pages: string[];
   pageFooters: (string | null)[];
+  /** Full unsplit document HTML — fed to the Paged.js path. */
+  bodyHtml: string;
   footerText: string;
+  showPageNumbers?: boolean;
   docType: ScriptoriumDocType;
   theme: ScriptoriumTheme;
   pageSize: ScriptoriumPageSize;
@@ -132,6 +169,10 @@ defineEmits<{
 }>();
 
 const containerRef = ref<HTMLElement | null>(null);
+const pagedContainerRef = ref<HTMLElement | null>(null);
+
+// Auto-pagination is opt-in while it matures (footer parity follow-ups on #330).
+const pagedMode = ref(false);
 
 const pageSizeRef = computed(() => pageSize);
 const {
@@ -150,6 +191,34 @@ const themeInfo = computed(() =>
     ? { class: "theme-phb2014", label: "Classic PHB (2014)" }
     : { class: "theme-onednd2024", label: "OneDnD 2024" },
 );
+
+// ── Paged.js live preview ──────────────────────────────────────────────────
+// Content is empty until the mode is on, so Paged.js doesn't run for users who
+// stay on the legacy preview. Wrapping in .phb-two-col makes the whole body a
+// two-column flow that Paged.js fragments across pages.
+const {
+  pageCount,
+  layoutMs,
+  isRendering: isPaging,
+  error: pagedError,
+} = usePagedPreview({
+  content: () => {
+    if (!pagedMode.value) return "";
+    return isTwoColumn ? `<div class="phb-two-col">${bodyHtml}</div>` : bodyHtml;
+  },
+  stylesheets: () => [
+    {
+      "scriptorium-paged.css": buildPagedPreviewCss({
+        pageSize,
+        theme,
+        showPageNumbers,
+        footerText,
+        inkFriendly,
+      }),
+    },
+  ],
+  container: pagedContainerRef,
+});
 
 watch(() => pageSize, () => {
   zoomFit();
@@ -176,6 +245,12 @@ watch(() => pageSize, () => {
   overscroll-behavior: contain;
 }
 
+/* The Paged.js path fills the width; `zoom` scales it and keeps scroll dims. */
+.paged-scale {
+  width: 100%;
+  align-self: stretch;
+}
+
 .phb-hint {
   font-family: "Cinzel", Georgia, serif;
   font-size: 0.65rem;
@@ -184,5 +259,4 @@ watch(() => pageSize, () => {
   letter-spacing: 0.06em;
   padding: 0.5rem 0;
 }
-
 </style>

@@ -15,20 +15,27 @@
 import { ref, watch, onUnmounted } from "vue";
 import type { Ref } from "vue";
 import { Previewer } from "pagedjs";
+import type { PagedStylesheet } from "pagedjs";
 
 export interface UsePagedPreviewOptions {
   /** Reactive source: the document body HTML to paginate. */
   content: () => string;
-  /** Reactive list of stylesheet URLs (theme + print CSS) Paged.js fetches. */
-  stylesheets: () => string[];
+  /**
+   * Reactive list of stylesheets Paged.js consumes — URL strings and/or
+   * inline-CSS objects (`{ "paged.css": "@page { … }" }`) for per-document
+   * rules (footer text, page geometry).
+   */
+  stylesheets: () => PagedStylesheet[];
   /** Where the paged output is rendered. */
   container: Ref<HTMLElement | null>;
   /** Debounce window for re-render after a change. Default 600 ms. */
   debounceMs?: number;
+  /** Runs after each successful render (e.g. to inject page furniture). */
+  afterRender?: (container: HTMLElement) => void;
 }
 
 export function usePagedPreview(opts: UsePagedPreviewOptions) {
-  const { content, stylesheets, container, debounceMs = 600 } = opts;
+  const { content, stylesheets, container, debounceMs = 600, afterRender } = opts;
 
   const pageCount = ref(0);
   const layoutMs = ref(0);
@@ -53,11 +60,21 @@ export function usePagedPreview(opts: UsePagedPreviewOptions) {
     const t0 = performance.now();
     try {
       el.replaceChildren();
+      // CRITICAL: Paged.js treats falsy content as "paginate document.body"
+      // (Previewer.preview → wrapContent()), which would fragment the whole
+      // app into the container. Never call preview() with empty content.
+      const html = content();
+      if (!html.trim()) {
+        pageCount.value = 0;
+        layoutMs.value = 0;
+        return;
+      }
       const previewer = new Previewer();
-      const flow = await previewer.preview(content(), stylesheets(), el);
+      const flow = await previewer.preview(html, stylesheets(), el);
       if (token !== renderToken) return; // superseded by a newer render
       pageCount.value = flow.total;
       layoutMs.value = Math.round(performance.now() - t0);
+      afterRender?.(el);
     } catch (e: unknown) {
       if (token === renderToken) {
         error.value = e instanceof Error ? e.message : String(e);
