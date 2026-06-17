@@ -24,22 +24,22 @@
         type="button"
         :disabled="isRendering"
         class="rounded border border-border px-3 py-1 font-cinzel text-xs font-semibold tracking-wider uppercase hover:bg-muted disabled:opacity-50"
-        @click="run"
+        @click="renderNow"
       >
         {{ isRendering ? "Rendering…" : "Render" }}
       </button>
 
       <button
         type="button"
-        :disabled="isRendering || !lastResult"
+        :disabled="isRendering || pageCount === 0"
         class="rounded border border-border px-3 py-1 font-cinzel text-xs font-semibold tracking-wider uppercase hover:bg-muted disabled:opacity-50"
         @click="printSpike"
       >
         Print
       </button>
 
-      <span v-if="lastResult" class="font-fell text-xs text-muted-foreground">
-        {{ lastResult.pages }} pages · layout {{ lastResult.ms }} ms
+      <span v-if="pageCount" class="font-fell text-xs text-muted-foreground">
+        {{ pageCount }} pages · layout {{ layoutMs }} ms
       </span>
       <span v-if="error" class="font-fell text-xs text-destructive">{{ error }}</span>
     </div>
@@ -52,12 +52,12 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
-import { Previewer } from "pagedjs";
 import {
   buildSpikeContent,
   SPIKE_SCENARIOS,
   type SpikeScenario,
 } from "@/lib/scriptorium/spike/spikeContent";
+import { usePagedPreview } from "@/composables/usePagedPreview";
 
 /* Served from public/ as a plain URL — Paged.js fetches and parses it itself
    (blob: URLs break its internal relative-URL resolution). */
@@ -65,39 +65,23 @@ const SPIKE_PRINT_CSS_URL = "/assets/scriptorium/spike-print.css";
 
 const scenario = ref<SpikeScenario>("full");
 const targetPages = ref(30);
-const isRendering = ref(false);
-const error = ref("");
-const lastResult = ref<{ pages: number; ms: number } | null>(null);
 const stageRef = ref<HTMLElement | null>(null);
 
-async function run() {
-  const stage = stageRef.value;
-  if (!stage || isRendering.value) return;
-  isRendering.value = true;
-  error.value = "";
-  lastResult.value = null;
-  stage.innerHTML = "";
-  try {
-    const html = buildSpikeContent(scenario.value, targetPages.value);
-    const t0 = performance.now();
-    const previewer = new Previewer();
-    const flow = await previewer.preview(html, [SPIKE_PRINT_CSS_URL], stage);
-    lastResult.value = {
-      pages: flow.total,
-      ms: Math.round(performance.now() - t0),
-    };
-  } catch (e: unknown) {
-    error.value = e instanceof Error ? e.message : String(e);
-  } finally {
-    isRendering.value = false;
-  }
-}
+// Drives the real Phase B preview path. Changing scenario/targetPages updates
+// the content getter, which the composable re-renders (debounced); Render
+// forces it immediately.
+const { pageCount, layoutMs, isRendering, error, renderNow } = usePagedPreview({
+  content: () => buildSpikeContent(scenario.value, targetPages.value),
+  stylesheets: () => [SPIKE_PRINT_CSS_URL],
+  container: stageRef,
+  debounceMs: 300,
+});
 
 function printSpike() {
   window.print();
 }
 
-onMounted(run);
+onMounted(renderNow);
 </script>
 
 <style scoped>

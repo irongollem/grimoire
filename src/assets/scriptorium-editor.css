@@ -66,10 +66,12 @@
   max-height: 640px;
 }
 
-/* ── Page break marker (hr) ───────────────────────────────────────────────── */
-/* theme-base hides <hr> on rendered pages; in the galley it must stay visible
-   as the explicit page-break marker. */
-.phb-editor .ProseMirror hr {
+/* ── Page break marker (pageBreak node + legacy hr) ──────────────────────── */
+/* The paged book maps these to `break-before: page` (print.css); in the galley
+   they stay visible as a labelled divider. Legacy <hr> is kept until the
+   v1→v2 migration converts it to a pageBreak node. */
+.phb-editor .ProseMirror hr,
+.phb-editor .ProseMirror .sc-page-break {
   display: block;
   height: 0;
   border: none;
@@ -78,7 +80,8 @@
   position: relative;
   overflow: visible;
 }
-.phb-editor .ProseMirror hr::after {
+.phb-editor .ProseMirror hr::after,
+.phb-editor .ProseMirror .sc-page-break::after {
   content: "page break";
   position: absolute;
   top: 50%;

@@ -165,9 +165,18 @@
   max-width: 100%;
 }
 
-/* ── Page-break source markers (hidden on rendered pages) ────────────────── */
+/* ── Page-break markers ──────────────────────────────────────────────────── */
+/* Legacy <hr> hard breaks are invisible on rendered pages; the explicit
+   pageBreak node forces a new page (Paged.js / print honour break-before). */
 .sc-theme hr {
   display: none;
+}
+.sc-theme .sc-page-break {
+  display: block;
+  height: 0;
+  margin: 0;
+  border: none;
+  break-before: page;
 }
 
 /* ── Spacers ─────────────────────────────────────────────────────────────── */
