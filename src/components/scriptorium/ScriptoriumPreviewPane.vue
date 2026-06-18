@@ -98,6 +98,7 @@ import { usePagedPreview } from "@/composables/usePagedPreview";
 import { buildPagedPreviewCss } from "@/lib/scriptorium/pagedPreviewCss";
 import { injectPagedFooters } from "@/lib/scriptorium/pagedFooters";
 import { injectPagedToc } from "@/lib/scriptorium/pagedToc";
+import { stripTrailingEmptyParagraphs } from "@/lib/scriptorium/stripTrailingEmpty";
 import type { ScriptoriumDocType, ScriptoriumTheme, ScriptoriumPageSize } from "@/types/scriptorium.types";
 
 const {
@@ -168,7 +169,10 @@ const {
   error: pagedError,
   scheduleRender,
 } = usePagedPreview({
-  content: () => (isTwoColumn ? `<div class="phb-two-col">${bodyHtml}</div>` : bodyHtml),
+  content: () => {
+    const html = stripTrailingEmptyParagraphs(bodyHtml);
+    return isTwoColumn ? `<div class="phb-two-col">${html}</div>` : html;
+  },
   stylesheets: () => [
     { "scriptorium-paged.css": buildPagedPreviewCss({ pageSize, inkFriendly }) },
   ],

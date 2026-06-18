@@ -237,7 +237,7 @@
   cursor: default;
 }
 .phb-editor .ProseMirror div[data-type="coverPage"]::before {
-  content: attr(data-variant) " cover — full-page art, edit in the preview";
+  content: attr(data-variant) " cover — click, then “Cover” in the toolbar to add art & edit";
   font-family: var(--sc-heading-font, "Cinzel", serif);
   font-size: 0.8rem;
   font-weight: 700;

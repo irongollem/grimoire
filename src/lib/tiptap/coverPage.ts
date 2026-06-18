@@ -40,7 +40,7 @@ function strAttr(key: string, fallback: string) {
  * CoverPage — full-page cover node with four visual variants.
  *
  * Variant rendering strategy:
- *   front   — title bar + art slot (full bleed) + subtitle + "HOMEBREW" banner
+ *   front   — full-bleed art slot + title + subtitle + footer banner
  *   inside  — art slot (upper half) + title + subtitle overlay at bottom
  *   part    — centred "PART N" + subtitle divider with ornamental rules
  *   back    — art strip + subtitle + three blurb paragraphs + tagline + URL
@@ -140,13 +140,6 @@ const FRONT_OVERLAY_STYLE =
   "position:absolute;inset:0;display:flex;flex-direction:column;" +
   "justify-content:space-between;z-index:1;padding:2.5rem";
 
-const FRONT_TOP_BAR_STYLE =
-  "background:var(--sc-title-bar-bg,var(--sc-accent,#1B3A4B));" +
-  "color:var(--sc-title-bar-color,var(--sc-accent-contrast,#F9F6EF));" +
-  "padding:0.75rem 1.25rem;margin:-2.5rem -2.5rem 0;" +
-  "font-family:var(--sc-heading-font,Georgia,serif);font-size:0.65rem;" +
-  "font-weight:700;letter-spacing:0.18em;text-transform:uppercase;text-align:right";
-
 const FRONT_TITLE_STYLE =
   "font-family:var(--sc-heading-font,Georgia,serif);font-size:3.5rem;font-weight:700;" +
   "color:var(--sc-accent-contrast,#F9F6EF);text-shadow:0 2px 8px rgba(0,0,0,0.8);" +
@@ -176,7 +169,6 @@ function buildFront(attrs: CoverPageAttrs): NodeSpec[] {
     [
       "div",
       { style: FRONT_OVERLAY_STYLE },
-      ["div", { style: FRONT_TOP_BAR_STYLE }, "HOMEBREW"],
       [
         "div",
         { style: FRONT_BODY_STYLE },
@@ -320,7 +312,7 @@ function buildBack(attrs: CoverPageAttrs): NodeSpec[] {
       [
         "div",
         { style: BACK_BOTTOM_BAR_STYLE },
-        ["span", {}, "HOMEBREW SUPPLEMENT"],
+        ["span", {}, attrs.tagline || "An Unofficial Supplement"],
         ["span", {}, attrs.productUrl],
       ],
     ],

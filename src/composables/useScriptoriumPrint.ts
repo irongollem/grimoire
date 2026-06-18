@@ -21,6 +21,7 @@ import { ref } from "vue";
 import { Previewer } from "pagedjs";
 import { buildPagedPreviewCss } from "@/lib/scriptorium/pagedPreviewCss";
 import { injectPagedFooters } from "@/lib/scriptorium/pagedFooters";
+import { stripTrailingEmptyParagraphs } from "@/lib/scriptorium/stripTrailingEmpty";
 import type { ScriptoriumPageSize, ScriptoriumTheme } from "@/types/scriptorium.types";
 import themeBaseCss from "@/assets/scriptorium/theme-base.css?inline";
 import themeOnednd2024Css from "@/assets/scriptorium/theme-onednd2024.css?inline";
@@ -89,7 +90,8 @@ export function useScriptoriumPrint() {
     const cls = themeClass(opts.theme);
     const themeCss = opts.theme === "phb2014" ? themePhb2014Css : themeOnednd2024Css;
     const pagedCss = buildPagedPreviewCss({ pageSize: opts.pageSize, inkFriendly: opts.inkFriendly });
-    const content = opts.isTwoColumn ? `<div class="phb-two-col">${opts.bodyHtml}</div>` : opts.bodyHtml;
+    const bodyHtml = stripTrailingEmptyParagraphs(opts.bodyHtml);
+    const content = opts.isTwoColumn ? `<div class="phb-two-col">${bodyHtml}</div>` : bodyHtml;
 
     // 1. Off-screen render in the main document.
     const host = document.createElement("div");
