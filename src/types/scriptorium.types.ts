@@ -16,6 +16,32 @@ export type ScriptoriumTheme = "onednd2024" | "phb2014";
 
 export type ScriptoriumPageSize = "A4" | "A5" | "Letter";
 
+/* ── Page furniture (Phase D, #456) ──────────────────────────────────────────
+ * Decorations (watercolours, watermarks, artist credits, free art) live OUTSIDE
+ * the Tiptap content stream, in a sibling `page_furniture` column, so they can
+ * be anchored to a page or a block and dragged on the rendered book without
+ * fighting auto-reflow. See SCRIPTORIUM_PLAN.md §2.2.
+ */
+export type FurnitureKind = "watercolor" | "watermark" | "artistCredit" | "art";
+
+export type FurnitureAnchor =
+  | { type: "page"; page: number } // 1-based physical page
+  | { type: "block"; blockId: string }; // page that contains this block
+
+export interface PageFurnitureItem {
+  id: string;
+  kind: FurnitureKind;
+  anchor: FurnitureAnchor;
+  /** Position as a percentage of the page box (so it survives page-size changes). */
+  x: number; // left, % of page width
+  y: number; // top, % of page height
+  width: number; // % of page width
+  /** Behind the text (under) or above it (over). */
+  z: "under" | "over";
+  /** Kind-specific data: variant, color, opacity, text, rotation, src, position… */
+  props: Record<string, string | number>;
+}
+
 export interface ScriptoriumDocument {
   id: string;
   user_id: string;
@@ -32,6 +58,9 @@ export interface ScriptoriumDocument {
   show_page_numbers: boolean;
   footer_text: string;
   page_number_start: number;
+  /** Page-furniture decorations (Phase D). JSONB column, defaults to [].
+   * Optional until the column + editor wiring land (foundation-only for now). */
+  page_furniture?: PageFurnitureItem[];
   created_at: string;
   updated_at: string;
 }

@@ -135,7 +135,7 @@ export const Watercolor = Node.create({
  * so CSS `hue-rotate()` can shift the watercolor asset (which is a
  * desaturated dark blob) toward the requested tint.
  */
-function hueRotateForColor(hex: string): number {
+export function hueRotateForColor(hex: string): number {
   // Strip leading #
   const clean = hex.replace(/^#/, "");
   if (clean.length !== 6) return 0;
