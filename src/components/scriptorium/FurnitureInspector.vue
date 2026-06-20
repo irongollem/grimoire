@@ -2,7 +2,7 @@
   <Teleport to="body">
     <div
       v-if="item"
-      class="fixed bottom-4 right-4 z-50 w-[min(320px,92vw)] max-h-[80vh] overflow-y-auto rounded-xl border border-border bg-card shadow-2xl"
+      class="fixed bottom-4 left-4 z-50 w-[min(320px,92vw)] max-h-[80vh] overflow-y-auto rounded-xl border border-border bg-card shadow-2xl"
     >
       <div class="flex items-center justify-between px-3 py-2 border-b border-border">
         <h2 class="font-cinzel text-xs font-bold tracking-wider uppercase text-foreground">{{ kindLabel }}</h2>

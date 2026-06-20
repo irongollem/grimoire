@@ -151,15 +151,28 @@ export function renderFurniture(
     const box = page.querySelector<HTMLElement>(".pagedjs_pagebox") ?? page;
     const el = buildElement(item);
     if (opts.interactive) {
-      el.style.pointerEvents = "auto";
-      el.style.cursor = "move";
+      // The clickable/draggable target. The watermark's wrapper spans the whole
+      // page — making *that* a pointer target would swallow every click on the
+      // page, so only its text span is interactive; every other kind is its own
+      // bounded element.
+      const hit =
+        item.kind === "watermark" ? (el.firstElementChild as HTMLElement | null) ?? el : el;
+      hit.style.pointerEvents = "auto";
+      hit.style.cursor = "move";
+      // Editing always lifts the decoration above the page content (covers and
+      // body text — even transparent regions — otherwise intercept the click),
+      // so every decoration stays grabbable. The true under/over layering is
+      // applied by the non-interactive render used for print and the reader.
+      el.style.zIndex = item.z === "over" ? "31" : "30";
       if (item.id === opts.selectedId) {
-        el.style.outline = "2px solid oklch(0.6 0.2 250)";
-        el.style.outlineOffset = "2px";
+        hit.style.outline = "2px solid oklch(0.6 0.2 250)";
+        hit.style.outlineOffset = "2px";
       }
     }
-    // "under" goes behind the body content (earlier in the DOM), "over" after.
-    if (item.z === "under") box.insertBefore(el, box.firstChild);
+    // Display layering: "under" goes behind the body content (earlier in the
+    // DOM), "over" after. In interactive mode everything is appended last (and
+    // z-lifted above) so it can be grabbed regardless of page content.
+    if (item.z === "under" && !opts.interactive) box.insertBefore(el, box.firstChild);
     else box.appendChild(el);
   }
 }
