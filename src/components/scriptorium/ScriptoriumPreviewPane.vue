@@ -99,13 +99,22 @@ import { buildPagedPreviewCss } from "@/lib/scriptorium/pagedPreviewCss";
 import { injectPagedFooters } from "@/lib/scriptorium/pagedFooters";
 import { injectPagedToc } from "@/lib/scriptorium/pagedToc";
 import { stripTrailingEmptyParagraphs } from "@/lib/scriptorium/stripTrailingEmpty";
-import type { ScriptoriumDocType, ScriptoriumTheme, ScriptoriumPageSize } from "@/types/scriptorium.types";
+import { renderFurniture } from "@/lib/scriptorium/furniture/renderFurniture";
+import { useFurnitureEditing } from "@/composables/useFurnitureEditing";
+import type {
+  ScriptoriumDocType,
+  ScriptoriumTheme,
+  ScriptoriumPageSize,
+  PageFurnitureItem,
+} from "@/types/scriptorium.types";
 
 const {
   bodyHtml,
   footerText,
   showPageNumbers = false,
   pageNumberStart = 1,
+  furniture = [],
+  selectedFurnitureId = null,
   docType,
   theme,
   pageSize,
@@ -118,6 +127,9 @@ const {
   footerText: string;
   showPageNumbers?: boolean;
   pageNumberStart?: number;
+  /** Page-furniture decorations (Phase D). */
+  furniture?: PageFurnitureItem[];
+  selectedFurnitureId?: string | null;
   docType: ScriptoriumDocType;
   theme: ScriptoriumTheme;
   pageSize: ScriptoriumPageSize;
@@ -129,6 +141,8 @@ const {
 const emit = defineEmits<{
   exportPdf: [];
   editBlock: [blockId: string];
+  "update:furniture": [items: PageFurnitureItem[]];
+  "update:selectedFurnitureId": [id: string | null];
 }>();
 
 // Click-to-edit: resolve the clicked block's stable id (data-block-id, set by
@@ -182,7 +196,31 @@ const {
     // so they run together after each render.
     injectPagedFooters(el, { showPageNumbers, footerText, start: pageNumberStart });
     injectPagedToc(el, { showPageNumbers, start: pageNumberStart });
+    renderFurniture(el, furniture, { interactive: true, selectedId: selectedFurnitureId });
   },
+});
+
+// Furniture is an overlay on the laid-out pages — adding/moving/editing it
+// re-renders the decorations in place, no re-pagination.
+watch(
+  () => [furniture, selectedFurnitureId] as const,
+  () => {
+    if (pagedContainerRef.value) {
+      renderFurniture(pagedContainerRef.value, furniture, {
+        interactive: true,
+        selectedId: selectedFurnitureId,
+      });
+    }
+  },
+  { deep: true },
+);
+
+useFurnitureEditing({
+  container: pagedContainerRef,
+  enabled: () => true,
+  items: () => furniture,
+  onChange: (items) => emit("update:furniture", items),
+  onSelect: (id) => emit("update:selectedFurnitureId", id),
 });
 
 // Footer/numbering settings aren't part of the content or stylesheets, so they

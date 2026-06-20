@@ -174,6 +174,7 @@
 import { computed } from "vue";
 import { IconClose, IconLibrary, IconLink, IconGridView } from '@/lib/icons';
 import type { Editor } from "@tiptap/core";
+import type { FurnitureKind } from "@/types/scriptorium.types";
 import {
   BLOCK_REGISTRY,
   BLOCK_GROUP_ORDER,
@@ -190,6 +191,7 @@ const emit = defineEmits<{
   close: [];
   "open-asset-panel": [];
   "open-art-picker": [];
+  "add-furniture": [kind: FurnitureKind];
 }>();
 
 // ── Group logic ────────────────────────────────────────────────────────────────
@@ -218,7 +220,11 @@ function isDisabled(entry: BlockEntry): boolean {
 
 function activate(entry: BlockEntry) {
   if (!props.editor || isDisabled(entry)) return;
-  entry.action(props.editor);
+  if (entry.furnitureKind) {
+    emit("add-furniture", entry.furnitureKind);
+  } else {
+    entry.action?.(props.editor);
+  }
   emit("close");
 }
 

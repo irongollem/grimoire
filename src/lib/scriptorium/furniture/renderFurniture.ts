@@ -123,11 +123,24 @@ function decorate(el: HTMLElement, item: PageFurnitureItem): HTMLElement {
   return el;
 }
 
+export interface RenderFurnitureOptions {
+  /** Editor mode: make decorations clickable/draggable and outline the selected one. */
+  interactive?: boolean;
+  /** Id of the currently selected item (only used when interactive). */
+  selectedId?: string | null;
+}
+
 /**
  * Render `items` into the laid-out pages inside `container`. Idempotent —
- * clears any previously-rendered furniture first.
+ * clears any previously-rendered furniture first. In `interactive` mode the
+ * decorations become pointer targets (the editor wires drag/select on them);
+ * print/preview-display mode leaves them inert.
  */
-export function renderFurniture(container: HTMLElement, items: PageFurnitureItem[]): void {
+export function renderFurniture(
+  container: HTMLElement,
+  items: PageFurnitureItem[],
+  opts: RenderFurnitureOptions = {},
+): void {
   container.querySelectorAll(`.${FURNITURE_CLASS}`).forEach((e) => e.remove());
   const pages = Array.from(container.querySelectorAll<HTMLElement>(".pagedjs_page"));
   if (!pages.length) return;
@@ -137,6 +150,14 @@ export function renderFurniture(container: HTMLElement, items: PageFurnitureItem
     if (!page) continue;
     const box = page.querySelector<HTMLElement>(".pagedjs_pagebox") ?? page;
     const el = buildElement(item);
+    if (opts.interactive) {
+      el.style.pointerEvents = "auto";
+      el.style.cursor = "move";
+      if (item.id === opts.selectedId) {
+        el.style.outline = "2px solid oklch(0.6 0.2 250)";
+        el.style.outlineOffset = "2px";
+      }
+    }
     // "under" goes behind the body content (earlier in the DOM), "over" after.
     if (item.z === "under") box.insertBefore(el, box.firstChild);
     else box.appendChild(el);

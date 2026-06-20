@@ -18,6 +18,7 @@
       showBlockPicker = false;
       showArtPicker = true;
     "
+    @add-furniture="addFurniture"
   />
   <ArtPickerModal
     :show="showArtPicker"
@@ -28,6 +29,12 @@
     :show="showCoverInspector"
     :editor="editor ?? null"
     @close="showCoverInspector = false"
+  />
+  <FurnitureInspector
+    :item="selectedFurniture"
+    @update="updateFurniture"
+    @delete="deleteFurniture"
+    @close="selectedFurnitureId = null"
   />
 
   <div class="flex flex-col gap-3 lg:h-full">
@@ -146,8 +153,12 @@
         :ink-friendly="inkFriendly"
         :is-two-column="isTwoColumn"
         :is-generating-pdf="isPrinting"
+        :furniture="furniture"
+        :selected-furniture-id="selectedFurnitureId"
         @export-pdf="exportPdf"
         @edit-block="focusBlock"
+        @update:furniture="furniture = $event"
+        @update:selected-furniture-id="selectedFurnitureId = $event"
       />
     </div>
   </div>
@@ -195,6 +206,11 @@ import { useTextEnhancement } from "@/ai/useTextEnhancement";
 import { parseMarkdown } from "@/lib/markdownToTiptap";
 import type { JSONContent } from "@tiptap/core";
 import type { ScriptoriumTemplateSettings } from "@/data/scriptoriumTemplates/types";
+import type { PageFurnitureItem, FurnitureKind, FurnitureAnchor } from "@/types/scriptorium.types";
+import { createFurnitureItem } from "@/lib/scriptorium/furniture/model";
+import { migrateV1ToV2, needsV1ToV2 } from "@/lib/scriptorium/migrations/v1ToV2";
+import { migrateV2ToV3, needsV2ToV3 } from "@/lib/scriptorium/migrations/v2ToV3";
+import FurnitureInspector from "@/components/scriptorium/FurnitureInspector.vue";
 
 const props = defineProps<{
   doc: ScriptoriumDocument | null;
@@ -224,6 +240,67 @@ const showPageNumbers = ref(props.doc?.show_page_numbers ?? seedSettings?.showPa
 const footerText = ref(props.doc?.footer_text ?? seedSettings?.footerText ?? "");
 const pageNumberStart = ref(props.doc?.page_number_start ?? seedSettings?.pageNumberStart ?? 1);
 
+// Initial content + furniture, with lazy migrate-on-open: v1→v2 turns legacy
+// <hr> page breaks into pageBreak nodes; v2→v3 lifts decoration nodes out of the
+// content into furniture. Idempotent — migrated docs don't re-migrate.
+function computeInitialDoc(): { content: JSONContent | string; furniture: PageFurnitureItem[] } {
+  if (props.doc?.content) {
+    const saved = props.doc.page_furniture ?? [];
+    let json: JSONContent;
+    try {
+      json = JSON.parse(props.doc.content) as JSONContent;
+    } catch {
+      return { content: props.doc.content, furniture: saved };
+    }
+    if (needsV1ToV2(json)) json = migrateV1ToV2(json);
+    if (needsV2ToV3(json)) {
+      const r = migrateV2ToV3(json);
+      return { content: r.content, furniture: [...saved, ...r.furniture] };
+    }
+    return { content: json, furniture: saved };
+  }
+  return { content: props.seed?.content ?? "", furniture: [] };
+}
+const initialDoc = computeInitialDoc();
+
+// Page furniture (Phase D) — decorations anchored to pages/blocks, dragged on
+// the book. Lives alongside content; the selected item drives the inspector.
+const furniture = ref<PageFurnitureItem[]>(initialDoc.furniture);
+const selectedFurnitureId = ref<string | null>(null);
+const selectedFurniture = computed(
+  () => furniture.value.find((f) => f.id === selectedFurnitureId.value) ?? null,
+);
+
+/** Anchor new furniture to the top-level block at the cursor (so it follows
+ *  that content across reflows), falling back to page 1. */
+function currentFurnitureAnchor(): FurnitureAnchor {
+  const ed = editor.value;
+  if (ed) {
+    try {
+      const id = ed.state.selection.$from.node(1)?.attrs?.blockId;
+      if (typeof id === "string" && id) return { type: "block", blockId: id };
+    } catch {
+      /* selection has no depth-1 node — fall through to page anchor */
+    }
+  }
+  return { type: "page", page: 1 };
+}
+
+function addFurniture(kind: FurnitureKind) {
+  const item = createFurnitureItem(kind, currentFurnitureAnchor());
+  furniture.value = [...furniture.value, item];
+  selectedFurnitureId.value = item.id;
+}
+
+function updateFurniture(updated: PageFurnitureItem) {
+  furniture.value = furniture.value.map((f) => (f.id === updated.id ? updated : f));
+}
+
+function deleteFurniture(id: string) {
+  furniture.value = furniture.value.filter((f) => f.id !== id);
+  if (selectedFurnitureId.value === id) selectedFurnitureId.value = null;
+}
+
 // Editor
 const previewHtml = ref("");
 const wordCount = ref(0);
@@ -234,16 +311,7 @@ function updateDerived(html: string, text: string) {
 }
 
 const editor = useEditor({
-  content: (() => {
-    if (props.doc?.content) {
-      try {
-        return JSON.parse(props.doc.content);
-      } catch {
-        return props.doc.content;
-      }
-    }
-    return props.seed?.content ?? "";
-  })(),
+  content: initialDoc.content,
   extensions: createScriptoriumExtensions(),
   onCreate({ editor }) {
     updateDerived(editor.getHTML(), editor.getText());
@@ -336,6 +404,7 @@ async function save() {
       show_page_numbers: showPageNumbers.value,
       footer_text: footerText.value,
       page_number_start: pageNumberStart.value,
+      page_furniture: furniture.value,
     };
     if (props.doc) {
       const oldContent = props.doc.content;
@@ -369,6 +438,7 @@ function exportPdf() {
     showPageNumbers: showPageNumbers.value,
     footerText: footerText.value,
     pageNumberStart: pageNumberStart.value,
+    furniture: furniture.value,
   });
 }
 

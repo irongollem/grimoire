@@ -13,7 +13,7 @@
 
 import type { Component } from "vue";
 import type { Editor } from "@tiptap/core";
-import type { WatercolorVariant } from "@/lib/tiptap/watercolor";
+import type { FurnitureKind } from "@/types/scriptorium.types";
 import { IconAward, IconBookMarked, IconBookmark, IconComment, IconGem, IconGenerate, IconHash, IconInfo, IconList, IconMaximize, IconMinus, IconMonster, IconMoveH, IconMoveV, IconNote, IconPen, IconPopulate, IconQuote, IconRect, IconRefresh, IconScrollText, IconSplitCell, IconStamp, IconTable, IconUserRound, IconWater } from '@/lib/icons';
 import {
   frontCoverTemplate,
@@ -42,7 +42,13 @@ export interface BlockEntry {
   description: string;
   icon: Component;
   /** Called with the focused editor when the user clicks the entry. */
-  action: (editor: Editor) => void;
+  action?: (editor: Editor) => void;
+  /**
+   * Decoration entries create a page-furniture item (Phase D) instead of
+   * inserting a content node. The picker emits this kind; the editor anchors it
+   * to the current block/page and opens the inspector.
+   */
+  furnitureKind?: FurnitureKind;
   /**
    * When provided, the entry is greyed-out and unclickable if this returns
    * false. Use for state-dependent restrictions (e.g. column break only valid
@@ -245,10 +251,7 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
     description:
       "Absolutely-positioned watercolor blob overlay. Select the node to choose variant (1\u201312), position, width, tint colour, and opacity.",
     icon: IconWater,
-    action: (editor) => {
-      const variant = (Math.floor(Math.random() * 12) + 1) as WatercolorVariant;
-      editor.chain().focus().insertWatercolor({ variant }).run();
-    },
+    furnitureKind: "watercolor",
   },
   {
     group: "Decoration",
@@ -256,8 +259,7 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
     description:
       "Large diagonal text across the page (e.g. DRAFT, PLAYTEST). Sits behind body content.",
     icon: IconStamp,
-    action: (editor) =>
-      editor.chain().focus().insertWatermark({ text: "DRAFT" }).run(),
+    furnitureKind: "watermark",
   },
   {
     group: "Decoration",
@@ -265,12 +267,7 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
     description:
       'Tiny italic "Art by \u2026" line in a chosen page corner. Default: bottom-right.',
     icon: IconPen,
-    action: (editor) =>
-      editor
-        .chain()
-        .focus()
-        .insertArtistCredit({ position: "bottom-right" })
-        .run(),
+    furnitureKind: "artistCredit",
   },
 
   // ── Templates ────────────────────────────────────────────────────────────────

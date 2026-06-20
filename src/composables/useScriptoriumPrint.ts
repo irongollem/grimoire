@@ -22,6 +22,8 @@ import { Previewer } from "pagedjs";
 import { buildPagedPreviewCss } from "@/lib/scriptorium/pagedPreviewCss";
 import { injectPagedFooters } from "@/lib/scriptorium/pagedFooters";
 import { stripTrailingEmptyParagraphs } from "@/lib/scriptorium/stripTrailingEmpty";
+import { renderFurniture } from "@/lib/scriptorium/furniture/renderFurniture";
+import type { PageFurnitureItem } from "@/types/scriptorium.types";
 import type { ScriptoriumPageSize, ScriptoriumTheme } from "@/types/scriptorium.types";
 import themeBaseCss from "@/assets/scriptorium/theme-base.css?inline";
 import themeOnednd2024Css from "@/assets/scriptorium/theme-onednd2024.css?inline";
@@ -37,6 +39,7 @@ export interface PrintDocumentOptions {
   showPageNumbers: boolean;
   footerText: string;
   pageNumberStart: number;
+  furniture: PageFurnitureItem[];
 }
 
 const PAGE_SIZE_KEYWORD: Record<ScriptoriumPageSize, string> = {
@@ -109,6 +112,7 @@ export function useScriptoriumPrint() {
         footerText: opts.footerText,
         start: opts.pageNumberStart,
       });
+      renderFurniture(host, opts.furniture); // non-interactive — decorations only
 
       // 2. Capture the page-sizing rules Paged.js injected into the main head.
       const pagedStyles = Array.from(document.head.querySelectorAll("style"))
