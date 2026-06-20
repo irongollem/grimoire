@@ -1,4 +1,5 @@
 import { Node, mergeAttributes } from "@tiptap/core";
+import { watercolorSrc } from "@/lib/scriptorium/furniture/watercolorAssets";
 
 export type WatercolorVariant = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 
@@ -91,7 +92,7 @@ export const Watercolor = Node.create({
 
   renderHTML({ HTMLAttributes, node }) {
     const attrs = node.attrs as WatercolorAttrs;
-    const src = `/assets/scriptorium/watercolor/${attrs.variant}.png`;
+    const src = watercolorSrc(attrs.variant);
     const style = [
       "position:absolute",
       `top:${attrs.top}`,

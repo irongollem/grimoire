@@ -14,6 +14,7 @@
 
 import type { PageFurnitureItem, FurnitureAnchor } from "@/types/scriptorium.types";
 import { hueRotateForColor } from "@/lib/tiptap/watercolor";
+import { watercolorSrc } from "./watercolorAssets";
 
 const FURNITURE_CLASS = "sc-furniture";
 
@@ -40,8 +41,7 @@ function buildElement(item: PageFurnitureItem): HTMLElement {
 
   if (item.kind === "watercolor") {
     const img = document.createElement("img");
-    const variant = num(item.props.variant, 1);
-    img.src = `/assets/scriptorium/watercolor/${variant}.png`;
+    img.src = watercolorSrc(num(item.props.variant, 1));
     img.alt = "";
     img.style.cssText = [
       "position:absolute",

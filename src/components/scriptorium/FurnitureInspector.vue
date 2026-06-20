@@ -16,8 +16,8 @@
         <template v-if="item.kind === 'watercolor'">
           <div class="fi-row">
             <span class="fi-label">Variant</span>
-            <input type="number" min="1" max="12" :value="num('variant', 1)" class="sc-inp w-16"
-              @input="patchProps({ variant: clampInt(($event.target as HTMLInputElement).value, 1, 12) })" />
+            <input type="number" min="1" :max="WATERCOLOR_COUNT" :value="num('variant', 1)" class="sc-inp w-16"
+              @input="patchProps({ variant: clampInt(($event.target as HTMLInputElement).value, 1, WATERCOLOR_COUNT) })" />
           </div>
           <div class="fi-row">
             <span class="fi-label">Tint</span>
@@ -114,6 +114,7 @@
 import { computed } from "vue";
 import { IconClose, IconDelete } from "@/lib/icons";
 import ImageUpload from "@/components/common/ImageUpload.vue";
+import { WATERCOLOR_COUNT } from "@/lib/scriptorium/furniture/watercolorAssets";
 import type { PageFurnitureItem } from "@/types/scriptorium.types";
 
 const { item } = defineProps<{ item: PageFurnitureItem | null }>();

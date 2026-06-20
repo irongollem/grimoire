@@ -249,7 +249,7 @@ export const BLOCK_REGISTRY: BlockEntry[] = [
     group: "Decoration",
     label: "Watercolor Splatter",
     description:
-      "Absolutely-positioned watercolor blob overlay. Select the node to choose variant (1\u201312), position, width, tint colour, and opacity.",
+      "An ink splatter you drag onto the page. Pick one of nine variants and set its position, width, tint, and opacity.",
     icon: IconWater,
     furnitureKind: "watercolor",
   },

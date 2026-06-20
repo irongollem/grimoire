@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { renderFurniture } from "./renderFurniture";
 import { createFurnitureItem } from "./model";
+import { WATERCOLOR_ASSETS } from "./watercolorAssets";
 
 /** Build N fake Paged.js pages; page `blockPage` (1-based) contains `blockId`. */
 function makeContainer(n: number, blockId?: string, blockPage = 1): HTMLElement {
@@ -49,7 +50,7 @@ describe("renderFurniture", () => {
     });
     renderFurniture(c, [item]);
     const img = box(c, 1).querySelector<HTMLImageElement>(".sc-furniture--watercolor")!;
-    expect(img.getAttribute("src")).toContain("/watercolor/5.png");
+    expect(img.getAttribute("src")).toContain(`/watercolor/${WATERCOLOR_ASSETS[4]}`);
     expect(img.style.left).toBe("12%");
     expect(img.style.top).toBe("34%");
     expect(img.style.width).toBe("40%");
