@@ -2,11 +2,19 @@
   <Teleport to="body">
     <div
       v-if="item"
-      class="fixed bottom-4 left-4 z-50 w-[min(320px,92vw)] max-h-[80vh] overflow-y-auto rounded-xl border border-border bg-card shadow-2xl"
+      ref="panelRef"
+      class="fixed z-50 w-[min(320px,92vw)] max-h-[80vh] overflow-y-auto rounded-xl border border-border bg-card shadow-2xl"
+      :class="pos ? '' : 'bottom-4 left-4'"
+      :style="pos ? { left: pos.left + 'px', top: pos.top + 'px' } : undefined"
     >
-      <div class="flex items-center justify-between px-3 py-2 border-b border-border">
-        <h2 class="font-cinzel text-xs font-bold tracking-wider uppercase text-foreground">{{ kindLabel }}</h2>
-        <button type="button" class="text-muted-foreground hover:text-foreground transition-colors" title="Close" @click="$emit('close')">
+      <div
+        class="flex items-center justify-between px-3 py-2 border-b border-border cursor-move select-none"
+        style="touch-action: none"
+        title="Drag to move"
+        @pointerdown="onHeaderDown"
+      >
+        <h2 class="font-cinzel text-xs font-bold tracking-wider uppercase text-foreground pointer-events-none">{{ kindLabel }}</h2>
+        <button type="button" class="text-muted-foreground hover:text-foreground transition-colors" title="Close" @click="$emit('close')" @pointerdown.stop>
           <IconClose class="h-4 w-4" />
         </button>
       </div>
@@ -111,7 +119,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, onBeforeUnmount } from "vue";
 import { IconClose, IconDelete } from "@/lib/icons";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import { WATERCOLOR_COUNT } from "@/lib/scriptorium/furniture/watercolorAssets";
@@ -132,6 +140,38 @@ const KIND_LABELS: Record<string, string> = {
   art: "Art",
 };
 const kindLabel = computed(() => (item ? (KIND_LABELS[item.kind] ?? "Decoration") : ""));
+
+// Draggable panel: it floats over the preview and can land on the very
+// decoration you're editing, so the header is a drag handle. Until first
+// dragged, `pos` is null and the panel sits bottom-left via CSS; dragging
+// switches it to explicit (clamped) viewport coordinates.
+const panelRef = ref<HTMLElement | null>(null);
+const pos = ref<{ left: number; top: number } | null>(null);
+let start: { px: number; py: number; left: number; top: number } | null = null;
+
+function onMove(e: PointerEvent) {
+  if (!start || !panelRef.value) return;
+  const w = panelRef.value.offsetWidth;
+  const h = panelRef.value.offsetHeight;
+  const left = Math.max(8, Math.min(window.innerWidth - w - 8, start.left + (e.clientX - start.px)));
+  const top = Math.max(8, Math.min(window.innerHeight - h - 8, start.top + (e.clientY - start.py)));
+  pos.value = { left, top };
+}
+function onUp() {
+  start = null;
+  window.removeEventListener("pointermove", onMove);
+}
+function onHeaderDown(e: PointerEvent) {
+  if (!panelRef.value) return;
+  const r = panelRef.value.getBoundingClientRect();
+  pos.value = { left: r.left, top: r.top }; // anchor to current spot before dragging
+  start = { px: e.clientX, py: e.clientY, left: r.left, top: r.top };
+  window.addEventListener("pointermove", onMove);
+  window.addEventListener("pointerup", onUp, { once: true });
+  e.preventDefault();
+}
+
+onBeforeUnmount(() => window.removeEventListener("pointermove", onMove));
 
 const CORNERS = [
   { v: "top-left", label: "Top L" },
