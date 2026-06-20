@@ -9,14 +9,16 @@ import {
 } from "../_shared/provider-config.ts";
 import {
   fetchCreditCost,
-  fetchUserBalance,
   recordGeneration,
+  releaseCredits,
+  reserveCredits,
   sizeMultiplier,
 } from "../_shared/credits.ts";
 import { resolveImageProvider } from "../_shared/imageGen.ts";
 import {
   AI_PROMPT_LIMIT,
   INJECTION_GUARD_SUFFIX,
+  MAX_IMAGE_SUBJECT_CHARS,
   validatePromptInput,
   wrapUserInput,
 } from "../_shared/ai-prompt.ts";
@@ -329,17 +331,16 @@ serve(async (req: Request) => {
     : 0;
   const maxImages = generateImage ? (generateAlterEgo ? 2 : 1) : 0;
   const totalNeeded = npcTextCost + portraitCostEach * maxImages;
-  if (totalNeeded > 0) {
-    const balance = await fetchUserBalance(admin, user.id);
-    if (balance < totalNeeded) {
-      return new Response(
-        JSON.stringify({ error: "insufficient_credits", balance }),
-        {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
-    }
+  // Atomic affordability gate: hold the balance across the paid text+portrait calls.
+  const reservation = await reserveCredits(admin, user.id, totalNeeded, "npc_text");
+  if (!reservation.ok) {
+    return new Response(
+      JSON.stringify({ error: "insufficient_credits", balance: reservation.balance ?? 0 }),
+      {
+        status: 402,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   }
 
   let textResult: TextResult;
@@ -372,8 +373,10 @@ serve(async (req: Request) => {
         userContent,
       );
     } else {
-      if (!openaiKey)
+      if (!openaiKey) {
+        await releaseCredits(admin, reservation.ids);
         return new Response("No OpenAI API key configured", { status: 422 });
+      }
       textResult = await openaiText(
         openaiKey,
         textModel ?? "gpt-4o-mini",
@@ -382,6 +385,7 @@ serve(async (req: Request) => {
       );
     }
   } catch (e) {
+    await releaseCredits(admin, reservation.ids);
     console.error("NPC text generation failed:", e);
     return new Response(
       JSON.stringify({
@@ -400,6 +404,7 @@ serve(async (req: Request) => {
     generateAlterEgo &&
     (!npcData.disguise_name || !npcData.disguise_image_prompt)
   ) {
+    await releaseCredits(admin, reservation.ids);
     return new Response(
       JSON.stringify({
         error: "AI response was missing disguise fields — please try again.",
@@ -431,7 +436,7 @@ serve(async (req: Request) => {
     const imagePrompt = buildLabelledImagePrompt({
       base: imageBasePrompt,
       setting: campaign.ai_setting_prompt ?? "",
-      subject: npcData.true_portrait_prompt,
+      subject: String(npcData.true_portrait_prompt ?? "").slice(0, MAX_IMAGE_SUBJECT_CHARS),
     });
 
     try {
@@ -461,7 +466,7 @@ serve(async (req: Request) => {
       const disguisePrompt = buildSimpleImagePrompt({
         base: imageBasePrompt,
         setting: campaign.ai_setting_prompt ?? "",
-        subject: npcData.disguise_image_prompt,
+        subject: String(npcData.disguise_image_prompt ?? "").slice(0, MAX_IMAGE_SUBJECT_CHARS),
       });
       try {
         const seedBytes = Uint8Array.from(atob(portrait_b64), (c) =>
@@ -491,6 +496,8 @@ serve(async (req: Request) => {
   }
 
   // ── Record usage (deduct credits for platform-key, log-only for BYOK) ────────
+  // Release the hold first; the records below carry the real charge + analytics.
+  await releaseCredits(admin, reservation.ids);
   const recordPromises: Promise<void>[] = [
     recordGeneration(admin, user.id, "npc_text", textIsByok, npcTextCost, {
       model: textResult.usage.model,

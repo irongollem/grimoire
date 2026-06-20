@@ -4,7 +4,7 @@ import { decryptValue } from "../_shared/vault.ts";
 import { isUserPro } from "../_shared/plan.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
-import { fetchCreditCost, fetchUserBalance, recordGeneration } from "../_shared/credits.ts";
+import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits } from "../_shared/credits.ts";
 import {
   AI_PROMPT_LIMIT_LONG,
   INJECTION_GUARD_SUFFIX,
@@ -184,14 +184,13 @@ serve(async (req: Request) => {
   // ── Pre-flight credit check ────────────────────────────────────────────────
   const baseChronicleTextCost = textIsByok ? 0 : await fetchCreditCost(admin, "chronicle_text");
   const chronicleTextCost = applyMultiplier(baseChronicleTextCost, providerConfigs[textProvider as keyof typeof providerConfigs]?.text_multiplier);
-  if (chronicleTextCost > 0) {
-    const balance = await fetchUserBalance(admin, user.id);
-    if (balance < chronicleTextCost) {
-      return new Response(
-        JSON.stringify({ error: "insufficient_credits", balance }),
-        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
+  // Atomic affordability gate: hold the balance across the paid call.
+  const reservation = await reserveCredits(admin, user.id, chronicleTextCost, "chronicle_text");
+  if (!reservation.ok) {
+    return new Response(
+      JSON.stringify({ error: "insufficient_credits", balance: reservation.balance ?? 0 }),
+      { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   }
 
   const textModel = providerConfigs[textProvider as keyof typeof providerConfigs]?.text_model;
@@ -204,10 +203,14 @@ serve(async (req: Request) => {
     } else if (textProvider === "gemini" && geminiKey) {
       textResult = await geminiText(geminiKey, textModel ?? "gemini-2.5-flash", systemContent, wrapUserInput(raw_text));
     } else {
-      if (!openaiKey) return new Response("No OpenAI API key configured", { status: 422 });
+      if (!openaiKey) {
+        await releaseCredits(admin, reservation.ids);
+        return new Response("No OpenAI API key configured", { status: 422 });
+      }
       textResult = await openaiText(openaiKey, textModel ?? "gpt-4o-mini", systemContent, wrapUserInput(raw_text));
     }
   } catch (e) {
+    await releaseCredits(admin, reservation.ids);
     console.error("Chronicle text generation failed:", e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Text generation failed" }),
@@ -215,6 +218,7 @@ serve(async (req: Request) => {
     );
   }
 
+  await releaseCredits(admin, reservation.ids);
   await recordGeneration(admin, user.id, "chronicle_text", textIsByok, chronicleTextCost, {
     model: textResult.usage.model, provider: textResult.usage.provider,
     input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,

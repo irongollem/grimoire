@@ -1,12 +1,7 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@14?target=deno";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { corsHeaders } from "../_shared/cors.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
   apiVersion: "2024-06-20",
@@ -31,12 +26,14 @@ async function getCheckoutConfig(): Promise<{ promo_codes_enabled: boolean }> {
 }
 
 serve(async (req: Request) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  // Origin-allowlisted CORS (shared helper) + this endpoint's method set.
+  const cors = { ...corsHeaders(req), "Access-Control-Allow-Methods": "POST, OPTIONS" };
+  if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
   const json = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), {
       status,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...cors, "Content-Type": "application/json" },
     });
 
   try {
@@ -55,9 +52,16 @@ serve(async (req: Request) => {
     // Get or create Stripe Customer
     const { data: sub } = await admin
       .from("user_subscriptions")
-      .select("stripe_customer_id")
+      .select("stripe_customer_id, status")
       .eq("user_id", user.id)
       .single();
+
+    // Don't let an already-subscribed user open a second subscription checkout —
+    // the webhook would overwrite stripe_subscription_id and orphan the first
+    // (still-billing) subscription. Send them to the billing portal instead.
+    if (sub?.status === "active" || sub?.status === "trialing") {
+      return json({ error: "already_subscribed" }, 409);
+    }
 
     let customerId = sub?.stripe_customer_id as string | null;
     if (!customerId) {

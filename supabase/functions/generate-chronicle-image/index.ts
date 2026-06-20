@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { decryptValue } from "../_shared/vault.ts";
 import { isUserPro } from "../_shared/plan.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
-import { fetchCreditCost, fetchUserBalance, recordGeneration, sizeMultiplier } from "../_shared/credits.ts";
+import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, sizeMultiplier } from "../_shared/credits.ts";
 import { createImageJob, completeImageJob, failImageJob, type ImageJobKind } from "../_shared/imageJob.ts";
 import { fetchProviderConfigs } from "../_shared/provider-config.ts";
 import { generateImage, resolveImageProvider, type ImageProviderKey } from "../_shared/imageGen.ts";
@@ -69,8 +69,9 @@ async function runGeneration(args: {
   portrait_urls: string[];
   isByok: boolean;
   cost: number;
+  reservationIds: string[];
 }) {
-  const { jobId, userId, provider, model, apiKey, prompt, size, quality, portrait_urls, isByok, cost } = args;
+  const { jobId, userId, provider, model, apiKey, prompt, size, quality, portrait_urls, isByok, cost, reservationIds } = args;
 
   try {
     // Fetch reference portrait blobs in parallel (openai + gemini compose them).
@@ -99,6 +100,8 @@ async function runGeneration(args: {
     const imageUrl = await uploadResult(b64, userId);
     await completeImageJob(admin, jobId, imageUrl);
 
+    // Release the hold and record the real spend (one cost row, with analytics).
+    await releaseCredits(admin, reservationIds);
     await recordGeneration(admin, userId, "chronicle_image", isByok, cost, {
       model,
       provider: usage.provider,
@@ -108,6 +111,7 @@ async function runGeneration(args: {
       output_tokens: usage.output_tokens || undefined,
     }).catch(console.error);
   } catch (e) {
+    await releaseCredits(admin, reservationIds);
     console.error("Chronicle image generation failed:", e);
     await failImageJob(admin, jobId, e instanceof Error ? e.message : "Image generation failed");
   }
@@ -189,14 +193,14 @@ serve(async (req: Request) => {
   const chronicleImageCost = isByok
     ? 0
     : Math.round(await fetchCreditCost(admin, "chronicle_image") * sizeMultiplier(size) * img.imageMultiplier * 100) / 100;
-  if (chronicleImageCost > 0) {
-    const balance = await fetchUserBalance(admin, user.id);
-    if (balance < chronicleImageCost) {
-      return new Response(
-        JSON.stringify({ error: "insufficient_credits", balance }),
-        { status: 402, headers: { ...cors, "Content-Type": "application/json" } },
-      );
-    }
+  // Atomic affordability gate: hold the balance now; the background task releases
+  // it and records the real spend (or releases on failure).
+  const reservation = await reserveCredits(admin, user.id, chronicleImageCost, "chronicle_image");
+  if (!reservation.ok) {
+    return new Response(
+      JSON.stringify({ error: "insufficient_credits", balance: reservation.balance ?? 0 }),
+      { status: 402, headers: { ...cors, "Content-Type": "application/json" } },
+    );
   }
 
   const settingPrompt = campaign.ai_setting_prompt ?? "";
@@ -223,6 +227,7 @@ serve(async (req: Request) => {
   EdgeRuntime.waitUntil(runGeneration({
     jobId, userId: user.id, provider: img.provider, model, apiKey: img.apiKey,
     prompt, size, quality: img.imageQuality, portrait_urls, isByok, cost: chronicleImageCost,
+    reservationIds: reservation.ids,
   }));
 
   return new Response(

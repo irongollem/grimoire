@@ -4,11 +4,12 @@ import { decryptValue } from "../_shared/vault.ts";
 import { isUserPro } from "../_shared/plan.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
-import { fetchCreditCost, fetchUserBalance, recordGeneration, sizeMultiplier } from "../_shared/credits.ts";
+import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, sizeMultiplier } from "../_shared/credits.ts";
 import { generateImage, resolveImageProvider } from "../_shared/imageGen.ts";
 import {
   AI_PROMPT_LIMIT,
   INJECTION_GUARD_SUFFIX,
+  MAX_IMAGE_SUBJECT_CHARS,
   validatePromptInput,
   wrapUserInput,
 } from "../_shared/ai-prompt.ts";
@@ -215,14 +216,13 @@ serve(async (req: Request) => {
       ) / 100
     : 0;
   const trapTotalCost = trapCost + trapImageCost;
-  if (trapTotalCost > 0) {
-    const balance = await fetchUserBalance(admin, user.id);
-    if (balance < trapTotalCost) {
-      return new Response(
-        JSON.stringify({ error: "insufficient_credits", balance }),
-        { status: 402, headers: { ...cors, "Content-Type": "application/json" } },
-      );
-    }
+  // Atomic affordability gate: hold the balance across the paid text+image calls.
+  const reservation = await reserveCredits(admin, user.id, trapTotalCost, "trap_generation");
+  if (!reservation.ok) {
+    return new Response(
+      JSON.stringify({ error: "insufficient_credits", balance: reservation.balance ?? 0 }),
+      { status: 402, headers: { ...cors, "Content-Type": "application/json" } },
+    );
   }
 
   const textModel = providerConfigs[textProvider as keyof typeof providerConfigs]?.text_model;
@@ -235,10 +235,14 @@ serve(async (req: Request) => {
     } else if (textProvider === "gemini" && geminiKey) {
       textResult = await geminiText(geminiKey, textModel ?? "gemini-2.5-flash", systemContent, userContent);
     } else {
-      if (!openaiKey) return new Response("No OpenAI API key configured", { status: 422 });
+      if (!openaiKey) {
+        await releaseCredits(admin, reservation.ids);
+        return new Response("No OpenAI API key configured", { status: 422 });
+      }
       textResult = await openaiText(openaiKey, textModel ?? "gpt-4o-mini", systemContent, userContent);
     }
   } catch (e) {
+    await releaseCredits(admin, reservation.ids);
     console.error("Trap text generation failed:", e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Text generation failed" }),
@@ -257,7 +261,7 @@ serve(async (req: Request) => {
       const imagePrompt = buildSimpleImagePrompt({
         base: imageBasePrompt,
         setting: campaign.ai_setting_prompt ?? "",
-        subject: trapData.image_prompt,
+        subject: String(trapData.image_prompt ?? "").slice(0, MAX_IMAGE_SUBJECT_CHARS),
       });
 
       // With a party portrait, compose it into the scene (PARTY_SUFFIX explains its
@@ -284,6 +288,9 @@ serve(async (req: Request) => {
       console.error("Trap image generation failed (non-fatal):", e);
     }
   }
+
+  // Release the hold; record the real spend below (text always, image if it rendered).
+  await releaseCredits(admin, reservation.ids);
 
   // Log text generation (with credit deduction)
   await recordGeneration(admin, user.id, "trap_generation", textIsByok, trapCost, {

@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { decryptValue } from "../_shared/vault.ts";
 import { isUserPro } from "../_shared/plan.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
-import { fetchCreditCost, fetchUserBalance, recordGeneration } from "../_shared/credits.ts";
+import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits } from "../_shared/credits.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -94,67 +94,76 @@ serve(async (req: Request) => {
   const baseAudioCost = isByok ? 0 : await fetchCreditCost(admin, generationType);
   const audioCost = baseAudioCost * (geminiProviderRow?.audio_multiplier ?? 1);
 
-  if (audioCost > 0) {
-    const balance = await fetchUserBalance(admin, user.id);
-    if (balance < audioCost) {
+  // Atomic affordability gate: hold the balance for the duration of the paid
+  // Lyria call so concurrent requests cannot all pass a stale balance check.
+  const reservation = await reserveCredits(admin, user.id, audioCost, generationType);
+  if (!reservation.ok) {
+    return new Response(
+      JSON.stringify({ error: "insufficient_credits", balance: reservation.balance ?? 0 }),
+      { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
+  try {
+    const prompt = lyrics?.trim()
+      ? `${lyrics.trim()}\n\nMusical style: ${style}`
+      : style;
+
+    const lyriaRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": geminiKey,
+        },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { responseModalities: ["AUDIO", "TEXT"] },
+        }),
+      },
+    );
+
+    if (!lyriaRes.ok) {
+      await releaseCredits(admin, reservation.ids);
+      const body = await lyriaRes.json().catch(() => ({})) as { error?: { message?: string } };
       return new Response(
-        JSON.stringify({ error: "insufficient_credits", balance }),
-        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        JSON.stringify({ error: body?.error?.message ?? `Lyria API error ${lyriaRes.status}` }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
-  }
 
-  const prompt = lyrics?.trim()
-    ? `${lyrics.trim()}\n\nMusical style: ${style}`
-    : style;
+    const lyriaJson = await lyriaRes.json() as {
+      candidates?: { content?: { parts?: { inlineData?: { mimeType?: string; data?: string } }[] } }[]
+    };
 
-  const lyriaRes = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": geminiKey,
-      },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { responseModalities: ["AUDIO", "TEXT"] },
+    const parts = lyriaJson.candidates?.[0]?.content?.parts ?? [];
+    const audioPart = parts.find((p) => p.inlineData?.data);
+    if (!audioPart?.inlineData?.data) {
+      await releaseCredits(admin, reservation.ids);
+      return new Response(
+        JSON.stringify({ error: "No audio data in Lyria response." }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // Release the hold and record the real spend (one cost row, with analytics).
+    await releaseCredits(admin, reservation.ids);
+    await recordGeneration(admin, user.id, generationType, isByok, audioCost, {
+      model,
+      provider: "google",
+      image_count: 1,
+    }).catch(console.error);
+
+    return new Response(
+      JSON.stringify({
+        audio_base64: audioPart.inlineData.data,
+        mime_type: audioPart.inlineData.mimeType ?? "audio/mpeg",
       }),
-    },
-  );
-
-  if (!lyriaRes.ok) {
-    const body = await lyriaRes.json().catch(() => ({})) as { error?: { message?: string } };
-    return new Response(
-      JSON.stringify({ error: body?.error?.message ?? `Lyria API error ${lyriaRes.status}` }),
-      { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
+  } catch (e) {
+    await releaseCredits(admin, reservation.ids);
+    throw e;
   }
-
-  const lyriaJson = await lyriaRes.json() as {
-    candidates?: { content?: { parts?: { inlineData?: { mimeType?: string; data?: string } }[] } }[]
-  };
-
-  const parts = lyriaJson.candidates?.[0]?.content?.parts ?? [];
-  const audioPart = parts.find((p) => p.inlineData?.data);
-  if (!audioPart?.inlineData?.data) {
-    return new Response(
-      JSON.stringify({ error: "No audio data in Lyria response." }),
-      { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
-  }
-
-  await recordGeneration(admin, user.id, generationType, isByok, audioCost, {
-    model,
-    provider: "google",
-    image_count: 1,
-  }).catch(console.error);
-
-  return new Response(
-    JSON.stringify({
-      audio_base64: audioPart.inlineData.data,
-      mime_type: audioPart.inlineData.mimeType ?? "audio/mpeg",
-    }),
-    { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-  );
 });

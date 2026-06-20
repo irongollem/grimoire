@@ -4,13 +4,16 @@ import { decryptValue } from "../_shared/vault.ts";
 import { isUserPro } from "../_shared/plan.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
-import { fetchCreditCost, fetchUserBalance, recordGeneration } from "../_shared/credits.ts";
+import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits } from "../_shared/credits.ts";
 import { generateImage, resolveImageProvider } from "../_shared/imageGen.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// ~9 MB binary once base64-decoded — caps the client-supplied source map image.
+const MAX_SOURCE_IMAGE_B64_CHARS = 12_000_000;
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -81,6 +84,12 @@ serve(async (req: Request) => {
     return new Response("Invalid body — need { campaign_id, image_b64 }", { status: 400 });
   }
 
+  // Bound the client-supplied source image before we base64-decode it server-side
+  // (~9 MB binary). Prevents a multi-MB payload from pinning memory.
+  if (image_b64.length > MAX_SOURCE_IMAGE_B64_CHARS) {
+    return new Response("Source image too large", { status: 413 });
+  }
+
   const { data: campaign } = await admin
     .from("campaigns")
     .select("id, user_id, image_provider, openai_api_key, gemini_api_key, falai_api_key")
@@ -127,14 +136,13 @@ serve(async (req: Request) => {
   const baseCost = isByok ? 0 : await fetchCreditCost(admin, "map_style_generation");
   const cost = applyMultiplier(baseCost, img.imageMultiplier);
 
-  if (cost > 0) {
-    const balance = await fetchUserBalance(admin, user.id);
-    if (balance < cost) {
-      return new Response(
-        JSON.stringify({ error: "insufficient_credits", balance }),
-        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
+  // Atomic affordability gate: hold the balance across the paid image call.
+  const reservation = await reserveCredits(admin, user.id, cost, "map_style_generation");
+  if (!reservation.ok) {
+    return new Response(
+      JSON.stringify({ error: "insufficient_credits", balance: reservation.balance ?? 0 }),
+      { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   }
 
   const prompt = buildPrompt(preset_id, map_name, map_description, prompt_suffix);
@@ -152,6 +160,7 @@ serve(async (req: Request) => {
       prompt, size: "1024x1024", quality: img.imageQuality, sourceImages: [mapBlob],
     });
   } catch (e) {
+    await releaseCredits(admin, reservation.ids);
     const msg = e instanceof Error ? e.message : "Image generation failed";
     return new Response(
       JSON.stringify({ error: msg }),
@@ -161,6 +170,7 @@ serve(async (req: Request) => {
 
   const result_b64 = imgResult.b64;
 
+  await releaseCredits(admin, reservation.ids);
   await recordGeneration(admin, user.id, "map_style_generation", isByok, cost, {
     model: img.model,
     provider: imgResult.usage.provider,

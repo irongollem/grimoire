@@ -19,6 +19,21 @@ export type ImageJobKind =
   | "faction"
   | "location";
 
+// Allowlist of (table:column) pairs the async completion step may write to.
+// completeImageJob performs a DYNAMIC `.from(target_table).update({[target_column]})`
+// with the service-role client (RLS bypassed); without this gate a job row with
+// attacker-chosen target_* would be an arbitrary-table/column write. No caller
+// currently sets target_*; add a pair here when wiring a new target.
+const ALLOWED_IMAGE_TARGETS = new Set<string>([
+  "npcs:portrait_url",
+  "monsters:image_url",
+  "items:image_url",
+  "spells:image_url",
+  "factions:image_url",
+  "locations:image_url",
+  "party_members:group_portrait_url",
+]);
+
 export interface CreateJobInput {
   user_id: string;
   campaign_id: string;
@@ -85,6 +100,10 @@ export async function completeImageJob(
 
   const j = job as { target_table: string | null; target_id: string | null; target_column: string | null } | null;
   if (j?.target_table && j.target_id && j.target_column) {
+    if (!ALLOWED_IMAGE_TARGETS.has(`${j.target_table}:${j.target_column}`)) {
+      console.error(`completeImageJob: rejected disallowed target ${j.target_table}.${j.target_column}`);
+      return;
+    }
     const { error: targetErr } = await admin
       .from(j.target_table)
       .update({ [j.target_column]: imageUrl })

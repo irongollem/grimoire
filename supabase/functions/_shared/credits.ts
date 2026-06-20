@@ -65,6 +65,49 @@ export interface SpendResult {
   insufficient?: boolean;
 }
 
+export interface Reservation {
+  ok: boolean;
+  /** Pending ledger row ids to release once the generation settles. */
+  ids: string[];
+  insufficient?: boolean;
+  balance?: number;
+}
+
+/**
+ * Atomic affordability GATE that holds the balance for the duration of a paid
+ * provider call. Inserts PENDING negative ledger rows (counted in the balance so
+ * concurrent reservations cannot all pass, but excluded from the analytics view).
+ * MUST be called BEFORE the paid call. cost <= 0 (BYOK / free) reserves nothing.
+ * Always pair a successful reservation with releaseCredits() — on success release
+ * the hold then record the real spend via recordGeneration(); on failure release.
+ */
+export async function reserveCredits(
+  admin: SupabaseClient,
+  userId: string,
+  cost: number,
+  reason = "reserve",
+): Promise<Reservation> {
+  if (cost <= 0) return { ok: true, ids: [] };
+  const { data, error } = await admin.rpc("reserve_credits", {
+    p_user_id: userId,
+    p_reason: reason,
+    p_cost: cost,
+  });
+  if (error) {
+    console.error(`Failed to reserve credits (${reason}):`, error);
+    return { ok: false, ids: [] };
+  }
+  const res = data as { ok: boolean; ids?: string[]; insufficient?: boolean; balance?: number };
+  return { ok: res.ok, ids: res.ids ?? [], insufficient: res.insufficient, balance: res.balance };
+}
+
+/** Drop a pending reservation hold (call on both the success and failure paths). */
+export async function releaseCredits(admin: SupabaseClient, ids: string[]): Promise<void> {
+  if (!ids.length) return;
+  const { error } = await admin.rpc("release_credits", { p_ids: ids });
+  if (error) console.error("Failed to release credit reservation:", error);
+}
+
 /**
  * Atomic, race-free credit spend via the spend_credits() RPC (advisory-locked
  * per user, subscription-bucket first). The cost-bearing analytics fields

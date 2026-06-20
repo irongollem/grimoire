@@ -91,6 +91,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import { renderBasicMarkdown } from "@/lib/sanitizeHtml";
 import { IconSearch } from '@/lib/icons';
 import { useSrdRules } from "@/composables/useRules";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -121,18 +122,6 @@ function selectRule(rule: SrdRule) {
   selected.value = rule;
 }
 
-// Convert plain text to basic HTML: blank lines → paragraphs, **bold**
-const renderedContent = computed(() => {
-  if (!selected.value?.content) return "";
-  return selected.value.content
-    .split(/\n\n+/)
-    .map((para) =>
-      `<p>${para
-        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-        .replace(/\*(.+?)\*/g, "<em>$1</em>")
-        .replace(/\n/g, "<br>")
-      }</p>`
-    )
-    .join("");
-});
+// Convert plain text to basic HTML: blank lines → paragraphs, **bold** (escaped).
+const renderedContent = computed(() => renderBasicMarkdown(selected.value?.content));
 </script>

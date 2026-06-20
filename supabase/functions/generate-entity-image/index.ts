@@ -4,11 +4,12 @@ import { decryptValue } from "../_shared/vault.ts";
 import { isUserPro } from "../_shared/plan.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
-import { fetchCreditCost, fetchUserBalance, recordGeneration, sizeMultiplier } from "../_shared/credits.ts";
+import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, sizeMultiplier } from "../_shared/credits.ts";
 import { generateImage, resolveImageProvider } from "../_shared/imageGen.ts";
 import {
   AI_PROMPT_LIMIT_LONG,
   INJECTION_GUARD_SUFFIX,
+  MAX_IMAGE_SUBJECT_CHARS,
   validatePromptInput,
   wrapUserInput,
 } from "../_shared/ai-prompt.ts";
@@ -194,14 +195,13 @@ serve(async (req: Request) => {
     applyMultiplier(baseCost, img.imageMultiplier) *
     sizeMultiplier(ENTITY_IMAGE_SIZE) * 100,
   ) / 100;
-  if (cost > 0) {
-    const balance = await fetchUserBalance(admin, user.id);
-    if (balance < cost) {
-      return new Response(
-        JSON.stringify({ error: "insufficient_credits", balance }),
-        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
+  // Atomic affordability gate: hold the balance across the paid text+image calls.
+  const reservation = await reserveCredits(admin, user.id, cost, "entity_image");
+  if (!reservation.ok) {
+    return new Response(
+      JSON.stringify({ error: "insufficient_credits", balance: reservation.balance ?? 0 }),
+      { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   }
 
   // ── 1. Author a visual prompt from the entity's facts ──────────────────────
@@ -224,6 +224,7 @@ serve(async (req: Request) => {
       textResult = await openaiText(openaiKey, textModel ?? "gpt-4o-mini", systemContent, userContent);
     }
   } catch (e) {
+    await releaseCredits(admin, reservation.ids);
     console.error("Entity image prompt authoring failed:", e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Prompt authoring failed" }),
@@ -231,8 +232,11 @@ serve(async (req: Request) => {
     );
   }
 
-  const subject = textResult.content.trim();
+  // Cap the model-authored subject so a coaxed long prompt can't inflate the
+  // (token-priced) image call beyond what the credit cost assumes.
+  const subject = textResult.content.trim().slice(0, MAX_IMAGE_SUBJECT_CHARS);
   if (!subject) {
+    await releaseCredits(admin, reservation.ids);
     return new Response(
       JSON.stringify({ error: "The AI did not return an image description." }),
       { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -253,6 +257,7 @@ serve(async (req: Request) => {
       prompt: imagePrompt, size: ENTITY_IMAGE_SIZE, quality: img.imageQuality, boostStyle: true,
     });
   } catch (e) {
+    await releaseCredits(admin, reservation.ids);
     console.error("Entity image generation failed:", e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Image generation failed" }),
@@ -260,7 +265,8 @@ serve(async (req: Request) => {
     );
   }
 
-  // Charge once for the image (delta = -cost, or 0 on BYOK).
+  // Release the hold and charge once for the image (delta = -cost, or 0 on BYOK).
+  await releaseCredits(admin, reservation.ids);
   await recordGeneration(admin, user.id, "entity_image", isByok, cost, {
     model: img.model, provider: imgResult.usage.provider, image_count: 1,
     input_tokens:       imgResult.usage.input_tokens       || undefined,

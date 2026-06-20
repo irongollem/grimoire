@@ -206,8 +206,7 @@ import type { DieSize, RollResult } from "@/lib/roller";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import type { Spell as SpellType } from "@/types/spell.types";
 import { useAuthStore } from "@/stores/auth";
-import { generateHTML } from "@tiptap/core";
-import StarterKit from "@tiptap/starter-kit";
+import { renderTiptapHtml } from "@/lib/renderTiptap";
 
 const props = defineProps<{
   selectedId: string | null;
@@ -404,12 +403,7 @@ function trapTypeColor(trapType: string): string {
 // ── Render helpers ────────────────────────────────────────────────────────────
 
 function renderTraitDesc(desc: string): string {
-  if (!desc) return "";
-  try {
-    const json = JSON.parse(desc);
-    if (json?.type === "doc") return generateHTML(json, [StarterKit]);
-  } catch {}
-  return desc;
+  return renderTiptapHtml(desc);
 }
 </script>
 

@@ -293,7 +293,11 @@ async function handleClaimCurrency({ messageId }: { messageId: string }) {
   const partyMemberId = auth.linkedPartyMemberId ?? null;
   const claimerName = resolveClaimerName();
 
-  await claimCurrencyDrop(messageId, claimerName, partyMemberId);
+  try {
+    await claimCurrencyDrop(messageId, claimerName, partyMemberId);
+  } catch {
+    return; // lost the race (already claimed) or RLS denied — don't add coins
+  }
 
   // Add coins to the party member's purse if they have one linked
   if (partyMemberId) {
@@ -332,7 +336,11 @@ async function handlePayVendorOffer({ messageId }: { messageId: string }) {
   if (walletCP < costCP) return; // button is already disabled; guard against race conditions
 
   const payerName = resolveClaimerName();
-  await claimVendorOffer(messageId, payerName, partyMemberId);
+  try {
+    await claimVendorOffer(messageId, payerName, partyMemberId);
+  } catch {
+    return; // lost the race (already paid) or RLS denied — don't deduct wallet
+  }
 
   const { pp, gp, ep, sp, cp } = fromCP(walletCP - costCP);
   const vendorVaultItem = (allItems.value ?? []).find(i => i.id === meta.item_id);

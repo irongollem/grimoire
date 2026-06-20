@@ -346,56 +346,43 @@ export function useCampaignMessages() {
     if (data) _optimisticPush(data as CampaignMessage);
   }
 
+  // Claims delegate to row-locked SECURITY DEFINER RPCs (claim_vendor_offer /
+  // claim_currency_drop / claim_item_drop) which re-check the claimed flag under
+  // FOR UPDATE and stamp the claimer from auth.uid() server-side — so concurrent
+  // claims serialise and a player cannot overwrite another player's claim. The
+  // RPC raises if already claimed; callers treat a throw as "lost the race".
   async function claimVendorOffer(messageId: string, payerName: string, partyMemberId: string | null) {
-    const msg = messages.value.find(m => m.id === messageId);
-    if (!msg || msg.type !== 'vendor_offer') return;
-    const existing = msg.metadata as VendorOfferMetadata;
-    if (existing.paid_by_user_id) return;
-    const newMeta: VendorOfferMetadata = {
-      ...existing,
-      paid_by_user_id: auth.user!.id,
-      paid_by_name: payerName,
-      paid_party_member_id: partyMemberId,
-    };
-    const { error } = await supabase.from("campaign_messages").update({ metadata: newMeta }).eq("id", messageId);
+    const { data, error } = await supabase.rpc("claim_vendor_offer", {
+      p_message_id: messageId,
+      p_payer_name: payerName,
+      p_party_member_id: partyMemberId,
+    });
     if (error) throw error;
     const idx = messages.value.findIndex(m => m.id === messageId);
-    if (idx >= 0) messages.value[idx] = { ...messages.value[idx], metadata: newMeta };
+    if (idx >= 0 && data) messages.value[idx] = { ...messages.value[idx], metadata: data as VendorOfferMetadata };
   }
 
   async function claimCurrencyDrop(messageId: string, claimerName: string, partyMemberId: string | null) {
-    const msg = messages.value.find(m => m.id === messageId);
-    if (!msg || msg.type !== 'currency_drop') return;
-    const existing = msg.metadata as CurrencyDropMetadata;
-    if (existing.claimed_by_user_id) return;
-    const newMeta: CurrencyDropMetadata = {
-      ...existing,
-      claimed_by_user_id: auth.user!.id,
-      claimed_by_name: claimerName,
-      claimed_party_member_id: partyMemberId,
-    };
-    const { error } = await supabase.from("campaign_messages").update({ metadata: newMeta }).eq("id", messageId);
+    const { data, error } = await supabase.rpc("claim_currency_drop", {
+      p_message_id: messageId,
+      p_claimer_name: claimerName,
+      p_party_member_id: partyMemberId,
+    });
     if (error) throw error;
     const idx = messages.value.findIndex(m => m.id === messageId);
-    if (idx >= 0) messages.value[idx] = { ...messages.value[idx], metadata: newMeta };
+    if (idx >= 0 && data) messages.value[idx] = { ...messages.value[idx], metadata: data as CurrencyDropMetadata };
   }
 
   async function claimItemDrop(messageId: string, claimerName: string, partyMemberId: string | null, npcId?: string | null) {
-    const msg = messages.value.find(m => m.id === messageId);
-    if (!msg || msg.type !== 'item_drop') return;
-    const existing = msg.metadata as ItemDropMetadata;
-    if (existing.claimed_by_user_id) return;
-    const newMeta: ItemDropMetadata = {
-      ...existing,
-      claimed_by_user_id: auth.user!.id,
-      claimed_by_name: claimerName,
-      claimed_party_member_id: partyMemberId,
-      npc_id: npcId,
-    };
-    const { error } = await supabase.from("campaign_messages").update({ metadata: newMeta }).eq("id", messageId);
+    const { data, error } = await supabase.rpc("claim_item_drop", {
+      p_message_id: messageId,
+      p_claimer_name: claimerName,
+      p_party_member_id: partyMemberId,
+      p_npc_id: npcId ?? null,
+    });
     if (error) throw error;
     const idx = messages.value.findIndex(m => m.id === messageId);
-    if (idx >= 0) messages.value[idx] = { ...messages.value[idx], metadata: newMeta };
+    if (idx >= 0 && data) messages.value[idx] = { ...messages.value[idx], metadata: data as ItemDropMetadata };
   }
 
   // ── Stacked item grab (issue #126) ───────────────────────────────────────

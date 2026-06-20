@@ -160,8 +160,7 @@
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import { IconClose, IconEdit } from '@/lib/icons';
-import { generateHTML } from "@tiptap/core";
-import StarterKit from "@tiptap/starter-kit";
+import { renderTiptapHtml } from "@/lib/renderTiptap";
 import FocalImage from "@/components/common/FocalImage.vue";
 import { TRAP_TYPE_COLORS } from "@/types/trap.types";
 import { crToXp } from "@/types/encounter.types";
@@ -171,13 +170,7 @@ const props = defineProps<{ trap: Trap | null }>();
 const emit = defineEmits<{ close: [] }>();
 
 function renderRichText(content: string | null): string {
-  if (!content) return "";
-  try {
-    const json = typeof content === "string" ? JSON.parse(content) : content;
-    return generateHTML(json, [StarterKit]);
-  } catch {
-    return `<p>${content}</p>`;
-  }
+  return renderTiptapHtml(content);
 }
 
 const descriptionHtml = computed(() => renderRichText(props.trap?.description ?? null));

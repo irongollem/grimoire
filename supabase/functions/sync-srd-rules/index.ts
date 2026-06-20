@@ -1,5 +1,18 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// Constant-time string comparison so the service-role-key check can't be probed
+// with a timing side channel. (Length is allowed to leak; the key is long, high
+// entropy.)
+function timingSafeEqual(a: string, b: string): boolean {
+  const enc = new TextEncoder();
+  const ab = enc.encode(a);
+  const bb = enc.encode(b);
+  if (ab.length !== bb.length) return false;
+  let diff = 0;
+  for (let i = 0; i < ab.length; i++) diff |= ab[i] ^ bb[i];
+  return diff === 0;
+}
+
 // Open5e v1 `/v1/sections/` — 2014 SRD 5.1 prose sections.
 //
 // Earlier this function pulled from v2 `/v2/rulesets/` (the 2024 / 5.5e
@@ -101,7 +114,7 @@ Deno.serve(async (req) => {
     // as the bearer token); otherwise require a verified admin user. Either way,
     // an ordinary authenticated user cannot trigger a canonical re-sync.
     const bearer = authHeader.replace(/^Bearer\s+/i, "");
-    const isServiceRole = bearer === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const isServiceRole = timingSafeEqual(bearer, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
     if (!isServiceRole) {
       const caller = createClient(
         Deno.env.get("SUPABASE_URL")!,
@@ -162,7 +175,7 @@ Deno.serve(async (req) => {
   } catch (err) {
     console.error("sync-srd-rules error:", err);
     return new Response(
-      JSON.stringify({ ok: false, error: String(err) }),
+      JSON.stringify({ ok: false, error: "Internal server error" }),
       { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }

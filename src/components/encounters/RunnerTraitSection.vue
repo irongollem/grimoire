@@ -29,8 +29,7 @@
 
 <script setup lang="ts">
 import { parseExpression } from "@/lib/dice";
-import { generateHTML } from "@tiptap/core";
-import StarterKit from "@tiptap/starter-kit";
+import { renderTiptapHtml } from "@/lib/renderTiptap";
 
 export interface TraitEntry {
   name: string;
@@ -72,12 +71,7 @@ function actionDiceLabel(desc: string): string {
 }
 
 function renderTraitDesc(desc: string): string {
-  if (!desc) return "";
-  try {
-    const json = JSON.parse(desc);
-    if (json?.type === "doc") return generateHTML(json, [StarterKit]);
-  } catch {}
-  return desc;
+  return renderTiptapHtml(desc);
 }
 </script>
 

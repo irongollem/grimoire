@@ -22,6 +22,11 @@ export const AI_PROMPT_LIMIT       = 1000;
 export const AI_PROMPT_LIMIT_SHORT =  500;
 export const AI_PROMPT_LIMIT_LONG  = 2000;
 
+// Cap on a model-AUTHORED image-subject string before it is concatenated into a
+// (token-priced) image prompt — bounds cost even if the text model is coaxed
+// into emitting an unusually long description.
+export const MAX_IMAGE_SUBJECT_CHARS = 600;
+
 // ── Injection guard ───────────────────────────────────────────────────────────
 
 export const INJECTION_GUARD_SUFFIX =

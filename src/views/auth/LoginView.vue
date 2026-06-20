@@ -69,7 +69,10 @@ async function handleSubmit() {
   errorMessage.value = "";
   try {
     await auth.signIn(email.value, password.value);
-    const redirect = (route.query.redirect as string) || "/dashboard";
+    // Only honour same-app relative paths — reject `//host`, `/\host`, or absolute
+    // URLs so a crafted ?redirect= can't bounce the user off-site.
+    const raw = (route.query.redirect as string) || "/dashboard";
+    const redirect = /^\/(?![/\\])/.test(raw) ? raw : "/dashboard";
     router.push(redirect);
   } catch (err) {
     errorMessage.value =

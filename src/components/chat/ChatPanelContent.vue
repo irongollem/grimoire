@@ -314,7 +314,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch, nextTick, shallowRef, onMounted } from "vue";
-import { marked } from "marked";
+import { renderChatMessage } from "@/lib/chatMarkdown";
 import { IconClose, IconDelete, IconDiceRoll, IconMessage, IconSend, IconShop } from '@/lib/icons';
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { formatChatTimestamp } from "@/lib/utils";
@@ -580,9 +580,7 @@ const { chatLocale } = useLocalePrefs();
 function timeLabel(iso: string) { return formatChatTimestamp(iso, chatLocale.value); }
 
 function renderMessage(text: string): string {
-  // Render inline markdown (bold, italic, code) only — no block elements.
-  // marked.parseInline escapes HTML by default, preventing XSS.
-  return marked.parseInline(text, { async: false }) as string;
+  return renderChatMessage(text);
 }
 </script>
 

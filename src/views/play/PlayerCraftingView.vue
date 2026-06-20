@@ -184,8 +184,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { generateHTML } from "@tiptap/core";
-import StarterKit from "@tiptap/starter-kit";
+import { renderTiptapHtml } from "@/lib/renderTiptap";
 import { IconCheckCircle, IconCloseCircle, IconDiceRoll, IconListView } from '@/lib/icons';
 import PageHeader from "@/components/common/PageHeader.vue";
 import CraftAttemptDialog from "@/components/crafting/CraftAttemptDialog.vue";
@@ -323,12 +322,7 @@ function tabClass(d: DisciplineConfig) {
 }
 
 function renderDescription(content: string | null): string {
-  if (!content) return "";
-  try {
-    return generateHTML(JSON.parse(content), [StarterKit]);
-  } catch {
-    return content;
-  }
+  return renderTiptapHtml(content);
 }
 
 function openAttempt(recipe: CraftingRecipe) {

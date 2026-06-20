@@ -26,6 +26,18 @@ interface BugReportPayload {
   submittedBy?: string;
 }
 
+// User-supplied fields are untrusted. Render each as a fenced code block so the
+// content cannot inject markdown/HTML, spoof the `> [!IMPORTANT]` maintainer
+// banner, or trigger GitHub @mention notifications (no autolinking inside code).
+function fenced(s: string): string {
+  return "```text\n" + s.trim().replace(/```/g, "ʼʼʼ") + "\n```";
+}
+
+// Single-line, mention-safe rendering for inline use (titles, the submitter line).
+function inlineSafe(s: string): string {
+  return s.replace(/[\r\n]+/g, " ").replace(/[`@<>]/g, "").trim();
+}
+
 Deno.serve(async (req: Request) => {
   const cors = corsHeaders(req);
 
@@ -144,7 +156,7 @@ Deno.serve(async (req: Request) => {
   }
 
   const timestamp = new Date().toISOString().replace("T", " ").slice(0, 19) + " UTC";
-  const submitter = submittedBy?.trim() || "Anonymous";
+  const submitter = inlineSafe(submittedBy ?? "").slice(0, 80) || "Anonymous";
 
   const body = [
     "> [!IMPORTANT]",
@@ -154,16 +166,16 @@ Deno.serve(async (req: Request) => {
     "---",
     "",
     "### Where in the app",
-    where.trim(),
+    fenced(where),
     "",
     "### What the user was doing",
-    action.trim(),
+    fenced(action),
     "",
     "### What they expected",
-    expected.trim(),
+    fenced(expected),
     "",
     "### What actually happened",
-    actual.trim(),
+    fenced(actual),
     "",
     "### Screenshot",
     screenshotUrl ? `![Screenshot](${screenshotUrl})` : "*None provided*",
@@ -172,7 +184,7 @@ Deno.serve(async (req: Request) => {
     `*Submitted by: ${submitter} · ${timestamp}*`,
   ].join("\n");
 
-  const issueTitle = `[App Bug Report] ${where.trim().slice(0, 80)}`;
+  const issueTitle = `[App Bug Report] ${inlineSafe(where).slice(0, 80)}`;
 
   const ghResponse = await fetch("https://api.github.com/repos/irongollem/grimoire/issues", {
     method: "POST",

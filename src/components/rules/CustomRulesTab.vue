@@ -133,6 +133,7 @@
 
 <script setup lang="ts">
 import { computed, shallowRef } from "vue";
+import { renderBasicMarkdown } from "@/lib/sanitizeHtml";
 import { IconChevronRight, IconReveal, IconSearch } from '@/lib/icons';
 import { useRules } from "@/composables/useRules";
 import { RULE_CATEGORIES } from "@/types/rule.types";
@@ -166,16 +167,7 @@ function toggleBuiltIn(key: string) {
 }
 
 function renderMarkdown(text: string): string {
-  return text
-    .split(/\n\n+/)
-    .map((para) =>
-      `<p>${para
-        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-        .replace(/\*(.+?)\*/g, "<em>$1</em>")
-        .replace(/\n/g, "<br>")
-      }</p>`,
-    )
-    .join("");
+  return renderBasicMarkdown(text);
 }
 
 const filtered = computed(() => {

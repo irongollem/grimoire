@@ -124,6 +124,7 @@
 
 <script setup lang="ts">
 import { ref, computed, shallowRef } from "vue";
+import { renderBasicMarkdown } from "@/lib/sanitizeHtml";
 import { IconChevronRight } from '@/lib/icons';
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
@@ -185,15 +186,6 @@ function toggleRule(id: string) {
 }
 
 function renderMarkdown(text: string): string {
-  return text
-    .split(/\n\n+/)
-    .map((para) =>
-      `<p>${para
-        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-        .replace(/\*(.+?)\*/g, "<em>$1</em>")
-        .replace(/\n/g, "<br>")
-      }</p>`,
-    )
-    .join("");
+  return renderBasicMarkdown(text);
 }
 </script>

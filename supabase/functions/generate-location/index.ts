@@ -4,11 +4,12 @@ import { decryptValue } from "../_shared/vault.ts";
 import { isUserPro } from "../_shared/plan.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
-import { fetchCreditCost, fetchUserBalance, recordGeneration, sizeMultiplier } from "../_shared/credits.ts";
+import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, sizeMultiplier } from "../_shared/credits.ts";
 import { generateImage, resolveImageProvider } from "../_shared/imageGen.ts";
 import {
   AI_PROMPT_LIMIT,
   INJECTION_GUARD_SUFFIX,
+  MAX_IMAGE_SUBJECT_CHARS,
   validatePromptInput,
   wrapUserInput,
 } from "../_shared/ai-prompt.ts";
@@ -217,14 +218,13 @@ serve(async (req: Request) => {
       ) / 100
     : 0;
   const locationTotalCost = locationCost + (generate_image ? perImageCost : 0) + (generate_map ? perImageCost : 0);
-  if (locationTotalCost > 0) {
-    const balance = await fetchUserBalance(admin, user.id);
-    if (balance < locationTotalCost) {
-      return new Response(
-        JSON.stringify({ error: "insufficient_credits", balance }),
-        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
+  // Atomic affordability gate: hold the balance across the paid text+image calls.
+  const reservation = await reserveCredits(admin, user.id, locationTotalCost, "location_generation");
+  if (!reservation.ok) {
+    return new Response(
+      JSON.stringify({ error: "insufficient_credits", balance: reservation.balance ?? 0 }),
+      { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   }
 
   const textModel = providerConfigs[textProvider as keyof typeof providerConfigs]?.text_model;
@@ -237,10 +237,14 @@ serve(async (req: Request) => {
     } else if (textProvider === "gemini" && geminiKey) {
       textResult = await geminiText(geminiKey, textModel ?? "gemini-2.5-flash", systemContent, userContent);
     } else {
-      if (!openaiKey) return new Response("No OpenAI API key configured", { status: 422 });
+      if (!openaiKey) {
+        await releaseCredits(admin, reservation.ids);
+        return new Response("No OpenAI API key configured", { status: 422 });
+      }
       textResult = await openaiText(openaiKey, textModel ?? "gpt-4o-mini", systemContent, userContent);
     }
   } catch (e) {
+    await releaseCredits(admin, reservation.ids);
     console.error("Location text generation failed:", e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Text generation failed" }),
@@ -265,7 +269,7 @@ serve(async (req: Request) => {
             prompt: buildSimpleImagePrompt({
               base: imageBasePrompt,
               setting: campaign.ai_setting_prompt ?? "",
-              subject: locationData.image_prompt,
+              subject: String(locationData.image_prompt ?? "").slice(0, MAX_IMAGE_SUBJECT_CHARS),
             }),
             size: "1024x1024", quality: img.imageQuality, boostStyle: true,
           })
@@ -273,7 +277,7 @@ serve(async (req: Request) => {
       generate_map
         ? generateImage({
             provider: img.provider, model: img.model, apiKey: img.apiKey,
-            prompt: [MAP_BASE_PROMPT, locationData.map_prompt].filter(Boolean).join(" — "),
+            prompt: [MAP_BASE_PROMPT, String(locationData.map_prompt ?? "").slice(0, MAX_IMAGE_SUBJECT_CHARS)].filter(Boolean).join(" — "),
             size: "1024x1024", quality: img.imageQuality,
           })
         : Promise.resolve(null),
@@ -285,6 +289,9 @@ serve(async (req: Request) => {
     if (mapSettled.status === "fulfilled" && mapSettled.value) { mapImgResult = mapSettled.value; map_b64 = mapSettled.value.b64; }
     else if (mapSettled.status === "rejected") console.error("Location map image failed (non-fatal):", mapSettled.reason);
   }
+
+  // Release the hold; record the real spend below (text always, each image if it rendered).
+  await releaseCredits(admin, reservation.ids);
 
   // Log text generation (with credit deduction)
   await recordGeneration(admin, user.id, "location_generation", textIsByok, locationCost, {

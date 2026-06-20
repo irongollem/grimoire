@@ -1,10 +1,6 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { corsHeaders as makeCors } from "../_shared/cors.ts";
 
 // Only CC0 + CC-BY. CC-BY-NC is excluded because Grimoire is a commercial product
 // (Pro tier), and we want to respect contributor intent regardless of free-tier
@@ -103,6 +99,8 @@ export function trimHit(hit: FreesoundResult): TrimmedHit | null {
 }
 
 serve(async (req: Request) => {
+  // Origin-allowlisted CORS (shared helper) instead of a wildcard.
+  const corsHeaders = makeCors(req);
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "GET") {
     return new Response("Method not allowed", { status: 405, headers: corsHeaders });
