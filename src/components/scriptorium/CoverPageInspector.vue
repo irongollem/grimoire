@@ -69,6 +69,16 @@
                 placeholder="Drop cover art or click to upload"
               />
             </div>
+            <label
+              v-if="variant === 'front' && local.backgroundImage"
+              class="flex items-start gap-2 cursor-pointer"
+            >
+              <input v-model="local.titleScrim" type="checkbox" class="mt-0.5 h-4 w-4 accent-primary shrink-0" />
+              <span class="space-y-0.5">
+                <span class="block font-cinzel text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Darken behind title</span>
+                <span class="block font-fell text-xs text-muted-foreground italic">Adds a soft gradient under the title for legibility. Turn off if your art already leaves room for it.</span>
+              </span>
+            </label>
           </template>
 
           <!-- Part divider -->
@@ -232,6 +242,7 @@ const local = reactive<Partial<CoverPageAttrs>>({
   tagline: "",
   productUrl: "",
   backgroundImage: "",
+  titleScrim: true,
 });
 
 const applyError = ref("");
@@ -266,6 +277,7 @@ watch(
     local.tagline = attrs.tagline ?? "";
     local.productUrl = attrs.productUrl ?? "";
     local.backgroundImage = attrs.backgroundImage ?? "";
+    local.titleScrim = attrs.titleScrim ?? true;
   },
 );
 

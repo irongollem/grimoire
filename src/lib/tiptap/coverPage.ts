@@ -26,6 +26,11 @@ export interface CoverPageAttrs {
    * Authors replace this via the existing image toolbar / AssetInsertPanel.
    */
   backgroundImage: string;
+  /**
+   * Darken behind the title for legibility (front cover). On by default;
+   * authors can turn it off when their art is already composed for the title.
+   */
+  titleScrim: boolean;
 }
 
 function strAttr(key: string, fallback: string) {
@@ -33,6 +38,17 @@ function strAttr(key: string, fallback: string) {
     default: fallback,
     parseHTML: (el: HTMLElement) => el.getAttribute(`data-${key}`) ?? fallback,
     renderHTML: (attrs: Record<string, unknown>) => ({ [`data-${key}`]: attrs[key] }),
+  };
+}
+
+function boolAttr(key: string, fallback: boolean) {
+  return {
+    default: fallback,
+    parseHTML: (el: HTMLElement) => {
+      const v = el.getAttribute(`data-${key}`);
+      return v === null ? fallback : v !== "false";
+    },
+    renderHTML: (attrs: Record<string, unknown>) => ({ [`data-${key}`]: String(attrs[key]) }),
   };
 }
 
@@ -75,6 +91,7 @@ export const CoverPage = Node.create({
       tagline: strAttr("tagline", "An unofficial Grimoire supplement"),
       productUrl: strAttr("productUrl", "grimoire.example.com"),
       backgroundImage: strAttr("backgroundImage", ""),
+      titleScrim: boolAttr("titleScrim", true),
     };
   },
 
@@ -130,11 +147,17 @@ function buildCoverInner(variant: CoverPageVariant, attrs: CoverPageAttrs): Node
 // ── Front cover ──────────────────────────────────────────────────────────────
 
 const FRONT_ART_IMG_STYLE =
-  "position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;opacity:0.55";
+  "position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0";
 
 const FRONT_ART_DIV_STYLE =
   "position:absolute;inset:0;width:100%;height:100%;z-index:0;" +
   "background:var(--sc-accent,#1B3A4B);opacity:0.18";
+
+// The art is shown at full strength; only a gradient scrim behind the title
+// (bottom third) darkens for legibility — the rest of the image is untouched.
+const FRONT_SCRIM_STYLE =
+  "position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(" +
+  "to top,rgba(0,0,0,0.6) 0%,rgba(0,0,0,0.25) 28%,rgba(0,0,0,0) 55%)";
 
 const FRONT_OVERLAY_STYLE =
   "position:absolute;inset:0;display:flex;flex-direction:column;" +
@@ -159,13 +182,16 @@ const FRONT_BOTTOM_BAR_STYLE =
 const FRONT_BODY_STYLE =
   "flex:1;display:flex;flex-direction:column;justify-content:flex-end;padding-bottom:1.5rem";
 
-function buildFront(attrs: CoverPageAttrs): NodeSpec[] {
+export function buildFront(attrs: CoverPageAttrs): NodeSpec[] {
   const coverBg: NodeSpec = attrs.backgroundImage
     ? ["img", { src: attrs.backgroundImage, style: FRONT_ART_IMG_STYLE, alt: "" }]
     : ["div", { style: FRONT_ART_DIV_STYLE }];
 
   return [
     coverBg,
+    // Legibility scrim behind the title — default on, but only when there's art
+    // to read over and the author hasn't turned it off for made-to-order art.
+    ...(attrs.backgroundImage && attrs.titleScrim ? [["div", { style: FRONT_SCRIM_STYLE }] as NodeSpec] : []),
     [
       "div",
       { style: FRONT_OVERLAY_STYLE },
