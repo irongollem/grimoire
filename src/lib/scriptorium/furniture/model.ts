@@ -18,7 +18,7 @@ const KIND_DEFAULTS: Record<
   { x: number; y: number; width: number; z: "under" | "over"; props: Record<string, string | number> }
 > = {
   // A splatter blob, behind the text.
-  watercolor: { x: 8, y: 10, width: 35, z: "under", props: { variant: 1, color: "#7d1c1c", opacity: 80 } },
+  watercolor: { x: 8, y: 10, width: 35, z: "under", props: { variant: 1, color: "#2a2018", opacity: 80 } },
   // Page-spanning diagonal text behind the body (x/y/width ignored by the renderer).
   watermark: { x: 0, y: 0, width: 100, z: "under", props: { text: "DRAFT", rotation: -30, opacity: 15 } },
   // Corner caption above the art.

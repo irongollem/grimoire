@@ -43,18 +43,22 @@ describe("renderFurniture", () => {
     expect(c.querySelectorAll(".sc-furniture")).toHaveLength(0);
   });
 
-  it("positions watercolor/art by percentage and sets the asset src", () => {
+  it("paints the watercolor as a tinted mask positioned by percentage", () => {
     const c = makeContainer(1);
     const item = createFurnitureItem("watercolor", { type: "page", page: 1 }, {
       x: 12, y: 34, width: 40, props: { variant: 5, opacity: 50, color: "#7d1c1c" },
     });
     renderFurniture(c, [item]);
-    const img = box(c, 1).querySelector<HTMLImageElement>(".sc-furniture--watercolor")!;
-    expect(img.getAttribute("src")).toContain(`/watercolor/${WATERCOLOR_ASSETS[4]}`);
-    expect(img.style.left).toBe("12%");
-    expect(img.style.top).toBe("34%");
-    expect(img.style.width).toBe("40%");
-    expect(img.style.opacity).toBe("0.5");
+    const el = box(c, 1).querySelector<HTMLElement>(".sc-furniture--watercolor")!;
+    const style = el.getAttribute("style") ?? "";
+    // Variant 5 → the 5th asset, painted via mask (no <img>); tint via background.
+    expect(style).toContain(WATERCOLOR_ASSETS[4].file);
+    expect(style).toContain("mask");
+    expect(style).toContain("#7d1c1c");
+    expect(el.style.left).toBe("12%");
+    expect(el.style.top).toBe("34%");
+    expect(el.style.width).toBe("40%");
+    expect(el.style.opacity).toBe("0.5");
   });
 
   it("renders a page-spanning watermark with its text", () => {

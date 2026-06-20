@@ -13,8 +13,7 @@
  */
 
 import type { PageFurnitureItem, FurnitureAnchor } from "@/types/scriptorium.types";
-import { hueRotateForColor } from "@/lib/tiptap/watercolor";
-import { watercolorSrc } from "./watercolorAssets";
+import { watercolorAsset } from "./watercolorAssets";
 
 const FURNITURE_CLASS = "sc-furniture";
 
@@ -40,22 +39,28 @@ function buildElement(item: PageFurnitureItem): HTMLElement {
   const zIndex = item.z === "over" ? "6" : "0";
 
   if (item.kind === "watercolor") {
-    const img = document.createElement("img");
-    img.src = watercolorSrc(num(item.props.variant, 1));
-    img.alt = "";
-    img.style.cssText = [
+    // The ink art is monochrome, so paint it as a mask filled with the tint
+    // colour (a hue-rotate filter can't recolour black). The box is height-less,
+    // so aspect-ratio reconstructs it from the source art's proportions.
+    const asset = watercolorAsset(num(item.props.variant, 1));
+    const src = `/assets/scriptorium/watercolor/${asset.file}`;
+    const mask = `url("${src}") center / contain no-repeat`;
+    const div = document.createElement("div");
+    div.style.cssText = [
       "position:absolute",
       `left:${item.x}%`,
       `top:${item.y}%`,
       `width:${item.width}%`,
-      "height:auto",
+      `aspect-ratio:${asset.aspect}`,
+      `background-color:${str(item.props.color, "#2a2018")}`,
+      `-webkit-mask:${mask}`,
+      `mask:${mask}`,
       `opacity:${num(item.props.opacity, 80) / 100}`,
       "mix-blend-mode:multiply",
-      `filter:hue-rotate(${hueRotateForColor(str(item.props.color, "#7d1c1c"))}deg) saturate(1.4)`,
       "pointer-events:none",
       `z-index:${zIndex}`,
     ].join(";");
-    return decorate(img, item);
+    return decorate(div, item);
   }
 
   if (item.kind === "art") {

@@ -21,7 +21,7 @@
           </div>
           <div class="fi-row">
             <span class="fi-label">Tint</span>
-            <input type="color" :value="str('color', '#7d1c1c')" class="h-7 w-12 rounded border border-border bg-transparent"
+            <input type="color" :value="str('color', '#2a2018')" class="h-7 w-12 rounded border border-border bg-transparent"
               @input="patchProps({ color: ($event.target as HTMLInputElement).value })" />
           </div>
           <div class="fi-row">

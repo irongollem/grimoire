@@ -4,25 +4,38 @@
  * Single source of truth for the decoration art shipped under
  * public/assets/scriptorium/watercolor/. A furniture item stores a 1-based
  * `variant` index into this list (kept numeric so saved docs stay stable even
- * if the underlying filenames change), and `watercolorSrc` resolves it to a URL.
+ * if the underlying filenames change); the renderer paints the asset as a CSS
+ * mask filled with the item's tint colour, so `aspect` is needed to size the
+ * (height-less) masked box correctly.
  */
 
-export const WATERCOLOR_ASSETS = [
-  "ink_asset_01_heavy_blot.png",
-  "ink_asset_02_diagonal_splash.png",
-  "ink_asset_03_dragged_smear.png",
-  "ink_asset_04_corner_seep.png",
-  "ink_asset_05_round_drips.png",
-  "ink_asset_06_light_speckle.png",
-  "ink_asset_07_cluster_spill.png",
-  "ink_asset_08_starburst.png",
-  "ink_asset_09_diffuse_wash.png",
+export interface WatercolorAsset {
+  file: string;
+  /** width / height of the source art — drives the masked box's aspect-ratio. */
+  aspect: number;
+}
+
+export const WATERCOLOR_ASSETS: readonly WatercolorAsset[] = [
+  { file: "ink_asset_01_heavy_blot.png", aspect: 1 },
+  { file: "ink_asset_02_diagonal_splash.png", aspect: 1448 / 1086 },
+  { file: "ink_asset_03_dragged_smear.png", aspect: 1448 / 1086 },
+  { file: "ink_asset_04_corner_seep.png", aspect: 1 },
+  { file: "ink_asset_05_round_drips.png", aspect: 1086 / 1448 },
+  { file: "ink_asset_06_light_speckle.png", aspect: 1 },
+  { file: "ink_asset_07_cluster_spill.png", aspect: 1 },
+  { file: "ink_asset_08_starburst.png", aspect: 1 },
+  { file: "ink_asset_09_diffuse_wash.png", aspect: 1 },
 ] as const;
 
 export const WATERCOLOR_COUNT = WATERCOLOR_ASSETS.length;
 
-/** Resolve a 1-based variant index to its asset URL (clamped into range). */
-export function watercolorSrc(variant: number): string {
+/** Resolve a 1-based variant index to its asset record (clamped into range). */
+export function watercolorAsset(variant: number): WatercolorAsset {
   const i = Math.min(WATERCOLOR_COUNT, Math.max(1, Math.round(variant || 1))) - 1;
-  return `/assets/scriptorium/watercolor/${WATERCOLOR_ASSETS[i]}`;
+  return WATERCOLOR_ASSETS[i];
+}
+
+/** Resolve a 1-based variant index to its asset URL. */
+export function watercolorSrc(variant: number): string {
+  return `/assets/scriptorium/watercolor/${watercolorAsset(variant).file}`;
 }
