@@ -39,8 +39,10 @@ async function encryptValue(plaintext: string): Promise<string> {
 }
 
 async function decryptValue(encrypted: string): Promise<string> {
+  // No legacy plaintext exists (verified) — a non-enc value is malformed input,
+  // never something to echo back unchanged.
   if (!encrypted.startsWith("enc:v1:")) {
-    return encrypted; // legacy plaintext passthrough
+    throw new Error("Invalid ciphertext format");
   }
   const parts = encrypted.split(":");
   if (parts.length !== 4) {
@@ -133,7 +135,11 @@ serve(async (req: Request) => {
       // keys, or platform keys for admins). Never a blind decryption oracle.
       const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
       if (!value.startsWith("enc:v1:")) {
-        result = value; // legacy plaintext passthrough — nothing to protect
+        // Not a vault ciphertext — reject rather than echo arbitrary input back.
+        return new Response(JSON.stringify({ error: "Invalid ciphertext" }), {
+          status: 400,
+          headers: { ...cors, "Content-Type": "application/json" },
+        });
       } else if (await callerOwnsBlob(admin, user.id, isAdmin, value)) {
         result = await decryptValue(value);
       } else {

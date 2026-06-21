@@ -31,7 +31,9 @@ export async function encryptValue(plaintext: string): Promise<string> {
 }
 
 export async function decryptValue(encrypted: string): Promise<string> {
-  if (!encrypted.startsWith("enc:v1:")) return encrypted;
+  // No legacy plaintext exists (verified); a non-enc value is malformed, not a
+  // passthrough — reject so this never silently returns un-decrypted input.
+  if (!encrypted.startsWith("enc:v1:")) throw new Error("Invalid ciphertext format");
   const parts = encrypted.split(":");
   if (parts.length !== 4) throw new Error("Invalid encrypted format");
   const [, , ivB64, ctB64] = parts;
