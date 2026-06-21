@@ -250,6 +250,21 @@
         >
           Back
         </button>
+        <label
+          class="flex items-center gap-2 px-4 py-2 font-cinzel text-xs font-semibold tracking-wider border border-border text-foreground rounded-md hover:bg-muted transition-colors cursor-pointer"
+          :class="{ 'opacity-50 pointer-events-none': isAttaching || !bundleName.trim() || totalSelected === 0 }"
+          title="Embed the selected campaign data into a PDF you exported from Scriptorium, so importing that PDF populates a campaign"
+        >
+          <IconUpload class="h-3.5 w-3.5" />
+          {{ isAttaching ? "Attaching…" : "Attach to PDF…" }}
+          <input
+            type="file"
+            accept=".pdf,application/pdf"
+            class="sr-only"
+            :disabled="isAttaching || !bundleName.trim() || totalSelected === 0"
+            @change="onAttachPdf"
+          />
+        </label>
         <button
           :disabled="isExporting || !bundleName.trim() || totalSelected === 0"
           class="flex items-center gap-2 px-4 py-2 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
@@ -273,6 +288,7 @@ import { useAuthStore } from "@/stores/auth";
 import {
   useExportWorldBundle,
   useEntityPickerItems,
+  buildBundle,
   BUNDLE_ENTITY_TYPES,
 } from "@/composables/useWorldBundle";
 import type { BundleEntityKey } from "@/composables/useWorldBundle";
@@ -439,26 +455,69 @@ function goBack() {
 // ── Export ────────────────────────────────────────────────────────────────────
 
 const { mutateAsync: runExport, isPending: isExporting } = useExportWorldBundle();
+const isAttaching = ref(false);
+
+/** Selected entities as a {type → ids} map, shared by .grimoire export + PDF attach. */
+function currentSelectionMap(): Map<BundleEntityKey, string[]> {
+  const selectionMap = new Map<BundleEntityKey, string[]>();
+  for (const key of orderedCategories.value) {
+    const sel = entitySelections.value[key];
+    if (sel && sel.size > 0) selectionMap.set(key, [...sel]);
+  }
+  return selectionMap;
+}
 
 async function doExport() {
   const campaignId = campaignStore.activeCampaignId;
   if (!campaignId) return;
   exportError.value = null;
   try {
-    const selectionMap = new Map<BundleEntityKey, string[]>();
-    for (const key of orderedCategories.value) {
-      const sel = entitySelections.value[key];
-      if (sel && sel.size > 0) selectionMap.set(key, [...sel]);
-    }
     await runExport({
       campaignId,
       name: bundleName.value.trim(),
       description: bundleDescription.value.trim(),
       author: authStore.user?.email ?? undefined,
-      selection: selectionMap,
+      selection: currentSelectionMap(),
     });
   } catch (err) {
     exportError.value = err instanceof Error ? err.message : "Export failed";
+  }
+}
+
+/**
+ * Embed the selected campaign data into a PDF the user exported from Scriptorium
+ * (Phase E, #329) — interim flow: print → save the PDF, then attach the bundle
+ * here and re-download a single shareable file.
+ */
+async function onAttachPdf(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = ""; // allow re-picking the same file
+  const campaignId = campaignStore.activeCampaignId;
+  if (!file || !campaignId) return;
+  exportError.value = null;
+  isAttaching.value = true;
+  try {
+    const bundle = await buildBundle({
+      campaignId,
+      name: bundleName.value.trim(),
+      description: bundleDescription.value.trim(),
+      author: authStore.user?.email ?? undefined,
+      selection: currentSelectionMap(),
+    });
+    const { attachBundleToPdf } = await import("@/lib/scriptorium/campaignBundlePdf");
+    const out = await attachBundleToPdf(new Uint8Array(await file.arrayBuffer()), bundle);
+    const blob = new Blob([out as BlobPart], { type: "application/pdf" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${file.name.replace(/\.pdf$/i, "")}-grimoire.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    exportError.value = err instanceof Error ? err.message : "Could not attach campaign data to the PDF";
+  } finally {
+    isAttaching.value = false;
   }
 }
 </script>

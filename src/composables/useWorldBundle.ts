@@ -184,7 +184,7 @@ export interface BuildBundleOptions {
   selection: Map<BundleEntityKey, string[]>;
 }
 
-async function buildBundle(opts: BuildBundleOptions): Promise<GrimoireBundle> {
+export async function buildBundle(opts: BuildBundleOptions): Promise<GrimoireBundle> {
   const { campaignId, name, description, author, selection } = opts;
   const entityCounts: Record<string, number> = {};
   const bundle: Partial<GrimoireBundle> = {};
@@ -928,6 +928,37 @@ export function useImportWorldBundle() {
     }
   }
 
+  /**
+   * Load a bundle embedded in a Grimoire-exported PDF (Phase E, #329). pdf-lib
+   * is dynamically imported so it stays out of the main bundle until a PDF is
+   * actually imported.
+   */
+  async function parsePdfFile(file: File) {
+    parseError.value = null;
+    try {
+      const { extractBundleFromPdf } = await import("@/lib/scriptorium/campaignBundlePdf");
+      const extracted = await extractBundleFromPdf(new Uint8Array(await file.arrayBuffer()));
+      if (!extracted) {
+        parseError.value = "This PDF doesn't contain Grimoire campaign data.";
+        bundle.value = null;
+        return;
+      }
+      bundle.value = extracted;
+    } catch (err) {
+      parseError.value = err instanceof Error ? err.message : "Unknown error";
+      bundle.value = null;
+    }
+  }
+
+  /** Dispatch on file type: a .pdf carries an embedded bundle; else a .grimoire. */
+  async function parseAnyFile(file: File) {
+    if (file.name.toLowerCase().endsWith(".pdf") || file.type === "application/pdf") {
+      await parsePdfFile(file);
+    } else {
+      await parseFile(file);
+    }
+  }
+
   const { mutateAsync, isPending } = useMutation({
     mutationFn: (opts: Omit<ImportBundleOptions, "bundle">) => {
       if (!bundle.value) throw new Error("No bundle loaded");
@@ -956,6 +987,8 @@ export function useImportWorldBundle() {
     bundle,
     parseError,
     parseFile,
+    parsePdfFile,
+    parseAnyFile,
     executeImport: (opts: Omit<ImportBundleOptions, "bundle">) => mutateAsync(opts),
     isPending,
     reset,

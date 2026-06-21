@@ -22,9 +22,10 @@
           <!-- Step 1: file picker -->
           <div v-if="!preview">
             <p class="font-fell text-sm text-muted-foreground italic mb-3">
-              Select a <code class="font-mono text-xs bg-muted px-1 rounded">.grimoire</code> bundle file.
-              Campaign backups (<code class="font-mono text-xs bg-muted px-1 rounded">.grimoire-backup</code>)
-              are not accepted here.
+              Select a <code class="font-mono text-xs bg-muted px-1 rounded">.grimoire</code> bundle, or a
+              <code class="font-mono text-xs bg-muted px-1 rounded">.pdf</code> exported from Grimoire with
+              campaign data embedded. Campaign backups
+              (<code class="font-mono text-xs bg-muted px-1 rounded">.grimoire-backup</code>) are not accepted here.
             </p>
 
             <label
@@ -33,12 +34,12 @@
             >
               <IconUpload class="h-8 w-8 text-muted-foreground" />
               <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">
-                Click to select bundle file
+                Click to select a bundle or PDF
               </span>
-              <span class="font-fell text-xs text-muted-foreground italic">.grimoire files only</span>
+              <span class="font-fell text-xs text-muted-foreground italic">.grimoire or .pdf</span>
               <input
                 type="file"
-                accept=".grimoire"
+                accept=".grimoire,.pdf,application/pdf"
                 class="sr-only"
                 :disabled="isPending"
                 @change="onFileChange"
@@ -206,7 +207,7 @@ const open = defineModel<boolean>({ required: true });
 
 const router = useRouter();
 const campaignStore = useCampaignStore();
-const { parseFile, executeImport, parseError, isPending, bundle, reset } = useImportWorldBundle();
+const { parseAnyFile, executeImport, parseError, isPending, bundle, reset } = useImportWorldBundle();
 
 const preview = ref<BundlePreview | null>(null);
 const selectedTypes = shallowRef<Set<BundleEntityKey>>(new Set());
@@ -264,7 +265,7 @@ function resetPreview() {
 }
 
 async function loadFile(file: File) {
-  await parseFile(file);
+  await parseAnyFile(file);
   if (bundle.value) {
     preview.value = {
       name: bundle.value.name,
