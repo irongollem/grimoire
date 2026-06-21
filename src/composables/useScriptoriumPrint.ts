@@ -21,6 +21,7 @@ import { ref } from "vue";
 import { Previewer } from "pagedjs";
 import { buildPagedPreviewCss } from "@/lib/scriptorium/pagedPreviewCss";
 import { injectPagedFooters } from "@/lib/scriptorium/pagedFooters";
+import { expandTocPlaceholder, fillPagedTocPages } from "@/lib/scriptorium/pagedToc";
 import { stripTrailingEmptyParagraphs } from "@/lib/scriptorium/stripTrailingEmpty";
 import { renderFurniture } from "@/lib/scriptorium/furniture/renderFurniture";
 import type { PageFurnitureItem } from "@/types/scriptorium.types";
@@ -93,7 +94,9 @@ export function useScriptoriumPrint() {
     const cls = themeClass(opts.theme);
     const themeCss = opts.theme === "phb2014" ? themePhb2014Css : themeOnednd2024Css;
     const pagedCss = buildPagedPreviewCss({ pageSize: opts.pageSize, inkFriendly: opts.inkFriendly });
-    const bodyHtml = stripTrailingEmptyParagraphs(opts.bodyHtml);
+    const bodyHtml = expandTocPlaceholder(stripTrailingEmptyParagraphs(opts.bodyHtml), {
+      showPageNumbers: opts.showPageNumbers,
+    });
     const content = opts.isTwoColumn ? `<div class="phb-two-col">${bodyHtml}</div>` : bodyHtml;
 
     // 1. Off-screen render in the main document.
@@ -112,6 +115,7 @@ export function useScriptoriumPrint() {
         footerText: opts.footerText,
         start: opts.pageNumberStart,
       });
+      fillPagedTocPages(host, { showPageNumbers: opts.showPageNumbers, start: opts.pageNumberStart });
       renderFurniture(host, opts.furniture); // non-interactive — decorations only
 
       // 2. Capture the page-sizing rules Paged.js injected into the main head.

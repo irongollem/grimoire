@@ -97,7 +97,7 @@ import { useScriptoriumZoom } from "@/composables/useScriptoriumZoom";
 import { usePagedPreview } from "@/composables/usePagedPreview";
 import { buildPagedPreviewCss } from "@/lib/scriptorium/pagedPreviewCss";
 import { injectPagedFooters } from "@/lib/scriptorium/pagedFooters";
-import { injectPagedToc } from "@/lib/scriptorium/pagedToc";
+import { expandTocPlaceholder, fillPagedTocPages } from "@/lib/scriptorium/pagedToc";
 import { stripTrailingEmptyParagraphs } from "@/lib/scriptorium/stripTrailingEmpty";
 import { renderFurniture } from "@/lib/scriptorium/furniture/renderFurniture";
 import { useFurnitureEditing } from "@/composables/useFurnitureEditing";
@@ -184,7 +184,9 @@ const {
   scheduleRender,
 } = usePagedPreview({
   content: () => {
-    const html = stripTrailingEmptyParagraphs(bodyHtml);
+    // Expand the TOC to full height before layout so heading page numbers stay
+    // accurate even when the TOC overflows onto extra pages (#465).
+    const html = expandTocPlaceholder(stripTrailingEmptyParagraphs(bodyHtml), { showPageNumbers });
     return isTwoColumn ? `<div class="phb-two-col">${html}</div>` : html;
   },
   stylesheets: () => [
@@ -195,7 +197,7 @@ const {
     // Footers and the TOC both derive page numbers from the laid-out pages,
     // so they run together after each render.
     injectPagedFooters(el, { showPageNumbers, footerText, start: pageNumberStart });
-    injectPagedToc(el, { showPageNumbers, start: pageNumberStart });
+    fillPagedTocPages(el, { showPageNumbers, start: pageNumberStart });
     renderFurniture(el, furniture, { interactive: true, selectedId: selectedFurnitureId });
   },
 });

@@ -1,17 +1,22 @@
 /*
- * Table-of-contents population for the Paged.js book (Phase B, #330).
+ * Table-of-contents population for the Paged.js book (Phase B, #330; two-pass
+ * accuracy + PDF parity, #465).
  *
- * The legacy preview numbered TOC entries by `<hr>`-split array index. With
- * Paged.js, the page a heading lands on is decided by layout, so the TOC is
- * filled AFTER render: walk the rendered pages, map each heading to its
- * physical page's footer label (shared numbering — matches the footers), and
- * replace the `<nav data-type="toc">` placeholder with a rendered TOC.
+ * The page a heading lands on is decided by layout, so the TOC can only be
+ * numbered after rendering. The catch: if the TOC is filled AFTER layout while
+ * it was laid out as a tiny placeholder, a long (overflowing) TOC pushes the
+ * body down and the page numbers it just read are wrong.
  *
- * Single-pass: page numbers are read from the layout where the TOC is still an
- * (empty) placeholder. This is exact as long as the filled TOC fits on the
- * same page(s) the placeholder occupied — true for typical front-matter TOCs.
- * A heading-dense doc whose TOC overflows to extra pages would shift later
- * numbers; the exact fix is a second re-layout pass (tracked on #330).
+ * Fix — expand, then fill:
+ *   1. `expandTocPlaceholder` replaces the empty `<nav data-type="toc">` with a
+ *      full TOC (every heading, page numbers blank) BEFORE Paged.js runs, so the
+ *      TOC occupies its true height and headings land on their final pages even
+ *      when the TOC spills onto extra pages.
+ *   2. `fillPagedTocPages` writes the real page numbers into that rendered TOC
+ *      afterwards — a text-only change that doesn't reflow.
+ *
+ * Both the live preview and the print/PDF path run the same two steps, so the
+ * exported PDF gets a fully numbered TOC too.
  */
 
 import { flagsFromHtml, computePageLabels } from "./pageNumbering";
@@ -25,6 +30,29 @@ interface TocItem {
   level: number;
   text: string;
   page: string | null;
+}
+
+const HEADING_SEL = "h1, h2, h3";
+
+/** A heading counts for the TOC unless it's inside the TOC itself or a cover. */
+function isContentHeading(h: HTMLElement): boolean {
+  return (
+    !h.closest('nav[data-type="toc"]') &&
+    !h.closest(".sc-toc") &&
+    !h.closest(".sc-cover")
+  );
+}
+
+/** Content headings (level + text) under `root`, in document order. */
+function collectHeadings(root: ParentNode): { level: number; text: string }[] {
+  const out: { level: number; text: string }[] = [];
+  root.querySelectorAll<HTMLElement>(HEADING_SEL).forEach((h) => {
+    if (!isContentHeading(h)) return;
+    const text = h.textContent?.trim() ?? "";
+    if (!text) return;
+    out.push({ level: Number(h.tagName[1]), text });
+  });
+  return out;
 }
 
 function escapeHtml(text: string): string {
@@ -54,29 +82,53 @@ export function renderTocHtml(items: TocItem[]): string {
 }
 
 /**
- * Replace the TOC placeholder in `container` with a rendered TOC built from the
- * headings across the rendered pages. No-op if there's no placeholder.
+ * Expand the `<nav data-type="toc">` placeholder into a full-height TOC (entries
+ * from the document headings, page numbers reserved-but-blank) BEFORE layout.
+ * Returns the html unchanged if there's no placeholder. When page numbering is
+ * off, entries carry no page cell. Page numbers are written later by
+ * fillPagedTocPages.
  */
-export function injectPagedToc(container: HTMLElement, opts: PagedTocOptions): void {
-  const placeholder = container.querySelector('nav[data-type="toc"]');
-  if (!placeholder) return;
+export function expandTocPlaceholder(html: string, opts: { showPageNumbers: boolean }): string {
+  if (!html.includes('data-type="toc"')) return html;
+  const tmp = document.createElement("div");
+  tmp.innerHTML = html;
+  const placeholder = tmp.querySelector('nav[data-type="toc"]');
+  if (!placeholder) return html;
+  const items: TocItem[] = collectHeadings(tmp).map((h) => ({
+    level: h.level,
+    text: h.text,
+    page: opts.showPageNumbers ? "" : null,
+  }));
+  placeholder.outerHTML = renderTocHtml(items);
+  return tmp.innerHTML;
+}
+
+/**
+ * Fill the (already-expanded) TOC's page-number cells from the laid-out pages,
+ * matching each content heading to its physical-page footer label in document
+ * order. No-op when page numbers are off or there's no rendered TOC.
+ */
+export function fillPagedTocPages(container: HTMLElement, opts: PagedTocOptions): void {
+  if (!opts.showPageNumbers) return;
+  const toc = container.querySelector(".sc-toc");
+  if (!toc) return;
 
   const pages = Array.from(container.querySelectorAll<HTMLElement>(".pagedjs_page"));
   const labels = computePageLabels(
     pages.map((p) => flagsFromHtml(p.innerHTML)),
-    { showPageNumbers: opts.showPageNumbers, start: opts.start },
+    { showPageNumbers: true, start: opts.start },
   );
 
-  const items: TocItem[] = [];
+  const headingLabels: string[] = [];
   pages.forEach((page, i) => {
-    page.querySelectorAll<HTMLElement>("h1, h2, h3").forEach((h) => {
-      // Skip headings inside the TOC itself.
-      if (h.closest('nav[data-type="toc"]') || h.closest(".sc-toc")) return;
-      const text = h.textContent?.trim() ?? "";
-      if (!text) return;
-      items.push({ level: Number(h.tagName[1]), text, page: labels[i] });
+    page.querySelectorAll<HTMLElement>(HEADING_SEL).forEach((h) => {
+      if (!isContentHeading(h)) return;
+      if (!h.textContent?.trim()) return;
+      headingLabels.push(labels[i] ?? "");
     });
   });
 
-  placeholder.outerHTML = renderTocHtml(items);
+  toc.querySelectorAll<HTMLElement>(".sc-toc-page").forEach((cell, idx) => {
+    cell.textContent = headingLabels[idx] ?? "";
+  });
 }
