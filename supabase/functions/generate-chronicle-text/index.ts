@@ -5,6 +5,7 @@ import { isUserPro } from "../_shared/plan.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
 import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits } from "../_shared/credits.ts";
+import { checkRateLimit } from "../_shared/rate-limit.ts";
 import {
   AI_PROMPT_LIMIT_LONG,
   INJECTION_GUARD_SUFFIX,
@@ -185,6 +186,14 @@ serve(async (req: Request) => {
   const baseChronicleTextCost = textIsByok ? 0 : await fetchCreditCost(admin, "chronicle_text");
   const chronicleTextCost = applyMultiplier(baseChronicleTextCost, providerConfigs[textProvider as keyof typeof providerConfigs]?.text_multiplier);
   // Atomic affordability gate: hold the balance across the paid call.
+  // Throttle abusive burst volume before any paid provider work (issue #466).
+  if (!(await checkRateLimit(admin, user.id, "ai_generation"))) {
+    return new Response(
+      JSON.stringify({ error: "rate_limited" }),
+      { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
   const reservation = await reserveCredits(admin, user.id, chronicleTextCost, "chronicle_text");
   if (!reservation.ok) {
     return new Response(

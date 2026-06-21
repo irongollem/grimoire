@@ -4,6 +4,7 @@ import { decryptValue } from "../_shared/vault.ts";
 import { isUserPro } from "../_shared/plan.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, sizeMultiplier } from "../_shared/credits.ts";
+import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { createImageJob, completeImageJob, failImageJob, type ImageJobKind } from "../_shared/imageJob.ts";
 import { fetchProviderConfigs } from "../_shared/provider-config.ts";
 import { generateImage, resolveImageProvider, type ImageProviderKey } from "../_shared/imageGen.ts";
@@ -195,6 +196,14 @@ serve(async (req: Request) => {
     : Math.round(await fetchCreditCost(admin, "chronicle_image") * sizeMultiplier(size) * img.imageMultiplier * 100) / 100;
   // Atomic affordability gate: hold the balance now; the background task releases
   // it and records the real spend (or releases on failure).
+  // Throttle abusive burst volume before any paid provider work (issue #466).
+  if (!(await checkRateLimit(admin, user.id, "ai_generation"))) {
+    return new Response(
+      JSON.stringify({ error: "rate_limited" }),
+      { status: 429, headers: { ...cors, "Content-Type": "application/json" } },
+    );
+  }
+
   const reservation = await reserveCredits(admin, user.id, chronicleImageCost, "chronicle_image");
   if (!reservation.ok) {
     return new Response(

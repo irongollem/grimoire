@@ -5,6 +5,7 @@ import { isUserPro } from "../_shared/plan.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
 import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, sizeMultiplier } from "../_shared/credits.ts";
+import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { generateImage, resolveImageProvider } from "../_shared/imageGen.ts";
 import {
   AI_PROMPT_LIMIT_LONG,
@@ -196,6 +197,14 @@ serve(async (req: Request) => {
     sizeMultiplier(ENTITY_IMAGE_SIZE) * 100,
   ) / 100;
   // Atomic affordability gate: hold the balance across the paid text+image calls.
+  // Throttle abusive burst volume before any paid provider work (issue #466).
+  if (!(await checkRateLimit(admin, user.id, "ai_generation"))) {
+    return new Response(
+      JSON.stringify({ error: "rate_limited" }),
+      { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
   const reservation = await reserveCredits(admin, user.id, cost, "entity_image");
   if (!reservation.ok) {
     return new Response(

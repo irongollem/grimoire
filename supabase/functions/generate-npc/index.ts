@@ -14,6 +14,7 @@ import {
   reserveCredits,
   sizeMultiplier,
 } from "../_shared/credits.ts";
+import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { resolveImageProvider } from "../_shared/imageGen.ts";
 import {
   AI_PROMPT_LIMIT,
@@ -332,6 +333,14 @@ serve(async (req: Request) => {
   const maxImages = generateImage ? (generateAlterEgo ? 2 : 1) : 0;
   const totalNeeded = npcTextCost + portraitCostEach * maxImages;
   // Atomic affordability gate: hold the balance across the paid text+portrait calls.
+  // Throttle abusive burst volume before any paid provider work (issue #466).
+  if (!(await checkRateLimit(admin, user.id, "ai_generation"))) {
+    return new Response(
+      JSON.stringify({ error: "rate_limited" }),
+      { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
   const reservation = await reserveCredits(admin, user.id, totalNeeded, "npc_text");
   if (!reservation.ok) {
     return new Response(

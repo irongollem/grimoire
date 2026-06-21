@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit } from "../_shared/rate-limit.ts";
 
 // Authenticated endpoint. `verify_jwt = false` in config.toml so we can return
 // CORS-friendly errors, but auth is enforced in code below: a valid Supabase
@@ -63,6 +64,16 @@ Deno.serve(async (req: Request) => {
   const { data: { user }, error: authError } = await caller.auth.getUser();
   if (authError || !user) {
     return new Response("Unauthorized", { status: 401, headers: cors });
+  }
+
+  // Cap per-user issue creation (issue #466) so the reporter can't be used to
+  // spam the GitHub repo. Service-role client gates via the rate-limit RPC.
+  const rateAdmin = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
+  if (!(await checkRateLimit(rateAdmin, user.id, "bug_report"))) {
+    return new Response("Too many bug reports — please try again later.", { status: 429, headers: cors });
   }
 
   let payload: BugReportPayload;
