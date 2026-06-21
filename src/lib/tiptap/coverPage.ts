@@ -315,11 +315,15 @@ const BACK_BOTTOM_BAR_STYLE =
   "padding:0.5rem 1rem;font-family:var(--sc-heading-font,Georgia,serif);font-size:0.6rem;" +
   "letter-spacing:0.1em;text-transform:uppercase;display:flex;align-items:center;justify-content:space-between";
 
-function buildBack(attrs: CoverPageAttrs): NodeSpec[] {
+export function buildBack(attrs: CoverPageAttrs): NodeSpec[] {
+  // Art (when set) shows at full strength — no text sits over the strip, so it
+  // needs no scrim. The soft tint is kept only for the accent-colour placeholder
+  // shown when there's no art.
   const artStripStyle =
     "width:100%;height:35%;position:absolute;top:0;left:0;right:0;z-index:0;" +
     `background:var(--sc-accent,#1B3A4B);${bgStyle(attrs.backgroundImage)}` +
-    "background-size:cover;background-position:center;opacity:0.75";
+    "background-size:cover;background-position:center" +
+    (attrs.backgroundImage ? "" : ";opacity:0.75");
 
   return [
     ["div", { style: artStripStyle }],

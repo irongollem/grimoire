@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildFront } from "./coverPage";
+import { buildFront, buildBack } from "./coverPage";
 import type { CoverPageAttrs } from "./coverPage";
 
 const base: CoverPageAttrs = {
@@ -60,5 +60,19 @@ describe("buildFront cover art", () => {
     const all = flattenAll(buildFront({ ...base, backgroundImage: "", titleScrim: true }));
     expect(all.some((n) => n.tag === "img")).toBe(false);
     expect(all.some((n) => n.style.includes("linear-gradient"))).toBe(false);
+  });
+});
+
+describe("buildBack cover art strip", () => {
+  it("shows the art strip at full strength when art is set", () => {
+    const strip = flattenAll(buildBack({ ...base, variant: "back", backgroundImage: "art.png" }))
+      .find((n) => n.style.includes("background-image"));
+    expect(strip).toBeTruthy();
+    expect(strip!.style).not.toContain("opacity:0.75");
+  });
+
+  it("keeps the soft accent placeholder dim when there is no art", () => {
+    const strip = flattenAll(buildBack({ ...base, variant: "back", backgroundImage: "" }))[0];
+    expect(strip.style).toContain("opacity:0.75");
   });
 });
