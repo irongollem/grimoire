@@ -26,6 +26,7 @@ import { stripTrailingEmptyParagraphs } from "@/lib/scriptorium/stripTrailingEmp
 import { renderFurniture } from "@/lib/scriptorium/furniture/renderFurniture";
 import type { PageFurnitureItem } from "@/types/scriptorium.types";
 import type { ScriptoriumPageSize, ScriptoriumTheme } from "@/types/scriptorium.types";
+import scriptoriumFontsCss from "@/assets/scriptorium/fonts.css?inline";
 import themeBaseCss from "@/assets/scriptorium/theme-base.css?inline";
 import themeOnednd2024Css from "@/assets/scriptorium/theme-onednd2024.css?inline";
 import themePhb2014Css from "@/assets/scriptorium/theme-phb2014.css?inline";
@@ -134,6 +135,7 @@ export function useScriptoriumPrint() {
       idoc.open();
       idoc.write(
         `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(opts.title || "Untitled")}</title>` +
+          `<style>${scriptoriumFontsCss}</style>` +
           `<style>${themeBaseCss}</style><style>${themeCss}</style>` +
           `<style>${pagedCss}</style><style>${pagedStyles}</style>` +
           `<style>${printResetCss(opts.pageSize)}</style></head>` +

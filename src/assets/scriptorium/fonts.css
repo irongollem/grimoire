@@ -1,0 +1,78 @@
+/*
+ * Self-hosted Scriptorium display + body faces (#465).
+ *
+ * Cinzel (headings) and Alegreya (body) served as static TrueType from
+ * public/fonts/scriptorium/. The print/PDF pipeline injects this stylesheet
+ * into its iframe so the export embeds real subsetted TrueType — Google-served
+ * WOFF2 embeds as bulky Type3 glyph procedures (some print shops reject it), and
+ * the print iframe carried no @font-face at all, falling back to serif.
+ *
+ * Plain CSS only (no Tailwind directives) so it stays inlinable into the print
+ * iframe and the eventual Phase E server renderer. Both families are OFL —
+ * see public/fonts/scriptorium/{cinzel,alegreya}-OFL.txt.
+ */
+
+@font-face {
+  font-family: "Cinzel";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/scriptorium/cinzel-400.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Cinzel";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/scriptorium/cinzel-600.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Cinzel";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/scriptorium/cinzel-700.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Cinzel";
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url("/fonts/scriptorium/cinzel-900.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Alegreya";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/scriptorium/alegreya-400.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Alegreya";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/scriptorium/alegreya-400-italic.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Alegreya";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/scriptorium/alegreya-500.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Alegreya";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/scriptorium/alegreya-700.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Alegreya";
+  font-style: italic;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/scriptorium/alegreya-700-italic.ttf") format("truetype");
+}
