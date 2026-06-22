@@ -4,7 +4,10 @@
     :class="isActive ? 'border-gold-500/40 bg-gold-500/5' : ''"
   >
     <!-- Header row -->
-    <div class="flex items-start gap-2 min-w-0">
+    <!-- flex-wrap so the wide conditional badges ("No Safari" / "Retry") wrap
+         instead of overflowing a narrow card's right edge (#464). Normal cards
+         fit on one line and are visually unchanged. -->
+    <div class="flex flex-wrap items-start gap-2 min-w-0">
       <!-- Thumbnail (click to upload / replace) -->
       <button
         v-if="!isSpotify"
