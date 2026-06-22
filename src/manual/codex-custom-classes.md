@@ -4,7 +4,7 @@ section: Character Codex
 section_order: 9
 order: 1
 summary: Design homebrew classes with spellcasting, resource pools, wizard steps, and level features.
-keywords: class, custom class, homebrew, spellcasting, resource pool, hit die, level, archetype, ability score, wizard step
+keywords: class, custom class, homebrew, spellcasting, resource pool, hit die, level, archetype, subclass, oath spells, domain spells, granted spells, ability score, wizard step
 ---
 
 Custom classes let you design entirely new character classes from the ground up — with full spellcasting, resource pools, and level-up prompts.
@@ -83,4 +83,34 @@ Pools appear in the **Combat** tab of the player's character sheet with +/− co
 
 ## Archetypes (Subclasses)
 
-Create archetypes for your class in the **Archetypes** tab. Each archetype references the base class and has its own set of features per level, starting from the subclass-granting level onward.
+Archetypes are subclasses — Oaths, Domains, Circles, Martial Archetypes, and so on. They attach to a base class (one of the 13 SRD classes **or** a custom class) and add their own features and spells from the subclass-granting level onward. Open the **Archetypes** tab and click **New Archetype** to build one from scratch, **Import from Open5e** to bulk-import SRD archetypes (their features are linked automatically), or **Load example** for a fully-worked demo to edit.
+
+Each archetype editor has these sections:
+
+- **Base Class** — which class this archetype belongs to (e.g. Paladin).
+- **Description** — flavour text, with the full rich-text editor (headings, lists, tables).
+- **Campaign Scope** — this campaign only, or all your campaigns.
+
+### Subclass Features per Level
+
+Same as class features: for each level, pick **abilities** from the Abilities tab. These appear in the player's **Features** tab. For an Oath of the Ancients paladin you'd add, at level 3: _Oath Spells_, _Channel Divinity: Nature's Wrath_, and _Channel Divinity: Turn the Faithless_.
+
+### Granted Spells per Level
+
+This is how you model **oath spells, cleric domain spells, and druid circle spells** — spells the subclass grants automatically. Add a level, then pick the spells gained at that level from the **SRD or your own custom spells**.
+
+Granted spells are **always prepared** and **do not count toward the character's prepared-spell limit**. On level-up they're added to the character automatically and shown with a locked **"Granted"** badge — players can't unprepare or remove them.
+
+Worked example — **Oath of the Ancients** oath spells:
+
+- **3** — Ensnaring Strike, Speak with Animals
+- **5** — Misty Step, Moonbeam
+- **9** — Plant Growth, Protection from Energy
+- **13** — Ice Storm, Stoneskin
+- **17** — Commune with Nature, Tree Stride
+
+> If a granted spell isn't in the SRD (e.g. Ensnaring Strike), create it first as a **custom spell** (see _Creating Spells_), then pick it here. Custom spells live in your own account, so book-only content stays private to your campaign.
+
+### Wizard Steps & Resource Pools
+
+Archetypes support the same **Wizard Steps** (level-up choices) and **Resource Pools** as classes. A Channel Divinity pool, for instance, can be tracked as a resource that recharges on a short or long rest.
