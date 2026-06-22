@@ -35,7 +35,7 @@
             {{ sub.campaign_id ? 'Campaign-scoped' : 'All campaigns' }}
           </span>
         </div>
-        <p v-if="sub.description" class="font-fell text-sm text-foreground">{{ sub.description }}</p>
+        <RichTextViewer v-if="sub.description" :content="sub.description" />
       </div>
     </div>
 
@@ -121,6 +121,7 @@ import { useConfirm } from "@/composables/useConfirm";
 import { useDeleteCustomSubclass } from "@/composables/useCustomSubclasses";
 import { useAllFeatures } from "@/composables/useFeatures";
 import { useAllSpells } from "@/composables/useSpells";
+import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import type { CustomSubclass } from "@/levelup/customTypes";
 
 const props = defineProps<{ sub: CustomSubclass }>();

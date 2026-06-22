@@ -81,7 +81,7 @@
         >
           <div class="flex-1 min-w-0">
             <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ sc.subclass_name }}</p>
-            <p v-if="sc.description" class="font-fell text-xs text-muted-foreground mt-0.5 line-clamp-2">{{ sc.description }}</p>
+            <p v-if="sc.description" class="font-fell text-xs text-muted-foreground mt-0.5 line-clamp-2">{{ toPlainText(sc.description) }}</p>
             <p class="font-fell text-xs text-muted-foreground mt-0.5">
               <template v-if="featureLevelCount(sc) === 0 && sc.steps.length === 0 && sc.resources.length === 0">
                 <span class="italic">No features defined</span>
@@ -112,6 +112,7 @@ import { useUiStore } from "@/stores/ui";
 import { useAllCustomSubclasses, useCreateCustomSubclass, useImportOpen5eSubclasses } from "@/composables/useCustomSubclasses";
 import { useAllCustomClasses, useAllSystemClasses } from "@/composables/useCustomClasses";
 import { useCreateFeature } from "@/composables/useFeatures";
+import { toPlainText } from "@/ai/utils";
 import type { CustomSubclass } from "@/levelup/customTypes";
 
 const ui = useUiStore();

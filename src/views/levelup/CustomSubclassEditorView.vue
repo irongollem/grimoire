@@ -43,11 +43,10 @@
 
         <div>
           <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground mb-1.5">DESCRIPTION</label>
-          <textarea
+          <RichTextEditor
             v-model="form.description"
-            rows="3"
             placeholder="Flavour text describing this archetype…"
-            class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+            min-height="120px"
           />
         </div>
 
@@ -117,6 +116,8 @@ import CustomClassFeaturesPerLevel from "@/components/levelup/CustomClassFeature
 import CustomSubclassGrantedSpells from "@/components/levelup/CustomSubclassGrantedSpells.vue";
 import CustomClassStepsEditor from "@/components/levelup/CustomClassStepsEditor.vue";
 import CustomClassResources from "@/components/levelup/CustomClassResources.vue";
+import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import { toPlainText } from "@/ai/utils";
 import { useAllFeatures } from "@/composables/useFeatures";
 import { useAllSpells } from "@/composables/useSpells";
 import { useCampaigns } from "@/composables/useCampaigns";
@@ -225,7 +226,7 @@ async function save() {
     class_name: form.value.class_name,
     subclass_name: form.value.subclass_name,
     source: null,
-    description: form.value.description.trim() || null,
+    description: toPlainText(form.value.description).trim() ? form.value.description : null,
     features: form.value.features,
     granted_spells: form.value.granted_spells,
     steps: form.value.steps,
