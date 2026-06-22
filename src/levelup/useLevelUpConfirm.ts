@@ -1,6 +1,7 @@
 import type { Ref, ComputedRef } from "vue";
 import { ref } from "vue";
 import { useRouter } from "vue-router";
+import { supabase } from "@/lib/supabase";
 import { useUpdatePartyMember } from "@/composables/useParty";
 import { useAddCharacterClass, useUpdateCharacterClass } from "@/composables/useCharacterClasses";
 import { useAddCharacterSpell, addInvocationSpellGrant } from "@/composables/useCharacterSpells";
@@ -49,6 +50,8 @@ export interface ConfirmOptions {
   selectedSpellIds: Ref<Set<string>>;
   selectedCantripIds: Ref<Set<string>>;
   newClassName: Ref<string>;
+  /** Spell ids granted (always prepared) by the leveled subclass at this level. */
+  grantedSpellsForThisLevel: ComputedRef<string[]>;
 }
 
 export function useLevelUpConfirm(opts: ConfirmOptions) {
@@ -73,6 +76,7 @@ export function useLevelUpConfirm(opts: ConfirmOptions) {
       asiMode, asiPrimary, asiSecondary, featId,
       subclassInput, stepValues, stepMultiValues,
       selectedSpellIds, selectedCantripIds, newClassName,
+      grantedSpellsForThisLevel,
     } = opts;
 
     // Backstop: a level-up must know which class entry it is bumping. Without
@@ -215,6 +219,21 @@ export function useLevelUpConfirm(opts: ConfirmOptions) {
       }
       for (const spellId of selectedCantripIds.value) {
         await addSpell({ partyMemberId: member.id, spellId, isPrepared: false });
+      }
+
+      // Subclass-granted spells (oath / domain / circle) — always prepared,
+      // excluded from the prepared limit. Skip any the character already has.
+      const grantIds = grantedSpellsForThisLevel.value;
+      if (grantIds.length > 0) {
+        const { data: existingRows } = await supabase
+          .from("character_spells")
+          .select("spell_id")
+          .eq("party_member_id", member.id);
+        const have = new Set((existingRows ?? []).map((r) => r.spell_id as string));
+        for (const spellId of grantIds) {
+          if (have.has(spellId)) continue;
+          await addSpell({ partyMemberId: member.id, spellId, alwaysPrepared: true });
+        }
       }
 
       // Auto-grant spells from Eldritch Invocations just picked

@@ -560,6 +560,21 @@ const canConfirm = computed(() => {
 });
 
 // ── Confirm ────────────────────────────────────────────────────────────────────
+// Spells the leveled subclass grants (always prepared) at the new in-class
+// level. Resolve the effective subclass: a just-chosen one (subclassInput) at
+// the subclass-choice level, otherwise the existing subclass on the leveled class.
+const grantedSpellsForThisLevel = computed<string[]>(() => {
+  const effectiveSubclass =
+    needsSubclassChoice.value && subclassInput.value.trim()
+      ? subclassInput.value.trim()
+      : memberSubclass.value;
+  if (!effectiveSubclass) return [];
+  const sub = (allCustomSubclasses.value ?? []).find(
+    (cs) => cs.class_name === memberClass.value && cs.subclass_name === effectiveSubclass,
+  );
+  return sub?.granted_spells?.[String(levelInChosenClass.value)] ?? [];
+});
+
 const { confirm, error, isPending } = useLevelUpConfirm({
   member: props.member,
   targetLevel: props.targetLevel,
@@ -591,5 +606,6 @@ const { confirm, error, isPending } = useLevelUpConfirm({
   selectedSpellIds,
   selectedCantripIds,
   newClassName,
+  grantedSpellsForThisLevel,
 });
 </script>

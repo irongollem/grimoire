@@ -58,6 +58,25 @@
       </div>
     </div>
 
+    <!-- Granted spells per level card -->
+    <div v-if="grantedLevels.length" class="rounded-lg border border-border bg-card overflow-hidden">
+      <div class="px-3 py-2 border-b border-border bg-muted/20">
+        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Granted Spells per Level</span>
+      </div>
+      <div class="p-4 flex flex-col gap-2">
+        <div v-for="lvl in grantedLevels" :key="lvl" class="flex items-start gap-3">
+          <span class="font-cinzel text-xs text-primary tracking-wider w-6 shrink-0 pt-0.5">{{ lvl }}</span>
+          <div class="flex flex-wrap gap-1">
+            <span
+              v-for="sid in sub.granted_spells[lvl.toString()]"
+              :key="sid"
+              class="font-cinzel text-[10px] tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded px-2 py-0.5"
+            >{{ spellNameById(sid) }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Steps card -->
     <div v-if="sub.steps?.length" class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-3 py-2 border-b border-border bg-muted/20">
@@ -101,6 +120,7 @@ import { IconDelete, IconEdit } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import { useDeleteCustomSubclass } from "@/composables/useCustomSubclasses";
 import { useAllFeatures } from "@/composables/useFeatures";
+import { useAllSpells } from "@/composables/useSpells";
 import type { CustomSubclass } from "@/levelup/customTypes";
 
 const props = defineProps<{ sub: CustomSubclass }>();
@@ -110,13 +130,22 @@ const { confirm } = useConfirm();
 const deleteMut = useDeleteCustomSubclass();
 
 const { data: allFeatures } = useAllFeatures();
+const { data: allSpells } = useAllSpells();
 
 function featureNameById(id: string): string {
   return allFeatures.value?.find(f => f.id === id)?.name ?? id;
 }
 
+function spellNameById(id: string): string {
+  return allSpells.value?.find(s => s.id === id)?.name ?? id;
+}
+
 const populatedLevels = computed<number[]>(() =>
   Object.keys(props.sub.features).map(Number).sort((a, b) => a - b),
+);
+
+const grantedLevels = computed<number[]>(() =>
+  Object.keys(props.sub.granted_spells ?? {}).map(Number).sort((a, b) => a - b),
 );
 
 async function handleDelete() {

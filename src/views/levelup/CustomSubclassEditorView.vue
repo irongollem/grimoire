@@ -83,14 +83,21 @@
         @update:features="form.features = $event"
       />
 
-      <!-- ── Section 3: Wizard steps ────────────────────────────────────────── -->
+      <!-- ── Section 3: Granted spells per level ───────────────────────────── -->
+      <CustomSubclassGrantedSpells
+        :granted-spells="form.granted_spells"
+        :all-spell-options="allSpellOptions"
+        @update:granted-spells="form.granted_spells = $event"
+      />
+
+      <!-- ── Section 4: Wizard steps ────────────────────────────────────────── -->
       <CustomClassStepsEditor
         :steps="form.steps"
         :all-feature-options="allFeatureOptions"
         @update:steps="form.steps = $event"
       />
 
-      <!-- ── Section 4: Resource pools ─────────────────────────────────────── -->
+      <!-- ── Section 5: Resource pools ─────────────────────────────────────── -->
       <CustomClassResources
         :resources="form.resources"
         @update:resources="form.resources = $event"
@@ -107,9 +114,11 @@ import { IconDelete, IconSave } from '@/lib/icons';
 import { useCustomSubclass, useCreateCustomSubclass, useUpdateCustomSubclass, useDeleteCustomSubclass } from "@/composables/useCustomSubclasses";
 import CustomSubclassSheet from "@/components/levelup/CustomSubclassSheet.vue";
 import CustomClassFeaturesPerLevel from "@/components/levelup/CustomClassFeaturesPerLevel.vue";
+import CustomSubclassGrantedSpells from "@/components/levelup/CustomSubclassGrantedSpells.vue";
 import CustomClassStepsEditor from "@/components/levelup/CustomClassStepsEditor.vue";
 import CustomClassResources from "@/components/levelup/CustomClassResources.vue";
 import { useAllFeatures } from "@/composables/useFeatures";
+import { useAllSpells } from "@/composables/useSpells";
 import { useCampaigns } from "@/composables/useCampaigns";
 import { useAllSystemClasses, useAllCustomClasses } from "@/composables/useCustomClasses";
 import type { CustomStep, CustomResource } from "@/levelup/customTypes";
@@ -148,6 +157,14 @@ const allFeatureOptions = computed(() =>
   (allFeatures.value ?? []).map(f => ({ id: f.id, name: f.name })),
 );
 
+const { data: allSpells } = useAllSpells();
+const allSpellOptions = computed(() =>
+  (allSpells.value ?? []).map(s => ({
+    id: s.id,
+    name: s.level === 0 ? `${s.name} (cantrip)` : `${s.name} (lvl ${s.level})`,
+  })),
+);
+
 // ── Form state ────────────────────────────────────────────────────────────────
 
 interface FormState {
@@ -155,6 +172,7 @@ interface FormState {
   subclass_name: string;
   description: string;
   features: Record<string, string[]>;
+  granted_spells: Record<string, string[]>;
   steps: CustomStep[];
   resources: CustomResource[];
   hp_per_level: number | null;
@@ -165,6 +183,7 @@ const form = ref<FormState>({
   subclass_name: "",
   description: "",
   features: {},
+  granted_spells: {},
   steps: [],
   resources: [],
   hp_per_level: null,
@@ -180,6 +199,7 @@ watch(existing, (val) => {
     subclass_name: raw.subclass_name,
     description: raw.description ?? "",
     features: raw.features,
+    granted_spells: raw.granted_spells ?? {},
     steps: raw.steps.map((s) => ({
       ...s,
       step_type: s.step_type ?? "text_pick",
@@ -207,6 +227,7 @@ async function save() {
     source: null,
     description: form.value.description.trim() || null,
     features: form.value.features,
+    granted_spells: form.value.granted_spells,
     steps: form.value.steps,
     resources: form.value.resources,
     hp_per_level: form.value.hp_per_level,

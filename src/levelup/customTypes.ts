@@ -45,6 +45,14 @@ export interface CustomSubclass {
   source: string | null;
   description: string | null;
   features: CustomFeatures;
+  /**
+   * Spells the subclass grants automatically (always prepared), keyed by the
+   * level gained — same shape as `features`. Ids reference srd_spells.id
+   * (srd_* slug) or spells.id (custom uuid). On level-up these are written to
+   * character_spells with always_prepared = true and do not count toward the
+   * prepared-spell limit.
+   */
+  granted_spells: CustomFeatures;
   steps: CustomStep[];
   resources: CustomResource[];
   /** Extra HP gained per level in this class, on top of the hit die roll (e.g. Draconic Resilience = 1). */

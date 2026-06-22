@@ -99,17 +99,22 @@ export function useAddCharacterSpell() {
       partyMemberId,
       spellId,
       isPrepared = false,
+      alwaysPrepared = false,
     }: {
       partyMemberId: string;
       spellId: string;
       isPrepared?: boolean;
+      /** Subclass-granted spell — always prepared, excluded from the prepared limit. */
+      alwaysPrepared?: boolean;
     }) => {
       const { error } = await supabase
         .from("character_spells")
         .insert({
           party_member_id: partyMemberId,
           spell_id: spellId,
-          is_prepared: isPrepared,
+          // An always-prepared spell is, by definition, prepared.
+          is_prepared: isPrepared || alwaysPrepared,
+          always_prepared: alwaysPrepared,
         });
       if (error) throw error;
     },
