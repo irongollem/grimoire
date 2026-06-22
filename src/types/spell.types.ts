@@ -271,6 +271,11 @@ export interface CharacterSpell {
   spell_id: string;
   is_known: boolean;
   is_prepared: boolean;
+  /**
+   * Granted by a subclass/oath/domain (always prepared). These do NOT count
+   * against the prepared-spell limit and cannot be unprepared or removed.
+   */
+  always_prepared: boolean;
   source_type: InnateSourceType;
   uses_per_day: number | null;
   uses_remaining: number | null;

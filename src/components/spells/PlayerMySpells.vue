@@ -113,6 +113,13 @@
               class="shrink-0 font-cinzel text-[10px] tracking-wider text-primary/70 border border-primary/30 rounded px-1"
             >C</span>
 
+            <!-- Subclass-granted (always prepared, doesn't count toward limit) -->
+            <span
+              v-if="entry.always_prepared"
+              class="shrink-0 font-cinzel text-[10px] tracking-wider text-emerald-500/80 border border-emerald-500/30 rounded px-2 py-0.5"
+              title="Granted by your subclass — always prepared, doesn't count toward your prepared limit"
+            >Granted</span>
+
             <!-- Attack / save info (multiclass-aware via source class) -->
             <span
               v-if="isCastable(entry) && attackBonusFor(entry) !== null && (entry.spell.attack_type === 'ranged_spell' || entry.spell.attack_type === 'melee_spell')"
@@ -136,9 +143,9 @@
               Cast
             </button>
 
-            <!-- Prepare toggle (Wizard spellbook tab) -->
+            <!-- Prepare toggle (Wizard spellbook tab). Granted spells are locked. -->
             <button
-              v-if="showPrepareToggle && entry.spell.level > 0"
+              v-if="showPrepareToggle && entry.spell.level > 0 && !entry.always_prepared"
               class="shrink-0 flex items-center gap-1 rounded px-2 py-0.5 font-cinzel text-[10px] font-semibold tracking-wider transition-colors cursor-pointer border"
               :class="entry.is_prepared
                 ? 'bg-primary/15 text-primary border-primary/30 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30'
@@ -158,8 +165,9 @@
               class="shrink-0 font-cinzel text-[10px] tracking-wider text-emerald-500/70 border border-emerald-500/20 rounded px-2 py-0.5"
             >Always</span>
 
-            <!-- Remove button -->
+            <!-- Remove button — hidden for subclass-granted spells (locked) -->
             <button
+              v-if="!entry.always_prepared"
               class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-red-400 p-1 rounded cursor-pointer shrink-0"
               :title="removeTitle"
               :disabled="isRemoving"
@@ -509,8 +517,10 @@ function togglePrepare(entry: CharacterSpellEntry) {
 }
 
 // ── Prepared counter ───────────────────────────────────────────────────────────
+// Always-prepared (oath/domain/subclass-granted) spells are prepared for free
+// and must NOT count against the prepared-spell limit.
 const preparedNonCantrips = computed(
-  () => displayedEntries.value.filter((e) => e.spell.level > 0 && e.is_prepared).length,
+  () => displayedEntries.value.filter((e) => e.spell.level > 0 && e.is_prepared && !e.always_prepared).length,
 );
 const showPreparedCounter = computed(
   () => props.viewMode === "prepared" && props.maxPrepared !== null && props.maxPrepared !== undefined,
