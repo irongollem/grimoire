@@ -18,16 +18,22 @@
             class="flex items-center gap-3 px-5 py-4 border-b border-border shrink-0"
           >
             <div
-              class="flex items-center justify-center w-8 h-8 rounded-full bg-destructive/15 text-destructive shrink-0"
+              class="flex items-center justify-center w-8 h-8 rounded-full shrink-0"
+              :class="
+                isBug
+                  ? 'bg-destructive/15 text-destructive'
+                  : 'bg-gold-500/15 text-gold-400'
+              "
             >
-              <IconBug class="h-4 w-4" />
+              <IconBug v-if="isBug" class="h-4 w-4" />
+              <IconLightbulb v-else class="h-4 w-4" />
             </div>
             <div class="flex-1 min-w-0">
               <h2
                 id="bug-report-title"
                 class="font-cinzel text-sm font-bold text-foreground tracking-wide"
               >
-                Report a Bug
+                {{ isBug ? "Report a Bug" : "Request a Feature" }}
               </h2>
               <p class="font-fell text-xs text-muted-foreground mt-0.5">
                 Your report opens a GitHub issue for the development team.
@@ -55,7 +61,7 @@
             <h3
               class="font-cinzel text-sm font-bold text-foreground tracking-wide"
             >
-              Bug Reported!
+              {{ isBug ? "Bug Reported!" : "Feature Requested!" }}
             </h3>
             <p
               class="font-fell text-sm text-muted-foreground max-w-xs leading-relaxed"
@@ -78,65 +84,146 @@
             @submit.prevent="submit"
           >
             <div class="px-5 py-4 space-y-4 flex-1">
+              <!-- Type picker -->
+              <div class="space-y-1.5">
+                <label
+                  class="font-cinzel text-xs font-semibold text-foreground tracking-wide"
+                >
+                  What kind of report?
+                </label>
+                <div
+                  class="grid grid-cols-2 gap-2"
+                  role="radiogroup"
+                  aria-label="Report type"
+                >
+                  <button
+                    v-for="opt in KIND_OPTIONS"
+                    :key="opt.value"
+                    type="button"
+                    role="radio"
+                    :aria-checked="kind === opt.value"
+                    class="flex items-center gap-2 px-3 py-2 rounded-md border text-xs font-cinzel font-semibold tracking-wide transition-colors"
+                    :class="
+                      kind === opt.value
+                        ? 'border-gold-500 bg-gold-500/10 text-foreground'
+                        : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/30'
+                    "
+                    @click="kind = opt.value"
+                  >
+                    <component :is="opt.icon" class="h-4 w-4 shrink-0" />
+                    <span>{{ opt.label }}</span>
+                  </button>
+                </div>
+                <p class="font-fell text-2xs text-muted-foreground">
+                  {{
+                    isBug
+                      ? "Something is broken or not working as it should."
+                      : "An idea or improvement you'd like to see added."
+                  }}
+                </p>
+              </div>
+
+              <!-- Where (both types) -->
               <div class="space-y-1.5">
                 <label
                   class="font-cinzel text-xs font-semibold text-foreground tracking-wide"
                 >
                   Where in the app?
+                  <span
+                    v-if="!isBug"
+                    class="font-fell text-muted-foreground normal-case tracking-normal font-normal"
+                    >(optional)</span
+                  >
                 </label>
                 <input
                   v-model="form.where"
                   type="text"
-                  required
+                  :required="isBug"
                   placeholder="e.g. Encounter tracker, NPC detail page…"
                   class="w-full px-3 py-2 rounded-md bg-background border border-border text-sm font-fell text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500"
                 />
               </div>
 
-              <div class="space-y-1.5">
-                <label
-                  class="font-cinzel text-xs font-semibold text-foreground tracking-wide"
-                >
-                  What were you doing?
-                </label>
-                <textarea
-                  v-model="form.action"
-                  required
-                  rows="2"
-                  placeholder="Describe the steps that led to the bug…"
-                  class="w-full px-3 py-2 rounded-md bg-background border border-border text-sm font-fell text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500 resize-none"
-                />
-              </div>
+              <!-- Bug-specific fields -->
+              <template v-if="isBug">
+                <div class="space-y-1.5">
+                  <label
+                    class="font-cinzel text-xs font-semibold text-foreground tracking-wide"
+                  >
+                    What were you doing?
+                  </label>
+                  <textarea
+                    v-model="form.action"
+                    required
+                    rows="2"
+                    placeholder="Describe the steps that led to the bug…"
+                    class="w-full px-3 py-2 rounded-md bg-background border border-border text-sm font-fell text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500 resize-none"
+                  />
+                </div>
 
-              <div class="space-y-1.5">
-                <label
-                  class="font-cinzel text-xs font-semibold text-foreground tracking-wide"
-                >
-                  What did you expect?
-                </label>
-                <textarea
-                  v-model="form.expected"
-                  required
-                  rows="2"
-                  placeholder="What should have happened…"
-                  class="w-full px-3 py-2 rounded-md bg-background border border-border text-sm font-fell text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500 resize-none"
-                />
-              </div>
+                <div class="space-y-1.5">
+                  <label
+                    class="font-cinzel text-xs font-semibold text-foreground tracking-wide"
+                  >
+                    What did you expect?
+                  </label>
+                  <textarea
+                    v-model="form.expected"
+                    required
+                    rows="2"
+                    placeholder="What should have happened…"
+                    class="w-full px-3 py-2 rounded-md bg-background border border-border text-sm font-fell text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500 resize-none"
+                  />
+                </div>
 
-              <div class="space-y-1.5">
-                <label
-                  class="font-cinzel text-xs font-semibold text-foreground tracking-wide"
-                >
-                  What actually happened?
-                </label>
-                <textarea
-                  v-model="form.actual"
-                  required
-                  rows="2"
-                  placeholder="Describe what went wrong…"
-                  class="w-full px-3 py-2 rounded-md bg-background border border-border text-sm font-fell text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500 resize-none"
-                />
-              </div>
+                <div class="space-y-1.5">
+                  <label
+                    class="font-cinzel text-xs font-semibold text-foreground tracking-wide"
+                  >
+                    What actually happened?
+                  </label>
+                  <textarea
+                    v-model="form.actual"
+                    required
+                    rows="2"
+                    placeholder="Describe what went wrong…"
+                    class="w-full px-3 py-2 rounded-md bg-background border border-border text-sm font-fell text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500 resize-none"
+                  />
+                </div>
+              </template>
+
+              <!-- Feature-specific fields -->
+              <template v-else>
+                <div class="space-y-1.5">
+                  <label
+                    class="font-cinzel text-xs font-semibold text-foreground tracking-wide"
+                  >
+                    What would you like to see?
+                  </label>
+                  <textarea
+                    v-model="form.summary"
+                    required
+                    rows="2"
+                    placeholder="Describe the feature or improvement…"
+                    class="w-full px-3 py-2 rounded-md bg-background border border-border text-sm font-fell text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500 resize-none"
+                  />
+                </div>
+
+                <div class="space-y-1.5">
+                  <label
+                    class="font-cinzel text-xs font-semibold text-foreground tracking-wide"
+                  >
+                    What problem would it solve?
+                  </label>
+                  <textarea
+                    v-model="form.problem"
+                    required
+                    rows="2"
+                    placeholder="Why is this useful? What does it make easier…"
+                    class="w-full px-3 py-2 rounded-md bg-background border border-border text-sm font-fell text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500 resize-none"
+                  />
+                </div>
+              </template>
 
               <!-- Screenshot -->
               <div class="space-y-1.5">
@@ -205,7 +292,13 @@
                 class="flex items-center gap-2 px-4 py-1.5 rounded-md bg-primary text-primary-foreground font-cinzel text-xs font-semibold tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
               >
                 <IconLoading v-if="submitting" class="h-3 w-3 animate-spin" />
-                <span>{{ submitting ? "Submitting…" : "Submit Report" }}</span>
+                <span>{{
+                  submitting
+                    ? "Submitting…"
+                    : isBug
+                      ? "Submit Report"
+                      : "Submit Request"
+                }}</span>
               </button>
             </div>
           </form>
@@ -216,22 +309,40 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import {
   IconAddImage,
   IconBug,
   IconCircleCheck,
   IconClose,
+  IconLightbulb,
   IconLoading,
 } from "@/lib/icons";
 import { useAuthStore } from "@/stores/auth";
 import { supabase } from "@/lib/supabase";
 
+type ReportKind = "bug" | "feature";
+
+const KIND_OPTIONS = [
+  { value: "bug", label: "Bug", icon: IconBug },
+  { value: "feature", label: "Feature request", icon: IconLightbulb },
+] as const;
+
 const open = defineModel<boolean>({ required: true });
 
 const auth = useAuthStore();
 
-const form = ref({ where: "", action: "", expected: "", actual: "" });
+const kind = ref<ReportKind>("bug");
+const isBug = computed(() => kind.value === "bug");
+
+const form = ref({
+  where: "",
+  action: "",
+  expected: "",
+  actual: "",
+  summary: "",
+  problem: "",
+});
 const screenshotFile = ref<File | null>(null);
 const screenshotPreview = ref<string | null>(null);
 const fileInputRef = ref<HTMLInputElement | null>(null);
@@ -246,7 +357,15 @@ function close() {
 }
 
 function reset() {
-  form.value = { where: "", action: "", expected: "", actual: "" };
+  kind.value = "bug";
+  form.value = {
+    where: "",
+    action: "",
+    expected: "",
+    actual: "",
+    summary: "",
+    problem: "",
+  };
   screenshotFile.value = null;
   screenshotPreview.value = null;
   submitting.value = false;
@@ -301,10 +420,9 @@ async function submit() {
   try {
     const submittedBy =
       auth.membership?.display_name || auth.userEmail || undefined;
-    const { data, error: fnError } = await supabase.functions.invoke(
-      "create-bug-report",
-      {
-        body: {
+    const body = isBug.value
+      ? {
+          kind: "bug" as const,
           where: form.value.where,
           action: form.value.action,
           expected: form.value.expected,
@@ -312,8 +430,19 @@ async function submit() {
           screenshot: screenshotPreview.value ?? undefined,
           screenshotName: screenshotFile.value?.name,
           submittedBy,
-        },
-      },
+        }
+      : {
+          kind: "feature" as const,
+          where: form.value.where,
+          summary: form.value.summary,
+          problem: form.value.problem,
+          screenshot: screenshotPreview.value ?? undefined,
+          screenshotName: screenshotFile.value?.name,
+          submittedBy,
+        };
+    const { data, error: fnError } = await supabase.functions.invoke(
+      "create-bug-report",
+      { body },
     );
     if (fnError) throw fnError;
     issueNumber.value = (data as { issueNumber: number })?.issueNumber ?? null;

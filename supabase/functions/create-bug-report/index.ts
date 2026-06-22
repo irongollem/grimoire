@@ -18,10 +18,16 @@ const ALLOWED_IMAGE_TYPES = new Set([
 ]);
 
 interface BugReportPayload {
+  // Defaults to "bug" when omitted (back-compat with older clients).
+  kind?: "bug" | "feature";
   where: string;
-  action: string;
-  expected: string;
-  actual: string;
+  // Bug fields
+  action?: string;
+  expected?: string;
+  actual?: string;
+  // Feature fields
+  summary?: string;
+  problem?: string;
   screenshot?: string; // base64 data URL
   screenshotName?: string;
   submittedBy?: string;
@@ -83,9 +89,16 @@ Deno.serve(async (req: Request) => {
     return new Response("Invalid JSON", { status: 400, headers: cors });
   }
 
-  const { where, action, expected, actual, screenshot, screenshotName, submittedBy } = payload;
+  const { kind: rawKind, where, action, expected, actual, summary, problem, screenshot, screenshotName, submittedBy } = payload;
+  const kind = rawKind === "feature" ? "feature" : "bug";
+  const isBug = kind === "bug";
 
-  if (!where?.trim() || !action?.trim() || !expected?.trim() || !actual?.trim()) {
+  // Per-type required fields. `where` is mandatory for bugs (we need to know
+  // where it broke), optional for feature requests.
+  const missing = isBug
+    ? !where?.trim() || !action?.trim() || !expected?.trim() || !actual?.trim()
+    : !summary?.trim() || !problem?.trim();
+  if (missing) {
     return new Response("Missing required fields", { status: 400, headers: cors });
   }
 
@@ -169,24 +182,45 @@ Deno.serve(async (req: Request) => {
   const timestamp = new Date().toISOString().replace("T", " ").slice(0, 19) + " UTC";
   const submitter = inlineSafe(submittedBy ?? "").slice(0, 80) || "Anonymous";
 
-  const body = [
+  const banner = [
     "> [!IMPORTANT]",
-    "> **This issue was submitted automatically via the Grimoire in-app bug reporter.**",
+    `> **This issue was submitted automatically via the Grimoire in-app ${
+      isBug ? "bug reporter" : "feature request form"
+    }.**`,
     "> It was **not** filed by a maintainer. Please review before acting on it.",
     "",
     "---",
     "",
-    "### Where in the app",
-    fenced(where),
-    "",
-    "### What the user was doing",
-    fenced(action),
-    "",
-    "### What they expected",
-    fenced(expected),
-    "",
-    "### What actually happened",
-    fenced(actual),
+  ];
+
+  const details = isBug
+    ? [
+      "### Where in the app",
+      fenced(where),
+      "",
+      "### What the user was doing",
+      fenced(action!),
+      "",
+      "### What they expected",
+      fenced(expected!),
+      "",
+      "### What actually happened",
+      fenced(actual!),
+    ]
+    : [
+      "### What they'd like to see",
+      fenced(summary!),
+      "",
+      "### What problem it solves",
+      fenced(problem!),
+      "",
+      "### Where in the app",
+      where?.trim() ? fenced(where) : "*Not specified*",
+    ];
+
+  const body = [
+    ...banner,
+    ...details,
     "",
     "### Screenshot",
     screenshotUrl ? `![Screenshot](${screenshotUrl})` : "*None provided*",
@@ -195,7 +229,9 @@ Deno.serve(async (req: Request) => {
     `*Submitted by: ${submitter} · ${timestamp}*`,
   ].join("\n");
 
-  const issueTitle = `[App Bug Report] ${inlineSafe(where).slice(0, 80)}`;
+  // Bugs are titled by location; feature requests by their summary.
+  const titleSubject = isBug ? where : summary!;
+  const issueTitle = `${isBug ? "[App Bug Report]" : "[Feature Request]"} ${inlineSafe(titleSubject).slice(0, 80)}`;
 
   const ghResponse = await fetch("https://api.github.com/repos/irongollem/grimoire/issues", {
     method: "POST",
@@ -209,7 +245,7 @@ Deno.serve(async (req: Request) => {
     body: JSON.stringify({
       title: issueTitle,
       body,
-      labels: ["bug", "user-report"],
+      labels: [isBug ? "bug" : "enhancement", "user-report"],
     }),
   });
 

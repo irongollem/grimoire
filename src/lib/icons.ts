@@ -251,6 +251,7 @@ export { Layers as IconLayers }
 export { BarChart2 as IconChart }
 export { Component as IconComponent }
 export { Bug as IconBug }
+export { Lightbulb as IconLightbulb }
 export { Monitor as IconMonitor }
 export { MessageCircle as IconMessage }
 export { MessageSquare as IconComment }
