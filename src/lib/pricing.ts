@@ -1,3 +1,5 @@
+import type { CurrencyOption, TaxBehavior } from '@/types/subscription.types'
+
 export function detectCurrency(): string {
   try {
     const region = new Intl.Locale(navigator.language).region ?? 'US'
@@ -13,16 +15,33 @@ export function detectCurrency(): string {
 export function resolveAmount(
   defaultAmount: number | null | undefined,
   defaultCurrency: string | null | undefined,
-  currencyOptions: Record<string, { unit_amount: number }> | null | undefined,
+  currencyOptions: Record<string, CurrencyOption> | null | undefined,
   selectedCurrency: string,
-): { amount: number; currency: string } | null {
+): { amount: number; currency: string; taxBehavior: TaxBehavior | null } | null {
   if (!defaultAmount || !defaultCurrency) return null;
   const sel = selectedCurrency.toLowerCase();
   const base = defaultCurrency.toLowerCase();
-  if (sel === base) return { amount: defaultAmount, currency: base };
+  // Stripe surfaces the base currency inside currency_options on read too, so we
+  // can always look up its tax_behavior there.
+  if (sel === base) {
+    return { amount: defaultAmount, currency: base, taxBehavior: currencyOptions?.[base]?.tax_behavior ?? null };
+  }
   const opt = currencyOptions?.[sel];
-  if (opt?.unit_amount) return { amount: opt.unit_amount, currency: sel };
-  return { amount: defaultAmount, currency: base };
+  if (opt?.unit_amount) return { amount: opt.unit_amount, currency: sel, taxBehavior: opt.tax_behavior ?? null };
+  return { amount: defaultAmount, currency: base, taxBehavior: currencyOptions?.[base]?.tax_behavior ?? null };
+}
+
+/**
+ * Short, qualitative tax hint to show next to a price. We deliberately never
+ * render a computed tax *amount* — only Stripe knows the exact rate at checkout
+ * (it depends on the customer's location + our registrations), and a wrong
+ * number on our own page is exactly what causes disputes. This only sets the
+ * expectation: inclusive prices are final, exclusive prices get tax on top.
+ */
+export function taxNote(taxBehavior: TaxBehavior | null | undefined): string | null {
+  if (taxBehavior === 'inclusive') return 'incl. VAT'
+  if (taxBehavior === 'exclusive') return '+ tax'
+  return null
 }
 
 export function availableCurrencies(

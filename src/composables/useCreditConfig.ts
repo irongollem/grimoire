@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
+import type { CurrencyOption } from "@/types/subscription.types";
 
 export interface CreditPackConfig {
   pack_id: string;
@@ -11,7 +12,7 @@ export interface CreditPackConfig {
   stripe_product_id: string | null;
   stripe_unit_amount: number | null;
   stripe_currency: string | null;
-  stripe_currency_options: Record<string, { unit_amount: number }> | null;
+  stripe_currency_options: Record<string, CurrencyOption> | null;
 }
 
 export interface GenerationCreditCost {

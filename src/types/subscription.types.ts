@@ -2,6 +2,17 @@ export type PlanId = 'free' | 'tester' | 'pro'
 
 export type SubscriptionStatus = 'active' | 'trialing' | 'past_due' | 'cancelled'
 
+/** Mirrors Stripe's price `tax_behavior`. `inclusive` = tax baked into the
+ * displayed amount (EU/UK VAT convention); `exclusive` = tax added on top at
+ * checkout (US convention). */
+export type TaxBehavior = 'inclusive' | 'exclusive' | 'unspecified'
+
+/** A single Stripe per-currency price option (subset we cache for display). */
+export interface CurrencyOption {
+  unit_amount: number
+  tax_behavior?: TaxBehavior | null
+}
+
 export interface PlanPrice {
   monthly: number
   yearly: number
@@ -15,8 +26,8 @@ export interface Plan {
   stripe_monthly_unit_amount: number | null
   stripe_annual_unit_amount: number | null
   stripe_currency: string | null
-  stripe_monthly_currency_options: Record<string, { unit_amount: number }> | null
-  stripe_annual_currency_options: Record<string, { unit_amount: number }> | null
+  stripe_monthly_currency_options: Record<string, CurrencyOption> | null
+  stripe_annual_currency_options: Record<string, CurrencyOption> | null
   prices: Record<string, PlanPrice>
   quotas: Partial<Record<QuotaResource, number>>
   /** Monthly included AI credits granted each billing period (use-it-or-lose-it). 0 = none. */

@@ -152,6 +152,10 @@
               <div class="flex items-end gap-2 mb-0.5">
                 <span class="font-cinzel text-3xl font-bold text-amber-400">{{ displayMonthlyPrice }}</span>
                 <span class="font-fell text-sm text-muted-foreground italic mb-1">/ mo</span>
+                <span
+                  v-if="activeTaxNote"
+                  class="font-fell text-xs text-muted-foreground/70 italic mb-1.5"
+                >{{ activeTaxNote }}</span>
               </div>
               <p v-if="annual && displayAnnualTotal" class="font-fell text-xs text-muted-foreground italic">
                 {{ displayAnnualTotal }} billed annually
@@ -194,7 +198,11 @@
         </div>
       </div>
 
-      <p class="text-center font-fell text-sm text-muted-foreground italic mt-8">
+      <p class="text-center font-fell text-xs text-muted-foreground/60 italic mt-6">
+        Taxes are calculated at checkout based on your location.
+      </p>
+
+      <p class="text-center font-fell text-sm text-muted-foreground italic mt-4">
         Already have an account?
         <RouterLink to="/login" class="text-foreground hover:underline underline-offset-2">Sign in</RouterLink>
         · Players always join and play for free.
@@ -224,7 +232,7 @@ useHead({
 });
 import { QUOTA_RESOURCE_LABELS } from "@/types/subscription.types";
 import type { QuotaResource } from "@/types/subscription.types";
-import { detectCurrency, formatCents, resolveAmount, availableCurrencies } from "@/lib/pricing";
+import { detectCurrency, formatCents, resolveAmount, availableCurrencies, taxNote } from "@/lib/pricing";
 
 const annual = ref(false);
 
@@ -276,6 +284,12 @@ const displayMonthlyPrice = computed(() => {
 const displayAnnualTotal = computed(() => {
   const r = annualResolved.value;
   return r ? formatCents(r.amount, r.currency) : null;
+});
+
+/** Qualitative tax hint ("incl. VAT" / "+ tax") for the price currently shown. */
+const activeTaxNote = computed(() => {
+  const r = annual.value ? annualResolved.value : monthlyResolved.value;
+  return r ? taxNote(r.taxBehavior) : null;
 });
 
 const savedMonths = computed(() => {

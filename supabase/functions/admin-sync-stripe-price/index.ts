@@ -85,6 +85,24 @@ serve(async (req: Request) => {
     return new Response("Failed to update pack", { status: 500 });
   }
 
+  // Best-effort: mirror the credit count into the Stripe price + product metadata
+  // so the dashboard reads true. The DB stays the source of truth for grants
+  // (the webhook reads the credits frozen onto each checkout session), so a
+  // failure here is non-fatal and must not roll back the DB update above.
+  if (credits !== undefined) {
+    try {
+      await stripe.prices.update(stripePriceId, { metadata: { credits: String(credits) } });
+      const productId = typeof stripePrice.product === "string"
+        ? stripePrice.product
+        : stripePrice.product?.id;
+      if (productId) {
+        await stripe.products.update(productId, { metadata: { credits: String(credits) } });
+      }
+    } catch (err) {
+      console.error("Stripe metadata mirror sync failed (non-fatal):", err);
+    }
+  }
+
   return new Response(
     JSON.stringify({
       stripe_price_id: stripePriceId,

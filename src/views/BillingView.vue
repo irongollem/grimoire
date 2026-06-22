@@ -212,7 +212,7 @@
           @click="annual = true"
         >
           Annual
-          <span class="ml-1 text-[10px] text-amber-400">save 4 months</span>
+          <span v-if="savedMonths > 0" class="ml-1 text-[10px] text-amber-400">save {{ savedMonths }} months</span>
         </button>
         <div v-if="pricingCurrencies.length > 1" class="ml-auto flex gap-1">
           <button
@@ -230,6 +230,10 @@
         <span class="font-fell text-sm text-muted-foreground italic mb-1">{{
           annual ? "/ year" : "/ month"
         }}</span>
+        <span
+          v-if="activeTaxNote"
+          class="font-fell text-xs text-muted-foreground/70 italic mb-1"
+        >{{ activeTaxNote }}</span>
       </div>
 
       <p
@@ -260,7 +264,7 @@
       </button>
 
       <p class="font-fell text-xs text-muted-foreground italic text-center">
-        Cancel anytime from the billing portal. No hidden fees.
+        Cancel anytime from the billing portal. No hidden fees. Taxes calculated at checkout.
       </p>
     </div>
 
@@ -337,6 +341,9 @@
             <span class="font-cinzel text-[9px] tracking-wider text-muted-foreground/70 uppercase">{{ pack.label }}</span>
           </button>
         </div>
+        <p class="font-fell text-[11px] text-muted-foreground/60 italic">
+          Taxes calculated at checkout based on your location.
+        </p>
         <p v-if="purchaseError" class="font-fell text-xs text-red-400 italic">
           {{ purchaseError }}
         </p>
@@ -358,7 +365,7 @@ import { useQuota } from "@/composables/useQuota";
 import { QUOTA_RESOURCE_LABELS } from "@/types/subscription.types";
 import type { QuotaResource } from "@/types/subscription.types";
 import { useCreditPacks } from "@/composables/useCreditConfig";
-import { detectCurrency, resolveAmount, availableCurrencies, formatCents } from "@/lib/pricing";
+import { detectCurrency, resolveAmount, availableCurrencies, formatCents, taxNote } from "@/lib/pricing";
 
 const route = useRoute();
 const creditPurchaseSuccess = computed(() => route.query.credit_purchase === "success");
@@ -398,28 +405,50 @@ const pricingCurrencies = computed(() =>
 
 // Prices come exclusively from Stripe (synced into the plans table). No hardcoded
 // fallback — if a price isn't configured yet we show "—" rather than a fake one.
-const proMonthlyDisplay = computed<string | null>(() => {
-  const r = resolveAmount(
+const monthlyResolved = computed(() =>
+  resolveAmount(
     proPlan.value?.stripe_monthly_unit_amount,
     proPlan.value?.stripe_currency,
     proPlan.value?.stripe_monthly_currency_options,
     currency.value,
-  );
-  return r ? formatCents(r.amount, r.currency) : null;
-});
+  ),
+);
 
-const proAnnualDisplay = computed<string | null>(() => {
-  const r = resolveAmount(
+const annualResolved = computed(() =>
+  resolveAmount(
     proPlan.value?.stripe_annual_unit_amount,
     proPlan.value?.stripe_currency,
     proPlan.value?.stripe_annual_currency_options,
     currency.value,
-  );
+  ),
+);
+
+const proMonthlyDisplay = computed<string | null>(() => {
+  const r = monthlyResolved.value;
+  return r ? formatCents(r.amount, r.currency) : null;
+});
+
+const proAnnualDisplay = computed<string | null>(() => {
+  const r = annualResolved.value;
   return r ? formatCents(r.amount, r.currency) : null;
 });
 
 /** The active price for the selected billing interval, or null if unconfigured. */
 const activeProPrice = computed(() => (annual.value ? proAnnualDisplay.value : proMonthlyDisplay.value));
+
+/** Qualitative tax hint ("incl. VAT" / "+ tax") for the price/interval shown. */
+const activeTaxNote = computed(() => {
+  const r = annual.value ? annualResolved.value : monthlyResolved.value;
+  return r ? taxNote(r.taxBehavior) : null;
+});
+
+/** Months saved by paying annually vs 12× monthly (0 until both prices load). */
+const savedMonths = computed(() => {
+  const mo = monthlyResolved.value;
+  const yr = annualResolved.value;
+  if (!mo || !yr || mo.amount <= 0) return 0;
+  return Math.round((mo.amount * 12 - yr.amount) / mo.amount);
+});
 
 /** Monthly included-credit allowance for the Pro plan (0 until configured). */
 const proMonthlyCredits = computed(() => proPlan.value?.monthly_credits ?? 0);
