@@ -120,15 +120,20 @@
               title="Granted by your subclass — always prepared, doesn't count toward your prepared limit"
             >Granted</span>
 
-            <!-- Attack / save info (multiclass-aware via source class) -->
-            <span
+            <!-- Spell attack roll (multiclass-aware via source class) -->
+            <button
               v-if="isCastable(entry) && attackBonusFor(entry) !== null && (entry.spell.attack_type === 'ranged_spell' || entry.spell.attack_type === 'melee_spell')"
-              class="shrink-0 font-cinzel text-[10px] text-muted-foreground"
-            >Atk {{ signedNum(attackBonusFor(entry)!) }}</span>
-            <span
+              class="shrink-0 font-cinzel text-[10px] rounded border border-border bg-muted/40 text-muted-foreground px-1.5 py-0.5 transition-colors hover:bg-primary/10 hover:text-primary hover:border-primary/30"
+              title="Roll spell attack (d20 + attack bonus)"
+              @click.stop="rollSpellAttack(entry)"
+            >Atk {{ signedNum(attackBonusFor(entry)!) }}</button>
+            <!-- Saving-throw prompt — announces DC + ability to the table -->
+            <button
               v-else-if="isCastable(entry) && saveDcFor(entry) !== null && entry.spell.attack_type === 'save'"
-              class="shrink-0 font-cinzel text-[10px] text-muted-foreground"
-            >DC {{ saveDcFor(entry) }}</span>
+              class="shrink-0 font-cinzel text-[10px] rounded border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 transition-colors hover:bg-amber-500/20"
+              :title="`Announce DC ${saveDcFor(entry)} ${entry.spell.save_attribute ?? ''} saving throw`"
+              @click.stop="promptSpellSave(entry)"
+            >DC {{ saveDcFor(entry) }}</button>
 
             <!-- Cast button (castable spells) -->
             <button
@@ -301,6 +306,27 @@ function attackBonusFor(entry: CharacterSpellEntry): number | null {
 }
 function saveDcFor(entry: CharacterSpellEntry): number | null {
   return statsFor(entry)?.dc ?? props.spellSaveDc;
+}
+
+// ── Standalone roll actions (independent of casting / spending a slot) ──────────
+
+/** Roll a spell attack: d20 + the caster's spell attack bonus for this spell. */
+async function rollSpellAttack(entry: CharacterSpellEntry) {
+  const atk = attackBonusFor(entry);
+  if (atk === null) return;
+  await promptRoll({ counts: { 20: 1 }, modifier: atk, label: `${entry.spell.name} — Spell Attack` });
+}
+
+/** Announce a saving throw (DC + ability) to the table so others can roll against it. */
+async function promptSpellSave(entry: CharacterSpellEntry) {
+  const dc = saveDcFor(entry);
+  if (dc === null) return;
+  const ability = entry.spell.save_attribute ?? "";
+  const effect =
+    entry.spell.save_effect === "half" ? " (half on save)"
+    : entry.spell.save_effect === "negates" ? " (negates on save)"
+    : "";
+  await sendFlavorMessage(`calls for a DC ${dc} ${ability} saving throw vs ${entry.spell.name}${effect}`, "spell");
 }
 
 // ── Cast ───────────────────────────────────────────────────────────────────────

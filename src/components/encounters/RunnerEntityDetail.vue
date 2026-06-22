@@ -60,6 +60,7 @@
       @roll-attack="rollAttack"
       @roll-damage="rollActionDamage"
       @roll-spell="rollSpellDamage"
+      @roll-spell-save="announceSpellSave"
     />
 
     <template v-else>
@@ -365,6 +366,30 @@ async function rollSpellDamage(spell: SpellType) {
   });
   if (!r) return;
   lastCheck.value = { total: r.total, label, modifier: 0, d20: r.breakdown[0]?.val ?? r.total, isCrit: false, isFumble: false };
+}
+
+/** Announce a spell's saving throw (DC + ability) into chat so the table can roll against it. */
+async function announceSpellSave(spell: SpellType, dc: number) {
+  if (!campaign.activeCampaignId || !auth.user?.id) return;
+  if (chatMode.value === "silent") return;
+  const ability = spell.save_attribute ?? "";
+  const effect =
+    spell.save_effect === "half" ? " (half on save)"
+    : spell.save_effect === "negates" ? " (negates on save)"
+    : "";
+  try {
+    await supabase.from("campaign_messages").insert({
+      campaign_id: campaign.activeCampaignId,
+      user_id: auth.user.id,
+      recipient_user_id: null,
+      sender_name: selectedMember.value?.name ?? selectedCombatant.value?.name ?? "Player",
+      message: `casts ${spell.name} — DC ${dc} ${ability} saving throw${effect}`,
+      type: "system",
+      metadata: null,
+    });
+  } catch {
+    // best-effort announcement
+  }
 }
 
 // ── Combatant selection ───────────────────────────────────────────────────────

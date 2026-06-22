@@ -240,6 +240,12 @@ Tab badges show counts (and max where applicable). "Known" badge shows `N/maxKno
 
 **Spell attack bonus and save DC** — computed from character stats (proficiency bonus + casting ability modifier). Casting ability is derived from class: WIS for Cleric/Druid/Ranger, INT for Wizard/EK/AT, CHA for all others.
 
+**Spell roll actions** (#460) — castable spell rows expose interactive `Atk +X` / `DC X` controls (in both `PlayerMySpells` and the encounter runner's `RunnerPcSpells`):
+
+- **Attack spells** (`attack_type` = `ranged_spell`/`melee_spell`): the `Atk` badge is a button that rolls `d20 + spell attack bonus` and posts to chat. In the runner it reuses the `roll-attack` → `performCheck` chain; `spellAttackBonus = saveDc − 8` in `RunnerPcPanel`.
+- **Save spells** (`attack_type` = `save`): the `DC` badge announces a `DC X {ability} saving throw` (with half/negates effect from `save_effect`) so the table can roll against it — a flavor message in the player view, a chat announcement (respecting chat/silent mode) in the runner via the `roll-spell-save` event.
+- Damage/healing dice are still rolled by the **Cast** button (the upcast picker scales them); these buttons are slot-free, standalone rolls.
+
 **Multiclass support** — `useCharacterClasses` returns per-class level rows; `getMulticlassSpellSlots()` computes combined slot totals per PHB multiclass rules.
 
 ---

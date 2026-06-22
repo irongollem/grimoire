@@ -8,30 +8,44 @@
     </div>
     <div class="spell-rolls">
       <button
+        v-if="(entry.spell.attack_type === 'ranged_spell' || entry.spell.attack_type === 'melee_spell') && spellAttackBonus !== null"
+        type="button"
+        class="trait-roll-btn trait-atk-btn"
+        title="Roll spell attack (d20 + attack bonus)"
+        @click.stop="emit('roll-attack', spellAttackBonus, entry.spell.name)"
+      >🎲 Atk {{ signedNum(spellAttackBonus) }}</button>
+      <button
         v-if="entry.spell.damage_rolls?.length"
         type="button"
         class="trait-roll-btn trait-dmg-btn"
         @click.stop="emit('roll-spell', entry.spell)"
       >🎲 {{ entry.spell.damage_rolls[0].dice }}</button>
-      <span
+      <button
         v-if="entry.spell.attack_type === 'save' && spellSaveDc"
-        class="spell-save-badge"
-      >DC {{ spellSaveDc }} {{ entry.spell.save_attribute }}</span>
+        type="button"
+        class="trait-roll-btn spell-save-btn"
+        title="Announce saving throw to the table"
+        @click.stop="emit('roll-spell-save', entry.spell, spellSaveDc)"
+      >DC {{ spellSaveDc }} {{ entry.spell.save_attribute }}</button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import type { Spell } from "@/types/spell.types";
+import { signedNum } from "@/lib/utils";
 
 defineProps<{
   spells: { id: string; spell: Spell; is_prepared: boolean }[];
   casterType: string;
   spellSaveDc: number | null;
+  spellAttackBonus: number | null;
 }>();
 
 const emit = defineEmits<{
   "roll-spell": [spell: Spell];
+  "roll-attack": [bonus: number, name: string];
+  "roll-spell-save": [spell: Spell, dc: number];
 }>();
 </script>
 
@@ -74,7 +88,11 @@ const emit = defineEmits<{
   @apply bg-destructive/15 text-destructive border border-destructive/30 hover:bg-destructive/25;
 }
 
-.spell-save-badge {
-  @apply font-cinzel text-[9px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/30;
+.trait-atk-btn {
+  @apply bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20;
+}
+
+.spell-save-btn {
+  @apply text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20;
 }
 </style>

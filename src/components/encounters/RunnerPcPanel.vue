@@ -84,7 +84,10 @@
       :spells="preparedOrKnownSpells"
       :caster-type="casterType"
       :spell-save-dc="spellSaveDc"
+      :spell-attack-bonus="spellAttackBonus"
       @roll-spell="(spell) => emit('roll-spell', spell)"
+      @roll-attack="(bonus, name) => emit('roll-attack', bonus, name)"
+      @roll-spell-save="(spell, dc) => emit('roll-spell-save', spell, dc)"
     />
   </div>
 </template>
@@ -120,6 +123,7 @@ const emit = defineEmits<{
   "roll-attack": [bonus: number, name: string];
   "roll-damage": [desc: string, name: string];
   "roll-spell": [spell: Spell];
+  "roll-spell-save": [spell: Spell, dc: number];
 }>();
 
 // ── Stores & composables ──────────────────────────────────────────────────────
@@ -212,6 +216,9 @@ const spellSaveDc = computed(() => {
   else                                                                                           spellMod = abilityMod(member.cha);
   return 8 + profBonus.value + spellMod;
 });
+
+// Spell attack bonus = proficiency + spellcasting modifier = save DC − 8.
+const spellAttackBonus = computed(() => spellSaveDc.value - 8);
 
 // ── Wildshape handler (store mutation lives here) ─────────────────────────────
 
