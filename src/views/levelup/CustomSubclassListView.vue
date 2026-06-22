@@ -218,6 +218,7 @@ async function createExample() {
         "7":  [featureB.id],
         "10": [featureC.id],
       },
+      granted_spells: {},
       steps: [
         {
           level: 3,

@@ -154,6 +154,7 @@ async function createExample() {
       description: null,
       campaign_id: null,
       features: { "3": [featureA.id], "7": [featureB.id], "10": [featureC.id] },
+      granted_spells: {},
       steps: [{
         level: 3, type: "select", step_type: "text_pick", key: "example_choice",
         label: "Example Wizard Step",

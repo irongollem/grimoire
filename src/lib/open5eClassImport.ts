@@ -162,6 +162,7 @@ export function subclassToInsert(preview: Open5eSubclassPreview): CustomSubclass
     description: preview.desc || null,
     campaign_id: null,
     features: {},
+    granted_spells: {},
     steps: [],
     resources: [],
     hp_per_level: null,
