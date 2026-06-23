@@ -31,6 +31,20 @@ registerOptionalRule({
   defaultEnabled: false,
 });
 
+// ── Experience Points (XP levelling) ──────────────────────────────────────────
+registerOptionalRule({
+  key: "xp_levelling",
+  name: "Experience Points",
+  summary:
+    "Track earned XP per character. Level-up unlocks automatically when a character crosses the XP threshold for their level, instead of milestone levelling.",
+  description:
+    "By default Grimoire uses milestone levelling — the DM decides when characters level up. With this rule enabled, each character tracks **earned experience points** instead.\n\n" +
+    "Your character sheet shows an XP bar with how far you are from the next level. When you reach the XP threshold for your current level, the **Level Up** button unlocks automatically (PHB p.15 advancement table).\n\n" +
+    "Your DM awards XP after encounters and milestones from the Party screen.",
+  dmOnly: false,
+  defaultEnabled: false,
+});
+
 // ── Crafting (Workshop) ───────────────────────────────────────────────────────
 registerOptionalRule({
   key: "crafting",

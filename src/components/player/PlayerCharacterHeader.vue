@@ -40,7 +40,7 @@
               <span v-if="!wildshape && memberTotalLevel" class="font-cinzel text-2xs md:text-sm text-primary not-italic ml-1">Lv {{ memberTotalLevel }}</span>
             </p>
             <!-- XP progress -->
-            <div v-if="!wildshape && ((member.experience_points ?? 0) > 0 || readyToLevelUp)" class="mt-1 flex items-center gap-1.5">
+            <div v-if="xpLevellingEnabled && !wildshape && ((member.experience_points ?? 0) > 0 || readyToLevelUp)" class="mt-1 flex items-center gap-1.5">
               <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">XP</span>
               <div class="flex-1 max-w-32 h-1 rounded-full bg-muted overflow-hidden">
                 <div class="h-full transition-all"
@@ -199,6 +199,7 @@ import { xpForNextLevel, xpForLevel, levelForXp } from "@/types/party.types";
 import type { WildshapeState } from "@/types/encounter.types";
 import { abilityModifier } from "@/lib/utils";
 import { useAllSpecies } from "@/composables/useSpecies";
+import { useIsRuleEnabled } from "@/composables/useOptionalRules";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RestButtons from "@/components/player/RestButtons.vue";
 
@@ -211,6 +212,7 @@ const speciesName = computed(() =>
 );
 
 const auth = useAuthStore();
+const xpLevellingEnabled = useIsRuleEnabled("xp_levelling");
 const { mutateAsync: updateMember } = useUpdatePartyMember();
 const { rollConcentrationSave, endConcentration } = useConcentration();
 

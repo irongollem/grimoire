@@ -22,6 +22,9 @@
 
     <!-- Party cards -->
     <div v-else class="flex flex-col gap-3">
+      <!-- DM XP award control (only when the campaign uses XP levelling) -->
+      <PartyXpAward v-if="xpLevellingEnabled" :party="party ?? []" />
+
       <PartyTrackerRow
         v-for="member in sortedMembers"
         :key="member.id"
@@ -96,8 +99,11 @@ import CompanionCard from "./CompanionCard.vue";
 import CompanionForm from "./CompanionForm.vue";
 import PartyTrackerRow from "./PartyTrackerRow.vue";
 import PartyInventoryInline from "./PartyInventoryInline.vue";
+import PartyXpAward from "./PartyXpAward.vue";
+import { useIsRuleEnabled } from "@/composables/useOptionalRules";
 import type { Companion } from "@/types/companion.types";
 const { data: party, isLoading } = useParty();
+const xpLevellingEnabled = useIsRuleEnabled("xp_levelling");
 const { data: allLocations } = useAllLocations();
 const locationNameMap = computed(() => {
   const m = new Map<string, string>();
