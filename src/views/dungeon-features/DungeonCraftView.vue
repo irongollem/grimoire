@@ -50,6 +50,11 @@
             @click="handleRollTablesPopulate"
           />
           <ListActionButton
+            :icon="IconGenerate"
+            label="Generate"
+            @click="ui.rollTableGeneratorOpen = true"
+          />
+          <ListActionButton
             :icon="IconAdd"
             label="New Roll Table"
             mobile-label="Roll Table"

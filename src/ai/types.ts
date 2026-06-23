@@ -234,3 +234,23 @@ export interface QuestHookResult {
 export interface QuestHooksAiResult {
   hooks: QuestHookResult[];
 }
+
+/** One AI-generated roll-table entry — ranges are inclusive, no client `id` yet. */
+export interface RollTableEntryAiResult {
+  /** Inclusive range start (1..die max). */
+  min: number;
+  /** Inclusive range end (>= min, <= die max). */
+  max: number;
+  /** Short evocative result the DM reads at the table. */
+  label: string;
+  /** Optional DM-facing guidance (creatures, DCs, escalation). */
+  notes?: string | null;
+}
+
+export interface RollTableAiResult {
+  name: string;
+  /** One-sentence description of when to roll on this table — plain text. */
+  description: string;
+  tags: string[];
+  entries: RollTableEntryAiResult[];
+}

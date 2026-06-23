@@ -240,6 +240,17 @@ A sticky panel on the right side of the detail shows:
 
 Roll tables are stored with an optional `campaign_id`. Tables belonging to the active campaign, plus global tables (campaign_id = null), are shown together. The populate action seeds example tables into the current campaign.
 
+### AI-Assisted Roll Table Generator
+
+The "Generate" button on the Roll Tables tab opens a slide-in panel (`RollTableGeneratorPanel`, mounted in `DefaultLayout`) driven by `useRollTableGeneration.ts` (text-only generator, registered with the AI badge). The DM provides:
+
+- **Concept** — a one-line prompt (e.g. "forest road at night, bandits active in the region, levels 3–5")
+- **Die** — d6 / d8 / d10 / d12 / d20
+
+The AI returns a full table (name, CR-tier tags, one-line description, and entries whose inclusive ranges cover 1–N with no gaps and no overlaps), aiming for tonal variety (combat / environmental / social / weird). Output is grounded in the active setting via `buildCampaignContext`, so a Barovia table differs from a Chult one. Ranges are validated client-side before create — invalid output prompts a regenerate rather than saving a broken table. The panel previews the table, then **Create Table** persists it (campaign-scoped) and offers a "View Table →" link. Encounter linking is left to the DM to wire up manually afterward.
+
+The system prompt is stored in `ai_system_prompts` (`generator_type = 'roll_table'`); the credit cost is `roll_table_generation` in `ai_generation_credit_costs`. Both seeded in migration `20260623000003_roll_table_ai_generation.sql`.
+
 ---
 
 ## Loot Tables

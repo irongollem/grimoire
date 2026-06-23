@@ -121,6 +121,9 @@ export const useUiStore = defineStore("ui", () => {
   // Location generator
   const locationGeneratorOpen = ref(false);
 
+  // Roll table generator
+  const rollTableGeneratorOpen = ref(false);
+
   // Quest UI state
   const questGeneratorOpen = ref(false);
   const questsSearch = ref("");
@@ -520,10 +523,11 @@ export const useUiStore = defineStore("ui", () => {
     itemGeneratorOpen,
     puzzleGeneratorOpen,
 
-    // Trap / Faction / Location generators
+    // Trap / Faction / Location / Roll Table generators
     trapGeneratorOpen,
     factionGeneratorOpen,
     locationGeneratorOpen,
+    rollTableGeneratorOpen,
 
     // Quests
     questGeneratorOpen,

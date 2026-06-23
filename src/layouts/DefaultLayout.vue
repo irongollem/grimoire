@@ -45,6 +45,7 @@
     <TrapGeneratorPanel />
     <FactionGeneratorPanel />
     <LocationGeneratorPanel />
+    <RollTableGeneratorPanel />
 
     <!-- Shows a pill for every active/completed/errored AI generation -->
     <AiGenerationBadge />
@@ -77,6 +78,7 @@ import QuestGeneratorPanel from "@/components/quests/QuestGeneratorPanel.vue";
 import TrapGeneratorPanel from "@/components/traps/TrapGeneratorPanel.vue";
 import FactionGeneratorPanel from "@/components/factions/FactionGeneratorPanel.vue";
 import LocationGeneratorPanel from "@/components/locations/LocationGeneratorPanel.vue";
+import RollTableGeneratorPanel from "@/components/dungeon-features/RollTableGeneratorPanel.vue";
 import AiGenerationBadge from "@/components/common/AiGenerationBadge.vue";
 import SoundboardWidget from "@/components/soundboard/SoundboardWidget.vue";
 import DowngradeCampaignPickerModal from "@/components/billing/DowngradeCampaignPickerModal.vue";
