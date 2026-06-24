@@ -20,7 +20,17 @@
       <div class="md-stat-rows">
         <div v-for="r in statRows" :key="r.label" class="md-stat-row">
           <span class="md-stat-key">{{ r.label }}</span>
-          <span class="md-stat-val">{{ r.value }}</span>
+          <span class="md-stat-val">
+            <template v-if="r.damage && r.damage.types.length">
+              <span class="md-dmg-icons">
+                <DamageIcon v-for="t in r.damage.types" :key="t" :type="t" />
+              </span>
+              <span v-if="r.damage.qualifier" class="md-dmg-qual">{{
+                r.damage.qualifier
+              }}</span>
+            </template>
+            <template v-else>{{ r.value }}</template>
+          </span>
         </div>
       </div>
       <FitText class="md-entries" :entries="entryList" />
@@ -34,6 +44,7 @@ import { computed } from "vue";
 import type { Monster } from "@/types/monster.types";
 import ModernShell from "./ModernShell.vue";
 import FitText, { type FitEntry } from "../../FitText.vue";
+import DamageIcon from "@/components/common/DamageIcon.vue";
 import { accentForMonster } from "../tokens.shared";
 import { useMonsterCardData } from "@/composables/useMonsterCardData";
 
@@ -105,6 +116,11 @@ const artFade = computed(() => ({
   font-family: "Cormorant Garamond", serif; font-size: 8.5px;
   color: var(--md-text-sub); line-height: 1.3;
 }
+.md-dmg-icons {
+  display: inline-flex; gap: 1.5px; font-size: 1.3em; vertical-align: -0.18em;
+  color: var(--acc-text);
+}
+.md-dmg-qual { font-style: italic; opacity: 0.85; margin-left: 2px; }
 .md-entries { gap: 3px; }
 :deep(.ft-entry) {
   font-family: "Cormorant Garamond", serif; font-size: 8.5px; line-height: 1.35;

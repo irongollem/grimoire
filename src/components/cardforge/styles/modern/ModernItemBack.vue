@@ -13,6 +13,14 @@
           <span class="md-stat-key">{{ r.label }}</span>
           <span class="md-stat-val">{{ r.value }}</span>
         </div>
+        <div v-if="damageTypes.length" class="md-stat-row">
+          <span class="md-stat-key">Damage</span>
+          <span class="md-stat-val">
+            <span class="md-dmg-icons">
+              <DamageIcon v-for="t in damageTypes" :key="t" :type="t" />
+            </span>
+          </span>
+        </div>
       </div>
       <div class="md-entries md-fade">
         <div class="md-entry">
@@ -31,12 +39,13 @@ import { computed } from "vue";
 import type { Item } from "@/types/item.types";
 import { extractTiptapText } from "@/lib/utils";
 import ModernShell from "./ModernShell.vue";
+import DamageIcon from "@/components/common/DamageIcon.vue";
 import { accentForItem } from "../tokens.shared";
 import { useItemCardData } from "@/composables/useItemCardData";
 
 const { data } = defineProps<{ data: Item; tarot?: boolean }>();
 
-const { portrait, metaRows } = useItemCardData(() => data);
+const { portrait, metaRows, damageTypes } = useItemCardData(() => data);
 const artFade = computed(() => ({
   backgroundImage: "url('" + (portrait.value ?? "") + "')",
 }));
@@ -80,6 +89,10 @@ const artFade = computed(() => ({
 .md-stat-val {
   font-family: "Cormorant Garamond", serif; font-size: 8.5px;
   color: var(--md-text-sub); line-height: 1.3;
+}
+.md-dmg-icons {
+  display: inline-flex; gap: 1.5px; font-size: 1.3em; vertical-align: -0.18em;
+  color: var(--acc-text);
 }
 .md-entries { flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 3px; }
 /* Long descriptions fill the available space and fade out where they overflow,

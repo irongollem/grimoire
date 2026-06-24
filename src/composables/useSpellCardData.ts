@@ -2,6 +2,7 @@ import { computed, toValue, type MaybeRefOrGetter } from "vue";
 import type { Spell } from "@/types/spell.types";
 import { spellLevelLabel } from "@/types/spell.types";
 import { truncateCard } from "@/types/card.types";
+import { damageTypesFromRolls } from "@/lib/damageIcons";
 
 /**
  * Normalized data for a Spell card — design-agnostic.
@@ -44,6 +45,10 @@ export function useSpellCardData(data: MaybeRefOrGetter<Spell>) {
     { label: "DUR", value: durStat.value },
   ]);
 
+  const damageTypes = computed(() =>
+    damageTypesFromRolls(toValue(data).damage_rolls),
+  );
+
   const metaRows = computed(() => {
     const d = toValue(data);
     return [
@@ -71,6 +76,7 @@ export function useSpellCardData(data: MaybeRefOrGetter<Spell>) {
     durStat,
     stats,
     metaRows,
+    damageTypes,
     truncate: truncateCard,
   };
 }

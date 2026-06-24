@@ -1,4 +1,5 @@
 import { DAMAGE_TYPES, type DamageType } from "@/types/damage.types";
+import type { DamageRoll } from "@/lib/dice";
 
 /**
  * Result of pulling damage types out of a free-text stat string such as
@@ -37,4 +38,16 @@ export function parseDamageString(
     .trim();
 
   return { types, qualifier };
+}
+
+/**
+ * Distinct, canonically-ordered damage types named by a set of damage rolls
+ * (weapon/spell dice). Untyped or unrecognized roll types are ignored.
+ */
+export function damageTypesFromRolls(
+  rolls: DamageRoll[] | null | undefined,
+): DamageType[] {
+  if (!rolls?.length) return [];
+  const present = new Set(rolls.map((r) => r.type.toLowerCase()));
+  return DAMAGE_TYPES.filter((t) => present.has(t));
 }

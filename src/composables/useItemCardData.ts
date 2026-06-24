@@ -2,6 +2,7 @@ import { computed, toValue, type MaybeRefOrGetter } from "vue";
 import type { Item } from "@/types/item.types";
 import { ITEM_TYPE_LABELS, ITEM_RARITY_LABELS } from "@/types/item.types";
 import { truncateCard } from "@/types/card.types";
+import { damageTypesFromRolls } from "@/lib/damageIcons";
 
 /**
  * Normalized data for an Item card — design-agnostic.
@@ -42,6 +43,10 @@ export function useItemCardData(data: MaybeRefOrGetter<Item>) {
     { label: "ATT", value: attuneLabel.value },
   ]);
 
+  const damageTypes = computed(() =>
+    damageTypesFromRolls(toValue(data).damage_rolls),
+  );
+
   const metaRows = computed(() => {
     const d = toValue(data);
     const rows: Array<{ label: string; value: string }> = [];
@@ -61,6 +66,7 @@ export function useItemCardData(data: MaybeRefOrGetter<Item>) {
     attuneLabel,
     stats,
     metaRows,
+    damageTypes,
     truncate: truncateCard,
   };
 }

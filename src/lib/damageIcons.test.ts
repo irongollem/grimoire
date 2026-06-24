@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseDamageString } from "./damageIcons";
+import { parseDamageString, damageTypesFromRolls } from "./damageIcons";
 
 describe("parseDamageString", () => {
   it("returns empty for nullish/empty input", () => {
@@ -48,5 +48,32 @@ describe("parseDamageString", () => {
   it("does not match a type that is only a substring of another word", () => {
     // "acidic" should not register as "acid"
     expect(parseDamageString("acidic residue").types).toEqual([]);
+  });
+});
+
+describe("damageTypesFromRolls", () => {
+  it("returns [] for null/empty", () => {
+    expect(damageTypesFromRolls(null)).toEqual([]);
+    expect(damageTypesFromRolls([])).toEqual([]);
+  });
+
+  it("collects distinct valid types in canonical order", () => {
+    expect(
+      damageTypesFromRolls([
+        { dice: "8d6", type: "Fire" },
+        { dice: "2d6", type: "cold" },
+        { dice: "1d6", type: "fire" },
+      ]),
+    ).toEqual(["cold", "fire"]);
+  });
+
+  it("ignores untyped or unrecognized rolls", () => {
+    expect(
+      damageTypesFromRolls([
+        { dice: "5", type: "" },
+        { dice: "1d4", type: "sonic" },
+        { dice: "2d8", type: "radiant" },
+      ]),
+    ).toEqual(["radiant"]);
   });
 });

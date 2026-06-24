@@ -7,6 +7,14 @@ import {
   truncateCard,
 } from "@/types/card.types";
 import { extractTiptapText } from "@/lib/utils";
+import { parseDamageString, type ParsedDamage } from "@/lib/damageIcons";
+
+/** A stat row; damage rows carry parsed types so the UI can render icons. */
+export interface CardStatRow {
+  label: string;
+  value: string;
+  damage?: ParsedDamage;
+}
 
 /**
  * Normalized data for a Monster card — design-agnostic.
@@ -61,10 +69,10 @@ export function useMonsterCardData(
     }),
   );
 
-  const statRows = computed(() => {
+  const statRows = computed((): CardStatRow[] => {
     const sb = toValue(data).stat_block;
     if (!sb) return [];
-    const rows: Array<{ label: string; value: string }> = [];
+    const rows: CardStatRow[] = [];
     if (sb.saving_throws)
       rows.push({ label: "Saves", value: sb.saving_throws });
     if (sb.skills && Object.keys(sb.skills).length) {
@@ -75,10 +83,24 @@ export function useMonsterCardData(
           .join(", "),
       });
     }
-    if (sb.damage_immunities)
-      rows.push({ label: "Immune", value: sb.damage_immunities });
+    if (sb.damage_vulnerabilities)
+      rows.push({
+        label: "Vuln.",
+        value: sb.damage_vulnerabilities,
+        damage: parseDamageString(sb.damage_vulnerabilities),
+      });
     if (sb.damage_resistances)
-      rows.push({ label: "Resist.", value: sb.damage_resistances });
+      rows.push({
+        label: "Resist.",
+        value: sb.damage_resistances,
+        damage: parseDamageString(sb.damage_resistances),
+      });
+    if (sb.damage_immunities)
+      rows.push({
+        label: "Immune",
+        value: sb.damage_immunities,
+        damage: parseDamageString(sb.damage_immunities),
+      });
     if (sb.senses) rows.push({ label: "Senses", value: sb.senses });
     if (sb.languages) rows.push({ label: "Lang.", value: sb.languages });
     return rows;

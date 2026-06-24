@@ -13,6 +13,14 @@
           <span class="ik-stat-key">{{ r.label }}</span>
           <span class="ik-stat-val">{{ r.value }}</span>
         </div>
+        <div v-if="damageTypes.length" class="ik-stat-row">
+          <span class="ik-stat-key">Damage</span>
+          <span class="ik-stat-val">
+            <span class="ik-dmg-icons">
+              <DamageIcon v-for="t in damageTypes" :key="t" :type="t" />
+            </span>
+          </span>
+        </div>
       </div>
       <div class="ik-entries ik-fade">
         <div class="ik-entry">
@@ -33,12 +41,13 @@ import { computed } from "vue";
 import type { Spell } from "@/types/spell.types";
 import { extractTiptapText } from "@/lib/utils";
 import InkedShell from "./InkedShell.vue";
+import DamageIcon from "@/components/common/DamageIcon.vue";
 import { accentForSpell } from "../tokens.shared";
 import { useSpellCardData } from "@/composables/useSpellCardData";
 
 const { data } = defineProps<{ data: Spell; tarot?: boolean }>();
 
-const { portrait, metaRows } = useSpellCardData(() => data);
+const { portrait, metaRows, damageTypes } = useSpellCardData(() => data);
 const artFade = computed(() => ({
   backgroundImage: "url('" + (portrait.value ?? "") + "')",
 }));
@@ -85,6 +94,10 @@ const artFade = computed(() => ({
 .ik-stat-val {
   font-family: "Cardo", serif; font-size: 7.5px;
   color: var(--ik-text-sub); line-height: 1.2;
+}
+.ik-dmg-icons {
+  display: inline-flex; gap: 1.5px; font-size: 1.4em; vertical-align: -0.18em;
+  color: var(--acc-text);
 }
 .ik-entries { flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 2.5px; }
 /* Long descriptions fill the available space and fade out where they overflow,
