@@ -115,8 +115,15 @@ export function useMonsterCardData(
     if (resist) rows.push(resist);
     const immune = damageRow("Immune", sb.damage_immunities);
     if (immune) rows.push(immune);
-    if (sb.senses) rows.push({ label: "Senses", value: sb.senses });
     if (sb.languages) rows.push({ label: "Lang.", value: sb.languages });
+    if (sb.senses)
+      rows.push({
+        label: "Senses",
+        // compact the verbose senses line: "120 ft." -> "120'", drop "passive"
+        value: sb.senses
+          .replace(/ ?ft\.?/g, "'")
+          .replace(/passive Perception/gi, "PP"),
+      });
     return rows;
   });
 
@@ -124,11 +131,19 @@ export function useMonsterCardData(
     const sb = toValue(data).stat_block;
     if (!sb) return [];
     const tarotMode = toValue(tarot) ?? false;
-    return [
+    const acts = sb.actions ?? [];
+    const isMulti = (a: { name: string }) => /^multiattack/i.test(a.name);
+    // signature actions (breath weapons, recharge powers) — keep these, they were
+    // being sliced off after Multiattack + the first couple of basic attacks
+    const isKey = (a: { name: string }) => /\b(breath|recharge)\b/i.test(a.name);
+    const ordered = [
+      ...acts.filter(isMulti),
+      ...acts.filter((a) => isKey(a) && !isMulti(a)),
       ...(sb.special_abilities ?? []).slice(0, 2),
-      ...(sb.actions ?? []).slice(0, 3),
-    ]
-      .slice(0, tarotMode ? 5 : 4)
+      ...acts.filter((a) => !isMulti(a) && !isKey(a)),
+    ];
+    return ordered
+      .slice(0, tarotMode ? 7 : 6)
       // descriptions may be plain text or Tiptap JSON — normalize to plain text
       .map((e) => ({ ...e, description: extractTiptapText(e.description, Infinity) }));
   });

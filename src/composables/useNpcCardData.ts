@@ -69,8 +69,14 @@ export function useNpcCardData(
           .join(", "),
       });
     }
-    if (sb.senses) rows.push({ label: "Senses", value: sb.senses });
     if (sb.languages) rows.push({ label: "Lang.", value: sb.languages });
+    if (sb.senses)
+      rows.push({
+        label: "Senses",
+        value: sb.senses
+          .replace(/ ?ft\.?/g, "'")
+          .replace(/passive Perception/gi, "PP"),
+      });
     return rows;
   });
 
