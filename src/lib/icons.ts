@@ -254,6 +254,7 @@ export { Layers as IconLayers }
 // generator and the matching NAV_GLYPHS entry updates here automatically.
 import { glyph } from "./glyph";
 import { NAV_GLYPHS } from "./navGlyphs.generated";
+import { NAV_GLYPHS as ASSET_GLYPHS } from "./navGlyphs.assets.generated";
 export const IconNavDashboard = glyph(NAV_GLYPHS.dashboard);
 export const IconNavNotes = glyph(NAV_GLYPHS.notes);
 export const IconNavCalendar = glyph(NAV_GLYPHS.calendar);
@@ -268,6 +269,20 @@ export const IconNavWorkshop = glyph(NAV_GLYPHS.workshop);
 export const IconNavSoundboard = glyph(NAV_GLYPHS.soundboard);
 export const IconNavSettings = glyph(NAV_GLYPHS.settings);
 export const IconNavReliquary = glyph(NAV_GLYPHS.reliquary);
+// Assets + Publish nav sections
+export const IconNavGallery = glyph(ASSET_GLYPHS.gallery);
+export const IconNavBestiary = glyph(ASSET_GLYPHS.bestiary);
+export const IconNavSpellbook = glyph(ASSET_GLYPHS.spellbook);
+export const IconNavItemVault = glyph(ASSET_GLYPHS.itemvault);
+export const IconNavDungeonCraft = glyph(ASSET_GLYPHS.dungeoncraft);
+export const IconNavCodex = glyph(ASSET_GLYPHS.codex);
+export const IconNavHeroes = glyph(ASSET_GLYPHS.heroes);
+export const IconNavScriptorium = glyph(ASSET_GLYPHS.scriptorium);
+export const IconNavCharacterSheet = glyph(ASSET_GLYPHS.charactersheet);
+export const IconNavCardForge = glyph(ASSET_GLYPHS.cardforge);
+export const IconNavMint = glyph(ASSET_GLYPHS.mint);
+export const IconNavIlluminator = glyph(ASSET_GLYPHS.illuminator);
+export const IconNavCartographer = glyph(ASSET_GLYPHS.cartographer);
 
 // ── UI / Misc ─────────────────────────────────────────────────────────────────
 export { BarChart2 as IconChart }
