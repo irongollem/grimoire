@@ -73,8 +73,11 @@ export function parseDamageGroups(
   return groups;
 }
 
-/** A run of plain text, or a damage type to render as an icon. */
-export type DamageToken = { text: string } | { type: DamageType };
+/** A run of plain text, or a damage type to render as an icon. `bold` marks
+ *  text that came from Markdown emphasis (**...**) in imported descriptions. */
+export type DamageToken =
+  | { text: string; bold?: boolean }
+  | { type: DamageType; bold?: boolean };
 
 const TOKEN_RE = new RegExp(
   `\\b(${DAMAGE_TYPES.join("|")})( damage)?\\b`,
@@ -97,6 +100,25 @@ export function tokenizeDamage(input: string | null | undefined): DamageToken[] 
   }
   if (last < input.length) tokens.push({ text: input.slice(last) });
   return tokens;
+}
+
+/**
+ * Like tokenizeDamage, but also honours Markdown bold (**...**) that some
+ * imported stat blocks store as literal text — bold runs are flagged so the UI
+ * can render them strong instead of printing the asterisks.
+ */
+export function tokenizeRich(input: string | null | undefined): DamageToken[] {
+  if (!input) return [];
+  const out: DamageToken[] = [];
+  for (const part of input.split(/(\*\*[\s\S]+?\*\*)/g)) {
+    if (!part) continue;
+    const m = part.match(/^\*\*([\s\S]+?)\*\*$/);
+    const bold = m !== null;
+    for (const tok of tokenizeDamage(m ? m[1] : part)) {
+      out.push(bold ? { ...tok, bold: true } : tok);
+    }
+  }
+  return out;
 }
 
 /**

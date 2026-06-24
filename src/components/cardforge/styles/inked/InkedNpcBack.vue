@@ -20,7 +20,21 @@
       <div class="ik-stat-rows">
         <div v-for="r in statRows" :key="r.label" class="ik-stat-row">
           <span class="ik-stat-key">{{ r.label }}</span>
-          <span class="ik-stat-val">{{ r.value }}</span>
+          <span class="ik-stat-val">
+            <template v-if="r.senses && r.senses.length">
+              <template v-for="(se, si) in r.senses" :key="si">
+                <span v-if="se.sense" class="ik-sense">
+                  <SenseIcon :sense="se.sense" /><span v-if="se.value">{{
+                    se.value
+                  }}</span>
+                </span>
+                <span v-else class="ik-sense-text"
+                  >{{ se.label }}{{ se.value ? " " + se.value : "" }}</span
+                >
+              </template>
+            </template>
+            <template v-else>{{ r.value }}</template>
+          </span>
         </div>
       </div>
       <FitText class="ik-entries" :entries="entryList" />
@@ -34,6 +48,7 @@ import { computed } from "vue";
 import type { Npc } from "@/types/npc.types";
 import InkedShell from "./InkedShell.vue";
 import FitText, { type FitEntry } from "../../FitText.vue";
+import SenseIcon from "@/components/common/SenseIcon.vue";
 import { accentForNpc } from "../tokens.shared";
 import { useNpcCardData } from "@/composables/useNpcCardData";
 
@@ -193,6 +208,9 @@ const artFade = computed(() => ({
   color: var(--ik-text-sub);
   line-height: 1.2;
 }
+.ik-sense { display: inline-flex; align-items: center; gap: 1.5px; margin-right: 5px; }
+.ik-sense :deep(.mask-icon) { width: 1.35em; height: 1.35em; color: var(--acc-text); }
+.ik-sense-text { margin-right: 5px; }
 .ik-entries {
   gap: 2.5px;
 }

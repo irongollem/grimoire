@@ -31,6 +31,18 @@
                 }}</span>
               </span>
             </template>
+            <template v-else-if="r.senses && r.senses.length">
+              <template v-for="(se, si) in r.senses" :key="si">
+                <span v-if="se.sense" class="ik-sense">
+                  <SenseIcon :sense="se.sense" /><span v-if="se.value">{{
+                    se.value
+                  }}</span>
+                </span>
+                <span v-else class="ik-sense-text"
+                  >{{ se.label }}{{ se.value ? " " + se.value : "" }}</span
+                >
+              </template>
+            </template>
             <template v-else>{{ r.value }}</template>
           </span>
         </div>
@@ -47,6 +59,7 @@ import type { Monster } from "@/types/monster.types";
 import InkedShell from "./InkedShell.vue";
 import FitText, { type FitEntry } from "../../FitText.vue";
 import DamageIcon from "@/components/common/DamageIcon.vue";
+import SenseIcon from "@/components/common/SenseIcon.vue";
 import { accentForMonster } from "../tokens.shared";
 import { useMonsterCardData } from "@/composables/useMonsterCardData";
 
@@ -135,6 +148,9 @@ const artFade = computed(() => ({
   color: var(--acc-text);
 }
 .ik-dmg-qual { font-style: italic; opacity: 0.85; margin-left: 2px; }
+.ik-sense { display: inline-flex; align-items: center; gap: 1.5px; margin-right: 5px; }
+.ik-sense :deep(.mask-icon) { width: 1.35em; height: 1.35em; color: var(--acc-text); }
+.ik-sense-text { margin-right: 5px; }
 .ik-entries { gap: 2.5px; }
 :deep(.ft-entry) {
   font-family: "Cardo", serif; font-size: 6.5px; line-height: 1.3;

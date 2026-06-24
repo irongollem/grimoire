@@ -4,6 +4,7 @@ import {
   normalizeQualifier,
   damageTypesFromRolls,
   tokenizeDamage,
+  tokenizeRich,
 } from "./damageIcons";
 
 describe("normalizeQualifier", () => {
@@ -107,6 +108,21 @@ describe("tokenizeDamage", () => {
   it("is case-insensitive and lowercases the type", () => {
     const toks = tokenizeDamage("takes Cold damage");
     expect(toks).toEqual([{ text: "takes " }, { type: "cold" }]);
+  });
+});
+
+describe("tokenizeRich", () => {
+  it("marks **bold** runs and still extracts damage icons", () => {
+    expect(tokenizeRich("**Fire Breath.** deals fire damage")).toEqual([
+      { type: "fire", bold: true },
+      { text: " Breath.", bold: true },
+      { text: " deals " },
+      { type: "fire" },
+    ]);
+  });
+
+  it("handles plain text with no markup", () => {
+    expect(tokenizeRich("a melee attack")).toEqual([{ text: "a melee attack" }]);
   });
 });
 

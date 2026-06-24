@@ -31,6 +31,18 @@
                 }}</span>
               </span>
             </template>
+            <template v-else-if="r.senses && r.senses.length">
+              <template v-for="(se, si) in r.senses" :key="si">
+                <span v-if="se.sense" class="md-sense">
+                  <SenseIcon :sense="se.sense" /><span v-if="se.value">{{
+                    se.value
+                  }}</span>
+                </span>
+                <span v-else class="md-sense-text"
+                  >{{ se.label }}{{ se.value ? " " + se.value : "" }}</span
+                >
+              </template>
+            </template>
             <template v-else>{{ r.value }}</template>
           </span>
         </div>
@@ -47,6 +59,7 @@ import type { Monster } from "@/types/monster.types";
 import ModernShell from "./ModernShell.vue";
 import FitText, { type FitEntry } from "../../FitText.vue";
 import DamageIcon from "@/components/common/DamageIcon.vue";
+import SenseIcon from "@/components/common/SenseIcon.vue";
 import { accentForMonster } from "../tokens.shared";
 import { useMonsterCardData } from "@/composables/useMonsterCardData";
 
@@ -124,6 +137,9 @@ const artFade = computed(() => ({
   color: var(--acc-text);
 }
 .md-dmg-qual { font-style: italic; opacity: 0.85; margin-left: 2px; }
+.md-sense { display: inline-flex; align-items: center; gap: 1.5px; margin-right: 5px; }
+.md-sense :deep(.mask-icon) { width: 1.25em; height: 1.25em; color: var(--acc-text); }
+.md-sense-text { margin-right: 5px; }
 .md-entries { gap: 3px; }
 :deep(.ft-entry) {
   font-family: "Cormorant Garamond", serif; font-size: 7.5px; line-height: 1.35;

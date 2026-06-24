@@ -8,6 +8,7 @@ import {
 } from "@/types/card.types";
 import { extractTiptapText } from "@/lib/utils";
 import { parseDiceAvg } from "@/lib/dice";
+import { parseSenses, type SenseEntry } from "@/lib/senses";
 
 /**
  * Normalized data for an NPC card — the *concept* of an NPC card,
@@ -60,7 +61,7 @@ export function useNpcCardData(
   const statRows = computed(() => {
     const sb = toValue(data).stat_block;
     if (!sb) return [];
-    const rows: Array<{ label: string; value: string }> = [];
+    const rows: Array<{ label: string; value: string; senses?: SenseEntry[] }> = [];
     if (sb.skills && Object.keys(sb.skills).length) {
       rows.push({
         label: "Skills",
@@ -71,12 +72,7 @@ export function useNpcCardData(
     }
     if (sb.languages) rows.push({ label: "Lang.", value: sb.languages });
     if (sb.senses)
-      rows.push({
-        label: "Senses",
-        value: sb.senses
-          .replace(/ ?ft\.?/g, "")
-          .replace(/passive Perception/gi, "PP"),
-      });
+      rows.push({ label: "Senses", value: sb.senses, senses: parseSenses(sb.senses) });
     return rows;
   });
 

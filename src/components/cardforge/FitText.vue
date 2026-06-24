@@ -17,7 +17,9 @@
           v-if="'type' in tok"
           :type="tok.type"
           class="ft-dmg"
-        /><template v-else>{{ tok.text }}</template></template>
+        /><strong v-else-if="tok.bold" class="ft-bold">{{
+          tok.text
+        }}</strong><template v-else>{{ tok.text }}</template></template>
     </div>
   </div>
 </template>
@@ -25,7 +27,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, watch, nextTick } from "vue";
 import { computeFit, type FitChild } from "@/lib/fitText";
-import { tokenizeDamage, type DamageToken } from "@/lib/damageIcons";
+import { tokenizeRich, type DamageToken } from "@/lib/damageIcons";
 import DamageIcon from "@/components/common/DamageIcon.vue";
 
 /** One entry — an optional bold lead-in name plus its body text. */
@@ -37,9 +39,9 @@ export interface FitEntry {
 
 const { entries } = defineProps<{ entries: FitEntry[] }>();
 
-/** Body text split into runs + damage-type icons (with a leading space after the name). */
+/** Body text split into runs + damage icons + bold spans (leading space after the name). */
 function entryTokens(e: FitEntry): DamageToken[] {
-  return tokenizeDamage(e.name ? " " + e.text : e.text);
+  return tokenizeRich(e.name ? " " + e.text : e.text);
 }
 
 const host = ref<HTMLElement | null>(null);
@@ -111,5 +113,8 @@ watch(
 .ft-dmg {
   font-size: 1.05em;
   vertical-align: -0.14em;
+}
+.ft-bold {
+  font-weight: 700;
 }
 </style>

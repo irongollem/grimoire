@@ -20,7 +20,21 @@
       <div class="md-stat-rows">
         <div v-for="r in statRows" :key="r.label" class="md-stat-row">
           <span class="md-stat-key">{{ r.label }}</span>
-          <span class="md-stat-val">{{ r.value }}</span>
+          <span class="md-stat-val">
+            <template v-if="r.senses && r.senses.length">
+              <template v-for="(se, si) in r.senses" :key="si">
+                <span v-if="se.sense" class="md-sense">
+                  <SenseIcon :sense="se.sense" /><span v-if="se.value">{{
+                    se.value
+                  }}</span>
+                </span>
+                <span v-else class="md-sense-text"
+                  >{{ se.label }}{{ se.value ? " " + se.value : "" }}</span
+                >
+              </template>
+            </template>
+            <template v-else>{{ r.value }}</template>
+          </span>
         </div>
       </div>
       <FitText class="md-entries" :entries="entryList" />
@@ -34,6 +48,7 @@ import { computed } from "vue";
 import type { Npc } from "@/types/npc.types";
 import ModernShell from "./ModernShell.vue";
 import FitText, { type FitEntry } from "../../FitText.vue";
+import SenseIcon from "@/components/common/SenseIcon.vue";
 import { accentForNpc } from "../tokens.shared";
 import { useNpcCardData } from "@/composables/useNpcCardData";
 
@@ -105,6 +120,9 @@ const artFade = computed(() => ({
   font-family: "Cormorant Garamond", serif; font-size: 8.5px;
   color: var(--md-text-sub); line-height: 1.3;
 }
+.md-sense { display: inline-flex; align-items: center; gap: 1.5px; margin-right: 5px; }
+.md-sense :deep(.mask-icon) { width: 1.25em; height: 1.25em; color: var(--acc-text); }
+.md-sense-text { margin-right: 5px; }
 .md-entries { gap: 3px; }
 :deep(.ft-entry) {
   font-family: "Cormorant Garamond", serif; font-size: 7.5px; line-height: 1.35;

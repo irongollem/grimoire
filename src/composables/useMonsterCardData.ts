@@ -9,13 +9,15 @@ import {
 import { extractTiptapText } from "@/lib/utils";
 import { parseDamageGroups, type DamageGroup } from "@/lib/damageIcons";
 import { parseSpeed } from "@/lib/movement";
+import { parseSenses, type SenseEntry } from "@/lib/senses";
 import { parseDiceAvg } from "@/lib/dice";
 
-/** A stat row; damage rows carry parsed groups so the UI can render icons. */
+/** A stat row; damage/senses rows carry parsed data so the UI can render icons. */
 export interface CardStatRow {
   label: string;
   value: string;
   damage?: DamageGroup[];
+  senses?: SenseEntry[];
 }
 
 /**
@@ -117,13 +119,7 @@ export function useMonsterCardData(
     if (immune) rows.push(immune);
     if (sb.languages) rows.push({ label: "Lang.", value: sb.languages });
     if (sb.senses)
-      rows.push({
-        label: "Senses",
-        // compact senses: drop the unit (120 ft. -> 120) and shorten passive perception
-        value: sb.senses
-          .replace(/ ?ft\.?/g, "")
-          .replace(/passive Perception/gi, "PP"),
-      });
+      rows.push({ label: "Senses", value: sb.senses, senses: parseSenses(sb.senses) });
     return rows;
   });
 
