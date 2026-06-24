@@ -80,7 +80,8 @@ export function useNpcCardData(
 
   const flavor = computed(() => {
     const raw = toValue(data).personality ?? toValue(data).backstory ?? null;
-    return raw ? extractTiptapText(raw, 80) || null : null;
+    // Full text — the card UI line-clamps it to whatever space remains.
+    return raw ? extractTiptapText(raw, Infinity) || null : null;
   });
 
   return {

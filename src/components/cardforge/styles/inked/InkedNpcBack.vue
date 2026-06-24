@@ -23,14 +23,8 @@
           <span class="ik-stat-val">{{ r.value }}</span>
         </div>
       </div>
-      <div class="ik-entries">
-        <div v-for="e in entries" :key="e.name" class="ik-entry">
-          <span class="ik-entry-name">{{ e.name }}.</span>{{
-            " " + truncate(e.description, tarot ? 140 : 100)
-          }}
-        </div>
-      </div>
-      <div v-if="flavor" class="ik-flavor">"{{ truncate(flavor, 80) }}"</div>
+      <FitText class="ik-entries" :entries="entryList" />
+      <div v-if="flavor" class="ik-flavor">"{{ flavor }}"</div>
     </div>
   </InkedShell>
 </template>
@@ -39,21 +33,23 @@
 import { computed } from "vue";
 import type { Npc } from "@/types/npc.types";
 import InkedShell from "./InkedShell.vue";
+import FitText, { type FitEntry } from "../../FitText.vue";
 import { accentForNpc } from "../tokens.shared";
 import { useNpcCardData } from "@/composables/useNpcCardData";
 
 const { data, tarot } = defineProps<{ data: Npc; tarot?: boolean }>();
 
-const {
-  portrait,
-  abilities,
-  statRows,
-  entries,
-  flavor,
-  truncate,
-} = useNpcCardData(
+const { portrait, abilities, statRows, entries, flavor } = useNpcCardData(
   () => data,
   () => tarot,
+);
+
+const entryList = computed<FitEntry[]>(() =>
+  entries.value.map((e) => ({
+    name: e.name + ".",
+    text: e.description,
+    key: e.name,
+  })),
 );
 const artFade = computed(() => ({
   backgroundImage: "url('" + (portrait.value ?? "") + "')",
@@ -198,20 +194,16 @@ const artFade = computed(() => ({
   line-height: 1.2;
 }
 .ik-entries {
-  flex: 1;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
   gap: 2.5px;
 }
-.ik-entry {
+:deep(.ft-entry) {
   font-family: "Cardo", serif;
   font-size: 7.5px;
   line-height: 1.3;
   color: var(--ik-text-sub);
   text-wrap: pretty;
 }
-.ik-entry-name {
+:deep(.ft-name) {
   font-family: "Cinzel", serif;
   font-size: 6.5px;
   font-weight: 700;
@@ -227,5 +219,9 @@ const artFade = computed(() => ({
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   padding-top: 4px;
   flex-shrink: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
 }
 </style>

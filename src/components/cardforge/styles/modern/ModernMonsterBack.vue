@@ -23,14 +23,8 @@
           <span class="md-stat-val">{{ r.value }}</span>
         </div>
       </div>
-      <div class="md-entries">
-        <div v-for="e in entries" :key="e.name" class="md-entry">
-          <span class="md-entry-name">{{ e.name }}</span>{{
-            truncate(e.description, tarot ? 140 : 100)
-          }}
-        </div>
-      </div>
-      <div v-if="flavor" class="md-flavor">"{{ truncate(flavor, 80) }}"</div>
+      <FitText class="md-entries" :entries="entryList" />
+      <div v-if="flavor" class="md-flavor">"{{ flavor }}"</div>
     </div>
   </ModernShell>
 </template>
@@ -39,21 +33,19 @@
 import { computed } from "vue";
 import type { Monster } from "@/types/monster.types";
 import ModernShell from "./ModernShell.vue";
+import FitText, { type FitEntry } from "../../FitText.vue";
 import { accentForMonster } from "../tokens.shared";
 import { useMonsterCardData } from "@/composables/useMonsterCardData";
 
 const { data, tarot } = defineProps<{ data: Monster; tarot?: boolean }>();
 
-const {
-  portrait,
-  abilities,
-  statRows,
-  entries,
-  flavor,
-  truncate,
-} = useMonsterCardData(
+const { portrait, abilities, statRows, entries, flavor } = useMonsterCardData(
   () => data,
   () => tarot,
+);
+
+const entryList = computed<FitEntry[]>(() =>
+  entries.value.map((e) => ({ name: e.name, text: e.description, key: e.name })),
 );
 const artFade = computed(() => ({
   backgroundImage: "url('" + (portrait.value ?? "") + "')",
@@ -113,12 +105,12 @@ const artFade = computed(() => ({
   font-family: "Cormorant Garamond", serif; font-size: 8.5px;
   color: var(--md-text-sub); line-height: 1.3;
 }
-.md-entries { flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 3px; }
-.md-entry {
+.md-entries { gap: 3px; }
+:deep(.ft-entry) {
   font-family: "Cormorant Garamond", serif; font-size: 8.5px; line-height: 1.35;
   color: var(--md-text-sub); text-wrap: pretty;
 }
-.md-entry-name {
+:deep(.ft-name) {
   font-size: 7px; font-weight: 800; color: var(--acc-text);
   letter-spacing: 0.06em; text-transform: uppercase; margin-right: 3px;
 }
@@ -126,5 +118,6 @@ const artFade = computed(() => ({
   font-family: "Cormorant Garamond", serif; font-style: italic; font-size: 7.5px;
   color: var(--md-text-muted); text-align: center;
   border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 4px; flex-shrink: 0;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
 }
 </style>

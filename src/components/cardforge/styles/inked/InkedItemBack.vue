@@ -14,9 +14,9 @@
           <span class="ik-stat-val">{{ r.value }}</span>
         </div>
       </div>
-      <div class="ik-entries">
+      <div class="ik-entries ik-fade">
         <div class="ik-entry">
-          {{ extractTiptapText(data.description, tarot ? 320 : 230) }}
+          {{ extractTiptapText(data.description, Infinity) }}
         </div>
       </div>
       <div v-if="data.attunement_requirements" class="ik-flavor">
@@ -85,6 +85,12 @@ const artFade = computed(() => ({
   color: var(--ik-text-sub); line-height: 1.2;
 }
 .ik-entries { flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 2.5px; }
+/* Long descriptions fill the available space and fade out where they overflow,
+   rather than being cut at an arbitrary character count. */
+.ik-fade {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 12px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 12px), transparent);
+}
 .ik-entry {
   font-family: "Cardo", serif; font-size: 7.5px; line-height: 1.3;
   color: var(--ik-text-sub); text-wrap: pretty;
@@ -93,5 +99,6 @@ const artFade = computed(() => ({
   font-family: "Cardo", serif; font-style: italic; font-size: 7px;
   color: var(--ik-text-muted); text-align: center;
   border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 4px; flex-shrink: 0;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
 }
 </style>
