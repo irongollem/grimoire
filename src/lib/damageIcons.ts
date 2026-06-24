@@ -1,43 +1,76 @@
 import { DAMAGE_TYPES, type DamageType } from "@/types/damage.types";
 import type { DamageRoll } from "@/lib/dice";
 
+/** The three physical damage types that "nonmagical" qualifiers modify. */
+const PHYSICAL: DamageType[] = ["bludgeoning", "piercing", "slashing"];
+
 /**
- * Result of pulling damage types out of a free-text stat string such as
- * "bludgeoning, piercing, and slashing from nonmagical attacks".
+ * A set of damage types that share a qualifier — e.g. the physical types in
+ * "...slashing from nonmagical attacks". Rendered as icons + a short note.
  */
-export interface ParsedDamage {
-  /** matched damage types, in canonical DAMAGE_TYPES order, de-duplicated. */
+export interface DamageGroup {
   types: DamageType[];
-  /** leftover qualifier text once type words + connectors are removed. */
+  /** normalized, compact qualifier ("nonmagical", "nonmagical (non-silvered)") or "". */
   qualifier: string;
 }
 
 /**
- * Extract the damage types named in a string, plus whatever qualifier text
- * remains (e.g. "from nonmagical attacks"). Used to render damage rows on
- * cards as icons + a short note instead of a long comma list.
+ * Collapse the many spellings of a damage qualifier into one short token so it
+ * takes minimal room on a card. Unknown qualifiers are lightly cleaned and kept.
  */
-export function parseDamageString(
-  input: string | null | undefined,
-): ParsedDamage {
-  if (!input) return { types: [], qualifier: "" };
-
-  const lower = input.toLowerCase();
-  const types = DAMAGE_TYPES.filter((t) =>
-    new RegExp(`\\b${t}\\b`).test(lower),
-  );
-
-  let qualifier = input;
-  for (const t of DAMAGE_TYPES) {
-    qualifier = qualifier.replace(new RegExp(`\\b${t}\\b`, "gi"), "");
+export function normalizeQualifier(raw: string): string {
+  const s = raw.toLowerCase();
+  if (/non[\s-]?magical/.test(s)) {
+    if (/silver/.test(s)) return "nonmagical (non-silvered)";
+    if (/adamant/.test(s)) return "nonmagical (non-adamantine)";
+    return "nonmagical";
   }
-  qualifier = qualifier
+  return s
     .replace(/[,;]/g, " ")
-    .replace(/\b(and|or)\b/gi, " ")
+    .replace(/\b(from|that|is|are|aren'?t|not|made|with|and|or|attacks?|weapons?)\b/gi, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
 
-  return { types, qualifier };
+/**
+ * Parse a free-text damage string into groups of types that share a qualifier.
+ *
+ * Splits on ";" (D&D separates an unconditional list from a qualified one that
+ * way), and — because a "nonmagical" qualifier only ever applies to physical
+ * B/P/S — splits a mixed group so the elemental types stay unconditional even
+ * when the source omits the semicolon. Types are canonically ordered per group.
+ */
+export function parseDamageGroups(
+  input: string | null | undefined,
+): DamageGroup[] {
+  if (!input) return [];
+
+  const groups: DamageGroup[] = [];
+  for (const segment of input.split(";")) {
+    const lower = segment.toLowerCase();
+    const types = DAMAGE_TYPES.filter((t) => new RegExp(`\\b${t}\\b`).test(lower));
+    if (!types.length) continue;
+
+    let rest = segment;
+    for (const t of DAMAGE_TYPES) {
+      rest = rest.replace(new RegExp(`\\b${t}\\b`, "gi"), " ");
+    }
+    const qualifier = normalizeQualifier(rest);
+
+    const physical = types.filter((t) => PHYSICAL.includes(t));
+    const elemental = types.filter((t) => !PHYSICAL.includes(t));
+    if (
+      qualifier.startsWith("nonmagical") &&
+      physical.length &&
+      elemental.length
+    ) {
+      groups.push({ types: elemental, qualifier: "" });
+      groups.push({ types: physical, qualifier });
+    } else {
+      groups.push({ types, qualifier });
+    }
+  }
+  return groups;
 }
 
 /**

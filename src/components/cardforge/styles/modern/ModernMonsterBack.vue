@@ -21,13 +21,15 @@
         <div v-for="r in statRows" :key="r.label" class="md-stat-row">
           <span class="md-stat-key">{{ r.label }}</span>
           <span class="md-stat-val">
-            <template v-if="r.damage && r.damage.types.length">
-              <span class="md-dmg-icons">
-                <DamageIcon v-for="t in r.damage.types" :key="t" :type="t" />
+            <template v-if="r.damage && r.damage.length">
+              <span v-for="(g, gi) in r.damage" :key="gi" class="md-dmg-group">
+                <span class="md-dmg-icons">
+                  <DamageIcon v-for="t in g.types" :key="t" :type="t" />
+                </span>
+                <span v-if="g.qualifier" class="md-dmg-qual">{{
+                  g.qualifier
+                }}</span>
               </span>
-              <span v-if="r.damage.qualifier" class="md-dmg-qual">{{
-                r.damage.qualifier
-              }}</span>
             </template>
             <template v-else>{{ r.value }}</template>
           </span>
@@ -116,6 +118,7 @@ const artFade = computed(() => ({
   font-family: "Cormorant Garamond", serif; font-size: 8.5px;
   color: var(--md-text-sub); line-height: 1.3;
 }
+.md-dmg-group + .md-dmg-group { margin-left: 4px; }
 .md-dmg-icons {
   display: inline-flex; gap: 1.5px; font-size: 1.3em; vertical-align: -0.18em;
   color: var(--acc-text);

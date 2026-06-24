@@ -7,13 +7,26 @@ import {
   truncateCard,
 } from "@/types/card.types";
 import { extractTiptapText } from "@/lib/utils";
-import { parseDamageString, type ParsedDamage } from "@/lib/damageIcons";
+import { parseDamageGroups, type DamageGroup } from "@/lib/damageIcons";
 
-/** A stat row; damage rows carry parsed types so the UI can render icons. */
+/** A stat row; damage rows carry parsed groups so the UI can render icons. */
 export interface CardStatRow {
   label: string;
   value: string;
-  damage?: ParsedDamage;
+  damage?: DamageGroup[];
+}
+
+/**
+ * Build a damage stat row: icon groups when types are recognized, plain text
+ * otherwise, and nothing for empty/junk values (e.g. a stray "[]").
+ */
+function damageRow(label: string, raw: string | undefined): CardStatRow | null {
+  if (!raw) return null;
+  const groups = parseDamageGroups(raw);
+  if (groups.length) return { label, value: raw, damage: groups };
+  const value = raw.trim();
+  if (!value || value === "[]") return null;
+  return { label, value };
 }
 
 /**
@@ -83,24 +96,12 @@ export function useMonsterCardData(
           .join(", "),
       });
     }
-    if (sb.damage_vulnerabilities)
-      rows.push({
-        label: "Vuln.",
-        value: sb.damage_vulnerabilities,
-        damage: parseDamageString(sb.damage_vulnerabilities),
-      });
-    if (sb.damage_resistances)
-      rows.push({
-        label: "Resist.",
-        value: sb.damage_resistances,
-        damage: parseDamageString(sb.damage_resistances),
-      });
-    if (sb.damage_immunities)
-      rows.push({
-        label: "Immune",
-        value: sb.damage_immunities,
-        damage: parseDamageString(sb.damage_immunities),
-      });
+    const vuln = damageRow("Vuln.", sb.damage_vulnerabilities);
+    if (vuln) rows.push(vuln);
+    const resist = damageRow("Resist.", sb.damage_resistances);
+    if (resist) rows.push(resist);
+    const immune = damageRow("Immune", sb.damage_immunities);
+    if (immune) rows.push(immune);
     if (sb.senses) rows.push({ label: "Senses", value: sb.senses });
     if (sb.languages) rows.push({ label: "Lang.", value: sb.languages });
     return rows;

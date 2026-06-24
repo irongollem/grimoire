@@ -1,53 +1,79 @@
 import { describe, it, expect } from "vitest";
-import { parseDamageString, damageTypesFromRolls } from "./damageIcons";
+import {
+  parseDamageGroups,
+  normalizeQualifier,
+  damageTypesFromRolls,
+} from "./damageIcons";
 
-describe("parseDamageString", () => {
-  it("returns empty for nullish/empty input", () => {
-    expect(parseDamageString(null)).toEqual({ types: [], qualifier: "" });
-    expect(parseDamageString("")).toEqual({ types: [], qualifier: "" });
+describe("normalizeQualifier", () => {
+  it("collapses the spellings of nonmagical to one token", () => {
+    expect(normalizeQualifier("from nonmagical attacks")).toBe("nonmagical");
+    expect(normalizeQualifier("from non magical attacks")).toBe("nonmagical");
+    expect(normalizeQualifier("that is nonmagical")).toBe("nonmagical");
   });
 
-  it("extracts a simple comma list with no qualifier", () => {
-    expect(parseDamageString("fire, cold")).toEqual({
-      types: ["cold", "fire"], // canonical order
-      qualifier: "",
-    });
-  });
-
-  it("keeps the qualifier after stripping type words and connectors", () => {
+  it("captures the silvered / adamantine exceptions compactly", () => {
     expect(
-      parseDamageString("bludgeoning, piercing, and slashing from nonmagical attacks"),
-    ).toEqual({
-      types: ["bludgeoning", "piercing", "slashing"],
-      qualifier: "from nonmagical attacks",
-    });
-  });
-
-  it("handles multiple groups separated by a semicolon", () => {
-    const r = parseDamageString(
-      "lightning, thunder; bludgeoning, piercing, and slashing from nonmagical attacks",
+      normalizeQualifier("from nonmagical attacks not made with silvered weapons"),
+    ).toBe("nonmagical (non-silvered)");
+    expect(normalizeQualifier("nonmagical that aren't adamantine")).toBe(
+      "nonmagical (non-adamantine)",
     );
-    expect(r.types).toEqual([
-      "bludgeoning",
-      "lightning",
-      "piercing",
-      "slashing",
-      "thunder",
+  });
+
+  it("lightly cleans but keeps an unknown qualifier", () => {
+    expect(normalizeQualifier("while in sunlight")).toBe("while in sunlight");
+  });
+});
+
+describe("parseDamageGroups", () => {
+  it("returns [] for nullish / empty / junk", () => {
+    expect(parseDamageGroups(null)).toEqual([]);
+    expect(parseDamageGroups("")).toEqual([]);
+    expect(parseDamageGroups("[]")).toEqual([]);
+  });
+
+  it("groups a simple unconditional list", () => {
+    expect(parseDamageGroups("cold, poison")).toEqual([
+      { types: ["cold", "poison"], qualifier: "" },
     ]);
-    expect(r.qualifier).toBe("from nonmagical attacks");
   });
 
-  it("de-duplicates repeated types", () => {
-    expect(parseDamageString("fire, fire damage").types).toEqual(["fire"]);
+  it("splits an unconditional list from a qualified one on the semicolon", () => {
+    expect(
+      parseDamageGroups("cold; bludgeoning, piercing, and slashing from nonmagical attacks"),
+    ).toEqual([
+      { types: ["cold"], qualifier: "" },
+      { types: ["bludgeoning", "piercing", "slashing"], qualifier: "nonmagical" },
+    ]);
   });
 
-  it("is case-insensitive", () => {
-    expect(parseDamageString("Fire and Cold").types).toEqual(["cold", "fire"]);
+  it("splits a mixed group even without a semicolon (nonmagical → physical only)", () => {
+    expect(
+      parseDamageGroups("fire, bludgeoning, piercing and slashing from non magical attacks"),
+    ).toEqual([
+      { types: ["fire"], qualifier: "" },
+      { types: ["bludgeoning", "piercing", "slashing"], qualifier: "nonmagical" },
+    ]);
   });
 
-  it("does not match a type that is only a substring of another word", () => {
-    // "acidic" should not register as "acid"
-    expect(parseDamageString("acidic residue").types).toEqual([]);
+  it("keeps a pure-physical qualified group as one group", () => {
+    expect(
+      parseDamageGroups(
+        "bludgeoning, piercing, and slashing from nonmagical attacks not made with silvered weapons",
+      ),
+    ).toEqual([
+      {
+        types: ["bludgeoning", "piercing", "slashing"],
+        qualifier: "nonmagical (non-silvered)",
+      },
+    ]);
+  });
+
+  it("does not split physical types when there is no qualifier", () => {
+    expect(parseDamageGroups("bludgeoning, piercing, slashing")).toEqual([
+      { types: ["bludgeoning", "piercing", "slashing"], qualifier: "" },
+    ]);
   });
 });
 
