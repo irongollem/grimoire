@@ -13,7 +13,11 @@
       "
     >
       <span v-if="e.name" class="ft-name">{{ e.name }}</span
-      >{{ e.name ? " " + e.text : e.text }}
+      ><template v-for="(tok, ti) in entryTokens(e)" :key="ti"><DamageIcon
+          v-if="'type' in tok"
+          :type="tok.type"
+          class="ft-dmg"
+        /><template v-else>{{ tok.text }}</template></template>
     </div>
   </div>
 </template>
@@ -21,6 +25,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, watch, nextTick } from "vue";
 import { computeFit, type FitChild } from "@/lib/fitText";
+import { tokenizeDamage, type DamageToken } from "@/lib/damageIcons";
+import DamageIcon from "@/components/common/DamageIcon.vue";
 
 /** One entry — an optional bold lead-in name plus its body text. */
 export interface FitEntry {
@@ -30,6 +36,11 @@ export interface FitEntry {
 }
 
 const { entries } = defineProps<{ entries: FitEntry[] }>();
+
+/** Body text split into runs + damage-type icons (with a leading space after the name). */
+function entryTokens(e: FitEntry): DamageToken[] {
+  return tokenizeDamage(e.name ? " " + e.text : e.text);
+}
 
 const host = ref<HTMLElement | null>(null);
 /** While measuring we render every entry in full so we can read its geometry. */
@@ -96,5 +107,9 @@ watch(
   display: -webkit-box;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+.ft-dmg {
+  font-size: 1.05em;
+  vertical-align: -0.14em;
 }
 </style>

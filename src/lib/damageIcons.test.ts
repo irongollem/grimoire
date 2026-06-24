@@ -3,6 +3,7 @@ import {
   parseDamageGroups,
   normalizeQualifier,
   damageTypesFromRolls,
+  tokenizeDamage,
 } from "./damageIcons";
 
 describe("normalizeQualifier", () => {
@@ -74,6 +75,38 @@ describe("parseDamageGroups", () => {
     expect(parseDamageGroups("bludgeoning, piercing, slashing")).toEqual([
       { types: ["bludgeoning", "piercing", "slashing"], qualifier: "" },
     ]);
+  });
+});
+
+describe("tokenizeDamage", () => {
+  it("returns [] for empty", () => {
+    expect(tokenizeDamage("")).toEqual([]);
+  });
+
+  it("replaces 'X damage' and bare 'X' with type markers", () => {
+    expect(
+      tokenizeDamage("19 (2d10 + 8) piercing damage plus 7 (2d6) fire damage"),
+    ).toEqual([
+      { text: "19 (2d10 + 8) " },
+      { type: "piercing" },
+      { text: " plus 7 (2d6) " },
+      { type: "fire" },
+    ]);
+  });
+
+  it("leaves text with no damage type untouched", () => {
+    expect(tokenizeDamage("The dragon can breathe air and water.")).toEqual([
+      { text: "The dragon can breathe air and water." },
+    ]);
+  });
+
+  it("does not match a substring of another word", () => {
+    expect(tokenizeDamage("acidic sludge")).toEqual([{ text: "acidic sludge" }]);
+  });
+
+  it("is case-insensitive and lowercases the type", () => {
+    const toks = tokenizeDamage("takes Cold damage");
+    expect(toks).toEqual([{ text: "takes " }, { type: "cold" }]);
   });
 });
 

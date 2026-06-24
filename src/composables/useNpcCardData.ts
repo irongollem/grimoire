@@ -74,7 +74,7 @@ export function useNpcCardData(
       rows.push({
         label: "Senses",
         value: sb.senses
-          .replace(/ ?ft\.?/g, "'")
+          .replace(/ ?ft\.?/g, "")
           .replace(/passive Perception/gi, "PP"),
       });
     return rows;

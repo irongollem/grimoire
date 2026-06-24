@@ -73,6 +73,32 @@ export function parseDamageGroups(
   return groups;
 }
 
+/** A run of plain text, or a damage type to render as an icon. */
+export type DamageToken = { text: string } | { type: DamageType };
+
+const TOKEN_RE = new RegExp(
+  `\\b(${DAMAGE_TYPES.join("|")})( damage)?\\b`,
+  "gi",
+);
+
+/**
+ * Split a description into text runs and damage-type markers, so the UI can
+ * swap "fire" / "fire damage" for the fire icon (and the other 12 types).
+ */
+export function tokenizeDamage(input: string | null | undefined): DamageToken[] {
+  if (!input) return [];
+  const tokens: DamageToken[] = [];
+  let last = 0;
+  for (const m of input.matchAll(TOKEN_RE)) {
+    const idx = m.index ?? 0;
+    if (idx > last) tokens.push({ text: input.slice(last, idx) });
+    tokens.push({ type: m[1].toLowerCase() as DamageType });
+    last = idx + m[0].length;
+  }
+  if (last < input.length) tokens.push({ text: input.slice(last) });
+  return tokens;
+}
+
 /**
  * Distinct, canonically-ordered damage types named by a set of damage rolls
  * (weapon/spell dice). Untyped or unrecognized roll types are ignored.

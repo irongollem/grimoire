@@ -119,9 +119,9 @@ export function useMonsterCardData(
     if (sb.senses)
       rows.push({
         label: "Senses",
-        // compact the verbose senses line: "120 ft." -> "120'", drop "passive"
+        // compact senses: drop the unit (120 ft. -> 120) and shorten passive perception
         value: sb.senses
-          .replace(/ ?ft\.?/g, "'")
+          .replace(/ ?ft\.?/g, "")
           .replace(/passive Perception/gi, "PP"),
       });
     return rows;
