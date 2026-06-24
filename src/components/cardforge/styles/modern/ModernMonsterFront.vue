@@ -25,6 +25,18 @@
           <span class="md-stat-val">{{ s.value }}</span>
         </div>
       </div>
+      <div class="md-speeds">
+        <span class="md-stat-lbl">SPD</span>
+        <template v-if="hasSpeed">
+          <span v-for="(sp, i) in speeds" :key="i" class="md-spd-seg">
+            <MovementIcon v-if="sp.mode !== 'walk'" :mode="sp.mode" />
+            <span v-if="sp.value && sp.value !== '0'" class="md-spd-v">{{
+              sp.value
+            }}</span>
+          </span>
+        </template>
+        <span v-else class="md-spd-v">—</span>
+      </div>
     </div>
   </ModernShell>
 </template>
@@ -32,13 +44,14 @@
 <script setup lang="ts">
 import type { Monster } from "@/types/monster.types";
 import FocalImage from "@/components/common/FocalImage.vue";
+import MovementIcon from "@/components/common/MovementIcon.vue";
 import ModernShell from "./ModernShell.vue";
 import { accentForMonster } from "../tokens.shared";
 import { useMonsterCardData } from "@/composables/useMonsterCardData";
 
 const { data, tarot } = defineProps<{ data: Monster; tarot?: boolean }>();
 
-const { portrait, monsterType, typeTag, typeLine, badge, stats } =
+const { portrait, monsterType, typeTag, typeLine, badge, stats, speeds, hasSpeed } =
   useMonsterCardData(
     () => data,
     () => tarot,
@@ -99,4 +112,19 @@ const { portrait, monsterType, typeTag, typeLine, badge, stats } =
 .md-stat { display: flex; align-items: baseline; gap: 4px; }
 .md-stat-lbl { font-size: 6px; color: var(--acc-text); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
 .md-stat-val { font-family: "Cormorant Garamond", serif; font-size: 13px; font-weight: 700; color: var(--md-text); line-height: 1; }
+.md-speeds {
+  display: flex; flex-wrap: wrap; align-items: center; column-gap: 7px; row-gap: 1px;
+  margin-top: 3px; max-height: 2.7em; overflow: hidden;
+}
+.md-speeds .md-stat-lbl { align-self: center; }
+.md-spd-seg {
+  display: inline-flex; align-items: center; gap: 1.5px;
+  font-family: "Cormorant Garamond", serif; font-size: 12px; font-weight: 700;
+  color: var(--md-text); line-height: 1;
+}
+.md-spd-v {
+  font-family: "Cormorant Garamond", serif; font-size: 12px; font-weight: 700;
+  color: var(--md-text); line-height: 1;
+}
+.md-spd-seg :deep(.mask-icon) { width: 1em; height: 1em; color: var(--acc-text); }
 </style>

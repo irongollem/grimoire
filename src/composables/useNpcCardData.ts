@@ -7,6 +7,7 @@ import {
   truncateCard,
 } from "@/types/card.types";
 import { extractTiptapText } from "@/lib/utils";
+import { parseDiceAvg } from "@/lib/dice";
 
 /**
  * Normalized data for an NPC card — the *concept* of an NPC card,
@@ -27,9 +28,14 @@ export function useNpcCardData(
     [toValue(data).race, toValue(data).occupation].filter(Boolean).join(" · "),
   );
 
-  const hp = computed(
-    () => toValue(data).stat_block?.hit_points?.split(" ")[0] ?? "—",
-  );
+  const hp = computed(() => {
+    const raw = toValue(data).stat_block?.hit_points;
+    if (!raw) return "—";
+    const first = raw.split(" ")[0];
+    if (/^\d+$/.test(first)) return first; // "75 (10d10+20)" -> "75"
+    const avg = parseDiceAvg(raw); // bare dice "10d10+20" -> 75
+    return avg > 0 ? String(Math.floor(avg)) : "—";
+  });
   const ac = computed(() => String(toValue(data).stat_block?.armor_class ?? "—"));
   const cha = computed(() => String(toValue(data).stat_block?.cha ?? "—"));
 
@@ -75,7 +81,10 @@ export function useNpcCardData(
     return [
       ...(sb.special_abilities ?? []).slice(0, 2),
       ...(sb.actions ?? []).slice(0, 2),
-    ].slice(0, tarotMode ? 5 : 4);
+    ]
+      .slice(0, tarotMode ? 5 : 4)
+      // descriptions may be plain text or Tiptap JSON — normalize to plain text
+      .map((e) => ({ ...e, description: extractTiptapText(e.description, Infinity) }));
   });
 
   const flavor = computed(() => {

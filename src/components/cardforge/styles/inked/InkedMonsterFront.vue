@@ -27,6 +27,16 @@
           <em>{{ s.label }}</em> {{ s.value }}
         </span>
       </div>
+      <div class="ik-speeds">
+        <em class="ik-spd-lbl">SPD</em>
+        <template v-if="hasSpeed">
+          <span v-for="(sp, i) in speeds" :key="i" class="ik-spd">
+            <MovementIcon v-if="sp.mode !== 'walk'" :mode="sp.mode" />
+            <span v-if="sp.value && sp.value !== '0'">{{ sp.value }}</span>
+          </span>
+        </template>
+        <span v-else>—</span>
+      </div>
     </div>
   </InkedShell>
 </template>
@@ -34,13 +44,14 @@
 <script setup lang="ts">
 import type { Monster } from "@/types/monster.types";
 import FocalImage from "@/components/common/FocalImage.vue";
+import MovementIcon from "@/components/common/MovementIcon.vue";
 import InkedShell from "./InkedShell.vue";
 import { accentForMonster } from "../tokens.shared";
 import { useMonsterCardData } from "@/composables/useMonsterCardData";
 
 const { data, tarot } = defineProps<{ data: Monster; tarot?: boolean }>();
 
-const { portrait, monsterType, typeTag, typeLine, badge, stats } =
+const { portrait, monsterType, typeTag, typeLine, badge, stats, speeds, hasSpeed } =
   useMonsterCardData(
     () => data,
     () => tarot,
@@ -104,4 +115,16 @@ const { portrait, monsterType, typeTag, typeLine, badge, stats } =
   color: var(--acc-text);
   letter-spacing: 0.08em; text-transform: uppercase;
 }
+.ik-speeds {
+  display: flex; flex-wrap: wrap; align-items: center; column-gap: 7px; row-gap: 1px;
+  margin-top: 3px; max-height: 2.7em; overflow: hidden;
+  font-family: "Cinzel", serif; font-size: 9.5px; font-weight: 900; color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+}
+.ik-spd-lbl {
+  font-style: normal; font-size: 5.5px; color: var(--acc-text);
+  letter-spacing: 0.08em; text-transform: uppercase;
+}
+.ik-spd { display: inline-flex; align-items: center; gap: 1.5px; }
+.ik-spd :deep(.mask-icon) { width: 1.15em; height: 1.15em; color: var(--acc-text); }
 </style>

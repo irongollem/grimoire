@@ -8,6 +8,8 @@ import {
 } from "@/types/card.types";
 import { extractTiptapText } from "@/lib/utils";
 import { parseDamageGroups, type DamageGroup } from "@/lib/damageIcons";
+import { parseSpeed } from "@/lib/movement";
+import { parseDiceAvg } from "@/lib/dice";
 
 /** A stat row; damage rows carry parsed groups so the UI can render icons. */
 export interface CardStatRow {
@@ -56,19 +58,30 @@ export function useMonsterCardData(
     return cr !== null && cr !== undefined ? "CR " + cr : null;
   });
 
-  const hp = computed(
-    () => toValue(data).stat_block?.hit_points?.split(" ")[0] ?? "—",
-  );
+  const hp = computed(() => {
+    const raw = toValue(data).stat_block?.hit_points;
+    if (!raw) return "—";
+    const first = raw.split(" ")[0];
+    if (/^\d+$/.test(first)) return first; // "75 (10d10+20)" -> "75"
+    const avg = parseDiceAvg(raw); // bare dice "10d10+20" -> 75
+    return avg > 0 ? String(Math.floor(avg)) : "—";
+  });
   const ac = computed(() => String(toValue(data).stat_block?.armor_class ?? "—"));
   const spd = computed(() =>
     (toValue(data).stat_block?.speed ?? "—").replace(/ ft\.?/g, "'").slice(0, 6),
   );
 
+  // HP/AC render as text; speed renders as distances + movement icons.
   const stats = computed(() => [
     { label: "HP", value: hp.value },
     { label: "AC", value: ac.value },
-    { label: "SPD", value: spd.value },
   ]);
+
+  const speeds = computed(() => parseSpeed(toValue(data).stat_block?.speed));
+  // false when there's no real movement (no speed, or only a 0-ft walk) → show "—"
+  const hasSpeed = computed(() =>
+    speeds.value.some((s) => s.mode !== "walk" || (!!s.value && s.value !== "0")),
+  );
 
   const abilities = computed(() =>
     ABILITY_KEYS.map((key) => {
@@ -114,7 +127,10 @@ export function useMonsterCardData(
     return [
       ...(sb.special_abilities ?? []).slice(0, 2),
       ...(sb.actions ?? []).slice(0, 3),
-    ].slice(0, tarotMode ? 5 : 4);
+    ]
+      .slice(0, tarotMode ? 5 : 4)
+      // descriptions may be plain text or Tiptap JSON — normalize to plain text
+      .map((e) => ({ ...e, description: extractTiptapText(e.description, Infinity) }));
   });
 
   const flavor = computed(() => {
@@ -133,6 +149,8 @@ export function useMonsterCardData(
     ac,
     spd,
     stats,
+    speeds,
+    hasSpeed,
     abilities,
     statRows,
     entries,
