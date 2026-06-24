@@ -5,7 +5,7 @@
     class="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-fell text-muted-foreground/40 cursor-not-allowed select-none"
     :title="`Select a campaign to access ${item.label}`"
   >
-    <component :is="item.icon" class="h-4 w-4 shrink-0" />
+    <component :is="item.icon" class="h-5 w-5 shrink-0" />
     <span>{{ item.label }}</span>
     <IconLock class="h-3 w-3 ml-auto shrink-0 opacity-50" />
   </div>
@@ -20,7 +20,7 @@
     "
     @click="emit('navigate')"
   >
-    <component :is="item.icon" class="h-4 w-4 shrink-0" />
+    <component :is="item.icon" class="h-5 w-5 shrink-0" />
     <span>{{ item.label }}</span>
   </RouterLink>
 </template>

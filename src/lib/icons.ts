@@ -247,6 +247,28 @@ export { BookUser as IconBookUser }
 export { BookMarked as IconBookMarked }
 export { Layers as IconLayers }
 
+// ── Custom nav glyphs ─────────────────────────────────────────────────────────
+// Hand-drawn, vectorized icons for the Campaign nav section. Dedicated names so
+// repointing them never disturbs the shared Lucide icons used elsewhere. Source
+// art + pipeline live in art-src/nav-campaign/. Swap one by re-running the
+// generator and the matching NAV_GLYPHS entry updates here automatically.
+import { glyph } from "./glyph";
+import { NAV_GLYPHS } from "./navGlyphs.generated";
+export const IconNavDashboard = glyph(NAV_GLYPHS.dashboard);
+export const IconNavNotes = glyph(NAV_GLYPHS.notes);
+export const IconNavCalendar = glyph(NAV_GLYPHS.calendar);
+export const IconNavQuests = glyph(NAV_GLYPHS.quests);
+export const IconNavAtlas = glyph(NAV_GLYPHS.atlas);
+export const IconNavPantheon = glyph(NAV_GLYPHS.pantheon);
+export const IconNavFactions = glyph(NAV_GLYPHS.factions);
+export const IconNavNpcs = glyph(NAV_GLYPHS.npcs);
+export const IconNavEncounters = glyph(NAV_GLYPHS.encounters);
+export const IconNavParty = glyph(NAV_GLYPHS.party);
+export const IconNavWorkshop = glyph(NAV_GLYPHS.workshop);
+export const IconNavSoundboard = glyph(NAV_GLYPHS.soundboard);
+export const IconNavSettings = glyph(NAV_GLYPHS.settings);
+export const IconNavReliquary = glyph(NAV_GLYPHS.reliquary);
+
 // ── UI / Misc ─────────────────────────────────────────────────────────────────
 export { BarChart2 as IconChart }
 export { Component as IconComponent }
