@@ -105,11 +105,11 @@ const artFade = computed(() => ({
   mask-image: linear-gradient(to bottom, #000 calc(100% - 12px), transparent);
 }
 .ik-entry {
-  font-family: "Cardo", serif; font-size: 7.5px; line-height: 1.3;
+  font-family: "Cardo", serif; font-size: 6.5px; line-height: 1.3;
   color: var(--ik-text-sub); text-wrap: pretty;
 }
 .ik-flavor {
-  font-family: "Cardo", serif; font-style: italic; font-size: 7px;
+  font-family: "Cardo", serif; font-style: italic; font-size: 6px;
   color: var(--ik-text-muted); text-align: center;
   border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 4px; flex-shrink: 0;
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;

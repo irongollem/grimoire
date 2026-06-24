@@ -198,7 +198,7 @@ const artFade = computed(() => ({
 }
 :deep(.ft-entry) {
   font-family: "Cardo", serif;
-  font-size: 7.5px;
+  font-size: 6.5px;
   line-height: 1.3;
   color: var(--ik-text-sub);
   text-wrap: pretty;
@@ -213,7 +213,7 @@ const artFade = computed(() => ({
 .ik-flavor {
   font-family: "Cardo", serif;
   font-style: italic;
-  font-size: 7px;
+  font-size: 6px;
   color: var(--ik-text-muted);
   text-align: center;
   border-top: 1px solid rgba(255, 255, 255, 0.1);

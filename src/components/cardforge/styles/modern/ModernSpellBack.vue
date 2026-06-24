@@ -104,7 +104,7 @@ const artFade = computed(() => ({
   mask-image: linear-gradient(to bottom, #000 calc(100% - 12px), transparent);
 }
 .md-entry {
-  font-family: "Cormorant Garamond", serif; font-size: 8.5px; line-height: 1.35;
+  font-family: "Cormorant Garamond", serif; font-size: 7.5px; line-height: 1.35;
   color: var(--md-text-sub); text-wrap: pretty;
 }
 .md-entry-name {
@@ -112,7 +112,7 @@ const artFade = computed(() => ({
   letter-spacing: 0.06em; text-transform: uppercase; margin-right: 3px;
 }
 .md-flavor {
-  font-family: "Cormorant Garamond", serif; font-style: italic; font-size: 7.5px;
+  font-family: "Cormorant Garamond", serif; font-style: italic; font-size: 6.5px;
   color: var(--md-text-muted); text-align: center;
   border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 4px; flex-shrink: 0;
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
