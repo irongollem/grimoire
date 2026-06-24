@@ -153,6 +153,7 @@
 
 ### Images & Artwork
 
+- [x] **Custom Campaign nav icons** — replaced the generic Lucide icons for the Campaign section (+ Reliquary) with 14 hand-drawn vectorized glyphs normalized to a shared `0 0 100 100` viewBox; rendered via `glyph()` as drop-in `<svg fill="currentColor">` (dedicated `IconNav*` exports so shared icons stay untouched elsewhere); nav icon size bumped `h-4 → h-5`. Tooling in `art-src/nav-campaign/` (`segment.mjs` slices on gutter midpoints to avoid clipping, `gen-glyphs.mjs` normalizes + strips baked fill)
 - [x] Smart image cropping — `FocalImage` component with smartcrop.js content-aware analysis + localStorage cache; three canonical formats: `portrait` (2:3), `landscape` (9:4), `token` (1:1 circle)
 - [x] Manual focal point override — `FocalPointPicker` component; click-to-set stored per entity in DB (`portrait_focal_point` on NPCs, monsters, companions)
 - [x] Companion portraits — upload, focal point, auto-fill from linked monster/NPC source; token avatar in DM companion card
@@ -168,6 +169,8 @@
 - [x] Card Forge — MTG (63×88mm) and Tarot (70×120mm) print-ready cards with duplex alignment
 - [x] Card Forge — 5mm gap between printed cards (3mm visible after 1mm bleed each side); padding recalculated to keep sheets perfectly centered on A4; duplex alignment unaffected
 - [x] Card Library — localStorage save/load named collections across all card types
+- [x] **Card Forge — space-aware text** — replaced fixed character-count truncation (which wasted space on sparse cards) with space-aware fitting: a `FitText` component measures the ability list and line-clamps only the overflowing entry (`src/lib/fitText.ts`, unit-tested); item/spell descriptions fill-and-fade; flavor quotes line-clamp. Removed the dead per-type standard/tarot card components (only Inked/Modern styles are live)
+- [x] **Card Forge — damage-type icons** — 13 single-colour damage glyphs (`public/assets/damage-types/`, vectorized via potrace, shared `0 0 100 100` viewBox) rendered as `currentColor` CSS masks by `DamageIcon`; monster Vuln./Resist./Immune rows show icons + a standardized compact qualifier ("nonmagical" etc., parsed per-group in `src/lib/damageIcons.ts`, unit-tested); spell/item backs show a Damage row from `damage_rolls`. Mobility glyph set (flight/climb/swim/burrow/levitate) extracted to `public/assets/movement/` (not yet wired)
 - [x] **Character Sheet Export — core scaffolding** (irongollem/grimoire#418) — `/character-sheet/:partyMemberId` DM route renders a full printable 5e sheet (identity header, ability scores + modifiers + saves + skills, combat stats, attacks & spellcasting with auto-computed spell attack bonus / save DC, spell slots, currency, personality, proficiencies); `useCharacterSheetPdf` composable mounts the renderer off-screen and exports a multi-page jsPDF; A4 and Letter support; `.cs-*` semantic class taxonomy forward-compatible with future user-uploaded CSS themes (#423); "Export Sheet" button on DM party member view; "Character Sheet" entry in Publish nav
 
 ### Collaboration & Multi-Player
