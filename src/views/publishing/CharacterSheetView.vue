@@ -5,15 +5,27 @@
       <LoadingSpinner />
     </div>
 
-    <div v-else-if="!member" class="flex flex-col items-center gap-4 py-16 text-center">
-      <p class="font-fell text-base text-muted-foreground italic">Character not found.</p>
-      <RouterLink :to="backRoute" class="font-cinzel text-xs text-primary hover:underline">
-        ← Back
+    <div v-else-if="!partyMembers?.length" class="flex flex-col items-center gap-4 py-16 text-center">
+      <p class="font-fell text-base text-muted-foreground italic">No characters in the party yet.</p>
+      <RouterLink to="/party" class="font-cinzel text-xs text-primary hover:underline">
+        ← Go to the Party
       </RouterLink>
     </div>
 
     <template v-else>
+      <!-- Character picker — the DM exporter isn't tied to a single member. -->
+      <div class="mb-6 max-w-56">
+        <EntityCombobox
+          v-model="selectedId"
+          :options="partyMembers"
+          placeholder="Choose a character…"
+        />
+      </div>
+
+      <!-- Keyed on the member so the panel reloads its per-character prefs on switch. -->
       <CharacterSheetExportPanel
+        v-if="member"
+        :key="memberId"
         :member="member"
         :inventory="inventory"
         :storage-key="memberId"
@@ -29,16 +41,20 @@
           </RouterLink>
         </template>
       </CharacterSheetExportPanel>
+      <p v-else class="font-fell text-base text-muted-foreground italic py-16 text-center">
+        Choose a character to preview their sheet.
+      </p>
     </template>
   </PageHeader>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { useRoute, RouterLink } from "vue-router";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import CharacterSheetExportPanel from "@/components/character-sheet/CharacterSheetExportPanel.vue";
+import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { useParty } from "@/composables/useParty";
 import { usePartyInventory } from "@/composables/usePartyInventory";
 import { useSpeciesNameMap } from "@/composables/useSpecies";
@@ -48,14 +64,26 @@ import { useAuthStore } from "@/stores/auth";
 const route = useRoute();
 const auth = useAuthStore();
 
-const memberId = computed(() => route.params.partyMemberId as string);
-
 const { data: partyMembers, isLoading: partyLoading } = useParty();
 const { data: inventoryItems, isLoading: inventoryLoading } = usePartyInventory();
 const speciesMap = useSpeciesNameMap();
 const backgroundMap = useBackgroundNameMap();
 
 const isLoading = computed(() => partyLoading.value || inventoryLoading.value);
+
+/** Selected character — seeds from the route param (when reached via
+ *  /character-sheet/:id) and otherwise defaults to the first party member.
+ *  The combobox writes here directly; no URL navigation needed. */
+const selectedId = ref<string>((route.params.partyMemberId as string) ?? "");
+watch(
+  partyMembers,
+  (members) => {
+    if (!selectedId.value && members?.length) selectedId.value = members[0].id;
+  },
+  { immediate: true },
+);
+
+const memberId = computed(() => selectedId.value);
 
 const member = computed(() =>
   partyMembers.value?.find((m) => m.id === memberId.value) ?? null,

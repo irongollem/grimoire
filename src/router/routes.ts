@@ -789,6 +789,12 @@ export const routes: RouteRecordRaw[] = [
   },
   // Character Sheet Export
   {
+    path: "/character-sheet",
+    name: "character-sheet-picker",
+    component: () => import("@/views/publishing/CharacterSheetView.vue"),
+    meta: { requiresAuth: true, title: "Character Sheet" },
+  },
+  {
     path: "/character-sheet/:partyMemberId",
     name: "character-sheet",
     component: () => import("@/views/publishing/CharacterSheetView.vue"),

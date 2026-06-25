@@ -220,7 +220,7 @@ export const NAV_GROUPS: NavGroup[] = [
       },
       {
         label: "Character Sheet",
-        to: "/party",
+        to: "/character-sheet",
         icon: IconNavCharacterSheet,
         description: "Export printable character sheets (select a party member)",
       },
