@@ -1,4 +1,7 @@
+# scratch/work dirs from the art pipelines
 _work/
 _trace/
 _vwork/
+_vfix/
+_*work/
 *.pgm
