@@ -26,7 +26,7 @@
           <LoadingSpinner />
         </div>
         <div v-else-if="!party?.length" class="px-4 py-6 text-center">
-          <IconShield class="h-6 w-6 mx-auto mb-2 text-muted-foreground/30" />
+          <IconNavParty class="h-6 w-6 mx-auto mb-2 text-muted-foreground/30" />
           <p class="font-fell text-sm text-muted-foreground italic">No party members yet.</p>
           <RouterLink to="/party" class="mt-2 inline-block font-cinzel text-xs text-primary tracking-wider hover:opacity-80">+ Add Members</RouterLink>
         </div>
@@ -318,7 +318,7 @@
 import { computed, ref, reactive } from "vue";
 import {
   IconLive, IconMind, IconNavAtlas, IconNavEncounters, IconNavNpcs,
-  IconNavQuests, IconPin, IconReveal, IconShield,
+  IconNavParty, IconNavQuests, IconPin, IconReveal,
 } from "@/lib/icons";
 import { useRunningEncounters } from "@/composables/useEncounterLive";
 import { useAllQuests } from "@/composables/useQuests";
