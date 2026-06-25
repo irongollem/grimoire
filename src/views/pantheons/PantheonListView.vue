@@ -33,7 +33,9 @@
       v-else-if="!filtered.length"
       title="No pantheons yet"
       description="Create a pantheon to group your deities — Faerûnian, Olympian, or wholly homebrew."
-    />
+    >
+      <template #icon><IconNavPantheon class="h-16 w-16" /></template>
+    </EmptyState>
 
     <template v-else>
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -74,7 +76,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { IconAdd, IconChevronRight, IconFire, IconReveal, IconSun } from '@/lib/icons';
+import { IconAdd, IconChevronRight, IconFire, IconNavPantheon, IconReveal, IconSun } from '@/lib/icons';
 import { useAllPantheons, useAllDeities } from "@/composables/useDeities";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";

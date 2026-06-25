@@ -51,7 +51,7 @@
         ? 'Art you generate for NPCs, monsters, scenes, maps and more will collect here automatically.'
         : 'Try a different tab or clear your search.'"
     >
-      <template #icon><IconImages class="h-12 w-12 opacity-40" /></template>
+      <template #icon><IconNavGallery class="h-12 w-12 opacity-40" /></template>
     </EmptyState>
 
     <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 pt-1">
@@ -109,7 +109,7 @@ import PageHeader from "@/components/common/PageHeader.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import { IconImages, IconSearch, IconExternalLink, IconDelete } from "@/lib/icons";
+import { IconNavGallery, IconSearch, IconExternalLink, IconDelete } from "@/lib/icons";
 import { useUiStore } from "@/stores/ui";
 import { useConfirm } from "@/composables/useConfirm";
 import { timeAgo } from "@/lib/utils";

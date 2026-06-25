@@ -9,6 +9,7 @@
       title="No locations yet"
       description="Chart the lands, cities, and dungeons of your realm."
     >
+      <template #icon><IconNavAtlas class="h-16 w-16" /></template>
       <template #action>
         <RouterLink
           to="/locations/new"
@@ -44,6 +45,7 @@ import { computed } from "vue";
 import { useAllLocations } from "@/composables/useLocations";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
+import { IconNavAtlas } from "@/lib/icons";
 import { extractTiptapText } from "@/lib/utils";
 import LocationCard from "@/components/locations/LocationCard.vue";
 import type { Location } from "@/types/location.types";

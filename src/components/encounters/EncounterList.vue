@@ -9,6 +9,7 @@
       title="No encounters yet"
       description="Build encounters to plan combat — monsters, factions, difficulty analysis, and live tracking."
     >
+      <template #icon><IconNavEncounters class="h-16 w-16" /></template>
       <template #action>
         <button
           type="button"
@@ -130,7 +131,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import { IconCheckDouble, IconLock, IconMonster, IconParty } from '@/lib/icons';
+import { IconCheckDouble, IconLock, IconMonster, IconNavEncounters, IconParty } from '@/lib/icons';
 import { useEncounters } from "@/composables/useEncounters";
 import { useRunningEncounters } from "@/composables/useEncounterLive";
 import {

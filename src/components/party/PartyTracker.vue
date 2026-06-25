@@ -10,6 +10,7 @@
       title="No heroes in your party"
       description="Add your players' characters to track their HP, initiative, and passive skills."
     >
+      <template #icon><IconNavParty class="h-16 w-16" /></template>
       <template #action>
         <RouterLink
           to="/party/new"
@@ -95,6 +96,7 @@ import { useAllMonsters } from "@/composables/useMonsters";
 import { useNpcs } from "@/composables/useNpcs";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
+import { IconNavParty } from "@/lib/icons";
 import CompanionCard from "./CompanionCard.vue";
 import CompanionForm from "./CompanionForm.vue";
 import PartyTrackerRow from "./PartyTrackerRow.vue";

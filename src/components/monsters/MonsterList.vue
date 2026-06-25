@@ -9,6 +9,7 @@
       title="No custom monsters yet"
       description="Customize an SRD monster or build your own from scratch."
     >
+      <template #icon><IconNavBestiary class="h-16 w-16" /></template>
       <template #action>
         <button
           type="button"
@@ -272,7 +273,7 @@ import { ref, computed, reactive } from "vue";
 import { useRouter } from "vue-router";
 import { useMediaQuery } from "@vueuse/core";
 import { formatHitPoints } from "@/lib/utils";
-import { IconChart, IconEdit, IconHide, IconLock, IconParty, IconReveal } from '@/lib/icons';
+import { IconChart, IconEdit, IconHide, IconLock, IconNavBestiary, IconParty, IconReveal } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";

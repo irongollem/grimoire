@@ -16,6 +16,7 @@
       title="No NPCs yet"
       description="Populate your realm with merchants, villains, sages, and more."
     >
+      <template #icon><IconNavNpcs class="h-16 w-16" /></template>
       <template #action>
         <button
           type="button"
@@ -284,7 +285,7 @@ import { useRouter } from "vue-router";
 import { useMediaQuery } from "@vueuse/core";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";
-import { IconEdit, IconHide, IconLock, IconParty, IconReveal } from '@/lib/icons';
+import { IconEdit, IconHide, IconLock, IconNavNpcs, IconParty, IconReveal } from '@/lib/icons';
 import { useNpcs, useUpdateNpc } from "@/composables/useNpcs";
 import { useParty } from "@/composables/useParty";
 import { useNpcPcNotesByPartyMember } from "@/composables/useNpcPcNotes";

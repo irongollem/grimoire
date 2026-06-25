@@ -43,7 +43,9 @@
       v-else-if="!factions?.length"
       title="No factions yet"
       description="Create guilds, cults, governments and other organisations."
-    />
+    >
+      <template #icon><IconNavFactions class="h-16 w-16" /></template>
+    </EmptyState>
 
     <template v-else>
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -84,7 +86,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { IconAdd, IconChevronRight, IconGenerate, IconLoading, IconPopulate, IconReveal, IconShield } from '@/lib/icons';
+import { IconAdd, IconChevronRight, IconGenerate, IconLoading, IconNavFactions, IconPopulate, IconReveal, IconShield } from '@/lib/icons';
 import { useAllFactions, usePopulateFactions } from "@/composables/useFactions";
 import { FACTION_TYPES } from "@/types/faction.types";
 import { useUiStore } from "@/stores/ui";

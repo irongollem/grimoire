@@ -14,7 +14,9 @@
           ? 'Try adjusting your filters.'
           : 'Add your first item to the vault.'
       "
-    />
+    >
+      <template #icon><IconNavItemVault class="h-16 w-16" /></template>
+    </EmptyState>
 
     <!-- Grid -->
     <div
@@ -128,7 +130,7 @@
 
 <script setup lang="ts">
 import { computed, type Component as VueComponent } from "vue";
-import { IconCaravan, IconCircle, IconCoins, IconComponent, IconEdit, IconFood, IconGem, IconGenerate, IconInventory, IconInvite, IconLightning, IconPackage, IconPotion, IconScrollText, IconShield, IconSword, IconTool, IconWand } from '@/lib/icons';
+import { IconCaravan, IconCircle, IconCoins, IconComponent, IconEdit, IconFood, IconGem, IconGenerate, IconInventory, IconInvite, IconLightning, IconNavItemVault, IconPackage, IconPotion, IconScrollText, IconShield, IconSword, IconTool, IconWand } from '@/lib/icons';
 import FocalImage from "@/components/common/FocalImage.vue";
 import type { ItemType } from "@/types/item.types";
 

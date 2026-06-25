@@ -36,6 +36,7 @@
       title="No notes yet"
       description="Begin recording your campaign's history, lore, and secrets."
     >
+      <template #icon><IconNavNotes class="h-16 w-16" /></template>
       <template #action>
         <button
           type="button"
@@ -93,7 +94,7 @@ import { ref, computed, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { useRouter } from "vue-router";
 import { VueDraggable } from "vue-draggable-plus";
-import { IconSearch } from '@/lib/icons';
+import { IconNavNotes, IconSearch } from '@/lib/icons';
 import { useNotes, useReorderNotes } from "@/composables/useNotes";
 import { useUiStore } from "@/stores/ui";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";

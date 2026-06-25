@@ -58,7 +58,7 @@
 
       <div v-else-if="disciplineRecipes.length === 0" class="rounded-lg border border-border border-dashed px-6 py-10 text-center">
         <component
-          :is="activeDiscipline ? activeDiscipline.icon : IconListView"
+          :is="activeDiscipline ? activeDiscipline.icon : IconNavWorkshop"
           class="h-8 w-8 text-muted-foreground/40 mx-auto mb-3"
         />
         <p class="font-cinzel text-sm font-semibold text-muted-foreground">
@@ -157,7 +157,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 
-import { IconAdd, IconAward, IconDelete, IconDownload, IconEdit, IconListView, IconLoading, IconReveal, IconTool } from '@/lib/icons';
+import { IconAdd, IconAward, IconDelete, IconDownload, IconEdit, IconListView, IconLoading, IconNavWorkshop, IconReveal, IconTool } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import PlayerVisibilityToggle from "@/components/common/PlayerVisibilityToggle.vue";

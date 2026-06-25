@@ -11,7 +11,9 @@
       v-else-if="!locations?.length"
       title="No maps shared yet"
       description="Your DM hasn't shared any locations with the party."
-    />
+    >
+      <template #icon><IconNavAtlas class="h-16 w-16" /></template>
+    </EmptyState>
 
     <div v-else class="flex flex-col gap-2">
       <PlayerLocationFiltersBar
@@ -223,7 +225,7 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { IconClose } from '@/lib/icons';
+import { IconClose, IconNavAtlas } from '@/lib/icons';
 import { useReadItems, useMarkRead } from "@/composables/useReadItems";
 import { useSharedLocations } from "@/composables/useLocations";
 import { usePlayerFavourites } from "@/composables/usePlayerFavourites";

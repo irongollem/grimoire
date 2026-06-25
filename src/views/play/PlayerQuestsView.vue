@@ -7,7 +7,7 @@
     </div>
 
     <div v-else-if="!quests?.length" class="text-center py-12">
-      <IconScrollText class="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
+      <IconNavQuests class="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
       <p class="font-fell text-muted-foreground italic">
         No quests shared by your DM yet.
       </p>
@@ -70,7 +70,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
-import { IconChevronRight, IconScrollText, IconStar } from '@/lib/icons';
+import { IconChevronRight, IconNavQuests, IconStar } from '@/lib/icons';
 import { usePlayerVisibleQuests } from "@/composables/useQuests";
 import { useReadItems } from "@/composables/useReadItems";
 import { QUEST_STATUS_LABELS, QUEST_STATUS_COLORS } from "@/types/quest.types";

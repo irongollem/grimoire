@@ -9,6 +9,7 @@
       title="No quests yet"
       description="Track your party's adventures, contracts, and personal goals."
     >
+      <template #icon><IconNavQuests class="h-16 w-16" /></template>
       <template #action>
         <RouterLink
           to="/quests/new"
@@ -152,7 +153,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import { IconScrollText } from '@/lib/icons';
+import { IconNavQuests, IconScrollText } from '@/lib/icons';
 import { useAllQuests, useUpdateQuest, scheduleQuestTriggers } from "@/composables/useQuests";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";

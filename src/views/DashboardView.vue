@@ -317,8 +317,8 @@
 <script setup lang="ts">
 import { computed, ref, reactive } from "vue";
 import {
-  IconEncounter, IconLive, IconLocation, IconMind, IconParty,
-  IconPin, IconReveal, IconScrollText, IconShield,
+  IconLive, IconMind, IconNavAtlas, IconNavEncounters, IconNavNpcs,
+  IconNavQuests, IconPin, IconReveal, IconShield,
 } from "@/lib/icons";
 import { useRunningEncounters } from "@/composables/useEncounterLive";
 import { useAllQuests } from "@/composables/useQuests";
@@ -550,9 +550,9 @@ async function identifyItem(invId: string) {
 // ── Stats strip ───────────────────────────────────────────────────────────────
 
 const stats = computed(() => [
-  { label: "Active Quests", value: activeQuests.value.length || "—", icon: IconScrollText, to: "/quests" },
-  { label: "NPCs",          value: npcs.value?.length ?? "—",        icon: IconParty,      to: "/npcs" },
-  { label: "Encounters",    value: encounters.value?.length ?? "—",  icon: IconEncounter,  to: "/encounters" },
-  { label: "Locations",     value: locations.value?.length ?? "—",   icon: IconLocation,   to: "/locations" },
+  { label: "Active Quests", value: activeQuests.value.length || "—", icon: IconNavQuests,     to: "/quests" },
+  { label: "NPCs",          value: npcs.value?.length ?? "—",        icon: IconNavNpcs,       to: "/npcs" },
+  { label: "Encounters",    value: encounters.value?.length ?? "—",  icon: IconNavEncounters, to: "/encounters" },
+  { label: "Locations",     value: locations.value?.length ?? "—",   icon: IconNavAtlas,      to: "/locations" },
 ]);
 </script>

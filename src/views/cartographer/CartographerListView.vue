@@ -79,7 +79,7 @@
       description="Start your first dungeon — paint floors, then walls, then publish to an Atlas location."
     >
       <template #icon>
-        <IconMap class="h-16 w-16" />
+        <IconNavCartographer class="h-16 w-16" />
       </template>
       <template #action>
         <button
@@ -97,7 +97,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { RouterLink, useRouter } from "vue-router";
-import { IconAdd, IconMap } from "@/lib/icons";
+import { IconAdd, IconNavCartographer } from "@/lib/icons";
 
 import { useDungeonMaps } from "@/composables/useDungeonMaps";
 import { useUiStore } from "@/stores/ui";

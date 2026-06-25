@@ -9,6 +9,7 @@
       title="No spells yet"
       description="Craft your spellbook — cantrips to 9th-level catastrophes."
     >
+      <template #icon><IconNavSpellbook class="h-16 w-16" /></template>
       <template v-if="!props.playerMemberId" #action>
         <RouterLink
           to="/spells/new"
@@ -172,7 +173,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { IconAddBook, IconCheck, IconClose, IconEdit } from '@/lib/icons';
+import { IconAddBook, IconCheck, IconClose, IconEdit, IconNavSpellbook } from '@/lib/icons';
 import { refDebounced } from "@vueuse/core";
 import { useAllSpells } from "@/composables/useSpells";
 import { useAddCharacterSpell, useRemoveCharacterSpell } from "@/composables/useCharacterSpells";

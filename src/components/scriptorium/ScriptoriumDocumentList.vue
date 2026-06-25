@@ -40,6 +40,7 @@
       title="The scriptorium awaits"
       description="Craft monsters, spells, items, and adventure documents with the look of the official books."
     >
+      <template #icon><IconNavScriptorium class="h-16 w-16" /></template>
       <template #action>
         <button
           type="button"
@@ -171,7 +172,7 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import { IconDelete, IconFaction, IconLock, IconSearch } from '@/lib/icons';
+import { IconDelete, IconFaction, IconLock, IconNavScriptorium, IconSearch } from '@/lib/icons';
 import {
   useScriptoriumDocuments,
   useDeleteScriptoriumDocument,

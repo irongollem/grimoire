@@ -55,7 +55,9 @@
       v-else-if="!filtered.length"
       title="No deities yet"
       description="Create the gods and divine beings that shape your campaign world."
-    />
+    >
+      <template #icon><IconNavPantheon class="h-16 w-16" /></template>
+    </EmptyState>
 
     <template v-else>
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
@@ -117,7 +119,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { IconAdd, IconFire, IconLoading, IconPopulate, IconReveal } from '@/lib/icons';
+import { IconAdd, IconFire, IconLoading, IconNavPantheon, IconPopulate, IconReveal } from '@/lib/icons';
 import { useAllDeities, useAllPantheons, usePopulateDeities, useRevealAllDeities } from "@/composables/useDeities";
 import { CLERIC_DOMAINS } from "@/types/deity.types";
 import { useUiStore } from "@/stores/ui";
