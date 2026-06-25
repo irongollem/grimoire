@@ -1,16 +1,16 @@
 import type { Component } from "vue";
 import {
-  IconBookMarked,
-  IconCalendarDays,
-  IconCraft,
-  IconFaction,
-  IconInventory,
-  IconLandmark,
-  IconLibrary,
-  IconMonster,
-  IconPenLine,
-  IconShield,
-  IconUser,
+  IconNavAtlas,
+  IconNavBestiary,
+  IconNavCalendar,
+  IconNavCharacterSheet,
+  IconNavFactions,
+  IconNavItemVault,
+  IconNavParty,
+  IconNavQuests,
+  IconNavReliquary,
+  IconNavSpellbook,
+  IconNavWorkshop,
 } from "@/lib/icons";
 
 export interface PlayerNavItem {
@@ -19,18 +19,21 @@ export interface PlayerNavItem {
   icon: Component;
 }
 
+// Uses the hand-drawn custom nav glyphs (IconNav*) so the player portal matches
+// the DM nav. Inventory reuses the Item Vault glyph and Journal reuses the
+// Quests glyph (no dedicated backpack/journal glyph exists).
 export const ALL_PLAYER_NAV: PlayerNavItem[] = [
-  { to: "/play", label: "Character", icon: IconUser },
-  { to: "/play/inventory", label: "Inventory", icon: IconInventory },
-  { to: "/play/spells", label: "Spellbook", icon: IconBookMarked },
-  { to: "/play/party", label: "People", icon: IconShield },
-  { to: "/play/calendar", label: "Calendar", icon: IconCalendarDays },
-  { to: "/play/journal", label: "Journal", icon: IconPenLine },
-  { to: "/play/crafting", label: "Workshop", icon: IconCraft },
-  { to: "/play/atlas", label: "Atlas", icon: IconFaction },
-  { to: "/play/bestiary", label: "Bestiary", icon: IconMonster },
-  { to: "/play/rules", label: "Reliquary", icon: IconLibrary },
-  { to: "/play/factions", label: "Factions", icon: IconLandmark },
+  { to: "/play", label: "Character", icon: IconNavCharacterSheet },
+  { to: "/play/inventory", label: "Inventory", icon: IconNavItemVault },
+  { to: "/play/spells", label: "Spellbook", icon: IconNavSpellbook },
+  { to: "/play/party", label: "People", icon: IconNavParty },
+  { to: "/play/calendar", label: "Calendar", icon: IconNavCalendar },
+  { to: "/play/journal", label: "Journal", icon: IconNavQuests },
+  { to: "/play/crafting", label: "Workshop", icon: IconNavWorkshop },
+  { to: "/play/atlas", label: "Atlas", icon: IconNavAtlas },
+  { to: "/play/bestiary", label: "Bestiary", icon: IconNavBestiary },
+  { to: "/play/rules", label: "Reliquary", icon: IconNavReliquary },
+  { to: "/play/factions", label: "Factions", icon: IconNavFactions },
 ];
 
 export const MOBILE_NAV_SLOTS = 4;
