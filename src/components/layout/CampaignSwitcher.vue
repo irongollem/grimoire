@@ -13,7 +13,7 @@
         <div
           class="h-7 w-7 rounded-md bg-primary/20 flex items-center justify-center shrink-0"
         >
-          <IconPopulate class="h-3.5 w-3.5 text-primary" />
+          <IconNavCodex class="h-3.5 w-3.5 text-primary" />
         </div>
         <div class="flex-1 min-w-0">
           <p
@@ -196,7 +196,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { IconAdd, IconArchive, IconChevronDown, IconDownload, IconPopulate, IconSettingsAlt, IconUploadCloud } from '@/lib/icons';
+import { IconAdd, IconArchive, IconChevronDown, IconDownload, IconNavCodex, IconSettingsAlt, IconUploadCloud } from '@/lib/icons';
 import ImportBackupModal from "@/components/campaign/ImportBackupModal.vue";
 import NewCampaignModal from "@/components/campaign/NewCampaignModal.vue";
 import { useCampaignPresence } from "@/composables/useCampaignPresence";
