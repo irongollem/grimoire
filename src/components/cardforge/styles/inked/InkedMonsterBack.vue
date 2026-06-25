@@ -151,7 +151,7 @@ const artFade = computed(() => ({
 .ik-dmg-qual { font-style: italic; opacity: 0.85; margin-left: 2px; }
 .ik-sense { white-space: nowrap; margin-right: 6px; }
 .ik-sense :deep(.mask-icon) {
-  width: 1.35em; height: 1.35em; vertical-align: -0.25em; margin-right: 1px;
+  width: 1.35em; height: 1.35em; vertical-align: -0.33em; margin-right: 1px;
   color: var(--acc-text);
 }
 .ik-sense-text { margin-right: 5px; }

@@ -140,7 +140,7 @@ const artFade = computed(() => ({
 .md-dmg-qual { font-style: italic; opacity: 0.85; margin-left: 2px; }
 .md-sense { white-space: nowrap; margin-right: 6px; }
 .md-sense :deep(.mask-icon) {
-  width: 1.25em; height: 1.25em; vertical-align: -0.22em; margin-right: 1px;
+  width: 1.25em; height: 1.25em; vertical-align: -0.28em; margin-right: 1px;
   color: var(--acc-text);
 }
 .md-sense-text { margin-right: 5px; }
