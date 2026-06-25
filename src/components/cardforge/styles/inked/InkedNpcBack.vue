@@ -29,7 +29,8 @@
                   }}</span>
                 </span>
                 <span v-else class="ik-sense-text"
-                  >{{ se.label }}{{ se.value ? " " + se.value : "" }}</span
+                  ><span class="ik-sense-pp">{{ se.label }}</span
+                  >{{ se.value ? " " + se.value : "" }}</span
                 >
               </template>
             </template>
@@ -208,9 +209,13 @@ const artFade = computed(() => ({
   color: var(--ik-text-sub);
   line-height: 1.2;
 }
-.ik-sense { display: inline-flex; align-items: center; gap: 1.5px; margin-right: 5px; }
-.ik-sense :deep(.mask-icon) { width: 1.35em; height: 1.35em; color: var(--acc-text); }
+.ik-sense { white-space: nowrap; margin-right: 6px; }
+.ik-sense :deep(.mask-icon) {
+  width: 1.35em; height: 1.35em; vertical-align: -0.25em; margin-right: 1px;
+  color: var(--acc-text);
+}
 .ik-sense-text { margin-right: 5px; }
+.ik-sense-pp { color: var(--acc-text); }
 .ik-entries {
   gap: 2.5px;
 }

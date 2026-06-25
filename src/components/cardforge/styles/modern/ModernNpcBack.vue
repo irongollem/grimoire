@@ -29,7 +29,8 @@
                   }}</span>
                 </span>
                 <span v-else class="md-sense-text"
-                  >{{ se.label }}{{ se.value ? " " + se.value : "" }}</span
+                  ><span class="md-sense-pp">{{ se.label }}</span
+                  >{{ se.value ? " " + se.value : "" }}</span
                 >
               </template>
             </template>
@@ -120,9 +121,13 @@ const artFade = computed(() => ({
   font-family: "Cormorant Garamond", serif; font-size: 8.5px;
   color: var(--md-text-sub); line-height: 1.3;
 }
-.md-sense { display: inline-flex; align-items: center; gap: 1.5px; margin-right: 5px; }
-.md-sense :deep(.mask-icon) { width: 1.25em; height: 1.25em; color: var(--acc-text); }
+.md-sense { white-space: nowrap; margin-right: 6px; }
+.md-sense :deep(.mask-icon) {
+  width: 1.25em; height: 1.25em; vertical-align: -0.22em; margin-right: 1px;
+  color: var(--acc-text);
+}
 .md-sense-text { margin-right: 5px; }
+.md-sense-pp { color: var(--acc-text); }
 .md-entries { gap: 3px; }
 :deep(.ft-entry) {
   font-family: "Cormorant Garamond", serif; font-size: 7.5px; line-height: 1.35;
