@@ -267,6 +267,7 @@ export const IconNavWorkshop = glyph(NAV_GLYPHS.workshop);
 export const IconNavSoundboard = glyph(NAV_GLYPHS.soundboard);
 export const IconNavSettings = glyph(NAV_GLYPHS.settings);
 export const IconNavReliquary = glyph(NAV_GLYPHS.reliquary);
+export const IconNavCampaign = glyph(NAV_GLYPHS.campaign);
 // Assets + Publish nav sections
 export const IconNavGallery = glyph(ASSET_GLYPHS.gallery);
 export const IconNavBestiary = glyph(ASSET_GLYPHS.bestiary);
