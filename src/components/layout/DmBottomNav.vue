@@ -82,13 +82,13 @@
 import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
-  IconParty,
-  IconLocation,
-  IconPackage,
-  IconQuest,
-  IconDashboard,
-  IconEncounter,
-  IconShield,
+  IconNavNpcs,
+  IconNavAtlas,
+  IconNavItemVault,
+  IconNavQuests,
+  IconNavDashboard,
+  IconNavEncounters,
+  IconNavParty,
   IconMore,
   IconAdd,
 } from "@/lib/icons";
@@ -117,16 +117,16 @@ const moreOpen = ref(false);
 // Prep: NPCs · Atlas (Locations) · Item Vault (Items) · Quests
 // Play: Dashboard · Encounters · NPCs · Party
 const PREP_TABS: BarTab[] = [
-  { to: "/npcs", label: "NPCs", icon: IconParty },
-  { to: "/locations", label: "Atlas", icon: IconLocation },
-  { to: "/vault", label: "Items", icon: IconPackage },
-  { to: "/quests", label: "Quests", icon: IconQuest },
+  { to: "/npcs", label: "NPCs", icon: IconNavNpcs },
+  { to: "/locations", label: "Atlas", icon: IconNavAtlas },
+  { to: "/vault", label: "Items", icon: IconNavItemVault },
+  { to: "/quests", label: "Quests", icon: IconNavQuests },
 ];
 const PLAY_TABS: BarTab[] = [
-  { to: "/dashboard", label: "Dashboard", icon: IconDashboard },
-  { to: "/encounters", label: "Encounters", icon: IconEncounter },
-  { to: "/npcs", label: "NPCs", icon: IconParty },
-  { to: "/party", label: "Party", icon: IconShield },
+  { to: "/dashboard", label: "Dashboard", icon: IconNavDashboard },
+  { to: "/encounters", label: "Encounters", icon: IconNavEncounters },
+  { to: "/npcs", label: "NPCs", icon: IconNavNpcs },
+  { to: "/party", label: "Party", icon: IconNavParty },
 ];
 
 const tabs = computed(() => (ui.dmMode === "play" ? PLAY_TABS : PREP_TABS));

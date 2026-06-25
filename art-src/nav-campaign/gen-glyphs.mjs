@@ -1,8 +1,9 @@
 import { readFileSync, writeFileSync } from "node:fs";
 
 // Read tight potrace traces (<name>.svg) from cwd, normalize each into a shared
-// 0 0 100 100 box (centered, padded), strip the hard-coded black fill so the
-// glyph inherits currentColor, and emit a TS data module of inner SVG markup.
+// 0 0 100 100 box (centered, padded), rewrite the hard-coded black fill to
+// currentColor so the glyph tints with text colour, and emit a TS data module
+// of inner SVG markup.
 //
 // Usage: node gen-glyphs.mjs <outFile.ts> <name1> <name2> ...
 const [, , outFile, ...names] = process.argv;
@@ -24,7 +25,7 @@ const entries = names.map((name) => {
   const h = parseFloat(vb[2]);
   let g = src.match(/<g transform=[\s\S]*?<\/g>/)?.[0];
   if (!g) throw new Error(`no <g> in ${name}.svg`);
-  g = g.replace(/ fill="#000000"/g, ""); // inherit currentColor from the <svg>
+  g = g.replace(/fill="#000000"/g, 'fill="currentColor"'); // tint from the <svg> (potrace emits this on its own line, so match the attr, not a leading space)
 
   const scale = LIVE / Math.max(w, h);
   const tx = (BOX - w * scale) / 2;
