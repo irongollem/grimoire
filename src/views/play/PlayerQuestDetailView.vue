@@ -251,7 +251,7 @@
           <div v-if="selectedNpc.player_visible_fields?.includes('portrait') && getNpcDisplayPortrait(selectedNpc)" class="w-full h-72 overflow-hidden">
             <FocalImage
               :src="getNpcDisplayPortrait(selectedNpc)!"
-              :alt="getNpcDisplayName(selectedNpc)"
+              :alt="getNpcDisplayName(selectedNpc) ?? '???'"
               format="portrait"
               :focal-point="getNpcDisplayFocalPoint(selectedNpc)"
               :lightbox="true"

@@ -16,7 +16,11 @@ export function isNpcConcealed(npc: Pick<Npc, "disguise_name" | "disguise_portra
   return !!(npc.disguise_name || npc.disguise_portrait_url) && !npc.is_revealed;
 }
 
-export function getNpcDisplayName(npc: Pick<Npc, "name" | "disguise_name" | "disguise_portrait_url" | "is_revealed">): string {
+// `name` is non-null on a DM's own NPC (DB NOT NULL), but the player projection
+// `get_player_visible_npcs` returns null when the name isn't player-visible — so
+// the param and return are honestly nullable. Callers must handle the null
+// "no name" case (the player UI shows "???"); never coerce it to "".
+export function getNpcDisplayName(npc: { name: string | null; disguise_name: string | null; disguise_portrait_url: string | null; is_revealed: boolean }): string | null {
   return isNpcConcealed(npc) && npc.disguise_name ? npc.disguise_name : npc.name;
 }
 

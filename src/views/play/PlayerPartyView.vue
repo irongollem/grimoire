@@ -265,8 +265,11 @@ const sortedNpcs = computed(() => {
     if (locA && !locB) return -1;
     if (!locA && locB) return 1;
     if (locA !== locB) return locA.localeCompare(locB);
-    // 3. Alphabetically by display name
-    return getNpcDisplayName(a).toLowerCase().localeCompare(getNpcDisplayName(b).toLowerCase());
+    // 3. Alphabetically by display name (nameless NPCs — name not player-visible — sort last)
+    const nameA = getNpcDisplayName(a);
+    const nameB = getNpcDisplayName(b);
+    if (nameA && nameB) return nameA.localeCompare(nameB);
+    return nameA ? -1 : nameB ? 1 : 0;
   });
 });
 
@@ -294,7 +297,8 @@ const filteredNpcs = computed(() => {
   if (q) {
     list = list.filter((npc) => {
       const parts: string[] = [];
-      if (npc.player_visible_fields.includes("name")) parts.push(getNpcDisplayName(npc).toLowerCase());
+      const name = npc.player_visible_fields.includes("name") ? getNpcDisplayName(npc) : null;
+      if (name) parts.push(name.toLowerCase());
       if (npc.player_visible_fields.includes("race") && npc.race) parts.push(npc.race.toLowerCase());
       if (npc.player_visible_fields.includes("occupation") && npc.occupation) parts.push(npc.occupation.toLowerCase());
       return parts.some((p) => p.includes(q));

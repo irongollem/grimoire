@@ -52,7 +52,7 @@
           :key="npc.id"
           :layout="layout"
           :to="`/npcs/${npc.id}`"
-          :title="getNpcDisplayName(npc)"
+          :title="getNpcDisplayName(npc) ?? '???'"
           :subtitle="npcSubtitle(npc)"
           :image-url="getNpcDisplayPortrait(npc)"
           :focal-point="getNpcDisplayFocalPoint(npc)"
@@ -95,7 +95,7 @@
         <div class="relative h-36 bg-muted overflow-hidden shrink-0">
           <FocalImage
             :src="getNpcDisplayPortrait(npc)"
-            :alt="getNpcDisplayName(npc)"
+            :alt="getNpcDisplayName(npc) ?? '???'"
             format="landscape"
             :focal-point="getNpcDisplayFocalPoint(npc)"
             placeholder="/assets/placeholders/npc.webp"
@@ -115,7 +115,7 @@
             <h3
               class="font-cinzel text-sm font-bold text-foreground leading-tight line-clamp-1 flex-1"
             >
-              {{ getNpcDisplayName(npc) }}
+              {{ getNpcDisplayName(npc) ?? '???' }}
             </h3>
             <span
               :title="npc.status"

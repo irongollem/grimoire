@@ -67,7 +67,7 @@ defineEmits<{ close: [] }>();
 const npcId = computed(() => npc?.id ?? "");
 const { data: pcNote, isLoading: pcNoteLoading } = useMyNpcPcNote(npcId);
 
-const displayName = computed(() => (npc ? getNpcDisplayName(npc) : "???"));
+const displayName = computed(() => (npc ? getNpcDisplayName(npc) ?? "???" : "???"));
 const displayPortrait = computed(() => (npc ? getNpcDisplayPortrait(npc) : null));
 const displayFocalPoint = computed(() => (npc ? getNpcDisplayFocalPoint(npc) : null));
 

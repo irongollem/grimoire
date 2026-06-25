@@ -71,7 +71,7 @@ const props = defineProps<{
 
 defineEmits<{ click: [] }>();
 
-const displayName = computed(() => getNpcDisplayName(props.npc));
+const displayName = computed(() => getNpcDisplayName(props.npc) ?? "???");
 const displayPortrait = computed(() => getNpcDisplayPortrait(props.npc));
 const displayFocalPoint = computed(() => getNpcDisplayFocalPoint(props.npc));
 

@@ -59,7 +59,7 @@ const npcId = computed(() => npc?.id ?? "");
 const { data: myNpcPcNote } = useMyNpcPcNote(npcId);
 
 const display = computed(() => ({
-  name:       npc ? getNpcDisplayName(npc)       : "???",
+  name:       npc ? getNpcDisplayName(npc) ?? "???" : "???",
   portrait:   npc ? getNpcDisplayPortrait(npc)   : null,
   focalPoint: npc ? getNpcDisplayFocalPoint(npc) : null,
 }));

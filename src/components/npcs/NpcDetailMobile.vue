@@ -310,7 +310,7 @@ const { y: scrollY } = useScroll(scrollRoot);
 const scrolled = computed(() => scrollY.value > 150);
 
 // ── Display helpers (mirror the desktop sheet) ──────────────────────────────────
-const displayName = computed(() => getNpcDisplayName(npc));
+const displayName = computed(() => getNpcDisplayName(npc) ?? "???");
 const displayPortrait = computed(() => getNpcDisplayPortrait(npc));
 const displayFocalPoint = computed(() => getNpcDisplayFocalPoint(npc));
 
