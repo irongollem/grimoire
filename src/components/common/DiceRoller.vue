@@ -2,18 +2,28 @@
   <div class="relative">
     <!-- Trigger button -->
     <button
+      ref="triggerRef"
       type="button"
       class="dice-trigger"
       :class="{ 'is-open': isOpen }"
       title="Dice Roller"
-      @click="isOpen = !isOpen; primeDiceAudio()"
+      @click="togglePanel"
     >
       <IconDiceRoll class="h-4 w-4" />
     </button>
 
-    <!-- Foldout panel -->
-    <Transition name="dice-panel">
-      <div v-if="isOpen" class="dice-panel" @click.stop>
+    <!-- Foldout panel + backdrop, teleported to <body> so they escape the
+         sidebar's sticky stacking context (otherwise <main> paints over them). -->
+    <Teleport to="body">
+      <div v-if="isOpen" class="dice-backdrop" @click="closePanel" />
+      <Transition name="dice-panel">
+        <div
+          v-if="isOpen"
+          ref="panelRef"
+          class="dice-panel"
+          :style="panelStyle"
+          @click.stop
+        >
         <!-- Header -->
         <div class="dice-panel-header">
           <span
@@ -23,7 +33,7 @@
           <button
             type="button"
             class="text-muted-foreground hover:text-foreground text-lg leading-none"
-            @click="isOpen = false"
+            @click="closePanel"
           >
             ×
           </button>
@@ -38,7 +48,7 @@
               :class="{ 'die-active': counts[d.sides] > 0 }"
               @click="toggleDie(d.sides)"
             >
-              <span class="die-icon">{{ d.icon }}</span>
+              <component :is="d.icon" class="die-icon" />
               <span class="die-label">d{{ d.sides }}</span>
             </button>
             <div class="die-count-row">
@@ -142,32 +152,30 @@
           </div>
         </Transition>
 
-        <!-- Quick clear -->
-        <button type="button" class="clear-btn" @click="clearAll">Clear</button>
-      </div>
-    </Transition>
-
-    <!-- Backdrop -->
-    <div v-if="isOpen" class="fixed inset-0 z-39" @click="isOpen = false" />
+          <!-- Quick clear -->
+          <button type="button" class="clear-btn" @click="clearAll">Clear</button>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from "vue";
-import { IconDiceRoll } from '@/lib/icons';
+import { ref, reactive, computed, nextTick, onBeforeUnmount, type Component } from "vue";
+import { IconDiceRoll, IconDie4, IconDie6, IconDie8, IconDie10, IconDie12, IconDie20, IconDie100 } from '@/lib/icons';
 import DiceResult from "@/components/common/DiceResult.vue";
 import { primeDiceAudio } from "@/lib/diceAudio";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import type { DieSize, RollMode, RollResult } from "@/lib/roller";
 
-const DICE: { sides: DieSize; icon: string }[] = [
-  { sides: 4, icon: "▲" },
-  { sides: 6, icon: "⬡" },
-  { sides: 8, icon: "◆" },
-  { sides: 10, icon: "◈" },
-  { sides: 12, icon: "⬟" },
-  { sides: 20, icon: "⬠" },
-  { sides: 100, icon: "⊕" },
+const DICE: { sides: DieSize; icon: Component }[] = [
+  { sides: 4, icon: IconDie4 },
+  { sides: 6, icon: IconDie6 },
+  { sides: 8, icon: IconDie8 },
+  { sides: 10, icon: IconDie10 },
+  { sides: 12, icon: IconDie12 },
+  { sides: 20, icon: IconDie20 },
+  { sides: 100, icon: IconDie100 },
 ];
 
 const MODES: { value: RollMode; label: string; cls: string }[] = [
@@ -177,6 +185,59 @@ const MODES: { value: RollMode; label: string; cls: string }[] = [
 ];
 
 const isOpen = ref(false);
+const triggerRef = ref<HTMLElement | null>(null);
+const panelRef = ref<HTMLElement | null>(null);
+// The panel is teleported to <body> and fixed-positioned from the trigger's
+// viewport rect, so it sits above all page content without any z-index games.
+// It folds away from whichever screen edge it would otherwise overflow.
+const panelStyle = ref<Record<string, string>>({});
+
+function positionPanel() {
+  const trigger = triggerRef.value;
+  const panel = panelRef.value;
+  if (!trigger || !panel) return;
+  const t = trigger.getBoundingClientRect();
+  const pw = panel.offsetWidth;
+  const ph = panel.offsetHeight;
+  const gap = 8;
+  const margin = 8;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+
+  // Horizontal: prefer aligning the panel's right edge to the trigger's (fold
+  // left). If that clips the left edge, fold right from the trigger's left.
+  let left = t.right - pw;
+  if (left < margin) left = t.left;
+  left = Math.min(Math.max(left, margin), vw - pw - margin);
+
+  // Vertical: prefer dropping below the trigger; flip above if it would clip.
+  let top = t.bottom + gap;
+  if (top + ph > vh - margin && t.top - gap - ph >= margin) top = t.top - gap - ph;
+  top = Math.min(Math.max(top, margin), vh - ph - margin);
+
+  panelStyle.value = { top: `${Math.round(top)}px`, left: `${Math.round(left)}px` };
+}
+
+function togglePanel() {
+  if (isOpen.value) {
+    closePanel();
+    return;
+  }
+  isOpen.value = true;
+  primeDiceAudio();
+  nextTick(positionPanel);
+  window.addEventListener("resize", positionPanel);
+  window.addEventListener("scroll", positionPanel, true);
+}
+
+function closePanel() {
+  isOpen.value = false;
+  window.removeEventListener("resize", positionPanel);
+  window.removeEventListener("scroll", positionPanel, true);
+}
+
+onBeforeUnmount(closePanel);
+
 const counts = reactive<Record<DieSize, number>>({
   4: 0, 6: 0, 8: 0, 10: 0, 12: 0, 20: 1, 100: 0,
 });
@@ -242,8 +303,11 @@ function clearAll() {
   @apply text-primary border-primary/50 bg-primary/5;
 }
 
+.dice-backdrop {
+  @apply fixed inset-0 z-50;
+}
 .dice-panel {
-  @apply absolute z-40 right-0 top-full mt-2 w-72 bg-card border border-border rounded-xl shadow-2xl flex flex-col gap-3 p-4;
+  @apply fixed z-50 w-72 max-h-[calc(100dvh-1rem)] overflow-y-auto bg-card border border-border rounded-xl shadow-2xl flex flex-col gap-3 p-4;
 }
 
 .dice-panel-header {
@@ -267,7 +331,7 @@ function clearAll() {
 }
 
 .die-icon {
-  @apply text-base leading-none text-foreground;
+  @apply h-5 w-5 text-foreground;
 }
 .die-label {
   @apply font-cinzel text-[9px] font-bold tracking-wider text-muted-foreground;

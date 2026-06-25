@@ -11,7 +11,7 @@ import {
   Check, CheckCheck, CheckCircle, ChevronDown, ChevronLeft, ChevronRight, ChevronUp,
   ChevronsUpDown, Circle, CircleCheck, CircleUser, Clipboard, Clock, Code, Coins,
   Columns2, Component, Copy, CreditCard, Crosshair, Crown,
-  Dice6, Dices, Dna, DoorClosed, DoorOpen, Download, Droplets,
+  Dna, DoorClosed, DoorOpen, Download, Droplets,
   Eraser, ExternalLink, Eye, EyeOff,
   Feather, FileDown, FileText, Flag, Flame, FlaskConical,
   Gamepad2, Gem, Ghost, Gift, Globe, Globe2, GraduationCap, GripVertical,
@@ -177,8 +177,6 @@ export { Crosshair as IconCenter }
 export { Puzzle as IconPuzzle }
 export { Globe as IconFaction }
 export { Globe2 as IconGlobe }
-export { Dice6 as IconDice }
-export { Dices as IconDiceRoll }
 export { Coins as IconCoins }
 export { Gem as IconGem }
 export { FlaskConical as IconPotion }
@@ -303,6 +301,22 @@ export const IconCraftBrewing = glyph(CRAFTING_GLYPHS.brewing);
 export const IconCraftWeaving = glyph(CRAFTING_GLYPHS.weaving);
 export const IconCraftMasonry = glyph(CRAFTING_GLYPHS.masonry);
 export const IconCraftPainting = glyph(CRAFTING_GLYPHS.painting);
+
+// ── Custom polyhedral-dice glyphs ─────────────────────────────────────────────
+// Hand-drawn, vectorized dice in the same style as the nav/crafting glyphs.
+// Source art + pipeline live in art-src/dice/. The generic IconDice/IconDiceRoll
+// point at the iconic d20; per-die glyphs feed the DiceRoller grid.
+import { DICE_GLYPHS } from "./diceGlyphs.generated";
+export const IconDie2 = glyph(DICE_GLYPHS.d2);
+export const IconDie4 = glyph(DICE_GLYPHS.d4);
+export const IconDie6 = glyph(DICE_GLYPHS.d6);
+export const IconDie8 = glyph(DICE_GLYPHS.d8);
+export const IconDie10 = glyph(DICE_GLYPHS.d10);
+export const IconDie12 = glyph(DICE_GLYPHS.d12);
+export const IconDie20 = glyph(DICE_GLYPHS.d20);
+export const IconDie100 = glyph(DICE_GLYPHS.d100);
+export const IconDice = glyph(DICE_GLYPHS.d20);
+export const IconDiceRoll = glyph(DICE_GLYPHS.d20);
 
 // ── UI / Misc ─────────────────────────────────────────────────────────────────
 export { BarChart2 as IconChart }
