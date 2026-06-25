@@ -1,5 +1,5 @@
 import type { Component } from "vue";
-import { IconAxe, IconCraft, IconFeather, IconFood, IconGem, IconLayers, IconMonster, IconNature, IconPaint, IconPickaxe, IconPotion, IconScissors, IconTavern, IconTool } from '@/lib/icons';
+import { IconCraftAlchemy, IconCraftBrewing, IconCraftCooking, IconCraftHerbalism, IconCraftJewelcrafting, IconCraftLeathercraft, IconCraftMasonry, IconCraftPainting, IconCraftPoisoncraft, IconCraftScribing, IconCraftSmithing, IconCraftTinkering, IconCraftWeaving, IconCraftWoodcraft } from '@/lib/icons';
 import type { CraftingDiscipline } from "@/types/crafting.types";
 import type { SaveKey } from "@/types/party.types";
 
@@ -20,7 +20,7 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
   {
     id: "alchemy",
     label: "Alchemy",
-    icon: IconPotion,
+    icon: IconCraftAlchemy,
     tools: ["Alchemist's Supplies"],
     ability: "int",
     description: "Potions, elixirs, acids, and alchemical concoctions.",
@@ -30,7 +30,7 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
   {
     id: "smithing",
     label: "Smithing",
-    icon: IconCraft,
+    icon: IconCraftSmithing,
     tools: ["Smith's Tools"],
     ability: "str",
     description: "Weapons, armour, and metal goods forged at the anvil.",
@@ -40,7 +40,7 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
   {
     id: "leathercraft",
     label: "Leathercraft",
-    icon: IconScissors,
+    icon: IconCraftLeathercraft,
     tools: ["Leatherworker's Tools", "Cobbler's Tools"],
     ability: "dex",
     description: "Leather armour, saddlery, quivers, pouches, and footwear.",
@@ -50,7 +50,7 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
   {
     id: "woodcraft",
     label: "Woodcraft",
-    icon: IconAxe,
+    icon: IconCraftWoodcraft,
     tools: ["Woodcarver's Tools", "Carpenter's Tools", "Shipwright's Tools"],
     ability: "dex",
     description: "Bows, bolts, arrows, staves, furniture, and wooden structures.",
@@ -60,7 +60,7 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
   {
     id: "jewelcrafting",
     label: "Jewel Crafting",
-    icon: IconGem,
+    icon: IconCraftJewelcrafting,
     tools: ["Jeweler's Tools", "Gemcutter's Tools"],
     ability: "dex",
     description: "Rings, amulets, gem settings, and fine jewellery.",
@@ -70,7 +70,7 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
   {
     id: "herbalism",
     label: "Herbalism",
-    icon: IconNature,
+    icon: IconCraftHerbalism,
     tools: ["Herbalism Kit"],
     ability: "wis",
     description: "Healing potions, antitoxins, and natural remedies.",
@@ -80,7 +80,7 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
   {
     id: "poisoncraft",
     label: "Poisoncraft",
-    icon: IconMonster,
+    icon: IconCraftPoisoncraft,
     tools: ["Poisoner's Kit"],
     ability: "int",
     description: "Contact, ingested, and injury poisons and antidotes.",
@@ -90,7 +90,7 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
   {
     id: "tinkering",
     label: "Tinkering",
-    icon: IconTool,
+    icon: IconCraftTinkering,
     tools: ["Tinker's Tools", "Glassblower's Tools"],
     ability: "int",
     description: "Clockwork devices, traps, and mechanical gadgets.",
@@ -100,7 +100,7 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
   {
     id: "cooking",
     label: "Cooking",
-    icon: IconFood,
+    icon: IconCraftCooking,
     tools: ["Cook's Utensils"],
     ability: "wis",
     description: "Meals that grant mechanical benefits: temp HP, advantage, and more.",
@@ -110,7 +110,7 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
   {
     id: "scribing",
     label: "Scribing",
-    icon: IconFeather,
+    icon: IconCraftScribing,
     tools: ["Calligrapher's Supplies", "Bookbinder's Tools", "Scribe's Supplies", "Cartographer's Tools"],
     ability: "int",
     description: "Spell scrolls, documents, maps, illuminated texts, and bound books.",
@@ -120,7 +120,7 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
   {
     id: "brewing",
     label: "Brewing",
-    icon: IconTavern,
+    icon: IconCraftBrewing,
     tools: ["Brewer's Supplies"],
     ability: "wis",
     description: "Ales, meads, spirits, and tonics that grant temporary benefits.",
@@ -130,7 +130,7 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
   {
     id: "weaving",
     label: "Weaving",
-    icon: IconLayers,
+    icon: IconCraftWeaving,
     tools: ["Weaver's Tools", "Tailor's Tools"],
     ability: "dex",
     description: "Cloth armour, cloaks, garments, and woven goods with minor boons.",
@@ -140,7 +140,7 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
   {
     id: "masonry",
     label: "Masonry",
-    icon: IconPickaxe,
+    icon: IconCraftMasonry,
     tools: ["Mason's Tools"],
     ability: "str",
     description: "Stonecutting, construction, runestones, and carved stonework.",
@@ -150,7 +150,7 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
   {
     id: "painting",
     label: "Painting",
-    icon: IconPaint,
+    icon: IconCraftPainting,
     tools: ["Painter's Supplies"],
     ability: "dex",
     description: "Pigment-work, heraldry, camouflage, warpaint, and visual deception.",
