@@ -1,6 +1,7 @@
 # Terms of Service
 
-**Grimoire** is operated by CroCode BV (info@dungeongrimoire.com), a private limited company registered in the Netherlands.  
+**Grimoire** is operated by CroCode BV (info@dungeongrimoire.com), a private limited company (besloten vennootschap) registered in the Netherlands.  
+Registered office: [registered address] · Chamber of Commerce (KvK) no. [KvK number] · VAT (BTW) no. [VAT number]  
 **Last updated:** June 2026
 
 ---
@@ -57,9 +58,9 @@ Grimoire includes optional AI-powered generation features (NPC portraits, stat b
 
 ## 6. Subscriptions, AI credits, and refunds
 
-**Grimoire PRO** is a paid subscription billed in advance, monthly or annually via Stripe. It renews automatically at the end of each billing period until you cancel. You can cancel at any time from Billing → Manage subscription; cancellation takes effect at the end of the current period and you are not charged again. Subscription prices may change; we will give reasonable notice before a change applies to you.
+**Grimoire PRO** is a paid subscription billed in advance, monthly or annually via Stripe. It renews automatically at the end of each billing period until you cancel. You can cancel at any time from Billing → Manage subscription; cancellation takes effect at the end of the current period and you are not charged again. Subscription prices may change; we will give you at least **30 days' notice** before a price increase applies to you. If you do not accept the new price, you may cancel before it takes effect and will not be charged the increased amount.
 
-**AI credits** are used by AI features when you are not using your own API key. Credits are purchased in advance and are non-refundable once consumed. Unused credits do not expire. Credit costs per generation type are listed in the app and may change; we will give reasonable notice before changing prices.
+**AI credits** are used by AI features when you are not using your own API key. Credits are purchased in advance and are non-refundable once consumed. Unused credits do not expire. Credit costs per generation type are listed in the app and may change; we will give reasonable notice before changing prices. A price change never affects credits you have already purchased.
 
 Refunds, cancellation, and your EU right of withdrawal are described in our [Refund Policy](/refunds).
 

@@ -2,6 +2,7 @@ import { ref } from "vue";
 import { useCampaignStore } from "@/stores/campaign";
 import { useImageUpload } from "@/composables/useImageUpload";
 import { supabase } from "@/lib/supabase";
+import { edgeErrorMessage } from "@/lib/edgeError";
 import { getTextProvider, getImageProvider, OPENAI_IMAGE_MODEL_KEY } from "./providers";
 import { fetchImageBasePrompt } from "./systemPrompts";
 import { buildImagePromptAuthorSystem, buildSimpleImagePrompt } from "./imagePrompt";
@@ -123,17 +124,7 @@ export function useEntityImageGeneration(bucketId: string) {
       },
     });
 
-    // supabase-js wraps a non-2xx as FunctionsHttpError and discards the JSON body
-    // unless we read it explicitly — surface structured codes like insufficient_credits.
-    if (fnError) {
-      let body: { error?: string; balance?: number } | null = null;
-      try { body = (await (fnError as { context?: Response }).context?.json()) ?? null; } catch { /* not JSON */ }
-      if (body?.error === "insufficient_credits") {
-        const left = body.balance !== undefined ? ` (${body.balance} left)` : "";
-        throw new Error(`Insufficient credits${left}. Buy a credit pack or wait for the monthly refresh.`);
-      }
-      throw new Error(body?.error ?? fnError.message);
-    }
+    if (fnError) throw new Error(await edgeErrorMessage(fnError));
     const res = data as GenerateEntityImageResponse;
     if (res?.error) throw new Error(res.error);
     if (!res?.image_b64) throw new Error("The image generator returned no image.");

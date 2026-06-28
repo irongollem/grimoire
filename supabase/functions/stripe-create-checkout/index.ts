@@ -53,7 +53,7 @@ serve(async (req: Request) => {
     // Get or create Stripe Customer
     const { data: sub } = await admin
       .from("user_subscriptions")
-      .select("stripe_customer_id, status, suspended_at")
+      .select("status, suspended_at")
       .eq("user_id", user.id)
       .single();
 

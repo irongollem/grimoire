@@ -1,5 +1,6 @@
 import { ref } from "vue";
 import { supabase } from "@/lib/supabase";
+import { edgeErrorMessage } from "@/lib/edgeError";
 import { getTextProvider } from "./providers";
 import { useCampaignStore } from "@/stores/campaign";
 import { wrapUserInput } from "./utils";
@@ -97,7 +98,7 @@ export function useChroniclerTextGeneration() {
       body: { campaign_id: campaignId, raw_text: rawText, tone_instruction, entity_descriptions },
     });
 
-    if (fnError) throw new Error(fnError.message);
+    if (fnError) throw new Error(await edgeErrorMessage(fnError));
     if (data?.error) throw new Error(data.error);
     return (data as { chronicle: string }).chronicle;
   }

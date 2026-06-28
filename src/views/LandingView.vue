@@ -206,7 +206,7 @@
     <!-- Footer -->
     <footer class="border-t border-border/40 py-8 text-center">
       <p
-        class="font-cinzel text-[11px] font-semibold tracking-[0.2em] text-amber-400 mb-4"
+        class="font-cinzel text-2xs font-semibold tracking-[0.2em] text-amber-400 mb-4"
       >
         Grimoire
       </p>

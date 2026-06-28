@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computePackLots, clawbackAmount, type LedgerRowLite } from "./creditLots";
+import { computePackLots, type LedgerRowLite } from "./creditLots";
 
 const NOW = new Date("2026-06-28T12:00:00Z").getTime();
 const day = (n: number) => new Date(NOW - n * 86_400_000).toISOString();
@@ -89,16 +89,5 @@ describe("computePackLots", () => {
     expect(lots).toHaveLength(1); // only the pack purchase is listed
     expect(lots[0].paymentIntentId).toBe("pi_1");
     expect(lots[0].remaining).toBe(1000); // the older admin grant absorbed the spend
-  });
-});
-
-describe("clawbackAmount", () => {
-  it("claws back the full pack when the balance covers it", () => {
-    expect(clawbackAmount(1000, 1400)).toBe(1000);
-  });
-  it("clamps to the available purchased balance (never negative)", () => {
-    expect(clawbackAmount(1000, 300)).toBe(300);
-    expect(clawbackAmount(1000, 0)).toBe(0);
-    expect(clawbackAmount(1000, -50)).toBe(0);
   });
 });

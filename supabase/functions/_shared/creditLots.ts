@@ -114,12 +114,3 @@ export function computePackLots(
       };
     });
 }
-
-/**
- * Credits to claw back when refunding a pack, clamped so the user's purchased
- * balance can never go negative. Eligible packs claw back the full amount;
- * partly-spent override refunds claw back only what's left available.
- */
-export function clawbackAmount(packCredits: number, purchasedBalance: number): number {
-  return Math.max(0, Math.min(packCredits, purchasedBalance));
-}
