@@ -63,6 +63,38 @@ export interface SpendResult {
   ok: boolean;
   balance: number;
   insufficient?: boolean;
+  /** Account frozen — spend refused (distinct from insufficient). */
+  suspended?: boolean;
+  /** New-account velocity cap hit — spend refused. */
+  velocity?: boolean;
+}
+
+/**
+ * Build the HTTP error response for a refused paid spend, mapping the distinct
+ * reasons (frozen / rate-limited / insufficient) to the right status + message.
+ * Shared by every generator + deduct-ai-credit so the surfaced reason is honest.
+ */
+export function reservationFailureResponse(
+  r: { suspended?: boolean; velocity?: boolean; balance?: number },
+  cors: Record<string, string>,
+): Response {
+  const headers = { ...cors, "Content-Type": "application/json" };
+  if (r.suspended) {
+    return new Response(JSON.stringify({ error: "account_suspended" }), { status: 403, headers });
+  }
+  if (r.velocity) {
+    return new Response(
+      JSON.stringify({
+        error: "rate_limited",
+        message: "New accounts have a temporary limit on how fast credits can be spent. Please try again shortly.",
+      }),
+      { status: 429, headers },
+    );
+  }
+  return new Response(
+    JSON.stringify({ error: "insufficient_credits", balance: r.balance ?? 0 }),
+    { status: 402, headers },
+  );
 }
 
 export interface Reservation {

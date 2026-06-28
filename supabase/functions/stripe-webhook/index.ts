@@ -2,7 +2,6 @@ import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@14?target=deno";
 import { resetDelta } from "../_shared/credit-math.ts";
-import { clawbackAmount } from "../_shared/creditLots.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
   apiVersion: "2024-06-20",
@@ -197,68 +196,56 @@ async function latestRefundId(charge: Stripe.Charge): Promise<string | null> {
 
 /**
  * Reverse the credits granted by a credit-pack purchase when its payment is
- * refunded or charged back. Idempotent on `clawbackKey` (a Stripe refund or
- * dispute id) via the unique index — so the admin refund tool and this webhook
- * can't double-debit (whichever runs second hits 23505 and no-ops). Clawback is
- * clamped so the purchased balance can't go negative. A 0-delta row is still
- * written: it marks the pack refunded (so the FIFO projection won't offer it
- * again) and serves as the idempotency marker.
+ * refunded or charged back. Delegates to the locked, idempotent
+ * clawback_pack_credits() RPC — one reversal per pack (refund OR dispute),
+ * clamped so the purchased balance can't go negative, race-safe vs the admin
+ * refund tool (advisory lock + unique stripe_refund_id).
  */
 async function clawbackPackCredits(
   paymentIntentId: string,
   clawbackKey: string,
   note: string,
 ) {
-  const { data: purchase } = await admin
+  const { error } = await admin.rpc("clawback_pack_credits", {
+    p_payment_intent: paymentIntentId,
+    p_key: clawbackKey,
+    p_note: note,
+  });
+  if (error) console.error("clawback_pack_credits:", error);
+}
+
+/** Resolve our user id from a charge — by Stripe customer, else by the
+ * pack-purchase ledger row (credit-pack charges have no customer attached for
+ * older sessions). */
+async function getUserIdByPaymentIntent(paymentIntentId: string): Promise<string | null> {
+  const { data } = await admin
     .from("ai_credit_ledger")
-    .select("user_id, delta")
+    .select("user_id")
     .eq("stripe_payment_intent_id", paymentIntentId)
     .eq("reason", "pack_purchase")
     .maybeSingle();
-  // Not a credit-pack charge (e.g. a subscription invoice) — nothing to reverse.
-  if (!purchase) return;
-
-  const userId = (purchase as { user_id: string }).user_id;
-  const credits = Number((purchase as { delta: number }).delta);
-
-  const { data: bucket } = await admin
-    .from("ai_credit_buckets")
-    .select("purchased_balance")
-    .eq("user_id", userId)
-    .maybeSingle();
-  const purchasedBalance = Number((bucket as { purchased_balance: number } | null)?.purchased_balance ?? 0);
-
-  const clawback = clawbackAmount(credits, purchasedBalance);
-
-  const { error } = await admin.from("ai_credit_ledger").insert({
-    user_id: userId,
-    delta: -clawback,
-    reason: "pack_refund",
-    bucket: "purchased",
-    is_byok: false,
-    refunded_payment_intent_id: paymentIntentId,
-    stripe_refund_id: clawbackKey,
-    note,
-  });
-  // 23505 = the admin tool or a retried delivery already recorded this clawback.
-  if (error && error.code !== "23505") throw error;
+  return (data as { user_id: string } | null)?.user_id ?? null;
 }
 
 /**
- * Soft-freeze a user's account (blocks paid actions; login stays). Used on
- * chargeback / fraud-warning. Resolves the user from the Stripe customer; an
- * admin can lift it from the admin panel.
+ * Soft-freeze the account behind a charge (blocks paid actions; login stays).
+ * Used on chargeback / fraud-warning. Resolves the user via the Stripe customer,
+ * falling back to the pack-purchase ledger by payment intent so pack-only buyers
+ * (no customer on the charge) are still frozen. An admin can lift it later.
  */
-async function suspendUserByCustomer(customerId: string | null, reason: string) {
-  if (!customerId) return;
-  const userId = await getUserIdByCustomer(customerId);
+async function suspendUserForCharge(charge: Stripe.Charge | null, reason: string) {
+  if (!charge) return;
+  let userId = charge.customer ? await getUserIdByCustomer(charge.customer as string) : null;
+  if (!userId && charge.payment_intent) {
+    userId = await getUserIdByPaymentIntent(charge.payment_intent as string);
+  }
   if (!userId) return;
   const { error } = await admin
     .from("user_subscriptions")
     .update({ suspended_at: toIso(Math.floor(Date.now() / 1000)), suspension_reason: reason })
     .eq("user_id", userId)
     .is("suspended_at", null); // don't overwrite an earlier freeze timestamp
-  if (error) console.error("suspendUserByCustomer:", error);
+  if (error) console.error("suspendUserForCharge:", error);
 }
 
 serve(async (req: Request) => {
@@ -389,7 +376,7 @@ serve(async (req: Request) => {
         const pi = dispute.payment_intent as string | null;
         if (pi) await clawbackPackCredits(pi, dispute.id, reason);
         const dCharge = dispute.charge ? await stripe.charges.retrieve(dispute.charge as string) : null;
-        await suspendUserByCustomer((dCharge?.customer as string | null) ?? null, reason);
+        await suspendUserForCharge(dCharge, reason);
         break;
       }
 
@@ -397,10 +384,7 @@ serve(async (req: Request) => {
         // Fraud warning often precedes a chargeback — freeze proactively + flag.
         const efw = event.data.object as Stripe.Radar.EarlyFraudWarning;
         const fCharge = efw.charge ? await stripe.charges.retrieve(efw.charge as string) : null;
-        await suspendUserByCustomer(
-          (fCharge?.customer as string | null) ?? null,
-          `early fraud warning: ${efw.fraud_type ?? "unknown"}`,
-        );
+        await suspendUserForCharge(fCharge, `early fraud warning: ${efw.fraud_type ?? "unknown"}`);
         break;
       }
 

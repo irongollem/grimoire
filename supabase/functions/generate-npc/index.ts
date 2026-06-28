@@ -13,6 +13,7 @@ import {
   releaseCredits,
   reserveCredits,
   sizeMultiplier,
+  reservationFailureResponse,
 } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { resolveImageProvider } from "../_shared/imageGen.ts";
@@ -343,13 +344,7 @@ serve(async (req: Request) => {
 
   const reservation = await reserveCredits(admin, user.id, totalNeeded, "npc_text");
   if (!reservation.ok) {
-    return new Response(
-      JSON.stringify({ error: "insufficient_credits", balance: reservation.balance ?? 0 }),
-      {
-        status: 402,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
+    return reservationFailureResponse(reservation, corsHeaders);
   }
 
   let textResult: TextResult;

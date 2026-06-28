@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { decryptValue } from "../_shared/vault.ts";
 import { isUserPro } from "../_shared/plan.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
-import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, sizeMultiplier } from "../_shared/credits.ts";
+import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse, sizeMultiplier } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { createImageJob, completeImageJob, failImageJob, type ImageJobKind } from "../_shared/imageJob.ts";
 import { fetchProviderConfigs } from "../_shared/provider-config.ts";
@@ -206,10 +206,7 @@ serve(async (req: Request) => {
 
   const reservation = await reserveCredits(admin, user.id, chronicleImageCost, "chronicle_image");
   if (!reservation.ok) {
-    return new Response(
-      JSON.stringify({ error: "insufficient_credits", balance: reservation.balance ?? 0 }),
-      { status: 402, headers: { ...cors, "Content-Type": "application/json" } },
-    );
+    return reservationFailureResponse(reservation, cors);
   }
 
   const settingPrompt = campaign.ai_setting_prompt ?? "";

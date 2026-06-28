@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@14?target=deno";
 import { corsHeaders } from "../_shared/cors.ts";
+import { getOrCreateStripeCustomer } from "../_shared/stripeCustomer.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
   apiVersion: "2024-06-20",
@@ -66,18 +67,7 @@ serve(async (req: Request) => {
       return json({ error: "already_subscribed" }, 409);
     }
 
-    let customerId = sub?.stripe_customer_id as string | null;
-    if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: user.email,
-        metadata: { supabase_user_id: user.id },
-      });
-      customerId = customer.id;
-      await admin
-        .from("user_subscriptions")
-        .update({ stripe_customer_id: customerId })
-        .eq("user_id", user.id);
-    }
+    const customerId = await getOrCreateStripeCustomer(admin, stripe, user.id, user.email ?? undefined);
 
     // Resolve price ID from plans table
     const { data: plan } = await admin

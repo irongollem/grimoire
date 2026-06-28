@@ -2,7 +2,8 @@ import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@14?target=deno";
 import { corsHeaders } from "../_shared/cors.ts";
-import { computePackLots, clawbackAmount, type LedgerRowLite } from "../_shared/creditLots.ts";
+import { computePackLots, type LedgerRowLite } from "../_shared/creditLots.ts";
+import { requireAdmin } from "../_shared/requireAdmin.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
   apiVersion: "2024-06-20",
@@ -41,18 +42,8 @@ serve(async (req: Request) => {
   const json = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return json({ error: "Unauthorized" }, 401);
-
-  // Verify caller is an admin from their signed JWT (mirrors is_app_admin()).
-  const caller = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: authHeader } } },
-  );
-  const { data: { user }, error: authError } = await caller.auth.getUser();
-  if (authError || !user) return json({ error: "Unauthorized" }, 401);
-  if (user.app_metadata?.role !== "admin") return json({ error: "Forbidden" }, 403);
+  const gate = await requireAdmin(req, cors);
+  if (gate instanceof Response) return gate;
 
   let body: { action?: string; userId?: string; paymentIntentId?: string; override?: boolean; reason?: string };
   try {
@@ -67,9 +58,9 @@ serve(async (req: Request) => {
   try {
     const lots = computePackLots(await loadLedger(userId), Date.now());
 
-    // ── list: refund eligibility for every pack this user bought ──────────────
+    // ── list: refund eligibility for every pack + current purchased balance ───
     if (action === "list") {
-      return json({ lots });
+      return json({ lots, purchasedBalance: await purchasedBalance(userId) });
     }
 
     // ── refund: issue the Stripe refund + claw back credits ───────────────────
@@ -97,8 +88,6 @@ serve(async (req: Request) => {
         }
       }
 
-      const clawback = clawbackAmount(lot.credits, await purchasedBalance(userId));
-
       // Money first: issue the full refund on the original payment intent.
       let refund: Stripe.Refund;
       try {
@@ -108,27 +97,22 @@ serve(async (req: Request) => {
         return json({ error: "stripe_refund_failed" }, 502);
       }
 
-      // Then claw back credits. Idempotent on stripe_refund_id — if the
-      // charge.refunded webhook (or a retried call) already wrote it, that's fine.
+      // Then claw back via the locked, idempotent RPC (clamped; safe vs the
+      // charge.refunded webhook — whichever runs second no-ops).
       const note = !lot.eligible && override ? `OVERRIDE: ${reason!.trim()}` : (reason?.trim() || "admin refund");
-      const { error: insErr } = await admin.from("ai_credit_ledger").insert({
-        user_id: userId,
-        delta: -clawback,
-        reason: "pack_refund",
-        bucket: "purchased",
-        is_byok: false,
-        refunded_payment_intent_id: paymentIntentId,
-        stripe_refund_id: refund.id,
-        note,
+      const { data: clawed, error: cErr } = await admin.rpc("clawback_pack_credits", {
+        p_payment_intent: paymentIntentId,
+        p_key: refund.id,
+        p_note: note,
       });
-      if (insErr && insErr.code !== "23505") {
-        // Refund went through but the clawback row failed — surface loudly so it
-        // can be reconciled (the charge.refunded webhook is the safety net).
-        console.error("Clawback insert failed after refund:", insErr);
-        return json({ error: "clawback_failed", refundId: refund.id, clawback }, 500);
+      if (cErr) {
+        // Refund went through but the clawback failed — surface loudly so it can
+        // be reconciled (the charge.refunded webhook is the safety net).
+        console.error("clawback_pack_credits failed after refund:", cErr);
+        return json({ error: "clawback_failed", refundId: refund.id }, 500);
       }
 
-      return json({ ok: true, refundId: refund.id, clawedBack: clawback });
+      return json({ ok: true, refundId: refund.id, clawedBack: clawed ?? 0 });
     }
 
     return json({ error: "Unknown action — use 'list' or 'refund'" }, 400);

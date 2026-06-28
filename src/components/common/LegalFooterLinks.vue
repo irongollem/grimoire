@@ -4,7 +4,7 @@
       v-for="link in LEGAL_LINKS"
       :key="link.to"
       :to="link.to"
-      class="font-cinzel text-[11px] text-muted-foreground hover:text-foreground transition-colors tracking-wide"
+      class="font-cinzel text-2xs text-muted-foreground hover:text-foreground transition-colors tracking-wide"
     >
       {{ link.label }}
     </RouterLink>

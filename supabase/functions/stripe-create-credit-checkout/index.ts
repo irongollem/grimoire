@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@14?target=deno";
 import { corsHeaders } from "../_shared/cors.ts";
+import { getOrCreateStripeCustomer } from "../_shared/stripeCustomer.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
   apiVersion: "2024-06-20",
@@ -60,6 +61,10 @@ serve(async (req: Request) => {
     return new Response("account_suspended", { status: 403 });
   }
 
+  // Attach a Stripe customer so refunds/disputes on this charge resolve back to
+  // the user (enables auto-clawback + auto-freeze on chargeback).
+  const customerId = await getOrCreateStripeCustomer(admin, stripe, user.id, user.email ?? undefined);
+
   let packId: string;
   try {
     const body = await req.json();
@@ -92,6 +97,7 @@ serve(async (req: Request) => {
   try {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
+      customer: customerId,
       allow_promotion_codes: promoCodesEnabled,
       automatic_tax: { enabled: true },
       tax_id_collection: { enabled: true },

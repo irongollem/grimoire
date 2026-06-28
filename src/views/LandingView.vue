@@ -229,24 +229,7 @@
         >
           Sign Up
         </RouterLink>
-        <RouterLink
-          to="/privacy"
-          class="font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors tracking-wide"
-        >
-          Privacy
-        </RouterLink>
-        <RouterLink
-          to="/terms"
-          class="font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors tracking-wide"
-        >
-          Terms
-        </RouterLink>
-        <RouterLink
-          to="/refunds"
-          class="font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors tracking-wide"
-        >
-          Refunds
-        </RouterLink>
+        <LegalFooterLinks />
       </div>
     </footer>
   </div>
@@ -255,6 +238,7 @@
 <script setup lang="ts">
 import { useHead } from "@unhead/vue";
 import { IconEncounter, IconFaction, IconGamepad, IconParty, IconPrint, IconWand } from '@/lib/icons';
+import LegalFooterLinks from "@/components/common/LegalFooterLinks.vue";
 
 useHead({
   title: "Grimoire — D&D Campaign Manager for Dungeon Masters",

@@ -4,7 +4,7 @@ import { decryptValue } from "../_shared/vault.ts";
 import { isUserPro } from "../_shared/plan.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
-import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits } from "../_shared/credits.ts";
+import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { generateImage, resolveImageProvider } from "../_shared/imageGen.ts";
 
@@ -148,10 +148,7 @@ serve(async (req: Request) => {
 
   const reservation = await reserveCredits(admin, user.id, cost, "map_style_generation");
   if (!reservation.ok) {
-    return new Response(
-      JSON.stringify({ error: "insufficient_credits", balance: reservation.balance ?? 0 }),
-      { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    return reservationFailureResponse(reservation, corsHeaders);
   }
 
   const prompt = buildPrompt(preset_id, map_name, map_description, prompt_suffix);

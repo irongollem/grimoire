@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
+import { requireAdmin } from "../_shared/requireAdmin.ts";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -18,18 +19,9 @@ serve(async (req: Request) => {
   const json = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return json({ error: "Unauthorized" }, 401);
-
-  // Verify caller is an admin from their signed JWT.
-  const caller = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: authHeader } } },
-  );
-  const { data: { user }, error: authError } = await caller.auth.getUser();
-  if (authError || !user) return json({ error: "Unauthorized" }, 401);
-  if (user.app_metadata?.role !== "admin") return json({ error: "Forbidden" }, 403);
+  const gate = await requireAdmin(req, cors);
+  if (gate instanceof Response) return gate;
+  const caller = gate;
 
   let userId: string;
   let banned: boolean;
@@ -43,7 +35,7 @@ serve(async (req: Request) => {
   }
 
   // Don't let an admin lock themselves out.
-  if (userId === user.id && banned) return json({ error: "cannot_ban_self" }, 400);
+  if (userId === caller.id && banned) return json({ error: "cannot_ban_self" }, 400);
 
   // Hard lock-out via GoTrue ban — rejects sign-in and invalidates sessions.
   const { error } = await admin.auth.admin.updateUserById(userId, {

@@ -2,7 +2,7 @@
   <div class="space-y-2 border-t border-border pt-4">
     <div>
       <h3 class="font-cinzel text-xs font-semibold tracking-wide text-foreground">Credit Pack Refunds</h3>
-      <p class="font-fell text-[11px] text-muted-foreground italic mt-0.5">
+      <p class="font-fell text-2xs text-muted-foreground italic mt-0.5">
         Per-pack eligibility (FIFO). Refunding issues the Stripe refund and claws back the credits.
       </p>
     </div>
@@ -24,19 +24,19 @@
         <div class="flex items-center gap-3">
           <div class="flex-1 min-w-0">
             <p class="font-cinzel text-xs font-semibold text-foreground">{{ lot.credits }} credits</p>
-            <p class="font-fell text-[11px] text-muted-foreground">
+            <p class="font-fell text-2xs text-muted-foreground">
               {{ formatDate(lot.purchasedAt) }} ·
               <span v-if="!lot.alreadyRefunded">{{ lot.remaining }}/{{ lot.credits }} unspent</span>
             </p>
           </div>
 
-          <span :class="['font-cinzel text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full shrink-0', badge(lot).class]">
+          <span :class="['font-cinzel text-2xs uppercase tracking-wider px-2 py-0.5 rounded-full shrink-0', badge(lot).class]">
             {{ badge(lot).label }}
           </span>
 
           <button
             v-if="!lot.alreadyRefunded && confirmingPi !== lot.paymentIntentId"
-            class="px-3 py-1 font-cinzel text-[11px] font-semibold tracking-wider rounded-md shrink-0 transition-opacity hover:opacity-90 disabled:opacity-50"
+            class="px-3 py-1 font-cinzel text-2xs font-semibold tracking-wider rounded-md shrink-0 transition-opacity hover:opacity-90 disabled:opacity-50"
             :class="lot.eligible ? 'bg-primary text-primary-foreground' : 'bg-amber-600/80 text-white'"
             :disabled="refundPack.isPending.value"
             @click="startConfirm(lot)"
@@ -47,7 +47,7 @@
 
         <!-- Inline confirm / override -->
         <div v-if="confirmingPi === lot.paymentIntentId" class="space-y-2 border-t border-border/60 pt-2">
-          <p v-if="!lot.eligible" class="font-fell text-[11px] text-amber-400">
+          <p v-if="!lot.eligible" class="font-fell text-2xs text-amber-400">
             {{ ineligibleReason(lot) }} This will still issue a full Stripe refund; clawback is clamped to the available balance.
           </p>
           <input
@@ -57,17 +57,17 @@
             placeholder="Override reason (required)…"
             class="w-full bg-muted border border-border rounded px-2.5 py-1.5 font-fell text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
-          <p v-if="errorMsg" class="font-fell text-[11px] text-destructive">{{ errorMsg }}</p>
+          <p v-if="errorMsg" class="font-fell text-2xs text-destructive">{{ errorMsg }}</p>
           <div class="flex items-center gap-2">
             <button
-              class="px-3 py-1 font-cinzel text-[11px] font-semibold tracking-wider bg-destructive text-white rounded-md hover:opacity-90 disabled:opacity-50"
+              class="px-3 py-1 font-cinzel text-2xs font-semibold tracking-wider bg-destructive text-white rounded-md hover:opacity-90 disabled:opacity-50"
               :disabled="refundPack.isPending.value || (!lot.eligible && !reason.trim())"
               @click="doRefund(lot)"
             >
               {{ refundPack.isPending.value ? 'Refunding…' : `Confirm refund (−${clawbackPreview(lot)} credits)` }}
             </button>
             <button
-              class="px-3 py-1 font-cinzel text-[11px] tracking-wider text-muted-foreground hover:text-foreground"
+              class="px-3 py-1 font-cinzel text-2xs tracking-wider text-muted-foreground hover:text-foreground"
               :disabled="refundPack.isPending.value"
               @click="cancel"
             >
@@ -91,6 +91,7 @@ const { userId } = defineProps<{ userId: string }>()
 const { query, refundPack } = useAdminRefunds(toRef(() => userId))
 
 const lots = computed(() => query.data.value?.lots ?? [])
+const purchasedBalance = computed(() => query.data.value?.purchasedBalance ?? 0)
 
 const confirmingPi = ref<string | null>(null)
 const reason = ref('')
@@ -113,9 +114,10 @@ function ineligibleReason(lot: PackLot): string {
   return `Partly spent (${lot.consumed}/${lot.credits} used).`
 }
 
-/** Mirror of the server clamp for display only — the function is authoritative. */
+/** Mirror of the server clamp (clawbackAmount: min(pack, purchased balance)) for
+ * display only — the edge function is authoritative. */
 function clawbackPreview(lot: PackLot): number {
-  return lot.alreadyRefunded ? 0 : Math.max(0, Math.min(lot.credits, lot.remaining))
+  return lot.alreadyRefunded ? 0 : Math.max(0, Math.min(lot.credits, purchasedBalance.value))
 }
 
 function startConfirm(lot: PackLot) {
