@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@14?target=deno";
 import { corsHeaders } from "../_shared/cors.ts";
 import { getOrCreateStripeCustomer } from "../_shared/stripeCustomer.ts";
-import { WITHDRAWAL_CONSENT_VERSION, WITHDRAWAL_CONSENT_FOOTER } from "../_shared/consent.ts";
+import { WITHDRAWAL_CONSENT_VERSION } from "../_shared/consent.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
   apiVersion: "2024-06-20",
@@ -110,9 +110,9 @@ serve(async (req: Request) => {
       allow_promotion_codes: promoCodesEnabled,
       automatic_tax: { enabled: true },
       tax_id_collection: { enabled: true },
-      // Emit an invoice carrying the withdrawal-waiver footer so the confirmation
-      // email includes the consent text (the receipt can't carry custom text).
-      invoice_creation: { enabled: true, invoice_data: { footer: WITHDRAWAL_CONSENT_FOOTER } },
+      // Emit an invoice so the confirmation email carries the Dashboard "Default
+      // footer" (the receipt can't carry custom text); footer text is managed there.
+      invoice_creation: { enabled: true },
       // Stripe-recorded ToS acceptance. The separate withdrawal waiver is its own
       // app checkbox (recorded in purchase_consents) + the invoice footer above.
       consent_collection: { terms_of_service: "required" },
