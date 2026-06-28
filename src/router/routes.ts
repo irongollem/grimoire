@@ -37,6 +37,15 @@ export const routes: RouteRecordRaw[] = [
     meta: { layout: "auth" },
   },
 
+  // ── OAuth consent (Supabase OAuth 2.1 Server redirects DMs here to approve
+  //    an AI client connecting via the MCP server). Must be logged in to consent.
+  {
+    path: "/oauth/consent",
+    name: "oauth-consent",
+    component: () => import("@/views/auth/OAuthConsentView.vue"),
+    meta: { layout: "auth", requiresAuth: true, title: "Authorize AI Connection" },
+  },
+
   // ── Legal (public, accessible to everyone) ────────────────────────────
   {
     path: "/privacy",

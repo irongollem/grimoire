@@ -70,6 +70,9 @@
         <div v-else-if="activeTab === 'ai'" class="max-w-lg">
           <AiTab />
         </div>
+        <div v-else-if="activeTab === 'connections'" class="max-w-2xl">
+          <AiConnectionTab />
+        </div>
         <div v-else-if="activeTab === 'spotify'" class="max-w-lg">
           <SpotifyTab />
         </div>
@@ -108,6 +111,7 @@ import RulesTab from "@/components/campaign/RulesTab.vue";
 import ClassesTab from "@/components/campaign/ClassesTab.vue";
 import SpeciesTab from "@/components/campaign/SpeciesTab.vue";
 import AiTab from "@/components/campaign/AiTab.vue";
+import AiConnectionTab from "@/components/campaign/AiConnectionTab.vue";
 import SpotifyTab from "@/components/campaign/SpotifyTab.vue";
 import BackupTab from "@/components/campaign/BackupTab.vue";
 import WorldBundleTab from "@/components/campaign/WorldBundleTab.vue";
@@ -120,6 +124,7 @@ type SettingsTab =
   | "classes"
   | "species"
   | "ai"
+  | "connections"
   | "spotify"
   | "backup"
   | "bundle"
@@ -127,7 +132,7 @@ type SettingsTab =
 
 const VALID_TABS = new Set<SettingsTab>([
   "details", "members", "scheduling", "rules", "classes", "species",
-  "ai", "spotify", "backup", "bundle", "danger",
+  "ai", "connections", "spotify", "backup", "bundle", "danger",
 ]);
 
 const tabs: { id: SettingsTab; label: string }[] = [
@@ -138,6 +143,7 @@ const tabs: { id: SettingsTab; label: string }[] = [
   { id: "classes", label: "Classes" },
   { id: "species", label: "Species" },
   { id: "ai", label: "AI Assistant" },
+  { id: "connections", label: "AI Connections" },
   { id: "spotify", label: "Spotify" },
   { id: "backup", label: "Backup" },
   { id: "bundle", label: "World Bundle" },
