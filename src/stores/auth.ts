@@ -156,15 +156,19 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
-  async function signUp(email: string, password: string, displayName?: string, redirectTo?: string, inviteToken?: string) {
+  async function signUp(email: string, password: string, displayName?: string, redirectTo?: string, inviteToken?: string, termsVersion?: string) {
     loading.value = true;
     try {
-      // invite_token rides in user metadata so the on-insert subscription trigger
-      // can apply the granted plan server-side — works even before email confirm
-      // (no session / auth.uid() yet at signup time).
+      // invite_token + terms consent ride in user metadata so the on-insert
+      // subscription trigger can act on them server-side — works even before
+      // email confirm (no session / auth.uid() yet at signup time).
       const data: Record<string, string> = {};
       if (displayName) data.display_name = displayName;
       if (inviteToken) data.invite_token = inviteToken;
+      if (termsVersion) {
+        data.terms_version = termsVersion;
+        data.terms_accepted_at = new Date().toISOString();
+      }
       const { error } = await supabase.auth.signUp({
         email,
         password,
