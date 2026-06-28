@@ -3,6 +3,9 @@
     <!-- ── Your AI usage — moved to top ─────────────────────────────────────── -->
     <AiUsageStatsPanel />
 
+    <!-- ── Anti-abuse velocity guard config ─────────────────────────────────── -->
+    <AbuseGuardConfig />
+
     <!-- ── User lookup ──────────────────────────────────────────────────────── -->
     <div class="rounded-lg border border-border bg-card p-4 space-y-4">
       <div>
@@ -144,6 +147,7 @@ import { useUserLedger } from "@/composables/useUserLedger";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import AiUsageStatsPanel from "@/components/common/AiUsageStatsPanel.vue";
 import CreditPackRefundList from "@/components/admin/CreditPackRefundList.vue";
+import AbuseGuardConfig from "@/components/admin/AbuseGuardConfig.vue";
 
 const usersQuery = useAdminUsers();
 
