@@ -1,7 +1,7 @@
 # Terms of Service
 
 **Grimoire** is operated by CroCode BV (info@dungeongrimoire.com), a private limited company registered in the Netherlands.  
-**Last updated:** May 2026
+**Last updated:** June 2026
 
 ---
 
@@ -47,6 +47,7 @@ We reserve the right to suspend or terminate accounts that violate these rules.
 Grimoire includes optional AI-powered generation features (NPC portraits, stat blocks, campaign text, etc.).
 
 - **BYOK:** You may connect your own API key from OpenAI, Anthropic, Google, or fal.ai. By doing so, you agree to the terms and acceptable-use policies of those providers, and you are responsible for any costs they charge.
+- **Platform keys:** If you do not connect your own key, generations use Grimoire's own provider keys and are charged against your AI credit balance (see §6). Your prompts are sent to the relevant provider to fulfil the request.
 - **Your API key** is stored encrypted and is only used to fulfil your generation requests. We do not use it for any other purpose.
 - **Local-only key mode:** In Campaign Settings you may choose to store your API key exclusively in your browser's local storage. In this mode your key is never transmitted to CroCode BV's servers — all generation requests travel directly between your browser and the AI provider. You remain responsible for securing your local device and for the costs incurred with the provider.
 - AI-generated content may be inaccurate, incomplete, or inappropriate. You are responsible for reviewing and using it appropriately.
@@ -54,9 +55,13 @@ Grimoire includes optional AI-powered generation features (NPC portraits, stat b
 
 ---
 
-## 6. AI credits
+## 6. Subscriptions, AI credits, and refunds
 
-Some AI features require **AI credits** (platform-managed keys, when available). Credits are purchased in advance and are non-refundable once consumed. Unused credits do not expire. Credit costs per generation type are listed in the app and may change; we will give reasonable notice before changing prices.
+**Grimoire PRO** is a paid subscription billed in advance, monthly or annually via Stripe. It renews automatically at the end of each billing period until you cancel. You can cancel at any time from Billing → Manage subscription; cancellation takes effect at the end of the current period and you are not charged again. Subscription prices may change; we will give reasonable notice before a change applies to you.
+
+**AI credits** are used by AI features when you are not using your own API key. Credits are purchased in advance and are non-refundable once consumed. Unused credits do not expire. Credit costs per generation type are listed in the app and may change; we will give reasonable notice before changing prices.
+
+Refunds, cancellation, and your EU right of withdrawal are described in our [Refund Policy](/refunds).
 
 ---
 
