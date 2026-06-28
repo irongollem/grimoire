@@ -1,7 +1,7 @@
 # Terms of Service
 
-**Grimoire** is operated by CroCode BV (info@dungeongrimoire.com), a private limited company (besloten vennootschap) registered in the Netherlands.  
-Registered office: [registered address] · Chamber of Commerce (KvK) no. [KvK number] · VAT (BTW) no. [VAT number]  
+**Grimoire** is a product of CroCode BV (<info@dungeongrimoire.com>), a private limited company (besloten vennootschap) registered in the Netherlands.  
+Koraalrood 54F, 2718 SC Zoetermeer, Netherlands · Chamber of Commerce (KvK) no. 76933067 · VAT (BTW) no. NL860845011B01.  
 **Last updated:** June 2026
 
 ---
@@ -47,7 +47,7 @@ We reserve the right to suspend or terminate accounts that violate these rules.
 
 Grimoire includes optional AI-powered generation features (NPC portraits, stat blocks, campaign text, etc.).
 
-- **BYOK:** You may connect your own API key from OpenAI, Anthropic, Google, or fal.ai. By doing so, you agree to the terms and acceptable-use policies of those providers, and you are responsible for any costs they charge.
+- **BYOK:** You may connect your own API key from OpenAI or Google. By doing so, you agree to the terms and acceptable-use policies of those providers, and you are responsible for any costs they charge.
 - **Platform keys:** If you do not connect your own key, generations use Grimoire's own provider keys and are charged against your AI credit balance (see §6). Your prompts are sent to the relevant provider to fulfil the request.
 - **Your API key** is stored encrypted and is only used to fulfil your generation requests. We do not use it for any other purpose.
 - **Local-only key mode:** In Campaign Settings you may choose to store your API key exclusively in your browser's local storage. In this mode your key is never transmitted to CroCode BV's servers — all generation requests travel directly between your browser and the AI provider. You remain responsible for securing your local device and for the costs incurred with the provider.
@@ -76,7 +76,7 @@ You warrant that you have the rights to any content you upload, and that it does
 
 ### Reporting infringing content (notice and takedown)
 
-If you believe content hosted on Grimoire infringes your copyright or other rights, email **info@dungeongrimoire.com** with the subject line **"Takedown Request"** and include: (1) your contact details, (2) a description and link to the specific content, (3) a description of the right you hold, and (4) a statement that you believe in good faith the use is not authorised. We will review valid notices, remove or disable access to infringing content where appropriate, and may notify the user who posted it. Accounts that repeatedly infringe may be suspended or terminated.
+If you believe content hosted on Grimoire infringes your copyright or other rights, email **<info@dungeongrimoire.com>** with the subject line **"Takedown Request"** and include: (1) your contact details, (2) a description and link to the specific content, (3) a description of the right you hold, and (4) a statement that you believe in good faith the use is not authorised. We will review valid notices, remove or disable access to infringing content where appropriate, and may notify the user who posted it. Accounts that repeatedly infringe may be suspended or terminated.
 
 ---
 
@@ -102,21 +102,27 @@ To the fullest extent permitted by Dutch law, CroCode BV is not liable for:
 
 Our total liability to you for any claim is limited to the amount you paid us in the 12 months preceding the claim.
 
+**Nothing in these terms excludes or limits our liability for death or personal injury caused by our negligence, for intent or conscious recklessness (opzet of bewuste roekeloosheid), or for any other liability that cannot be excluded or limited under mandatory law.** If you are a consumer, the exclusions and the cap in this section apply only to the extent permitted by mandatory Dutch consumer law, and nothing here affects your mandatory statutory rights as a consumer.
+
 ---
 
 ## 11. Governing law and disputes
 
-These terms are governed by the laws of the **Netherlands**. Any disputes will be submitted to the competent court in the Netherlands. If you are a consumer in the EU, you may also use the [EU Online Dispute Resolution platform](https://ec.europa.eu/consumers/odr/).
+These terms are governed by the laws of the **Netherlands**. Any disputes will be submitted to the competent court in the Netherlands.
+
+If you are a consumer resident in the EU, this choice of law does not deprive you of the protection of the mandatory provisions of the law of your country of residence, and — notwithstanding the paragraph above — you may bring proceedings in, and may only be sued in, the courts of your country of residence. You may also use the [EU Online Dispute Resolution platform](https://ec.europa.eu/consumers/odr/).
 
 ---
 
 ## 12. Changes to these terms
 
-We may update these terms from time to time. We will notify you of material changes by email or in-app notice at least 14 days before they take effect. Continued use of the service after that date constitutes acceptance.
+We may update these terms from time to time. We will notify you of material changes by email or in-app notice at least 14 days before they take effect. If you are a consumer and do not accept a material change, you may terminate your subscription before the change takes effect; any prepaid amount for a period not yet supplied will be refunded on a pro-rata basis. Continued use of the service after the change takes effect constitutes acceptance.
 
 ---
 
 ## 13. Contact
 
 **CroCode BV**  
-info@dungeongrimoire.com
+Koraalrood 54F, 2718 SC Zoetermeer, Netherlands  
+Chamber of Commerce (KvK) no. 76933067 · VAT (BTW) no. NL860845011B01  
+<info@dungeongrimoire.com>

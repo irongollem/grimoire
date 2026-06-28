@@ -7,6 +7,8 @@
 
 > **Status of this review.** This is a substantive advisory review against Dutch (BW) and EU law, not a formal opinion from an advocaat admitted to the Nederlandse Orde van Advocaten. For a public launch with paid consumer subscriptions I'd still recommend a one-page sign-off from an admitted lawyer or a consumer-law specialist — but the issues below are the ones that sign-off would focus on, and most are fixable in-house. The drafting is genuinely good for a solo/small operator: the structure, plain-language tone, sub-processor table, retention basis and the recorded clickwrap are all above the baseline I usually see. The gaps are concentrated and concrete.
 
+> **Update — 28 June 2026: most fixes now applied in-page.** The document-level items (R1, R2, R5, R6, R7, R8, R9, R10, R12) have been edited into `terms.md`, `privacy.md` and `refunds.md`. What remains is **three checkout code/behaviour items (R3, R4, R11)** plus **two operational pre-conditions (the KvK registration and the office address going live)**. See the **Status tracker and "What's left" in §4**. Section 3 retains the original recommended wording for reference.
+
 ---
 
 ## 1. Overall verdict
@@ -86,20 +88,48 @@ The implementation uses Stripe `consent_collection: { terms_of_service: "require
 
 ---
 
-## 4. Recommended priority order
+## 4. Status tracker & what's left
 
-**Block launch on these (High):**
+### Status of each finding (as of 28 June 2026)
 
-1. R1 — add the consumer carve-out to ToS §10.
-2. R2 — add the international-transfer basis to Privacy §4 (and actually confirm DPF/SCC status per provider).
-3. R3 — make the withdrawal consent a separate, specifically-worded, timestamped affirmation.
+| #   | Finding | Status |
+| --- | ------- | ------ |
+| R1  | Liability consumer carve-out (ToS §10) | ✅ Done — carve-out added |
+| R2  | International-transfer basis (Privacy §4) | ⚠️ Wording added — **verify DPF/SCC status per provider** |
+| R3  | Unbundle withdrawal consent at checkout | ⛔ Open — code change |
+| R4  | Durable-medium order confirmation | ⛔ Open — verify confirmation email |
+| R5  | Refunds §2/§4 reconciliation | ✅ Done |
+| R6  | Consumer forum clause (ToS §11) | ✅ Done |
+| R7  | Mandatory-rights preservation (ToS §11) | ✅ Done |
+| R8  | Trader-identity details (all three) | ⚠️ Text added (KvK 76933067, BTW NL860845011B01, Koraalrood 54F) — **see operational note below** |
+| R9  | Term-change cancellation right (ToS §12) | ✅ Done |
+| R10 | Price-change notice + exit right (ToS §6) | ✅ Done |
+| R11 | Withdrawal form + button-label check (checkout) | ⛔ Open — verify/add |
+| R12 | Consent-withdrawal right + address (Privacy §6/§10) | ✅ Done |
 
-**Do before launch, low effort (Medium):** 4. R5 — reconcile Refunds §2/§4. 5. R6 + R7 — consumer forum/law carve-out in ToS §11. 6. R8 — add KvK, VAT and registered address. 7. R4 — confirm the durable-medium order confirmation carries the consent text.
+### Still to do before launch
 
-**Fast-follow (Low / post-launch hardening):** 8. R9, R10 — notice period + cancellation right for term/price changes. 9. R11, R12 — model withdrawal form, button-label check, consent-withdrawal right, postal address.
+**Code / checkout behaviour (the only substantive open items):**
 
-Items R1, R2, R3, R5, R6, R7 map directly to the three issues #478 flags for lawyer review (#470 privacy, #471 ToS, #473 refunds). If those six are addressed, the remaining lawyer sign-off should be quick and uncontroversial.
+1. **R3 — separate the withdrawal consent.** Today the immediate-performance request + withdrawal-loss acknowledgement ride on the single Stripe ToS checkbox. Give it its own dedicated, specifically-worded, unticked checkbox and store its text + version + timestamp server-side (mirror the existing `terms_accepted_at` / `terms_version` pattern from signup, per #472). Most defensible fix under art. 6:230p(1)(d) BW.
+2. **R4 — durable-medium confirmation.** Confirm the post-purchase email (or Stripe receipt) repeats the recorded express-consent + acknowledgement text. If it doesn't, add it to your own confirmation email (art. 6:230v(7) BW).
+3. **R11 — checkout formalities.** Verify the checkout button reads as a payment obligation ("Subscribe"/"Pay", not an ambiguous "Continue") and link the EU model withdrawal form.
+
+**Verification (text is in place, fact needs confirming):**
+
+4. **R2 — provider transfer status.** Confirm which of OpenAI, Anthropic, Google, fal.ai and Stripe(-US) are EU–U.S. Data Privacy Framework certified; for any that aren't, ensure SCCs are actually in place. The policy wording already covers both bases, but the underlying mechanism must exist.
+
+### Operational pre-conditions (R8 — company & address)
+
+The trader-identity block now states **CroCode BV · Koraalrood 54F, 2718 SC Zoetermeer · KvK 76933067 · BTW NL860845011B01**, on the working assumption that this is the formal address. Two things must be true by go-live for that to hold:
+
+- **Address discrepancy — to confirm.** The Koraalrood 54F office is only in effect from October 2026 and is **not yet the registered KvK establishment address**. The stated address must match CroCode BV's actual registered establishment at the moment a consumer contracts. Action: register/update the KvK vestigingsadres to Koraalrood 54F when the office is live, and either launch on/after that point or temporarily show the current registered address until then. Also re-check the postcode (2718 SC vs 2718 SB on that street) against the lease/KvK.
+- **KvK registration must be live.** The information duties (art. 3:15d / 6:230m BW) assume a registered trader. Close the KvK-registration gap before taking paid consumer sign-ups.
+
+### Mapping to issue #478
+
+The items #478 flagged for lawyer review — liability (#471 ToS), consumer-withdrawal (#473 refunds + checkout), and transfer wording (#470 privacy) — are now addressed in the document text. The residual lawyer sign-off should be narrow: (a) the R3 checkout-consent mechanism, and (b) confirming the provider DPF/SCC position. Everything else is drafting that's now in place.
 
 ---
 
-_This memo is advisory and does not constitute formal legal advice or create an attorney–client relationship. Confirm provider DPF/SCC status and have an admitted Dutch lawyer or consumer-law specialist sign off the final liability and withdrawal wording before public launch._
+_This memo is advisory and does not constitute formal legal advice or create an attorney–client relationship. Confirm provider DPF/SCC status, close the KvK-registration and registered-address points, and have an admitted Dutch lawyer or consumer-law specialist sign off the final liability and withdrawal wording before public launch._

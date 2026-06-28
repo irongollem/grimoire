@@ -1,6 +1,7 @@
 # Refund & Cancellation Policy
 
-**Grimoire** is operated by CroCode BV (<info@dungeongrimoire.com>), a private limited company registered in the Netherlands.  
+**Grimoire** is a product of CroCode BV (<info@dungeongrimoire.com>), a private limited company (besloten vennootschap) registered in the Netherlands.  
+Koraalrood 54F, 2718 SC Zoetermeer, Netherlands · Chamber of Commerce (KvK) no. 76933067 · VAT (BTW) no. NL860845011B01.  
 **Last updated:** June 2026
 
 ---
@@ -25,7 +26,7 @@ You can cancel at any time from **Billing → Manage subscription** (the Stripe 
 
 ### Refunds on subscriptions
 
-We do not provide partial refunds for the unused portion of a billing period once it has started, except where required by law (see §4) or at our discretion in cases of genuine error (e.g. an accidental duplicate charge). If you believe you were charged in error, email **<info@dungeongrimoire.com>** within 14 days.
+We do not provide partial refunds for the unused portion of a billing period once it has started, **except** (a) for your statutory right of withdrawal, under which you are refunded on a pro-rata basis for any part of the period not yet supplied (see §4); (b) where otherwise required by law; or (c) at our discretion in cases of genuine error (e.g. an accidental duplicate charge). If you believe you were charged in error, email **<info@dungeongrimoire.com>** within 14 days.
 
 ---
 
@@ -74,4 +75,23 @@ If you have a billing concern, please contact us first — we can usually resolv
 ## 7. Contact
 
 **CroCode BV**  
+Koraalrood 54F, 2718 SC Zoetermeer, Netherlands  
+Chamber of Commerce (KvK) no. 76933067 · VAT (BTW) no. NL860845011B01  
 <info@dungeongrimoire.com>
+
+---
+
+## Annex — Model withdrawal form
+
+*(Complete and return this form only if you wish to withdraw from the contract — but note that for digital content/services supplied with your prior consent the right of withdrawal is lost once the service has been supplied, see §4. You may also simply email us as described in §5.)*
+
+To **CroCode BV**, Koraalrood 54F, 2718 SC Zoetermeer, Netherlands — <info@dungeongrimoire.com>:
+
+- I/We (\*) hereby give notice that I/We (\*) withdraw from my/our (\*) contract for the supply of the following service: Grimoire PRO subscription / AI credit pack (\*)
+- Ordered on (\*) / received on (\*): ………………
+- Name of consumer(s): ………………
+- Address of consumer(s): ………………
+- Signature of consumer(s) (only if this form is notified on paper): ………………
+- Date: ………………
+
+(\*) Delete as appropriate.
