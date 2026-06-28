@@ -5,13 +5,16 @@ export function useStripe() {
   const loading = ref(false);
   const error = ref<string | null>(null);
 
-  async function createCheckoutSession(interval: "month" | "year" = "month") {
+  async function createCheckoutSession(
+    interval: "month" | "year" = "month",
+    withdrawalConsent = false,
+  ) {
     loading.value = true;
     error.value = null;
     try {
       const { data, error: fnError } = await supabase.functions.invoke(
         "stripe-create-checkout",
-        { body: { interval } },
+        { body: { interval, withdrawalConsent } },
       );
       if (fnError) throw new Error(fnError.message);
       if (data?.url) window.location.href = data.url;

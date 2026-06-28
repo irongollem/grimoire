@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@14?target=deno";
 import { corsHeaders } from "../_shared/cors.ts";
 import { getOrCreateStripeCustomer } from "../_shared/stripeCustomer.ts";
+import { WITHDRAWAL_CONSENT_VERSION } from "../_shared/consent.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
   apiVersion: "2024-06-20",
@@ -79,6 +80,11 @@ serve(async (req: Request) => {
     const body = await req.json().catch(() => ({}));
     const interval: "month" | "year" = body.interval === "year" ? "year" : "month";
 
+    // R3: the buyer must have ticked the separate withdrawal-consent checkbox.
+    if (body.withdrawalConsent !== true) {
+      return json({ error: "withdrawal_consent_required" }, 400);
+    }
+
     const priceId =
       interval === "year"
         ? plan?.stripe_annual_price_id
@@ -99,22 +105,26 @@ serve(async (req: Request) => {
       line_items: [{ price: priceId, quantity: 1 }],
       automatic_tax: { enabled: true },
       tax_id_collection: { enabled: true },
-      // Record consent to the Terms + Refund Policy, and capture the EU
-      // immediate-performance / right-of-withdrawal waiver in the same checkbox
-      // so the recorded `consent.terms_of_service: accepted` covers the waiver.
+      // Stripe-recorded ToS acceptance. The separate withdrawal waiver is its
+      // own app checkbox (recorded in purchase_consents) + the invoice footer.
       // (Enum shape is correct for apiVersion 2024-06-20; requires a ToS URL set
       // in the Stripe Dashboard branding settings.)
       consent_collection: { terms_of_service: "required" },
       custom_text: {
         terms_of_service_acceptance: {
-          message:
-            `I agree to the [Terms of Service](${appUrl}/terms) and [Refund Policy](${appUrl}/refunds). ` +
-            `I expressly request that my PRO subscription begin immediately and acknowledge that I lose my ` +
-            `14-day right of withdrawal for each billing period once it has been supplied.`,
+          message: `I agree to the [Terms of Service](${appUrl}/terms) and [Refund Policy](${appUrl}/refunds).`,
         },
       },
       success_url: `${appUrl}/dashboard?checkout=success`,
       cancel_url: `${appUrl}/pricing`,
+    });
+
+    // R3: record the withdrawal consent (server timestamp = authoritative).
+    await admin.from("purchase_consents").insert({
+      user_id: user.id,
+      purpose: "subscription",
+      consent_version: WITHDRAWAL_CONSENT_VERSION,
+      stripe_session_id: session.id,
     });
 
     return json({ url: session.url });

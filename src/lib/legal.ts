@@ -7,3 +7,10 @@
  * "Last updated" date in `src/legal/terms.md`.
  */
 export const TERMS_VERSION = "2026-06-28";
+
+/**
+ * Version of the EU right-of-withdrawal waiver wording shown as its own checkbox
+ * at checkout. Recorded per purchase in `purchase_consents`. Keep in step with
+ * `supabase/functions/_shared/consent.ts::WITHDRAWAL_CONSENT_VERSION`.
+ */
+export const WITHDRAWAL_CONSENT_VERSION = "2026-06";

@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@14?target=deno";
 import { corsHeaders } from "../_shared/cors.ts";
 import { getOrCreateStripeCustomer } from "../_shared/stripeCustomer.ts";
+import { WITHDRAWAL_CONSENT_VERSION, WITHDRAWAL_CONSENT_FOOTER } from "../_shared/consent.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
   apiVersion: "2024-06-20",
@@ -66,12 +67,19 @@ serve(async (req: Request) => {
   const customerId = await getOrCreateStripeCustomer(admin, stripe, user.id, user.email ?? undefined);
 
   let packId: string;
+  let withdrawalConsent = false;
   try {
     const body = await req.json();
     packId = body.packId;
+    withdrawalConsent = body.withdrawalConsent === true;
     if (!packId) throw new Error("missing packId");
   } catch {
     return new Response("Invalid JSON body — need { packId }", { status: 400 });
+  }
+
+  // R3: the buyer must have ticked the separate withdrawal-consent checkbox.
+  if (!withdrawalConsent) {
+    return new Response("withdrawal_consent_required", { status: 400 });
   }
 
   // Look up pack from DB (price ID + credit amount stored in credit_pack_config)
@@ -98,21 +106,19 @@ serve(async (req: Request) => {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       customer: customerId,
+      submit_type: "pay", // EU: button reads "Pay" — clear payment obligation
       allow_promotion_codes: promoCodesEnabled,
       automatic_tax: { enabled: true },
       tax_id_collection: { enabled: true },
-      // Record consent to the Terms + Refund Policy, and capture the EU
-      // immediate-performance / right-of-withdrawal waiver in the same checkbox
-      // so the recorded `consent.terms_of_service: accepted` covers the waiver.
-      // (Enum shape is correct for apiVersion 2024-06-20; requires a ToS URL set
-      // in the Stripe Dashboard branding settings.)
+      // Emit an invoice carrying the withdrawal-waiver footer so the confirmation
+      // email includes the consent text (the receipt can't carry custom text).
+      invoice_creation: { enabled: true, invoice_data: { footer: WITHDRAWAL_CONSENT_FOOTER } },
+      // Stripe-recorded ToS acceptance. The separate withdrawal waiver is its own
+      // app checkbox (recorded in purchase_consents) + the invoice footer above.
       consent_collection: { terms_of_service: "required" },
       custom_text: {
         terms_of_service_acceptance: {
-          message:
-            `I agree to the [Terms of Service](${origin}/terms) and [Refund Policy](${origin}/refunds). ` +
-            `I expressly request immediate provision of these AI credits and acknowledge that I lose my ` +
-            `14-day right of withdrawal once the credits are used.`,
+          message: `I agree to the [Terms of Service](${origin}/terms) and [Refund Policy](${origin}/refunds).`,
         },
       },
       line_items: [{ price: pack.stripe_price_id, quantity: 1 }],
@@ -123,6 +129,14 @@ serve(async (req: Request) => {
       },
       success_url: `${origin}/billing?credit_purchase=success`,
       cancel_url: `${origin}/billing`,
+    });
+
+    // R3: record the withdrawal consent (server timestamp = authoritative).
+    await admin.from("purchase_consents").insert({
+      user_id: user.id,
+      purpose: "credit_pack",
+      consent_version: WITHDRAWAL_CONSENT_VERSION,
+      stripe_session_id: session.id,
     });
 
     return new Response(JSON.stringify({ url: session.url }), {

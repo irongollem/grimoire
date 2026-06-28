@@ -139,13 +139,13 @@ export function useAiCredits() {
     return true
   }
 
-  async function purchasePack(packId: string): Promise<void> {
+  async function purchasePack(packId: string, withdrawalConsent = false): Promise<void> {
     purchaseLoading.value = true
     purchaseError.value = null
     try {
       const { data, error } = await supabase.functions.invoke(
         'stripe-create-credit-checkout',
-        { body: { packId } },
+        { body: { packId, withdrawalConsent } },
       )
       if (error) throw new Error(error.message)
       if (data?.url) window.location.href = data.url

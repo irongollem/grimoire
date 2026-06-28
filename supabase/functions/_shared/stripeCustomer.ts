@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import type Stripe from "https://esm.sh/stripe@14?target=deno";
+import { WITHDRAWAL_CONSENT_FOOTER } from "./consent.ts";
 
 /**
  * Return the user's Stripe customer id, creating + persisting one on first use.
@@ -21,7 +22,13 @@ export async function getOrCreateStripeCustomer(
   const existing = (data as { stripe_customer_id: string | null } | null)?.stripe_customer_id;
   if (existing) return existing;
 
-  const customer = await stripe.customers.create({ email, metadata: { supabase_user_id: userId } });
+  const customer = await stripe.customers.create({
+    email,
+    metadata: { supabase_user_id: userId },
+    // Consent waiver rides on every invoice for this customer (subscription
+    // invoices have no per-session footer hook) so the confirmation carries it.
+    invoice_settings: { footer: WITHDRAWAL_CONSENT_FOOTER },
+  });
   await admin
     .from("user_subscriptions")
     .update({ stripe_customer_id: customer.id })
