@@ -70,6 +70,8 @@ export interface Reservation {
   /** Pending ledger row ids to release once the generation settles. */
   ids: string[];
   insufficient?: boolean;
+  /** Account is frozen — paid generation refused (distinct from insufficient). */
+  suspended?: boolean;
   balance?: number;
 }
 
@@ -97,8 +99,8 @@ export async function reserveCredits(
     console.error(`Failed to reserve credits (${reason}):`, error);
     return { ok: false, ids: [] };
   }
-  const res = data as { ok: boolean; ids?: string[]; insufficient?: boolean; balance?: number };
-  return { ok: res.ok, ids: res.ids ?? [], insufficient: res.insufficient, balance: res.balance };
+  const res = data as { ok: boolean; ids?: string[]; insufficient?: boolean; suspended?: boolean; balance?: number };
+  return { ok: res.ok, ids: res.ids ?? [], insufficient: res.insufficient, suspended: res.suspended, balance: res.balance };
 }
 
 /** Drop a pending reservation hold (call on both the success and failure paths). */

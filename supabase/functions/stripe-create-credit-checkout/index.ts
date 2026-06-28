@@ -50,6 +50,16 @@ serve(async (req: Request) => {
     return new Response("Unauthorized", { status: 401 });
   }
 
+  // Frozen accounts can't buy credits.
+  const { data: subRow } = await admin
+    .from("user_subscriptions")
+    .select("suspended_at")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (subRow?.suspended_at) {
+    return new Response("account_suspended", { status: 403 });
+  }
+
   let packId: string;
   try {
     const body = await req.json();

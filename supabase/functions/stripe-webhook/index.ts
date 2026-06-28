@@ -244,6 +244,23 @@ async function clawbackPackCredits(
   if (error && error.code !== "23505") throw error;
 }
 
+/**
+ * Soft-freeze a user's account (blocks paid actions; login stays). Used on
+ * chargeback / fraud-warning. Resolves the user from the Stripe customer; an
+ * admin can lift it from the admin panel.
+ */
+async function suspendUserByCustomer(customerId: string | null, reason: string) {
+  if (!customerId) return;
+  const userId = await getUserIdByCustomer(customerId);
+  if (!userId) return;
+  const { error } = await admin
+    .from("user_subscriptions")
+    .update({ suspended_at: toIso(Math.floor(Date.now() / 1000)), suspension_reason: reason })
+    .eq("user_id", userId)
+    .is("suspended_at", null); // don't overwrite an earlier freeze timestamp
+  if (error) console.error("suspendUserByCustomer:", error);
+}
+
 serve(async (req: Request) => {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
@@ -365,12 +382,25 @@ serve(async (req: Request) => {
       }
 
       case "charge.dispute.created": {
-        // Chargeback opened — reverse any credit-pack credits so a disputing user
-        // can't keep the credits and the money. (Account suspension is #481.)
+        // Chargeback opened — reverse any credit-pack credits AND soft-freeze the
+        // account so the disputing user can't keep generating while it's resolved.
         const dispute = event.data.object as Stripe.Dispute;
+        const reason = `chargeback: ${dispute.reason ?? "unknown"}`;
         const pi = dispute.payment_intent as string | null;
-        if (!pi) break;
-        await clawbackPackCredits(pi, dispute.id, `chargeback: ${dispute.reason ?? "unknown"}`);
+        if (pi) await clawbackPackCredits(pi, dispute.id, reason);
+        const dCharge = dispute.charge ? await stripe.charges.retrieve(dispute.charge as string) : null;
+        await suspendUserByCustomer((dCharge?.customer as string | null) ?? null, reason);
+        break;
+      }
+
+      case "radar.early_fraud_warning.created": {
+        // Fraud warning often precedes a chargeback — freeze proactively + flag.
+        const efw = event.data.object as Stripe.Radar.EarlyFraudWarning;
+        const fCharge = efw.charge ? await stripe.charges.retrieve(efw.charge as string) : null;
+        await suspendUserByCustomer(
+          (fCharge?.customer as string | null) ?? null,
+          `early fraud warning: ${efw.fraud_type ?? "unknown"}`,
+        );
         break;
       }
 

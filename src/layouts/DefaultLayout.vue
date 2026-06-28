@@ -6,6 +6,9 @@
     <AppSidebar />
 
     <div class="flex-1 flex flex-col min-w-0">
+      <!-- Account-frozen notice (chargeback/fraud or admin freeze) -->
+      <SuspensionBanner />
+
       <!-- Suppressed on mobile full-screen takeover routes (NPC detail/edit),
            which render their own top app bar — avoids two stacked top bars. -->
       <AppTopBar v-if="!fullscreenMobile" />
@@ -82,6 +85,7 @@ import RollTableGeneratorPanel from "@/components/dungeon-features/RollTableGene
 import AiGenerationBadge from "@/components/common/AiGenerationBadge.vue";
 import SoundboardWidget from "@/components/soundboard/SoundboardWidget.vue";
 import DowngradeCampaignPickerModal from "@/components/billing/DowngradeCampaignPickerModal.vue";
+import SuspensionBanner from "@/components/billing/SuspensionBanner.vue";
 import { useCampaignPresence } from "@/composables/useCampaignPresence";
 import { useCampaignLiveSync } from "@/composables/useCampaignLiveSync";
 import { usePartyLive } from "@/composables/useParty";

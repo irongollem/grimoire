@@ -10,6 +10,10 @@ export interface AdminUser {
   plan_id: string
   status: string
   ai_credits: number
+  /** Soft freeze — paid actions blocked, login allowed. */
+  suspended_at: string | null
+  /** Hard lock-out — GoTrue ban, cannot sign in. */
+  banned: boolean
 }
 
 async function fetchAdminUsers(): Promise<AdminUser[]> {
@@ -38,6 +42,30 @@ export function useAdminUsers() {
     onSettled: () => qc.invalidateQueries({ queryKey: ['admin', 'users'] }),
   })
 
+  // Soft freeze — blocks paid actions (credit-spend, new purchases); login stays.
+  const setSuspended = useMutation({
+    mutationFn: async ({ userId, suspended, reason }: { userId: string; suspended: boolean; reason?: string }) => {
+      const { error } = await supabase
+        .from('user_subscriptions')
+        .update({
+          suspended_at: suspended ? new Date().toISOString() : null,
+          suspension_reason: suspended ? (reason ?? 'admin') : null,
+        })
+        .eq('user_id', userId)
+      if (error) throw error
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['admin', 'users'] }),
+  })
+
+  // Hard lock-out — GoTrue ban via admin edge function; rejects sign-in.
+  const setBanned = useMutation({
+    mutationFn: async ({ userId, banned }: { userId: string; banned: boolean }) => {
+      const { error } = await supabase.functions.invoke('admin-set-user-ban', { body: { userId, banned } })
+      if (error) throw error
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['admin', 'users'] }),
+  })
+
   const grantCredits = useMutation({
     mutationFn: async ({
       userId,
@@ -59,5 +87,5 @@ export function useAdminUsers() {
     onSettled: () => qc.invalidateQueries({ queryKey: ['admin', 'users'] }),
   })
 
-  return { ...query, setPlan, grantCredits }
+  return { ...query, setPlan, grantCredits, setSuspended, setBanned }
 }

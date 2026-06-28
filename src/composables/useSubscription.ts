@@ -37,5 +37,8 @@ export function useSubscription() {
     return !!sub?.cancel_at_period_end && !!sub.cancel_at;
   });
 
-  return { subscription: data, isPro, isPendingCancellation, isLoading };
+  const isSuspended = computed(() => !!data.value?.suspended_at);
+  const suspensionReason = computed(() => data.value?.suspension_reason ?? null);
+
+  return { subscription: data, isPro, isPendingCancellation, isSuspended, suspensionReason, isLoading };
 }

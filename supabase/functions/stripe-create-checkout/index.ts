@@ -52,9 +52,12 @@ serve(async (req: Request) => {
     // Get or create Stripe Customer
     const { data: sub } = await admin
       .from("user_subscriptions")
-      .select("stripe_customer_id, status")
+      .select("stripe_customer_id, status, suspended_at")
       .eq("user_id", user.id)
       .single();
+
+    // Frozen accounts can't start new purchases.
+    if (sub?.suspended_at) return json({ error: "account_suspended" }, 403);
 
     // Don't let an already-subscribed user open a second subscription checkout —
     // the webhook would overwrite stripe_subscription_id and orphan the first

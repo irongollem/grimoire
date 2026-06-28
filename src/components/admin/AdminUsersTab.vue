@@ -27,7 +27,13 @@
             Joined {{ formatDate(user.created_at) }}
           </p>
         </div>
-        <div class="flex items-center gap-2 shrink-0">
+        <div class="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+          <span v-if="user.banned" class="font-cinzel text-[10px] font-semibold tracking-wider px-2 py-0.5 rounded border border-destructive/50 text-destructive">
+            Locked
+          </span>
+          <span v-else-if="user.suspended_at" class="font-cinzel text-[10px] font-semibold tracking-wider px-2 py-0.5 rounded border border-amber-500/50 text-amber-400">
+            Frozen
+          </span>
           <span class="font-cinzel text-[10px] font-semibold tracking-wider px-2 py-0.5 rounded border"
             :class="planBadgeClass(user.plan_id)">
             {{ user.plan_id }}
@@ -49,6 +55,30 @@
               {{ pid }}
             </button>
           </div>
+
+          <!-- Soft freeze (paid actions) -->
+          <button
+            class="px-2 py-0.5 font-cinzel text-[10px] font-semibold tracking-wider border rounded transition-colors"
+            :class="user.suspended_at
+              ? 'border-amber-500/40 text-amber-400 hover:bg-amber-500/10'
+              : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'"
+            :disabled="usersQuery.setSuspended.isPending.value"
+            @click="toggleFreeze(user)"
+          >
+            {{ user.suspended_at ? 'Unfreeze' : 'Freeze' }}
+          </button>
+
+          <!-- Hard lock-out (login ban) -->
+          <button
+            class="px-2 py-0.5 font-cinzel text-[10px] font-semibold tracking-wider border rounded transition-colors"
+            :class="user.banned
+              ? 'border-elven-green/40 text-elven-green hover:bg-elven-green/10'
+              : 'border-destructive/40 text-destructive hover:bg-destructive/10'"
+            :disabled="usersQuery.setBanned.isPending.value"
+            @click="toggleBan(user)"
+          >
+            {{ user.banned ? 'Unlock' : 'Lock out' }}
+          </button>
         </div>
       </div>
       <p v-if="filteredUsers.length === 0" class="font-fell text-sm text-muted-foreground text-center py-8">
@@ -60,10 +90,24 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { useAdminUsers } from "@/composables/useAdminUsers";
+import { useAdminUsers, type AdminUser } from "@/composables/useAdminUsers";
 import type { PlanId } from "@/types/subscription.types";
 
 const usersQuery = useAdminUsers();
+
+function toggleFreeze(user: AdminUser) {
+  const suspend = !user.suspended_at;
+  if (suspend && !confirm(`Freeze ${user.email}? Paid actions (AI generation, purchases) will be blocked; they can still sign in.`)) return;
+  const reason = suspend ? (prompt("Reason (optional):", "admin") ?? "admin") : undefined;
+  usersQuery.setSuspended.mutate({ userId: user.user_id, suspended: suspend, reason });
+}
+
+function toggleBan(user: AdminUser) {
+  const ban = !user.banned;
+  const verb = ban ? "Lock out" : "Unlock";
+  if (!confirm(`${verb} ${user.email}? ${ban ? "They will be signed out and unable to log in." : "They will be able to log in again."}`)) return;
+  usersQuery.setBanned.mutate({ userId: user.user_id, banned: ban });
+}
 
 const PLAN_IDS: PlanId[] = ["free", "tester", "pro"];
 const userSearch = ref("");
