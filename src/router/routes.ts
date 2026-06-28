@@ -50,6 +50,12 @@ export const routes: RouteRecordRaw[] = [
     component: () => import("@/views/legal/LegalView.vue"),
     meta: { layout: "marketing", doc: "terms", title: "Terms of Service", playerReadable: true },
   },
+  {
+    path: "/refunds",
+    name: "refunds",
+    component: () => import("@/views/legal/LegalView.vue"),
+    meta: { layout: "marketing", doc: "refunds", title: "Refund Policy", playerReadable: true },
+  },
 
   // ── Player portal ─────────────────────────────────────────────────────
   {

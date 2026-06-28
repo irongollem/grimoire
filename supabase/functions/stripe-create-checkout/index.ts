@@ -106,6 +106,20 @@ serve(async (req: Request) => {
       line_items: [{ price: priceId, quantity: 1 }],
       automatic_tax: { enabled: true },
       tax_id_collection: { enabled: true },
+      // Record consent to the Terms + Refund Policy, and capture the EU
+      // immediate-performance / right-of-withdrawal waiver in the same checkbox
+      // so the recorded `consent.terms_of_service: accepted` covers the waiver.
+      // (Enum shape is correct for apiVersion 2024-06-20; requires a ToS URL set
+      // in the Stripe Dashboard branding settings.)
+      consent_collection: { terms_of_service: "required" },
+      custom_text: {
+        terms_of_service_acceptance: {
+          message:
+            `I agree to the [Terms of Service](${appUrl}/terms) and [Refund Policy](${appUrl}/refunds). ` +
+            `I expressly request that my PRO subscription begin immediately and acknowledge that I lose my ` +
+            `14-day right of withdrawal for each billing period once it has been supplied.`,
+        },
+      },
       success_url: `${appUrl}/dashboard?checkout=success`,
       cancel_url: `${appUrl}/pricing`,
     });

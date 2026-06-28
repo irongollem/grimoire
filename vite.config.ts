@@ -82,9 +82,9 @@ export default defineConfig({
     swPlugin(),
   ],
   ssgOptions: {
-    // Only pre-render public marketing routes — all auth-required app routes stay SPA.
+    // Only pre-render public marketing + legal routes — all auth-required app routes stay SPA.
     includedRoutes(paths: string[]) {
-      return paths.filter((p) => ["/", "/pricing"].includes(p));
+      return paths.filter((p) => ["/", "/pricing", "/privacy", "/terms", "/refunds"].includes(p));
     },
   },
   server: {

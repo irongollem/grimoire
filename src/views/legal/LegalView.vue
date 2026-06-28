@@ -32,6 +32,9 @@
       <RouterLink to="/terms" class="font-cinzel text-xs text-muted-foreground hover:text-foreground tracking-wide transition-colors">
         Terms of Service
       </RouterLink>
+      <RouterLink to="/refunds" class="font-cinzel text-xs text-muted-foreground hover:text-foreground tracking-wide transition-colors">
+        Refund Policy
+      </RouterLink>
     </footer>
   </div>
 </template>
@@ -42,14 +45,23 @@ import { useRoute } from "vue-router";
 import { marked } from "marked";
 import privacyMd from "@/legal/privacy.md?raw";
 import termsMd from "@/legal/terms.md?raw";
+import refundsMd from "@/legal/refunds.md?raw";
+
+type LegalDoc = "privacy" | "terms" | "refunds";
+
+const DOCS: Record<LegalDoc, { source: string; title: string }> = {
+  privacy: { source: privacyMd, title: "Privacy Policy" },
+  terms: { source: termsMd, title: "Terms of Service" },
+  refunds: { source: refundsMd, title: "Refund Policy" },
+};
 
 const route = useRoute();
-const doc = computed(() => route.meta.doc as "privacy" | "terms");
+const doc = computed(() => (route.meta.doc as LegalDoc) ?? "privacy");
 
-const source = computed(() => (doc.value === "terms" ? termsMd : privacyMd));
+const source = computed(() => DOCS[doc.value].source);
 const html = computed(() => marked(source.value, { async: false }) as string);
 
-const title = computed(() => (doc.value === "terms" ? "Terms of Service" : "Privacy Policy"));
+const title = computed(() => DOCS[doc.value].title);
 </script>
 
 <style scoped>

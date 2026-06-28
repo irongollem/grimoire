@@ -127,6 +127,9 @@
           </div>
         </div>
         <p v-else class="font-fell text-xs text-muted-foreground italic">No ledger activity yet.</p>
+
+        <!-- Per-pack refund eligibility + execution -->
+        <CreditPackRefundList :user-id="selectedUserId" />
       </div>
 
       <p v-else class="font-fell text-xs text-muted-foreground italic">No user selected.</p>
@@ -140,6 +143,7 @@ import { useAdminUsers } from "@/composables/useAdminUsers";
 import { useUserLedger } from "@/composables/useUserLedger";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import AiUsageStatsPanel from "@/components/common/AiUsageStatsPanel.vue";
+import CreditPackRefundList from "@/components/admin/CreditPackRefundList.vue";
 
 const usersQuery = useAdminUsers();
 

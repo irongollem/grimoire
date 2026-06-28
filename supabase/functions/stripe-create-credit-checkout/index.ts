@@ -85,6 +85,20 @@ serve(async (req: Request) => {
       allow_promotion_codes: promoCodesEnabled,
       automatic_tax: { enabled: true },
       tax_id_collection: { enabled: true },
+      // Record consent to the Terms + Refund Policy, and capture the EU
+      // immediate-performance / right-of-withdrawal waiver in the same checkbox
+      // so the recorded `consent.terms_of_service: accepted` covers the waiver.
+      // (Enum shape is correct for apiVersion 2024-06-20; requires a ToS URL set
+      // in the Stripe Dashboard branding settings.)
+      consent_collection: { terms_of_service: "required" },
+      custom_text: {
+        terms_of_service_acceptance: {
+          message:
+            `I agree to the [Terms of Service](${origin}/terms) and [Refund Policy](${origin}/refunds). ` +
+            `I expressly request immediate provision of these AI credits and acknowledge that I lose my ` +
+            `14-day right of withdrawal once the credits are used.`,
+        },
+      },
       line_items: [{ price: pack.stripe_price_id, quantity: 1 }],
       metadata: {
         user_id: user.id,
