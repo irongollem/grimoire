@@ -207,6 +207,10 @@
         <RouterLink to="/login" class="text-foreground hover:underline underline-offset-2">Sign in</RouterLink>
         · Players always join and play for free.
       </p>
+
+      <footer class="border-t border-border/40 mt-12 pt-8">
+        <LegalFooterLinks />
+      </footer>
     </div>
   </div>
 </template>
@@ -215,6 +219,7 @@
 import { ref, computed } from "vue";
 import { useHead } from "@unhead/vue";
 import { usePlan } from "@/composables/usePlan";
+import LegalFooterLinks from "@/components/common/LegalFooterLinks.vue";
 
 useHead({
   title: "Pricing — Grimoire D&D Campaign Manager",

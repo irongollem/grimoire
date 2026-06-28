@@ -71,6 +71,12 @@ You retain ownership of all content you create in Grimoire (campaign notes, char
 
 We will not access your campaign content except to resolve a technical support request you have initiated, or as required by law.
 
+You warrant that you have the rights to any content you upload, and that it does not infringe the intellectual-property or other rights of any third party.
+
+### Reporting infringing content (notice and takedown)
+
+If you believe content hosted on Grimoire infringes your copyright or other rights, email **info@dungeongrimoire.com** with the subject line **"Takedown Request"** and include: (1) your contact details, (2) a description and link to the specific content, (3) a description of the right you hold, and (4) a statement that you believe in good faith the use is not authorised. We will review valid notices, remove or disable access to infringing content where appropriate, and may notify the user who posted it. Accounts that repeatedly infringe may be suspended or terminated.
+
 ---
 
 ## 8. Open source

@@ -241,6 +241,12 @@
         >
           Terms
         </RouterLink>
+        <RouterLink
+          to="/refunds"
+          class="font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors tracking-wide"
+        >
+          Refunds
+        </RouterLink>
       </div>
     </footer>
   </div>

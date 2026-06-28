@@ -178,6 +178,12 @@
             <IconLogOut class="h-3.5 w-3.5 shrink-0" />
             <span class="font-fell">Sign out</span>
           </button>
+
+          <!-- Legal -->
+          <div class="border-t border-border my-1" />
+          <div class="px-3 py-2" @click="menuOpen = false">
+            <LegalFooterLinks />
+          </div>
         </div>
       </Transition>
 
@@ -211,6 +217,7 @@ import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useUpdateCampaignMember } from "@/composables/useCampaignMembers";
+import LegalFooterLinks from "@/components/common/LegalFooterLinks.vue";
 import { NAV_GROUPS } from "@/lib/nav";
 import { useRunningEncounters } from "@/composables/useEncounterLive";
 import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/useOptionalRules";
