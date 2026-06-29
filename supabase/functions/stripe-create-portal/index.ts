@@ -47,7 +47,7 @@ serve(async (req: Request) => {
       return json({ error: "No Stripe customer found — complete a checkout first" }, 400);
     }
 
-    const appUrl = Deno.env.get("APP_URL") ?? "https://dungeongrimoire.com";
+    const appUrl = Deno.env.get("APP_URL") ?? "https://app.dungeongrimoire.com";
 
     const session = await stripe.billingPortal.sessions.create({
       customer: customerId,

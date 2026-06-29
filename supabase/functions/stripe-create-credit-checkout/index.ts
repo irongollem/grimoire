@@ -100,7 +100,7 @@ serve(async (req: Request) => {
 
   const { promo_codes_enabled: promoCodesEnabled } = await getCheckoutConfig();
 
-  const origin = req.headers.get("origin") ?? Deno.env.get("SITE_URL") ?? "https://dungeongrimoire.com";
+  const origin = req.headers.get("origin") ?? Deno.env.get("SITE_URL") ?? "https://app.dungeongrimoire.com";
 
   try {
     const session = await stripe.checkout.sessions.create({

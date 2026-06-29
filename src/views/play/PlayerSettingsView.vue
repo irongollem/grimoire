@@ -13,26 +13,30 @@
 
       <!-- Legal -->
       <div class="flex items-center gap-5 pt-2 pb-6">
-        <RouterLink
-          to="/privacy"
+        <a
+          :href="legalUrl('privacy')"
+          target="_blank"
+          rel="noopener noreferrer"
           class="font-cinzel text-2xs text-muted-foreground hover:text-foreground tracking-wide transition-colors"
         >
           Privacy Policy
-        </RouterLink>
+        </a>
         <span class="text-border text-xs">·</span>
-        <RouterLink
-          to="/terms"
+        <a
+          :href="legalUrl('terms')"
+          target="_blank"
+          rel="noopener noreferrer"
           class="font-cinzel text-2xs text-muted-foreground hover:text-foreground tracking-wide transition-colors"
         >
           Terms of Service
-        </RouterLink>
+        </a>
       </div>
     </div>
   </PageHeader>
 </template>
 
 <script setup lang="ts">
-import { RouterLink } from "vue-router";
+import { legalUrl } from "@/lib/marketing";
 import PageHeader from "@/components/common/PageHeader.vue";
 import PlayerSettingsDisplayName from "@/components/play/PlayerSettingsDisplayName.vue";
 import PlayerSettingsInstall from "@/components/play/PlayerSettingsInstall.vue";

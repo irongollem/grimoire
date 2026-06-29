@@ -24,24 +24,28 @@
 
       <!-- Legal footer -->
       <div class="mt-6 flex items-center justify-center gap-5">
-        <RouterLink
-          to="/privacy"
+        <a
+          :href="legalUrl('privacy')"
+          target="_blank"
+          rel="noopener noreferrer"
           class="font-cinzel text-[11px] tracking-wide text-muted-foreground hover:text-foreground transition-colors"
         >
           Privacy Policy
-        </RouterLink>
+        </a>
         <span class="text-border text-xs">·</span>
-        <RouterLink
-          to="/terms"
+        <a
+          :href="legalUrl('terms')"
+          target="_blank"
+          rel="noopener noreferrer"
           class="font-cinzel text-[11px] tracking-wide text-muted-foreground hover:text-foreground transition-colors"
         >
           Terms of Service
-        </RouterLink>
+        </a>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { RouterLink } from "vue-router";
+import { legalUrl } from "@/lib/marketing";
 </script>

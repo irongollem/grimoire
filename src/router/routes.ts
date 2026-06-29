@@ -1,18 +1,14 @@
 import type { RouteRecordRaw } from "vue-router";
 
 export const routes: RouteRecordRaw[] = [
-  // ── Marketing (public, no sidebar) ───────────────────────────────────
+  // ── Root ──────────────────────────────────────────────────────────────
+  // Marketing (landing, pricing, legal) now lives on the apex domain as a
+  // separate Astro site; this app is served from app.dungeongrimoire.com and
+  // owns no public marketing surface. Hitting the root sends authed users to
+  // their dashboard and guests to login (via the dashboard route's guard).
   {
     path: "/",
-    name: "home",
-    component: () => import("@/views/LandingView.vue"),
-    meta: { layout: "marketing", requiresGuest: true, title: "Grimoire" },
-  },
-  {
-    path: "/pricing",
-    name: "pricing",
-    component: () => import("@/views/PricingView.vue"),
-    meta: { layout: "marketing", requiresGuest: true, title: "Pricing" },
+    redirect: "/dashboard",
   },
 
   // ── Auth (no sidebar layout) ──────────────────────────────────────────
@@ -37,25 +33,8 @@ export const routes: RouteRecordRaw[] = [
     meta: { layout: "auth" },
   },
 
-  // ── Legal (public, accessible to everyone) ────────────────────────────
-  {
-    path: "/privacy",
-    name: "privacy",
-    component: () => import("@/views/legal/LegalView.vue"),
-    meta: { layout: "marketing", doc: "privacy", title: "Privacy Policy", playerReadable: true },
-  },
-  {
-    path: "/terms",
-    name: "terms",
-    component: () => import("@/views/legal/LegalView.vue"),
-    meta: { layout: "marketing", doc: "terms", title: "Terms of Service", playerReadable: true },
-  },
-  {
-    path: "/refunds",
-    name: "refunds",
-    component: () => import("@/views/legal/LegalView.vue"),
-    meta: { layout: "marketing", doc: "refunds", title: "Refund Policy", playerReadable: true },
-  },
+  // Legal pages (privacy / terms / refunds) live on the marketing site —
+  // see legalUrl() in src/lib/marketing.ts. The app links out to them.
 
   // ── Player portal ─────────────────────────────────────────────────────
   {

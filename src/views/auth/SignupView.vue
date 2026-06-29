@@ -87,9 +87,9 @@
           />
           <span>
             I agree to the
-            <RouterLink to="/terms" class="underline hover:text-foreground transition-colors">Terms of Service</RouterLink>
+            <a :href="legalUrl('terms')" target="_blank" rel="noopener noreferrer" class="underline hover:text-foreground transition-colors">Terms of Service</a>
             and
-            <RouterLink to="/privacy" class="underline hover:text-foreground transition-colors">Privacy Policy</RouterLink>.
+            <a :href="legalUrl('privacy')" target="_blank" rel="noopener noreferrer" class="underline hover:text-foreground transition-colors">Privacy Policy</a>.
           </span>
         </label>
 
@@ -118,6 +118,7 @@ import { useRoute, RouterLink } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { supabase } from "@/lib/supabase";
 import { TERMS_VERSION } from "@/lib/legal";
+import { legalUrl } from "@/lib/marketing";
 
 type TokenState = "missing" | "validating" | "invalid" | "valid";
 
