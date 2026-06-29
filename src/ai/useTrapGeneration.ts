@@ -1,6 +1,7 @@
 import { useAuthStore } from "@/stores/auth";
 import { uploadWithVariants } from "@/lib/storage";
 import { supabase } from "@/lib/supabase";
+import { edgeErrorMessage } from "@/lib/edgeError";
 import {
   buildCampaignContext,
 } from "./utils";
@@ -143,7 +144,7 @@ export function useTrapGeneration() {
       },
     });
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(await edgeErrorMessage(error));
     if (data?.error) throw new Error(data.error);
 
     if (options?.generateImage !== false) {

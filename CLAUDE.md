@@ -29,6 +29,18 @@ create policy "<table>_delete" on <table> for delete using (auth.uid() = user_id
 
 Migration files live in `supabase/migrations/` with timestamp prefix `YYYYMMDDNNNNNN_name.sql`.
 
+**CRITICAL — `SECURITY DEFINER` functions (avoid re-introducing the security-advisor warnings):**
+
+A `SECURITY DEFINER` function in the `public` schema is auto-published by PostgREST as an `/rest/v1/rpc/<name>` endpoint callable by `anon`/`authenticated`. Two recurring mistakes, both flagged by `mcp__supabase__get_advisors({ type: "security" })`:
+
+1. **RLS-helper predicates must NOT live in `public`.** Any function used inside an RLS policy (an `is_*`/`can_*`/`owns_*`-style boolean, or anything called from a `USING`/`WITH CHECK`) goes in the **`private`** schema and is referenced as `private.is_campaign_member(...)`. PostgREST does not expose `private`, but `authenticated`/`anon` keep `USAGE` + `EXECUTE` so RLS still resolves it. Do NOT try to revoke `EXECUTE` from `authenticated` to "hide" a public helper — that breaks every policy that references it (`permission denied for function`). Relocation is the only correct fix. See migration `20260629000002` and [private-schema memory] for the mechanical relocation pattern.
+
+2. **Every client-callable `SECURITY DEFINER` RPC must authorize internally, as its first act.** Because it runs with the definer's privileges (bypassing RLS), it must re-derive identity from `auth.uid()` — never trust a caller-supplied `p_user_id`/`p_claimer_id` — and gate on `is_app_admin()` / `private.is_campaign_member(cid)` / explicit ownership before doing any work. The `grab_item_drop` bug (fixed in `20260629000002`) shipped without this and let any user act in any campaign. Mirror the sibling RPC's check; if no sibling exists, add the `auth.uid()`/membership/admin guard explicitly.
+
+Also: trigger functions never need an `EXECUTE` grant (the trigger system bypasses the check), so `revoke execute on function public.<trigger_fn>() from public, anon, authenticated;` to keep them off the RPC surface. Login-only RPCs should `revoke execute ... from public, anon;` then `grant execute ... to authenticated, service_role;` (anon's access comes via the `PUBLIC` grant, so revoking from `anon` alone is a no-op).
+
+**Always run `get_advisors({ type: "security" })` after any migration that adds/changes a function or policy**, and resolve new findings before pushing.
+
 **CRITICAL — migration workflow (prevents timestamp mismatch):**
 
 NEVER use `mcp__supabase__apply_migration` for schema changes. It auto-generates its own timestamp that will never match the local file's timestamp, causing `supabase db push` to diverge every time.

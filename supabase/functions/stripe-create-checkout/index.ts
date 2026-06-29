@@ -2,6 +2,8 @@ import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@14?target=deno";
 import { corsHeaders } from "../_shared/cors.ts";
+import { getOrCreateStripeCustomer } from "../_shared/stripeCustomer.ts";
+import { WITHDRAWAL_CONSENT_VERSION } from "../_shared/consent.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
   apiVersion: "2024-06-20",
@@ -52,9 +54,12 @@ serve(async (req: Request) => {
     // Get or create Stripe Customer
     const { data: sub } = await admin
       .from("user_subscriptions")
-      .select("stripe_customer_id, status")
+      .select("status, suspended_at")
       .eq("user_id", user.id)
       .single();
+
+    // Frozen accounts can't start new purchases.
+    if (sub?.suspended_at) return json({ error: "account_suspended" }, 403);
 
     // Don't let an already-subscribed user open a second subscription checkout —
     // the webhook would overwrite stripe_subscription_id and orphan the first
@@ -63,18 +68,7 @@ serve(async (req: Request) => {
       return json({ error: "already_subscribed" }, 409);
     }
 
-    let customerId = sub?.stripe_customer_id as string | null;
-    if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: user.email,
-        metadata: { supabase_user_id: user.id },
-      });
-      customerId = customer.id;
-      await admin
-        .from("user_subscriptions")
-        .update({ stripe_customer_id: customerId })
-        .eq("user_id", user.id);
-    }
+    const customerId = await getOrCreateStripeCustomer(admin, stripe, user.id, user.email ?? undefined);
 
     // Resolve price ID from plans table
     const { data: plan } = await admin
@@ -85,6 +79,11 @@ serve(async (req: Request) => {
 
     const body = await req.json().catch(() => ({}));
     const interval: "month" | "year" = body.interval === "year" ? "year" : "month";
+
+    // R3: the buyer must have ticked the separate withdrawal-consent checkbox.
+    if (body.withdrawalConsent !== true) {
+      return json({ error: "withdrawal_consent_required" }, 400);
+    }
 
     const priceId =
       interval === "year"
@@ -97,7 +96,7 @@ serve(async (req: Request) => {
 
     const { promo_codes_enabled: promoCodesEnabled } = await getCheckoutConfig();
 
-    const appUrl = Deno.env.get("APP_URL") ?? "https://dungeongrimoire.com";
+    const appUrl = Deno.env.get("APP_URL") ?? "https://app.dungeongrimoire.com";
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
@@ -106,8 +105,26 @@ serve(async (req: Request) => {
       line_items: [{ price: priceId, quantity: 1 }],
       automatic_tax: { enabled: true },
       tax_id_collection: { enabled: true },
+      // Stripe-recorded ToS acceptance. The separate withdrawal waiver is its
+      // own app checkbox (recorded in purchase_consents) + the invoice footer.
+      // (Enum shape is correct for apiVersion 2024-06-20; requires a ToS URL set
+      // in the Stripe Dashboard branding settings.)
+      consent_collection: { terms_of_service: "required" },
+      custom_text: {
+        terms_of_service_acceptance: {
+          message: `I agree to the [Terms of Service](${appUrl}/terms) and [Refund Policy](${appUrl}/refunds).`,
+        },
+      },
       success_url: `${appUrl}/dashboard?checkout=success`,
       cancel_url: `${appUrl}/pricing`,
+    });
+
+    // R3: record the withdrawal consent (server timestamp = authoritative).
+    await admin.from("purchase_consents").insert({
+      user_id: user.id,
+      purpose: "subscription",
+      consent_version: WITHDRAWAL_CONSENT_VERSION,
+      stripe_session_id: session.id,
     });
 
     return json({ url: session.url });

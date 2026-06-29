@@ -168,9 +168,6 @@
           <label class="font-cinzel text-xs text-muted-foreground tracking-wide">Image generation</label>
           <p class="font-fell text-xs text-muted-foreground italic">
             Used for portrait and artwork generation.
-            <span v-if="form.image_provider === 'falai'" class="text-yellow-600 dark:text-yellow-500">
-              fal.ai does not support alter-ego / reference portraits — that needs OpenAI or Gemini.
-            </span>
           </p>
           <select
             v-if="availableImageProviders.length > 0"
@@ -293,9 +290,9 @@ interface ProviderDef {
 
 const providerDefs: ProviderDef[] = [
   { id: "openai",    label: "OpenAI",          placeholder: "sk-…",     dbField: "openai_api_key",    localKey: "grimoire_openai_key",    link: "https://platform.openai.com/api-keys" },
-  { id: "anthropic", label: "Anthropic",        placeholder: "sk-ant-…", dbField: "anthropic_api_key", localKey: "grimoire_anthropic_key", link: "https://console.anthropic.com/settings/keys" },
   { id: "gemini",    label: "Google Gemini",    placeholder: "AIza…",    dbField: "gemini_api_key",    localKey: "grimoire_gemini_key",    link: "https://aistudio.google.com/app/apikey" },
-  { id: "falai",     label: "fal.ai",           placeholder: "…",        dbField: "falai_api_key",     localKey: "grimoire_falai_key",     link: "https://fal.ai/dashboard/keys" },
+  // Anthropic + fal.ai temporarily not offered (no platform contract/key yet) —
+  // backend providers + key fields retained so they can be re-enabled here.
 ];
 
 const campaign = useCampaignStore();
@@ -363,14 +360,12 @@ const selectedImageCredits = computed(() => {
 // BYOK provider options (shown when the user has entered their own keys)
 const BYOK_TEXT_OPTIONS = [
   { value: "openai",    label: "OpenAI — GPT-4o mini",       keyProvider: "openai"    },
-  { value: "anthropic", label: "Anthropic — Claude Haiku 3", keyProvider: "anthropic" },
   { value: "gemini",    label: "Google Gemini 2.5 Flash",    keyProvider: "gemini"    },
 ] as const;
 
 const BYOK_IMAGE_OPTIONS = [
   { value: "openai", label: "OpenAI — gpt-image",     keyProvider: "openai" },
   { value: "gemini", label: "Google — Nano Banana",   keyProvider: "gemini" },
-  { value: "falai",  label: "fal.ai — FLUX",          keyProvider: "falai"  },
 ] as const;
 
 function providerHasKey(providerId: string): boolean {

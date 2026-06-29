@@ -78,16 +78,24 @@
         <p v-if="successMessage" class="text-sm text-elven-green font-fell">{{ successMessage }}</p>
         <p v-if="errorMessage" class="text-sm text-destructive font-fell">{{ errorMessage }}</p>
 
-        <p class="font-fell text-xs text-muted-foreground italic">
-          By creating an account you agree to our
-          <RouterLink to="/terms" class="underline hover:text-foreground transition-colors">Terms of Service</RouterLink>
-          and
-          <RouterLink to="/privacy" class="underline hover:text-foreground transition-colors">Privacy Policy</RouterLink>.
-        </p>
+        <label class="flex items-start gap-2 font-fell text-xs text-muted-foreground">
+          <input
+            v-model="agreedToTerms"
+            type="checkbox"
+            required
+            class="mt-0.5 shrink-0 accent-primary"
+          />
+          <span>
+            I agree to the
+            <a :href="legalUrl('terms')" target="_blank" rel="noopener noreferrer" class="underline hover:text-foreground transition-colors">Terms of Service</a>
+            and
+            <a :href="legalUrl('privacy')" target="_blank" rel="noopener noreferrer" class="underline hover:text-foreground transition-colors">Privacy Policy</a>.
+          </span>
+        </label>
 
         <button
           type="submit"
-          :disabled="auth.loading || !!successMessage"
+          :disabled="auth.loading || !!successMessage || !agreedToTerms"
           class="w-full rounded-md bg-primary px-4 py-2.5 font-cinzel text-sm font-semibold text-primary-foreground tracking-wider transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {{ auth.loading ? "Creating your tome…" : "Create Your Tome" }}
@@ -109,6 +117,8 @@ import { ref, onMounted } from "vue";
 import { useRoute, RouterLink } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { supabase } from "@/lib/supabase";
+import { TERMS_VERSION } from "@/lib/legal";
+import { legalUrl } from "@/lib/marketing";
 
 type TokenState = "missing" | "validating" | "invalid" | "valid";
 
@@ -121,6 +131,7 @@ const tokenState = ref<TokenState>(token ? "validating" : "missing");
 const displayName = ref("");
 const email = ref("");
 const password = ref("");
+const agreedToTerms = ref(false);
 const errorMessage = ref("");
 const successMessage = ref("");
 
@@ -133,12 +144,16 @@ onMounted(async () => {
 async function handleSubmit() {
   errorMessage.value = "";
   successMessage.value = "";
+  if (!agreedToTerms.value) {
+    errorMessage.value = "Please accept the Terms of Service and Privacy Policy to continue.";
+    return;
+  }
   try {
-    // Pass the invite token through signup metadata — the on-insert subscription
-    // trigger consumes it and applies the granted plan server-side. (The old
-    // post-signup consume_app_invite RPC ran before a session existed, so
-    // auth.uid() was null and tester/admin grants silently no-op'd.)
-    await auth.signUp(email.value, password.value, displayName.value.trim() || undefined, undefined, token);
+    // Pass the invite token + accepted terms version through signup metadata — the
+    // on-insert subscription trigger consumes the invite (applying the granted plan
+    // server-side) and records the consent. (The old post-signup consume_app_invite
+    // RPC ran before a session existed, so auth.uid() was null and grants no-op'd.)
+    await auth.signUp(email.value, password.value, displayName.value.trim() || undefined, undefined, token, TERMS_VERSION);
     successMessage.value = "Check your email to confirm your account, then sign in.";
     email.value = "";
     password.value = "";

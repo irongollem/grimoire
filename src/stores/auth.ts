@@ -14,11 +14,17 @@ export const useAuthStore = defineStore("auth", () => {
 
   const isAuthenticated = computed(() => !!user.value);
   const userEmail = computed(() => user.value?.email ?? null);
-  const isAppAdmin = computed(() => user.value?.app_metadata?.["role"] === "admin");
-  const currentRole = computed<CampaignRole | null>(() => membership.value?.role ?? null);
+  const isAppAdmin = computed(
+    () => user.value?.app_metadata?.["role"] === "admin",
+  );
+  const currentRole = computed<CampaignRole | null>(
+    () => membership.value?.role ?? null,
+  );
   const isDM = computed(() => currentRole.value === "dm");
   const isPlayer = computed(() => currentRole.value === "player");
-  const linkedPartyMemberId = computed(() => membership.value?.party_member_id ?? null);
+  const linkedPartyMemberId = computed(
+    () => membership.value?.party_member_id ?? null,
+  );
 
   async function loadUsername(userId: string) {
     const { data } = await supabase
@@ -76,7 +82,8 @@ export const useAuthStore = defineStore("auth", () => {
         setCachedUser(user.value);
 
         if (user.value) {
-          const storedCampaignId = localStorage.getItem("grimoire_active_campaign") ?? undefined;
+          const storedCampaignId =
+            localStorage.getItem("grimoire_active_campaign") ?? undefined;
           await Promise.all([
             loadMembership(user.value.id, storedCampaignId),
             loadUsername(user.value.id),
@@ -89,7 +96,9 @@ export const useAuthStore = defineStore("auth", () => {
         // Without this, every HMR hot-reload stacks up another listener and
         // causes concurrent getSession() calls that fight over navigator.locks.
         authListener?.unsubscribe();
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
+        const {
+          data: { subscription },
+        } = supabase.auth.onAuthStateChange((event, newSession) => {
           // IMPORTANT: this callback is invoked *inside* the exclusive navigator.locks lock
           // that supabase-js holds during getSession() / token refresh. If we call
           // supabase.from() here (even indirectly via loadMembership), it tries to acquire
@@ -103,7 +112,8 @@ export const useAuthStore = defineStore("auth", () => {
           if (user.value) {
             const userId = user.value.id;
             setTimeout(() => {
-              const storedCampaignId = localStorage.getItem("grimoire_active_campaign") ?? undefined;
+              const storedCampaignId =
+                localStorage.getItem("grimoire_active_campaign") ?? undefined;
               void loadMembership(userId, storedCampaignId);
               void loadUsername(userId);
             }, 0);
@@ -135,7 +145,10 @@ export const useAuthStore = defineStore("auth", () => {
   async function signIn(email: string, password: string) {
     loading.value = true;
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
       if (error) throw error;
       // Eagerly set user/session and load membership so the router guard sees
       // the correct role before the post-login navigation happens. Without this
@@ -145,7 +158,8 @@ export const useAuthStore = defineStore("auth", () => {
         user.value = data.user;
         session.value = data.session;
         setCachedUser(data.user);
-        const storedCampaignId = localStorage.getItem("grimoire_active_campaign") ?? undefined;
+        const storedCampaignId =
+          localStorage.getItem("grimoire_active_campaign") ?? undefined;
         await Promise.all([
           loadMembership(data.user.id, storedCampaignId),
           loadUsername(data.user.id),
@@ -156,15 +170,26 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
-  async function signUp(email: string, password: string, displayName?: string, redirectTo?: string, inviteToken?: string) {
+  async function signUp(
+    email: string,
+    password: string,
+    displayName?: string,
+    redirectTo?: string,
+    inviteToken?: string,
+    termsVersion?: string,
+  ) {
     loading.value = true;
     try {
-      // invite_token rides in user metadata so the on-insert subscription trigger
-      // can apply the granted plan server-side — works even before email confirm
-      // (no session / auth.uid() yet at signup time).
+      // invite_token + terms consent ride in user metadata so the on-insert
+      // subscription trigger can act on them server-side — works even before
+      // email confirm (no session / auth.uid() yet at signup time).
       const data: Record<string, string> = {};
       if (displayName) data.display_name = displayName;
       if (inviteToken) data.invite_token = inviteToken;
+      if (termsVersion) {
+        data.terms_version = termsVersion;
+        data.terms_accepted_at = new Date().toISOString();
+      }
       const { error } = await supabase.auth.signUp({
         email,
         password,

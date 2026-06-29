@@ -2,6 +2,8 @@ import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@14?target=deno";
 import { corsHeaders } from "../_shared/cors.ts";
+import { getOrCreateStripeCustomer } from "../_shared/stripeCustomer.ts";
+import { WITHDRAWAL_CONSENT_VERSION } from "../_shared/consent.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
   apiVersion: "2024-06-20",
@@ -50,13 +52,34 @@ serve(async (req: Request) => {
     return new Response("Unauthorized", { status: 401 });
   }
 
+  // Frozen accounts can't buy credits.
+  const { data: subRow } = await admin
+    .from("user_subscriptions")
+    .select("suspended_at")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (subRow?.suspended_at) {
+    return new Response("account_suspended", { status: 403 });
+  }
+
+  // Attach a Stripe customer so refunds/disputes on this charge resolve back to
+  // the user (enables auto-clawback + auto-freeze on chargeback).
+  const customerId = await getOrCreateStripeCustomer(admin, stripe, user.id, user.email ?? undefined);
+
   let packId: string;
+  let withdrawalConsent = false;
   try {
     const body = await req.json();
     packId = body.packId;
+    withdrawalConsent = body.withdrawalConsent === true;
     if (!packId) throw new Error("missing packId");
   } catch {
     return new Response("Invalid JSON body — need { packId }", { status: 400 });
+  }
+
+  // R3: the buyer must have ticked the separate withdrawal-consent checkbox.
+  if (!withdrawalConsent) {
+    return new Response("withdrawal_consent_required", { status: 400 });
   }
 
   // Look up pack from DB (price ID + credit amount stored in credit_pack_config)
@@ -77,14 +100,27 @@ serve(async (req: Request) => {
 
   const { promo_codes_enabled: promoCodesEnabled } = await getCheckoutConfig();
 
-  const origin = req.headers.get("origin") ?? Deno.env.get("SITE_URL") ?? "https://dungeongrimoire.com";
+  const origin = req.headers.get("origin") ?? Deno.env.get("SITE_URL") ?? "https://app.dungeongrimoire.com";
 
   try {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
+      customer: customerId,
+      submit_type: "pay", // EU: button reads "Pay" — clear payment obligation
       allow_promotion_codes: promoCodesEnabled,
       automatic_tax: { enabled: true },
       tax_id_collection: { enabled: true },
+      // Emit an invoice so the confirmation email carries the Dashboard "Default
+      // footer" (the receipt can't carry custom text); footer text is managed there.
+      invoice_creation: { enabled: true },
+      // Stripe-recorded ToS acceptance. The separate withdrawal waiver is its own
+      // app checkbox (recorded in purchase_consents) + the invoice footer above.
+      consent_collection: { terms_of_service: "required" },
+      custom_text: {
+        terms_of_service_acceptance: {
+          message: `I agree to the [Terms of Service](${origin}/terms) and [Refund Policy](${origin}/refunds).`,
+        },
+      },
       line_items: [{ price: pack.stripe_price_id, quantity: 1 }],
       metadata: {
         user_id: user.id,
@@ -93,6 +129,14 @@ serve(async (req: Request) => {
       },
       success_url: `${origin}/billing?credit_purchase=success`,
       cancel_url: `${origin}/billing`,
+    });
+
+    // R3: record the withdrawal consent (server timestamp = authoritative).
+    await admin.from("purchase_consents").insert({
+      user_id: user.id,
+      purpose: "credit_pack",
+      consent_version: WITHDRAWAL_CONSENT_VERSION,
+      stripe_session_id: session.id,
     });
 
     return new Response(JSON.stringify({ url: session.url }), {

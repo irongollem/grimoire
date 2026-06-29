@@ -32,7 +32,6 @@ import { useQueryClient } from "@tanstack/vue-query";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import AuthLayout from "@/layouts/AuthLayout.vue";
 import PlayerLayout from "@/layouts/PlayerLayout.vue";
-import MarketingLayout from "@/layouts/MarketingLayout.vue";
 import ConfirmDialog from "@/components/common/ConfirmDialog.vue";
 import ToastHost from "@/components/common/ToastHost.vue";
 import ManualRollPrompt from "@/components/common/ManualRollPrompt.vue";
@@ -149,7 +148,6 @@ const route = useRoute();
 const layout = computed(() => {
   if (route.meta.layout === "auth") return AuthLayout;
   if (route.meta.layout === "player") return PlayerLayout;
-  if (route.meta.layout === "marketing") return MarketingLayout;
   return DefaultLayout;
 });
 </script>

@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { spendCredits } from "../_shared/credits.ts";
+import { spendCredits, reservationFailureResponse } from "../_shared/credits.ts";
 import { corsHeaders as buildCors } from "../_shared/cors.ts";
 
 const admin = createClient(
@@ -96,10 +96,7 @@ serve(async (req: Request) => {
   );
 
   if (!result.ok) {
-    return new Response(
-      JSON.stringify({ error: "insufficient_credits", balance: result.balance }),
-      { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    return reservationFailureResponse(result, corsHeaders);
   }
 
   return new Response(

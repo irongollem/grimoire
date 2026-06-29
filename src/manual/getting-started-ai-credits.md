@@ -4,12 +4,12 @@ section: Getting Started
 section_order: 0
 order: 3
 summary: How AI generation works, what credits are, and how BYOK differs from using platform credits.
-keywords: ai, credits, byok, api key, generation, cost, billing, openai, anthropic
+keywords: ai, credits, byok, api key, generation, cost, billing, openai, gemini
 ---
 
 ## How AI generation works
 
-Grimoire uses AI to generate NPCs, monsters, items, spells, locations, traps, factions, puzzles, quest hooks, and chronicle narratives. Every generation call goes to a large language model (OpenAI, Anthropic, or Google Gemini depending on your campaign settings) and produces a structured result that gets saved to your campaign.
+Grimoire uses AI to generate NPCs, monsters, items, spells, locations, traps, factions, puzzles, quest hooks, and chronicle narratives. Every generation call goes to a large language model (OpenAI or Google Gemini depending on your campaign settings) and produces a structured result that gets saved to your campaign.
 
 There are two ways to pay for those AI calls: **credits** or **BYOK**.
 
@@ -30,7 +30,7 @@ Different generators have different credit costs — a full NPC with portrait co
 
 ## BYOK (Bring Your Own Key) — Pro only
 
-**BYOK** means "Bring Your Own Key." Pro plan users can store a personal OpenAI, Anthropic, or Gemini API key in their campaign settings. When a personal key is configured, all AI calls for that campaign use it directly — **no credits are deducted**. Instead, the cost appears on your own API provider's bill.
+**BYOK** means "Bring Your Own Key." Pro plan users can store a personal OpenAI or Gemini API key in their campaign settings. When a personal key is configured, all AI calls for that campaign use it directly — **no credits are deducted**. Instead, the cost appears on your own API provider's bill.
 
 To set a BYOK key: open **Campaign Settings → AI** and enter your key. It is encrypted at rest and never logged or displayed in plaintext after saving.
 

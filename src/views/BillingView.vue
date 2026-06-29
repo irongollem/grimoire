@@ -243,10 +243,12 @@
         Includes {{ proMonthlyCredits.toLocaleString() }} AI credits every month.
       </p>
 
+      <WithdrawalConsent v-model="subConsent" kind="subscription" class="mb-1" />
+
       <button
         class="w-full py-2.5 rounded-md bg-amber-500 text-black font-cinzel text-xs font-semibold tracking-wider hover:bg-amber-400 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-        :disabled="stripeLoading || !activeProPrice"
-        @click="createCheckoutSession(annual ? 'year' : 'month')"
+        :disabled="stripeLoading || !activeProPrice || !subConsent"
+        @click="createCheckoutSession(annual ? 'year' : 'month', subConsent)"
       >
         <IconLoading
           v-if="stripeLoading"
@@ -328,13 +330,14 @@
             >{{ c }}</button>
           </div>
         </div>
+        <WithdrawalConsent v-model="packConsent" kind="credit_pack" />
         <div class="grid grid-cols-3 gap-2">
           <button
             v-for="pack in creditPacks"
             :key="pack.pack_id"
             class="flex flex-col items-center gap-1 rounded-lg border border-border bg-muted/30 p-3 text-center hover:border-primary/50 hover:bg-primary/5 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-            :disabled="purchaseLoading"
-            @click="purchasePack(pack.pack_id)"
+            :disabled="purchaseLoading || !packConsent"
+            @click="purchasePack(pack.pack_id, packConsent)"
           >
             <span class="font-cinzel text-xs font-bold text-foreground">{{ pack.credits }} credits</span>
             <span class="font-fell text-[11px] italic text-muted-foreground">{{ formatPackPrice(pack) }}</span>
@@ -357,6 +360,7 @@ import { ref, computed } from "vue";
 import { useRoute } from "vue-router";
 import { IconBilling, IconDM, IconGenerate, IconLoading, IconQuest } from '@/lib/icons';
 import PageHeader from "@/components/common/PageHeader.vue";
+import WithdrawalConsent from "@/components/billing/WithdrawalConsent.vue";
 import { useSubscription } from "@/composables/useSubscription";
 import { useStripe } from "@/composables/useStripe";
 import { useAiCredits } from "@/composables/useAiCredits";
@@ -369,6 +373,11 @@ import { detectCurrency, resolveAmount, availableCurrencies, formatCents, taxNot
 
 const route = useRoute();
 const creditPurchaseSuccess = computed(() => route.query.credit_purchase === "success");
+
+// R3: EU withdrawal-waiver consent, ticked before a purchase, passed to the
+// checkout function which records it (timestamp + version) server-side.
+const subConsent = ref(false);
+const packConsent = ref(false);
 
 const { subscription, isPro, isPendingCancellation, isLoading } = useSubscription();
 const {

@@ -1,6 +1,7 @@
 import { b64ToBlob } from "./utils";
 import { uploadToBucket } from "@/lib/storage";
 import { getCurrentUser, supabase } from "@/lib/supabase";
+import { edgeErrorMessage } from "@/lib/edgeError";
 import { useCampaignStore } from "@/stores/campaign";
 import { fetchImageBasePrompt } from "./systemPrompts";
 import { OPENAI_IMAGE_MODEL_KEY, getImageProvider } from "@/ai/providers/index";
@@ -258,27 +259,7 @@ export async function generateChroniclerImage(params: {
         },
       },
     );
-    // supabase-js wraps a non-2xx as a FunctionsHttpError and discards the JSON
-    // body unless we read it explicitly. The edge function returns structured
-    // codes like { error: "insufficient_credits", balance } that the user needs
-    // to see — otherwise they get the generic "non-2xx status code" string.
-    if (error) {
-      let body: { error?: string; balance?: number } | null = null;
-      try {
-        body =
-          (await (error as { context?: Response }).context?.json()) ?? null;
-      } catch {
-        /* not JSON */
-      }
-      if (body?.error === "insufficient_credits") {
-        const left =
-          body.balance !== undefined ? ` (${body.balance} left)` : "";
-        throw new Error(
-          `Insufficient credits${left}. Buy a credit pack or wait for the monthly refresh.`,
-        );
-      }
-      throw new Error(body?.error ?? error.message);
-    }
+    if (error) throw new Error(await edgeErrorMessage(error));
     if (data?.error) throw new Error(data.error);
 
     const jobId = (data as { job_id?: string }).job_id;

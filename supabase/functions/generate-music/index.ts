@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { decryptValue } from "../_shared/vault.ts";
 import { isUserPro } from "../_shared/plan.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
-import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits } from "../_shared/credits.ts";
+import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 
 const corsHeaders = {
@@ -107,10 +107,7 @@ serve(async (req: Request) => {
 
   const reservation = await reserveCredits(admin, user.id, audioCost, generationType);
   if (!reservation.ok) {
-    return new Response(
-      JSON.stringify({ error: "insufficient_credits", balance: reservation.balance ?? 0 }),
-      { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    return reservationFailureResponse(reservation, corsHeaders);
   }
 
   try {
