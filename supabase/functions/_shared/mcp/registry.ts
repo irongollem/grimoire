@@ -99,7 +99,7 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
     table: "quests",
     nameField: "title",
     summaryField: "summary",
-    searchFields: ["title", "summary", "description", "notes", "status"],
+    searchFields: ["title", "summary", "description", "notes"],
     extraListColumns: ["status"],
     campaignScoped: true,
   },
