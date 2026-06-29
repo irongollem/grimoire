@@ -41,30 +41,30 @@ function rpcError(id: unknown, code: number, message: string) {
 }
 
 // ── OAuth discovery ───────────────────────────────────────────────────────────
-function resourceUrl(req: Request): string {
-  const url = new URL(req.url);
-  // Canonical resource = the MCP function endpoint, sans any /.well-known suffix.
-  const path = url.pathname.replace(/\/\.well-known\/.*$/, "");
-  return `${url.origin}${path}`;
-}
+// The canonical resource identifier is the PUBLIC function URL. We must NOT derive
+// it from `req.url`: inside a Supabase edge function that is the internal request
+// (plain `http`, with the `/functions/v1` prefix stripped), so it would advertise
+// e.g. `http://<ref>.supabase.co/mcp` — which fails the client's RFC 9728 check
+// that the PRM `resource` matches the URL it actually connected to. Build it from
+// the project URL env instead.
+const RESOURCE_URL = `${SUPABASE_URL}/functions/v1/mcp`;
+const PRM_URL = `${RESOURCE_URL}/.well-known/oauth-protected-resource`;
 
-function protectedResourceMetadata(req: Request) {
-  const resource = resourceUrl(req);
+function protectedResourceMetadata() {
   return {
-    resource,
+    resource: RESOURCE_URL,
     authorization_servers: [`${SUPABASE_URL}/auth/v1`],
     scopes_supported: ["openid", "email", "profile"],
     bearer_methods_supported: ["header"],
   };
 }
 
-function unauthorized(req: Request, detail: string): Response {
-  const prm = `${resourceUrl(req)}/.well-known/oauth-protected-resource`;
+function unauthorized(detail: string): Response {
   return new Response(JSON.stringify({ error: "unauthorized", error_description: detail }), {
     status: 401,
     headers: {
       ...jsonHeaders,
-      "WWW-Authenticate": `Bearer realm="grimoire", resource_metadata="${prm}"`,
+      "WWW-Authenticate": `Bearer realm="grimoire", resource_metadata="${PRM_URL}"`,
     },
   });
 }
@@ -122,7 +122,7 @@ Deno.serve(async (req: Request) => {
 
   // Public discovery document (no auth).
   if (req.method === "GET" && url.pathname.endsWith("/.well-known/oauth-protected-resource")) {
-    return new Response(JSON.stringify(protectedResourceMetadata(req)), { headers: jsonHeaders });
+    return new Response(JSON.stringify(protectedResourceMetadata()), { headers: jsonHeaders });
   }
 
   // Stateless server: no server-initiated SSE stream on GET.
@@ -133,7 +133,7 @@ Deno.serve(async (req: Request) => {
   // ── Authenticate: validate the Supabase-issued OAuth JWT ──────────────────────
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.toLowerCase().startsWith("bearer ")) {
-    return unauthorized(req, "Missing bearer token.");
+    return unauthorized("Missing bearer token.");
   }
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -141,7 +141,7 @@ Deno.serve(async (req: Request) => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return unauthorized(req, "Invalid or expired token.");
+  if (authError || !user) return unauthorized("Invalid or expired token.");
 
   const ctx: ToolContext = { supabase, userId: user.id };
 
