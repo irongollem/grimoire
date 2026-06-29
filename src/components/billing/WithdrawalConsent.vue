@@ -6,13 +6,13 @@
       <template v-if="kind === 'credit_pack'">credits are used</template>
       <template v-else>subscription period has been supplied</template>
       (see the
-      <RouterLink to="/refunds" target="_blank" class="underline hover:text-foreground transition-colors">Refund Policy</RouterLink>).
+      <a :href="legalUrl('refunds')" target="_blank" rel="noopener noreferrer" class="underline hover:text-foreground transition-colors">Refund Policy</a>).
     </span>
   </label>
 </template>
 
 <script setup lang="ts">
-import { RouterLink } from "vue-router";
+import { legalUrl } from "@/lib/marketing";
 
 // EU right-of-withdrawal waiver — its own checkbox, separate from the Stripe ToS
 // consent; the timestamped record is written server-side at checkout creation.

@@ -1,5 +1,4 @@
 import { defineConfig, type Plugin } from "vite";
-import type { ViteSSGOptions as _ViteSSGOptions } from "vite-ssg";
 import vue from "@vitejs/plugin-vue";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
@@ -81,12 +80,6 @@ export default defineConfig({
     tailwindcss(),
     swPlugin(),
   ],
-  ssgOptions: {
-    // Only pre-render public marketing + legal routes — all auth-required app routes stay SPA.
-    includedRoutes(paths: string[]) {
-      return paths.filter((p) => ["/", "/pricing", "/privacy", "/terms", "/refunds"].includes(p));
-    },
-  },
   server: {
     // Portless injects PORT so its proxy can reach the dev server.
     // Falls back to 5173 for plain `npm run dev`.
