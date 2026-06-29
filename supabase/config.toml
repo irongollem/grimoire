@@ -59,7 +59,29 @@ verify_jwt = false
 [functions.stripe-webhook]
 verify_jwt = false
 
+# Read-only MCP server — lets a DM connect their own AI (Claude Desktop /
+# claude.ai) and look up campaign content by conversation. The gateway check is
+# off because the function must (a) serve a public Protected Resource Metadata
+# document and (b) answer unauthenticated calls with its own 401 +
+# WWW-Authenticate so MCP clients can discover the OAuth server. The function
+# validates the Supabase-issued OAuth JWT itself via getUser() and runs every
+# query through an RLS-scoped client (see `mcp/index.ts`).
+[functions.mcp]
+verify_jwt = false
+
 # Shared SRD rules sync — triggered by an admin / cron with the service-role
 # key, so the gateway check can stay on.
 # [functions.sync-srd-rules]
 # verify_jwt = true  (default)
+
+# ── OAuth 2.1 Server (authorization server for the MCP connector) ─────────────
+# Turns Supabase Auth into the OAuth 2.1 + OIDC authorization server that backs
+# the MCP connector: it hosts /authorize, /token, JWKS and discovery, and (with
+# DCR enabled) lets claude.ai register itself when the DM pastes the MCP URL.
+# Access tokens are standard Supabase JWTs, so existing RLS applies unchanged.
+# The consent UI lives in the SPA at `authorization_url_path` (see
+# /oauth/consent). Currently a Supabase beta feature.
+[auth.oauth_server]
+enabled = true
+authorization_url_path = "/oauth/consent"
+allow_dynamic_registration = true
