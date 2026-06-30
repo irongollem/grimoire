@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ENTITY_REGISTRY } from "./registry.ts";
+import { ENTITY_REGISTRY, IMAGE_WHICH_VALUES, IMAGEABLE_TYPES } from "./registry.ts";
 
 // Guards the search bug where quest's `status` (typed `quest_status_enum`) was
 // listed in `searchFields`. The generic search builder OR-joins every
@@ -42,5 +42,27 @@ describe("ENTITY_REGISTRY search invariants", () => {
     for (const def of Object.values(ENTITY_REGISTRY)) {
       expect(def.searchFields.length, `${def.type} has no searchFields`).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("ENTITY_REGISTRY image invariants", () => {
+  it("declares non-empty, `*_url`-shaped image columns wherever imageFields is set", () => {
+    for (const def of Object.values(ENTITY_REGISTRY)) {
+      if (!def.imageFields) continue;
+      const entries = Object.entries(def.imageFields);
+      expect(entries.length, `${def.type} has an empty imageFields map`).toBeGreaterThan(0);
+      for (const [which, column] of entries) {
+        expect(which, `${def.type} has a blank image selector`).toMatch(/^[a-z_]+$/);
+        expect(column, `${def.type}.${which} column should be a *_url column`).toMatch(/_url$/);
+      }
+    }
+  });
+
+  it("derives IMAGEABLE_TYPES and IMAGE_WHICH_VALUES from the registry", () => {
+    expect(IMAGEABLE_TYPES).toContain("npc");
+    expect(IMAGEABLE_TYPES).not.toContain("quest"); // quests carry no art
+    // Union is de-duplicated (portrait/image/etc. appear on multiple types).
+    expect(IMAGE_WHICH_VALUES.length).toBe(new Set(IMAGE_WHICH_VALUES).size);
+    expect(IMAGE_WHICH_VALUES).toEqual(expect.arrayContaining(["portrait", "image", "map", "emblem"]));
   });
 });

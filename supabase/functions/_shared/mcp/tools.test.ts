@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateFields } from "./tools.ts";
+import { resolveImageColumn, validateFields } from "./tools.ts";
 import { CREATABLE_TYPES, ENTITY_REGISTRY } from "./registry.ts";
 
 const quest = ENTITY_REGISTRY.quest;
@@ -87,6 +87,27 @@ describe("validateFields — update (partial)", () => {
 
   it("requires at least one field", () => {
     expect(() => validateFields(quest, {}, { partial: true })).toThrow(/at least one/i);
+  });
+});
+
+describe("resolveImageColumn", () => {
+  it("defaults to the entity's first declared image when `which` is omitted", () => {
+    expect(resolveImageColumn(npc, undefined)).toEqual({ which: "portrait", column: "portrait_url" });
+    expect(resolveImageColumn(ENTITY_REGISTRY.location, "")).toEqual({ which: "image", column: "image_url" });
+  });
+
+  it("resolves an explicit, case-insensitive `which`", () => {
+    expect(resolveImageColumn(npc, "disguise")).toEqual({ which: "disguise", column: "disguise_portrait_url" });
+    expect(resolveImageColumn(ENTITY_REGISTRY.location, " MAP ")).toEqual({ which: "map", column: "map_url" });
+  });
+
+  it("rejects an unknown `which` with the valid options", () => {
+    expect(() => resolveImageColumn(npc, "banner")).toThrow(/available: portrait, disguise/i);
+  });
+
+  it("rejects entities that carry no art", () => {
+    expect(() => resolveImageColumn(ENTITY_REGISTRY.quest, "image")).toThrow(/no images/i);
+    expect(() => resolveImageColumn(monster, undefined)).not.toThrow(); // monster DOES have art
   });
 });
 

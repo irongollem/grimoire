@@ -8,7 +8,16 @@
 // Kept deliberately transport-agnostic so a future in-app agent can reuse it.
 
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { CREATABLE_TYPES, describeCreatableFields, ENTITY_REGISTRY, ENTITY_TYPES, listColumns } from "./registry.ts";
+import {
+  CREATABLE_TYPES,
+  describeCreatableFields,
+  describeImageFields,
+  ENTITY_REGISTRY,
+  ENTITY_TYPES,
+  IMAGE_WHICH_VALUES,
+  IMAGEABLE_TYPES,
+  listColumns,
+} from "./registry.ts";
 import type { EntityDef, FieldDef } from "./registry.ts";
 
 export interface ToolContext {
@@ -21,6 +30,28 @@ export interface ToolDef {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
+}
+
+/**
+ * MCP content blocks a tool can return directly (text or inline image). Most
+ * tools return plain data that the transport JSON-stringifies into a text
+ * block; `get_image` returns this shape so the transport emits a real image
+ * block instead. `isMcpContentResult` lets the transport tell them apart.
+ */
+export type McpContent =
+  | { type: "text"; text: string }
+  | { type: "image"; data: string; mimeType: string };
+
+export interface McpContentResult {
+  _mcpContent: McpContent[];
+}
+
+export function isMcpContentResult(x: unknown): x is McpContentResult {
+  return (
+    typeof x === "object" &&
+    x !== null &&
+    Array.isArray((x as { _mcpContent?: unknown })._mcpContent)
+  );
 }
 
 const MAX_LIMIT = 50;
@@ -137,6 +168,45 @@ export function validateFields(def: EntityDef, input: unknown, opts: { partial: 
 }
 
 /**
+ * Pick the storage-URL column for a `get_image` request. `which` defaults to the
+ * entity's first declared image. Rejects entities with no art and unknown
+ * selectors with a list of the valid options. Pure — no I/O — so it's unit-tested
+ * directly while the fetch/encode path stays an integration concern.
+ */
+export function resolveImageColumn(def: EntityDef, which: unknown): { which: string; column: string } {
+  const fields = def.imageFields;
+  if (!fields) {
+    throw new Error(`Type "${def.type}" has no images. Imageable types: ${IMAGEABLE_TYPES.join(", ")}.`);
+  }
+  const keys = Object.keys(fields);
+  const requested = which === undefined || which === null || which === ""
+    ? keys[0]
+    : String(which).toLowerCase().trim();
+  const column = fields[requested];
+  if (!column) {
+    throw new Error(`Unknown image "${requested}" for ${def.label}. Available: ${keys.join(", ")}.`);
+  }
+  return { which: requested, column };
+}
+
+/** Public prefix of this project's Supabase storage, or null outside Deno (tests). */
+function storageObjectPrefix(): string | null {
+  const deno = (globalThis as { Deno?: { env?: { get(k: string): string | undefined } } }).Deno;
+  const url = deno?.env?.get("SUPABASE_URL");
+  return url ? `${url}/storage/v1/object/` : null;
+}
+
+/** Base64-encode bytes in chunks (avoids the arg-count limit of `btoa(String.fromCharCode(...))`). */
+function base64FromBytes(bytes: Uint8Array): string {
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+/**
  * Translate a Supabase write error into a user-facing message. The free-tier
  * quota triggers raise `quota_exceeded`; enrich that with the actual limit via
  * `check_quota` (which counts the caller's own rows) so the AI can relay it.
@@ -204,6 +274,26 @@ export function listTools(): ToolDef[] {
         properties: {
           type: typeEnum,
           id: { type: "string", description: "The entity's id (UUID)." },
+        },
+        required: ["type", "id"],
+        additionalProperties: false,
+      },
+    },
+    {
+      name: "get_image",
+      description:
+        "Fetch an entity's image as an inline image you can actually view. `get` only returns the storage URL, which the agent sandbox usually can't load; this returns the image bytes through the MCP channel instead. Provide `type`, `id`, and optionally `which` (defaults to the entity's primary image). Available images per type:\n" +
+        describeImageFields(),
+      inputSchema: {
+        type: "object",
+        properties: {
+          type: { type: "string", enum: IMAGEABLE_TYPES },
+          id: { type: "string", description: "The entity's id (UUID)." },
+          which: {
+            type: "string",
+            enum: IMAGE_WHICH_VALUES,
+            description: "Which image to fetch (defaults to the primary one for the type).",
+          },
         },
         required: ["type", "id"],
         additionalProperties: false,
@@ -290,6 +380,8 @@ export async function callTool(
       return search(ctx, args);
     case "get":
       return get(ctx, args);
+    case "get_image":
+      return getImage(ctx, args);
     case "list":
       return list(ctx, args);
     case "create":
@@ -351,6 +443,41 @@ async function get(ctx: ToolContext, args: Record<string, unknown>) {
   if (error) throw new Error(error.message);
   if (!data) throw new Error(`No ${def.label} found with id ${id} (it may not exist or you may not have access).`);
   return data;
+}
+
+async function getImage(ctx: ToolContext, args: Record<string, unknown>): Promise<McpContentResult> {
+  const def = resolveDef(args.type);
+  const id = String(args.id ?? "").trim();
+  if (!id) throw new Error("`id` is required.");
+  const { which, column } = resolveImageColumn(def, args.which);
+
+  // The row is fetched under the caller's JWT, so RLS already gates access — if
+  // they can read the entity, they may see its art.
+  const { data, error } = await ctx.supabase.from(def.table).select(`id, ${column}`).eq("id", id).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error(`No ${def.label} found with id ${id} (it may not exist or you may not have access).`);
+  const url = (data as Record<string, unknown>)[column];
+  if (typeof url !== "string" || !url) throw new Error(`This ${def.label} has no ${which} image set.`);
+
+  // SSRF guard: only inline-fetch objects from this project's own Supabase
+  // storage. Externally-hosted art (or any unexpected URL) is returned as a link
+  // for the client to follow itself, never proxied through the server.
+  const prefix = storageObjectPrefix();
+  if (!prefix || !url.startsWith(prefix)) {
+    return { _mcpContent: [{ type: "text", text: `Image is hosted externally; load it directly: ${url}` }] };
+  }
+
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Failed to fetch ${which} image (HTTP ${res.status}).`);
+  const mimeType = res.headers.get("content-type")?.split(";")[0]?.trim() || "image/*";
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  return {
+    _mcpContent: [
+      { type: "image", data: base64FromBytes(bytes), mimeType },
+      // Keep the URL too, for clients that prefer linking.
+      { type: "text", text: url },
+    ],
+  };
 }
 
 async function list(ctx: ToolContext, args: Record<string, unknown>) {

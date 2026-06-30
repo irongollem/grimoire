@@ -61,6 +61,13 @@ export interface EntityDef {
   campaignScoped: boolean;
   /** Writable fields for `create`/`update`. Omit to keep the entity read-only. */
   create?: CreateDef;
+  /**
+   * Image columns exposable as MCP image blocks via `get_image`, keyed by a
+   * short `which` selector (e.g. "portrait", "map"). Insertion order matters:
+   * the first entry is the default when the caller omits `which`. Omit for
+   * entities that carry no art.
+   */
+  imageFields?: Record<string, string>;
 }
 
 // Enum value-lists, mirrored from the DB enums (quest_status_enum,
@@ -111,6 +118,10 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
     ],
     extraListColumns: ["alignment", "status"],
     campaignScoped: true,
+    imageFields: {
+      portrait: "portrait_url",
+      disguise: "disguise_portrait_url",
+    },
     create: {
       fields: {
         name: { type: "text", required: true },
@@ -161,6 +172,7 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
     ],
     extraListColumns: ["size", "alignment"],
     campaignScoped: false,
+    imageFields: { image: "image_url" },
   },
   spell: {
     type: "spell",
@@ -178,6 +190,7 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
     ],
     extraListColumns: ["level", "school"],
     campaignScoped: false,
+    imageFields: { image: "image_url" },
   },
   item: {
     type: "item",
@@ -188,6 +201,7 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
     searchFields: ["name", "description", "item_type", "rarity"],
     extraListColumns: ["item_type", "rarity"],
     campaignScoped: false,
+    imageFields: { image: "image_url", mundane: "mundane_image_url" },
   },
   location: {
     type: "location",
@@ -198,6 +212,7 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
     searchFields: ["name", "description", "notes", "player_summary"],
     extraListColumns: ["location_type", "parent_id"],
     campaignScoped: true,
+    imageFields: { image: "image_url", map: "map_url" },
     create: {
       fields: {
         name: { type: "text", required: true },
@@ -274,6 +289,7 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
     searchFields: ["name", "description", "faction_type", "alignment"],
     extraListColumns: ["faction_type", "alignment"],
     campaignScoped: true,
+    imageFields: { emblem: "emblem_url" },
     create: {
       fields: {
         name: { type: "text", required: true },
@@ -305,6 +321,7 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
     ],
     extraListColumns: ["alignment", "pantheon_id"],
     campaignScoped: true,
+    imageFields: { portrait: "portrait_url" },
     create: {
       fields: {
         name: { type: "text", required: true },
@@ -332,6 +349,7 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
     summaryField: "description",
     searchFields: ["name", "description"],
     campaignScoped: true,
+    imageFields: { emblem: "emblem_url" },
     create: {
       fields: {
         name: { type: "text", required: true },
@@ -351,6 +369,7 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
     searchFields: ["name", "effect_description", "trap_type", "trigger_type"],
     extraListColumns: ["trap_type", "cr"],
     campaignScoped: false,
+    imageFields: { image: "image_url" },
   },
   puzzle: {
     type: "puzzle",
@@ -368,6 +387,7 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
     ],
     extraListColumns: ["puzzle_type", "difficulty"],
     campaignScoped: true,
+    imageFields: { image: "image_url" },
     create: {
       fields: {
         name: { type: "text", required: true },
@@ -442,6 +462,7 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
     ],
     extraListColumns: ["class", "level"],
     campaignScoped: true,
+    imageFields: { portrait: "portrait_url" },
   },
 };
 
@@ -452,6 +473,29 @@ export const ENTITY_TYPES = Object.keys(ENTITY_REGISTRY);
 export const CREATABLE_TYPES = ENTITY_TYPES.filter(
   (t) => ENTITY_REGISTRY[t].create,
 );
+
+/** Type keys that expose at least one image via `get_image`. */
+export const IMAGEABLE_TYPES = ENTITY_TYPES.filter(
+  (t) => ENTITY_REGISTRY[t].imageFields,
+);
+
+/** Union of every `which` image selector across imageable types (for the tool enum). */
+export const IMAGE_WHICH_VALUES = [
+  ...new Set(
+    IMAGEABLE_TYPES.flatMap((t) => Object.keys(ENTITY_REGISTRY[t].imageFields!)),
+  ),
+];
+
+/**
+ * Compact per-type image reference for the `get_image` tool description,
+ * generated from the registry so it never drifts. The first `which` listed for
+ * a type is its default.
+ */
+export function describeImageFields(): string {
+  return IMAGEABLE_TYPES.map(
+    (t) => `${t}: ${Object.keys(ENTITY_REGISTRY[t].imageFields!).join(", ")}`,
+  ).join("\n");
+}
 
 /**
  * Compact per-type writable-field reference for the `create`/`update` tool

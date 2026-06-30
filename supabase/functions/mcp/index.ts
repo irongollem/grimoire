@@ -13,7 +13,7 @@
 // own 401/WWW-Authenticate; the function validates the token itself.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { callTool, listTools } from "../_shared/mcp/tools.ts";
+import { callTool, isMcpContentResult, listTools } from "../_shared/mcp/tools.ts";
 import type { ToolContext } from "../_shared/mcp/tools.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -97,9 +97,12 @@ async function handleRpc(message: Record<string, unknown>, ctx: ToolContext): Pr
       const args = (params?.arguments as Record<string, unknown>) ?? {};
       try {
         const data = await callTool(ctx, name, args);
-        return rpcResult(id, {
-          content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
-        });
+        // Most tools return plain data → one text block. `get_image` returns
+        // pre-built MCP content (an image block + the URL) — pass it through.
+        const content = isMcpContentResult(data)
+          ? data._mcpContent
+          : [{ type: "text", text: JSON.stringify(data, null, 2) }];
+        return rpcResult(id, { content });
       } catch (e) {
         // Tool-level failures are reported in-band per MCP (isError), not as RPC errors.
         return rpcResult(id, {
