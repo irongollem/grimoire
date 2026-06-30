@@ -189,82 +189,6 @@ export function resolveImageColumn(def: EntityDef, which: unknown): { which: str
   return { which: requested, column };
 }
 
-/** How `get_image` returns the bytes. */
-export const IMAGE_FORMATS = ["image", "data_uri", "both"] as const;
-export type ImageFormat = (typeof IMAGE_FORMATS)[number];
-
-/** Validate the caller's `format`, defaulting to the inline image block. */
-export function resolveImageFormat(raw: unknown): ImageFormat {
-  if (raw === undefined || raw === null || raw === "") return "image";
-  const v = String(raw).toLowerCase().trim();
-  if ((IMAGE_FORMATS as readonly string[]).includes(v)) return v as ImageFormat;
-  throw new Error(`Unknown image format "${v}". Valid: ${IMAGE_FORMATS.join(", ")}.`);
-}
-
-/**
- * Shape the MCP content blocks for a fetched image per `format`. Pure (no I/O),
- * so the selection logic is unit-tested directly:
- *   • image    → inline image block + the storage URL as text
- *   • data_uri → one text block holding `data:<mime>;base64,…` (drop into <img src>)
- *   • both     → inline image block + the data-URI text block
- */
-export function buildImageContent(
-  format: ImageFormat,
-  mimeType: string,
-  base64: string,
-  url: string,
-): McpContent[] {
-  const imageBlock: McpContent = { type: "image", data: base64, mimeType };
-  const dataUri: McpContent = { type: "text", text: `data:${mimeType};base64,${base64}` };
-  switch (format) {
-    case "data_uri":
-      return [dataUri];
-    case "both":
-      return [imageBlock, dataUri];
-    case "image":
-      return [imageBlock, { type: "text", text: url }];
-  }
-}
-
-/**
- * Pre-generated size-variant widths baked at upload time — mirror of
- * `VARIANT_WIDTHS` in `src/lib/storage.ts` (keep in sync). Each variant lives
- * next to the original at `{stem}_w{width}.webp`, so `get_image` can return a
- * small thumbnail instead of a multi-hundred-KB original — which is what makes
- * a `data_uri` actually embeddable in an `<img src>`.
- */
-export const VARIANT_WIDTHS = [200, 300, 400, 600] as const;
-
-/**
- * Resolve the requested `max_width`: one of the baked widths or "full". Defaults
- * to 400px for `data_uri` (keeps the encoded string small) and full-res for the
- * inline-image formats (the client renders those, so don't surprise-shrink).
- * Returns the width in px, or null meaning full resolution. Pure — unit-tested.
- */
-export function resolveMaxWidth(raw: unknown, format: ImageFormat): number | null {
-  if (raw === undefined || raw === null || raw === "") {
-    return format === "data_uri" ? 400 : null;
-  }
-  const v = String(raw).toLowerCase().trim();
-  if (v === "full") return null;
-  const n = Number(v);
-  if ((VARIANT_WIDTHS as readonly number[]).includes(n)) return n;
-  throw new Error(`Unknown max_width "${v}". Valid: ${VARIANT_WIDTHS.join(", ")}, full.`);
-}
-
-/**
- * Derive a pre-generated width-variant URL from an original image URL — mirrors
- * `variantPath()` in `src/lib/storage.ts`. Variants are always `.webp`
- * regardless of the original's extension; any query string is dropped.
- */
-export function variantUrlFor(url: string, width: number): string {
-  const q = url.indexOf("?");
-  const base = q === -1 ? url : url.slice(0, q);
-  const lastDot = base.lastIndexOf(".");
-  const stem = lastDot === -1 ? base : base.slice(0, lastDot);
-  return `${stem}_w${width}.webp`;
-}
-
 /** Public prefix of this project's Supabase storage, or null outside Deno (tests). */
 function storageObjectPrefix(): string | null {
   const deno = (globalThis as { Deno?: { env?: { get(k: string): string | undefined } } }).Deno;
@@ -358,7 +282,7 @@ export function listTools(): ToolDef[] {
     {
       name: "get_image",
       description:
-        "Fetch an entity's image as an inline image you can actually view. `get` only returns the storage URL, which the agent sandbox usually can't load; this returns the image bytes through the MCP channel instead. Provide `type`, `id`, and optionally `which` (defaults to the entity's primary image), `format`, and `max_width`. Use `format: \"data_uri\"` to get a `data:<mime>;base64,…` string you can drop straight into an HTML `<img src>` (no external origin, no CSP issues); it defaults to a 400px-wide thumbnail so the string stays small enough to embed (raise/lower with `max_width`). Available images per type:\n" +
+        "Fetch an entity's image as an inline image you can actually view. `get` only returns the storage URL, which the agent sandbox usually can't load; this returns the image bytes through the MCP channel instead. Provide `type`, `id`, and optionally `which` (defaults to the entity's primary image). Available images per type:\n" +
         describeImageFields(),
       inputSchema: {
         type: "object",
@@ -369,18 +293,6 @@ export function listTools(): ToolDef[] {
             type: "string",
             enum: IMAGE_WHICH_VALUES,
             description: "Which image to fetch (defaults to the primary one for the type).",
-          },
-          format: {
-            type: "string",
-            enum: [...IMAGE_FORMATS],
-            description:
-              "`image` (default): inline image block + the URL. `data_uri`: a single text block with a `data:<mime>;base64,…` URI for direct `<img src>` embedding. `both`: inline image + the data-URI text.",
-          },
-          max_width: {
-            type: "string",
-            enum: [...VARIANT_WIDTHS.map(String), "full"],
-            description:
-              "Cap the image to a pre-baked width in px (200/300/400/600) or \"full\". Defaults to 400 for `data_uri` (keeps the embedded string small) and full otherwise. Falls back to full-res if that size variant doesn't exist.",
           },
         },
         required: ["type", "id"],
@@ -538,7 +450,6 @@ async function getImage(ctx: ToolContext, args: Record<string, unknown>): Promis
   const id = String(args.id ?? "").trim();
   if (!id) throw new Error("`id` is required.");
   const { which, column } = resolveImageColumn(def, args.which);
-  const format = resolveImageFormat(args.format);
 
   // The row is fetched under the caller's JWT, so RLS already gates access — if
   // they can read the entity, they may see its art.
@@ -550,31 +461,23 @@ async function getImage(ctx: ToolContext, args: Record<string, unknown>): Promis
 
   // SSRF guard: only inline-fetch objects from this project's own Supabase
   // storage. Externally-hosted art (or any unexpected URL) is returned as a link
-  // for the client to follow itself, never proxied through the server — so a
-  // data URI can't be built for it either.
+  // for the client to follow itself, never proxied through the server.
   const prefix = storageObjectPrefix();
   if (!prefix || !url.startsWith(prefix)) {
     return { _mcpContent: [{ type: "text", text: `Image is hosted externally; load it directly: ${url}` }] };
   }
 
-  // Prefer a pre-baked width variant when a max_width is in effect (the default
-  // for data_uri) so the encoded payload stays small enough to embed; fall back
-  // to the original if that variant doesn't exist (legacy uploads / failed
-  // variant generation). The URL text block always points at the full-res
-  // original, so the small inline copy and the full link coexist.
-  const maxWidth = resolveMaxWidth(args.max_width, format);
-  let res: Response | null = null;
-  if (maxWidth !== null) {
-    const variant = await fetch(variantUrlFor(url, maxWidth));
-    if (variant.ok) res = variant;
-  }
-  if (!res) {
-    res = await fetch(url);
-    if (!res.ok) throw new Error(`Failed to fetch ${which} image (HTTP ${res.status}).`);
-  }
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Failed to fetch ${which} image (HTTP ${res.status}).`);
   const mimeType = res.headers.get("content-type")?.split(";")[0]?.trim() || "image/*";
   const bytes = new Uint8Array(await res.arrayBuffer());
-  return { _mcpContent: buildImageContent(format, mimeType, base64FromBytes(bytes), url) };
+  return {
+    _mcpContent: [
+      { type: "image", data: base64FromBytes(bytes), mimeType },
+      // Keep the URL too, for clients that prefer linking.
+      { type: "text", text: url },
+    ],
+  };
 }
 
 async function list(ctx: ToolContext, args: Record<string, unknown>) {

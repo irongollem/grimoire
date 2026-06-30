@@ -1,12 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  buildImageContent,
-  resolveImageColumn,
-  resolveImageFormat,
-  resolveMaxWidth,
-  validateFields,
-  variantUrlFor,
-} from "./tools.ts";
+import { resolveImageColumn, validateFields } from "./tools.ts";
 import { CREATABLE_TYPES, ENTITY_REGISTRY } from "./registry.ts";
 
 const quest = ENTITY_REGISTRY.quest;
@@ -115,82 +108,6 @@ describe("resolveImageColumn", () => {
   it("rejects entities that carry no art", () => {
     expect(() => resolveImageColumn(ENTITY_REGISTRY.quest, "image")).toThrow(/no images/i);
     expect(() => resolveImageColumn(monster, undefined)).not.toThrow(); // monster DOES have art
-  });
-});
-
-describe("resolveImageFormat", () => {
-  it("defaults to the inline image format", () => {
-    expect(resolveImageFormat(undefined)).toBe("image");
-    expect(resolveImageFormat("")).toBe("image");
-  });
-
-  it("accepts the known formats, case-insensitively", () => {
-    expect(resolveImageFormat("data_uri")).toBe("data_uri");
-    expect(resolveImageFormat(" BOTH ")).toBe("both");
-  });
-
-  it("rejects an unknown format", () => {
-    expect(() => resolveImageFormat("png")).toThrow(/valid: image, data_uri, both/i);
-  });
-});
-
-describe("buildImageContent", () => {
-  const b64 = "AAAA";
-  const mime = "image/webp";
-  const url = "https://x.supabase.co/storage/v1/object/public/npc-portraits/srd/a.webp";
-
-  it("image: inline image block + the URL as text", () => {
-    expect(buildImageContent("image", mime, b64, url)).toEqual([
-      { type: "image", data: b64, mimeType: mime },
-      { type: "text", text: url },
-    ]);
-  });
-
-  it("data_uri: a single embeddable data-URI text block, no raw URL", () => {
-    expect(buildImageContent("data_uri", mime, b64, url)).toEqual([
-      { type: "text", text: `data:${mime};base64,${b64}` },
-    ]);
-  });
-
-  it("both: inline image block + the data-URI text block", () => {
-    expect(buildImageContent("both", mime, b64, url)).toEqual([
-      { type: "image", data: b64, mimeType: mime },
-      { type: "text", text: `data:${mime};base64,${b64}` },
-    ]);
-  });
-});
-
-describe("resolveMaxWidth", () => {
-  it("defaults to a 400px thumbnail for data_uri, full-res otherwise", () => {
-    expect(resolveMaxWidth(undefined, "data_uri")).toBe(400);
-    expect(resolveMaxWidth("", "data_uri")).toBe(400);
-    expect(resolveMaxWidth(undefined, "image")).toBeNull();
-    expect(resolveMaxWidth(undefined, "both")).toBeNull();
-  });
-
-  it("accepts a baked width or \"full\" (null), as string or number", () => {
-    expect(resolveMaxWidth("200", "data_uri")).toBe(200);
-    expect(resolveMaxWidth(600, "image")).toBe(600);
-    expect(resolveMaxWidth("full", "data_uri")).toBeNull();
-    expect(resolveMaxWidth(" FULL ", "data_uri")).toBeNull();
-  });
-
-  it("rejects a non-baked width", () => {
-    expect(() => resolveMaxWidth("999", "data_uri")).toThrow(/valid: 200, 300, 400, 600, full/i);
-    expect(() => resolveMaxWidth("abc", "data_uri")).toThrow(/max_width/i);
-  });
-});
-
-describe("variantUrlFor", () => {
-  const base = "https://x.supabase.co/storage/v1/object/public/npc-portraits/u/abc";
-
-  it("inserts _w<width> and forces .webp regardless of the original extension", () => {
-    expect(variantUrlFor(`${base}.webp`, 400)).toBe(`${base}_w400.webp`);
-    expect(variantUrlFor(`${base}.jpeg`, 200)).toBe(`${base}_w200.webp`);
-  });
-
-  it("drops any query string", () => {
-    expect(variantUrlFor(`${base}.webp?t=123`, 300)).toBe(`${base}_w300.webp`);
   });
 });
 
