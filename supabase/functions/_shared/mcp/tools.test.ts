@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { buildImageContent, resolveImageColumn, resolveImageFormat, validateFields } from "./tools.ts";
+import {
+  buildImageContent,
+  resolveImageColumn,
+  resolveImageFormat,
+  resolveMaxWidth,
+  validateFields,
+  variantUrlFor,
+} from "./tools.ts";
 import { CREATABLE_TYPES, ENTITY_REGISTRY } from "./registry.ts";
 
 const quest = ENTITY_REGISTRY.quest;
@@ -150,6 +157,40 @@ describe("buildImageContent", () => {
       { type: "image", data: b64, mimeType: mime },
       { type: "text", text: `data:${mime};base64,${b64}` },
     ]);
+  });
+});
+
+describe("resolveMaxWidth", () => {
+  it("defaults to a 400px thumbnail for data_uri, full-res otherwise", () => {
+    expect(resolveMaxWidth(undefined, "data_uri")).toBe(400);
+    expect(resolveMaxWidth("", "data_uri")).toBe(400);
+    expect(resolveMaxWidth(undefined, "image")).toBeNull();
+    expect(resolveMaxWidth(undefined, "both")).toBeNull();
+  });
+
+  it("accepts a baked width or \"full\" (null), as string or number", () => {
+    expect(resolveMaxWidth("200", "data_uri")).toBe(200);
+    expect(resolveMaxWidth(600, "image")).toBe(600);
+    expect(resolveMaxWidth("full", "data_uri")).toBeNull();
+    expect(resolveMaxWidth(" FULL ", "data_uri")).toBeNull();
+  });
+
+  it("rejects a non-baked width", () => {
+    expect(() => resolveMaxWidth("999", "data_uri")).toThrow(/valid: 200, 300, 400, 600, full/i);
+    expect(() => resolveMaxWidth("abc", "data_uri")).toThrow(/max_width/i);
+  });
+});
+
+describe("variantUrlFor", () => {
+  const base = "https://x.supabase.co/storage/v1/object/public/npc-portraits/u/abc";
+
+  it("inserts _w<width> and forces .webp regardless of the original extension", () => {
+    expect(variantUrlFor(`${base}.webp`, 400)).toBe(`${base}_w400.webp`);
+    expect(variantUrlFor(`${base}.jpeg`, 200)).toBe(`${base}_w200.webp`);
+  });
+
+  it("drops any query string", () => {
+    expect(variantUrlFor(`${base}.webp?t=123`, 300)).toBe(`${base}_w300.webp`);
   });
 });
 

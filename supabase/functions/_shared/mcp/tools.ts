@@ -226,6 +226,45 @@ export function buildImageContent(
   }
 }
 
+/**
+ * Pre-generated size-variant widths baked at upload time — mirror of
+ * `VARIANT_WIDTHS` in `src/lib/storage.ts` (keep in sync). Each variant lives
+ * next to the original at `{stem}_w{width}.webp`, so `get_image` can return a
+ * small thumbnail instead of a multi-hundred-KB original — which is what makes
+ * a `data_uri` actually embeddable in an `<img src>`.
+ */
+export const VARIANT_WIDTHS = [200, 300, 400, 600] as const;
+
+/**
+ * Resolve the requested `max_width`: one of the baked widths or "full". Defaults
+ * to 400px for `data_uri` (keeps the encoded string small) and full-res for the
+ * inline-image formats (the client renders those, so don't surprise-shrink).
+ * Returns the width in px, or null meaning full resolution. Pure — unit-tested.
+ */
+export function resolveMaxWidth(raw: unknown, format: ImageFormat): number | null {
+  if (raw === undefined || raw === null || raw === "") {
+    return format === "data_uri" ? 400 : null;
+  }
+  const v = String(raw).toLowerCase().trim();
+  if (v === "full") return null;
+  const n = Number(v);
+  if ((VARIANT_WIDTHS as readonly number[]).includes(n)) return n;
+  throw new Error(`Unknown max_width "${v}". Valid: ${VARIANT_WIDTHS.join(", ")}, full.`);
+}
+
+/**
+ * Derive a pre-generated width-variant URL from an original image URL — mirrors
+ * `variantPath()` in `src/lib/storage.ts`. Variants are always `.webp`
+ * regardless of the original's extension; any query string is dropped.
+ */
+export function variantUrlFor(url: string, width: number): string {
+  const q = url.indexOf("?");
+  const base = q === -1 ? url : url.slice(0, q);
+  const lastDot = base.lastIndexOf(".");
+  const stem = lastDot === -1 ? base : base.slice(0, lastDot);
+  return `${stem}_w${width}.webp`;
+}
+
 /** Public prefix of this project's Supabase storage, or null outside Deno (tests). */
 function storageObjectPrefix(): string | null {
   const deno = (globalThis as { Deno?: { env?: { get(k: string): string | undefined } } }).Deno;
@@ -319,7 +358,7 @@ export function listTools(): ToolDef[] {
     {
       name: "get_image",
       description:
-        "Fetch an entity's image as an inline image you can actually view. `get` only returns the storage URL, which the agent sandbox usually can't load; this returns the image bytes through the MCP channel instead. Provide `type`, `id`, and optionally `which` (defaults to the entity's primary image) and `format`. Use `format: \"data_uri\"` to get a `data:<mime>;base64,…` string you can drop straight into an HTML `<img src>` (no external origin, no CSP issues). Available images per type:\n" +
+        "Fetch an entity's image as an inline image you can actually view. `get` only returns the storage URL, which the agent sandbox usually can't load; this returns the image bytes through the MCP channel instead. Provide `type`, `id`, and optionally `which` (defaults to the entity's primary image), `format`, and `max_width`. Use `format: \"data_uri\"` to get a `data:<mime>;base64,…` string you can drop straight into an HTML `<img src>` (no external origin, no CSP issues); it defaults to a 400px-wide thumbnail so the string stays small enough to embed (raise/lower with `max_width`). Available images per type:\n" +
         describeImageFields(),
       inputSchema: {
         type: "object",
@@ -336,6 +375,12 @@ export function listTools(): ToolDef[] {
             enum: [...IMAGE_FORMATS],
             description:
               "`image` (default): inline image block + the URL. `data_uri`: a single text block with a `data:<mime>;base64,…` URI for direct `<img src>` embedding. `both`: inline image + the data-URI text.",
+          },
+          max_width: {
+            type: "string",
+            enum: [...VARIANT_WIDTHS.map(String), "full"],
+            description:
+              "Cap the image to a pre-baked width in px (200/300/400/600) or \"full\". Defaults to 400 for `data_uri` (keeps the embedded string small) and full otherwise. Falls back to full-res if that size variant doesn't exist.",
           },
         },
         required: ["type", "id"],
@@ -512,8 +557,21 @@ async function getImage(ctx: ToolContext, args: Record<string, unknown>): Promis
     return { _mcpContent: [{ type: "text", text: `Image is hosted externally; load it directly: ${url}` }] };
   }
 
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Failed to fetch ${which} image (HTTP ${res.status}).`);
+  // Prefer a pre-baked width variant when a max_width is in effect (the default
+  // for data_uri) so the encoded payload stays small enough to embed; fall back
+  // to the original if that variant doesn't exist (legacy uploads / failed
+  // variant generation). The URL text block always points at the full-res
+  // original, so the small inline copy and the full link coexist.
+  const maxWidth = resolveMaxWidth(args.max_width, format);
+  let res: Response | null = null;
+  if (maxWidth !== null) {
+    const variant = await fetch(variantUrlFor(url, maxWidth));
+    if (variant.ok) res = variant;
+  }
+  if (!res) {
+    res = await fetch(url);
+    if (!res.ok) throw new Error(`Failed to fetch ${which} image (HTTP ${res.status}).`);
+  }
   const mimeType = res.headers.get("content-type")?.split(";")[0]?.trim() || "image/*";
   const bytes = new Uint8Array(await res.arrayBuffer());
   return { _mcpContent: buildImageContent(format, mimeType, base64FromBytes(bytes), url) };
