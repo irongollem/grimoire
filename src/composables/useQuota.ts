@@ -42,6 +42,33 @@ export function useQuota(resourceType: QuotaResource) {
   return { canCreate, remaining, isLoading, quota: data }
 }
 
+// Fetch every resource's quota in ONE round-trip (vs one check_quota call per
+// resource). Use this when a view needs the whole picture at once — e.g. the
+// billing downgrade-impact panel — instead of N separate useQuota() calls.
+export function useAllQuotas() {
+  const auth = useAuthStore()
+
+  // Admins are always unlimited — never over any free limit, so skip the call.
+  if (auth.isAppAdmin) {
+    return {
+      data:      computed(() => ({}) as Partial<Record<QuotaResource, QuotaResult>>),
+      isLoading: computed(() => false),
+    }
+  }
+
+  const { data, isLoading } = useQuery({
+    queryKey:  [QUERY_KEY, '__all__'],
+    queryFn:   async (): Promise<Partial<Record<QuotaResource, QuotaResult>>> => {
+      const { data, error } = await supabase.rpc('check_all_quotas')
+      if (error) throw error
+      return data as Partial<Record<QuotaResource, QuotaResult>>
+    },
+    staleTime: 30_000,
+  })
+
+  return { data, isLoading }
+}
+
 // Call this from mutation composables after a successful create or delete
 // to keep quota counts in sync without a full page reload.
 export function useInvalidateQuota() {

@@ -365,9 +365,8 @@ import { useSubscription } from "@/composables/useSubscription";
 import { useStripe } from "@/composables/useStripe";
 import { useAiCredits } from "@/composables/useAiCredits";
 import { usePlan } from "@/composables/usePlan";
-import { useQuota } from "@/composables/useQuota";
+import { useAllQuotas } from "@/composables/useQuota";
 import { QUOTA_RESOURCE_LABELS, QUOTA_RESOURCES } from "@/types/subscription.types";
-import type { QuotaResource } from "@/types/subscription.types";
 import { useCreditPacks } from "@/composables/useCreditConfig";
 import { detectCurrency, resolveAmount, availableCurrencies, formatCents, taxNote } from "@/lib/pricing";
 
@@ -503,19 +502,20 @@ const statusClass = computed(() => {
   }
 });
 
-// Pre-downgrade impact: which resources are currently over the free-plan limit
-const quotaResults = Object.fromEntries(
-  QUOTA_RESOURCES.map(r => [r, useQuota(r)])
-) as Record<QuotaResource, ReturnType<typeof useQuota>>
+// Pre-downgrade impact: which resources are currently over the free-plan limit.
+// One batched RPC for all resources instead of one check_quota call per resource.
+const { data: allQuotas } = useAllQuotas()
 
 const downgradeImpact = computed(() => {
   const freeQuotas = freePlan.value?.quotas ?? {}
+  const counts = allQuotas.value ?? {}
   return QUOTA_RESOURCES.flatMap(r => {
     const limit = freeQuotas[r]
     if (limit === null || limit === undefined) return []
-    const current = quotaResults[r].quota.value?.current ?? 0
-    if (current <= limit) return []
-    return [{ label: QUOTA_RESOURCE_LABELS[r], current, limit, excess: current - limit }]
+    const quota = counts[r]
+    if (!quota) return [] // not loaded yet (or admin) → nothing to warn about
+    if (quota.current <= limit) return []
+    return [{ label: QUOTA_RESOURCE_LABELS[r], current: quota.current, limit, excess: quota.current - limit }]
   })
 })
 
