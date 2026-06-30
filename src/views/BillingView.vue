@@ -366,7 +366,7 @@ import { useStripe } from "@/composables/useStripe";
 import { useAiCredits } from "@/composables/useAiCredits";
 import { usePlan } from "@/composables/usePlan";
 import { useQuota } from "@/composables/useQuota";
-import { QUOTA_RESOURCE_LABELS } from "@/types/subscription.types";
+import { QUOTA_RESOURCE_LABELS, QUOTA_RESOURCES } from "@/types/subscription.types";
 import type { QuotaResource } from "@/types/subscription.types";
 import { useCreditPacks } from "@/composables/useCreditConfig";
 import { detectCurrency, resolveAmount, availableCurrencies, formatCents, taxNote } from "@/lib/pricing";
@@ -504,9 +504,6 @@ const statusClass = computed(() => {
 });
 
 // Pre-downgrade impact: which resources are currently over the free-plan limit
-const QUOTA_RESOURCES: QuotaResource[] = [
-  "campaigns", "npcs", "monsters", "encounters", "scriptorium_documents", "notes",
-]
 const quotaResults = Object.fromEntries(
   QUOTA_RESOURCES.map(r => [r, useQuota(r)])
 ) as Record<QuotaResource, ReturnType<typeof useQuota>>

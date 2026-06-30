@@ -17,7 +17,7 @@
         label="New Puzzle"
         mobile-label="Puzzle"
         variant="primary"
-        @click="router.push('/puzzles/new')"
+        @click="handleNew"
       />
     </template>
 
@@ -94,6 +94,8 @@
       @action="router.push('/puzzles/new')"
     />
   </ListPageLayout>
+
+  <PaywallModal v-model="showPaywall" resource="puzzle_rooms" />
 </template>
 
 <script setup lang="ts">
@@ -111,11 +113,15 @@ import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
+import PaywallModal from "@/components/common/PaywallModal.vue";
+import { useCreateGate } from "@/composables/useCreateGate";
 
 const ui = useUiStore();
 
 const router = useRouter();
 const { data: puzzles, isLoading } = usePuzzles();
+
+const { showPaywall, handleNew, gateQuotaError } = useCreateGate("puzzle_rooms", "/puzzles/new");
 
 const search          = ref("");
 const typeFilter      = ref("");
@@ -154,6 +160,7 @@ async function handlePopulate() {
     populatedCount.value = count;
     populateStatus.value = count === 0 ? "uptodate" : "done";
   } catch (e) {
+    if (gateQuotaError(e)) return; // free-tier cap hit → show paywall, not a raw error
     populateError.value = e instanceof Error ? e.message : String(e);
   }
   setTimeout(() => {

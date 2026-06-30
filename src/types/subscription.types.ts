@@ -34,6 +34,7 @@ export interface Plan {
   monthly_credits: number
 }
 
+// Keys are Postgres table names (check_quota counts rows by table name).
 export type QuotaResource =
   | 'campaigns'
   | 'npcs'
@@ -44,6 +45,12 @@ export type QuotaResource =
   | 'sounds'
   | 'soundboard_pages'
   | 'soundboard_playlists'
+  | 'quests'
+  | 'factions'
+  | 'locations'
+  | 'deities'
+  | 'pantheons'
+  | 'puzzle_rooms'
 
 export const QUOTA_RESOURCE_LABELS: Record<QuotaResource, string> = {
   campaigns:             'Campaigns',
@@ -55,7 +62,34 @@ export const QUOTA_RESOURCE_LABELS: Record<QuotaResource, string> = {
   sounds:                'Sounds',
   soundboard_pages:      'Soundboard pages',
   soundboard_playlists:  'Playlists',
+  quests:                'Quests',
+  factions:              'Factions',
+  locations:             'Locations',
+  deities:               'Deities',
+  pantheons:             'Pantheons',
+  puzzle_rooms:          'Puzzles',
 } as const
+
+/** Every quota-capped resource (Postgres table names), in canonical display
+ * order. Single source for the admin editor and the downgrade-impact view so
+ * the two never drift. Keep in sync with check_quota's resource_type allowlist. */
+export const QUOTA_RESOURCES: readonly QuotaResource[] = [
+  'campaigns',
+  'npcs',
+  'monsters',
+  'encounters',
+  'scriptorium_documents',
+  'notes',
+  'quests',
+  'factions',
+  'locations',
+  'deities',
+  'pantheons',
+  'puzzle_rooms',
+  'sounds',
+  'soundboard_pages',
+  'soundboard_playlists',
+] as const
 
 export interface UserSubscription {
   user_id: string

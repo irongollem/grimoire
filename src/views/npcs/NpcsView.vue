@@ -282,7 +282,6 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { useRouter } from "vue-router";
 import { useMediaQuery } from "@vueuse/core";
 import type { NpcStatus, NpcRelationship } from "@/types/npc.types";
 import {
@@ -306,7 +305,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { getSetting } from "@/settings/index";
 import { usePopulateSettingNpcs } from "@/composables/useNpcs";
 import PaywallModal from "@/components/common/PaywallModal.vue";
-import { useQuota } from "@/composables/useQuota";
+import { useCreateGate } from "@/composables/useCreateGate";
 
 // IconSettings (sliders) reads as "filters". The overflow ⋮ has no kebab glyph
 // in the icon set, so it is rendered as an inline SVG in the template.
@@ -314,20 +313,13 @@ const IconFilter = IconSettings;
 
 type LocationOption = { id: string; name: string; depth: number };
 
-const router = useRouter();
 const ui = useUiStore();
 const campaign = useCampaignStore();
-const { canCreate } = useQuota("npcs");
-const showPaywall = ref(false);
+const { showPaywall, handleNew, gateQuotaError } = useCreateGate("npcs", "/npcs/new");
 const isMobile = useMediaQuery("(max-width: 767px)");
 
 const filtersOpen = ref(false);
 const overflowOpen = ref(false);
-
-function handleNew() {
-  if (!canCreate.value) { showPaywall.value = true; return; }
-  router.push("/npcs/new");
-}
 const { locationOptions, getDescendantIds } = useLocationTree();
 const { data: party } = useParty();
 const { data: npcs } = useNpcs();
@@ -355,6 +347,7 @@ async function handlePopulate() {
     populatedCount.value = count;
     populateStatus.value = count === 0 ? "uptodate" : "done";
   } catch (e) {
+    if (gateQuotaError(e)) return; // free-tier cap hit → show paywall, not a raw error
     populateError.value = e instanceof Error ? e.message : "Unknown error";
   }
 }

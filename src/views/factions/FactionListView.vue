@@ -18,7 +18,7 @@
         label="New Faction"
         mobile-label="Faction"
         variant="primary"
-        to="/factions/new"
+        @click="handleNew"
       />
     </template>
 
@@ -82,6 +82,8 @@
       </div>
     </template>
   </ListPageLayout>
+
+  <PaywallModal v-model="showPaywall" resource="factions" />
 </template>
 
 <script setup lang="ts">
@@ -100,10 +102,14 @@ import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
+import PaywallModal from "@/components/common/PaywallModal.vue";
+import { useCreateGate } from "@/composables/useCreateGate";
 
 const ui = useUiStore();
 const campaign = useCampaignStore();
 const { data: factions, isLoading } = useAllFactions();
+
+const { showPaywall, handleNew, gateQuotaError } = useCreateGate("factions", "/factions/new");
 
 const hasSetting = computed(() => !!getSetting(campaign.activeCampaign?.calendar_id ?? ""));
 
@@ -137,6 +143,7 @@ async function handlePopulate() {
     populatedCount.value = count;
     populateStatus.value = count === 0 ? "uptodate" : "done";
   } catch (e) {
+    if (gateQuotaError(e)) return; // free-tier cap hit → show paywall, not a raw error
     populateError.value = e instanceof Error ? e.message : "Unknown error";
   }
 }

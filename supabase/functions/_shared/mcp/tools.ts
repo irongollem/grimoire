@@ -8,8 +8,8 @@
 // Kept deliberately transport-agnostic so a future in-app agent can reuse it.
 
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { ENTITY_REGISTRY, ENTITY_TYPES, listColumns } from "./registry.ts";
-import type { EntityDef } from "./registry.ts";
+import { CREATABLE_TYPES, describeCreatableFields, ENTITY_REGISTRY, ENTITY_TYPES, listColumns } from "./registry.ts";
+import type { EntityDef, FieldDef } from "./registry.ts";
 
 export interface ToolContext {
   supabase: SupabaseClient;
@@ -53,6 +53,111 @@ function sanitizeQuery(q: unknown): string {
     .trim();
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Coerce + validate a single field value against its declared type. */
+function coerceField(name: string, f: FieldDef, raw: unknown): unknown {
+  switch (f.type) {
+    case "text": {
+      if (typeof raw !== "string") throw new Error(`Field "${name}" must be a string.`);
+      return raw.trim();
+    }
+    case "uuid": {
+      if (typeof raw !== "string") throw new Error(`Field "${name}" must be a UUID string.`);
+      const v = raw.trim();
+      // Blank is treated as absence upstream, so anything reaching here must be a real UUID.
+      if (!UUID_RE.test(v)) throw new Error(`Field "${name}" must be a valid UUID.`);
+      return v;
+    }
+    case "enum": {
+      const v = typeof raw === "string" ? raw.trim() : raw;
+      if (typeof v !== "string" || !f.values?.includes(v)) {
+        throw new Error(`Field "${name}" must be one of: ${f.values?.join(", ")}.`);
+      }
+      return v;
+    }
+    case "number": {
+      // Reject blank strings (Number("") and Number("  ") are 0, not absence).
+      if (typeof raw === "string" && raw.trim() === "") throw new Error(`Field "${name}" must be a number.`);
+      const n = typeof raw === "number" ? raw : Number(raw);
+      if (!Number.isFinite(n)) throw new Error(`Field "${name}" must be a number.`);
+      return n;
+    }
+    case "boolean": {
+      if (typeof raw !== "boolean") throw new Error(`Field "${name}" must be true or false.`);
+      return raw;
+    }
+    case "text[]": {
+      if (!Array.isArray(raw) || raw.some((x) => typeof x !== "string")) {
+        throw new Error(`Field "${name}" must be an array of strings.`);
+      }
+      return (raw as string[]).map((x) => x.trim());
+    }
+  }
+}
+
+/**
+ * Whitelist + validate caller-supplied fields against the entity's `create`
+ * block. Unknown fields are rejected (catches typos and any attempt to write
+ * `user_id`/`id`/timestamps, which are never declared). On create, all required
+ * fields must be present; on update, at least one field must be given.
+ */
+export function validateFields(def: EntityDef, input: unknown, opts: { partial: boolean }): Record<string, unknown> {
+  const create = def.create;
+  if (!create) {
+    throw new Error(`Type "${def.type}" is read-only. Creatable types: ${CREATABLE_TYPES.join(", ")}.`);
+  }
+  if (typeof input !== "object" || input === null || Array.isArray(input)) {
+    throw new Error("`fields` must be an object.");
+  }
+
+  const out: Record<string, unknown> = {};
+  for (const [key, raw] of Object.entries(input as Record<string, unknown>)) {
+    if (raw === undefined || raw === null) continue; // absence = keep default / leave unchanged
+    const fdef = create.fields[key];
+    if (!fdef) {
+      throw new Error(`Unknown field "${key}" for type "${def.type}". Allowed: ${Object.keys(create.fields).join(", ")}.`);
+    }
+    // A blank/whitespace string means "not provided" for every type except free
+    // text — so an empty uuid/number/enum is dropped (kept null/default) rather
+    // than coerced to "" / 0 or sent on to fail as a raw DB cast error.
+    if (typeof raw === "string" && raw.trim() === "" && fdef.type !== "text") continue;
+    out[key] = coerceField(key, fdef, raw);
+  }
+
+  if (opts.partial) {
+    if (Object.keys(out).length === 0) throw new Error("`fields` must contain at least one field to update.");
+  } else {
+    const missing = Object.entries(create.fields)
+      .filter(([name, f]) => f.required && (out[name] === undefined || out[name] === ""))
+      .map(([name]) => name);
+    if (missing.length) throw new Error(`Missing required field(s) for ${def.label}: ${missing.join(", ")}.`);
+  }
+  return out;
+}
+
+/**
+ * Translate a Supabase write error into a user-facing message. The free-tier
+ * quota triggers raise `quota_exceeded`; enrich that with the actual limit via
+ * `check_quota` (which counts the caller's own rows) so the AI can relay it.
+ */
+async function writeError(ctx: ToolContext, error: { message?: string }, def: EntityDef): Promise<Error> {
+  const msg = typeof error?.message === "string" ? error.message : "";
+  if (msg.includes("quota_exceeded")) {
+    try {
+      const { data } = await ctx.supabase.rpc("check_quota", { resource_type: def.table });
+      const limit = (data as { limit?: number } | null)?.limit;
+      if (typeof limit === "number" && limit >= 0) {
+        return new Error(
+          `Free-tier limit reached (${limit}) for ${def.label} content. Upgrade to Pro for unlimited, or delete some first.`,
+        );
+      }
+    } catch { /* fall through to the generic message */ }
+    return new Error(`Free-tier limit reached for ${def.label} content. Upgrade to Pro for unlimited.`);
+  }
+  return new Error(msg || "Write failed.");
+}
+
 /** Normalize a raw row into a compact hit with a uniform `name` key. */
 function toHit(def: EntityDef, row: Record<string, unknown>) {
   return {
@@ -66,6 +171,7 @@ function toHit(def: EntityDef, row: Record<string, unknown>) {
 
 export function listTools(): ToolDef[] {
   const typeEnum = { type: "string", enum: ENTITY_TYPES };
+  const creatableEnum = { type: "string", enum: CREATABLE_TYPES };
   return [
     {
       name: "list_campaigns",
@@ -119,6 +225,44 @@ export function listTools(): ToolDef[] {
       },
     },
     {
+      name: "create",
+      description:
+        "Create a new piece of the DM's content and return the created record. Provide `type` and a `fields` object. The owner is set automatically — never pass user_id/id. Free-tier limits apply (some types are capped). Writable fields per type (`*`=required, `[]`=string array, `#`=number, `(a|b)`=enum):\n" +
+        describeCreatableFields(),
+      inputSchema: {
+        type: "object",
+        properties: {
+          type: creatableEnum,
+          fields: {
+            type: "object",
+            description: "Field values for the new entity (see the per-type list in this tool's description).",
+            additionalProperties: true,
+          },
+        },
+        required: ["type", "fields"],
+        additionalProperties: false,
+      },
+    },
+    {
+      name: "update",
+      description:
+        "Update an existing entity by id and return the updated record. Provide `type`, `id`, and a partial `fields` object containing only what you want to change. Same writable fields as `create` (none required here). You can only update your own content.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          type: creatableEnum,
+          id: { type: "string", description: "The entity's id (UUID)." },
+          fields: {
+            type: "object",
+            description: "The fields to change (partial — omit the rest).",
+            additionalProperties: true,
+          },
+        },
+        required: ["type", "id", "fields"],
+        additionalProperties: false,
+      },
+    },
+    {
       name: "campaign_overview",
       description:
         "A quick digest of one campaign: its setting, party members, active quests, and most recent notes. Good for a mid-session 'where are we' recap.",
@@ -148,6 +292,10 @@ export async function callTool(
       return get(ctx, args);
     case "list":
       return list(ctx, args);
+    case "create":
+      return create(ctx, args);
+    case "update":
+      return update(ctx, args);
     case "campaign_overview":
       return campaignOverview(ctx, args);
     default:
@@ -218,6 +366,28 @@ async function list(ctx: ToolContext, args: Record<string, unknown>) {
   const { data, error } = await query;
   if (error) throw new Error(error.message);
   return { type: def.type, count: (data ?? []).length, items: (data ?? []).map((r) => toHit(def, r as Record<string, unknown>)) };
+}
+
+async function create(ctx: ToolContext, args: Record<string, unknown>) {
+  const def = resolveDef(args.type);
+  const fields = validateFields(def, args.fields, { partial: false });
+  // Force ownership to the authenticated caller; never trust a client-supplied id/user_id.
+  const row = { ...fields, user_id: ctx.userId };
+  const { data, error } = await ctx.supabase.from(def.table).insert(row).select("*").single();
+  if (error) throw await writeError(ctx, error, def);
+  return data;
+}
+
+async function update(ctx: ToolContext, args: Record<string, unknown>) {
+  const def = resolveDef(args.type);
+  const id = String(args.id ?? "").trim();
+  if (!id) throw new Error("`id` is required.");
+  const fields = validateFields(def, args.fields, { partial: true });
+  // RLS scopes the update to the caller's own rows; no match → not found / no access.
+  const { data, error } = await ctx.supabase.from(def.table).update(fields).eq("id", id).select("*").maybeSingle();
+  if (error) throw await writeError(ctx, error, def);
+  if (!data) throw new Error(`No ${def.label} found with id ${id} (it may not exist or you may not have access).`);
+  return data;
 }
 
 async function campaignOverview(ctx: ToolContext, args: Record<string, unknown>) {

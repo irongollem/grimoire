@@ -26,7 +26,7 @@
         label="New Location"
         mobile-label="Location"
         variant="primary"
-        to="/locations/new"
+        @click="handleNew"
       />
     </template>
 
@@ -41,6 +41,8 @@
 
     <LocationList :search="search" :type-filter="typeFilter" />
   </ListPageLayout>
+
+  <PaywallModal v-model="showPaywall" resource="locations" />
 </template>
 
 <script setup lang="ts">
@@ -52,11 +54,14 @@ import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import LocationList from "@/components/locations/LocationList.vue";
+import PaywallModal from "@/components/common/PaywallModal.vue";
+import { useCreateGate } from "@/composables/useCreateGate";
 import { usePopulateLocations, usePopulatePlanarLocations } from "@/composables/useLocations";
 import { useUiStore } from "@/stores/ui";
 import { LOCATION_TYPE_LABELS } from "@/types/location.types";
 
 const ui = useUiStore();
+const { showPaywall, handleNew, gateQuotaError } = useCreateGate("locations", "/locations/new");
 
 const TYPE_OPTIONS = [
   { value: "all", label: "All" },
@@ -87,6 +92,7 @@ async function handlePopulate() {
     populatedCount.value = count;
     populateStatus.value = count === 0 ? "uptodate" : "done";
   } catch (e) {
+    if (gateQuotaError(e)) return; // free-tier cap hit → show paywall, not a raw error
     populateError.value = e instanceof Error ? e.message : String(e);
   }
   setTimeout(() => {
@@ -116,6 +122,7 @@ async function handlePopulatePlanes() {
     planarCount.value = count;
     planarStatus.value = count === 0 ? "uptodate" : "done";
   } catch (e) {
+    if (gateQuotaError(e)) return; // free-tier cap hit → show paywall, not a raw error
     planarError.value = e instanceof Error ? e.message : String(e);
   }
   setTimeout(() => {

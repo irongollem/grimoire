@@ -14,7 +14,7 @@
         label="New Quest"
         mobile-label="Quest"
         variant="primary"
-        to="/quests/new"
+        @click="handleNew"
       />
     </template>
 
@@ -47,6 +47,8 @@
 
     <QuestList />
   </ListPageLayout>
+
+  <PaywallModal v-model="showPaywall" resource="quests" />
 </template>
 
 <script setup lang="ts">
@@ -56,7 +58,10 @@ import ListActionButton from "@/components/common/ListActionButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import QuestList from "@/components/quests/QuestList.vue";
+import PaywallModal from "@/components/common/PaywallModal.vue";
+import { useCreateGate } from "@/composables/useCreateGate";
 import { useUiStore } from "@/stores/ui";
 
 const ui = useUiStore();
+const { showPaywall, handleNew } = useCreateGate("quests", "/quests/new");
 </script>

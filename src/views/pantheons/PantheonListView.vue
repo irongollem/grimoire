@@ -12,7 +12,7 @@
         label="New Pantheon"
         mobile-label="Pantheon"
         variant="primary"
-        to="/pantheons/new"
+        @click="handleNew"
       />
     </template>
 
@@ -72,6 +72,8 @@
       </div>
     </template>
   </ListPageLayout>
+
+  <PaywallModal v-model="showPaywall" resource="pantheons" />
 </template>
 
 <script setup lang="ts">
@@ -84,11 +86,15 @@ import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
+import PaywallModal from "@/components/common/PaywallModal.vue";
+import { useCreateGate } from "@/composables/useCreateGate";
 
 const { data: pantheons, isLoading } = useAllPantheons();
 const { data: deities } = useAllDeities();
 
 const search = ref("");
+
+const { showPaywall, handleNew } = useCreateGate("pantheons", "/pantheons/new");
 
 const filtered = computed(() => {
   const q = search.value.trim().toLowerCase();

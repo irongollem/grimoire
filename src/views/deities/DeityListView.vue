@@ -26,7 +26,7 @@
         label="New Deity"
         mobile-label="Deity"
         variant="primary"
-        to="/deities/new"
+        @click="handleNew"
       />
     </template>
 
@@ -115,6 +115,8 @@
       </div>
     </template>
   </ListPageLayout>
+
+  <PaywallModal v-model="showPaywall" resource="deities" />
 </template>
 
 <script setup lang="ts">
@@ -133,11 +135,15 @@ import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
+import PaywallModal from "@/components/common/PaywallModal.vue";
+import { useCreateGate } from "@/composables/useCreateGate";
 
 const ui = useUiStore();
 const campaign = useCampaignStore();
 const { data: deities, isLoading } = useAllDeities();
 const { data: pantheons } = useAllPantheons();
+
+const { showPaywall, handleNew, gateQuotaError } = useCreateGate("deities", "/deities/new");
 
 const hasSetting = computed(() => {
   const s = getSetting(campaign.activeCampaign?.calendar_id ?? "");
@@ -196,6 +202,7 @@ async function handlePopulate() {
     populatedCounts.value = counts;
     populateStatus.value = counts[0] === 0 && counts[1] === 0 ? "uptodate" : "done";
   } catch (e) {
+    if (gateQuotaError(e)) return; // free-tier cap hit → show paywall, not a raw error
     populateError.value = e instanceof Error ? e.message : "Unknown error";
   }
 }
