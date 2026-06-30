@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveImageColumn, validateFields } from "./tools.ts";
+import { buildImageContent, resolveImageColumn, resolveImageFormat, validateFields } from "./tools.ts";
 import { CREATABLE_TYPES, ENTITY_REGISTRY } from "./registry.ts";
 
 const quest = ENTITY_REGISTRY.quest;
@@ -108,6 +108,48 @@ describe("resolveImageColumn", () => {
   it("rejects entities that carry no art", () => {
     expect(() => resolveImageColumn(ENTITY_REGISTRY.quest, "image")).toThrow(/no images/i);
     expect(() => resolveImageColumn(monster, undefined)).not.toThrow(); // monster DOES have art
+  });
+});
+
+describe("resolveImageFormat", () => {
+  it("defaults to the inline image format", () => {
+    expect(resolveImageFormat(undefined)).toBe("image");
+    expect(resolveImageFormat("")).toBe("image");
+  });
+
+  it("accepts the known formats, case-insensitively", () => {
+    expect(resolveImageFormat("data_uri")).toBe("data_uri");
+    expect(resolveImageFormat(" BOTH ")).toBe("both");
+  });
+
+  it("rejects an unknown format", () => {
+    expect(() => resolveImageFormat("png")).toThrow(/valid: image, data_uri, both/i);
+  });
+});
+
+describe("buildImageContent", () => {
+  const b64 = "AAAA";
+  const mime = "image/webp";
+  const url = "https://x.supabase.co/storage/v1/object/public/npc-portraits/srd/a.webp";
+
+  it("image: inline image block + the URL as text", () => {
+    expect(buildImageContent("image", mime, b64, url)).toEqual([
+      { type: "image", data: b64, mimeType: mime },
+      { type: "text", text: url },
+    ]);
+  });
+
+  it("data_uri: a single embeddable data-URI text block, no raw URL", () => {
+    expect(buildImageContent("data_uri", mime, b64, url)).toEqual([
+      { type: "text", text: `data:${mime};base64,${b64}` },
+    ]);
+  });
+
+  it("both: inline image block + the data-URI text block", () => {
+    expect(buildImageContent("both", mime, b64, url)).toEqual([
+      { type: "image", data: b64, mimeType: mime },
+      { type: "text", text: `data:${mime};base64,${b64}` },
+    ]);
   });
 });
 

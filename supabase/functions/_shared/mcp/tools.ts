@@ -189,6 +189,43 @@ export function resolveImageColumn(def: EntityDef, which: unknown): { which: str
   return { which: requested, column };
 }
 
+/** How `get_image` returns the bytes. */
+export const IMAGE_FORMATS = ["image", "data_uri", "both"] as const;
+export type ImageFormat = (typeof IMAGE_FORMATS)[number];
+
+/** Validate the caller's `format`, defaulting to the inline image block. */
+export function resolveImageFormat(raw: unknown): ImageFormat {
+  if (raw === undefined || raw === null || raw === "") return "image";
+  const v = String(raw).toLowerCase().trim();
+  if ((IMAGE_FORMATS as readonly string[]).includes(v)) return v as ImageFormat;
+  throw new Error(`Unknown image format "${v}". Valid: ${IMAGE_FORMATS.join(", ")}.`);
+}
+
+/**
+ * Shape the MCP content blocks for a fetched image per `format`. Pure (no I/O),
+ * so the selection logic is unit-tested directly:
+ *   • image    → inline image block + the storage URL as text
+ *   • data_uri → one text block holding `data:<mime>;base64,…` (drop into <img src>)
+ *   • both     → inline image block + the data-URI text block
+ */
+export function buildImageContent(
+  format: ImageFormat,
+  mimeType: string,
+  base64: string,
+  url: string,
+): McpContent[] {
+  const imageBlock: McpContent = { type: "image", data: base64, mimeType };
+  const dataUri: McpContent = { type: "text", text: `data:${mimeType};base64,${base64}` };
+  switch (format) {
+    case "data_uri":
+      return [dataUri];
+    case "both":
+      return [imageBlock, dataUri];
+    case "image":
+      return [imageBlock, { type: "text", text: url }];
+  }
+}
+
 /** Public prefix of this project's Supabase storage, or null outside Deno (tests). */
 function storageObjectPrefix(): string | null {
   const deno = (globalThis as { Deno?: { env?: { get(k: string): string | undefined } } }).Deno;
@@ -282,7 +319,7 @@ export function listTools(): ToolDef[] {
     {
       name: "get_image",
       description:
-        "Fetch an entity's image as an inline image you can actually view. `get` only returns the storage URL, which the agent sandbox usually can't load; this returns the image bytes through the MCP channel instead. Provide `type`, `id`, and optionally `which` (defaults to the entity's primary image). Available images per type:\n" +
+        "Fetch an entity's image as an inline image you can actually view. `get` only returns the storage URL, which the agent sandbox usually can't load; this returns the image bytes through the MCP channel instead. Provide `type`, `id`, and optionally `which` (defaults to the entity's primary image) and `format`. Use `format: \"data_uri\"` to get a `data:<mime>;base64,…` string you can drop straight into an HTML `<img src>` (no external origin, no CSP issues). Available images per type:\n" +
         describeImageFields(),
       inputSchema: {
         type: "object",
@@ -293,6 +330,12 @@ export function listTools(): ToolDef[] {
             type: "string",
             enum: IMAGE_WHICH_VALUES,
             description: "Which image to fetch (defaults to the primary one for the type).",
+          },
+          format: {
+            type: "string",
+            enum: [...IMAGE_FORMATS],
+            description:
+              "`image` (default): inline image block + the URL. `data_uri`: a single text block with a `data:<mime>;base64,…` URI for direct `<img src>` embedding. `both`: inline image + the data-URI text.",
           },
         },
         required: ["type", "id"],
@@ -450,6 +493,7 @@ async function getImage(ctx: ToolContext, args: Record<string, unknown>): Promis
   const id = String(args.id ?? "").trim();
   if (!id) throw new Error("`id` is required.");
   const { which, column } = resolveImageColumn(def, args.which);
+  const format = resolveImageFormat(args.format);
 
   // The row is fetched under the caller's JWT, so RLS already gates access — if
   // they can read the entity, they may see its art.
@@ -461,7 +505,8 @@ async function getImage(ctx: ToolContext, args: Record<string, unknown>): Promis
 
   // SSRF guard: only inline-fetch objects from this project's own Supabase
   // storage. Externally-hosted art (or any unexpected URL) is returned as a link
-  // for the client to follow itself, never proxied through the server.
+  // for the client to follow itself, never proxied through the server — so a
+  // data URI can't be built for it either.
   const prefix = storageObjectPrefix();
   if (!prefix || !url.startsWith(prefix)) {
     return { _mcpContent: [{ type: "text", text: `Image is hosted externally; load it directly: ${url}` }] };
@@ -471,13 +516,7 @@ async function getImage(ctx: ToolContext, args: Record<string, unknown>): Promis
   if (!res.ok) throw new Error(`Failed to fetch ${which} image (HTTP ${res.status}).`);
   const mimeType = res.headers.get("content-type")?.split(";")[0]?.trim() || "image/*";
   const bytes = new Uint8Array(await res.arrayBuffer());
-  return {
-    _mcpContent: [
-      { type: "image", data: base64FromBytes(bytes), mimeType },
-      // Keep the URL too, for clients that prefer linking.
-      { type: "text", text: url },
-    ],
-  };
+  return { _mcpContent: buildImageContent(format, mimeType, base64FromBytes(bytes), url) };
 }
 
 async function list(ctx: ToolContext, args: Record<string, unknown>) {
