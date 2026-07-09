@@ -4,7 +4,7 @@
  * Keys are stored encrypted; this returns them already decrypted.
  */
 import { decryptValue } from "./vault.ts";
-import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.43.0";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type Provider = "openai" | "anthropic" | "gemini" | "falai";
 

@@ -3,7 +3,7 @@
  * Edge functions use this to resolve the active model and apply cost multipliers
  * instead of relying on hardcoded values.
  */
-import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.43.0";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Provider } from "./platform-keys.ts";
 
 export interface ProviderRow {

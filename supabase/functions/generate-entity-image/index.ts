@@ -1,5 +1,5 @@
-import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serve } from "std/http/server.ts";
+import { createClient } from "@supabase/supabase-js";
 import { decryptValue } from "../_shared/vault.ts";
 import { isUserPro } from "../_shared/plan.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
@@ -227,6 +227,13 @@ serve(async (req: Request) => {
     } else if (textProvider === "gemini" && geminiKey) {
       textResult = await geminiText(geminiKey, textModel ?? "gemini-2.5-flash", systemContent, userContent);
     } else {
+      // Fallback path, also taken when the chosen provider has no usable key.
+      // Fail loudly rather than calling OpenAI with a null Authorization header.
+      if (!openaiKey) {
+        throw new Error(
+          "No OpenAI API key available: set one on the campaign, or configure a platform key.",
+        );
+      }
       textResult = await openaiText(openaiKey, textModel ?? "gpt-4o-mini", systemContent, userContent);
     }
   } catch (e) {

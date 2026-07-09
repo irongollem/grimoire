@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "@supabase/supabase-js";
 
 // Constant-time string comparison so the service-role-key check can't be probed
 // with a timing side channel. (Length is allowed to leak; the key is long, high

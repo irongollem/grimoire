@@ -1,0 +1,8 @@
+{
+  "imports": {
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.110.2",
+    "stripe": "https://esm.sh/stripe@14.25.0?target=deno",
+    "std/": "https://deno.land/std@0.208.0/"
+  },
+  "exclude": ["**/*.test.ts"]
+}

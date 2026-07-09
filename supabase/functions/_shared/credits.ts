@@ -3,7 +3,7 @@
  * BYOK calls log delta=0 (user pays their own API bill).
  * Platform-key calls deduct from the user's credit balance.
  */
-import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.43.0";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { sizeMultiplier as sizeMultiplierMath } from "./credit-math.ts";
 
 export interface CreditLogFields {

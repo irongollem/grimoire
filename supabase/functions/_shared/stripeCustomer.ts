@@ -1,5 +1,5 @@
-import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import type Stripe from "https://esm.sh/stripe@14?target=deno";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type Stripe from "stripe";
 
 /**
  * Return the user's Stripe customer id, creating + persisting one on first use.

@@ -12,7 +12,7 @@
 // config.toml) because we must serve the public discovery document and emit our
 // own 401/WWW-Authenticate; the function validates the token itself.
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "@supabase/supabase-js";
 import { callTool, isMcpContentResult, listTools } from "../_shared/mcp/tools.ts";
 import type { ToolContext } from "../_shared/mcp/tools.ts";
 

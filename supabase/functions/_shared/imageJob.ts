@@ -7,7 +7,7 @@
  * gpt-image edit calls can take 1-3 minutes). The client polls/subscribes
  * to the job row for completion.
  */
-import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.43.0";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type ImageJobKind =
   | "chronicler"

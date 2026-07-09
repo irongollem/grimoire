@@ -8,7 +8,7 @@
  * hiccup must not block a paying user's legitimate generation. The error is
  * logged for visibility.
  */
-import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.43.0";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 // Shared budgets. AI generation is bucketed across all generators so the total
 // paid-call burst is bounded; the bug reporter has its own daily cap.

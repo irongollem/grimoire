@@ -7,7 +7,7 @@
 //
 // Kept deliberately transport-agnostic so a future in-app agent can reuse it.
 
-import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   CREATABLE_TYPES,
   describeCreatableFields,
@@ -229,7 +229,13 @@ async function writeError(ctx: ToolContext, error: { message?: string }, def: En
 }
 
 /** Normalize a raw row into a compact hit with a uniform `name` key. */
-function toHit(def: EntityDef, row: Record<string, unknown>) {
+/**
+ * Columns are chosen at runtime from the entity registry, so PostgREST cannot
+ * infer a row shape from the `.select()` string. Rows are keyed lookups only.
+ */
+type EntityRow = Record<string, unknown>;
+
+function toHit(def: EntityDef, row: EntityRow) {
   return {
     type: def.type,
     id: row.id,
@@ -423,10 +429,10 @@ async function search(ctx: ToolContext, args: Record<string, unknown>) {
         .or(def.searchFields.map((f) => `${f}.ilike.${pattern}`).join(","))
         .limit(perType);
       if (campaignId && def.campaignScoped) query = query.eq("campaign_id", campaignId);
-      const { data, error } = await query;
+      const { data, error } = await query.overrideTypes<EntityRow[]>();
       // A single bad table shouldn't sink the whole multi-type search.
       if (error) return { type: def.type, error: error.message, hits: [] as unknown[] };
-      return { type: def.type, hits: (data ?? []).map((r) => toHit(def, r as Record<string, unknown>)) };
+      return { type: def.type, hits: (data ?? []).map((r) => toHit(def, r)) };
     }),
   );
 
@@ -453,10 +459,15 @@ async function getImage(ctx: ToolContext, args: Record<string, unknown>): Promis
 
   // The row is fetched under the caller's JWT, so RLS already gates access — if
   // they can read the entity, they may see its art.
-  const { data, error } = await ctx.supabase.from(def.table).select(`id, ${column}`).eq("id", id).maybeSingle();
+  const { data, error } = await ctx.supabase
+    .from(def.table)
+    .select(`id, ${column}`)
+    .eq("id", id)
+    .maybeSingle()
+    .overrideTypes<EntityRow, { merge: false }>();
   if (error) throw new Error(error.message);
   if (!data) throw new Error(`No ${def.label} found with id ${id} (it may not exist or you may not have access).`);
-  const url = (data as Record<string, unknown>)[column];
+  const url = data[column];
   if (typeof url !== "string" || !url) throw new Error(`This ${def.label} has no ${which} image set.`);
 
   // SSRF guard: only inline-fetch objects from this project's own Supabase
@@ -490,9 +501,9 @@ async function list(ctx: ToolContext, args: Record<string, unknown>) {
     .order("updated_at", { ascending: false })
     .limit(limit);
   if (campaignId && def.campaignScoped) query = query.eq("campaign_id", campaignId);
-  const { data, error } = await query;
+  const { data, error } = await query.overrideTypes<EntityRow[]>();
   if (error) throw new Error(error.message);
-  return { type: def.type, count: (data ?? []).length, items: (data ?? []).map((r) => toHit(def, r as Record<string, unknown>)) };
+  return { type: def.type, count: (data ?? []).length, items: (data ?? []).map((r) => toHit(def, r)) };
 }
 
 async function create(ctx: ToolContext, args: Record<string, unknown>) {

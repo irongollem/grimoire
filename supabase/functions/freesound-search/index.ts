@@ -1,5 +1,5 @@
-import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serve } from "std/http/server.ts";
+import { createClient } from "@supabase/supabase-js";
 import { corsHeaders as makeCors } from "../_shared/cors.ts";
 
 // Only CC0 + CC-BY. CC-BY-NC is excluded because Grimoire is a commercial product

@@ -1,5 +1,5 @@
-import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.43.0";
+import { serve } from "std/http/server.ts";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { corsHeaders } from "../_shared/cors.ts";
 
 const VAULT_KEY_HEX = Deno.env.get("VAULT_KEY");
@@ -64,16 +64,18 @@ async function decryptValue(encrypted: string): Promise<string> {
  * could never read through RLS.
  */
 async function callerOwnsBlob(
-  admin: ReturnType<typeof createClient>,
+  admin: SupabaseClient,
   userId: string,
   isAdmin: boolean,
   blob: string,
 ): Promise<boolean> {
+  // Columns are joined at runtime, so PostgREST cannot infer the row shape.
   const { data: campaigns } = await admin
     .from("campaigns")
     .select(CAMPAIGN_KEY_COLUMNS.join(", "))
-    .eq("user_id", userId);
-  for (const row of (campaigns ?? []) as Record<string, string | null>[]) {
+    .eq("user_id", userId)
+    .overrideTypes<Record<string, string | null>[], { merge: false }>();
+  for (const row of campaigns ?? []) {
     if (CAMPAIGN_KEY_COLUMNS.some((col) => row[col] === blob)) return true;
   }
   if (isAdmin) {

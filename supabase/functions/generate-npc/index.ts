@@ -1,5 +1,5 @@
-import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serve } from "std/http/server.ts";
+import { createClient } from "@supabase/supabase-js";
 import { decryptValue } from "../_shared/vault.ts";
 import { isUserPro } from "../_shared/plan.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
@@ -16,7 +16,7 @@ import {
   reservationFailureResponse,
 } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
-import { resolveImageProvider } from "../_shared/imageGen.ts";
+import { generateImage, resolveImageProvider } from "../_shared/imageGen.ts";
 import {
   AI_PROMPT_LIMIT,
   INJECTION_GUARD_SUFFIX,
@@ -202,14 +202,14 @@ serve(async (req: Request) => {
   let campaign_id: string;
   let prompt: string;
   let generateAlterEgo: boolean;
-  let generateImage: boolean;
+  let shouldGenerateImage: boolean;
 
   try {
     const body = await req.json();
     campaign_id = body.campaign_id;
     prompt = body.prompt;
     generateAlterEgo = body.generate_alter_ego === true;
-    generateImage = body.generate_image !== false;
+    shouldGenerateImage = body.generate_image !== false;
     if (!campaign_id || !prompt) throw new Error("invalid");
   } catch {
     return new Response("Invalid body — need { campaign_id, prompt }", {
@@ -312,7 +312,7 @@ serve(async (req: Request) => {
   // ── Pre-flight credit check ────────────────────────────────────────────────
   const [baseTextCost, basePortraitCost] = await Promise.all([
     textIsByok ? Promise.resolve(0) : fetchCreditCost(admin, "npc_text"),
-    imageIsByok || !generateImage || !img
+    imageIsByok || !shouldGenerateImage || !img
       ? Promise.resolve(0)
       : fetchCreditCost(admin, "portrait"),
   ]);
@@ -331,7 +331,7 @@ serve(async (req: Request) => {
           100,
       ) / 100
     : 0;
-  const maxImages = generateImage ? (generateAlterEgo ? 2 : 1) : 0;
+  const maxImages = shouldGenerateImage ? (generateAlterEgo ? 2 : 1) : 0;
   const totalNeeded = npcTextCost + portraitCostEach * maxImages;
   // Atomic affordability gate: hold the balance across the paid text+portrait calls.
   // Throttle abusive burst volume before any paid provider work (issue #466).
@@ -436,7 +436,7 @@ serve(async (req: Request) => {
   let imgOutputTokens = 0;
   let imgResultProvider: string | null = null;
 
-  if (img && generateImage && npcData.true_portrait_prompt) {
+  if (img && shouldGenerateImage && npcData.true_portrait_prompt) {
     const imagePrompt = buildLabelledImagePrompt({
       base: imageBasePrompt,
       setting: campaign.ai_setting_prompt ?? "",

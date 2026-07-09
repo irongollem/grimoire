@@ -1,4 +1,4 @@
-import { createClient, type User } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, type User } from "@supabase/supabase-js";
 
 /**
  * Verify the caller is an app admin from their signed JWT (`app_metadata.role`,

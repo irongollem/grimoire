@@ -1,5 +1,5 @@
-import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serve } from "std/http/server.ts";
+import { createClient } from "@supabase/supabase-js";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
