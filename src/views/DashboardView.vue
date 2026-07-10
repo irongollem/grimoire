@@ -18,9 +18,14 @@
       <div class="rounded-lg border border-border bg-card overflow-hidden">
         <div class="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/20">
           <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">Party</h2>
-          <RouterLink to="/party" class="font-cinzel text-[10px] font-semibold text-primary tracking-wider hover:opacity-80 transition-opacity">
-            Full tracker →
-          </RouterLink>
+          <div class="flex items-center gap-3">
+            <RouterLink to="/downtime" class="font-cinzel text-2xs font-semibold text-primary tracking-wider hover:opacity-80 transition-opacity">
+              Grant downtime →
+            </RouterLink>
+            <RouterLink to="/party" class="font-cinzel text-[10px] font-semibold text-primary tracking-wider hover:opacity-80 transition-opacity">
+              Full tracker →
+            </RouterLink>
+          </div>
         </div>
         <div v-if="partyLoading" class="flex justify-center py-6">
           <LoadingSpinner />

@@ -7,7 +7,9 @@ import { computeBalance } from "@/lib/downtimeBalance";
 import { drawFromDeck } from "@/lib/downtimeDeck";
 import { npcInsertFromSeed } from "@/lib/downtimeSeedNpc";
 import { DOWNTIME_SEEDS } from "@/data/downtimeSeeds";
+import { COIN_KEYS } from "@/types/downtime.types";
 import type {
+  CoinKey,
   DowntimeDeckBack,
   DowntimeDeckBackInsert,
   DowntimeDraw,
@@ -261,6 +263,55 @@ export function useResolveDraw() {
       // A resolved seed draw mints an NPC; the bestiary/NPC lists must refresh.
       void queryClient.invalidateQueries({ queryKey: ["npcs"] });
     },
+  });
+}
+
+/**
+ * Apply the `gold` effects the DM ticked, to the character who drew.
+ *
+ * Gold is the only effect kind Phase 1 enacts programmatically: `party_members`
+ * already carries cp/sp/ep/gp/pp, so the mutation is safe and verifiable. The
+ * item/hp/condition kinds render on the board as a checklist the DM performs at
+ * the table — a named limit, not an oversight.
+ *
+ * Read-modify-write is acceptable here: only the DM resolves draws, so there is
+ * no concurrent writer to race against.
+ */
+export function useApplyGoldEffects() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: {
+      partyMemberId: string;
+      effects: DowntimeEffect[];
+    }): Promise<void> => {
+      const gold = args.effects.filter(
+        (e): e is Extract<DowntimeEffect, { kind: "gold" }> => e.kind === "gold" && e.applied,
+      );
+      if (gold.length === 0) return;
+
+      const { data: member, error: readError } = await supabase
+        .from("party_members")
+        .select("cp, sp, ep, gp, pp")
+        .eq("id", args.partyMemberId)
+        .single();
+      if (readError) throw readError;
+
+      const coins = member as Record<CoinKey, number>;
+      const next: Record<CoinKey, number> = { ...coins };
+      for (const effect of gold) {
+        for (const key of COIN_KEYS) {
+          // A purse cannot go negative; the DM narrates the shortfall.
+          next[key] = Math.max(0, next[key] + effect[key]);
+        }
+      }
+
+      const { error: writeError } = await supabase
+        .from("party_members")
+        .update(next)
+        .eq("id", args.partyMemberId);
+      if (writeError) throw writeError;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["party"] }),
   });
 }
 

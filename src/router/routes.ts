@@ -132,6 +132,12 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Workshop" },
   },
   {
+    path: "/play/downtime",
+    name: "play-downtime",
+    component: () => import("@/views/play/PlayerDowntimeView.vue"),
+    meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "The Interlude" },
+  },
+  {
     path: "/play/encounter",
     name: "player-encounter",
     component: () => import("@/views/play/PlayerEncounterView.vue"),
@@ -651,6 +657,12 @@ export const routes: RouteRecordRaw[] = [
     name: "crafting",
     component: () => import("@/views/crafting/CraftingView.vue"),
     meta: { requiresAuth: true, title: "Workshop" },
+  },
+  {
+    path: "/downtime",
+    name: "downtime",
+    component: () => import("@/views/downtime/DowntimeBoardView.vue"),
+    meta: { requiresAuth: true, title: "The Interlude" },
   },
   {
     path: "/crafting/new",

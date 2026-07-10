@@ -133,6 +133,14 @@ export const NAV_GROUPS: NavGroup[] = [
         ruleKey: "crafting",
       },
       {
+        label: "Interlude",
+        // Reuses the Calendar glyph — no downtime-specific glyph exists yet.
+        to: "/downtime",
+        icon: IconNavCalendar,
+        description: "Downtime draws & outcomes",
+        requiresCampaign: true,
+      },
+      {
         label: "Soundboard",
         to: "/soundboard",
         icon: IconNavSoundboard,
