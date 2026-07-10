@@ -98,6 +98,13 @@ serve(async (req: Request) => {
 
     const appUrl = Deno.env.get("APP_URL") ?? "https://app.dungeongrimoire.com";
 
+    // Collapse accidental double-submits (double-click, client retry) onto one
+    // Checkout Session: same key within a 30s bucket returns the same session
+    // rather than opening a second one. Scoped per user+interval; a later
+    // deliberate attempt lands in a new bucket. Complements the already_subscribed
+    // guard above (which only fires once the first checkout's webhook lands).
+    const idempotencyKey = `sub:${user.id}:${interval}:${Math.floor(Date.now() / 30000)}`;
+
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: "subscription",
@@ -117,7 +124,7 @@ serve(async (req: Request) => {
       },
       success_url: `${appUrl}/dashboard?checkout=success`,
       cancel_url: `${appUrl}/pricing`,
-    });
+    }, { idempotencyKey });
 
     // R3: record the withdrawal consent (server timestamp = authoritative).
     await admin.from("purchase_consents").insert({
