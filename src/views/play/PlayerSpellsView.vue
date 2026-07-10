@@ -84,7 +84,7 @@
         <div class="relative flex-1 min-w-48">
           <IconSearch class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <input
-            v-model="searchInput"
+            v-model="ui.playerSpellsSearch"
             type="text"
             placeholder="Search by name…"
             class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -96,7 +96,7 @@
             v-for="lvl in LEVEL_FILTERS"
             :key="lvl.value"
             class="px-2.5 py-1.5 transition-colors"
-            :class="levelFilter === lvl.value ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
+            :class="ui.playerSpellsLevelFilter === lvl.value ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
             @click="setLevelFilter(lvl.value)"
           >
             {{ lvl.label }}
@@ -104,7 +104,7 @@
         </div>
         <!-- School -->
         <select
-          v-model="schoolFilter"
+          v-model="ui.playerSpellsSchoolFilter"
           class="bg-card border border-border rounded-md px-3 py-1.5 font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         >
           <option value="">All Schools</option>
@@ -112,19 +112,25 @@
         </select>
         <!-- Class -->
         <select
-          v-model="classFilter"
+          v-model="ui.playerSpellsClassFilter"
           class="bg-card border border-border rounded-md px-3 py-1.5 font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         >
           <option value="">All Classes</option>
           <option v-for="c in SPELL_CLASSES" :key="c" :value="c">{{ c }}</option>
         </select>
+        <button
+          v-if="ui.playerSpellsHasActiveFilters"
+          type="button"
+          class="px-3 py-1.5 font-cinzel text-xs tracking-wide text-muted-foreground hover:text-foreground border border-border rounded-md hover:border-foreground/30 transition-colors shrink-0"
+          @click="ui.resetPlayerSpellsFilters()"
+        >Clear</button>
       </div>
 
       <SpellList
         :search="search"
-        :level-filter="levelFilter"
-        :school-filter="schoolFilter"
-        :class-filter="classFilter"
+        :level-filter="ui.playerSpellsLevelFilter"
+        :school-filter="ui.playerSpellsSchoolFilter"
+        :class-filter="ui.playerSpellsClassFilter"
         :source-filter="'all'"
         :player-member-id="resolvedMemberId ?? undefined"
         :caster-type="casterType"
@@ -324,24 +330,24 @@ const activeTab = ref<TabId>(
 );
 
 // ── Filters (browse tab) ───────────────────────────────────────────────────────
-const searchInput = ref("");
-const search = refDebounced(searchInput, 400);
-const levelFilter = ref("");
-const schoolFilter = ref("");
-const classFilter = ref(memberClass.value);
+// Filter state lives in useUiStore so it survives navigation within a session.
+const search = refDebounced(computed(() => ui.playerSpellsSearch), 400);
+
+// Seed the class filter to the player's own class on first load.
+if (!ui.playerSpellsClassFilter) ui.playerSpellsClassFilter = memberClass.value;
 
 // When the previewed character changes, reset everything
 watch(resolvedMemberId, () => {
-  classFilter.value = memberClass.value;
+  ui.playerSpellsClassFilter = memberClass.value;
   activeTab.value = defaultTab.value;
 });
 
 // Once party data first loads, apply the character's class if not yet set
 watch(partyMembers, () => {
-  if (!classFilter.value) classFilter.value = memberClass.value;
+  if (!ui.playerSpellsClassFilter) ui.playerSpellsClassFilter = memberClass.value;
 }, { once: true });
 
 function setLevelFilter(value: string) {
-  levelFilter.value = value;
+  ui.playerSpellsLevelFilter = value;
 }
 </script>

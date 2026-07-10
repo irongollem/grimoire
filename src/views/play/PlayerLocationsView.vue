@@ -20,10 +20,10 @@
         :search="search"
         :type-filter="typeFilter"
         :type-options="TYPE_OPTIONS"
-        :has-active-filters="!!(search || typeFilter !== 'all')"
+        :has-active-filters="ui.playerLocationsHasActiveFilters"
         @update:search="search = $event"
         @update:type-filter="typeFilter = $event"
-        @clear="search = ''; typeFilter = 'all'"
+        @clear="ui.resetPlayerLocationsFilters()"
       />
 
       <!-- Favourites pinned section -->
@@ -263,8 +263,15 @@ const { mutate: markRead } = useMarkRead();
 const route = useRoute();
 const router = useRouter();
 
-const search = ref("");
-const typeFilter = ref("all");
+const ui = useUiStore();
+const search = computed({
+  get: () => ui.playerLocationsSearch,
+  set: (v) => { ui.playerLocationsSearch = v; },
+});
+const typeFilter = computed({
+  get: () => ui.playerLocationsFilterType,
+  set: (v) => { ui.playerLocationsFilterType = v; },
+});
 const lightboxSrc = ref<string | null>(null);
 
 const selectedNpc = ref<Npc | null>(null);
@@ -306,7 +313,6 @@ const favouriteLocations = computed(() =>
   (locations.value ?? []).filter((l) => favouriteIds.value.has(l.id)),
 );
 
-const ui = useUiStore();
 const childrenOpen = computed({
   get: () => ui.atlasChildrenOpen,
   set: (v) => { ui.atlasChildrenOpen = v; },

@@ -18,11 +18,17 @@
       <!-- Filter bar -->
       <div class="flex flex-wrap items-center gap-2">
         <input
-          v-model="search"
+          v-model="ui.playerFactionsSearch"
           type="search"
           placeholder="Filter factions…"
           class="flex-1 min-w-40 bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
+        <button
+          v-if="ui.playerFactionsHasActiveFilters"
+          type="button"
+          class="px-3 py-1.5 font-cinzel text-xs tracking-wide text-muted-foreground hover:text-foreground border border-border rounded-md hover:border-foreground/30 transition-colors shrink-0"
+          @click="ui.resetPlayerFactionsFilters()"
+        >Clear</button>
       </div>
 
       <p v-if="!filtered.length" class="font-fell text-sm text-muted-foreground italic text-center py-6">
@@ -167,7 +173,6 @@ const ui   = useUiStore();
 const { data: factions, isLoading } = usePlayerVisibleFactions();
 const speciesNameMap = useSpeciesNameMap();
 
-const search   = ref("");
 const selected = ref<Faction | null>(null);
 
 // In DM preview, use the previewed party member; otherwise use the real player's link.
@@ -218,7 +223,7 @@ const { data: factionNpcs } = usePlayerFactionNpcs(selectedFactionId, isInFactio
 const { data: factionPcMembers } = usePlayerFactionPartyMembers(selectedFactionId, isInFaction);
 
 const filtered = computed(() => {
-  const q = search.value.toLowerCase().trim();
+  const q = ui.playerFactionsSearch.toLowerCase().trim();
   if (!q) return sortedFactions.value;
   return sortedFactions.value.filter(
     (f) =>
