@@ -1,7 +1,6 @@
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
-import { resetDelta } from "../_shared/credit-math.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
   apiVersion: "2024-06-20",
@@ -42,70 +41,30 @@ async function getUserIdByCustomer(customerId: string): Promise<string | null> {
   return data.user_id;
 }
 
-/** The monthly included-credit allowance for a user's current plan (0 if none). */
-async function fetchPlanMonthlyCredits(userId: string): Promise<number> {
-  const { data: subRow } = await admin
-    .from("user_subscriptions")
-    .select("plan_id")
-    .eq("user_id", userId)
-    .maybeSingle();
-  const planId = (subRow as { plan_id: string } | null)?.plan_id;
-  if (!planId) return 0;
-  const { data: plan } = await admin
-    .from("plans")
-    .select("monthly_credits")
-    .eq("id", planId)
-    .maybeSingle();
-  return (plan as { monthly_credits: number } | null)?.monthly_credits ?? 0;
-}
-
 /**
  * Reset the subscription bucket to this period's allowance — use-it-or-lose-it.
- * Idempotent per period. Rather than ADDING credits (which would let unused
- * credits accumulate), we write a single delta that sets the subscription
- * bucket's running sum to exactly `allowance`, expiring whatever was left over
- * from last period. Purchased pack credits live in a separate bucket and are
- * untouched.
+ * Idempotent per period. Delegates to the locked reset_subscription_credits()
+ * RPC, which takes the per-user advisory lock (serializing against
+ * reserve/release_credits) and computes the current balance EXCLUDING pending
+ * reservation holds. Doing this inline previously raced credit reservations and
+ * could leave `allowance + h` free credits when a held generation later failed
+ * (issue #493). The RPC writes exactly one row per period as the idempotency
+ * marker, backstopped by the unique index (23505).
  */
 async function topUpSubscriptionCredits(
   userId: string,
   subscriptionId: string,
   periodStart: string,
 ) {
-  // Idempotency: only reset once per subscription period
-  const { data: existing } = await admin
-    .from("ai_credit_ledger")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("reason", "subscription_topup")
-    .eq("subscription_period_start", periodStart)
-    .maybeSingle();
-  if (existing) return; // already reset this period
-
-  const allowance = await fetchPlanMonthlyCredits(userId);
-
-  // Current subscription-bucket sum (may include last period's unused credits,
-  // or be negative from an over-draw). delta restores it to exactly `allowance`.
-  const { data: bucket } = await admin
-    .from("ai_credit_buckets")
-    .select("subscription_balance")
-    .eq("user_id", userId)
-    .maybeSingle();
-  const current = Number((bucket as { subscription_balance: number } | null)?.subscription_balance ?? 0);
-  const delta = resetDelta(allowance, current);
-
-  // Always write exactly one row per period — even a delta of 0 — so it serves
-  // as the idempotency marker. Omitting it would let a replayed webhook re-reset
-  // the allowance mid-period after the user had already spent some.
-  const { error } = await admin.from("ai_credit_ledger").insert({
-    user_id: userId,
-    delta,
-    reason: "subscription_topup",
-    bucket: "subscription",
-    subscription_period_start: periodStart,
+  const { error } = await admin.rpc("reset_subscription_credits", {
+    p_user_id: userId,
+    p_subscription_id: subscriptionId,
+    p_period_start: periodStart,
   });
-  // 23505 = unique violation: a concurrent delivery already reset this period. Safe to ignore.
-  if (error && error.code !== "23505") throw error;
+  if (error) {
+    console.error("reset_subscription_credits:", error);
+    throw error;
+  }
 }
 
 /**
@@ -200,16 +159,25 @@ async function latestRefundId(charge: Stripe.Charge): Promise<string | null> {
  * clawback_pack_credits() RPC — one reversal per pack (refund OR dispute),
  * clamped so the purchased balance can't go negative, race-safe vs the admin
  * refund tool (advisory lock + unique stripe_refund_id).
+ *
+ * amountRefunded / amount thread the refunded fraction of the charge so the RPC
+ * can reverse PROPORTIONALLY (a €2 goodwill refund on a €13 pack no longer wipes
+ * the whole pack — see #493). Pass amountRefunded === amount for a full reversal
+ * (disputes).
  */
 async function clawbackPackCredits(
   paymentIntentId: string,
   clawbackKey: string,
   note: string,
+  amountRefunded: number,
+  amount: number,
 ) {
   const { error } = await admin.rpc("clawback_pack_credits", {
     p_payment_intent: paymentIntentId,
     p_key: clawbackKey,
     p_note: note,
+    p_amount_refunded: amountRefunded,
+    p_amount: amount,
   });
   if (error) console.error("clawback_pack_credits:", error);
 }
@@ -364,7 +332,10 @@ serve(async (req: Request) => {
           console.warn("charge.refunded with no resolvable refund id", charge.id);
           break;
         }
-        await clawbackPackCredits(pi, refundId, "stripe refund");
+        // Proportional clawback: thread the refunded fraction of the charge.
+        // charge.refunded fires on partial refunds too — amount_refunded is the
+        // cumulative refunded amount, amount the original charge total.
+        await clawbackPackCredits(pi, refundId, "stripe refund", charge.amount_refunded, charge.amount);
         break;
       }
 
@@ -374,7 +345,8 @@ serve(async (req: Request) => {
         const dispute = event.data.object as Stripe.Dispute;
         const reason = `chargeback: ${dispute.reason ?? "unknown"}`;
         const pi = dispute.payment_intent as string | null;
-        if (pi) await clawbackPackCredits(pi, dispute.id, reason);
+        // A dispute is a full reversal — pass equal amounts (fraction 1.0).
+        if (pi) await clawbackPackCredits(pi, dispute.id, reason, dispute.amount, dispute.amount);
         const dCharge = dispute.charge ? await stripe.charges.retrieve(dispute.charge as string) : null;
         await suspendUserForCharge(dCharge, reason);
         break;
