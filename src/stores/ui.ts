@@ -8,6 +8,7 @@ import type { ScriptoriumDocType } from "@/types/scriptorium.types";
 import type { ItemType, ItemRarity } from "@/types/item.types";
 import type { CraftingDiscipline } from "@/types/crafting.types";
 import type { SoundCategory } from "@/types/sound.types";
+import type { DowntimeDrawStatus } from "@/types/downtime.types";
 
 export const useUiStore = defineStore("ui", () => {
   // Notes UI state
@@ -561,6 +562,21 @@ export const useUiStore = defineStore("ui", () => {
     playerSpellsSchoolFilter.value = "";
   }
 
+  // ── Downtime — The Interlude ───────────────────────────────────────────────
+  // Session-scoped (plain refs, not useLocalStorage): filters survive navigation
+  // but never permanently pollute localStorage.
+  const downtimeFilterStatus = ref<DowntimeDrawStatus | "all">("pending");
+  const downtimeFilterCharacter = ref("");
+
+  const downtimeHasActiveFilters = computed(
+    () => downtimeFilterStatus.value !== "pending" || downtimeFilterCharacter.value !== "",
+  );
+
+  function resetDowntimeFilters() {
+    downtimeFilterStatus.value = "pending";
+    downtimeFilterCharacter.value = "";
+  }
+
   function resetNotesFilters() {
     notesFilterCategory.value = "all";
     notesFilterTags.value = [];
@@ -837,5 +853,11 @@ export const useUiStore = defineStore("ui", () => {
     playerSpellsClassFilter,
     playerSpellsHasActiveFilters,
     resetPlayerSpellsFilters,
+
+    // Downtime — The Interlude
+    downtimeFilterStatus,
+    downtimeFilterCharacter,
+    downtimeHasActiveFilters,
+    resetDowntimeFilters,
   };
 });

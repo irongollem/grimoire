@@ -26,7 +26,8 @@ async function fetchNpc(id: string): Promise<Npc> {
   return data as Npc;
 }
 
-async function createNpc(npc: NpcInsert): Promise<Npc> {
+/** Exported so a resolved downtime outcome can clone a seed contact into the campaign. */
+export async function createNpc(npc: NpcInsert): Promise<Npc> {
   const user = getCurrentUser();
   const { data, error } = await supabase
     .from("npcs")

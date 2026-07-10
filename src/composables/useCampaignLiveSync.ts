@@ -62,6 +62,12 @@ export function useCampaignLiveSync() {
           .on("postgres_changes", { event: "*", schema: "public", table: "items",              filter: f }, invalidate("items"))
           .on("postgres_changes", { event: "*", schema: "public", table: "party_inventory",    filter: f }, invalidate("party-inventory"))
           .on("postgres_changes", { event: "*", schema: "public", table: "npc_inventory",      filter: f }, invalidate("npc-inventory"))
+          // The Interlude — all four downtime queries share the "downtime" key
+          // root, so a single invalidate string refreshes every one of them.
+          .on("postgres_changes", { event: "*", schema: "public", table: "downtime_grants",     filter: f }, invalidate("downtime"))
+          .on("postgres_changes", { event: "*", schema: "public", table: "downtime_draws",      filter: f }, invalidate("downtime"))
+          .on("postgres_changes", { event: "*", schema: "public", table: "downtime_outcomes",   filter: f }, invalidate("downtime"))
+          .on("postgres_changes", { event: "*", schema: "public", table: "downtime_deck_backs", filter: f }, invalidate("downtime"))
           // campaigns table uses `id` as the campaign identifier (not campaign_id)
           .on("postgres_changes", { event: "UPDATE", schema: "public", table: "campaigns", filter: `id=eq.${campaignId}` }, (payload) => {
             const updated = payload.new as import("@/types/campaign.types").Campaign;
