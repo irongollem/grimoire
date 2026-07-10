@@ -7,11 +7,7 @@ import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-confi
 import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { generateImage, resolveImageProvider } from "../_shared/imageGen.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { corsHeaders } from "../_shared/cors.ts";
 
 // ~9 MB binary once base64-decoded — caps the client-supplied source map image.
 const MAX_SOURCE_IMAGE_B64_CHARS = 12_000_000;
@@ -55,7 +51,8 @@ function buildPrompt(
 }
 
 serve(async (req: Request) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const cors = corsHeaders(req);
+  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
 
   const authHeader = req.headers.get("Authorization");
@@ -142,13 +139,13 @@ serve(async (req: Request) => {
   if (!(await checkRateLimit(admin, user.id, "ai_generation"))) {
     return new Response(
       JSON.stringify({ error: "rate_limited" }),
-      { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      { status: 429, headers: { ...cors, "Content-Type": "application/json" } },
     );
   }
 
   const reservation = await reserveCredits(admin, user.id, cost, "map_style_generation");
   if (!reservation.ok) {
-    return reservationFailureResponse(reservation, corsHeaders);
+    return reservationFailureResponse(reservation, cors);
   }
 
   const prompt = buildPrompt(preset_id, map_name, map_description, prompt_suffix);
@@ -170,7 +167,7 @@ serve(async (req: Request) => {
     const msg = e instanceof Error ? e.message : "Image generation failed";
     return new Response(
       JSON.stringify({ error: msg }),
-      { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      { status: 502, headers: { ...cors, "Content-Type": "application/json" } },
     );
   }
 
@@ -188,6 +185,6 @@ serve(async (req: Request) => {
 
   return new Response(
     JSON.stringify({ image_b64: result_b64 }),
-    { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    { headers: { ...cors, "Content-Type": "application/json" } },
   );
 });

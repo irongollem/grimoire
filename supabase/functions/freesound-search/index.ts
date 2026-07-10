@@ -152,8 +152,9 @@ serve(async (req: Request) => {
 
   if (!fsRes.ok) {
     const body = await fsRes.text().catch(() => "");
+    console.error(`Freesound error ${fsRes.status}:`, body.slice(0, 500));
     return new Response(
-      JSON.stringify({ error: `Freesound error ${fsRes.status}`, detail: body.slice(0, 500) }),
+      JSON.stringify({ error: "Sound search failed" }),
       { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }

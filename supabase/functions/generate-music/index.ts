@@ -5,11 +5,7 @@ import { isUserPro } from "../_shared/plan.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { corsHeaders } from "../_shared/cors.ts";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -17,7 +13,8 @@ const admin = createClient(
 );
 
 serve(async (req: Request) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const cors = corsHeaders(req);
+  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
 
   const authHeader = req.headers.get("Authorization");
@@ -79,7 +76,7 @@ serve(async (req: Request) => {
   if (!isByok && !geminiProviderRow?.audio_enabled) {
     return new Response(
       JSON.stringify({ error: "Music generation is not enabled on this platform. Contact your admin." }),
-      { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      { status: 403, headers: { ...cors, "Content-Type": "application/json" } },
     );
   }
 
@@ -87,7 +84,7 @@ serve(async (req: Request) => {
   if (!geminiKey) {
     return new Response(
       JSON.stringify({ error: "No Gemini API key configured. Add one in Campaign Settings → AI, or ask your admin to configure a platform key." }),
-      { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      { status: 422, headers: { ...cors, "Content-Type": "application/json" } },
     );
   }
 
@@ -101,13 +98,13 @@ serve(async (req: Request) => {
   if (!(await checkRateLimit(admin, user.id, "ai_generation"))) {
     return new Response(
       JSON.stringify({ error: "rate_limited" }),
-      { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      { status: 429, headers: { ...cors, "Content-Type": "application/json" } },
     );
   }
 
   const reservation = await reserveCredits(admin, user.id, audioCost, generationType);
   if (!reservation.ok) {
-    return reservationFailureResponse(reservation, corsHeaders);
+    return reservationFailureResponse(reservation, cors);
   }
 
   try {
@@ -133,9 +130,10 @@ serve(async (req: Request) => {
     if (!lyriaRes.ok) {
       await releaseCredits(admin, reservation.ids);
       const body = await lyriaRes.json().catch(() => ({})) as { error?: { message?: string } };
+      console.error(`Lyria API error ${lyriaRes.status}:`, body?.error?.message ?? body);
       return new Response(
-        JSON.stringify({ error: body?.error?.message ?? `Lyria API error ${lyriaRes.status}` }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        JSON.stringify({ error: "Music generation failed" }),
+        { status: 502, headers: { ...cors, "Content-Type": "application/json" } },
       );
     }
 
@@ -149,7 +147,7 @@ serve(async (req: Request) => {
       await releaseCredits(admin, reservation.ids);
       return new Response(
         JSON.stringify({ error: "No audio data in Lyria response." }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        { status: 502, headers: { ...cors, "Content-Type": "application/json" } },
       );
     }
 
@@ -166,7 +164,7 @@ serve(async (req: Request) => {
         audio_base64: audioPart.inlineData.data,
         mime_type: audioPart.inlineData.mimeType ?? "audio/mpeg",
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      { headers: { ...cors, "Content-Type": "application/json" } },
     );
   } catch (e) {
     await releaseCredits(admin, reservation.ids);
