@@ -68,6 +68,6 @@ const isNew     = computed(() => route.name === "faction-new");
 const isEditing = computed(() => route.query.edit === "true");
 const id        = computed(() => (isNew.value ? "" : (route.params.id as string)));
 
-const { data: faction, isLoading: factionLoading } = useFaction(id.value);
+const { data: faction, isLoading: factionLoading } = useFaction(id);
 const loading = computed(() => !isNew.value && factionLoading.value);
 </script>

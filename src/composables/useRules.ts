@@ -1,4 +1,4 @@
-import { computed } from "vue";
+import { computed, toValue, type MaybeRefOrGetter } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
@@ -100,11 +100,11 @@ export function usePlayerVisibleRules() {
   });
 }
 
-export function useRule(id: string) {
+export function useRule(id: MaybeRefOrGetter<string>) {
   return useQuery({
-    queryKey: [CUSTOM_KEY, id],
-    queryFn: () => fetchRule(id),
-    enabled: !!id,
+    queryKey: computed(() => [CUSTOM_KEY, toValue(id)]),
+    queryFn: () => fetchRule(toValue(id)),
+    enabled: () => !!toValue(id),
   });
 }
 
