@@ -288,6 +288,12 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, title: "Relationship Web" },
   },
   {
+    path: "/npcs/sets",
+    name: "npc-sets",
+    component: () => import("@/views/npcs/NpcSetsView.vue"),
+    meta: { requiresAuth: true, title: "NPC Sets" },
+  },
+  {
     path: "/npcs/:id",
     name: "npc-detail",
     component: () => import("@/views/npcs/NpcDetailView.vue"),

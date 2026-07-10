@@ -125,6 +125,18 @@ export const useCardForgeStore = defineStore("cardForge", () => {
   }
 
   /**
+   * Load a set of NPCs into the forge selection and focus the NPC source.
+   * Used by "Export to Card Forge" from an NPC set so the DM lands here with
+   * the whole set already ticked — no manual re-selection. Forces collection
+   * mode (loot mode is items-only) and replaces any prior NPC selection.
+   */
+  function loadNpcIds(ids: string[]) {
+    mode.value = "collection";
+    source.value = "npcs";
+    selectedIds.value = { ...selectedIds.value, npcs: new Set(ids) };
+  }
+
+  /**
    * Inject `@page` into <head> at call-time and trigger native print.
    * Safari sometimes ignores `@page` rules sourced from component stylesheets;
    * a head-level <style> is always honored.
@@ -156,6 +168,7 @@ export const useCardForgeStore = defineStore("cardForge", () => {
     saveCollection,
     loadCollection,
     deleteCollection,
+    loadNpcIds,
     printCards,
   };
 });
