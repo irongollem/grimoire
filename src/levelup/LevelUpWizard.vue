@@ -607,5 +607,6 @@ const { confirm, error, isPending } = useLevelUpConfirm({
   selectedCantripIds,
   newClassName,
   grantedSpellsForThisLevel,
+  existingSpellIds: alreadyKnownIds,
 });
 </script>
