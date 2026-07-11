@@ -6,6 +6,7 @@
     description="The denizens of your realm — allies, enemies, and unknowns"
   >
     <template #actions>
+      <ListActionButton :icon="IconLayers" label="Sets" to="/npcs/sets" />
       <ListActionButton :icon="IconNetwork" label="Web" to="/npcs/web" />
       <ListActionButton
         v-if="hasSetting"
@@ -250,6 +251,13 @@
     <MobileSheet v-model:open="overflowOpen" title="More">
       <div class="flex flex-col gap-1 py-1">
         <RouterLink
+          to="/npcs/sets"
+          class="flex items-center gap-3 rounded-lg px-2 py-3 font-fell text-sm text-foreground hover:bg-muted/50"
+          @click="overflowOpen = false"
+        >
+          <IconLayers class="size-5 shrink-0 text-muted-foreground" /> Sets
+        </RouterLink>
+        <RouterLink
           to="/npcs/web"
           class="flex items-center gap-3 rounded-lg px-2 py-3 font-fell text-sm text-foreground hover:bg-muted/50"
           @click="overflowOpen = false"
@@ -285,7 +293,7 @@ import { ref, computed } from "vue";
 import { useMediaQuery } from "@vueuse/core";
 import type { NpcStatus, NpcRelationship } from "@/types/npc.types";
 import {
-  IconAdd, IconClose, IconGenerate, IconLoading,
+  IconAdd, IconClose, IconGenerate, IconLayers, IconLoading,
   IconNetwork, IconPopulate, IconSearch, IconSettings,
 } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
