@@ -303,31 +303,15 @@ async function handleClaimCurrency({ messageId }: { messageId: string }) {
   const partyMemberId = auth.linkedPartyMemberId ?? null;
   const claimerName = resolveClaimerName();
 
+  // claim_currency_drop now credits the claimer's purse atomically inside the
+  // same transaction that stamps the claim (clamped to non-negative ints), so a
+  // tab close / network drop can no longer mark it claimed yet lose the coins.
   try {
     await claimCurrencyDrop(messageId, claimerName, partyMemberId);
   } catch {
-    return; // lost the race (already claimed) or RLS denied — don't add coins
+    return; // lost the race (already claimed) or RLS denied — nothing credited
   }
-
-  // Add coins to the party member's purse if they have one linked. Clamp each
-  // amount to a non-negative integer — a negative drop would otherwise SUBTRACT
-  // from the claimer's purse (stealing), and fractional amounts corrupt the wallet.
-  if (partyMemberId) {
-    const member = (party.value ?? []).find(m => m.id === partyMemberId);
-    if (member) {
-      const coin = (n: number) => Math.max(0, Math.floor(n || 0));
-      await updatePartyMember({
-        id: partyMemberId,
-        update: {
-          pp: member.pp + coin(meta.pp),
-          gp: member.gp + coin(meta.gp),
-          ep: member.ep + coin(meta.ep),
-          sp: member.sp + coin(meta.sp),
-          cp: member.cp + coin(meta.cp),
-        },
-      });
-    }
-  }
+  void queryClient.invalidateQueries({ queryKey: ["party"] });
 }
 
 async function handleSendVendorOffer(payload: { description: string; itemName: string | null; itemId: string | null; pp: number; gp: number; ep: number; sp: number; cp: number }) {
