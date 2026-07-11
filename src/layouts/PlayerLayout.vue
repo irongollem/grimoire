@@ -311,6 +311,7 @@ import { useCampaigns, useCampaignById } from "@/composables/useCampaigns";
 import { useMyMemberships } from "@/composables/useCampaignMembers";
 import { useParty, usePartyLive } from "@/composables/useParty";
 import { useCampaignLiveSync } from "@/composables/useCampaignLiveSync";
+import { usePlayerRemovalGuard } from "@/composables/usePlayerRemovalGuard";
 import { useCampaignPresence } from "@/composables/useCampaignPresence";
 import CampaignChat from "@/components/chat/CampaignChat.vue";
 import PlayerEncounterPanel from "@/components/player/PlayerEncounterPanel.vue";
@@ -357,6 +358,7 @@ watch(
 useCampaignPresence();
 usePartyLive();
 useCampaignLiveSync();
+usePlayerRemovalGuard();
 
 const isMobile = useIsMobile();
 const { anyRunning, runningLoaded } = useRunningEncounters();
