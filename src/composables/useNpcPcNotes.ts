@@ -3,6 +3,8 @@ import type { Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
+import { useAuthStore } from "@/stores/auth";
+import { useUiStore } from "@/stores/ui";
 import type { NpcPcNote, NpcPcNoteUpsert, NpcRelationshipType } from "@/types/npc.types";
 
 const QUERY_KEY = "npc_pc_notes";
@@ -113,19 +115,28 @@ export function useNpcPcNotesByPartyMember(partyMemberId: string | Ref<string>) 
 }
 
 // ── Player: fetch my note for a specific NPC ─────────────────────────────────
+// Under the DM policy this query can return every party member's note for the
+// NPC, so it must be scoped to the previewed/linked party member — otherwise
+// .maybeSingle() errors with 2+ notes and returns the wrong one with exactly 1.
 
 export function useMyNpcPcNote(npcId: string | Ref<string>) {
   const idRef = isRef(npcId) ? npcId : ref(npcId);
+  const auth = useAuthStore();
+  const ui = useUiStore();
+  const partyMemberId = computed(() =>
+    ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId,
+  );
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "mine", idRef.value]),
+    queryKey: computed(() => [QUERY_KEY, "mine", idRef.value, partyMemberId.value]),
     queryFn: async () => {
       const { data } = await supabase
         .from("npc_pc_notes")
         .select("notes")
         .eq("npc_id", idRef.value)
+        .eq("party_member_id", partyMemberId.value!)
         .maybeSingle();
       return data?.notes ?? null;
     },
-    enabled: () => !!idRef.value,
+    enabled: () => !!idRef.value && !!partyMemberId.value,
   });
 }

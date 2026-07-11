@@ -7,7 +7,7 @@
         :key="tab.id"
         class="px-4 py-1.5 transition-colors"
         :class="activeTab === tab.id ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
-        @click="activeTab = tab.id"
+        @click="selectTab(tab.id)"
       >
         {{ tab.label }}
         <span
@@ -325,9 +325,25 @@ const tabs = computed(() => {
 
 const defaultTab = computed((): TabId => tabs.value[0].id);
 const route = useRoute();
+const hasQueryTab = !!route.query.tab;
 const activeTab = ref<TabId>(
   (route.query.tab as TabId | undefined) ?? defaultTab.value,
 );
+
+// activeTab is seeded above before useParty()/useClassByName() resolve, so on a cold
+// load casterType is still "none" and defaultTab picks the wrong tab (e.g. Innate
+// instead of Prepared). Once caster type settles, correct the tab — but only if the
+// user hasn't already picked one themselves and the URL didn't request one explicitly.
+const userSelectedTab = ref(false);
+
+function selectTab(id: TabId) {
+  userSelectedTab.value = true;
+  activeTab.value = id;
+}
+
+watch(casterType, () => {
+  if (!hasQueryTab && !userSelectedTab.value) activeTab.value = defaultTab.value;
+});
 
 // ── Filters (browse tab) ───────────────────────────────────────────────────────
 // Filter state lives in useUiStore so it survives navigation within a session.
@@ -339,6 +355,7 @@ if (!ui.playerSpellsClassFilter) ui.playerSpellsClassFilter = memberClass.value;
 // When the previewed character changes, reset everything
 watch(resolvedMemberId, () => {
   ui.playerSpellsClassFilter = memberClass.value;
+  userSelectedTab.value = false;
   activeTab.value = defaultTab.value;
 });
 

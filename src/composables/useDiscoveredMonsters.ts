@@ -227,15 +227,19 @@ export function useAutoDiscoverMonsters() {
 // ── Player: monsters visible to this player ────────────────────────────────
 
 export function usePlayerDiscoveries() {
+  const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: [QUERY_KEY, "player"],
+    queryKey: computed(() => [QUERY_KEY, "player", campaignId.value]),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("discovered_monsters")
         .select("*")
+        .eq("campaign_id", campaignId.value!)
         .order("discovered_at", { ascending: false });
       if (error) throw error;
       return data as DiscoveredMonster[];
     },
+    enabled: () => !!campaignId.value,
   });
 }

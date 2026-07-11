@@ -52,7 +52,7 @@
             @click="openLightbox(entry.monster, entry.discovery)"
           >
             <span
-              v-if="isNew(entry.discovery.id)"
+              v-if="isNew(entry.discovery.id, entry.discovery.discovered_at)"
               class="absolute top-1.5 left-1.5 z-10 h-2.5 w-2.5 rounded-full bg-destructive"
               title="New"
             />

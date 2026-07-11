@@ -148,7 +148,9 @@ const myUserId = computed(() => auth.user?.id ?? "");
 
 const { displayNameFor: authorName } = useMemberByUserId();
 
-const { data: notes } = useEntityNotes(entityType, entityId);
+// Pass getters (not the destructured values) so the query key stays reactive when
+// the parent swaps entityType/entityId in place (e.g. PlayerLocationDialog).
+const { data: notes } = useEntityNotes(() => entityType, () => entityId);
 const createMut = useCreateEntityNote();
 const updateMut = useUpdateEntityNote();
 const deleteMut = useDeleteEntityNote();
