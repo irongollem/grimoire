@@ -241,6 +241,7 @@ import { useAllMonsters } from "@/composables/useMonsters";
 import { useUpdatePartyMember } from "@/composables/useParty";
 import { usePlayerDiscoveries } from "@/composables/useDiscoveredMonsters";
 import { usePinnedForms } from "@/composables/usePinnedForms";
+import { useCharacterClasses } from "@/composables/useCharacterClasses";
 import type { Monster } from "@/types/monster.types";
 import type { RollMode } from "@/lib/roller";
 import { combineModes } from "@/lib/roller";
@@ -299,28 +300,41 @@ const activeWildshape = computed<WildshapeState | null>(() =>
   (member.value?.wildshape_state as WildshapeState | null) ?? null,
 );
 
+// Derive druid-ness, druid CLASS level, and subclass from the character_classes
+// rows (the source of truth for multiclass), falling back to the legacy
+// party_members.class/subclass/level fields — mirroring PlayerFeaturesTab's
+// classLevel() pattern. Reading member.class/level directly broke multiclass:
+// taking Druid as a second class never rewrites member.class (so the tab hid),
+// and wildshapeMaxCr used TOTAL level (a Fighter 6/Druid 2 got CR 1½, not ¼).
+const { data: characterClasses } = useCharacterClasses(resolvedMemberId);
+const druidRow = computed(() =>
+  (characterClasses.value ?? []).find(cc => cc.class_name.toLowerCase().includes("druid")) ?? null,
+);
 const isDruid = computed(() =>
-  (member.value?.["class"] as string | null)?.toLowerCase().includes("druid") ?? false,
+  !!druidRow.value || ((member.value?.["class"] as string | null)?.toLowerCase().includes("druid") ?? false),
+);
+const druidLevel = computed(() =>
+  druidRow.value?.levels
+    ?? (((member.value?.["class"] as string | null)?.toLowerCase().includes("druid"))
+      ? (member.value?.level ?? 1)
+      : 0),
 );
 const isCircleOfMoon = computed(() =>
-  member.value?.subclass?.toLowerCase().includes("moon") ?? false,
+  (druidRow.value?.subclass_name ?? member.value?.subclass ?? "").toLowerCase().includes("moon"),
 );
 
-const wildshapeMaxCr = computed(() => calcWildshapeMaxCr(member.value?.level ?? 1, isCircleOfMoon.value));
+const wildshapeMaxCr = computed(() => calcWildshapeMaxCr(druidLevel.value, isCircleOfMoon.value));
 const wildshapeCrDisplay = computed(() => calcWildshapeCrDisplay(wildshapeMaxCr.value));
-// Max uses per day: 2 at level 2+, 0 before level 2
-const wildshapeMaxUses = computed(() => {
-  const level = member.value?.level ?? 1;
-  return level >= 2 ? 2 : 0;
-});
+// Max uses per day: 2 at druid level 2+, 0 before level 2
+const wildshapeMaxUses = computed(() => (druidLevel.value >= 2 ? 2 : 0));
 const wildshapesUsed = computed(() => member.value?.wildshapes_used ?? 0);
-const canWildshape = computed(() => isDruid.value && (member.value?.level ?? 1) >= 2 && wildshapesUsed.value < wildshapeMaxUses.value);
+const canWildshape = computed(() => isDruid.value && druidLevel.value >= 2 && wildshapesUsed.value < wildshapeMaxUses.value);
 
 const showWildshapePicker = ref(false);
 const previewBeast = ref<Monster | null>(null);
 const wildshapeForms = computed<Monster[]>(() => {
   if (!isDruid.value) return [];
-  const level = member.value?.level ?? 1;
+  const level = druidLevel.value;
   const maxCr = wildshapeMaxCr.value;
   const discoveredKeys = new Set<string>(
     (discoveries.value ?? []).flatMap((d) => [d.monster_id, d.srd_slug].filter(Boolean) as string[]),
