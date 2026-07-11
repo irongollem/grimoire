@@ -101,6 +101,23 @@ describe("buildLevelUpPayload", () => {
     });
   });
 
+  it("retroactively raises max HP when a CON ASI bumps the modifier", () => {
+    // con 14 (+2) → 16 (+3): +1 mod × total level 4 = +4 on top of the +6 hpGain
+    const { memberUpdate } = buildLevelUpPayload(
+      baseInput({ grantsAsi: true, asiMode: "plus2", asiPrimary: "con" }),
+    );
+    expect(memberUpdate.con).toBe(16);
+    expect(memberUpdate.max_hp).toBe(30); // 20 + 6 hpGain + 4 retro
+    expect(memberUpdate.current_hp).toBe(30);
+  });
+
+  it("adds no retro HP for a non-CON ASI", () => {
+    const { memberUpdate } = buildLevelUpPayload(
+      baseInput({ grantsAsi: true, asiMode: "plus2", asiPrimary: "dex" }),
+    );
+    expect(memberUpdate.max_hp).toBe(26); // 20 + 6, no retro
+  });
+
   it("writes the subclass only when the leveled entry is primary", () => {
     const primary = buildLevelUpPayload(
       baseInput({

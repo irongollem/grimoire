@@ -123,6 +123,16 @@ export function buildLevelUpPayload(input: BuildLevelUpPayloadInput): LevelUpPay
     }
   }
 
+  // A CON increase retroactively raises max HP by the CON-mod delta × total level
+  // (5e), not just this level's roll — otherwise the character stays permanently
+  // under-HP'd after a CON ASI. update.con is set above only when CON was bumped.
+  if (typeof update.con === "number" && update.con !== member.con) {
+    const conMod = (score: number) => Math.floor((score - 10) / 2);
+    const retroHp = (conMod(update.con) - conMod(member.con)) * nextLevel;
+    update.max_hp = (update.max_hp as number) + retroHp;
+    update.current_hp = (update.current_hp as number) + retroHp;
+  }
+
   // Class resources.
   if (classDefs.length > 0) {
     const newResources = { ...member.class_resources };

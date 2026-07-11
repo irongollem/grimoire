@@ -443,7 +443,14 @@ async function applyHeal() {
     }});
   } else {
     const newHp = Math.min(props.member.max_hp, props.member.current_hp + val);
-    await updateMember({ id: props.member.id, update: { current_hp: newHp } });
+    const update: Record<string, number> = { current_hp: newHp };
+    // Any healing from 0 or below ends the dying condition (5e) — clear the
+    // death-save pips so a later drop to 0 starts fresh instead of with stale ones.
+    if (props.member.current_hp <= 0 && newHp > 0) {
+      update.death_save_successes = 0;
+      update.death_save_failures = 0;
+    }
+    await updateMember({ id: props.member.id, update });
   }
 }
 async function applyTempHp() {

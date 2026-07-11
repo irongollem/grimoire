@@ -50,5 +50,9 @@ const targetLevel = computed(() => {
   return isNaN(n) ? undefined : n;
 });
 
-const backRoute = (route.query.memberId as string | undefined) ? "/party" : "/play";
+// Decide the return route by ROLE, not by memberId presence: a regular player
+// levelling their own character also carries a memberId (their own, and it's
+// re-appended across the multi-level loop), so keying on memberId would send
+// them to the DM-only /party. DMs return to the party roster; players to /play.
+const backRoute = auth.isDM ? "/party" : "/play";
 </script>

@@ -135,7 +135,10 @@ export function useLevelUpConfirm(opts: ConfirmOptions) {
       // Multi-level loop or done. The parent route refetches the (now updated)
       // member and re-mounts the wizard for the next level.
       if (targetLevel && nextLevel.value < targetLevel) {
-        void router.push(`/play/character/levelup?targetLevel=${targetLevel}`);
+        // Preserve memberId across the loop — without it the next hop falls back
+        // to auth.linkedPartyMemberId and a DM's XP catch-up jumps to the wrong
+        // (or no) character after level 1.
+        void router.push(`/play/character/levelup?targetLevel=${targetLevel}&memberId=${member.id}`);
       } else {
         void router.push(backRoute ?? "/play");
       }
