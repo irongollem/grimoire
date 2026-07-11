@@ -110,6 +110,7 @@
             :message-id="msg.id"
             :meta="msg.metadata as LootChestMetadata"
             :sender-name="msg.sender_name"
+            :linked-party-member-id="auth.linkedPartyMemberId"
             @claim-loot-chest="emit('claim-loot-chest', $event)"
           />
 

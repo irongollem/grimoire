@@ -255,10 +255,13 @@ async function handleGrab({ messageId, qty, intoStash }: { messageId: string; qt
     return; // stack exhausted or RLS denied — don't add to inventory
   }
 
-  // Auto-stack: if same item_id + carried_by already exists, increment rather than insert
+  // Auto-stack: merge into an existing carried, non-equipped, non-ruined backpack/belt
+  // row of the same item. Never merge into an equipped weapon, a stored-elsewhere row,
+  // a ruined stack, or a container's contents — those would corrupt the target row.
   if (meta.item_id) {
     const existing = (partyInventory.value ?? []).find(
-      inv => inv.item_id === meta.item_id && inv.carried_by === partyMemberId && inv.container_id === null,
+      inv => inv.item_id === meta.item_id && inv.carried_by === partyMemberId && inv.container_id === null
+        && (inv.location === 'backpack' || inv.location === 'belt') && !inv.is_ruined && !inv.is_equipped,
     );
     if (existing) {
       await updateInventoryItem({ id: existing.id, update: { quantity: existing.quantity + qtyGrabbed } });
@@ -428,6 +431,11 @@ async function handleClaimLootChest({ messageId, atomId }: { messageId: string; 
   if (!atom) return;
 
   const partyMemberId = auth.linkedPartyMemberId ?? null;
+  // Both item and currency rewards need a linked character to receive them (the
+  // item goes to inventory, the coins to the character's wallet). Guard BEFORE the
+  // claim RPC so an undeliverable claim never stamps the atom and destroys the
+  // reward for everyone.
+  if (!partyMemberId) return;
   const claimerName =
     (members.value ?? []).find(m => m.user_id === auth.user?.id)?.display_name
     || (party.value ?? []).find(p => p.id === partyMemberId)?.name
@@ -442,10 +450,26 @@ async function handleClaimLootChest({ messageId, atomId }: { messageId: string; 
     return;
   }
 
-  // Add the item to the claimer's party inventory if they have one linked.
-  // Mirrors the item_drop claim path (Vault ref optional, container flag from
-  // tags, identified state inferred from rarity).
-  if (partyMemberId) {
+  // Currency atoms pay the character's wallet; only item atoms become inventory rows.
+  if (atom.type === 'currency') {
+    const member = (party.value ?? []).find(p => p.id === partyMemberId);
+    if (!member) return;
+    await updatePartyMember({
+      id: member.id,
+      update: {
+        pp: member.pp + (atom.pp ?? 0),
+        gp: member.gp + (atom.gp ?? 0),
+        ep: member.ep + (atom.ep ?? 0),
+        sp: member.sp + (atom.sp ?? 0),
+        cp: member.cp + (atom.cp ?? 0),
+      },
+    });
+    return;
+  }
+
+  // Item atom → inventory. Mirrors the item_drop claim path (Vault ref optional,
+  // container flag from tags, identified state inferred from rarity).
+  {
     const vaultItem = (allItems.value ?? []).find(i => i.id === atom.item_id);
     await addInventoryItem({
       name: atom.item_name ?? "",

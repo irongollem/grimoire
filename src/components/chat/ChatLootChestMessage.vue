@@ -83,7 +83,7 @@
           </template>
 
           <button
-            v-if="!atomClaim(atom.atom_id) && !empty"
+            v-if="!atomClaim(atom.atom_id) && !empty && linkedPartyMemberId"
             type="button"
             class="font-cinzel text-[11px] font-semibold tracking-wider px-2.5 py-1 rounded bg-primary text-primary-foreground hover:opacity-90 transition-opacity shrink-0"
             @click="emit('claim-loot-chest', { messageId, atomId: atom.atom_id })"
@@ -113,10 +113,14 @@ const {
   messageId,
   meta,
   senderName,
+  linkedPartyMemberId = null,
 } = defineProps<{
   messageId: string;
   meta: LootChestMetadata;
   senderName: string | null;
+  /** The viewer's linked character. Claiming needs one — the item/coins have
+   *  nowhere to go without it, and claiming anyway destroys the reward. */
+  linkedPartyMemberId?: string | null;
 }>();
 
 const emit = defineEmits<{
