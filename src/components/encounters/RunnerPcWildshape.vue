@@ -8,6 +8,7 @@
       <div class="flex items-center gap-1.5">
         <button
           v-if="isDruid"
+          ref="triggerRef"
           type="button"
           class="wildshape-revert-btn"
           @click="showWildshapePicker = !showWildshapePicker"
@@ -50,6 +51,7 @@
         <span class="font-fell text-[10px] text-muted-foreground">Max CR {{ wildshapeCrDisplay }}</span>
         <span v-if="isCircleOfMoon" class="font-cinzel text-[9px] tracking-wider px-1 py-0.5 rounded border border-primary/40 text-primary bg-primary/10">MOON</span>
         <button
+          ref="triggerRef"
           type="button"
           class="font-cinzel text-[10px] px-2 py-1 rounded border border-border hover:border-primary hover:text-primary transition-colors"
           @click="showWildshapePicker = !showWildshapePicker"
@@ -57,55 +59,64 @@
       </div>
     </div>
   </template>
-  <template v-if="showWildshapePicker && isDruid">
-    <!-- Available forms — click to transform -->
-    <div v-if="wildshapeForms.length" class="wildshape-picker-list">
-      <button
-        v-for="m in wildshapeForms"
-        :key="m.id"
-        type="button"
-        class="wildshape-pick-row"
-        @click="emit('enter-wildshape', m)"
-      >
-        <span class="pick-name">{{ m.name }}</span>
-        <span class="pick-cr">CR {{ m.stat_block?.challenge_rating }}</span>
-        <span class="pick-ac">AC {{ m.stat_block?.armor_class }}</span>
-        <span class="pick-speed">{{ m.stat_block?.speed }}</span>
-      </button>
-    </div>
 
-    <!-- Empty states -->
-    <p v-else-if="pinnableForms.length" class="font-fell text-xs text-muted-foreground italic px-1 py-2">
-      No forms unlocked yet — pin an eligible beast below to make it available.
-    </p>
-    <p v-else class="font-fell text-xs text-muted-foreground italic px-1 py-2">
-      No eligible beast forms at this level.
-    </p>
-
-    <!-- Pin more forms — DM curates which eligible beasts this druid can assume -->
-    <template v-if="pinnableForms.length">
-      <button
-        type="button"
-        class="wildshape-pin-toggle"
-        @click="showPinList = !showPinList"
-      >{{ showPinList ? 'Hide eligible beasts' : `📌 Pin a form (${pinnableForms.length} eligible)` }}</button>
-      <div v-if="showPinList" class="wildshape-picker-list">
+  <!-- Form picker — teleported to <body> so the detail panel's overflow can't clip it (#503) -->
+  <Teleport to="body">
+    <div
+      v-if="showWildshapePicker && isDruid"
+      ref="floatingRef"
+      :style="floatingStyle"
+      class="wildshape-popover"
+    >
+      <!-- Available forms — click to transform -->
+      <div v-if="wildshapeForms.length" class="wildshape-picker-list">
         <button
-          v-for="m in pinnableForms"
+          v-for="m in wildshapeForms"
           :key="m.id"
           type="button"
           class="wildshape-pick-row"
-          title="Pin this form so the druid can assume it"
-          @click="pinForm(m)"
+          @click="chooseForm(m)"
         >
-          <span class="pick-pin">＋</span>
           <span class="pick-name">{{ m.name }}</span>
           <span class="pick-cr">CR {{ m.stat_block?.challenge_rating }}</span>
           <span class="pick-ac">AC {{ m.stat_block?.armor_class }}</span>
+          <span class="pick-speed">{{ m.stat_block?.speed }}</span>
         </button>
       </div>
-    </template>
-  </template>
+
+      <!-- Empty states -->
+      <p v-else-if="pinnableForms.length" class="font-fell text-xs text-muted-foreground italic px-1 py-2">
+        No forms unlocked yet — pin an eligible beast below to make it available.
+      </p>
+      <p v-else class="font-fell text-xs text-muted-foreground italic px-1 py-2">
+        No eligible beast forms at this level.
+      </p>
+
+      <!-- Pin more forms — DM curates which eligible beasts this druid can assume -->
+      <template v-if="pinnableForms.length">
+        <button
+          type="button"
+          class="wildshape-pin-toggle"
+          @click="showPinList = !showPinList"
+        >{{ showPinList ? 'Hide eligible beasts' : `📌 Pin a form (${pinnableForms.length} eligible)` }}</button>
+        <div v-if="showPinList" class="wildshape-picker-list">
+          <button
+            v-for="m in pinnableForms"
+            :key="m.id"
+            type="button"
+            class="wildshape-pick-row"
+            title="Pin this form so the druid can assume it"
+            @click="pinForm(m)"
+          >
+            <span class="pick-pin">＋</span>
+            <span class="pick-name">{{ m.name }}</span>
+            <span class="pick-cr">CR {{ m.stat_block?.challenge_rating }}</span>
+            <span class="pick-ac">AC {{ m.stat_block?.armor_class }}</span>
+          </button>
+        </div>
+      </template>
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -119,6 +130,7 @@ import { useDiscoveredKeys } from "@/composables/useDiscoveredMonsters";
 import { useDmPinnedForms, useTogglePinnedForm } from "@/composables/usePinnedForms";
 import { parseCr } from "@/lib/utils";
 import { wildshapeMaxCr as calcWildshapeMaxCr, wildshapeCrDisplay as calcWildshapeCrDisplay, isEligibleWildshapeForm } from "@/lib/wildshape";
+import { useAnchoredPopover } from "@/composables/useAnchoredPopover";
 
 const { combatant, member, monsters } = defineProps<{
   combatant: RunCombatant;
@@ -182,14 +194,27 @@ const pinnableForms = computed<Monster[]>(() =>
 );
 
 const showPinList = ref(false);
+const showWildshapePicker = ref(false);
+
+// The picker is teleported to <body> as a floating popover anchored to the toggle
+// button, so it can't be clipped by the detail panel's `overflow: hidden` (#503).
+const triggerRef = ref<HTMLElement | null>(null);
+const { floatingRef, floatingStyle } = useAnchoredPopover(
+  triggerRef,
+  showWildshapePicker,
+  () => { showWildshapePicker.value = false; },
+);
 
 function pinForm(monster: Monster) {
   togglePinnedForm({ monster, partyMemberId: member.id, existing: undefined });
 }
 
-// ── Active wildshape stats ────────────────────────────────────────────────────
+function chooseForm(monster: Monster) {
+  emit("enter-wildshape", monster);
+  showWildshapePicker.value = false;
+}
 
-const showWildshapePicker = ref(false);
+// ── Active wildshape stats ────────────────────────────────────────────────────
 
 const wildshapeMonster = computed<Monster | null>(() => {
   const ws = combatant.wildshape;
@@ -292,6 +317,11 @@ const wildshapeTraitSections = computed(() => {
 
 .wildshape-revert-btn {
   @apply font-cinzel text-[10px] px-2 py-1 rounded border border-amber-500/40 text-amber-400 hover:bg-amber-500/10 transition-colors shrink-0;
+}
+
+.wildshape-popover {
+  /* position: fixed + top/left come from useAnchoredPopover; this is the chrome */
+  @apply z-50 w-64 max-w-[calc(100vw-1rem)] max-h-[80vh] overflow-y-auto flex flex-col gap-1 rounded-lg border border-border bg-popover p-2 shadow-lg;
 }
 
 .wildshape-picker-list {
