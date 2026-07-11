@@ -39,6 +39,7 @@
               :rounded="false"
               :vertical="true"
               :borderless="true"
+              :roll-mode-picker="true"
               @roll-ability="onRollAbility"
               @roll-save="onRollSave"
             />
@@ -242,6 +243,7 @@ import { usePlayerDiscoveries } from "@/composables/useDiscoveredMonsters";
 import { usePinnedForms } from "@/composables/usePinnedForms";
 import type { Monster } from "@/types/monster.types";
 import type { RollMode } from "@/lib/roller";
+import { combineModes } from "@/lib/roller";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
@@ -486,11 +488,15 @@ async function doRoll(label: string, modifier: number, mode: RollMode = "normal"
   lastRoll.value = { label: fullLabel, dice: kept.val, modifier, total: result.total };
 }
 
-function onRollAbility(_key: string, label: string, mod: number) {
-  doRoll(`${label} Check`, mod, checkDisadvantage.value ? "disadvantage" : "normal");
+function onRollAbility(_key: string, label: string, mod: number, override: RollMode | null = null) {
+  doRoll(
+    `${label} Check`,
+    mod,
+    combineModes(override ?? "normal", checkDisadvantage.value ? "disadvantage" : "normal"),
+  );
 }
-function onRollSave(_key: string, label: string, bonus: number) {
-  doRoll(`${label} Save`, bonus);
+function onRollSave(_key: string, label: string, bonus: number, override: RollMode | null = null) {
+  doRoll(`${label} Save`, bonus, override ?? "normal");
 }
 
 </script>

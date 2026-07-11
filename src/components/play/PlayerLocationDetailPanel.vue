@@ -103,10 +103,15 @@ import { STORE_LOCATION_TYPES } from "@/types/location.types";
 import type { Location } from "@/types/location.types";
 import type { Npc } from "@/types/npc.types";
 
-const { loc, npcs = [], sharedChildIds, isFullSize = false } = defineProps<{
+const { loc, npcs = [], sharedChildIds, sharedChildren, isFullSize = false } = defineProps<{
   loc: Location;
   npcs?: Npc[];
   sharedChildIds: Set<string>;
+  /** Live shared child locations keyed by id. Used to re-hydrate each pin's
+   *  denormalised name/type/image from current data — the stored snapshot in
+   *  `map_pins` goes stale when a child's image is later replaced (its old
+   *  storage file is deleted), which is what players saw as broken pin images. */
+  sharedChildren?: Map<string, Location>;
   isFullSize?: boolean;
 }>();
 
@@ -120,5 +125,21 @@ defineEmits<{
 }>();
 
 const isStoreType = computed(() => STORE_LOCATION_TYPES.has(loc.location_type));
-const playerPins = computed(() => (loc.map_pins ?? []).filter((p) => p.visible_to_players));
+const playerPins = computed(() =>
+  (loc.map_pins ?? [])
+    .filter((p) => p.visible_to_players)
+    .map((p) => {
+      // Re-hydrate from live child data when the child is shared; otherwise keep
+      // the stored snapshot (the design intent for unshared sub-locations).
+      const child = sharedChildren?.get(p.child_location_id);
+      return child
+        ? {
+            ...p,
+            child_name: child.name,
+            child_type: child.location_type,
+            child_image_url: child.image_url ?? null,
+          }
+        : p;
+    }),
+);
 </script>

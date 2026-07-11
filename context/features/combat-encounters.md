@@ -102,7 +102,7 @@ The builder (`EncounterDetail.vue`) is the pre-combat setup form. It has two mod
 - Checkbox selection of party members from the Party Tracker
 - Companions are shown in a separate subsection
 - Each selected member/companion gets a faction assignment dropdown (colour-coded by faction colour)
-- Player initiative values from `party_members.current_initiative` are pre-seeded into the runner
+- Player initiative starts blank each encounter (no longer pre-seeded from `party_members.current_initiative`, which carried stale values between fights — see #504). Players roll their own from the player encounter panel; the runner ingests the value live via its `party_members` subscription. The DM's "Roll Initiative" still fills in anyone who hasn't rolled (it skips players who already have a value)
 
 ### Combatants (`EncounterCombatants.vue`)
 

@@ -93,6 +93,27 @@
             </div>
           </template>
 
+          <!-- Your initiative — players roll their own each encounter (#504) -->
+          <div
+            v-if="myPlayer && showMyInitiative"
+            class="flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-card px-4 py-3"
+          >
+            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">
+              YOUR INITIATIVE
+            </span>
+            <button
+              v-if="myInitiative === null"
+              type="button"
+              class="flex items-center gap-2 rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5 font-cinzel text-sm font-bold text-primary tracking-wider hover:bg-primary/20 transition-colors disabled:opacity-50"
+              :disabled="rollingInitiative"
+              @click="rollMyInitiative"
+            >
+              <IconDice class="h-4 w-4" />
+              {{ rollingInitiative ? "Rolling…" : `Roll d20 ${dexModLabel}` }}
+            </button>
+            <span v-else class="font-cinzel text-2xl font-bold text-primary">{{ myInitiative }}</span>
+          </div>
+
           <!-- Player-visible narrative events — fired events with is_player_visible=true -->
           <template v-if="playerVisibleFiredEvents.length > 0 && !isInLobby">
             <div
@@ -142,9 +163,11 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { IconClose, IconEncounter, IconMap, IconScrollText } from '@/lib/icons';
+import { IconClose, IconDice, IconEncounter, IconMap, IconScrollText } from '@/lib/icons';
 import { useEncounter } from "@/composables/useEncounters";
 import { useLocation } from "@/composables/useLocations";
+import { usePromptedRoll } from "@/composables/usePromptedRoll";
+import { useUpdatePartyMember } from "@/composables/useParty";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { liveState } from "@/composables/useEncounterLive";
@@ -228,6 +251,53 @@ const myPlayer = computed(
 );
 
 const isInLobby = computed(() => (liveState.value?.current_round ?? 1) === 0);
+
+// ── Player-rolled initiative (#504) ─────────────────────────────────────────────
+// The player rolls their own d20 + DEX. We write the total to their party_members
+// row (RLS lets a player update their own character); the DM's runner ingests the
+// change live and pushes it into the shared encounter state, which loops back here.
+const { promptRoll } = usePromptedRoll();
+const { mutateAsync: updateMyMember } = useUpdatePartyMember();
+const rollingInitiative = ref(false);
+// Local echo so the player sees their result instantly, before the DM's runner
+// round-trips it back into the live combatant list.
+const myRolledInitiative = ref<number | null>(null);
+
+const myInitiative = computed<number | null>(
+  () => myPlayer.value?.initiative ?? myRolledInitiative.value,
+);
+// Show the chip while gathering (lobby) or whenever this player still has no
+// initiative — i.e. exactly the "prefilled + disabled" case players complained
+// about is now a live Roll button instead.
+const showMyInitiative = computed(() => isInLobby.value || myInitiative.value === null);
+const dexModLabel = computed(() => {
+  const m = myPlayer.value?.dex_mod ?? 0;
+  return m >= 0 ? `+${m}` : `${m}`;
+});
+
+// A new encounter clears the local echo so a stale value can't linger.
+watch(() => liveState.value?.encounter_id, () => { myRolledInitiative.value = null; });
+
+async function rollMyInitiative() {
+  const member = myPlayer.value;
+  if (!member?.party_member_id || rollingInitiative.value) return;
+  rollingInitiative.value = true;
+  try {
+    const result = await promptRoll({
+      counts: { 20: 1 },
+      modifier: member.dex_mod,
+      label: "Initiative",
+    });
+    if (!result) return; // physical-dice prompt cancelled
+    myRolledInitiative.value = result.total;
+    await updateMyMember({
+      id: member.party_member_id,
+      update: { current_initiative: result.total },
+    });
+  } finally {
+    rollingInitiative.value = false;
+  }
+}
 
 const isMyTurn = computed(() => {
   if (!myPlayer.value || !liveState.value || isInLobby.value) return false;

@@ -21,7 +21,7 @@
             v-for="skill in SKILLS.slice(0, 9)"
             :key="skill.key"
             class="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-muted/30 transition-colors group text-left"
-            @click="rollSkill(skill)"
+            v-roll-mode="(mode: RollMode | null) => rollSkill(skill, mode)"
           >
             <span
               class="h-3.5 w-3.5 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors"
@@ -42,7 +42,7 @@
             v-for="skill in SKILLS.slice(9)"
             :key="skill.key"
             class="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-muted/30 transition-colors group text-left"
-            @click="rollSkill(skill)"
+            v-roll-mode="(mode: RollMode | null) => rollSkill(skill, mode)"
           >
             <span
               class="h-3.5 w-3.5 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors"
@@ -68,6 +68,7 @@
 import { computed } from "vue";
 import { IconChevronRight } from '@/lib/icons';
 import type { RollMode } from "@/lib/roller";
+import { combineModes } from "@/lib/roller";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { useCampaignMembers } from "@/composables/useCampaignMembers";
@@ -148,9 +149,14 @@ function modeTag(mode: RollMode) {
   return mode === "advantage" ? " (Adv)" : mode === "disadvantage" ? " (Dis)" : "";
 }
 
-async function rollSkill(skill: (typeof SKILLS)[number]) {
+async function rollSkill(skill: (typeof SKILLS)[number], override: RollMode | null = null) {
   const isImmersive = campaignStore.activeCampaign?.immersive_rolls && IMMERSIVE_SKILL_KEYS.has(skill.key);
-  const mode: RollMode = props.checkDisadvantage ? "disadvantage" : "normal";
+  // Player-picked mode (long-press/right-click) combined with any
+  // condition-imposed disadvantage — opposing sources cancel to normal (5e RAW).
+  const mode: RollMode = combineModes(
+    override ?? "normal",
+    props.checkDisadvantage ? "disadvantage" : "normal",
+  );
   const modifier = skillBonusValue(skill);
   const name = props.member.name;
 

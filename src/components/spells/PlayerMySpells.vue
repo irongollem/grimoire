@@ -125,7 +125,7 @@
               v-if="isCastable(entry) && attackBonusFor(entry) !== null && (entry.spell.attack_type === 'ranged_spell' || entry.spell.attack_type === 'melee_spell')"
               class="shrink-0 font-cinzel text-[10px] rounded border border-border bg-muted/40 text-muted-foreground px-1.5 py-0.5 transition-colors hover:bg-primary/10 hover:text-primary hover:border-primary/30"
               title="Roll spell attack (d20 + attack bonus)"
-              @click.stop="rollSpellAttack(entry)"
+              v-roll-mode="{ enabled: true, on: (m: RollMode | null, ev: Event) => { ev.stopPropagation(); rollSpellAttack(entry, m); } }"
             >Atk {{ signedNum(attackBonusFor(entry)!) }}</button>
             <!-- Saving-throw prompt — announces DC + ability to the table -->
             <button
@@ -218,6 +218,7 @@ import { useUiStore } from "@/stores/ui";
 import { SCHOOL_COLORS } from "@/types/spell.types";
 import { parseExpression, parsedToCounts, scaleExpression } from "@/lib/dice";
 import { rollParsed } from "@/lib/roller";
+import type { RollMode } from "@/lib/roller";
 import { signedNum } from "@/lib/utils";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { cantripDiceMultiplier } from "@/types/spell.types";
@@ -311,10 +312,17 @@ function saveDcFor(entry: CharacterSpellEntry): number | null {
 // ── Standalone roll actions (independent of casting / spending a slot) ──────────
 
 /** Roll a spell attack: d20 + the caster's spell attack bonus for this spell. */
-async function rollSpellAttack(entry: CharacterSpellEntry) {
+async function rollSpellAttack(entry: CharacterSpellEntry, override: RollMode | null = null) {
   const atk = attackBonusFor(entry);
   if (atk === null) return;
-  await promptRoll({ counts: { 20: 1 }, modifier: atk, label: `${entry.spell.name} — Spell Attack` });
+  const mode: RollMode = override ?? "normal";
+  const modeTag = mode === "advantage" ? " (Adv)" : mode === "disadvantage" ? " (Dis)" : "";
+  await promptRoll({
+    counts: { 20: 1 },
+    modifier: atk,
+    label: `${entry.spell.name} — Spell Attack${modeTag}`,
+    mode,
+  });
 }
 
 /** Announce a saving throw (DC + ability) to the table so others can roll against it. */

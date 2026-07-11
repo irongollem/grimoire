@@ -17,6 +17,20 @@ import type { DieSize, RollMode, RollResult, ParsedExpression } from "@/lib/dice
 export type { DieSize, RollMode, RollResult } from "@/lib/dice";
 
 /**
+ * Combine two roll modes per 5e RAW: any advantage + any disadvantage cancel to
+ * normal, regardless of how many of each. Used to merge a player-chosen mode
+ * (from the long-press / right-click picker) with a condition-imposed one.
+ */
+export function combineModes(a: RollMode, b: RollMode): RollMode {
+  const adv = a === "advantage" || b === "advantage";
+  const dis = a === "disadvantage" || b === "disadvantage";
+  if (adv && dis) return "normal";
+  if (adv) return "advantage";
+  if (dis) return "disadvantage";
+  return "normal";
+}
+
+/**
  * Roll a full dice pool with modifier and optional advantage/disadvantage.
  * Plays a single sound. Returns a full RollResult (total, breakdown, isCrit, isFumble, label).
  */

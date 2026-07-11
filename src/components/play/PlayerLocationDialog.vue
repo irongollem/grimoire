@@ -43,6 +43,7 @@
                 :loc="loc"
                 :npcs="npcs"
                 :shared-child-ids="sharedChildIds"
+                :shared-children="sharedChildren"
                 :is-full-size="isFullSize"
                 @lightbox="lightboxSrc = $event"
                 @toggle-map-size="isFullSize = !isFullSize"
@@ -110,6 +111,7 @@ const loc = computed(() =>
 );
 
 const sharedChildIds = computed(() => new Set((locations.value ?? []).map((l) => l.id)));
+const sharedChildren = computed(() => new Map((locations.value ?? []).map((l) => [l.id, l])));
 
 // Fetch the location's shared NPCs only when the DM has shared them.
 const npcLocationIds = computed(() =>

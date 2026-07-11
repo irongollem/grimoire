@@ -91,10 +91,11 @@
               :style="tokenStyle(pin)"
             >
               <img
-                v-if="pin.child_image_url"
+                v-if="pin.child_image_url && !brokenImages.has(pin.child_image_url)"
                 :src="pin.child_image_url"
                 class="w-full h-full object-cover pointer-events-none"
                 draggable="false"
+                @error="onPinImageError(pin.child_image_url)"
               />
               <span
                 v-else
@@ -273,6 +274,14 @@ const emit = defineEmits<{
 
 const mapContainer = ref<HTMLElement | null>(null);
 const mapFrame = ref<HTMLElement | null>(null);
+
+// Pin token images can point at a since-deleted/replaced storage URL (the
+// denormalised child_image_url snapshot goes stale). Track URLs that 404 so we
+// fall back to the child's initial letter instead of a broken-image icon.
+const brokenImages = ref<Set<string>>(new Set());
+function onPinImageError(url: string | null) {
+  if (url) brokenImages.value = new Set(brokenImages.value).add(url);
+}
 
 // ── Pinch-zoom + pan ──────────────────────────────────────────────────────────
 // Transform state: mapContainer is translated then scaled around origin (0,0).

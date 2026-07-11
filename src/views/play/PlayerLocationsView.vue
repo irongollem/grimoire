@@ -49,6 +49,7 @@
               :loc="loc"
               :npcs="sharedNpcsByLocation[loc.id] ?? []"
               :shared-child-ids="sharedChildIds"
+              :shared-children="sharedChildren"
               :is-full-size="fullSizeMaps.has(loc.id)"
               @lightbox="lightboxSrc = $event"
               @toggle-map-size="toggleMapSize"
@@ -100,6 +101,7 @@
             :loc="entry.loc"
             :npcs="sharedNpcsByLocation[entry.loc.id] ?? []"
             :shared-child-ids="sharedChildIds"
+            :shared-children="sharedChildren"
             :is-full-size="fullSizeMaps.has(entry.loc.id)"
             @lightbox="lightboxSrc = $event"
             @toggle-map-size="toggleMapSize"
@@ -413,6 +415,7 @@ function toggleChildren(id: string) {
 }
 
 const sharedChildIds = computed(() => new Set((locations.value ?? []).map((l) => l.id)));
+const sharedChildren = computed(() => new Map((locations.value ?? []).map((l) => [l.id, l])));
 
 const watchingLocation = ref<WatchTarget | null>(null);
 

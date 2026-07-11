@@ -15,7 +15,7 @@
                 <button
                   v-if="parseBeastAttackBonus(action.description) !== null"
                   class="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border hover:border-primary/50 hover:bg-muted/30 transition-colors shrink-0"
-                  @click="rollBeastAttack(action.name, parseBeastAttackBonus(action.description)!)"
+                  v-roll-mode="(mode: RollMode | null) => rollBeastAttack(action.name, parseBeastAttackBonus(action.description)!, mode)"
                 >
                   <IconSword class="h-3 w-3 text-muted-foreground" />
                   <span class="font-cinzel text-xs text-foreground">Attack</span>
@@ -47,7 +47,7 @@
           <div class="flex flex-wrap gap-2">
             <button
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:border-primary/50 hover:bg-muted/30 transition-colors group"
-              @click="rollWeaponAttack(inv, item)"
+              v-roll-mode="(mode: RollMode | null) => rollWeaponAttack(inv, item, mode)"
             >
               <IconSword class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
               <span class="font-cinzel text-xs text-foreground">Attack</span>
@@ -79,7 +79,7 @@
           <div class="flex flex-wrap gap-2 items-center">
             <button
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:border-primary/50 hover:bg-muted/30 transition-colors group"
-              @click="rollUnarmedAttack"
+              v-roll-mode="(mode: RollMode | null) => rollUnarmedAttack(mode)"
             >
               <IconSword class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
               <span class="font-cinzel text-xs text-foreground">Attack</span>
@@ -99,7 +99,7 @@
           <div class="flex flex-wrap gap-2">
             <button
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:border-primary/50 hover:bg-muted/30 transition-colors group"
-              @click="rollImprovisedAttack"
+              v-roll-mode="(mode: RollMode | null) => rollImprovisedAttack(mode)"
             >
               <IconSword class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
               <span class="font-cinzel text-xs text-foreground">Attack</span>
@@ -126,7 +126,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconLightning, IconSword } from '@/lib/icons';
-import { rollParsed } from "@/lib/roller";
+import { rollParsed, combineModes } from "@/lib/roller";
 import type { RollMode, DieSize } from "@/lib/roller";
 import { parseExpression } from "@/lib/dice";
 import type { ParsedExpression } from "@/lib/dice";
@@ -193,8 +193,8 @@ function parseBeastAttackBonus(desc: string): number | null {
   return null;
 }
 
-async function rollBeastAttack(name: string, bonus: number) {
-  return rollAttackWith(bonus, name);
+async function rollBeastAttack(name: string, bonus: number, override: RollMode | null = null) {
+  return rollAttackWith(bonus, name, override);
 }
 
 function weaponAbilityMod(item: Item): number {
@@ -226,8 +226,13 @@ function modeTag(mode: RollMode) {
   return mode === "advantage" ? " (Adv)" : mode === "disadvantage" ? " (Dis)" : "";
 }
 
-async function rollAttackWith(mod: number, baseLabel: string) {
-  const mode: RollMode = props.attackDisadvantage ? "disadvantage" : "normal";
+async function rollAttackWith(mod: number, baseLabel: string, override: RollMode | null = null) {
+  // Player-picked mode (long-press/right-click) merged with condition-imposed
+  // disadvantage — opposing sources cancel to normal (5e RAW).
+  const mode: RollMode = combineModes(
+    override ?? "normal",
+    props.attackDisadvantage ? "disadvantage" : "normal",
+  );
   const fullLabel = `${baseLabel} — Attack` + modeTag(mode);
   const result = await promptRoll({ counts: { 20: 1 }, modifier: mod, label: fullLabel, mode });
   if (!result) return;
@@ -235,11 +240,10 @@ async function rollAttackWith(mod: number, baseLabel: string) {
   emit("roll", { label: fullLabel, dice: kept.val, modifier: mod, total: result.total });
 }
 
-function rollUnarmedAttack() { return rollAttackWith(unarmedAttackMod.value, "Unarmed Strike"); }
-function rollImprovisedAttack() { return rollAttackWith(improvisedAttackMod.value, "Improvised Weapon"); }
-function rollWeaponAttack(inv: PartyInventoryItem, item: Item) {
-  void item;
-  return rollAttackWith(weaponAttackMod(item), inv.name);
+function rollUnarmedAttack(override: RollMode | null = null) { return rollAttackWith(unarmedAttackMod.value, "Unarmed Strike", override); }
+function rollImprovisedAttack(override: RollMode | null = null) { return rollAttackWith(improvisedAttackMod.value, "Improvised Weapon", override); }
+function rollWeaponAttack(inv: PartyInventoryItem, item: Item, override: RollMode | null = null) {
+  return rollAttackWith(weaponAttackMod(item), inv.name, override);
 }
 
 function parsedToCounts(parsed: ParsedExpression): Partial<Record<DieSize, number>> {

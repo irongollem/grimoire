@@ -314,12 +314,25 @@ onMounted(() => {
       { event: "UPDATE", schema: "public", table: "party_members",
         filter: `campaign_id=eq.${campaignId}` },
       (payload) => {
-        const row = payload.new as { id: string; current_hp: number };
+        const row = payload.new as { id: string; current_hp: number; current_initiative: number | null };
+        const combatant = store.combatants.find((c) => c.party_member_id === row.id);
+
+        // Ingest player-rolled initiative (#504). The runner never writes
+        // current_initiative, so there's no echo to guard against. Only apply a
+        // fresh non-null value that differs — this keeps the player's own roll
+        // and lets "Roll Initiative" skip anyone who already rolled.
+        if (
+          combatant &&
+          row.current_initiative !== null &&
+          combatant.initiative !== row.current_initiative
+        ) {
+          store.setInitiative(combatant.instance_id, row.current_initiative);
+        }
+
         if (lastWrittenHp.get(row.id) === row.current_hp) {
           lastWrittenHp.delete(row.id);
           return;
         }
-        const combatant = store.combatants.find((c) => c.party_member_id === row.id);
         if (combatant && combatant.hp !== row.current_hp) {
           store.setHp(combatant.instance_id, row.current_hp);
         }

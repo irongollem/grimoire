@@ -91,6 +91,7 @@ Collapse/detail open state is persisted in `useUiStore` (`atlasChildrenOpen`, `a
   - Click a shared pin → scrolls to and expands that location in the list
   - "Go there" pin action → same as click (scroll + expand)
   - "Watch" pin action → opens a bottom-sheet modal with the sub-location's art, player summary, and a personal notes widget (even for unshared sub-locations where the pin still provides denormalised name/image)
+  - Pin token images are **re-hydrated from live shared child data** (`PlayerLocationDetailPanel` `sharedChildren` map): the denormalised `child_image_url` snapshot in `map_pins` goes stale when a child's image is later replaced (its old storage file is deleted → 404), which players saw as broken pin images (#502). Shared children resolve their current image; unshared children fall back to the snapshot. `LocationMap` also hides any pin image that fails to load, falling back to the child's initial letter
   - Compact / Full-size toggle
 - Full description (only when `is_description_shared = true`)
 - **Wares** (store/tavern/inn with `is_inventory_shared = true`) — rendered via `PlayerStoreWares`

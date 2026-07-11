@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from "vue-router";
 import { createPinia } from "pinia";
 import { VueQueryPlugin, QueryClient } from "@tanstack/vue-query";
 import App from "./App.vue";
+import { vRollMode } from "./directives/vRollMode";
 import { routes, setupRouterGuard } from "./router/index";
 import { updateAvailable } from "./composables/useAppUpdate";
 import { captureInstallPrompt } from "./composables/usePwaInstall";
@@ -47,6 +48,10 @@ const app = createApp(App);
 app.use(createPinia());
 app.use(VueQueryPlugin, { queryClient });
 app.use(router);
+
+// Registered synchronously (not in the async block below) so roll triggers that
+// mount early can always resolve `v-roll-mode` (#501).
+app.directive("roll-mode", vRollMode);
 
 // Browser-only setup — directives, PWA install prompt, service worker, and a
 // couple of platform quirks. Loaded after the app is wired up.

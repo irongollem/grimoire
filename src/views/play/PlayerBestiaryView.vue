@@ -218,7 +218,7 @@
                           v-if="parseAttackBonus(t.description) !== null"
                           type="button"
                           class="font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded border border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 transition-colors"
-                          @click.stop="rollAttack(parseAttackBonus(t.description) ?? 0, t.name)"
+                          v-roll-mode="{ enabled: true, on: (m: RollMode | null, ev: Event) => { ev.stopPropagation(); rollAttack(parseAttackBonus(t.description) ?? 0, t.name, m); } }"
                         >⚔ {{ (parseAttackBonus(t.description) ?? 0) >= 0 ? '+' : '' }}{{ parseAttackBonus(t.description) ?? 0 }}</button>
                         <button
                           v-if="hasRollableDice(t.description)"
@@ -267,6 +267,7 @@ import { parseExpression } from "@/lib/dice";
 import type { DieSize } from "@/lib/dice";
 import { parseCr, formatHitPoints } from "@/lib/utils";
 import { rollParsed } from "@/lib/roller";
+import type { RollMode } from "@/lib/roller";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import type { DiscoveredMonster, Monster } from "@/types/monster.types";
 import FocalImage from "@/components/common/FocalImage.vue";
@@ -471,12 +472,15 @@ function actionDiceLabel(desc: string): string {
   return diceStr + (mod > 0 ? `+${mod}` : mod < 0 ? `${mod}` : "");
 }
 
-async function rollAttack(attackBonus: number, actionName: string) {
-  const label = `${actionName} Attack`;
+async function rollAttack(attackBonus: number, actionName: string, override: RollMode | null = null) {
+  const mode: RollMode = override ?? "normal";
+  const modeTag = mode === "advantage" ? " (Adv)" : mode === "disadvantage" ? " (Dis)" : "";
+  const label = `${actionName} Attack${modeTag}`;
   const result = await promptRoll({
     counts: { 20: 1 },
     modifier: attackBonus,
     label,
+    mode,
     senderName: member.value?.name,
   });
   if (result) lastRoll.value = { label, total: result.total };

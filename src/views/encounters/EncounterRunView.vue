@@ -115,7 +115,11 @@ function initStore(enc: Encounter, mons: Monster[], par: PartyMember[], npcList:
       type: "player",
       name: member.name,
       faction_id: enc.party_member_factions?.[member.id] ?? "players",
-      initiative: member.current_initiative ?? null,
+      // Start every encounter with a blank initiative so players roll fresh each
+      // time (and the DM can roll for any who don't). We deliberately no longer
+      // seed from the persistent party_members.current_initiative, which carried
+      // stale values between encounters. See #504.
+      initiative: null,
       hp: member.current_hp,
       max_hp: member.max_hp,
       ac: String(member.ac),
