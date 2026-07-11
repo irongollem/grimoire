@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import DowntimeActivityCard from "@/components/downtime/DowntimeActivityCard.vue";
 import DowntimeOutcomeVignette from "@/components/downtime/DowntimeOutcomeVignette.vue";
@@ -79,6 +79,17 @@ async function onSelect(activity: DowntimeActivity) {
 function onOpenOutcome(outcomeId: string) {
   markRead.mutate({ entityType: "downtime_outcome", entityId: outcomeId });
 }
+
+// The vignette is fully readable without any click affordance, so clear the
+// unread dot when the outcomes come into view (on mount / as they load) rather
+// than only on click — otherwise the dots stick forever.
+watch(myOutcomes, (list) => {
+  for (const entry of list) {
+    if (isNew(entry.outcome.id)) {
+      markRead.mutate({ entityType: "downtime_outcome", entityId: entry.outcome.id });
+    }
+  }
+}, { immediate: true });
 </script>
 
 <template>

@@ -473,10 +473,12 @@ const hpBarColor = computed(() => {
 const tempHpBarPct = computed(() => {
   const m = member.value;
   if (!m) return 0;
+  // While wildshaped the bar tracks the beast's HP; the character's temp HP
+  // doesn't apply to the beast form (the mobile header already zeroes it).
+  if (activeWildshape.value) return 0;
   const temp = m.temp_hp ?? 0;
   if (temp <= 0) return 0;
-  const maxHp = activeWildshape.value?.beast_max_hp ?? m.max_hp;
-  return (temp / (maxHp + temp)) * 100;
+  return (temp / (m.max_hp + temp)) * 100;
 });
 const hpBarWidthPct = computed(() => {
   const m = member.value;

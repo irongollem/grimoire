@@ -36,7 +36,7 @@
             <div
               class="h-full rounded-full transition-all"
               :class="hpBarColor"
-              :style="{ width: `${Math.max(0, Math.min(100, (member.current_hp / member.max_hp) * 100))}%` }"
+              :style="{ width: `${member.max_hp > 0 ? Math.max(0, Math.min(100, (member.current_hp / member.max_hp) * 100)) : 0}%` }"
             />
           </div>
         </template>

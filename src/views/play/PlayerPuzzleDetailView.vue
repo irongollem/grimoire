@@ -18,7 +18,7 @@
       class="text-center py-16 space-y-3"
     >
       <IconPuzzle class="h-10 w-10 text-muted-foreground/30 mx-auto" />
-      <p class="font-cinzel text-sm text-muted-foreground">IconPuzzle not found.</p>
+      <p class="font-cinzel text-sm text-muted-foreground">Puzzle not found.</p>
     </div>
 
     <template v-else>

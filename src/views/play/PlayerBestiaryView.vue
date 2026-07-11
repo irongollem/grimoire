@@ -187,7 +187,7 @@
             <div>
               <h2 class="font-cinzel text-xl font-bold text-foreground">{{ lightbox.name }}</h2>
               <p v-if="lightbox.monster" class="font-fell text-sm text-muted-foreground italic capitalize">
-                {{ lightbox.monster.size }} {{ lightbox.monster.monster_type }}<span v-if="lightbox.monster.alignment"> · {{ lightbox.monster.alignment }}</span>
+                {{ lightbox.monster.size }} {{ lightbox.monster.monster_type }}<span v-if="lightbox.monster.alignment && (lightbox.revealStats ?? activeTab === 'forms')"> · {{ lightbox.monster.alignment }}</span>
               </p>
             </div>
 
