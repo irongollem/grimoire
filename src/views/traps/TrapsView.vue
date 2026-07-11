@@ -29,9 +29,12 @@
       grid. Previously they lived inside the default slot above the grid.
     -->
     <template v-if="traps?.length" #filters>
-      <ListFilterBar>
-        <ListSearchInput v-model="search" placeholder="Search traps…" />
-        <ListFilterSelect v-model="typeFilter" aria-label="Trap type filter">
+      <ListFilterBar
+        :has-active-filters="ui.trapsHasActiveFilters"
+        @clear="ui.resetTrapsFilters()"
+      >
+        <ListSearchInput v-model="ui.trapsSearch" placeholder="Search traps…" />
+        <ListFilterSelect v-model="ui.trapsFilterType" aria-label="Trap type filter">
           <option value="">All Types</option>
           <option v-for="t in TRAP_TYPES" :key="t" :value="t">{{ t }}</option>
         </ListFilterSelect>
@@ -134,14 +137,11 @@ const ui = useUiStore();
 const router = useRouter();
 const { data: traps, isLoading } = useTraps();
 
-const search = ref("");
-const typeFilter = ref("");
-
 const filtered = computed(() => {
   let list = traps.value ?? [];
-  if (typeFilter.value)
-    list = list.filter((t) => t.trap_type === typeFilter.value);
-  const q = search.value.toLowerCase().trim();
+  if (ui.trapsFilterType)
+    list = list.filter((t) => t.trap_type === ui.trapsFilterType);
+  const q = ui.trapsSearch.toLowerCase().trim();
   if (q)
     list = list.filter(
       (t) =>

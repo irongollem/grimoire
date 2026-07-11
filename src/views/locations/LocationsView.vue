@@ -31,15 +31,18 @@
     </template>
 
     <template #filters>
-      <ListFilterBar>
-        <ListSearchInput v-model="search" placeholder="Search locations…" />
-        <ListFilterSelect v-model="typeFilter" aria-label="Location type filter">
+      <ListFilterBar
+        :has-active-filters="ui.locationsHasActiveFilters"
+        @clear="ui.resetLocationsFilters()"
+      >
+        <ListSearchInput v-model="ui.locationsSearch" placeholder="Search locations…" />
+        <ListFilterSelect v-model="ui.locationsFilterType" aria-label="Location type filter">
           <option v-for="opt in TYPE_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
         </ListFilterSelect>
       </ListFilterBar>
     </template>
 
-    <LocationList :search="search" :type-filter="typeFilter" />
+    <LocationList :search="ui.locationsSearch" :type-filter="ui.locationsFilterType" />
   </ListPageLayout>
 
   <PaywallModal v-model="showPaywall" resource="locations" />
@@ -67,9 +70,6 @@ const TYPE_OPTIONS = [
   { value: "all", label: "All" },
   ...Object.entries(LOCATION_TYPE_LABELS).map(([value, label]) => ({ value, label })),
 ];
-
-const search = ref("");
-const typeFilter = ref("all");
 
 const populateMutation = usePopulateLocations();
 const populateStatus = ref<"idle" | "done" | "uptodate">("idle");

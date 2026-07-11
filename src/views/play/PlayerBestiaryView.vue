@@ -26,14 +26,22 @@
       </div>
 
       <template v-else>
-        <div class="relative">
-          <IconSearch class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <input
-            v-model="searchInput"
-            type="text"
-            placeholder="Search bestiary…"
-            class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          />
+        <div class="flex items-center gap-2">
+          <div class="relative flex-1">
+            <IconSearch class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <input
+              v-model="ui.playerBestiarySearch"
+              type="text"
+              placeholder="Search bestiary…"
+              class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
+          <button
+            v-if="ui.playerBestiaryHasActiveFilters"
+            type="button"
+            class="px-3 py-1.5 font-cinzel text-xs tracking-wide text-muted-foreground hover:text-foreground border border-border rounded-md hover:border-foreground/30 transition-colors shrink-0"
+            @click="ui.resetPlayerBestiaryFilters()"
+          >Clear</button>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
@@ -322,8 +330,7 @@ const resolved = computed<BestiaryEntry[]>(() =>
   }),
 );
 
-const searchInput = ref("");
-const search = refDebounced(searchInput, 300);
+const search = refDebounced(computed(() => ui.playerBestiarySearch), 300);
 const filtered = computed(() => {
   if (!search.value.trim()) return resolved.value;
   const q = search.value.trim().toLowerCase();

@@ -18,10 +18,10 @@
 
     <template #filters>
       <ListFilterBar
-        :has-active-filters="!!search"
-        @clear="search = ''"
+        :has-active-filters="ui.pantheonsHasActiveFilters"
+        @clear="ui.resetPantheonsFilters()"
       >
-        <ListSearchInput v-model="search" placeholder="Filter pantheons…" />
+        <ListSearchInput v-model="ui.pantheonsSearch" placeholder="Filter pantheons…" />
       </ListFilterBar>
     </template>
 
@@ -77,7 +77,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { computed } from "vue";
 import { IconAdd, IconChevronRight, IconFire, IconNavPantheon, IconReveal, IconSun } from '@/lib/icons';
 import { useAllPantheons, useAllDeities } from "@/composables/useDeities";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
@@ -88,16 +88,16 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useCreateGate } from "@/composables/useCreateGate";
+import { useUiStore } from "@/stores/ui";
 
+const ui = useUiStore();
 const { data: pantheons, isLoading } = useAllPantheons();
 const { data: deities } = useAllDeities();
-
-const search = ref("");
 
 const { showPaywall, handleNew } = useCreateGate("pantheons", "/pantheons/new");
 
 const filtered = computed(() => {
-  const q = search.value.trim().toLowerCase();
+  const q = ui.pantheonsSearch.trim().toLowerCase();
   return (pantheons.value ?? []).filter((p) => {
     if (q && !p.name.toLowerCase().includes(q) && !p.tags.some((t) => t.toLowerCase().includes(q))) return false;
     return true;

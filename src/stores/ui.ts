@@ -447,6 +447,120 @@ export const useUiStore = defineStore("ui", () => {
     cartographerFilterPack.value = "";
   }
 
+  // Traps (Traproom) UI state
+  const trapsSearch = ref("");
+  const trapsFilterType = ref("");
+
+  const trapsHasActiveFilters = computed(
+    () => trapsSearch.value !== "" || trapsFilterType.value !== "",
+  );
+
+  function resetTrapsFilters() {
+    trapsSearch.value = "";
+    trapsFilterType.value = "";
+  }
+
+  // Locations (Atlas) UI state — DM
+  const locationsSearch = ref("");
+  const locationsFilterType = ref("all");
+
+  const locationsHasActiveFilters = computed(
+    () => locationsSearch.value !== "" || locationsFilterType.value !== "all",
+  );
+
+  function resetLocationsFilters() {
+    locationsSearch.value = "";
+    locationsFilterType.value = "all";
+  }
+
+  // Puzzles (Enigmarium) UI state
+  const puzzlesSearch = ref("");
+  const puzzlesFilterType = ref("");
+  const puzzlesFilterDifficulty = ref("");
+
+  const puzzlesHasActiveFilters = computed(
+    () =>
+      puzzlesSearch.value !== "" ||
+      puzzlesFilterType.value !== "" ||
+      puzzlesFilterDifficulty.value !== "",
+  );
+
+  function resetPuzzlesFilters() {
+    puzzlesSearch.value = "";
+    puzzlesFilterType.value = "";
+    puzzlesFilterDifficulty.value = "";
+  }
+
+  // Pantheons UI state — the pantheon *list* search (distinct from the
+  // deities list, which uses deitiesSearch/deitiesFilterPantheon above).
+  const pantheonsSearch = ref("");
+
+  const pantheonsHasActiveFilters = computed(() => pantheonsSearch.value !== "");
+
+  function resetPantheonsFilters() {
+    pantheonsSearch.value = "";
+  }
+
+  // Player Bestiary UI state
+  const playerBestiarySearch = ref("");
+
+  const playerBestiaryHasActiveFilters = computed(
+    () => playerBestiarySearch.value !== "",
+  );
+
+  function resetPlayerBestiaryFilters() {
+    playerBestiarySearch.value = "";
+  }
+
+  // Player Factions UI state
+  const playerFactionsSearch = ref("");
+
+  const playerFactionsHasActiveFilters = computed(
+    () => playerFactionsSearch.value !== "",
+  );
+
+  function resetPlayerFactionsFilters() {
+    playerFactionsSearch.value = "";
+  }
+
+  // Player Locations (Atlas) UI state
+  const playerLocationsSearch = ref("");
+  const playerLocationsFilterType = ref("all");
+
+  const playerLocationsHasActiveFilters = computed(
+    () =>
+      playerLocationsSearch.value !== "" ||
+      playerLocationsFilterType.value !== "all",
+  );
+
+  function resetPlayerLocationsFilters() {
+    playerLocationsSearch.value = "";
+    playerLocationsFilterType.value = "all";
+  }
+
+  // Player Spells (browse tab) UI state.
+  // The class filter defaults to the player's own class (seeded by the view), so
+  // it is intentionally excluded from hasActiveFilters / reset — Clear targets
+  // the search/level/school filters and leaves the class selection intact. All
+  // four still live here so they survive navigation within a session.
+  const playerSpellsSearch = ref("");
+  const playerSpellsLevelFilter = ref("");
+  const playerSpellsSchoolFilter = ref("");
+  const playerSpellsClassFilter = ref("");
+
+  const playerSpellsHasActiveFilters = computed(
+    () =>
+      playerSpellsSearch.value !== "" ||
+      playerSpellsLevelFilter.value !== "" ||
+      playerSpellsSchoolFilter.value !== "",
+  );
+
+  function resetPlayerSpellsFilters() {
+    playerSpellsSearch.value = "";
+    playerSpellsLevelFilter.value = "";
+    playerSpellsSchoolFilter.value = "";
+  }
+
   function resetNotesFilters() {
     notesFilterCategory.value = "all";
     notesFilterTags.value = [];
@@ -675,5 +789,53 @@ export const useUiStore = defineStore("ui", () => {
     cartographerFilterPack,
     cartographerHasActiveFilters,
     resetCartographerFilters,
+
+    // Traps
+    trapsSearch,
+    trapsFilterType,
+    trapsHasActiveFilters,
+    resetTrapsFilters,
+
+    // Locations (DM)
+    locationsSearch,
+    locationsFilterType,
+    locationsHasActiveFilters,
+    resetLocationsFilters,
+
+    // Puzzles
+    puzzlesSearch,
+    puzzlesFilterType,
+    puzzlesFilterDifficulty,
+    puzzlesHasActiveFilters,
+    resetPuzzlesFilters,
+
+    // Pantheons
+    pantheonsSearch,
+    pantheonsHasActiveFilters,
+    resetPantheonsFilters,
+
+    // Player Bestiary
+    playerBestiarySearch,
+    playerBestiaryHasActiveFilters,
+    resetPlayerBestiaryFilters,
+
+    // Player Factions
+    playerFactionsSearch,
+    playerFactionsHasActiveFilters,
+    resetPlayerFactionsFilters,
+
+    // Player Locations
+    playerLocationsSearch,
+    playerLocationsFilterType,
+    playerLocationsHasActiveFilters,
+    resetPlayerLocationsFilters,
+
+    // Player Spells (browse)
+    playerSpellsSearch,
+    playerSpellsLevelFilter,
+    playerSpellsSchoolFilter,
+    playerSpellsClassFilter,
+    playerSpellsHasActiveFilters,
+    resetPlayerSpellsFilters,
   };
 });

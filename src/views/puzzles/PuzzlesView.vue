@@ -22,13 +22,16 @@
     </template>
 
     <template v-if="puzzles?.length" #filters>
-      <ListFilterBar>
-        <ListSearchInput v-model="search" placeholder="Search puzzles…" />
-        <ListFilterSelect v-model="typeFilter" aria-label="Puzzle type filter">
+      <ListFilterBar
+        :has-active-filters="ui.puzzlesHasActiveFilters"
+        @clear="ui.resetPuzzlesFilters()"
+      >
+        <ListSearchInput v-model="ui.puzzlesSearch" placeholder="Search puzzles…" />
+        <ListFilterSelect v-model="ui.puzzlesFilterType" aria-label="Puzzle type filter">
           <option value="">All Types</option>
           <option v-for="t in PUZZLE_TYPES" :key="t" :value="t">{{ t }}</option>
         </ListFilterSelect>
-        <ListFilterSelect v-model="difficultyFilter" aria-label="Difficulty filter">
+        <ListFilterSelect v-model="ui.puzzlesFilterDifficulty" aria-label="Difficulty filter">
           <option value="">All Difficulties</option>
           <option v-for="d in PUZZLE_DIFFICULTIES" :key="d" :value="d">{{ d }}</option>
         </ListFilterSelect>
@@ -123,15 +126,11 @@ const { data: puzzles, isLoading } = usePuzzles();
 
 const { showPaywall, handleNew, gateQuotaError } = useCreateGate("puzzle_rooms", "/puzzles/new");
 
-const search          = ref("");
-const typeFilter      = ref("");
-const difficultyFilter = ref("");
-
 const filtered = computed(() => {
   let list = puzzles.value ?? [];
-  if (typeFilter.value) list = list.filter((p) => p.puzzle_type === typeFilter.value);
-  if (difficultyFilter.value) list = list.filter((p) => p.difficulty === difficultyFilter.value);
-  const q = search.value.toLowerCase().trim();
+  if (ui.puzzlesFilterType) list = list.filter((p) => p.puzzle_type === ui.puzzlesFilterType);
+  if (ui.puzzlesFilterDifficulty) list = list.filter((p) => p.difficulty === ui.puzzlesFilterDifficulty);
+  const q = ui.puzzlesSearch.toLowerCase().trim();
   if (q) list = list.filter((p) =>
     p.name.toLowerCase().includes(q) ||
     p.tags.some((tag) => tag.toLowerCase().includes(q)),
