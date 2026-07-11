@@ -42,8 +42,11 @@ const memberClassRef = computed(() => props.member.class ?? "");
 const classData = useClassByName(memberClassRef);
 const casterType = computed(() => classData.value?.caster_type ?? getCasterType(props.member.class));
 const effectiveSpellSlots = computed<SpellSlotEntry[]>(() => {
-  if (casterType.value === "none") return [];
+  // Honor stored slots FIRST: a multiclass caster with a non-caster legacy class
+  // (e.g. Rogue 3/Wizard 2, class "Rogue") has casterType "none" from the legacy
+  // field but real persisted slots — checking casterType first wiped them on rest.
   if (props.member.spell_slots?.length) return props.member.spell_slots;
+  if (casterType.value === "none") return [];
   return getDefaultSpellSlots(props.member.class, props.member.level);
 });
 

@@ -304,7 +304,8 @@ function confirm() {
       update.class_resources = updatedResources;
 
     // Warlock pact slot recovery
-    if ((classData.value?.slot_recovery ?? getSlotRecovery(props.member.class)) === "short") {
+    if ((classData.value?.slot_recovery ?? getSlotRecovery(props.member.class)) === "short"
+        && props.effectiveSpellSlots.length) {
       update.spell_slots = props.effectiveSpellSlots.map((s) => ({
         ...s,
         used: 0,
@@ -335,11 +336,14 @@ function confirm() {
     if (Object.keys(updatedResources).length)
       update.class_resources = updatedResources;
 
-    // All spell slots
-    update.spell_slots = props.effectiveSpellSlots.map((s) => ({
-      ...s,
-      used: 0,
-    }));
+    // All spell slots — never write an empty array (would wipe a caster whose
+    // effective slots couldn't be derived); leave the column untouched instead.
+    if (props.effectiveSpellSlots.length) {
+      update.spell_slots = props.effectiveSpellSlots.map((s) => ({
+        ...s,
+        used: 0,
+      }));
+    }
 
     // Wild Shape: revert active form and reset uses
     update.wildshapes_used = 0;
