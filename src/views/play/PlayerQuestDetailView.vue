@@ -306,14 +306,14 @@ import { IconCheck, IconChevronLeft, IconClose, IconLocation, IconMonster, IconS
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import {
-  useQuest,
+  usePlayerVisibleQuest,
   useQuestObjectives,
   useQuestRefs,
 } from "@/composables/useQuests";
 import { useMarkRead } from "@/composables/useReadItems";
 import { useSharedNpcs } from "@/composables/useNpcs";
 import { useSharedLocations } from "@/composables/useLocations";
-import { useMonsters } from "@/composables/useMonsters";
+import { usePlayerVisibleMonsters } from "@/composables/useMonsters";
 import { useItems } from "@/composables/useItems";
 import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
 import { QUEST_STATUS_LABELS, QUEST_STATUS_COLORS } from "@/types/quest.types";
@@ -325,7 +325,7 @@ const route = useRoute();
 const router = useRouter();
 const questId = computed(() => route.params.id as string);
 
-const { data: quest, isLoading } = useQuest(questId);
+const { data: quest, isLoading } = usePlayerVisibleQuest(questId);
 const { mutate: markRead } = useMarkRead();
 
 watch(quest, (q) => {
@@ -338,7 +338,7 @@ const { data: questRefs } = useQuestRefs(questId);
 // NPCs' real names (get_player_visible_npcs gates name/race/occupation).
 const { data: npcs } = useSharedNpcs();
 const { data: locations } = useSharedLocations();
-const { data: allMonsters } = useMonsters();
+const { data: allMonsters } = usePlayerVisibleMonsters();
 const { data: allItems } = useItems();
 
 // NPC lightbox

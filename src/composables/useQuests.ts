@@ -176,22 +176,50 @@ export function useQuests(status?: QuestStatus) {
   });
 }
 
+/**
+ * Player-visible quests in the active campaign. Routes through the
+ * get_player_visible_quests SECURITY DEFINER projection (migration
+ * 20260711000012) — NOT a base-table `select *` — so DM `notes` (Tiptap JSON)
+ * never reaches the client. Players have no direct base-table read path (RLS is
+ * owner-only); the projection gates rows on the player's player_visible_to.
+ */
 export function usePlayerVisibleQuests() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
     queryKey: computed(() => [QUESTS_KEY, campaignId.value, "player-visible"]),
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("quests")
-        .select("*")
-        .eq("campaign_id", campaignId.value!)
-        .not("player_visible_to", "is", null)
-        .order("updated_at", { ascending: false });
+      const { data, error } = await supabase.rpc("get_player_visible_quests", {
+        p_campaign_id: campaignId.value!,
+        p_quest_id: null,
+      });
       if (error) throw error;
-      return data as Quest[];
+      return ((data ?? []) as Quest[]).sort(
+        (a, b) => (b.updated_at ?? "").localeCompare(a.updated_at ?? ""),
+      );
     },
     enabled: () => !!campaignId.value,
+  });
+}
+
+/**
+ * A single player-visible quest by id, via the same projection. Used by the
+ * player detail view instead of useQuest (which does a base-table `select *`
+ * and would leak DM `notes` to any player who opened devtools).
+ */
+export function usePlayerVisibleQuest(id: string | Ref<string>) {
+  const idRef = isRef(id) ? id : ref(id);
+  return useQuery({
+    queryKey: computed(() => [QUESTS_KEY, "player-one", idRef.value]),
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_player_visible_quests", {
+        p_campaign_id: null,
+        p_quest_id: idRef.value,
+      });
+      if (error) throw error;
+      return ((data ?? []) as Quest[])[0] ?? null;
+    },
+    enabled: () => !!idRef.value,
   });
 }
 
