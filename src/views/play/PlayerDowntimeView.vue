@@ -4,7 +4,7 @@ import { storeToRefs } from "pinia";
 import DowntimeActivityCard from "@/components/downtime/DowntimeActivityCard.vue";
 import DowntimeOutcomeVignette from "@/components/downtime/DowntimeOutcomeVignette.vue";
 import { useAuthStore } from "@/stores/auth";
-import { useNpcs } from "@/composables/useNpcs";
+import { useSharedNpcs } from "@/composables/useNpcs";
 import { useReadItems, useMarkRead } from "@/composables/useReadItems";
 import {
   useDowntimeBalance,
@@ -22,7 +22,8 @@ const { linkedPartyMemberId } = storeToRefs(auth);
 const balance = useDowntimeBalance(linkedPartyMemberId);
 const { data: draws } = useDowntimeDraws();
 const { data: outcomes } = useDowntimeOutcomes();
-const { data: npcs } = useNpcs();
+// Player-visible projection only (gated names) — never the raw npcs table.
+const { data: npcs } = useSharedNpcs();
 const { isNew } = useReadItems("downtime_outcome");
 const markRead = useMarkRead();
 const spend = useSpendDraw();

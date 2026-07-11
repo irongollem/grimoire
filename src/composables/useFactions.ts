@@ -172,18 +172,24 @@ export function usePlayerFactionPartyMembers(factionId: Ref<string>, enabled: Re
   });
 }
 
-/** Player-accessible version — only works if the player is a member of the faction (via RLS) */
+/**
+ * Player-accessible version — only works if the player is a member of the faction (via RLS).
+ * Returns only the faction_npcs link rows (npc_id/role/status); the caller resolves each
+ * NPC's display fields through the player-visible projection (get_player_visible_npcs via
+ * useSharedNpcs). Selecting the npcs join directly here would leak a disguised or name-hidden
+ * NPC's real name/race/occupation (the base npcs table returns full rows to members).
+ */
 export function usePlayerFactionNpcs(factionId: Ref<string>, enabled: Ref<boolean>) {
   return useQuery({
     queryKey: computed(() => ["player-faction-npcs", factionId.value]),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("faction_npcs")
-        .select("*, npc:npcs(id, name, occupation, race, disguise_name, disguise_portrait_url, is_revealed)")
+        .select("*")
         .eq("faction_id", factionId.value)
         .order("created_at", { ascending: true });
       if (error) throw error;
-      return data as (FactionNpc & { npc: Pick<Npc, "id" | "name" | "occupation" | "race" | "disguise_name" | "disguise_portrait_url" | "is_revealed"> })[];
+      return data as FactionNpc[];
     },
     enabled: computed(() => !!factionId.value && enabled.value),
   });

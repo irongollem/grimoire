@@ -292,7 +292,7 @@ import {
   useQuestRefs,
 } from "@/composables/useQuests";
 import { useMarkRead } from "@/composables/useReadItems";
-import { useNpcs } from "@/composables/useNpcs";
+import { useSharedNpcs } from "@/composables/useNpcs";
 import { useSharedLocations } from "@/composables/useLocations";
 import { useMonsters } from "@/composables/useMonsters";
 import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
@@ -314,7 +314,9 @@ watch(quest, (q) => {
 const { data: objectives } = useQuestObjectives(questId);
 const { data: questRefs } = useQuestRefs(questId);
 
-const { data: npcs } = useNpcs();
+// Player-visible projection only — the raw npcs table leaks disguised/hidden
+// NPCs' real names (get_player_visible_npcs gates name/race/occupation).
+const { data: npcs } = useSharedNpcs();
 const { data: locations } = useSharedLocations();
 const { data: allMonsters } = useMonsters();
 

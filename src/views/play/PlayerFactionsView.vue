@@ -130,12 +130,12 @@
                 </div>
                 <!-- NPC members (shared with player) -->
                 <div
-                  v-for="entry in factionNpcs?.filter(e => e.npc && (!e.status || e.status === 'Active'))"
+                  v-for="entry in visibleFactionNpcs"
                   :key="entry.id"
                   class="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2"
                 >
                   <div class="flex-1 min-w-0">
-                    <span class="font-cinzel text-xs font-semibold text-foreground">{{ getNpcDisplayName(entry.npc) }}</span>
+                    <span class="font-cinzel text-xs font-semibold text-foreground">{{ getNpcDisplayName(entry.npc) ?? '???' }}</span>
                     <span v-if="entry.npc.race || entry.npc.occupation" class="font-fell text-xs text-muted-foreground italic ml-2">
                       {{ [entry.npc.race, entry.npc.occupation].filter(Boolean).join(' · ') }}
                     </span>
@@ -160,6 +160,7 @@ import { getNpcDisplayName } from "@/lib/npcDisplay";
 import { IconClose, IconShield } from '@/lib/icons';
 import { useSpeciesNameMap } from "@/composables/useSpecies";
 import { usePlayerVisibleFactions, usePartyMemberFactions, usePlayerFactionNpcs, usePlayerFactionPartyMembers } from "@/composables/useFactions";
+import { useSharedNpcs } from "@/composables/useNpcs";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import type { Faction } from "@/types/faction.types";
@@ -221,6 +222,17 @@ const selectedFactionId = computed(() => selected.value?.id ?? "");
 const isInFaction = computed(() => !!playerMembership.value);
 const { data: factionNpcs } = usePlayerFactionNpcs(selectedFactionId, isInFaction);
 const { data: factionPcMembers } = usePlayerFactionPartyMembers(selectedFactionId, isInFaction);
+
+// Resolve each faction NPC link to its player-visible projection (gated name /
+// race / occupation). NPCs not shared with the player are omitted entirely, so a
+// disguised or name-hidden faction member never exposes its real identity.
+const { data: sharedNpcs } = useSharedNpcs();
+const sharedNpcMap = computed(() => new Map((sharedNpcs.value ?? []).map((n) => [n.id, n] as const)));
+const visibleFactionNpcs = computed(() =>
+  (factionNpcs.value ?? [])
+    .filter((e) => (!e.status || e.status === "Active") && sharedNpcMap.value.has(e.npc_id))
+    .map((e) => ({ ...e, npc: sharedNpcMap.value.get(e.npc_id)! })),
+);
 
 const filtered = computed(() => {
   const q = ui.playerFactionsSearch.toLowerCase().trim();
