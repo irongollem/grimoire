@@ -86,13 +86,19 @@ export function useInventorySlots({
   }
 
   async function equipToSlot(item: PartyInventoryItem, slot: InventorySlot) {
+    // Re-check occupancy right before writing — a realtime update could have
+    // filled the slot since the modal opened, and two items must not share one.
+    if (slotItem(slot)) { slotModal.value = null; return; }
     if (item.quantity > 1) {
-      await Promise.all([
-        updateInventoryItem({
-          id: item.id,
-          update: { quantity: item.quantity - 1 },
-        }),
-        addInventoryItem({
+      // Split one off the stack. Two writes, so guard atomicity: if inserting the
+      // equipped copy fails, restore the decremented quantity (best-effort rollback)
+      // instead of leaving the item partially lost, as the old Promise.all could.
+      await updateInventoryItem({
+        id: item.id,
+        update: { quantity: item.quantity - 1 },
+      });
+      try {
+        await addInventoryItem({
           item_id: item.item_id,
           name: item.name,
           quantity: 1,
@@ -106,8 +112,11 @@ export function useInventorySlots({
           notes: item.notes,
           is_ruined: item.is_ruined,
           is_identified: item.is_identified,
-        }),
-      ]);
+        });
+      } catch (e) {
+        await updateInventoryItem({ id: item.id, update: { quantity: item.quantity } });
+        throw e;
+      }
     } else {
       await updateInventoryItem({
         id: item.id,

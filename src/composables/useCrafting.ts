@@ -462,8 +462,14 @@ export function useAttemptCraft() {
       const total = rollResult.total;
       const diff = total - recipe.dc;
 
+      // Ruin on a natural 1 (auto-fail regardless of modifiers — matches the
+      // "Critical Failure" label) OR when the total misses the DC by 5+. `roll`
+      // is the kept d20 (post advantage/disadvantage), so nat-1 is the natural roll.
       const outcome =
-        diff >= 0 ? "success" : diff <= -5 ? "ruin" : "fail";
+        roll === 1 ? "ruin"
+          : diff >= 0 ? "success"
+            : diff <= -5 ? "ruin"
+              : "fail";
 
       // 2 + 3. Consume ingredients AND create the output/ruined item in one
       // atomic RPC (craft_apply) — see migration 20260613000002. Previously
