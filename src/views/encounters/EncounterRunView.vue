@@ -13,6 +13,7 @@ import { useRoute } from "vue-router";
 import { useEncounter } from "@/composables/useEncounters";
 import { useAllMonsters } from "@/composables/useMonsters";
 import { sizeToFootprint } from "@/lib/tokenFootprint";
+import { hitPointsToMax } from "@/lib/dice";
 import { useParty } from "@/composables/useParty";
 import { useCompanions } from "@/composables/useCompanions";
 import { useNpcs } from "@/composables/useNpcs";
@@ -160,7 +161,7 @@ function initStore(enc: Encounter, mons: Monster[], par: PartyMember[], npcList:
       const monster = mons.find((m) => m.id === entry.monster_id);
       if (!monster) continue;
       const sb = monster.stat_block;
-      const maxHp = parseInt(String(sb?.hit_points ?? "1").split(" ")[0], 10) || 1;
+      const maxHp = hitPointsToMax(sb?.hit_points, 1);
       const dex = Number(sb?.dex ?? 10);
       const dexMod = Math.floor((dex - 10) / 2);
       const ac = String(sb?.armor_class ?? 10);
@@ -195,7 +196,7 @@ function initStore(enc: Encounter, mons: Monster[], par: PartyMember[], npcList:
       const npc = npcList.find((n) => n.id === entry.npc_id);
       if (!npc) continue;
       const sb = npc.stat_block;
-      const maxHp = parseInt(String(sb?.hit_points ?? "10").split(" ")[0], 10) || 10;
+      const maxHp = hitPointsToMax(sb?.hit_points, 10);
       const dex = Number(sb?.dex ?? 10);
       const dexMod = Math.floor((dex - 10) / 2);
       const ac = String(sb?.armor_class ?? 10);

@@ -228,6 +228,22 @@ export function averageExpression(parsed: ParsedExpression): number {
   return Math.floor(avg + parsed.modifier);
 }
 
+/**
+ * Compute a concrete max-HP number from a `hit_points` stat-block field, which
+ * may be a pure dice expression ("2d8+2"), the "N (dice)" form ("11 (2d8+2)"),
+ * or a flat number. Returns the statistical average (11 for "2d8+2"), falling
+ * back to `fallback` when the field is missing or unparseable.
+ *
+ * Replaces the old `parseInt(hp.split(" ")[0])` idiom, which read only the
+ * leading integer and so returned 2 for "2d8+2".
+ */
+export function hitPointsToMax(hitPoints: string | null | undefined, fallback: number): number {
+  const parsed = parseExpression(hitPoints);
+  if (!parsed) return fallback;
+  const avg = averageExpression(parsed);
+  return avg > 0 ? avg : fallback;
+}
+
 /** Roll all dice in an expression and return the total. */
 export function rollExpression(parsed: ParsedExpression): number {
   return parsed.terms.reduce((s, t) => {

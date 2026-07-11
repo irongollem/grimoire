@@ -255,6 +255,7 @@ import { useCreateCompanion, useUpdateCompanion } from "@/composables/useCompani
 import { useAllMonsters } from "@/composables/useMonsters";
 import { useNpcs } from "@/composables/useNpcs";
 import { useImageUpload } from "@/composables/useImageUpload";
+import { hitPointsToMax } from "@/lib/dice";
 import {
   COMPANION_TYPES,
   COMPANION_TYPE_LABELS,
@@ -387,7 +388,7 @@ function buildStatBlock(): MonsterStatBlock | null {
 }
 
 function parseHpNum(hpStr: string): number {
-  return parseInt(hpStr, 10) || 1;
+  return hitPointsToMax(hpStr, 1);
 }
 function parseSpeedNum(speedStr: string): number {
   return parseInt(speedStr, 10) || 30;

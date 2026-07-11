@@ -94,6 +94,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { hitPointsToMax } from "@/lib/dice";
 import FocalImage from "@/components/common/FocalImage.vue";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
 import RunnerPcAttacks from "@/components/encounters/RunnerPcAttacks.vue";
@@ -228,7 +229,7 @@ const isDruid = computed(() =>
 
 function handleWildshape(monster: Monster) {
   const sb = monster.stat_block;
-  const maxHp = parseInt(String(sb?.hit_points ?? "1").split(" ")[0], 10) || 1;
+  const maxHp = hitPointsToMax(sb?.hit_points, 1);
   const ac = String(sb?.armor_class ?? "10");
   const wildshapesUsed = (member.wildshapes_used ?? 0) + 1;
   store.enterWildshape(combatant.instance_id, {

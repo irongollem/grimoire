@@ -6,6 +6,7 @@ import type { Npc } from "@/types/npc.types";
 import type { Trap } from "@/types/trap.types";
 import type { PartyMemberUpdate } from "@/types/party.types";
 import { sizeToFootprint } from "@/lib/tokenFootprint";
+import { hitPointsToMax } from "@/lib/dice";
 
 /** Persists a player-combatant change to party_members and invalidates the
  *  party query cache. The store stays UI-only — the actual DB write + cache
@@ -276,7 +277,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     const monster = availableMonsters.value.find((m) => m.id === monsterId);
     if (!monster) return;
     const sb = monster.stat_block;
-    const maxHp = parseInt(String(sb?.hit_points ?? "1").split(" ")[0], 10) || 1;
+    const maxHp = hitPointsToMax(sb?.hit_points, 1);
     const dex = Number(sb?.dex ?? 10);
     const dexMod = Math.floor((dex - 10) / 2);
     const ac = String(sb?.armor_class ?? 10);
@@ -314,7 +315,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     const npc = availableNpcs.value.find((n) => n.id === npcId);
     if (!npc) return;
     const sb = npc.stat_block;
-    const maxHp = parseInt(String(sb?.hit_points ?? "10").split(" ")[0], 10) || 10;
+    const maxHp = hitPointsToMax(sb?.hit_points, 10);
     const dex = Number(sb?.dex ?? 10);
     const dexMod = Math.floor((dex - 10) / 2);
     const ac = String(sb?.armor_class ?? 10);
@@ -347,7 +348,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     const monster = availableMonsters.value.find((m) => m.id === spawn.monster_id);
     if (!monster) return;
     const sb = monster.stat_block;
-    const maxHp = parseInt(String(sb?.hit_points ?? "1").split(" ")[0], 10) || 1;
+    const maxHp = hitPointsToMax(sb?.hit_points, 1);
     const dex = Number(sb?.dex ?? 10);
     const dexMod = Math.floor((dex - 10) / 2);
     const ac = String(sb?.armor_class ?? 10);

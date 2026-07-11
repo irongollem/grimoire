@@ -248,6 +248,7 @@ import { useUiStore } from "@/stores/ui";
 import { useParty } from "@/composables/useParty";
 import { hasAttackDisadvantage, hasCheckDisadvantage } from "@/lib/conditions";
 import { parseCr } from "@/lib/utils";
+import { hitPointsToMax } from "@/lib/dice";
 import type { PartyMember } from "@/types/party.types";
 import { useRules, usePlayerVisibleRules } from "@/composables/useRules";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
@@ -351,7 +352,7 @@ const wildshapeForms = computed<Monster[]>(() => {
 async function handleWildshape(monster: Monster) {
   if (!member.value || !resolvedMemberId.value) return;
   const sb = monster.stat_block;
-  const maxHp = parseInt(String(sb?.hit_points ?? "1").split(" ")[0], 10) || 1;
+  const maxHp = hitPointsToMax(sb?.hit_points, 1);
   const ac = String(sb?.armor_class ?? "10");
   const ws: WildshapeState = {
     monster_id: monster.id,
