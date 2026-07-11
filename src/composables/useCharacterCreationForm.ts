@@ -618,13 +618,18 @@ export function useCharacterCreationForm() {
       f.hit_dice_remaining = 1;
     }
 
-    // ── Spell slots from class table ────────────────────────────────────────
-    const slotLevel = isNew ? 1 : f.level;
-    const spellSlots: SpellSlotEntry[] = getDefaultSpellSlots(f.class || null, slotLevel)
-      .map((s) => ({
-        ...s,
-        used: existingMember.value?.spell_slots?.find((e) => e.level === s.level)?.used ?? 0,
-      }));
+    // ── Spell slots from the edited maxes (mirrors PartyMemberForm) ─────────
+    // Persist the player's actual spellSlotMaxes rather than re-deriving the
+    // single-class default table — that overwrite lost multiclass/pact slots and
+    // wiped a custom-class caster's slots entirely (getDefaultSpellSlots returns
+    // nothing for a custom class) on any unrelated save. spellSlotMaxes is seeded
+    // from the existing row (buildSlotMaxes), so an untouched save round-trips.
+    const spellSlots: SpellSlotEntry[] = spellSlotMaxes
+      .map((max, i) => {
+        const existing = existingMember.value?.spell_slots?.find((e) => e.level === i + 1);
+        return { level: i + 1, max, used: max > 0 ? (existing?.used ?? 0) : 0 };
+      })
+      .filter((s) => s.max > 0);
 
     const basePayload = {
       ...f,
