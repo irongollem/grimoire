@@ -70,10 +70,9 @@
             class="bg-card border border-border rounded-md px-2.5 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           >
             <option value="all">All relations</option>
-            <option value="ally">Ally</option>
-            <option value="neutral">Neutral</option>
-            <option value="enemy">Enemy</option>
-            <option value="unknown">Unknown</option>
+            <option v-for="(label, value) in NPC_RELATIONSHIP_LABELS" :key="value" :value="value">
+              {{ label }}
+            </option>
           </select>
           <select
             v-model="ui.playerPeopleFilterStatus"
@@ -163,6 +162,7 @@ import { getNpcDisplayName } from "@/lib/npcDisplay";
 import { getDisplayRace } from "@/lib/partyMemberDisplay";
 import { useSpeciesNameMap } from "@/composables/useSpecies";
 import type { Npc } from "@/types/npc.types";
+import { NPC_RELATIONSHIP_LABELS } from "@/types/npc.types";
 import type { HealthVisibility } from "@/types/encounter.types";
 
 const route = useRoute();
@@ -305,16 +305,15 @@ const filteredNpcs = computed(() => {
     });
   }
 
+  // status & relationship are always shown to players (unknown = soft-hidden),
+  // so they are NOT gated on player_visible_fields — those keys were removed from
+  // NPC_PLAYER_FIELDS, so gating on them would match nothing.
   if (ui.playerPeopleFilterRelationship !== "all") {
-    list = list.filter(
-      (npc) => npc.player_visible_fields.includes("relationship") && npc.relationship === ui.playerPeopleFilterRelationship
-    );
+    list = list.filter((npc) => npc.relationship === ui.playerPeopleFilterRelationship);
   }
 
   if (ui.playerPeopleFilterStatus !== "all") {
-    list = list.filter(
-      (npc) => npc.player_visible_fields.includes("status") && npc.status === ui.playerPeopleFilterStatus
-    );
+    list = list.filter((npc) => npc.status === ui.playerPeopleFilterStatus);
   }
 
   if (ui.playerPeopleFilterLocation) {

@@ -158,7 +158,7 @@
     <!-- Notes (plain DM/creation notes — read-only always) -->
     <div v-if="member.notes" class="rounded-lg border border-border bg-card p-4">
       <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase mb-2">Notes</p>
-      <p class="font-fell text-sm text-foreground whitespace-pre-wrap">{{ member.notes }}</p>
+      <RichTextViewer :content="member.notes" class="font-fell text-sm text-foreground" />
     </div>
 
     <!-- Background -->

@@ -20,8 +20,8 @@
       </p>
     </div>
 
-    <!-- Map (suppressed for battle maps) -->
-    <div v-if="loc.map_url && !loc.is_battle_map">
+    <!-- Map (suppressed for battle maps and when the DM hasn't shared it) -->
+    <div v-if="loc.map_url && loc.is_map_shared && !loc.is_battle_map">
       <LocationMap
         :map-url="loc.map_url"
         :pins="playerPins"

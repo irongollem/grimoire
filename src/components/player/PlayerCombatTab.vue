@@ -170,7 +170,7 @@ const dexMod = computed(() => abilityMod(props.member.dex));
 const bestMod = computed(() => Math.max(strMod.value, dexMod.value));
 
 const unarmedAttackMod = computed(() => strMod.value + props.member.proficiency_bonus);
-const unarmedDamage = computed(() => 1 + strMod.value);
+const unarmedDamage = computed(() => Math.max(1, 1 + strMod.value));
 const improvisedAttackMod = computed(() => bestMod.value);
 
 // Beast action sections shown when wildshaped
