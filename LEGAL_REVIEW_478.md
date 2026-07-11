@@ -92,20 +92,20 @@ The implementation uses Stripe `consent_collection: { terms_of_service: "require
 
 ### Status of each finding (as of 28 June 2026)
 
-| #   | Finding | Status |
-| --- | ------- | ------ |
-| R1  | Liability consumer carve-out (ToS §10) | ✅ Done — carve-out added |
-| R2  | International-transfer basis (Privacy §4) | ⚠️ Wording added — **verify DPF/SCC status per provider** |
-| R3  | Unbundle withdrawal consent at checkout | ⛔ Open — code change |
-| R4  | Durable-medium order confirmation | ⛔ Open — verify confirmation email |
-| R5  | Refunds §2/§4 reconciliation | ✅ Done |
-| R6  | Consumer forum clause (ToS §11) | ✅ Done |
-| R7  | Mandatory-rights preservation (ToS §11) | ✅ Done |
-| R8  | Trader-identity details (all three) | ⚠️ Text added (KvK 76933067, BTW NL860845011B01, Koraalrood 54F) — **see operational note below** |
-| R9  | Term-change cancellation right (ToS §12) | ✅ Done |
-| R10 | Price-change notice + exit right (ToS §6) | ✅ Done |
-| R11 | Withdrawal form + button-label check (checkout) | ⛔ Open — verify/add |
-| R12 | Consent-withdrawal right + address (Privacy §6/§10) | ✅ Done |
+| #   | Finding                                             | Status                                                                                            |
+| --- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| R1  | Liability consumer carve-out (ToS §10)              | ✅ Done — carve-out added                                                                         |
+| R2  | International-transfer basis (Privacy §4)           | ⚠️ Wording added — **verify DPF/SCC status per provider**                                         |
+| R3  | Unbundle withdrawal consent at checkout             | ⛔ Open — code change                                                                             |
+| R4  | Durable-medium order confirmation                   | ⛔ Open — verify confirmation email                                                               |
+| R5  | Refunds §2/§4 reconciliation                        | ✅ Done                                                                                           |
+| R6  | Consumer forum clause (ToS §11)                     | ✅ Done                                                                                           |
+| R7  | Mandatory-rights preservation (ToS §11)             | ✅ Done                                                                                           |
+| R8  | Trader-identity details (all three)                 | ⚠️ Text added (KvK 76933067, BTW NL860845011B01, Koraalrood 54F) — **see operational note below** |
+| R9  | Term-change cancellation right (ToS §12)            | ✅ Done                                                                                           |
+| R10 | Price-change notice + exit right (ToS §6)           | ✅ Done                                                                                           |
+| R11 | Withdrawal form + button-label check (checkout)     | ⛔ Open — verify/add                                                                              |
+| R12 | Consent-withdrawal right + address (Privacy §6/§10) | ✅ Done                                                                                           |
 
 ### Still to do before launch
 
@@ -115,9 +115,7 @@ The implementation uses Stripe `consent_collection: { terms_of_service: "require
 2. **R4 — durable-medium confirmation.** Confirm the post-purchase email (or Stripe receipt) repeats the recorded express-consent + acknowledgement text. If it doesn't, add it to your own confirmation email (art. 6:230v(7) BW).
 3. **R11 — checkout formalities.** Verify the checkout button reads as a payment obligation ("Subscribe"/"Pay", not an ambiguous "Continue") and link the EU model withdrawal form.
 
-**Verification (text is in place, fact needs confirming):**
-
-4. **R2 — provider transfer status.** Confirm which of OpenAI, Anthropic, Google, fal.ai and Stripe(-US) are EU–U.S. Data Privacy Framework certified; for any that aren't, ensure SCCs are actually in place. The policy wording already covers both bases, but the underlying mechanism must exist.
+**Verification (text is in place, fact needs confirming):** 4. **R2 — provider transfer status.** Confirm which of OpenAI, Anthropic, Google, fal.ai and Stripe(-US) are EU–U.S. Data Privacy Framework certified; for any that aren't, ensure SCCs are actually in place. The policy wording already covers both bases, but the underlying mechanism must exist.
 
 ### Operational pre-conditions (R8 — company & address)
 
