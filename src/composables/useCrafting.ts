@@ -384,8 +384,8 @@ export function useAttemptCraft() {
       outputs: CraftingOutput[];
       /** Resolved names for each output item (item_id → display name) */
       outputItemNames: Record<string, string>;
-      /** party_inventory item IDs the player is slotting in (in ingredient order) */
-      ingredientInventoryIds: string[];
+      /** party_inventory rows to consume, each with the quantity the recipe uses */
+      ingredientConsumption: { id: string; qty: number }[];
       /** primary ingredient's inventory id — ruined on critical fail */
       primaryIngredientInventoryId: string;
       /** primary ingredient's carried_by (for re-adding as ruined) */
@@ -401,7 +401,7 @@ export function useAttemptCraft() {
         recipe,
         outputs,
         outputItemNames,
-        ingredientInventoryIds,
+        ingredientConsumption,
         primaryInventoryItem,
         modifierBonuses,
         abilityMod,
@@ -458,7 +458,7 @@ export function useAttemptCraft() {
           : null;
 
       const { error } = await supabase.rpc("craft_apply", {
-        p_ingredient_ids: ingredientInventoryIds,
+        p_ingredients: ingredientConsumption,
         p_outcome: outcome,
         p_success_rows: successRows,
         p_ruined_row: ruinedRow,

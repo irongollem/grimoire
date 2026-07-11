@@ -304,21 +304,31 @@ const modifierBonuses = computed(() => {
   return bonuses;
 });
 
-// Resolve which inventory item IDs to consume
-function resolveInventoryIds(): { ids: string[]; primaryId: string; primaryItem: PartyInventoryItem } {
-  const ids: string[] = [];
+// Resolve how much of which inventory rows to consume. Each ingredient row is
+// consumed by the recipe's required quantity (not the whole stack), and equipped
+// or container rows are never eligible — so crafting can't wipe a 20-stack to use
+// 2, nor unequip a weapon or dissolve a container.
+function resolveIngredientConsumption(): {
+  consumption: { id: string; qty: number }[];
+  primaryId: string;
+  primaryItem: PartyInventoryItem;
+} {
+  const consumption: { id: string; qty: number }[] = [];
   let primaryId = "";
   let primaryItem: PartyInventoryItem | null = null;
+
+  const eligible = (inv: PartyInventoryItem) =>
+    !inv.is_ruined && !inv.is_equipped && !inv.is_container;
 
   for (const req of props.requiredIngredients) {
     let remaining = req.quantity;
     const matchingItems = req.item_id
       ? props.inventory
-          .filter((inv) => inv.item_id === req.item_id && !inv.is_ruined)
+          .filter((inv) => inv.item_id === req.item_id && eligible(inv))
           .sort((a, b) => b.quantity - a.quantity)
       : props.inventory
           .filter((inv) => {
-            if (inv.is_ruined) return false;
+            if (!eligible(inv)) return false;
             const def = props.allItems.find((i) => i.id === inv.item_id);
             return req.tags!.every((t) => def?.tags?.includes(t) ?? false);
           })
@@ -326,16 +336,17 @@ function resolveInventoryIds(): { ids: string[]; primaryId: string; primaryItem:
 
     for (const inv of matchingItems) {
       if (remaining <= 0) break;
-      ids.push(inv.id);
+      const take = Math.min(remaining, inv.quantity);
+      consumption.push({ id: inv.id, qty: take });
       if (!primaryId) {
         primaryId = inv.id;
         primaryItem = inv;
       }
-      remaining -= inv.quantity;
+      remaining -= take;
     }
   }
 
-  return { ids, primaryId, primaryItem: primaryItem! };
+  return { consumption, primaryId, primaryItem: primaryItem! };
 }
 
 const outcomeLabel = computed(() => {
@@ -367,7 +378,7 @@ async function attempt() {
   attempting.value = true;
   attemptError.value = null;
 
-  const { ids, primaryId, primaryItem } = resolveInventoryIds();
+  const { consumption, primaryId, primaryItem } = resolveIngredientConsumption();
   const primaryItemDef = props.allItems.find((i) => i.id === primaryItem?.item_id);
 
   try {
@@ -380,7 +391,7 @@ async function attempt() {
       recipe: props.recipe,
       outputs: props.outputs,
       outputItemNames: resolvedOutputNames,
-      ingredientInventoryIds: ids,
+      ingredientConsumption: consumption,
       primaryIngredientInventoryId: primaryId,
       primaryInventoryItem: {
         item_id: primaryItem.item_id ?? "",
