@@ -82,7 +82,15 @@
           class="hp-input"
           @change="(e) => handleSetHp(Number((e.target as HTMLInputElement).value))"
         />
-        <span class="hp-max">/ {{ displayMaxHp }}</span>
+        <span class="hp-max">/</span>
+        <input
+          type="number"
+          :value="displayMaxHp"
+          min="1"
+          class="hp-input hp-max-input"
+          title="Max HP — edit to raise or lower on the fly"
+          @change="(e) => handleSetMaxHp(Number((e.target as HTMLInputElement).value))"
+        />
         <button class="hp-btn" @click="handleAdjustHp(1)">+</button>
         <span
           v-if="flashInfo"
@@ -190,6 +198,7 @@ const {
   clearFlash,
   handleAdjustHp,
   handleSetHp,
+  handleSetMaxHp,
   quickAmount,
   quickDamage,
   quickHeal,
@@ -280,6 +289,11 @@ function toggleDetail() {
 
 .hp-input {
   @apply w-12 text-center bg-muted border border-border rounded px-1 py-0.5 font-cinzel text-sm font-bold text-foreground focus:outline-none focus:ring-1 focus:ring-ring;
+}
+
+/* Max HP editor sits next to the current-HP input; muted to read as the denominator. */
+.hp-max-input {
+  @apply w-11 text-muted-foreground font-normal bg-transparent border-transparent hover:bg-muted hover:border-border focus:bg-muted focus:border-border;
 }
 
 .init-input {

@@ -155,6 +155,11 @@ export function useRunnerCombatant(getCombatant: MaybeRefOrGetter<RunCombatant>)
     if (delta !== 0) showFlash(delta);
   }
 
+  function handleSetMaxHp(newMax: number) {
+    if (!Number.isFinite(newMax) || newMax < 1) return;
+    store.setMaxHp(combatant.value.instance_id, newMax);
+  }
+
   // ── Quick HP ──────────────────────────────────────────────────────────────
 
   const quickAmount = ref<number | null>(null);
@@ -262,6 +267,7 @@ export function useRunnerCombatant(getCombatant: MaybeRefOrGetter<RunCombatant>)
     clearFlash,
     handleAdjustHp,
     handleSetHp,
+    handleSetMaxHp,
     quickAmount,
     quickDamage,
     quickHeal,

@@ -215,6 +215,28 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     checkEvents();
   }
 
+  // DM edits a combatant's max HP on the fly (e.g. a monster that spawned with the
+  // wrong HP, or scaling a fight live). Edits the beast overlay when wildshaped,
+  // real max otherwise. A combatant that was at full stays full at the new max so
+  // bumping a 2/2 monster to 11 gives it 11/11, not 2/11.
+  function setMaxHp(instanceId: string, value: number) {
+    const c = combatants.value.find((x) => x.instance_id === instanceId);
+    if (!c) return;
+    const max = Math.max(1, Math.floor(value));
+    if (c.wildshape) {
+      const wasFull = c.wildshape.beast_hp >= c.wildshape.beast_max_hp;
+      c.wildshape.beast_max_hp = max;
+      c.wildshape.beast_hp = wasFull ? max : Math.min(c.wildshape.beast_hp, max);
+      persistPlayer(c, { wildshape_state: c.wildshape });
+    } else {
+      const wasFull = c.hp >= c.max_hp;
+      c.max_hp = max;
+      c.hp = wasFull ? max : Math.min(c.hp, max);
+      persistPlayer(c, { current_hp: c.hp, max_hp: max });
+    }
+    checkEvents();
+  }
+
   function toggleCondition(instanceId: string, condition: string) {
     const c = combatants.value.find((x) => x.instance_id === instanceId);
     if (!c) return;
@@ -535,6 +557,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     prevTurn,
     adjustHp,
     setHp,
+    setMaxHp,
     setTempHp,
     toggleCondition,
     setConditions,
