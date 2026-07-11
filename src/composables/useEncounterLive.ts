@@ -134,10 +134,28 @@ export function useEncounterLive(encounterId: MaybeRefOrGetter<string>) {
 
   async function pushState(state: PushableState) {
     if (!liveState.value) return;
+    // Token positions are written straight into DB combatants_live by the map
+    // windows (players + the DM's separate map window) via update_combatant_position;
+    // the main runner store never ingests them, so a full-replace here would revert
+    // every token to its seed position on the next HP/turn/condition push. Read the
+    // live positions and merge them onto the outgoing combatants (DB position wins)
+    // so moves persist across pushes.
+    const { data: current } = await supabase
+      .from("encounter_state")
+      .select("combatants_live")
+      .eq("encounter_id", toValue(encounterId))
+      .maybeSingle();
+    const dbPositions = new Map<string, RunCombatant["position"]>();
+    for (const c of (current?.combatants_live as RunCombatant[] | null) ?? []) {
+      if (c.position) dbPositions.set(c.instance_id, c.position);
+    }
+    const mergedCombatants = state.combatants.map((c) =>
+      dbPositions.has(c.instance_id) ? { ...c, position: dbPositions.get(c.instance_id) } : c,
+    );
     const patch: Record<string, unknown> = {
       current_round: state.round,
       active_combatant_index: state.activeIndex,
-      combatants_live: state.combatants,
+      combatants_live: mergedCombatants,
       events_fired: state.eventsFired,
     };
     if (state.fogMask !== undefined) patch.fog_mask = state.fogMask;

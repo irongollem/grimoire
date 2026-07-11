@@ -6,6 +6,7 @@ import type { Npc } from "@/types/npc.types";
 import type { Trap } from "@/types/trap.types";
 import type { PartyMemberUpdate } from "@/types/party.types";
 import { sizeToFootprint } from "@/lib/tokenFootprint";
+import { sortCombatantsByInitiative } from "@/lib/combatantSort";
 import { hitPointsToMax } from "@/lib/dice";
 
 /** Persists a player-combatant change to party_members and invalidates the
@@ -51,16 +52,8 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
   /** Rounds in which a lair action has already been used. Keyed by round number. */
   const lairFiredRounds = ref<Set<number>>(new Set());
 
-  // Sorted by initiative desc, dex_mod desc (tiebreaker: players first)
-  const sortedCombatants = computed(() =>
-    [...combatants.value].sort((a, b) => {
-      const ia = a.initiative ?? -999;
-      const ib = b.initiative ?? -999;
-      if (ib !== ia) return ib - ia;
-      if (a.type !== b.type) return a.type === "player" ? -1 : 1;
-      return b.dex_mod - a.dex_mod;
-    }),
-  );
+  // Sorted by initiative desc, players-first on tie, dex_mod desc (shared comparator)
+  const sortedCombatants = computed(() => sortCombatantsByInitiative(combatants.value));
 
   const activeCombatant = computed(() => sortedCombatants.value[activeIndex.value] ?? null);
 

@@ -112,6 +112,7 @@ import { decodeFogMask } from "@/lib/fogMask";
 import { DEFAULT_GRID_OPACITY } from "@/types/location.types";
 import { useCampaignStore } from "@/stores/campaign";
 import type { RunCombatant } from "@/types/encounter.types";
+import { sortCombatantsByInitiative } from "@/lib/combatantSort";
 import {
   gridLinePositions,
   cellSizeInDisplay,
@@ -170,8 +171,12 @@ const liveCombatants = computed<RunCombatant[] | null>(() => {
   });
 });
 const activeInstanceId = computed(() => {
-  if (!liveState.value || !liveCombatants.value) return null;
-  return liveCombatants.value[liveState.value.active_combatant_index ?? 0]?.instance_id ?? null;
+  const list = liveState.value?.combatants_live;
+  if (!list) return null;
+  // active_combatant_index indexes the initiative-SORTED order (see encounterRun),
+  // not the fog-filtered liveCombatants list — sort the full list with the shared
+  // comparator and match by instance_id (the token layer keys on the id).
+  return sortCombatantsByInitiative(list)[liveState.value?.active_combatant_index ?? 0]?.instance_id ?? null;
 });
 
 // Players may only drag their own combatant. The set is computed reactively

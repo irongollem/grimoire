@@ -171,6 +171,7 @@ import { useUpdatePartyMember } from "@/composables/useParty";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { liveState } from "@/composables/useEncounterLive";
+import { sortCombatantsByInitiative } from "@/lib/combatantSort";
 import type { RunCombatant, HealthVisibility, EncounterEvent, EventAction } from "@/types/encounter.types";
 import type { Npc } from "@/types/npc.types";
 import { usePlayerCombatPrefs } from "@/composables/usePlayerCombatPrefs";
@@ -223,16 +224,9 @@ const healthVis = computed<HealthVisibility>(
   () => (campaign.activeCampaign?.health_visibility as HealthVisibility) ?? "strategic",
 );
 
-const sortedCombatants = computed(() => {
-  if (!liveState.value) return [];
-  return [...liveState.value.combatants_live].sort((a, b) => {
-    const ia = a.initiative ?? -999;
-    const ib = b.initiative ?? -999;
-    if (ib !== ia) return ib - ia;
-    if (a.type !== b.type) return a.type === "player" ? -1 : 1;
-    return b.dex_mod - a.dex_mod;
-  });
-});
+const sortedCombatants = computed(() =>
+  liveState.value ? sortCombatantsByInitiative(liveState.value.combatants_live) : [],
+);
 
 const visibleCombatants = computed(() =>
   sortedCombatants.value.filter(
