@@ -101,11 +101,11 @@ import LocationMap from "@/components/locations/LocationMap.vue";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
 import { STORE_LOCATION_TYPES } from "@/types/location.types";
 import type { Location } from "@/types/location.types";
-import type { Npc } from "@/types/npc.types";
+import type { PlayerNpc } from "@/types/npc.types";
 
 const { loc, npcs = [], sharedChildIds, sharedChildren, isFullSize = false } = defineProps<{
   loc: Location;
-  npcs?: Npc[];
+  npcs?: PlayerNpc[];
   sharedChildIds: Set<string>;
   /** Live shared child locations keyed by id. Used to re-hydrate each pin's
    *  denormalised name/type/image from current data — the stored snapshot in
@@ -121,7 +121,7 @@ defineEmits<{
   'pin-click': [childId: string];
   'pin-go': [childId: string];
   'pin-watch': [childId: string];
-  'open-npc': [npc: Npc];
+  'open-npc': [npc: PlayerNpc];
 }>();
 
 const isStoreType = computed(() => STORE_LOCATION_TYPES.has(loc.location_type));

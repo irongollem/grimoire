@@ -42,7 +42,8 @@
         <div v-for="{ inv, item } in equippedWeapons" :key="inv.id" class="px-4 py-3">
           <div class="flex items-center justify-between mb-2">
             <span class="font-fell text-sm text-foreground font-semibold">{{ inv.name }}</span>
-            <span v-if="item.subtype" class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">{{ item.subtype }}</span>
+            <span v-if="item?.subtype" class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">{{ item.subtype }}</span>
+            <span v-else-if="!item" class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">Custom</span>
           </div>
           <div class="flex flex-wrap gap-2">
             <button
@@ -57,13 +58,12 @@
               <span v-if="attackDisadvantage" class="font-cinzel text-2xs md:text-sm text-amber-500 tracking-wider">Dis</span>
             </button>
             <button
-              v-if="item.damage_rolls?.length"
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:border-amber-500/50 hover:bg-muted/30 transition-colors group"
               @click="rollWeaponDamage(inv, item)"
             >
               <IconLightning class="h-3.5 w-3.5 text-muted-foreground group-hover:text-amber-400 transition-colors" />
               <span class="font-cinzel text-xs text-foreground">{{ weaponDamageExpr(item) }}</span>
-              <span class="font-cinzel text-xs text-muted-foreground">{{ item.damage_rolls[0].type }}</span>
+              <span class="font-cinzel text-xs text-muted-foreground">{{ item?.damage_rolls?.[0]?.type ?? 'bludgeoning' }}</span>
             </button>
           </div>
         </div>
@@ -155,15 +155,20 @@ const myInventory = computed(() =>
   (inventory.value ?? []).filter((i) => i.carried_by === props.member.id),
 );
 
-const equippedWeapons = computed(() => {
-  if (!allItems.value) return [];
-  return myInventory.value
-    .filter((i) => i.is_equipped && i.item_id)
-    .flatMap((inv) => {
-      const item = allItems.value!.find((it) => it.id === inv.item_id);
-      return item && item.item_type === "weapon" ? [{ inv, item }] : [];
-    });
-});
+// Weapon-hand slots — an item-less (custom-named) item equipped here is treated
+// as a weapon (rendered with improvised 1d4 stats), so it still gets an attack row.
+const WEAPON_SLOTS = new Set<string>(["main_hand", "off_hand"]);
+
+const equippedWeapons = computed<{ inv: PartyInventoryItem; item: Item | null }[]>(() =>
+  myInventory.value
+    .filter((i) => i.is_equipped)
+    .flatMap((inv): { inv: PartyInventoryItem; item: Item | null }[] => {
+      const item = inv.item_id ? (allItems.value ?? []).find((it) => it.id === inv.item_id) ?? null : null;
+      if (item) return item.item_type === "weapon" ? [{ inv, item }] : [];
+      // No vault item: a custom weapon only if equipped in a weapon hand.
+      return inv.slot && WEAPON_SLOTS.has(inv.slot) ? [{ inv, item: null }] : [];
+    }),
+);
 
 const strMod = computed(() => abilityMod(props.member.str));
 const dexMod = computed(() => abilityMod(props.member.dex));
@@ -197,20 +202,22 @@ async function rollBeastAttack(name: string, bonus: number, override: RollMode |
   return rollAttackWith(bonus, name, override);
 }
 
-function weaponAbilityMod(item: Item): number {
-  const itemProps = item.properties ?? [];
+function weaponAbilityMod(item: Item | null): number {
   const strModVal = abilityMod(props.member.str);
   const dexModVal = abilityMod(props.member.dex);
+  // Custom weapon (no vault stats): use the better of STR/DEX, like an improvised weapon.
+  if (!item) return Math.max(strModVal, dexModVal);
+  const itemProps = item.properties ?? [];
   if (itemProps.includes("ammunition")) return dexModVal;
   if (itemProps.includes("finesse")) return dexModVal > strModVal ? dexModVal : strModVal;
   return strModVal;
 }
-function weaponAttackMod(item: Item): number {
+function weaponAttackMod(item: Item | null): number {
   return weaponAbilityMod(item) + props.member.proficiency_bonus;
 }
 
-function weaponDamageExpr(item: Item): string {
-  const raw = item.damage_rolls?.[0]?.dice ?? "";
+function weaponDamageExpr(item: Item | null): string {
+  const raw = item?.damage_rolls?.[0]?.dice ?? "1d4"; // custom weapon → improvised 1d4
   const abilMod = weaponAbilityMod(item);
   if (abilMod === 0) return raw;
   const parsed = parseExpression(raw);
@@ -242,7 +249,7 @@ async function rollAttackWith(mod: number, baseLabel: string, override: RollMode
 
 function rollUnarmedAttack(override: RollMode | null = null) { return rollAttackWith(unarmedAttackMod.value, "Unarmed Strike", override); }
 function rollImprovisedAttack(override: RollMode | null = null) { return rollAttackWith(improvisedAttackMod.value, "Improvised Weapon", override); }
-function rollWeaponAttack(inv: PartyInventoryItem, item: Item, override: RollMode | null = null) {
+function rollWeaponAttack(inv: PartyInventoryItem, item: Item | null, override: RollMode | null = null) {
   return rollAttackWith(weaponAttackMod(item), inv.name, override);
 }
 
@@ -280,12 +287,15 @@ function rollImprovisedDamage() {
   );
 }
 
-function rollWeaponDamage(inv: PartyInventoryItem, item: Item) {
-  if (!item.damage_rolls?.length) return;
+function rollWeaponDamage(inv: PartyInventoryItem, item: Item | null) {
   const abilMod = weaponAbilityMod(item);
-  const parsed = parseExpression(item.damage_rolls[0].dice);
+  // Custom weapon with no vault stats rolls as an improvised 1d4.
+  const parsed = item?.damage_rolls?.length
+    ? parseExpression(item.damage_rolls[0].dice)
+    : { terms: [{ count: 1, sides: 4 }], modifier: 0 };
   if (!parsed) return;
-  const label = `${inv.name} — Damage (${item.damage_rolls[0].type})`;
+  const typeLabel = item?.damage_rolls?.[0]?.type ?? "bludgeoning";
+  const label = `${inv.name} — Damage (${typeLabel})`;
   return rollDamageLabelled(parsed, abilMod, label);
 }
 </script>

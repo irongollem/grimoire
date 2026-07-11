@@ -94,7 +94,7 @@ import { useSharedLocations } from "@/composables/useLocations";
 import { useSharedNpcsByLocations } from "@/composables/useNpcs";
 import { useMarkRead } from "@/composables/useReadItems";
 import { LOCATION_TYPE_COLORS, LOCATION_TYPE_LABELS } from "@/types/location.types";
-import type { Npc } from "@/types/npc.types";
+import type { PlayerNpc } from "@/types/npc.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import PlayerLocationDetailPanel from "@/components/play/PlayerLocationDetailPanel.vue";
 import PlayerPartyNpcLightbox from "@/components/play/PlayerPartyNpcLightbox.vue";
@@ -118,13 +118,13 @@ const npcLocationIds = computed(() =>
   loc.value?.is_npcs_shared ? [loc.value.id] : [],
 );
 const { data: sharedNpcs } = useSharedNpcsByLocations(npcLocationIds);
-const npcs = computed<Npc[]>(() =>
+const npcs = computed<PlayerNpc[]>(() =>
   (sharedNpcs.value ?? []).filter((n) => n.location_id === loc.value?.id),
 );
 
 const isFullSize = ref(false);
 const lightboxSrc = ref<string | null>(null);
-const selectedNpc = ref<Npc | null>(null);
+const selectedNpc = ref<PlayerNpc | null>(null);
 
 // Reset per-location view state and mark the place read whenever the dialog
 // opens on a (newly) resolved location.

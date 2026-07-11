@@ -196,7 +196,7 @@ import { usePlayerFavourites } from "@/composables/usePlayerFavourites";
 import { useUiStore } from "@/stores/ui";
 import { useSharedNpcsByLocations } from "@/composables/useNpcs";
 import PlayerPartyNpcLightbox from "@/components/play/PlayerPartyNpcLightbox.vue";
-import type { Npc } from "@/types/npc.types";
+import type { PlayerNpc } from "@/types/npc.types";
 import { extractTiptapText } from "@/lib/utils";
 import { LOCATION_TYPE_LABELS, LOCATION_TYPE_COLORS } from "@/types/location.types";
 import type { Location, LocationType } from "@/types/location.types";
@@ -238,8 +238,8 @@ const typeFilter = computed({
 });
 const lightboxSrc = ref<string | null>(null);
 
-const selectedNpc = ref<Npc | null>(null);
-function openNpc(npc: Npc) {
+const selectedNpc = ref<PlayerNpc | null>(null);
+function openNpc(npc: PlayerNpc) {
   selectedNpc.value = npc;
 }
 

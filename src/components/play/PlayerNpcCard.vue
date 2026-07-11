@@ -61,10 +61,10 @@ import FocalImage from "@/components/common/FocalImage.vue";
 import EntityNewDot from "@/components/common/EntityNewDot.vue";
 import NpcRatingStars from "@/components/play/NpcRatingStars.vue";
 import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
-import { NPC_RELATIONSHIP_COLORS, type Npc, type NpcRelationship, type NpcStatus } from "@/types/npc.types";
+import { NPC_RELATIONSHIP_COLORS, type PlayerNpc, type NpcRelationship, type NpcStatus } from "@/types/npc.types";
 
 const props = defineProps<{
-  npc: Npc;
+  npc: PlayerNpc;
   location?: string;
   isNew?: boolean;
 }>();

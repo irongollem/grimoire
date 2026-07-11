@@ -161,7 +161,7 @@ import type { PartyMember } from "@/types/party.types";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
 import { getDisplayRace } from "@/lib/partyMemberDisplay";
 import { useSpeciesNameMap } from "@/composables/useSpecies";
-import type { Npc } from "@/types/npc.types";
+import type { PlayerNpc } from "@/types/npc.types";
 import { NPC_RELATIONSHIP_LABELS } from "@/types/npc.types";
 import type { HealthVisibility } from "@/types/encounter.types";
 
@@ -335,9 +335,9 @@ function closeMember() {
 }
 
 // ── NPC lightbox ─────────────────────────────────────────────────────────────
-const selectedNpc = ref<Npc | null>(null);
+const selectedNpc = ref<PlayerNpc | null>(null);
 
-function openNpc(npc: Npc) {
+function openNpc(npc: PlayerNpc) {
   markNpcRead({ entityType: "npc", entityId: npc.id });
   selectedNpc.value = npc;
 }

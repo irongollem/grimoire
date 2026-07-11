@@ -424,7 +424,7 @@ function cancelForm() {
 function getRefOptions(refType: string): { id: string; name: string }[] {
   switch (refType) {
     case "quest":     return (playerQuests.value ?? []).map((q) => ({ id: q.id, name: q.title }));
-    case "npc":       return (sharedNpcs.value ?? []).map((n) => ({ id: n.id, name: n.name }));
+    case "npc":       return (sharedNpcs.value ?? []).map((n) => ({ id: n.id, name: n.name ?? "???" }));
     case "location":  return (sharedLocations.value ?? []).map((l) => ({ id: l.id, name: l.name }));
     case "item": {
       const myMemberId = auth.linkedPartyMemberId;

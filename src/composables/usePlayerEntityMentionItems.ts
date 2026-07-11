@@ -30,7 +30,7 @@ export function usePlayerEntityMentionItems() {
       ...(sharedNpcs.value ?? []).map((n) => ({
         id: n.id,
         entityType: "npc" as const,
-        label: n.name,
+        label: n.name ?? "???",
       })),
       ...discoveredMonsters.map((m) => ({
         id: m.id,

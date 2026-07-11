@@ -317,7 +317,7 @@ import { usePlayerVisibleMonsters } from "@/composables/useMonsters";
 import { usePlayerVisibleItems } from "@/composables/useItems";
 import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
 import { QUEST_STATUS_LABELS, QUEST_STATUS_COLORS } from "@/types/quest.types";
-import type { Npc } from "@/types/npc.types";
+import type { PlayerNpc } from "@/types/npc.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 
@@ -342,7 +342,7 @@ const { data: allMonsters } = usePlayerVisibleMonsters();
 const { data: allItems } = usePlayerVisibleItems();
 
 // NPC lightbox
-const selectedNpc = ref<Npc | null>(null);
+const selectedNpc = ref<PlayerNpc | null>(null);
 
 function openNpc(npcId: string) {
   const npc = (npcs.value ?? []).find((n) => n.id === npcId);

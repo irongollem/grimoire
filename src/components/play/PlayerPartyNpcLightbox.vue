@@ -58,9 +58,9 @@ import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 import NpcRatingStars from "@/components/play/NpcRatingStars.vue";
 import { useMyNpcPcNote } from "@/composables/useNpcPcNotes";
 import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
-import { NPC_RELATIONSHIP_COLORS, type Npc, type NpcRelationship, type NpcStatus } from "@/types/npc.types";
+import { NPC_RELATIONSHIP_COLORS, type PlayerNpc, type NpcRelationship, type NpcStatus } from "@/types/npc.types";
 
-const { npc } = defineProps<{ npc: Npc | null }>();
+const { npc } = defineProps<{ npc: PlayerNpc | null }>();
 
 defineEmits<{ close: [] }>();
 

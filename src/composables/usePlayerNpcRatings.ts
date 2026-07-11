@@ -1,12 +1,12 @@
 import { ref, computed } from "vue";
-import type { Npc } from "@/types/npc.types";
 
 const RATING_KEY = "player_npc_rating:";
 
 // Module-level reactive tick so all consumers share the same state
 const ratingTick = ref(0);
 
-export function usePlayerNpcRatings(npcs?: () => Npc[]) {
+// Only needs each NPC's id, so accept any id-bearing row (Npc or PlayerNpc).
+export function usePlayerNpcRatings(npcs?: () => { id: string }[]) {
   function getRating(npcId: string): number {
     return parseInt(localStorage.getItem(RATING_KEY + npcId) ?? "0", 10);
   }

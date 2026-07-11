@@ -6,7 +6,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
 import { useToast } from "@/composables/useToast";
 import { getSetting } from "@/settings/index";
-import type { Npc, NpcInsert, NpcUpdate } from "@/types/npc.types";
+import type { Npc, NpcInsert, NpcUpdate, PlayerNpc } from "@/types/npc.types";
 import { removeStorageImages } from "@/composables/useImageUpload";
 
 const QUERY_KEY = "npcs";
@@ -163,7 +163,7 @@ export function useSharedNpcs() {
         p_preview_member_id: previewMemberId.value,
       });
       if (error) throw error;
-      return ((data ?? []) as Npc[]).sort((a, b) =>
+      return ((data ?? []) as PlayerNpc[]).sort((a, b) =>
         (a.name ?? "").localeCompare(b.name ?? ""),
       );
     },
@@ -185,7 +185,7 @@ export function useSharedNpcsByLocations(locationIds: Ref<string[]>) {
         p_preview_member_id: previewMemberId.value,
       });
       if (error) throw error;
-      return ((data ?? []) as Npc[]).sort((a, b) =>
+      return ((data ?? []) as PlayerNpc[]).sort((a, b) =>
         (a.name ?? "").localeCompare(b.name ?? ""),
       );
     },

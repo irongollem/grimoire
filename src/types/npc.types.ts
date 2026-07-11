@@ -192,10 +192,18 @@ export interface Npc {
   linked_monster_id: string | null; // links to a Bestiary monster (monstrous NPC)
   scriptorium_doc_id: string | null; // links to a ScriptoriumDocument (e.g. stat block sheet)
   player_visible_to: string[]; // [] = hidden; uuid[] = visible to those party_member_ids
-  player_visible_fields: string[]; // subset of: portrait | name | status | race | occupation | relationship
+  player_visible_fields: string[]; // subset of: portrait | name | status | race | occupation | relationship | location
   created_at: string;
   updated_at: string;
 }
+
+/**
+ * NPC as returned by the `get_player_visible_npcs` projection. Field-gated, so a
+ * hidden `name` (and other gated columns) can be null — use this, not `Npc`, for
+ * anything reading `useSharedNpcs`, and resolve the name through `getNpcDisplayName`
+ * (falling back to "???"). Also carries `relevance` (1–5), which the RPC returns.
+ */
+export type PlayerNpc = Omit<Npc, "name"> & { name: string | null; relevance?: number };
 
 export type NpcInsert = Omit<
   Npc,
