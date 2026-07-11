@@ -94,11 +94,10 @@ import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { useCampaignMembers } from "@/composables/useCampaignMembers";
 import { useAuthStore } from "@/stores/auth";
 import { useQueryClient } from "@tanstack/vue-query";
-import { usePartyInventory, useAddInventoryItem, useUpdateInventoryItem } from "@/composables/usePartyInventory";
+import { useAddInventoryItem } from "@/composables/usePartyInventory";
 import { useItems } from "@/composables/useItems";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
 import { useNpcs } from "@/composables/useNpcs";
-import { useAddNpcInventoryItem } from "@/composables/useNpcInventory";
 import ChatPanelContent from "./ChatPanelContent.vue";
 import type { RollResult } from "@/lib/dice";
 import type { ItemDropMetadata, CurrencyDropMetadata, VendorOfferMetadata, PlayerOfferMetadata, LootChestMetadata } from "@/types/chat.types";
@@ -175,16 +174,13 @@ const ui = useUiStore();
 const auth = useAuthStore();
 const { messages, loading, sendMessage, sendRoll, claimItemDrop, grabItemDrop, claimCurrencyDrop, claimLootChestAtom, sendVendorOffer, claimVendorOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId } =
   useCampaignMessages();
-const { data: partyInventory } = usePartyInventory();
 const { data: members } = useCampaignMembers();
 const { data: party }    = useParty();
 const { data: allItems } = useItems();
 const { data: npcsData } = useNpcs();
 const { mutateAsync: addInventoryItem }    = useAddInventoryItem();
-const { mutateAsync: updateInventoryItem } = useUpdateInventoryItem();
 const { mutateAsync: updatePartyMember }   = useUpdatePartyMember();
 const queryClient = useQueryClient();
-const { mutateAsync: addNpcInventoryItem } = useAddNpcInventoryItem();
 
 const npcs = computed(() =>
   (npcsData.value ?? []).map((n) => ({ id: n.id, name: n.name }))
@@ -217,81 +213,35 @@ async function handleClaim({ messageId, intoStash }: { messageId: string; intoSt
   const partyMemberId = intoStash ? null : (auth.linkedPartyMemberId ?? null);
   const claimerName = resolveClaimerName();
 
+  // claim_item_drop now stamps the claim AND inserts the party_inventory row in
+  // one transaction (identification/container flags derived from the drop meta),
+  // so a tab close / network drop can no longer mark it claimed yet lose the item.
   try {
     await claimItemDrop(messageId, claimerName, partyMemberId);
   } catch {
-    return; // claim failed (already claimed by someone else or RLS); don't add to inventory
+    return; // already claimed by someone else or RLS denied — nothing delivered
   }
-  // Identification + container flags come from the drop metadata (the sender
-  // always saw the item), NOT the claimer's vault cache — a freshly-dropped item
-  // the claimer never held is absent from allItems, which used to default a magic
-  // item to identified (leaking curse/art) and drop the container flag. Fall back
-  // to the cache only for legacy messages that predate is_container.
-  const claimedVaultItem = (allItems.value ?? []).find(i => i.id === meta.item_id);
-  await addInventoryItem({
-    name: meta.item_name,
-    quantity: meta.quantity,
-    item_id: meta.item_id,
-    carried_by: partyMemberId,
-    location: 'backpack',
-    slot: null,
-    is_container: meta.is_container ?? (claimedVaultItem?.tags.includes("container") ?? false),
-    container_id: null,
-    is_ruined: false,
-    is_attuned: false,
-    is_equipped: false,
-    notes: null,
-    is_identified: meta.item_rarity === 'mundane',
-  });
+  void queryClient.invalidateQueries({ queryKey: ["party-inventory"] });
+  void queryClient.invalidateQueries({ queryKey: ["items"] });
 }
 
 async function handleGrab({ messageId, qty, intoStash }: { messageId: string; qty: number; intoStash: boolean }) {
   const msg = messages.value.find(m => m.id === messageId);
   if (!msg || msg.type !== 'item_drop') return;
-  const meta = msg.metadata as ItemDropMetadata;
 
   const partyMemberId = intoStash ? null : (auth.linkedPartyMemberId ?? null);
   const claimerName = resolveClaimerName();
 
-  let qtyGrabbed: number;
+  // grab_item_drop now records the grab AND delivers the quantity — auto-stacking
+  // onto an existing carried backpack/belt row, or inserting a new one — atomically,
+  // so a tab close can't record the grab yet lose the item.
   try {
-    const result = await grabItemDrop(messageId, qty, claimerName, partyMemberId);
-    qtyGrabbed = result.qty_grabbed;
+    await grabItemDrop(messageId, qty, claimerName, partyMemberId);
   } catch {
-    return; // stack exhausted or RLS denied — don't add to inventory
+    return; // stack exhausted or RLS denied — nothing delivered
   }
-
-  // Auto-stack: merge into an existing carried, non-equipped, non-ruined backpack/belt
-  // row of the same item. Never merge into an equipped weapon, a stored-elsewhere row,
-  // a ruined stack, or a container's contents — those would corrupt the target row.
-  if (meta.item_id) {
-    const existing = (partyInventory.value ?? []).find(
-      inv => inv.item_id === meta.item_id && inv.carried_by === partyMemberId && inv.container_id === null
-        && (inv.location === 'backpack' || inv.location === 'belt') && !inv.is_ruined && !inv.is_equipped,
-    );
-    if (existing) {
-      await updateInventoryItem({ id: existing.id, update: { quantity: existing.quantity + qtyGrabbed } });
-      return;
-    }
-  }
-
-  // See handleClaim: flags come from the drop metadata, not the vault cache.
-  const claimedVaultItem = (allItems.value ?? []).find(i => i.id === meta.item_id);
-  await addInventoryItem({
-    name: meta.item_name,
-    quantity: qtyGrabbed,
-    item_id: meta.item_id,
-    carried_by: partyMemberId,
-    location: 'backpack',
-    slot: null,
-    is_container: meta.is_container ?? (claimedVaultItem?.tags.includes("container") ?? false),
-    container_id: null,
-    is_ruined: false,
-    is_attuned: false,
-    is_equipped: false,
-    notes: null,
-    is_identified: meta.item_rarity === 'mundane',
-  });
+  void queryClient.invalidateQueries({ queryKey: ["party-inventory"] });
+  void queryClient.invalidateQueries({ queryKey: ["items"] });
 }
 
 async function handleClaimCurrency({ messageId }: { messageId: string }) {
@@ -476,18 +426,14 @@ async function handleClaimToNpc({ messageId, npcId, npcName }: { messageId: stri
   const meta = msg.metadata as ItemDropMetadata;
   if (meta.claimed_by_user_id) return;
 
+  // With a p_npc_id, claim_item_drop inserts the npc_inventory row itself (atomic
+  // with the claim stamp), so no post-hoc write is needed.
   try {
     await claimItemDrop(messageId, npcName, null, npcId);
   } catch {
     return;
   }
-  await addNpcInventoryItem({
-    npc_id: npcId,
-    item_id: meta.item_id,
-    name: meta.item_name,
-    quantity: meta.quantity,
-    notes: null,
-  });
+  void queryClient.invalidateQueries({ queryKey: ["npc-inventory"] });
 }
 
 async function handleDeleteAll() {
