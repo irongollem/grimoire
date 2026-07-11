@@ -387,6 +387,21 @@ export function useSpellKnowers(spellId: MaybeRefOrGetter<string>) {
 }
 
 /**
+ * Remove every species-granted innate spell from a party member (source_type
+ * 'racial'). Call before applying a new species' grants when SWITCHING species —
+ * all racial rows belong to the outgoing species, so a Tiefling→Dwarf switch
+ * shouldn't leave Thaumaturgy behind.
+ */
+export async function removeSpeciesSpellGrants(partyMemberId: string): Promise<void> {
+  const { error } = await supabase
+    .from("character_spells")
+    .delete()
+    .eq("party_member_id", partyMemberId)
+    .eq("source_type", "racial");
+  if (error) throw error;
+}
+
+/**
  * Insert innate spell grants from a species onto a party member.
  * Idempotent — skips rows that already exist (upsert with ignoreDuplicates).
  * Returns free-pick grants (spell_id = null) that the caller should surface to the player.

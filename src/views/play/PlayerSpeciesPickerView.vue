@@ -145,7 +145,8 @@ import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import ListFilterGroup from "@/components/common/ListFilterGroup.vue";
 import type { Species } from "@/types/species.types";
-import { applySpeciesSpellGrants } from "@/composables/useCharacterSpells";
+import { applySpeciesSpellGrants, removeSpeciesSpellGrants } from "@/composables/useCharacterSpells";
+import { useAllSpecies } from "@/composables/useSpecies";
 
 const SIZE_OPTIONS = [
   { value: "all", label: "All" },
@@ -159,6 +160,7 @@ const router = useRouter();
 const auth = useAuthStore();
 const ui = useUiStore();
 const { data: party } = useParty();
+const { data: allSpecies } = useAllSpecies();
 const { mutateAsync: update } = useUpdatePartyMember();
 
 const resolvedMemberId = computed(() =>
@@ -212,8 +214,16 @@ async function confirm() {
   if (!me.value || !pendingSpecies.value) return;
   saving.value = true;
   try {
+    // Strip the OLD species' grants before applying the new ones — otherwise a
+    // Tiefling→Dwarf switch keeps Infernal + Thaumaturgy. Mirrors the background
+    // picker's computeRemovals: drop old-species languages the new one doesn't
+    // also grant (can't distinguish a language also granted by another source —
+    // same limitation as the background flow).
+    const oldSpecies = (allSpecies.value ?? []).find((s) => s.id === me.value!.species_id) ?? null;
+    const newLangs = pendingSpecies.value.languages ?? [];
+    const languagesToRemove = (oldSpecies?.languages ?? []).filter((l) => !newLangs.includes(l));
     const updatedLanguages = [
-      ...me.value.languages,
+      ...me.value.languages.filter((l) => !languagesToRemove.includes(l)),
       ...languagesToAdd.value,
     ];
     await update({
@@ -227,7 +237,9 @@ async function confirm() {
           : {}),
       },
     });
-    // Seed innate spells granted by the new species; returns free-pick grants
+    // Drop the old species' innate spells, then seed the new species' grants
+    // (returns free-pick grants to surface to the player).
+    await removeSpeciesSpellGrants(me.value.id);
     const freePicks = await applySpeciesSpellGrants(
       me.value.id, pendingSpecies.value, me.value.level ?? 1, selectedSubrace.value || null,
     );
