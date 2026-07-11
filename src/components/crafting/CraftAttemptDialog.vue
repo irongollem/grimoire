@@ -210,6 +210,8 @@ const props = defineProps<{
   inventory: PartyInventoryItem[];
   /** All items from vault (for name lookup) */
   allItems: Item[];
+  /** output item_id → name, for outputs the player can't read via RLS (#521) */
+  outputNameMap?: Map<string, string>;
   member: PartyMember;
   /** Whether the player has the required tool in their inventory */
   hasTools: boolean;
@@ -356,9 +358,13 @@ const outcomeLabel = computed(() => {
   return "Failure";
 });
 
+function resolveOutputName(itemId: string): string | undefined {
+  return props.allItems.find((i) => i.id === itemId)?.name ?? props.outputNameMap?.get(itemId);
+}
+
 const outputNames = computed(() =>
   props.outputs.map((o) => {
-    const name = props.allItems.find((i) => i.id === o.item_id)?.name ?? "item";
+    const name = resolveOutputName(o.item_id) ?? "item";
     return o.quantity > 1 ? `${o.quantity}× ${name}` : name;
   }),
 );
@@ -384,7 +390,7 @@ async function attempt() {
   try {
     const resolvedOutputNames: Record<string, string> = {};
     for (const o of props.outputs) {
-      if (o.item_id) resolvedOutputNames[o.item_id] = props.allItems.find((i) => i.id === o.item_id)?.name ?? "";
+      if (o.item_id) resolvedOutputNames[o.item_id] = resolveOutputName(o.item_id) ?? "";
     }
 
     const res = await attemptCraft({

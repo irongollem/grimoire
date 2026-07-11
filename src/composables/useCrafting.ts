@@ -70,6 +70,16 @@ async function fetchOutputs(recipeId: string): Promise<CraftingOutput[]> {
   return data as CraftingOutput[];
 }
 
+// Names of items a recipe produces, for recipes the caller can access. A player
+// shared a recipe can't read its output item under RLS, so the recipe card fell
+// back to "Unknown item" and a craft inserted an empty-name row — this projection
+// exposes just id+name (not secret; the shared recipe advertises its output).
+async function fetchCraftableOutputItems(campaignId: string): Promise<{ id: string; name: string }[]> {
+  const { data, error } = await supabase.rpc("get_craftable_output_items", { p_campaign_id: campaignId });
+  if (error) throw error;
+  return (data ?? []) as { id: string; name: string }[];
+}
+
 // ── Mutation helpers ─────────────────────────────────────────────────────────
 
 async function createRecipe(recipe: CraftingRecipeInsert): Promise<CraftingRecipe> {
@@ -166,6 +176,28 @@ export function useCraftingRecipes() {
 /** Player-facing: only recipes the player can see (RLS handles the filter) */
 export function usePlayerCraftingRecipes() {
   return useCraftingRecipes();
+}
+
+/**
+ * Map of output item_id → name for every recipe the caller can access in the
+ * active campaign. Lets a player resolve a craftable output's name even though
+ * they can't read the output vault item under RLS (recipe cards + crafted rows).
+ */
+export function useCraftableOutputItems() {
+  const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
+  const query = useQuery({
+    queryKey: computed(() => ["craftable-output-items", campaignId.value]),
+    queryFn: () => fetchCraftableOutputItems(campaignId.value!),
+    enabled: () => !!campaignId.value,
+    staleTime: Infinity,
+  });
+  const map = computed(() => {
+    const m = new Map<string, string>();
+    for (const row of query.data.value ?? []) m.set(row.id, row.name);
+    return m;
+  });
+  return { map, isLoading: query.isLoading };
 }
 
 export function useCraftingRecipe(id: MaybeRefOrGetter<string>) {

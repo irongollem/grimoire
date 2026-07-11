@@ -171,6 +171,7 @@
       :modifiers="modifiersFor(attemptRecipe.id)"
       :inventory="myInventory"
       :all-items="allItems ?? []"
+      :output-name-map="craftableOutputNames"
       :member="member"
       :has-tools="hasTools(attemptDiscipline.tools)"
       :has-proficiency="hasProficiency(attemptDiscipline.tools)"
@@ -190,7 +191,7 @@ import PageHeader from "@/components/common/PageHeader.vue";
 import CraftAttemptDialog from "@/components/crafting/CraftAttemptDialog.vue";
 import { CRAFTING_DISCIPLINES, getDiscipline } from "@/lib/crafting-disciplines";
 import type { DisciplineConfig } from "@/lib/crafting-disciplines";
-import { usePlayerCraftingRecipes, useAllRecipeIngredients, useAllRecipeModifiers, useAllRecipeOutputs } from "@/composables/useCrafting";
+import { usePlayerCraftingRecipes, useAllRecipeIngredients, useAllRecipeModifiers, useAllRecipeOutputs, useCraftableOutputItems } from "@/composables/useCrafting";
 import { usePlayerVisibleItems } from "@/composables/useItems";
 import { useParty } from "@/composables/useParty";
 import { usePartyInventory } from "@/composables/usePartyInventory";
@@ -202,6 +203,7 @@ const auth = useAuthStore();
 const ui = useUiStore();
 const { data: recipes } = usePlayerCraftingRecipes();
 const { data: allItems } = usePlayerVisibleItems();
+const { map: craftableOutputNames } = useCraftableOutputItems();
 const { data: partyMembers } = useParty();
 const { data: inventory } = usePartyInventory();
 
@@ -279,7 +281,11 @@ function outputsFor(recipeId: string): CraftingOutput[] {
 }
 
 function itemName(itemId: string): string {
-  return allItems.value?.find((i) => i.id === itemId)?.name ?? "Unknown item";
+  return allItems.value?.find((i) => i.id === itemId)?.name
+    // A recipe output the player has never held isn't in their visible items, so
+    // resolve its name from the craftable-output projection before giving up.
+    ?? craftableOutputNames.value.get(itemId)
+    ?? "Unknown item";
 }
 
 function ingredientLabel(ing: CraftingIngredient): string {
