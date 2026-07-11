@@ -139,23 +139,49 @@ export function useDeletePuzzle() {
   });
 }
 
-/** Player-visible puzzles shared into the active campaign. */
+/**
+ * Player-visible puzzles shared into the active campaign. Routes through the
+ * get_player_visible_puzzles SECURITY DEFINER projection (migration
+ * 20260711000009) — NOT a base-table `select *` — so DM-only columns
+ * (solution, success/failure outcomes, notes) and unrevealed hints never reach
+ * the client. Players have no direct base-table read path (RLS is owner-only).
+ */
 export function usePlayerVisiblePuzzles() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
     queryKey: computed(() => [QUERY_KEY, "player", campaignId.value]),
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("puzzle_rooms")
-        .select("*")
-        .eq("campaign_id", campaignId.value!)
-        .eq("is_shared", true)
-        .order("name", { ascending: true });
+      const { data, error } = await supabase.rpc("get_player_visible_puzzles", {
+        p_campaign_id: campaignId.value!,
+        p_puzzle_id: null,
+      });
       if (error) throw error;
-      return data as PuzzleRoom[];
+      return ((data ?? []) as PuzzleRoom[]).sort((a, b) => a.name.localeCompare(b.name));
     },
     enabled: () => !!campaignId.value,
+  });
+}
+
+/**
+ * A single player-visible puzzle by id, via the same projection. Used by the
+ * player detail view instead of usePuzzle (which does a base-table `select *`
+ * and would leak DM secrets to any player who opened devtools). Keyed under
+ * QUERY_KEY so usePuzzleRealtime's prefix invalidation refetches it on reveal.
+ */
+export function usePlayerVisiblePuzzle(id: string | Ref<string>) {
+  const resolved = isRef(id) ? id : ref(id);
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY, "player-one", resolved.value]),
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_player_visible_puzzles", {
+        p_campaign_id: null,
+        p_puzzle_id: resolved.value,
+      });
+      if (error) throw error;
+      return ((data ?? []) as PuzzleRoom[])[0] ?? null;
+    },
+    enabled: () => !!resolved.value,
   });
 }
 
