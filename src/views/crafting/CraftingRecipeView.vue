@@ -31,7 +31,7 @@ const isNew = computed(() => route.params.id === "new");
 const isEditing = computed(() => route.query.edit === "true");
 const id = computed(() => (isNew.value ? "" : (route.params.id as string)));
 
-const { data: recipe } = useCraftingRecipe(id.value);
+const { data: recipe } = useCraftingRecipe(id);
 
 function onCancel() {
   const q = { ...route.query };

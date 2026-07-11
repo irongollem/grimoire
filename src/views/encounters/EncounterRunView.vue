@@ -38,7 +38,7 @@ const { data: companions } = useCompanions();
 const { data: npcs } = useNpcs();
 const { data: allTraps } = useTraps();
 const store = useEncounterRunStore();
-const { liveState, liveStateLoaded } = useEncounterLive(id.value);
+const { liveState, liveStateLoaded } = useEncounterLive(id);
 
 const isReady = computed(
   () => !!encounter.value && !!monsters.value && !!party.value && !!companions.value && !!npcs.value && !!allTraps.value,

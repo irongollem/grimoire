@@ -168,11 +168,11 @@ export function usePlayerCraftingRecipes() {
   return useCraftingRecipes();
 }
 
-export function useCraftingRecipe(id: string) {
+export function useCraftingRecipe(id: MaybeRefOrGetter<string>) {
   return useQuery({
-    queryKey: [RECIPES_KEY, id],
-    queryFn: () => fetchRecipe(id),
-    enabled: !!id,
+    queryKey: computed(() => [RECIPES_KEY, toValue(id)]),
+    queryFn: () => fetchRecipe(toValue(id)),
+    enabled: () => !!toValue(id),
   });
 }
 

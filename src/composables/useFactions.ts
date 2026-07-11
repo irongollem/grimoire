@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
-import { computed, type Ref } from "vue";
+import { computed, toValue, type Ref, type MaybeRefOrGetter } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { getSetting } from "@/settings/index";
@@ -39,19 +39,19 @@ export function useAllFactions() {
   });
 }
 
-export function useFaction(id: string) {
+export function useFaction(id: MaybeRefOrGetter<string>) {
   return useQuery({
-    queryKey: ["factions", id],
+    queryKey: computed(() => ["factions", toValue(id)]),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("factions")
         .select("*")
-        .eq("id", id)
+        .eq("id", toValue(id))
         .single();
       if (error) throw error;
       return data as Faction;
     },
-    enabled: !!id,
+    enabled: () => !!toValue(id),
   });
 }
 

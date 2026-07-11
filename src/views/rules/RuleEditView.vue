@@ -453,7 +453,7 @@ function onCancel() {
   router.push({ query: q });
 }
 
-const { data: rule, isLoading: ruleLoading } = useRule(id.value);
+const { data: rule, isLoading: ruleLoading } = useRule(id);
 const isLoading = computed(() => !isNew.value && ruleLoading.value);
 
 const createRule = useCreateRule();

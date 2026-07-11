@@ -1,4 +1,4 @@
-import { ref, computed, onUnmounted } from "vue";
+import { ref, computed, watch, onUnmounted, toValue, type MaybeRefOrGetter } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import type { EncounterState, RunCombatant } from "@/types/encounter.types";
@@ -79,10 +79,10 @@ let playerChannel: ReturnType<typeof supabase.channel> | null = null;
 let pushTimer: ReturnType<typeof setTimeout> | null = null;
 
 // ── DM composable ──────────────────────────────────────────────────────────────
-export function useEncounterLive(encounterId: string) {
+export function useEncounterLive(encounterId: MaybeRefOrGetter<string>) {
   const campaign = useCampaignStore();
 
-  const isLive = computed(() => liveState.value?.encounter_id === encounterId && liveState.value?.is_running === true);
+  const isLive = computed(() => liveState.value?.encounter_id === toValue(encounterId) && liveState.value?.is_running === true);
 
   async function goLive(state: {
     round: number;
@@ -92,7 +92,7 @@ export function useEncounterLive(encounterId: string) {
     if (!campaign.activeCampaignId) return;
     const user = getCurrentUser();
     const payload = {
-      encounter_id: encounterId,
+      encounter_id: toValue(encounterId),
       campaign_id: campaign.activeCampaignId,
       user_id: user!.id,
       is_running: true,
@@ -136,7 +136,7 @@ export function useEncounterLive(encounterId: string) {
     const { error } = await supabase
       .from("encounter_state")
       .update(patch)
-      .eq("encounter_id", encounterId);
+      .eq("encounter_id", toValue(encounterId));
     if (error) throw error;
     liveState.value = { ...liveState.value, ...(patch as Partial<EncounterState>) };
   }
@@ -146,7 +146,7 @@ export function useEncounterLive(encounterId: string) {
     const { error } = await supabase
       .from("encounter_state")
       .update({ is_running: false })
-      .eq("encounter_id", encounterId);
+      .eq("encounter_id", toValue(encounterId));
     if (error) throw error;
     liveState.value = null;
   }
@@ -156,13 +156,15 @@ export function useEncounterLive(encounterId: string) {
     const { data } = await supabase
       .from("encounter_state")
       .select("*")
-      .eq("encounter_id", encounterId)
+      .eq("encounter_id", toValue(encounterId))
       .maybeSingle();
     if (data) liveState.value = data as EncounterState;
     liveStateLoaded.value = true;
   }
 
-  loadState();
+  // Re-run on id changes so a reused component instance (same-route param
+  // change) loads the correct encounter's live state instead of the stale one.
+  watch(() => toValue(encounterId), () => void loadState(), { immediate: true });
 
   onUnmounted(() => {
     if (pushTimer) clearTimeout(pushTimer);
