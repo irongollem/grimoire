@@ -127,46 +127,8 @@
     </div>
   </Teleport>
 
-  <!-- NPC lightbox -->
-  <Teleport to="body">
-    <div
-      v-if="selectedNpc"
-      class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
-      @click.self="selectedNpc = null"
-    >
-      <div class="bg-card rounded-xl border border-border w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-        <div class="relative shrink-0">
-          <div v-if="selectedNpc.player_visible_fields?.includes('portrait') && getNpcDisplayPortrait(selectedNpc)" class="w-full h-72 overflow-hidden">
-            <FocalImage
-              :src="getNpcDisplayPortrait(selectedNpc)!"
-              :alt="getNpcDisplayName(selectedNpc) ?? '???'"
-              format="portrait"
-              :focal-point="getNpcDisplayFocalPoint(selectedNpc)"
-              :lightbox="true"
-            />
-          </div>
-          <button
-            class="absolute top-2 right-2 bg-black/50 rounded-full p-1 text-white hover:bg-black/70 transition-colors"
-            @click="selectedNpc = null"
-          >
-            <IconClose class="h-4 w-4" />
-          </button>
-        </div>
-        <div class="p-4 overflow-y-auto space-y-4">
-          <div>
-            <h2 class="font-cinzel text-lg font-bold text-foreground">
-              {{ selectedNpc.player_visible_fields?.includes('name') ? getNpcDisplayName(selectedNpc) : '???' }}
-            </h2>
-            <p v-if="selectedNpc.player_visible_fields?.includes('race') && selectedNpc.race"
-              class="mt-1 font-fell text-sm text-muted-foreground italic">{{ selectedNpc.race }}</p>
-            <p v-if="selectedNpc.player_visible_fields?.includes('occupation') && selectedNpc.occupation"
-              class="font-fell text-sm text-muted-foreground">{{ selectedNpc.occupation }}</p>
-          </div>
-          <PlayerNotesWidget entity-type="npc" :entity-id="selectedNpc.id" placeholder="Your observations about this character…" />
-        </div>
-      </div>
-    </div>
-  </Teleport>
+  <!-- NPC lightbox — shared component (badges, connection note, rating) -->
+  <PlayerPartyNpcLightbox :npc="selectedNpc" @close="selectedNpc = null" />
 
   <!-- Watch panel — art + player summary + notes for a pinned sub-location -->
   <Teleport to="body">
@@ -233,7 +195,7 @@ import { useSharedLocations } from "@/composables/useLocations";
 import { usePlayerFavourites } from "@/composables/usePlayerFavourites";
 import { useUiStore } from "@/stores/ui";
 import { useSharedNpcsByLocations } from "@/composables/useNpcs";
-import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
+import PlayerPartyNpcLightbox from "@/components/play/PlayerPartyNpcLightbox.vue";
 import type { Npc } from "@/types/npc.types";
 import { extractTiptapText } from "@/lib/utils";
 import { LOCATION_TYPE_LABELS, LOCATION_TYPE_COLORS } from "@/types/location.types";
