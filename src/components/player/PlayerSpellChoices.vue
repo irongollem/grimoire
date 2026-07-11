@@ -18,19 +18,19 @@
             class="inline-flex items-center rounded-md bg-primary/10 border border-primary/20 px-2 py-0.5 font-fell text-sm text-foreground"
           >{{ name }}</span>
         </div>
-        <!-- Not yet picked -->
-        <div v-else class="pl-13 flex items-center gap-2">
+        <!-- Still picking — keep the picker open until `count` choices are made -->
+        <div v-if="choicesForStep(step.key).length < (step.count ?? 1)" class="pl-13 flex items-center gap-2">
           <select
             v-model="pendingPicks[step.key]"
             class="flex-1 bg-muted/40 border border-border rounded px-2 py-1 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           >
             <option value="" disabled>Choose a spell…</option>
-            <option v-for="opt in step.options" :key="opt" :value="opt">{{ opt }}</option>
+            <option v-for="opt in remainingOptions(step)" :key="opt" :value="opt">{{ opt }}</option>
           </select>
           <button
             :disabled="!pendingPicks[step.key]"
             class="px-2.5 py-1 bg-primary text-primary-foreground rounded font-cinzel text-2xs md:text-sm tracking-wider disabled:opacity-40 transition-opacity hover:opacity-90"
-            @click="confirmPick(step.key)"
+            @click="confirmPick(step.key, step.count ?? 1)"
           >Save</button>
         </div>
       </div>
@@ -58,10 +58,22 @@ function choicesForStep(stepKey: string): string[] {
   return Array.isArray(v) ? (v as string[]) : [String(v)];
 }
 
-function confirmPick(stepKey: string) {
+/** Options not already chosen for this step, so a duplicate can't be picked. */
+function remainingOptions(step: CustomStep): string[] {
+  const chosen = new Set(choicesForStep(step.key));
+  return step.options.filter((o) => !chosen.has(o));
+}
+
+function confirmPick(stepKey: string, count: number) {
   const picked = pendingPicks.value[stepKey];
   if (!picked) return;
-  const newChoices = { ...props.member.class_choices, [stepKey]: picked };
-  updateMember({ id: props.member.id, update: { class_choices: newChoices } });
+  const current = choicesForStep(stepKey);
+  if (current.includes(picked) || current.length >= count) return;
+  // Accumulate up to `count` picks. Store a single string for a 1-pick step
+  // (unchanged shape) and an array once more than one is required.
+  const next = [...current, picked];
+  const value = count > 1 ? next : next[0];
+  updateMember({ id: props.member.id, update: { class_choices: { ...props.member.class_choices, [stepKey]: value } } });
+  pendingPicks.value[stepKey] = "";
 }
 </script>

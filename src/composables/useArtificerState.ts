@@ -50,7 +50,20 @@ export function useArtificerState(
     updateMember({ id: member.value.id, update: { active_infusions: localActiveInfusions.value } });
   }
 
+  // Infusions known scale with Artificer level: 4 at L2, 6 at L6, 8 at L10,
+  // 10 at L14, 12 at L18 (TCoE). Without this cap all infusions were learnable.
+  const infusionKnownCap = computed(() => {
+    const lvl = artificerLevel.value;
+    if (lvl >= 18) return 12;
+    if (lvl >= 14) return 10;
+    if (lvl >= 10) return 8;
+    if (lvl >= 6) return 6;
+    if (lvl >= 2) return 4;
+    return 0;
+  });
+
   const availableInfusionsToLearn = computed(() => {
+    if (knownInfusions.value.length >= infusionKnownCap.value) return [];
     const known = new Set(knownInfusions.value.map(i => i.name));
     return ARTIFICER_INFUSIONS.filter(inf =>
       inf.min_level <= artificerLevel.value && !known.has(inf.name),
@@ -60,6 +73,7 @@ export function useArtificerState(
   function learnInfusion(name: string) {
     const current = member.value.class_choices?.infusions_known;
     const existing: string[] = Array.isArray(current) ? (current as string[]) : current ? [String(current)] : [];
+    if (existing.includes(name) || existing.length >= infusionKnownCap.value) return;
     const newChoices = { ...member.value.class_choices, infusions_known: [...existing, name] };
     updateMember({ id: member.value.id, update: { class_choices: newChoices } });
   }

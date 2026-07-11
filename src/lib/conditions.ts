@@ -100,6 +100,17 @@ export function hasCheckDisadvantage(conditions: string[]): boolean {
   return getExhaustionLevel(conditions) >= 1;
 }
 
+/**
+ * Whether the given conditions impose disadvantage on a saving throw for the
+ * given ability (SRD 5e): Exhaustion level ≥ 3 → disadvantage on ALL saves;
+ * Restrained → disadvantage on DEX saves.
+ */
+export function hasSaveDisadvantage(conditions: string[], ability: string): boolean {
+  if (getExhaustionLevel(conditions) >= 3) return true;
+  if (ability.toLowerCase() === "dex" && conditions.includes("Restrained")) return true;
+  return false;
+}
+
 // ── Lookups ───────────────────────────────────────────────────────────────────
 
 // Map the baked SRD data by lowercased name for O(1) lookup.

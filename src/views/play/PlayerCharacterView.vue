@@ -249,7 +249,7 @@ import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useParty } from "@/composables/useParty";
-import { hasAttackDisadvantage, hasCheckDisadvantage } from "@/lib/conditions";
+import { hasAttackDisadvantage, hasCheckDisadvantage, hasSaveDisadvantage } from "@/lib/conditions";
 import { parseCr } from "@/lib/utils";
 import { wildshapeMaxCr as calcWildshapeMaxCr, wildshapeCrDisplay as calcWildshapeCrDisplay, isEligibleWildshapeForm } from "@/lib/wildshape";
 import { hitPointsToMax } from "@/lib/dice";
@@ -511,8 +511,13 @@ function onRollAbility(_key: string, label: string, mod: number, override: RollM
     combineModes(override ?? "normal", checkDisadvantage.value ? "disadvantage" : "normal"),
   );
 }
-function onRollSave(_key: string, label: string, bonus: number, override: RollMode | null = null) {
-  doRoll(`${label} Save`, bonus, override ?? "normal");
+function onRollSave(key: string, label: string, bonus: number, override: RollMode | null = null) {
+  const saveDisadvantage = hasSaveDisadvantage(member.value?.conditions ?? [], key);
+  doRoll(
+    `${label} Save`,
+    bonus,
+    combineModes(override ?? "normal", saveDisadvantage ? "disadvantage" : "normal"),
+  );
 }
 
 </script>

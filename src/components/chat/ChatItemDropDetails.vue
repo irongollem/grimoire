@@ -71,6 +71,10 @@
         <RichTextViewer :content="item.description" />
       </div>
     </template>
+    <!-- item is null when the player can't yet read it (RLS-blocked until claimed) -->
+    <p v-else class="text-[11px] italic text-muted-foreground py-1">
+      You don't know anything about this item yet — claim it to reveal its details.
+    </p>
   </div>
 </template>
 

@@ -622,7 +622,19 @@ const knownManeuvers = computed(() => {
   return names.map(n => BATTLE_MASTER_MANEUVERS_MAP.get(n)).filter(Boolean) as import("@/data/battleMasterManeuvers").BattleManeuver[];
 });
 
+// Battle Master maneuvers known scale with Fighter level: 3 at L3, 5 at L7,
+// 7 at L10, 9 at L15 (PHB). Without this cap a level-3 BM could learn them all.
+function maneuverKnownCap(fighterLevel: number): number {
+  if (fighterLevel >= 15) return 9;
+  if (fighterLevel >= 10) return 7;
+  if (fighterLevel >= 7) return 5;
+  if (fighterLevel >= 3) return 3;
+  return 0;
+}
+const maneuverCap = computed(() => maneuverKnownCap(classLevel("Fighter")));
+
 const availableManeuversToLearn = computed(() => {
+  if (knownManeuvers.value.length >= maneuverCap.value) return [];
   const known = new Set(knownManeuvers.value.map(m => m.name));
   return BATTLE_MASTER_MANEUVERS.filter(m => !known.has(m.name));
 });
@@ -630,6 +642,7 @@ const availableManeuversToLearn = computed(() => {
 function learnManeuver(name: string) {
   const current = props.member.class_choices?.battle_master_maneuvers;
   const existing: string[] = Array.isArray(current) ? (current as string[]) : current ? [String(current)] : [];
+  if (existing.includes(name) || existing.length >= maneuverCap.value) return;
   updateMember({ id: props.member.id, update: { class_choices: { ...props.member.class_choices, battle_master_maneuvers: [...existing, name] } } });
 }
 

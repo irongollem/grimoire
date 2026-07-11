@@ -311,17 +311,11 @@ const heavyThreshold = computed(() => {
   return member.value.str * 10 * mult;
 });
 
-const encumberedMarkerPct = computed(() =>
-  effectiveCapacity.value > 0
-    ? Math.min(100, (encumberedThreshold.value / effectiveCapacity.value) * 100)
-    : 33.33,
-);
-
-const heavyMarkerPct = computed(() =>
-  effectiveCapacity.value > 0
-    ? Math.min(100, (heavyThreshold.value / effectiveCapacity.value) * 100)
-    : 66.67,
-);
+// The encumbrance bands are proportional thirds of the effective capacity (which
+// honors carry_capacity_override), so the markers sit at fixed 1/3 and 2/3 of the
+// bar — deriving them from the raw str thresholds misplaced them under an override.
+const encumberedMarkerPct = computed(() => 33.33);
+const heavyMarkerPct = computed(() => 66.67);
 
 type BurdenLevel =
   | "unencumbered"
@@ -331,12 +325,13 @@ type BurdenLevel =
 
 const burdenLevel = computed((): BurdenLevel => {
   if (!member.value) return "unencumbered";
-  const mult = powerfulBuild.value ? 2 : 1;
-  const w = totalCarriedWeight.value;
-  const str = member.value.str;
-  if (w > str * 15 * mult) return "over_encumbered";
-  if (w > str * 10 * mult) return "heavily_encumbered";
-  if (w > str * 5 * mult) return "encumbered";
+  // Base the label on the SAME effective capacity the bar uses (honoring
+  // carry_capacity_override) so an override no longer shows a half-full bar with
+  // an "Over Encumbered" label. Bands are proportional thirds of capacity.
+  const p = carryPercent.value;
+  if (p >= 100) return "over_encumbered";
+  if (p >= 66.67) return "heavily_encumbered";
+  if (p >= 33.33) return "encumbered";
   return "unencumbered";
 });
 
