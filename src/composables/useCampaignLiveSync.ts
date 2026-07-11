@@ -61,6 +61,11 @@ export function useCampaignLiveSync() {
           .on("postgres_changes", { event: "*", schema: "public", table: "session_availability", filter: f }, invalidate("session_availability"))
           .on("postgres_changes", { event: "*", schema: "public", table: "items",              filter: f }, invalidate("items"))
           .on("postgres_changes", { event: "*", schema: "public", table: "party_inventory",    filter: f }, invalidate("party-inventory"))
+          // A newly-claimed/crafted item only becomes RLS-visible to a player once
+          // its party_inventory row exists, but the ["items"] query is staleTime:Infinity
+          // and never refetches on its own — so refresh it on any inventory INSERT,
+          // otherwise the item shows no weight/name/stat-block until a full reload.
+          .on("postgres_changes", { event: "INSERT", schema: "public", table: "party_inventory", filter: f }, invalidate("items"))
           .on("postgres_changes", { event: "*", schema: "public", table: "npc_inventory",      filter: f }, invalidate("npc-inventory"))
           // Membership add/remove + display-name changes — so a player renaming
           // themselves (or being added/removed) propagates to every member's party
