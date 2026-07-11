@@ -11,20 +11,33 @@ const {
   activityKey,
   rewardName = null,
   rewardHref = null,
+  rewardPending = false,
   isNew = false,
 } = defineProps<{
   outcome: DowntimeOutcome;
   activityKey: string;
-  /** Null when the linked entity was deleted — we say so rather than hide it. */
+  /** Null when the reward's name can't be resolved for this player. */
   rewardName?: string | null;
   rewardHref?: string | null;
+  /**
+   * True when the reward exists (the outcome carries a reward id) but isn't
+   * yet visible to this player — e.g. a seed reward NPC the DM hasn't
+   * revealed yet. Distinct from a genuinely absent reward, and must never be
+   * reported as "no longer exists" — that's a lie the player can catch out.
+   */
+  rewardPending?: boolean;
   isNew?: boolean;
 }>();
 
 const activity = computed(() => getDowntimeActivity(activityKey));
 
-/** A deleted or unknown target must read as absent, never as an empty string. */
-const rewardLabel = computed(() => rewardName ?? "??? (no longer exists)");
+/** An unresolved name reads as "pending reveal" when we know the reward
+ * still exists; only a truly missing reference reads as absent. */
+const rewardLabel = computed(() => {
+  if (rewardName) return rewardName;
+  if (rewardPending) return "a new acquaintance (your DM will introduce them)";
+  return "??? (no longer exists)";
+});
 
 const appliedEffects = computed(() => outcome.proposed_effects.filter((e) => e.applied));
 

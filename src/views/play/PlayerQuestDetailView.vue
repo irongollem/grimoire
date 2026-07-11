@@ -137,6 +137,17 @@
           <p v-if="quest.rewards" class="font-fell text-sm text-foreground">
             {{ quest.rewards }}
           </p>
+          <p v-if="hasCurrencyReward" class="font-fell text-sm text-foreground">
+            {{ currencyParts.join(", ") }}
+          </p>
+          <div v-if="quest.reward_item_ids?.length" class="flex flex-wrap gap-1.5">
+            <span
+              v-for="itemId in quest.reward_item_ids"
+              :key="itemId"
+              class="font-fell text-sm text-foreground bg-muted/40 rounded px-2 py-0.5"
+              >{{ itemName(itemId) }}</span
+            >
+          </div>
         </div>
       </div>
 
@@ -295,6 +306,7 @@ import { useMarkRead } from "@/composables/useReadItems";
 import { useSharedNpcs } from "@/composables/useNpcs";
 import { useSharedLocations } from "@/composables/useLocations";
 import { useMonsters } from "@/composables/useMonsters";
+import { useItems } from "@/composables/useItems";
 import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
 import { QUEST_STATUS_LABELS, QUEST_STATUS_COLORS } from "@/types/quest.types";
 import type { Npc } from "@/types/npc.types";
@@ -319,6 +331,7 @@ const { data: questRefs } = useQuestRefs(questId);
 const { data: npcs } = useSharedNpcs();
 const { data: locations } = useSharedLocations();
 const { data: allMonsters } = useMonsters();
+const { data: allItems } = useItems();
 
 // NPC lightbox
 const selectedNpc = ref<Npc | null>(null);
@@ -379,14 +392,35 @@ const doneCount = computed(
   () => visibleObjectives.value.filter((o) => o.is_done).length,
 );
 
-// Name lookups
+// Name lookups — "???" marks a visible ref whose target isn't shared with
+// this player, never the raw id.
 function npcName(id: string) {
-  return (npcs.value ?? []).find((n) => n.id === id)?.name ?? id;
+  return (npcs.value ?? []).find((n) => n.id === id)?.name ?? "???";
 }
 function locationName2(id: string) {
-  return (locations.value ?? []).find((l) => l.id === id)?.name ?? id;
+  return (locations.value ?? []).find((l) => l.id === id)?.name ?? "???";
 }
 function monsterName(id: string) {
-  return (allMonsters.value ?? []).find((m) => m.id === id)?.name ?? id;
+  return (allMonsters.value ?? []).find((m) => m.id === id)?.name ?? "???";
 }
+function itemName(id: string) {
+  return (allItems.value ?? []).find((i) => i.id === id)?.name ?? "???";
+}
+
+// Currency reward, formatted as e.g. "12 gp, 4 sp"
+const currencyParts = computed(() => {
+  if (!quest.value) return [];
+  const q = quest.value;
+  return (
+    [
+      ["pp", q.reward_pp],
+      ["gp", q.reward_gp],
+      ["ep", q.reward_ep],
+      ["sp", q.reward_sp],
+      ["cp", q.reward_cp],
+    ] as const
+  )
+    .filter(([, amount]) => amount > 0)
+    .map(([label, amount]) => `${amount} ${label}`);
+});
 </script>

@@ -32,7 +32,10 @@
         >{{ puzzle.difficulty }}</span>
       </div>
       <div class="p-2.5">
-        <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight truncate">{{ puzzle.name }}</h3>
+        <div class="flex items-center gap-1.5 min-w-0">
+          <EntityNewDot :is-new="isNew(puzzle.id, puzzle.updated_at)" size="sm" />
+          <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight truncate">{{ puzzle.name }}</h3>
+        </div>
         <p v-if="puzzle.shared_hints.length" class="font-fell text-2xs text-primary mt-0.5">
           {{ puzzle.shared_hints.length }} hint{{ puzzle.shared_hints.length === 1 ? '' : 's' }} available
         </p>
@@ -46,6 +49,8 @@ import { RouterLink } from 'vue-router';
 import { IconPuzzle } from '@/lib/icons';
 import FocalImage from '@/components/common/FocalImage.vue';
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue';
+import EntityNewDot from '@/components/common/EntityNewDot.vue';
+import { useReadItems } from '@/composables/useReadItems';
 import { PUZZLE_TYPE_COLORS, PUZZLE_DIFFICULTY_COLORS } from '@/types/puzzle.types';
 import type { PuzzleRoom } from '@/types/puzzle.types';
 
@@ -53,4 +58,9 @@ defineProps<{
   isLoading: boolean;
   puzzles: PuzzleRoom[];
 }>();
+
+// This tab's parent (PlayerJournalView.vue) doesn't yet compute a puzzle
+// read-state, unlike its sibling quest-log tab — so this component owns its
+// own useReadItems("puzzle") call rather than receiving isNew as a prop.
+const { isNew } = useReadItems('puzzle');
 </script>

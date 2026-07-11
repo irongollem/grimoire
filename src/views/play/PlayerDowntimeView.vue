@@ -58,6 +58,15 @@ function rewardName(rewardType: string | null, rewardId: string | null): string 
   return npcs.value?.find((n) => n.id === rewardId)?.name ?? null;
 }
 
+/**
+ * True when an npc reward exists but hasn't been shared with this player yet.
+ * Seed reward NPCs are created hidden (`player_visible_to: []`) until the DM
+ * decides to reveal them — an unresolved name here means "not yet", not "gone".
+ */
+function rewardPending(rewardType: string | null, rewardId: string | null): boolean {
+  return rewardType === "npc" && !!rewardId && !npcs.value?.some((n) => n.id === rewardId);
+}
+
 async function onSelect(activity: DowntimeActivity) {
   errorMessage.value = null;
   try {
@@ -147,6 +156,7 @@ function onOpenOutcome(outcomeId: string) {
               :outcome="entry.outcome"
               :activity-key="entry.draw.activity_key"
               :reward-name="rewardName(entry.outcome.reward_type, entry.outcome.reward_id)"
+              :reward-pending="rewardPending(entry.outcome.reward_type, entry.outcome.reward_id)"
               :is-new="isNew(entry.outcome.id, entry.outcome.updated_at)"
             />
           </div>

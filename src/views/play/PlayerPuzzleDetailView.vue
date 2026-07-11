@@ -104,10 +104,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, watch } from "vue";
 import { RouterLink, useRoute } from "vue-router";
 import { IconChevronLeft, IconPuzzle } from '@/lib/icons';
 import { usePuzzle, usePuzzleRealtime } from "@/composables/usePuzzles";
+import { useMarkRead } from "@/composables/useReadItems";
 import { PUZZLE_TYPE_COLORS, PUZZLE_DIFFICULTY_COLORS } from "@/types/puzzle.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
@@ -118,6 +119,11 @@ const id    = computed(() => route.params.id as string);
 
 const { data: puzzle, isLoading } = usePuzzle(id);
 usePuzzleRealtime(id);
+
+const { mutate: markRead } = useMarkRead();
+watch(puzzle, (p) => {
+  if (p?.id) markRead({ entityType: "puzzle", entityId: p.id });
+}, { immediate: true });
 
 const revealedHints = computed(() => {
   if (!puzzle.value) return [];

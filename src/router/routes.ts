@@ -89,7 +89,7 @@ export const routes: RouteRecordRaw[] = [
   },
   {
     path: "/play/quests",
-    redirect: "/play/journal",
+    redirect: { path: "/play/journal", query: { tab: "quest-log" } },
   },
   {
     path: "/play/quests/:id",
