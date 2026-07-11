@@ -4,6 +4,14 @@
     <div class="flex items-center justify-between gap-2">
       <h2 class="font-cinzel text-xl font-bold text-foreground">Adventure Journal</h2>
       <div class="flex items-center gap-2">
+        <button
+          v-if="ui.journalHasActiveFilters && (activeTab === 'mine' || activeTab === 'party')"
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground tracking-wider hover:text-foreground transition-colors"
+          @click="ui.resetJournalFilters()"
+        >
+          Clear
+        </button>
         <SortControl
           v-if="showSort"
           v-model:sort-by="sortBy"
@@ -63,7 +71,6 @@
             <option value="location">Location</option>
             <option value="item">Item</option>
             <option value="monster">Monster</option>
-            <option value="encounter">Encounter</option>
           </select>
           <select
             v-if="formRefType"
@@ -224,7 +231,6 @@ import { useSharedLocations } from "@/composables/useLocations";
 import { usePartyInventory } from "@/composables/usePartyInventory";
 import { usePlayerVisibleMonsters } from "@/composables/useMonsters";
 import { usePlayerDiscoveries } from "@/composables/useDiscoveredMonsters";
-import { useEncounters } from "@/composables/useEncounters";
 import { useNotes } from "@/composables/useNotes";
 import { usePlayerEntityMentionItems } from "@/composables/usePlayerEntityMentionItems";
 import type { NoteCategory } from "@/types/notes.types";
@@ -251,7 +257,6 @@ const { data: sharedLocations }   = useSharedLocations();
 const { data: inventory }         = usePartyInventory();
 const { data: allMonsters }       = usePlayerVisibleMonsters();
 const { data: playerDiscoveries } = usePlayerDiscoveries();
-const { data: allEncounters }     = useEncounters();
 
 // ── Mutations ─────────────────────────────────────────────────────────────────
 const { mutateAsync: create } = useCreateJournalEntry();
@@ -260,7 +265,8 @@ const { mutateAsync: del }    = useDeleteJournalEntry();
 const { mutate: reorderJournal } = useReorderJournalEntries();
 
 // ── Sort ────────────────────────────────────────────────────────────────────────
-const { journalSortBy: sortBy, journalSortDir: sortDir } = storeToRefs(useUiStore());
+const ui = useUiStore();
+const { journalSortBy: sortBy, journalSortDir: sortDir, journalFilterCategory: filterCategory } = storeToRefs(ui);
 
 const SORT_OPTIONS_FULL = [
   { value: "created", label: "Created" },
@@ -340,10 +346,15 @@ function setTab(id: TabId) {
 const TABS = computed(() => [
   { id: "mine"      as const, label: "My Journal",    count: myEntries.value?.length ?? 0 },
   { id: "party"     as const, label: "Party Journal", count: sharedEntries.value?.length ?? 0 },
-  { id: "quest-log" as const, label: "Quest Log",     count: playerQuests.value?.length ?? 0 },
+  // Count only quests that fall into a rendered group (see questGroups) — shared
+  // `undiscovered` quests would otherwise inflate the badge past the visible list.
+  { id: "quest-log" as const, label: "Quest Log",     count: (playerQuests.value ?? []).filter((q) => QUEST_LOG_STATUSES.includes(q.status)).length },
   { id: "puzzles"   as const, label: "Puzzles",       count: puzzles.value?.length ?? 0 },
   { id: "dm-notes"  as const, label: "DM Notes",      count: dmNotes.value.length },
 ]);
+
+// Statuses that render in a Quest Log group — the badge counts exactly these.
+const QUEST_LOG_STATUSES: readonly string[] = ["active", "rumor", "completed", "failed"];
 
 const questGroups = computed<[string, Quest[]][]>(() => [
   ["Active",    (playerQuests.value ?? []).filter((q) => q.status === "active")],
@@ -353,7 +364,7 @@ const questGroups = computed<[string, Quest[]][]>(() => [
 ]);
 
 // ── Filters ───────────────────────────────────────────────────────────────────
-const filterCategory = ref<JournalCategory | null>(null);
+// filterCategory lives in useUiStore (Filter State Pattern) — survives navigation.
 
 const visibleEntries = computed(() => {
   let entries = activeTab.value === "mine"
@@ -429,7 +440,8 @@ function getRefOptions(refType: string): { id: string; name: string }[] {
         return m ? [{ id: m.id, name: m.name }] : [];
       });
     }
-    case "encounter": return (allEncounters.value ?? []).map((e) => ({ id: e.id, name: e.name }));
+    // "encounter" is intentionally not offered to players — useEncounters is
+    // owner-only by RLS, so the list was always empty.
     default:          return [];
   }
 }

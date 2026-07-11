@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { useLocalStorage } from "@vueuse/core";
 import type { NoteCategory } from "@/types/notes.types";
+import type { JournalCategory } from "@/composables/usePlayerJournal";
 import type { SortField, SortDir } from "@/lib/noteSort";
 import type { NpcStatus, NpcRelationship } from "@/types/npc.types";
 import type { ScriptoriumDocType } from "@/types/scriptorium.types";
@@ -21,6 +22,10 @@ export const useUiStore = defineStore("ui", () => {
   const notesSortDir = ref<SortDir>("desc");
   const journalSortBy = ref<SortField>("created");
   const journalSortDir = ref<SortDir>("desc");
+  // Player journal category filter (Filter State Pattern — survives navigation)
+  const journalFilterCategory = ref<JournalCategory | null>(null);
+  const journalHasActiveFilters = computed(() => journalFilterCategory.value !== null);
+  function resetJournalFilters() { journalFilterCategory.value = null; }
 
   // Calendar UI state
   const calendarViewMode = ref<"year" | "month">("month");
@@ -602,6 +607,9 @@ export const useUiStore = defineStore("ui", () => {
     notesSortDir,
     journalSortBy,
     journalSortDir,
+    journalFilterCategory,
+    journalHasActiveFilters,
+    resetJournalFilters,
     resetNotesFilters,
 
     // Calendar
