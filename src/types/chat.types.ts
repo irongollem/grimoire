@@ -24,6 +24,9 @@ export interface ItemDropMetadata {
   item_id: string | null;
   item_name: string;
   item_rarity: string | null;
+  /** Container flag captured from the sender's item at drop time. Absent on
+   *  legacy messages — the claimer falls back to its vault cache. */
+  is_container?: boolean;
   quantity: number;
   /** Remaining stock after partial grabs. Absent on legacy messages — treat as quantity. */
   quantity_remaining?: number;
@@ -116,6 +119,9 @@ export interface LootChestAtom {
   item_name?: string;
   item_image_url?: string | null;
   item_rarity?: string | null;
+  /** Container flag from the source item at roll time. Absent on legacy chests
+   *  — the claimer falls back to its vault cache. */
+  item_is_container?: boolean;
 
   // ── Currency fields (type === "currency") ──────────────────────────────────
   currency_label?: string | null;

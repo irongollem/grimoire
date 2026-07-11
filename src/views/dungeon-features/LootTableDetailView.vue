@@ -539,6 +539,7 @@ const dropPreviewAtoms = computed<LootChestAtom[]>(() => {
           item_name:      r.item_name,
           item_image_url: r.item_image_url ?? null,
           item_rarity:    item?.rarity ?? null,
+          item_is_container: item?.tags.includes("container") ?? false,
         });
       }
     } else {

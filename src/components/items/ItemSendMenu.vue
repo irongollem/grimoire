@@ -198,6 +198,7 @@ async function dropInChat() {
       undefined,
       imageUrl,
       description,
+      props.item.tags?.includes("container") ?? false,
     );
     open.value = false;
     ui.chatOpen = true;

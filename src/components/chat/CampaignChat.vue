@@ -222,6 +222,11 @@ async function handleClaim({ messageId, intoStash }: { messageId: string; intoSt
   } catch {
     return; // claim failed (already claimed by someone else or RLS); don't add to inventory
   }
+  // Identification + container flags come from the drop metadata (the sender
+  // always saw the item), NOT the claimer's vault cache — a freshly-dropped item
+  // the claimer never held is absent from allItems, which used to default a magic
+  // item to identified (leaking curse/art) and drop the container flag. Fall back
+  // to the cache only for legacy messages that predate is_container.
   const claimedVaultItem = (allItems.value ?? []).find(i => i.id === meta.item_id);
   await addInventoryItem({
     name: meta.item_name,
@@ -230,13 +235,13 @@ async function handleClaim({ messageId, intoStash }: { messageId: string; intoSt
     carried_by: partyMemberId,
     location: 'backpack',
     slot: null,
-    is_container: claimedVaultItem?.tags.includes("container") ?? false,
+    is_container: meta.is_container ?? (claimedVaultItem?.tags.includes("container") ?? false),
     container_id: null,
     is_ruined: false,
     is_attuned: false,
     is_equipped: false,
     notes: null,
-    is_identified: !claimedVaultItem || claimedVaultItem.rarity === 'mundane',
+    is_identified: meta.item_rarity === 'mundane',
   });
 }
 
@@ -270,6 +275,7 @@ async function handleGrab({ messageId, qty, intoStash }: { messageId: string; qt
     }
   }
 
+  // See handleClaim: flags come from the drop metadata, not the vault cache.
   const claimedVaultItem = (allItems.value ?? []).find(i => i.id === meta.item_id);
   await addInventoryItem({
     name: meta.item_name,
@@ -278,13 +284,13 @@ async function handleGrab({ messageId, qty, intoStash }: { messageId: string; qt
     carried_by: partyMemberId,
     location: 'backpack',
     slot: null,
-    is_container: claimedVaultItem?.tags.includes("container") ?? false,
+    is_container: meta.is_container ?? (claimedVaultItem?.tags.includes("container") ?? false),
     container_id: null,
     is_ruined: false,
     is_attuned: false,
     is_equipped: false,
     notes: null,
-    is_identified: !claimedVaultItem || claimedVaultItem.rarity === 'mundane',
+    is_identified: meta.item_rarity === 'mundane',
   });
 }
 
@@ -456,6 +462,8 @@ async function handleClaimLootChest({ messageId, atomId }: { messageId: string; 
   // Item atom → inventory. Mirrors the item_drop claim path (Vault ref optional,
   // container flag from tags, identified state inferred from rarity).
   {
+    // Flags come from the rolled atom (captured from the source item), not the
+    // claimer's vault cache — same identification/container leak as item_drop.
     const vaultItem = (allItems.value ?? []).find(i => i.id === atom.item_id);
     await addInventoryItem({
       name: atom.item_name ?? "",
@@ -464,13 +472,13 @@ async function handleClaimLootChest({ messageId, atomId }: { messageId: string; 
       carried_by: partyMemberId,
       location: 'backpack',
       slot: null,
-      is_container: vaultItem?.tags.includes("container") ?? false,
+      is_container: atom.item_is_container ?? (vaultItem?.tags.includes("container") ?? false),
       container_id: null,
       is_attuned: false,
       is_equipped: false,
       notes: null,
       is_ruined: false,
-      is_identified: !vaultItem || vaultItem.rarity === 'mundane',
+      is_identified: atom.item_rarity === 'mundane',
     });
   }
 }

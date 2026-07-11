@@ -277,11 +277,12 @@ export function useCampaignMessages() {
     if (data) _optimisticPush(data as CampaignMessage);
   }
 
-  async function sendItemDrop(itemName: string, itemId: string | null, quantity: number, rarity: string | null, senderName?: string, imageUrl?: string | null, description?: string | null) {
+  async function sendItemDrop(itemName: string, itemId: string | null, quantity: number, rarity: string | null, senderName?: string, imageUrl?: string | null, description?: string | null, isContainer?: boolean) {
     const cid = campaign.activeCampaignId;
     if (!cid || !auth.user?.id) return;
     const metadata: ItemDropMetadata = {
       item_id: itemId, item_name: itemName, item_rarity: rarity, quantity,
+      is_container: isContainer ?? false,
       quantity_remaining: quantity,
       claims: [],
       image_url: imageUrl ?? null,
