@@ -246,6 +246,21 @@ export function buildLevelUpPayload(input: BuildLevelUpPayloadInput): LevelUpPay
       levels: chosenExistingEntry.levels + 1,
       ...(needsSubclassChoice && subclass ? { subclass_name: subclass } : {}),
     };
+  } else if (existingClassOptions.length === 0 && memberClass) {
+    // DM-built character levelling up with no character_classes rows yet —
+    // seed the first row now. `levelInChosenClass` is already member.level + 1
+    // here (see LevelUpWizard.vue's levelInChosenClass fallback), so the seeded
+    // row carries forward levels already banked on party_members.level instead
+    // of starting the class over at level 1.
+    classOp = {
+      op: "add",
+      class_name: memberClass,
+      subclass_name: needsSubclassChoice && subclass ? subclass : member.subclass,
+      levels: levelInChosenClass,
+      is_primary: true,
+      hit_dice_used: 0,
+      sort_order: 0,
+    };
   }
 
   // character_spells rows.

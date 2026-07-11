@@ -317,18 +317,39 @@ function buildFeaturesByLevel(
   return result;
 }
 
-/** Feature groups keyed by class — one per character_classes row. */
-const classFeatureGroups = computed<ClassFeatureGroup[]>(() =>
-  (characterClasses.value ?? []).map(cc => ({
-    class_name: cc.class_name,
-    subclass_name: cc.subclass_name,
-    levels: cc.levels,
-    featuresByLevel: buildFeaturesByLevel(classDataMap.value.get(cc.class_name), cc.levels),
-    subclassFeaturesByLevel: cc.subclass_name
-      ? buildFeaturesByLevel(subclassDataMap.value.get(`${cc.class_name}::${cc.subclass_name}`), cc.levels)
+/**
+ * Feature groups keyed by class — one per character_classes row. DM-built
+ * characters have no character_classes rows (only the player creation wizard
+ * seeds one — see useCharacterClasses.ts), so fall back to a single group
+ * synthesized from the legacy party_members.class/subclass/level fields.
+ */
+const classFeatureGroups = computed<ClassFeatureGroup[]>(() => {
+  const rows = characterClasses.value ?? [];
+  if (rows.length > 0) {
+    return rows.map(cc => ({
+      class_name: cc.class_name,
+      subclass_name: cc.subclass_name,
+      levels: cc.levels,
+      featuresByLevel: buildFeaturesByLevel(classDataMap.value.get(cc.class_name), cc.levels),
+      subclassFeaturesByLevel: cc.subclass_name
+        ? buildFeaturesByLevel(subclassDataMap.value.get(`${cc.class_name}::${cc.subclass_name}`), cc.levels)
+        : {},
+    }));
+  }
+  if (!props.member.class) return [];
+  const className = props.member.class;
+  const subclassName = props.member.subclass ?? null;
+  const levels = props.member.level;
+  return [{
+    class_name: className,
+    subclass_name: subclassName,
+    levels,
+    featuresByLevel: buildFeaturesByLevel(classDataMap.value.get(className), levels),
+    subclassFeaturesByLevel: subclassName
+      ? buildFeaturesByLevel(subclassDataMap.value.get(`${className}::${subclassName}`), levels)
       : {},
-  }))
-);
+  }];
+});
 
 // ── Local optimistic state ────────────────────────────────────────────────────
 

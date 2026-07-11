@@ -241,7 +241,12 @@ const memberSubclass = computed(() =>
 /** Per-chosen-class level: the level *inside the chosen class* after this bump. */
 const levelInChosenClass = computed(() => {
   if (isAddingNewClass.value) return 1;
-  return (chosenExistingEntry.value?.levels ?? 0) + 1;
+  if (chosenExistingEntry.value) return chosenExistingEntry.value.levels + 1;
+  // DM-built character with no character_classes rows yet (existingClassOptions
+  // is empty, so chosenExistingEntry never resolves) — derive the level being
+  // gained from the legacy party_members.level field instead of defaulting to 1.
+  if (existingClassOptions.value.length === 0 && props.member.class) return props.member.level + 1;
+  return 1;
 });
 
 const { data: customSubclass } = useCustomSubclassByClassAndSubclass(memberClass, memberSubclass);
