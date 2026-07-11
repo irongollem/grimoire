@@ -72,6 +72,13 @@
         {{ quest.summary }}
       </p>
 
+      <!-- Full narrative description (rich text) -->
+      <RichTextViewer
+        v-if="quest.description"
+        :content="quest.description"
+        class="font-fell text-foreground leading-relaxed"
+      />
+
       <!-- Objectives -->
       <div
         v-if="visibleObjectives.length"
@@ -297,6 +304,7 @@ import { computed, ref, watch } from "vue";
 import { RouterLink, useRoute, useRouter } from "vue-router";
 import { IconCheck, IconChevronLeft, IconClose, IconLocation, IconMonster, IconScrollText, IconUser } from '@/lib/icons';
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
+import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import {
   useQuest,
   useQuestObjectives,

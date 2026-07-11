@@ -62,6 +62,12 @@ export function useCampaignLiveSync() {
           .on("postgres_changes", { event: "*", schema: "public", table: "items",              filter: f }, invalidate("items"))
           .on("postgres_changes", { event: "*", schema: "public", table: "party_inventory",    filter: f }, invalidate("party-inventory"))
           .on("postgres_changes", { event: "*", schema: "public", table: "npc_inventory",      filter: f }, invalidate("npc-inventory"))
+          // Membership add/remove + display-name changes — so a player renaming
+          // themselves (or being added/removed) propagates to every member's party
+          // and chat views without a manual refetch. (Ejecting a just-removed player
+          // needs the deleted row's user_id, which realtime DELETE only carries under
+          // full replica identity — tracked separately.)
+          .on("postgres_changes", { event: "*", schema: "public", table: "campaign_members",   filter: f }, invalidate("campaign-members"))
           // The Interlude — all four downtime queries share the "downtime" key
           // root, so a single invalidate string refreshes every one of them.
           .on("postgres_changes", { event: "*", schema: "public", table: "downtime_grants",     filter: f }, invalidate("downtime"))
