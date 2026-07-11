@@ -126,6 +126,35 @@ export function usePartyLive() {
             });
           },
         )
+        // A character removed (or added) by the DM must disappear (or appear) on
+        // every other client too — the acting client refetches via the mutation,
+        // but other views (the player portal, a second tab) would otherwise keep
+        // showing a removed character until a manual refetch. party_members has
+        // REPLICA IDENTITY FULL, so the DELETE payload carries the old row's id.
+        .on(
+          "postgres_changes",
+          { event: "DELETE", schema: "public", table: "party_members",
+            filter: `campaign_id=eq.${campaignId}` },
+          (payload) => {
+            const removedId = (payload.old as { id?: string } | null)?.id;
+            if (removedId) {
+              queryClient.setQueryData<PartyMember[]>([QUERY_KEY, campaignId], (old) =>
+                old?.filter((m) => m.id !== removedId),
+              );
+            }
+            void queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+            void queryClient.invalidateQueries({ queryKey: [MY_CHARS_KEY] });
+          },
+        )
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "party_members",
+            filter: `campaign_id=eq.${campaignId}` },
+          () => {
+            void queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+            void queryClient.invalidateQueries({ queryKey: [MY_CHARS_KEY] });
+          },
+        )
         .subscribe();
     },
     { immediate: true },
