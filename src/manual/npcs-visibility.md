@@ -33,6 +33,16 @@ Even for NPCs players can see, you control which individual fields are shown. Op
 
 This lets you share an NPC's portrait and status (a shadowy figure, clearly alive) without revealing who they are.
 
+## Location NPC sharing
+
+A location's **Share linked NPCs** toggle (in the Atlas) makes every NPC whose
+current location is *that* location visible to the players the location is shared
+with — even if the NPC's own **Visible To** doesn't list them. This is a
+convenience for populating an area ("players see which NPCs are in this area").
+It only affects NPCs directly at that location, never ones in child/sub-locations,
+so a hidden NPC tucked into a back room stays hidden. Field-level visibility still
+applies, so an NPC surfaced this way shows only the fields you've shared.
+
 ## 3. Faction membership visibility
 
 If a PC joins a faction, all faction members become visible to that player automatically — regardless of the NPC-level `visible_to` setting. This is intentional: faction members are supposed to know each other.

@@ -3,6 +3,7 @@ import type { Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
+import { useUiStore } from "@/stores/ui";
 import { useToast } from "@/composables/useToast";
 import { getSetting } from "@/settings/index";
 import type { Npc, NpcInsert, NpcUpdate } from "@/types/npc.types";
@@ -146,15 +147,20 @@ export function useDeleteNpc() {
 
 export function useSharedNpcs() {
   const campaign = useCampaignStore();
+  const ui = useUiStore();
   const campaignId = computed(() => campaign.activeCampaignId);
+  // In DM preview the caller is the DM (party_member_id null), so the projection
+  // needs the previewed member id to know whose view to render.
+  const previewMemberId = computed(() => (ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : null));
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "shared", campaignId.value]),
+    queryKey: computed(() => [QUERY_KEY, "shared", campaignId.value, previewMemberId.value]),
     queryFn: async () => {
       // Server-side projection: strips DM-only columns and swaps disguised NPCs
       // to their cover identity so the real one never reaches the client. See
       // migration 20260613000001 (get_player_visible_npcs).
       const { data, error } = await supabase.rpc("get_player_visible_npcs", {
         p_campaign_id: campaignId.value!,
+        p_preview_member_id: previewMemberId.value,
       });
       if (error) throw error;
       return ((data ?? []) as Npc[]).sort((a, b) =>
@@ -167,13 +173,16 @@ export function useSharedNpcs() {
 
 /** Fetch player-visible NPCs at specific location IDs (for player atlas). */
 export function useSharedNpcsByLocations(locationIds: Ref<string[]>) {
+  const ui = useUiStore();
+  const previewMemberId = computed(() => (ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : null));
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "shared-by-locations", locationIds.value]),
+    queryKey: computed(() => [QUERY_KEY, "shared-by-locations", locationIds.value, previewMemberId.value]),
     queryFn: async () => {
       if (!locationIds.value.length) return [];
       // Same projection RPC as useSharedNpcs, filtered by location.
       const { data, error } = await supabase.rpc("get_player_visible_npcs", {
         p_location_ids: locationIds.value,
+        p_preview_member_id: previewMemberId.value,
       });
       if (error) throw error;
       return ((data ?? []) as Npc[]).sort((a, b) =>
