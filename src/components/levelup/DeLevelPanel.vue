@@ -180,9 +180,20 @@ async function confirmDeLevel() {
       hit_dice_remaining: Math.max(0, (props.member.hit_dice_remaining ?? props.member.level) - 1),
     };
 
-    // HP
-    const hpLoss = choice.hp_gained;
-    const newMaxHp = Math.max(1, props.member.max_hp - hpLoss);
+    // HP: reverse the base roll (hp_gained) AND, if this level's ASI bumped CON,
+    // the retroactive (ΔconMod × level) that buildLevelUpPayload added on top —
+    // level_choices only records hp_gained, so subtracting it alone left the retro
+    // chunk behind (character stuck permanently over max HP after a CON ASI).
+    const conModOf = (score: number) => Math.floor((score - 10) / 2);
+    let conReduction = 0;
+    if (choice.asi && choice.asi.mode !== 'feat') {
+      if (choice.asi.primary === 'con') conReduction += choice.asi.mode === 'plus2' ? 2 : 1;
+      if (choice.asi.mode === 'plus1plus1' && choice.asi.secondary === 'con') conReduction += 1;
+    }
+    const retroHp = conReduction > 0
+      ? (conModOf(props.member.con) - conModOf(props.member.con - conReduction)) * props.member.level
+      : 0;
+    const newMaxHp = Math.max(1, props.member.max_hp - choice.hp_gained - retroHp);
     memberUpdate.max_hp = newMaxHp;
     memberUpdate.current_hp = Math.min(props.member.current_hp, newMaxHp);
 
@@ -218,7 +229,11 @@ async function confirmDeLevel() {
       rawSlots = getMulticlassSpellSlots(postClasses);
     }
     memberUpdate.spell_slots = rawSlots
-      .map((s): SpellSlotEntry => ({ ...s, used: props.member.spell_slots?.find(e => e.level === s.level)?.used ?? 0 }))
+      .map((s): SpellSlotEntry => ({
+        ...s,
+        // Clamp carried-over used to the new (lower) max so de-level can't leave used > max.
+        used: Math.min(s.max, props.member.spell_slots?.find(e => e.level === s.level)?.used ?? 0),
+      }))
       .filter(s => s.max > 0);
 
     // Class resources at newClassLevel

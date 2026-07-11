@@ -232,12 +232,30 @@ export function usePlayerEncounterLive(campaignId: string) {
           filter: `campaign_id=eq.${campaignId}`,
         },
         (payload) => {
+          // React to ROW IDENTITY, not just "any change in the campaign". Nothing
+          // guarantees a single running encounter, so a second encounter starting
+          // (which flips the FIRST one's is_running to false) or a stale row being
+          // deleted must NOT blank the encounter we're actually showing.
           if (payload.eventType === "DELETE") {
-            liveState.value = null;
-          } else {
-            const row = payload.new as EncounterState;
-            liveState.value = row.is_running ? row : null;
+            const oldRow = payload.old as Partial<EncounterState>;
+            if (!liveState.value || oldRow.encounter_id === liveState.value.encounter_id) {
+              void fetchRunning(); // the shown encounter ended — find any other running one
+            }
+            return;
           }
+          const row = payload.new as EncounterState;
+          if (row.is_running) {
+            // A running encounter's state update — adopt it if it's the one we show,
+            // nothing is shown yet, or it started at/after the current one (newest wins).
+            if (!liveState.value
+              || row.encounter_id === liveState.value.encounter_id
+              || (row.started_at ?? "") >= (liveState.value.started_at ?? "")) {
+              liveState.value = row;
+            }
+          } else if (liveState.value && row.encounter_id === liveState.value.encounter_id) {
+            void fetchRunning(); // the encounter we show just stopped — fall back to another
+          }
+          // else: a different, non-running encounter changed — ignore.
         },
       )
       .subscribe();

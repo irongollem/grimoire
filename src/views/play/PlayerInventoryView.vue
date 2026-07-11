@@ -263,13 +263,17 @@ const totalCarriedWeight = computed(
       (equippedWeight.value +
         beltWeight.value +
         backpackWeight.value +
-        carriedContainers.value.reduce(
-          // The container's OWN weight (e.g. a 25-lb chest) was never counted —
-          // add it alongside its contents (contents are 0 for extradimensional
-          // containers like a Bag of Holding, but the bag itself still weighs).
-          (acc, c) => acc + invWeight(c) + containerWeight(c.id),
-          0,
-        )) *
+        carriedContainers.value.reduce((acc, c) => {
+          // Contents of every carried container (0 for an extradimensional bag).
+          let w = containerWeight(c.id);
+          // Add the container's OWN weight (e.g. a 25-lb chest) only when it sits
+          // DIRECTLY in the pack/belt — an equipped container's own weight is
+          // already in equippedWeight, and a nested container's own weight is
+          // already inside its parent's contents, so counting it here too would
+          // double-count.
+          if (c.location === "backpack" || c.location === "belt") w += invWeight(c);
+          return acc + w;
+        }, 0)) *
         10,
     ) / 10,
 );
@@ -293,9 +297,11 @@ const carryPercent = computed(() =>
 );
 
 const carryColor = computed(() => {
+  // Thresholds match the burden bands (proportional thirds) so the bar colour and
+  // the burden label never disagree at a boundary.
   if (carryPercent.value >= 100) return "bg-destructive";
-  if (carryPercent.value >= 67) return "bg-amber-500";
-  if (carryPercent.value >= 33) return "bg-amber-400/70";
+  if (carryPercent.value >= 66.67) return "bg-amber-500";
+  if (carryPercent.value >= 33.33) return "bg-amber-400/70";
   return "bg-green-500";
 });
 
@@ -406,13 +412,21 @@ function openCoinDrop() {
 
 async function submitCoinDrop() {
   if (!member.value || !coinDropHasValue.value || coinDropOverLimit.value) return;
+  // Clamp to non-negative integers up front and deduct exactly what is dropped —
+  // sendCurrencyDrop floors internally, so deducting the raw (fractional) input
+  // would destroy coin (or debit for a drop that floored to nothing and never sent).
+  const coin = (n: number) => Math.max(0, Math.floor(n || 0));
+  const clamped: Record<CoinKey, number> = {
+    pp: coin(coinDrop.pp), gp: coin(coinDrop.gp), ep: coin(coinDrop.ep), sp: coin(coinDrop.sp), cp: coin(coinDrop.cp),
+  };
+  if (!COINS.some((c) => clamped[c.key] > 0)) return; // nothing droppable after clamping
   await sendCurrencyDrop(
-    coinDrop.pp, coinDrop.gp, coinDrop.ep, coinDrop.sp, coinDrop.cp,
+    clamped.pp, clamped.gp, clamped.ep, clamped.sp, clamped.cp,
     member.value.name ?? undefined,
   );
   for (const c of COINS) {
-    if (coinDrop[c.key] > 0) {
-      setCurrency(c.key, Math.max(0, (member.value[c.key] ?? 0) - coinDrop[c.key]));
+    if (clamped[c.key] > 0) {
+      setCurrency(c.key, Math.max(0, (member.value[c.key] ?? 0) - clamped[c.key]));
     }
   }
   showCoinDrop.value = false;
