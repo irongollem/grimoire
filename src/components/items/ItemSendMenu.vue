@@ -181,8 +181,14 @@ async function assignToPlayer(member: PartyMember) {
 async function dropInChat() {
   isDroppingInChat.value = true;
   try {
-    const description = props.item.description
-      ? tiptapToPlainText(props.item.description).slice(0, 200) || null
+    // A non-mundane item arrives unidentified (mirrors `is_identified` above), so
+    // the public drop card must show only the mundane appearance — never the
+    // identified art/description, which would spoil it in the chat payload.
+    const unidentified = props.item.rarity !== "mundane";
+    const imageUrl = unidentified ? props.item.mundane_image_url : props.item.image_url;
+    const descSource = unidentified ? props.item.mundane_description : props.item.description;
+    const description = descSource
+      ? tiptapToPlainText(descSource).slice(0, 200) || null
       : null;
     await sendItemDrop(
       props.item.name,
@@ -190,7 +196,7 @@ async function dropInChat() {
       1,
       props.item.rarity,
       undefined,
-      props.item.image_url,
+      imageUrl,
       description,
     );
     open.value = false;
