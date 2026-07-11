@@ -15,11 +15,7 @@ import {
   wrapUserInput,
 } from "../_shared/ai-prompt.ts";
 import { buildImagePromptAuthorSystem, buildSimpleImagePrompt } from "../_shared/image-prompt.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { corsHeaders } from "../_shared/cors.ts";
 
 // Entity portraits always render portrait-orientation.
 const ENTITY_IMAGE_SIZE = "1024x1536";
@@ -108,7 +104,8 @@ async function geminiText(apiKey: string, model: string, system: string, user: s
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 serve(async (req: Request) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const cors = corsHeaders(req);
+  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
 
   const authHeader = req.headers.get("Authorization");
@@ -201,13 +198,13 @@ serve(async (req: Request) => {
   if (!(await checkRateLimit(admin, user.id, "ai_generation"))) {
     return new Response(
       JSON.stringify({ error: "rate_limited" }),
-      { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      { status: 429, headers: { ...cors, "Content-Type": "application/json" } },
     );
   }
 
   const reservation = await reserveCredits(admin, user.id, cost, "entity_image");
   if (!reservation.ok) {
-    return reservationFailureResponse(reservation, corsHeaders);
+    return reservationFailureResponse(reservation, cors);
   }
 
   // ── 1. Author a visual prompt from the entity's facts ──────────────────────
@@ -241,7 +238,7 @@ serve(async (req: Request) => {
     console.error("Entity image prompt authoring failed:", e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Prompt authoring failed" }),
-      { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      { status: 502, headers: { ...cors, "Content-Type": "application/json" } },
     );
   }
 
@@ -252,7 +249,7 @@ serve(async (req: Request) => {
     await releaseCredits(admin, reservation.ids);
     return new Response(
       JSON.stringify({ error: "The AI did not return an image description." }),
-      { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      { status: 502, headers: { ...cors, "Content-Type": "application/json" } },
     );
   }
 
@@ -274,7 +271,7 @@ serve(async (req: Request) => {
     console.error("Entity image generation failed:", e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Image generation failed" }),
-      { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      { status: 502, headers: { ...cors, "Content-Type": "application/json" } },
     );
   }
 
@@ -294,6 +291,6 @@ serve(async (req: Request) => {
 
   return new Response(
     JSON.stringify({ image_b64: imgResult.b64 }),
-    { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    { headers: { ...cors, "Content-Type": "application/json" } },
   );
 });

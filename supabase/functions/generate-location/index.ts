@@ -15,11 +15,7 @@ import {
   wrapUserInput,
 } from "../_shared/ai-prompt.ts";
 import { buildSimpleImagePrompt } from "../_shared/image-prompt.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { corsHeaders } from "../_shared/cors.ts";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -110,7 +106,8 @@ async function geminiText(apiKey: string, model: string, system: string, user: s
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 serve(async (req: Request) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const cors = corsHeaders(req);
+  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
 
   const authHeader = req.headers.get("Authorization");
@@ -224,13 +221,13 @@ serve(async (req: Request) => {
   if (!(await checkRateLimit(admin, user.id, "ai_generation"))) {
     return new Response(
       JSON.stringify({ error: "rate_limited" }),
-      { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      { status: 429, headers: { ...cors, "Content-Type": "application/json" } },
     );
   }
 
   const reservation = await reserveCredits(admin, user.id, locationTotalCost, "location_generation");
   if (!reservation.ok) {
-    return reservationFailureResponse(reservation, corsHeaders);
+    return reservationFailureResponse(reservation, cors);
   }
 
   const textModel = providerConfigs[textProvider as keyof typeof providerConfigs]?.text_model;
@@ -253,8 +250,8 @@ serve(async (req: Request) => {
     await releaseCredits(admin, reservation.ids);
     console.error("Location text generation failed:", e);
     return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Text generation failed" }),
-      { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      JSON.stringify({ error: "Text generation failed" }),
+      { status: 502, headers: { ...cors, "Content-Type": "application/json" } },
     );
   }
 
@@ -325,6 +322,6 @@ serve(async (req: Request) => {
 
   return new Response(
     JSON.stringify({ ...locationData, image_b64, map_b64 }),
-    { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    { headers: { ...cors, "Content-Type": "application/json" } },
   );
 });

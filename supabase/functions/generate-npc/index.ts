@@ -28,12 +28,7 @@ import {
   buildLabelledImagePrompt,
   buildSimpleImagePrompt,
 } from "../_shared/image-prompt.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+import { corsHeaders } from "../_shared/cors.ts";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -179,8 +174,9 @@ async function geminiText(
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 serve(async (req: Request) => {
+  const cors = corsHeaders(req);
   if (req.method === "OPTIONS")
-    return new Response("ok", { headers: corsHeaders });
+    return new Response("ok", { headers: cors });
   if (req.method !== "POST")
     return new Response("Method not allowed", { status: 405 });
 
@@ -338,13 +334,13 @@ serve(async (req: Request) => {
   if (!(await checkRateLimit(admin, user.id, "ai_generation"))) {
     return new Response(
       JSON.stringify({ error: "rate_limited" }),
-      { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      { status: 429, headers: { ...cors, "Content-Type": "application/json" } },
     );
   }
 
   const reservation = await reserveCredits(admin, user.id, totalNeeded, "npc_text");
   if (!reservation.ok) {
-    return reservationFailureResponse(reservation, corsHeaders);
+    return reservationFailureResponse(reservation, cors);
   }
 
   let textResult: TextResult;
@@ -392,12 +388,10 @@ serve(async (req: Request) => {
     await releaseCredits(admin, reservation.ids);
     console.error("NPC text generation failed:", e);
     return new Response(
-      JSON.stringify({
-        error: e instanceof Error ? e.message : "Text generation failed",
-      }),
+      JSON.stringify({ error: "Text generation failed" }),
       {
         status: 502,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...cors, "Content-Type": "application/json" },
       },
     );
   }
@@ -415,7 +409,7 @@ serve(async (req: Request) => {
       }),
       {
         status: 502,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...cors, "Content-Type": "application/json" },
       },
     );
   }
@@ -534,6 +528,6 @@ serve(async (req: Request) => {
   // ── Return result ───────────────────────────────────────────────────────────
   return new Response(
     JSON.stringify({ ...npcData, portrait_b64, disguise_portrait_b64 }),
-    { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    { headers: { ...cors, "Content-Type": "application/json" } },
   );
 });
