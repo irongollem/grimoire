@@ -102,6 +102,15 @@ serve(async (req: Request) => {
 
   const origin = req.headers.get("origin") ?? Deno.env.get("SITE_URL") ?? "https://app.dungeongrimoire.com";
 
+  // Collapse accidental double-submits (double-click, impatient re-click, client
+  // retry) onto one Checkout Session: same key within a 30s bucket returns the
+  // same session instead of minting a second one Stripe would charge separately.
+  // Scoped per user+pack so distinct purchases never collide; a deliberate repeat
+  // buy lands in a later bucket. (A double-click straddling a bucket boundary
+  // falls back to today's behaviour — an extra abandoned session, still no double
+  // charge.) Stripe caches idempotent results for 24h.
+  const idempotencyKey = `credit:${user.id}:${packId}:${Math.floor(Date.now() / 30000)}`;
+
   try {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -129,7 +138,7 @@ serve(async (req: Request) => {
       },
       success_url: `${origin}/billing?credit_purchase=success`,
       cancel_url: `${origin}/billing`,
-    });
+    }, { idempotencyKey });
 
     // R3: record the withdrawal consent (server timestamp = authoritative).
     await admin.from("purchase_consents").insert({

@@ -186,6 +186,22 @@ async function creditPackPurchase(
   if (error && error.code !== "23505") throw error;
 }
 
+/**
+ * Grant a credit-pack purchase from its Checkout Session. Shared by the
+ * synchronous (card) completion and the delayed-payment settlement path so both
+ * flow through the same idempotent grant (unique stripe_payment_intent_id).
+ */
+async function grantCreditPackFromSession(session: Stripe.Checkout.Session) {
+  const userId = session.metadata?.user_id;
+  const credits = parseInt(session.metadata?.credits ?? "0", 10);
+  const paymentIntentId = session.payment_intent as string | null;
+  if (userId && credits > 0 && paymentIntentId) {
+    await creditPackPurchase(userId, credits, paymentIntentId);
+  } else {
+    console.warn("credit pack grant: missing metadata", session.id);
+  }
+}
+
 /** The most recent refund id for a charge (from the payload, else fetched). */
 async function latestRefundId(charge: Stripe.Charge): Promise<string | null> {
   const inline = charge.refunds?.data?.[0]?.id;
@@ -211,7 +227,15 @@ async function clawbackPackCredits(
     p_key: clawbackKey,
     p_note: note,
   });
-  if (error) console.error("clawback_pack_credits:", error);
+  if (error) {
+    // Surface the failure so the outer handler returns 500 and Stripe RETRIES
+    // this delivery. Swallowing it would 200 the webhook (Stripe never retries)
+    // and permanently strand the un-clawed credits after a transient DB error.
+    // Safe to retry: clawback_pack_credits is idempotent (unique stripe_refund_id
+    // + existing-pack_refund guard), so a replay can't double-reverse.
+    console.error("clawback_pack_credits:", error);
+    throw error;
+  }
 }
 
 /** Resolve our user id from a charge — by Stripe customer, else by the
@@ -287,17 +311,35 @@ serve(async (req: Request) => {
             cancel_at: null,
           });
         } else if (session.mode === "payment") {
-          // Credit pack purchase — metadata set by stripe-create-credit-checkout
-          const userId = session.metadata?.user_id;
-          const credits = parseInt(session.metadata?.credits ?? "0", 10);
-          const paymentIntentId = session.payment_intent as string | null;
-
-          if (userId && credits > 0 && paymentIntentId) {
-            await creditPackPurchase(userId, credits, paymentIntentId);
+          // Credit pack purchase — metadata set by stripe-create-credit-checkout.
+          // Only grant once the money is actually captured. Card payments are
+          // "paid" here; delayed-notification methods (SEPA, Bancontact, …) fire
+          // this event as "unpaid"/"processing" and settle later on
+          // async_payment_succeeded. Granting on an unsettled session would hand
+          // out free credits if that delayed payment ultimately fails.
+          if (session.payment_status === "paid") {
+            await grantCreditPackFromSession(session);
           } else {
-            console.warn("checkout.session.completed payment: missing metadata", session.id);
+            console.log("credit pack awaiting async settlement", session.id, session.payment_status);
           }
         }
+        break;
+      }
+
+      case "checkout.session.async_payment_succeeded": {
+        // A delayed-notification payment (SEPA, Bancontact, …) finally settled —
+        // grant now. Idempotent via the unique payment-intent index if this ever
+        // races the completed handler.
+        const session = event.data.object as Stripe.Checkout.Session;
+        if (session.mode === "payment") await grantCreditPackFromSession(session);
+        break;
+      }
+
+      case "checkout.session.async_payment_failed": {
+        // Delayed payment bounced. No credits were granted (completed only grants
+        // on payment_status "paid"), so there's nothing to reverse — log only.
+        const session = event.data.object as Stripe.Checkout.Session;
+        console.warn("credit pack async payment failed", session.id);
         break;
       }
 
