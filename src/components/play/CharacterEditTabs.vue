@@ -113,7 +113,7 @@
           <p class="font-fell text-xs text-muted-foreground italic mt-1">Without shield — an equipped shield adds its bonus automatically.</p>
         </div>
         <label class="block"><span class="field-label">Speed (ft)</span><input v-model.number="f.speed" type="number" min="0" step="5" class="field-input w-full" /></label>
-        <label class="block"><span class="field-label">Initiative Bonus</span><input v-model.number="f.initiative_bonus" type="number" class="field-input w-full" placeholder="= DEX mod" /></label>
+        <label class="block"><span class="field-label">Initiative Bonus</span><input v-model.number="f.initiative_bonus" type="number" class="field-input w-full" placeholder="extra on top of DEX (e.g. Alert +5)" /></label>
         <label class="block"><span class="field-label">Carry Capacity Override</span><input v-model="f.carry_capacity_override" type="text" class="field-input w-full" placeholder="*2, +30, 150" /></label>
       </div>
 

@@ -279,7 +279,8 @@ async function rollMyInitiative() {
   try {
     const result = await promptRoll({
       counts: { 20: 1 },
-      modifier: member.dex_mod,
+      // Initiative = DEX mod + the member's initiative_bonus (feat/special extra).
+      modifier: member.dex_mod + (partyMap.value.get(member.party_member_id ?? "")?.initiative_bonus ?? 0),
       label: "Initiative",
     });
     if (!result) return; // physical-dice prompt cancelled

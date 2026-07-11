@@ -614,7 +614,10 @@ export function useCharacterCreationForm() {
       f.current_hp = hp;
       f.ac         = 10 + Math.floor((f.dex - 10) / 2);       // unarmored default
       f.speed      = selectedSpecies.value?.speed?.walk ?? 30;
-      f.initiative_bonus  = Math.floor((f.dex - 10) / 2);
+      // initiative_bonus is the EXTRA on top of the DEX mod (feat/special bonuses,
+      // e.g. Alert), not the total — the DEX mod is added wherever initiative is
+      // shown/rolled. A fresh character has no such extra.
+      f.initiative_bonus  = 0;
       f.hit_dice_remaining = 1;
     }
 

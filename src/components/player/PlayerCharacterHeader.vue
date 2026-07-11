@@ -197,7 +197,6 @@ import {
 import type { PartyMember } from "@/types/party.types";
 import { xpForNextLevel, xpForLevel, levelForXp } from "@/types/party.types";
 import type { WildshapeState } from "@/types/encounter.types";
-import { abilityModifier } from "@/lib/utils";
 import { useAllSpecies } from "@/composables/useSpecies";
 import { useIsRuleEnabled } from "@/composables/useOptionalRules";
 import FocalImage from "@/components/common/FocalImage.vue";
@@ -334,10 +333,16 @@ const displayHp    = computed(() => props.wildshape?.beast_hp    ?? props.member
 const displayMaxHp = computed(() => props.wildshape?.beast_max_hp ?? props.member.max_hp);
 const displayAc    = computed(() => props.wildshape?.beast_ac     ?? props.member.ac + shieldAcBonusFor(props.member.id));
 
+// Initiative = DEX mod + initiative_bonus (feat/special extras like Alert).
+const initiativeDisplay = computed(() => {
+  const total = Math.floor((props.member.dex - 10) / 2) + (props.member.initiative_bonus ?? 0);
+  return total >= 0 ? `+${total}` : `${total}`;
+});
+
 const combatStats = computed(() => [
   { label: "AC",   value: displayAc.value, suffix: "" },
   { label: "SPD",  value: props.member.speed, suffix: "ft" },
-  { label: "INIT", value: abilityModifier(props.member.dex), suffix: "" },
+  { label: "INIT", value: initiativeDisplay.value, suffix: "" },
   { label: "PROF", value: `+${props.member.proficiency_bonus}`, suffix: "" },
   { label: "HD",   value: `${hitDiceRemaining.value}/${memberTotalLevel.value}`, suffix: hitDicePoolLabel.value },
 ]);

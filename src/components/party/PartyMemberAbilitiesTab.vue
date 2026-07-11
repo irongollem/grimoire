@@ -89,7 +89,7 @@
         :value="form.initiative_bonus"
         type="number"
         class="field-input w-full"
-        placeholder="= DEX mod"
+        placeholder="extra on top of DEX (e.g. Alert +5)"
         @change="patch({ initiative_bonus: Number(($event.target as HTMLInputElement).value) })"
       />
     </label>
