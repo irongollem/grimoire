@@ -82,11 +82,11 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { useUpdatePartyMember } from '@/composables/useParty';
-import { useUpdateCharacterClass, useDeleteCharacterClass } from '@/composables/useCharacterClasses';
-import { useDeleteCharacterSpell } from '@/composables/useCharacterSpells';
+import { useQueryClient } from '@tanstack/vue-query';
+import { supabase } from '@/lib/supabase';
 import { useCustomClassByName, useAllSystemClasses } from '@/composables/useCustomClasses';
-import type { PartyMember, PartyMemberUpdate, LevelChoiceEntry, SpellSlotEntry } from '@/types/party.types';
+import { getMulticlassSpellSlots } from '@/types/spell.types';
+import type { PartyMember, LevelChoiceEntry, SpellSlotEntry } from '@/types/party.types';
 import type { CharacterClass } from '@/types/multiclass.types';
 import type { CustomResource } from '@/levelup/customTypes';
 
@@ -99,10 +99,7 @@ const showConfirmation = ref(false);
 const isPending = ref(false);
 const error = ref('');
 
-const { mutateAsync: updateMember } = useUpdatePartyMember();
-const { mutateAsync: updateCharacterClass } = useUpdateCharacterClass();
-const { mutateAsync: deleteCharacterClass } = useDeleteCharacterClass();
-const { mutateAsync: deleteSpell } = useDeleteCharacterSpell();
+const queryClient = useQueryClient();
 
 // The level_choices entry for the current total level (if it exists)
 const lastChoice = computed<LevelChoiceEntry | null>(() => {
@@ -205,22 +202,24 @@ async function confirmDeLevel() {
     const subclassToClear = !!choice.subclass;
     if (subclassToClear && entry.is_primary) memberUpdate.subclass = null;
 
-    // Spell slots from class table at newClassLevel
-    const cls = theClass.value;
-    if (newClassLevel === 0) {
-      memberUpdate.spell_slots = [];
-    } else if (cls?.spell_slots && newClassLevel > 0) {
-      const row = cls.spell_slots[newClassLevel - 1];
-      if (row) {
-        memberUpdate.spell_slots = (row as number[])
-          .map((max, i): SpellSlotEntry => ({
-            level: i + 1,
-            max,
-            used: props.member.spell_slots?.find(s => s.level === i + 1)?.used ?? 0,
-          }))
-          .filter(s => s.max > 0);
-      }
+    // Spell slots — recompute over the POST-de-level class list, not just the
+    // de-leveled class. A Cleric 5 / Wizard 1 removing the Wizard dip must keep
+    // the Cleric's slots (the old single-class path wiped them to []).
+    const postClasses = props.characterClasses
+      .map(c => ({ class_name: c.class_name, levels: c.id === entry.id ? newClassLevel : c.levels }))
+      .filter(c => c.levels > 0);
+    let rawSlots: SpellSlotEntry[] = [];
+    if (postClasses.length === 1 && postClasses[0].class_name === activeClassName.value && theClass.value?.spell_slots) {
+      // The single remaining class is the one just de-leveled — use its own table
+      // (handles custom-class casters that getDefaultSpellSlots doesn't cover).
+      const row = theClass.value.spell_slots[Math.min(postClasses[0].levels, 20) - 1];
+      if (row) rawSlots = (row as number[]).map((max, i) => ({ level: i + 1, max, used: 0 })).filter(s => s.max > 0);
+    } else if (postClasses.length > 0) {
+      rawSlots = getMulticlassSpellSlots(postClasses);
     }
+    memberUpdate.spell_slots = rawSlots
+      .map((s): SpellSlotEntry => ({ ...s, used: props.member.spell_slots?.find(e => e.level === s.level)?.used ?? 0 }))
+      .filter(s => s.max > 0);
 
     // Class resources at newClassLevel
     const resources: CustomResource[] = [
@@ -250,42 +249,50 @@ async function confirmDeLevel() {
     delete newChoices[currentLevel];
     memberUpdate.level_choices = newChoices;
 
-    await updateMember({ id: props.member.id, update: memberUpdate as PartyMemberUpdate });
+    // Spells to remove: learned at this level and not also at an earlier level.
+    const learnedHere = [...(choice.spells_learned ?? []), ...(choice.cantrips_learned ?? [])];
+    const earlierSpells = new Set(
+      Object.entries(props.member.level_choices ?? {})
+        .filter(([lvl]) => parseInt(lvl) < currentLevel)
+        .flatMap(([, e]) => [...(e.spells_learned ?? []), ...(e.cantrips_learned ?? [])]),
+    );
+    const spellIds = learnedHere.filter(id => !earlierSpells.has(id));
 
-    // Remove spells learned at this level (not also learned at an earlier level)
-    {
-      const toRemove = [...(choice.spells_learned ?? []), ...(choice.cantrips_learned ?? [])];
-      const earlierSpells = new Set(
-        Object.entries(props.member.level_choices ?? {})
-          .filter(([lvl]) => parseInt(lvl) < currentLevel)
-          .flatMap(([, e]) => [...(e.spells_learned ?? []), ...(e.cantrips_learned ?? [])]),
-      );
-      for (const spellId of toRemove) {
-        if (!earlierSpells.has(spellId)) {
-          await deleteSpell({ partyMemberId: props.member.id, spellId });
-        }
-      }
-    }
-
-    // Update or delete character_classes row
+    // character_classes op + member class/subclass changes when a class empties.
+    let classOp: Record<string, unknown> | null = null;
     if (newClassLevel === 0) {
-      await deleteCharacterClass(entry.id);
       const remaining = props.characterClasses.filter(c => c.id !== entry.id);
       if (remaining.length > 0 && entry.is_primary) {
-        await updateCharacterClass({ id: remaining[0].id, update: { is_primary: true } });
-        await updateMember({
-          id: props.member.id,
-          update: { class: remaining[0].class_name, subclass: remaining[0].subclass_name ?? null } as PartyMemberUpdate,
-        });
-      } else if (remaining.length === 0) {
-        await updateMember({ id: props.member.id, update: { class: null, subclass: null } as PartyMemberUpdate });
+        classOp = { op: 'delete', id: entry.id, promote_id: remaining[0].id };
+        memberUpdate.class = remaining[0].class_name;
+        memberUpdate.subclass = remaining[0].subclass_name ?? null;
+      } else {
+        classOp = { op: 'delete', id: entry.id };
+        if (remaining.length === 0) {
+          memberUpdate.class = null;
+          memberUpdate.subclass = null;
+        }
       }
     } else {
-      await updateCharacterClass({
-        id: entry.id,
-        update: { levels: newClassLevel, ...(subclassToClear ? { subclass_name: null } : {}) },
-      });
+      classOp = { op: 'update', id: entry.id, levels: newClassLevel, clear_subclass: subclassToClear };
     }
+
+    // One atomic RPC — all-or-nothing, no half-de-leveled state (mirrors apply_level_up).
+    const { error: rpcError } = await supabase.rpc('apply_de_level', {
+      p_member_id: props.member.id,
+      p_member_update: memberUpdate,
+      p_class_op: classOp,
+      p_spell_ids: spellIds,
+    });
+    if (rpcError) throw rpcError;
+
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['party'] }),
+      queryClient.invalidateQueries({ queryKey: ['my-characters'] }),
+      queryClient.invalidateQueries({ queryKey: ['character_classes', props.member.id] }),
+      queryClient.invalidateQueries({ queryKey: ['characterSpells', props.member.id] }),
+      queryClient.invalidateQueries({ queryKey: ['characterSpellsDetails', props.member.id] }),
+    ]);
 
     showConfirmation.value = false;
   } catch (e) {
