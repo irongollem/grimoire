@@ -147,7 +147,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useParty } from "@/composables/useParty";
 import { useSharedNpcs } from "@/composables/useNpcs";
 import { useReadItems, useMarkRead } from "@/composables/useReadItems";
-import { useAllLocations } from "@/composables/useLocations";
+import { useSharedLocations } from "@/composables/useLocations";
 import { useCompanions } from "@/composables/useCompanions";
 import { usePlayerNpcRatings } from "@/composables/usePlayerNpcRatings";
 import PartyMemberLightbox from "@/components/player/PartyMemberLightbox.vue";
@@ -193,11 +193,11 @@ const npcs = computed(() => {
   );
 });
 const { data: companions } = useCompanions();
-const { data: allLocations } = useAllLocations();
+const { data: sharedLocations } = useSharedLocations();
 
 const locationMap = computed(() => {
   const m = new Map<string, string>();
-  for (const loc of allLocations.value ?? []) m.set(loc.id, loc.name);
+  for (const loc of sharedLocations.value ?? []) m.set(loc.id, loc.name);
   return m;
 });
 

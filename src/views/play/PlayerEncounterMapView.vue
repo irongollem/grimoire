@@ -102,7 +102,7 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useEncounter } from "@/composables/useEncounters";
-import { useLocation } from "@/composables/useLocations";
+import { usePlayerVisibleLocation } from "@/composables/useLocations";
 import { liveState, updateOwnCombatantPosition } from "@/composables/useEncounterLive";
 import { useMapCanvas } from "@/composables/useMapCanvas";
 import { useAuthStore } from "@/stores/auth";
@@ -136,7 +136,7 @@ onMounted(() => {
 const encounterIdRef = computed(() => liveState.value?.encounter_id ?? "");
 const { data: encounter } = useEncounter(encounterIdRef);
 const locationIdRef = computed(() => encounter.value?.location_id ?? "");
-const { data: location } = useLocation(locationIdRef);
+const { data: location } = usePlayerVisibleLocation(locationIdRef);
 
 // Decode only when the source string actually changes (a plain `computed`
 // would re-decode on every liveState mutation, including unrelated token

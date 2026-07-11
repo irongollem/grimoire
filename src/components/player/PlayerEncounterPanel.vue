@@ -165,7 +165,7 @@
 import { computed, ref, watch } from "vue";
 import { IconClose, IconDice, IconEncounter, IconMap, IconScrollText } from '@/lib/icons';
 import { useEncounter } from "@/composables/useEncounters";
-import { useLocation } from "@/composables/useLocations";
+import { usePlayerVisibleLocation } from "@/composables/useLocations";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { useUpdatePartyMember } from "@/composables/useParty";
 import { useAuthStore } from "@/stores/auth";
@@ -192,7 +192,7 @@ const auth = useAuthStore();
 const battleEncounterIdRef = computed(() => liveState.value?.encounter_id ?? "");
 const { data: battleEncounter } = useEncounter(battleEncounterIdRef);
 const battleLocationIdRef = computed(() => battleEncounter.value?.location_id ?? "");
-const { data: battleLocation } = useLocation(battleLocationIdRef);
+const { data: battleLocation } = usePlayerVisibleLocation(battleLocationIdRef);
 const canShowBattleMap = computed(
   () =>
     !!liveState.value &&

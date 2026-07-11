@@ -3,7 +3,7 @@ import type { Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
-import { useAuthStore } from "@/stores/auth";
+import { useUiStore } from "@/stores/ui";
 import { useToast } from "@/composables/useToast";
 import type { GridCalibration, Location, LocationInsert, LocationUpdate } from "@/types/location.types";
 import { deleteByPublicUrl } from "@/lib/storage";
@@ -251,34 +251,71 @@ export function useUpdateLocation() {
   });
 }
 
-/** Locations shared with players (player_visible_to is non-empty). */
+/**
+ * Locations shared with players. Real players route through the
+ * get_player_visible_locations SECURITY DEFINER projection (migration
+ * 20260711000013) — NOT a base-table `select *` — so DM `notes`, the full
+ * `description` when is_description_shared=false, `map_url` when the map isn't
+ * shared, and secret `map_pins` (visible_to_players=false) never reach the
+ * client. Players have no direct base-table read path (RLS is owner-only).
+ *
+ * In DM-preview mode the DM owns the rows, so it reads the base table directly
+ * (the projection would return nothing — the DM isn't a campaign_member).
+ */
 export function useSharedLocations() {
   const campaign = useCampaignStore();
-  const auth = useAuthStore();
+  const ui = useUiStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, campaignId.value, "shared", auth.linkedPartyMemberId]),
+    queryKey: computed(() => [QUERY_KEY, campaignId.value, "shared", ui.dmPreviewMode]),
     queryFn: async () => {
-      let query = supabase
-        .from("locations")
-        .select("*")
-        .eq("campaign_id", campaignId.value!)
-        .order("name", { ascending: true });
-
-      const partyMemberId = auth.linkedPartyMemberId;
-      if (partyMemberId) {
-        // Real player: only locations where their party_member_id is in player_visible_to.
-        query = query.contains("player_visible_to", [partyMemberId]);
-      } else {
-        // DM previewing player portal: show locations shared with at least one player.
-        query = query.not("player_visible_to", "eq", "{}");
+      if (ui.dmPreviewMode) {
+        // DM previewing player portal: show locations shared with at least one
+        // player, read from the base table (DM owns them).
+        const { data, error } = await supabase
+          .from("locations")
+          .select("*")
+          .eq("campaign_id", campaignId.value!)
+          .not("player_visible_to", "eq", "{}")
+          .order("name", { ascending: true });
+        if (error) throw error;
+        return data as Location[];
       }
-
-      const { data, error } = await query;
+      const { data, error } = await supabase.rpc("get_player_visible_locations", {
+        p_campaign_id: campaignId.value!,
+        p_location_id: null,
+      });
       if (error) throw error;
-      return data as Location[];
+      return ((data ?? []) as Location[]).sort((a, b) => a.name.localeCompare(b.name));
     },
     enabled: () => !!campaignId.value,
+  });
+}
+
+/**
+ * A single player-visible location by id, via the same projection. Used by the
+ * player battle-map views instead of useLocation (a base-table `select *` that
+ * would leak DM notes / secret pins). The single-id mode also returns a shared
+ * map (is_map_shared) the player isn't explicitly in player_visible_to for, so
+ * live-encounter VTT reads keep working.
+ */
+export function usePlayerVisibleLocation(id: string | Ref<string>) {
+  const idRef = isRef(id) ? id : ref(id);
+  const ui = useUiStore();
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY, "player-one", idRef.value, ui.dmPreviewMode]),
+    queryFn: async () => {
+      // DM preview: the DM owns the row, read it from the base table (the
+      // projection would return nothing — the DM isn't a campaign_member).
+      if (ui.dmPreviewMode) return fetchLocation(idRef.value);
+      const { data, error } = await supabase.rpc("get_player_visible_locations", {
+        p_campaign_id: null,
+        p_location_id: idRef.value,
+      });
+      if (error) throw error;
+      return ((data ?? []) as Location[])[0] ?? null;
+    },
+    enabled: () => !!idRef.value,
   });
 }
 
