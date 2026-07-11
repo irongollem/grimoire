@@ -305,6 +305,10 @@ export function useCampaignMessages() {
   async function sendCurrencyDrop(pp: number, gp: number, ep: number, sp: number, cp: number, label?: string) {
     const cid = campaign.activeCampaignId;
     if (!cid || !auth.user?.id) return;
+    // Clamp every coin to a non-negative integer at the source — a negative drop
+    // would subtract from the claimer's purse, and fractional coins corrupt wallets.
+    const coin = (n: number) => Math.max(0, Math.floor(n || 0));
+    pp = coin(pp); gp = coin(gp); ep = coin(ep); sp = coin(sp); cp = coin(cp);
     const parts = formatCoinParts(pp, gp, ep, sp, cp);
     if (!parts.length) return;
     const metadata: CurrencyDropMetadata = {

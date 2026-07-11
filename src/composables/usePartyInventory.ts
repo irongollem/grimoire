@@ -2,6 +2,7 @@ import { computed } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
+import { useToast } from "@/composables/useToast";
 import type { PartyInventoryItem, PartyInventoryInsert, PartyInventoryUpdate } from "@/types/inventory.types";
 
 const QUERY_KEY = "party-inventory";
@@ -57,10 +58,12 @@ export function usePartyInventory() {
 export function useAddInventoryItem() {
   const queryClient = useQueryClient();
   const campaign = useCampaignStore();
+  const toast = useToast();
   return useMutation({
     mutationFn: (item: Omit<PartyInventoryInsert, "campaign_id">) =>
       addItem({ ...item, campaign_id: campaign.activeCampaignId! }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+    onError: (e) => toast.error(toast.fromError(e, "Couldn't add the item to your inventory.")),
   });
 }
 

@@ -251,14 +251,23 @@ function containerWeight(cid: string) {
   return containerWeightMap.value.get(cid) ?? 0;
 }
 
+// Only containers actually carried count toward encumbrance — a container set
+// aside as "stored" (and its contents) should not.
+const carriedContainers = computed(() =>
+  customContainers.value.filter((c) => c.location !== "stored"),
+);
+
 const totalCarriedWeight = computed(
   () =>
     Math.round(
       (equippedWeight.value +
         beltWeight.value +
         backpackWeight.value +
-        customContainers.value.reduce(
-          (acc, c) => acc + containerWeight(c.id),
+        carriedContainers.value.reduce(
+          // The container's OWN weight (e.g. a 25-lb chest) was never counted —
+          // add it alongside its contents (contents are 0 for extradimensional
+          // containers like a Bag of Holding, but the bag itself still weighs).
+          (acc, c) => acc + invWeight(c) + containerWeight(c.id),
           0,
         )) *
         10,

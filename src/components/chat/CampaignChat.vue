@@ -309,18 +309,21 @@ async function handleClaimCurrency({ messageId }: { messageId: string }) {
     return; // lost the race (already claimed) or RLS denied — don't add coins
   }
 
-  // Add coins to the party member's purse if they have one linked
+  // Add coins to the party member's purse if they have one linked. Clamp each
+  // amount to a non-negative integer — a negative drop would otherwise SUBTRACT
+  // from the claimer's purse (stealing), and fractional amounts corrupt the wallet.
   if (partyMemberId) {
     const member = (party.value ?? []).find(m => m.id === partyMemberId);
     if (member) {
+      const coin = (n: number) => Math.max(0, Math.floor(n || 0));
       await updatePartyMember({
         id: partyMemberId,
         update: {
-          pp: member.pp + meta.pp,
-          gp: member.gp + meta.gp,
-          ep: member.ep + meta.ep,
-          sp: member.sp + meta.sp,
-          cp: member.cp + meta.cp,
+          pp: member.pp + coin(meta.pp),
+          gp: member.gp + coin(meta.gp),
+          ep: member.ep + coin(meta.ep),
+          sp: member.sp + coin(meta.sp),
+          cp: member.cp + coin(meta.cp),
         },
       });
     }

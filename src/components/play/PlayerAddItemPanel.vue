@@ -103,7 +103,10 @@ function focusDropdownItem(idx: number) {
 
 function submit() {
   if (!newItemSelectedId.value) return;
-  emit("submit", newItemSelectedId.value, newItemName.value.trim(), newItemQty.value);
+  // Clamp to a positive integer — a cleared field submits "" (silent insert
+  // failure) and 0 / -3 create bad inventory rows.
+  const qty = Math.max(1, Math.floor(Number(newItemQty.value) || 1));
+  emit("submit", newItemSelectedId.value, newItemName.value.trim(), qty);
   newItemName.value = "";
   newItemSelectedId.value = "";
   newItemQty.value = 1;
