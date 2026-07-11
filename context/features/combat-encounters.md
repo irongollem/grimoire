@@ -240,6 +240,8 @@ Per combatant row:
 
 When a player enters wildshape (from `RunnerEntityDetail`), the combatant gets a `wildshape` overlay. The overlay stores beast HP, max HP, and AC independently — the player's real stats are never modified. Damage goes to beast HP first; excess overflows to real HP on revert (5e RAW). The avatar switches to the beast portrait. Reverting clears the overlay and restores display to real stats.
 
+The DM picks the form via `RunnerPcWildshape` ("Choose Form"). Its available list is the same discovered/pinned-gated set as the player sheet — so on a fresh campaign it can be empty. In that case the picker shows a "📌 Pin a form" affordance listing every _eligible_ beast (CR/speed rules only); pinning one via `useTogglePinnedForm` unlocks it immediately without leaving the runner. The eligibility rules (max CR, beast-only, no fly/swim below level 8) live in `src/lib/wildshape.ts` (`wildshapeMaxCr` / `isEligibleWildshapeForm`) and are shared by the runner, the player character sheet and the player bestiary.
+
 **Temp HP:**
 
 Stored per combatant. Temp HP absorbs damage first (regardless of wildshape state). Does not stack — setting temp HP takes the higher of existing vs new value. Shown as a sky-blue "+N tmp" badge.

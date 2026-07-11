@@ -248,6 +248,7 @@ import { useUiStore } from "@/stores/ui";
 import { useParty } from "@/composables/useParty";
 import { hasAttackDisadvantage, hasCheckDisadvantage } from "@/lib/conditions";
 import { parseCr } from "@/lib/utils";
+import { wildshapeMaxCr as calcWildshapeMaxCr, wildshapeCrDisplay as calcWildshapeCrDisplay, isEligibleWildshapeForm } from "@/lib/wildshape";
 import { hitPointsToMax } from "@/lib/dice";
 import type { PartyMember } from "@/types/party.types";
 import { useRules, usePlayerVisibleRules } from "@/composables/useRules";
@@ -303,18 +304,8 @@ const isCircleOfMoon = computed(() =>
   member.value?.subclass?.toLowerCase().includes("moon") ?? false,
 );
 
-const wildshapeMaxCr = computed(() => {
-  const level = member.value?.level ?? 1;
-  if (isCircleOfMoon.value) return Math.max(1, Math.floor(level / 3));
-  return Math.max(0.125, Math.floor(level / 2) * 0.5);
-});
-const wildshapeCrDisplay = computed(() => {
-  const cr = wildshapeMaxCr.value;
-  if (cr === 0.125) return "1/8";
-  if (cr === 0.25)  return "1/4";
-  if (cr === 0.5)   return "1/2";
-  return String(cr);
-});
+const wildshapeMaxCr = computed(() => calcWildshapeMaxCr(member.value?.level ?? 1, isCircleOfMoon.value));
+const wildshapeCrDisplay = computed(() => calcWildshapeCrDisplay(wildshapeMaxCr.value));
 // Max uses per day: 2 at level 2+, 0 before level 2
 const wildshapeMaxUses = computed(() => {
   const level = member.value?.level ?? 1;
@@ -336,16 +327,10 @@ const wildshapeForms = computed<Monster[]>(() => {
     (pinnedForms.value ?? []).map((p) => p.monster_id ?? p.srd_slug ?? "").filter(Boolean),
   );
   return (allMonsters.value ?? [])
-    .filter((m) => {
-      if (!discoveredKeys.has(m.id) && !pinnedKeys.has(m.id)) return false;
-      if ((m.monster_type ?? "").toLowerCase() !== "beast") return false;
-      if (parseCr(m.stat_block?.challenge_rating) > maxCr) return false;
-      if (level < 8) {
-        const speed = (m.stat_block?.speed ?? "").toLowerCase();
-        if (speed.includes("fly") || speed.includes("swim")) return false;
-      }
-      return true;
-    })
+    .filter((m) =>
+      (discoveredKeys.has(m.id) || pinnedKeys.has(m.id)) &&
+      isEligibleWildshapeForm(m, level, maxCr),
+    )
     .sort((a, b) => parseCr(a.stat_block?.challenge_rating) - parseCr(b.stat_block?.challenge_rating));
 });
 

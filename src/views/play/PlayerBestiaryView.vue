@@ -257,6 +257,7 @@ import { IconClose, IconPin, IconSearch } from '@/lib/icons';
 import { usePlayerDiscoveries, useAutoDiscoverMonsters } from "@/composables/useDiscoveredMonsters";
 import { useReadItems, useMarkRead } from "@/composables/useReadItems";
 import { usePinnedForms, useTogglePinnedForm } from "@/composables/usePinnedForms";
+import { wildshapeMaxCr as calcWildshapeMaxCr, wildshapeCrDisplay as calcWildshapeCrDisplay, isEligibleWildshapeForm } from "@/lib/wildshape";
 import { useAllMonsters } from "@/composables/useMonsters";
 import { useParty } from "@/composables/useParty";
 import { useUiStore } from "@/stores/ui";
@@ -341,36 +342,13 @@ const filtered = computed(() => {
 
 // ── Wild Forms tab ───────────────────────────────────────────────────────────
 
-const maxWildshapeCr = computed(() => {
-  const level = member.value?.level ?? 1;
-  if (isCircleOfMoon.value) return Math.max(1, Math.floor(level / 3));
-  return Math.max(0.125, Math.floor(level / 2) * 0.5);  // CR 1/8 min, up to level/2
-});
+const maxWildshapeCr = computed(() => calcWildshapeMaxCr(member.value?.level ?? 1, isCircleOfMoon.value));
 
-const maxWildshapeCrDisplay = computed(() => {
-  const cr = maxWildshapeCr.value;
-  if (cr === 0.125) return "1/8";
-  if (cr === 0.25)  return "1/4";
-  if (cr === 0.5)   return "1/2";
-  return String(cr);
-});
-
-function hasSpeedType(speed: string, type: string): boolean {
-  return speed.toLowerCase().includes(type);
-}
+const maxWildshapeCrDisplay = computed(() => calcWildshapeCrDisplay(maxWildshapeCr.value));
 
 function isEligibleBeast(m: Monster): boolean {
   if (!isDruid.value) return false;
-  const level = member.value?.level ?? 1;
-  const cr = parseCr(m.stat_block.challenge_rating);
-  if (m.monster_type?.toLowerCase() !== "beast") return false;
-  if (cr > maxWildshapeCr.value) return false;
-  // Before level 8: can't take forms with fly or swim speed
-  if (level < 8) {
-    const speed = m.stat_block.speed ?? "";
-    if (hasSpeedType(speed, "fly") || hasSpeedType(speed, "swim")) return false;
-  }
-  return true;
+  return isEligibleWildshapeForm(m, member.value?.level ?? 1, maxWildshapeCr.value);
 }
 
 // Pinned forms for the current party member (player view or DM preview)

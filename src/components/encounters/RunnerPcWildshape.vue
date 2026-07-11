@@ -58,10 +58,8 @@
     </div>
   </template>
   <template v-if="showWildshapePicker && isDruid">
-    <p v-if="!wildshapeForms.length" class="font-fell text-xs text-muted-foreground italic px-1 py-2">
-      No eligible beast forms at this level.
-    </p>
-    <div v-else class="wildshape-picker-list">
+    <!-- Available forms — click to transform -->
+    <div v-if="wildshapeForms.length" class="wildshape-picker-list">
       <button
         v-for="m in wildshapeForms"
         :key="m.id"
@@ -75,6 +73,38 @@
         <span class="pick-speed">{{ m.stat_block?.speed }}</span>
       </button>
     </div>
+
+    <!-- Empty states -->
+    <p v-else-if="pinnableForms.length" class="font-fell text-xs text-muted-foreground italic px-1 py-2">
+      No forms unlocked yet — pin an eligible beast below to make it available.
+    </p>
+    <p v-else class="font-fell text-xs text-muted-foreground italic px-1 py-2">
+      No eligible beast forms at this level.
+    </p>
+
+    <!-- Pin more forms — DM curates which eligible beasts this druid can assume -->
+    <template v-if="pinnableForms.length">
+      <button
+        type="button"
+        class="wildshape-pin-toggle"
+        @click="showPinList = !showPinList"
+      >{{ showPinList ? 'Hide eligible beasts' : `📌 Pin a form (${pinnableForms.length} eligible)` }}</button>
+      <div v-if="showPinList" class="wildshape-picker-list">
+        <button
+          v-for="m in pinnableForms"
+          :key="m.id"
+          type="button"
+          class="wildshape-pick-row"
+          title="Pin this form so the druid can assume it"
+          @click="pinForm(m)"
+        >
+          <span class="pick-pin">＋</span>
+          <span class="pick-name">{{ m.name }}</span>
+          <span class="pick-cr">CR {{ m.stat_block?.challenge_rating }}</span>
+          <span class="pick-ac">AC {{ m.stat_block?.armor_class }}</span>
+        </button>
+      </div>
+    </template>
   </template>
 </template>
 
@@ -86,8 +116,9 @@ import type { PartyMember } from "@/types/party.types";
 import type { RunCombatant } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
 import { useDiscoveredKeys } from "@/composables/useDiscoveredMonsters";
-import { useDmPinnedForms } from "@/composables/usePinnedForms";
+import { useDmPinnedForms, useTogglePinnedForm } from "@/composables/usePinnedForms";
 import { parseCr } from "@/lib/utils";
+import { wildshapeMaxCr as calcWildshapeMaxCr, wildshapeCrDisplay as calcWildshapeCrDisplay, isEligibleWildshapeForm } from "@/lib/wildshape";
 
 const { combatant, member, monsters } = defineProps<{
   combatant: RunCombatant;
@@ -108,6 +139,7 @@ const emit = defineEmits<{
 const discoveredKeys = useDiscoveredKeys();
 const memberId = computed(() => member.id);
 const { data: pinnedForms } = useDmPinnedForms(memberId);
+const { mutate: togglePinnedForm } = useTogglePinnedForm();
 
 // ── Class helpers ─────────────────────────────────────────────────────────────
 
@@ -121,42 +153,39 @@ const isCircleOfMoon = computed(() =>
 
 // ── Wildshape eligibility ─────────────────────────────────────────────────────
 
-const wildshapeMaxCr = computed(() => {
-  const level = member.level ?? 1;
-  if (isCircleOfMoon.value) return Math.max(1, Math.floor(level / 3));
-  return Math.max(0.125, Math.floor(level / 2) * 0.5);
-});
+const wildshapeMaxCr = computed(() => calcWildshapeMaxCr(member.level ?? 1, isCircleOfMoon.value));
 
-const wildshapeCrDisplay = computed(() => {
-  const cr = wildshapeMaxCr.value;
-  if (cr === 0.125) return "1/8";
-  if (cr === 0.25)  return "1/4";
-  if (cr === 0.5)   return "1/2";
-  return String(cr);
-});
+const wildshapeCrDisplay = computed(() => calcWildshapeCrDisplay(wildshapeMaxCr.value));
 
 const pinnedKeys = computed<Set<string>>(() =>
   new Set((pinnedForms.value ?? []).map((p) => p.monster_id ?? p.srd_slug ?? "").filter(Boolean)),
 );
 
-const wildshapeForms = computed<Monster[]>(() => {
+/** Beasts that are legal wild shape forms for this druid, sorted by CR. */
+const eligibleBeasts = computed<Monster[]>(() => {
   if (!isDruid.value) return [];
   const level = member.level ?? 1;
   const maxCr = wildshapeMaxCr.value;
-  const dkeys = discoveredKeys.value;
   return monsters
-    .filter((m) => {
-      if (!dkeys.has(m.id) && !pinnedKeys.value.has(m.id)) return false;
-      if ((m.monster_type ?? "").toLowerCase() !== "beast") return false;
-      if (parseCr(m.stat_block?.challenge_rating) > maxCr) return false;
-      if (level < 8) {
-        const speed = (m.stat_block?.speed ?? "").toLowerCase();
-        if (speed.includes("fly") || speed.includes("swim")) return false;
-      }
-      return true;
-    })
+    .filter((m) => isEligibleWildshapeForm(m, level, maxCr))
     .sort((a, b) => parseCr(a.stat_block?.challenge_rating) - parseCr(b.stat_block?.challenge_rating));
 });
+
+/** Available forms: eligible beasts the party has discovered or the DM has pinned. */
+const wildshapeForms = computed<Monster[]>(() =>
+  eligibleBeasts.value.filter((m) => discoveredKeys.value.has(m.id) || pinnedKeys.value.has(m.id)),
+);
+
+/** Eligible beasts not yet available — the DM can pin these to unlock them here. */
+const pinnableForms = computed<Monster[]>(() =>
+  eligibleBeasts.value.filter((m) => !discoveredKeys.value.has(m.id) && !pinnedKeys.value.has(m.id)),
+);
+
+const showPinList = ref(false);
+
+function pinForm(monster: Monster) {
+  togglePinnedForm({ monster, partyMemberId: member.id, existing: undefined });
+}
 
 // ── Active wildshape stats ────────────────────────────────────────────────────
 
@@ -271,6 +300,14 @@ const wildshapeTraitSections = computed(() => {
 
 .wildshape-pick-row {
   @apply flex items-center gap-2 px-2 py-1.5 text-left hover:bg-muted/60 transition-colors cursor-pointer;
+}
+
+.wildshape-pin-toggle {
+  @apply w-full font-cinzel text-[10px] px-2 py-1.5 mt-0.5 rounded border border-dashed border-border text-muted-foreground hover:border-primary hover:text-primary transition-colors;
+}
+
+.pick-pin {
+  @apply font-cinzel text-sm text-muted-foreground shrink-0 w-3 text-center;
 }
 
 .pick-name {
