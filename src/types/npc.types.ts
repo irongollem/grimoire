@@ -251,3 +251,25 @@ export interface HallOfHero {
 
 export type HallOfHeroInsert = Omit<HallOfHero, "id" | "user_id" | "created_at" | "updated_at">;
 export type HallOfHeroUpdate = Partial<HallOfHeroInsert>;
+
+// ── NPC sets ("playlists") ────────────────────────────────────────────────────
+// A named, ordered collection of NPCs a DM keeps together for a session and can
+// export to the Card Forge. `npc_ids` is ordered; ids of deleted NPCs are
+// tolerated and filtered out at render time.
+
+export interface NpcSet {
+  id: string;
+  user_id: string;
+  campaign_id: string;
+  name: string;
+  description: string | null;
+  npc_ids: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export type NpcSetInsert = Omit<
+  NpcSet,
+  "id" | "user_id" | "campaign_id" | "created_at" | "updated_at"
+>;
+export type NpcSetUpdate = Partial<NpcSetInsert>;
