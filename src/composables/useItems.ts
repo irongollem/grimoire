@@ -7,6 +7,7 @@ import type { Item, ItemInsert, ItemUpdate } from "@/types/item.types";
 import { deleteByPublicUrl } from "@/lib/storage";
 import { useSrdArtDefaults } from "@/composables/useSrdArtDefaults";
 import { useCampaignStore } from "@/stores/campaign";
+import { useUiStore } from "@/stores/ui";
 import { useToast } from "@/composables/useToast";
 
 interface ItemSource {
@@ -127,6 +128,65 @@ export function useItems(getOptions?: () => UseItemsOptions) {
   });
 
   return { ...itemsQuery, data };
+}
+
+/** Player-visible items (their vault + shared store items) via the
+ *  get_player_visible_items SECURITY DEFINER projection (migration
+ *  20260711000014), with `dm_notes` nulled. Players have no direct base-table
+ *  read path (RLS is owner-only). Drop-in replacement for {@link useItems} on
+ *  every player surface — same art-defaults merge + campaign-scope filtering. */
+async function fetchPlayerVisibleItems(): Promise<Item[]> {
+  const { data, error } = await supabase.rpc("get_player_visible_items");
+  if (error) throw error;
+  return (data ?? []) as Item[];
+}
+
+export function usePlayerVisibleItems(getOptions?: () => UseItemsOptions) {
+  const ui = useUiStore();
+  const artDefaults = useSrdArtDefaults();
+  const { activeCampaignId } = storeToRefs(useCampaignStore());
+
+  // Real player → gated projection. DM preview → full owned catalog (the DM
+  // isn't a campaign_member, so the projection returns nothing; the DM owns the
+  // rows and needs them to resolve inventory item details). Shares the base
+  // `[QUERY_KEY]` cache with useItems.
+  const projectionQuery = useQuery({
+    queryKey: [QUERY_KEY, "player-visible"],
+    queryFn: fetchPlayerVisibleItems,
+    enabled: () => !ui.dmPreviewMode,
+    staleTime: Infinity,
+  });
+  const baseQuery = useQuery({
+    queryKey: [QUERY_KEY],
+    queryFn: fetchItems,
+    enabled: () => ui.dmPreviewMode,
+    staleTime: Infinity,
+  });
+  const rawItems = computed(() =>
+    ui.dmPreviewMode ? baseQuery.data.value : projectionQuery.data.value,
+  );
+  const isLoading = computed(() =>
+    ui.dmPreviewMode ? baseQuery.isLoading.value : projectionQuery.isLoading.value,
+  );
+
+  const data = computed(() => {
+    const items = rawItems.value;
+    const defaults = artDefaults.data.value;
+    if (!items) return items;
+    const opts = getOptions?.() ?? {};
+    const scopeFiltered = opts.includeAllScopes
+      ? items
+      : items.filter((i) => i.campaign_id === null || i.campaign_id === activeCampaignId.value);
+    if (!defaults) return scopeFiltered;
+    return scopeFiltered.map((item) => {
+      if (item.image_url || !item.source) return item;
+      const d = defaults[`item:${item.name.toLowerCase()}`];
+      if (!d?.image_url) return item;
+      return { ...item, image_url: d.image_url, image_focal_point: d.image_focal_point };
+    });
+  });
+
+  return { data, isLoading };
 }
 
 export function useItem(id: Ref<string> | ComputedRef<string> | string) {

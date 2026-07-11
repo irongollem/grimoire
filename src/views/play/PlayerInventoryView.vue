@@ -129,7 +129,7 @@ import { useUiStore } from "@/stores/ui";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
 import { useSpeciesNameMap } from "@/composables/useSpecies";
 import { usePartyInventory } from "@/composables/usePartyInventory";
-import { useItems } from "@/composables/useItems";
+import { usePlayerVisibleItems } from "@/composables/useItems";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { useInventorySlots } from "@/composables/useInventorySlots";
 import { useInventoryMutations } from "@/composables/useInventoryMutations";
@@ -150,7 +150,7 @@ const ui = useUiStore();
 const { data: partyMembers } = useParty();
 const speciesNameMap = useSpeciesNameMap();
 const { data: inventory } = usePartyInventory();
-const { data: allItems } = useItems();
+const { data: allItems } = usePlayerVisibleItems();
 const { mutateAsync: updatePartyMember } = useUpdatePartyMember();
 const { sendCurrencyDrop } = useCampaignMessages();
 

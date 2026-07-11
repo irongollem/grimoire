@@ -191,7 +191,7 @@ import CraftAttemptDialog from "@/components/crafting/CraftAttemptDialog.vue";
 import { CRAFTING_DISCIPLINES, getDiscipline } from "@/lib/crafting-disciplines";
 import type { DisciplineConfig } from "@/lib/crafting-disciplines";
 import { usePlayerCraftingRecipes, useAllRecipeIngredients, useAllRecipeModifiers, useAllRecipeOutputs } from "@/composables/useCrafting";
-import { useItems } from "@/composables/useItems";
+import { usePlayerVisibleItems } from "@/composables/useItems";
 import { useParty } from "@/composables/useParty";
 import { usePartyInventory } from "@/composables/usePartyInventory";
 import { useAuthStore } from "@/stores/auth";
@@ -201,7 +201,7 @@ import type { CraftingRecipe, CraftingDiscipline, CraftingIngredient, CraftingMo
 const auth = useAuthStore();
 const ui = useUiStore();
 const { data: recipes } = usePlayerCraftingRecipes();
-const { data: allItems } = useItems();
+const { data: allItems } = usePlayerVisibleItems();
 const { data: partyMembers } = useParty();
 const { data: inventory } = usePartyInventory();
 

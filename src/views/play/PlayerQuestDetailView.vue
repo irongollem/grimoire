@@ -314,7 +314,7 @@ import { useMarkRead } from "@/composables/useReadItems";
 import { useSharedNpcs } from "@/composables/useNpcs";
 import { useSharedLocations } from "@/composables/useLocations";
 import { usePlayerVisibleMonsters } from "@/composables/useMonsters";
-import { useItems } from "@/composables/useItems";
+import { usePlayerVisibleItems } from "@/composables/useItems";
 import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
 import { QUEST_STATUS_LABELS, QUEST_STATUS_COLORS } from "@/types/quest.types";
 import type { Npc } from "@/types/npc.types";
@@ -339,7 +339,7 @@ const { data: questRefs } = useQuestRefs(questId);
 const { data: npcs } = useSharedNpcs();
 const { data: locations } = useSharedLocations();
 const { data: allMonsters } = usePlayerVisibleMonsters();
-const { data: allItems } = useItems();
+const { data: allItems } = usePlayerVisibleItems();
 
 // NPC lightbox
 const selectedNpc = ref<Npc | null>(null);

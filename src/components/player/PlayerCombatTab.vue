@@ -131,7 +131,7 @@ import type { RollMode, DieSize } from "@/lib/roller";
 import { parseExpression } from "@/lib/dice";
 import type { ParsedExpression } from "@/lib/dice";
 import { usePartyInventory } from "@/composables/usePartyInventory";
-import { useItems } from "@/composables/useItems";
+import { usePlayerVisibleItems } from "@/composables/useItems";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import PlayerLoadout from "@/components/player/PlayerLoadout.vue";
@@ -144,7 +144,7 @@ const props = defineProps<{ member: PartyMember; attackDisadvantage: boolean; wi
 const emit = defineEmits<{ roll: [result: { label: string; dice: number; modifier: number; total: number }] }>();
 
 const { data: inventory } = usePartyInventory();
-const { data: allItems } = useItems();
+const { data: allItems } = usePlayerVisibleItems();
 const { sendRoll } = useCampaignMessages();
 const { promptRoll } = usePromptedRoll();
 
