@@ -108,6 +108,14 @@ export function useEncounterLive(encounterId: MaybeRefOrGetter<string>) {
       .select()
       .single();
     if (error) throw error;
+    // Enforce one live encounter per campaign: stop any other running rows so the
+    // player's single-live-row view can't flip-flop between two encounters.
+    await supabase
+      .from("encounter_state")
+      .update({ is_running: false })
+      .eq("campaign_id", campaign.activeCampaignId)
+      .eq("is_running", true)
+      .neq("encounter_id", toValue(encounterId));
     liveState.value = data as EncounterState;
   }
 
@@ -178,11 +186,17 @@ export function useEncounterLive(encounterId: MaybeRefOrGetter<string>) {
 export function usePlayerEncounterLive(campaignId: string) {
   async function fetchRunning() {
     if (!campaignId) { liveState.value = null; return; }
+    // Nothing enforces a single is_running row per campaign, so if a DM starts a
+    // second encounter without ending the first, .maybeSingle() would error and
+    // blank the player's live view mid-combat. Take the most recently started one
+    // instead so a stray second row degrades gracefully.
     const { data } = await supabase
       .from("encounter_state")
       .select("*")
       .eq("campaign_id", campaignId)
       .eq("is_running", true)
+      .order("started_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
     liveState.value = data ? (data as EncounterState) : null;
   }
