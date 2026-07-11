@@ -500,21 +500,22 @@ export function useCampaignMessages() {
     if (data) _optimisticPush(data as CampaignMessage);
   }
 
+  // Delegates to the row-locked SECURITY DEFINER claim_player_offer RPC, which
+  // under FOR UPDATE authorizes the caller, validates the offer is unclaimed,
+  // checks buyer funds (rejecting if insufficient), debits the buyer, credits the
+  // seller (a fellow player's direct UPDATE of the seller's row is blocked by RLS,
+  // so this MUST run server-side), and transfers the item — all atomically. The
+  // RPC raises on a lost race / insufficient funds / not-authorized; callers treat
+  // a throw as "the sale did not happen" and leave wallets/inventory untouched.
   async function claimPlayerOffer(messageId: string, buyerName: string, buyerPartyMemberId: string | null) {
-    const msg = messages.value.find(m => m.id === messageId);
-    if (!msg || msg.type !== 'player_offer') return;
-    const existing = msg.metadata as PlayerOfferMetadata;
-    if (existing.sold_to_user_id) return;
-    const newMeta: PlayerOfferMetadata = {
-      ...existing,
-      sold_to_user_id: auth.user!.id,
-      sold_to_name: buyerName,
-      sold_to_party_member_id: buyerPartyMemberId,
-    };
-    const { error } = await supabase.from("campaign_messages").update({ metadata: newMeta }).eq("id", messageId);
+    const { data, error } = await supabase.rpc("claim_player_offer", {
+      p_message_id: messageId,
+      p_buyer_name: buyerName,
+      p_party_member_id: buyerPartyMemberId,
+    });
     if (error) throw error;
     const idx = messages.value.findIndex(m => m.id === messageId);
-    if (idx >= 0) messages.value[idx] = { ...messages.value[idx], metadata: newMeta };
+    if (idx >= 0 && data) messages.value[idx] = { ...messages.value[idx], metadata: data as PlayerOfferMetadata };
   }
 
   return { messages: visibleMessages, loading, sendMessage, sendFlavorMessage, sendNarrativeEvent, sendRoll, sendItemDrop, claimItemDrop, grabItemDrop, sendCurrencyDrop, claimCurrencyDrop, sendLootChest, claimLootChestAtom, sendVendorOffer, claimVendorOffer, sendPlayerOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId };

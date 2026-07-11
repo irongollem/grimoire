@@ -93,7 +93,8 @@ import { useUiStore } from "@/stores/ui";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { useCampaignMembers } from "@/composables/useCampaignMembers";
 import { useAuthStore } from "@/stores/auth";
-import { usePartyInventory, useAddInventoryItem, useUpdateInventoryItem, useRemoveInventoryItem } from "@/composables/usePartyInventory";
+import { useQueryClient } from "@tanstack/vue-query";
+import { usePartyInventory, useAddInventoryItem, useUpdateInventoryItem } from "@/composables/usePartyInventory";
 import { useItems } from "@/composables/useItems";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
 import { useNpcs } from "@/composables/useNpcs";
@@ -181,8 +182,8 @@ const { data: allItems } = useItems();
 const { data: npcsData } = useNpcs();
 const { mutateAsync: addInventoryItem }    = useAddInventoryItem();
 const { mutateAsync: updateInventoryItem } = useUpdateInventoryItem();
-const { mutateAsync: removeInventoryItem } = useRemoveInventoryItem();
 const { mutateAsync: updatePartyMember }   = useUpdatePartyMember();
+const queryClient = useQueryClient();
 const { mutateAsync: addNpcInventoryItem } = useAddNpcInventoryItem();
 
 const npcs = computed(() =>
@@ -370,35 +371,20 @@ async function handleBuyPlayerOffer({ messageId }: { messageId: string }) {
   const buyerName = resolveClaimerName();
   const buyerPartyMemberId = auth.isDM ? null : (auth.linkedPartyMemberId ?? null);
 
-  await claimPlayerOffer(messageId, buyerName, buyerPartyMemberId);
-
-  const priceCP = toCP(meta.pp, meta.gp, meta.ep, meta.sp, meta.cp);
-  const mutations: Promise<unknown>[] = [];
-
-  // Credit the seller
-  const seller = (party.value ?? []).find(m => m.id === meta.seller_party_member_id);
-  if (seller) {
-    const { pp, gp, ep, sp, cp } = fromCP(toCP(seller.pp, seller.gp, seller.ep, seller.sp, seller.cp) + priceCP);
-    mutations.push(updatePartyMember({ id: seller.id, update: { pp, gp, ep, sp, cp } }));
+  try {
+    // One atomic RPC does the whole exchange server-side: credit the seller
+    // (which RLS blocks a fellow player from doing directly), debit the buyer,
+    // and transfer the item. A throw means the sale did not happen (lost race,
+    // insufficient funds, or not authorized) — nothing was charged.
+    await claimPlayerOffer(messageId, buyerName, buyerPartyMemberId);
+  } catch {
+    return;
   }
 
-  if (auth.isDM) {
-    // DM buys: just remove the item from seller (money from thin air)
-    mutations.push(removeInventoryItem(meta.inventory_item_id));
-  } else if (buyerPartyMemberId) {
-    // Player buys: deduct buyer's wallet + transfer item ownership
-    const buyer = (party.value ?? []).find(m => m.id === buyerPartyMemberId);
-    if (buyer) {
-      const { pp, gp, ep, sp, cp } = fromCP(Math.max(0, toCP(buyer.pp, buyer.gp, buyer.ep, buyer.sp, buyer.cp) - priceCP));
-      mutations.push(updatePartyMember({ id: buyer.id, update: { pp, gp, ep, sp, cp } }));
-    }
-    mutations.push(updateInventoryItem({
-      id: meta.inventory_item_id,
-      update: { carried_by: buyerPartyMemberId, location: 'backpack', slot: null, is_equipped: false },
-    }));
-  }
-
-  await Promise.all(mutations);
+  // Money + item moved server-side; refresh the buyer's own caches. The seller's
+  // client picks up their new balance via usePartyLive realtime.
+  void queryClient.invalidateQueries({ queryKey: ["party"] });
+  void queryClient.invalidateQueries({ queryKey: ["party-inventory"] });
 }
 
 async function handleSend({
