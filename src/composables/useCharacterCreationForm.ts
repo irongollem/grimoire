@@ -14,7 +14,7 @@ import { getDefaultSpellSlots } from "@/types/spell.types";
 import { applySpeciesSpellGrants } from "@/composables/useCharacterSpells";
 import type { SpeciesSpellGrant } from "@/types/species.types";
 import { computeAc } from "@/types/party.types";
-import type { PartyMemberInsert, SkillProfLevel, SaveKey, SpellSlotEntry } from "@/types/party.types";
+import type { PartyMember, PartyMemberInsert, SkillProfLevel, SaveKey, SpellSlotEntry } from "@/types/party.types";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/composables/useToast";
 import { CLASS_EQUIPMENT } from "@/data/classEquipment";
@@ -196,8 +196,9 @@ export function useCharacterCreationForm() {
   const portraitUrl = ref(existingMember.value?.portrait_url ?? "");
   const focalPoint  = ref<{ x: number; y: number } | null>(existingMember.value?.portrait_focal_point ?? null);
 
-  const m = existingMember.value;
-  const f = reactive<Omit<PartyMemberInsert, "sort_order" | "portrait_url" | "spell_slots"> & { sort_order: number }>({
+  const buildFormState = (
+    m: PartyMember | null | undefined,
+  ): Omit<PartyMemberInsert, "sort_order" | "portrait_url" | "spell_slots"> & { sort_order: number } => ({
     campaign_id:   m?.campaign_id ?? null,
     name:          m?.name ?? "",
     player_name:   m?.player_name ?? auth.membership?.display_name ?? "",
@@ -259,6 +260,22 @@ export function useCharacterCreationForm() {
     gender:               m?.gender ?? "",
     pronouns:             m?.pronouns ?? "",
     physical_description: m?.physical_description ?? "",
+  });
+
+  const f = reactive(buildFormState(existingMember.value));
+
+  // On a cold load (PWA restart / hard refresh) the party query hasn't resolved
+  // when the form is first built, so `existingMember` is null and `f` seeds to
+  // level-1 defaults — saving would then overwrite the real character. Reseed
+  // once, the first time the member resolves, but only if the form wasn't already
+  // built from a loaded member (warm load) so we never clobber in-progress edits.
+  let seededFromMember = !!existingMember.value;
+  watch(existingMember, (member) => {
+    if (!member || seededFromMember || !isEditMode.value) return;
+    Object.assign(f, buildFormState(member));
+    portraitUrl.value = member.portrait_url ?? "";
+    focalPoint.value = member.portrait_focal_point ?? null;
+    seededFromMember = true;
   });
 
   // When a formula is active, keep f.ac in sync whenever ability scores change.
@@ -371,10 +388,11 @@ export function useCharacterCreationForm() {
   // ── Spell slots ───────────────────────────────────────────────────────────────
 
   function buildSlotMaxes(): number[] {
-    if (m?.spell_slots?.length) {
-      return Array.from({ length: 9 }, (_, i) => m.spell_slots!.find((s) => s.level === i + 1)?.max ?? 0);
+    const em = existingMember.value;
+    if (em?.spell_slots?.length) {
+      return Array.from({ length: 9 }, (_, i) => em.spell_slots!.find((s) => s.level === i + 1)?.max ?? 0);
     }
-    const defaults = getDefaultSpellSlots(m?.class ?? null, m?.level ?? 1);
+    const defaults = getDefaultSpellSlots(em?.class ?? null, em?.level ?? 1);
     return Array.from({ length: 9 }, (_, i) => defaults.find((s) => s.level === i + 1)?.max ?? 0);
   }
   const spellSlotMaxes = reactive<number[]>(buildSlotMaxes());
