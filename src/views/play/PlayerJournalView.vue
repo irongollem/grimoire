@@ -222,7 +222,7 @@ import { usePlayerVisiblePuzzles } from "@/composables/usePuzzles";
 import { useSharedNpcs } from "@/composables/useNpcs";
 import { useSharedLocations } from "@/composables/useLocations";
 import { usePartyInventory } from "@/composables/usePartyInventory";
-import { useAllMonsters } from "@/composables/useMonsters";
+import { usePlayerVisibleMonsters } from "@/composables/useMonsters";
 import { usePlayerDiscoveries } from "@/composables/useDiscoveredMonsters";
 import { useEncounters } from "@/composables/useEncounters";
 import { useNotes } from "@/composables/useNotes";
@@ -249,7 +249,7 @@ const { data: puzzles, isLoading: loadingPuzzles } = usePlayerVisiblePuzzles();
 const { data: sharedNpcs }        = useSharedNpcs();
 const { data: sharedLocations }   = useSharedLocations();
 const { data: inventory }         = usePartyInventory();
-const { data: allMonsters }       = useAllMonsters();
+const { data: allMonsters }       = usePlayerVisibleMonsters();
 const { data: playerDiscoveries } = usePlayerDiscoveries();
 const { data: allEncounters }     = useEncounters();
 

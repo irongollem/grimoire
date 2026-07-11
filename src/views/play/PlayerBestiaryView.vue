@@ -258,7 +258,7 @@ import { usePlayerDiscoveries, useAutoDiscoverMonsters } from "@/composables/use
 import { useReadItems, useMarkRead } from "@/composables/useReadItems";
 import { usePinnedForms, useTogglePinnedForm } from "@/composables/usePinnedForms";
 import { wildshapeMaxCr as calcWildshapeMaxCr, wildshapeCrDisplay as calcWildshapeCrDisplay, isEligibleWildshapeForm } from "@/lib/wildshape";
-import { useAllMonsters } from "@/composables/useMonsters";
+import { usePlayerVisibleMonsters } from "@/composables/useMonsters";
 import { useParty } from "@/composables/useParty";
 import { useUiStore } from "@/stores/ui";
 import { useAuthStore } from "@/stores/auth";
@@ -287,7 +287,7 @@ const { promptRoll } = usePromptedRoll();
 const { data: discoveries, isLoading: isLoadingDiscoveries } = usePlayerDiscoveries();
 const { isNew } = useReadItems("discovery");
 const { mutate: markRead } = useMarkRead();
-const { data: allMonsters } = useAllMonsters();
+const { data: allMonsters } = usePlayerVisibleMonsters();
 const { data: partyMembers } = useParty();
 const { data: playerPinnedForms } = usePinnedForms();
 const { mutate: togglePinnedForm } = useTogglePinnedForm();

@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { computed, type Ref } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useEnabledSources } from "@/composables/useEnabledSources";
+import { useCampaignStore } from "@/stores/campaign";
+import { useUiStore } from "@/stores/ui";
 import type { Monster, MonsterInsert, MonsterUpdate } from "@/types/monster.types";
 import { useToast } from "@/composables/useToast";
 import { deleteByPublicUrl } from "@/lib/storage";
@@ -112,6 +114,80 @@ export function useAllMonsters() {
 
   const isLoading = computed(
     () => customQuery.isLoading.value || enabledQuery.isLoading.value || srdQuery.isLoading.value,
+  );
+  return { data, isLoading };
+}
+
+/** Custom monsters this player may see in a campaign, via the SECURITY DEFINER
+ *  `get_player_visible_monsters` projection: rows are gated on the player's
+ *  `discovered_monsters.visible_to`, `stat_block` is nulled unless the discovery
+ *  revealed stats, and DM `notes`/`description` are stripped. This is the ONLY
+ *  player read path for custom monsters — the base table's player SELECT branch
+ *  was dropped (20260711000011) so it can't be mined via devtools. */
+async function fetchPlayerVisibleMonsters(campaignId: string): Promise<Monster[]> {
+  const { data, error } = await supabase.rpc("get_player_visible_monsters", {
+    p_campaign_id: campaignId,
+  });
+  if (error) throw error;
+  return (data ?? []) as Monster[];
+}
+
+/** Player-facing sibling of {@link useAllMonsters}: SRD reference monsters (public)
+ *  plus this player's visible CUSTOM monsters from the projection. In DM preview
+ *  mode the DM owns the rows and needs the full list (including undiscovered
+ *  beasts for the "share all eligible" affordance), so it reads the base table
+ *  directly instead — mirroring the visibility handling the player views already
+ *  do client-side. */
+export function usePlayerVisibleMonsters() {
+  const ui = useUiStore();
+  const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
+  const enabledQuery = useEnabledSources();
+
+  const enabledSlugs = computed(() =>
+    enabledQuery.data.value?.map((e) => e.source_slug) ?? null,
+  );
+
+  const srdQuery = useQuery({
+    queryKey: computed(() => [SRD_QUERY_KEY, enabledSlugs.value]),
+    queryFn: () => fetchSrdMonsters(enabledSlugs.value!),
+    enabled: () => enabledSlugs.value !== null,
+    staleTime: Infinity,
+  });
+
+  // Real player → gated projection. Keyed on campaign so it refetches per game.
+  const projectionQuery = useQuery({
+    queryKey: computed(() => [QUERY_KEY, "player-visible", campaignId.value]),
+    queryFn: () => fetchPlayerVisibleMonsters(campaignId.value!),
+    enabled: () => !!campaignId.value && !ui.dmPreviewMode,
+    staleTime: Infinity,
+  });
+
+  // DM preview → full owned list (shares the `[QUERY_KEY]` cache with useMonsters).
+  const baseQuery = useQuery({
+    queryKey: [QUERY_KEY],
+    queryFn: fetchMonsters,
+    enabled: () => ui.dmPreviewMode,
+    staleTime: Infinity,
+  });
+
+  const data = computed<Monster[]>(() => {
+    // Open5e imports are legacy in the monsters table — those surface via
+    // srd_monsters instead, so drop them from the custom side (same rule as
+    // useAllMonsters).
+    const custom = ((ui.dmPreviewMode ? baseQuery.data.value : projectionQuery.data.value) ?? [])
+      .filter((m) => !m.open5e_import);
+    const srd = srdQuery.data.value ?? [];
+    const dbNames = new Set(custom.map((m) => m.name));
+    return [...srd.filter((m: Monster) => !dbNames.has(m.name)), ...custom]
+      .sort((a, b) => a.name.localeCompare(b.name));
+  });
+
+  const isLoading = computed(
+    () =>
+      enabledQuery.isLoading.value ||
+      srdQuery.isLoading.value ||
+      (ui.dmPreviewMode ? baseQuery.isLoading.value : projectionQuery.isLoading.value),
   );
   return { data, isLoading };
 }

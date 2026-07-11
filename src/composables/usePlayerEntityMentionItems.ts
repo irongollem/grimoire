@@ -1,7 +1,7 @@
 import { computed } from "vue";
 import { useParty } from "@/composables/useParty";
 import { useSharedNpcs } from "@/composables/useNpcs";
-import { useAllMonsters } from "@/composables/useMonsters";
+import { usePlayerVisibleMonsters } from "@/composables/useMonsters";
 import { usePlayerDiscoveries } from "@/composables/useDiscoveredMonsters";
 import { useSharedLocations } from "@/composables/useLocations";
 import type { EntityMentionItem } from "@/lib/tiptap/EntityMention";
@@ -9,7 +9,7 @@ import type { EntityMentionItem } from "@/lib/tiptap/EntityMention";
 export function usePlayerEntityMentionItems() {
   const { data: partyMembers }      = useParty();
   const { data: sharedNpcs }        = useSharedNpcs();
-  const { data: allMonsters }       = useAllMonsters();
+  const { data: allMonsters }       = usePlayerVisibleMonsters();
   const { data: playerDiscoveries } = usePlayerDiscoveries();
   const { data: sharedLocations }   = useSharedLocations();
 
