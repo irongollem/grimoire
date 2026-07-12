@@ -44,18 +44,58 @@
           </span>
         </div>
       </button>
+
+      <!-- Import an existing markdown document as the starting book -->
+      <button
+        type="button"
+        class="group flex flex-col text-left rounded-lg border border-dashed border-border bg-card overflow-hidden hover:border-primary/50 hover:shadow-lg transition-all"
+        @click="fileInput?.click()"
+      >
+        <div class="relative h-32 flex items-center justify-center overflow-hidden bg-muted/30">
+          <IconUpload class="size-8 text-muted-foreground group-hover:text-primary transition-colors" />
+        </div>
+        <div class="flex flex-col gap-1 p-3 border-t border-border">
+          <span class="font-cinzel text-sm font-bold text-foreground group-hover:text-primary transition-colors">
+            Import Markdown
+          </span>
+          <span class="font-fell text-xs text-muted-foreground leading-snug">
+            Bring an existing .md document — chapters, notes, or a Homebrewery brew — into a styled book.
+          </span>
+        </div>
+      </button>
+      <input
+        ref="fileInput"
+        type="file"
+        accept=".md,.markdown,.txt,text/markdown,text/plain"
+        class="hidden"
+        @change="onFilePicked"
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref } from "vue";
 import { SCRIPTORIUM_TEMPLATES, type ScriptoriumTemplate } from "@/data/scriptoriumTemplates";
+import { importedMarkdownTemplate } from "@/data/scriptoriumTemplates/importedMarkdown";
 import { docTypeColor, docTypeLabel } from "@/lib/scriptorium/editorConstants";
+import { IconUpload } from "@/lib/icons";
 
 const templates = SCRIPTORIUM_TEMPLATES;
 
-defineEmits<{ select: [template: ScriptoriumTemplate] }>();
+const emit = defineEmits<{ select: [template: ScriptoriumTemplate] }>();
 
 const accent = (t: ScriptoriumTemplate) => docTypeColor(t.docType);
 const label = (t: ScriptoriumTemplate) => docTypeLabel(t.docType);
+
+const fileInput = ref<HTMLInputElement | null>(null);
+
+async function onFilePicked(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = ""; // allow re-picking the same file after going back
+  if (!file) return;
+  const markdown = await file.text();
+  emit("select", importedMarkdownTemplate(file.name, markdown));
+}
 </script>
