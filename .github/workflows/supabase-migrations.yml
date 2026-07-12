@@ -1,0 +1,64 @@
+name: Supabase Migrations
+
+# Two jobs:
+#   • validate — on every PR that touches a migration, boot a throwaway local
+#     Postgres and apply ALL migrations from scratch. If any migration fails to
+#     apply cleanly, the job (and the PR check) fails. This is the pre-merge gate.
+#   • deploy   — on merge to main (migration touched), link the production project
+#     and `supabase db push` the new migrations to the remote DB.
+#
+# ⚠️ REQUIRED SECRETS — set these in the repo before enabling (Settings → Secrets
+#    and variables → Actions). Until they exist, the `deploy` job will fail:
+#      SUPABASE_ACCESS_TOKEN   Personal access token (supabase.com/dashboard/account/tokens)
+#      PRODUCTION_DB_PASSWORD  The production database password
+#      PRODUCTION_PROJECT_ID   The production project ref (the 20-char ref from the
+#                              project URL / dashboard — NOT the local "grimoire" alias)
+#    The `validate` job needs no secrets (it only runs a local Postgres).
+
+on:
+  pull_request:
+    paths:
+      - "supabase/migrations/**"
+  push:
+    branches: [main]
+    paths:
+      - "supabase/migrations/**"
+  workflow_dispatch:
+
+jobs:
+  # ── PR gate: apply every migration to a fresh local DB ──────────────────────
+  validate:
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # `db start` boots the local Postgres and applies all migrations in order;
+      # a broken migration fails the step, blocking the merge.
+      - name: Apply migrations to a throwaway local DB
+        run: supabase db start
+
+  # ── Deploy: push migrations to production on merge to main ──────────────────
+  deploy:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.PRODUCTION_DB_PASSWORD }}
+      SUPABASE_PROJECT_ID: ${{ secrets.PRODUCTION_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link the production project
+        run: supabase link --project-ref "$SUPABASE_PROJECT_ID"
+
+      - name: Push migrations to production
+        run: supabase db push
