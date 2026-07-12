@@ -29,6 +29,7 @@ import {
   buildSimpleImagePrompt,
 } from "../_shared/image-prompt.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -194,6 +195,9 @@ serve(async (req: Request) => {
   } = await supabase.auth.getUser();
   if (authError || !user) return new Response("Unauthorized", { status: 401 });
 
+  // Frozen accounts cannot generate — including BYOK, which skips the credit gate.
+  if (await isAccountSuspended(admin, user.id)) return suspendedResponse(cors);
+
   // ── Parse body ──────────────────────────────────────────────────────────────
   let campaign_id: string;
   let prompt: string;
@@ -220,12 +224,13 @@ serve(async (req: Request) => {
   const { data: campaign } = await admin
     .from("campaigns")
     .select(
-      "id, user_id, text_provider, image_provider, ai_setting_prompt, openai_api_key, anthropic_api_key, gemini_api_key, falai_api_key",
+      "id, user_id, ai_enabled, text_provider, image_provider, ai_setting_prompt, openai_api_key, anthropic_api_key, gemini_api_key, falai_api_key",
     )
     .eq("id", campaign_id)
     .maybeSingle();
 
   if (!campaign) return new Response("Campaign not found", { status: 404 });
+  if (campaign.ai_enabled === false) return new Response("AI is disabled for this campaign", { status: 403 });
 
   // ── Fetch system prompts from DB ────────────────────────────────────────────
   const { data: promptRows } = await admin

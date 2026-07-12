@@ -6,6 +6,7 @@ import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -28,6 +29,9 @@ serve(async (req: Request) => {
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return new Response("Unauthorized", { status: 401 });
 
+  // Frozen accounts cannot generate — including BYOK, which skips the credit gate.
+  if (await isAccountSuspended(admin, user.id)) return suspendedResponse(cors);
+
   let campaign_id: string, style: string, model: string, lyrics: string | undefined;
 
   try {
@@ -43,10 +47,11 @@ serve(async (req: Request) => {
 
   const { data: campaign } = await admin
     .from("campaigns")
-    .select("id, user_id, gemini_api_key")
+    .select("id, user_id, ai_enabled, gemini_api_key")
     .eq("id", campaign_id)
     .maybeSingle();
   if (!campaign) return new Response("Campaign not found", { status: 404 });
+  if (campaign.ai_enabled === false) return new Response("AI is disabled for this campaign", { status: 403 });
 
   if (campaign.user_id !== user.id) {
     const { data: membership } = await admin

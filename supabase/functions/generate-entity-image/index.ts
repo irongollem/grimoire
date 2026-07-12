@@ -16,6 +16,7 @@ import {
 } from "../_shared/ai-prompt.ts";
 import { buildImagePromptAuthorSystem, buildSimpleImagePrompt } from "../_shared/image-prompt.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
 
 // Entity portraits always render portrait-orientation.
 const ENTITY_IMAGE_SIZE = "1024x1536";
@@ -118,6 +119,9 @@ serve(async (req: Request) => {
   );
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return new Response("Unauthorized", { status: 401 });
+
+  // Frozen accounts cannot generate — including BYOK, which skips the credit gate.
+  if (await isAccountSuspended(admin, user.id)) return suspendedResponse(cors);
 
   let campaign_id: string, kind: string, context: string;
 
