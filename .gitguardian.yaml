@@ -1,0 +1,12 @@
+# GitGuardian / ggshield config (used by pre-commit hooks + CI, not just the dashboard).
+version: 2
+
+secret:
+  ignored_matches:
+    # The Supabase local-dev demo anon key committed in .env.localdb. It is the
+    # universal, published default (payload iss=supabase-demo), signed with the
+    # hardcoded local JWT secret, and only authenticates against a local
+    # 127.0.0.1:54321 stack — it has no access to any real/production project.
+    # Matched by value so a genuine secret accidentally added elsewhere is still caught.
+    - name: Supabase local-dev demo anon key (public, local-only)
+      match: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
