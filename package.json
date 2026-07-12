@@ -67,6 +67,7 @@
     "@vue/test-utils": "^2.4.10",
     "fake-indexeddb": "^6.2.5",
     "happy-dom": "^20.9.0",
+    "jsdom": "^29.1.1",
     "oxlint": "^1.60.0",
     "portless": "^0.10.2",
     "puppeteer-core": "^25.1.0",
