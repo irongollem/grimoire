@@ -6,7 +6,7 @@ The loop:
 
 > DM grants a downtime credit → player spends a draw on a card → the draw lands `pending` → the DM resolves it on a batch board → the outcome spawns a real, linked, editable NPC.
 
-**Phase 1 ships exactly one archetype (Carouse), end-to-end.** Every subsequent archetype is *data*, not plumbing.
+**Phase 1 shipped one archetype (Carouse), end-to-end. Phase 2 generalised the reward plumbing (NPC → NPC / item / note) and filled the deck to eight archetypes — every one of them is now *data*, not plumbing.**
 
 ---
 
@@ -29,24 +29,27 @@ The loop:
 ### Data & types
 | File | Role |
 | --- | --- |
-| `src/types/downtime.types.ts` | Vocabularies (`DowntimeRewardType`, `DowntimeDrawStatus`), the `DowntimeEffect` discriminated union, DB row types, `DowntimeActivity`, `DowntimeSeed`, `DrawResult` |
-| `src/data/downtimeActivities.ts` | The archetype catalog. Phase 1 = Carouse. `getDowntimeActivity(key)` returns `null` for unknown keys |
-| `src/data/downtimeSeeds.ts` | System seed NPC contacts + their vignettes and proposed effects. `seedsForActivity(key)` |
+| `src/types/downtime.types.ts` | Vocabularies (`DowntimeRewardType`, `DowntimeDrawStatus`), the `DowntimeEffect` discriminated union, DB row types, `DowntimeActivity`, `DowntimeSeed`, the polymorphic `DowntimeSeedReward` (`npc`/`item`/`note`), `DrawResult` |
+| `src/data/downtimeActivities.ts` | The archetype catalog. Eight archetypes (Carouse, Craft, Research, Train, Business, Pit Fighting, Lie Low, Pull a Job). `getDowntimeActivity(key)` returns `null` for unknown keys |
+| `src/data/downtimeSeeds.ts` | System seed content + vignettes and proposed effects, keyed by archetype. Each seed's `reward` is `npc`/`item`/`note`. `seedsForActivity(key)` |
 
 ### Logic (pure, unit-tested)
 | File | Role |
 | --- | --- |
 | `src/lib/downtimeDeck.ts` | `drawFromDeck(activityKey, backs, seeds, rng)` — prepped FIFO first, else weighted seed. **RNG is injected**; the function is pure. Also `nextPreppedBack`, `pickWeightedSeed` |
 | `src/lib/downtimeBalance.ts` | `computeBalance(grants, draws)` |
-| `src/lib/downtimeSeedNpc.ts` | `npcInsertFromSeed(seed)` — the clone payload. Hidden from players by default (`player_visible_to: []`) |
+| `src/lib/downtimeSeedReward.ts` | `npcInsertFromSeed` / `itemInsertFromSeed` / `noteInsertFromSeed` — per-kind clone payloads, `Omit<…,"campaign_id">`. Minted rows are private + hidden from players by default; notes convert Markdown → Tiptap here |
+| `src/lib/downtimeEffects.ts` | `applyCoinEffects` / `applyHpEffects` / `applyConditionEffects` (pure, ticked-only), `isAutoAppliedKind`, `hasApplicableMemberEffect` — the state transforms the app enacts automatically |
 
-Tests: `downtimeDeck.test.ts` (21), `downtimeBalance.test.ts` (7).
+Tests: `downtimeDeck.test.ts` (21), `downtimeBalance.test.ts` (7), `downtimeEffects.test.ts` (24), `downtimeSeedReward.test.ts` (13, incl. deck-data invariants).
 
 ### Composable
 `src/composables/useDowntime.ts` — everything under a **single `"downtime"` query-key root**, so one `invalidate("downtime")` string in `useCampaignLiveSync` refreshes all four tables.
 
 - Queries: `useDowntimeGrants`, `useDowntimeDraws`, `useDowntimeOutcomes`, `useDeckBacks`, `useDowntimeBalance`
-- Mutations: `useGrantDowntime`, `useSpendDraw`, `useCancelDraw`, `useResolveDraw`, `useApplyGoldEffects`, `useCreateDeckBack`, `useDeleteDeckBack`
+- Mutations: `useGrantDowntime`, `useSpendDraw`, `useCancelDraw`, `useResolveDraw`, `useApplyEffects`, `useCreateDeckBack`, `useDeleteDeckBack`
+- `useResolveDraw` dispatches on `seed.reward.kind`: mints the reward via `createNpc`/`createItem`/`createNote` (an ordinary RLS-checked insert) **before** the RPC, then hands the id in — the definer function never creates entities for the caller. Invalidates `npcs`/`items`/`notes`.
+- `useApplyEffects` applies the ticked coin/HP/condition effects in one `party_members` read-modify-write (via the pure `downtimeEffects.ts` transforms). `item` effects stay a DM checklist.
 - `previewDraw(activityKey, backs)` binds `Math.random` at the edge
 
 > `useDowntimeBalance` returns `number | null`. **Null means "not knowable yet"** — loading, or this user plays no character here. It is deliberately *not* zero, so the UI hides the board rather than rendering a misleading `0`.
@@ -104,13 +107,17 @@ spend blocked at 0 credits · player cannot self-grant · DM grants · player sp
 
 ---
 
-## Named limits (Phase 1)
+## Named limits (current)
 
-- **Only `gold` effects are applied programmatically** (`party_members` already carries `cp/sp/ep/gp/pp`). `item` / `hp` / `condition` render on the board as a checklist the DM enacts at the table. Phase 2 wires them to real state.
-- One archetype (Carouse). No AI outcome drafting. No Cardforge export. No conditioned card backs (per-player / per-location).
+- **`gold`, `hp`, and `condition` effects are applied programmatically** (`party_members` carries `cp/sp/ep/gp/pp`, `current_hp`/`max_hp`, and `conditions[]`). Only **`item`** stays a DM checklist: an `item` effect names an `item_id` + qty to drop into inventory, which needs an inventory insert and an item-name the effect doesn't carry, so no seed emits one and the DM hands items over by choice. HP clamps to `[0, max_hp]`; conditions de-dupe case-insensitively.
+- **Item rewards mint a catalog `items` row**, they do **not** auto-add to a character's inventory (that would mutate a sheet without a tick, and the Workshop is the intended handoff — a Phase 3 "reuse Workshop" nicety).
+- Seed backs are bounded to the reward kinds we can build from a template (`npc`/`item`/`note`); **prepped** backs can point at any of the six `DowntimeRewardType`s (the DB CHECK allows all), and the prep UI (`DeckBacksPanel`) currently offers `npc`/`item`/`note` pickers.
+- No AI outcome drafting. No Cardforge export. No conditioned card backs (per-player / per-location).
+- **The roll/loot-table engine is not wired behind `drawFromDeck()`, and outcomes are not delivered via drop-chest.** This is the design's *optional* branch — the seed→entity clone path delivers every reward end-to-end without it. Left for a follow-up (see below).
 - Seeds are TS templates, not a DB table. **The moment we ship curated per-seed artwork this must become an `srd_*` table with the `srd/` storage policy in the same migration** — canonical art may never live under a user UUID.
 
 ## Phase 2 / 3
 
-- **Phase 2** — remaining archetypes as pure data; optionally wire `loot_tables`/`roll_tables` behind `drawFromDeck()` (now safe: both rollers gained characterisation tests in `cc5cd6bc`, see [#487](https://github.com/irongollem/grimoire/issues/487) for the sharp edges found); drop-chest delivery for multi-reward outcomes; apply `item`/`hp`/`condition`.
+- **Phase 2 — shipped.** Polymorphic seed rewards (`npc`/`item`/`note`) with a per-kind clone→create dispatch in `useResolveDraw`; the deck filled to eight archetypes as pure data; automatic `gold`/`hp`/`condition` application via pure `downtimeEffects.ts` transforms; `DeckBacksPanel` prep generalised to `npc`/`item`/`note`. No migration — reward-type CHECKs and the `current_hp`/`conditions` columns already existed. Verified: typecheck clean, 65 unit tests, DB constraint/column confirmation.
+- **Phase 2 — deferred (the doc's "optional" branch, tracked for follow-up):** wire `loot_tables`/`roll_tables` behind `drawFromDeck()` (now safe: both rollers gained characterisation tests in `cc5cd6bc`, see [#487](https://github.com/irongollem/grimoire/issues/487) for the sharp edges) so `Pit Fighting → prize` rolls the live Vault; drop-chest delivery for multi-reward outcomes via `sendLootChest()`. The current item-reward path (mint a catalog item template) covers the loop without these.
 - **Phase 3** — AI outcome drafting (new `generator_type` + `ai_generation_credit_costs` row, edge function modelled on `supabase/functions/generate-trap/index.ts`, frontend via `registerAiGenerator`); `srd_*` seed library with curated art; **Cardforge deck export** (5th `CardSubject` kind + `useDowntimeCardData.ts`).
