@@ -9,6 +9,8 @@
 // All entries share drop_chance (1–100) and an optional DM note.
 // Rolling logic: src/lib/lootTableRoll.ts.
 
+import { parseExpression, maxExpression } from "@/lib/dice";
+
 export const LOOT_CR_TIERS = ["any", "0-4", "5-10", "11-16", "17+"] as const;
 export type LootCrTier = (typeof LOOT_CR_TIERS)[number];
 export type LootEntryType = "item" | "currency" | "random";
@@ -76,6 +78,36 @@ export type LootTableUpdate = Partial<LootTableInsert>;
 
 // ── Validation ───────────────────────────────────────────────────────────────
 
+/**
+ * Guard a quantity-bearing entry ("item"/"random") against configurations that
+ * always hit but can never drop anything — a dice expression that can't roll
+ * positive (e.g. "1d4-10") or a fixed quantity of 0 with no dice. These would
+ * otherwise resolve to an `unresolved` result at roll time and under-deliver
+ * silently, so we block them at save. (issue #487)
+ */
+function validateQuantity(e: LootEntry): string | null {
+  if (e.dice !== null && e.dice !== undefined && e.dice !== "" && typeof e.dice !== "string") {
+    return "Quantity dice must be a string like '2d4' or '3d6+2'.";
+  }
+  if (typeof e.dice === "string" && e.dice.trim()) {
+    const parsed = parseExpression(e.dice);
+    if (!parsed) return `"${e.dice}" isn't a valid quantity — try "1d4", "2d6+1", or a plain number.`;
+    if (maxExpression(parsed) <= 0) {
+      return `"${e.dice}" can never roll a positive quantity, so this entry would always drop nothing.`;
+    }
+    return null; // a valid dice expression takes precedence over fixed_qty
+  }
+  if (e.fixed_qty !== null && e.fixed_qty !== undefined) {
+    if (!Number.isInteger(e.fixed_qty) || e.fixed_qty < 0) {
+      return "Fixed quantity must be a non-negative integer.";
+    }
+    if (e.fixed_qty === 0) {
+      return "Fixed quantity is 0 with no dice, so this entry would always drop nothing.";
+    }
+  }
+  return null;
+}
+
 /** Returns a human-readable error message if any entry is malformed, or null. */
 export function validateEntries(entries: LootEntry[]): string | null {
   for (const e of entries) {
@@ -85,14 +117,12 @@ export function validateEntries(entries: LootEntry[]): string | null {
     const type = e.type ?? "item";
     if (type === "item") {
       if (!e.item_id) return "Every item entry must reference an item from the Vault.";
-      if (e.dice !== null && e.dice !== undefined && e.dice !== "" && typeof e.dice !== "string") {
-        return "Quantity dice must be a string like '2d4' or '3d6+2'.";
-      }
-      if (e.fixed_qty !== null && e.fixed_qty !== undefined && (!Number.isInteger(e.fixed_qty) || e.fixed_qty < 0)) {
-        return "Fixed quantity must be a non-negative integer.";
-      }
+      const qtyError = validateQuantity(e);
+      if (qtyError) return qtyError;
     } else if (type === "random") {
       if (!e.rarity) return "Random entries must have a rarity selected.";
+      const qtyError = validateQuantity(e);
+      if (qtyError) return qtyError;
     }
     // currency entries are valid as long as drop_chance is in range
   }

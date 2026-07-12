@@ -87,6 +87,25 @@
             </ul>
             <p v-else class="font-fell text-xs text-muted-foreground italic">Nothing rolled — chest will be empty.</p>
           </div>
+
+          <!-- Under-delivery warning: entries that hit but produced no loot -->
+          <div
+            v-if="unresolved.length"
+            class="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 flex flex-col gap-1.5"
+          >
+            <span class="font-cinzel text-[10px] font-semibold tracking-wider text-amber-500 uppercase flex items-center gap-1.5">
+              <IconWarning class="h-3 w-3" />
+              Under-delivered ({{ unresolved.length }})
+            </span>
+            <ul class="flex flex-col gap-0.5">
+              <li v-for="u in unresolved" :key="u.entry_id" class="font-fell text-xs text-muted-foreground">
+                {{ u.wanted }} — {{ unresolvedReasonLabel(u.reason) }}
+              </li>
+            </ul>
+            <p class="font-fell text-[10px] text-muted-foreground italic">
+              These entries hit but had nothing to give. The chest will drop without them.
+            </p>
+          </div>
         </div>
 
         <div class="px-5 py-4 border-t border-border flex items-center justify-end gap-2">
@@ -114,14 +133,16 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { IconClose, IconPackageOpen } from '@/lib/icons';
+import { IconClose, IconPackageOpen, IconWarning } from '@/lib/icons';
 import { formatCoinParts } from '@/lib/currency';
 import { useImageUpload } from '@/composables/useImageUpload';
 import type { LootChestAtom } from '@/types/chat.types';
+import { unresolvedReasonLabel, type RolledUnresolvedEntry } from '@/lib/lootTableRoll';
 
 const {
   open,
   atoms,
+  unresolved,
   claimsDice,
   chestImageUrl,
   effectiveCap,
@@ -129,6 +150,7 @@ const {
 } = defineProps<{
   open: boolean;
   atoms: LootChestAtom[];
+  unresolved: RolledUnresolvedEntry[];
   claimsDice: string;
   chestImageUrl: string | null;
   effectiveCap: number | null;

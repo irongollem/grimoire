@@ -242,6 +242,12 @@
                     {{ r.currency_label ? r.currency_label + ': ' : '' }}{{ formatCoinParts(r.pp, r.gp, r.ep, r.sp, r.cp).join(', ') || '0 GP' }}
                   </span>
                 </template>
+                <template v-else-if="r.type === 'unresolved'">
+                  <span class="font-cinzel text-sm font-bold text-amber-500 shrink-0 w-7 text-right" title="This entry hit but produced no loot">⚠</span>
+                  <span class="font-fell text-sm text-muted-foreground truncate italic">
+                    {{ r.wanted }} — {{ unresolvedReasonLabel(r.reason) }}
+                  </span>
+                </template>
               </li>
             </ul>
             <p v-else class="font-fell text-xs text-muted-foreground italic">
@@ -274,6 +280,7 @@
     <LootTableDropDialog
       :open="dropDialogOpen"
       :atoms="dropPreviewAtoms"
+      :unresolved="dropPreviewUnresolved"
       :claims-dice="claimsDice"
       :chest-image-url="chestImageUrl"
       :effective-cap="effectiveCap"
@@ -316,7 +323,12 @@ import {
 } from "@/types/item.types";
 import { formatCoinParts } from "@/lib/currency";
 import type { LootChestAtom, LootChestMetadata } from "@/types/chat.types";
-import { rollLootTable, type RolledLootEntry } from "@/lib/lootTableRoll";
+import {
+  rollLootTable,
+  unresolvedReasonLabel,
+  type RolledLootEntry,
+  type RolledUnresolvedEntry,
+} from "@/lib/lootTableRoll";
 import { parseExpression, rollExpression } from "@/lib/dice";
 import PageHeader from "@/components/common/PageHeader.vue";
 import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
@@ -542,7 +554,7 @@ const dropPreviewAtoms = computed<LootChestAtom[]>(() => {
           item_is_container: item?.tags.includes("container") ?? false,
         });
       }
-    } else {
+    } else if (r.type === "currency") {
       atoms.push({
         atom_id:        crypto.randomUUID(),
         type:           "currency",
@@ -550,9 +562,18 @@ const dropPreviewAtoms = computed<LootChestAtom[]>(() => {
         pp: r.pp, gp: r.gp, ep: r.ep, sp: r.sp, cp: r.cp,
       });
     }
+    // "unresolved" entries hit but produced no loot — surfaced separately (below),
+    // never turned into a claimable atom.
   }
   return atoms;
 });
+
+// Entries that hit but resolved to nothing — shown to the DM so they know the
+// chest under-delivers before dropping it (issue #487). Not persisted to the
+// player-facing chest.
+const dropPreviewUnresolved = computed<RolledUnresolvedEntry[]>(() =>
+  dropPreview.value.filter((r): r is RolledUnresolvedEntry => r.type === "unresolved"),
+);
 
 const effectiveCap = computed<number | null>(() => {
   if (claimsRolled.value === null) return null;

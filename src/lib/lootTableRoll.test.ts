@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { rollLootTable, type RolledItemEntry, type RolledCurrencyEntry } from "./lootTableRoll";
+import {
+  rollLootTable,
+  unresolvedReasonLabel,
+  type RolledItemEntry,
+  type RolledCurrencyEntry,
+  type RolledUnresolvedEntry,
+} from "./lootTableRoll";
 import type { Item } from "@/types/item.types";
 import type { LootEntry, LootTable } from "@/types/lootTable.types";
 
@@ -179,26 +185,29 @@ describe("rollLootTable — quantity resolution", () => {
     expect((result[0] as RolledItemEntry).qty).toBe(1);
   });
 
-  it("sharp edge: fixed_qty of exactly 0 is treated as 'unset' and defaults to quantity 1, not 0", () => {
-    // rollQuantity only honours fixed_qty when it is > 0 (lootTableRoll.ts:128).
-    // A DM who sets fixed_qty=0 to mean "this entry hits but grants nothing"
-    // silently gets qty=1 instead.
-    const item = makeItem({ id: "arrow" });
+  it("honours an explicit fixed_qty of 0 as 'hit but nothing' — surfacing an unresolved entry, not defaulting to 1 (#487)", () => {
+    // fixed_qty=0 is now distinguished from unset: it means "this entry hits but
+    // grants nothing", which surfaces as a non_positive_quantity unresolved entry
+    // rather than the old silent default of qty=1.
+    const item = makeItem({ id: "arrow", name: "Arrow" });
     const entry = makeLootEntry({ id: "e1", drop_chance: 100, type: "item", item_id: "arrow", dice: null, fixed_qty: 0 });
     stubRandom([]);
     const result = rollLootTable(makeLootTable([entry]), new Map([["arrow", item]]));
-    expect((result[0] as RolledItemEntry).qty).toBe(1);
+    expect(result).toEqual([
+      { type: "unresolved", entry_id: "e1", reason: "non_positive_quantity", wanted: "Arrow", notes: null } satisfies RolledUnresolvedEntry,
+    ]);
   });
 
-  it("sharp edge: a dice expression that rolls to a non-positive total drops the entry from results entirely, despite having hit", () => {
-    // "1d4-10" at its maximum roll (4) totals -6; rollQuantity clamps via
-    // Math.max(0, floor(total)) to 0, and the qty<=0 guard in rollLootTable
-    // then `continue`s — the caller cannot distinguish this from a miss.
-    const item = makeItem({ id: "arrow" });
+  it("surfaces a dice expression that rolls to a non-positive total as unresolved, not a silent drop (#487)", () => {
+    // "1d4-10" at its maximum roll (4) totals -6; the entry hit but can't produce
+    // a positive quantity, so it is now reported as unresolved rather than dropped.
+    const item = makeItem({ id: "arrow", name: "Arrow" });
     const entry = makeLootEntry({ id: "e1", drop_chance: 100, type: "item", item_id: "arrow", dice: "1d4-10" });
     stubRandom([randAt(4, 4)]);
     const result = rollLootTable(makeLootTable([entry]), new Map([["arrow", item]]));
-    expect(result).toEqual([]);
+    expect(result).toEqual([
+      { type: "unresolved", entry_id: "e1", reason: "non_positive_quantity", wanted: "Arrow", notes: null } satisfies RolledUnresolvedEntry,
+    ]);
   });
 });
 
@@ -291,25 +300,34 @@ describe("rollLootTable — random (pool-pick) entries", () => {
     ]);
   });
 
-  it("sharp edge: an empty candidate pool after filtering silently drops the entry — no result is produced, not even an undefined placeholder", () => {
+  it("surfaces an empty candidate pool as unresolved 'no_matching_items', not a silent drop (#487)", () => {
     const commonItem = makeItem({ id: "common-a", rarity: "common" });
     const itemsById = new Map([[commonItem.id, commonItem]]);
     const entry = makeLootEntry({ id: "e1", drop_chance: 100, type: "random", rarity: "artifact", fixed_qty: 1 });
     // pool is empty before any random call is made — the pick and qty roll never happen.
     stubRandom([]);
     const result = rollLootTable(makeLootTable([entry]), itemsById);
-    expect(result).toEqual([]);
+    expect(result).toHaveLength(1);
+    const u = result[0] as RolledUnresolvedEntry;
+    expect(u.type).toBe("unresolved");
+    expect(u.reason).toBe("no_matching_items");
+    expect(u.entry_id).toBe("e1");
+    expect(u.wanted).toBeTruthy(); // a human label of what it wanted (e.g. "Artifact item")
   });
 });
 
 // ── item entries referencing a deleted/missing vault item ────────────────────
 
 describe("rollLootTable — dangling item references", () => {
-  it("skips an item entry whose item_id is absent from itemsById", () => {
+  it("surfaces an item entry whose item_id is absent as unresolved 'item_deleted', not a silent drop (#487)", () => {
     const entry = makeLootEntry({ id: "e1", drop_chance: 100, type: "item", item_id: "deleted-item", fixed_qty: 1 });
     stubRandom([]);
     const result = rollLootTable(makeLootTable([entry]), new Map());
-    expect(result).toEqual([]);
+    expect(result).toHaveLength(1);
+    const u = result[0] as RolledUnresolvedEntry;
+    expect(u.type).toBe("unresolved");
+    expect(u.reason).toBe("item_deleted");
+    expect(u.entry_id).toBe("e1");
   });
 });
 
@@ -331,5 +349,15 @@ describe("rollLootTable — misc", () => {
     expect(result).toHaveLength(1);
     expect(result[0].type).toBe("item");
     expect((result[0] as RolledItemEntry).item_name).toBe("Legacy Sword");
+  });
+});
+
+// ── unresolvedReasonLabel ─────────────────────────────────────────────────────
+
+describe("unresolvedReasonLabel", () => {
+  it("returns a non-empty human string for every reason", () => {
+    for (const reason of ["no_matching_items", "non_positive_quantity", "item_deleted"] as const) {
+      expect(unresolvedReasonLabel(reason)).toBeTruthy();
+    }
   });
 });

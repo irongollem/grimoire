@@ -228,6 +228,11 @@ export function averageExpression(parsed: ParsedExpression): number {
   return Math.floor(avg + parsed.modifier);
 }
 
+/** Highest possible total (every die shows its max face). */
+export function maxExpression(parsed: ParsedExpression): number {
+  return parsed.terms.reduce((s, t) => s + t.count * t.sides, 0) + parsed.modifier;
+}
+
 /**
  * Compute a concrete max-HP number from a `hit_points` stat-block field, which
  * may be a pure dice expression ("2d8+2"), the "N (dice)" form ("11 (2d8+2)"),
