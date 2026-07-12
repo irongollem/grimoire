@@ -28,7 +28,8 @@ async function fetchNote(id: string): Promise<Note> {
   return data as Note;
 }
 
-async function createNote(note: NoteInsert): Promise<Note> {
+/** Exported so a resolved downtime outcome can mint a seed note into the campaign. */
+export async function createNote(note: NoteInsert): Promise<Note> {
   const { data, error } = await supabase
     .from("notes")
     .insert(note)

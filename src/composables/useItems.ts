@@ -41,7 +41,8 @@ async function fetchItem(id: string): Promise<Item | null> {
   return data as Item | null;
 }
 
-async function createItem(item: ItemInsert): Promise<Item> {
+/** Exported so a resolved downtime outcome can mint a seed item into the campaign. */
+export async function createItem(item: ItemInsert): Promise<Item> {
   const user = getCurrentUser();
   const { data, error } = await supabase
     .from("items")

@@ -4,7 +4,8 @@ import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import DowntimeActivityCard from "./DowntimeActivityCard.vue";
 import { getDowntimeActivity } from "@/data/downtimeActivities";
 import { markdownToTiptapJson } from "@/lib/markdownToTiptap";
-import { previewDraw, useResolveDraw, useCancelDraw, useApplyGoldEffects } from "@/composables/useDowntime";
+import { previewDraw, useResolveDraw, useCancelDraw, useApplyEffects } from "@/composables/useDowntime";
+import { isAutoAppliedKind } from "@/lib/downtimeEffects";
 import { COIN_KEYS } from "@/types/downtime.types";
 import type { DowntimeDeckBack, DowntimeDraw, DowntimeEffect, DrawResult } from "@/types/downtime.types";
 
@@ -48,6 +49,22 @@ const sourceLabel = computed(() => {
     : "Drawn from the system deck";
 });
 
+/** What a seed draw will mint — kind + name, for the "will be created" line. */
+const seedReward = computed<{ noun: string; name: string } | null>(() => {
+  const r = result.value;
+  if (r?.source !== "seed") return null;
+  const reward = r.seed.reward;
+  switch (reward.kind) {
+    case "npc":
+      return { noun: "NPC", name: reward.npc.name };
+    case "item":
+      return { noun: "item", name: reward.item.name };
+    case "note":
+      return { noun: "note", name: reward.note.title };
+  }
+  return null;
+});
+
 function effectSummary(effect: DowntimeEffect): string {
   switch (effect.kind) {
     case "gold": {
@@ -63,14 +80,14 @@ function effectSummary(effect: DowntimeEffect): string {
   }
 }
 
-/** Only `gold` is enacted by the app; the rest are the DM's to perform. */
+/** Coin, HP, and conditions are enacted by the app; `item` is the DM's to hand out. */
 function isAutoApplied(effect: DowntimeEffect): boolean {
-  return effect.kind === "gold";
+  return isAutoAppliedKind(effect.kind);
 }
 
 const resolve = useResolveDraw();
 const cancel = useCancelDraw();
-const applyGold = useApplyGoldEffects();
+const applyEffects = useApplyEffects();
 
 const canResolve = computed(() => title.value.trim() !== "");
 
@@ -84,7 +101,7 @@ async function onResolve() {
       effects: effects.value,
       result: result.value,
     });
-    await applyGold.mutateAsync({
+    await applyEffects.mutateAsync({
       partyMemberId: draw.party_member_id,
       effects: effects.value,
     });
@@ -128,10 +145,10 @@ async function onCancel() {
           >.
         </p>
         <p
-          v-else-if="result?.source === 'seed'"
+          v-else-if="result?.source === 'seed' && seedReward"
           class="mt-2 rounded border border-border bg-muted/40 p-2 text-2xs"
         >
-          A new NPC — <span class="font-medium">{{ result.seed.npc.name }}</span> —
+          A new {{ seedReward.noun }} — <span class="font-medium">{{ seedReward.name }}</span> —
           will be created in your campaign and linked to this outcome.
         </p>
         <p v-else class="mt-2 text-2xs text-destructive">
@@ -157,7 +174,8 @@ async function onCancel() {
         <fieldset v-if="effects.length > 0" class="mt-3">
           <legend class="text-2xs font-medium">Proposed consequences</legend>
           <p class="mb-1 text-2xs text-muted-foreground">
-            Your world, your call. Only coin is applied automatically.
+            Your world, your call. Coin, HP, and conditions are applied automatically;
+            items are yours to hand out.
           </p>
           <label
             v-for="(effect, i) in effects"

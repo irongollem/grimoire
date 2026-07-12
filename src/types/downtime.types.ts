@@ -1,4 +1,6 @@
 import type { NpcInsert } from "./npc.types";
+import type { ItemInsert } from "./item.types";
+import type { NoteInsert } from "./notes.types";
 
 // ── Reward + status vocabularies ──────────────────────────────────────────────
 // Mirrors the CHECK constraints in migration 20260710000001.
@@ -78,6 +80,12 @@ export interface DowntimeActivity {
 // ── Seed content ──────────────────────────────────────────────────────────────
 // System templates cloned into a campaign as ordinary, private, editable rows.
 // Nothing canonical is stored, so the `srd/` storage rules do not apply here.
+//
+// A seed's reward is polymorphic (Phase 2): Carouse mints an NPC, Craft an item,
+// Research a note. The `reward.kind` is a subset of `DowntimeRewardType` — every
+// kind here has a real create path in `downtimeSeedReward.ts`. Prepped card backs
+// can still point at *any* reward type; only the on-the-fly seed side is bounded
+// to the kinds we can mint from a template.
 
 /** The NPC-shaped fields a seed contributes; the rest get campaign defaults. */
 export type DowntimeSeedNpc = Pick<
@@ -93,6 +101,37 @@ export type DowntimeSeedNpc = Pick<
   | "tags"
 >;
 
+/** The item-shaped fields a seed contributes; the builder fills sane defaults. */
+export type DowntimeSeedItem = Pick<
+  ItemInsert,
+  | "name"
+  | "item_type"
+  | "subtype"
+  | "rarity"
+  | "description"
+  | "weight"
+  | "cost"
+  | "requires_attunement"
+  | "tags"
+>;
+
+/**
+ * The note-shaped fields a seed contributes. `body` is authored as Markdown and
+ * converted to the Tiptap JSON `notes.content` expects at clone time — a seed
+ * never hand-writes Tiptap.
+ */
+export interface DowntimeSeedNote {
+  title: string;
+  body: string;
+  category: NoteInsert["category"];
+  tags: string[];
+}
+
+export type DowntimeSeedReward =
+  | { kind: "npc"; npc: DowntimeSeedNpc }
+  | { kind: "item"; item: DowntimeSeedItem }
+  | { kind: "note"; note: DowntimeSeedNote };
+
 export interface DowntimeSeed {
   id: string;
   activityKey: string;
@@ -102,7 +141,8 @@ export interface DowntimeSeed {
   title: string;
   vignette: string;
   proposedEffects: DowntimeEffect[];
-  npc: DowntimeSeedNpc;
+  /** What a resolved draw mints and links to this outcome. */
+  reward: DowntimeSeedReward;
 }
 
 // ── DB rows ───────────────────────────────────────────────────────────────────

@@ -3,11 +3,22 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { createNpc } from "./useNpcs";
+import { createItem } from "./useItems";
+import { createNote } from "./useNotes";
 import { computeBalance } from "@/lib/downtimeBalance";
 import { drawFromDeck } from "@/lib/downtimeDeck";
-import { npcInsertFromSeed } from "@/lib/downtimeSeedNpc";
+import {
+  npcInsertFromSeed,
+  itemInsertFromSeed,
+  noteInsertFromSeed,
+} from "@/lib/downtimeSeedReward";
+import {
+  applyCoinEffects,
+  applyConditionEffects,
+  applyHpEffects,
+  hasApplicableMemberEffect,
+} from "@/lib/downtimeEffects";
 import { DOWNTIME_SEEDS } from "@/data/downtimeSeeds";
-import { COIN_KEYS } from "@/types/downtime.types";
 import type {
   CoinKey,
   DowntimeDeckBack,
@@ -238,12 +249,34 @@ export function useResolveDraw() {
         rewardId = result.back.reward_id;
         backId = result.back.id;
       } else if (result?.source === "seed") {
-        const npc = await createNpc({
-          ...npcInsertFromSeed(result.seed),
-          campaign_id: campaign.activeCampaignId,
-        });
-        rewardType = "npc";
-        rewardId = npc.id;
+        // Mint the seed's reward as an ordinary RLS-checked insert BEFORE the
+        // RPC, then hand its id in — so the SECURITY DEFINER function never
+        // creates entities on the caller's behalf. Dispatch on the reward kind;
+        // every kind here has a builder in downtimeSeedReward.ts.
+        const campaignId = campaign.activeCampaignId!;
+        const reward = result.seed.reward;
+        if (reward.kind === "npc") {
+          const npc = await createNpc({
+            ...npcInsertFromSeed(reward.npc),
+            campaign_id: campaignId,
+          });
+          rewardType = "npc";
+          rewardId = npc.id;
+        } else if (reward.kind === "item") {
+          const item = await createItem({
+            ...itemInsertFromSeed(reward.item),
+            campaign_id: campaignId,
+          });
+          rewardType = "item";
+          rewardId = item.id;
+        } else if (reward.kind === "note") {
+          const note = await createNote({
+            ...noteInsertFromSeed(reward.note),
+            campaign_id: campaignId,
+          });
+          rewardType = "note";
+          rewardId = note.id;
+        }
       }
 
       const { data, error } = await supabase.rpc("resolve_downtime_draw", {
@@ -260,54 +293,59 @@ export function useResolveDraw() {
     },
     onSuccess: () => {
       invalidate();
-      // A resolved seed draw mints an NPC; the bestiary/NPC lists must refresh.
+      // A resolved seed draw mints an entity — refresh whichever list it lands
+      // in. Cheaper to invalidate all three than to thread the reward kind out.
       void queryClient.invalidateQueries({ queryKey: ["npcs"] });
+      void queryClient.invalidateQueries({ queryKey: ["items"] });
+      void queryClient.invalidateQueries({ queryKey: ["notes"] });
     },
   });
 }
 
 /**
- * Apply the `gold` effects the DM ticked, to the character who drew.
+ * Apply the ticked effects the app can enact — coin, HP, and conditions — to the
+ * character who drew. `party_members` carries cp/sp/ep/gp/pp, current_hp/max_hp,
+ * and a `conditions` array, so all three are safe and verifiable. The `item`
+ * kind still renders as a checklist the DM performs by hand (it names an item to
+ * drop into inventory, which the effect alone can't safely resolve) — a named
+ * limit, not an oversight.
  *
- * Gold is the only effect kind Phase 1 enacts programmatically: `party_members`
- * already carries cp/sp/ep/gp/pp, so the mutation is safe and verifiable. The
- * item/hp/condition kinds render on the board as a checklist the DM performs at
- * the table — a named limit, not an oversight.
- *
- * Read-modify-write is acceptable here: only the DM resolves draws, so there is
- * no concurrent writer to race against.
+ * All three write to the same `party_members` row, so a single read-modify-write
+ * applies them together. That is acceptable: only the DM resolves draws, so
+ * there is no concurrent writer to race against.
  */
-export function useApplyGoldEffects() {
+export function useApplyEffects() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (args: {
       partyMemberId: string;
       effects: DowntimeEffect[];
     }): Promise<void> => {
-      const gold = args.effects.filter(
-        (e): e is Extract<DowntimeEffect, { kind: "gold" }> => e.kind === "gold" && e.applied,
-      );
-      if (gold.length === 0) return;
+      if (!hasApplicableMemberEffect(args.effects)) return;
 
       const { data: member, error: readError } = await supabase
         .from("party_members")
-        .select("cp, sp, ep, gp, pp")
+        .select("cp, sp, ep, gp, pp, current_hp, max_hp, conditions")
         .eq("id", args.partyMemberId)
         .single();
       if (readError) throw readError;
 
-      const coins = member as Record<CoinKey, number>;
-      const next: Record<CoinKey, number> = { ...coins };
-      for (const effect of gold) {
-        for (const key of COIN_KEYS) {
-          // A purse cannot go negative; the DM narrates the shortfall.
-          next[key] = Math.max(0, next[key] + effect[key]);
-        }
-      }
+      const row = member as Record<CoinKey, number> & {
+        current_hp: number;
+        max_hp: number;
+        conditions: string[];
+      };
+
+      const coins = applyCoinEffects(
+        { pp: row.pp, gp: row.gp, ep: row.ep, sp: row.sp, cp: row.cp },
+        args.effects,
+      );
+      const currentHp = applyHpEffects(row.current_hp, row.max_hp, args.effects);
+      const conditions = applyConditionEffects(row.conditions ?? [], args.effects);
 
       const { error: writeError } = await supabase
         .from("party_members")
-        .update(next)
+        .update({ ...coins, current_hp: currentHp, conditions })
         .eq("id", args.partyMemberId);
       if (writeError) throw writeError;
     },
