@@ -19,6 +19,8 @@ dist-ssr/
 
 # Supabase edge-function secret files (Stripe keys etc.) — never commit
 supabase/.env*
+# Local DB seed pulled from remote (tester data) — never commit to the public repo
+supabase/seed.sql
 
 # Personal setup notes (gitignored — edit freely)
 TODO_SETUP.md
@@ -28,6 +30,8 @@ TODO_SETUP.md
 
 # Supabase CLI temp files (project metadata, not secrets but not needed in repo)
 supabase/.temp/
+# Supabase CLI local-branch tracking artifact
+supabase/.branches/
 
 # Campaign-specific NPC importer sidecars — content for a private campaign, not software
 scripts/chapter_npc_configs/

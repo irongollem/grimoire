@@ -98,17 +98,65 @@ Full pricing at [dungeongrimoire.com/pricing](https://dungeongrimoire.com/pricin
 cp .env.example .env.local   # fill in your Supabase URL + anon key
 
 npm install
-npm run dev         # dev server
+npm run dev         # dev server (against the remote in .env.local)
 npm run build       # production build (vue-tsc + vite-ssg)
 npm run lint        # oxlint
 npm test            # vitest
 ```
 
-Apply database migrations:
+Apply database migrations to the remote:
 
 ```bash
 supabase db push
 ```
+
+### Local Development (against a local Supabase copy)
+
+Day-to-day development should run against a **local Supabase stack**, not the
+production database. The local stack is a full, throwaway copy of the schema
+(all migrations replayed) that you can reset freely.
+
+**Prerequisites:** Docker running, the Supabase CLI installed, and the project
+linked once (`supabase link --project-ref <ref>`).
+
+```bash
+npm run db:start     # boot the local stack (Postgres, Auth, Storage, Studio…)
+npm run db:status    # print local URLs + keys (Studio at <http://127.0.0.1:54323>)
+npm run dev:local    # run the app against the local stack (vite --mode localdb)
+npm run db:reset     # wipe + replay all migrations (+ seed.sql if present)
+npm run db:stop      # tear the stack down
+```
+
+`npm run dev:local` reads `.env.localdb` (committed; the CLI's universal local
+defaults — safe, not secrets). `npm run dev` stays pointed at your remote via
+the gitignored `.env.local`, so the two never collide.
+
+**Seed it with a copy of the remote** (tester accounts + app data — no
+production customer data exists pre-launch):
+
+```bash
+npm run db:pull      # dumps remote auth+public data → supabase/seed.sql (gitignored)
+npm run db:reset     # rebuilds the local DB and loads seed.sql
+```
+
+`db:pull` needs the remote DB password (the CLI prompts, or set
+`SUPABASE_DB_PASSWORD`). It **excludes the config/reference tables that migrations
+already seed** (`abuse_guard_config`, `ai_generation_credit_costs`,
+`ai_model_pricing`, `ai_system_prompts`, `checkout_config`, `credit_pack_config`,
+`provider_config`) — those are populated identically by migrations on both sides,
+so dumping them too would collide on primary keys at `db:reset`. If you add a new
+migration-seeded config table, add it to the `-x` list in the `db:pull` script.
+If the `auth` portion of the dump errors, narrow it to `--schema public` and create
+tester accounts locally instead (local signup confirmation emails land in Mailpit
+at <http://127.0.0.1:54324>).
+
+> **Why the baseline squash omits the `storage` schema:** a full `supabase db
+> dump` captures the service-managed `storage` schema, which a local
+> `supabase start` cannot replay (the migration role can't create in / own the
+> storage schema — that schema is provided by the storage service). The baseline
+> keeps only the app's `storage.objects` **RLS policies**; the schema itself
+> comes from the service. This keeps local replay green and leaves the remote
+> untouched.
 
 ---
 
