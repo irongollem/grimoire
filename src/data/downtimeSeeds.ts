@@ -329,6 +329,121 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     },
   },
 
+  {
+    id: "craft-alchemists-batch",
+    activityKey: "craft",
+    weight: 2,
+    title: "A batch, not a bottle",
+    vignette:
+      "You did not make one. You worked out the ratios, wrote them down properly, and then made as many as the reagents allowed — which is the difference between a lucky brew and knowing how.",
+    proposedEffects: [
+      {
+        kind: "gold",
+        applied: false,
+        note: "Reagents, bought in bulk and mostly used.",
+        cp: 0,
+        sp: 0,
+        ep: 0,
+        gp: -20,
+        pp: 0,
+      },
+    ],
+    reward: {
+      kind: "item",
+      item: {
+        name: "Alchemist's Batch",
+        item_type: "potion",
+        subtype: null,
+        rarity: "common",
+        requires_attunement: false,
+        weight: 1,
+        cost: "25 gp",
+        description:
+          "Several doses of the same brew, corked and labelled in your own hand. Agree the effect with your DM — the point is that you can make more.",
+        tags: ["crafted", "alchemy", "consumable"],
+        image_url: null,
+      },
+    },
+  },
+  {
+    id: "craft-warded-lockbox",
+    activityKey: "craft",
+    weight: 1,
+    title: "Only you can open it",
+    vignette:
+      "Not a lock — a lock is a puzzle, and puzzles get solved. What you built asks a question only you know the answer to, and it is very patient about waiting for the wrong one.",
+    proposedEffects: [
+      {
+        kind: "gold",
+        applied: false,
+        note: "Fine mechanism, and the ward laid into it.",
+        cp: 0,
+        sp: 0,
+        ep: 0,
+        gp: -25,
+        pp: 0,
+      },
+    ],
+    reward: {
+      kind: "item",
+      item: {
+        name: "Warded Lockbox",
+        item_type: "wondrous_item",
+        subtype: null,
+        rarity: "uncommon",
+        requires_attunement: false,
+        weight: 4,
+        cost: "80 gp",
+        description:
+          "A strongbox keyed to its maker. Opens for you without effort; for anyone else it does not open, and it remembers that they tried.",
+        tags: ["crafted", "container", "warded"],
+        image_url: null,
+      },
+    },
+  },
+  {
+    id: "craft-flawed-masterwork",
+    activityKey: "craft",
+    weight: 1,
+    title: "Beautiful, and slightly wrong",
+    vignette:
+      "It is the best thing you have ever made and there is something the matter with it. You have checked. You have re-checked. It is perfect, and it is wrong, and you cannot say how.",
+    proposedEffects: [
+      {
+        kind: "gold",
+        applied: false,
+        note: "Good materials, spent chasing a flaw you never found.",
+        cp: 0,
+        sp: 0,
+        ep: 0,
+        gp: -35,
+        pp: 0,
+      },
+      {
+        kind: "hp",
+        applied: false,
+        note: "Long nights, and a burn you did not notice getting.",
+        delta: -4,
+      },
+    ],
+    reward: {
+      kind: "item",
+      item: {
+        name: "Flawed Masterwork",
+        item_type: "wondrous_item",
+        subtype: null,
+        rarity: "uncommon",
+        requires_attunement: false,
+        weight: 2,
+        cost: null,
+        description:
+          "Exquisite work with something subtly amiss in it. The DM decides what — a curse, a quirk, an effect that fires when it shouldn't. It functions. It just isn't only yours.",
+        tags: ["crafted", "flawed", "hook"],
+        image_url: null,
+      },
+    },
+  },
+
   // ── Research & Scribe → notes ───────────────────────────────────────────────
   {
     id: "research-lore-fragment",
@@ -885,6 +1000,171 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     },
   },
 
+  {
+    id: "pit-crowd-favourite",
+    activityKey: "pit-fighting",
+    weight: 3,
+    title: "They started chanting something",
+    vignette:
+      "You did not win every bout, but you won the room. By the third night they had a name for you, and by the fifth they were shouting it before you were through the gate. The purse was decent. The name is worth more.",
+    proposedEffects: [
+      {
+        kind: "gold",
+        applied: false,
+        note: "A good run of bouts, and the crowd's generosity.",
+        cp: 0,
+        sp: 0,
+        ep: 0,
+        gp: 40,
+        pp: 0,
+      },
+      {
+        kind: "hp",
+        applied: false,
+        note: "Nothing serious. Nothing that did not hurt.",
+        delta: -4,
+      },
+    ],
+    reward: {
+      kind: "item",
+      item: {
+        name: "Victor's Laurel",
+        item_type: "art_object",
+        subtype: null,
+        rarity: "common",
+        requires_attunement: false,
+        weight: 0,
+        cost: "30 gp",
+        description:
+          "A wreath of hammered brass leaves, handed to the crowd's favourite rather than the night's best fighter. People in this city know what it means.",
+        tags: ["pit-fighting", "trophy", "reputation"],
+        image_url: null,
+      },
+    },
+  },
+  {
+    id: "pit-thrown-match",
+    activityKey: "pit-fighting",
+    weight: 2,
+    title: "You were paid to lose",
+    vignette:
+      "The offer came the night before, politely, from a man who already knew you would take it. You went down in the fourth. It looked good. It paid better than winning, and you have not felt clean since.",
+    proposedEffects: [
+      {
+        kind: "gold",
+        applied: false,
+        note: "What the fix was worth. More than the purse.",
+        cp: 0,
+        sp: 0,
+        ep: 0,
+        gp: 60,
+        pp: 0,
+      },
+      {
+        kind: "hp",
+        applied: false,
+        note: "It has to look real.",
+        delta: -6,
+      },
+    ],
+    reward: {
+      kind: "item",
+      item: {
+        name: "Fixer's Marker",
+        item_type: "gear",
+        subtype: null,
+        rarity: "mundane",
+        requires_attunement: false,
+        weight: 0,
+        cost: "5 gp",
+        description:
+          "A stamped token given to a fighter who takes a dive — proof of payment, and proof of what you did. The man who gave it to you kept the other half.",
+        tags: ["pit-fighting", "underworld", "complication", "hook"],
+        image_url: null,
+      },
+    },
+  },
+  {
+    id: "pit-underdog-upset",
+    activityKey: "pit-fighting",
+    weight: 1,
+    title: "Nobody bet on you",
+    vignette:
+      "The odds were an insult and you took them anyway, with everything you had. Then you won — and the room went very quiet, because a great deal of money had just changed hands in the wrong direction.",
+    proposedEffects: [
+      {
+        kind: "gold",
+        applied: false,
+        note: "Long odds, paid out in full. Somebody is unhappy about it.",
+        cp: 0,
+        sp: 0,
+        ep: 0,
+        gp: 150,
+        pp: 0,
+      },
+      {
+        kind: "hp",
+        applied: false,
+        note: "You won it the hard way.",
+        delta: -10,
+      },
+    ],
+    reward: {
+      kind: "item",
+      item: {
+        name: "The Long-Odds Purse",
+        item_type: "trade_good",
+        subtype: null,
+        rarity: "common",
+        requires_attunement: false,
+        weight: 2,
+        cost: "150 gp",
+        description:
+          "A heavy purse won against the odds, still bearing the bookmaker's seal. Someone lost a fortune paying it out, and they know your face.",
+        tags: ["pit-fighting", "winnings", "hook"],
+        image_url: null,
+      },
+    },
+  },
+  {
+    id: "pit-maimed",
+    activityKey: "pit-fighting",
+    weight: 1,
+    title: "It didn't heal straight",
+    vignette:
+      "You remember the sound more than the blow. They stopped the bout, which tells you something. You kept his blade, which tells you something else — and the arm has not been right since.",
+    proposedEffects: [
+      {
+        kind: "hp",
+        applied: false,
+        note: "A real one. The kind that changes how you stand.",
+        delta: -15,
+      },
+      {
+        kind: "condition",
+        applied: false,
+        note: "Wrung out and hurt — clear it after a long rest, or don't.",
+        condition: "Exhaustion",
+      },
+    ],
+    reward: {
+      kind: "item",
+      item: {
+        name: "The Blade That Did It",
+        item_type: "weapon",
+        subtype: "shortsword",
+        rarity: "mundane",
+        requires_attunement: false,
+        weight: 2,
+        cost: "10 gp",
+        description:
+          "You kept your opponent's weapon. It is unremarkable, and you will never look at it that way. The DM may rule the injury lingers.",
+        tags: ["pit-fighting", "weapon", "injury", "hook"],
+        image_url: null,
+      },
+    },
+  },
+
   // ── Lie Low → notes (+ recovery) ────────────────────────────────────────────
   {
     id: "lie-low-recuperate",
@@ -1117,6 +1397,162 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
           "A grab-bag of whatever you could carry before the whistles started. Worth a little coin — and evidence, if the wrong person recognises it.",
         tags: ["heist", "complication", "hook"],
         image_url: art("seed-botched-haul"),
+      },
+    },
+  },
+  {
+    id: "job-inside-man",
+    activityKey: "pull-a-job",
+    weight: 3,
+    title: "Somebody left a door unlocked",
+    vignette:
+      "You never met them. A wax impression appeared under your door with a time written on it, and at that time the side gate was open and the dog was somewhere else. Whoever they are, they want something from you now.",
+    proposedEffects: [
+      {
+        kind: "gold",
+        applied: false,
+        note: "Your share, after the inside man took theirs.",
+        cp: 0,
+        sp: 0,
+        ep: 0,
+        gp: 30,
+        pp: 0,
+      },
+    ],
+    reward: {
+      kind: "item",
+      item: {
+        name: "Copied Key",
+        item_type: "gear",
+        subtype: null,
+        rarity: "mundane",
+        requires_attunement: false,
+        weight: 0,
+        cost: "1 gp",
+        description:
+          "A key cut from a wax impression you did not take. It still opens that door — and someone knows you have it.",
+        tags: ["heist", "contact", "hook"],
+        image_url: null,
+      },
+    },
+  },
+  {
+    id: "job-wrong-house",
+    activityKey: "pull-a-job",
+    weight: 2,
+    title: "This wasn't what we came for",
+    vignette:
+      "Right street, right roof, wrong house — and you were three rooms in before the furniture told you so. You took something anyway, because you were there, and because it was clearly worth taking.",
+    proposedEffects: [
+      {
+        kind: "gold",
+        applied: false,
+        note: "What the wrong house happened to be worth.",
+        cp: 0,
+        sp: 0,
+        ep: 0,
+        gp: 40,
+        pp: 0,
+      },
+    ],
+    reward: {
+      kind: "item",
+      item: {
+        name: "The Wrong Prize",
+        item_type: "art_object",
+        subtype: null,
+        rarity: "uncommon",
+        requires_attunement: false,
+        weight: 2,
+        cost: "120 gp",
+        description:
+          "Valuable, and stolen from somebody you never intended to rob. They did nothing to you. They will not see it that way.",
+        tags: ["heist", "stolen", "complication", "hook"],
+        image_url: null,
+      },
+    },
+  },
+  {
+    id: "job-noble-signet",
+    activityKey: "pull-a-job",
+    weight: 1,
+    title: "A ring is not a thing you can sell",
+    vignette:
+      "It came off a hand that was asleep at the time, and it is the single most identifiable object you have ever held. No fence will touch it. Which raises the question of why you took it, and whether you can put it back.",
+    proposedEffects: [
+      {
+        kind: "gold",
+        applied: false,
+        note: "The small stuff you took alongside it.",
+        cp: 0,
+        sp: 0,
+        ep: 0,
+        gp: 20,
+        pp: 0,
+      },
+    ],
+    reward: {
+      kind: "item",
+      item: {
+        name: "A Noble's Signet",
+        item_type: "ring",
+        subtype: null,
+        rarity: "uncommon",
+        requires_attunement: false,
+        weight: 0,
+        cost: null,
+        description:
+          "A crested signet ring, unsellable and unmistakable. It seals letters as its owner. That is worth far more than gold, and far more dangerous.",
+        tags: ["heist", "noble", "unsellable", "hook"],
+        image_url: null,
+      },
+    },
+  },
+  {
+    id: "job-caught-in-the-act",
+    activityKey: "pull-a-job",
+    weight: 1,
+    title: "You went out through the window",
+    vignette:
+      "The lamp came on while your hand was still in the drawer. You got out — over the sill, down the ivy, through a canal you would rather not describe — with almost nothing, and you left something of yours behind.",
+    proposedEffects: [
+      {
+        kind: "gold",
+        applied: false,
+        note: "Whatever was already in your fist.",
+        cp: 0,
+        sp: 0,
+        ep: 0,
+        gp: 5,
+        pp: 0,
+      },
+      {
+        kind: "hp",
+        applied: false,
+        note: "The ivy did not hold, and the canal was not kind.",
+        delta: -10,
+      },
+      {
+        kind: "condition",
+        applied: false,
+        note: "Ran until you could not — clear it after a long rest.",
+        condition: "Exhaustion",
+      },
+    ],
+    reward: {
+      kind: "item",
+      item: {
+        name: "What You Managed to Keep",
+        item_type: "gear",
+        subtype: null,
+        rarity: "mundane",
+        requires_attunement: false,
+        weight: 1,
+        cost: "10 gp",
+        description:
+          "A handful of nothing much, taken in a hurry. The DM should decide what you *left* behind — a tool, a glove, a name — and who is holding it now.",
+        tags: ["heist", "botched", "complication", "hook"],
+        image_url: null,
       },
     },
   },
