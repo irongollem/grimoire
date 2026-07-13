@@ -77,6 +77,7 @@ const SOURCES: ReadonlyArray<{ id: SourceId; label: string }> = [
   { id: "monsters", label: "Monsters" },
   { id: "items", label: "Items" },
   { id: "spells", label: "Spells" },
+  { id: "downtime", label: "Interlude" },
 ];
 
 function selectAll() {

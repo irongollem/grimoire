@@ -2,6 +2,7 @@ import type { Npc } from "@/types/npc.types";
 import type { Monster } from "@/types/monster.types";
 import type { Item } from "@/types/item.types";
 import type { Spell } from "@/types/spell.types";
+import type { DowntimeActivity } from "@/types/downtime.types";
 
 /**
  * Shared Card Forge tokens — the bits both Inked and Modern designs use.
@@ -115,6 +116,20 @@ export const SPELL_ACCENT: Record<string, Accent> = {
   transmutation: accent.green,   // change / nature
 };
 const DEFAULT_SPELL_ACCENT = accent.blue;
+
+/** Downtime accent by risk — the card's risk dial *is* its colour.
+ *  Deliberately not `DowntimeActivity.accent` (a single hex): a Card Forge accent
+ *  needs all three roles, and reading risk keeps the deck legible at a glance. */
+export const DOWNTIME_ACCENT: Record<number, Accent> = {
+  1: accent.green, // safe
+  2: accent.amber, // risky
+  3: accent.red,   // dangerous
+};
+const DEFAULT_DOWNTIME_ACCENT = accent.bronze;
+
+export function accentForDowntime(d: DowntimeActivity): Accent {
+  return DOWNTIME_ACCENT[d.risk] ?? DEFAULT_DOWNTIME_ACCENT;
+}
 
 export function accentForNpc(d: Npc): Accent {
   return NPC_ACCENT[d.relationship] ?? DEFAULT_NPC_ACCENT;

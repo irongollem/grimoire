@@ -41,6 +41,7 @@
 import { ref } from "vue";
 import { useCardForgeStore } from "@/stores/cardForge";
 import { useCardForgeData } from "@/composables/useCardForgeData";
+import { cardSubjectId } from "@/types/card.types";
 
 const store = useCardForgeStore();
 const { selectedSubjects } = useCardForgeData();
@@ -49,7 +50,9 @@ const name = ref("");
 function save() {
   store.saveCollection(
     name.value,
-    selectedSubjects.value.map((s) => ({ kind: s.kind, id: s.data.id })),
+    // A downtime archetype is keyed by `key`, not `id` — `cardSubjectId` owns that,
+    // and `loadCollection` maps the kind back to its bucket.
+    selectedSubjects.value.map((s) => ({ kind: s.kind, id: cardSubjectId(s) })),
   );
   name.value = "";
 }

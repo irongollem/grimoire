@@ -11,6 +11,8 @@ import type { Item } from "@/types/item.types";
 import { ITEM_TYPE_LABELS, ITEM_RARITY_LABELS } from "@/types/item.types";
 import type { Spell } from "@/types/spell.types";
 import { spellLevelLabel } from "@/types/spell.types";
+import { DOWNTIME_ACTIVITIES, RISK_LABELS } from "@/data/downtimeActivities";
+import type { DowntimeActivity } from "@/types/downtime.types";
 
 export interface CardForgeListItem {
   id: string;
@@ -54,6 +56,17 @@ export function useCardForgeData() {
           name: m.name,
           sub: `${m.size} ${m.monster_type} · CR ${m.stat_block?.challenge_rating ?? "?"}`,
         }));
+    }
+    if (store.source === "downtime") {
+      // Static catalog, not a query — the archetype deck ships in code.
+      return DOWNTIME_ACTIVITIES.filter(
+        (a: DowntimeActivity) =>
+          a.title.toLowerCase().includes(q) || a.hook.toLowerCase().includes(q),
+      ).map((a: DowntimeActivity) => ({
+        id: a.key,
+        name: a.title,
+        sub: `${RISK_LABELS[a.risk]} · yields ${a.rewardType}`,
+      }));
     }
     if (store.source === "items") {
       return (itemsData.value ?? [])
@@ -104,6 +117,10 @@ export function useCardForgeData() {
       ...(spellsData.value ?? [])
         .filter((s: Spell) => ids.spells.has(s.id))
         .map((s: Spell) => ({ kind: "spell" as const, data: s })),
+      // Keyed by `key`, not `id` — see `cardSubjectId`.
+      ...DOWNTIME_ACTIVITIES.filter((a: DowntimeActivity) =>
+        ids.downtime.has(a.key),
+      ).map((a: DowntimeActivity) => ({ kind: "downtime" as const, data: a })),
     ];
   });
 

@@ -2,7 +2,8 @@
   <main class="preview-panel">
     <div v-if="!selectedSubjects.length" class="preview-empty">
       <p>
-        Select NPCs, monsters, items, or spells on the left to preview cards.
+        Select NPCs, monsters, items, spells, or Interlude cards on the left to preview
+        cards.
       </p>
       <p class="preview-hint">
         Selected cards will print front + back on separate A4 sheets.
@@ -74,7 +75,7 @@ import CardTarotFront from "@/components/cardforge/CardTarotFront.vue";
 import CardTarotBack from "@/components/cardforge/CardTarotBack.vue";
 import LootFront from "@/components/cardforge/styles/loot/LootFront.vue";
 import LootBack from "@/components/cardforge/styles/loot/LootBack.vue";
-import type { CardSubject } from "@/types/card.types";
+import { cardSubjectId, type CardSubject } from "@/types/card.types";
 import { useCardForgeStore } from "@/stores/cardForge";
 import { useCardForgeData } from "@/composables/useCardForgeData";
 
@@ -82,7 +83,8 @@ const store = useCardForgeStore();
 const { selectedSubjects } = useCardForgeData();
 
 function cardKey(s: CardSubject) {
-  return s.kind + s.data.id;
+  // A downtime archetype is keyed by `key`, not `id` — `cardSubjectId` owns that.
+  return s.kind + cardSubjectId(s);
 }
 
 const flipped = ref(new Set<string>());

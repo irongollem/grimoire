@@ -5,13 +5,38 @@ import { useLocalStorage } from "@vueuse/core";
 export type CardSizeId = "mtg" | "tarot";
 export type CardStyleId = "inked" | "modern";
 export type CardModeId = "collection" | "loot";
-export type SourceId = "npcs" | "monsters" | "items" | "spells";
+export type SourceId = "npcs" | "monsters" | "items" | "spells" | "downtime";
+
+export type CardKind = "npc" | "monster" | "item" | "spell" | "downtime";
 
 export interface CardCollection {
   id: string;
   name: string;
   created: string;
-  items: Array<{ kind: "npc" | "monster" | "item" | "spell"; id: string }>;
+  items: Array<{ kind: CardKind; id: string }>;
+}
+
+/**
+ * Card kind → source tab. Explicit rather than `kind + "s"`: the downtime source
+ * is "downtime", not "downtimes", and a silent mis-pluralisation would drop a
+ * whole bucket of a saved collection on load.
+ */
+const KIND_TO_SOURCE: Record<CardKind, SourceId> = {
+  npc: "npcs",
+  monster: "monsters",
+  item: "items",
+  spell: "spells",
+  downtime: "downtime",
+};
+
+function emptyBuckets(): Record<SourceId, Set<string>> {
+  return {
+    npcs: new Set(),
+    monsters: new Set(),
+    items: new Set(),
+    spells: new Set(),
+    downtime: new Set(),
+  };
 }
 
 const LIBRARY_KEY = "cardforge_library";
@@ -25,12 +50,7 @@ export const useCardForgeStore = defineStore("cardForge", () => {
   const source = ref<SourceId>("npcs");
   const search = ref("");
 
-  const selectedIds = shallowRef<Record<SourceId, Set<string>>>({
-    npcs: new Set(),
-    monsters: new Set(),
-    items: new Set(),
-    spells: new Set(),
-  });
+  const selectedIds = shallowRef<Record<SourceId, Set<string>>>(emptyBuckets());
 
   const cardSize = ref<CardSizeId>("mtg");
   const cardStyle = useLocalStorage<CardStyleId>(STYLE_KEY, "inked");
@@ -95,28 +115,21 @@ export const useCardForgeStore = defineStore("cardForge", () => {
   }
 
   function loadCollection(col: CardCollection) {
-    const buckets: Record<SourceId, Set<string>> = {
-      npcs: new Set(),
-      monsters: new Set(),
-      items: new Set(),
-      spells: new Set(),
-    };
+    const buckets = emptyBuckets();
     for (const it of col.items) {
-      const key = (it.kind + "s") as SourceId;
-      buckets[key].add(it.id);
+      const key = KIND_TO_SOURCE[it.kind];
+      // A collection saved by a newer build may name a kind this one doesn't
+      // know — skip it rather than throw away the whole load.
+      if (key) buckets[key].add(it.id);
     }
     selectedIds.value = buckets;
 
     // Switch to the tab with the most loaded cards
-    const counts: Record<SourceId, number> = {
-      npcs: buckets.npcs.size,
-      monsters: buckets.monsters.size,
-      items: buckets.items.size,
-      spells: buckets.spells.size,
-    };
+    const counts = Object.entries(buckets).map(
+      ([src, ids]) => [src, ids.size] as const,
+    );
     source.value =
-      (Object.entries(counts).sort(([, a], [, b]) => b - a)[0]?.[0] as SourceId) ??
-      "npcs";
+      (counts.sort(([, a], [, b]) => b - a)[0]?.[0] as SourceId) ?? "npcs";
     showLoadModal.value = false;
   }
 

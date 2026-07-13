@@ -2,12 +2,27 @@ import type { Npc } from "./npc.types";
 import type { Monster } from "./monster.types";
 import type { Item } from "./item.types";
 import type { Spell } from "./spell.types";
+import type { DowntimeActivity } from "./downtime.types";
 
 export type CardSubject =
   | { kind: "npc"; data: Npc }
   | { kind: "monster"; data: Monster }
   | { kind: "item"; data: Item }
-  | { kind: "spell"; data: Spell };
+  | { kind: "spell"; data: Spell }
+  | { kind: "downtime"; data: DowntimeActivity };
+
+/**
+ * A subject's stable identifier.
+ *
+ * The four entity kinds are DB rows keyed by `id`; a downtime archetype is
+ * static catalog data keyed by `key` (which is also what `downtime_draws.
+ * activity_key` stores). Rather than bolt a duplicate `id` onto
+ * `DowntimeActivity` — inviting it to drift from `activity_key` — the mismatch
+ * is resolved in this one place.
+ */
+export function cardSubjectId(subject: CardSubject): string {
+  return subject.kind === "downtime" ? subject.data.key : subject.data.id;
+}
 
 export const MONSTER_COLORS: Record<string, string> = {
   aberration: "#3D1A5C",
