@@ -11,7 +11,7 @@ import { useParty } from "@/composables/useParty";
 import { useNpcs } from "@/composables/useNpcs";
 import { useDowntimeDraws, useDowntimeOutcomes, useDeckBacks } from "@/composables/useDowntime";
 import { useUiStore } from "@/stores/ui";
-import { DOWNTIME_DRAW_STATUSES } from "@/types/downtime.types";
+import { DOWNTIME_DRAW_STATUSES, DOWNTIME_DRAW_STATUS_LABELS } from "@/types/downtime.types";
 import type { DowntimeDraw } from "@/types/downtime.types";
 
 const ui = useUiStore();
@@ -104,47 +104,62 @@ function rewardHref(rewardType: string | null, rewardId: string | null): string 
       <p v-else class="mt-3 text-2xs text-muted-foreground">No characters in this campaign yet.</p>
     </section>
 
-    <!-- Filters -->
-    <div class="mt-6 flex flex-wrap items-end gap-3">
-      <label class="text-2xs font-medium">
-        Status
-        <select
-          v-model="filterStatus"
-          class="mt-1 block rounded border border-border bg-background px-2 py-1 text-sm"
-        >
-          <option value="all">All</option>
-          <option v-for="s in DOWNTIME_DRAW_STATUSES" :key="s" :value="s">{{ s }}</option>
-        </select>
-      </label>
+    <!-- Pending draws: the batch resolution board.
+         The filters live INSIDE this section, on the heading row — they filter
+         this list and nothing else, so floating them above the heading (and
+         outside any card) left them reading as page furniture. -->
+    <section class="mt-6 rounded-lg border border-border bg-card p-4">
+      <header class="flex flex-wrap items-end justify-between gap-3">
+        <h2 class="font-cinzel text-base font-semibold">
+          Awaiting you
+          <span class="text-2xs font-normal text-muted-foreground">
+            ({{ pendingDraws.length }})
+          </span>
+        </h2>
 
-      <label class="text-2xs font-medium">
-        Character
-        <select
-          v-model="filterCharacter"
-          class="mt-1 block rounded border border-border bg-background px-2 py-1 text-sm"
-        >
-          <option value="">Everyone</option>
-          <option v-for="m in party ?? []" :key="m.id" :value="m.id">{{ m.name }}</option>
-        </select>
-      </label>
+        <div class="flex flex-wrap items-end gap-2">
+          <div>
+            <label for="downtime-filter-status" class="mb-1 block text-2xs font-medium">
+              Status
+            </label>
+            <select
+              id="downtime-filter-status"
+              v-model="filterStatus"
+              class="rounded-md border border-border bg-card px-3 py-1.5 font-fell text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option value="all">All</option>
+              <option v-for="s in DOWNTIME_DRAW_STATUSES" :key="s" :value="s">
+                {{ DOWNTIME_DRAW_STATUS_LABELS[s] }}
+              </option>
+            </select>
+          </div>
 
-      <button
-        v-if="ui.downtimeHasActiveFilters"
-        type="button"
-        class="rounded border border-border px-2 py-1 text-2xs text-muted-foreground hover:bg-muted"
-        @click="ui.resetDowntimeFilters()"
-      >
-        Clear
-      </button>
-    </div>
+          <div>
+            <label for="downtime-filter-character" class="mb-1 block text-2xs font-medium">
+              Character
+            </label>
+            <select
+              id="downtime-filter-character"
+              v-model="filterCharacter"
+              class="rounded-md border border-border bg-card px-3 py-1.5 font-fell text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option value="">Everyone</option>
+              <option v-for="m in party ?? []" :key="m.id" :value="m.id">{{ m.name }}</option>
+            </select>
+          </div>
 
-    <!-- Pending draws: the batch resolution board -->
-    <section class="mt-4">
-      <h2 class="font-cinzel text-base font-semibold">
-        Awaiting you
-        <span class="text-2xs font-normal text-muted-foreground">({{ pendingDraws.length }})</span>
-      </h2>
-      <p v-if="pendingDraws.length === 0" class="mt-2 text-2xs text-muted-foreground">
+          <button
+            v-if="ui.downtimeHasActiveFilters"
+            type="button"
+            class="rounded-md border border-border px-3 py-1.5 text-2xs text-muted-foreground hover:bg-muted"
+            @click="ui.resetDowntimeFilters()"
+          >
+            Clear
+          </button>
+        </div>
+      </header>
+
+      <p v-if="pendingDraws.length === 0" class="mt-3 text-2xs text-muted-foreground">
         Nothing pending. Grant a credit and your players can spend it between sessions.
       </p>
       <div v-else class="mt-3 space-y-4">

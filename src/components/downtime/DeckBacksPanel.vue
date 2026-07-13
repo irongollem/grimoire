@@ -119,35 +119,43 @@ async function addBack() {
       </p>
     </header>
 
-    <!-- Prep a back -->
-    <div class="mt-4 grid gap-2 sm:grid-cols-[1fr_auto_1fr_auto] sm:items-end">
-      <label class="block text-2xs font-medium">
-        Archetype
+    <!-- Prep a back.
+         Every control matches EntityCombobox's input metrics (rounded-md, px-3
+         py-1.5, bg-card, font-fell, text-sm) so the three fields and the button
+         share one baseline — the selects used to be shorter and squarer than the
+         combobox, and the combobox's label sat higher than the other two. -->
+    <div class="mt-4 grid gap-2 sm:grid-cols-[1fr_auto_2fr_auto] sm:items-end">
+      <div>
+        <label for="deck-back-archetype" class="mb-1 block text-2xs font-medium">
+          Archetype
+        </label>
         <select
+          id="deck-back-archetype"
           v-model="activityKey"
-          class="mt-1 w-full rounded border border-border bg-background px-2 py-1 text-sm"
+          class="w-full rounded-md border border-border bg-card px-3 py-1.5 font-fell text-sm focus:outline-none focus:ring-1 focus:ring-ring"
         >
           <option v-for="a in DOWNTIME_ACTIVITIES" :key="a.key" :value="a.key">
             {{ a.title }}
           </option>
         </select>
-      </label>
+      </div>
 
-      <label class="block text-2xs font-medium">
-        Type
+      <div>
+        <label for="deck-back-type" class="mb-1 block text-2xs font-medium">Type</label>
         <select
+          id="deck-back-type"
           v-model="rewardType"
-          class="mt-1 w-full rounded border border-border bg-background px-2 py-1 text-sm"
+          class="w-full rounded-md border border-border bg-card px-3 py-1.5 font-fell text-sm focus:outline-none focus:ring-1 focus:ring-ring"
           @change="onRewardTypeChange"
         >
           <option v-for="t in PREP_TYPES" :key="t.value" :value="t.value">
             {{ t.label }}
           </option>
         </select>
-      </label>
+      </div>
 
-      <div class="text-2xs font-medium">
-        {{ rewardTypeLabel }}
+      <div class="min-w-0">
+        <span class="mb-1 block text-2xs font-medium">{{ rewardTypeLabel }}</span>
         <EntityCombobox
           v-model="rewardId"
           :options="rewardOptions"
@@ -158,16 +166,20 @@ async function addBack() {
       <button
         type="button"
         :disabled="createBack.isPending.value"
-        class="h-8 rounded bg-primary px-3 font-cinzel text-2xs text-primary-foreground disabled:opacity-50"
+        class="rounded-md bg-primary px-4 py-1.5 font-cinzel text-2xs text-primary-foreground disabled:opacity-50"
         @click="addBack"
       >
         Prep
       </button>
     </div>
 
+    <!-- The text is one span, not loose nodes: `gap-2` treats every child as a
+         flex item, so an inline <em> here would get spaced on both sides. -->
     <label class="mt-2 flex items-center gap-2 text-2xs">
       <input v-model="isRecurring" type="checkbox" />
-      Recurring — this back is <em>always</em> what they find here (never consumed)
+      <span>
+        Recurring — this back is <em>always</em> what they find here (never consumed)
+      </span>
     </label>
 
     <p v-if="errorMessage" class="mt-2 text-2xs text-destructive">{{ errorMessage }}</p>
