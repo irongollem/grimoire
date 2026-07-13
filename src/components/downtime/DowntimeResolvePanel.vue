@@ -6,6 +6,10 @@ import { getDowntimeActivity } from "@/data/downtimeActivities";
 import { markdownToTiptapJson } from "@/lib/markdownToTiptap";
 import { previewDraw, useResolveDraw, useCancelDraw, useApplyEffects } from "@/composables/useDowntime";
 import { isAutoAppliedKind } from "@/lib/downtimeEffects";
+import { useDowntimeGeneration } from "@/ai/useDowntimeGeneration";
+import { useAiCredits } from "@/composables/useAiCredits";
+import { useProviderConfig } from "@/composables/useProviderConfig";
+import { useCampaignStore } from "@/stores/campaign";
 import { COIN_KEYS } from "@/types/downtime.types";
 import type { DowntimeDeckBack, DowntimeDraw, DowntimeEffect, DrawResult } from "@/types/downtime.types";
 
@@ -89,6 +93,55 @@ const resolve = useResolveDraw();
 const cancel = useCancelDraw();
 const applyEffects = useApplyEffects();
 
+// ── AI outcome drafting ──────────────────────────────────────────────────────
+// A drafted outcome REPLACES what the deck dealt: it becomes the `result` this
+// panel resolves, so it travels the ordinary seed path (mint the reward, call
+// the RPC, apply ticked effects) with no parallel plumbing.
+const campaign = useCampaignStore();
+const { generate, isGenerating, error: draftError } = useDowntimeGeneration();
+const { costOf, balance, isLoading: creditsLoading } = useAiCredits();
+const { textMultiplierFor } = useProviderConfig();
+
+const steer = ref("");
+
+const isAiEnabled = computed(() => campaign.isAiEnabled);
+const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
+const textIsByok = computed(() => !!campaign.decryptedApiKey);
+
+/** Text-only generator — there is no illustration, so no entity_image charge. */
+const effectiveCreditCost = computed(() =>
+  textIsByok.value
+    ? 0
+    : Math.round(costOf("downtime_generation") * textMultiplierFor(textProvider.value) * 100) / 100,
+);
+
+const canAfford = computed(
+  () => creditsLoading.value || (balance.value ?? 0) >= effectiveCreditCost.value,
+);
+
+const creditLine = computed(() => {
+  const cost = parseFloat(effectiveCreditCost.value.toFixed(2));
+  if (cost === 0) return "Your own API key — no credits spent";
+  const bal = parseFloat(((balance.value ?? 0) as number).toFixed(2));
+  return `${cost === 1 ? "1 credit" : `${cost} credits`} · Balance: ${bal}`;
+});
+
+async function onDraft() {
+  if (!activity.value) return;
+  errorMessage.value = null;
+  const seed = await generate({
+    activity: activity.value,
+    characterName: memberName,
+    steer: steer.value.trim() || undefined,
+  });
+  if (!seed) return; // the composable surfaced the reason in `draftError`
+
+  result.value = { source: "seed", seed };
+  title.value = seed.title;
+  vignette.value = markdownToTiptapJson(seed.vignette);
+  effects.value = seed.proposedEffects.map((e) => ({ ...e }));
+}
+
 const canResolve = computed(() => title.value.trim() !== "");
 
 async function onResolve() {
@@ -154,6 +207,35 @@ async function onCancel() {
         <p v-else class="mt-2 text-2xs text-destructive">
           Nothing to draw. Prep a card back, or resolve with no reward attached.
         </p>
+
+        <!-- AI drafting: replaces what the deck dealt with a ready-to-edit outcome -->
+        <div v-if="isAiEnabled && activity" class="mt-3 rounded border border-dashed border-border p-2">
+          <div class="flex items-end gap-2">
+            <label class="min-w-0 flex-1 text-2xs font-medium">
+              Draft with AI <span class="text-muted-foreground">(optional steer)</span>
+              <input
+                v-model="steer"
+                type="text"
+                placeholder="Aim it at the Duke — he owes them a favour"
+                class="mt-1 w-full rounded border border-border bg-background px-2 py-1 text-sm"
+                @keydown.enter.prevent="onDraft"
+              />
+            </label>
+            <button
+              type="button"
+              :disabled="isGenerating || !canAfford"
+              class="h-8 shrink-0 rounded border border-primary px-3 font-cinzel text-2xs text-primary disabled:opacity-50"
+              @click="onDraft"
+            >
+              {{ isGenerating ? "Drafting…" : "Draft" }}
+            </button>
+          </div>
+          <p class="mt-1 text-2xs text-muted-foreground">{{ creditLine }}</p>
+          <p v-if="!canAfford" class="mt-1 text-2xs text-destructive">
+            Not enough credits to draft this outcome.
+          </p>
+          <p v-if="draftError" class="mt-1 text-2xs text-destructive">{{ draftError }}</p>
+        </div>
 
         <label class="mt-3 block text-2xs font-medium">
           Title
