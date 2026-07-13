@@ -396,6 +396,83 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     },
   },
 
+  {
+    id: "research-forbidden-index",
+    activityKey: "research",
+    weight: 2,
+    title: "It isn't in the catalogue",
+    vignette:
+      "The book you want is not in the index, which is how you know it exists. A clerk, well paid and badly frightened, finds it for you anyway — and asks that you never say where.",
+    proposedEffects: [
+      {
+        kind: "gold",
+        applied: false,
+        note: "What the clerk's nerve was worth.",
+        cp: 0,
+        sp: 0,
+        ep: 0,
+        gp: -10,
+        pp: 0,
+      },
+    ],
+    reward: {
+      kind: "note",
+      note: {
+        title: "Research: a book that isn't catalogued",
+        body: "You got hold of something the archive does not admit to holding. Note what it is and who now knows you have read it — a fact that was hidden this carefully was hidden *from* someone.",
+        category: "lore",
+        tags: ["research", "lore", "hook"],
+      },
+    },
+  },
+  {
+    id: "research-conflicting-accounts",
+    activityKey: "research",
+    weight: 2,
+    title: "Somebody is lying",
+    vignette:
+      "Two witnesses. Two accounts. Both sworn, both detailed, and irreconcilable on one small point that nobody but you would ever have bothered to check.",
+    proposedEffects: [],
+    reward: {
+      kind: "note",
+      note: {
+        title: "Research: two accounts that cannot both be true",
+        body: "Careful reading turned up a contradiction in the record. Note which two sources disagree and on what — the interesting question is not which is wrong, but who benefited from the lie.",
+        category: "lore",
+        tags: ["research", "lore", "clue"],
+      },
+    },
+  },
+  {
+    id: "research-dead-end",
+    activityKey: "research",
+    weight: 1,
+    title: "Weeks, for a wall",
+    vignette:
+      "You read everything. You paid the fees, you charmed the archivist, you stayed past the lamps going out. And at the end of it the trail simply stops — not hidden, not guarded. Just gone.",
+    proposedEffects: [
+      {
+        kind: "gold",
+        applied: false,
+        note: "Access fees and copying costs, for a trail that ended.",
+        cp: 0,
+        sp: 0,
+        ep: 0,
+        gp: -15,
+        pp: 0,
+      },
+    ],
+    reward: {
+      kind: "note",
+      note: {
+        title: "Research: the trail stops here",
+        body: "A dead end — but a *documented* one. Note what was ruled out and where the record ends. Someone went to the trouble of making this trail stop, or it never began; both are worth knowing.",
+        category: "lore",
+        tags: ["research", "dead-end", "hook"],
+      },
+    },
+  },
+
   // ── Train → notes ───────────────────────────────────────────────────────────
   {
     id: "train-proficiency-log",
@@ -441,6 +518,110 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         body: "You spent the interlude studying a language under a tutor. Note which one and how far you got — enough to read a sign and haggle badly, if not yet to pass as a native.",
         category: "general",
         tags: ["training", "language"],
+      },
+    },
+  },
+
+  {
+    id: "train-sparring-partner",
+    activityKey: "train",
+    weight: 2,
+    title: "Someone better than you",
+    vignette:
+      "They put you on your back every morning for a month, and every morning they told you exactly why. By the end you were still losing — but you were losing later, and for better reasons.",
+    proposedEffects: [
+      {
+        kind: "hp",
+        applied: false,
+        note: "A season of honest bruises.",
+        delta: -3,
+      },
+    ],
+    reward: {
+      kind: "note",
+      note: {
+        title: "Training: a partner who beats you",
+        body: "You trained against someone genuinely better. Note who they are — a rival, a mentor, or both — and what specifically they fixed. Progress bought with bruises tends to stick.",
+        category: "general",
+        tags: ["training", "rival"],
+      },
+    },
+  },
+  {
+    id: "train-old-master",
+    activityKey: "train",
+    weight: 2,
+    title: "The fee is not the hard part",
+    vignette:
+      "They took your coin without counting it and then spent the first fortnight making you unlearn things. It was insulting. It was also, irritatingly, correct.",
+    proposedEffects: [
+      {
+        kind: "gold",
+        applied: false,
+        note: "The master's fee for the season.",
+        cp: 0,
+        sp: 0,
+        ep: 0,
+        gp: -30,
+        pp: 0,
+      },
+    ],
+    reward: {
+      kind: "note",
+      note: {
+        title: "Training: under an old master",
+        body: "You studied under someone with real skill and no patience. Note what they taught, what they refused to teach, and what they want in return — that last one is rarely just money.",
+        category: "general",
+        tags: ["training", "mentor", "hook"],
+      },
+    },
+  },
+  {
+    id: "train-from-a-book",
+    activityKey: "train",
+    weight: 1,
+    title: "Self-taught, and it shows",
+    vignette:
+      "No tutor, no partner, just a manual and a lot of stubbornness. You got there. You also picked up two habits that anyone properly trained will spot in a heartbeat.",
+    proposedEffects: [],
+    reward: {
+      kind: "note",
+      note: {
+        title: "Training: self-taught from a manual",
+        body: "You taught yourself. It works, mostly — but note the bad habit it came with, and let it show at the table when the pressure is on.",
+        category: "general",
+        tags: ["training", "self-taught"],
+      },
+    },
+  },
+  {
+    id: "train-overreached",
+    activityKey: "train",
+    weight: 1,
+    title: "Past the point of useful",
+    vignette:
+      "You did not stop when your body told you to, and then you did not stop when it insisted. The season ends with you laid up, staring at a ceiling, having learned rather less than you cost yourself.",
+    proposedEffects: [
+      {
+        kind: "hp",
+        applied: false,
+        note: "Training through an injury instead of around it.",
+        delta: -8,
+      },
+      {
+        kind: "condition",
+        applied: false,
+        note: "Run into the ground — clear it after a long rest.",
+        condition: "Exhaustion",
+      },
+    ],
+    reward: {
+      kind: "note",
+      note: {
+        title: "Training: overreached",
+        body: "You pushed too hard and hurt yourself. Note what you were chasing and whether it was worth it — the DM may rule the progress incomplete until you have properly healed.",
+        category: "general",
+        tags: ["training", "injury", "complication"],
       },
     },
   },
@@ -501,6 +682,123 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         body: "Someone hit your enterprise while the party was out. Note what was taken and who might have known your schedule — a complication that owes you an answer.",
         category: "faction",
         tags: ["business", "complication", "hook"],
+      },
+    },
+  },
+
+  {
+    id: "business-lean-quarter",
+    activityKey: "business",
+    weight: 2,
+    title: "Barely worth the doors being open",
+    vignette:
+      "Nothing went wrong, exactly. The custom simply did not come. You covered the rent, you paid whoever needed paying, and what was left over would not buy a decent meal.",
+    proposedEffects: [
+      {
+        kind: "gold",
+        applied: false,
+        note: "What was left after the rent. Not much.",
+        cp: 0,
+        sp: 0,
+        ep: 0,
+        gp: 5,
+        pp: 0,
+      },
+    ],
+    reward: {
+      kind: "note",
+      note: {
+        title: "Business: a lean quarter",
+        body: "The enterprise stayed open and stayed solvent, and did nothing else. Note why trade was slow — a rival, a bad season, a road closed — because a reason is a hook.",
+        category: "faction",
+        tags: ["business", "income"],
+      },
+    },
+  },
+  {
+    id: "business-expanded",
+    activityKey: "business",
+    weight: 2,
+    title: "You put the money back in",
+    vignette:
+      "A second room, or a second pair of hands, or a name painted properly above the door. It cost more than the quarter made — which is either an investment or the beginning of a mistake.",
+    proposedEffects: [
+      {
+        kind: "gold",
+        applied: false,
+        note: "What the expansion cost up front.",
+        cp: 0,
+        sp: 0,
+        ep: 0,
+        gp: -50,
+        pp: 0,
+      },
+    ],
+    reward: {
+      kind: "note",
+      note: {
+        title: "Business: expanded",
+        body: "You reinvested — new premises, new staff, or a proper sign. Note what changed and who you now depend on. The DM may rule future quarters richer, and future complications louder.",
+        category: "faction",
+        tags: ["business", "investment"],
+      },
+    },
+  },
+  {
+    id: "business-undercut",
+    activityKey: "business",
+    weight: 1,
+    title: "Someone opened up across the street",
+    vignette:
+      "They are cheaper than you, they are worse than you, and it is not making the difference you had hoped. Your regulars still come. Everyone else has stopped.",
+    proposedEffects: [
+      {
+        kind: "gold",
+        applied: false,
+        note: "The custom you lost to a cheaper door.",
+        cp: 0,
+        sp: 0,
+        ep: 0,
+        gp: -15,
+        pp: 0,
+      },
+    ],
+    reward: {
+      kind: "note",
+      note: {
+        title: "Business: undercut by a rival",
+        body: "A competitor is taking your trade. Note who they are and how they can afford it — nobody sells below cost for a whole season without a reason worth finding out.",
+        category: "faction",
+        tags: ["business", "rival", "hook"],
+      },
+    },
+  },
+  {
+    id: "business-windfall",
+    activityKey: "business",
+    weight: 1,
+    title: "One order changed the year",
+    vignette:
+      "A single buyer, a single order, and a sum that took you three readings of the ledger to believe. They paid without haggling, which is the part that keeps you awake.",
+    proposedEffects: [
+      {
+        kind: "gold",
+        applied: false,
+        note: "The order, paid in full and without argument.",
+        cp: 0,
+        sp: 0,
+        ep: 0,
+        gp: 120,
+        pp: 0,
+      },
+    ],
+    reward: {
+      kind: "note",
+      note: {
+        title: "Business: an unreasonably good order",
+        body: "Someone bought a great deal, at your price, without blinking. Note who — a buyer who does not haggle is a buyer who needs something, and that is worth more than the coin.",
+        category: "faction",
+        tags: ["business", "income", "hook"],
       },
     },
   },
@@ -628,6 +926,117 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         body: "While keeping your head down you overheard a rumour worth acting on. Write down what and who — the party now holds a lead earned by patience rather than force.",
         category: "general",
         tags: ["lie-low", "rumor", "hook"],
+      },
+    },
+  },
+
+  {
+    id: "lie-low-safehouse",
+    activityKey: "lie-low",
+    weight: 2,
+    title: "A stranger shut the door behind you",
+    vignette:
+      "They did not ask what you had done, and they did not ask for money. They fed you, they kept the shutters closed, and when you left they said only that they would remember you had stayed.",
+    proposedEffects: [
+      {
+        kind: "hp",
+        applied: false,
+        note: "Warm, fed, and unhunted for a season.",
+        delta: 10,
+      },
+    ],
+    reward: {
+      kind: "note",
+      note: {
+        title: "Lie low: someone sheltered you",
+        body: "A stranger hid you and asked for nothing — which means you owe them, and they know it. Note who they are and what they will eventually want. An unpaid favour is a debt with better manners.",
+        category: "general",
+        tags: ["lie-low", "favour", "hook"],
+      },
+    },
+  },
+  {
+    id: "lie-low-long-quiet",
+    activityKey: "lie-low",
+    weight: 2,
+    title: "Nothing happened, at length",
+    vignette:
+      "No knock at the door. No face you recognised in the street. Just a season of dull, uninterrupted, profoundly boring safety — and a body that finally had time to knit itself back together.",
+    proposedEffects: [
+      {
+        kind: "hp",
+        applied: false,
+        note: "A full season of genuine rest.",
+        delta: 20,
+      },
+    ],
+    reward: {
+      kind: "note",
+      note: {
+        title: "Lie low: a season of nothing",
+        body: "Uneventful, and that was the point. You are properly mended and properly forgotten. Note how long it has been — the world moved on while you sat still, and you will need to catch up.",
+        category: "general",
+        tags: ["lie-low", "recovery"],
+      },
+    },
+  },
+  {
+    id: "lie-low-close-call",
+    activityKey: "lie-low",
+    weight: 1,
+    title: "They knocked on the wrong door first",
+    vignette:
+      "You heard them working down the row — a knock, a question, a knock. You went out the back with your boots in your hand and paid a bargeman not to look at you. It was close enough to taste.",
+    proposedEffects: [
+      {
+        kind: "gold",
+        applied: false,
+        note: "What silence cost, bought in a hurry.",
+        cp: 0,
+        sp: 0,
+        ep: 0,
+        gp: -20,
+        pp: 0,
+      },
+      {
+        kind: "hp",
+        applied: false,
+        note: "Rest, interrupted.",
+        delta: 5,
+      },
+    ],
+    reward: {
+      kind: "note",
+      note: {
+        title: "Lie low: a close call",
+        body: "They very nearly found you. Note who was doing the looking and how near they got — you are still hidden, but the heat has not gone anywhere.",
+        category: "general",
+        tags: ["lie-low", "complication", "hook"],
+      },
+    },
+  },
+  {
+    id: "lie-low-cover-blown",
+    activityKey: "lie-low",
+    weight: 1,
+    title: "Somebody talked",
+    vignette:
+      "You did everything right and it made no difference. A name was said in the wrong room, for coin or for spite, and by the time you understood that, the quiet you had bought was already spent.",
+    proposedEffects: [
+      {
+        kind: "hp",
+        applied: false,
+        note: "You mended a little before it fell apart.",
+        delta: 5,
+      },
+    ],
+    reward: {
+      kind: "note",
+      note: {
+        title: "Lie low: your cover was sold",
+        body: "Someone gave you up. Note who knew where you were — the list is short, and one of them talked. The heat did not die down; it now knows your address.",
+        category: "general",
+        tags: ["lie-low", "betrayal", "hook"],
       },
     },
   },
