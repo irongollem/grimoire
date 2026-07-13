@@ -153,6 +153,25 @@ describe("rewardFromAi", () => {
       DowntimeAiParseError,
     );
   });
+
+  // Art is canonical and admin-uploaded. A URL from the model would be an
+  // unvalidated remote reference pointing anywhere at all.
+  it("never takes an image URL from the model", () => {
+    const npc = rewardFromAi(
+      { kind: "npc", npc: { name: "S", portrait_url: "https://evil.example/x.png" } },
+      "npc",
+    );
+    if (npc.kind === "npc") expect(npc.npc.portrait_url).toBeNull();
+
+    const item = rewardFromAi(
+      {
+        kind: "item",
+        item: { name: "T", description: "d", image_url: "https://evil.example/y.png" },
+      },
+      "item",
+    );
+    if (item.kind === "item") expect(item.item.image_url).toBeNull();
+  });
 });
 
 describe("seedFromAiResult", () => {

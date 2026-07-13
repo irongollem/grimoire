@@ -40,6 +40,7 @@ function seed(over: Partial<DowntimeSeed> = {}): DowntimeSeed {
         backstory: null,
         relationship: "indifferent",
         tags: [],
+        portrait_url: null,
       },
     },
     ...over,

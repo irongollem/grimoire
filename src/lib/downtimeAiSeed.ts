@@ -165,6 +165,9 @@ export function rewardFromAi(raw: unknown, expected: DowntimeRewardType): Downti
           backstory: optionalString(npc.backstory),
           relationship: oneOf<NpcRelationship>(npc.relationship, RELATIONSHIPS, "indifferent"),
           tags: stringArray(npc.tags),
+          // An AI-drafted contact has no canonical seed art. We never let the
+          // model supply a URL — that would be an unvalidated remote reference.
+          portrait_url: null,
         },
       };
     }
@@ -185,6 +188,8 @@ export function rewardFromAi(raw: unknown, expected: DowntimeRewardType): Downti
           cost: optionalString(item.cost),
           description: requireString(item.description, "item description"),
           tags: stringArray(item.tags),
+          // Same rule as the NPC branch: never take a URL from the model.
+          image_url: null,
         },
       };
     }

@@ -39,7 +39,9 @@ export function npcInsertFromSeed(npc: DowntimeSeedNpc): Omit<NpcInsert, "campai
     notes: null,
     status: "alive",
     relationship: npc.relationship,
-    portrait_url: null,
+    // Canonical seed art (downtime-images/srd/…), shared by every campaign that
+    // draws this seed. Null until the artwork ships.
+    portrait_url: npc.portrait_url,
     disguise_name: null,
     disguise_portrait_url: null,
     is_revealed: true,
@@ -76,7 +78,8 @@ export function itemInsertFromSeed(item: DowntimeSeedItem): Omit<ItemInsert, "ca
     description: item.description,
     source: null,
     tags: [...item.tags],
-    image_url: null,
+    // Canonical seed art (downtime-images/srd/…). Null until the artwork ships.
+    image_url: item.image_url,
     is_arcane_focus: false,
     curse_description: null,
   };

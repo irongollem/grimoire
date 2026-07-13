@@ -22,6 +22,7 @@ const npc: DowntimeSeedNpc = {
   backstory: "Moves stolen goods",
   relationship: "indifferent",
   tags: ["underworld"],
+  portrait_url: null,
 };
 
 const item: DowntimeSeedItem = {
@@ -34,6 +35,7 @@ const item: DowntimeSeedItem = {
   cost: "15 gp",
   description: "Honest steel.",
   tags: ["crafted"],
+  image_url: null,
 };
 
 const note: DowntimeSeedNote = {

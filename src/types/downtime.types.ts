@@ -87,7 +87,13 @@ export interface DowntimeActivity {
 // can still point at *any* reward type; only the on-the-fly seed side is bounded
 // to the kinds we can mint from a template.
 
-/** The NPC-shaped fields a seed contributes; the rest get campaign defaults. */
+/**
+ * The NPC-shaped fields a seed contributes; the rest get campaign defaults.
+ *
+ * `portrait_url` is a **canonical** URL under `downtime-images/srd/` — the same
+ * image for every campaign that draws this seed. It is null until the artwork
+ * ships; the card falls back to its procedural face, so no milestone waits on it.
+ */
 export type DowntimeSeedNpc = Pick<
   NpcInsert,
   | "name"
@@ -99,6 +105,7 @@ export type DowntimeSeedNpc = Pick<
   | "backstory"
   | "relationship"
   | "tags"
+  | "portrait_url"
 >;
 
 /** The item-shaped fields a seed contributes; the builder fills sane defaults. */
@@ -113,6 +120,7 @@ export type DowntimeSeedItem = Pick<
   | "cost"
   | "requires_attunement"
   | "tags"
+  | "image_url"
 >;
 
 /**

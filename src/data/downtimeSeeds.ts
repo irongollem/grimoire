@@ -5,10 +5,19 @@ import type { DowntimeSeed } from "@/types/downtime.types";
  *
  * These are *templates*: a resolved draw clones one into the campaign as an
  * ordinary, private, fully-editable row owned by the DM — an NPC, an item, or a
- * note, depending on `reward.kind`. Nothing canonical is ever stored, so the
- * `srd/` storage + `is_app_admin()` rules do not apply here. The moment we ship
- * curated per-seed artwork, this must become an `srd_*` table with the `srd/`
- * storage policy in the same migration.
+ * note, depending on `reward.kind`.
+ *
+ * **Art.** `portrait_url` / `image_url` hold a **canonical** URL under
+ * `downtime-images/srd/…` (see migration `20260713000002`): one image, shared by
+ * every campaign that draws the seed, admin-uploaded, never under a user UUID.
+ * They are null until the artwork ships — the cards fall back to their procedural
+ * face, so nothing waits on art. (`srd/` is just this codebase's existing name for
+ * "canonical, shared, admin-managed"; the content here is our own, not System
+ * Reference Document material. Because the catalog lives in code, the URL is a
+ * plain string — no `srd_*` table is needed unless we ever let DMs reskin the
+ * system deck, which we deliberately do not.)
+ *
+ * Note-yielding seeds carry no art: `notes` has no image column.
  *
  * A seed proposes a vignette and, sometimes, a consequence. The DM decides how
  * dark their world is — nothing here is applied without an explicit tick on the
@@ -51,6 +60,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
           "Moves stolen goods for half the district and launders the rest through a cousin's pawnshop. Owes the party a favour after they bought her silence with a night's drinking.",
         relationship: "indifferent",
         tags: ["underworld", "contact", "carouse"],
+        portrait_url: null,
       },
     },
   },
@@ -84,6 +94,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
           "A minor noble's third son with no inheritance and no plans. Wanders from tavern to tavern looking for someone who can beat him.",
         relationship: "friendly",
         tags: ["rival", "contact", "carouse"],
+        portrait_url: null,
       },
     },
   },
@@ -110,6 +121,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
           "Expelled for publishing a translation the academy preferred buried. He still has the source text, and he is looking for someone brave enough to read it.",
         relationship: "friendly",
         tags: ["lore", "contact", "carouse"],
+        portrait_url: null,
       },
     },
   },
@@ -136,6 +148,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
           "Recruits for a guild whose name she will not say aloud in a public house. Her offer is genuine; the terms are not generous.",
         relationship: "indifferent",
         tags: ["faction", "contact", "carouse"],
+        portrait_url: null,
       },
     },
   },
@@ -173,6 +186,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
           "Collects for whoever pays him. Holds your marker, and will hold it patiently — with interest — for as long as it takes.",
         relationship: "unfriendly",
         tags: ["debt", "complication", "carouse"],
+        portrait_url: null,
       },
     },
   },
@@ -199,6 +213,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
           "Escapes an arranged betrothal one tavern at a time. Their family would pay well to know where they drink — which makes knowing them dangerous.",
         relationship: "friendly",
         tags: ["noble", "contact", "carouse"],
+        portrait_url: null,
       },
     },
   },
@@ -236,6 +251,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         description:
           "A set of tools worked to a fit no shop-bought kit can match — balanced, quiet, and unmistakably yours. Grants advantage on checks made to repeat the craft that made them, at the DM's discretion.",
         tags: ["crafted", "tool"],
+        image_url: null,
       },
     },
   },
@@ -271,6 +287,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         description:
           "A modest enchanted trinket of your own making. Pick one minor, always-on effect with the DM — a light that never gutters, a compass that finds home, a coin that always lands true once a day.",
         tags: ["crafted", "wondrous"],
+        image_url: null,
       },
     },
   },
@@ -306,6 +323,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         description:
           "A longsword of honest, careful make. No enchantment — but it will never be the thing that fails you.",
         tags: ["crafted", "weapon"],
+        image_url: null,
       },
     },
   },
@@ -525,6 +543,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         description:
           "A carved token handed to the winner of the pit — worth a little coin, worth more as proof. Doors open for someone who can produce one of these.",
         tags: ["pit-fighting", "trophy"],
+        image_url: null,
       },
     },
   },
@@ -562,6 +581,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         description:
           "A nicked, well-used shortsword nobody claimed after the bout. It has seen more pits than you have.",
         tags: ["pit-fighting", "weapon"],
+        image_url: null,
       },
     },
   },
@@ -644,6 +664,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         description:
           "The prize of a clean job — a valuable object someone will eventually miss. Reskin it to whatever the party actually lifted.",
         tags: ["heist", "stolen", "valuable"],
+        image_url: null,
       },
     },
   },
@@ -685,6 +706,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         description:
           "A grab-bag of whatever you could carry before the whistles started. Worth a little coin — and evidence, if the wrong person recognises it.",
         tags: ["heist", "complication", "hook"],
+        image_url: null,
       },
     },
   },
