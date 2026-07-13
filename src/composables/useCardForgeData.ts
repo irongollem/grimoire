@@ -11,8 +11,9 @@ import type { Item } from "@/types/item.types";
 import { ITEM_TYPE_LABELS, ITEM_RARITY_LABELS } from "@/types/item.types";
 import type { Spell } from "@/types/spell.types";
 import { spellLevelLabel } from "@/types/spell.types";
-import { DOWNTIME_ACTIVITIES, RISK_LABELS } from "@/data/downtimeActivities";
-import type { DowntimeActivity } from "@/types/downtime.types";
+import { DOWNTIME_ACTIVITIES, RISK_LABELS, getDowntimeActivity } from "@/data/downtimeActivities";
+import { DOWNTIME_SEEDS } from "@/data/downtimeSeeds";
+import type { DowntimeActivity, DowntimeSeed } from "@/types/downtime.types";
 
 export interface CardForgeListItem {
   id: string;
@@ -58,15 +59,35 @@ export function useCardForgeData() {
         }));
     }
     if (store.source === "downtime") {
-      // Static catalog, not a query — the archetype deck ships in code.
-      return DOWNTIME_ACTIVITIES.filter(
+      // Static catalogs, not queries — the deck ships in code. The list holds
+      // BOTH halves: the archetype cards (the menu a player lays down) and every
+      // outcome card (the face-down stack the DM draws from). Searching an
+      // archetype name — "carouse" — surfaces the activity card and all of its
+      // outcomes together, which is exactly the stack you want to print.
+      const activities: CardForgeListItem[] = DOWNTIME_ACTIVITIES.filter(
         (a: DowntimeActivity) =>
           a.title.toLowerCase().includes(q) || a.hook.toLowerCase().includes(q),
       ).map((a: DowntimeActivity) => ({
         id: a.key,
         name: a.title,
-        sub: `${RISK_LABELS[a.risk]} · yields ${a.rewardType}`,
+        sub: `Activity card · ${RISK_LABELS[a.risk]} · yields ${a.rewardType}`,
       }));
+
+      const seeds: CardForgeListItem[] = DOWNTIME_SEEDS.filter((s: DowntimeSeed) => {
+        const activityTitle = getDowntimeActivity(s.activityKey)?.title ?? "";
+        return (
+          s.title.toLowerCase().includes(q) ||
+          s.vignette.toLowerCase().includes(q) ||
+          s.activityKey.toLowerCase().includes(q) ||
+          activityTitle.toLowerCase().includes(q)
+        );
+      }).map((s: DowntimeSeed) => ({
+        id: s.id,
+        name: s.title,
+        sub: `${getDowntimeActivity(s.activityKey)?.title ?? "???"} · outcome`,
+      }));
+
+      return [...activities, ...seeds];
     }
     if (store.source === "items") {
       return (itemsData.value ?? [])
@@ -117,10 +138,15 @@ export function useCardForgeData() {
       ...(spellsData.value ?? [])
         .filter((s: Spell) => ids.spells.has(s.id))
         .map((s: Spell) => ({ kind: "spell" as const, data: s })),
-      // Keyed by `key`, not `id` — see `cardSubjectId`.
+      // Activity cards are keyed by `key`, not `id` — see `cardSubjectId`.
       ...DOWNTIME_ACTIVITIES.filter((a: DowntimeActivity) =>
         ids.downtime.has(a.key),
       ).map((a: DowntimeActivity) => ({ kind: "downtime" as const, data: a })),
+      // Outcome cards share the same bucket. Activity keys ("carouse") and seed
+      // ids ("carouse-fence") never collide, so one set of ids serves both.
+      ...DOWNTIME_SEEDS.filter((s: DowntimeSeed) => ids.downtime.has(s.id)).map(
+        (s: DowntimeSeed) => ({ kind: "downtime-seed" as const, data: s }),
+      ),
     ];
   });
 

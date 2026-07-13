@@ -2,23 +2,26 @@ import type { Npc } from "./npc.types";
 import type { Monster } from "./monster.types";
 import type { Item } from "./item.types";
 import type { Spell } from "./spell.types";
-import type { DowntimeActivity } from "./downtime.types";
+import type { DowntimeActivity, DowntimeSeed } from "./downtime.types";
 
 export type CardSubject =
   | { kind: "npc"; data: Npc }
   | { kind: "monster"; data: Monster }
   | { kind: "item"; data: Item }
   | { kind: "spell"; data: Spell }
-  | { kind: "downtime"; data: DowntimeActivity };
+  /** An Interlude activity card — the *menu* a player chooses from. */
+  | { kind: "downtime"; data: DowntimeActivity }
+  /** One possible *outcome* of an activity — the face-down stack you draw from. */
+  | { kind: "downtime-seed"; data: DowntimeSeed };
 
 /**
  * A subject's stable identifier.
  *
- * The four entity kinds are DB rows keyed by `id`; a downtime archetype is
- * static catalog data keyed by `key` (which is also what `downtime_draws.
- * activity_key` stores). Rather than bolt a duplicate `id` onto
- * `DowntimeActivity` — inviting it to drift from `activity_key` — the mismatch
- * is resolved in this one place.
+ * Everything else is keyed by `id`; a downtime *archetype* is static catalog
+ * data keyed by `key` (which is also what `downtime_draws.activity_key` stores).
+ * Rather than bolt a duplicate `id` onto `DowntimeActivity` — inviting it to
+ * drift from `activity_key` — the mismatch is resolved in this one place.
+ * A downtime *seed* does have an `id`, so it needs no special case.
  */
 export function cardSubjectId(subject: CardSubject): string {
   return subject.kind === "downtime" ? subject.data.key : subject.data.id;

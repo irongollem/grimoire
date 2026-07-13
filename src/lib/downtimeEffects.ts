@@ -1,6 +1,25 @@
 import { COIN_KEYS, type CoinKey, type DowntimeEffect } from "@/types/downtime.types";
 
 /**
+ * One effect, in words. Shared by the DM's resolution board and the printed
+ * outcome card, so a consequence reads identically on screen and on the table.
+ */
+export function describeEffect(effect: DowntimeEffect): string {
+  switch (effect.kind) {
+    case "gold": {
+      const parts = COIN_KEYS.filter((k) => effect[k] !== 0).map((k) => `${effect[k]} ${k}`);
+      return parts.length > 0 ? parts.join(", ") : "no coin";
+    }
+    case "item":
+      return `${effect.qty}× item`;
+    case "hp":
+      return `${effect.delta > 0 ? "+" : ""}${effect.delta} HP`;
+    case "condition":
+      return effect.condition;
+  }
+}
+
+/**
  * Pure transforms for the effect kinds the app enacts automatically (#486,
  * Phase 2): coin, HP, and conditions — every kind that has real `party_members`
  * state to write and carries complete information in the effect itself.

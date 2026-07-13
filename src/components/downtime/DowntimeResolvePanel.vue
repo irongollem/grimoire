@@ -5,12 +5,11 @@ import DowntimeActivityCard from "./DowntimeActivityCard.vue";
 import { getDowntimeActivity } from "@/data/downtimeActivities";
 import { markdownToTiptapJson } from "@/lib/markdownToTiptap";
 import { previewDraw, useResolveDraw, useCancelDraw, useApplyEffects } from "@/composables/useDowntime";
-import { isAutoAppliedKind } from "@/lib/downtimeEffects";
+import { isAutoAppliedKind, describeEffect } from "@/lib/downtimeEffects";
 import { useDowntimeGeneration } from "@/ai/useDowntimeGeneration";
 import { useAiCredits } from "@/composables/useAiCredits";
 import { useProviderConfig } from "@/composables/useProviderConfig";
 import { useCampaignStore } from "@/stores/campaign";
-import { COIN_KEYS } from "@/types/downtime.types";
 import type { DowntimeDeckBack, DowntimeDraw, DowntimeEffect, DrawResult } from "@/types/downtime.types";
 
 const { draw, memberName, backs } = defineProps<{
@@ -69,20 +68,8 @@ const seedReward = computed<{ noun: string; name: string } | null>(() => {
   return null;
 });
 
-function effectSummary(effect: DowntimeEffect): string {
-  switch (effect.kind) {
-    case "gold": {
-      const parts = COIN_KEYS.filter((k) => effect[k] !== 0).map((k) => `${effect[k]} ${k}`);
-      return parts.length > 0 ? parts.join(", ") : "no coin";
-    }
-    case "item":
-      return `${effect.qty}× item`;
-    case "hp":
-      return `${effect.delta} HP`;
-    case "condition":
-      return effect.condition;
-  }
-}
+/** Shared with the printed outcome card, so a consequence reads the same both places. */
+const effectSummary = describeEffect;
 
 /** Coin, HP, and conditions are enacted by the app; `item` is the DM's to hand out. */
 function isAutoApplied(effect: DowntimeEffect): boolean {

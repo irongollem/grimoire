@@ -91,22 +91,24 @@ function selectAll() {
 .source-panel {
   @apply w-64 shrink-0 flex flex-col gap-2 min-h-0;
 }
-/* A 3-column grid, not a single flex row. The panel is a fixed w-64, so five
-   tabs on one line get ~51px each — not enough for "Monsters", let alone
-   "Interlude" — and `overflow-hidden` clipped the crushed labels rather than
-   revealing the problem. Two rows of three keeps every label legible, and the
-   container carries `bg-card` so the one empty cell reads as part of the bar. */
+/* Two columns, not one flex row and not three columns. The panel is a fixed
+   w-64: five tabs on one line get ~51px each, and even at three columns ~85px
+   is a character short of "INTERLUDE" — so it truncated, and the absolutely
+   positioned count badge sat on top of the clipped text. Two columns give each
+   tab ~128px, which fits every label with room for an inline badge. */
 .source-tabs {
-  @apply grid grid-cols-3 rounded-md overflow-hidden border border-border bg-card shrink-0;
+  @apply grid grid-cols-2 gap-px rounded-md overflow-hidden border border-border bg-border shrink-0;
 }
 .src-tab {
-  @apply relative min-w-0 truncate font-cinzel text-xs font-semibold px-1 py-1.5 text-muted-foreground bg-card transition-colors;
+  @apply flex min-w-0 items-center justify-center gap-1.5 font-cinzel text-xs font-semibold px-2 py-1.5 text-muted-foreground bg-card transition-colors;
 }
 .src-tab.active {
   @apply bg-primary/20 text-primary;
 }
+/* Inline, not absolutely positioned: as an overlay it printed on top of the
+   label the moment a tab's text filled its width. */
 .tab-count {
-  @apply absolute top-0.5 right-0.5 inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground font-cinzel text-[9px] font-bold w-3.5 h-3.5;
+  @apply inline-flex shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-cinzel text-2xs font-bold px-1.5 leading-4;
 }
 .loot-banner {
   @apply flex items-center justify-between px-3 py-2 rounded-md border border-border bg-primary/10 shrink-0;

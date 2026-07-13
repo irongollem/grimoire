@@ -2,7 +2,8 @@ import type { Npc } from "@/types/npc.types";
 import type { Monster } from "@/types/monster.types";
 import type { Item } from "@/types/item.types";
 import type { Spell } from "@/types/spell.types";
-import type { DowntimeActivity } from "@/types/downtime.types";
+import type { DowntimeActivity, DowntimeSeed } from "@/types/downtime.types";
+import { getDowntimeActivity } from "@/data/downtimeActivities";
 
 /**
  * Shared Card Forge tokens — the bits both Inked and Modern designs use.
@@ -129,6 +130,12 @@ const DEFAULT_DOWNTIME_ACCENT = accent.bronze;
 
 export function accentForDowntime(d: DowntimeActivity): Accent {
   return DOWNTIME_ACCENT[d.risk] ?? DEFAULT_DOWNTIME_ACCENT;
+}
+
+/** An outcome card inherits its archetype's accent, so a printed stack reads as one deck. */
+export function accentForDowntimeSeed(s: DowntimeSeed): Accent {
+  const activity = getDowntimeActivity(s.activityKey);
+  return activity ? accentForDowntime(activity) : DEFAULT_DOWNTIME_ACCENT;
 }
 
 export function accentForNpc(d: Npc): Accent {

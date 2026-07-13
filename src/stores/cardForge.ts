@@ -7,7 +7,7 @@ export type CardStyleId = "inked" | "modern";
 export type CardModeId = "collection" | "loot";
 export type SourceId = "npcs" | "monsters" | "items" | "spells" | "downtime";
 
-export type CardKind = "npc" | "monster" | "item" | "spell" | "downtime";
+export type CardKind = "npc" | "monster" | "item" | "spell" | "downtime" | "downtime-seed";
 
 export interface CardCollection {
   id: string;
@@ -26,7 +26,10 @@ const KIND_TO_SOURCE: Record<CardKind, SourceId> = {
   monster: "monsters",
   item: "items",
   spell: "spells",
+  // Activity cards and their outcome cards share one tab and one bucket: they
+  // are two halves of the same deck, and you print them together.
   downtime: "downtime",
+  "downtime-seed": "downtime",
 };
 
 function emptyBuckets(): Record<SourceId, Set<string>> {
