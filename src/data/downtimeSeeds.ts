@@ -361,7 +361,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         description:
           "Several doses of the same brew, corked and labelled in your own hand. Agree the effect with your DM — the point is that you can make more.",
         tags: ["crafted", "alchemy", "consumable"],
-        image_url: null,
+        image_url: art("seed-alchemists-batch"),
       },
     },
   },
@@ -397,7 +397,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         description:
           "A strongbox keyed to its maker. Opens for you without effort; for anyone else it does not open, and it remembers that they tried.",
         tags: ["crafted", "container", "warded"],
-        image_url: null,
+        image_url: art("seed-warded-lockbox"),
       },
     },
   },
@@ -439,7 +439,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         description:
           "Exquisite work with something subtly amiss in it. The DM decides what — a curse, a quirk, an effect that fires when it shouldn't. It functions. It just isn't only yours.",
         tags: ["crafted", "flawed", "hook"],
-        image_url: null,
+        image_url: art("seed-flawed-masterwork"),
       },
     },
   },
@@ -1038,7 +1038,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         description:
           "A wreath of hammered brass leaves, handed to the crowd's favourite rather than the night's best fighter. People in this city know what it means.",
         tags: ["pit-fighting", "trophy", "reputation"],
-        image_url: null,
+        image_url: art("seed-victors-laurel"),
       },
     },
   },
@@ -1080,7 +1080,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         description:
           "A stamped token given to a fighter who takes a dive — proof of payment, and proof of what you did. The man who gave it to you kept the other half.",
         tags: ["pit-fighting", "underworld", "complication", "hook"],
-        image_url: null,
+        image_url: art("seed-fixers-marker"),
       },
     },
   },
@@ -1122,7 +1122,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         description:
           "A heavy purse won against the odds, still bearing the bookmaker's seal. Someone lost a fortune paying it out, and they know your face.",
         tags: ["pit-fighting", "winnings", "hook"],
-        image_url: null,
+        image_url: art("seed-long-odds-purse"),
       },
     },
   },
@@ -1160,7 +1160,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         description:
           "You kept your opponent's weapon. It is unremarkable, and you will never look at it that way. The DM may rule the injury lingers.",
         tags: ["pit-fighting", "weapon", "injury", "hook"],
-        image_url: null,
+        image_url: art("seed-blade-that-did-it"),
       },
     },
   },
@@ -1432,7 +1432,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         description:
           "A key cut from a wax impression you did not take. It still opens that door — and someone knows you have it.",
         tags: ["heist", "contact", "hook"],
-        image_url: null,
+        image_url: art("seed-copied-key"),
       },
     },
   },
@@ -1468,7 +1468,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         description:
           "Valuable, and stolen from somebody you never intended to rob. They did nothing to you. They will not see it that way.",
         tags: ["heist", "stolen", "complication", "hook"],
-        image_url: null,
+        image_url: art("seed-wrong-prize"),
       },
     },
   },
@@ -1504,7 +1504,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         description:
           "A crested signet ring, unsellable and unmistakable. It seals letters as its owner. That is worth far more than gold, and far more dangerous.",
         tags: ["heist", "noble", "unsellable", "hook"],
-        image_url: null,
+        image_url: art("seed-noble-signet"),
       },
     },
   },
@@ -1552,7 +1552,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         description:
           "A handful of nothing much, taken in a hurry. The DM should decide what you *left* behind — a tool, a glove, a name — and who is holding it now.",
         tags: ["heist", "botched", "complication", "hook"],
-        image_url: null,
+        image_url: art("seed-botched-keepsake"),
       },
     },
   },

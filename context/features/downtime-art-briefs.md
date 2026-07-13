@@ -1,18 +1,18 @@
 # The Interlude — art briefs
 
-Generation briefs for the 21 canonical images The Interlude needs (#486). Everything here is **our own content** — none of it is SRD material, despite the `srd/` storage prefix (see "Where the files go").
+Generation briefs for the 32 canonical images The Interlude needs (#486, #540). Everything here is **our own content** — none of it is SRD material, despite the `srd/` storage prefix (see "Where the files go").
 
-## ✅ All 21 shipped
+## ✅ All 32 shipped
 
-Every image is live in `downtime-images/srd/` and wired into `src/data/`. **Zero `null` art slots remain.**
+Every image is live in `downtime-images/srd/` and wired into `src/data/`. **Zero `null` art slots remain** — every seed in the deck that *can* carry art, has it.
 
 | Set | Count | Lands on |
 | --- | --- | --- |
 | Archetype card faces | 8 | `DowntimeActivity.artUrl` |
 | Seed NPC portraits | 6 | `npcs.portrait_url` when the seed is drawn |
-| Seed item images | 7 | `items.image_url` when the seed is drawn |
+| Seed item images | 18 | `items.image_url` when the seed is drawn |
 
-The 9 note-yielding seeds get none — `notes` has no image column.
+The 24 note-yielding seeds get none — `notes` has no image column, so there is nowhere to put it. They render the archetype's procedural `accent` + `glyph` face, which is the intended look, not a stopgap.
 
 The procedural `accent` + `glyph` face remains as the fallback in code, so a missing or failed image still degrades gracefully rather than rendering an empty frame.
 
@@ -128,3 +128,25 @@ Single object, centred, on a plain dark background. Museum-plate lighting — le
 The slots already exist and are `null`. No schema change, no code change — just swap the null for the URL.
 
 **The AI airlock never accepts an image URL from the model** (`downtimeAiSeed.ts`): an AI-drafted contact or item always gets `null`, because a model-supplied URL would be an unvalidated remote reference. Art comes from the canonical bucket or not at all.
+
+---
+
+## Round 2 — the 11 item images for the expanded seeds ✅ SHIPPED
+
+Added with the seed expansion (#540), which brought every archetype to 6 seeds.
+
+| File | Seed | Note |
+| --- | --- | --- |
+| `seed-alchemists-batch.webp` | `craft-alchemists-batch` | Matching corked doses — a *repeatable* brew, not one precious potion |
+| `seed-warded-lockbox.webp` | `craft-warded-lockbox` | No keyhole; a sigil that asks a question |
+| `seed-flawed-masterwork.webp` | `craft-flawed-masterwork` | A mirror whose reflection shows somewhere that isn't there — "exquisite and subtly wrong", solved cleverly |
+| `seed-victors-laurel.webp` | `pit-crowd-favourite` | Cheap brass, dented, clearly treasured |
+| `seed-fixers-marker.webp` | `pit-thrown-match` | **Snapped in half** — the fixer kept the other piece. The break *is* the story |
+| `seed-long-odds-purse.webp` | `pit-underdog-upset` | Straining at the seams, broken bookmaker's seal |
+| `seed-blade-that-did-it.webp` | `pit-maimed` | Utterly plain. The horror is that it's ordinary |
+| `seed-copied-key.webp` | `job-inside-man` | Fresh brass on the greying wax blank it came from |
+| `seed-wrong-prize.webp` | `job-wrong-house` | An open locket with a child's portrait. Not treasure — someone's *beloved keepsake*. That's what makes stealing it feel bad |
+| `seed-noble-signet.webp` | `job-noble-signet` | Deep-cut crest, a bead of red wax still clinging |
+| `seed-botched-keepsake.webp` | `job-caught-in-the-act` | A meagre damp handful. The picture is about what *isn't* there |
+
+The three hardest briefs — the ones carrying an *idea* rather than depicting an object (`flawed-masterwork`, `fixers-marker`, `wrong-prize`) — all landed first time.
