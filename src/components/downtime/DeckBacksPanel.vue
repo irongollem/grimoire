@@ -163,10 +163,14 @@ async function addBack() {
         />
       </div>
 
+      <!-- `leading-5` + a transparent border give the button the same box model as
+           the selects (border + py-1.5 + 1.25rem line-height). Without them it is
+           ~8px shorter, and bottom-aligning a shorter control is what made it read
+           as sitting oddly low next to the fields. -->
       <button
         type="button"
         :disabled="createBack.isPending.value"
-        class="rounded-md bg-primary px-4 py-1.5 font-cinzel text-2xs text-primary-foreground disabled:opacity-50"
+        class="rounded-md border border-transparent bg-primary px-4 py-1.5 font-cinzel text-2xs leading-5 text-primary-foreground disabled:opacity-50"
         @click="addBack"
       >
         Prep

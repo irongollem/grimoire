@@ -17,7 +17,7 @@ import type { DowntimeDraw } from "@/types/downtime.types";
 const ui = useUiStore();
 // Hidden from the sidebar when off, but a bookmarked URL still lands here.
 const isEnabled = useIsRuleEnabled("downtime");
-const { data: party } = useParty();
+const { data: party, isPending: partyPending } = useParty();
 const { data: npcs } = useNpcs();
 const { data: draws } = useDowntimeDraws();
 const { data: outcomes } = useDowntimeOutcomes();
@@ -91,7 +91,12 @@ function rewardHref(rewardType: string | null, rewardId: string | null): string 
         A draw is a gift you give when the story says there is a lull. One credit, one turn of
         the deck.
       </p>
-      <ul v-if="party && party.length > 0" class="mt-3 space-y-1">
+      <!-- "Still loading" and "there is nobody" are different facts. Claiming the
+           campaign has no characters while the query is in flight is a lie the
+           user can see: they land here, read "no characters", and only a refresh
+           (warm cache) proves otherwise. -->
+      <p v-if="partyPending" class="mt-3 text-2xs text-muted-foreground">Loading the party…</p>
+      <ul v-else-if="party && party.length > 0" class="mt-3 space-y-1">
         <li
           v-for="member in party"
           :key="member.id"
@@ -109,55 +114,56 @@ function rewardHref(rewardType: string | null, rewardId: string | null): string 
          this list and nothing else, so floating them above the heading (and
          outside any card) left them reading as page furniture. -->
     <section class="mt-6 rounded-lg border border-border bg-card p-4">
-      <header class="flex flex-wrap items-end justify-between gap-3">
-        <h2 class="font-cinzel text-base font-semibold">
-          Awaiting you
-          <span class="text-2xs font-normal text-muted-foreground">
-            ({{ pendingDraws.length }})
-          </span>
-        </h2>
+      <h2 class="font-cinzel text-base font-semibold">
+        Awaiting you
+        <span class="text-2xs font-normal text-muted-foreground">
+          ({{ pendingDraws.length }})
+        </span>
+      </h2>
 
-        <div class="flex flex-wrap items-end gap-2">
-          <div>
-            <label for="downtime-filter-status" class="mb-1 block text-2xs font-medium">
-              Status
-            </label>
-            <select
-              id="downtime-filter-status"
-              v-model="filterStatus"
-              class="rounded-md border border-border bg-card px-3 py-1.5 font-fell text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-            >
-              <option value="all">All</option>
-              <option v-for="s in DOWNTIME_DRAW_STATUSES" :key="s" :value="s">
-                {{ DOWNTIME_DRAW_STATUS_LABELS[s] }}
-              </option>
-            </select>
-          </div>
-
-          <div>
-            <label for="downtime-filter-character" class="mb-1 block text-2xs font-medium">
-              Character
-            </label>
-            <select
-              id="downtime-filter-character"
-              v-model="filterCharacter"
-              class="rounded-md border border-border bg-card px-3 py-1.5 font-fell text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-            >
-              <option value="">Everyone</option>
-              <option v-for="m in party ?? []" :key="m.id" :value="m.id">{{ m.name }}</option>
-            </select>
-          </div>
-
-          <button
-            v-if="ui.downtimeHasActiveFilters"
-            type="button"
-            class="rounded-md border border-border px-3 py-1.5 text-2xs text-muted-foreground hover:bg-muted"
-            @click="ui.resetDowntimeFilters()"
+      <!-- A filter bar under its section heading, not beside it: the selects carry
+           stacked labels, so putting them on the heading row made the row two
+           controls tall and left the heading floating in dead space. -->
+      <div class="mt-3 flex flex-wrap items-end gap-2 border-b border-border pb-3">
+        <div>
+          <label for="downtime-filter-status" class="mb-1 block text-2xs font-medium">
+            Status
+          </label>
+          <select
+            id="downtime-filter-status"
+            v-model="filterStatus"
+            class="rounded-md border border-border bg-card px-3 py-1.5 font-fell text-sm focus:outline-none focus:ring-1 focus:ring-ring"
           >
-            Clear
-          </button>
+            <option value="all">All</option>
+            <option v-for="s in DOWNTIME_DRAW_STATUSES" :key="s" :value="s">
+              {{ DOWNTIME_DRAW_STATUS_LABELS[s] }}
+            </option>
+          </select>
         </div>
-      </header>
+
+        <div>
+          <label for="downtime-filter-character" class="mb-1 block text-2xs font-medium">
+            Character
+          </label>
+          <select
+            id="downtime-filter-character"
+            v-model="filterCharacter"
+            class="rounded-md border border-border bg-card px-3 py-1.5 font-fell text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            <option value="">Everyone</option>
+            <option v-for="m in party ?? []" :key="m.id" :value="m.id">{{ m.name }}</option>
+          </select>
+        </div>
+
+        <button
+          v-if="ui.downtimeHasActiveFilters"
+          type="button"
+          class="rounded-md border border-border px-3 py-1.5 text-2xs leading-5 text-muted-foreground hover:bg-muted"
+          @click="ui.resetDowntimeFilters()"
+        >
+          Clear
+        </button>
+      </div>
 
       <p v-if="pendingDraws.length === 0" class="mt-3 text-2xs text-muted-foreground">
         Nothing pending. Grant a credit and your players can spend it between sessions.
