@@ -2,7 +2,21 @@
 
 Generation briefs for the 21 canonical images The Interlude needs (#486). Everything here is **our own content** — none of it is SRD material, despite the `srd/` storage prefix (see "Where the files go").
 
-Until these ship, every card renders a **procedural face** from its `accent` + `glyph`, so nothing is blocked. Art is polish, not a gate.
+## ✅ All 21 shipped
+
+Every image is live in `downtime-images/srd/` and wired into `src/data/`. **Zero `null` art slots remain.**
+
+| Set | Count | Lands on |
+| --- | --- | --- |
+| Archetype card faces | 8 | `DowntimeActivity.artUrl` |
+| Seed NPC portraits | 6 | `npcs.portrait_url` when the seed is drawn |
+| Seed item images | 7 | `items.image_url` when the seed is drawn |
+
+The 9 note-yielding seeds get none — `notes` has no image column.
+
+The procedural `accent` + `glyph` face remains as the fallback in code, so a missing or failed image still degrades gracefully rather than rendering an empty frame.
+
+**Pit Fighting was regenerated** after the first pass put a POV fist and sword in the bottom third, under the title scrim. The v2 clears it to empty churned sand, matching the other seven. It was upserted over the same path — a CDN edge may briefly serve the old one.
 
 ---
 
@@ -38,7 +52,7 @@ Append that to every prompt below. Each brief names its **dominant accent** — 
 
 They fill `DowntimeActivity.artUrl` and appear in **four** places: the player Activity Board, the DM prep panel, the resolve panel, and Card Forge.
 
-**Known issue — `pit-fighting.webp`.** Seven of the eight keep the lower third quiet, as intended. Pit Fighting does not: a POV fist and bloody sword occupy the bottom-right, exactly where the card's scrim, title, and stat row land. The scrim darkens it so it *reads*, but it's the one card where the art fights the text. Worth a regen with the bottom third cleared (see the prompt below).
+**`pit-fighting.webp` was regenerated — resolved.** The first pass put a POV fist and bloody sword in the bottom-right, exactly where the card's scrim, title, and stat row land: the one card where the art fought the text. The v2 clears the bottom third to empty churned sand, so all eight now keep the lower third quiet.
 
 These are **scenes, not portraits** — no single recurring character. Think "the moment this activity feels like".
 
@@ -49,7 +63,7 @@ These are **scenes, not portraits** — no single recurring character. Think "th
 | 3 | `research.webp` | deep blue `#1E3A5F` | A dim archive of towering shelves, one desk lit by a single guttering lamp. Open books, unrolled charts, a stack no one has touched in years. Dust suspended in the lamplight. |
 | 4 | `train.webp` | green `#2F5D3A` | A bare practice yard at grey dawn. A weighted dummy, chalk marks on flagstones, a rack of worn wooden weapons. Cold breath, no audience — the unglamorous work. |
 | 5 | `business.webp` | gold `#6B5510` | A shopfront counter after closing: an open ledger, a strongbox, stacked coin, a lamp burning low. Prosperous, orderly, and quietly precarious. |
-| 6 | `pit-fighting.webp` | blood `#5A1414` | ⚠️ **Regen candidate.** A torchlit fighting pit from the fighter's eye-line. Ring of roaring faces above, sand churned and dark, an opponent's silhouette. Money changing hands in the crowd. **Keep the bottom third empty sand — no hands, no weapon, no foreground figure.** (The shipped version puts a POV fist and sword there, under the title.) |
+| 6 | `pit-fighting.webp` | blood `#5A1414` | A torchlit fighting pit from the fighter's eye-line. Ring of roaring faces above, sand churned and dark, an opponent's silhouette. Money changing hands in the crowd. **Bottom third is empty churned sand — no hands, no weapon, no foreground figure** (the v2 regen; v1 wrongly put a POV fist and sword under the title). |
 | 7 | `lie-low.webp` | slate `#2C3440` | A shuttered attic room at night. A thin blade of moonlight through the boards, a mattress on the floor, a packed bag by the door. Stillness that is not restful. |
 | 8 | `pull-a-job.webp` | purple `#3D2159` | A moonlit rooftop above a sleeping city; a rope over the edge, a shuttered window below, a gloved hand steadying on the tiles. All anticipation, nothing committed yet. |
 
@@ -86,9 +100,9 @@ Character portraits: head-and-shoulders to waist-up, subject making eye contact 
 | 13 | `seed-debt-collector.webp` | **Bran Otwell**, human debt collector. Deliberately unremarkable in every way — that's the point. Soft-featured, plainly dressed, immaculate ledger held closed. Scrupulously fair and entirely without mercy. |
 | 14 | `seed-flirtatious-noble.webp` | **Lucien Voss**, bored young noble. Beautifully dressed but deliberately underdressed for their station. A signet ring turned inward to hide the crest. Delightful, charming, wholly unreliable. |
 
-### 7 item images → `items.image_url` — ⏳ still needed
+### 7 item images → `items.image_url` ✅ SHIPPED
 
-The last outstanding set. Slots exist and are `null`; the items mint without a picture until these land.
+**Done.** All seven are live and wired. A drawn Craft, Pit Fighting, or Pull a Job seed now mints an item that already has a picture.
 
 Single object, centred, on a plain dark background. Museum-plate lighting — let the object be the whole picture.
 

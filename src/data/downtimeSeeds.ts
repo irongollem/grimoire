@@ -252,7 +252,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         description:
           "A set of tools worked to a fit no shop-bought kit can match — balanced, quiet, and unmistakably yours. Grants advantage on checks made to repeat the craft that made them, at the DM's discretion.",
         tags: ["crafted", "tool"],
-        image_url: null,
+        image_url: art("seed-masterwork-tools"),
       },
     },
   },
@@ -288,7 +288,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         description:
           "A modest enchanted trinket of your own making. Pick one minor, always-on effect with the DM — a light that never gutters, a compass that finds home, a coin that always lands true once a day.",
         tags: ["crafted", "wondrous"],
-        image_url: null,
+        image_url: art("seed-handmade-charm"),
       },
     },
   },
@@ -324,7 +324,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         description:
           "A longsword of honest, careful make. No enchantment — but it will never be the thing that fails you.",
         tags: ["crafted", "weapon"],
-        image_url: null,
+        image_url: art("seed-well-forged-blade"),
       },
     },
   },
@@ -544,7 +544,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         description:
           "A carved token handed to the winner of the pit — worth a little coin, worth more as proof. Doors open for someone who can produce one of these.",
         tags: ["pit-fighting", "trophy"],
-        image_url: null,
+        image_url: art("seed-champions-token"),
       },
     },
   },
@@ -582,7 +582,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         description:
           "A nicked, well-used shortsword nobody claimed after the bout. It has seen more pits than you have.",
         tags: ["pit-fighting", "weapon"],
-        image_url: null,
+        image_url: art("seed-confiscated-blade"),
       },
     },
   },
@@ -665,7 +665,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         description:
           "The prize of a clean job — a valuable object someone will eventually miss. Reskin it to whatever the party actually lifted.",
         tags: ["heist", "stolen", "valuable"],
-        image_url: null,
+        image_url: art("seed-the-score"),
       },
     },
   },
@@ -707,7 +707,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
         description:
           "A grab-bag of whatever you could carry before the whistles started. Worth a little coin — and evidence, if the wrong person recognises it.",
         tags: ["heist", "complication", "hook"],
-        image_url: null,
+        image_url: art("seed-botched-haul"),
       },
     },
   },
