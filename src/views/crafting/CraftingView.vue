@@ -3,6 +3,10 @@
     title="Workshop"
     description="Create recipes and share them with your players"
   >
+    <template #title-suffix>
+      <ManualHelpLink page="workshop-overview" />
+    </template>
+
     <template #actions>
       <ListActionButton
         v-if="auth.isDM && playerIds.length"
@@ -159,6 +163,7 @@ import { computed, ref } from "vue";
 
 import { IconAdd, IconAward, IconDelete, IconDownload, IconEdit, IconListView, IconLoading, IconNavWorkshop, IconReveal, IconTool } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
+import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import PlayerVisibilityToggle from "@/components/common/PlayerVisibilityToggle.vue";
 import { CRAFTING_DISCIPLINES, getDiscipline } from "@/lib/crafting-disciplines";

@@ -3,6 +3,10 @@
     title="Cartographer"
     description="Paint tile-based battle maps; bake to Atlas locations when ready."
   >
+    <template #title-suffix>
+      <ManualHelpLink page="cartographer-overview" />
+    </template>
+
     <template #actions>
       <ListActionButton
         v-if="ui.cartographerHasActiveFilters"
@@ -104,6 +108,7 @@ import { useUiStore } from "@/stores/ui";
 import type { DungeonMap } from "@/types/dungeonMap.types";
 
 import PageHeader from "@/components/common/PageHeader.vue";
+import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";

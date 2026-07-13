@@ -1,5 +1,9 @@
 <template>
   <ListPageLayout title="Vault" description="Your mundane equipment and magic items">
+    <template #title-suffix>
+      <ManualHelpLink page="vault-overview" />
+    </template>
+
     <template #actions>
       <ListActionButton
         :icon="importMutation.isPending.value ? IconLoading : IconDownload"
@@ -54,6 +58,7 @@
 import { ref, computed } from "vue";
 import { IconAdd, IconDownload, IconGenerate, IconLoading } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
+import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterSelect from "@/components/common/ListFilterSelect.vue";

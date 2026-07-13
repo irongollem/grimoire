@@ -1,5 +1,9 @@
 <template>
   <ListPageLayout title="Factions" description="Guilds, cults, governments, and other organisations">
+    <template #title-suffix>
+      <ManualHelpLink page="factions" />
+    </template>
+
     <template #actions>
       <ListActionButton
         v-if="hasSetting"
@@ -95,6 +99,7 @@ import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { getSetting } from "@/settings/index";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
+import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterSelect from "@/components/common/ListFilterSelect.vue";

@@ -4,7 +4,11 @@
     <PageHeader
       title="Illuminator"
       description="Apply torn-edge and fade treatments to images for use in Scriptorium."
-    />
+    >
+      <template #title-suffix>
+        <ManualHelpLink page="illuminator-image-effects" />
+      </template>
+    </PageHeader>
 
     <div class="px-4 pb-4 md:px-6 lg:flex-1 lg:min-h-0 lg:overflow-hidden">
       <div class="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6 lg:h-full">
@@ -117,6 +121,7 @@
 import { ref, shallowRef, reactive, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import PageHeader from "@/components/common/PageHeader.vue";
+import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import IlluminatePreviewPanel from "@/components/illuminate/IlluminatePreviewPanel.vue";
 import IlluminateControlsPanel from "@/components/illuminate/IlluminateControlsPanel.vue";
 import { getCurrentUser } from "@/lib/supabase";

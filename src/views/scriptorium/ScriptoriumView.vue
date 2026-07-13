@@ -1,5 +1,9 @@
 <template>
   <ListPageLayout title="Scriptorium" description="Craft spell scrolls, stat blocks, and campaign documents">
+    <template #title-suffix>
+      <ManualHelpLink page="scriptorium-document-publisher" />
+    </template>
+
     <template #actions>
       <ListActionButton
         :icon="IconAdd"
@@ -20,6 +24,7 @@ import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { IconAdd } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
+import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ScriptoriumDocumentList from "@/components/scriptorium/ScriptoriumDocumentList.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";

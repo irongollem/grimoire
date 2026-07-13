@@ -1,6 +1,10 @@
 <template>
   <div class="flex flex-col h-full">
-    <PageHeader title="Campaign Settings" :subtitle="campaignStore.activeCampaign?.name ?? ''" />
+    <PageHeader title="Campaign Settings" :description="campaignStore.activeCampaign?.name ?? ''">
+      <template #title-suffix>
+        <ManualHelpLink page="campaign-settings" />
+      </template>
+    </PageHeader>
 
     <div v-if="campaignStore.activeCampaign" class="flex flex-col md:flex-row flex-1 min-h-0">
       <!-- Sidebar tabs -->
@@ -101,6 +105,7 @@ import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useCampaignStore } from "@/stores/campaign";
 import PageHeader from "@/components/common/PageHeader.vue";
+import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import DetailsTab from "@/components/campaign/DetailsTab.vue";
 import DangerZoneTab from "@/components/campaign/DangerZoneTab.vue";

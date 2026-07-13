@@ -1,5 +1,9 @@
 <template>
   <ListPageLayout title="Encounters" description="Build and run combat encounters">
+    <template #title-suffix>
+      <ManualHelpLink page="encounter-builder" />
+    </template>
+
     <template #actions>
       <ListActionButton
         :icon="IconAdd"
@@ -52,6 +56,7 @@ import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { IconAdd, IconCheckDouble } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
+import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterSelect from "@/components/common/ListFilterSelect.vue";

@@ -3,6 +3,10 @@
     title="Atlas"
     description="Continents, cities, dungeons, and every place in between"
   >
+    <template #title-suffix>
+      <ManualHelpLink page="atlas-locations" />
+    </template>
+
     <template #actions>
       <ListActionButton
         :icon="planarMutation.isPending.value ? IconLoading : IconFaction"
@@ -52,6 +56,7 @@
 import { ref, computed } from "vue";
 import { IconAdd, IconFaction, IconGenerate, IconLoading, IconPopulate } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
+import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterSelect from "@/components/common/ListFilterSelect.vue";

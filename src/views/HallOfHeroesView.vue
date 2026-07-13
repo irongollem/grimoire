@@ -1,5 +1,9 @@
 <template>
   <ListPageLayout title="Hall of Heroes" description="Iconic characters importable into any campaign">
+    <template #title-suffix>
+      <ManualHelpLink page="hall-of-heroes" />
+    </template>
+
     <template v-if="isAppAdmin" #actions>
       <ListActionButton
         :icon="IconGenerate"
@@ -158,6 +162,7 @@ import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
+import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterSelect from "@/components/common/ListFilterSelect.vue";

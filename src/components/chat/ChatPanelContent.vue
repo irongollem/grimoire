@@ -10,6 +10,7 @@
           class="font-cinzel text-xs font-semibold text-foreground tracking-wider"
           >Campaign Chat</span
         >
+        <ManualHelpLink page="campaign-chat" />
       </div>
       <div class="flex items-center gap-1">
         <button
@@ -317,6 +318,7 @@
 import { ref, reactive, computed, watch, nextTick, shallowRef, onMounted } from "vue";
 import { renderChatMessage } from "@/lib/chatMarkdown";
 import { IconClose, IconDelete, IconDiceRoll, IconMessage, IconSend, IconShop } from '@/lib/icons';
+import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { formatChatTimestamp } from "@/lib/utils";
 import { useLocalePrefs } from "@/composables/useLocalePrefs";

@@ -3,6 +3,10 @@
     title="Quest Log"
     description="Track active quests, side jobs, and completed adventures"
   >
+    <template #title-suffix>
+      <ManualHelpLink page="quest-log" />
+    </template>
+
     <template #actions>
       <ListActionButton
         :icon="IconGenerate"
@@ -54,6 +58,7 @@
 <script setup lang="ts">
 import { IconAdd, IconColumns, IconGenerate, IconListView } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
+import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";

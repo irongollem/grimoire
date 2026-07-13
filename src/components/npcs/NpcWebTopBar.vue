@@ -9,6 +9,7 @@
     </RouterLink>
     <span class="text-border">|</span>
     <h1 class="font-cinzel text-sm font-bold tracking-wider text-foreground">Relationship Web</h1>
+    <ManualHelpLink page="npc-relationship-web" />
 
     <div class="ml-auto flex items-center gap-2 flex-wrap">
       <!-- Search -->
@@ -76,6 +77,7 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router';
 import { IconChevronLeft, IconSearch, IconShield } from '@/lib/icons';
+import ManualHelpLink from '@/components/common/ManualHelpLink.vue';
 import type { NpcRelationshipType } from '@/types/npc.types';
 
 interface LocationOption {

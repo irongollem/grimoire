@@ -1,6 +1,10 @@
 <template>
   <!-- ══ Desktop (≥md): existing ListPageLayout chrome — unchanged ══════════ -->
   <ListPageLayout v-if="!isMobile" title="Bestiary" description="Your custom monster compendium">
+    <template #title-suffix>
+      <ManualHelpLink page="bestiary-overview" />
+    </template>
+
     <template #actions>
       <!-- Sources panel — per-campaign library selection, DB-backed so it persists -->
       <div ref="sourcePickerRef" class="relative shrink-0">
@@ -294,6 +298,7 @@ import {
   IconSearch, IconSettings,
 } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
+import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterSelect from "@/components/common/ListFilterSelect.vue";

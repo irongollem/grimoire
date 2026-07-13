@@ -6,9 +6,10 @@
       <div class="flex items-start justify-between gap-3">
         <div>
           <h1
-            class="font-cinzel text-xl md:text-3xl font-bold text-foreground tracking-wide"
+            class="font-cinzel text-xl md:text-3xl font-bold text-foreground tracking-wide inline-flex items-center gap-2"
           >
             Rules Reliquary
+            <ManualHelpLink v-if="manualPage" :page="manualPage" />
           </h1>
           <p
             class="font-fell text-sm md:text-base text-muted-foreground italic mt-0.5"
@@ -65,6 +66,7 @@ import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconAdd, IconBookMarked, IconMonitor, IconPopulate, IconQuest } from '@/lib/icons';
 import { RouterLink } from "vue-router";
+import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ScreenTab from "@/components/rules/ScreenTab.vue";
 import CompendiumTab from "@/components/rules/CompendiumTab.vue";
 import CustomRulesTab from "@/components/rules/CustomRulesTab.vue";
@@ -88,6 +90,13 @@ const activeTab = computed<TabId>(() => {
   const q = route.query.tab;
   return VALID_TABS.has(q as string) ? (q as TabId) : "screen";
 });
+
+const MANUAL_PAGE_BY_TAB: Partial<Record<TabId, string>> = {
+  screen: "dm-screen",
+  compendium: "srd-compendium",
+  custom: "custom-rules-house-rules",
+};
+const manualPage = computed(() => MANUAL_PAGE_BY_TAB[activeTab.value]);
 
 function setTab(id: TabId) {
   router.replace({ query: { ...route.query, tab: id, page: undefined } });

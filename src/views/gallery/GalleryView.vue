@@ -1,5 +1,9 @@
 <template>
   <PageHeader title="Gallery" description="Every image you've conjured, gathered in one place.">
+    <template #title-suffix>
+      <ManualHelpLink page="gallery" />
+    </template>
+
     <template #header-extra>
       <div class="flex flex-col gap-2">
         <!-- Search + Clear -->
@@ -106,6 +110,7 @@ import { computed } from "vue";
 import { useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
 import PageHeader from "@/components/common/PageHeader.vue";
+import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";

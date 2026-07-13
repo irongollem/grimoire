@@ -1,5 +1,9 @@
 <template>
   <PageHeader title="Party Tracker" description="Track your heroes' HP, initiative, and passive skills">
+    <template #title-suffix>
+      <ManualHelpLink page="party-tracker" />
+    </template>
+
     <template #actions>
       <button
         type="button"
@@ -80,6 +84,7 @@ import { ref, computed } from "vue";
 import { RouterLink } from "vue-router";
 import { IconAdd, IconBeast, IconGenerate, IconUpload } from '@/lib/icons';
 import PageHeader from "@/components/common/PageHeader.vue";
+import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import PartyTracker from "@/components/party/PartyTracker.vue";
 import { useGroupPortrait } from "@/composables/useGroupPortrait";
 

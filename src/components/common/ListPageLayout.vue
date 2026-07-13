@@ -52,9 +52,10 @@
         -->
         <div class="hidden md:block md:min-w-0 md:flex-1">
           <h1
-            class="font-cinzel text-xl md:text-3xl font-bold text-foreground tracking-wide truncate"
+            class="font-cinzel text-xl md:text-3xl font-bold text-foreground tracking-wide flex min-w-0 items-center gap-2"
           >
-            {{ title }}
+            <span class="truncate">{{ title }}</span>
+            <slot name="title-suffix" />
           </h1>
           <p
             v-if="description"

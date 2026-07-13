@@ -1,7 +1,10 @@
 <template>
   <div class="forge-topbar">
     <div>
-      <h1 class="forge-title">Card Forge</h1>
+      <div class="inline-flex items-center gap-2">
+        <h1 class="forge-title">Card Forge</h1>
+        <ManualHelpLink page="card-forge-card-printer" />
+      </div>
       <p class="forge-sub">
         {{
           store.mode === "loot"
@@ -108,6 +111,7 @@ import { useCardForgeStore } from "@/stores/cardForge";
 import { useCardForgeData } from "@/composables/useCardForgeData";
 import { deckBackById } from "@/components/cardforge/styles/loot/deckBacks";
 import CardForgeDeckBackPicker from "./CardForgeDeckBackPicker.vue";
+import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 
 const store = useCardForgeStore();
 const { selectedSubjects } = useCardForgeData();

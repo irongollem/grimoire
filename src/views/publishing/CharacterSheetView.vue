@@ -1,5 +1,8 @@
 <template>
   <PageHeader title="Character Sheet" description="Export a printable PDF character sheet">
+    <template #title-suffix>
+      <ManualHelpLink page="character-sheet-export" />
+    </template>
 
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
@@ -69,6 +72,7 @@
 import { ref, computed, watch } from "vue";
 import { useRoute, RouterLink } from "vue-router";
 import PageHeader from "@/components/common/PageHeader.vue";
+import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import CharacterSheetRenderer from "@/components/character-sheet/CharacterSheetRenderer.vue";
 import { useParty } from "@/composables/useParty";

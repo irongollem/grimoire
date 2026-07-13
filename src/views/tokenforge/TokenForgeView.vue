@@ -4,7 +4,11 @@
     <PageHeader
       title="The Mint"
       description="Forge VTT tokens and design printable coins."
-    />
+    >
+      <template #title-suffix>
+        <ManualHelpLink page="the-mint-tokens-and-coins" />
+      </template>
+    </PageHeader>
 
     <div class="px-4 pb-4 md:px-6 space-y-4">
     <!-- Main tab: Tokens | Coins -->
@@ -143,6 +147,7 @@ import { ref, computed, watch, nextTick, onUnmounted } from "vue";
 import { IconUserCircle } from '@/lib/icons';
 import PageHeader from "@/components/common/PageHeader.vue";
 import TabBar from "@/components/common/TabBar.vue";
+import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import type { TabItem } from "@/components/common/TabBar.vue";
 import { useParty } from "@/composables/useParty";
 import { useSpeciesNameMap } from "@/composables/useSpecies";

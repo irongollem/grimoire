@@ -14,6 +14,7 @@
 
       <div class="top-right">
         <span class="encounter-name">{{ store.encounterName }}</span>
+        <ManualHelpLink page="encounter-runner" />
         <button
           v-if="!store.started"
           @click="store.rollAllInitiatives()"
@@ -132,6 +133,7 @@ const { confirm } = useConfirm();
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { IconDiceRoll, IconDungeon, IconEncounter, IconFlag, IconLive, IconMap } from '@/lib/icons';
+import ManualHelpLink from '@/components/common/ManualHelpLink.vue';
 import { useEncounter } from "@/composables/useEncounters";
 import { useLocation } from "@/composables/useLocations";
 import { supabase } from "@/lib/supabase";

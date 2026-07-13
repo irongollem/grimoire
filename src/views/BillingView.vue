@@ -1,6 +1,10 @@
 <template>
   <div class="max-w-2xl mx-auto px-4 py-8 space-y-6">
-    <PageHeader title="Billing & Subscription" />
+    <PageHeader title="Billing & Subscription">
+      <template #title-suffix>
+        <ManualHelpLink page="billing-subscription" />
+      </template>
+    </PageHeader>
 
     <!-- Credit purchase success banner -->
     <div
@@ -360,6 +364,7 @@ import { ref, computed } from "vue";
 import { useRoute } from "vue-router";
 import { IconBilling, IconDM, IconGenerate, IconLoading, IconQuest } from '@/lib/icons';
 import PageHeader from "@/components/common/PageHeader.vue";
+import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import WithdrawalConsent from "@/components/billing/WithdrawalConsent.vue";
 import { useSubscription } from "@/composables/useSubscription";
 import { useStripe } from "@/composables/useStripe";

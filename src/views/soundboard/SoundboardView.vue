@@ -1,5 +1,9 @@
 <template>
   <ListPageLayout title="Soundboard" description="Ambient sounds & music for your sessions">
+    <template #title-suffix>
+      <ManualHelpLink page="soundboard" />
+    </template>
+
     <template #actions>
       <!-- Spotify connect/disconnect (only for the owner user) -->
       <template v-if="spotifyStore.isEnabled">
@@ -173,6 +177,7 @@ import { storeToRefs } from "pinia";
 import { useCampaignStore } from "@/stores/campaign";
 import type { Sound } from "@/types/sound.types";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
+import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";

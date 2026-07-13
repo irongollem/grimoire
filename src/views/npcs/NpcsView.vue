@@ -5,6 +5,10 @@
     title="NPC Tracker"
     description="The denizens of your realm — allies, enemies, and unknowns"
   >
+    <template #title-suffix>
+      <ManualHelpLink page="npc-tracker-overview" />
+    </template>
+
     <template #actions>
       <ListActionButton :icon="IconLayers" label="Sets" to="/npcs/sets" />
       <ListActionButton :icon="IconNetwork" label="Web" to="/npcs/web" />
@@ -297,6 +301,7 @@ import {
   IconNetwork, IconPopulate, IconSearch, IconSettings,
 } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
+import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterGroup from "@/components/common/ListFilterGroup.vue";

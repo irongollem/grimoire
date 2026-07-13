@@ -6,6 +6,7 @@
         ← Back to Runner
       </RouterLink>
       <span class="encounter-name">{{ encounter?.name ?? "" }}</span>
+      <ManualHelpLink page="encounter-map-battle-map-fog-of-war" />
 
       <!-- Fog toolbox -->
       <div class="fog-toolbox">
@@ -163,6 +164,7 @@
 import { computed, ref, watch } from "vue";
 import { useRoute, RouterLink } from "vue-router";
 import { useEncounter } from "@/composables/useEncounters";
+import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import { useLocation } from "@/composables/useLocations";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useEncounterLive, liveState } from "@/composables/useEncounterLive";

@@ -7,6 +7,10 @@
         : 'A chronicle of events across the ages of Faerûn'
     "
   >
+    <template #title-suffix>
+      <ManualHelpLink page="calendar-system" />
+    </template>
+
     <template #actions>
       <!-- In-game Today chip with inline date editor -->
       <div v-if="campaignStore.activeCampaignId" class="relative shrink-0">
@@ -151,6 +155,7 @@ import { fireDueTriggers } from "@/composables/useQuests";
 import { useQueryClient } from "@tanstack/vue-query";
 import { SETTING_BUNDLES } from "@/data/bundles/index";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
+import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import CalendarGrid from "@/components/calendar/CalendarGrid.vue";
 import CalendarTimeline from "@/components/calendar/CalendarTimeline.vue";
 import EventModal from "@/components/calendar/EventModal.vue";

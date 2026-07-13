@@ -11,6 +11,10 @@
     new route so deep links like `/codex/backgrounds` work directly.
   -->
   <ListPageLayout title="Character Codex" description="Species, backgrounds, classes & archetypes for your players">
+    <template #title-suffix>
+      <ManualHelpLink :page="manualPage" />
+    </template>
+
     <template #actions>
       <template v-if="isDM">
         <!-- Species tab -->
@@ -215,6 +219,7 @@ import { useAuthStore } from "@/stores/auth";
 import { onClickOutside } from "@vueuse/core";
 import { IconAdd, IconBookUser, IconDownload, IconLevel, IconLightning, IconLoading, IconPopulate, IconSettings, IconSpecies } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
+import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterGroup from "@/components/common/ListFilterGroup.vue";
@@ -269,6 +274,15 @@ const route = useRoute();
 const router = useRouter();
 
 const activeTab = computed<TabId>(() => ui.codexActiveTab as TabId);
+
+const MANUAL_PAGE_BY_TAB: Record<TabId, string> = {
+  species: "species-and-backgrounds",
+  backgrounds: "species-and-backgrounds",
+  classes: "creating-custom-classes",
+  archetypes: "creating-custom-classes",
+  abilities: "abilities-compendium",
+};
+const manualPage = computed(() => MANUAL_PAGE_BY_TAB[activeTab.value]);
 
 function tabFromRoute(): TabId {
   const p = (route.params.tab as string | undefined) ?? ui.codexActiveTab;

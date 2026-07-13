@@ -21,9 +21,10 @@
       >
         <div class="min-w-0 max-w-full hidden md:block">
           <h1
-            class="wrap-break-word font-cinzel text-2xl md:text-3xl font-bold text-foreground tracking-wide"
+            class="wrap-break-word font-cinzel text-2xl md:text-3xl font-bold text-foreground tracking-wide inline-flex items-center gap-2"
           >
             {{ title }}
+            <slot name="title-suffix" />
           </h1>
           <p
             v-if="description"

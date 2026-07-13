@@ -1,5 +1,9 @@
 <template>
   <PageHeader title="Dungeon Craft" description="Secret doors, traps, hazards & dungeon enigmas">
+    <template #title-suffix>
+      <ManualHelpLink :page="manualPage" />
+    </template>
+
     <template #actions>
       <!-- Features tab actions -->
       <template v-if="activeTab === 'features'">
@@ -140,6 +144,7 @@ import { usePopulateRollTables } from "@/composables/useRollTables";
 
 import { useUiStore } from "@/stores/ui";
 import PageHeader from "@/components/common/PageHeader.vue";
+import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import TabBar from "@/components/common/TabBar.vue";
 
@@ -169,6 +174,16 @@ const rawTab = route.query.tab as string | undefined;
 const activeTab = ref<Tab>(
   VALID_TABS.includes(rawTab as Tab) ? (rawTab as Tab) : "features",
 );
+
+const MANUAL_PAGE_BY_TAB: Record<Tab, string> = {
+  features: "dungeon-craft-features",
+  traps: "dungeon-craft-traps",
+  puzzles: "dungeon-craft-puzzles",
+  "roll-tables": "dungeon-craft-roll-tables",
+  "loot-tables": "dungeon-craft-loot-tables",
+  cartographer: "cartographer-overview",
+};
+const manualPage = computed(() => MANUAL_PAGE_BY_TAB[activeTab.value]);
 
 // Template ref for roll-tables tab (exposes inline-detail state for header actions)
 const rollTablesTabRef = ref<InstanceType<typeof DungeonCraftRollTablesTab> | null>(null);

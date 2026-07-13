@@ -3,6 +3,10 @@
     title="NPC Sets"
     description="Playlists of NPCs — assemble the cast for a session, then export them to the Card Forge in one tap"
   >
+    <template #title-suffix>
+      <ManualHelpLink page="npc-sets" />
+    </template>
+
     <template #actions>
       <ListActionButton :icon="IconChevronLeft" label="NPCs" to="/npcs" />
       <ListActionButton
@@ -57,6 +61,7 @@ import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import { IconAdd, IconChevronLeft, IconLayers } from "@/lib/icons";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
+import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";

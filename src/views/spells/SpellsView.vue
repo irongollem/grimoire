@@ -1,5 +1,9 @@
 <template>
   <ListPageLayout title="Spellbook" description="Your custom spell compendium">
+    <template #title-suffix>
+      <ManualHelpLink page="creating-custom-spells" />
+    </template>
+
     <template #actions>
       <!-- Sources panel — per-campaign library selection, DB-backed so it persists -->
       <div ref="sourcePickerRef" class="relative shrink-0">
@@ -112,6 +116,7 @@ import { onClickOutside } from "@vueuse/core";
 import { IconAdd, IconGenerate, IconLibrary, IconLoading } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
+import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterGroup from "@/components/common/ListFilterGroup.vue";
