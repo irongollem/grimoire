@@ -91,11 +91,16 @@ function selectAll() {
 .source-panel {
   @apply w-64 shrink-0 flex flex-col gap-2 min-h-0;
 }
+/* A 3-column grid, not a single flex row. The panel is a fixed w-64, so five
+   tabs on one line get ~51px each — not enough for "Monsters", let alone
+   "Interlude" — and `overflow-hidden` clipped the crushed labels rather than
+   revealing the problem. Two rows of three keeps every label legible, and the
+   container carries `bg-card` so the one empty cell reads as part of the bar. */
 .source-tabs {
-  @apply flex rounded-md overflow-hidden border border-border shrink-0;
+  @apply grid grid-cols-3 rounded-md overflow-hidden border border-border bg-card shrink-0;
 }
 .src-tab {
-  @apply relative flex-1 font-cinzel text-xs font-semibold py-1.5 text-muted-foreground bg-card transition-colors;
+  @apply relative min-w-0 truncate font-cinzel text-xs font-semibold px-1 py-1.5 text-muted-foreground bg-card transition-colors;
 }
 .src-tab.active {
   @apply bg-primary/20 text-primary;
