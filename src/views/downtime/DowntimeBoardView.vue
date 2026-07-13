@@ -5,6 +5,8 @@ import DowntimeResolvePanel from "@/components/downtime/DowntimeResolvePanel.vue
 import DeckBacksPanel from "@/components/downtime/DeckBacksPanel.vue";
 import DowntimeOutcomeVignette from "@/components/downtime/DowntimeOutcomeVignette.vue";
 import GrantDowntimeButton from "@/components/downtime/GrantDowntimeButton.vue";
+import RuleDisabledNotice from "@/components/common/RuleDisabledNotice.vue";
+import { useIsRuleEnabled } from "@/composables/useOptionalRules";
 import { useParty } from "@/composables/useParty";
 import { useNpcs } from "@/composables/useNpcs";
 import { useDowntimeDraws, useDowntimeOutcomes, useDeckBacks } from "@/composables/useDowntime";
@@ -13,6 +15,8 @@ import { DOWNTIME_DRAW_STATUSES } from "@/types/downtime.types";
 import type { DowntimeDraw } from "@/types/downtime.types";
 
 const ui = useUiStore();
+// Hidden from the sidebar when off, but a bookmarked URL still lands here.
+const isEnabled = useIsRuleEnabled("downtime");
 const { data: party } = useParty();
 const { data: npcs } = useNpcs();
 const { data: draws } = useDowntimeDraws();
@@ -68,7 +72,13 @@ function rewardHref(rewardType: string | null, rewardId: string | null): string 
 </script>
 
 <template>
-  <div class="mx-auto max-w-5xl px-4 py-6">
+  <RuleDisabledNotice
+    v-if="!isEnabled"
+    module-name="The Interlude"
+    hint="Enable it in Campaign Settings → Rules to grant downtime draws."
+  />
+
+  <div v-else class="mx-auto max-w-5xl px-4 py-6">
     <PageHeader
       title="The Interlude"
       description="What the party did between the dungeon and the next session."

@@ -58,6 +58,21 @@ registerOptionalRule({
   defaultEnabled: true,
 });
 
+// ── The Interlude (downtime activities) ───────────────────────────────────────
+registerOptionalRule({
+  key: "downtime",
+  name: "The Interlude",
+  summary:
+    "Between sessions, players spend DM-granted downtime draws on activity cards — carousing, crafting, lying low — and the results become real campaign content.",
+  description: `The Interlude turns the quiet weeks between sessions into play.\n\n
+    **How you get a draw.** Downtime is a *gift your DM gives*, not a meter that fills. When the story says there's a lull — a season passes, you winter in town, a patron pays you off — your DM grants you one or more **downtime draws**. You'll see your balance in the **Interlude** tab.\n\n
+    **Spending it.** Each draw lets you lay down one **activity card**: Carouse, Craft & Enchant, Research & Scribe, Train, Run a Business, Pit Fighting, Lie Low, or Pull a Job. Pick the card, and the draw goes to your DM.\n\n
+    **What comes back.** Your DM resolves the draw and you get a short **vignette** — a beat of fiction — plus something real: a contact you now know, an item you made, a page you copied. It becomes an actual entity in the campaign, not a throwaway line.\n\n
+    **Consequences.** A card may propose a cost — coin spent, a bruised rib, a night that catches up with you. Nothing touches your character sheet until your DM ticks it off. The world stays theirs to run.`,
+  dmOnly: false,
+  defaultEnabled: true,
+});
+
 // ── Encumbrance ───────────────────────────────────────────────────────────────
 registerOptionalRule({
   key: "encumbrance",

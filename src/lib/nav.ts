@@ -139,6 +139,7 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: IconNavCalendar,
         description: "Downtime draws & outcomes",
         requiresCampaign: true,
+        ruleKey: "downtime",
       },
       {
         label: "Soundboard",

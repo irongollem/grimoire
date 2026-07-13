@@ -3,6 +3,8 @@ import { computed, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import DowntimeActivityCard from "@/components/downtime/DowntimeActivityCard.vue";
 import DowntimeOutcomeVignette from "@/components/downtime/DowntimeOutcomeVignette.vue";
+import RuleDisabledNotice from "@/components/common/RuleDisabledNotice.vue";
+import { useIsRuleEnabled } from "@/composables/useOptionalRules";
 import { useAuthStore } from "@/stores/auth";
 import { useSharedNpcs } from "@/composables/useNpcs";
 import { useReadItems, useMarkRead } from "@/composables/useReadItems";
@@ -18,6 +20,10 @@ import type { DowntimeActivity, DowntimeDraw, DowntimeOutcome } from "@/types/do
 
 const auth = useAuthStore();
 const { linkedPartyMemberId } = storeToRefs(auth);
+
+// The nav entry hides when the DM switches the module off, but a bookmarked URL
+// still lands here — refuse to render the board rather than let a draw be spent.
+const isEnabled = useIsRuleEnabled("downtime");
 
 const balance = useDowntimeBalance(linkedPartyMemberId);
 const { data: draws } = useDowntimeDraws();
@@ -93,7 +99,13 @@ watch(myOutcomes, (list) => {
 </script>
 
 <template>
-  <div class="mx-auto max-w-3xl px-4 py-6">
+  <RuleDisabledNotice
+    v-if="!isEnabled"
+    module-name="The Interlude"
+    hint="Ask your DM to enable it in Campaign Settings → Rules."
+  />
+
+  <div v-else class="mx-auto max-w-3xl px-4 py-6">
     <header>
       <h1 class="font-cinzel text-2xl font-semibold">The Interlude</h1>
       <p class="mt-1 text-sm text-muted-foreground">
