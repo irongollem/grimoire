@@ -61,7 +61,19 @@ These fill `portrait_url` / `image_url` in `src/data/downtimeSeeds.ts`, and land
 
 > **Only 13, not 22.** The other 9 seeds yield **notes**, and the `notes` table has **no image column** — there is nowhere to put art for them. Don't generate any.
 
-### 6 NPC portraits → `npcs.portrait_url`
+### 6 NPC portraits → `npcs.portrait_url` ✅ SHIPPED
+
+**Done.** All six are live in `downtime-images/srd/` and wired into `portrait_url` in `src/data/downtimeSeeds.ts`.
+
+Three came in two versions. What was picked, and why:
+
+| Seed | Picked | Why |
+| --- | --- | --- |
+| Fence | **v2** | The brief is "dressed one notch too well for the tavern she's drinking in" — v2's crimson-and-gold coat sells that instantly; v1's drab brown does not. v2 also puts a tavern behind her. |
+| Guild recruiter | **v2** | Reads as *guild* at a glance (banner + insignia + compass brooch), and more "immaculate, unhurried". v1 is a fine swap — its open ledger and coins lean harder into "transactional" — but portraits crop tight in lists, where that context is lost anyway. |
+| Debt collector | **v2** | v1 is a **setting break**: necktie, frock coat, and a gas lamp over a city arcade — that's Victorian, not D&D. v2 (hooded cloak, buttoned tunic, leather ledger, stone arch) is the only usable one. |
+
+The other three (rival duelist, disgraced sage, noble) came as single versions and all landed — the duelist's scar and open laugh, the sage's wire-mended spectacles and ink-stained fingers, the noble's signet ring turned inward.
 
 Character portraits: head-and-shoulders to waist-up, subject making eye contact with the viewer, plain suggestive background.
 
@@ -74,7 +86,9 @@ Character portraits: head-and-shoulders to waist-up, subject making eye contact 
 | 13 | `seed-debt-collector.webp` | **Bran Otwell**, human debt collector. Deliberately unremarkable in every way — that's the point. Soft-featured, plainly dressed, immaculate ledger held closed. Scrupulously fair and entirely without mercy. |
 | 14 | `seed-flirtatious-noble.webp` | **Lucien Voss**, bored young noble. Beautifully dressed but deliberately underdressed for their station. A signet ring turned inward to hide the crest. Delightful, charming, wholly unreliable. |
 
-### 7 item images → `items.image_url`
+### 7 item images → `items.image_url` — ⏳ still needed
+
+The last outstanding set. Slots exist and are `null`; the items mint without a picture until these land.
 
 Single object, centred, on a plain dark background. Museum-plate lighting — let the object be the whole picture.
 

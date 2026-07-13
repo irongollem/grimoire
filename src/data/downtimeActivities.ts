@@ -1,14 +1,5 @@
 import type { DowntimeActivity } from "@/types/downtime.types";
-
-/**
- * Canonical card art, admin-uploaded to `downtime-images/srd/` (migration
- * `20260713000002`). The same eight images for every campaign, so the URL is a
- * plain constant rather than a DB lookup.
- *
- * Built from the env var rather than `getPublicUrl()` so this stays a pure data
- * file — it is imported by the unit tests, which have no Supabase client.
- */
-const ART_BASE = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/downtime-images/srd`;
+import { art } from "./downtimeArt";
 
 /**
  * The Interlude's archetype catalog (#486).
@@ -30,7 +21,7 @@ export const DOWNTIME_ACTIVITIES: DowntimeActivity[] = [
     rewardType: "npc",
     accent: "#6B1C1C",
     glyph: "🍷",
-    artUrl: `${ART_BASE}/carouse.webp`,
+    artUrl: art("carouse"),
   },
   {
     key: "craft",
@@ -40,7 +31,7 @@ export const DOWNTIME_ACTIVITIES: DowntimeActivity[] = [
     rewardType: "item",
     accent: "#7A4B12",
     glyph: "🔨",
-    artUrl: `${ART_BASE}/craft.webp`,
+    artUrl: art("craft"),
   },
   {
     key: "research",
@@ -50,7 +41,7 @@ export const DOWNTIME_ACTIVITIES: DowntimeActivity[] = [
     rewardType: "note",
     accent: "#1E3A5F",
     glyph: "📜",
-    artUrl: `${ART_BASE}/research.webp`,
+    artUrl: art("research"),
   },
   {
     key: "train",
@@ -60,7 +51,7 @@ export const DOWNTIME_ACTIVITIES: DowntimeActivity[] = [
     rewardType: "note",
     accent: "#2F5D3A",
     glyph: "🎯",
-    artUrl: `${ART_BASE}/train.webp`,
+    artUrl: art("train"),
   },
   {
     key: "business",
@@ -70,7 +61,7 @@ export const DOWNTIME_ACTIVITIES: DowntimeActivity[] = [
     rewardType: "note",
     accent: "#6B5510",
     glyph: "🏛️",
-    artUrl: `${ART_BASE}/business.webp`,
+    artUrl: art("business"),
   },
   {
     key: "pit-fighting",
@@ -80,7 +71,7 @@ export const DOWNTIME_ACTIVITIES: DowntimeActivity[] = [
     rewardType: "item",
     accent: "#5A1414",
     glyph: "🥊",
-    artUrl: `${ART_BASE}/pit-fighting.webp`,
+    artUrl: art("pit-fighting"),
   },
   {
     key: "lie-low",
@@ -90,7 +81,7 @@ export const DOWNTIME_ACTIVITIES: DowntimeActivity[] = [
     rewardType: "note",
     accent: "#2C3440",
     glyph: "🌙",
-    artUrl: `${ART_BASE}/lie-low.webp`,
+    artUrl: art("lie-low"),
   },
   {
     key: "pull-a-job",
@@ -100,7 +91,7 @@ export const DOWNTIME_ACTIVITIES: DowntimeActivity[] = [
     rewardType: "item",
     accent: "#3D2159",
     glyph: "🗝️",
-    artUrl: `${ART_BASE}/pull-a-job.webp`,
+    artUrl: art("pull-a-job"),
   },
 ];
 

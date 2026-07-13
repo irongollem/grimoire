@@ -1,4 +1,5 @@
 import type { DowntimeSeed } from "@/types/downtime.types";
+import { art } from "./downtimeArt";
 
 /**
  * System seed content for The Interlude (#486).
@@ -60,7 +61,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
           "Moves stolen goods for half the district and launders the rest through a cousin's pawnshop. Owes the party a favour after they bought her silence with a night's drinking.",
         relationship: "indifferent",
         tags: ["underworld", "contact", "carouse"],
-        portrait_url: null,
+        portrait_url: art("seed-fence"),
       },
     },
   },
@@ -94,7 +95,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
           "A minor noble's third son with no inheritance and no plans. Wanders from tavern to tavern looking for someone who can beat him.",
         relationship: "friendly",
         tags: ["rival", "contact", "carouse"],
-        portrait_url: null,
+        portrait_url: art("seed-rival-duelist"),
       },
     },
   },
@@ -121,7 +122,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
           "Expelled for publishing a translation the academy preferred buried. He still has the source text, and he is looking for someone brave enough to read it.",
         relationship: "friendly",
         tags: ["lore", "contact", "carouse"],
-        portrait_url: null,
+        portrait_url: art("seed-disgraced-sage"),
       },
     },
   },
@@ -148,7 +149,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
           "Recruits for a guild whose name she will not say aloud in a public house. Her offer is genuine; the terms are not generous.",
         relationship: "indifferent",
         tags: ["faction", "contact", "carouse"],
-        portrait_url: null,
+        portrait_url: art("seed-guild-recruiter"),
       },
     },
   },
@@ -186,7 +187,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
           "Collects for whoever pays him. Holds your marker, and will hold it patiently — with interest — for as long as it takes.",
         relationship: "unfriendly",
         tags: ["debt", "complication", "carouse"],
-        portrait_url: null,
+        portrait_url: art("seed-debt-collector"),
       },
     },
   },
@@ -213,7 +214,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
           "Escapes an arranged betrothal one tavern at a time. Their family would pay well to know where they drink — which makes knowing them dangerous.",
         relationship: "friendly",
         tags: ["noble", "contact", "carouse"],
-        portrait_url: null,
+        portrait_url: art("seed-flirtatious-noble"),
       },
     },
   },
