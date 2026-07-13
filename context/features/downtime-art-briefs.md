@@ -32,9 +32,13 @@ Append that to every prompt below. Each brief names its **dominant accent** — 
 
 ---
 
-## Tier 1 — the 8 archetype card faces (do these first)
+## Tier 1 — the 8 archetype card faces ✅ SHIPPED
 
-These fill `DowntimeActivity.artUrl` in `src/data/downtimeActivities.ts` and appear in **four** places: the player Activity Board, the DM prep panel, the resolve panel, and Card Forge. Highest impact by far — this is the face of the whole feature.
+**Done.** All eight are live in `downtime-images/srd/` and wired into `artUrl` in `src/data/downtimeActivities.ts`. Filenames match the activity `key` (`carouse.webp`, `pit-fighting.webp`, …). Source PNGs → webp @ q82: 17 MB → 948 KB total.
+
+They fill `DowntimeActivity.artUrl` and appear in **four** places: the player Activity Board, the DM prep panel, the resolve panel, and Card Forge.
+
+**Known issue — `pit-fighting.webp`.** Seven of the eight keep the lower third quiet, as intended. Pit Fighting does not: a POV fist and bloody sword occupy the bottom-right, exactly where the card's scrim, title, and stat row land. The scrim darkens it so it *reads*, but it's the one card where the art fights the text. Worth a regen with the bottom third cleared (see the prompt below).
 
 These are **scenes, not portraits** — no single recurring character. Think "the moment this activity feels like".
 
@@ -45,7 +49,7 @@ These are **scenes, not portraits** — no single recurring character. Think "th
 | 3 | `research.webp` | deep blue `#1E3A5F` | A dim archive of towering shelves, one desk lit by a single guttering lamp. Open books, unrolled charts, a stack no one has touched in years. Dust suspended in the lamplight. |
 | 4 | `train.webp` | green `#2F5D3A` | A bare practice yard at grey dawn. A weighted dummy, chalk marks on flagstones, a rack of worn wooden weapons. Cold breath, no audience — the unglamorous work. |
 | 5 | `business.webp` | gold `#6B5510` | A shopfront counter after closing: an open ledger, a strongbox, stacked coin, a lamp burning low. Prosperous, orderly, and quietly precarious. |
-| 6 | `pit-fighting.webp` | blood `#5A1414` | A torchlit fighting pit from the fighter's eye-line. Ring of roaring faces above, sand churned and dark, an opponent's silhouette. Money changing hands in the crowd. |
+| 6 | `pit-fighting.webp` | blood `#5A1414` | ⚠️ **Regen candidate.** A torchlit fighting pit from the fighter's eye-line. Ring of roaring faces above, sand churned and dark, an opponent's silhouette. Money changing hands in the crowd. **Keep the bottom third empty sand — no hands, no weapon, no foreground figure.** (The shipped version puts a POV fist and sword there, under the title.) |
 | 7 | `lie-low.webp` | slate `#2C3440` | A shuttered attic room at night. A thin blade of moonlight through the boards, a mattress on the floor, a packed bag by the door. Stillness that is not restful. |
 | 8 | `pull-a-job.webp` | purple `#3D2159` | A moonlit rooftop above a sleeping city; a rope over the edge, a shuttered window below, a gloved hand steadying on the tiles. All anticipation, nothing committed yet. |
 
