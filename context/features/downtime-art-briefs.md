@@ -150,3 +150,57 @@ Added with the seed expansion (#540), which brought every archetype to 6 seeds.
 | `seed-botched-keepsake.webp` | `job-caught-in-the-act` | A meagre damp handful. The picture is about what *isn't* there |
 
 The three hardest briefs — the ones carrying an *idea* rather than depicting an object (`flawed-masterwork`, `fixers-marker`, `wrong-prize`) — all landed first time.
+
+---
+
+## Round 3 — 24 note-seed card images ⏳ NEEDED
+
+**Why these exist.** `notes` has **no image column**, so a minted note can never carry a picture. But the *card the DM draws at the table* can. That art lives on the seed itself — `DowntimeSeed.artUrl` — not on the reward entity. This is the only reason that field exists.
+
+**Distinct treatment.** These are *outcomes*, not objects or people. So: an **intimate still-life or small scene — the evidence that this happened**. No people's faces (that's the NPC cards), no isolated hero object on black (that's the item cards). Think "the desk after", "the room where it happened".
+
+Card art is now a **42% top band** and gets cropped — keep the subject centred and in the upper two-thirds.
+
+### Research & Scribe — deep blue `#1E3A5F`
+
+| File | Seed | Prompt |
+| --- | --- | --- |
+| `seed-lore-fragment.webp` | A thread worth pulling | An open book under lamplight with one passage marked by a trembling finger of light. Around it, a dozen closed volumes nobody has touched in years. The marked line is the only thing in focus. |
+| `seed-map-clue.webp` | The map lies, but consistently | Three old sea-charts overlaid on a desk, the same stretch of coast drawn three different ways. Dividers and a straight-edge abandoned mid-measurement. One shape is missing from all three. |
+| `seed-copied-spell.webp` | A page worth copying | A half-finished transcription: fresh ink drying beside the older, finer original. A steady hand's work, a guttering candle, a scribe's desk hired by the hour. |
+| `seed-forbidden-index.webp` | It isn't in the catalogue | A book that is not supposed to exist, resting on a card-catalogue drawer pulled open to a gap where its entry should be. Nervous, furtive lighting. |
+| `seed-conflicting-accounts.webp` | Somebody is lying | Two sworn statements side by side, both signed, both sealed. One line in each is underscored — and they cannot both be true. |
+| `seed-dead-end.webp` | Weeks, for a wall | A desk at the end of a long night: a mountain of consulted books, cold tea, a page of notes that simply stops mid-sentence. The trail ends and there is nothing after it. |
+
+### Train — green `#2F5D3A`
+
+| File | Seed | Prompt |
+| --- | --- | --- |
+| `seed-proficiency-log.webp` | Reps, and then more reps | A practice yard at first light: chalk tally-marks scratched on stone, hundreds of them. A worn wooden weapon set down. Nobody in frame — just the evidence of the repetitions. |
+| `seed-language-primer.webp` | Borrowed tongue | A tutor's table: flash-scribbled cards, a primer open at a declension table, the same word written out twenty times and corrected in a second hand. |
+| `seed-sparring-partner.webp` | Someone better than you | Two practice blades resting against a bench at the end of a session, one clearly better cared for than the other. Dust settling. A dropped, sweat-dark wrap. |
+| `seed-old-master.webp` | The fee is not the hard part | A master's stool, empty, facing a student's mat. A purse of coins on the floor beside it, uncounted. Everything about the room says *unlearn what you know*. |
+| `seed-from-a-book.webp` | Self-taught, and it shows | A manual propped open against a wall, its diagram half-followed. A single practice weapon, and the scuffs on the floor that show the movement was *nearly* right. |
+| `seed-overreached.webp` | Past the point of useful | A training yard abandoned mid-session: a weapon dropped where it fell, a bloodied wrap, a bucket kicked over. The body said stop and was ignored. |
+
+### Run a Business — gold `#6B5510`
+
+| File | Seed | Prompt |
+| --- | --- | --- |
+| `seed-good-quarter.webp` | The ledger, in black | A ledger closed on a satisfying column, a strongbox sitting heavy, a lamp burning low over a swept counter. Quiet, unglamorous prosperity. |
+| `seed-robbed.webp` | You were away when it happened | A forced lock, a strongbox standing open and empty, a splintered door-jamb. Daylight where there should not be daylight. |
+| `seed-lean-quarter.webp` | Barely worth the doors open | A shop counter at closing with almost nothing on it: a few coins, a ledger balanced to nearly zero, an unsold stock still stacked. Not disaster — just nothing. |
+| `seed-expanded.webp` | You put the money back in | A second room mid-fit-out: fresh timber, a newly painted sign not yet hung, an empty coin-box. Everything spent, everything hoped for. |
+| `seed-undercut.webp` | Someone opened up across the street | Seen from inside your own doorway: an empty counter in the foreground, and across the street a rival's lit, busy shopfront. Yours is the dark one. |
+| `seed-windfall.webp` | One order changed the year | A single enormous order written into a ledger, and beside it a payment that was made without haggling. Far too much coin for one line of the book. |
+
+### Lie Low — slate `#2C3440`
+
+| File | Seed | Prompt |
+| --- | --- | --- |
+| `seed-heat-dies-down.webp` | The heat dies down | A shuttered room where the shutters have finally been eased open a crack. Dust in the light. A chair set facing the door, no longer needed. |
+| `seed-overheard.webp` | A quiet room hears everything | A thin wall, a chair drawn up against it, an untouched meal going cold. Lamplight and voices bleeding through the boards from the next room. |
+| `seed-safehouse.webp` | A stranger shut the door behind you | A bolted door seen from inside, a bowl of plain food set on the step, a blanket folded by someone else's hands. No questions were asked, and that is the debt. |
+| `seed-long-quiet.webp` | Nothing happened, at length | A mattress with the shape of a long stay pressed into it. Tally-marks on the wall counting weeks. Utterly, profoundly uneventful — and healing. |
+| `seed-close-call.webp` | They knocked on the wrong door first | A back window standing open, curtain still moving. A pair of boots left behind in the haste. Somewhere below, a knock on a neighbour's door. |
+| `seed-cover-blown.webp` | Somebody talked | A safe room with the door left ajar from the *outside*. Your things undisturbed, and one chair moved to face the entrance. They know where you sleep. |
