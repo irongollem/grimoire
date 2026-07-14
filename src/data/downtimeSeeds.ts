@@ -464,7 +464,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "A thread worth pulling",
     vignette:
       "Buried in a stack no one had touched in years, a single passage stops you cold — a name you know, in a context you didn't expect, pointing somewhere you hadn't thought to look.",
-    artUrl: null,
+    artUrl: art("seed-lore-fragment"),
     proposedEffects: [],
     reward: {
       kind: "note",
@@ -483,7 +483,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "The map lies, but consistently",
     vignette:
       "Three old charts disagree about the same stretch of coast — and the way they disagree tells you exactly what someone went to trouble to hide.",
-    artUrl: null,
+    artUrl: art("seed-map-clue"),
     proposedEffects: [],
     reward: {
       kind: "note",
@@ -502,7 +502,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "A page worth copying",
     vignette:
       "The archive would not let the book leave — but it said nothing about your own ink and a steady hand. By the end of the interlude the working is yours, transcribed and legible.",
-    artUrl: null,
+    artUrl: art("seed-copied-spell"),
     proposedEffects: [
       {
         kind: "gold",
@@ -533,7 +533,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "It isn't in the catalogue",
     vignette:
       "The book you want is not in the index, which is how you know it exists. A clerk, well paid and badly frightened, finds it for you anyway — and asks that you never say where.",
-    artUrl: null,
+    artUrl: art("seed-forbidden-index"),
     proposedEffects: [
       {
         kind: "gold",
@@ -563,7 +563,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "Somebody is lying",
     vignette:
       "Two witnesses. Two accounts. Both sworn, both detailed, and irreconcilable on one small point that nobody but you would ever have bothered to check.",
-    artUrl: null,
+    artUrl: art("seed-conflicting-accounts"),
     proposedEffects: [],
     reward: {
       kind: "note",
@@ -582,7 +582,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "Weeks, for a wall",
     vignette:
       "You read everything. You paid the fees, you charmed the archivist, you stayed past the lamps going out. And at the end of it the trail simply stops — not hidden, not guarded. Just gone.",
-    artUrl: null,
+    artUrl: art("seed-dead-end"),
     proposedEffects: [
       {
         kind: "gold",
@@ -614,7 +614,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "Reps, and then more reps",
     vignette:
       "It is not glamorous. It is a season of early mornings and aching muscles and one small correction repeated a thousand times — until the thing you could not do becomes the thing you no longer think about.",
-    artUrl: null,
+    artUrl: art("seed-proficiency-log"),
     proposedEffects: [],
     reward: {
       kind: "note",
