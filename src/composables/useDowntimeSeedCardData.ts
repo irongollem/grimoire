@@ -27,8 +27,17 @@ export function useDowntimeSeedCardData(data: MaybeRefOrGetter<DowntimeSeed>) {
 
   const reward = computed(() => toValue(data).reward);
 
-  /** The art on the reward itself. Null for notes — the glyph face takes over. */
+  /**
+   * The card's art. The seed's own `artUrl` wins — that's how a **note** seed
+   * gets a picture at all, since `notes` has no image column and the minted row
+   * can never hold one. An npc/item seed leaves it null and falls back to the
+   * reward's own art: the contact's face *is* the card.
+   *
+   * Null on both means no art exists yet; the archetype glyph face takes over.
+   */
   const portrait = computed(() => {
+    const seedArt = toValue(data).artUrl;
+    if (seedArt) return seedArt;
     const r = reward.value;
     switch (r.kind) {
       case "npc":

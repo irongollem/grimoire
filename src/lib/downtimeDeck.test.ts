@@ -27,6 +27,7 @@ function seed(over: Partial<DowntimeSeed> = {}): DowntimeSeed {
     weight: 1,
     title: "A title",
     vignette: "A vignette",
+    artUrl: null,
     proposedEffects: [],
     reward: {
       kind: "npc",

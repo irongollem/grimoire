@@ -236,6 +236,9 @@ export function seedFromAiResult(
     weight: 1,
     title: requireString(r.title, "title"),
     vignette: requireString(r.vignette, "vignette"),
+    // An AI-drafted outcome has no canonical card art — never take a URL from
+    // the model. It renders the archetype glyph face.
+    artUrl: null,
     proposedEffects: effectsFromAi(r.proposed_effects),
     reward: rewardFromAi(r.reward, expectedReward),
   };

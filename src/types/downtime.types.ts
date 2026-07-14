@@ -151,6 +151,17 @@ export interface DowntimeSeed {
   proposedEffects: DowntimeEffect[];
   /** What a resolved draw mints and links to this outcome. */
   reward: DowntimeSeedReward;
+  /**
+   * Art for the *outcome card itself*, distinct from the reward entity's art.
+   *
+   * This exists for **note** seeds: `notes` has no image column, so a minted note
+   * can never carry a picture — but the card the DM draws at the table still can.
+   * The image lives only here, on the seed.
+   *
+   * Null for npc/item seeds, which fall back to the reward's own art
+   * (`portrait_url` / `image_url`) — the contact's face *is* the card.
+   */
+  artUrl: string | null;
 }
 
 // ── DB rows ───────────────────────────────────────────────────────────────────

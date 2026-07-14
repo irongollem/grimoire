@@ -14,12 +14,11 @@ import ModernMonsterBack from "./styles/modern/ModernMonsterBack.vue";
 import ModernItemBack from "./styles/modern/ModernItemBack.vue";
 import ModernSpellBack from "./styles/modern/ModernSpellBack.vue";
 import ModernDowntimeBack from "./styles/modern/ModernDowntimeBack.vue";
-import InkedDowntimeSeedBack from "./styles/inked/InkedDowntimeSeedBack.vue";
-import ModernDowntimeSeedBack from "./styles/modern/ModernDowntimeSeedBack.vue";
+import DowntimeSeedBack from "./styles/DowntimeSeedBack.vue";
 const props = defineProps<{ subject: CardSubject; cardStyle?: "inked" | "modern" }>();
 const map = {
-  inked: { npc: InkedNpcBack, monster: InkedMonsterBack, item: InkedItemBack, spell: InkedSpellBack, downtime: InkedDowntimeBack, "downtime-seed": InkedDowntimeSeedBack },
-  modern: { npc: ModernNpcBack, monster: ModernMonsterBack, item: ModernItemBack, spell: ModernSpellBack, downtime: ModernDowntimeBack, "downtime-seed": ModernDowntimeSeedBack },
+  inked: { npc: InkedNpcBack, monster: InkedMonsterBack, item: InkedItemBack, spell: InkedSpellBack, downtime: InkedDowntimeBack, "downtime-seed": DowntimeSeedBack },
+  modern: { npc: ModernNpcBack, monster: ModernMonsterBack, item: ModernItemBack, spell: ModernSpellBack, downtime: ModernDowntimeBack, "downtime-seed": DowntimeSeedBack },
 } as const;
 const component = computed<Component>(() => map[props.cardStyle ?? "inked"][props.subject.kind]);
 </script>

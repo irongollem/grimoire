@@ -12,7 +12,7 @@
           :key="back.id"
           type="button"
           class="picker-card"
-          :class="{ active: store.lootDeckBackId === back.id }"
+          :class="{ active: activeId === back.id }"
           @click="select(back.id)"
         >
           <img :src="back.urls[store.cardSize]" :alt="back.name" />
@@ -32,14 +32,28 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import { useCardForgeStore } from "@/stores/cardForge";
 import { BUILTIN_DECK_BACKS } from "@/components/cardforge/styles/loot/deckBacks";
+
+/**
+ * Which deck's back this picker is editing. The Interlude outcome deck needs a
+ * shared back for the same reason the loot deck does, and reuses the same
+ * artwork — but they are separate decks, so choosing a back for one must not
+ * silently restyle the other.
+ */
+const { deck = "loot" } = defineProps<{ deck?: "loot" | "downtime" }>();
 
 const emit = defineEmits<{ close: [] }>();
 const store = useCardForgeStore();
 
+const activeId = computed(() =>
+  deck === "downtime" ? store.downtimeDeckBackId : store.lootDeckBackId,
+);
+
 function select(id: string) {
-  store.lootDeckBackId = id;
+  if (deck === "downtime") store.downtimeDeckBackId = id;
+  else store.lootDeckBackId = id;
   emit("close");
 }
 </script>

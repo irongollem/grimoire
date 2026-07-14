@@ -55,7 +55,7 @@
       </div>
 
       <button
-        v-if="store.mode === 'loot'"
+        v-if="showsDeckBack"
         type="button"
         class="lib-btn"
         @click="showDeckBackPicker = !showDeckBackPicker"
@@ -91,7 +91,8 @@
     </div>
 
     <CardForgeDeckBackPicker
-      v-if="showDeckBackPicker && store.mode === 'loot'"
+      v-if="showDeckBackPicker && showsDeckBack"
+      :deck="deckBackTarget"
       @close="showDeckBackPicker = false"
     />
 
@@ -118,7 +119,18 @@ const { selectedSubjects } = useCardForgeData();
 const selectedCount = computed(() => selectedSubjects.value.length);
 
 const showDeckBackPicker = ref(false);
-const activeDeckBack = computed(() => deckBackById(store.lootDeckBackId));
+/** The loot deck and the Interlude outcome deck each need a shared back. */
+const deckBackTarget = computed<"loot" | "downtime">(() =>
+  store.mode === "loot" ? "loot" : "downtime",
+);
+const showsDeckBack = computed(
+  () => store.mode === "loot" || store.source === "downtime",
+);
+const activeDeckBack = computed(() =>
+  deckBackById(
+    deckBackTarget.value === "downtime" ? store.downtimeDeckBackId : store.lootDeckBackId,
+  ),
+);
 
 const MODES = [
   { id: "collection", label: "Collection" },

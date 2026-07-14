@@ -34,6 +34,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "A friend in low places",
     vignette:
       "Three drinks in, the quiet one at the end of the bar finally speaks. She does not ask your name, and she does not offer hers — but she names a price for the kind of goods that never see a market stall, and she says it like an invitation.",
+    artUrl: null,
     proposedEffects: [
       {
         kind: "gold",
@@ -72,6 +73,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "First blood, no hard feelings",
     vignette:
       "You beat him at cards. He challenged you to arm-wrestle. You beat him at that too. Somewhere around the fourth contest, the tavern started taking bets — and somewhere around the sixth, he started laughing. He'll be looking for you next time.",
+    artUrl: null,
     proposedEffects: [
       {
         kind: "hp",
@@ -106,6 +108,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "In vino, veritas",
     vignette:
       "The old man in the corner has been nursing the same cup for two hours. When you sit down, he tells you — unprompted, and in considerable detail — exactly why he was dismissed from the academy. Halfway through, you realise he is not raving.",
+    artUrl: null,
     proposedEffects: [],
     reward: {
       kind: "npc",
@@ -133,6 +136,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "We've been watching you",
     vignette:
       "She buys the round before you notice she is there, and by the time you do she already knows what you did last season and roughly what you were paid for it. The guild, she explains, pays better. The guild also asks more.",
+    artUrl: null,
     proposedEffects: [],
     reward: {
       kind: "npc",
@@ -160,6 +164,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "A tab you don't remember running up",
     vignette:
       "You wake with a splitting head and a signed note in your handwriting, promising a sum you would not have agreed to sober. The man holding the other half of it is very polite about the whole thing, which is somehow worse.",
+    artUrl: null,
     proposedEffects: [
       {
         kind: "gold",
@@ -198,6 +203,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "Slumming it",
     vignette:
       "Nobody dressed like that drinks in a place like this by accident. They are bored, they are charming, and they are asking rather more questions about your work than idle curiosity would explain.",
+    artUrl: null,
     proposedEffects: [],
     reward: {
       kind: "npc",
@@ -227,6 +233,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "The right tool, made right",
     vignette:
       "You spend the interlude at a borrowed bench, and by the end of it you have something better than you could buy: a tool balanced to your own hand, its maker's mark quietly your own.",
+    artUrl: null,
     proposedEffects: [
       {
         kind: "gold",
@@ -263,6 +270,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "A little magic, bound patiently",
     vignette:
       "It took the whole interlude and most of your patience, but the trinket holds its charm now — a small, honest enchantment that does one thing and does it well.",
+    artUrl: null,
     proposedEffects: [
       {
         kind: "gold",
@@ -299,6 +307,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "Folded, quenched, and true",
     vignette:
       "No magic in it — just good steel, folded and quenched by someone who cared how it turned out. It will hold an edge long after cheaper work has chipped.",
+    artUrl: null,
     proposedEffects: [
       {
         kind: "gold",
@@ -336,6 +345,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "A batch, not a bottle",
     vignette:
       "You did not make one. You worked out the ratios, wrote them down properly, and then made as many as the reagents allowed — which is the difference between a lucky brew and knowing how.",
+    artUrl: null,
     proposedEffects: [
       {
         kind: "gold",
@@ -372,6 +382,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "Only you can open it",
     vignette:
       "Not a lock — a lock is a puzzle, and puzzles get solved. What you built asks a question only you know the answer to, and it is very patient about waiting for the wrong one.",
+    artUrl: null,
     proposedEffects: [
       {
         kind: "gold",
@@ -408,6 +419,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "Beautiful, and slightly wrong",
     vignette:
       "It is the best thing you have ever made and there is something the matter with it. You have checked. You have re-checked. It is perfect, and it is wrong, and you cannot say how.",
+    artUrl: null,
     proposedEffects: [
       {
         kind: "gold",
@@ -452,6 +464,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "A thread worth pulling",
     vignette:
       "Buried in a stack no one had touched in years, a single passage stops you cold — a name you know, in a context you didn't expect, pointing somewhere you hadn't thought to look.",
+    artUrl: null,
     proposedEffects: [],
     reward: {
       kind: "note",
@@ -470,6 +483,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "The map lies, but consistently",
     vignette:
       "Three old charts disagree about the same stretch of coast — and the way they disagree tells you exactly what someone went to trouble to hide.",
+    artUrl: null,
     proposedEffects: [],
     reward: {
       kind: "note",
@@ -488,6 +502,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "A page worth copying",
     vignette:
       "The archive would not let the book leave — but it said nothing about your own ink and a steady hand. By the end of the interlude the working is yours, transcribed and legible.",
+    artUrl: null,
     proposedEffects: [
       {
         kind: "gold",
@@ -518,6 +533,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "It isn't in the catalogue",
     vignette:
       "The book you want is not in the index, which is how you know it exists. A clerk, well paid and badly frightened, finds it for you anyway — and asks that you never say where.",
+    artUrl: null,
     proposedEffects: [
       {
         kind: "gold",
@@ -547,6 +563,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "Somebody is lying",
     vignette:
       "Two witnesses. Two accounts. Both sworn, both detailed, and irreconcilable on one small point that nobody but you would ever have bothered to check.",
+    artUrl: null,
     proposedEffects: [],
     reward: {
       kind: "note",
@@ -565,6 +582,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "Weeks, for a wall",
     vignette:
       "You read everything. You paid the fees, you charmed the archivist, you stayed past the lamps going out. And at the end of it the trail simply stops — not hidden, not guarded. Just gone.",
+    artUrl: null,
     proposedEffects: [
       {
         kind: "gold",
@@ -596,6 +614,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "Reps, and then more reps",
     vignette:
       "It is not glamorous. It is a season of early mornings and aching muscles and one small correction repeated a thousand times — until the thing you could not do becomes the thing you no longer think about.",
+    artUrl: null,
     proposedEffects: [],
     reward: {
       kind: "note",
@@ -614,6 +633,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "Borrowed tongue",
     vignette:
       "A patient tutor, a stack of flash-scribbled cards, and a great deal of being politely corrected. You are not fluent. You are further along than you were.",
+    artUrl: null,
     proposedEffects: [
       {
         kind: "gold",
@@ -644,6 +664,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "Someone better than you",
     vignette:
       "They put you on your back every morning for a month, and every morning they told you exactly why. By the end you were still losing — but you were losing later, and for better reasons.",
+    artUrl: null,
     proposedEffects: [
       {
         kind: "hp",
@@ -669,6 +690,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "The fee is not the hard part",
     vignette:
       "They took your coin without counting it and then spent the first fortnight making you unlearn things. It was insulting. It was also, irritatingly, correct.",
+    artUrl: null,
     proposedEffects: [
       {
         kind: "gold",
@@ -698,6 +720,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "Self-taught, and it shows",
     vignette:
       "No tutor, no partner, just a manual and a lot of stubbornness. You got there. You also picked up two habits that anyone properly trained will spot in a heartbeat.",
+    artUrl: null,
     proposedEffects: [],
     reward: {
       kind: "note",
@@ -716,6 +739,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "Past the point of useful",
     vignette:
       "You did not stop when your body told you to, and then you did not stop when it insisted. The season ends with you laid up, staring at a ceiling, having learned rather less than you cost yourself.",
+    artUrl: null,
     proposedEffects: [
       {
         kind: "hp",
@@ -749,6 +773,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "The ledger, in black",
     vignette:
       "Nothing dramatic happened, which is exactly what you wanted. The doors opened, the coin came in, and at the end of the interlude the books balance in your favour.",
+    artUrl: null,
     proposedEffects: [
       {
         kind: "gold",
@@ -778,6 +803,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "You were away when it happened",
     vignette:
       "The lock was forced, the strongbox is lighter, and the neighbours all suddenly remember seeing nothing. Whoever did it knew when you'd be gone.",
+    artUrl: null,
     proposedEffects: [
       {
         kind: "gold",
@@ -808,6 +834,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "Barely worth the doors being open",
     vignette:
       "Nothing went wrong, exactly. The custom simply did not come. You covered the rent, you paid whoever needed paying, and what was left over would not buy a decent meal.",
+    artUrl: null,
     proposedEffects: [
       {
         kind: "gold",
@@ -837,6 +864,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "You put the money back in",
     vignette:
       "A second room, or a second pair of hands, or a name painted properly above the door. It cost more than the quarter made — which is either an investment or the beginning of a mistake.",
+    artUrl: null,
     proposedEffects: [
       {
         kind: "gold",
@@ -866,6 +894,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "Someone opened up across the street",
     vignette:
       "They are cheaper than you, they are worse than you, and it is not making the difference you had hoped. Your regulars still come. Everyone else has stopped.",
+    artUrl: null,
     proposedEffects: [
       {
         kind: "gold",
@@ -895,6 +924,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "One order changed the year",
     vignette:
       "A single buyer, a single order, and a sum that took you three readings of the ledger to believe. They paid without haggling, which is the part that keeps you awake.",
+    artUrl: null,
     proposedEffects: [
       {
         kind: "gold",
@@ -926,6 +956,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "The crowd got their money's worth",
     vignette:
       "You went the distance and then some. The purse is heavy, the crowd chanted a name that might have been yours, and the ache in your side says you earned every coin.",
+    artUrl: null,
     proposedEffects: [
       {
         kind: "gold",
@@ -968,6 +999,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "You lost, but you didn't fold",
     vignette:
       "The other one was faster than the odds said. You still walked out on your own feet, a confiscated blade in your fist that nobody stepped up to reclaim — and a limp you'll be nursing for days.",
+    artUrl: null,
     proposedEffects: [
       {
         kind: "hp",
@@ -1007,6 +1039,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "They started chanting something",
     vignette:
       "You did not win every bout, but you won the room. By the third night they had a name for you, and by the fifth they were shouting it before you were through the gate. The purse was decent. The name is worth more.",
+    artUrl: null,
     proposedEffects: [
       {
         kind: "gold",
@@ -1049,6 +1082,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "You were paid to lose",
     vignette:
       "The offer came the night before, politely, from a man who already knew you would take it. You went down in the fourth. It looked good. It paid better than winning, and you have not felt clean since.",
+    artUrl: null,
     proposedEffects: [
       {
         kind: "gold",
@@ -1091,6 +1125,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "Nobody bet on you",
     vignette:
       "The odds were an insult and you took them anyway, with everything you had. Then you won — and the room went very quiet, because a great deal of money had just changed hands in the wrong direction.",
+    artUrl: null,
     proposedEffects: [
       {
         kind: "gold",
@@ -1133,6 +1168,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "It didn't heal straight",
     vignette:
       "You remember the sound more than the blow. They stopped the bout, which tells you something. You kept his blade, which tells you something else — and the arm has not been right since.",
+    artUrl: null,
     proposedEffects: [
       {
         kind: "hp",
@@ -1173,6 +1209,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "The heat dies down",
     vignette:
       "You do nothing worth writing home about, which is the whole point. A safe room, plain food, and time — and by the end of the interlude the people looking for you have run out of places to look.",
+    artUrl: null,
     proposedEffects: [
       {
         kind: "hp",
@@ -1198,6 +1235,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "A quiet room hears everything",
     vignette:
       "Staying still and unnoticed, you catch what a louder person would have drowned out — a name, a date, a plan, murmured by people who never imagined anyone was listening.",
+    artUrl: null,
     proposedEffects: [],
     reward: {
       kind: "note",
@@ -1217,6 +1255,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "A stranger shut the door behind you",
     vignette:
       "They did not ask what you had done, and they did not ask for money. They fed you, they kept the shutters closed, and when you left they said only that they would remember you had stayed.",
+    artUrl: null,
     proposedEffects: [
       {
         kind: "hp",
@@ -1242,6 +1281,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "Nothing happened, at length",
     vignette:
       "No knock at the door. No face you recognised in the street. Just a season of dull, uninterrupted, profoundly boring safety — and a body that finally had time to knit itself back together.",
+    artUrl: null,
     proposedEffects: [
       {
         kind: "hp",
@@ -1267,6 +1307,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "They knocked on the wrong door first",
     vignette:
       "You heard them working down the row — a knock, a question, a knock. You went out the back with your boots in your hand and paid a bargeman not to look at you. It was close enough to taste.",
+    artUrl: null,
     proposedEffects: [
       {
         kind: "gold",
@@ -1302,6 +1343,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "Somebody talked",
     vignette:
       "You did everything right and it made no difference. A name was said in the wrong room, for coin or for spite, and by the time you understood that, the quiet you had bought was already spent.",
+    artUrl: null,
     proposedEffects: [
       {
         kind: "hp",
@@ -1329,6 +1371,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "In, out, and nobody the wiser",
     vignette:
       "It went the way jobs are supposed to go and almost never do: quietly. You were never there, the take is real, and the only trace is the space where something valuable used to be.",
+    artUrl: null,
     proposedEffects: [
       {
         kind: "gold",
@@ -1365,6 +1408,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "You got out. Mostly.",
     vignette:
       "The take is smaller than the plan promised and the description of your face is already making the rounds. You have something to show for it — and something following you because of it.",
+    artUrl: null,
     proposedEffects: [
       {
         kind: "gold",
@@ -1407,6 +1451,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "Somebody left a door unlocked",
     vignette:
       "You never met them. A wax impression appeared under your door with a time written on it, and at that time the side gate was open and the dog was somewhere else. Whoever they are, they want something from you now.",
+    artUrl: null,
     proposedEffects: [
       {
         kind: "gold",
@@ -1443,6 +1488,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "This wasn't what we came for",
     vignette:
       "Right street, right roof, wrong house — and you were three rooms in before the furniture told you so. You took something anyway, because you were there, and because it was clearly worth taking.",
+    artUrl: null,
     proposedEffects: [
       {
         kind: "gold",
@@ -1479,6 +1525,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "A ring is not a thing you can sell",
     vignette:
       "It came off a hand that was asleep at the time, and it is the single most identifiable object you have ever held. No fence will touch it. Which raises the question of why you took it, and whether you can put it back.",
+    artUrl: null,
     proposedEffects: [
       {
         kind: "gold",
@@ -1515,6 +1562,7 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
     title: "You went out through the window",
     vignette:
       "The lamp came on while your hand was still in the drawer. You got out — over the sill, down the ivy, through a canal you would rather not describe — with almost nothing, and you left something of yours behind.",
+    artUrl: null,
     proposedEffects: [
       {
         kind: "gold",

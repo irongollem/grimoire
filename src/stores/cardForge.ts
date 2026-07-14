@@ -46,6 +46,7 @@ const LIBRARY_KEY = "cardforge_library";
 const STYLE_KEY = "cardforge_style";
 const MODE_KEY = "cardforge_mode";
 const DECK_BACK_KEY = "cardforge_deck_back";
+const DOWNTIME_DECK_BACK_KEY = "cardforge_downtime_deck_back";
 
 const PAGE_STYLE_ID = "cardforge-page-rule";
 
@@ -64,6 +65,19 @@ export const useCardForgeStore = defineStore("cardForge", () => {
   /** Deck back id (used when mode === 'loot'). See loot/deckBacks.ts. */
   const lootDeckBackId = useLocalStorage<string>(
     DECK_BACK_KEY,
+    "arcane-vortex",
+  );
+
+  /**
+   * Deck back for the Interlude outcome cards.
+   *
+   * An outcome card is *drawn from a face-down stack*, so it needs a shared back
+   * exactly like the loot deck: if the back differed per card, the deck would be
+   * transparent and could not be shuffled. Kept separate from `lootDeckBackId`
+   * so choosing a back for one deck doesn't silently restyle the other.
+   */
+  const downtimeDeckBackId = useLocalStorage<string>(
+    DOWNTIME_DECK_BACK_KEY,
     "arcane-vortex",
   );
 
@@ -175,6 +189,7 @@ export const useCardForgeStore = defineStore("cardForge", () => {
     cardStyle,
     mode,
     lootDeckBackId,
+    downtimeDeckBackId,
     showSaveModal,
     showLoadModal,
     library,

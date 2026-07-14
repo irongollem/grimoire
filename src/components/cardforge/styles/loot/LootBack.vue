@@ -10,12 +10,17 @@ import { computed } from "vue";
 import { useCardForgeStore } from "@/stores/cardForge";
 import { deckBackById } from "./deckBacks";
 
-const { tarot = false } = defineProps<{ tarot?: boolean }>();
+/**
+ * `backId` lets another deck reuse this back — the Interlude outcome deck needs
+ * a shared back for exactly the same reason the loot deck does, and a deck back
+ * is a deck back. Defaults to the loot deck's own selection.
+ */
+const { tarot = false, backId } = defineProps<{ tarot?: boolean; backId?: string }>();
 
 const store = useCardForgeStore();
 
 const src = computed(() => {
-  const back = deckBackById(store.lootDeckBackId);
+  const back = deckBackById(backId ?? store.lootDeckBackId);
   if (!back) return null;
   return back.urls[store.cardSize];
 });
