@@ -13,6 +13,7 @@ import {
   IconNavGallery,
   IconNavHeroes,
   IconNavIlluminator,
+  IconNavInterlude,
   IconNavItemVault,
   IconNavMint,
   IconNavNotes,
@@ -134,9 +135,8 @@ export const NAV_GROUPS: NavGroup[] = [
       },
       {
         label: "Interlude",
-        // Reuses the Calendar glyph — no downtime-specific glyph exists yet.
         to: "/downtime",
-        icon: IconNavCalendar,
+        icon: IconNavInterlude,
         description: "Downtime draws & outcomes",
         requiresCampaign: true,
         ruleKey: "downtime",

@@ -5,6 +5,7 @@ import {
   IconNavCalendar,
   IconNavCharacterSheet,
   IconNavFactions,
+  IconNavInterlude,
   IconNavItemVault,
   IconNavParty,
   IconNavQuests,
@@ -36,8 +37,7 @@ export const ALL_PLAYER_NAV: PlayerNavItem[] = [
   { to: "/play/calendar", label: "Calendar", icon: IconNavCalendar },
   { to: "/play/journal", label: "Journal", icon: IconNavQuests },
   { to: "/play/crafting", label: "Workshop", icon: IconNavWorkshop, ruleKey: "crafting" },
-  // Interlude reuses the Calendar glyph — no downtime-specific glyph exists yet.
-  { to: "/play/downtime", label: "Interlude", icon: IconNavCalendar, ruleKey: "downtime" },
+  { to: "/play/downtime", label: "Interlude", icon: IconNavInterlude, ruleKey: "downtime" },
   { to: "/play/atlas", label: "Atlas", icon: IconNavAtlas },
   { to: "/play/bestiary", label: "Bestiary", icon: IconNavBestiary },
   { to: "/play/rules", label: "Reliquary", icon: IconNavReliquary },

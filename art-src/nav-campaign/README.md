@@ -14,6 +14,7 @@ The generated markup lives in `src/lib/navGlyphs.generated.ts` (do not hand-edit
 - `sheet 2.png` — 4×4 set; the **NPC** noble figure (cell 7) is taken from here.
 - `note-lyre-library.png` — 3×1; **Soundboard** = lyre (cell 1), **Reliquary** = library (cell 2).
 - `campaign.png` — a single bold pennant (pole + bands + swallowtail flag) for the **Campaign** switcher's active-campaign icon. Standalone image, so it's traced directly (no `segment.mjs`).
+- `../interlude.png` — a single bold hourglass (sand mid-pour) for **Interlude**, which previously reused the Calendar glyph. Standalone image, traced directly and spliced in via `add-glyph.mjs`.
 
 ## Pipeline
 
@@ -48,6 +49,18 @@ node ../gen-glyphs.mjs ../../../src/lib/navGlyphs.generated.ts \
 **Swapping one icon:** drop the new art in, re-trace that cell, re-run
 `gen-glyphs.mjs` for the full list — the matching `NAV_GLYPHS` entry (and thus
 the `IconNav*` export) updates automatically.
+
+**Adding/replacing a single glyph without the other traces** (the `_trace/`
+scratch SVGs are gitignored and usually gone): trace the new art as above, then
+
+```sh
+cd _trace
+node ../add-glyph.mjs ../../../src/lib/navGlyphs.generated.ts <name>
+```
+
+`add-glyph.mjs` applies the same normalization as `gen-glyphs.mjs` and splices
+just that key into the generated file, leaving every other entry untouched.
+This is how `interlude` was added.
 
 > `gen-glyphs.mjs` strips potrace's hard-coded black fill so the glyph inherits
 > `currentColor`, and uses `PAD = 6` for breathing room. The `segment.mjs` loop
