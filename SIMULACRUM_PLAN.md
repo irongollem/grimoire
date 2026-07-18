@@ -65,7 +65,10 @@ fine-detailed for a 1em glyph.
 
    Minis are generated **BASELESS** (decision 2026-07-18, superseding the earlier
    integral-base prompt): **we supply the base** from a curated 25 mm library and
-   composite the figure onto it ourselves — Phase 4.5, GitHub issue #542. This
+   composite the figure onto it ourselves — Phase 4.5, GitHub issue #542. The
+   base assets are **first-party, generated with the sister repo `plinth`**
+   (desktop base-generator tool): Jeffrey drops 5–10 outputs into the raw art
+   folders and we upload them to the bucket — no third-party licensing. This
    also solves real-world scaling, which the raw Meshy output lacks entirely
    ("tends to be huge"): the compositor normalizes the figure to true tabletop
    millimetres (28–32 mm) before seating it. Composition is cheap — binary-STL
