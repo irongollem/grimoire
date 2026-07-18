@@ -13,11 +13,43 @@
           class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border-2 border-transparent transition-colors focus:outline-none"
           :class="checkoutConfig.data.value?.promo_codes_enabled ? 'bg-primary' : 'bg-muted'"
           :disabled="checkoutConfig.update.isPending.value"
-          @click="checkoutConfig.update.mutate(!checkoutConfig.data.value?.promo_codes_enabled)"
+          @click="
+            checkoutConfig.update.mutate({
+              promo_codes_enabled: !checkoutConfig.data.value?.promo_codes_enabled,
+            })
+          "
         >
           <span
             class="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"
             :class="checkoutConfig.data.value?.promo_codes_enabled ? 'translate-x-5' : 'translate-x-0.5'"
+          />
+        </button>
+      </div>
+    </div>
+
+    <!-- Pro signup launch switch -->
+    <div class="rounded-lg border border-border bg-card p-4">
+      <div class="flex items-center justify-between gap-4">
+        <div>
+          <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">Pro Signup (marketing site)</h2>
+          <p class="font-fell text-xs text-muted-foreground italic mt-0.5">
+            Off: the marketing site shows the Pro <em>waitlist</em> form instead of Go Pro buttons. On: real
+            checkout CTAs return. Toggling automatically rebuilds the marketing site (takes a minute or two).
+          </p>
+        </div>
+        <button
+          class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border-2 border-transparent transition-colors focus:outline-none"
+          :class="checkoutConfig.data.value?.pro_signup_open ? 'bg-primary' : 'bg-muted'"
+          :disabled="checkoutConfig.update.isPending.value"
+          @click="
+            checkoutConfig.update.mutate({
+              pro_signup_open: !checkoutConfig.data.value?.pro_signup_open,
+            })
+          "
+        >
+          <span
+            class="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"
+            :class="checkoutConfig.data.value?.pro_signup_open ? 'translate-x-5' : 'translate-x-0.5'"
           />
         </button>
       </div>
