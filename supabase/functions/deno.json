@@ -2,6 +2,8 @@
   "imports": {
     "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.110.2",
     "stripe": "https://esm.sh/stripe@14.25.0?target=deno",
+    "@gltf-transform/core": "https://esm.sh/@gltf-transform/core@4.4.1?target=deno",
+    "@gltf-transform/extensions": "https://esm.sh/@gltf-transform/extensions@4.4.1?target=deno",
     "std/": "https://deno.land/std@0.208.0/"
   },
   "exclude": ["**/*.test.ts"]

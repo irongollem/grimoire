@@ -59,6 +59,15 @@ The loop:
   Realtime, and in-flight minis are Resumable from the gallery (the wizard's
   sculpt step re-attaches to the wait on mount).
 
+## Phase 4.5 — bases, composition & scaling (BUILT, #542 closed)
+
+- **Base registry**: `supabase/functions/_shared/mini-bases.ts` (id/label/color) mirrored at `src/data/miniBases.ts`. Adding a base = registry entry + `npm run ingest-mini-bases` — never a migration. Assets live at `mini-models/bases/<id>.stl|.glb`.
+- **Asset flow**: plinth (sister repo, Blender-backed, geometry-only) exports STL into `art-src/bases/<id>.stl` (convention: origin base-bottom center, mm, 25 mm footprint). Ingest (`scripts/ingest-mini-bases.ts`, tsx + service key) derives the GLB + flat registry color — UNLESS an artist-colored `art-src/bases/<id>.glb` exists, which wins as-is. The `plain` base is procedurally generated (25 mm cylinder) until real plinth assets land.
+- **Composition**: pure modules `_shared/stl.ts` (binary STL parse/transform/write/cylinder, 23 tests), `_shared/mesh-compose.ts` (scale factors 28→16 / 32→18.3 mm-per-meter, height clamp 12–60 mm — size-faithful minis: halflings small, ogres big; 12 tests), `_shared/glb-compose.ts` (`@gltf-transform/core` via esm.sh in Deno + npm devDep for vitest; 9 tests). STL compose = transform + concat (no boolean; slicers merge shells). Axis convention vs printers (Z-up) is a Phase 4 smoke item.
+- **Pipeline**: poller stores raw figure copies (`extra_paths.raw_glb/raw_stl`) then auto-composes onto `plain` @ `scale_mm` (default 32); compose failure falls back to raw-as-model — never bricks a paid sculpt. `forge-mini` action `set_base { mini_id, base_id, scale_mm }` recomposes from raws — FREE, any mode, `compose_failed` 502 on error.
+- **Wizard**: "Base & scale" row in the ready phase (color swatches + 28/32 mm toggle, instant free swap; viewer cache-busts via `?v=updated_at` since paths don't change).
+- **Player-facing reveal** (closes the visibility gap): `MiniPortraitOverlay.vue` + `useMiniForSource` — a Vitruvian badge appears over a portrait when a ready mini exists (RLS = portrait visibility); clicking swaps the portrait for the 3D preview + GLB/STL downloads. Wired in `PlayerCharacterHeader`, `PlayerPartyMemberCard`, `PlayerNpcCard` (badge bottom-right there to dodge the relationship pill).
+
 ## Files
 
 ### DB (migrations)
@@ -68,6 +77,8 @@ The loop:
 | `supabase/migrations/20260718000001_simulacrum_foundations.sql` | `minis`, `feature_interest`, `simulacrum_config` singleton, `mini-models` bucket, `mini_sculpt` credit row (500), realtime, guarded cron skeleton |
 | `20260718000002_drop_mini_models_listing_policy.sql`            | Advisor fix — public bucket needs no select policy                                                                                                |
 | `20260718000003_minis_label.sql`                                | Denormalized gallery label                                                                                                                        |
+| `20260718000004_simulacrum_review_fixes.sql`                    | Bucket mime allowlist fix + cron guard reorder                                                                                                    |
+| `20260718000005_minis_base_and_scale.sql`                       | `base_id` + `scale_mm` (28/32) for Phase 4.5 composition                                                                                          |
 
 ### Backend (edge)
 

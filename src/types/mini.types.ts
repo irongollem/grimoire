@@ -32,6 +32,11 @@ export interface MiniExtraPaths {
   usdz?: string;
   "3mf"?: string;
   obj?: string;
+  // Uncomposed figure-only copies, kept alongside the composed model.* files
+  // so forge-mini's `set_base` action can recompose onto a different base/
+  // scale without re-running Meshy (Phase 4.5, #542).
+  raw_glb?: string;
+  raw_stl?: string;
 }
 
 export interface Mini {
@@ -50,6 +55,11 @@ export interface Mini {
   glb_path: string | null;
   stl_path: string | null;
   extra_paths: MiniExtraPaths;
+  // Which curated base (mini-bases.ts registry) the model is composited onto,
+  // and its real-world tabletop scale (Phase 4.5, #542). null base_id means
+  // not yet composed (or composition fell back to raw-as-model on failure).
+  base_id: string | null;
+  scale_mm: number;
   thumbnail_url: string | null;
   polycount: number | null;
   sculpt_count: number;
@@ -74,6 +84,8 @@ export type MiniInsert = Omit<
   | "glb_path"
   | "stl_path"
   | "extra_paths"
+  | "base_id"
+  | "scale_mm"
   | "thumbnail_url"
   | "polycount"
   | "sculpt_count"

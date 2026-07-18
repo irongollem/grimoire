@@ -26,6 +26,12 @@ interface ActionResponse {
   status: MiniStatus;
 }
 
+interface SetBaseResponse {
+  mini_id: string;
+  base_id: string;
+  scale_mm: number;
+}
+
 // 15 min: real Meshy tasks run multi-minute; the pg_cron poller (every 1 min)
 // is the authority that fails a truly-stuck sculpt, so the client window is
 // generous — it should never "time out" a job that's about to succeed.
@@ -77,6 +83,7 @@ export function useMiniForge() {
   const isStylizing = ref(false);
   const isSculpting = ref(false);
   const isCancelling = ref(false);
+  const isRebasing = ref(false);
 
   function invalidateMini(miniId: string) {
     void queryClient.invalidateQueries({ queryKey: ["minis", miniId] });
@@ -148,14 +155,47 @@ export function useMiniForge() {
     }
   }
 
+  /**
+   * Swap the base and/or scale on a ready mini. Free, no credits, allowed in
+   * any mode. Unlike sculpt/resculpt this is synchronous server-side
+   * recomposition — the edge function response only echoes the three input
+   * fields, not the updated row, so we refetch the mini here to pick up the
+   * bumped `updated_at` (the caller cache-busts the viewer URL with it — the
+   * glb/stl storage PATH is unchanged, only its contents).
+   */
+  async function setBase(miniId: string, baseId: string, scaleMm: 28 | 32): Promise<Mini> {
+    isRebasing.value = true;
+    try {
+      const { data, error } = await supabase.functions.invoke("forge-mini", {
+        body: { action: "set_base", mini_id: miniId, base_id: baseId, scale_mm: scaleMm },
+      });
+      if (error) throw new Error(friendlyError(await edgeErrorMessage(error)));
+      const res = data as SetBaseResponse;
+
+      const { data: mini, error: fetchError } = await supabase
+        .from("minis")
+        .select("*")
+        .eq("id", res.mini_id)
+        .single();
+      if (fetchError) throw fetchError;
+
+      invalidateMini(res.mini_id);
+      return mini as Mini;
+    } finally {
+      isRebasing.value = false;
+    }
+  }
+
   return {
     stylize,
     sculpt,
     resculpt,
     cancel,
+    setBase,
     waitForSculpt,
     isStylizing,
     isSculpting,
     isCancelling,
+    isRebasing,
   };
 }

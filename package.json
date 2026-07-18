@@ -22,7 +22,8 @@
     "stripe:setup": "node --env-file=.env.local scripts/stripe-setup.mjs",
     "import-chapter-npcs": "tsx --env-file=.env.local scripts/import-chapter-npcs.ts",
     "import-faiths": "tsx --env-file=.env.local scripts/import-faiths.ts",
-    "migrate-plaintext-to-tiptap": "tsx --env-file=.env.local scripts/migrate-plaintext-to-tiptap.ts"
+    "migrate-plaintext-to-tiptap": "tsx --env-file=.env.local scripts/migrate-plaintext-to-tiptap.ts",
+    "ingest-mini-bases": "tsx --env-file=.env.local scripts/ingest-mini-bases.ts"
   },
   "dependencies": {
     "@google/model-viewer": "^4.3.1",
@@ -67,6 +68,8 @@
     "vue-router": "^4.5.0"
   },
   "devDependencies": {
+    "@gltf-transform/core": "^4.4.1",
+    "@gltf-transform/extensions": "^4.4.1",
     "@tailwindcss/vite": "^4.0.0",
     "@types/marked": "^5.0.2",
     "@types/node": "^22.13.10",

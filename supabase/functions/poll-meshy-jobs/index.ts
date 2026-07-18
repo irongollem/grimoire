@@ -16,7 +16,11 @@ import { createClient } from "@supabase/supabase-js";
 import { releaseCredits, recordGeneration } from "../_shared/credits.ts";
 import { getImageTo3dTask, resolveMeshyKey, type MeshFormat } from "../_shared/mesh3d.ts";
 import { resolveSculptOutcome, isStale, type MiniStatusB } from "../_shared/simulacrum.ts";
-import { uploadWithRetry } from "../_shared/storage-upload.ts";
+import { uploadWithRetry, fetchBytes } from "../_shared/storage-upload.ts";
+import { composeStl, figureScaleFor } from "../_shared/mesh-compose.ts";
+import { composeGlb, figureScaleForGlb } from "../_shared/glb-compose.ts";
+import { parseBinaryStl, stlBounds } from "../_shared/stl.ts";
+import { DEFAULT_BASE_ID, BASE_STORAGE_PREFIX } from "../_shared/mini-bases.ts";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -33,6 +37,7 @@ interface MiniRow {
   reservation_ids: string[] | null;
   credits_spent: number;
   sculpt_count: number;
+  scale_mm: 28 | 32;
   updated_at: string;
 }
 
@@ -54,13 +59,6 @@ async function uploadModelFile(path: string, bytes: Uint8Array, contentType: str
   return path;
 }
 
-/** Works for both https:// (real Meshy) and data: (MESHY_MOCK) URLs. */
-async function fetchBytes(url: string): Promise<Uint8Array> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Fetch failed (${res.status}): ${url}`);
-  return new Uint8Array(await res.arrayBuffer());
-}
-
 /** Terminal failure path shared by "no task id" / "no Meshy key" / resolveSculptOutcome's "fail". */
 async function failMini(mini: MiniRow, nextStatus: MiniStatusB, error: string, creditsSpent: number): Promise<void> {
   if (mini.reservation_ids?.length) await releaseCredits(admin, mini.reservation_ids);
@@ -71,6 +69,49 @@ async function failMini(mini: MiniRow, nextStatus: MiniStatusB, error: string, c
     reservation_ids: null,
     credits_spent: creditsSpent,
   }).eq("id", mini.id);
+}
+
+/**
+ * Auto-composes a freshly-downloaded figure onto DEFAULT_BASE_ID at the
+ * mini's requested scale_mm (SIMULACRUM_PLAN.md §2 BASELESS decision, #542).
+ * Returns null (not an error) when the base files aren't in storage yet —
+ * `npm run ingest-mini-bases` hasn't been run — so the caller can fall back
+ * to raw-as-model without treating a missing base as a hard failure.
+ */
+async function composeMiniModel(
+  mini: MiniRow,
+  figureBytes: Partial<Record<"glb" | "stl", Uint8Array>>,
+): Promise<{ glbPath: string | null; stlPath: string | null } | null> {
+  if (!figureBytes.glb) return null; // every format fetches glb — nothing to seat if it's missing
+
+  const basePublicUrl = (ext: "stl" | "glb") =>
+    admin.storage.from("mini-models").getPublicUrl(`${BASE_STORAGE_PREFIX}/${DEFAULT_BASE_ID}.${ext}`).data.publicUrl;
+
+  const [baseGlbBytes, baseStlBytes] = await Promise.all([
+    fetchBytes(basePublicUrl("glb")).catch(() => null),
+    figureBytes.stl ? fetchBytes(basePublicUrl("stl")).catch(() => null) : Promise.resolve(null),
+  ]);
+  if (!baseGlbBytes) return null; // base not ingested yet — see ingest-mini-bases.ts
+
+  // Derive ONE scale factor and reuse it for both exports, so the GLB
+  // preview and the printable STL always agree on size. Prefer the STL
+  // bounds when a figure STL exists (print format) — VTT sculpts never fetch
+  // an STL (meshyParamsForFormat), so figureScaleForGlb reads the same
+  // bounds straight from the figure GLB's own POSITION accessors instead.
+  const scale = figureBytes.stl
+    ? figureScaleFor(stlBounds(parseBinaryStl(figureBytes.stl)), mini.scale_mm)
+    : await figureScaleForGlb(figureBytes.glb, mini.scale_mm);
+
+  const composedGlb = await composeGlb(figureBytes.glb, baseGlbBytes, mini.scale_mm, scale);
+  const glbPath = await uploadModelFile(`${mini.user_id}/${mini.id}/model.glb`, composedGlb, CONTENT_TYPES.glb);
+
+  let stlPath: string | null = null;
+  if (figureBytes.stl && baseStlBytes) {
+    const composedStl = composeStl(figureBytes.stl, baseStlBytes, mini.scale_mm);
+    stlPath = await uploadModelFile(`${mini.user_id}/${mini.id}/model.stl`, composedStl, CONTENT_TYPES.stl);
+  }
+
+  return { glbPath, stlPath };
 }
 
 async function processMini(mini: MiniRow, meshyKey: string): Promise<void> {
@@ -115,12 +156,14 @@ async function processMini(mini: MiniRow, meshyKey: string): Promise<void> {
   }
 
   // Formats + thumbnail are independent fetch→upload pairs — run them together.
+  // Bytes are kept (not just paths) so the raw-copy + auto-compose steps
+  // below don't need a second storage round-trip for figure files.
   const entries = Object.entries(task.modelUrls) as Array<[MeshFormat, string]>;
-  const [formatEntries, thumbnailUrl] = await Promise.all([
+  const [formatResults, thumbnailUrl] = await Promise.all([
     Promise.all(entries.map(async ([format, url]) => {
       const bytes = await fetchBytes(url);
       const path = await uploadModelFile(`${mini.user_id}/${mini.id}/model.${format}`, bytes, CONTENT_TYPES[format]);
-      return [format, path] as const;
+      return { format, path, bytes };
     })),
     (async (): Promise<string | null> => {
       if (!task.thumbnailUrl) return null;
@@ -131,17 +174,48 @@ async function processMini(mini: MiniRow, meshyKey: string): Promise<void> {
     })(),
   ]);
 
-  const paths: Partial<Record<MeshFormat, string>> = Object.fromEntries(formatEntries);
+  const paths: Partial<Record<MeshFormat, string>> = {};
+  const figureBytes: Partial<Record<"glb" | "stl", Uint8Array>> = {};
+  for (const r of formatResults) {
+    paths[r.format] = r.path;
+    if (r.format === "glb" || r.format === "stl") figureBytes[r.format] = r.bytes;
+  }
 
   const extraPaths: Record<string, string> = {};
   if (paths.usdz) extraPaths.usdz = paths.usdz;
   if (paths["3mf"]) extraPaths["3mf"] = paths["3mf"];
   if (paths.obj) extraPaths.obj = paths.obj;
 
+  // Keep raw (uncomposed) copies of the figure-only sculpt alongside the
+  // (soon to be overwritten) model.* files — forge-mini's `set_base` action
+  // recomposes from these without ever re-running Meshy.
+  if (figureBytes.glb) {
+    extraPaths.raw_glb = await uploadModelFile(`${mini.user_id}/${mini.id}/raw.glb`, figureBytes.glb, CONTENT_TYPES.glb);
+  }
+  if (figureBytes.stl) {
+    extraPaths.raw_stl = await uploadModelFile(`${mini.user_id}/${mini.id}/raw.stl`, figureBytes.stl, CONTENT_TYPES.stl);
+  }
+
+  // Auto-compose onto the default base at the mini's requested scale — never
+  // allowed to brick an otherwise-successful (paid) sculpt: any failure just
+  // falls back to the raw figure-only files already uploaded as model.* above.
+  let baseId: string | null = null;
+  try {
+    const composed = await composeMiniModel(mini, figureBytes);
+    if (composed) {
+      if (composed.glbPath) paths.glb = composed.glbPath;
+      if (composed.stlPath) paths.stl = composed.stlPath;
+      baseId = DEFAULT_BASE_ID;
+    }
+  } catch (e) {
+    console.error(`poll-meshy-jobs: auto-compose failed for mini ${mini.id} — falling back to raw model`, e);
+  }
+
   await admin.from("minis").update({
     glb_path: paths.glb ?? null,
     stl_path: paths.stl ?? null,
     extra_paths: extraPaths,
+    base_id: baseId,
     thumbnail_url: thumbnailUrl,
     polycount: task.polycount,
     status: "ready",
@@ -179,7 +253,7 @@ serve(async (req: Request) => {
 
   const { data: minis } = await admin
     .from("minis")
-    .select("id, user_id, format, status, meshy_task_id, glb_path, reservation_ids, credits_spent, sculpt_count, updated_at")
+    .select("id, user_id, format, status, meshy_task_id, glb_path, reservation_ids, credits_spent, sculpt_count, scale_mm, updated_at")
     .in("status", ["sculpting", "downloading"])
     .limit(20);
 

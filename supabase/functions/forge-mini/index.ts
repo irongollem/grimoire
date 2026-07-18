@@ -9,6 +9,11 @@
  *   cancel   — abort an in-flight sculpt, release its reservation.
  *   delete   — remove a mini's storage folder + row (service-role only; the
  *              bucket has no client delete policy).
+ *   set_base — recompose a READY mini onto a different base/scale from its
+ *              stored raw (uncomposed) figure files. FREE — no Meshy re-run,
+ *              no credit reserve (SIMULACRUM_PLAN.md §2 BASELESS decision,
+ *              #542) — allowed in ANY simulacrum_config.mode, like cancel/
+ *              delete, since it operates on an already-paid-for sculpt.
  *
  * Meshy tasks run multi-minute — longer than an edge isolate reliably lives —
  * so `sculpt`/`resculpt` only CREATE the task and write meshy_task_id; the
@@ -37,9 +42,13 @@ import { buildMiniStylizePrompt } from "../_shared/image-prompt.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
 import { isSafeStorageUrl } from "../_shared/storage-url.ts";
-import { uploadWithRetry } from "../_shared/storage-upload.ts";
+import { uploadWithRetry, fetchBytes } from "../_shared/storage-upload.ts";
 import { canStylize, canSculpt, canResculpt, meshyParamsForFormat, type MiniStatusB } from "../_shared/simulacrum.ts";
 import { createImageTo3dTask, resolveMeshyKey } from "../_shared/mesh3d.ts";
+import { getMiniBase, BASE_STORAGE_PREFIX } from "../_shared/mini-bases.ts";
+import { composeStl, figureScaleFor } from "../_shared/mesh-compose.ts";
+import { composeGlb, figureScaleForGlb } from "../_shared/glb-compose.ts";
+import { parseBinaryStl, stlBounds } from "../_shared/stl.ts";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -464,6 +473,94 @@ async function handleDelete(userId: string, body: Record<string, unknown>, json:
   return json({ ok: true });
 }
 
+// ── set_base ──────────────────────────────────────────────────────────────────
+
+interface SetBaseMiniRow {
+  id: string;
+  user_id: string;
+  status: MiniStatusB;
+  glb_path: string | null;
+  stl_path: string | null;
+  extra_paths: Record<string, string> | null;
+}
+
+/**
+ * Recomposes a READY mini onto a different base/scale from its stored raw
+ * (uncomposed) figure files — never re-runs Meshy. FREE: composition is pure
+ * CPU work on files we already own, not vendor spend, so there's nothing to
+ * reserve/settle/refund (contrast with sculpt/resculpt). Falls back to the
+ * current model.* files if extra_paths.raw_glb/raw_stl are missing (minis
+ * forged before this feature shipped, or a mini whose auto-compose fell back
+ * to raw-as-model) — recomposing an ALREADY-composed figure onto a new base
+ * is wrong (the old base geometry would get baked in), so that fallback is
+ * only correct when the current model.* is itself still figure-only. Minis
+ * with no raw copies and an already-composed model are simply out of luck
+ * until they're re-sculpted (which re-populates extra_paths.raw_*).
+ */
+async function handleSetBase(userId: string, body: Record<string, unknown>, json: JsonFn): Promise<Response> {
+  const miniId = typeof body.mini_id === "string" ? body.mini_id : null;
+  const baseId = typeof body.base_id === "string" ? body.base_id : null;
+  const scaleMm = body.scale_mm === 28 || body.scale_mm === 32 ? (body.scale_mm as 28 | 32) : null;
+  if (!miniId || !baseId || !scaleMm) return json({ error: "invalid_body" }, 400);
+
+  if (!getMiniBase(baseId)) return json({ error: "unknown_base" }, 400);
+
+  const { data: existing } = await admin
+    .from("minis")
+    .select("id, user_id, status, glb_path, stl_path, extra_paths")
+    .eq("id", miniId)
+    .maybeSingle();
+  if (!existing) return json({ error: "not_found" }, 404);
+  const mini = existing as SetBaseMiniRow;
+  if (mini.user_id !== userId) return json({ error: "forbidden" }, 403);
+  if (mini.status !== "ready") return json({ error: "invalid_state" }, 409);
+
+  const extraPaths = mini.extra_paths ?? {};
+  const figureGlbPath = extraPaths.raw_glb ?? mini.glb_path;
+  const figureStlPath = extraPaths.raw_stl ?? mini.stl_path;
+  if (!figureGlbPath) return json({ error: "invalid_state" }, 409); // nothing to recompose from
+
+  const toPublicUrl = (path: string) => admin.storage.from("mini-models").getPublicUrl(path).data.publicUrl;
+
+  try {
+    const [figureGlbBytes, figureStlBytes, baseGlbBytes, baseStlBytes] = await Promise.all([
+      fetchBytes(toPublicUrl(figureGlbPath)),
+      figureStlPath ? fetchBytes(toPublicUrl(figureStlPath)).catch(() => null) : Promise.resolve(null),
+      fetchBytes(toPublicUrl(`${BASE_STORAGE_PREFIX}/${baseId}.glb`)),
+      fetchBytes(toPublicUrl(`${BASE_STORAGE_PREFIX}/${baseId}.stl`)).catch(() => null),
+    ]);
+
+    // One scale factor, reused for both exports — see poll-meshy-jobs'
+    // composeMiniModel for why STL bounds are preferred when available.
+    const scale = figureStlBytes
+      ? figureScaleFor(stlBounds(parseBinaryStl(figureStlBytes)), scaleMm)
+      : await figureScaleForGlb(figureGlbBytes, scaleMm);
+
+    const composedGlb = await composeGlb(figureGlbBytes, baseGlbBytes, scaleMm, scale);
+    const glbPath = `${userId}/${miniId}/model.glb`;
+    await uploadWithRetry(admin, "mini-models", glbPath, composedGlb, "model/gltf-binary");
+
+    let stlPath = mini.stl_path;
+    if (figureStlBytes && baseStlBytes) {
+      const composedStl = composeStl(figureStlBytes, baseStlBytes, scaleMm);
+      stlPath = `${userId}/${miniId}/model.stl`;
+      await uploadWithRetry(admin, "mini-models", stlPath, composedStl, "model/stl");
+    }
+
+    await admin.from("minis").update({
+      base_id: baseId,
+      scale_mm: scaleMm,
+      glb_path: glbPath,
+      stl_path: stlPath,
+    }).eq("id", miniId);
+  } catch (e) {
+    console.error("forge-mini set_base: composition failed", e);
+    return json({ error: "compose_failed" }, 502);
+  }
+
+  return json({ mini_id: miniId, base_id: baseId, scale_mm: scaleMm });
+}
+
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 serve(async (req: Request) => {
@@ -508,6 +605,7 @@ serve(async (req: Request) => {
     case "resculpt": return handleSculptAction(user.id, body, cors, json, false);
     case "cancel":   return handleCancel(user.id, body, json);
     case "delete":   return handleDelete(user.id, body, json);
+    case "set_base": return handleSetBase(user.id, body, json);
     default:         return json({ error: "invalid_action" }, 400);
   }
 });

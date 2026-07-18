@@ -66,6 +66,40 @@
       <p v-else class="font-fell text-xs text-destructive text-center">
         The model file is missing — try a re-sculpt.
       </p>
+
+      <!-- Base & scale — free, instant swap; no Meshy re-run -->
+      <div class="flex flex-col items-center gap-1.5 pt-1">
+        <p class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase">Base &amp; scale</p>
+        <div class="flex items-center gap-2">
+          <button
+            v-for="base in MINI_BASES"
+            :key="base.id"
+            type="button"
+            class="h-6 w-6 rounded-full transition-all disabled:opacity-50"
+            :class="mini.base_id === base.id ? 'ring-2 ring-primary ring-offset-2 ring-offset-card' : 'ring-1 ring-border hover:ring-foreground/40'"
+            :style="{ backgroundColor: base.color }"
+            :title="base.label"
+            :disabled="isRebasing"
+            @click="applyBase(base.id, mini.scale_mm as MiniBaseScale)"
+          />
+          <span class="w-px h-5 bg-border" />
+          <div class="flex items-center gap-1">
+            <button
+              v-for="scale in SCALE_OPTIONS"
+              :key="scale"
+              type="button"
+              class="px-2 py-1 rounded font-cinzel text-2xs tracking-wider border transition-colors disabled:opacity-50"
+              :class="mini.scale_mm === scale
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'border-border text-muted-foreground hover:text-foreground'"
+              :disabled="isRebasing"
+              @click="applyBase(mini.base_id ?? DEFAULT_BASE_ID, scale)"
+            >{{ scale }}mm</button>
+          </div>
+          <IconLoading v-if="isRebasing" class="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+
       <div class="flex flex-wrap items-center justify-center gap-2 pt-2">
         <button
           type="button"
@@ -122,8 +156,12 @@ import MiniModelViewer from "@/components/simulacrum/MiniModelViewer.vue";
 import { useAiCredits } from "@/composables/useAiCredits";
 import { useMiniForge } from "@/ai/useMiniForge";
 import { getPublicUrl } from "@/lib/storage";
+import { MINI_BASES, DEFAULT_BASE_ID } from "@/data/miniBases";
 import { MAX_SCULPTS, MINI_STATUS_LABELS } from "@/types/mini.types";
 import type { Mini } from "@/types/mini.types";
+
+type MiniBaseScale = 28 | 32;
+const SCALE_OPTIONS: MiniBaseScale[] = [28, 32];
 
 const { mini } = defineProps<{ mini: Mini }>();
 
@@ -134,14 +172,19 @@ const emit = defineEmits<{
 
 const router = useRouter();
 const { costOf, affordable } = useAiCredits();
-const { sculpt, resculpt, waitForSculpt } = useMiniForge();
+const { sculpt, resculpt, setBase, waitForSculpt, isRebasing } = useMiniForge();
 
 const sculptCost = computed(() => costOf("mini_sculpt"));
 const resculptsLeft = computed(() => MAX_SCULPTS - mini.sculpt_count);
 // Only the very first completed sculpt is paid — everything after rides the
 // free-retry cap, including sculpting a re-stylized image (plan §5).
 const isFirstSculpt = computed(() => mini.sculpt_count === 0);
-const glbUrl = computed(() => (mini.glb_path ? getPublicUrl("miniModels", mini.glb_path) : null));
+// Cache-bust: a base/scale swap recomposes the file in place at the same
+// storage path, so the URL must change (via updated_at) or the browser/CDN
+// would keep serving the pre-swap geometry.
+const glbUrl = computed(() =>
+  mini.glb_path ? `${getPublicUrl("miniModels", mini.glb_path)}?v=${mini.updated_at}` : null,
+);
 
 // "waiting" tracks whether we're actively polling — separate from mini.status
 // so the spinner shows the instant the request fires, before the row flips.
@@ -198,6 +241,17 @@ function retry() {
 
 function accept() {
   router.push("/minis");
+}
+
+/** Free, instant base/scale swap — server recomposes glb/stl, we refetch + re-emit to bust the viewer. */
+async function applyBase(baseId: string, scaleMm: MiniBaseScale) {
+  error.value = null;
+  try {
+    const updated = await setBase(mini.id, baseId, scaleMm);
+    emit("update:mini", updated);
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : "Failed to swap the base.";
+  }
 }
 
 // Resume flow: the mini may already be mid-sculpt (route reopened while a
