@@ -5,18 +5,20 @@
     @click="$emit('click')"
   >
     <div class="relative aspect-3/4 bg-muted overflow-hidden shrink-0 group">
-      <FocalImage
-        :src="member.portrait_url"
-        :alt="member.name"
-        format="portrait"
-        :focal-point="member.portrait_focal_point ?? null"
-        placeholder="/assets/placeholders/character.webp"
-        class="group-hover:scale-105 transition-transform duration-300"
-      />
-      <span
-        v-if="isOwn"
-        class="absolute top-2 left-2 font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded bg-primary text-primary-foreground tracking-wider"
-      >You</span>
+      <MiniPortraitOverlay :source="{ table: 'party_members', id: member.id }">
+        <FocalImage
+          :src="member.portrait_url"
+          :alt="member.name"
+          format="portrait"
+          :focal-point="member.portrait_focal_point ?? null"
+          placeholder="/assets/placeholders/character.webp"
+          class="group-hover:scale-105 transition-transform duration-300"
+        />
+        <span
+          v-if="isOwn"
+          class="absolute top-2 left-2 font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded bg-primary text-primary-foreground tracking-wider"
+        >You</span>
+      </MiniPortraitOverlay>
     </div>
     <div class="p-2.5 flex flex-col gap-1.5">
       <div>
@@ -67,6 +69,7 @@
 import { computed } from "vue";
 import { IconShield } from "@/lib/icons";
 import FocalImage from "@/components/common/FocalImage.vue";
+import MiniPortraitOverlay from "@/components/simulacrum/MiniPortraitOverlay.vue";
 import { useHpDisplay } from "@/composables/useHpDisplay";
 import { useShieldAcBonus } from "@/composables/useShieldAc";
 import type { PartyMember } from "@/types/party.types";

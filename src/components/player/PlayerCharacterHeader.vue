@@ -3,18 +3,20 @@
     <div class="flex items-stretch flex-1">
       <!-- Portrait (beast image when wildshaped) -->
       <div class="shrink-0 w-24 relative overflow-hidden bg-muted/50">
-        <FocalImage
-          v-if="wildshape?.beast_image_url ?? member.portrait_url"
-          :src="(wildshape?.beast_image_url ?? member.portrait_url)!"
-          :alt="wildshape?.beast_name ?? member.name"
-          format="portrait"
-          :focal-point="wildshape?.beast_image_url ? null : (member.portrait_focal_point ?? null)"
-          :lightbox="true"
-        />
-        <span
-          v-else
-          class="absolute inset-0 flex items-center justify-center font-cinzel text-3xl font-bold text-muted-foreground"
-        >{{ wildshape ? wildshape.beast_name.charAt(0) : member.name.charAt(0) }}</span>
+        <MiniPortraitOverlay :source="{ table: 'party_members', id: member.id }">
+          <FocalImage
+            v-if="wildshape?.beast_image_url ?? member.portrait_url"
+            :src="(wildshape?.beast_image_url ?? member.portrait_url)!"
+            :alt="wildshape?.beast_name ?? member.name"
+            format="portrait"
+            :focal-point="wildshape?.beast_image_url ? null : (member.portrait_focal_point ?? null)"
+            :lightbox="true"
+          />
+          <span
+            v-else
+            class="absolute inset-0 flex items-center justify-center font-cinzel text-3xl font-bold text-muted-foreground"
+          >{{ wildshape ? wildshape.beast_name.charAt(0) : member.name.charAt(0) }}</span>
+        </MiniPortraitOverlay>
       </div>
 
       <!-- Right column -->
@@ -201,6 +203,7 @@ import { useAllSpecies } from "@/composables/useSpecies";
 import { useIsRuleEnabled } from "@/composables/useOptionalRules";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RestButtons from "@/components/player/RestButtons.vue";
+import MiniPortraitOverlay from "@/components/simulacrum/MiniPortraitOverlay.vue";
 
 const props = defineProps<{ member: PartyMember; wildshape?: WildshapeState; hidePlayerActions?: boolean }>();
 const emit = defineEmits<{ (e: "level-up"): void }>();
