@@ -100,7 +100,9 @@ The loop:
 ## Go-live checklist (Phase 4)
 
 1. Buy Meshy Pro; paste the key into the Simulacrum panel (Admin → Providers) —
-   this is what unlocks the "Live" mode option.
+   this is what unlocks the "Live" mode option. **Also `supabase secrets unset
+   MESHY_MOCK`** (set during pre-sub testing) and clear any "mock" placeholder
+   key, or real sculpts will keep returning the fixture triangle.
 2. Set `SIMULACRUM_POLLER_TOKEN` edge secret; add Vault secret
    `simulacrum_poller_url` = `https://<proj>.supabase.co/functions/v1/poll-meshy-jobs?token=<same>`.
 3. Deploy `forge-mini` + `poll-meshy-jobs` (config.toml already declares the poller's `verify_jwt=false`).
