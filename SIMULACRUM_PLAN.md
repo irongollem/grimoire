@@ -55,17 +55,25 @@ fine-detailed for a 1em glyph.
 
 1. **Format** — Print vs VTT. Sets everything downstream:
 
-   |                  | Print                                                                                                                                                               | VTT                                                             |
-   | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-   | Stylized image   | grey "unpainted resin mini" render                                                                                                                                  | full-color stylized render                                      |
-   | Image directives | blank eyes (no iris), hair/feathers/fur clumped into solid masses, thin parts (blades, staffs) thickened, single connected body, no background, integral round base | simplified clean silhouette, integral round base, no background |
-   | Meshy params     | `should_texture:false`, `topology:"triangle"`, `target_polycount:200_000`                                                                                           | `should_texture:true`, `target_polycount:20_000`                |
-   | Formats fetched  | `["stl","3mf","glb"]` (GLB only for preview)                                                                                                                        | `["glb","usdz"]`                                                |
-   | Retention        | same as VTT — keep both (§6)                                                                                                                                        | keep                                                            |
+   |                  | Print                                                                                                                                                                                       | VTT                                                                                     |
+   | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+   | Stylized image   | grey "unpainted resin mini" render                                                                                                                                                          | full-color stylized render                                                              |
+   | Image directives | blank eyes (no iris), hair/feathers/fur clumped into solid masses, thin parts (blades, staffs) thickened, single connected body, no background, **NO base — feet flat on the ground plane** | simplified clean silhouette, **NO base — feet flat on the ground plane**, no background |
+   | Meshy params     | `should_texture:false`, `topology:"triangle"`, `target_polycount:200_000`, `auto_size` + `origin_at:"bottom"`                                                                               | `should_texture:true`, `target_polycount:20_000`, `auto_size` + `origin_at:"bottom"`    |
+   | Formats fetched  | `["stl","3mf","glb"]` (GLB only for preview)                                                                                                                                                | `["glb","usdz"]`                                                                        |
+   | Retention        | same as VTT — keep both (§6)                                                                                                                                                                | keep                                                                                    |
 
-   The **base is added at the image step** (prompt for an integral round pedestal) —
-   Meshy meshes whatever is in the image; there is no "add base" mesh param. This
-   also gives print minis the stability base they need.
+   Minis are generated **BASELESS** (decision 2026-07-18, superseding the earlier
+   integral-base prompt): **we supply the base** from a curated 25 mm library and
+   composite the figure onto it ourselves — Phase 4.5, GitHub issue #542. This
+   also solves real-world scaling, which the raw Meshy output lacks entirely
+   ("tends to be huge"): the compositor normalizes the figure to true tabletop
+   millimetres (28–32 mm) before seating it. Composition is cheap — binary-STL
+   triangle concat + transform for print (no boolean union; slicers merge
+   touching shells), `@gltf-transform/core` node-merge for the preview/VTT GLB.
+   `auto_size` + `origin_at:"bottom"` make the seating deterministic. Until 4.5
+   lands, raw sculpts have no base — acceptable, since nothing real sculpts
+   before Phase 4 anyway.
 
 2. **Stylize** (image credits, normal flow) — portrait sent as `sourceImages` through
    the existing `generateImage()` engine (OpenAI edits / Gemini inline both accept
@@ -223,10 +231,10 @@ mini (or its source entity) deletes the folder via the existing
   for the state machine + credit math (TDD per house rule); cron poller.
 - **Phase 3 — preview + gallery**: `@google/model-viewer` preview, `/minis`
   gallery, entity-page badges, downloads.
-- **Phase 3.5 — demand gate (`teaser` mode)**: ship the entry point *visible*
+- **Phase 3.5 — demand gate (`teaser` mode)**: ship the entry point _visible_
   before buying the Meshy sub. Clicking "Mini" opens the wizard shell with a fun
-  in-lore broken state — e.g. *"The ritual fizzles; the simulacrum collapses
-  into mist. The binding sigils are not yet inscribed."* — plus a **"Notify me
+  in-lore broken state — e.g. _"The ritual fizzles; the simulacrum collapses
+  into mist. The binding sigils are not yet inscribed."_ — plus a **"Notify me
   when the ritual is complete"** button that records one row per user in a small
   `feature_interest` table (`user_id`, `feature`, `created_at`, unique on
   user+feature; RLS insert-own/select-own, admin reads the count). The counter
@@ -253,11 +261,17 @@ mini (or its source entity) deletes the folder via the existing
 4. **Generated models only** — we do not host user-uploaded 3D files until
    further notice (model file sizes). The `mini-models` bucket is written
    exclusively by the pipeline (service-role); no client upload path.
-5. **Refunds only for our failures** — like all prior AI generations. "Ours" =
+5. **Baseless minis; we provide the base + real-mm scale** (2026-07-18,
+   supersedes "base at the image step"): the stylize prompt forbids any
+   pedestal; a curated 25 mm base library + server-side composition (Phase 4.5,
+   #542) seats and scales the figure to 28–32 mm. Uniform bases across a
+   collection, print-ready STL scale, and free instant base swaps (no Meshy
+   re-run).
+6. **Refunds only for our failures** — like all prior AI generations. "Ours" =
    our tooling OR the vendor's tooling, never user choice. The operating rule
    is **vendor-refund passthrough**: Meshy auto-refunds `FAILED` tasks, so we
    release the user's hold; a user canceling/deleting an in-flight sculpt
    abandons a task whose vendor cost is sunk, so the hold settles as a charge
    (and consumes the attempt). Open question for Phase 4 smoke testing: whether
-   Meshy refunds *canceled/deleted* tasks — if it does, wire cancel to delete
+   Meshy refunds _canceled/deleted_ tasks — if it does, wire cancel to delete
    the Meshy task and refund the user (vendor refunds → we refund).

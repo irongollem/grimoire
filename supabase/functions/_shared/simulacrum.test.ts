@@ -157,24 +157,35 @@ describe("resolveSculptOutcome", () => {
 });
 
 describe("meshyParamsForFormat", () => {
-  it("print: untextured, triangle topology, 200k polys, stl+3mf+glb", () => {
+  it("print: untextured, triangle topology, 200k polys, stl+3mf+glb, bottom-origin auto-size", () => {
     expect(meshyParamsForFormat("print")).toEqual({
       should_texture: false,
       topology: "triangle",
       target_polycount: 200_000,
       target_formats: ["stl", "3mf", "glb"],
       ai_model: "latest",
+      auto_size: true,
+      origin_at: "bottom",
     });
   });
-  it("vtt: textured, 20k polys, glb+usdz, no topology key", () => {
+  it("vtt: textured, 20k polys, glb+usdz, no topology key, bottom-origin auto-size", () => {
     const params = meshyParamsForFormat("vtt");
     expect(params).toEqual({
       should_texture: true,
       target_polycount: 20_000,
       target_formats: ["glb", "usdz"],
       ai_model: "latest",
+      auto_size: true,
+      origin_at: "bottom",
     });
     expect(params).not.toHaveProperty("topology");
+  });
+  it("both formats seat deterministically: auto_size with origin_at bottom (baseless minis land on OUR bases)", () => {
+    for (const format of ["print", "vtt"] as const) {
+      const params = meshyParamsForFormat(format);
+      expect(params.auto_size).toBe(true);
+      expect(params.origin_at).toBe("bottom");
+    }
   });
 });
 

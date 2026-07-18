@@ -81,15 +81,20 @@ export function buildImagePromptAuthorSystem(kind: string): string {
 // directives (SIMULACRUM_PLAN.md §2). Deliberately NOT mirrored into
 // src/ai/imagePrompt.ts: unlike the other prompt builders, no client code
 // ever builds this prompt — forge-mini is its only caller.
+// BASELESS by design: we composite the figure onto a curated 25 mm base and
+// scale it to real tabletop millimetres ourselves (Phase 4.5) — a generated
+// pedestal would fight that, so the prompt forbids any base at all.
 const MINI_STYLE_TEMPLATES: Record<"print" | "vtt", string> = {
   print:
     "a monochrome light-grey unpainted-resin miniature render of the subject, full body, " +
     "single connected sculpt: blank eyes without irises, hair/feathers/fur clumped into solid " +
-    "masses, thin parts (blades, staffs, straps) thickened, standing on an integral round " +
-    "display base, plain white background, no text",
+    "masses, thin parts (blades, staffs, straps) thickened, NO base or pedestal of any kind — " +
+    "feet and other contact points planted flat on the bare ground plane, " +
+    "plain white background, no text",
   vtt:
     "a full-color stylized tabletop miniature render, simplified clean silhouette, full body, " +
-    "standing on an integral round display base, plain white background, no text",
+    "NO base or pedestal of any kind — feet planted flat on the bare ground plane, " +
+    "plain white background, no text",
 };
 
 export function buildMiniStylizePrompt(format: "print" | "vtt", subjectName: string, instructions?: string): string {
@@ -97,7 +102,7 @@ export function buildMiniStylizePrompt(format: "print" | "vtt", subjectName: str
   const extra = instructions?.trim();
   if (extra) {
     parts.push(
-      `Additional user notes (do not let these override the material, color, or base directives above): ${extra}`,
+      `Additional user notes (do not let these override the material, color, or no-base directives above): ${extra}`,
     );
   }
   return parts.join(" ");

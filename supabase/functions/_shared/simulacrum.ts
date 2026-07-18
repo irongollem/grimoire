@@ -96,6 +96,11 @@ export interface MeshyParams {
   target_polycount: number;
   target_formats: MeshFormat[];
   ai_model: "latest";
+  // Normalized size + bottom origin → deterministic seating on our own 25 mm
+  // bases (minis are generated BASELESS; we composite base + real-mm scale
+  // ourselves in Phase 4.5).
+  auto_size: true;
+  origin_at: "bottom";
 }
 
 /**
@@ -112,6 +117,8 @@ export function meshyParamsForFormat(format: "print" | "vtt"): MeshyParams {
       target_polycount: 200_000,
       target_formats: ["stl", "3mf", "glb"],
       ai_model: "latest",
+      auto_size: true,
+      origin_at: "bottom",
     };
   }
   return {
@@ -119,6 +126,8 @@ export function meshyParamsForFormat(format: "print" | "vtt"): MeshyParams {
     target_polycount: 20_000,
     target_formats: ["glb", "usdz"],
     ai_model: "latest",
+    auto_size: true,
+    origin_at: "bottom",
   };
 }
 
