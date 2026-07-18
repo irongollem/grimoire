@@ -43,7 +43,7 @@ alter table checkout_config
 -- hand in the dashboard). Establish the write policy properly here.
 drop policy if exists "checkout_config_admin_update" on checkout_config;
 create policy "checkout_config_admin_update" on checkout_config
-  for update using (public.is_app_admin());
+  for update using (private.is_app_admin());
 
 -- Flipping the switch rebuilds the marketing site (same Vault-stored Vercel
 -- deploy hook the plans trigger uses), so the CTAs swap within a minute or two.
