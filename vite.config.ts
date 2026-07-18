@@ -76,7 +76,15 @@ function swPlugin(): Plugin {
 
 export default defineConfig({
   plugins: [
-    vue(),
+    vue({
+      template: {
+        compilerOptions: {
+          // <model-viewer> (Simulacrum 3D preview) is a native custom element,
+          // not a Vue component — don't try to resolve/import it.
+          isCustomElement: (tag) => tag === "model-viewer",
+        },
+      },
+    }),
     tailwindcss(),
     swPlugin(),
   ],
@@ -95,6 +103,10 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          // 3D model viewer — Simulacrum only, keep it out of the main bundle.
+          if (id.includes("node_modules/@google/model-viewer")) {
+            return "model-viewer";
+          }
           // Tiptap editor — loaded on any page with a rich text field
           if (id.includes("node_modules/@tiptap") || id.includes("node_modules/prosemirror")) {
             return "tiptap";

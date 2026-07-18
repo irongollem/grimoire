@@ -8,7 +8,16 @@ import vue from "@vitejs/plugin-vue";
 import path from "node:path";
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [
+    vue({
+      template: {
+        compilerOptions: {
+          // Mirrors vite.config.ts — <model-viewer> is a native custom element.
+          isCustomElement: (tag) => tag === "model-viewer",
+        },
+      },
+    }),
+  ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

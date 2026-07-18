@@ -218,10 +218,11 @@ import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useUpdateCampaignMember } from "@/composables/useCampaignMembers";
 import LegalFooterLinks from "@/components/common/LegalFooterLinks.vue";
-import { NAV_GROUPS } from "@/lib/nav";
+import { NAV_GROUPS, navItemHiddenByFlag } from "@/lib/nav";
 import { useRunningEncounters } from "@/composables/useEncounterLive";
 import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/useOptionalRules";
 import { useSubscription } from "@/composables/useSubscription";
+import { useSimulacrumConfig } from "@/composables/useSimulacrumConfig";
 import NavItem from "./NavItem.vue";
 import CampaignSwitcher from "./CampaignSwitcher.vue";
 import GlobalSearch from "./GlobalSearch.vue";
@@ -247,11 +248,13 @@ onClickOutside(userMenuRef, (e) => {
 });
 
 const { data: campaignRules } = useOptionalRules();
+const { mode: simulacrumMode } = useSimulacrumConfig();
 const visibleNavGroups = computed(() =>
   NAV_GROUPS.map((group) => ({
     ...group,
     items: group.items.filter((item) =>
-      !item.ruleKey || isRuleEffectivelyEnabled(campaignRules.value, item.ruleKey),
+      (!item.ruleKey || isRuleEffectivelyEnabled(campaignRules.value, item.ruleKey)) &&
+      !navItemHiddenByFlag(item, simulacrumMode.value === "hidden"),
     ),
   })).filter((group) => group.items.length > 0),
 );

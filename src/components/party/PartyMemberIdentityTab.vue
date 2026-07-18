@@ -10,6 +10,7 @@
         ai-kind="party_member"
         :ai-target-id="memberId"
         :ai-context="aiContext"
+        :mini-source="memberId ? { table: 'party_members', id: memberId } : undefined"
         @update:model-value="emit('update:portraitUrl', $event ?? '')"
         @update:focal-point="emit('update:focalPoint', $event)"
       />

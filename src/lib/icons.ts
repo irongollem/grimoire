@@ -257,6 +257,7 @@ export const IconNavDashboard = glyph(NAV_GLYPHS.dashboard);
 export const IconNavNotes = glyph(NAV_GLYPHS.notes);
 export const IconNavCalendar = glyph(NAV_GLYPHS.calendar);
 export const IconNavInterlude = glyph(NAV_GLYPHS.interlude);
+export const IconNavSimulacrum = glyph(NAV_GLYPHS.simulacrum);
 export const IconNavQuests = glyph(NAV_GLYPHS.quests);
 export const IconNavAtlas = glyph(NAV_GLYPHS.atlas);
 export const IconNavPantheon = glyph(NAV_GLYPHS.pantheon);

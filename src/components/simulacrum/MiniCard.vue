@@ -1,0 +1,153 @@
+<template>
+  <div class="group relative flex flex-col overflow-hidden rounded-lg border border-border bg-card">
+    <!-- Thumbnail -->
+    <button
+      type="button"
+      class="relative aspect-square w-full overflow-hidden bg-muted"
+      :disabled="!canPreview"
+      @click="previewOpen = true"
+    >
+      <img
+        v-if="thumbSrc"
+        :src="thumbSrc"
+        :alt="mini.label ?? 'Mini'"
+        class="h-full w-full object-cover"
+      />
+      <div v-else class="flex h-full w-full items-center justify-center">
+        <VitruvianIcon class="text-4xl opacity-30" />
+      </div>
+
+      <!-- Format badge -->
+      <span
+        class="absolute top-1.5 left-1.5 rounded px-1.5 py-0.5 font-cinzel text-2xs tracking-wider pointer-events-none"
+        :class="FORMAT_BADGE_CLASSES[mini.format]"
+      >{{ MINI_FORMAT_LABELS[mini.format] }}</span>
+
+      <!-- Status badge (non-ready only) -->
+      <span
+        v-if="mini.status !== 'ready'"
+        class="absolute top-1.5 right-1.5 rounded px-1.5 py-0.5 font-cinzel text-2xs tracking-wider bg-black/60 text-white pointer-events-none"
+      >{{ MINI_STATUS_LABELS[mini.status] }}</span>
+    </button>
+
+    <!-- Body -->
+    <div class="flex flex-col gap-1.5 p-2.5">
+      <p class="font-cinzel text-xs font-semibold text-foreground truncate">{{ mini.label ?? 'Untitled mini' }}</p>
+      <p class="font-fell text-2xs text-muted-foreground/70">{{ new Date(mini.created_at).toLocaleDateString() }}</p>
+
+      <div class="flex flex-wrap items-center gap-1 pt-1">
+        <button
+          v-if="canPreview"
+          type="button"
+          title="Preview"
+          class="p-1 rounded border border-border text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
+          @click="previewOpen = true"
+        ><IconReveal class="h-3.5 w-3.5" /></button>
+
+        <a
+          v-if="glbUrl"
+          :href="glbUrl"
+          download
+          title="Download GLB"
+          class="p-1 rounded border border-border text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
+        ><IconDownload class="h-3.5 w-3.5" /></a>
+
+        <a
+          v-if="stlUrl"
+          :href="stlUrl"
+          download
+          title="Download STL"
+          class="inline-flex items-center gap-1 px-1.5 py-1 rounded border border-border text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors font-cinzel text-2xs tracking-wider"
+        ><IconDownload class="h-3.5 w-3.5" />STL</a>
+
+        <RouterLink
+          v-if="canResume"
+          :to="resumeTo"
+          title="Resume"
+          class="p-1 rounded border border-border text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
+        ><IconRefresh class="h-3.5 w-3.5" /></RouterLink>
+
+        <button
+          type="button"
+          title="Delete"
+          class="ml-auto p-1 rounded border border-border text-muted-foreground hover:text-destructive hover:border-destructive/40 transition-colors"
+          :disabled="deleting"
+          @click="onDelete"
+        ><IconDelete class="h-3.5 w-3.5" /></button>
+      </div>
+    </div>
+
+    <!-- Preview modal -->
+    <Teleport to="body">
+      <div
+        v-if="previewOpen"
+        class="fixed inset-0 z-200 flex items-center justify-center bg-black/85 p-4"
+        @click="previewOpen = false"
+      >
+        <div class="w-full max-w-md" @click.stop>
+          <MiniModelViewer
+            v-if="glbUrl"
+            :src="glbUrl"
+            :poster="thumbSrc ?? undefined"
+            :alt="mini.label ?? 'Mini'"
+          />
+        </div>
+        <button
+          type="button"
+          class="absolute top-4 right-4 rounded-full bg-black/40 p-1.5 text-white/70 hover:text-white transition-colors"
+          @click="previewOpen = false"
+        ><IconClose class="h-5 w-5" /></button>
+      </div>
+    </Teleport>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed, ref } from "vue";
+import { RouterLink } from "vue-router";
+import VitruvianIcon from "@/components/common/VitruvianIcon.vue";
+import MiniModelViewer from "@/components/simulacrum/MiniModelViewer.vue";
+import { IconClose, IconDelete, IconDownload, IconRefresh, IconReveal } from "@/lib/icons";
+import { useConfirm } from "@/composables/useConfirm";
+import { useDeleteMini } from "@/composables/useMinis";
+import { getPublicUrl } from "@/lib/storage";
+import { MINI_FORMAT_LABELS, MINI_STATUS_LABELS } from "@/types/mini.types";
+import type { Mini } from "@/types/mini.types";
+
+const { mini } = defineProps<{ mini: Mini }>();
+
+const FORMAT_BADGE_CLASSES: Record<Mini["format"], string> = {
+  print: "bg-slate-500/80 text-white",
+  vtt: "bg-violet-500/80 text-white",
+};
+
+const { confirm } = useConfirm();
+const { mutateAsync: deleteMini, isPending: deleting } = useDeleteMini();
+
+const previewOpen = ref(false);
+
+const thumbSrc = computed(() => mini.thumbnail_url ?? mini.stylized_image_url ?? null);
+const glbUrl = computed(() => (mini.glb_path ? getPublicUrl("miniModels", mini.glb_path) : null));
+const stlUrl = computed(() =>
+  mini.format === "print" && mini.stl_path ? getPublicUrl("miniModels", mini.stl_path) : null,
+);
+const canPreview = computed(() => !!glbUrl.value);
+// In-flight minis are resumable too: the server finishes the job whether or
+// not anyone is watching (you paid, you get the result), and the wizard's
+// sculpt step re-attaches to the wait on mount.
+const canResume = computed(() =>
+  ["stylizing", "image_ready", "sculpting", "downloading", "failed"].includes(mini.status),
+);
+const resumeTo = computed(() => ({
+  path: "/minis/forge",
+  query: { source: mini.source_table, id: mini.source_id, mini: mini.id },
+}));
+
+async function onDelete() {
+  const ok = await confirm(
+    `Delete "${mini.label ?? 'this mini'}"? This removes the 3D files permanently.`,
+    { danger: true },
+  );
+  if (ok) await deleteMini(mini.id);
+}
+</script>

@@ -12,6 +12,7 @@
       ai-kind="npc_portrait"
       :ai-target-id="npcId"
       :ai-context="aiContext"
+      :mini-source="npcId ? { table: 'npcs', id: npcId } : undefined"
       @update:model-value="emit('update:portraitUrl', $event ?? '')"
       @update:focal-point="emit('update:portraitFocalPoint', $event)"
       @update:active-variant-id="emit('update:artTab', $event as ArtTab)"

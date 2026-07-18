@@ -26,17 +26,30 @@
     />
 
     <!-- AI generation — only when the parent opts in and the campaign allows AI -->
-    <div v-if="showAiButton" class="mt-2 flex flex-col gap-1">
-      <button
-        type="button"
-        :disabled="isGenerating || disabled || !affordable(imageCost, imageByok)"
-        class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 font-cinzel text-[11px] font-semibold tracking-wider border border-border rounded-md hover:bg-muted disabled:opacity-50 transition-colors"
-        @click="runGenerate"
-      >
-        <IconGenerate class="h-3.5 w-3.5" :class="isGenerating ? 'animate-pulse text-primary' : ''" />
-        {{ isGenerating ? "Generating…" : (modelValue ? "Regenerate with AI" : "Generate with AI") }}
-      </button>
-      <div v-if="!isGenerating" class="flex justify-center">
+    <div v-if="showAiButton || showMiniButton" class="mt-2 flex flex-col gap-1">
+      <div class="flex gap-1.5">
+        <button
+          v-if="showAiButton"
+          type="button"
+          :disabled="isGenerating || disabled || !affordable(imageCost, imageByok)"
+          class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 font-cinzel text-[11px] font-semibold tracking-wider border border-border rounded-md hover:bg-muted disabled:opacity-50 transition-colors"
+          @click="runGenerate"
+        >
+          <IconGenerate class="h-3.5 w-3.5" :class="isGenerating ? 'animate-pulse text-primary' : ''" />
+          {{ isGenerating ? "Generating…" : (modelValue ? "Regenerate with AI" : "Generate with AI") }}
+        </button>
+        <button
+          v-if="showMiniButton"
+          type="button"
+          title="Forge a 3D mini from this portrait"
+          class="shrink-0 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 font-cinzel text-[11px] font-semibold tracking-wider border border-border rounded-md hover:bg-muted transition-colors"
+          @click="goToMiniForge"
+        >
+          <VitruvianIcon class="text-sm" />
+          Mini
+        </button>
+      </div>
+      <div v-if="showAiButton && !isGenerating" class="flex justify-center">
         <GenerationCostBadge :credits="imageCost" :byok="imageByok" :show-balance="false" />
       </div>
       <p v-if="isGenerating" class="font-fell text-[11px] text-muted-foreground italic text-center">
@@ -49,14 +62,18 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { useRouter } from "vue-router";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
+import VitruvianIcon from "@/components/common/VitruvianIcon.vue";
 import { IconGenerate } from "@/lib/icons";
 import { useCampaignStore } from "@/stores/campaign";
 import { useEntityImageGeneration } from "@/ai/useEntityImageGeneration";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { useAiCredits } from "@/composables/useAiCredits";
 import { useProviderConfig } from "@/composables/useProviderConfig";
+import { useSimulacrumConfig } from "@/composables/useSimulacrumConfig";
+import type { MiniSourceTable } from "@/types/mini.types";
 
 export interface ImageVariant {
   id: string;
@@ -70,6 +87,7 @@ const {
   aiKind,
   aiContext,
   aiTargetId,
+  miniSource,
 } = defineProps<{
   modelValue: string | null | undefined;
   focalPoint?: { x: number; y: number } | null;
@@ -85,6 +103,8 @@ const {
   aiContext?: string;
   /** Source entity id — recorded on the Gallery row so generated art links back to its entity. */
   aiTargetId?: string | null;
+  /** Enables the "Mini" entry point into the Simulacrum forge wizard for this portrait. */
+  miniSource?: { table: MiniSourceTable; id: string };
 }>();
 
 const emit = defineEmits<{
@@ -107,6 +127,17 @@ const imageCost = computed(
 const showAiButton = computed(
   () => !!aiKind && !!aiContext?.trim() && !disabled && campaign.isAiEnabled,
 );
+
+const router = useRouter();
+const { isVisible: simulacrumVisible } = useSimulacrumConfig();
+const showMiniButton = computed(
+  () => !!miniSource && !!modelValue && simulacrumVisible.value && !disabled,
+);
+
+function goToMiniForge() {
+  if (!miniSource) return;
+  router.push({ path: "/minis/forge", query: { source: miniSource.table, id: miniSource.id } });
+}
 
 async function runGenerate() {
   if (!aiKind || !aiContext?.trim()) return;

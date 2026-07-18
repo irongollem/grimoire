@@ -17,7 +17,8 @@ export type ImageJobKind =
   | "item"
   | "spell"
   | "faction"
-  | "location";
+  | "location"
+  | "mini_style";
 
 // Allowlist of (table:column) pairs the async completion step may write to.
 // completeImageJob performs a DYNAMIC `.from(target_table).update({[target_column]})`
@@ -32,6 +33,7 @@ const ALLOWED_IMAGE_TARGETS = new Set<string>([
   "factions:image_url",
   "locations:image_url",
   "party_members:group_portrait_url",
+  "minis:stylized_image_url",
 ]);
 
 export interface CreateJobInput {

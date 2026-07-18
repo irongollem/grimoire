@@ -24,6 +24,7 @@ import {
   IconNavReliquary,
   IconNavScriptorium,
   IconNavSettings,
+  IconNavSimulacrum,
   IconNavSoundboard,
   IconNavSpellbook,
   IconNavWorkshop,
@@ -39,6 +40,8 @@ export interface NavItem {
   requiresCampaign?: boolean;
   /** If set, item is hidden when this built-in optional rule is disabled for the active campaign */
   ruleKey?: string;
+  /** If set, item is hidden while the named feature's admin flag is "hidden" (see useSimulacrumConfig). */
+  featureFlag?: "simulacrum";
 }
 
 export interface NavGroup {
@@ -246,6 +249,14 @@ export const NAV_GROUPS: NavGroup[] = [
         description: "Create VTT tokens & coins",
       },
       {
+        label: "Simulacrum",
+        to: "/minis",
+        icon: IconNavSimulacrum,
+        description: "Forge 3D minis from portraits",
+        requiresCampaign: true,
+        featureFlag: "simulacrum",
+      },
+      {
         label: "Illuminator",
         to: "/illuminate",
         icon: IconNavIlluminator,
@@ -263,3 +274,12 @@ export const NAV_GROUPS: NavGroup[] = [
 
 // Flat list kept for any consumers that still need it
 export const NAV_ITEMS: NavItem[] = NAV_GROUPS.flatMap((g) => g.items);
+
+/**
+ * The one place the featureFlag → visibility rule lives. Every nav consumer
+ * (sidebar, mobile sheet, future ones) calls this instead of hand-writing the
+ * predicate; adding a flagged feature means extending THIS function only.
+ */
+export function navItemHiddenByFlag(item: NavItem, simulacrumHidden: boolean): boolean {
+  return item.featureFlag === "simulacrum" && simulacrumHidden;
+}

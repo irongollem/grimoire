@@ -10,6 +10,7 @@ import type { ItemType, ItemRarity } from "@/types/item.types";
 import type { CraftingDiscipline } from "@/types/crafting.types";
 import type { SoundCategory } from "@/types/sound.types";
 import type { DowntimeDrawStatus } from "@/types/downtime.types";
+import type { MiniFormat, MiniStatus } from "@/types/mini.types";
 
 export const useUiStore = defineStore("ui", () => {
   // Notes UI state
@@ -582,6 +583,24 @@ export const useUiStore = defineStore("ui", () => {
     downtimeFilterCharacter.value = "";
   }
 
+  // Simulacrum (Minis gallery) UI state
+  const minisSearch = ref("");
+  const minisFilterFormat = ref<MiniFormat | "all">("all");
+  const minisFilterStatus = ref<MiniStatus | "all" | "in-progress">("all");
+
+  const minisHasActiveFilters = computed(
+    () =>
+      minisSearch.value !== "" ||
+      minisFilterFormat.value !== "all" ||
+      minisFilterStatus.value !== "all",
+  );
+
+  function resetMinisFilters() {
+    minisSearch.value = "";
+    minisFilterFormat.value = "all";
+    minisFilterStatus.value = "all";
+  }
+
   function resetNotesFilters() {
     notesFilterCategory.value = "all";
     notesFilterTags.value = [];
@@ -867,5 +886,12 @@ export const useUiStore = defineStore("ui", () => {
     downtimeFilterCharacter,
     downtimeHasActiveFilters,
     resetDowntimeFilters,
+
+    // Simulacrum (Minis gallery)
+    minisSearch,
+    minisFilterFormat,
+    minisFilterStatus,
+    minisHasActiveFilters,
+    resetMinisFilters,
   };
 });

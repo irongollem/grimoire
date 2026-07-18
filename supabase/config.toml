@@ -74,6 +74,14 @@ verify_jwt = false
 # [functions.sync-srd-rules]
 # verify_jwt = true  (default)
 
+# Simulacrum Meshy job poller — invoked by pg_cron via pg_net (see the
+# `poll-meshy-jobs` cron job in
+# supabase/migrations/20260718000001_simulacrum_foundations.sql), which has no
+# user JWT to forward. The function validates a shared `token` query param
+# against the SIMULACRUM_POLLER_TOKEN secret instead (see poll-meshy-jobs/index.ts).
+[functions.poll-meshy-jobs]
+verify_jwt = false
+
 # ── OAuth 2.1 Server (authorization server for the MCP connector) ─────────────
 # Turns Supabase Auth into the OAuth 2.1 + OIDC authorization server that backs
 # the MCP connector: it hosts /authorize, /token, JWKS and discovery, and (with

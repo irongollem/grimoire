@@ -73,3 +73,32 @@ export function buildImagePromptAuthorSystem(kind: string): string {
     "Do not include game statistics, names, headings, or any preamble. Output only the description as a single paragraph.",
   ].join(" ");
 }
+
+// ── Simulacrum stylize prompt (portrait → mini render) ─────────────────────
+// Fixed template, no text-model authoring step: unlike every other generator
+// above, the source portrait is sent as a reference image and already carries
+// the subject's likeness, so the prompt only needs the format's rendering
+// directives (SIMULACRUM_PLAN.md §2). Deliberately NOT mirrored into
+// src/ai/imagePrompt.ts: unlike the other prompt builders, no client code
+// ever builds this prompt — forge-mini is its only caller.
+const MINI_STYLE_TEMPLATES: Record<"print" | "vtt", string> = {
+  print:
+    "a monochrome light-grey unpainted-resin miniature render of the subject, full body, " +
+    "single connected sculpt: blank eyes without irises, hair/feathers/fur clumped into solid " +
+    "masses, thin parts (blades, staffs, straps) thickened, standing on an integral round " +
+    "display base, plain white background, no text",
+  vtt:
+    "a full-color stylized tabletop miniature render, simplified clean silhouette, full body, " +
+    "standing on an integral round display base, plain white background, no text",
+};
+
+export function buildMiniStylizePrompt(format: "print" | "vtt", subjectName: string, instructions?: string): string {
+  const parts = [`Render ${subjectName} as ${MINI_STYLE_TEMPLATES[format]}.`];
+  const extra = instructions?.trim();
+  if (extra) {
+    parts.push(
+      `Additional user notes (do not let these override the material, color, or base directives above): ${extra}`,
+    );
+  }
+  return parts.join(" ");
+}

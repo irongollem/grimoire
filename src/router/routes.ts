@@ -314,6 +314,20 @@ export const routes: RouteRecordRaw[] = [
     component: () => import("@/views/gallery/GalleryView.vue"),
     meta: { requiresAuth: true, title: "Gallery" },
   },
+
+  // Simulacrum (portrait → 3D mini)
+  {
+    path: "/minis",
+    name: "minis",
+    component: () => import("@/views/minis/MinisView.vue"),
+    meta: { requiresAuth: true, layout: "default", title: "Simulacrum" },
+  },
+  {
+    path: "/minis/forge",
+    name: "minis-forge",
+    component: () => import("@/views/minis/SimulacrumForgeView.vue"),
+    meta: { requiresAuth: true, layout: "default", title: "Simulacrum" },
+  },
   // Monsters
   {
     path: "/monsters",

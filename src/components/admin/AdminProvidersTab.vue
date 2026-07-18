@@ -9,6 +9,8 @@
       </p>
     </div>
 
+    <SimulacrumConfig />
+
     <div v-if="providersQuery.isPending.value" class="text-muted-foreground font-fell text-sm">Loading…</div>
     <div v-else-if="providersQuery.isError.value" class="text-destructive font-fell text-sm">Failed to load provider config.</div>
     <div v-else class="space-y-4">
@@ -379,6 +381,7 @@ import { useAdminModelPricing } from "@/composables/useAdminModelPricing";
 import { useProviderModels } from "@/composables/useProviderModels";
 import { useAiUsageStats } from "@/composables/useAiUsageStats";
 import type { ModelStat } from "@/composables/useAiUsageStats";
+import SimulacrumConfig from "@/components/admin/SimulacrumConfig.vue";
 
 // ── Keys ───────────────────────────────────────────────────────────────────
 const { keysQuery, setKey, clearKey } = useAdminKeys();

@@ -79,6 +79,9 @@ export function useCampaignLiveSync() {
           .on("postgres_changes", { event: "*", schema: "public", table: "downtime_draws",      filter: f }, invalidate("downtime"))
           .on("postgres_changes", { event: "*", schema: "public", table: "downtime_outcomes",   filter: f }, invalidate("downtime"))
           .on("postgres_changes", { event: "*", schema: "public", table: "downtime_deck_backs", filter: f }, invalidate("downtime"))
+          // Simulacrum minis gallery — so other campaign members see a mini
+          // land (or a sculpt progress) without waiting out the query's staleTime.
+          .on("postgres_changes", { event: "*", schema: "public", table: "minis", filter: f }, invalidate("minis"))
           // campaigns table uses `id` as the campaign identifier (not campaign_id)
           .on("postgres_changes", { event: "UPDATE", schema: "public", table: "campaigns", filter: `id=eq.${campaignId}` }, (payload) => {
             const updated = payload.new as import("@/types/campaign.types").Campaign;

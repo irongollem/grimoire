@@ -104,11 +104,12 @@ import MobileSheet from "@/components/common/MobileSheet.vue";
 import CampaignSwitcher from "@/components/layout/CampaignSwitcher.vue";
 import BugReportModal from "@/components/common/BugReportModal.vue";
 import { IconAdd, IconBug, IconRefresh } from "@/lib/icons";
-import { NAV_GROUPS, type NavItem } from "@/lib/nav";
+import { NAV_GROUPS, navItemHiddenByFlag, type NavItem } from "@/lib/nav";
 import { updateAvailable, reloadApp } from "@/composables/useAppUpdate";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/useOptionalRules";
+import { useSimulacrumConfig } from "@/composables/useSimulacrumConfig";
 
 const { open = false, barRoutes = [], create = null } = defineProps<{
   open?: boolean;
@@ -139,6 +140,7 @@ function setMode(m: "prep" | "play") {
 }
 
 const { data: campaignRules } = useOptionalRules();
+const { mode: simulacrumMode } = useSimulacrumConfig();
 
 // Drive the grid off the real nav registry. `desktopOnly` groups (A4/letter
 // output tools) stay desktop-only; rule-gated items follow their campaign rule.
@@ -148,7 +150,9 @@ const groups = computed(() =>
     .map((group) => ({
       ...group,
       items: group.items.filter(
-        (item) => !item.ruleKey || isRuleEffectivelyEnabled(campaignRules.value, item.ruleKey),
+        (item) =>
+          (!item.ruleKey || isRuleEffectivelyEnabled(campaignRules.value, item.ruleKey)) &&
+          !navItemHiddenByFlag(item, simulacrumMode.value === "hidden"),
       ),
     }))
     .filter((group) => group.items.length > 0),

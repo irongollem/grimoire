@@ -44,8 +44,16 @@ export interface BucketConfig {
 
 const FIVE_MB   =  5 * 1024 * 1024;
 const TWENTY_MB = 20 * 1024 * 1024;
+const FIFTY_MB  = 50 * 1024 * 1024;
 
 const IMAGE_MIMES = ["image/webp", "image/jpeg"] as const;
+
+const MINI_MODEL_MIMES = [
+  "model/gltf-binary",
+  "model/stl",
+  "application/octet-stream",
+  "image/webp",
+] as const;
 
 const AUDIO_MIMES = [
   "audio/mpeg",
@@ -156,6 +164,13 @@ export const BUCKETS = {
     mimeTypes: IMAGE_MIMES,
     public: true,
     generateVariants: false, // Displayed as thumbnails via CSS; no FocalImage variants needed
+  },
+  miniModels: {
+    id: "mini-models",
+    maxBytes: FIFTY_MB,
+    mimeTypes: MINI_MODEL_MIMES,
+    public: true,
+    generateVariants: false, // 3D models — no width variants
   },
 } as const satisfies Record<string, BucketConfig>;
 

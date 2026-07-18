@@ -1,7 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 
-export type KeyProvider = "openai" | "anthropic" | "gemini" | "falai";
+// "meshy" is managed from the Simulacrum panel (SimulacrumConfig.vue), not the
+// generic provider rows — it's deliberately absent from PROVIDERS below.
+export type KeyProvider = "openai" | "anthropic" | "gemini" | "falai" | "meshy";
 
 export interface PlatformKeyRow {
   provider: KeyProvider;

@@ -1,22 +1,9 @@
 <template>
-  <div v-if="!isPro" class="max-w-md rounded-xl border border-amber-500/30 bg-amber-500/5 p-6 flex flex-col gap-3">
-    <div class="flex items-center gap-2.5">
-      <IconDM class="h-5 w-5 text-amber-400 shrink-0" />
-      <span class="font-cinzel text-sm font-bold text-foreground tracking-wide">Pro feature</span>
-    </div>
-    <p class="font-fell text-sm text-muted-foreground leading-relaxed">
-      AI generation — NPCs, monsters, spells, items, puzzles, and session artwork — is available on the Pro plan.
-      Configure your own API keys or wait for Grimoire-managed credits.
-    </p>
-    <button
-      type="button"
-      class="self-start px-4 py-2 rounded-md bg-amber-500 text-black font-cinzel text-xs font-semibold tracking-wider hover:bg-amber-400 transition-colors disabled:opacity-60"
-      :disabled="stripeLoading"
-      @click="upgrade"
-    >
-      {{ stripeLoading ? 'Redirecting…' : 'Upgrade to Pro' }}
-    </button>
-  </div>
+  <ProFeatureGate
+    v-if="!isPro"
+    class="max-w-md"
+    message="AI generation — NPCs, monsters, spells, items, puzzles, and session artwork — is available on the Pro plan. Configure your own API keys or wait for Grimoire-managed credits."
+  />
 
   <form v-else class="max-w-md flex flex-col gap-6" @submit.prevent="save">
 
@@ -261,21 +248,19 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive, watch } from "vue";
-import { IconDM, IconHide, IconReveal } from '@/lib/icons';
+import { IconHide, IconReveal } from '@/lib/icons';
 import { useCampaignStore } from "@/stores/campaign";
 import { useUpdateCampaign } from "@/composables/useCampaigns";
 import { encryptApiKey, decryptApiKey, primeDecryptCache } from "@/lib/apiKeyVault";
 import { encryptLocalKey, decryptLocalKey, isLocalCiphertext } from "@/lib/localKeyVault";
 import { getSetting } from "@/settings/index";
 import { useSubscription } from "@/composables/useSubscription";
-import { useStripe } from "@/composables/useStripe";
 import { useProviderConfig, PROVIDER_DISPLAY } from "@/composables/useProviderConfig";
 import { useAiCredits } from "@/composables/useAiCredits";
 import AiUsageStatsPanel from "@/components/common/AiUsageStatsPanel.vue";
+import ProFeatureGate from "@/components/common/ProFeatureGate.vue";
 
 const { isPro } = useSubscription();
-const { loading: stripeLoading, createCheckoutSession } = useStripe();
-function upgrade() { createCheckoutSession(); }
 
 const LOCAL_MODE_KEY = "grimoire_key_local_mode";
 

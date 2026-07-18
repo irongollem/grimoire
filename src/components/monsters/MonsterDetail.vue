@@ -106,6 +106,7 @@
           ai-kind="monster"
           :ai-target-id="props.monster?.id"
           :ai-context="aiContext"
+          :mini-source="props.monster?.id ? { table: 'monsters', id: props.monster.id } : undefined"
           @update:model-value="onPortraitUrlUpdate($event)"
           @update:focal-point="onPortraitFocalUpdate($event)"
         />

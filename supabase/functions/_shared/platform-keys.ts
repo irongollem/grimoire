@@ -6,7 +6,10 @@
 import { decryptValue } from "./vault.ts";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export type Provider = "openai" | "anthropic" | "gemini" | "falai";
+// "meshy" has no row in platform_api_keys until the Simulacrum go-live
+// (SIMULACRUM_PLAN.md §7 Phase 4) — fetchPlatformKeys simply omits it from
+// the returned record until then, so existing callers are unaffected.
+export type Provider = "openai" | "anthropic" | "gemini" | "falai" | "meshy";
 
 export async function fetchPlatformKeys(
   admin: SupabaseClient,

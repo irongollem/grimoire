@@ -84,6 +84,7 @@
           ai-kind="monster"
           :ai-target-id="monsterId"
           :ai-context="aiContext"
+          :mini-source="monsterId ? { table: 'monsters', id: monsterId } : undefined"
           @update:model-value="emit('update:imageUrl', $event)"
           @update:focal-point="emit('update:focalPoint', $event)"
         />

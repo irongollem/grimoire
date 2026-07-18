@@ -11,6 +11,7 @@ import { generateImage, resolveImageProvider, type ImageProviderKey } from "../_
 import { corsHeaders } from "../_shared/cors.ts";
 import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
 import { isSafeStorageUrl } from "../_shared/storage-url.ts";
+import { uploadWithRetry } from "../_shared/storage-upload.ts";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -39,24 +40,12 @@ function buildPrompt(sceneText: string, textDescriptions: string[], settingPromp
 async function uploadResult(b64: string, userId: string): Promise<string> {
   const bin = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
   const path = `${userId}/scene-${Date.now()}.webp`;
-  // Storage occasionally returns a transient 502/Bad Gateway. The generated
-  // image is already in memory and re-running the OpenAI call is expensive, so
-  // retry the upload a few times with backoff before giving up. upsert:true so a
-  // partially-written object from a failed attempt doesn't cause a 409.
-  let lastErr = "";
-  for (let attempt = 1; attempt <= 4; attempt++) {
-    const { error } = await admin.storage.from("chronicle").upload(path, bin, {
-      contentType: "image/webp",
-      upsert: true,
-    });
-    if (!error) {
-      const { data } = admin.storage.from("chronicle").getPublicUrl(path);
-      return data.publicUrl;
-    }
-    lastErr = error.message;
-    if (attempt < 4) await new Promise((r) => setTimeout(r, 500 * attempt));
-  }
-  throw new Error(`Upload failed after 4 attempts: ${lastErr}`);
+  // The generated image is already in memory and re-running the OpenAI call
+  // is expensive, so uploadWithRetry's backoff protects a transient storage
+  // hiccup from wasting the generation. This caller wants the public URL.
+  await uploadWithRetry(admin, "chronicle", path, bin, "image/webp");
+  const { data } = admin.storage.from("chronicle").getPublicUrl(path);
+  return data.publicUrl;
 }
 
 async function runGeneration(args: {
