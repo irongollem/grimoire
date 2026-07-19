@@ -92,13 +92,16 @@ export function useSpendSpellSlot() {
     mutationFn: async ({
       partyMemberId,
       slotLevel,
+      slotTemplate,
     }: {
       partyMemberId: string;
       slotLevel: number;
+      slotTemplate: SpellSlotEntry[];
     }) => {
       const { data, error } = await supabase.rpc("spend_spell_slot", {
         p_party_member_id: partyMemberId,
         p_slot_level: slotLevel,
+        p_slot_template: slotTemplate,
       });
       if (error) throw error;
       return data as SpellSlotEntry[];

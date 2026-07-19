@@ -453,7 +453,11 @@ async function castSpell(
     // Debit before announcing or resolving effects. The database function locks
     // the character row and rejects stale/double submissions atomically.
     if (castLevel > 0 && !isRitual) {
-      await spendSpellSlot({ partyMemberId: props.partyMemberId, slotLevel: castLevel });
+      await spendSpellSlot({
+        partyMemberId: props.partyMemberId,
+        slotLevel: castLevel,
+        slotTemplate: props.spellSlots,
+      });
     }
 
     // Flavor text

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { availableSlotsForSpell, canCastWithSlot } from "./spellSlots";
+import { availableSlotsForSpell, canCastWithSlot, reconcileSpellSlotUsage } from "./spellSlots";
 
 describe("spell slot eligibility", () => {
   it("allows a higher-level slot when base-level slots are exhausted", () => {
@@ -29,5 +29,24 @@ describe("spell slot eligibility", () => {
       { level: 3, max: 2, used: 2 },
     ];
     expect(canCastWithSlot(2, slots)).toBe(false);
+  });
+});
+
+describe("spell slot reconciliation", () => {
+  it("keeps usage while applying recalculated ruleset maxima", () => {
+    expect(reconcileSpellSlotUsage(
+      [{ level: 1, max: 4, used: 0 }, { level: 2, max: 2, used: 0 }],
+      [{ level: 1, max: 3, used: 2 }],
+    )).toEqual([
+      { level: 1, max: 4, used: 2 },
+      { level: 2, max: 2, used: 0 },
+    ]);
+  });
+
+  it("clamps usage when a recalculation lowers a slot maximum", () => {
+    expect(reconcileSpellSlotUsage(
+      [{ level: 1, max: 2, used: 0 }],
+      [{ level: 1, max: 4, used: 3 }],
+    )).toEqual([{ level: 1, max: 2, used: 2 }]);
   });
 });

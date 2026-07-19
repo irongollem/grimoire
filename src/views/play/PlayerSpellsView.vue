@@ -159,11 +159,12 @@ import PlayerInnateSpells from "@/components/spells/PlayerInnateSpells.vue";
 import AddInnateSpellDialog from "@/components/spells/AddInnateSpellDialog.vue";
 import PlayerSpellModal from "@/components/spells/PlayerSpellModal.vue";
 import type { Spell } from "@/types/spell.types";
-import { SPELL_SCHOOLS, getCasterType, computeMaxPrepared, getDefaultSpellSlots, getMulticlassSpellSlots } from "@/types/spell.types";
+import { SPELL_SCHOOLS, getCasterType, computeMaxPrepared, getDefaultSpellSlots, getMulticlassSpellSlots, getCasterCategory } from "@/types/spell.types";
 import { useCharacterClasses } from "@/composables/useCharacterClasses";
 import { useClassByName } from "@/composables/useCustomClasses";
 import { computeSpellcastingPerClass } from "@/types/multiclass.types";
 import { useRuleset } from "@/composables/useRuleset";
+import { reconcileSpellSlotUsage } from "@/lib/spellSlots";
 
 const addInnateOpen = ref(false);
 
@@ -227,8 +228,16 @@ const memberLevel = computed(() => {
 const effectiveSpellSlots = computed(() => {
   const m = member.value;
   if (!m || casterType.value === "none") return [];
-  if (m.spell_slots?.length) return m.spell_slots;
   const list = (characterClasses.value ?? []).map((c) => ({ class_name: c.class_name, levels: c.levels }));
+  const canDeriveMulticlass = list.length > 1
+    && list.every((entry) => getCasterCategory(entry.class_name) !== "none");
+  if (canDeriveMulticlass) {
+    return reconcileSpellSlotUsage(
+      getMulticlassSpellSlots(list, ruleset.value),
+      m.spell_slots ?? [],
+    );
+  }
+  if (m.spell_slots?.length) return m.spell_slots;
   if (list.length > 0) return getMulticlassSpellSlots(list, ruleset.value);
   return getDefaultSpellSlots(m.class, m.level);
 });

@@ -236,7 +236,7 @@ import { useArtificerState } from "@/composables/useArtificerState";
 import { mapFeatureIds, type FeatureEntry } from "@/levelup/types";
 import type { CustomStep } from "@/levelup/customTypes";
 import { useAllFeatures } from "@/composables/useFeatures";
-import { getDefaultSpellSlots, getSlotRecovery, getMulticlassSpellSlots } from "@/types/spell.types";
+import { getDefaultSpellSlots, getSlotRecovery, getMulticlassSpellSlots, getCasterCategory } from "@/types/spell.types";
 import { useClassByName, useAllSystemClasses, useAllCustomClasses } from "@/composables/useCustomClasses";
 import { useCustomSubclassByClassAndSubclass, useAllCustomSubclasses } from "@/composables/useCustomSubclasses";
 import { useCharacterClasses } from "@/composables/useCharacterClasses";
@@ -249,6 +249,7 @@ import type { Monster } from "@/types/monster.types";
 import type { ClassFeatureGroup } from "./PlayerClassFeaturesList.vue";
 import type { ResourceRow } from "./PlayerResourcePools.vue";
 import { useRuleset } from "@/composables/useRuleset";
+import { reconcileSpellSlotUsage } from "@/lib/spellSlots";
 
 const props = defineProps<{ member: PartyMember; showRestButtons?: boolean; wildshapeMonster?: Monster; isOwner?: boolean }>();
 
@@ -373,8 +374,16 @@ watch(() => [props.member.id, props.member.updated_at], syncFromProps, { immedia
 // Falls back to multiclass or per-class defaults when DB has no stored slots yet.
 const effectiveSlots = computed((): SpellSlotEntry[] => {
   const m = props.member;
-  if (m.spell_slots?.length) return m.spell_slots;
   const list = (characterClasses.value ?? []).map((c) => ({ class_name: c.class_name, levels: c.levels }));
+  const canDeriveMulticlass = list.length > 1
+    && list.every((entry) => getCasterCategory(entry.class_name) !== "none");
+  if (canDeriveMulticlass) {
+    return reconcileSpellSlotUsage(
+      getMulticlassSpellSlots(list, ruleset.value),
+      m.spell_slots ?? [],
+    );
+  }
+  if (m.spell_slots?.length) return m.spell_slots;
   if (list.length > 0) return getMulticlassSpellSlots(list, ruleset.value);
   return getDefaultSpellSlots(m.class, m.level);
 });
