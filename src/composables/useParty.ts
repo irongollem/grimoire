@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
-import type { PartyMember, PartyMemberInsert, PartyMemberUpdate } from "@/types/party.types";
+import type { PartyMember, PartyMemberInsert, PartyMemberUpdate, SpellSlotEntry } from "@/types/party.types";
 import { removeStorageImages } from "@/composables/useImageUpload";
 import { useToast } from "@/composables/useToast";
 
@@ -81,6 +81,28 @@ export function useUpdatePartyMember() {
   return useMutation({
     mutationFn: ({ id, update }: { id: string; update: PartyMemberUpdate }) =>
       updatePartyMember(id, update),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+  });
+}
+
+/** Row-locked spell-slot debit used by the cast flow. */
+export function useSpendSpellSlot() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      partyMemberId,
+      slotLevel,
+    }: {
+      partyMemberId: string;
+      slotLevel: number;
+    }) => {
+      const { data, error } = await supabase.rpc("spend_spell_slot", {
+        p_party_member_id: partyMemberId,
+        p_slot_level: slotLevel,
+      });
+      if (error) throw error;
+      return data as SpellSlotEntry[];
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
   });
 }

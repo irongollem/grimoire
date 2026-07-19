@@ -76,16 +76,17 @@ const emit = defineEmits<{
 
 const selectedLevel = ref(1);
 
-watchEffect(() => {
-  if (entry) selectedLevel.value = entry.spell.level;
-});
-
 const upcastLevels = computed(() => {
   if (!entry) return [];
   const base = entry.spell.level;
-  return spellSlots
+  return [...new Set(spellSlots
     .filter((s) => s.level >= base && s.used < s.max)
-    .map((s) => s.level);
+    .map((s) => s.level))]
+    .sort((a, b) => a - b);
+});
+
+watchEffect(() => {
+  if (entry) selectedLevel.value = upcastLevels.value[0] ?? entry.spell.level;
 });
 
 function scaledDiceLabel(castLevel: number): string {

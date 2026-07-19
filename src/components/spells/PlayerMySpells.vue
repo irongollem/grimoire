@@ -211,7 +211,7 @@ import {
   useRemoveCharacterSpell,
   useTogglePrepared,
 } from "@/composables/useCharacterSpells";
-import { useUpdatePartyMember, useParty } from "@/composables/useParty";
+import { useUpdatePartyMember, useParty, useSpendSpellSlot } from "@/composables/useParty";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { useConcentration } from "@/composables/useConcentration";
 import { useUiStore } from "@/stores/ui";
@@ -228,6 +228,8 @@ import { pickSpellcastingStats, type SpellcastingClassStats } from "@/types/mult
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import PlayerSpellModal from "@/components/spells/PlayerSpellModal.vue";
 import SpellUpcastPicker from "@/components/spells/SpellUpcastPicker.vue";
+import { availableSlotsForSpell, canCastWithSlot } from "@/lib/spellSlots";
+import { useToast } from "@/composables/useToast";
 
 const SLOT_LEVEL_LABELS = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"] as const;
 
@@ -267,6 +269,7 @@ const allEntries = computed(() =>
 const { mutate: removeSpell, isPending: isRemoving } = useRemoveCharacterSpell();
 const { mutate: togglePreparedMutation, isPending: isToggling } = useTogglePrepared();
 const { mutateAsync: updateMember } = useUpdatePartyMember();
+const { mutateAsync: spendSpellSlot } = useSpendSpellSlot();
 const { sendFlavorMessage, sendRoll } = useCampaignMessages();
 const { promptRoll } = usePromptedRoll();
 const { data: partyList } = useParty();
@@ -277,6 +280,7 @@ const thisMember = computed(() =>
     : null,
 );
 const ui = useUiStore();
+const toast = useToast();
 
 // ── Modal ──────────────────────────────────────────────────────────────────────
 const selectedSpell = ref<Spell | null>(null);
@@ -348,10 +352,7 @@ function isCastable(entry: CharacterSpellEntry): boolean {
 }
 
 function slotAvailable(level: number): boolean {
-  if (level === 0) return true;
-  const slot = slotForLevel(level);
-  if (!slot) return true; // no slot tracking configured — allow
-  return slot.used < slot.max;
+  return canCastWithSlot(level, props.spellSlots);
 }
 
 function castButtonClass(entry: CharacterSpellEntry): string {
@@ -366,9 +367,10 @@ function castButtonClass(entry: CharacterSpellEntry): string {
 
 function castButtonTitle(entry: CharacterSpellEntry): string {
   if (entry.spell.level === 0) return "Cast cantrip";
-  const slot = slotForLevel(entry.spell.level);
-  if (slot && slot.used >= slot.max) return "No slots remaining";
-  return `Cast — spend one ${SLOT_LEVEL_LABELS[entry.spell.level - 1]}-level slot`;
+  const available = availableSlotsForSpell(entry.spell.level, props.spellSlots);
+  if (available.length === 0) return "No suitable slots remaining";
+  const lowest = available[0].level;
+  return `Cast — spend one ${SLOT_LEVEL_LABELS[lowest - 1]}-level slot`;
 }
 
 // ── Upcast picker ──────────────────────────────────────────────────────────────
@@ -384,10 +386,10 @@ function startCast(entry: CharacterSpellEntry) {
   }
   // Compute available slot levels for this spell
   const base = entry.spell.level;
-  const available = props.spellSlots.filter((s) => s.level >= base && s.used < s.max);
-  // Only one option (or no slot tracking) → cast at base level directly
-  if (available.length <= 1) {
-    void castSpell(entry, base);
+  const available = availableSlotsForSpell(base, props.spellSlots);
+  // One valid option uses that actual slot level (important for Pact Magic).
+  if (available.length === 1) {
+    void castSpell(entry, available[0].level);
     return;
   }
   // Multiple levels available → show picker
@@ -412,6 +414,12 @@ async function castSpell(entry: CharacterSpellEntry, castLevel: number) {
     if (spell.concentration && thisMember.value) {
       const ok = await startConcentration(thisMember.value, spell, { castAtLevel: castLevel });
       if (!ok) return;
+    }
+
+    // Debit before announcing or resolving effects. The database function locks
+    // the character row and rejects stale/double submissions atomically.
+    if (castLevel > 0) {
+      await spendSpellSlot({ partyMemberId: props.partyMemberId, slotLevel: castLevel });
     }
 
     // Flavor text
@@ -472,16 +480,8 @@ async function castSpell(entry: CharacterSpellEntry, castLevel: number) {
       }
     }
 
-    // Spend slot at the chosen level
-    if (castLevel > 0) {
-      const slot = slotForLevel(castLevel);
-      if (slot && slot.used < slot.max) {
-        const updated = props.spellSlots.map((s) =>
-          s.level === castLevel ? { ...s, used: s.used + 1 } : s,
-        );
-        await updateMember({ id: props.partyMemberId, update: { spell_slots: updated } });
-      }
-    }
+  } catch (error) {
+    toast.error(toast.fromError(error));
   } finally {
     isCasting.value = false;
   }
