@@ -138,7 +138,12 @@
               v-if="!isKnown(spell.id)"
               class="absolute bottom-2 right-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider text-white bg-primary/80 hover:bg-primary [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-40 cursor-pointer"
               :disabled="isAdding"
-              @click.prevent.stop="addSpell({ partyMemberId: props.playerMemberId!, spellId: spell.id, isPrepared: props.casterType === 'prepared' })"
+              @click.prevent.stop="addSpell({
+                partyMemberId: props.playerMemberId!,
+                spellId: spell.id,
+                isPrepared: props.casterType === 'prepared',
+                sourceClassId: props.sourceClassId,
+              })"
             >
               <IconAddBook class="max-md:h-4 max-md:w-4 h-3 w-3" />
               {{ learnLabel(spell.level === 0) }}
@@ -198,6 +203,8 @@ const props = defineProps<{
   knownSpellIds?: string[];
   /** Spell IDs currently prepared (subset of knownSpellIds, for prepared casters). */
   preparedSpellIds?: string[];
+  /** character_classes row for the class selected in the player browse filter. */
+  sourceClassId?: string | null;
 }>();
 
 const emit = defineEmits<{

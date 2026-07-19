@@ -100,12 +100,15 @@ export function useAddCharacterSpell() {
       spellId,
       isPrepared = false,
       alwaysPrepared = false,
+      sourceClassId = null,
     }: {
       partyMemberId: string;
       spellId: string;
       isPrepared?: boolean;
       /** Subclass-granted spell — always prepared, excluded from the prepared limit. */
       alwaysPrepared?: boolean;
+      /** Class that granted this spell; required for correct multiclass stats. */
+      sourceClassId?: string | null;
     }) => {
       const { error } = await supabase
         .from("character_spells")
@@ -115,6 +118,8 @@ export function useAddCharacterSpell() {
           // An always-prepared spell is, by definition, prepared.
           is_prepared: isPrepared || alwaysPrepared,
           always_prepared: alwaysPrepared,
+          source_type: "class",
+          source_class_id: sourceClassId,
         });
       if (error) throw error;
     },

@@ -115,8 +115,7 @@
           v-model="ui.playerSpellsClassFilter"
           class="bg-card border border-border rounded-md px-3 py-1.5 font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         >
-          <option value="">All Classes</option>
-          <option v-for="c in SPELL_CLASSES" :key="c" :value="c">{{ c }}</option>
+          <option v-for="c in availableSpellClasses" :key="c" :value="c">{{ c }}</option>
         </select>
         <button
           v-if="ui.playerSpellsHasActiveFilters"
@@ -133,9 +132,10 @@
         :class-filter="ui.playerSpellsClassFilter"
         :source-filter="'all'"
         :player-member-id="resolvedMemberId ?? undefined"
-        :caster-type="casterType"
+        :caster-type="browseCasterType"
         :known-spell-ids="knownSpellIds"
         :prepared-spell-ids="preparedSpellIds"
+        :source-class-id="browseSourceClassId"
         @spell-click="selectedSpell = $event"
       />
     </template>
@@ -159,7 +159,7 @@ import PlayerInnateSpells from "@/components/spells/PlayerInnateSpells.vue";
 import AddInnateSpellDialog from "@/components/spells/AddInnateSpellDialog.vue";
 import PlayerSpellModal from "@/components/spells/PlayerSpellModal.vue";
 import type { Spell } from "@/types/spell.types";
-import { SPELL_SCHOOLS, SPELL_CLASSES, getCasterType, computeMaxPrepared, getDefaultSpellSlots, getMulticlassSpellSlots } from "@/types/spell.types";
+import { SPELL_SCHOOLS, getCasterType, computeMaxPrepared, getDefaultSpellSlots, getMulticlassSpellSlots } from "@/types/spell.types";
 import { useCharacterClasses } from "@/composables/useCharacterClasses";
 import { useClassByName } from "@/composables/useCustomClasses";
 import { computeSpellcastingPerClass } from "@/types/multiclass.types";
@@ -199,6 +199,20 @@ const maxPrepared = computed(() => computeMaxPrepared(member.value, classData.va
 const memberName  = computed(() => member.value?.name ?? "");
 
 const { data: characterClasses } = useCharacterClasses(resolvedMemberId);
+
+/** Only classes this character actually has may be browsed as class spells. */
+const availableSpellClasses = computed(() => {
+  const names = (characterClasses.value ?? []).map((entry) => entry.class_name);
+  if (names.length > 0) return [...new Set(names)].sort();
+  return memberClass.value ? [memberClass.value] : [];
+});
+
+const browseSourceClassId = computed(() =>
+  (characterClasses.value ?? []).find(
+    (entry) => entry.class_name === ui.playerSpellsClassFilter,
+  )?.id ?? null,
+);
+const browseCasterType = computed(() => getCasterType(ui.playerSpellsClassFilter));
 
 // Total character level — sum of all class levels (multiclass), falls back to member.level
 const memberLevel = computed(() => {
@@ -365,6 +379,13 @@ watch(resolvedMemberId, () => {
 watch(partyMembers, () => {
   if (!ui.playerSpellsClassFilter) ui.playerSpellsClassFilter = memberClass.value;
 }, { once: true });
+
+// Do not retain a class filter from a previously viewed character.
+watch(availableSpellClasses, (classes) => {
+  if (!classes.includes(ui.playerSpellsClassFilter)) {
+    ui.playerSpellsClassFilter = classes[0] ?? "";
+  }
+}, { immediate: true });
 
 function setLevelFilter(value: string) {
   ui.playerSpellsLevelFilter = value;
