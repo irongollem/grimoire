@@ -148,6 +148,16 @@
               Cast
             </button>
 
+            <button
+              v-if="isRitualCastable(entry)"
+              class="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded font-cinzel text-[10px] font-semibold tracking-wider transition-colors border border-violet-500/30 bg-violet-500/10 text-violet-400 hover:bg-violet-500/20"
+              :disabled="isCasting"
+              title="Cast as a ritual — takes 10 minutes longer and spends no spell slot"
+              @click="castRitual(entry)"
+            >
+              Ritual
+            </button>
+
             <!-- Prepare toggle (Wizard spellbook tab). Granted spells are locked. -->
             <button
               v-if="showPrepareToggle && entry.spell.level > 0 && !entry.always_prepared"
@@ -230,6 +240,8 @@ import PlayerSpellModal from "@/components/spells/PlayerSpellModal.vue";
 import SpellUpcastPicker from "@/components/spells/SpellUpcastPicker.vue";
 import { availableSlotsForSpell, canCastWithSlot } from "@/lib/spellSlots";
 import { useToast } from "@/composables/useToast";
+import { useRuleset } from "@/composables/useRuleset";
+import { canCastAsRitual } from "@/lib/spellcastingPolicy";
 
 const SLOT_LEVEL_LABELS = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"] as const;
 
@@ -281,6 +293,7 @@ const thisMember = computed(() =>
 );
 const ui = useUiStore();
 const toast = useToast();
+const { ruleset } = useRuleset();
 
 // ── Modal ──────────────────────────────────────────────────────────────────────
 const selectedSpell = ref<Spell | null>(null);
@@ -351,6 +364,22 @@ function isCastable(entry: CharacterSpellEntry): boolean {
   return entry.is_prepared || entry.spell.level === 0;
 }
 
+function isRitualCastable(entry: CharacterSpellEntry): boolean {
+  const sourceClass = statsFor(entry)?.className ?? props.memberClass;
+  return canCastAsRitual({
+    ruleset: ruleset.value,
+    className: sourceClass,
+    hasRitualTag: entry.spell.ritual,
+    isReadyToCast: isCastable(entry),
+    isInSpellbook: props.viewMode === "spellbook",
+  });
+}
+
+function castRitual(entry: CharacterSpellEntry) {
+  if (!isRitualCastable(entry)) return;
+  void castSpell(entry, entry.spell.level, { ritual: true });
+}
+
 function slotAvailable(level: number): boolean {
   return canCastWithSlot(level, props.spellSlots);
 }
@@ -403,12 +432,17 @@ function confirmCast(level: number) {
   void castSpell(entry, level);
 }
 
-async function castSpell(entry: CharacterSpellEntry, castLevel: number) {
+async function castSpell(
+  entry: CharacterSpellEntry,
+  castLevel: number,
+  options: { ritual?: boolean } = {},
+) {
   if (!props.partyMemberId || isCasting.value) return;
   isCasting.value = true;
   try {
     const spell = entry.spell;
-    const extraLevels = castLevel - spell.level;
+    const isRitual = options.ritual === true;
+    const extraLevels = isRitual ? 0 : castLevel - spell.level;
 
     // Concentration guard
     if (spell.concentration && thisMember.value) {
@@ -418,13 +452,14 @@ async function castSpell(entry: CharacterSpellEntry, castLevel: number) {
 
     // Debit before announcing or resolving effects. The database function locks
     // the character row and rejects stale/double submissions atomically.
-    if (castLevel > 0) {
+    if (castLevel > 0 && !isRitual) {
       await spendSpellSlot({ partyMemberId: props.partyMemberId, slotLevel: castLevel });
     }
 
     // Flavor text
     let text = `casts ${spell.name}`;
-    if (extraLevels > 0) text += ` (upcast ${SLOT_LEVEL_LABELS[castLevel - 1]})`;
+    if (isRitual) text += " as a ritual";
+    else if (extraLevels > 0) text += ` (upcast ${SLOT_LEVEL_LABELS[castLevel - 1]})`;
     const atk = attackBonusFor(entry);
     const dc  = saveDcFor(entry);
     if (castLevel > 0 && atk !== null
@@ -436,7 +471,7 @@ async function castSpell(entry: CharacterSpellEntry, castLevel: number) {
     await sendFlavorMessage(text, "spell");
 
     // Cantrip dice multiplier (×1/2/3/4 based on total character level)
-    const cantripMult = castLevel === 0 ? cantripDiceMultiplier(props.memberLevel ?? 1) : 1;
+    const cantripMult = spell.level === 0 ? cantripDiceMultiplier(props.memberLevel ?? 1) : 1;
 
     // Auto-roll damage (scaled if upcast or cantrip level-up)
     if (spell.damage_rolls?.length) {
