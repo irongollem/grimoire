@@ -1,21 +1,7 @@
 <template>
   <div>
-    <!-- Token missing or invalid -->
-    <template v-if="tokenState === 'missing'">
-      <h2 class="font-cinzel text-xl font-semibold text-foreground mb-1">Invite Required</h2>
-      <p class="font-fell text-muted-foreground italic text-sm">
-        Grimoire is currently invite-only. Sign in if you already have an account, or ask your DM for an invite link.
-      </p>
-      <RouterLink
-        to="/login"
-        class="mt-5 inline-block w-full text-center rounded-md bg-primary px-4 py-2.5 font-cinzel text-sm font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
-      >
-        Sign In
-      </RouterLink>
-    </template>
-
     <!-- Validating token -->
-    <template v-else-if="tokenState === 'validating'">
+    <template v-if="tokenState === 'validating'">
       <div class="flex justify-center py-8">
         <div class="h-7 w-7 rounded-full border-2 border-primary border-t-transparent animate-spin" />
       </div>
@@ -29,7 +15,7 @@
       </p>
     </template>
 
-    <!-- Valid token — show signup form -->
+    <!-- Public signup or valid invite — show signup form -->
     <template v-else>
       <h2 class="font-cinzel text-xl font-semibold text-foreground mb-1">Begin your journey</h2>
       <p class="font-fell text-muted-foreground italic text-sm mb-6">Create your Grimoire account</p>
@@ -120,13 +106,13 @@ import { supabase } from "@/lib/supabase";
 import { TERMS_VERSION } from "@/lib/legal";
 import { legalUrl } from "@/lib/marketing";
 
-type TokenState = "missing" | "validating" | "invalid" | "valid";
+type TokenState = "validating" | "invalid" | "valid";
 
 const auth = useAuthStore();
 const route = useRoute();
 
 const token = route.query.token as string | undefined;
-const tokenState = ref<TokenState>(token ? "validating" : "missing");
+const tokenState = ref<TokenState>(token ? "validating" : "valid");
 
 const displayName = ref("");
 const email = ref("");

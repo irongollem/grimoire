@@ -45,16 +45,18 @@
       </button>
     </form>
 
-    <p class="mt-6 text-center font-fell text-sm text-muted-foreground italic">
-      New accounts require an invite link —
-      players via their DM, DMs by request.
+    <p class="mt-6 text-center font-fell text-sm text-muted-foreground">
+      New to Grimoire?
+      <RouterLink to="/signup" class="text-gold-400 hover:text-gold-300 underline">
+        Create an account
+      </RouterLink>
     </p>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from "vue";
-import { useRouter, useRoute } from "vue-router";
+import { useRouter, useRoute, RouterLink } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 
 const auth = useAuthStore();
