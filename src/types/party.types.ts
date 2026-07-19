@@ -49,6 +49,10 @@ export interface SpellSlotEntry {
   level: number; // 1–9
   max: number;
   used: number;
+  /** Legacy rows omit this and are treated as ordinary long-rest Spellcasting slots. */
+  pool?: "spellcasting" | "pact" | "temporary" | "feature";
+  /** Explicit recovery cadence for nonstandard pools. */
+  recovery?: "short" | "long" | "none";
 }
 
 export interface LevelChoiceASI {

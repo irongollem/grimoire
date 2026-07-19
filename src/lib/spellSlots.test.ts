@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { availableSlotsForSpell, canCastWithSlot, reconcileSpellSlotUsage } from "./spellSlots";
+import { availableSlotsForSpell, canCastWithSlot, reconcileSpellSlotUsage, restoreSpellSlots } from "./spellSlots";
 
 describe("spell slot eligibility", () => {
   it("allows a higher-level slot when base-level slots are exhausted", () => {
@@ -48,5 +48,20 @@ describe("spell slot reconciliation", () => {
       [{ level: 1, max: 2, used: 0 }],
       [{ level: 1, max: 4, used: 3 }],
     )).toEqual([{ level: 1, max: 2, used: 2 }]);
+  });
+});
+
+describe("spell slot pool recovery", () => {
+  const pools = [
+    { level: 2, max: 3, used: 2, pool: "spellcasting" as const, recovery: "long" as const },
+    { level: 2, max: 2, used: 1, pool: "pact" as const, recovery: "short" as const },
+  ];
+
+  it("restores only Pact Magic on a short rest", () => {
+    expect(restoreSpellSlots(pools, "short").map(slot => slot.used)).toEqual([2, 0]);
+  });
+
+  it("restores both ordinary and Pact Magic slots on a long rest", () => {
+    expect(restoreSpellSlots(pools, "long").map(slot => slot.used)).toEqual([0, 0]);
   });
 });

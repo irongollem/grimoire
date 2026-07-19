@@ -409,7 +409,7 @@ const WARLOCK_PACT_SLOTS: [number, number][] = [
 
 function slotsFromRow(row: number[]): import("@/types/party.types").SpellSlotEntry[] {
   return row
-    .map((max, i) => ({ level: i + 1, max, used: 0 }))
+    .map((max, i) => ({ level: i + 1, max, used: 0, pool: "spellcasting" as const, recovery: "long" as const }))
     .filter((s) => s.max > 0);
 }
 
@@ -437,7 +437,7 @@ export function getDefaultSpellSlots(
       return slotsFromRow(THIRD_CASTER_SLOTS[idx]);
     case "Warlock": {
       const [slotLevel, count] = WARLOCK_PACT_SLOTS[idx];
-      return count > 0 ? [{ level: slotLevel, max: count, used: 0 }] : [];
+      return count > 0 ? [{ level: slotLevel, max: count, used: 0, pool: "pact", recovery: "short" }] : [];
     }
     default:
       return [];
@@ -560,14 +560,7 @@ export function getMulticlassSpellSlots(
   if (warlock) {
     const [slotLevel, count] = WARLOCK_PACT_SLOTS[Math.min(20, warlock.levels) - 1];
     if (count > 0) {
-      // Keep pact slots as their own entry. If a leveled slot of the same
-      // level already exists from the multiclass sum, pact slots stack as a
-      // separate resource per RAW — but the UI currently renders a single
-      // entry per slot level, so we store them combined to avoid a regression.
-      // A follow-up PR will split them visually.
-      const existing = out.find((s) => s.level === slotLevel);
-      if (existing) existing.max += count;
-      else out.push({ level: slotLevel, max: count, used: 0 });
+      out.push({ level: slotLevel, max: count, used: 0, pool: "pact", recovery: "short" });
     }
   }
 

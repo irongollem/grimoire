@@ -1,5 +1,30 @@
 import type { SpellSlotEntry } from "@/types/party.types";
 
+export type SpellSlotPool = NonNullable<SpellSlotEntry["pool"]>;
+
+export function slotPool(slot: SpellSlotEntry): SpellSlotPool {
+  return slot.pool ?? "spellcasting";
+}
+
+export function spellSlotKey(slot: SpellSlotEntry): string {
+  return `${slotPool(slot)}:${slot.level}`;
+}
+
+export function slotRecovery(slot: SpellSlotEntry): "short" | "long" | "none" {
+  return slot.recovery ?? (slotPool(slot) === "pact" ? "short" : "long");
+}
+
+export function restoreSpellSlots(
+  slots: SpellSlotEntry[],
+  rest: "short" | "long",
+): SpellSlotEntry[] {
+  return slots.map((slot) => {
+    const recovery = slotRecovery(slot);
+    const restores = rest === "long" ? recovery !== "none" : recovery === "short";
+    return restores ? { ...slot, used: 0 } : slot;
+  });
+}
+
 /** Available slots that can legally cast a spell, ordered from lowest to highest. */
 export function availableSlotsForSpell(
   spellLevel: number,
@@ -21,7 +46,9 @@ export function reconcileSpellSlotUsage(
   persisted: SpellSlotEntry[],
 ): SpellSlotEntry[] {
   return calculated.map((slot) => {
-    const previous = persisted.find((candidate) => candidate.level === slot.level);
+    const previous = persisted.find((candidate) =>
+      candidate.level === slot.level && slotPool(candidate) === slotPool(slot),
+    );
     return {
       ...slot,
       used: Math.min(previous?.used ?? slot.used, slot.max),

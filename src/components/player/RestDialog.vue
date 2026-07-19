@@ -166,7 +166,8 @@
 import { ref, computed } from "vue";
 import { IconMoon, IconSun } from '@/lib/icons';
 import type { PartyMember, PartyMemberUpdate } from "@/types/party.types";
-import { getSlotRecovery, getHitDie } from "@/types/spell.types";
+import { getHitDie } from "@/types/spell.types";
+import { restoreSpellSlots } from "@/lib/spellSlots";
 import { useClassByName } from "@/composables/useCustomClasses";
 import { abilityModifier } from "@/lib/utils";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
@@ -303,13 +304,8 @@ function confirm() {
     if (Object.keys(updatedResources).length)
       update.class_resources = updatedResources;
 
-    // Warlock pact slot recovery
-    if ((classData.value?.slot_recovery ?? getSlotRecovery(props.member.class)) === "short"
-        && props.effectiveSpellSlots.length) {
-      update.spell_slots = props.effectiveSpellSlots.map((s) => ({
-        ...s,
-        used: 0,
-      }));
+    if (props.effectiveSpellSlots.length) {
+      update.spell_slots = restoreSpellSlots(props.effectiveSpellSlots, "short");
     }
 
     // Wild Shape recharges on short rest (5e RAW)
@@ -339,10 +335,7 @@ function confirm() {
     // All spell slots — never write an empty array (would wipe a caster whose
     // effective slots couldn't be derived); leave the column untouched instead.
     if (props.effectiveSpellSlots.length) {
-      update.spell_slots = props.effectiveSpellSlots.map((s) => ({
-        ...s,
-        used: 0,
-      }));
+      update.spell_slots = restoreSpellSlots(props.effectiveSpellSlots, "long");
     }
 
     // Wild Shape: revert active form and reset uses

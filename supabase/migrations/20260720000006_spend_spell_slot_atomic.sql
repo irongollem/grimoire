@@ -1,10 +1,12 @@
 -- Atomically spend one slot from the requested level. The party-member row lock
 -- prevents concurrent casts from reading and replacing the same stale JSON.
 drop function if exists public.spend_spell_slot(uuid, integer);
+drop function if exists public.spend_spell_slot(uuid, integer, jsonb);
 
 create or replace function public.spend_spell_slot(
   p_party_member_id uuid,
   p_slot_level integer,
+  p_slot_pool text,
   p_slot_template jsonb default null
 ) returns jsonb
 language plpgsql
@@ -24,6 +26,9 @@ declare
 begin
   if p_slot_level < 1 or p_slot_level > 9 then
     raise exception 'Spell slot level must be between 1 and 9';
+  end if;
+  if p_slot_pool not in ('spellcasting', 'pact', 'temporary', 'feature') then
+    raise exception 'Invalid spell slot pool';
   end if;
 
   select * into v_member
@@ -72,11 +77,14 @@ begin
       select value into v_existing_slot
       from jsonb_array_elements(v_slots)
       where (value ->> 'level')::integer = (v_template_slot ->> 'level')::integer
+        and coalesce(value ->> 'pool', 'spellcasting') = coalesce(v_template_slot ->> 'pool', 'spellcasting')
       limit 1;
 
       v_reconciled := v_reconciled || jsonb_build_array(jsonb_build_object(
         'level', (v_template_slot ->> 'level')::integer,
         'max', (v_template_slot ->> 'max')::integer,
+        'pool', coalesce(v_template_slot ->> 'pool', 'spellcasting'),
+        'recovery', coalesce(v_template_slot ->> 'recovery', case when v_template_slot ->> 'pool' = 'pact' then 'short' else 'long' end),
         'used', least(
           coalesce((v_existing_slot ->> 'used')::integer, (v_template_slot ->> 'used')::integer, 0),
           (v_template_slot ->> 'max')::integer
@@ -96,7 +104,8 @@ begin
 
   for v_index in 0..jsonb_array_length(v_slots) - 1 loop
     v_slot := v_slots -> v_index;
-    if (v_slot ->> 'level')::integer = p_slot_level then
+    if (v_slot ->> 'level')::integer = p_slot_level
+       and coalesce(v_slot ->> 'pool', 'spellcasting') = p_slot_pool then
       v_used := coalesce((v_slot ->> 'used')::integer, 0);
       v_max := coalesce((v_slot ->> 'max')::integer, 0);
       if v_used >= v_max then
@@ -122,5 +131,5 @@ begin
 end;
 $$;
 
-revoke all on function public.spend_spell_slot(uuid, integer, jsonb) from public, anon;
-grant execute on function public.spend_spell_slot(uuid, integer, jsonb) to authenticated;
+revoke all on function public.spend_spell_slot(uuid, integer, text, jsonb) from public, anon;
+grant execute on function public.spend_spell_slot(uuid, integer, text, jsonb) to authenticated;

@@ -236,7 +236,7 @@ import { useArtificerState } from "@/composables/useArtificerState";
 import { mapFeatureIds, type FeatureEntry } from "@/levelup/types";
 import type { CustomStep } from "@/levelup/customTypes";
 import { useAllFeatures } from "@/composables/useFeatures";
-import { getDefaultSpellSlots, getSlotRecovery, getMulticlassSpellSlots, getCasterCategory } from "@/types/spell.types";
+import { getDefaultSpellSlots, getMulticlassSpellSlots, getCasterCategory } from "@/types/spell.types";
 import { useClassByName, useAllSystemClasses, useAllCustomClasses } from "@/composables/useCustomClasses";
 import { useCustomSubclassByClassAndSubclass, useAllCustomSubclasses } from "@/composables/useCustomSubclasses";
 import { useCharacterClasses } from "@/composables/useCharacterClasses";
@@ -249,7 +249,7 @@ import type { Monster } from "@/types/monster.types";
 import type { ClassFeatureGroup } from "./PlayerClassFeaturesList.vue";
 import type { ResourceRow } from "./PlayerResourcePools.vue";
 import { useRuleset } from "@/composables/useRuleset";
-import { reconcileSpellSlotUsage } from "@/lib/spellSlots";
+import { reconcileSpellSlotUsage, restoreSpellSlots } from "@/lib/spellSlots";
 
 const props = defineProps<{ member: PartyMember; showRestButtons?: boolean; wildshapeMonster?: Monster; isOwner?: boolean }>();
 
@@ -429,9 +429,8 @@ function shortRest() {
   }
   persistResources();
 
-  // Restore spell slots if class recharges on short rest (Warlock pact magic)
-  if ((classData.value?.slot_recovery ?? getSlotRecovery(props.member.class)) === "short") {
-    updateMember({ id: props.member.id, update: { spell_slots: effectiveSlots.value.map(s => ({ ...s, used: 0 })) } });
+  if (effectiveSlots.value.length) {
+    updateMember({ id: props.member.id, update: { spell_slots: restoreSpellSlots(effectiveSlots.value, "short") } });
   }
 }
 
@@ -446,7 +445,7 @@ async function longRest() {
   persistResources();
   rageRef.value?.deactivate();
   updateMember({ id: props.member.id, update: {
-    spell_slots: effectiveSlots.value.map(s => ({ ...s, used: 0 })),
+    spell_slots: restoreSpellSlots(effectiveSlots.value, "long"),
     ...(props.member.rage_active ? { rage_active: false } : {}),
   }});
 }

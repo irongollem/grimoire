@@ -17,17 +17,18 @@
           <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-2">CAST AT LEVEL</p>
           <div class="flex flex-wrap gap-2">
             <button
-              v-for="lvl in upcastLevels"
-              :key="lvl"
+              v-for="slot in upcastSlots"
+              :key="spellSlotKey(slot)"
               class="flex flex-col items-center px-3 py-2 rounded-lg border font-cinzel text-xs font-semibold transition-colors"
-              :class="selectedLevel === lvl
+              :class="selectedKey === spellSlotKey(slot)
                 ? 'bg-primary/15 border-primary text-primary'
                 : 'bg-muted border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'"
-              @click="selectedLevel = lvl"
+              @click="selectedKey = spellSlotKey(slot)"
             >
-              <span>{{ SLOT_LEVEL_LABELS[lvl - 1] }}</span>
-              <span v-if="scaledDiceLabel(lvl)" class="font-fell text-[10px] font-normal mt-0.5 opacity-80">
-                {{ scaledDiceLabel(lvl) }}
+              <span>{{ SLOT_LEVEL_LABELS[slot.level - 1] }}</span>
+              <span class="font-fell text-[9px] font-normal opacity-70">{{ poolLabel(slot) }}</span>
+              <span v-if="scaledDiceLabel(slot.level)" class="font-fell text-[10px] font-normal mt-0.5 opacity-80">
+                {{ scaledDiceLabel(slot.level) }}
               </span>
             </button>
           </div>
@@ -44,7 +45,7 @@
             type="button"
             :disabled="isCasting"
             class="flex-1 px-4 py-2 font-cinzel text-xs font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
-            @click="emit('cast', selectedLevel)"
+            @click="selectedSlot && emit('cast', selectedSlot)"
           >
             {{ isCasting ? "Casting…" : "Cast" }}
           </button>
@@ -58,6 +59,7 @@
 import { ref, computed, watchEffect } from "vue";
 import { SCHOOL_COLORS } from "@/types/spell.types";
 import { scaleExpression } from "@/lib/dice";
+import { spellSlotKey, slotPool } from "@/lib/spellSlots";
 import type { CharacterSpellEntry } from "@/types/spell.types";
 import type { SpellSlotEntry } from "@/types/party.types";
 
@@ -70,24 +72,32 @@ const { entry, spellSlots, isCasting = false } = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  cast: [level: number];
+  cast: [slot: SpellSlotEntry];
   cancel: [];
 }>();
 
-const selectedLevel = ref(1);
+const selectedKey = ref("");
 
-const upcastLevels = computed(() => {
+const upcastSlots = computed(() => {
   if (!entry) return [];
   const base = entry.spell.level;
-  return [...new Set(spellSlots
-    .filter((s) => s.level >= base && s.used < s.max)
-    .map((s) => s.level))]
-    .sort((a, b) => a - b);
+  return spellSlots
+    .filter((slot) => slot.level >= base && slot.used < slot.max)
+    .sort((a, b) => a.level - b.level || slotPool(a).localeCompare(slotPool(b)));
 });
 
+const selectedSlot = computed(() =>
+  upcastSlots.value.find(slot => spellSlotKey(slot) === selectedKey.value) ?? null,
+);
+
 watchEffect(() => {
-  if (entry) selectedLevel.value = upcastLevels.value[0] ?? entry.spell.level;
+  if (entry) selectedKey.value = upcastSlots.value[0] ? spellSlotKey(upcastSlots.value[0]) : "";
 });
+
+function poolLabel(slot: SpellSlotEntry): string {
+  const pool = slotPool(slot);
+  return pool === "pact" ? "Pact Magic" : pool === "spellcasting" ? "Spellcasting" : pool;
+}
 
 function scaledDiceLabel(castLevel: number): string {
   if (!entry) return "";

@@ -55,21 +55,22 @@
           </span>
 
           <!-- Slot pips for this level -->
-          <template v-if="group.level > 0 && slotForLevel(group.level)">
+          <template v-for="slot in slotsForLevel(group.level)" :key="spellSlotKey(slot)">
             <div class="flex items-center gap-0.5 ml-1" @click.stop>
+              <span v-if="slotPool(slot) === 'pact'" class="font-cinzel text-[8px] text-violet-400">PACT</span>
               <button
-                v-for="pip in slotForLevel(group.level)!.max"
+                v-for="pip in slot.max"
                 :key="pip"
                 class="h-3.5 w-3.5 rounded-full border-2 transition-colors"
-                :class="pip <= slotForLevel(group.level)!.used
+                :class="pip <= slot.used
                   ? 'bg-primary border-primary'
                   : 'border-muted-foreground/40 hover:border-primary/60'"
-                :title="pip <= slotForLevel(group.level)!.used ? 'Recover slot' : 'Spend slot'"
-                @click="togglePip(group.level, pip)"
+                :title="pip <= slot.used ? 'Recover slot' : 'Spend slot'"
+                @click="togglePip(slot, pip)"
               />
             </div>
             <span class="font-cinzel text-[10px] text-muted-foreground">
-              {{ slotForLevel(group.level)!.max - slotForLevel(group.level)!.used }}/{{ slotForLevel(group.level)!.max }}
+              {{ slot.max - slot.used }}/{{ slot.max }}
             </span>
           </template>
 
@@ -251,7 +252,7 @@ import { pickSpellcastingStats, type SpellcastingClassStats } from "@/types/mult
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import PlayerSpellModal from "@/components/spells/PlayerSpellModal.vue";
 import SpellUpcastPicker from "@/components/spells/SpellUpcastPicker.vue";
-import { availableSlotsForSpell, canCastWithSlot } from "@/lib/spellSlots";
+import { availableSlotsForSpell, canCastWithSlot, spellSlotKey, slotPool, type SpellSlotPool } from "@/lib/spellSlots";
 import { useToast } from "@/composables/useToast";
 import { useRuleset } from "@/composables/useRuleset";
 import { canAutoRollSpellEffect, canCastAsRitual } from "@/lib/spellcastingPolicy";
@@ -312,14 +313,14 @@ const { ruleset } = useRuleset();
 const selectedSpell = ref<Spell | null>(null);
 
 // ── Slot helpers ───────────────────────────────────────────────────────────────
-function slotForLevel(level: number): SpellSlotEntry | undefined {
-  return props.spellSlots.find((s) => s.level === level);
+function slotsForLevel(level: number): SpellSlotEntry[] {
+  return props.spellSlots.filter((slot) => slot.level === level);
 }
 
-async function togglePip(level: number, pip: number) {
+async function togglePip(target: SpellSlotEntry, pip: number) {
   if (!props.partyMemberId) return;
   const updated = props.spellSlots.map((s) => {
-    if (s.level !== level) return s;
+    if (spellSlotKey(s) !== spellSlotKey(target)) return s;
     const newUsed = s.used >= pip ? pip - 1 : pip;
     return { ...s, used: newUsed };
   });
@@ -436,18 +437,18 @@ function startCast(entry: CharacterSpellEntry) {
   const available = availableSlotsForSpell(base, props.spellSlots);
   // One valid option uses that actual slot level (important for Pact Magic).
   if (available.length === 1) {
-    void castSpell(entry, available[0].level);
+    void castSpell(entry, available[0].level, { pool: slotPool(available[0]) });
     return;
   }
   // Multiple levels available → show picker
   pendingCastEntry.value = entry;
 }
 
-function confirmCast(level: number) {
+function confirmCast(slot: SpellSlotEntry) {
   if (!pendingCastEntry.value) return;
   const entry = pendingCastEntry.value;
   pendingCastEntry.value = null;
-  void castSpell(entry, level);
+  void castSpell(entry, slot.level, { pool: slotPool(slot) });
 }
 
 async function rollSpellDamage(entry: CharacterSpellEntry, castLevel: number) {
@@ -504,7 +505,7 @@ async function rollSpellHealing(entry: CharacterSpellEntry, castLevel: number) {
 async function castSpell(
   entry: CharacterSpellEntry,
   castLevel: number,
-  options: { ritual?: boolean } = {},
+  options: { ritual?: boolean; pool?: SpellSlotPool } = {},
 ) {
   if (!props.partyMemberId || isCasting.value) return;
   isCasting.value = true;
@@ -526,6 +527,7 @@ async function castSpell(
       await spendSpellSlot({
         partyMemberId: props.partyMemberId,
         slotLevel: castLevel,
+        pool: options.pool ?? "spellcasting",
         slotTemplate: props.spellSlots,
       });
     }
