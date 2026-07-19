@@ -267,9 +267,9 @@ async function castSpell(entry: CharacterSpellEntry) {
         const counts = parsedToCounts(parsed.terms);
         if (Object.keys(counts).length === 0) {
           const { total, breakdown } = rollParsed(parsed);
-          void sendRoll({ total, label, modifier: parsed.modifier, breakdown, isCrit: false, isFumble: false, isDamage: true });
+          void sendRoll({ total, label, modifier: parsed.modifier, breakdown, isCrit: false, isFumble: false, isDamage: false });
         } else {
-          await promptRoll({ counts, modifier: parsed.modifier, label, isDamage: true });
+          await promptRoll({ counts, modifier: parsed.modifier, label, isDamage: false });
         }
       }
     }
