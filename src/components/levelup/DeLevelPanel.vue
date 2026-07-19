@@ -89,6 +89,7 @@ import { getMulticlassSpellSlots } from '@/types/spell.types';
 import type { PartyMember, LevelChoiceEntry, SpellSlotEntry } from '@/types/party.types';
 import type { CharacterClass } from '@/types/multiclass.types';
 import type { CustomResource } from '@/levelup/customTypes';
+import { useRuleset } from '@/composables/useRuleset';
 
 const props = defineProps<{
   member: PartyMember;
@@ -100,6 +101,7 @@ const isPending = ref(false);
 const error = ref('');
 
 const queryClient = useQueryClient();
+const { ruleset } = useRuleset();
 
 // The level_choices entry for the current total level (if it exists)
 const lastChoice = computed<LevelChoiceEntry | null>(() => {
@@ -226,7 +228,7 @@ async function confirmDeLevel() {
       const row = theClass.value.spell_slots[Math.min(postClasses[0].levels, 20) - 1];
       if (row) rawSlots = (row as number[]).map((max, i) => ({ level: i + 1, max, used: 0 })).filter(s => s.max > 0);
     } else if (postClasses.length > 0) {
-      rawSlots = getMulticlassSpellSlots(postClasses);
+      rawSlots = getMulticlassSpellSlots(postClasses, ruleset.value);
     }
     memberUpdate.spell_slots = rawSlots
       .map((s): SpellSlotEntry => ({

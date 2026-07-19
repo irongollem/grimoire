@@ -163,6 +163,7 @@ import { SPELL_SCHOOLS, SPELL_CLASSES, getCasterType, computeMaxPrepared, getDef
 import { useCharacterClasses } from "@/composables/useCharacterClasses";
 import { useClassByName } from "@/composables/useCustomClasses";
 import { computeSpellcastingPerClass } from "@/types/multiclass.types";
+import { useRuleset } from "@/composables/useRuleset";
 
 const addInnateOpen = ref(false);
 
@@ -178,6 +179,7 @@ const LEVEL_FILTERS = [
 
 const auth = useAuthStore();
 const ui = useUiStore();
+const { ruleset } = useRuleset();
 const { data: partyMembers } = useParty();
 
 const resolvedMemberId = computed(() =>
@@ -213,7 +215,7 @@ const effectiveSpellSlots = computed(() => {
   if (!m || casterType.value === "none") return [];
   if (m.spell_slots?.length) return m.spell_slots;
   const list = (characterClasses.value ?? []).map((c) => ({ class_name: c.class_name, levels: c.levels }));
-  if (list.length > 0) return getMulticlassSpellSlots(list);
+  if (list.length > 0) return getMulticlassSpellSlots(list, ruleset.value);
   return getDefaultSpellSlots(m.class, m.level);
 });
 

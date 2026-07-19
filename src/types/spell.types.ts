@@ -1,3 +1,5 @@
+import type { RulesetKey } from "@/types/ruleset.types";
+
 export const SPELL_SCHOOLS = [
   "abjuration",
   "conjuration",
@@ -349,13 +351,13 @@ const HALF_CASTER_SLOTS: number[][] = [
   [4,3,3,3,2], // 20
 ];
 
-// Artificer: half-caster that rounds UP (unlocks next slot level every 2 levels starting at 3).
-// Differs from Paladin/Ranger (round down) — gets 2nd-level slots at level 3, not 5.
+// Artificer single-class progression. Its round-up rule affects its contribution
+// to multiclass caster level, not the levels at which its own slot tiers unlock.
 const ARTIFICER_SLOTS: number[][] = [
   [2,0,0,0,0], // 1
   [2,0,0,0,0], // 2
-  [3,2,0,0,0], // 3  ← 2nd-level slots unlock here (rounds up)
-  [3,2,0,0,0], // 4
+  [3,0,0,0,0], // 3
+  [3,0,0,0,0], // 4
   [4,2,0,0,0], // 5
   [4,2,0,0,0], // 6
   [4,3,0,0,0], // 7
@@ -513,12 +515,16 @@ export function getCastingAbility(cls: string | null | undefined): "int" | "wis"
  */
 export function multiclassCasterLevel(
   classes: { class_name: string; levels: number }[],
+  ruleset: RulesetKey = "2014",
 ): number {
   let sum = 0;
   for (const c of classes) {
     const cat = getCasterCategory(c.class_name);
     if (cat === "full") sum += c.levels;
-    else if (cat === "half_down") sum += Math.floor(c.levels / 2);
+    else if (cat === "half_down") {
+      // The 2024 multiclass rules changed Paladin/Ranger contributions to round up.
+      sum += ruleset === "2024" ? Math.ceil(c.levels / 2) : Math.floor(c.levels / 2);
+    }
     else if (cat === "half_up") sum += Math.ceil(c.levels / 2);
     else if (cat === "third") sum += Math.floor(c.levels / 3);
   }
@@ -536,6 +542,7 @@ export function multiclassCasterLevel(
  */
 export function getMulticlassSpellSlots(
   classes: { class_name: string; levels: number }[],
+  ruleset: RulesetKey = "2014",
 ): import("@/types/party.types").SpellSlotEntry[] {
   if (classes.length === 0) return [];
   if (classes.length === 1) {
@@ -544,7 +551,7 @@ export function getMulticlassSpellSlots(
 
   const out: import("@/types/party.types").SpellSlotEntry[] = [];
 
-  const casterLevel = multiclassCasterLevel(classes);
+  const casterLevel = multiclassCasterLevel(classes, ruleset);
   if (casterLevel > 0) {
     out.push(...slotsFromRow(FULL_CASTER_SLOTS[casterLevel - 1]));
   }

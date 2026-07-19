@@ -1,4 +1,5 @@
 import type { SettingCalendarDef } from "@/settings/types";
+import type { RulesetKey } from "@/types/ruleset.types";
 
 /** Per-campaign house-rule toggles. Shape is open-ended; known keys are typed. */
 export interface CampaignOptionalRules {
@@ -10,6 +11,8 @@ export interface Campaign {
   id: string;
   user_id: string;
   name: string;
+  /** Campaign-wide rules edition used by every rules-aware subsystem. */
+  ruleset: RulesetKey;
   description: string | null;
   setting: string;
   current_year: number;
@@ -69,6 +72,7 @@ export type CampaignInsert = Omit<
   | "health_visibility"
   | "immersive_rolls"
   | "optional_rules"
+  | "ruleset"
   | ApiKeyFields
   | ProviderFields
   | "ai_setting_prompt"
@@ -86,6 +90,7 @@ export type CampaignInsert = Omit<
   health_visibility?: Campaign["health_visibility"];
   immersive_rolls?: boolean;
   optional_rules?: CampaignOptionalRules;
+  ruleset?: RulesetKey;
   openai_api_key?: string | null;
   anthropic_api_key?: string | null;
   gemini_api_key?: string | null;

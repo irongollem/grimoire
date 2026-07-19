@@ -1,5 +1,31 @@
 <template>
   <div class="space-y-4">
+    <section class="rounded-lg border border-border bg-card p-4 space-y-3">
+      <div>
+        <h2 class="font-cinzel text-sm font-semibold text-foreground">Rules edition</h2>
+        <p class="font-fell text-xs text-muted-foreground mt-1">
+          This campaign-wide choice governs all rules-aware features. Existing campaigns use 2014 unless changed here.
+        </p>
+      </div>
+      <div class="grid gap-2 sm:grid-cols-2">
+        <button
+          v-for="option in RULESET_OPTIONS"
+          :key="option.value"
+          type="button"
+          :disabled="savingRuleset"
+          class="rounded-md border px-3 py-3 text-left transition-colors disabled:opacity-50"
+          :class="selectedRuleset === option.value ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted/40'"
+          @click="setRuleset(option.value)"
+        >
+          <span class="font-cinzel text-xs font-semibold text-foreground">{{ option.label }}</span>
+          <p class="font-fell text-xs text-muted-foreground mt-1">{{ option.description }}</p>
+        </button>
+      </div>
+      <p class="font-fell text-xs text-amber-500/90">
+        Changing edition can alter character progression and available content. Existing character choices are preserved for review.
+      </p>
+    </section>
+
     <p class="font-fell text-sm text-muted-foreground">
       Toggle optional D&amp;D rules on or off for this campaign. Enabled rules appear in the
       Rules Reliquary for all players.
@@ -43,15 +69,36 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { listOptionalRules } from "@/rules/optionalRules";
 import { useOptionalRules, useToggleOptionalRule, isRuleEffectivelyEnabled } from "@/composables/useOptionalRules";
+import { useCampaignStore } from "@/stores/campaign";
+import { useUpdateCampaign } from "@/composables/useCampaigns";
+import { DEFAULT_RULESET, RULESET_OPTIONS, type RulesetKey } from "@/types/ruleset.types";
 
 const allRules = listOptionalRules();
 const { data: campaignRules } = useOptionalRules();
 const { mutateAsync: toggleRule } = useToggleOptionalRule();
 
 const toggling = ref<string | null>(null);
+const campaign = useCampaignStore();
+const { mutateAsync: updateCampaign } = useUpdateCampaign();
+const savingRuleset = ref(false);
+const selectedRuleset = computed(() => campaign.activeCampaign?.ruleset ?? DEFAULT_RULESET);
+
+async function setRuleset(ruleset: RulesetKey) {
+  if (!campaign.activeCampaign || ruleset === selectedRuleset.value) return;
+  savingRuleset.value = true;
+  try {
+    const updated = await updateCampaign({
+      id: campaign.activeCampaign.id,
+      update: { ruleset },
+    });
+    campaign.switchToCampaign(updated);
+  } finally {
+    savingRuleset.value = false;
+  }
+}
 
 function isEnabled(ruleKey: string): boolean {
   return isRuleEffectivelyEnabled(campaignRules.value, ruleKey);

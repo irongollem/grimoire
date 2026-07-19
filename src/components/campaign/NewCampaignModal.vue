@@ -54,6 +54,21 @@
             </datalist>
           </div>
 
+          <div>
+            <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">RULESET</label>
+            <select
+              v-model="form.ruleset"
+              class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option v-for="option in RULESET_OPTIONS" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+            <p class="font-fell text-xs text-muted-foreground mt-1">
+              Applies to character options, spells, creatures, items, rests, and encounter rules.
+            </p>
+          </div>
+
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">CALENDAR</label>
@@ -135,6 +150,7 @@ import { isQuotaExceeded } from "@/lib/quotaError";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import CalendarEditor from "@/components/calendar/CalendarEditor.vue";
 import type { Campaign } from "@/types/campaign.types";
+import { DEFAULT_RULESET, RULESET_OPTIONS } from "@/types/ruleset.types";
 
 const open = defineModel<boolean>({ required: true });
 const { showClaimOption = false } = defineProps<{
@@ -156,6 +172,7 @@ const form = ref({
   setting: "",
   calendar_id: defaultCalendar?.id ?? "faerun",
   current_year: defaultCalendar?.defaultYear ?? 1495,
+  ruleset: DEFAULT_RULESET,
 });
 const customCalendarDef = ref<SettingCalendarDef | null>(null);
 const claimExisting = ref(true);
@@ -168,6 +185,7 @@ watch(open, (isOpen) => {
       setting: "",
       calendar_id: defaultCalendar?.id ?? "faerun",
       current_year: defaultCalendar?.defaultYear ?? 1495,
+      ruleset: DEFAULT_RULESET,
     };
     customCalendarDef.value = null;
     claimExisting.value = true;
@@ -200,6 +218,7 @@ async function submit() {
       setting: form.value.setting || "Custom Setting",
       calendar_id: form.value.calendar_id,
       current_year: form.value.current_year,
+      ruleset: form.value.ruleset,
       theme: "grimoire",
       health_visibility: "strategic",
       immersive_rolls: false,

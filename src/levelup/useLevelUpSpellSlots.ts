@@ -2,6 +2,7 @@ import { computed } from "vue";
 import type { ComputedRef, Ref } from "vue";
 import { getMulticlassSpellSlots } from "@/types/spell.types";
 import type { SpellSlotEntry } from "@/types/party.types";
+import type { RulesetKey } from "@/types/ruleset.types";
 
 interface ClassDataRef {
   spell_slots?: number[][] | null;
@@ -23,10 +24,11 @@ export function useLevelUpSpellSlots(opts: {
   isAddingNewClass: ComputedRef<boolean>;
   newClassName: Ref<string>;
   chosenExistingEntry: ComputedRef<ClassEntry | null>;
+  ruleset: ComputedRef<RulesetKey>;
 }) {
   const {
     customClass, systemClass, levelInChosenClass,
-    memberClassEntries, isAddingNewClass, newClassName, chosenExistingEntry,
+    memberClassEntries, isAddingNewClass, newClassName, chosenExistingEntry, ruleset,
   } = opts;
 
   const prevLevelInChosenClass = computed(() => Math.max(0, levelInChosenClass.value - 1));
@@ -65,14 +67,14 @@ export function useLevelUpSpellSlots(opts: {
 
   const postLevelupSpellSlots = computed<SpellSlotEntry[]>(() => {
     if (postLevelupClassList.value.length > 1) {
-      return getMulticlassSpellSlots(postLevelupClassList.value);
+      return getMulticlassSpellSlots(postLevelupClassList.value, ruleset.value);
     }
     return newSpellSlots.value;
   });
 
   const preLevelupSpellSlots = computed<SpellSlotEntry[]>(() => {
     if (preLevelupClassList.value.length > 1) {
-      return getMulticlassSpellSlots(preLevelupClassList.value);
+      return getMulticlassSpellSlots(preLevelupClassList.value, ruleset.value);
     }
     return prevSpellSlots.value;
   });

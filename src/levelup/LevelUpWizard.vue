@@ -183,12 +183,14 @@ import type { PartyMember } from "@/types/party.types";
 import type { AbilityKey, AsiMode, ClassStep, ClassResourceDef, FeatureEntry } from "./types";
 import { mapFeatureIds } from "./types";
 import type { CustomResource } from "@/levelup/customTypes";
+import { useRuleset } from "@/composables/useRuleset";
 
 const props = defineProps<{
   member: PartyMember;
   targetLevel?: number;
   backRoute?: string;
 }>();
+const { ruleset } = useRuleset();
 
 // ── Multiclass state ───────────────────────────────────────────────────────────
 const memberIdRef = computed(() => props.member.id);
@@ -382,6 +384,7 @@ const {
   isAddingNewClass,
   newClassName,
   chosenExistingEntry,
+  ruleset,
 });
 
 const wizardExpandedFeatures = ref(new Set<string>());

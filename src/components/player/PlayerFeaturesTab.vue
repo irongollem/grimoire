@@ -248,10 +248,12 @@ import type { PartyMember, SpellSlotEntry } from "@/types/party.types";
 import type { Monster } from "@/types/monster.types";
 import type { ClassFeatureGroup } from "./PlayerClassFeaturesList.vue";
 import type { ResourceRow } from "./PlayerResourcePools.vue";
+import { useRuleset } from "@/composables/useRuleset";
 
 const props = defineProps<{ member: PartyMember; showRestButtons?: boolean; wildshapeMonster?: Monster; isOwner?: boolean }>();
 
 const router = useRouter();
+const { ruleset } = useRuleset();
 
 function isChoicePlaceholder(s: string): boolean {
   return s.toLowerCase().includes("choice");
@@ -373,7 +375,7 @@ const effectiveSlots = computed((): SpellSlotEntry[] => {
   const m = props.member;
   if (m.spell_slots?.length) return m.spell_slots;
   const list = (characterClasses.value ?? []).map((c) => ({ class_name: c.class_name, levels: c.levels }));
-  if (list.length > 0) return getMulticlassSpellSlots(list);
+  if (list.length > 0) return getMulticlassSpellSlots(list, ruleset.value);
   return getDefaultSpellSlots(m.class, m.level);
 });
 
