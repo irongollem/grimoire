@@ -228,7 +228,7 @@ import PlayerRacialTraits from "./PlayerRacialTraits.vue";
 import type { TraitGroup } from "./PlayerRacialTraits.vue";
 import PlayerExpandableList from "./PlayerExpandableList.vue";
 import type { ExpandableItem } from "./PlayerExpandableList.vue";
-import { METAMAGIC_MAP } from "@/data/metamagic";
+import { getMetamagicMap } from "@/data/metamagic";
 import { ELDRITCH_INVOCATIONS_MAP } from "@/data/eldritchInvocations";
 import { MONK_KI_ABILITIES } from "@/data/monkKiAbilities";
 import { BATTLE_MASTER_MANEUVERS, BATTLE_MASTER_MANEUVERS_MAP } from "@/data/battleMasterManeuvers";
@@ -502,7 +502,8 @@ const choiceEntries = computed(() => {
 const knownMetamagic = computed(() => {
   const raw = props.member.class_choices?.metamagic_options;
   const names: string[] = Array.isArray(raw) ? (raw as string[]) : raw ? [String(raw)] : [];
-  return names.map(n => METAMAGIC_MAP.get(n)).filter(Boolean) as import("@/data/metamagic").MetamagicOption[];
+  const options = getMetamagicMap(ruleset.value);
+  return names.map(n => options.get(n)).filter(Boolean) as import("@/data/metamagic").MetamagicOption[];
 });
 
 const knownInvocations = computed(() => {
