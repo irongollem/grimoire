@@ -80,6 +80,19 @@
               class="shrink-0 font-cinzel text-[10px] text-muted-foreground"
             >DC {{ spellSaveDc }}</span>
 
+            <button
+              v-if="entry.spell.damage_rolls?.length"
+              class="shrink-0 font-cinzel text-[10px] rounded border border-red-500/30 bg-red-500/10 text-red-500 px-1.5 py-0.5 hover:bg-red-500/20"
+              title="Roll damage after resolving the spell attack or target saving throw"
+              @click.stop="rollInnateDamage(entry)"
+            >Damage</button>
+            <button
+              v-if="entry.spell.healing_dice"
+              class="shrink-0 font-cinzel text-[10px] rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-500 px-1.5 py-0.5 hover:bg-emerald-500/20"
+              title="Roll healing"
+              @click.stop="rollInnateHealing(entry)"
+            >Healing</button>
+
             <!-- Use tracking: pips or "At will" -->
             <template v-if="entry.uses_per_day !== null">
               <div class="flex items-center gap-0.5 shrink-0">
@@ -150,6 +163,8 @@ import { rollParsed } from "@/lib/roller";
 import { signedNum } from "@/lib/utils";
 import type { CharacterSpellEntry, Spell } from "@/types/spell.types";
 import PlayerSpellModal from "@/components/spells/PlayerSpellModal.vue";
+import { canAutoRollSpellEffect } from "@/lib/spellcastingPolicy";
+import { useToast } from "@/composables/useToast";
 
 const SOURCE_TYPE_LABELS: Record<string, string> = {
   racial: "Racial",
@@ -166,6 +181,7 @@ const props = defineProps<{
 }>();
 
 const ui = useUiStore();
+const toast = useToast();
 
 const { data: allEntries } = useCharacterSpellsWithDetails(
   computed(() => props.partyMemberId),
@@ -216,6 +232,47 @@ function castButtonTitle(entry: CharacterSpellEntry): string {
   return `Cast — use 1 of ${entry.uses_remaining} remaining`;
 }
 
+async function rollInnateDamage(entry: CharacterSpellEntry) {
+  const spell = entry.spell;
+  for (const dmg of spell.damage_rolls ?? []) {
+    const parsed = parseExpression(dmg.dice);
+    if (!parsed) {
+      toast.error(`Cannot roll unsupported damage expression: ${dmg.dice}`);
+      continue;
+    }
+    const typeLabel = dmg.type ? ` ${dmg.type}` : "";
+    let label = `${spell.name} — ${dmg.dice}${typeLabel} damage`;
+    if (spell.attack_type === "save" && spell.save_effect === "half") {
+      label += ` (half on ${spell.save_attribute ?? "save"})`;
+    }
+    const counts = parsedToCounts(parsed.terms);
+    if (Object.keys(counts).length === 0) {
+      const { total, breakdown } = rollParsed(parsed);
+      void sendRoll({ total, label, modifier: parsed.modifier, breakdown, isCrit: false, isFumble: false, isDamage: true });
+    } else {
+      await promptRoll({ counts, modifier: parsed.modifier, label, isDamage: true });
+    }
+  }
+}
+
+async function rollInnateHealing(entry: CharacterSpellEntry) {
+  const dice = entry.spell.healing_dice;
+  if (!dice) return;
+  const parsed = parseExpression(dice);
+  if (!parsed) {
+    toast.error(`Cannot roll unsupported healing expression: ${dice}`);
+    return;
+  }
+  const label = `${entry.spell.name} — ${dice} healing`;
+  const counts = parsedToCounts(parsed.terms);
+  if (Object.keys(counts).length === 0) {
+    const { total, breakdown } = rollParsed(parsed);
+    void sendRoll({ total, label, modifier: parsed.modifier, breakdown, isCrit: false, isFumble: false, isDamage: false });
+  } else {
+    await promptRoll({ counts, modifier: parsed.modifier, label, isDamage: false });
+  }
+}
+
 async function castSpell(entry: CharacterSpellEntry) {
   if (!props.partyMemberId || isCasting.value) return;
   if (entry.uses_per_day !== null && !entry.uses_remaining) return;
@@ -239,39 +296,11 @@ async function castSpell(entry: CharacterSpellEntry) {
     if (entry.source_label) text += ` [${entry.source_label}]`;
     await sendFlavorMessage(text, "spell");
 
-    // Auto-roll damage
-    if (spell.damage_rolls?.length) {
-      for (const dmg of spell.damage_rolls) {
-        const parsed = parseExpression(dmg.dice);
-        if (!parsed) continue;
-        const typeLabel = dmg.type ? ` ${dmg.type}` : "";
-        let label = `${spell.name} — ${dmg.dice}${typeLabel} damage`;
-        if (spell.attack_type === "save" && spell.save_effect === "half") {
-          label += ` (half on ${spell.save_attribute ?? "save"})`;
-        }
-        const counts = parsedToCounts(parsed.terms);
-        if (Object.keys(counts).length === 0) {
-          const { total, breakdown } = rollParsed(parsed);
-          void sendRoll({ total, label, modifier: parsed.modifier, breakdown, isCrit: false, isFumble: false, isDamage: true });
-        } else {
-          await promptRoll({ counts, modifier: parsed.modifier, label, isDamage: true });
-        }
-      }
+    if (spell.damage_rolls?.length && canAutoRollSpellEffect(spell.attack_type, "damage")) {
+      await rollInnateDamage(entry);
     }
-
-    // Auto-roll healing
-    if (spell.healing_dice) {
-      const parsed = parseExpression(spell.healing_dice);
-      if (parsed) {
-        const label = `${spell.name} — ${spell.healing_dice} healing`;
-        const counts = parsedToCounts(parsed.terms);
-        if (Object.keys(counts).length === 0) {
-          const { total, breakdown } = rollParsed(parsed);
-          void sendRoll({ total, label, modifier: parsed.modifier, breakdown, isCrit: false, isFumble: false, isDamage: false });
-        } else {
-          await promptRoll({ counts, modifier: parsed.modifier, label, isDamage: false });
-        }
-      }
+    if (spell.healing_dice && canAutoRollSpellEffect(spell.attack_type, "healing")) {
+      await rollInnateHealing(entry);
     }
 
     // Spend a use (if limited)

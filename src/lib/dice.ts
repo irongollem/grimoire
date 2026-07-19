@@ -169,10 +169,11 @@ export function parseExpression(expr: string | null | undefined): ParsedExpressi
     if (diceMatch) {
       const count = parseInt(diceMatch[1], 10);
       const sides = parseInt(diceMatch[2], 10);
-      if (sides >= 2 && count >= 1) terms.push({ count, sides });
+      if (sides < 2 || count < 1) return null;
+      terms.push({ count, sides });
     } else {
-      const flat = parseInt(clean, 10);
-      if (!isNaN(flat)) modifier += sign * flat;
+      if (!/^\d+$/.test(clean)) return null;
+      modifier += sign * parseInt(clean, 10);
     }
   }
 

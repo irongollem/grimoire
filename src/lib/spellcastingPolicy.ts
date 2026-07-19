@@ -17,3 +17,16 @@ export function canCastAsRitual(input: {
   if (input.ruleset === "2024") return input.isReadyToCast;
   return RITUAL_CASTERS_2014.has(input.className) && input.isReadyToCast;
 }
+
+/**
+ * Effects that depend on an attack or saving throw must wait for that outcome.
+ * Healing and explicitly automatic damage can be rolled with the cast; all
+ * other damage stays available as a deliberate follow-up action.
+ */
+export function canAutoRollSpellEffect(
+  attackType: string | null,
+  effect: "damage" | "healing",
+): boolean {
+  if (effect === "healing") return attackType !== "ranged_spell" && attackType !== "melee_spell" && attackType !== "save";
+  return attackType === "automatic";
+}

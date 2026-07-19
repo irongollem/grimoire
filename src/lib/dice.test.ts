@@ -1,5 +1,17 @@
 import { describe, it, expect } from "vitest";
-import { hitPointsToMax } from "./dice";
+import { hitPointsToMax, parseExpression } from "./dice";
+
+describe("parseExpression", () => {
+  it("rejects symbolic modifiers instead of silently dropping them", () => {
+    expect(parseExpression("1d8 + mod")).toBeNull();
+    expect(parseExpression("2d6 + PB")).toBeNull();
+  });
+
+  it("rejects partially valid expressions", () => {
+    expect(parseExpression("2d6 + ???")).toBeNull();
+    expect(parseExpression("0d6 + 3")).toBeNull();
+  });
+});
 
 describe("hitPointsToMax", () => {
   it("averages a pure dice expression (regression: spore servant 2d8+2)", () => {

@@ -135,6 +135,19 @@
               @click.stop="promptSpellSave(entry)"
             >DC {{ saveDcFor(entry) }}</button>
 
+            <button
+              v-if="isCastable(entry) && entry.spell.damage_rolls?.length"
+              class="shrink-0 font-cinzel text-[10px] rounded border border-red-500/30 bg-red-500/10 text-red-500 px-1.5 py-0.5 transition-colors hover:bg-red-500/20"
+              title="Roll damage after resolving the spell attack or target saving throw"
+              @click.stop="rollSpellDamage(entry, lastCastLevel(entry))"
+            >Damage</button>
+            <button
+              v-if="isCastable(entry) && entry.spell.healing_dice"
+              class="shrink-0 font-cinzel text-[10px] rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-500 px-1.5 py-0.5 transition-colors hover:bg-emerald-500/20"
+              title="Roll healing"
+              @click.stop="rollSpellHealing(entry, lastCastLevel(entry))"
+            >Healing</button>
+
             <!-- Cast button (castable spells) -->
             <button
               v-if="isCastable(entry)"
@@ -241,7 +254,7 @@ import SpellUpcastPicker from "@/components/spells/SpellUpcastPicker.vue";
 import { availableSlotsForSpell, canCastWithSlot } from "@/lib/spellSlots";
 import { useToast } from "@/composables/useToast";
 import { useRuleset } from "@/composables/useRuleset";
-import { canCastAsRitual } from "@/lib/spellcastingPolicy";
+import { canAutoRollSpellEffect, canCastAsRitual } from "@/lib/spellcastingPolicy";
 
 const SLOT_LEVEL_LABELS = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"] as const;
 
@@ -356,6 +369,11 @@ async function promptSpellSave(entry: CharacterSpellEntry) {
 
 // ── Cast ───────────────────────────────────────────────────────────────────────
 const isCasting = ref(false);
+const lastCastLevels = ref<Record<string, number>>({});
+
+function lastCastLevel(entry: CharacterSpellEntry): number {
+  return lastCastLevels.value[entry.id] ?? entry.spell.level;
+}
 
 /** A spell is castable if it's prepared, a cantrip, or the caster always has it ready (known casters). */
 function isCastable(entry: CharacterSpellEntry): boolean {
@@ -432,6 +450,57 @@ function confirmCast(level: number) {
   void castSpell(entry, level);
 }
 
+async function rollSpellDamage(entry: CharacterSpellEntry, castLevel: number) {
+  const spell = entry.spell;
+  const extraLevels = Math.max(0, castLevel - spell.level);
+  const cantripMult = spell.level === 0 ? cantripDiceMultiplier(props.memberLevel ?? 1) : 1;
+  for (const dmg of spell.damage_rolls ?? []) {
+    let diceSrc = (extraLevels > 0 && spell.higher_level_damage)
+      ? scaleExpression(dmg.dice, extraLevels, spell.higher_level_damage.dice_per_level)
+      : dmg.dice;
+    if (cantripMult > 1) diceSrc = scaleExpression(dmg.dice, cantripMult - 1, dmg.dice);
+    const parsed = parseExpression(diceSrc);
+    if (!parsed) {
+      toast.error(`Cannot roll unsupported damage expression: ${diceSrc}`);
+      continue;
+    }
+    const typeLabel = dmg.type ? ` ${dmg.type}` : "";
+    let label = `${spell.name} — ${diceSrc}${typeLabel} damage`;
+    if (spell.attack_type === "save" && spell.save_effect === "half") {
+      label += ` (half on ${spell.save_attribute ?? "save"})`;
+    }
+    const counts = parsedToCounts(parsed.terms);
+    if (Object.keys(counts).length === 0) {
+      const { total, breakdown } = rollParsed(parsed);
+      void sendRoll({ total, label, modifier: parsed.modifier, breakdown, isCrit: false, isFumble: false, isDamage: true });
+    } else {
+      await promptRoll({ counts, modifier: parsed.modifier, label, isDamage: true });
+    }
+  }
+}
+
+async function rollSpellHealing(entry: CharacterSpellEntry, castLevel: number) {
+  const spell = entry.spell;
+  if (!spell.healing_dice) return;
+  const extraLevels = Math.max(0, castLevel - spell.level);
+  const diceSrc = (extraLevels > 0 && spell.higher_level_healing)
+    ? scaleExpression(spell.healing_dice, extraLevels, spell.higher_level_healing)
+    : spell.healing_dice;
+  const parsed = parseExpression(diceSrc);
+  if (!parsed) {
+    toast.error(`Cannot roll unsupported healing expression: ${diceSrc}`);
+    return;
+  }
+  const label = `${spell.name} — ${diceSrc} healing`;
+  const counts = parsedToCounts(parsed.terms);
+  if (Object.keys(counts).length === 0) {
+    const { total, breakdown } = rollParsed(parsed);
+    void sendRoll({ total, label, modifier: parsed.modifier, breakdown, isCrit: false, isFumble: false, isDamage: false });
+  } else {
+    await promptRoll({ counts, modifier: parsed.modifier, label, isDamage: false });
+  }
+}
+
 async function castSpell(
   entry: CharacterSpellEntry,
   castLevel: number,
@@ -443,6 +512,7 @@ async function castSpell(
     const spell = entry.spell;
     const isRitual = options.ritual === true;
     const extraLevels = isRitual ? 0 : castLevel - spell.level;
+    lastCastLevels.value = { ...lastCastLevels.value, [entry.id]: castLevel };
 
     // Concentration guard
     if (spell.concentration && thisMember.value) {
@@ -474,49 +544,11 @@ async function castSpell(
     }
     await sendFlavorMessage(text, "spell");
 
-    // Cantrip dice multiplier (×1/2/3/4 based on total character level)
-    const cantripMult = spell.level === 0 ? cantripDiceMultiplier(props.memberLevel ?? 1) : 1;
-
-    // Auto-roll damage (scaled if upcast or cantrip level-up)
-    if (spell.damage_rolls?.length) {
-      for (const dmg of spell.damage_rolls) {
-        let diceSrc = (extraLevels > 0 && spell.higher_level_damage)
-          ? scaleExpression(dmg.dice, extraLevels, spell.higher_level_damage.dice_per_level)
-          : dmg.dice;
-        if (cantripMult > 1) diceSrc = scaleExpression(dmg.dice, cantripMult - 1, dmg.dice);
-        const parsed = parseExpression(diceSrc);
-        if (!parsed) continue;
-        const typeLabel = dmg.type ? ` ${dmg.type}` : "";
-        let label = `${spell.name} — ${diceSrc}${typeLabel} damage`;
-        if (spell.attack_type === "save" && spell.save_effect === "half") {
-          label += ` (half on ${spell.save_attribute ?? "save"})`;
-        }
-        const counts = parsedToCounts(parsed.terms);
-        if (Object.keys(counts).length === 0) {
-          const { total, breakdown } = rollParsed(parsed);
-          void sendRoll({ total, label, modifier: parsed.modifier, breakdown, isCrit: false, isFumble: false, isDamage: true });
-        } else {
-          await promptRoll({ counts, modifier: parsed.modifier, label, isDamage: true });
-        }
-      }
+    if (spell.damage_rolls?.length && canAutoRollSpellEffect(spell.attack_type, "damage")) {
+      await rollSpellDamage(entry, castLevel);
     }
-
-    // Auto-roll healing (scaled if upcast)
-    if (spell.healing_dice) {
-      const diceSrc = (extraLevels > 0 && spell.higher_level_healing)
-        ? scaleExpression(spell.healing_dice, extraLevels, spell.higher_level_healing)
-        : spell.healing_dice;
-      const parsed = parseExpression(diceSrc);
-      if (parsed) {
-        const label = `${spell.name} — ${diceSrc} healing`;
-        const counts = parsedToCounts(parsed.terms);
-        if (Object.keys(counts).length === 0) {
-          const { total, breakdown } = rollParsed(parsed);
-          void sendRoll({ total, label, modifier: parsed.modifier, breakdown, isCrit: false, isFumble: false, isDamage: false });
-        } else {
-          await promptRoll({ counts, modifier: parsed.modifier, label, isDamage: false });
-        }
-      }
+    if (spell.healing_dice && canAutoRollSpellEffect(spell.attack_type, "healing")) {
+      await rollSpellHealing(entry, castLevel);
     }
 
   } catch (error) {
