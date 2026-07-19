@@ -127,6 +127,19 @@
             <span class="field-label">Habitat</span>
             <input v-model="form.habitat" class="field-input w-full" placeholder="Forest, underground…" />
           </label>
+          <label class="block">
+            <span class="field-label">Lair Location</span>
+            <EntityCombobox
+              :model-value="form.lair_location_id ?? ''"
+              :options="locationOptions"
+              placeholder="— none —"
+              @update:model-value="form.lair_location_id = $event || null"
+            >
+              <template #option="{ opt }">
+                <span :style="{ paddingLeft: `${(opt as LocationOption).depth * 12}px` }">{{ opt.name }}</span>
+              </template>
+            </EntityCombobox>
+          </label>
         </section>
 
         <!-- Tags card (TagInput when editable, read-only chips for SRD) -->
@@ -240,6 +253,9 @@ import TagInput from "@/components/common/TagInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import StatBlockEditor from "@/components/common/StatBlockEditor.vue";
 import MobileSheet from "@/components/common/MobileSheet.vue";
+import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import { useLocationTree } from "@/composables/useLocations";
+import type { Location } from "@/types/location.types";
 import { IconCopy, IconDelete, IconGenerate, IconScrollText } from "@/lib/icons";
 import type { MonsterStatBlock, MonsterType, MonsterSize } from "@/types/monster.types";
 import { buildEntityContext, toPlainText } from "@/ai/utils";
@@ -252,6 +268,7 @@ interface MonsterEditForm {
   size: MonsterSize;
   alignment: string;
   habitat: string;
+  lair_location_id: string | null;
   source: string;
   tags: string[];
   description: string;
@@ -282,6 +299,9 @@ const {
   isSendingToScriptorium?: boolean;
   isAiEnabled?: boolean;
 }>();
+
+type LocationOption = Location & { depth: number };
+const { locationOptions } = useLocationTree();
 
 const emit = defineEmits<{
   save: [];

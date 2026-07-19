@@ -23,6 +23,13 @@
         <p v-if="monster.habitat" class="font-fell text-xs text-muted-foreground italic">
           Habitat: {{ monster.habitat }}
         </p>
+        <RouterLink
+          v-if="lairLocation"
+          :to="`/locations/${lairLocation.id}`"
+          class="font-fell text-xs text-muted-foreground italic hover:text-foreground hover:underline transition-colors"
+        >
+          Lair: {{ lairLocation.name }}
+        </RouterLink>
         <p v-if="monster.source" class="font-fell text-xs text-muted-foreground italic">
           Source: {{ monster.source }}
         </p>
@@ -133,10 +140,20 @@ import TraitList from "@/components/common/TraitList.vue";
 import SpellcastingList from "@/components/common/SpellcastingList.vue";
 import { useEncountersByMonster } from "@/composables/useEncounters";
 import { useMonsterLootTables } from "@/composables/useLootTables";
+import { useLocationTree } from "@/composables/useLocations";
 import type { Monster, MonsterStatBlock } from "@/types/monster.types";
 
 const props = defineProps<{ monster: Monster }>();
 
 const featuredIn = useEncountersByMonster(computed(() => props.monster.id));
 const lootTables = useMonsterLootTables(computed(() => props.monster.id));
+
+// Lair link resolves against the active campaign's location tree; a lair set
+// in another campaign simply doesn't render here.
+const { locationOptions } = useLocationTree();
+const lairLocation = computed(() =>
+  props.monster.lair_location_id
+    ? (locationOptions.value.find((l) => l.id === props.monster.lair_location_id) ?? null)
+    : null,
+);
 </script>

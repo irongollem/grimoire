@@ -177,7 +177,7 @@ The read-only sheet uses a two-column layout (portrait column fixed 208 px, cont
 
 Left column: portrait (portrait format), status + relationship badges, tags, faction links (clickable), alter-ego section with a quick Reveal/Conceal toggle (saves immediately, no edit-mode required; fires a chat event on reveal in Play mode).
 
-Right column: `NpcTabContent` with identity line (species · occupation · alignment · age), then Lore / Inventory / Relations / Combat tabs.
+Right column: `NpcTabContent` with identity line (species · occupation · alignment · age), then Lore / Inventory / Relations / Combat tabs. The Relations tab embeds both `NpcRelationsSection` (NPC↔NPC) and `NpcPcNotesSection` (NPC↔party-member connections) so both are visible — and editable, since the sections own their CRUD — from view mode without flipping into the edit form (#168/#169).
 
 ### Alter Ego / Disguise System
 

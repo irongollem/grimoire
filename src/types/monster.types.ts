@@ -56,6 +56,7 @@ export interface Monster {
   size: MonsterSize;
   alignment: string;
   habitat: string | null;
+  lair_location_id?: string | null; // user monsters only — SRD rows are shared content with no location FK
   source: string | null;       // Open5e document slug when imported, or free text
   source_title?: string | null; // Open5e document full title
   source_url?: string | null;   // Open5e document URL

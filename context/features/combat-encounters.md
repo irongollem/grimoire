@@ -38,6 +38,7 @@ The Bestiary (`/monsters`) is the DM's custom monster compendium. It is a union 
 Each monster stores a full `stat_block` JSONB object with:
 
 - Basic: name, size, monster_type, alignment, CR, habitat, source, tags
+- Lair location: optional `lair_location_id` FK to `locations` (migration `20260720000001`, #168) — picked via `EntityCombobox` next to the Habitat field; rendered on `MonsterSheet`/`MonsterSheetMobile` as a nav link to `/locations/:id`. User monsters only; SRD monsters have no FK, and a lair set in another campaign simply doesn't render (the link resolves against the active campaign's location tree)
 - Combat: AC, HP (with dice expression), speed, initiative
 - Ability scores: STR/DEX/CON/INT/WIS/CHA
 - Derived: saving throws, skills, senses, languages

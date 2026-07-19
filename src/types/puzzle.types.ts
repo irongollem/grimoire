@@ -73,6 +73,10 @@ export interface PuzzleRoom {
   shared_hints: number[];
   /** Short spoken text the DM reads aloud when players enter the room */
   read_aloud: string | null;
+  /** Location that hosts this puzzle (DM-only; nulled in the player projection) */
+  location_id: string | null;
+  /** Dungeon feature that hosts this puzzle (DM-only; nulled in the player projection) */
+  dungeon_feature_id: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -144,6 +144,16 @@
         <NpcQuickFact label="Habitat" :value="monster.habitat" class="bg-card" />
       </div>
 
+      <!-- Lair location link -->
+      <RouterLink
+        v-if="lairLocation"
+        :to="`/locations/${lairLocation.id}`"
+        class="flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-3 font-cinzel text-xs tracking-wider text-muted-foreground"
+      >
+        <IconLocation class="size-4 shrink-0 text-primary/70" />
+        Lair: {{ lairLocation.name }}
+      </RouterLink>
+
       <!-- 4. Tags -->
       <div v-if="monster.tags?.length" class="flex flex-wrap gap-1.5">
         <span
@@ -276,8 +286,9 @@ import MobileSheet from "@/components/common/MobileSheet.vue";
 import NpcQuickFact from "@/components/npcs/NpcQuickFact.vue";
 import NpcAccordionSection from "@/components/npcs/NpcAccordionSection.vue";
 import MonsterRevealSheet from "@/components/monsters/MonsterRevealSheet.vue";
-import { IconCopy, IconDelete, IconEdit, IconHide, IconReveal, IconScrollText } from "@/lib/icons";
+import { IconCopy, IconDelete, IconEdit, IconHide, IconLocation, IconReveal, IconScrollText } from "@/lib/icons";
 import { useCloneSrdMonster, useDeleteMonster } from "@/composables/useMonsters";
+import { useLocationTree } from "@/composables/useLocations";
 import { useMonsterVisibility } from "@/composables/useMonsterVisibility";
 import { crColor } from "@/lib/monsterDisplay";
 import type { Monster } from "@/types/monster.types";
@@ -293,6 +304,15 @@ const scrolled = computed(() => scrollY.value > 150);
 
 // ── Display helpers (mirror the desktop sheet) ──────────────────────────────────
 const subtitle = computed(() => `${monster.size} ${monster.monster_type}, ${monster.alignment}`);
+
+// Lair link resolves against the active campaign's location tree; a lair set
+// in another campaign simply doesn't render here.
+const { locationOptions } = useLocationTree();
+const lairLocation = computed(() =>
+  monster.lair_location_id
+    ? (locationOptions.value.find((l) => l.id === monster.lair_location_id) ?? null)
+    : null,
+);
 
 // ── Visibility / discovery (discovery model, not NPC field-list) ────────────────
 const { isDiscovered, currentDiscovery } = useMonsterVisibility(toRef(() => monster));

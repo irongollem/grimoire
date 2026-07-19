@@ -398,6 +398,8 @@ The editor blocks saving when any entry has a drop_chance outside 1–100, an It
 | `image_focal_point`   | {x,y}\|null        |                                                    |
 | `tags`                | string[]           |                                                    |
 | `notes`               | Tiptap JSON\|null  | DM-only                                            |
+| `location_id`         | string\|null       | Host location anchor (#168); nav-link pill in view mode; nulled in the player projection |
+| `dungeon_feature_id`  | string\|null       | Host dungeon feature anchor (#168); same treatment |
 
 ### RollTable (`roll_tables` table)
 

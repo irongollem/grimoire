@@ -231,6 +231,8 @@ async function generateAndCreate() {
     image_url:           result.image_url,
     image_focal_point:   null,
     campaign_id:         null,
+    location_id:         null,
+    dungeon_feature_id:  null,
     is_shared:           false,
     shared_hints:        [],
     read_aloud:          null,

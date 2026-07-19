@@ -60,8 +60,11 @@
          visible after clicking into the edit form. See #168. The component
          handles its own CRUD so embedding it here doesn't require flipping
          the sheet into "edit mode". -->
-    <div v-else-if="activeTab === 'relations'">
+    <div v-else-if="activeTab === 'relations'" class="space-y-4">
       <NpcRelationsSection :npc-id="npc.id" />
+      <!-- Party-member connections (npc_pc_notes) — same #168 reasoning as
+           NpcRelationsSection above: previously edit-form-only. -->
+      <NpcPcNotesSection :npc-id="npc.id" />
     </div>
 
     <!-- Combat tab -->
@@ -89,6 +92,7 @@ import TraitList from "@/components/common/TraitList.vue";
 import SpellcastingList from "@/components/common/SpellcastingList.vue";
 import NpcInventorySection from "@/components/npcs/NpcInventorySection.vue";
 import NpcRelationsSection from "@/components/npcs/NpcRelationsSection.vue";
+import NpcPcNotesSection from "@/components/npcs/NpcPcNotesSection.vue";
 import type { Npc } from "@/types/npc.types";
 
 defineProps<{ npc: Npc }>();

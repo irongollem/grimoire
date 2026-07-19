@@ -52,6 +52,24 @@
         <!-- Art + Identity card -->
         <PuzzleIdentityCard :puzzle="puzzle" />
 
+        <!-- Anchor links — where this puzzle lives in the world -->
+        <div v-if="anchorLocation || anchorFeature" class="flex flex-wrap gap-1.5">
+          <RouterLink
+            v-if="anchorLocation"
+            :to="`/locations/${anchorLocation.id}`"
+            class="inline-flex items-center gap-1 font-cinzel text-2xs px-2 py-1 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
+          >
+            <IconLocation class="h-3 w-3 shrink-0" />{{ anchorLocation.name }}
+          </RouterLink>
+          <RouterLink
+            v-if="anchorFeature"
+            :to="`/dungeon-features/${anchorFeature.id}`"
+            class="inline-flex items-center gap-1 font-cinzel text-2xs px-2 py-1 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
+          >
+            <IconDungeon class="h-3 w-3 shrink-0" />{{ anchorFeature.name }}
+          </RouterLink>
+        </div>
+
         <!-- Share panel -->
         <PuzzleSharePanel
           :share-state="shareState"
@@ -201,6 +219,28 @@
                   <option v-for="d in PUZZLE_DIFFICULTIES" :key="d" :value="d">{{ d }}</option>
                 </select>
               </div>
+              <div>
+                <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">Location</label>
+                <EntityCombobox
+                  :model-value="form.location_id ?? ''"
+                  :options="locationOptions"
+                  placeholder="— none —"
+                  @update:model-value="form.location_id = $event || null"
+                >
+                  <template #option="{ opt }">
+                    <span :style="{ paddingLeft: `${(opt as LocationOption).depth * 12}px` }">{{ opt.name }}</span>
+                  </template>
+                </EntityCombobox>
+              </div>
+              <div>
+                <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">Dungeon Feature</label>
+                <EntityCombobox
+                  :model-value="form.dungeon_feature_id ?? ''"
+                  :options="dungeonFeatures ?? []"
+                  placeholder="— none —"
+                  @update:model-value="form.dungeon_feature_id = $event || null"
+                />
+              </div>
               <div class="col-span-2">
                 <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">Tags</label>
                 <TagInput v-model="form.tags" />
@@ -312,7 +352,7 @@
 import { computed, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { buildEntityContext, toPlainText } from "@/ai/utils";
-import { IconDelete, IconEdit, IconHide, IconReveal } from '@/lib/icons';
+import { IconDelete, IconDungeon, IconEdit, IconHide, IconLocation, IconReveal } from '@/lib/icons';
 import { usePuzzle, useCreatePuzzle, useUpdatePuzzle, useDeletePuzzle } from "@/composables/usePuzzles";
 import { useCampaignStore } from "@/stores/campaign";
 import { PUZZLE_TYPES, PUZZLE_DIFFICULTIES } from "@/types/puzzle.types";
@@ -328,6 +368,10 @@ import PuzzleIdentityCard from "@/components/puzzles/PuzzleIdentityCard.vue";
 import PuzzleSharePanel from "@/components/puzzles/PuzzleSharePanel.vue";
 import PuzzleHintsEditor from "@/components/puzzles/PuzzleHintsEditor.vue";
 import PuzzleSkillChecksEditor from "@/components/puzzles/PuzzleSkillChecksEditor.vue";
+import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import { useLocationTree } from "@/composables/useLocations";
+import { useDungeonFeatures } from "@/composables/useDungeonFeatures";
+import type { Location } from "@/types/location.types";
 
 const route    = useRoute();
 const router   = useRouter();
@@ -358,7 +402,24 @@ const form = reactive({
   image_focal_point:   null as { x: number; y: number } | null,
   tags:                [] as string[],
   notes:               null as string | null,
+  location_id:         null as string | null,
+  dungeon_feature_id:  null as string | null,
 });
+
+type LocationOption = Location & { depth: number };
+const { locationOptions } = useLocationTree();
+const { data: dungeonFeatures } = useDungeonFeatures();
+
+const anchorLocation = computed(() =>
+  puzzle.value?.location_id
+    ? (locationOptions.value.find((l) => l.id === puzzle.value!.location_id) ?? null)
+    : null,
+);
+const anchorFeature = computed(() =>
+  puzzle.value?.dungeon_feature_id
+    ? (dungeonFeatures.value?.find((f) => f.id === puzzle.value!.dungeon_feature_id) ?? null)
+    : null,
+);
 
 const aiContext = computed(() =>
   buildEntityContext([
@@ -383,6 +444,8 @@ watch(puzzle, (p) => {
   form.image_focal_point   = p.image_focal_point;
   form.tags                = [...p.tags];
   form.notes               = p.notes;
+  form.location_id         = p.location_id;
+  form.dungeon_feature_id  = p.dungeon_feature_id;
 }, { immediate: true });
 
 // ── Share state (view mode, autosaved) ──────────────────────────────────────
@@ -504,6 +567,8 @@ async function save() {
       image_focal_point:   form.image_focal_point,
       tags:                form.tags,
       notes:               form.notes || null,
+      location_id:         form.location_id,
+      dungeon_feature_id:  form.dungeon_feature_id,
     };
     if (isNew.value) {
       await createMutation.mutateAsync({ ...payload, campaign_id: null, is_shared: false, shared_hints: [], read_aloud: null });

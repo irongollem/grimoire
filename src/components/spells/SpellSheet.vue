@@ -171,6 +171,24 @@
             </span>
           </div>
         </div>
+
+        <!-- Cast by NPCs — reverse lookup on stat_block spellcasting -->
+        <div v-if="npcCasters?.length" class="flex flex-col gap-2">
+          <h3 class="font-cinzel text-xs font-bold tracking-wider text-muted-foreground uppercase">
+            Cast By
+          </h3>
+          <div class="flex flex-wrap gap-1.5">
+            <RouterLink
+              v-for="c in npcCasters"
+              :key="c.npc_id"
+              :to="`/npcs/${c.npc_id}`"
+              class="inline-flex items-center gap-1 font-cinzel text-[10px] px-2 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
+            >
+              <IconUser class="h-2.5 w-2.5 shrink-0" />
+              {{ c.name }}
+            </RouterLink>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -178,16 +196,18 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { IconParty } from '@/lib/icons';
+import { IconParty, IconUser } from '@/lib/icons';
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import { useSpellKnowers } from "@/composables/useCharacterSpells";
+import { useNpcSpellCasters } from "@/composables/useNpcs";
 import { SCHOOL_COLORS, ATTACK_TYPES, spellSourceLabel } from "@/types/spell.types";
 import type { Spell } from "@/types/spell.types";
 
 const props = defineProps<{ spell: Spell }>();
 
 const { data: knowers } = useSpellKnowers(computed(() => props.spell.id));
+const { data: npcCasters } = useNpcSpellCasters(computed(() => props.spell.id));
 
 const LEVEL_SUFFIXES = ["", "st", "nd", "rd"];
 const levelSuffix = computed(() =>

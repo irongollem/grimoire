@@ -197,7 +197,7 @@ The Spellbook is the DM's master spell compendium, holding both imported SRD spe
 - **Right column** — class list (multi-select checkboxes for all spellcasting classes)
 - **Spell Level Advisor modal** — wizard that appears for new spells. Asks school, effect type, intensity/damage dice, target count, and save type; outputs a suggested spell level and pre-fills mechanical fields.
 
-**View mode** (`SpellSheet`) — a clean stat-block style layout with all spell stats in a compact summary line (level, school, ritual, concentration), then the rich text description and higher-level text.
+**View mode** (`SpellSheet`) — a clean stat-block style layout with all spell stats in a compact summary line (level, school, ritual, concentration), then the rich text description and higher-level text. Below the source line it renders two reverse-lookup sections (#168): **Known By** — party members with the spell in `character_spells` (prepared marker included, via `useSpellKnowers`) — and **Cast By** — NPC pills linking to `/npcs/:id` for every active-campaign NPC whose `stat_block.spellcasting.entries[].spell_ids` contains the spell (via `useNpcSpellCasters`, a JSONB containment query in `useNpcs.ts`).
 
 **DM-only edit guard** — edit controls are hidden when `!auth.isDM || ui.dmPreviewMode`.
 

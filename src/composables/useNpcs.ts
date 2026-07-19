@@ -61,6 +61,37 @@ export function useNpcs() {
   });
 }
 
+export interface NpcSpellCaster {
+  npc_id: string;
+  name: string;
+}
+
+/**
+ * NPCs in the active campaign whose stat-block spellcasting includes the given
+ * spell. Spell IDs live inside the `stat_block` JSONB
+ * (`spellcasting.entries[].spell_ids`), so this uses a JSONB containment
+ * filter rather than a join table.
+ */
+export function useNpcSpellCasters(spellId: string | Ref<string>) {
+  const idRef = isRef(spellId) ? spellId : ref(spellId);
+  const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY, "spell-casters", campaignId.value, idRef.value]),
+    queryFn: async (): Promise<NpcSpellCaster[]> => {
+      const { data, error } = await supabase
+        .from("npcs")
+        .select("id, name")
+        .eq("campaign_id", campaignId.value!)
+        .contains("stat_block", { spellcasting: { entries: [{ spell_ids: [idRef.value] }] } })
+        .order("name", { ascending: true });
+      if (error) throw error;
+      return (data ?? []).map((r) => ({ npc_id: r.id, name: r.name }));
+    },
+    enabled: () => !!campaignId.value && !!idRef.value,
+  });
+}
+
 export function useNpcsByLocation(locationId: string | Ref<string>) {
   const idRef = isRef(locationId) ? locationId : ref(locationId);
   return useQuery({

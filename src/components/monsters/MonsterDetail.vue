@@ -188,6 +188,19 @@
                 placeholder="Forest, underground…"
               />
             </label>
+            <label class="block">
+              <span class="field-label">Lair Location</span>
+              <EntityCombobox
+                :model-value="form.lair_location_id ?? ''"
+                :options="locationOptions"
+                placeholder="— none —"
+                @update:model-value="form.lair_location_id = $event || null"
+              >
+                <template #option="{ opt }">
+                  <span :style="{ paddingLeft: `${(opt as LocationOption).depth * 12}px` }">{{ opt.name }}</span>
+                </template>
+              </EntityCombobox>
+            </label>
           </section>
 
           <!-- Divider -->
@@ -244,6 +257,9 @@ import { useCampaignStore } from "@/stores/campaign";
 import type { MonsterAiGenerated } from "@/ai/types";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import TagInput from "@/components/common/TagInput.vue";
+import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import { useLocationTree } from "@/composables/useLocations";
+import type { Location } from "@/types/location.types";
 import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
 import EntityEditorActionBar from "@/components/common/EntityEditorActionBar.vue";
 import StatBlockEditor from "@/components/common/StatBlockEditor.vue";
@@ -333,12 +349,16 @@ function onCancel() {
 
 const { mutateAsync: upsertSrdArt } = useUpsertSrdMonsterArt();
 
+type LocationOption = Location & { depth: number };
+const { locationOptions } = useLocationTree();
+
 const form = reactive({
   name: props.monster?.name ?? "",
   monster_type: (props.monster?.monster_type ?? "humanoid") as MonsterType,
   size: (props.monster?.size ?? "medium") as MonsterSize,
   alignment: props.monster?.alignment ?? "unaligned",
   habitat: props.monster?.habitat ?? "",
+  lair_location_id: (props.monster?.lair_location_id ?? null) as string | null,
   source: props.monster?.source ?? "",
   tags: props.monster?.tags ? [...props.monster.tags] : [],
   description: props.monster?.description ?? "",
@@ -483,6 +503,7 @@ function buildPayload() {
     size: form.size,
     alignment: form.alignment,
     habitat: form.habitat || null,
+    lair_location_id: form.lair_location_id,
     source: form.source || null,
     tags: form.tags,
     description: form.description || null,
