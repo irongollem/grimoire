@@ -55,6 +55,8 @@ const admin = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
+const MAX_INSTRUCTIONS_LENGTH = 2_000;
+
 type JsonFn = (body: unknown, status?: number) => Response;
 
 // ── Source entity allowlist (mirrors ALLOWED_IMAGE_TARGETS's spirit: only
@@ -199,10 +201,13 @@ async function handleStylize(
   const sourceId = typeof body.source_id === "string" ? body.source_id : null;
   const format = body.format as "print" | "vtt";
   const miniId = typeof body.mini_id === "string" ? body.mini_id : null;
-  const instructions = typeof body.instructions === "string" ? body.instructions : undefined;
+  const instructions = typeof body.instructions === "string" ? body.instructions.trim() : undefined;
 
   if (!campaignId || !sourceId || !SOURCE_TABLES.includes(sourceTable) || (format !== "print" && format !== "vtt")) {
     return json({ error: "invalid_body" }, 400);
+  }
+  if (instructions && instructions.length > MAX_INSTRUCTIONS_LENGTH) {
+    return json({ error: "instructions_too_long" }, 400);
   }
 
   // image_generation_jobs.campaign_id is NOT NULL + FK'd to campaigns, so the

@@ -77,8 +77,8 @@ verify_jwt = false
 # Simulacrum Meshy job poller — invoked by pg_cron via pg_net (see the
 # `poll-meshy-jobs` cron job in
 # supabase/migrations/20260718000001_simulacrum_foundations.sql), which has no
-# user JWT to forward. The function validates a shared `token` query param
-# against the SIMULACRUM_POLLER_TOKEN secret instead (see poll-meshy-jobs/index.ts).
+# user JWT to forward. The function validates a shared Authorization bearer
+# token against SIMULACRUM_POLLER_TOKEN (see poll-meshy-jobs/index.ts).
 [functions.poll-meshy-jobs]
 verify_jwt = false
 

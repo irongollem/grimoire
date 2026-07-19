@@ -4,9 +4,9 @@
  * trailing window and records the new one. Returns true when the request is
  * allowed (and recorded), false when the limit is hit.
  *
- * Fail-OPEN on infrastructure error: rate limiting is defense-in-depth, so a DB
- * hiccup must not block a paying user's legitimate generation. The error is
- * logged for visibility.
+ * Fail closed on infrastructure error. These gates protect paid vendor calls
+ * and an issue-writing token; temporarily rejecting a request is safer than
+ * silently removing the only burst bound when the database is unhealthy.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -32,8 +32,8 @@ export async function checkRateLimit(
     p_window_seconds: windowSeconds,
   });
   if (error) {
-    console.error(`check_rate_limit(${action}) failed — allowing request:`, error);
-    return true; // fail-open
+    console.error(`check_rate_limit(${action}) failed — rejecting request:`, error);
+    return false;
   }
   return data === true;
 }

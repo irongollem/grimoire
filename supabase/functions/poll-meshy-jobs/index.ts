@@ -4,8 +4,8 @@
  * longer than an edge isolate reliably lives. Invoked every minute by
  * pg_cron via pg_net (see the `poll-meshy-jobs` cron job in
  * supabase/migrations/20260718000001_simulacrum_foundations.sql) — there is
- * no user JWT on that call, so auth is a shared secret token instead of
- * getUser().
+ * no user JWT on that call, so auth is a shared bearer token instead of
+ * getUser(). The token is sent in a header, never in the URL/access logs.
  *
  * Assets are deleted from Meshy after 3 days (non-Enterprise) — downloading
  * every requested format into our own `mini-models` bucket immediately on
@@ -26,6 +26,16 @@ const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
+
+function timingSafeEqual(a: string, b: string): boolean {
+  const enc = new TextEncoder();
+  const ab = enc.encode(a);
+  const bb = enc.encode(b);
+  if (ab.length !== bb.length) return false;
+  let diff = 0;
+  for (let i = 0; i < ab.length; i++) diff |= ab[i] ^ bb[i];
+  return diff === 0;
+}
 
 interface MiniRow {
   id: string;
@@ -235,12 +245,16 @@ async function processMini(mini: MiniRow, meshyKey: string): Promise<void> {
 }
 
 serve(async (req: Request) => {
-  const url = new URL(req.url);
-  const token = url.searchParams.get("token");
+  if (req.method !== "POST") return new Response("Method Not Allowed", { status: 405 });
+
+  const authHeader = req.headers.get("Authorization") ?? "";
+  const token = authHeader.replace(/^Bearer\s+/i, "");
   const expected = Deno.env.get("SIMULACRUM_POLLER_TOKEN");
   // MESHY_MOCK=1 bypasses the token check for local testing — there's no
   // pg_cron calling this in a dev DB, so the caller is always trusted (you).
-  const mockMode = Deno.env.get("MESHY_MOCK") === "1";
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+  const isLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/i.test(supabaseUrl);
+  const mockMode = isLocal && Deno.env.get("MESHY_MOCK") === "1";
 
   if (!mockMode) {
     // The token is provisioned together with the Vault `simulacrum_poller_url`
@@ -248,7 +262,7 @@ serve(async (req: Request) => {
     // function 503s, so it's safe to have deployed years before the Meshy
     // subscription exists.
     if (!expected) return new Response("Poller not configured", { status: 503 });
-    if (token !== expected) return new Response("Unauthorized", { status: 401 });
+    if (!timingSafeEqual(token, expected)) return new Response("Unauthorized", { status: 401 });
   }
 
   const { data: minis } = await admin

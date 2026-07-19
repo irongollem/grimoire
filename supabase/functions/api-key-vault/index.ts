@@ -18,6 +18,7 @@ if (vaultKey.length !== 32) {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const MAX_VALUE_LENGTH = 16_384;
 
 // Campaign columns that hold an encrypted BYOK key.
 const CAMPAIGN_KEY_COLUMNS = [
@@ -94,6 +95,12 @@ serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: cors });
   }
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ error: "Method not allowed" }), {
+      status: 405,
+      headers: { ...cors, "Content-Type": "application/json", "Allow": "POST, OPTIONS" },
+    });
+  }
 
   // Require an authenticated caller — this endpoint holds the master vault key.
   const authHeader = req.headers.get("Authorization");
@@ -119,7 +126,7 @@ serve(async (req: Request) => {
     const body = await req.json();
     const { action, value } = body;
 
-    if (!action || !value || typeof value !== "string") {
+    if (!action || !value || typeof value !== "string" || value.length > MAX_VALUE_LENGTH) {
       return new Response(JSON.stringify({ error: "Missing or invalid action/value" }), {
         status: 400,
         headers: { ...cors, "Content-Type": "application/json" },

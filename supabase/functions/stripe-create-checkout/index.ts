@@ -31,6 +31,12 @@ serve(async (req: Request) => {
   // Origin-allowlisted CORS (shared helper) + this endpoint's method set.
   const cors = { ...corsHeaders(req), "Access-Control-Allow-Methods": "POST, OPTIONS" };
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ error: "Method not allowed" }), {
+      status: 405,
+      headers: { ...cors, "Content-Type": "application/json", "Allow": "POST, OPTIONS" },
+    });
+  }
 
   const json = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), {

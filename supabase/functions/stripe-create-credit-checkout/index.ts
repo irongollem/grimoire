@@ -100,7 +100,11 @@ serve(async (req: Request) => {
 
   const { promo_codes_enabled: promoCodesEnabled } = await getCheckoutConfig();
 
-  const origin = req.headers.get("origin") ?? Deno.env.get("SITE_URL") ?? "https://app.dungeongrimoire.com";
+  // Return URLs are server configuration, never caller-controlled Origin.
+  // CORS only controls browser response visibility; it does not make an Origin
+  // header trustworthy, and reflecting it here created an open post-checkout
+  // redirect/phishing surface for authenticated callers.
+  const appUrl = Deno.env.get("APP_URL") ?? "https://app.dungeongrimoire.com";
 
   // Collapse accidental double-submits (double-click, impatient re-click, client
   // retry) onto one Checkout Session: same key within a 30s bucket returns the
@@ -127,7 +131,7 @@ serve(async (req: Request) => {
       consent_collection: { terms_of_service: "required" },
       custom_text: {
         terms_of_service_acceptance: {
-          message: `I agree to the [Terms of Service](${origin}/terms) and [Refund Policy](${origin}/refunds).`,
+          message: `I agree to the [Terms of Service](${appUrl}/terms) and [Refund Policy](${appUrl}/refunds).`,
         },
       },
       line_items: [{ price: pack.stripe_price_id, quantity: 1 }],
@@ -136,8 +140,8 @@ serve(async (req: Request) => {
         credits: String(pack.credits),
         pack_id: packId,
       },
-      success_url: `${origin}/billing?credit_purchase=success`,
-      cancel_url: `${origin}/billing`,
+      success_url: `${appUrl}/billing?credit_purchase=success`,
+      cancel_url: `${appUrl}/billing`,
     }, { idempotencyKey });
 
     // R3: record the withdrawal consent (server timestamp = authoritative).
