@@ -218,7 +218,7 @@ import { ref, computed } from "vue";
 import { IconChevronRight, IconCircle, IconClose, IconFire, IconPopulate, IconWand } from '@/lib/icons';
 import {
   useCharacterSpellsWithDetails,
-  useRemoveCharacterSpell,
+  useRemoveCharacterSpellById,
   useTogglePrepared,
 } from "@/composables/useCharacterSpells";
 import { useUpdatePartyMember, useParty, useSpendSpellSlot } from "@/composables/useParty";
@@ -278,7 +278,7 @@ const { data: rawEntries, isLoading } = useCharacterSpellsWithDetails(
 const allEntries = computed(() =>
   (rawEntries.value ?? []).filter((e) => !e.source_type || e.source_type === "class"),
 );
-const { mutate: removeSpell, isPending: isRemoving } = useRemoveCharacterSpell();
+const { mutate: removeSpell, isPending: isRemoving } = useRemoveCharacterSpellById();
 const { mutate: togglePreparedMutation, isPending: isToggling } = useTogglePrepared();
 const { mutateAsync: updateMember } = useUpdatePartyMember();
 const { mutateAsync: spendSpellSlot } = useSpendSpellSlot();
@@ -577,7 +577,7 @@ const removeTitle = computed(() => {
 
 function handleRemove(entry: CharacterSpellEntry) {
   if (!props.partyMemberId) return;
-  removeSpell({ partyMemberId: props.partyMemberId, spellId: entry.spell.id });
+  removeSpell({ partyMemberId: props.partyMemberId, id: entry.id });
 }
 
 function togglePrepare(entry: CharacterSpellEntry) {

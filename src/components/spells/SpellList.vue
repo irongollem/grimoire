@@ -154,7 +154,11 @@
               :class="isRemoving ? 'text-muted-foreground' : 'text-emerald-400 hover:text-red-400'"
               :disabled="isRemoving"
               :title="props.casterType === 'prepared' ? 'Unprepare' : 'Remove from spellbook'"
-              @click.prevent.stop="removeSpell({ partyMemberId: props.playerMemberId!, spellId: spell.id })"
+              @click.prevent.stop="removeSpell({
+                partyMemberId: props.playerMemberId!,
+                spellId: spell.id,
+                sourceClassId: props.sourceClassId,
+              })"
             >
               <IconCheck v-if="!isRemoving" class="max-md:h-4 max-md:w-4 h-3 w-3" />
               <IconClose v-else class="max-md:h-4 max-md:w-4 h-3 w-3" />

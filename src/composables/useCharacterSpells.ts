@@ -138,15 +138,21 @@ export function useRemoveCharacterSpell() {
     mutationFn: async ({
       partyMemberId,
       spellId,
+      sourceClassId,
     }: {
       partyMemberId: string;
       spellId: string;
+      sourceClassId?: string | null;
     }) => {
-      const { error } = await supabase
+      let query = supabase
         .from("character_spells")
         .delete()
         .eq("party_member_id", partyMemberId)
         .eq("spell_id", spellId);
+      query = sourceClassId
+        ? query.eq("source_class_id", sourceClassId)
+        : query.is("source_class_id", null);
+      const { error } = await query;
       if (error) throw error;
     },
     onSuccess: (_, { partyMemberId }) => {

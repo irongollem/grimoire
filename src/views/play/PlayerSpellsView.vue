@@ -133,8 +133,8 @@
         :source-filter="'all'"
         :player-member-id="resolvedMemberId ?? undefined"
         :caster-type="browseCasterType"
-        :known-spell-ids="knownSpellIds"
-        :prepared-spell-ids="preparedSpellIds"
+        :known-spell-ids="browseKnownSpellIds"
+        :prepared-spell-ids="browsePreparedSpellIds"
         :source-class-id="browseSourceClassId"
         @spell-click="selectedSpell = $event"
       />
@@ -286,8 +286,17 @@ const { data: characterSpellsDetails } = useCharacterSpellsWithDetails(resolvedM
 const classSpells  = computed(() => (characterSpells.value ?? []).filter(cs => !cs.source_type || cs.source_type === "class"));
 const innateSpells = computed(() => (characterSpellsDetails.value ?? []).filter(cs => cs.source_type && cs.source_type !== "class"));
 
-const knownSpellIds    = computed(() => classSpells.value.map((cs) => cs.spell_id));
 const preparedSpellIds = computed(() => classSpells.value.filter((cs) => cs.is_prepared).map((cs) => cs.spell_id));
+const browseClassSpells = computed(() => classSpells.value.filter((spell) => {
+  if (browseSourceClassId.value) return spell.source_class_id === browseSourceClassId.value;
+  // Legacy class spells predate source_class_id; associate them with the
+  // character's original class until the player explicitly re-sources them.
+  return !spell.source_class_id && ui.playerSpellsClassFilter === memberClass.value;
+}));
+const browseKnownSpellIds = computed(() => browseClassSpells.value.map((spell) => spell.spell_id));
+const browsePreparedSpellIds = computed(() =>
+  browseClassSpells.value.filter((spell) => spell.is_prepared).map((spell) => spell.spell_id),
+);
 // Cantrips and spells are separate pools — spells_known table never includes cantrips
 const knownCount    = computed(() => (characterSpellsDetails.value ?? []).filter(cs => (!cs.source_type || cs.source_type === "class") && cs.spell?.level > 0).length);
 const cantripCount  = computed(() => (characterSpellsDetails.value ?? []).filter(cs => (!cs.source_type || cs.source_type === "class") && cs.spell?.level === 0).length);
