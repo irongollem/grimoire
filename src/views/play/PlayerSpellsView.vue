@@ -213,7 +213,11 @@ const browseSourceClassId = computed(() =>
     (entry) => entry.class_name === ui.playerSpellsClassFilter,
   )?.id ?? null,
 );
-const browseCasterType = computed(() => getCasterType(ui.playerSpellsClassFilter));
+const browseClassName = computed(() => ui.playerSpellsClassFilter);
+const browseClassData = useClassByName(browseClassName);
+const browseCasterType = computed(() =>
+  browseClassData.value?.caster_type ?? getCasterType(browseClassName.value),
+);
 
 // Total character level — sum of all class levels (multiclass), falls back to member.level
 const memberLevel = computed(() => {
