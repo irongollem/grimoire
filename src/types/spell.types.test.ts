@@ -38,4 +38,14 @@ describe("edition-aware spell-slot progression", () => {
       { level: 2, max: 2, used: 0, pool: "spellcasting", recovery: "long" },
     ]);
   });
+
+  it("gives revised Paladins and Rangers spellcasting at level 1", () => {
+    expect(getDefaultSpellSlots("Paladin", 1, "2014")).toEqual([]);
+    expect(getDefaultSpellSlots("Paladin", 1, "2024")).toEqual([
+      { level: 1, max: 2, used: 0, pool: "spellcasting", recovery: "long" },
+    ]);
+    expect(getDefaultSpellSlots("Ranger", 1, "2024")).toEqual([
+      { level: 1, max: 2, used: 0, pool: "spellcasting", recovery: "long" },
+    ]);
+  });
 });

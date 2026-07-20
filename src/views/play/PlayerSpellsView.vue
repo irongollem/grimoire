@@ -164,6 +164,7 @@ import { useCharacterClasses } from "@/composables/useCharacterClasses";
 import { useClassByName } from "@/composables/useCustomClasses";
 import { computeSpellcastingPerClass } from "@/types/multiclass.types";
 import { useRuleset } from "@/composables/useRuleset";
+import { getSpellPreparationPolicy, policyValueAtLevel } from "@/lib/spellPreparationPolicy";
 import { reconcileSpellSlotUsage } from "@/lib/spellSlots";
 
 const addInnateOpen = ref(false);
@@ -193,13 +194,20 @@ const memberClass = computed(() => {
   return partyMembers.value.find((m) => m.id === id)?.class ?? "";
 });
 
+const { data: characterClasses } = useCharacterClasses(resolvedMemberId);
 const classData   = useClassByName(memberClass);
 const member      = computed(() => partyMembers.value?.find((m) => m.id === resolvedMemberId.value) ?? null);
-const casterType  = computed(() => classData.value?.caster_type ?? getCasterType(memberClass.value));
-const maxPrepared = computed(() => computeMaxPrepared(member.value, classData.value, memberClass.value));
+const memberClassEntry = computed(() =>
+  (characterClasses.value ?? []).find((entry) => entry.class_name === memberClass.value),
+);
+const memberPolicy = computed(() => getSpellPreparationPolicy(memberClass.value, ruleset.value));
+const casterType  = computed(() => memberPolicy.value?.casterType ?? classData.value?.caster_type ?? getCasterType(memberClass.value));
+const maxPrepared = computed(() => {
+  const policy = memberPolicy.value;
+  if (policy) return policyValueAtLevel(policy.prepared, memberClassEntry.value?.levels ?? member.value?.level ?? 1);
+  return computeMaxPrepared(member.value, classData.value, memberClass.value);
+});
 const memberName  = computed(() => member.value?.name ?? "");
-
-const { data: characterClasses } = useCharacterClasses(resolvedMemberId);
 
 /** Only classes this character actually has may be browsed as class spells. */
 const availableSpellClasses = computed(() => {
@@ -215,8 +223,9 @@ const browseSourceClassId = computed(() =>
 );
 const browseClassName = computed(() => ui.playerSpellsClassFilter);
 const browseClassData = useClassByName(browseClassName);
+const browsePolicy = computed(() => getSpellPreparationPolicy(browseClassName.value, ruleset.value));
 const browseCasterType = computed(() =>
-  browseClassData.value?.caster_type ?? getCasterType(browseClassName.value),
+  browsePolicy.value?.casterType ?? browseClassData.value?.caster_type ?? getCasterType(browseClassName.value),
 );
 
 // Total character level — sum of all class levels (multiclass), falls back to member.level
@@ -243,7 +252,7 @@ const effectiveSpellSlots = computed(() => {
   }
   if (m.spell_slots?.length) return m.spell_slots;
   if (list.length > 0) return getMulticlassSpellSlots(list, ruleset.value);
-  return getDefaultSpellSlots(m.class, m.level);
+  return getDefaultSpellSlots(m.class, m.level, ruleset.value);
 });
 
 // Spell attack bonus and save DC
@@ -312,6 +321,9 @@ const maxKnown      = computed(() => {
 const maxCantrips   = computed(() => {
   const m = member.value;
   if (!m) return null;
+  if (memberPolicy.value) {
+    return policyValueAtLevel(memberPolicy.value.cantrips, memberClassEntry.value?.levels ?? m.level);
+  }
   const table = classData.value?.cantrips_known;
   if (!table) return null;
   return table[Math.min(m.level, 20) - 1] ?? null;

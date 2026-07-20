@@ -428,6 +428,7 @@ function slotsFromRow(row: number[]): import("@/types/party.types").SpellSlotEnt
 export function getDefaultSpellSlots(
   cls: string | null | undefined,
   level: number,
+  ruleset: RulesetKey = "2014",
 ): import("@/types/party.types").SpellSlotEntry[] {
   const l = Math.max(1, Math.min(20, Math.round(level)));
   const idx = l - 1;
@@ -440,6 +441,7 @@ export function getDefaultSpellSlots(
       return slotsFromRow(FULL_CASTER_SLOTS[idx]);
     case "Paladin":
     case "Ranger":
+      if (ruleset === "2024" && idx === 0) return slotsFromRow([2,0,0,0,0]);
       return slotsFromRow(HALF_CASTER_SLOTS[idx]);
     case "Artificer":
       return slotsFromRow(ARTIFICER_SLOTS[idx]);
@@ -557,7 +559,7 @@ export function getMulticlassSpellSlots(
 ): import("@/types/party.types").SpellSlotEntry[] {
   if (classes.length === 0) return [];
   if (classes.length === 1) {
-    return getDefaultSpellSlots(classes[0].class_name, classes[0].levels);
+    return getDefaultSpellSlots(classes[0].class_name, classes[0].levels, ruleset);
   }
 
   const out: import("@/types/party.types").SpellSlotEntry[] = [];

@@ -3,6 +3,7 @@ import type { ComputedRef, Ref } from "vue";
 import { getMulticlassSpellSlots } from "@/types/spell.types";
 import type { SpellSlotEntry } from "@/types/party.types";
 import type { RulesetKey } from "@/types/ruleset.types";
+import { getSpellPreparationPolicy } from "@/lib/spellPreparationPolicy";
 
 interface ClassDataRef {
   spell_slots?: number[][] | null;
@@ -32,6 +33,12 @@ export function useLevelUpSpellSlots(opts: {
   } = opts;
 
   const prevLevelInChosenClass = computed(() => Math.max(0, levelInChosenClass.value - 1));
+  const chosenClassName = computed(() =>
+    chosenExistingEntry.value?.class_name ?? newClassName.value,
+  );
+  const revisedPolicy = computed(() =>
+    getSpellPreparationPolicy(chosenClassName.value, ruleset.value),
+  );
 
   function dbSlots(level: number): SpellSlotEntry[] {
     const cls = customClass.value ?? systemClass.value;
@@ -94,7 +101,10 @@ export function useLevelUpSpellSlots(opts: {
   });
 
   const spellsKnownGain = computed(() => {
-    const table = customClass.value?.spells_known ?? systemClass.value?.spells_known;
+    const policyTable = revisedPolicy.value?.casterType === "prepared"
+      ? revisedPolicy.value.prepared
+      : null;
+    const table = policyTable ?? customClass.value?.spells_known ?? systemClass.value?.spells_known;
     if (!table) return 0;
     const cur  = table[levelInChosenClass.value - 1] ?? 0;
     const prev = table[prevLevelInChosenClass.value - 1] ?? 0;
@@ -102,12 +112,17 @@ export function useLevelUpSpellSlots(opts: {
   });
 
   const spellsKnownTotal = computed(() => {
-    const table = customClass.value?.spells_known ?? systemClass.value?.spells_known;
+    const policyTable = revisedPolicy.value?.casterType === "prepared"
+      ? revisedPolicy.value.prepared
+      : null;
+    const table = policyTable ?? customClass.value?.spells_known ?? systemClass.value?.spells_known;
     return table?.[levelInChosenClass.value - 1] ?? 0;
   });
 
   const cantripsKnownGain = computed(() => {
-    const table = customClass.value?.cantrips_known ?? systemClass.value?.cantrips_known;
+    const table = revisedPolicy.value?.cantrips
+      ?? customClass.value?.cantrips_known
+      ?? systemClass.value?.cantrips_known;
     if (!table) return 0;
     const cur  = table[levelInChosenClass.value - 1] ?? 0;
     const prev = table[prevLevelInChosenClass.value - 1] ?? 0;
@@ -115,7 +130,9 @@ export function useLevelUpSpellSlots(opts: {
   });
 
   const cantripsKnownTotal = computed(() => {
-    const table = customClass.value?.cantrips_known ?? systemClass.value?.cantrips_known;
+    const table = revisedPolicy.value?.cantrips
+      ?? customClass.value?.cantrips_known
+      ?? systemClass.value?.cantrips_known;
     return table?.[levelInChosenClass.value - 1] ?? 0;
   });
 
