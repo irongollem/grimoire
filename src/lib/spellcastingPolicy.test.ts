@@ -1,46 +1,39 @@
 import { describe, expect, it } from "vitest";
-import { canAutoRollSpellEffect, canCastAsRitual } from "./spellcastingPolicy";
+import { canAutoRollSpellEffect, canCastAsRitual, defaultRitualStyle } from "./spellcastingPolicy";
 
 const base = {
-  className: "Cleric",
+  ritualStyle: "prepared",
   hasRitualTag: true,
   isReadyToCast: true,
   isInSpellbook: false,
 } as const;
 
 describe("ritual casting policy", () => {
-  it("allows a 2014 ritual caster to cast a ready ritual without a slot", () => {
-    expect(canCastAsRitual({ ...base, ruleset: "2014" })).toBe(true);
+  it("never allows a ritual cast without the Ritual tag", () => {
+    expect(canCastAsRitual({ ...base, ritualStyle: "known", hasRitualTag: false })).toBe(false);
   });
 
-  it("does not grant 2014 ritual casting to classes without that feature", () => {
-    expect(canCastAsRitual({ ...base, ruleset: "2014", className: "Sorcerer" })).toBe(false);
+  it("allows a prepared-style caster to cast a ready ritual without a slot", () => {
+    expect(canCastAsRitual({ ...base })).toBe(true);
+    expect(canCastAsRitual({ ...base, isReadyToCast: false })).toBe(false);
   });
 
-  it("allows a Wizard ritual from the spellbook without preparation", () => {
-    expect(canCastAsRitual({
-      ...base,
-      ruleset: "2014",
-      className: "Wizard",
-      isReadyToCast: false,
-      isInSpellbook: true,
-    })).toBe(true);
-    expect(canCastAsRitual({
-      ...base,
-      ruleset: "2024",
-      className: "Wizard",
-      isReadyToCast: false,
-      isInSpellbook: true,
-    })).toBe(true);
+  it("denies classes without a ritual style", () => {
+    expect(canCastAsRitual({ ...base, ritualStyle: "none" })).toBe(false);
   });
 
-  it("allows a 2014 Bard to ritual-cast a known spell", () => {
-    expect(canCastAsRitual({ ...base, ruleset: "2014", className: "Bard", isReadyToCast: true })).toBe(true);
+  it("allows a known-style caster (2014 Bard) to ritual-cast any acquired spell", () => {
+    expect(canCastAsRitual({ ...base, ritualStyle: "known", isReadyToCast: false })).toBe(true);
   });
 
-  it("uses the 2024 prepared-spell ritual rule for other classes", () => {
-    expect(canCastAsRitual({ ...base, ruleset: "2024", className: "Sorcerer" })).toBe(true);
-    expect(canCastAsRitual({ ...base, ruleset: "2024", isReadyToCast: false })).toBe(false);
+  it("allows Wizard rituals from the spellbook without preparation", () => {
+    expect(canCastAsRitual({ ...base, ritualStyle: "spellbook", isReadyToCast: false, isInSpellbook: true })).toBe(true);
+    expect(canCastAsRitual({ ...base, ritualStyle: "spellbook_or_prepared", isReadyToCast: false, isInSpellbook: true })).toBe(true);
+  });
+
+  it("falls back to the edition default for unlisted classes", () => {
+    expect(defaultRitualStyle("2014")).toBe("none");
+    expect(defaultRitualStyle("2024")).toBe("prepared");
   });
 });
 

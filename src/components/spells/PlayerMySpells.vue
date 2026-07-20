@@ -148,18 +148,14 @@
               title="Roll damage after resolving the spell attack or target saving throw"
               @click.stop="entry.spell.effects?.length ? openEffectResolution(entry, lastCastLevel(entry)) : rollSpellDamage(entry, lastCastLevel(entry), transmutedDamageType[entry.id])"
             >{{ entry.spell.effects?.length ? "Resolve" : "Damage" }}</button>
+            <!-- Post-roll Metamagic (Empowered/Seeking) — set and costs come from the metamagic_options table -->
             <button
-              v-if="isCastable(entry) && entry.spell.damage_rolls?.length && entry.spell.mechanics_reviewed !== false && hasKnownMetamagic('Empowered Spell')"
+              v-for="option in eligiblePostRollMetamagic(entry)"
+              :key="option.name"
               class="shrink-0 font-cinzel text-[10px] rounded border border-violet-500/30 bg-violet-500/10 text-violet-500 px-1.5 py-0.5 transition-colors hover:bg-violet-500/20"
-              title="After rolling damage, spend 1 SP to reroll eligible damage dice"
-              @click.stop="applyReactiveMetamagic(entry, 'Empowered Spell')"
-            >Empower</button>
-            <button
-              v-if="isCastable(entry) && (entry.spell.attack_type === 'ranged_spell' || entry.spell.attack_type === 'melee_spell') && hasKnownMetamagic('Seeking Spell')"
-              class="shrink-0 font-cinzel text-[10px] rounded border border-violet-500/30 bg-violet-500/10 text-violet-500 px-1.5 py-0.5 transition-colors hover:bg-violet-500/20"
-              title="After missing a spell attack, spend SP and reroll the attack"
-              @click.stop="applyReactiveMetamagic(entry, 'Seeking Spell')"
-            >Seek</button>
+              :title="`After the roll, spend ${option.sp_cost} SP — ${option.description}`"
+              @click.stop="applyReactiveMetamagic(entry, option.name)"
+            >{{ option.name.replace(" Spell", "") }}</button>
             <button
               v-if="isCastable(entry) && entry.spell.healing_dice && entry.spell.mechanics_reviewed !== false"
               class="shrink-0 font-cinzel text-[10px] rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-500 px-1.5 py-0.5 transition-colors hover:bg-emerald-500/20"
@@ -325,7 +321,9 @@ import { availableSlotsForSpell, canCastWithSlot, spellSlotKey, slotPool, type S
 import { useToast } from "@/composables/useToast";
 import { useRuleset } from "@/composables/useRuleset";
 import { canAutoRollSpellEffect, canCastAsRitual } from "@/lib/spellcastingPolicy";
-import { getMetamagicMap, type MetamagicOption } from "@/data/metamagic";
+import { useRitualStyles } from "@/composables/useRitualPolicies";
+import { useMetamagicOptions } from "@/composables/useMetamagic";
+import type { MetamagicOption } from "@/lib/metamagic";
 import { getSpellPreparationPolicy } from "@/lib/spellPreparationPolicy";
 import { grantAttackBonus, grantSaveDc } from "@/lib/spellGrantStats";
 import { useSpellReplacement } from "@/composables/useSpellReplacement";
@@ -473,18 +471,26 @@ const canCombineMetamagic = computed(() =>
   metamagicLimit(ruleset.value, props.sorcererLevel ?? 0, innateActive.value) === 2,
 );
 
+const { optionsByName: metamagicByName } = useMetamagicOptions();
+
 function knownMetamagic(): MetamagicOption[] {
   const raw = thisMember.value?.class_choices?.metamagic_options;
   const names = Array.isArray(raw) ? raw.map(String) : raw ? [String(raw)] : [];
-  const options = getMetamagicMap(ruleset.value);
-  return names.map((name) => options.get(name)).filter((option): option is MetamagicOption => !!option);
+  return names.map((name) => metamagicByName.value.get(name)).filter((option): option is MetamagicOption => !!option);
 }
 
-function hasKnownMetamagic(name: string): boolean {
-  return knownMetamagic().some((option) => option.name === name);
+/** Post-roll options (Empowered/Seeking) the character knows and the spell qualifies for. */
+function eligiblePostRollMetamagic(entry: CharacterSpellEntry): MetamagicOption[] {
+  if (!isCastable(entry)) return [];
+  return knownMetamagic().filter((option) =>
+    option.post_roll
+      && isMetamagicEligible(option, entry.spell, ruleset.value)
+      // Damage rerolls need trustworthy imported damage mechanics.
+      && (option.name !== "Empowered Spell" || entry.spell.mechanics_reviewed !== false),
+  );
 }
 
-async function applyReactiveMetamagic(entry: CharacterSpellEntry, name: "Empowered Spell" | "Seeking Spell") {
+async function applyReactiveMetamagic(entry: CharacterSpellEntry, name: string) {
   if (!props.partyMemberId || isCasting.value) return;
   const parentCastId = lastCastIds.value[entry.id];
   if (!parentCastId) {
@@ -514,8 +520,7 @@ async function applyReactiveMetamagic(entry: CharacterSpellEntry, name: "Empower
 
 function eligibleMetamagic(entry: CharacterSpellEntry): MetamagicOption[] {
   return knownMetamagic().filter((option) =>
-    option.name !== "Empowered Spell" && option.name !== "Seeking Spell"
-      && isMetamagicEligible(option, entry.spell, ruleset.value),
+    !option.post_roll && isMetamagicEligible(option, entry.spell, ruleset.value),
   );
 }
 
@@ -555,15 +560,15 @@ function isCastable(entry: CharacterSpellEntry): boolean {
   return entry.is_prepared || entry.spell.level === 0;
 }
 
+const { ritualStyleFor } = useRitualStyles();
+
 function isRitualCastable(entry: CharacterSpellEntry): boolean {
   const sourceClass = statsFor(entry)?.className ?? props.memberClass;
   return canCastAsRitual({
-    ruleset: ruleset.value,
-    className: sourceClass,
+    ritualStyle: ritualStyleFor(sourceClass, statsFor(entry)?.definitionKind !== "custom"),
     hasRitualTag: entry.spell.ritual,
     isReadyToCast: isCastable(entry),
     isInSpellbook: props.viewMode === "spellbook",
-    isOfficialClass: statsFor(entry)?.definitionKind !== "custom",
   });
 }
 
