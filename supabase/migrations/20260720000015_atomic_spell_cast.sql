@@ -26,7 +26,7 @@ begin
   if not found then raise exception 'Party member not found'; end if;
   if not (
     v_member.user_id = (select auth.uid()) or v_member.owner_user_id = (select auth.uid())
-    or public.is_campaign_dm(v_member.campaign_id)
+    or private.is_campaign_dm(v_member.campaign_id)
     or exists (select 1 from public.campaign_members cm
       where cm.user_id = (select auth.uid()) and cm.party_member_id = v_member.id)
   ) then raise exception 'Access denied'; end if;

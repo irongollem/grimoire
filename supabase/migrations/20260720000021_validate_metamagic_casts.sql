@@ -10,7 +10,7 @@ create or replace function public.cast_character_spell_v3(
 declare
   v_member public.party_members%rowtype;
   v_grant public.character_spells%rowtype;
-  v_spell public.spells%rowtype;
+  v_spell record;
   v_ruleset text;
   v_name text;
   v_turn_key text;
@@ -24,7 +24,7 @@ begin
   select * into v_member from public.party_members where id = p_party_member_id for update;
   if not found then raise exception 'Party member not found'; end if;
   if not (v_member.user_id = (select auth.uid()) or v_member.owner_user_id = (select auth.uid())
-    or public.is_campaign_dm(v_member.campaign_id)
+    or private.is_campaign_dm(v_member.campaign_id)
     or exists (select 1 from public.campaign_members cm where cm.user_id = (select auth.uid()) and cm.party_member_id = v_member.id))
   then raise exception 'Access denied'; end if;
   if jsonb_typeof(coalesce(p_metamagic_choices, '{}'::jsonb)) <> 'object' then raise exception 'Invalid Metamagic choices'; end if;
@@ -34,7 +34,15 @@ begin
     select * into v_grant from public.character_spells
       where id = p_character_spell_id and party_member_id = p_party_member_id for update;
     if not found then raise exception 'Character spell not found'; end if;
-    select * into v_spell from public.spells where id = v_grant.spell_id;
+    select * into v_spell from (
+      select id::text as id, attack_type, range, duration, casting_time, damage_rolls,
+        higher_levels, target_description, level
+      from public.spells where id::text = v_grant.spell_id
+      union all
+      select id, attack_type, range, duration, casting_time, damage_rolls,
+        higher_levels, target_description, level
+      from public.srd_spells where id = v_grant.spell_id
+    ) resolved_spell limit 1;
     if not found then raise exception 'Spell content version not found'; end if;
   elsif coalesce(array_length(p_metamagic_names, 1), 0) > 0 then
     raise exception 'Metamagic requires an exact character spell';
@@ -56,7 +64,7 @@ begin
           where lower(roll ->> 'type') in ('acid','cold','fire','lightning','poison','thunder')) into v_original_type;
         if not v_original_type then raise exception 'Transmuted Spell requires eligible elemental damage'; end if;
         v_damage_type := lower(p_metamagic_choices ->> 'transmuted_damage_type');
-        if v_damage_type not in ('acid','cold','fire','lightning','poison','thunder') then raise exception 'Choose a valid Transmuted Spell damage type'; end if;
+        if coalesce(v_damage_type, '') not in ('acid','cold','fire','lightning','poison','thunder') then raise exception 'Choose a valid Transmuted Spell damage type'; end if;
         if exists(select 1 from jsonb_array_elements(coalesce(v_spell.damage_rolls, '[]'::jsonb)) roll where lower(roll ->> 'type') = v_damage_type) then
           raise exception 'Transmuted Spell must change the damage type';
         end if;

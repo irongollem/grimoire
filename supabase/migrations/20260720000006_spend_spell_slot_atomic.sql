@@ -43,7 +43,7 @@ begin
   if not (
     v_member.user_id = (select auth.uid())
     or v_member.owner_user_id = (select auth.uid())
-    or public.is_campaign_dm(v_member.campaign_id)
+    or private.is_campaign_dm(v_member.campaign_id)
     or exists (
       select 1
       from public.campaign_members cm
