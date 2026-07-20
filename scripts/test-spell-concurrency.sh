@@ -45,8 +45,8 @@ values
   ('$spell_test_innate_spell', '$spell_test_user', '$spell_test_campaign', 'Concurrent Spark', 1, 'Action', '60 ft.', 'Instantaneous', 'Damage.', array[]::text[], 'automatic', '[{"dice":"1d6","type":"force"}]'::jsonb, '1 creature');
 insert into public.character_spells (id, party_member_id, spell_id, source_type, source_class_id, is_prepared)
 values ('$spell_test_grant', '$spell_test_member', '$spell_test_spell', 'class', '$spell_test_class', true);
-insert into public.character_spells (id, party_member_id, spell_id, source_type, uses_per_day, uses_remaining, resets_on)
-values ('$spell_test_innate_grant', '$spell_test_member', '$spell_test_innate_spell', 'feat', 1, 1, 'long_rest');
+insert into public.character_spells (id, party_member_id, spell_id, source_type, source_label, uses_per_day, uses_remaining, resets_on)
+values ('$spell_test_innate_grant', '$spell_test_member', '$spell_test_innate_spell', 'feat', 'Concurrency feat', 1, 1, 'long_rest');
 SQL
 
 race() {
@@ -72,21 +72,46 @@ race() {
   fi
 }
 
-race slot "select public.cast_character_spell_v3('$spell_test_member',1,'spellcasting','[{\"level\":1,\"max\":1,\"used\":0,\"pool\":\"spellcasting\",\"recovery\":\"long\"}]'::jsonb,null,'{}'::text[],'$spell_test_grant','{}'::jsonb);"
+race_all_succeed() {
+  local race_name="$1"
+  local race_sql="$2"
+  set +e
+  psql "$spell_test_db" -v ON_ERROR_STOP=1 -q -c "select set_config('request.jwt.claim.sub','$spell_test_user',false); $race_sql" >"$spell_test_tmp/$race_name-1.log" 2>&1 &
+  local first_pid=$!
+  psql "$spell_test_db" -v ON_ERROR_STOP=1 -q -c "select set_config('request.jwt.claim.sub','$spell_test_user',false); $race_sql" >"$spell_test_tmp/$race_name-2.log" 2>&1 &
+  local second_pid=$!
+  wait "$first_pid"; local first_status=$?
+  wait "$second_pid"; local second_status=$?
+  set -e
+  if [[ "$first_status" -ne 0 || "$second_status" -ne 0 ]]; then
+    echo "$race_name: expected both idempotent transactions to succeed" >&2
+    sed -n '1,120p' "$spell_test_tmp/$race_name-1.log" >&2
+    sed -n '1,120p' "$spell_test_tmp/$race_name-2.log" >&2
+    exit 1
+  fi
+}
+
+race slot "select public.cast_character_spell_v4('$spell_test_member',1,'spellcasting','[{\"level\":1,\"max\":1,\"used\":0,\"pool\":\"spellcasting\",\"recovery\":\"long\"}]'::jsonb,null,'{}'::text[],'$spell_test_grant','{}'::jsonb);"
 slot_used="$(psql "$spell_test_db" -Atq -c "select spell_slots #>> '{0,used}' from public.party_members where id='$spell_test_member'")"
 [[ "$slot_used" == "1" ]] || { echo "slot race spent $slot_used slots" >&2; exit 1; }
 
-race innate "select public.cast_character_spell_v3('$spell_test_member',0,'feature','[]'::jsonb,null,'{}'::text[],'$spell_test_innate_grant','{}'::jsonb);"
+race innate "select public.cast_character_spell_v4('$spell_test_member',0,'feature','[]'::jsonb,null,'{}'::text[],'$spell_test_innate_grant','{}'::jsonb);"
 uses_left="$(psql "$spell_test_db" -Atq -c "select uses_remaining from public.character_spells where id='$spell_test_innate_grant'")"
 [[ "$uses_left" == "0" ]] || { echo "innate race left $uses_left uses" >&2; exit 1; }
 
-race sorcery_points "select public.cast_character_spell_v3('$spell_test_member',0,'spellcasting','[]'::jsonb,null,array['Empowered Spell'],'$spell_test_grant','{}'::jsonb);"
+parent_cast_id="$(psql "$spell_test_db" -Atq -c "select id from public.spell_cast_records where character_spell_id='$spell_test_grant' order by created_at desc limit 1")"
+race sorcery_points "select public.cast_character_spell_v4('$spell_test_member',0,'spellcasting','[]'::jsonb,null,array['Empowered Spell'],'$spell_test_grant','{}'::jsonb,'$parent_cast_id');"
 points_left="$(psql "$spell_test_db" -Atq -c "select class_resources #>> '{sorcery_points,current}' from public.party_members where id='$spell_test_member'")"
 [[ "$points_left" == "0" ]] || { echo "SP race left $points_left points" >&2; exit 1; }
+
+psql "$spell_test_db" -q -c "update public.party_members set spell_slots='[{\"level\":1,\"max\":1,\"used\":1,\"pool\":\"spellcasting\",\"recovery\":\"long\"},{\"level\":2,\"max\":1,\"used\":1,\"pool\":\"pact\",\"recovery\":\"short\"}]'::jsonb where id='$spell_test_member';"
+race_all_succeed rests "select public.take_spellcasting_rest('$spell_test_member','short');"
+rest_state="$(psql "$spell_test_db" -Atq -c "select (spell_slots #>> '{0,used}') || ':' || (spell_slots #>> '{1,used}') from public.party_members where id='$spell_test_member'")"
+[[ "$rest_state" == "1:0" ]] || { echo "rest race restored incorrect pools: $rest_state" >&2; exit 1; }
 
 psql "$spell_test_db" -q -c "update public.party_members set class_resources=jsonb_set(class_resources,'{sorcery_points,current}','0'::jsonb,false), class_choices=jsonb_set(class_choices,'{sorcerous_restoration_available}','true'::jsonb,true) where id='$spell_test_member';"
 race restoration "select public.restore_sorcery_points('$spell_test_member');"
 restored_points="$(psql "$spell_test_db" -Atq -c "select class_resources #>> '{sorcery_points,current}' from public.party_members where id='$spell_test_member'")"
 [[ "$restored_points" == "3" ]] || { echo "Restoration race produced $restored_points points" >&2; exit 1; }
 
-echo "Spell transaction concurrency checks passed (slots, uses, Sorcery Points, Restoration)."
+echo "Spell transaction concurrency checks passed (slots, uses, Sorcery Points, rests, Restoration)."
