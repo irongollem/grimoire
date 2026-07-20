@@ -103,6 +103,7 @@ async function cast(entry: CharacterSpellEntry) {
       pool: slotPool(slot),
       slotTemplate: props.member.spell_slots ?? [],
       concentrationState,
+      characterSpellId: entry.id,
     });
     await sendFlavorMessage(`casts ${entry.spell.name}${slot.level > entry.spell.level ? ` at level ${slot.level}` : ""}`, "spell");
     if (concentrationState) await sendFlavorMessage(`begins concentrating on ${entry.spell.name}`, entry.spell.name);

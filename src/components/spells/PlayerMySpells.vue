@@ -146,7 +146,7 @@
               v-if="isCastable(entry) && entry.spell.damage_rolls?.length && entry.spell.mechanics_reviewed !== false"
               class="shrink-0 font-cinzel text-[10px] rounded border border-red-500/30 bg-red-500/10 text-red-500 px-1.5 py-0.5 transition-colors hover:bg-red-500/20"
               title="Roll damage after resolving the spell attack or target saving throw"
-              @click.stop="entry.spell.effects?.length ? openEffectResolution(entry, lastCastLevel(entry)) : rollSpellDamage(entry, lastCastLevel(entry))"
+              @click.stop="entry.spell.effects?.length ? openEffectResolution(entry, lastCastLevel(entry)) : rollSpellDamage(entry, lastCastLevel(entry), transmutedDamageType[entry.id])"
             >{{ entry.spell.effects?.length ? "Resolve" : "Damage" }}</button>
             <button
               v-if="isCastable(entry) && entry.spell.damage_rolls?.length && entry.spell.mechanics_reviewed !== false && hasKnownMetamagic('Empowered Spell')"
@@ -180,6 +180,18 @@
               <option v-for="option in eligibleMetamagic(entry)" :key="option.name" :value="option.name">
                 {{ option.name }} ({{ option.sp_cost }} SP)
               </option>
+            </select>
+
+            <select
+              v-if="selectedMetamagicNames(entry).includes('Transmuted Spell')"
+              v-model="transmutedDamageType[entry.id]"
+              class="max-w-24 shrink-0 rounded border border-violet-500/30 bg-violet-500/10 px-1.5 py-0.5 font-cinzel text-[10px] text-violet-500"
+              title="Choose the new damage type"
+              aria-label="Transmuted damage type"
+              @click.stop
+            >
+              <option value="">New type…</option>
+              <option v-for="type in transmutedChoices(entry)" :key="type" :value="type">{{ type }}</option>
             </select>
 
             <select
@@ -277,6 +289,8 @@
     :cast-level="pendingResolution?.castLevel ?? 0"
     :character-level="props.memberLevel ?? 1"
     :spellcasting-modifier="pendingResolution?.modifier ?? 0"
+    :damage-type-override="pendingResolution?.damageType ?? null"
+    :metamagic-names="pendingResolution?.metamagicNames ?? []"
     @close="pendingResolution = null"
   />
 </template>
@@ -315,6 +329,7 @@ import { getMetamagicMap, type MetamagicOption } from "@/data/metamagic";
 import { getSpellPreparationPolicy } from "@/lib/spellPreparationPolicy";
 import { useSpellReplacement } from "@/composables/useSpellReplacement";
 import { isInnateSorceryActive, metamagicLimit } from "@/lib/sorcererFeatures";
+import { isMetamagicEligible, TRANSMUTABLE_DAMAGE_TYPES } from "@/lib/metamagicPolicy";
 
 const SLOT_LEVEL_LABELS = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"] as const;
 
@@ -373,7 +388,7 @@ const { candidate: replacementCandidate, choose: chooseReplacement, clear: clear
 
 // ── Modal ──────────────────────────────────────────────────────────────────────
 const selectedSpell = ref<Spell | null>(null);
-const pendingResolution = ref<{ spell: Spell; castLevel: number; modifier: number } | null>(null);
+const pendingResolution = ref<{ spell: Spell; castLevel: number; modifier: number; metamagicNames: string[]; damageType: string | null } | null>(null);
 
 // ── Slot helpers ───────────────────────────────────────────────────────────────
 function slotsForLevel(level: number): SpellSlotEntry[] {
@@ -444,6 +459,7 @@ const isCasting = ref(false);
 const lastCastLevels = ref<Record<string, number>>({});
 const selectedMetamagic = ref<Record<string, string>>({});
 const selectedSecondMetamagic = ref<Record<string, string>>({});
+const transmutedDamageType = ref<Record<string, string>>({});
 const innateClock = ref(Date.now());
 let innateTimer: ReturnType<typeof setInterval> | undefined;
 onMounted(() => { innateTimer = setInterval(() => { innateClock.value = Date.now(); }, 1_000); });
@@ -474,6 +490,7 @@ async function applyReactiveMetamagic(entry: CharacterSpellEntry, name: "Empower
       pool: "spellcasting",
       slotTemplate: props.spellSlots,
       metamagicName: name,
+      characterSpellId: entry.id,
     });
     await sendFlavorMessage(`uses ${name} on ${entry.spell.name}`, "spell");
     if (name === "Seeking Spell") await rollSpellAttack(entry);
@@ -486,27 +503,10 @@ async function applyReactiveMetamagic(entry: CharacterSpellEntry, name: "Empower
 }
 
 function eligibleMetamagic(entry: CharacterSpellEntry): MetamagicOption[] {
-  const spell = entry.spell;
-  return knownMetamagic().filter((option) => {
-    switch (option.name) {
-      case "Careful Spell":
-      case "Heightened Spell": return spell.attack_type === "save";
-      case "Distant Spell": return spell.range === "Touch" || /ft\.|feet|mile/i.test(spell.range);
-      case "Extended Spell": return spell.duration !== "Instantaneous";
-      case "Quickened Spell": return spell.casting_time === "Action";
-      case "Transmuted Spell": return (spell.damage_rolls ?? []).some((roll) =>
-        ["acid", "cold", "fire", "lightning", "poison", "thunder"].includes(roll.type),
-      );
-      case "Twinned Spell":
-        return ruleset.value === "2024"
-          ? /additional (?:creature|target)/i.test(spell.higher_levels ?? "")
-          : !/^Self$/i.test(spell.range) && /^1\b/.test(spell.target_description ?? "");
-      // Empowered and Seeking are chosen after seeing damage/attack results.
-      case "Empowered Spell":
-      case "Seeking Spell": return false;
-      default: return true;
-    }
-  });
+  return knownMetamagic().filter((option) =>
+    option.name !== "Empowered Spell" && option.name !== "Seeking Spell"
+      && isMetamagicEligible(option, entry.spell, ruleset.value),
+  );
 }
 
 function eligibleSecondaryMetamagic(entry: CharacterSpellEntry): MetamagicOption[] {
@@ -514,16 +514,27 @@ function eligibleSecondaryMetamagic(entry: CharacterSpellEntry): MetamagicOption
   return eligibleMetamagic(entry).filter((option) => option.name !== first);
 }
 
+function selectedMetamagicNames(entry: CharacterSpellEntry): string[] {
+  return [selectedMetamagic.value[entry.id], selectedSecondMetamagic.value[entry.id]].filter((name): name is string => !!name);
+}
+
+function transmutedChoices(entry: CharacterSpellEntry): readonly string[] {
+  const original = new Set((entry.spell.damage_rolls ?? []).map((roll) => roll.type.toLowerCase()));
+  return TRANSMUTABLE_DAMAGE_TYPES.filter((type) => !original.has(type));
+}
+
 function lastCastLevel(entry: CharacterSpellEntry): number {
   return lastCastLevels.value[entry.id] ?? entry.spell.level;
 }
 
-function openEffectResolution(entry: CharacterSpellEntry, castLevel: number) {
+function openEffectResolution(entry: CharacterSpellEntry, castLevel: number, metamagicNames = selectedMetamagicNames(entry)) {
   const stats = statsFor(entry);
   pendingResolution.value = {
     spell: entry.spell,
     castLevel,
     modifier: (stats?.attack ?? props.spellAttackBonus ?? 0) - (thisMember.value?.proficiency_bonus ?? 0),
+    metamagicNames,
+    damageType: metamagicNames.includes("Transmuted Spell") ? (transmutedDamageType.value[entry.id] || null) : null,
   };
 }
 
@@ -602,7 +613,7 @@ function confirmCast(slot: SpellSlotEntry) {
   void castSpell(entry, slot.level, { pool: slotPool(slot) });
 }
 
-async function rollSpellDamage(entry: CharacterSpellEntry, castLevel: number) {
+async function rollSpellDamage(entry: CharacterSpellEntry, castLevel: number, damageTypeOverride?: string | null) {
   const spell = entry.spell;
   const extraLevels = Math.max(0, castLevel - spell.level);
   const cantripMult = spell.level === 0 ? cantripDiceMultiplier(props.memberLevel ?? 1) : 1;
@@ -616,7 +627,8 @@ async function rollSpellDamage(entry: CharacterSpellEntry, castLevel: number) {
       toast.error(`Cannot roll unsupported damage expression: ${diceSrc}`);
       continue;
     }
-    const typeLabel = dmg.type ? ` ${dmg.type}` : "";
+    const resolvedType = damageTypeOverride || dmg.type;
+    const typeLabel = resolvedType ? ` ${resolvedType}` : "";
     let label = `${spell.name} — ${diceSrc}${typeLabel} damage`;
     if (spell.attack_type === "save" && spell.save_effect === "half") {
       label += ` (half on ${spell.save_attribute ?? "save"})`;
@@ -668,6 +680,11 @@ async function castSpell(
       ? [options.metamagicName]
       : [metamagicName, canCombineMetamagic.value ? selectedSecondMetamagic.value[entry.id] : null]
         .filter((name): name is string => !!name);
+    const transmutedType = metamagicNames.includes("Transmuted Spell") ? transmutedDamageType.value[entry.id] : null;
+    if (metamagicNames.includes("Transmuted Spell") && !transmutedType) {
+      toast.error("Choose the new damage type for Transmuted Spell.");
+      return;
+    }
     const extraLevels = isRitual ? 0 : castLevel - spell.level;
     lastCastLevels.value = { ...lastCastLevels.value, [entry.id]: castLevel };
 
@@ -685,6 +702,8 @@ async function castSpell(
       slotTemplate: props.spellSlots,
       concentrationState,
       metamagicNames,
+      metamagicChoices: transmutedType ? { transmuted_damage_type: transmutedType } : {},
+      characterSpellId: entry.id,
     });
 
     // Flavor text
@@ -706,19 +725,20 @@ async function castSpell(
     }
 
     if (spell.mechanics_reviewed !== false && spell.effects?.length) {
-      openEffectResolution(entry, castLevel);
+      openEffectResolution(entry, castLevel, metamagicNames);
     } else if (spell.mechanics_reviewed === false) {
       toast.info("Imported mechanics are unreviewed; resolve this spell manually from its rules text.");
     }
 
     if (!spell.effects?.length && spell.damage_rolls?.length && canAutoRollSpellEffect(spell.attack_type, "damage", spell.mechanics_reviewed !== false)) {
-      await rollSpellDamage(entry, castLevel);
+      await rollSpellDamage(entry, castLevel, transmutedType);
     }
     if (!spell.effects?.length && spell.healing_dice && canAutoRollSpellEffect(spell.attack_type, "healing", spell.mechanics_reviewed !== false)) {
       await rollSpellHealing(entry, castLevel);
     }
     selectedMetamagic.value = { ...selectedMetamagic.value, [entry.id]: "" };
     selectedSecondMetamagic.value = { ...selectedSecondMetamagic.value, [entry.id]: "" };
+    transmutedDamageType.value = { ...transmutedDamageType.value, [entry.id]: "" };
 
   } catch (error) {
     toast.error(toast.fromError(error));

@@ -44,6 +44,9 @@
             <div class="rounded border border-border bg-muted/20 p-3 font-fell text-sm text-muted-foreground">
               {{ phaseSummary }}
             </div>
+            <ul v-if="reminders.length" class="list-disc space-y-1 pl-5 font-fell text-sm text-violet-400">
+              <li v-for="reminder in reminders" :key="reminder">{{ reminder }}</li>
+            </ul>
 
             <button type="button" class="w-full rounded bg-primary px-4 py-2 font-cinzel text-sm font-semibold text-primary-foreground disabled:opacity-40" :disabled="resolving" @click="resolveSelectedPhase">
               {{ resolving ? "Resolving…" : `Resolve ${phaseLabel(selectedPhase)}` }}
@@ -63,6 +66,8 @@ import { parseExpression } from "@/lib/dice";
 import { rollParsed } from "@/lib/roller";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { useToast } from "@/composables/useToast";
+import { metamagicReminders, metamagicTargetBonus } from "@/lib/metamagicPolicy";
+import { useRuleset } from "@/composables/useRuleset";
 
 const props = withDefaults(defineProps<{
   spell: Spell | null;
@@ -70,10 +75,12 @@ const props = withDefaults(defineProps<{
   characterLevel: number;
   spellcastingModifier?: number;
   damageTypeOverride?: string | null;
-}>(), { spellcastingModifier: 0, damageTypeOverride: null });
+  metamagicNames?: string[];
+}>(), { spellcastingModifier: 0, damageTypeOverride: null, metamagicNames: () => [] });
 const emit = defineEmits<{ close: [] }>();
 const { sendRoll, sendFlavorMessage } = useCampaignMessages();
 const toast = useToast();
+const { ruleset } = useRuleset();
 const targetCount = ref(1);
 const targets = ref<Array<{ id: number; name: string; outcome: SpellOutcome }>>([]);
 const selectedPhase = ref<StructuredSpellEffect["phase"]>("impact");
@@ -86,6 +93,7 @@ const castEffects = computed(() => effectsForCast(
   props.characterLevel,
 ));
 const phases = computed(() => [...new Set(castEffects.value.map((effect) => effect.phase))]);
+const reminders = computed(() => metamagicReminders(props.metamagicNames, ruleset.value));
 const outcomeOptions = computed<Array<{ value: SpellOutcome; label: string }>>(() => {
   if (props.spell?.attack_type === "ranged_spell" || props.spell?.attack_type === "melee_spell") return [
     { value: "hit", label: "Hit" }, { value: "critical_hit", label: "Critical hit" }, { value: "miss", label: "Miss" },
@@ -98,7 +106,7 @@ const outcomeOptions = computed<Array<{ value: SpellOutcome; label: string }>>((
 
 watch(() => props.spell, (spell) => {
   if (!spell) return;
-  targetCount.value = Math.min(20, Math.max(1, ...castEffects.value.map((effect) => effect.target.count ?? 1)));
+  targetCount.value = Math.min(20, Math.max(1, ...castEffects.value.map((effect) => effect.target.count ?? 1)) + metamagicTargetBonus(props.metamagicNames));
   selectedPhase.value = phases.value.includes("impact") ? "impact" : (phases.value[0] ?? "impact");
 }, { immediate: true });
 watch([targetCount, outcomeOptions], () => {
