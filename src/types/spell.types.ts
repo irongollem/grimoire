@@ -151,6 +151,22 @@ export interface HigherLevelDamage {
   type: string | null;
 }
 
+export type SpellOutcome = "automatic" | "hit" | "miss" | "failed_save" | "successful_save";
+
+export interface StructuredSpellEffect {
+  id: string;
+  phase: "cast" | "impact" | "turn_start" | "turn_end" | "repeat";
+  outcome: SpellOutcome;
+  target: { type: string | null; count: number | null };
+  kind: "damage" | "healing" | "condition" | "text";
+  dice: string | null;
+  multiplier: number;
+  damageType: string | null;
+  condition: string | null;
+  description: string | null;
+  scaling: { mode: "slot" | "character_level"; interval?: number; dice: string } | null;
+}
+
 export interface Spell {
   id: string;
   user_id: string;
@@ -199,6 +215,8 @@ export interface Spell {
   source_license?: string | null;
   provenance?: Record<string, unknown>;
   casting_options?: Array<Record<string, unknown>> | null;
+  effect_schema_version?: number;
+  effects?: StructuredSpellEffect[] | null;
   /** Structured mechanics stay advisory until this flag is explicitly reviewed. */
   mechanics_reviewed?: boolean;
   image_url: string | null; // optional art for card printing

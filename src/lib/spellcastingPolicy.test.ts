@@ -49,4 +49,9 @@ describe("spell effect automation", () => {
     expect(canAutoRollSpellEffect("automatic", "healing")).toBe(true);
     expect(canAutoRollSpellEffect("save", "healing")).toBe(false);
   });
+
+  it("never auto-resolves unreviewed imported mechanics", () => {
+    expect(canAutoRollSpellEffect("automatic", "damage", false)).toBe(false);
+    expect(canAutoRollSpellEffect(null, "healing", false)).toBe(false);
+  });
 });

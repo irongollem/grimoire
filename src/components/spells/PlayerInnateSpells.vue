@@ -306,10 +306,10 @@ async function castSpell(entry: CharacterSpellEntry) {
     await sendFlavorMessage(text, "spell");
     if (concentrationState) await sendFlavorMessage(`begins concentrating on ${spell.name}`, spell.name);
 
-    if (spell.damage_rolls?.length && canAutoRollSpellEffect(spell.attack_type, "damage")) {
+    if (spell.damage_rolls?.length && canAutoRollSpellEffect(spell.attack_type, "damage", spell.mechanics_reviewed !== false)) {
       await rollInnateDamage(entry);
     }
-    if (spell.healing_dice && canAutoRollSpellEffect(spell.attack_type, "healing")) {
+    if (spell.healing_dice && canAutoRollSpellEffect(spell.attack_type, "healing", spell.mechanics_reviewed !== false)) {
       await rollInnateHealing(entry);
     }
 

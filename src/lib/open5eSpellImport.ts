@@ -2,6 +2,7 @@ import type { SpellInsert, SpellSchool, HigherLevelDamage } from "@/types/spell.
 import { SPELL_SCHOOLS, SPELL_CLASSES } from "@/types/spell.types";
 import { ARTIFICER_SPELL_DELTA } from "@/data/artificerSpellDelta";
 import { fetchAll } from "@/lib/open5eApi";
+import { buildStructuredSpellEffects } from "@/lib/spellEffects";
 
 type SupportedRuleset = "2014" | "2024";
 
@@ -80,6 +81,7 @@ export interface ImportedSrdSpell extends SpellInsert {
   provenance: Record<string, unknown>;
   casting_options: Open5eCastingOption[];
   mechanics_reviewed: boolean;
+  effect_schema_version: number;
 }
 
 function rulesetForDocument(document: Open5eDocumentRef): SupportedRuleset | null {
@@ -251,6 +253,8 @@ export function mapOpen5eV2Spell(
       permalink: spell.document.permalink ?? null,
     },
     casting_options: spell.casting_options ?? [],
+    effect_schema_version: 1,
+    effects: buildStructuredSpellEffects(spell),
     mechanics_reviewed: false,
     name: spell.name,
     level: spell.level,

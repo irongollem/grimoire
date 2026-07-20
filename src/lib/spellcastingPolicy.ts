@@ -26,7 +26,9 @@ export function canCastAsRitual(input: {
 export function canAutoRollSpellEffect(
   attackType: string | null,
   effect: "damage" | "healing",
+  mechanicsReviewed = true,
 ): boolean {
+  if (!mechanicsReviewed) return false;
   if (effect === "healing") return attackType !== "ranged_spell" && attackType !== "melee_spell" && attackType !== "save";
   return attackType === "automatic";
 }

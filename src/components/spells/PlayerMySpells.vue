@@ -636,10 +636,10 @@ async function castSpell(
       await sendFlavorMessage(`begins concentrating on ${spell.name}`, spell.name);
     }
 
-    if (spell.damage_rolls?.length && canAutoRollSpellEffect(spell.attack_type, "damage")) {
+    if (spell.damage_rolls?.length && canAutoRollSpellEffect(spell.attack_type, "damage", spell.mechanics_reviewed !== false)) {
       await rollSpellDamage(entry, castLevel);
     }
-    if (spell.healing_dice && canAutoRollSpellEffect(spell.attack_type, "healing")) {
+    if (spell.healing_dice && canAutoRollSpellEffect(spell.attack_type, "healing", spell.mechanics_reviewed !== false)) {
       await rollSpellHealing(entry, castLevel);
     }
     selectedMetamagic.value = { ...selectedMetamagic.value, [entry.id]: "" };

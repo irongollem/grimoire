@@ -61,6 +61,13 @@ describe("mapOpen5eV2Spell", () => {
       aoe_shape: "sphere",
       aoe_size: "5 feet",
       mechanics_reviewed: false,
+      effect_schema_version: 1,
+    });
+    expect(spell?.effects?.[0]).toMatchObject({
+      phase: "impact",
+      outcome: "failed_save",
+      kind: "damage",
+      dice: "1d6",
     });
     expect(spell?.casting_options).toEqual([
       { type: "player_level_5", damage_roll: "2d6" },
