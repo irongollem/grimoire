@@ -1,5 +1,20 @@
 <template>
   <div class="space-y-4 pb-8">
+    <div v-if="legacySpells.length" class="rounded-lg border border-amber-500/35 bg-amber-500/10 p-4 space-y-2">
+      <p class="font-cinzel text-xs font-bold tracking-wider text-amber-500">Review legacy spell sources</p>
+      <p class="font-fell text-sm text-muted-foreground">These spells predate multiclass source tracking. Assign each one before changing its preparation.</p>
+      <div v-for="entry in legacySpells" :key="entry.id" class="flex items-center gap-3">
+        <span class="font-fell text-sm flex-1">{{ entry.spell.name }}</span>
+        <select
+          class="bg-card border border-border rounded px-2 py-1 text-sm"
+          :disabled="isAssigningSource"
+          @change="assignLegacySource(entry.id, ($event.target as HTMLSelectElement).value)"
+        >
+          <option value="">Choose source class…</option>
+          <option v-for="choice in sourceChoicesFor(entry.spell)" :key="choice.id" :value="choice.id">{{ choice.class_name }}</option>
+        </select>
+      </div>
+    </div>
     <!-- Tab switcher -->
     <div class="flex rounded-md border border-border overflow-hidden w-fit text-xs font-cinzel font-semibold tracking-wider">
       <button
@@ -152,7 +167,7 @@ import { IconGenerate, IconSearch } from '@/lib/icons';
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useParty } from "@/composables/useParty";
-import { useCharacterSpells, useCharacterSpellsWithDetails } from "@/composables/useCharacterSpells";
+import { useAssignCharacterSpellSource, useCharacterSpells, useCharacterSpellsWithDetails } from "@/composables/useCharacterSpells";
 import SpellList from "@/components/spells/SpellList.vue";
 import PlayerMySpells from "@/components/spells/PlayerMySpells.vue";
 import PlayerInnateSpells from "@/components/spells/PlayerInnateSpells.vue";
@@ -290,6 +305,17 @@ const spellcastingByClass = computed(() => {
 const { data: characterSpells }        = useCharacterSpells(resolvedMemberId);
 // Details (with spell level) used for accurate known/cantrip counts
 const { data: characterSpellsDetails } = useCharacterSpellsWithDetails(resolvedMemberId);
+const { mutate: assignSpellSource, isPending: isAssigningSource } = useAssignCharacterSpellSource();
+const legacySpells = computed(() => (characterSpellsDetails.value ?? []).filter((entry) =>
+  (!entry.source_type || entry.source_type === "class") && !entry.source_class_id,
+));
+function sourceChoicesFor(spell: Spell) {
+  return (characterClasses.value ?? []).filter((entry) => spell.classes.includes(entry.class_name));
+}
+function assignLegacySource(id: string, sourceClassId: string) {
+  if (!resolvedMemberId.value || !sourceClassId) return;
+  assignSpellSource({ id, partyMemberId: resolvedMemberId.value, sourceClassId });
+}
 
 // Separate class spells (slot-based) from innate (racial/feat/item)
 const classSpells  = computed(() => (characterSpells.value ?? []).filter(cs => !cs.source_type || cs.source_type === "class"));

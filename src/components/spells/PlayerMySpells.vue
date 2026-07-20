@@ -26,6 +26,10 @@
 
     <!-- Grouped spell list -->
     <template v-else>
+      <div v-if="replacementCandidate" class="rounded-lg border border-violet-500/30 bg-violet-500/10 px-4 py-2 mb-2 font-fell text-sm">
+        Replacing <strong>{{ replacementCandidate.spell.name }}</strong>. Choose its replacement in All Spells.
+        <button class="ml-2 text-violet-400 underline" type="button" @click="clearReplacement">Cancel</button>
+      </div>
       <!-- Prepared count vs. max banner (Wizard prepared tab) -->
       <div
         v-if="showPreparedCounter"
@@ -285,6 +289,8 @@ import { useToast } from "@/composables/useToast";
 import { useRuleset } from "@/composables/useRuleset";
 import { canAutoRollSpellEffect, canCastAsRitual } from "@/lib/spellcastingPolicy";
 import { getMetamagicMap, type MetamagicOption } from "@/data/metamagic";
+import { getSpellPreparationPolicy } from "@/lib/spellPreparationPolicy";
+import { useSpellReplacement } from "@/composables/useSpellReplacement";
 
 const SLOT_LEVEL_LABELS = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"] as const;
 
@@ -337,6 +343,7 @@ const thisMember = computed(() =>
 const ui = useUiStore();
 const toast = useToast();
 const { ruleset } = useRuleset();
+const { candidate: replacementCandidate, choose: chooseReplacement, clear: clearReplacement } = useSpellReplacement();
 
 // ── Modal ──────────────────────────────────────────────────────────────────────
 const selectedSpell = ref<Spell | null>(null);
@@ -702,6 +709,16 @@ const removeTitle = computed(() => {
 
 function handleRemove(entry: CharacterSpellEntry) {
   if (!props.partyMemberId) return;
+  if (props.casterType === "spellbook" && props.viewMode === "prepared") {
+    togglePreparedMutation({ id: entry.id, partyMemberId: props.partyMemberId, isPrepared: false });
+    return;
+  }
+  const policy = getSpellPreparationPolicy(props.memberClass, ruleset.value);
+  if (policy && entry.spell.level > 0 && props.casterType !== "spellbook") {
+    chooseReplacement(entry);
+    toast.info(`Choose a new ${props.memberClass} spell in All Spells to replace ${entry.spell.name}.`);
+    return;
+  }
   removeSpell({ partyMemberId: props.partyMemberId, id: entry.id });
 }
 

@@ -32,10 +32,12 @@ import { getCasterType, getDefaultSpellSlots } from "@/types/spell.types";
 import { useClassByName } from "@/composables/useCustomClasses";
 import type { SpellSlotEntry, PartyMember, PartyMemberUpdate } from "@/types/party.types";
 import { useRuleset } from "@/composables/useRuleset";
+import { useOpenSpellChangeWindows } from "@/composables/useCharacterSpells";
 
 const props = defineProps<{ member: PartyMember }>();
 
 const { mutateAsync: updateMember } = useUpdatePartyMember();
+const { mutateAsync: openSpellWindows } = useOpenSpellChangeWindows();
 const resting = ref(false);
 const restDialog = ref<"short" | "long" | null>(null);
 
@@ -53,10 +55,14 @@ const effectiveSpellSlots = computed<SpellSlotEntry[]>(() => {
 });
 
 async function onRestConfirm(update: PartyMemberUpdate) {
+  const completedRest = restDialog.value;
   restDialog.value = null;
   resting.value = true;
   try {
     await updateMember({ id: props.member.id, update });
+    if (completedRest === "long") {
+      await openSpellWindows({ partyMemberId: props.member.id, timing: "long_rest" });
+    }
   } finally {
     resting.value = false;
   }

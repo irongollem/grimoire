@@ -1,5 +1,9 @@
 <template>
   <div>
+    <div v-if="candidate" class="rounded-lg border border-violet-500/30 bg-violet-500/10 px-4 py-2 mb-3 font-fell text-sm">
+      Choose a replacement for <strong>{{ candidate.spell.name }}</strong>.
+      <button type="button" class="ml-2 text-violet-400 underline" @click="clearReplacement">Cancel</button>
+    </div>
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
     </div>
@@ -137,13 +141,8 @@
             <button
               v-if="!isKnown(spell.id)"
               class="absolute bottom-2 right-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider text-white bg-primary/80 hover:bg-primary [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-40 cursor-pointer"
-              :disabled="isAdding"
-              @click.prevent.stop="addSpell({
-                partyMemberId: props.playerMemberId!,
-                spellId: spell.id,
-                isPrepared: props.casterType === 'prepared',
-                sourceClassId: props.sourceClassId,
-              })"
+              :disabled="isAdding || isChanging"
+              @click.prevent.stop="handleLearn(spell)"
             >
               <IconAddBook class="max-md:h-4 max-md:w-4 h-3 w-3" />
               {{ learnLabel(spell.level === 0) }}
@@ -154,11 +153,7 @@
               :class="isRemoving ? 'text-muted-foreground' : 'text-emerald-400 hover:text-red-400'"
               :disabled="isRemoving"
               :title="props.casterType === 'prepared' ? 'Unprepare' : 'Remove from spellbook'"
-              @click.prevent.stop="removeSpell({
-                partyMemberId: props.playerMemberId!,
-                spellId: spell.id,
-                sourceClassId: props.sourceClassId,
-              })"
+              @click.prevent.stop="handleKnownClick(spell)"
             >
               <IconCheck v-if="!isRemoving" class="max-md:h-4 max-md:w-4 h-3 w-3" />
               <IconClose v-else class="max-md:h-4 max-md:w-4 h-3 w-3" />
@@ -185,7 +180,7 @@ import { computed } from "vue";
 import { IconAddBook, IconCheck, IconClose, IconEdit, IconNavSpellbook } from '@/lib/icons';
 import { refDebounced } from "@vueuse/core";
 import { useAllSpells } from "@/composables/useSpells";
-import { useAddCharacterSpell, useRemoveCharacterSpell } from "@/composables/useCharacterSpells";
+import { useAddCharacterSpell, useChangePreparedSpell, useRemoveCharacterSpell } from "@/composables/useCharacterSpells";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";
 import { SCHOOL_COLORS, spellLevelLabel } from "@/types/spell.types";
@@ -193,6 +188,10 @@ import type { CasterType, Spell } from "@/types/spell.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import { isSharedContent } from "@/lib/contentIdentity";
+import { useSpellReplacement } from "@/composables/useSpellReplacement";
+import { useRuleset } from "@/composables/useRuleset";
+import { getSpellPreparationPolicy } from "@/lib/spellPreparationPolicy";
+import { useToast } from "@/composables/useToast";
 
 const props = defineProps<{
   search: string;
@@ -216,8 +215,61 @@ const emit = defineEmits<{
   (e: "spell-click", spell: Spell): void;
 }>();
 
-const { mutate: addSpell, isPending: isAdding } = useAddCharacterSpell();
+const { mutateAsync: addSpell, isPending: isAdding } = useAddCharacterSpell();
 const { mutate: removeSpell, isPending: isRemoving } = useRemoveCharacterSpell();
+const { mutateAsync: changePreparedSpell, isPending: isChanging } = useChangePreparedSpell();
+const { candidate, clear: clearReplacement } = useSpellReplacement();
+const { ruleset } = useRuleset();
+const toast = useToast();
+
+async function handleLearn(spell: Spell) {
+  if (!props.playerMemberId || !props.sourceClassId) return;
+  const policy = getSpellPreparationPolicy(props.classFilter, ruleset.value);
+  if (policy && policy.casterType !== "spellbook") {
+    if (spell.level === 0) {
+      toast.info("Revised cantrip choices are made during level up.");
+      return;
+    }
+    if (candidate.value && candidate.value.source_class_id !== props.sourceClassId) {
+      toast.error("The replacement spell must use the same source class.");
+      return;
+    }
+    if (!candidate.value && policy.changeCount !== null) {
+      toast.info("Choose the prepared spell to replace first.");
+      return;
+    }
+    try {
+      await changePreparedSpell({
+        partyMemberId: props.playerMemberId,
+        sourceClassId: props.sourceClassId,
+        newSpellId: spell.id,
+        oldCharacterSpellId: candidate.value?.id ?? null,
+      });
+      clearReplacement();
+    } catch (error) {
+      toast.error(toast.fromError(error));
+    }
+    return;
+  }
+  await addSpell({
+    partyMemberId: props.playerMemberId,
+    spellId: spell.id,
+    isPrepared: props.casterType === "prepared",
+    sourceClassId: props.sourceClassId,
+  });
+}
+
+function handleKnownClick(spell: Spell) {
+  if (!props.playerMemberId) return;
+  const policy = getSpellPreparationPolicy(props.classFilter, ruleset.value);
+  if (policy) {
+    toast.info(policy.casterType === "spellbook"
+      ? "Change prepared Wizard spells from your Prepared tab after a long rest."
+      : "Choose the spell to replace from your prepared list.");
+    return;
+  }
+  removeSpell({ partyMemberId: props.playerMemberId, spellId: spell.id, sourceClassId: props.sourceClassId });
+}
 
 const showLearnButton = computed(() => !!props.playerMemberId && props.casterType !== "none");
 

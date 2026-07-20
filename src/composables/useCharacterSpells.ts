@@ -16,6 +16,14 @@ export interface SpellKnower {
   is_prepared: boolean;
 }
 
+export interface SpellChangeWindow {
+  party_member_id: string;
+  source_class_id: string;
+  change_timing: "level_up" | "long_rest";
+  remaining_changes: number | null;
+  opened_at: string;
+}
+
 const queryKey = (partyMemberId: MaybeRef<string | null>) =>
   computed(() => ["characterSpells", toValue(partyMemberId)]);
 
@@ -127,6 +135,75 @@ export function useAddCharacterSpell() {
       qc.invalidateQueries({
         queryKey: ["characterSpellsDetails", partyMemberId],
       });
+    },
+  });
+}
+
+export function useSpellChangeWindows(partyMemberId: MaybeRef<string | null>) {
+  return useQuery({
+    queryKey: computed(() => ["spellChangeWindows", toValue(partyMemberId)]),
+    queryFn: async () => {
+      const { data, error } = await supabase.from("spell_change_windows").select("*")
+        .eq("party_member_id", toValue(partyMemberId)!);
+      if (error) throw error;
+      return data as SpellChangeWindow[];
+    },
+    enabled: computed(() => !!toValue(partyMemberId)),
+  });
+}
+
+export function useOpenSpellChangeWindows() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ partyMemberId, timing }: { partyMemberId: string; timing: "level_up" | "long_rest" }) => {
+      const { error } = await supabase.rpc("open_spell_change_windows", {
+        p_party_member_id: partyMemberId,
+        p_timing: timing,
+      });
+      if (error) throw error;
+    },
+    onSuccess: (_, { partyMemberId }) => qc.invalidateQueries({ queryKey: ["spellChangeWindows", partyMemberId] }),
+  });
+}
+
+export function useChangePreparedSpell() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      partyMemberId, sourceClassId, newSpellId, oldCharacterSpellId = null,
+    }: {
+      partyMemberId: string;
+      sourceClassId: string;
+      newSpellId: string;
+      oldCharacterSpellId?: string | null;
+    }) => {
+      const { data, error } = await supabase.rpc("change_prepared_spell", {
+        p_party_member_id: partyMemberId,
+        p_source_class_id: sourceClassId,
+        p_new_spell_id: newSpellId,
+        p_old_character_spell_id: oldCharacterSpellId,
+      });
+      if (error) throw error;
+      return data as CharacterSpell;
+    },
+    onSuccess: (_, { partyMemberId }) => {
+      qc.invalidateQueries({ queryKey: ["characterSpells", partyMemberId] });
+      qc.invalidateQueries({ queryKey: ["characterSpellsDetails", partyMemberId] });
+      qc.invalidateQueries({ queryKey: ["spellChangeWindows", partyMemberId] });
+    },
+  });
+}
+
+export function useAssignCharacterSpellSource() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, sourceClassId }: { id: string; partyMemberId: string; sourceClassId: string }) => {
+      const { error } = await supabase.from("character_spells").update({ source_class_id: sourceClassId }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_, { partyMemberId }) => {
+      qc.invalidateQueries({ queryKey: ["characterSpells", partyMemberId] });
+      qc.invalidateQueries({ queryKey: ["characterSpellsDetails", partyMemberId] });
     },
   });
 }
