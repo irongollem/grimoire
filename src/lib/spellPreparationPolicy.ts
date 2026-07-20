@@ -49,3 +49,64 @@ export function policyValueAtLevel(
   if (!values) return null;
   return values[Math.max(1, Math.min(20, Math.floor(level))) - 1] ?? null;
 }
+
+/**
+ * Whether the pinned class definition for this level-up is the official
+ * system-provided one or a campaign's custom class. Mirrors the
+ * `p_definition_kind` argument of `required_level_up_spell_choices`
+ * (migration 20260720000026) — a null/unpinned definition coalesces to
+ * "system" on the server, so that is this function's default too.
+ */
+export type SpellDefinitionKind = "system" | "custom";
+
+/**
+ * Number of non-cantrip spell choices made while entering a class level.
+ *
+ * Faithfully mirrors `required_level_up_spell_choices`: the 2024 policy
+ * tables (and the Wizard spellbook special case) are consulted ONLY for a
+ * "system" definition. A "custom" definition — even one that reuses an
+ * official class name like "Cleric" — always falls back to its own
+ * `legacySpellsKnown` progression, gated on `casterType === "known"` just
+ * like the server's `v_caster_type = 'known'` check. Without that gate, a
+ * custom class sharing an official name could silently inherit the wrong
+ * (official) progression, and the server would reject the level-up because
+ * its own count would disagree.
+ */
+export function levelUpSpellChoiceCount(
+  className: string | null | undefined,
+  ruleset: RulesetKey,
+  level: number,
+  legacySpellsKnown: readonly number[] | null | undefined,
+  definitionKind: SpellDefinitionKind = "system",
+  casterType?: CasterType | null,
+): number {
+  const nextLevel = Math.max(1, Math.min(20, Math.floor(level)));
+  const previousLevel = nextLevel - 1;
+
+  if (definitionKind === "system") {
+    // Both editions give a Wizard six book spells on taking Wizard 1 and two
+    // more on every later Wizard level. Prepared-spell limits are a separate
+    // choice and must never be mistaken for spellbook acquisition.
+    if (className === "Wizard") return previousLevel === 0 ? 6 : 2;
+
+    const revised = getSpellPreparationPolicy(className, ruleset);
+    if (revised) {
+      const progression = revised.prepared;
+      if (!progression) return 0;
+      const current = progression[nextLevel - 1] ?? 0;
+      const previous = previousLevel > 0 ? (progression[previousLevel - 1] ?? 0) : 0;
+      return Math.max(0, current - previous);
+    }
+  }
+
+  // Fallback path — a custom definition, or a system class without a
+  // policy-table row (e.g. a 2014-ruleset class). Only a "known" caster
+  // learns spells at level-up; a prepared/spellbook/none caster gets 0 here,
+  // matching the server's `v_caster_type = 'known'` gate.
+  if (casterType !== "known") return 0;
+  const progression = legacySpellsKnown;
+  if (!progression) return 0;
+  const current = progression[nextLevel - 1] ?? 0;
+  const previous = previousLevel > 0 ? (progression[previousLevel - 1] ?? 0) : 0;
+  return Math.max(0, current - previous);
+}

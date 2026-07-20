@@ -86,15 +86,18 @@ export function resolveSpellEffects(
   effects: StructuredSpellEffect[],
   phase: StructuredSpellEffect["phase"],
   outcomesByTarget: Record<string, SpellOutcome>,
+  options: { carefulPreventsDamage?: boolean } = {},
 ): Array<{ targetId: string; effect: StructuredSpellEffect }> {
   const resolved: Array<{ targetId: string; effect: StructuredSpellEffect }> = [];
   for (const [targetId, outcome] of Object.entries(outcomesByTarget)) {
+    const effectiveOutcome: SpellOutcome = outcome === "careful_save" ? "successful_save" : outcome;
     for (const effect of effects) {
       if (effect.phase !== phase) continue;
-      if (effect.outcome === outcome || (outcome === "critical_hit" && effect.outcome === "hit") || effect.outcome === "automatic") {
+      if (outcome === "careful_save" && options.carefulPreventsDamage && effect.kind === "damage") continue;
+      if (effect.outcome === effectiveOutcome || (effectiveOutcome === "critical_hit" && effect.outcome === "hit") || effect.outcome === "automatic") {
         resolved.push({
           targetId,
-          effect: outcome === "critical_hit" && effect.kind === "damage"
+          effect: effectiveOutcome === "critical_hit" && effect.kind === "damage"
             ? { ...effect, dice: effect.dice ? scaleExpression(effect.dice, 1, effect.dice) : null }
             : effect,
         });

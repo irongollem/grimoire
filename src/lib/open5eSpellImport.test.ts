@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { effectsForCast } from "./spellEffects";
 import { mapOpen5eV2Spell } from "./open5eSpellImport";
 
 const document = {
@@ -110,6 +111,27 @@ describe("mapOpen5eV2Spell", () => {
     expect(spell?.healing_dice).toBe("2d8");
     expect(spell?.damage_rolls).toBeNull();
     expect(spell?.attack_type).toBeNull();
+  });
+
+  it("applies higher-slot damage to failed and successful save branches", () => {
+    const spell = mapOpen5eV2Spell(
+      record({
+        key: "srd-2024_fireball",
+        name: "Fireball",
+        level: 3,
+        desc: "A target takes 8d6 Fire damage on a failed save, or half damage on a successful save.",
+        damage_roll: "8d6",
+        damage_types: ["fire"],
+        higher_level: "The damage increases by 1d6 for each slot level above 3.",
+        casting_options: [],
+      }) as Parameters<typeof mapOpen5eV2Spell>[0],
+    );
+
+    const castEffects = effectsForCast(spell?.effects ?? [], 3, 5, 9);
+    expect(castEffects.map((effect) => [effect.outcome, effect.dice, effect.multiplier])).toEqual([
+      ["failed_save", "10d6", 1],
+      ["successful_save", "10d6", 0.5],
+    ]);
   });
 
   it("rejects non-D&D rulesets instead of mislabelling them as 2014", () => {

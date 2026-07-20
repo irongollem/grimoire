@@ -25,6 +25,17 @@ describe("ritual casting policy", () => {
       isReadyToCast: false,
       isInSpellbook: true,
     })).toBe(true);
+    expect(canCastAsRitual({
+      ...base,
+      ruleset: "2024",
+      className: "Wizard",
+      isReadyToCast: false,
+      isInSpellbook: true,
+    })).toBe(true);
+  });
+
+  it("allows a 2014 Bard to ritual-cast a known spell", () => {
+    expect(canCastAsRitual({ ...base, ruleset: "2014", className: "Bard", isReadyToCast: true })).toBe(true);
   });
 
   it("uses the 2024 prepared-spell ritual rule for other classes", () => {

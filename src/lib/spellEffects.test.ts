@@ -68,4 +68,18 @@ describe("structured spell effect resolver", () => {
     const effects = buildStructuredSpellEffects({ ...base, saving_throw_ability: "", desc: "The target regains 1d8 plus your spellcasting ability modifier Hit Points." });
     expect(effects[0]).toMatchObject({ kind: "healing", modifier: "spellcasting_ability" });
   });
+
+  it("applies Careful Spell's edition-specific successful-save damage rule", () => {
+    const effects = buildStructuredSpellEffects({
+      ...base,
+      desc: "A target takes 8d6 fire damage, or half damage on a successful save.",
+    });
+    expect(resolveSpellEffects(effects, "impact", { target: "careful_save" })[0].effect.multiplier).toBe(0.5);
+    expect(resolveSpellEffects(
+      effects,
+      "impact",
+      { target: "careful_save" },
+      { carefulPreventsDamage: true },
+    )).toEqual([]);
+  });
 });

@@ -24,4 +24,18 @@ describe("multiclass spell source abilities", () => {
     expect(pickSpellcastingStats(stats, null)?.classId).toBe("cleric");
     expect(pickSpellcastingStats(stats, "wizard")?.classId).toBe("wizard");
   });
+
+  it("uses a pinned custom class ability instead of same-named official rules", () => {
+    const custom = {
+      ...classRow("custom-bard", "Bard", 3),
+      class_definition_id: "definition",
+      class_definition_kind: "custom" as const,
+    };
+    const stats = computeSpellcastingPerClass(
+      { str: 10, dex: 10, con: 10, int: 18, wis: 10, cha: 12, proficiency_bonus: 2 },
+      [custom],
+      () => "int",
+    );
+    expect(stats[0]).toMatchObject({ definitionKind: "custom", castingAbility: "int", attack: 6, dc: 14 });
+  });
 });

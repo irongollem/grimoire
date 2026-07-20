@@ -8,14 +8,16 @@ export function canCastAsRitual(input: {
   hasRitualTag: boolean;
   isReadyToCast: boolean;
   isInSpellbook: boolean;
+  isOfficialClass?: boolean;
 }): boolean {
   if (!input.hasRitualTag) return false;
 
   // Ritual Adept lets Wizards cast ritual-tagged spells directly from their book.
-  if (input.className === "Wizard" && input.isInSpellbook) return true;
+  const official = input.isOfficialClass !== false;
+  if (official && input.className === "Wizard" && input.isInSpellbook) return true;
 
   if (input.ruleset === "2024") return input.isReadyToCast;
-  return RITUAL_CASTERS_2014.has(input.className) && input.isReadyToCast;
+  return official && RITUAL_CASTERS_2014.has(input.className) && input.isReadyToCast;
 }
 
 /**

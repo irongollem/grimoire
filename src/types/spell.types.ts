@@ -151,7 +151,7 @@ export interface HigherLevelDamage {
   type: string | null;
 }
 
-export type SpellOutcome = "automatic" | "hit" | "critical_hit" | "miss" | "failed_save" | "successful_save";
+export type SpellOutcome = "automatic" | "hit" | "critical_hit" | "miss" | "failed_save" | "successful_save" | "careful_save";
 
 export interface StructuredSpellEffect {
   id: string;
@@ -315,6 +315,11 @@ export interface CharacterSpell {
   resets_on: InnateResetsOn | null;
   source_label: string | null;
   source_class_id?: string | null;
+  casting_ability?: "int" | "wis" | "cha" | null;
+  fixed_save_dc?: number | null;
+  fixed_attack_bonus?: number | null;
+  /** Exact spell version could not be safely remapped after a campaign edition change. */
+  ruleset_review_required?: boolean;
   created_at: string;
   updated_at: string;
 }

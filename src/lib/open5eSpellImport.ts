@@ -239,7 +239,10 @@ export function mapOpen5eV2Spell(
   const higherLevelDamage = parseHigherLevelDamage(spell.higher_level);
   const higherLevelHealing = parseHigherLevelHealing(spell.higher_level);
   const effects = buildStructuredSpellEffects(spell).map((effect) => {
-    if (effect.id !== "base") return effect;
+    // A save-for-half branch is a copy of the base effect with a different
+    // outcome/multiplier. It must scale with the same slot-level dice or a
+    // successful save would incorrectly use the spell's base-level damage.
+    if (effect.id !== "base" && effect.id !== "base-save-half") return effect;
     const dice = effect.kind === "healing" ? higherLevelHealing : higherLevelDamage?.dice_per_level;
     return dice ? { ...effect, scaling: { mode: "slot" as const, dice } } : effect;
   });

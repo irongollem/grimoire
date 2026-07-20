@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { availableSlotsForSpell, canCastWithSlot, reconcileSpellSlotUsage, restoreSpellSlots } from "./spellSlots";
+import { availableSlotsForSpell, canCastWithSlot, deriveEffectiveSpellSlots, reconcileSpellSlotUsage, spellSlotsFromProgression } from "./spellSlots";
 
 describe("spell slot eligibility", () => {
   it("allows a higher-level slot when base-level slots are exhausted", () => {
@@ -33,6 +33,12 @@ describe("spell slot eligibility", () => {
 });
 
 describe("spell slot reconciliation", () => {
+  it("derives a pinned custom short-rest progression without using its class name", () => {
+    expect(spellSlotsFromProgression([[1], [2]], 2, "short")).toEqual([
+      { level: 1, max: 2, used: 0, pool: "pact", recovery: "short" },
+    ]);
+  });
+
   it("keeps usage while applying recalculated ruleset maxima", () => {
     expect(reconcileSpellSlotUsage(
       [{ level: 1, max: 4, used: 0 }, { level: 2, max: 2, used: 0 }],
@@ -64,29 +70,54 @@ describe("spell slot reconciliation", () => {
   });
 });
 
-describe("spell slot pool recovery", () => {
-  const pools = [
-    { level: 2, max: 3, used: 2, pool: "spellcasting" as const, recovery: "long" as const },
-    { level: 2, max: 2, used: 1, pool: "pact" as const, recovery: "short" as const },
-  ];
-
-  it("restores only Pact Magic on a short rest", () => {
-    expect(restoreSpellSlots(pools, "short").map(slot => slot.used)).toEqual([2, 0]);
+describe("deriveEffectiveSpellSlots", () => {
+  it("derives fresh legacy-default maxima when no slots are persisted", () => {
+    expect(deriveEffectiveSpellSlots(
+      { class: "Wizard", level: 1, spell_slots: null },
+      [],
+      "2014",
+      () => undefined,
+    )).toEqual([{ level: 1, max: 2, used: 0, pool: "spellcasting", recovery: "long" }]);
   });
 
-  it("restores both ordinary and Pact Magic slots on a long rest", () => {
-    expect(restoreSpellSlots(pools, "long").map(slot => slot.used)).toEqual([0, 0]);
-  });
-
-  it("removes Flexible Casting slots on a long rest", () => {
-    const withCreated = [
-      ...pools,
-      { level: 3, max: 1, used: 0, pool: "temporary" as const, recovery: "none" as const },
-    ];
-    expect(restoreSpellSlots(withCreated, "short")).toHaveLength(3);
-    expect(restoreSpellSlots(withCreated, "long")).toEqual([
-      { ...pools[0], used: 0 },
-      { ...pools[1], used: 0 },
+  it("reconciles persisted slots against recalculated legacy-default maxima (e.g. after a level or ruleset change)", () => {
+    expect(deriveEffectiveSpellSlots(
+      { class: "Wizard", level: 3, spell_slots: [{ level: 1, max: 2, used: 1, pool: "spellcasting" }] },
+      [],
+      "2014",
+      () => undefined,
+    )).toEqual([
+      { level: 1, max: 4, used: 1, pool: "spellcasting", recovery: "long" },
+      { level: 2, max: 2, used: 0, pool: "spellcasting", recovery: "long" },
     ]);
   });
+
+  it("reconciles persisted slots against recalculated multiclass maxima", () => {
+    const classEntries = [
+      { class_name: "Wizard", levels: 2, class_definition_kind: "system" as const },
+      { class_name: "Cleric", levels: 1, class_definition_kind: "system" as const },
+    ];
+    expect(deriveEffectiveSpellSlots(
+      { class: "Wizard", level: 3, spell_slots: [{ level: 1, max: 3, used: 2, pool: "spellcasting" }] },
+      classEntries,
+      "2014",
+      () => undefined,
+    )).toEqual([
+      { level: 1, max: 4, used: 2, pool: "spellcasting", recovery: "long" },
+      { level: 2, max: 2, used: 0, pool: "spellcasting", recovery: "long" },
+    ]);
+  });
+
+  it("reconciles persisted slots against a single custom class's derived progression", () => {
+    const classEntries = [
+      { class_name: "Custom Caster", levels: 2, class_definition_kind: "custom" as const },
+    ];
+    expect(deriveEffectiveSpellSlots(
+      { class: "Custom Caster", level: 2, spell_slots: [{ level: 1, max: 2, used: 1, pool: "spellcasting" }] },
+      classEntries,
+      "2014",
+      () => ({ spell_slots: [[2], [3]], slot_recovery: "long" }),
+    )).toEqual([{ level: 1, max: 3, used: 1, pool: "spellcasting", recovery: "long" }]);
+  });
 });
+

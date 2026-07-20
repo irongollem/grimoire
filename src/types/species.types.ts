@@ -10,6 +10,7 @@ export interface SpeciesSpellGrant {
   min_level: number;           // character level required (default 1)
   source_label: string;        // e.g. "High Elf — Cantrip"
   subrace: string | null;      // null = all subraces; string = specific subrace name
+  casting_ability?: "int" | "wis" | "cha" | null;
 }
 
 export interface SpeciesSpeed {

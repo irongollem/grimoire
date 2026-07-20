@@ -7,7 +7,12 @@ export interface CharacterClass {
   id: string;
   party_member_id: string;
   class_name: string;
+  class_definition_id?: string | null;
+  class_definition_kind?: "system" | "custom" | null;
   subclass_name: string | null;
+  subclass_definition_id?: string | null;
+  class_ruleset_review_required?: boolean;
+  subclass_ruleset_review_required?: boolean;
   levels: number;
   is_primary: boolean;
   hit_dice_used: number;
@@ -18,8 +23,8 @@ export interface CharacterClass {
 
 export type CharacterClassInsert = Omit<
   CharacterClass,
-  "id" | "created_at" | "updated_at"
->;
+  "id" | "created_at" | "updated_at" | "class_definition_id" | "class_definition_kind"
+> & Partial<Pick<CharacterClass, "class_definition_id" | "class_definition_kind">>;
 export type CharacterClassUpdate = Partial<Omit<CharacterClass, "id" | "party_member_id" | "created_at" | "updated_at">>;
 
 /**
@@ -101,7 +106,7 @@ export function primaryClass(classes: CharacterClass[]): CharacterClass | null {
   return classes.find((c) => c.is_primary) ?? classes[0] ?? null;
 }
 
-import { getCastingAbility } from "@/types/spell.types";
+import { getCasterType, getCastingAbility } from "@/types/spell.types";
 
 /**
  * Per-class spellcasting stats (DC and attack bonus). A multiclass character
@@ -113,6 +118,8 @@ export interface SpellcastingClassStats {
   /** character_classes row id — matches character_spells.source_class_id */
   classId: string;
   className: string;
+  definitionKind: "system" | "custom" | null;
+  casterType: "prepared" | "known" | "spellbook" | "none";
   castingAbility: "int" | "wis" | "cha";
   dc: number;
   attack: number;
@@ -126,16 +133,20 @@ export interface SpellcastingClassStats {
 export function computeSpellcastingPerClass(
   member: AbilityScores & { proficiency_bonus: number },
   classes: CharacterClass[],
+  resolveAbility?: (entry: CharacterClass) => "int" | "wis" | "cha" | null | undefined,
 ): SpellcastingClassStats[] {
   const out: SpellcastingClassStats[] = [];
   for (const c of classes) {
-    const ability = getCastingAbility(c.class_name);
+    const resolvedAbility = resolveAbility?.(c);
+    const ability = resolvedAbility === undefined ? getCastingAbility(c.class_name) : resolvedAbility;
     if (!ability) continue;
     const mod = Math.floor((member[ability] - 10) / 2);
     const attack = member.proficiency_bonus + mod;
     out.push({
       classId: c.id,
       className: c.class_name,
+      definitionKind: c.class_definition_kind ?? null,
+      casterType: getCasterType(c.class_name),
       castingAbility: ability,
       attack,
       dc: 8 + attack,
