@@ -18,11 +18,13 @@ export function restoreSpellSlots(
   slots: SpellSlotEntry[],
   rest: "short" | "long",
 ): SpellSlotEntry[] {
-  return slots.map((slot) => {
-    const recovery = slotRecovery(slot);
-    const restores = rest === "long" ? recovery !== "none" : recovery === "short";
-    return restores ? { ...slot, used: 0 } : slot;
-  });
+  return slots
+    .filter((slot) => !(rest === "long" && slotPool(slot) === "temporary"))
+    .map((slot) => {
+      const recovery = slotRecovery(slot);
+      const restores = rest === "long" ? recovery !== "none" : recovery === "short";
+      return restores ? { ...slot, used: 0 } : slot;
+    });
 }
 
 /** Available slots that can legally cast a spell, ordered from lowest to highest. */
@@ -45,7 +47,7 @@ export function reconcileSpellSlotUsage(
   calculated: SpellSlotEntry[],
   persisted: SpellSlotEntry[],
 ): SpellSlotEntry[] {
-  return calculated.map((slot) => {
+  const reconciled = calculated.map((slot) => {
     const previous = persisted.find((candidate) =>
       candidate.level === slot.level && slotPool(candidate) === slotPool(slot),
     );
@@ -54,4 +56,10 @@ export function reconcileSpellSlotUsage(
       used: Math.min(previous?.used ?? slot.used, slot.max),
     };
   });
+  const extras = persisted.filter((slot) => {
+    const pool = slotPool(slot);
+    return (pool === "temporary" || pool === "feature")
+      && !reconciled.some((candidate) => spellSlotKey(candidate) === spellSlotKey(slot));
+  });
+  return [...reconciled, ...extras];
 }

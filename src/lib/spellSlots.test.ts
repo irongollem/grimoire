@@ -49,6 +49,19 @@ describe("spell slot reconciliation", () => {
       [{ level: 1, max: 4, used: 3 }],
     )).toEqual([{ level: 1, max: 2, used: 2 }]);
   });
+
+  it("retains created slots while reconciling multiclass maxima", () => {
+    expect(reconcileSpellSlotUsage(
+      [{ level: 1, max: 3, used: 0, pool: "spellcasting" as const }],
+      [
+        { level: 1, max: 2, used: 1, pool: "spellcasting" as const },
+        { level: 2, max: 1, used: 0, pool: "temporary" as const, recovery: "none" as const },
+      ],
+    )).toEqual([
+      { level: 1, max: 3, used: 1, pool: "spellcasting" },
+      { level: 2, max: 1, used: 0, pool: "temporary", recovery: "none" },
+    ]);
+  });
 });
 
 describe("spell slot pool recovery", () => {
@@ -63,5 +76,17 @@ describe("spell slot pool recovery", () => {
 
   it("restores both ordinary and Pact Magic slots on a long rest", () => {
     expect(restoreSpellSlots(pools, "long").map(slot => slot.used)).toEqual([0, 0]);
+  });
+
+  it("removes Flexible Casting slots on a long rest", () => {
+    const withCreated = [
+      ...pools,
+      { level: 3, max: 1, used: 0, pool: "temporary" as const, recovery: "none" as const },
+    ];
+    expect(restoreSpellSlots(withCreated, "short")).toHaveLength(3);
+    expect(restoreSpellSlots(withCreated, "long")).toEqual([
+      { ...pools[0], used: 0 },
+      { ...pools[1], used: 0 },
+    ]);
   });
 });

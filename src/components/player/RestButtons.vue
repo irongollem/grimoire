@@ -31,6 +31,7 @@ import { useUpdatePartyMember } from "@/composables/useParty";
 import { getCasterType, getDefaultSpellSlots } from "@/types/spell.types";
 import { useClassByName } from "@/composables/useCustomClasses";
 import type { SpellSlotEntry, PartyMember, PartyMemberUpdate } from "@/types/party.types";
+import { useRuleset } from "@/composables/useRuleset";
 
 const props = defineProps<{ member: PartyMember }>();
 
@@ -40,6 +41,7 @@ const restDialog = ref<"short" | "long" | null>(null);
 
 const memberClassRef = computed(() => props.member.class ?? "");
 const classData = useClassByName(memberClassRef);
+const { ruleset } = useRuleset();
 const casterType = computed(() => classData.value?.caster_type ?? getCasterType(props.member.class));
 const effectiveSpellSlots = computed<SpellSlotEntry[]>(() => {
   // Honor stored slots FIRST: a multiclass caster with a non-caster legacy class
@@ -47,7 +49,7 @@ const effectiveSpellSlots = computed<SpellSlotEntry[]>(() => {
   // field but real persisted slots — checking casterType first wiped them on rest.
   if (props.member.spell_slots?.length) return props.member.spell_slots;
   if (casterType.value === "none") return [];
-  return getDefaultSpellSlots(props.member.class, props.member.level);
+  return getDefaultSpellSlots(props.member.class, props.member.level, ruleset.value);
 });
 
 async function onRestConfirm(update: PartyMemberUpdate) {

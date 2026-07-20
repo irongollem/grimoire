@@ -96,7 +96,10 @@ watchEffect(() => {
 
 function poolLabel(slot: SpellSlotEntry): string {
   const pool = slotPool(slot);
-  return pool === "pact" ? "Pact Magic" : pool === "spellcasting" ? "Spellcasting" : pool;
+  return pool === "pact" ? "Pact Magic"
+    : pool === "spellcasting" ? "Spellcasting"
+    : pool === "temporary" ? "Created Slot"
+    : "Feature Slot";
 }
 
 function scaledDiceLabel(castLevel: number): string {

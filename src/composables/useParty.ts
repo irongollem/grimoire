@@ -113,6 +113,71 @@ export function useSpendSpellSlot() {
   });
 }
 
+/** Atomic cast mutation: slot, Metamagic, and concentration commit together. */
+export function useCastCharacterSpell() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      partyMemberId,
+      slotLevel,
+      pool,
+      slotTemplate,
+      concentrationState = null,
+      metamagicName = null,
+    }: {
+      partyMemberId: string;
+      slotLevel: number;
+      pool: "spellcasting" | "pact" | "temporary" | "feature";
+      slotTemplate: SpellSlotEntry[];
+      concentrationState?: PartyMember["concentration"];
+      metamagicName?: string | null;
+    }) => {
+      const { data, error } = await supabase.rpc("cast_character_spell", {
+        p_party_member_id: partyMemberId,
+        p_slot_level: slotLevel,
+        p_slot_pool: pool,
+        p_slot_template: slotTemplate,
+        p_concentration_state: concentrationState,
+        p_metamagic_name: metamagicName,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+  });
+}
+
+/** Atomic Flexible Casting conversion between Sorcery Points and spell slots. */
+export function useConvertSorceryPoints() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      partyMemberId,
+      direction,
+      slotLevel,
+      pool = "spellcasting",
+    }: {
+      partyMemberId: string;
+      direction: "points_to_slot" | "slot_to_points";
+      slotLevel: number;
+      pool?: "spellcasting" | "pact" | "temporary" | "feature";
+    }) => {
+      const { data, error } = await supabase.rpc("convert_sorcery_points", {
+        p_party_member_id: partyMemberId,
+        p_direction: direction,
+        p_slot_level: slotLevel,
+        p_slot_pool: pool,
+      });
+      if (error) throw error;
+      return data as {
+        spell_slots: SpellSlotEntry[];
+        class_resources: PartyMember["class_resources"];
+      };
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+  });
+}
+
 export function useSyncPartyLocation() {
   const queryClient = useQueryClient();
   return useMutation({

@@ -28,6 +28,27 @@ export function useConcentration() {
   const { sendFlavorMessage } = useCampaignMessages();
   const { promptRoll } = usePromptedRoll();
 
+  async function prepareConcentration(
+    member: PartyMember,
+    spell: Spell,
+    opts: { castAtLevel?: number; round?: number | null } = {},
+  ): Promise<ConcentrationState | null> {
+    if (member.concentration) {
+      const ok = await confirm(
+        `You are concentrating on ${member.concentration.spellName}. Casting ${spell.name} will end ${member.concentration.spellName}.`,
+        { title: "Break concentration?", confirmLabel: "Cast anyway", danger: false },
+      );
+      if (!ok) return null;
+    }
+    return {
+      spellId: spell.id ?? null,
+      spellName: spell.name,
+      castAtLevel: opts.castAtLevel ?? spell.level ?? 0,
+      startedRound: opts.round ?? null,
+      appliedEffectIds: [],
+    };
+  }
+
   /**
    * Begin concentration on a spell. If the caster is already concentrating,
    * prompts the user to drop the previous one.
@@ -39,21 +60,8 @@ export function useConcentration() {
     spell: Spell,
     opts: { castAtLevel?: number; round?: number | null } = {},
   ): Promise<boolean> {
-    if (member.concentration) {
-      const ok = await confirm(
-        `You are concentrating on ${member.concentration.spellName}. Casting ${spell.name} will end ${member.concentration.spellName}.`,
-        { title: "Break concentration?", confirmLabel: "Cast anyway", danger: false },
-      );
-      if (!ok) return false;
-      await endConcentration(member, { silent: true });
-    }
-    const state: ConcentrationState = {
-      spellId: spell.id ?? null,
-      spellName: spell.name,
-      castAtLevel: opts.castAtLevel ?? spell.level ?? 0,
-      startedRound: opts.round ?? null,
-      appliedEffectIds: [],
-    };
+    const state = await prepareConcentration(member, spell, opts);
+    if (!state) return false;
     await updateMember({ id: member.id, update: { concentration: state } });
     void sendFlavorMessage(`begins concentrating on ${spell.name}`, spell.name);
     return true;
@@ -105,6 +113,7 @@ export function useConcentration() {
   }
 
   return {
+    prepareConcentration,
     startConcentration,
     endConcentration,
     rollConcentrationSave,

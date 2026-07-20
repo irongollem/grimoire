@@ -57,7 +57,9 @@
           <!-- Slot pips for this level -->
           <template v-for="slot in slotsForLevel(group.level)" :key="spellSlotKey(slot)">
             <div class="flex items-center gap-0.5 ml-1" @click.stop>
-              <span v-if="slotPool(slot) === 'pact'" class="font-cinzel text-[8px] text-violet-400">PACT</span>
+              <span v-if="slotPool(slot) !== 'spellcasting'" class="font-cinzel text-[8px] text-violet-400">
+                {{ slotPool(slot) === 'pact' ? 'PACT' : slotPool(slot) === 'temporary' ? 'CREATED' : 'FEATURE' }}
+              </span>
               <button
                 v-for="pip in slot.max"
                 :key="pip"
@@ -143,11 +145,37 @@
               @click.stop="rollSpellDamage(entry, lastCastLevel(entry))"
             >Damage</button>
             <button
+              v-if="isCastable(entry) && entry.spell.damage_rolls?.length && hasKnownMetamagic('Empowered Spell')"
+              class="shrink-0 font-cinzel text-[10px] rounded border border-violet-500/30 bg-violet-500/10 text-violet-500 px-1.5 py-0.5 transition-colors hover:bg-violet-500/20"
+              title="After rolling damage, spend 1 SP to reroll eligible damage dice"
+              @click.stop="applyReactiveMetamagic(entry, 'Empowered Spell')"
+            >Empower</button>
+            <button
+              v-if="isCastable(entry) && (entry.spell.attack_type === 'ranged_spell' || entry.spell.attack_type === 'melee_spell') && hasKnownMetamagic('Seeking Spell')"
+              class="shrink-0 font-cinzel text-[10px] rounded border border-violet-500/30 bg-violet-500/10 text-violet-500 px-1.5 py-0.5 transition-colors hover:bg-violet-500/20"
+              title="After missing a spell attack, spend SP and reroll the attack"
+              @click.stop="applyReactiveMetamagic(entry, 'Seeking Spell')"
+            >Seek</button>
+            <button
               v-if="isCastable(entry) && entry.spell.healing_dice"
               class="shrink-0 font-cinzel text-[10px] rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-500 px-1.5 py-0.5 transition-colors hover:bg-emerald-500/20"
               title="Roll healing"
               @click.stop="rollSpellHealing(entry, lastCastLevel(entry))"
             >Healing</button>
+
+            <select
+              v-if="eligibleMetamagic(entry).length"
+              v-model="selectedMetamagic[entry.id]"
+              class="max-w-28 shrink-0 rounded border border-violet-500/30 bg-violet-500/10 px-1.5 py-0.5 font-cinzel text-[10px] text-violet-500"
+              title="Apply Metamagic to this casting"
+              aria-label="Metamagic option"
+              @click.stop
+            >
+              <option value="">No Metamagic</option>
+              <option v-for="option in eligibleMetamagic(entry)" :key="option.name" :value="option.name">
+                {{ option.name }} ({{ option.sp_cost }} SP)
+              </option>
+            </select>
 
             <!-- Cast button (castable spells) -->
             <button
@@ -235,7 +263,7 @@ import {
   useRemoveCharacterSpellById,
   useTogglePrepared,
 } from "@/composables/useCharacterSpells";
-import { useUpdatePartyMember, useParty, useSpendSpellSlot } from "@/composables/useParty";
+import { useUpdatePartyMember, useParty, useCastCharacterSpell } from "@/composables/useParty";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { useConcentration } from "@/composables/useConcentration";
 import { useUiStore } from "@/stores/ui";
@@ -247,7 +275,7 @@ import { signedNum } from "@/lib/utils";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { cantripDiceMultiplier } from "@/types/spell.types";
 import type { CasterType, CharacterSpellEntry, Spell } from "@/types/spell.types";
-import type { SpellSlotEntry } from "@/types/party.types";
+import type { ConcentrationState, SpellSlotEntry } from "@/types/party.types";
 import { pickSpellcastingStats, type SpellcastingClassStats } from "@/types/multiclass.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import PlayerSpellModal from "@/components/spells/PlayerSpellModal.vue";
@@ -256,6 +284,7 @@ import { availableSlotsForSpell, canCastWithSlot, spellSlotKey, slotPool, type S
 import { useToast } from "@/composables/useToast";
 import { useRuleset } from "@/composables/useRuleset";
 import { canAutoRollSpellEffect, canCastAsRitual } from "@/lib/spellcastingPolicy";
+import { getMetamagicMap, type MetamagicOption } from "@/data/metamagic";
 
 const SLOT_LEVEL_LABELS = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"] as const;
 
@@ -295,11 +324,11 @@ const allEntries = computed(() =>
 const { mutate: removeSpell, isPending: isRemoving } = useRemoveCharacterSpellById();
 const { mutate: togglePreparedMutation, isPending: isToggling } = useTogglePrepared();
 const { mutateAsync: updateMember } = useUpdatePartyMember();
-const { mutateAsync: spendSpellSlot } = useSpendSpellSlot();
+const { mutateAsync: commitCast } = useCastCharacterSpell();
 const { sendFlavorMessage, sendRoll } = useCampaignMessages();
 const { promptRoll } = usePromptedRoll();
 const { data: partyList } = useParty();
-const { startConcentration } = useConcentration();
+const { prepareConcentration } = useConcentration();
 const thisMember = computed(() =>
   props.partyMemberId && partyList.value
     ? (partyList.value.find((m) => m.id === props.partyMemberId) ?? null)
@@ -371,6 +400,63 @@ async function promptSpellSave(entry: CharacterSpellEntry) {
 // ── Cast ───────────────────────────────────────────────────────────────────────
 const isCasting = ref(false);
 const lastCastLevels = ref<Record<string, number>>({});
+const selectedMetamagic = ref<Record<string, string>>({});
+
+function knownMetamagic(): MetamagicOption[] {
+  const raw = thisMember.value?.class_choices?.metamagic_options;
+  const names = Array.isArray(raw) ? raw.map(String) : raw ? [String(raw)] : [];
+  const options = getMetamagicMap(ruleset.value);
+  return names.map((name) => options.get(name)).filter((option): option is MetamagicOption => !!option);
+}
+
+function hasKnownMetamagic(name: string): boolean {
+  return knownMetamagic().some((option) => option.name === name);
+}
+
+async function applyReactiveMetamagic(entry: CharacterSpellEntry, name: "Empowered Spell" | "Seeking Spell") {
+  if (!props.partyMemberId || isCasting.value) return;
+  isCasting.value = true;
+  try {
+    await commitCast({
+      partyMemberId: props.partyMemberId,
+      slotLevel: 0,
+      pool: "spellcasting",
+      slotTemplate: props.spellSlots,
+      metamagicName: name,
+    });
+    await sendFlavorMessage(`uses ${name} on ${entry.spell.name}`, "spell");
+    if (name === "Seeking Spell") await rollSpellAttack(entry);
+    else toast.info("Reroll up to your Charisma modifier in damage dice; you must use the new rolls.");
+  } catch (error) {
+    toast.error(toast.fromError(error));
+  } finally {
+    isCasting.value = false;
+  }
+}
+
+function eligibleMetamagic(entry: CharacterSpellEntry): MetamagicOption[] {
+  const spell = entry.spell;
+  return knownMetamagic().filter((option) => {
+    switch (option.name) {
+      case "Careful Spell":
+      case "Heightened Spell": return spell.attack_type === "save";
+      case "Distant Spell": return spell.range === "Touch" || /ft\.|feet|mile/i.test(spell.range);
+      case "Extended Spell": return spell.duration !== "Instantaneous";
+      case "Quickened Spell": return spell.casting_time === "Action";
+      case "Transmuted Spell": return (spell.damage_rolls ?? []).some((roll) =>
+        ["acid", "cold", "fire", "lightning", "poison", "thunder"].includes(roll.type),
+      );
+      case "Twinned Spell":
+        return ruleset.value === "2024"
+          ? /additional (?:creature|target)/i.test(spell.higher_levels ?? "")
+          : !/^Self$/i.test(spell.range) && /^1\b/.test(spell.target_description ?? "");
+      // Empowered and Seeking are chosen after seeing damage/attack results.
+      case "Empowered Spell":
+      case "Seeking Spell": return false;
+      default: return true;
+    }
+  });
+}
 
 function lastCastLevel(entry: CharacterSpellEntry): number {
   return lastCastLevels.value[entry.id] ?? entry.spell.level;
@@ -505,37 +591,38 @@ async function rollSpellHealing(entry: CharacterSpellEntry, castLevel: number) {
 async function castSpell(
   entry: CharacterSpellEntry,
   castLevel: number,
-  options: { ritual?: boolean; pool?: SpellSlotPool } = {},
+  options: { ritual?: boolean; pool?: SpellSlotPool; metamagicName?: string | null } = {},
 ) {
   if (!props.partyMemberId || isCasting.value) return;
   isCasting.value = true;
   try {
     const spell = entry.spell;
     const isRitual = options.ritual === true;
+    const metamagicName = options.metamagicName ?? (selectedMetamagic.value[entry.id] || null);
     const extraLevels = isRitual ? 0 : castLevel - spell.level;
     lastCastLevels.value = { ...lastCastLevels.value, [entry.id]: castLevel };
 
-    // Concentration guard
+    let concentrationState: ConcentrationState | null = null;
     if (spell.concentration && thisMember.value) {
-      const ok = await startConcentration(thisMember.value, spell, { castAtLevel: castLevel });
-      if (!ok) return;
+      concentrationState = await prepareConcentration(thisMember.value, spell, { castAtLevel: castLevel });
+      if (!concentrationState) return;
     }
 
-    // Debit before announcing or resolving effects. The database function locks
-    // the character row and rejects stale/double submissions atomically.
-    if (castLevel > 0 && !isRitual) {
-      await spendSpellSlot({
-        partyMemberId: props.partyMemberId,
-        slotLevel: castLevel,
-        pool: options.pool ?? "spellcasting",
-        slotTemplate: props.spellSlots,
-      });
-    }
+    // Slot debit and concentration replacement share one row-locked transaction.
+    await commitCast({
+      partyMemberId: props.partyMemberId,
+      slotLevel: isRitual ? 0 : castLevel,
+      pool: options.pool ?? "spellcasting",
+      slotTemplate: props.spellSlots,
+      concentrationState,
+      metamagicName,
+    });
 
     // Flavor text
     let text = `casts ${spell.name}`;
     if (isRitual) text += " as a ritual";
     else if (extraLevels > 0) text += ` (upcast ${SLOT_LEVEL_LABELS[castLevel - 1]})`;
+    if (metamagicName) text += ` with ${metamagicName}`;
     const atk = attackBonusFor(entry);
     const dc  = saveDcFor(entry);
     if (castLevel > 0 && atk !== null
@@ -545,6 +632,9 @@ async function castSpell(
       text += ` — DC ${dc} ${spell.save_attribute ?? ""}`;
     }
     await sendFlavorMessage(text, "spell");
+    if (concentrationState) {
+      await sendFlavorMessage(`begins concentrating on ${spell.name}`, spell.name);
+    }
 
     if (spell.damage_rolls?.length && canAutoRollSpellEffect(spell.attack_type, "damage")) {
       await rollSpellDamage(entry, castLevel);
@@ -552,6 +642,7 @@ async function castSpell(
     if (spell.healing_dice && canAutoRollSpellEffect(spell.attack_type, "healing")) {
       await rollSpellHealing(entry, castLevel);
     }
+    selectedMetamagic.value = { ...selectedMetamagic.value, [entry.id]: "" };
 
   } catch (error) {
     toast.error(toast.fromError(error));

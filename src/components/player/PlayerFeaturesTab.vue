@@ -28,6 +28,13 @@
       @spend-amount="confirmVariableSpend"
     />
 
+    <PlayerFlexibleCasting
+      v-if="sorceryResource && sorceryResource.max > 0"
+      :party-member-id="member.id"
+      :sorcery-points="sorceryResource"
+      :spell-slots="effectiveSlots"
+    />
+
     <!-- ── Class features (one card per class, grouped for multiclass) ──────── -->
     <template v-if="featureDataPending">
       <div
@@ -219,6 +226,7 @@ import { ref, computed, watch } from "vue";
 import { useRouter, RouterLink } from "vue-router";
 import PlayerWildshapeTraits from "./PlayerWildshapeTraits.vue";
 import PlayerResourcePools from "./PlayerResourcePools.vue";
+import PlayerFlexibleCasting from "./PlayerFlexibleCasting.vue";
 import PlayerClassFeaturesList from "./PlayerClassFeaturesList.vue";
 import PlayerBattleMasterManeuvers from "./PlayerBattleMasterManeuvers.vue";
 import PlayerArtificerInfusions from "./PlayerArtificerInfusions.vue";
@@ -385,7 +393,7 @@ const effectiveSlots = computed((): SpellSlotEntry[] => {
   }
   if (m.spell_slots?.length) return m.spell_slots;
   if (list.length > 0) return getMulticlassSpellSlots(list, ruleset.value);
-  return getDefaultSpellSlots(m.class, m.level);
+  return getDefaultSpellSlots(m.class, m.level, ruleset.value);
 });
 
 // ── Persist helpers ───────────────────────────────────────────────────────────
@@ -600,6 +608,7 @@ function classLevel(className: string): number {
 // ── Barbarian rage ────────────────────────────────────────────────────────────
 
 const rageResource = computed(() => localResources.value.find(r => r.key === "rage_uses") ?? null);
+const sorceryResource = computed(() => localResources.value.find(r => r.key === "sorcery_points") ?? null);
 const rageRef = ref<InstanceType<typeof PlayerBarbarianRage> | null>(null);
 
 // ── Monk ki ───────────────────────────────────────────────────────────────────
