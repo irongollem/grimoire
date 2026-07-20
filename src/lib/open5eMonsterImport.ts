@@ -1,273 +1,204 @@
+import { fetchAll } from "@/lib/open5eApi";
 import type { MonsterInsert, MonsterStatBlock, MonsterSize, MonsterType } from "@/types/monster.types";
+import type { RulesetKey } from "@/types/ruleset.types";
 
-// ── Open5e v1 API shapes ──────────────────────────────────────────────────────
-
-interface Open5eSpeed {
-  walk?: number;
-  fly?: number;
-  swim?: number;
-  climb?: number;
-  burrow?: number;
-  hover?: boolean;
-}
-
-interface Open5eTrait {
-  name?: string;
-  desc?: string;
-}
-
-interface Open5eMonster {
-  slug: string;
+interface DocumentRef {
+  key: string;
   name: string;
-  size: string;
-  type: string;
-  subtype?: string;
+  display_name?: string;
+  permalink?: string | null;
+  publisher?: { name: string; key: string };
+  gamesystem?: { name: string; key: string };
+}
+
+interface Open5eV2Action {
+  name: string;
+  desc: string;
+  action_type: "ACTION" | "BONUS_ACTION" | "REACTION" | "LEGENDARY_ACTION" | string;
+}
+
+interface Open5eV2Monster {
+  key: string;
+  name: string;
+  document: DocumentRef;
+  type: { name: string; key: string };
+  size: { name: string; key: string };
   alignment: string;
   armor_class: number;
   hit_points: number;
   hit_dice: string;
-  speed: Open5eSpeed;
-  strength: number;
-  dexterity: number;
-  constitution: number;
-  intelligence: number;
-  wisdom: number;
-  charisma: number;
-  strength_save?: number | null;
-  dexterity_save?: number | null;
-  constitution_save?: number | null;
-  intelligence_save?: number | null;
-  wisdom_save?: number | null;
-  charisma_save?: number | null;
-  skills?: Record<string, number>;
-  damage_vulnerabilities?: string;
-  damage_resistances?: string;
-  damage_immunities?: string;
-  condition_immunities?: string;
-  senses?: string;
-  languages?: string;
-  challenge_rating: string | number;
-  actions?: Open5eTrait[];
-  bonus_actions?: Open5eTrait[] | null;
-  reactions?: Open5eTrait[] | null;
-  legendary_desc?: string;
-  legendary_actions?: Open5eTrait[] | null;
-  special_abilities?: Open5eTrait[];
-  document__slug: string;
-  document__title: string;
-  document__url: string;
+  speed_all?: Record<string, number | boolean | string>;
+  speed?: Record<string, number | boolean | string>;
+  ability_scores: Record<string, number>;
+  modifiers?: Record<string, number>;
+  saving_throws?: Record<string, number>;
+  skill_bonuses?: Record<string, number>;
+  resistances_and_immunities?: Record<string, string | unknown[]>;
+  languages?: { as_string?: string };
+  challenge_rating: number | string;
+  normal_sight_range?: number | null;
+  darkvision_range?: number | null;
+  blindsight_range?: number | null;
+  tremorsense_range?: number | null;
+  truesight_range?: number | null;
+  actions?: Open5eV2Action[];
+  traits?: Array<{ name: string; desc: string }>;
 }
 
-interface Open5eListResponse<T> {
-  count: number;
-  next: string | null;
-  results: T[];
-}
-
-// ── Pagination fetch ──────────────────────────────────────────────────────────
-
-async function fetchAll<T>(baseUrl: string): Promise<T[]> {
-  const results: T[] = [];
-  const sep = baseUrl.includes("?") ? "&" : "?";
-  let url: string | null = `${baseUrl}${sep}limit=500&format=json`;
-  while (url) {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`open5e fetch failed: ${res.status} ${url}`);
-    const json: Open5eListResponse<T> = await res.json();
-    results.push(...json.results);
-    url = json.next;
-  }
-  return results;
-}
-
-// ── Document list ─────────────────────────────────────────────────────────────
-
-export interface Open5eDocument {
-  slug: string;
-  title: string;
-}
-
-/**
- * Fetch the list of Open5e documents (SRD, Tome of Beasts, Creature Codex…).
- * Shared with `open5eSpellImport` intentionally — the endpoint is cross-content,
- * not content-type-specific. Importers re-query per call to keep staleTime
- * handling local to each `useXxxSources`.
- */
-export async function fetchOpen5eDocuments(): Promise<Open5eDocument[]> {
-  const docs = await fetchAll<Open5eDocument>("https://api.open5e.com/v1/documents/");
-  return docs.slice().sort((a, b) => a.title.localeCompare(b.title));
-}
-
-// ── Mapping helpers ───────────────────────────────────────────────────────────
+export interface Open5eDocument { slug: string; title: string }
 
 const VALID_TYPES: ReadonlyArray<MonsterType> = [
-  "aberration", "beast", "celestial", "construct", "dragon",
-  "elemental", "fey", "fiend", "giant", "humanoid",
-  "monstrosity", "ooze", "plant", "undead",
+  "aberration", "beast", "celestial", "construct", "dragon", "elemental", "fey",
+  "fiend", "giant", "humanoid", "monstrosity", "ooze", "plant", "undead",
 ];
 const VALID_SIZES: ReadonlyArray<MonsterSize> = [
   "tiny", "small", "medium", "large", "huge", "gargantuan",
 ];
 
+function rulesetForDocument(document: DocumentRef): RulesetKey | null {
+  if (document.gamesystem?.key === "5e-2024") return "2024";
+  if (document.gamesystem?.key === "5e-2014" || document.gamesystem?.key === "5e") return "2014";
+  return null;
+}
+
 function normalizeType(raw: string): MonsterType {
-  // Open5e sometimes emits "humanoid (any race)" or "swarm of tiny beasts" —
-  // split on "(" / "of" to pull just the base type.
-  const base = (raw ?? "").toLowerCase().split("(")[0].split(" of ")[0].trim();
-  return (VALID_TYPES as readonly string[]).includes(base) ? (base as MonsterType) : "monstrosity";
+  const value = raw.toLowerCase().split("(")[0].split(" of ")[0].trim();
+  return (VALID_TYPES as readonly string[]).includes(value) ? value as MonsterType : "monstrosity";
 }
 
 function normalizeSize(raw: string): MonsterSize {
-  const lower = (raw ?? "medium").toLowerCase();
-  return (VALID_SIZES as readonly string[]).includes(lower) ? (lower as MonsterSize) : "medium";
+  const value = raw.toLowerCase();
+  return (VALID_SIZES as readonly string[]).includes(value) ? value as MonsterSize : "medium";
 }
 
-function toSpeedString(speed: Open5eSpeed | undefined | null): string {
-  if (!speed || typeof speed !== "object") return "30 ft.";
+function toSpeedString(speed: Record<string, number | boolean | string> | undefined): string {
+  if (!speed) return "30 ft.";
+  const unit = speed.unit === "meters" ? "m" : "ft.";
   const parts: string[] = [];
-  if (speed.walk) parts.push(`${speed.walk} ft.`);
-  if (speed.fly) parts.push(`fly ${speed.fly} ft.`);
-  if (speed.swim) parts.push(`swim ${speed.swim} ft.`);
-  if (speed.climb) parts.push(`climb ${speed.climb} ft.`);
-  if (speed.burrow) parts.push(`burrow ${speed.burrow} ft.`);
-  if (speed.hover) {
-    const i = parts.findIndex((p) => p.startsWith("fly"));
-    if (i !== -1) parts[i] = parts[i].replace(" ft.", " ft. (hover)");
+  for (const kind of ["walk", "fly", "swim", "climb", "burrow"] as const) {
+    const value = Number(speed[kind] ?? 0);
+    if (value <= 0) continue;
+    const label = kind === "walk" ? "" : `${kind} `;
+    parts.push(`${label}${value} ${unit}${kind === "fly" && speed.hover ? " (hover)" : ""}`);
   }
-  return parts.join(", ") || "30 ft.";
+  return parts.join(", ") || `30 ${unit}`;
 }
 
-function toHpString(hp: number, dice: string): string {
-  if (!hp && !dice) return "10 (2d8+1)";
-  if (!dice) return String(hp);
-  return `${hp} (${dice})`;
+function formatBonus(value: number): string {
+  return `${value >= 0 ? "+" : ""}${value}`;
 }
 
-function toSavingThrows(m: Open5eMonster): string | undefined {
-  const MAP: Array<[keyof Open5eMonster, string]> = [
-    ["strength_save", "Str"],
-    ["dexterity_save", "Dex"],
-    ["constitution_save", "Con"],
-    ["intelligence_save", "Int"],
-    ["wisdom_save", "Wis"],
-    ["charisma_save", "Cha"],
-  ];
-  const parts: string[] = [];
-  for (const [key, label] of MAP) {
-    const val = m[key] as number | null | undefined;
-    if (val !== null && val !== undefined) parts.push(`${label} ${val >= 0 ? "+" : ""}${val}`);
-  }
-  return parts.length ? parts.join(", ") : undefined;
+function toSavingThrows(monster: Open5eV2Monster): string | undefined {
+  const labels: Record<string, string> = {
+    strength: "Str", dexterity: "Dex", constitution: "Con",
+    intelligence: "Int", wisdom: "Wis", charisma: "Cha",
+  };
+  const entries = Object.entries(monster.saving_throws ?? {})
+    .filter(([ability, value]) => value !== monster.modifiers?.[ability])
+    .map(([ability, value]) => `${labels[ability] ?? ability} ${formatBonus(value)}`);
+  return entries.length ? entries.join(", ") : undefined;
 }
 
 function toSkills(skills: Record<string, number> | undefined): Record<string, string> | undefined {
-  if (!skills || typeof skills !== "object") return undefined;
-  const rec: Record<string, string> = {};
-  for (const [k, v] of Object.entries(skills)) {
-    rec[k.toLowerCase()] = v >= 0 ? `+${v}` : String(v);
-  }
-  return Object.keys(rec).length ? rec : undefined;
+  if (!skills) return undefined;
+  const result = Object.fromEntries(Object.entries(skills).map(([key, value]) => [key, formatBonus(value)]));
+  return Object.keys(result).length ? result : undefined;
 }
 
-function toTraits(
-  arr: Open5eTrait[] | null | undefined,
-): Array<{ name: string; description: string }> | undefined {
-  if (!Array.isArray(arr) || arr.length === 0) return undefined;
-  return arr.map((t) => ({ name: t.name ?? "", description: t.desc ?? "" }));
+function actionsOf(monster: Open5eV2Monster, type: string) {
+  const rows = (monster.actions ?? []).filter(action => action.action_type === type);
+  return rows.length ? rows.map(action => ({ name: action.name, description: action.desc })) : undefined;
 }
 
-function extractLegendaryResistance(desc: string | undefined): number | undefined {
-  if (!desc) return undefined;
-  // "If the X fails a saving throw, it can choose to succeed instead (3/Day)."
-  const m = desc.match(/\((\d)\s*\/\s*[Dd]ay\)/);
-  return m ? parseInt(m[1], 10) : 3;
+function senses(monster: Open5eV2Monster): string | undefined {
+  const parts: string[] = [];
+  const ranges: Array<[string, number | null | undefined]> = [
+    ["darkvision", monster.darkvision_range], ["blindsight", monster.blindsight_range],
+    ["tremorsense", monster.tremorsense_range], ["truesight", monster.truesight_range],
+  ];
+  for (const [label, range] of ranges) if (range) parts.push(`${label} ${range} ft.`);
+  return parts.length ? parts.join(", ") : undefined;
 }
 
-// ── Mapper ────────────────────────────────────────────────────────────────────
+function displayResistance(monster: Open5eV2Monster, key: string): string | undefined {
+  const value = monster.resistances_and_immunities?.[key];
+  return typeof value === "string" && value ? value : undefined;
+}
 
-function mapMonster(m: Open5eMonster): MonsterInsert {
+export function mapOpen5eV2Monster(monster: Open5eV2Monster): MonsterInsert {
+  const traits = monster.traits?.map(trait => ({ name: trait.name, description: trait.desc }));
+  const legendaryResistance = monster.traits?.find(trait => /legendary resistance/i.test(trait.name));
+  const count = legendaryResistance?.name.match(/\((\d+)\s*\/\s*day/i)?.[1];
+  const scores = monster.ability_scores;
   const statBlock: MonsterStatBlock = {
-    armor_class: m.armor_class ?? 10,
-    hit_points: toHpString(m.hit_points, m.hit_dice),
-    speed: toSpeedString(m.speed),
-    str: m.strength ?? 10,
-    dex: m.dexterity ?? 10,
-    con: m.constitution ?? 10,
-    int: m.intelligence ?? 10,
-    wis: m.wisdom ?? 10,
-    cha: m.charisma ?? 10,
-    challenge_rating: String(m.challenge_rating ?? "0"),
-    saving_throws: toSavingThrows(m),
-    skills: toSkills(m.skills),
-    damage_vulnerabilities: m.damage_vulnerabilities || undefined,
-    damage_resistances: m.damage_resistances || undefined,
-    damage_immunities: m.damage_immunities || undefined,
-    condition_immunities: m.condition_immunities || undefined,
-    senses: m.senses || undefined,
-    languages: m.languages || undefined,
-    special_abilities: toTraits(m.special_abilities),
-    actions: toTraits(m.actions),
-    bonus_actions: toTraits(m.bonus_actions),
-    reactions: toTraits(m.reactions),
-    legendary_resistance: m.legendary_desc ? extractLegendaryResistance(m.legendary_desc) : undefined,
-    legendary_actions: toTraits(m.legendary_actions),
+    armor_class: monster.armor_class ?? 10,
+    hit_points: monster.hit_dice ? `${monster.hit_points} (${monster.hit_dice})` : String(monster.hit_points),
+    speed: toSpeedString(monster.speed_all ?? monster.speed),
+    str: scores.strength ?? 10,
+    dex: scores.dexterity ?? 10,
+    con: scores.constitution ?? 10,
+    int: scores.intelligence ?? 10,
+    wis: scores.wisdom ?? 10,
+    cha: scores.charisma ?? 10,
+    challenge_rating: String(monster.challenge_rating ?? "0"),
+    saving_throws: toSavingThrows(monster),
+    skills: toSkills(monster.skill_bonuses),
+    damage_vulnerabilities: displayResistance(monster, "damage_vulnerabilities_display"),
+    damage_resistances: displayResistance(monster, "damage_resistances_display"),
+    damage_immunities: displayResistance(monster, "damage_immunities_display"),
+    condition_immunities: displayResistance(monster, "condition_immunities_display"),
+    senses: senses(monster),
+    languages: monster.languages?.as_string || undefined,
+    special_abilities: traits?.length ? traits : undefined,
+    actions: actionsOf(monster, "ACTION"),
+    bonus_actions: actionsOf(monster, "BONUS_ACTION"),
+    reactions: actionsOf(monster, "REACTION"),
+    legendary_resistance: count ? Number(count) : undefined,
+    legendary_actions: actionsOf(monster, "LEGENDARY_ACTION"),
   };
   return {
-    ruleset: "2014",
-    conceptual_key: m.name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, ""),
-    source_document_key: m.document__slug || "srd",
-    source_record_key: `${m.document__slug || "srd"}:${m.slug}`,
-    source_revision: "open5e-v1",
+    ruleset: rulesetForDocument(monster.document),
+    conceptual_key: monster.name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, ""),
+    source_document_key: monster.document.key,
+    source_record_key: monster.key,
+    source_revision: monster.document.name,
     source_license: null,
-    provenance: { provider: "open5e", api_version: "v1" },
-    name: m.name,
-    monster_type: normalizeType(m.type),
-    size: normalizeSize(m.size),
-    alignment: m.alignment || "unaligned",
+    provenance: {
+      provider: "open5e-v2",
+      document: {
+        key: monster.document.key,
+        publisher: monster.document.publisher ?? null,
+        gamesystem: monster.document.gamesystem ?? null,
+        permalink: monster.document.permalink ?? null,
+      },
+    },
+    name: monster.name,
+    monster_type: normalizeType(monster.type.name),
+    size: normalizeSize(monster.size.name),
+    alignment: monster.alignment || "unaligned",
     habitat: null,
-    source: m.document__slug ?? null,
-    source_title: m.document__title ?? null,
-    source_url: m.document__url ?? null,
+    source: monster.document.key,
+    source_title: monster.document.display_name || monster.document.name,
+    source_url: monster.document.permalink ?? null,
     tags: [],
     stat_block: statBlock,
     notes: null,
     image_url: null,
-    is_srd: m.document__slug === "wotc-srd",
+    is_srd: monster.document.publisher?.key === "wizards-of-the-coast",
     open5e_import: true,
   };
 }
 
-// ── Public API ────────────────────────────────────────────────────────────────
+export async function fetchOpen5eDocuments(): Promise<Open5eDocument[]> {
+  const documents = await fetchAll<DocumentRef>("https://api.open5e.com/v2/documents/");
+  return documents.map(document => ({ slug: document.key, title: document.display_name || document.name }))
+    .sort((a, b) => a.title.localeCompare(b.title));
+}
 
-/**
- * Fetch monsters from one or more Open5e documents. If no slugs are passed,
- * fetches the entire corpus across all documents (~3,200 creatures as of
- * 2026-04) — usually not what you want. In practice callers always pick at
- * least one slug via the source picker.
- *
- * Deduplicates by name across the returned set so cross-document duplicates
- * (e.g. a creature that appears in both SRD and a third-party codex) don't
- * cause an insert conflict downstream.
- */
-export async function fetchSrdMonsters(sourceSlugs?: string[]): Promise<MonsterInsert[]> {
-  let raw: Open5eMonster[];
-
-  if (sourceSlugs && sourceSlugs.length > 0) {
-    const fetches = await Promise.all(
-      sourceSlugs.map((slug) =>
-        fetchAll<Open5eMonster>(`https://api.open5e.com/v1/monsters/?document__slug=${slug}`),
-      ),
-    );
-    raw = fetches.flat();
-  } else {
-    raw = await fetchAll<Open5eMonster>("https://api.open5e.com/v1/monsters/");
-  }
-
-  const seen = new Set<string>();
-  return raw
-    .map(mapMonster)
-    .filter((m) => {
-      if (seen.has(m.name)) return false;
-      seen.add(m.name);
-      return true;
-    });
+/** V2 native keys preserve equal-name creatures across books and editions. */
+export async function fetchSrdMonsters(sourceKeys?: string[]): Promise<MonsterInsert[]> {
+  const url = sourceKeys?.length
+    ? `https://api.open5e.com/v2/creatures/?document__key__in=${encodeURIComponent(sourceKeys.join(","))}`
+    : "https://api.open5e.com/v2/creatures/";
+  return (await fetchAll<Open5eV2Monster>(url)).map(mapOpen5eV2Monster);
 }

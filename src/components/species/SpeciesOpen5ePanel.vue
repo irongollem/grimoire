@@ -30,7 +30,7 @@
         >
           <IconScriptorium class="h-3.5 w-3.5 shrink-0" />
           <span v-if="seeding">{{ seedProgress }}</span>
-          <span v-else>Import / update core PHB races ({{ CORE_RACE_SLUGS.length }})</span>
+          <span v-else>Import / update core PHB species ({{ CORE_RACE_NAMES.length }})</span>
         </button>
       </div>
 
@@ -69,13 +69,13 @@
         <ul v-else class="divide-y divide-border">
           <li
             v-for="race in results"
-            :key="race.slug"
+            :key="race.key"
             class="flex items-center justify-between gap-3 px-5 py-3 hover:bg-muted/50 cursor-pointer transition-colors"
             @click="importRace(race)"
           >
             <div class="min-w-0">
               <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ race.name }}</p>
-              <p class="font-fell text-xs text-muted-foreground italic">{{ race.document__title ?? "—" }}</p>
+              <p class="font-fell text-xs text-muted-foreground italic">{{ race.document.display_name ?? race.document.name }}</p>
             </div>
             <IconDownload class="h-4 w-4 text-muted-foreground shrink-0" />
           </li>
@@ -104,47 +104,39 @@ import { toTiptapJson } from "@/ai/useNpcGeneration";
 import { markdownToTiptapJson } from "@/lib/markdownToTiptap";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import type { SpeciesSize } from "@/types/species.types";
+import { useRuleset } from "@/composables/useRuleset";
 
-interface Open5eAsi {
-  attributes: string[];
-  value: number;
-}
-
-interface Open5eSubrace {
+interface Open5eTrait {
   name: string;
   desc: string;
-  asi: Open5eAsi[];
-  asi_desc: string;
-  traits: string;
+  type: string | null;
 }
 
 interface Open5eRace {
-  slug: string;
+  key: string;
   name: string;
   desc: string;
-  asi: Open5eAsi[];
-  asi_desc: string;
-  age: string;
-  alignment: string;
-  size: string;
-  size_raw: string;
-  speed: string | Record<string, number>;
-  speed_desc: string;
-  languages: string;
-  vision: string;
-  traits: string;
-  subraces: Open5eSubrace[];
-  document__title: string;
-  document__slug: string;
+  is_subspecies: boolean;
+  subspecies_of: { key: string; name: string } | null;
+  traits: Open5eTrait[];
+  document: {
+    key: string;
+    name: string;
+    display_name?: string;
+    permalink?: string | null;
+    publisher?: { name: string; key: string };
+    gamesystem?: { name: string; key: string };
+  };
 }
 
-const CORE_RACE_SLUGS = [
+const CORE_RACE_NAMES = [
   "dragonborn", "dwarf", "elf", "gnome",
   "half-elf", "half-orc", "halfling", "human", "tiefling",
 ] as const;
 
 const ui = useUiStore();
 const router = useRouter();
+const { ruleset } = useRuleset();
 const { mutateAsync: createSpecies } = useCreateSpecies();
 const { mutateAsync: updateSpecies } = useUpdateSpecies();
 const { data: existingSpecies } = useAllSpecies();
@@ -175,8 +167,8 @@ async function search() {
   loading.value = true;
   error.value = "";
   try {
-    const url = new URL("https://api.open5e.com/v1/races/");
-    url.searchParams.set("search", q);
+    const url = new URL("https://api.open5e.com/v2/species/");
+    url.searchParams.set("name__icontains", q);
     url.searchParams.set("limit", "20");
     const res = await fetch(url.toString());
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -196,9 +188,8 @@ function parseSize(raw: string): SpeciesSize | null {
   return VALID_SIZES.includes(s) ? s : null;
 }
 
-function parseSpeed(raw: string | Record<string, number> | undefined): Record<string, number> | null {
+function parseSpeed(raw: string | undefined): Record<string, number> | null {
   if (!raw) return null;
-  if (typeof raw === "object") return raw;
   // e.g. "30 ft., fly 30 ft."
   const result: Record<string, number> = {};
   const walkMatch = raw.match(/^(\d+)/);
@@ -227,112 +218,74 @@ function parseLanguages(raw: string | undefined): string[] {
     .filter((l) => Boolean(l) && !/^your choice/i.test(l));
 }
 
-function parseTags(race: Open5eRace): string[] {
+function parseTags(race: Open5eRace, size: SpeciesSize | null): string[] {
   const tags: string[] = ["humanoid"];
-  if (race.size_raw) tags.push(race.size_raw.toLowerCase());
+  if (size) tags.push(size);
   // Add the race's own name as a tag (e.g. "elf", "dwarf", "half-elf")
   const nameTag = race.name.toLowerCase().replace(/\s+/g, "-");
   if (!tags.includes(nameTag)) tags.push(nameTag);
   return tags;
 }
 
-/** Convert [{attributes:["Dexterity"],value:2}] → "+2 Dexterity, +1 Intelligence" */
-function parseAsi(asi: Open5eAsi[] | undefined): Record<string, number | string> | null {
-  if (!asi?.length) return null;
+function parseAsi(raw: string | undefined): Record<string, number | string> | null {
+  if (!raw) return null;
   const entries: Record<string, number> = {};
-  for (const a of asi) {
-    for (const attr of a.attributes) {
-      entries[attr.toLowerCase().slice(0, 3)] = a.value;
-    }
+  const pattern = /(Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma)\s+(?:score\s+)?increases? by (\d+)/gi;
+  for (const match of raw.matchAll(pattern)) {
+    entries[match[1].toLowerCase().slice(0, 3)] = Number(match[2]);
   }
-  return entries;
-}
-
-/**
- * Splits an Open5e traits string (blocks separated by \n\n, each starting with
- * **_Name._** description…) into [{name, description}] pairs.
- *
- * Open5e sometimes puts a table BEFORE the first **_Name._** trait block (e.g.
- * dragonborn: the ancestry table precedes "**_Draconic Ancestry._**"). Those
- * table blocks are buffered and prepended to the next named trait's description.
- * Non-table pre-trait blocks (plain bold headings) are discarded. Continuation
- * blocks after a named trait are merged into that trait.
- * Descriptions are stored as Tiptap JSON.
- */
-function parseTraits(raw: string | undefined): Array<{ name: string; description: string }> {
-  if (!raw?.trim()) return [];
-
-  // Normalize: some Open5e sources separate traits with single newlines instead of
-  // double newlines. Insert a double newline before any line that starts with a
-  // trait heading marker (**_ or ***) so the block-based split works uniformly.
-  const normalized = raw.replace(/\n(?=\*\*[_*])/g, "\n\n");
-  const blocks = normalized.split(/\n\n+/).map((b) => b.trim()).filter(Boolean);
-  const traits: Array<{ name: string; descParts: string[] }> = [];
-  // Table blocks that appear before the first **_Name._** trait (e.g. dragonborn
-  // ancestry table). They get attached to the next named trait encountered.
-  const pendingTables: string[] = [];
-
-  for (const block of blocks) {
-    // Handle both **_Name._** and ***Name.*** (bold-italic) trait heading formats
-    const match = block.match(/^(?:\*\*_(.+?)\._\*\*|\*\*\*(.+?)\.\*\*\*)\s*([\s\S]*)/);
-    if (match) {
-      const traitName = (match[1] ?? match[2]).trim();
-      const desc = match[3].trim();
-      // Desc first, then any table that preceded this trait (e.g. ancestry table)
-      const descParts = desc ? [desc, ...pendingTables] : [...pendingTables];
-      traits.push({ name: traitName, descParts });
-      pendingTables.length = 0;
-    } else if (traits.length > 0) {
-      // Continuation block after a named trait — attach to it
-      traits[traits.length - 1].descParts.push(block);
-    } else if (block.startsWith("|")) {
-      // Table before the first named trait — buffer it
-      pendingTables.push(block);
-    }
-    // Other pre-trait blocks (plain bold headings like "**Draconic Ancestry**") are discarded
-  }
-
-  return traits
-    .filter((t) => t.descParts.length > 0)
-    .map((t) => ({
-      name: t.name,
-      description: markdownToTiptapJson(t.descParts.join("\n\n")),
-    }));
+  return Object.keys(entries).length ? entries : null;
 }
 
 function buildPayload(race: Open5eRace) {
+  const trait = (name: string) => race.traits.find(entry => entry.name.toLowerCase() === name);
+  const size = parseSize(trait("size")?.desc.match(/\b(tiny|small|medium|large)\b/i)?.[1] ?? "");
+  const speciesTraits = race.traits
+    .filter(entry => !["size", "speed", "languages", "ability score increase"].includes(entry.name.toLowerCase()))
+    .map(entry => ({ name: entry.name, description: markdownToTiptapJson(entry.desc) }));
+  const gamesystem = race.document.gamesystem?.key;
   return {
     name: race.name,
     description: race.desc ? toTiptapJson(race.desc) : null,
     notes: null,
-    size: parseSize(race.size_raw ?? race.size),
-    speed: parseSpeed(race.speed),
-    ability_score_increases: parseAsi(race.asi),
-    traits: parseTraits([race.vision, race.traits].filter(Boolean).join("\n\n")),
-    languages: parseLanguages(race.languages),
-    tags: parseTags(race),
-    source: race.document__title ?? null,
-    subraces: race.subraces?.length
-      ? race.subraces.map((sr) => ({
-          name: sr.name,
-          description: sr.desc ?? "",
-          traits: parseTraits(sr.traits),
-          ability_score_increases: parseAsi(sr.asi) ?? null,
-        }))
-      : null,
+    size,
+    speed: parseSpeed(trait("speed")?.desc),
+    ability_score_increases: parseAsi(trait("ability score increase")?.desc),
+    traits: speciesTraits,
+    languages: parseLanguages(trait("languages")?.desc),
+    tags: parseTags(race, size),
+    source: race.document.display_name || race.document.name,
+    subraces: null,
     image_url: null,
     focal_point: null,
     is_shapeshifter: false,
     avg_height: null,
     avg_weight: null,
     granted_spells: [],
+    ruleset: gamesystem === "5e-2024" ? "2024" as const
+      : gamesystem === "5e-2014" || gamesystem === "5e" ? "2014" as const : null,
+    conceptual_key: race.name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, ""),
+    source_document_key: race.document.key,
+    source_record_key: race.key,
+    source_revision: race.document.name,
+    source_license: null,
+    provenance: {
+      provider: "open5e-v2",
+      document: {
+        key: race.document.key,
+        publisher: race.document.publisher ?? null,
+        gamesystem: race.document.gamesystem ?? null,
+        permalink: race.document.permalink ?? null,
+      },
+    },
   };
 }
 
 async function upsertRace(race: Open5eRace) {
   const payload = buildPayload(race);
   const existing = (existingSpecies.value ?? []).find(
-    (s) => s.name.toLowerCase() === race.name.toLowerCase(),
+    (species) => species.source_document_key === race.document.key
+      && species.source_record_key === race.key,
   );
   if (existing) {
     await updateSpecies({ id: existing.id, update: payload });
@@ -346,17 +299,19 @@ async function seedCoreRaces() {
   seeding.value = true;
   error.value = "";
   let done = 0;
-  for (const slug of CORE_RACE_SLUGS) {
-    seedProgress.value = `${done} / ${CORE_RACE_SLUGS.length}…`;
-    try {
-      const res = await fetch(`https://api.open5e.com/v1/races/${slug}/?format=json`);
-      if (!res.ok) continue;
-      const race = await res.json() as Open5eRace;
+  const documentKey = ruleset.value === "2024" ? "srd-2024" : "srd-2014";
+  try {
+    const res = await fetch(`https://api.open5e.com/v2/species/?document__key__in=${documentKey}&limit=500`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json() as { results: Open5eRace[] };
+    const core = json.results.filter(race => !race.is_subspecies && CORE_RACE_NAMES.includes(race.name.toLowerCase() as typeof CORE_RACE_NAMES[number]));
+    for (const race of core) {
+      seedProgress.value = `${done} / ${core.length}…`;
       await upsertRace(race);
-    } catch {
-      // skip failed entries silently
+      done++;
     }
-    done++;
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : "Failed to seed core species.";
   }
   seeding.value = false;
   seedProgress.value = "";

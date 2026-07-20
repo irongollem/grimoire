@@ -326,7 +326,7 @@ export type MonsterImportResult = { inserted: number; updated: number };
 /**
  * Pulls all monsters from the selected Open5e documents and upserts them into
  * the `monsters` table as `open5e_import: true`. Matches the Spells pattern:
- * - Inserts by name (monsters are globally unique by name within Open5e).
+ * - Inserts by Open5e V2 document + native record identity.
  * - Updates existing open5e-imported rows in place when source / CR / stat
  *   block changes, WITHOUT touching user-uploaded art or custom notes.
  */
@@ -341,30 +341,26 @@ export function useImportSrdMonsters() {
 
       // ── Load existing open5e-imported monsters so we can dedupe + decide
       //    between insert and update ─────────────────────────────────────────
-      const allNames = monsters.map((m) => m.name);
       type ExistingRow = {
         id: string;
-        name: string;
-        source: string | null;
-        source_title: string | null;
-        source_url: string | null;
-        stat_block: MonsterInsert["stat_block"];
-        source_record_key: string | null;
+        source_document_key: string;
+        source_record_key: string;
       };
-      const existing: ExistingRow[] = [];
-      const CHUNK = 200;
-      for (let i = 0; i < allNames.length; i += CHUNK) {
-        const { data } = await supabase
-          .from("monsters")
-          .select("id, name, source, source_title, source_url, stat_block, source_record_key")
-          .eq("open5e_import", true)
-          .in("name", allNames.slice(i, i + CHUNK));
-        existing.push(...((data ?? []) as ExistingRow[]));
-      }
-      const byRecord = new Map(existing.filter((row) => row.source_record_key).map((row) => [row.source_record_key!, row]));
-      const byLegacySourceName = new Map(existing.map((row) => [`${row.source ?? ""}\0${row.name}`, row]));
-      const existingFor = (monster: MonsterInsert) => byRecord.get(monster.source_record_key!)
-        ?? byLegacySourceName.get(`${monster.source ?? ""}\0${monster.name}`);
+      const { data: existingData, error: existingError } = await supabase
+        .from("monsters")
+        .select("id, source_document_key, source_record_key")
+        .eq("user_id", user.id)
+        .eq("open5e_import", true)
+        .not("source_document_key", "is", null)
+        .not("source_record_key", "is", null);
+      if (existingError) throw existingError;
+      const existing = (existingData ?? []) as ExistingRow[];
+      const byIdentity = new Map(existing.map(row => [
+        `${row.source_document_key}::${row.source_record_key}`,
+        row,
+      ]));
+      const existingFor = (monster: MonsterInsert) =>
+        byIdentity.get(`${monster.source_document_key}::${monster.source_record_key}`);
 
       // ── Insert new monsters ───────────────────────────────────────────────
       const toInsert = monsters.filter((monster) => !existingFor(monster));
@@ -378,18 +374,7 @@ export function useImportSrdMonsters() {
       }
 
       // ── Update existing monsters (source + stat block only, never art) ───
-      const toUpdate = monsters.filter((m) => {
-        const cur = existingFor(m);
-        if (!cur) return false;
-        const sameSource = cur.source === m.source;
-        const sameTitle = cur.source_title === m.source_title;
-        const sameUrl = cur.source_url === m.source_url;
-        const sameIdentity = cur.source_record_key === m.source_record_key;
-        // Stat block comparison is a structural JSON compare; any change in
-        // CR / damage / actions upstream re-syncs down to the DB.
-        const sameStats = JSON.stringify(cur.stat_block) === JSON.stringify(m.stat_block);
-        return !sameSource || !sameTitle || !sameUrl || !sameIdentity || !sameStats;
-      });
+      const toUpdate = monsters.filter((monster) => !!existingFor(monster));
 
       const UPDATE_CONCURRENCY = 25;
       for (let i = 0; i < toUpdate.length; i += UPDATE_CONCURRENCY) {
@@ -397,23 +382,7 @@ export function useImportSrdMonsters() {
           toUpdate.slice(i, i + UPDATE_CONCURRENCY).map((m) =>
             supabase
               .from("monsters")
-              .update({
-                source: m.source,
-                source_title: m.source_title,
-                source_url: m.source_url,
-                monster_type: m.monster_type,
-                size: m.size,
-                alignment: m.alignment,
-                stat_block: m.stat_block,
-                is_srd: m.is_srd,
-                ruleset: m.ruleset,
-                conceptual_key: m.conceptual_key,
-                source_document_key: m.source_document_key,
-                source_record_key: m.source_record_key,
-                source_revision: m.source_revision,
-                source_license: m.source_license,
-                provenance: m.provenance,
-              })
+              .update(m)
               .eq("id", existingFor(m)!.id),
           ),
         );

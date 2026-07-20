@@ -317,39 +317,31 @@ export function useImportSrdSpells() {
     mutationFn: async (sourceSlugs: string[]): Promise<ImportResult> => {
       const { fetchSrdSpells } = await import("@/lib/open5eSpellImport");
       const spells = await fetchSrdSpells(sourceSlugs.length > 0 ? sourceSlugs : undefined);
-      const allNames = [...new Set(spells.map((spell) => spell.name))];
+      const recordKeys = [...new Set(spells.map((spell) => spell.source_record_key))];
       type ExistingSrdIdentity = {
         id: string;
-        name: string;
-        source: string | null;
-        source_record_key: string | null;
+        source_document_key: string;
+        source_record_key: string;
         image_url: string | null;
       };
       const existing: ExistingSrdIdentity[] = [];
       const CHUNK = 200;
-      for (let i = 0; i < allNames.length; i += CHUNK) {
+      for (let i = 0; i < recordKeys.length; i += CHUNK) {
         const { data, error } = await supabase
           .from("srd_spells")
-          .select("id, name, source, source_record_key, image_url")
-          .in("name", allNames.slice(i, i + CHUNK));
+          .select("id, source_document_key, source_record_key, image_url")
+          .in("source_record_key", recordKeys.slice(i, i + CHUNK));
         if (error) throw error;
         existing.push(...((data ?? []) as ExistingSrdIdentity[]));
       }
 
-      const bySourceRecord = new Map(
-        existing
-          .filter((row) => row.source_record_key)
-          .map((row) => [row.source_record_key!, row]),
-      );
-      const byLegacySourceName = new Map(
-        existing.map((row) => [`${row.source ?? ""}\0${row.name}`, row]),
-      );
+      const bySourceRecord = new Map(existing.map(row => [
+        `${row.source_document_key}::${row.source_record_key}`,
+        row,
+      ]));
       const existingIds = new Set(existing.map((row) => row.id));
-      // Preserve app-facing IDs referenced by character_spells when adopting a
-      // legacy V1 row into its V2 source identity.
       const rows = spells.map((spell) => {
-        const current = bySourceRecord.get(spell.source_record_key)
-          ?? byLegacySourceName.get(`${spell.source_document_key}\0${spell.name}`);
+        const current = bySourceRecord.get(`${spell.source_document_key}::${spell.source_record_key}`);
         return current ? { ...spell, id: current.id, image_url: current.image_url } : spell;
       });
 

@@ -110,40 +110,35 @@ export function useImportSrdFeatures() {
       const feats = await fetchSrdFeats();
       const user = getCurrentUser();
 
-      const allNames = feats.map((f) => f.name);
-      type ExistingRow = { id: string; name: string; source: string | null; source_record_key: string | null; prerequisite: string | null; feature_type: string };
-      const existing: ExistingRow[] = [];
-      const CHUNK = 200;
-      for (let i = 0; i < allNames.length; i += CHUNK) {
-        const { data } = await supabase
-          .from("class_features")
-          .select("id, name, source, source_record_key, prerequisite, feature_type")
-          .eq("open5e_import", true)
-          .in("name", allNames.slice(i, i + CHUNK));
-        existing.push(...((data ?? []) as ExistingRow[]));
-      }
-      const byRecord = new Map(existing.filter((row) => row.source_record_key).map((row) => [row.source_record_key!, row]));
-      const byLegacySourceName = new Map(existing.map((row) => [`${row.source ?? ""}\0${row.name}`, row]));
-      const existingFor = (feat: ClassFeatureInsert) => byRecord.get(feat.source_record_key!)
-        ?? byLegacySourceName.get(`${feat.source ?? ""}\0${feat.name}`);
+      if (!user) throw new Error("Not authenticated");
+      type ExistingRow = { id: string; source_document_key: string; source_record_key: string };
+      const { data: existingData, error: existingError } = await supabase
+        .from("class_features")
+        .select("id, source_document_key, source_record_key")
+        .eq("user_id", user.id)
+        .eq("open5e_import", true)
+        .not("source_document_key", "is", null)
+        .not("source_record_key", "is", null);
+      if (existingError) throw existingError;
+      const existing = (existingData ?? []) as ExistingRow[];
+      const byIdentity = new Map(existing.map(row => [
+        `${row.source_document_key}::${row.source_record_key}`,
+        row,
+      ]));
+      const existingFor = (feat: ClassFeatureInsert) =>
+        byIdentity.get(`${feat.source_document_key}::${feat.source_record_key}`);
 
       const toInsert = feats.filter((feat) => !existingFor(feat));
       const INSERT_BATCH = 100;
       for (let i = 0; i < toInsert.length; i += INSERT_BATCH) {
-        const batch = toInsert.slice(i, i + INSERT_BATCH).map((f) => ({ ...f, user_id: user!.id }));
+        const batch = toInsert.slice(i, i + INSERT_BATCH).map((f) => ({ ...f, user_id: user.id }));
         const { error } = await supabase.from("class_features").insert(batch);
         if (error) throw error;
       }
 
       // Update existing rows — refresh prerequisite, feature_type, and description
       // from Open5e; never touch user-edited tags, source override, or campaign_id.
-      const toUpdate = feats.filter((f) => {
-        const cur = existingFor(f);
-        if (!cur) return false;
-        return cur.prerequisite !== f.prerequisite
-          || cur.feature_type !== f.feature_type
-          || cur.source_record_key !== f.source_record_key;
-      });
+      const toUpdate = feats.filter((feature) => !!existingFor(feature));
       const UPDATE_CONCURRENCY = 25;
       for (let i = 0; i < toUpdate.length; i += UPDATE_CONCURRENCY) {
         await Promise.all(
@@ -153,6 +148,9 @@ export function useImportSrdFeatures() {
               .update({
                 prerequisite: f.prerequisite,
                 feature_type: f.feature_type,
+                name: f.name,
+                description: f.description,
+                source: f.source,
                 ruleset: f.ruleset,
                 conceptual_key: f.conceptual_key,
                 source_document_key: f.source_document_key,

@@ -257,27 +257,23 @@ export function useImportSrdItems() {
         ...item,
       }));
 
-      // Check which names already exist — match by name only (no source filter)
-      // so that re-imports correctly find previously imported items regardless of
-      // what source value they were stored with.
-      const allNames = items.map((i) => i.name);
-      type ExistingItem = { id: string; name: string; source: string | null; source_record_key: string | null };
-      const existing: ExistingItem[] = [];
-      const NAME_CHUNK = 200;
-      for (let i = 0; i < allNames.length; i += NAME_CHUNK) {
-        const { data } = await supabase
-          .from("items")
-          .select("id, name, source, source_record_key")
-          .eq("ruleset", "2014")
-          .in("name", allNames.slice(i, i + NAME_CHUNK));
-        existing.push(...((data ?? []) as ExistingItem[]));
-      }
-      const byRecord = new Map(existing.filter((row) => row.source_record_key).map((row) => [row.source_record_key!, row]));
-      const byLegacySourceName = new Map(existing.map((row) => [`${row.source ?? ""}\0${row.name}`, row]));
-      const existingFor = (item: typeof items[number]) => byRecord.get(item.source_record_key!)
-        ?? byLegacySourceName.get(`${item.source ?? ""}\0${item.name}`);
-
       const user = getCurrentUser();
+      if (!user) throw new Error("Not authenticated");
+      type ExistingItem = { id: string; source_document_key: string; source_record_key: string };
+      const { data: existingData, error: existingError } = await supabase
+        .from("items")
+        .select("id, source_document_key, source_record_key")
+        .eq("user_id", user.id)
+        .not("source_document_key", "is", null)
+        .not("source_record_key", "is", null);
+      if (existingError) throw existingError;
+      const existing = (existingData ?? []) as ExistingItem[];
+      const byIdentity = new Map(existing.map(row => [
+        `${row.source_document_key}::${row.source_record_key}`,
+        row,
+      ]));
+      const existingFor = (item: typeof items[number]) =>
+        byIdentity.get(`${item.source_document_key}::${item.source_record_key}`);
       const toInsert = items.filter((item) => !existingFor(item));
       const toUpdate = items.filter((item) => !!existingFor(item));
 
@@ -287,7 +283,7 @@ export function useImportSrdItems() {
         const batch = toInsert.slice(i, i + BATCH).map((item) => ({
           curse_description: null,
           ...item,
-          user_id: user!.id,
+          user_id: user.id,
         }));
         const { error } = await supabase.from("items").insert(batch);
         if (error) throw error;

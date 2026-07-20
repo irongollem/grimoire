@@ -1,223 +1,204 @@
+import { fetchAll } from "@/lib/open5eApi";
 import type { ItemInsert, ItemType, ItemRarity, WeaponProperty } from "@/types/item.types";
+import type { RulesetKey } from "@/types/ruleset.types";
 import { WEAPON_PROPERTIES } from "@/types/item.types";
 
-// ── open5e v1 API shapes ───────────────────────────────────────────────────────
-
-interface Open5eWeapon {
-  slug: string;
+interface DocumentRef {
+  key: string;
   name: string;
-  category: string;          // e.g. "Martial Melee Weapons"
-  cost: string;              // e.g. "25 gp" (already formatted)
-  damage_dice: string;       // e.g. "1d8"
-  damage_type: string;       // e.g. "slashing"
-  weight: string;            // e.g. "8 lb." (already formatted)
-  properties: string[];      // e.g. ["two-handed", "heavy"]
-  range?: string;            // e.g. "(80/320 ft.)" for ranged weapons
-  versatile?: string;        // e.g. "1d10" two-handed damage for versatile weapons
-  document__slug: string;
-  document__title: string;
-  document__url: string;
+  display_name?: string;
+  permalink?: string | null;
+  publisher?: { name: string; key: string };
+  gamesystem?: { name: string; key: string };
 }
 
-interface Open5eArmor {
-  slug: string;
+interface Open5eV2Weapon {
+  key: string;
   name: string;
-  category: string;          // e.g. "Medium Armor", "Shields"
-  base_ac: number;
-  plus_dex_mod: boolean;
-  plus_max: number | null;
-  ac_string: string;         // e.g. "14 + Dex modifier (max 2)" (already formatted)
-  strength_requirement: number | null;
-  cost: string;
-  weight: string;
-  stealth_disadvantage: boolean;
-  document__slug: string;
-  document__title: string;
-  document__url: string;
+  document: DocumentRef;
+  properties: Array<{ property: { name: string; type?: string | null }; detail: string | null }>;
+  damage_type: { name: string; key: string } | null;
+  damage_dice: string;
+  range: number;
+  long_range: number;
+  is_simple: boolean;
+  is_improvised: boolean;
 }
 
-interface Open5eMagicItem {
-  slug: string;
+interface Open5eV2Armor {
+  key: string;
   name: string;
-  type: string;              // e.g. "Wondrous Item", "Armor (plate)"
-  rarity: string;            // e.g. "rare", "very rare"
-  requires_attunement: string; // "" or "requires attunement by..."
+  document: DocumentRef;
+  ac_display: string;
+  category: string;
+}
+
+interface Open5eV2MagicItem {
+  key: string;
+  name: string;
   desc: string;
-  document__slug: string;
-  document__title: string;
-  document__url: string;
+  category: { name: string; key: string };
+  rarity: { name: string; key: string };
+  weapon: Open5eV2Weapon | null;
+  armor: Open5eV2Armor | null;
+  weight: string | null;
+  cost: string | null;
+  requires_attunement: boolean;
+  attunement_detail: string | null;
+  document: DocumentRef;
 }
 
-import { fetchAll } from "@/lib/open5eApi";
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function armorItemType(category: string): ItemType {
-  const c = category.toLowerCase();
-  if (c.includes("shield")) return "shield";
-  return "armor";
+function rulesetForDocument(document: DocumentRef): RulesetKey | null {
+  if (document.gamesystem?.key === "5e-2024") return "2024";
+  if (document.gamesystem?.key === "5e-2014" || document.gamesystem?.key === "5e") return "2014";
+  return null;
 }
 
-function magicItemType(type: string): ItemType {
-  const t = type.toLowerCase();
-  if (t.startsWith("armor")) return "armor";
-  if (t.startsWith("weapon")) return "weapon";
-  if (t === "wondrous item") return "wondrous_item";
-  if (t === "ring") return "ring";
-  if (t === "rod") return "rod";
-  if (t === "staff") return "staff";
-  if (t === "wand") return "wand";
-  if (t === "potion") return "potion";
-  if (t === "scroll") return "scroll";
-  return "wondrous_item";
+function metadata(record: { key: string; name: string; document: DocumentRef }) {
+  return {
+    ruleset: rulesetForDocument(record.document),
+    conceptual_key: record.name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, ""),
+    source_document_key: record.document.key,
+    source_record_key: record.key,
+    source_revision: record.document.name,
+    source_license: null,
+    provenance: {
+      provider: "open5e-v2",
+      document: {
+        key: record.document.key,
+        publisher: record.document.publisher ?? null,
+        gamesystem: record.document.gamesystem ?? null,
+        permalink: record.document.permalink ?? null,
+      },
+    },
+  };
 }
 
 function mapRarity(raw: string): ItemRarity {
-  const r = raw.toLowerCase().trim();
-  if (r === "very rare") return "very_rare";
+  const value = raw.toLowerCase().trim().replace(/\s+/g, "_");
   const valid: ItemRarity[] = ["mundane", "common", "uncommon", "rare", "very_rare", "legendary", "artifact"];
-  return valid.includes(r as ItemRarity) ? (r as ItemRarity) : "common";
+  return valid.includes(value as ItemRarity) ? value as ItemRarity : "common";
 }
 
-function filterProperties(props: string[] | null | undefined): WeaponProperty[] {
-  if (!props) return [];
-  const valid = new Set<string>(WEAPON_PROPERTIES);
-  return props
-    .map((p) => p.toLowerCase().split(" ")[0]) // "two-handed" → keep, "double-headed (1d4)" → "double-headed"
-    .filter((n) => valid.has(n)) as WeaponProperty[];
+function magicItemType(category: string): ItemType {
+  const value = category.toLowerCase();
+  if (value.includes("armor")) return "armor";
+  if (value.includes("weapon")) return "weapon";
+  if (value.includes("ring")) return "ring";
+  if (value.includes("rod")) return "rod";
+  if (value.includes("staff")) return "staff";
+  if (value.includes("wand")) return "wand";
+  if (value.includes("potion")) return "potion";
+  if (value.includes("scroll")) return "scroll";
+  return "wondrous_item";
 }
 
-// ── Mappers ───────────────────────────────────────────────────────────────────
-
-function weaponTags(category: string): string[] {
-  const c = category.toLowerCase();
-  if (c.includes("firearm") || c.includes("renaissance") || c.includes("modern") || c.includes("futuristic")) {
-    return ["firearm", "black powder", "ranged"];
-  }
-  return [];
+function weaponProperties(record: Open5eV2Weapon): WeaponProperty[] {
+  const allowed = new Set<string>(WEAPON_PROPERTIES);
+  return record.properties.map(entry => entry.property.name.toLowerCase().replace(/\s+/g, "-"))
+    .filter(value => allowed.has(value)) as WeaponProperty[];
 }
 
-function versionMetadata(item: { slug: string; name: string; document__slug: string }) {
+function versatileDamage(record: Open5eV2Weapon): string | null {
+  return record.properties.find(entry => entry.property.name.toLowerCase() === "versatile")?.detail ?? null;
+}
+
+function baseItem(record: { key: string; name: string; document: DocumentRef }) {
   return {
-    ruleset: "2014" as const,
-    conceptual_key: item.name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, ""),
-    source_document_key: item.document__slug || "srd",
-    source_record_key: `${item.document__slug || "srd"}:${item.slug}`,
-    source_revision: "open5e-v1",
-    source_license: null,
-    provenance: { provider: "open5e", api_version: "v1" },
+    ...metadata(record),
+    name: record.name,
+    source: record.document.key,
+    source_title: record.document.display_name || record.document.name,
+    source_url: record.document.permalink ?? null,
+    tags: [] as string[],
+    image_url: null,
+    curse_description: null,
+    is_arcane_focus: false,
   };
 }
 
-function mapWeapon(item: Open5eWeapon): ItemInsert {
+export function mapOpen5eV2Weapon(record: Open5eV2Weapon): ItemInsert {
+  const ranged = record.range > 0;
   return {
-    ...versionMetadata(item),
-    name: item.name,
+    ...baseItem(record),
     item_type: "weapon",
-    subtype: item.category,
+    subtype: `${record.is_simple ? "Simple" : "Martial"} ${ranged ? "Ranged" : "Melee"} Weapons`,
     rarity: "mundane",
     requires_attunement: false,
     attunement_requirements: null,
-    weight: item.weight ? parseFloat(item.weight) || null : null,
-    cost: item.cost || null,
-    damage_rolls: item.damage_dice
-      ? [{ dice: item.damage_dice, type: item.damage_type }]
+    weight: null,
+    cost: null,
+    damage_rolls: record.damage_dice && record.damage_type
+      ? [{ dice: record.damage_dice, type: record.damage_type.name.toLowerCase() }]
       : null,
     armor_class: null,
-    properties: filterProperties(item.properties),
+    properties: weaponProperties(record),
     charges: null,
     recharge: null,
     spell_ids: [],
-    weapon_range: item.range?.trim() || null,
-    versatile_damage: item.versatile?.trim() || null,
+    weapon_range: ranged ? `${record.range}/${record.long_range} ft.` : null,
+    versatile_damage: versatileDamage(record),
     description: "",
-    source: item.document__slug || "srd",
-    source_title: item.document__title || null,
-    source_url: item.document__url || null,
-    tags: weaponTags(item.category),
-    image_url: null,
-    curse_description: null,
-    is_arcane_focus: false,
   };
 }
 
-function mapArmor(item: Open5eArmor): ItemInsert {
+export function mapOpen5eV2Armor(record: Open5eV2Armor): ItemInsert {
   return {
-    ...versionMetadata(item),
-    name: item.name,
-    item_type: armorItemType(item.category),
-    subtype: item.category,
+    ...baseItem(record),
+    item_type: record.category.toLowerCase() === "shield" ? "shield" : "armor",
+    subtype: record.category,
     rarity: "mundane",
     requires_attunement: false,
     attunement_requirements: null,
-    weight: item.weight ? parseFloat(item.weight) || null : null,
-    cost: item.cost || null,
-    damage_rolls: null,
-    armor_class: item.ac_string || null,
-    properties: [],
-    charges: null,
-    recharge: null,
-    spell_ids: [],
-    description: "",
-    source: item.document__slug || "srd",
-    source_title: item.document__title || null,
-    source_url: item.document__url || null,
-    tags: [],
-    image_url: null,
-    curse_description: null,
-    is_arcane_focus: false,
-  };
-}
-
-function mapMagicItem(item: Open5eMagicItem): ItemInsert {
-  const attunementStr = item.requires_attunement?.trim() ?? "";
-  return {
-    ...versionMetadata(item),
-    name: item.name,
-    item_type: magicItemType(item.type),
-    subtype: item.type,
-    rarity: mapRarity(item.rarity),
-    requires_attunement: attunementStr.length > 0,
-    attunement_requirements: attunementStr.length > 0 ? attunementStr : null,
     weight: null,
     cost: null,
     damage_rolls: null,
-    armor_class: null,
+    armor_class: record.ac_display || null,
     properties: [],
     charges: null,
     recharge: null,
     spell_ids: [],
-    description: item.desc,
-    source: item.document__slug || "srd",
-    source_title: item.document__title || null,
-    source_url: item.document__url || null,
-    tags: [],
-    image_url: null,
-    curse_description: null,
-    is_arcane_focus: false,
+    weapon_range: null,
+    versatile_damage: null,
+    description: "",
   };
 }
 
-// ── Public API ────────────────────────────────────────────────────────────────
+export function mapOpen5eV2MagicItem(record: Open5eV2MagicItem): ItemInsert {
+  const itemType = record.weapon ? "weapon" : record.armor ? "armor" : magicItemType(record.category.name);
+  return {
+    ...baseItem(record),
+    item_type: itemType,
+    subtype: record.category.name,
+    rarity: mapRarity(record.rarity.name),
+    requires_attunement: record.requires_attunement,
+    attunement_requirements: record.attunement_detail?.trim() || null,
+    weight: record.weight ? Number(record.weight) : null,
+    cost: record.cost || null,
+    damage_rolls: record.weapon?.damage_dice && record.weapon.damage_type
+      ? [{ dice: record.weapon.damage_dice, type: record.weapon.damage_type.name.toLowerCase() }]
+      : null,
+    armor_class: record.armor?.ac_display || null,
+    properties: record.weapon ? weaponProperties(record.weapon) : [],
+    charges: null,
+    recharge: null,
+    spell_ids: [],
+    weapon_range: record.weapon?.range ? `${record.weapon.range}/${record.weapon.long_range} ft.` : null,
+    versatile_damage: record.weapon ? versatileDamage(record.weapon) : null,
+    description: record.desc,
+  };
+}
 
+/** All item categories use V2 native keys; no display-name deduplication. */
 export async function fetchSrdItems(): Promise<ItemInsert[]> {
-  const [weapons, armor, magic] = await Promise.all([
-    fetchAll<Open5eWeapon>("https://api.open5e.com/v1/weapons/"),
-    fetchAll<Open5eArmor>("https://api.open5e.com/v1/armor/"),
-    fetchAll<Open5eMagicItem>("https://api.open5e.com/v1/magicitems/"),
+  const [weapons, armor, magicItems] = await Promise.all([
+    fetchAll<Open5eV2Weapon>("https://api.open5e.com/v2/weapons/"),
+    fetchAll<Open5eV2Armor>("https://api.open5e.com/v2/armor/"),
+    fetchAll<Open5eV2MagicItem>("https://api.open5e.com/v2/magicitems/"),
   ]);
-
-  const mapped: ItemInsert[] = [
-    ...weapons.map(mapWeapon),
-    ...armor.map(mapArmor),
-    ...magic.map(mapMagicItem),
+  return [
+    ...weapons.map(mapOpen5eV2Weapon),
+    ...armor.map(mapOpen5eV2Armor),
+    ...magicItems.map(mapOpen5eV2MagicItem),
   ];
-
-  // Deduplicate by name (keep first occurrence)
-  const seen = new Set<string>();
-  return mapped.filter((item) => {
-    if (seen.has(item.name)) return false;
-    seen.add(item.name);
-    return true;
-  });
 }
