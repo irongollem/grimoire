@@ -1,74 +1,111 @@
 /**
- * Ensures every named class feature exists in the class_features table.
- * Inserts any missing ones as passive open5e_import features.
- * Returns a Map<lowercaseName, uuid> for all requested names.
+ * Synchronise Open5e class features by provider identity. Equal display names
+ * from different documents remain distinct records and can evolve separately.
  */
 import { supabase, getCurrentUser } from "@/lib/supabase";
+import type { Open5eClassFeaturePreview } from "@/lib/open5eClassImport";
+
+export function classFeatureIdentity(feature: Pick<Open5eClassFeaturePreview, "sourceDocumentKey" | "key">): string {
+  return `${feature.sourceDocumentKey}::${feature.key}`;
+}
 
 export async function ensureClassFeatures(
-  /** Map of feature name → source label (e.g. "Black Flag SRD") */
-  neededFeatures: Map<string, string>,
+  neededFeatures: Map<string, Open5eClassFeaturePreview>,
 ): Promise<Map<string, string>> {
-  const featureNameToId = new Map<string, string>();
-  const allNeeded = [...neededFeatures.keys()];
-  if (allNeeded.length === 0) return featureNameToId;
+  const identityToId = new Map<string, string>();
+  if (neededFeatures.size === 0) return identityToId;
 
   const user = getCurrentUser();
+  if (!user) throw new Error("Not authenticated");
 
-  // Load existing in chunks to stay under Supabase URL length limits
-  const CHUNK = 200;
-  for (let i = 0; i < allNeeded.length; i += CHUNK) {
-    const { data } = await supabase
-      .from("class_features")
-      .select("id, name")
-      .in("name", allNeeded.slice(i, i + CHUNK));
-    for (const f of data ?? []) {
-      featureNameToId.set(f.name.toLowerCase(), f.id);
-    }
+  const { data: existing, error: existingError } = await supabase
+    .from("class_features")
+    .select("id, source_document_key, source_record_key")
+    .eq("user_id", user.id)
+    .not("source_document_key", "is", null)
+    .not("source_record_key", "is", null);
+  if (existingError) throw existingError;
+
+  for (const feature of existing ?? []) {
+    identityToId.set(`${feature.source_document_key}::${feature.source_record_key}`, feature.id);
   }
 
-  // Insert any that don't exist yet
-  const toCreate = allNeeded.filter(n => !featureNameToId.has(n.toLowerCase()));
-  if (toCreate.length > 0) {
-    const rows = toCreate.map(name => ({
-      name,
+  const toCreate = [...neededFeatures.entries()].filter(([identity]) => !identityToId.has(identity));
+  const BATCH = 100;
+  for (let i = 0; i < toCreate.length; i += BATCH) {
+    const rows = toCreate.slice(i, i + BATCH).map(([, feature]) => ({
+      name: feature.name,
       feature_type: "passive" as const,
       open5e_import: true,
-      source: neededFeatures.get(name) ?? "Open5e",
-      description: null,
+      source: feature.sourceDocumentName,
+      description: feature.description ? descToTiptap(feature.description) : null,
       campaign_id: null,
       prerequisite: null,
       tags: [] as string[],
-      user_id: user!.id,
+      user_id: user.id,
+      ruleset: feature.ruleset,
+      conceptual_key: conceptualKey(feature.name),
+      source_document_key: feature.sourceDocumentKey,
+      source_record_key: feature.key,
+      source_revision: feature.sourceDocumentName,
+      source_license: feature.sourceLicense,
+      provenance: feature.provenance,
     }));
-
-    const BATCH = 100;
-    for (let i = 0; i < rows.length; i += BATCH) {
-      const { data: inserted, error } = await supabase
-        .from("class_features")
-        .insert(rows.slice(i, i + BATCH))
-        .select("id, name");
-      if (error) throw error;
-      for (const f of inserted ?? []) {
-        featureNameToId.set(f.name.toLowerCase(), f.id);
-      }
+    const { data: inserted, error } = await supabase
+      .from("class_features")
+      .insert(rows)
+      .select("id, source_document_key, source_record_key");
+    if (error) throw error;
+    for (const feature of inserted ?? []) {
+      identityToId.set(`${feature.source_document_key}::${feature.source_record_key}`, feature.id);
     }
   }
 
-  return featureNameToId;
+  // Refresh provider-controlled fields. User art/tags are intentionally left alone.
+  const toUpdate = [...neededFeatures.entries()].filter(([identity]) => identityToId.has(identity));
+  for (let i = 0; i < toUpdate.length; i += 25) {
+    await Promise.all(toUpdate.slice(i, i + 25).map(async ([identity, feature]) => {
+      const { error } = await supabase
+        .from("class_features")
+        .update({
+          name: feature.name,
+          source: feature.sourceDocumentName,
+          description: feature.description ? descToTiptap(feature.description) : null,
+          ruleset: feature.ruleset,
+          conceptual_key: conceptualKey(feature.name),
+          source_revision: feature.sourceDocumentName,
+          source_license: feature.sourceLicense,
+          provenance: feature.provenance,
+        })
+        .eq("id", identityToId.get(identity)!);
+      if (error) throw error;
+    }));
+  }
+
+  return identityToId;
 }
 
-/** Collect all feature names across all previews into a name→source map */
-export function collectFeatureNames(
-  previews: { featureNamesByLevel: Record<string, string[]>; source: string }[],
-): Map<string, string> {
-  const needed = new Map<string, string>();
-  for (const p of previews) {
-    for (const names of Object.values(p.featureNamesByLevel)) {
-      for (const name of names) {
-        if (!needed.has(name)) needed.set(name, p.source || "Open5e");
-      }
+export function collectFeatures(
+  previews: { featureRecordsByLevel: Record<string, Open5eClassFeaturePreview[]> }[],
+): Map<string, Open5eClassFeaturePreview> {
+  const needed = new Map<string, Open5eClassFeaturePreview>();
+  for (const preview of previews) {
+    for (const features of Object.values(preview.featureRecordsByLevel)) {
+      for (const feature of features) needed.set(classFeatureIdentity(feature), feature);
     }
   }
   return needed;
+}
+
+function conceptualKey(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+}
+
+function descToTiptap(desc: string): string {
+  const content = desc
+    .split(/\n\n+/)
+    .map(text => text.trim())
+    .filter(Boolean)
+    .map(text => ({ type: "paragraph", content: [{ type: "text", text }] }));
+  return JSON.stringify({ type: "doc", content });
 }

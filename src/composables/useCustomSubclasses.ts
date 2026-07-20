@@ -7,14 +7,17 @@ import type {
   CustomSubclassUpdate,
 } from "@/levelup/customTypes";
 import { fetchOpen5eSubclasses, subclassToInsert } from "@/lib/open5eClassImport";
-import { ensureClassFeatures, collectFeatureNames } from "@/lib/classFeatureSync";
+import { classFeatureIdentity, collectFeatures, ensureClassFeatures } from "@/lib/classFeatureSync";
+import { useRuleset } from "@/composables/useRuleset";
+import type { RulesetKey } from "@/types/ruleset.types";
 
 const QUERY_KEY = "custom_subclasses";
 
-async function fetchAll(): Promise<CustomSubclass[]> {
+async function fetchAll(ruleset: RulesetKey): Promise<CustomSubclass[]> {
   const { data, error } = await supabase
     .from("custom_subclasses")
     .select("*")
+    .or(`ruleset.is.null,ruleset.eq.${ruleset}`)
     .order("class_name", { ascending: true })
     .order("subclass_name", { ascending: true });
   if (error) throw error;
@@ -34,15 +37,17 @@ async function fetchOne(id: string): Promise<CustomSubclass> {
 async function fetchByClassAndSubclass(
   className: string,
   subclassName: string,
+  ruleset: RulesetKey,
 ): Promise<CustomSubclass | null> {
   const { data, error } = await supabase
     .from("custom_subclasses")
     .select("*")
     .eq("class_name", className)
     .eq("subclass_name", subclassName)
-    .maybeSingle();
+    .or(`ruleset.is.null,ruleset.eq.${ruleset}`);
   if (error) throw error;
-  return data as CustomSubclass | null;
+  const matches = (data ?? []) as CustomSubclass[];
+  return matches.find(row => !row.source_document_key) ?? matches[0] ?? null;
 }
 
 async function createCustomSubclass(input: CustomSubclassInsert): Promise<CustomSubclass> {
@@ -76,7 +81,12 @@ async function deleteCustomSubclass(id: string): Promise<void> {
 }
 
 export function useAllCustomSubclasses() {
-  return useQuery({ queryKey: [QUERY_KEY], queryFn: fetchAll, staleTime: Infinity });
+  const { ruleset } = useRuleset();
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY, ruleset.value]),
+    queryFn: () => fetchAll(ruleset.value),
+    staleTime: Infinity,
+  });
 }
 
 export function useCustomSubclass(id: Ref<string>) {
@@ -91,9 +101,10 @@ export function useCustomSubclassByClassAndSubclass(
   className: Ref<string>,
   subclassName: Ref<string>,
 ) {
+  const { ruleset } = useRuleset();
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "by-class", className.value, subclassName.value]),
-    queryFn: () => fetchByClassAndSubclass(className.value, subclassName.value),
+    queryKey: computed(() => [QUERY_KEY, "by-class", ruleset.value, className.value, subclassName.value]),
+    queryFn: () => fetchByClassAndSubclass(className.value, subclassName.value, ruleset.value),
     enabled: () => !!className.value && !!subclassName.value,
     staleTime: Infinity,
   });
@@ -130,14 +141,14 @@ export function useImportOpen5eSubclasses() {
       const previews = await fetchOpen5eSubclasses();
 
       // Ensure all referenced class features exist, creating missing ones automatically
-      const featureNameToId = await ensureClassFeatures(collectFeatureNames(previews));
+      const featureIdentityToId = await ensureClassFeatures(collectFeatures(previews));
 
       // Resolve features for every preview
       function resolveFeatures(p: typeof previews[number]): Record<string, string[]> {
         const features: Record<string, string[]> = {};
-        for (const [level, names] of Object.entries(p.featureNamesByLevel)) {
-          const uuids = names
-            .map(n => featureNameToId.get(n.toLowerCase()))
+        for (const [level, records] of Object.entries(p.featureRecordsByLevel)) {
+          const uuids = records
+            .map(record => featureIdentityToId.get(classFeatureIdentity(record)))
             .filter((id): id is string => !!id);
           if (uuids.length) features[level] = uuids;
         }
@@ -146,15 +157,18 @@ export function useImportOpen5eSubclasses() {
 
       const { data: existing } = await supabase
         .from("custom_subclasses")
-        .select("id, class_name, subclass_name")
-        .eq("user_id", user!.id);
+        .select("id, source_document_key, source_record_key")
+        .eq("user_id", user!.id)
+        .not("source_document_key", "is", null)
+        .not("source_record_key", "is", null);
 
       const existingMap = new Map(
-        (existing ?? []).map(r => [`${r.class_name}::${r.subclass_name}`, r.id]),
+        (existing ?? []).map(r => [`${r.source_document_key}::${r.source_record_key}`, r.id]),
       );
+      const identity = (p: typeof previews[number]) => `${p.sourceDocumentKey}::${p.sourceRecordKey}`;
 
-      const toInsert = previews.filter(p => !existingMap.has(`${p.parentClassName}::${p.name}`));
-      const toUpdate = previews.filter(p => existingMap.has(`${p.parentClassName}::${p.name}`));
+      const toInsert = previews.filter(p => !existingMap.has(identity(p)));
+      const toUpdate = previews.filter(p => existingMap.has(identity(p)));
 
       if (toInsert.length > 0) {
         const rows = toInsert.map(p => ({ ...subclassToInsert(p), features: resolveFeatures(p), user_id: user!.id }));
@@ -163,10 +177,10 @@ export function useImportOpen5eSubclasses() {
       }
 
       for (const p of toUpdate) {
-        const id = existingMap.get(`${p.parentClassName}::${p.name}`)!;
+        const id = existingMap.get(identity(p))!;
         const { error } = await supabase
           .from("custom_subclasses")
-          .update({ features: resolveFeatures(p), description: p.desc || null, source: p.source || null })
+          .update({ ...subclassToInsert(p), features: resolveFeatures(p) })
           .eq("id", id);
         if (error) throw error;
       }

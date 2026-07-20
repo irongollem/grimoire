@@ -3,15 +3,17 @@ import { computed, type Ref } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { CustomClass, CustomClassInsert, CustomClassUpdate, SystemClass } from "@/levelup/customTypes";
 import { fetchOpen5eBaseClasses, baseClassToInsert } from "@/lib/open5eClassImport";
-import { ensureClassFeatures, collectFeatureNames } from "@/lib/classFeatureSync";
+import { classFeatureIdentity, collectFeatures, ensureClassFeatures } from "@/lib/classFeatureSync";
 import { useRuleset } from "@/composables/useRuleset";
+import type { RulesetKey } from "@/types/ruleset.types";
 
 const QUERY_KEY = "custom_classes";
 
-async function fetchAll(): Promise<CustomClass[]> {
+async function fetchAll(ruleset: RulesetKey): Promise<CustomClass[]> {
   const { data, error } = await supabase
     .from("custom_classes")
     .select("*")
+    .or(`ruleset.is.null,ruleset.eq.${ruleset}`)
     .order("class_name", { ascending: true });
   if (error) throw error;
   return data as CustomClass[];
@@ -27,14 +29,15 @@ async function fetchOne(id: string): Promise<CustomClass> {
   return data as CustomClass;
 }
 
-async function fetchByName(className: string): Promise<CustomClass | null> {
+async function fetchByName(className: string, ruleset: RulesetKey): Promise<CustomClass | null> {
   const { data, error } = await supabase
     .from("custom_classes")
     .select("*")
     .eq("class_name", className)
-    .maybeSingle();
+    .or(`ruleset.is.null,ruleset.eq.${ruleset}`);
   if (error) throw error;
-  return data as CustomClass | null;
+  const matches = (data ?? []) as CustomClass[];
+  return matches.find(row => !row.source_document_key) ?? matches[0] ?? null;
 }
 
 async function createCustomClass(input: CustomClassInsert): Promise<CustomClass> {
@@ -65,7 +68,12 @@ async function deleteCustomClass(id: string): Promise<void> {
 }
 
 export function useAllCustomClasses() {
-  return useQuery({ queryKey: [QUERY_KEY], queryFn: fetchAll, staleTime: Infinity });
+  const { ruleset } = useRuleset();
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY, ruleset.value]),
+    queryFn: () => fetchAll(ruleset.value),
+    staleTime: Infinity,
+  });
 }
 
 export function useCustomClass(id: Ref<string>) {
@@ -77,9 +85,10 @@ export function useCustomClass(id: Ref<string>) {
 }
 
 export function useCustomClassByName(className: Ref<string>) {
+  const { ruleset } = useRuleset();
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "by-name", className.value]),
-    queryFn: () => fetchByName(className.value),
+    queryKey: computed(() => [QUERY_KEY, "by-name", ruleset.value, className.value]),
+    queryFn: () => fetchByName(className.value, ruleset.value),
     enabled: () => !!className.value,
     staleTime: Infinity,
   });
@@ -130,42 +139,36 @@ export function useImportOpen5eClasses() {
     mutationFn: async (): Promise<ClassImportResult> => {
       const user = getCurrentUser();
 
-      // Load Open5e base classes and existing system class names in parallel
-      const [previews, systemResult, existingResult] = await Promise.all([
+      const [previews, existingResult] = await Promise.all([
         fetchOpen5eBaseClasses(),
-        supabase.from("system_classes").select("class_name"),
-        supabase.from("custom_classes").select("id, class_name").eq("user_id", user!.id),
+        supabase.from("custom_classes")
+          .select("id, source_document_key, source_record_key")
+          .eq("user_id", user!.id)
+          .not("source_document_key", "is", null)
+          .not("source_record_key", "is", null),
       ]);
 
-      // Filter out any class whose name matches an existing system class
-      const systemNames = new Set((systemResult.data ?? []).map(r => r.class_name));
-      const filtered = previews.filter(p => !systemNames.has(p.name));
-
-      // Clean up any previously imported custom_classes that duplicate system classes
-      const staleIds = (existingResult.data ?? [])
-        .filter(r => systemNames.has(r.class_name))
-        .map(r => r.id);
-      if (staleIds.length > 0) {
-        await supabase.from("custom_classes").delete().in("id", staleIds);
-      }
-
       // Ensure all referenced class features exist in class_features table
-      const featureNameToId = await ensureClassFeatures(collectFeatureNames(filtered));
+      const featureIdentityToId = await ensureClassFeatures(collectFeatures(previews));
 
-      function resolveFeatures(p: typeof filtered[number]): Record<string, string[]> {
+      function resolveFeatures(p: typeof previews[number]): Record<string, string[]> {
         const features: Record<string, string[]> = {};
-        for (const [level, names] of Object.entries(p.featureNamesByLevel)) {
-          const uuids = names
-            .map(n => featureNameToId.get(n.toLowerCase()))
+        for (const [level, records] of Object.entries(p.featureRecordsByLevel)) {
+          const uuids = records
+            .map(record => featureIdentityToId.get(classFeatureIdentity(record)))
             .filter((id): id is string => !!id);
           if (uuids.length) features[level] = uuids;
         }
         return features;
       }
 
-      const existingMap = new Map((existingResult.data ?? []).map(r => [r.class_name, r.id]));
-      const toInsert = filtered.filter(p => !existingMap.has(p.name));
-      const toUpdate = filtered.filter(p => existingMap.has(p.name));
+      const existingMap = new Map((existingResult.data ?? []).map(r => [
+        `${r.source_document_key}::${r.source_record_key}`,
+        r.id,
+      ]));
+      const identity = (p: typeof previews[number]) => `${p.sourceDocumentKey}::${p.sourceRecordKey}`;
+      const toInsert = previews.filter(p => !existingMap.has(identity(p)));
+      const toUpdate = previews.filter(p => existingMap.has(identity(p)));
 
       if (toInsert.length > 0) {
         const rows = toInsert.map(p => ({ ...baseClassToInsert(p), features: resolveFeatures(p), user_id: user!.id }));
@@ -174,10 +177,10 @@ export function useImportOpen5eClasses() {
       }
 
       for (const p of toUpdate) {
-        const id = existingMap.get(p.name)!;
+        const id = existingMap.get(identity(p))!;
         const { error } = await supabase
           .from("custom_classes")
-          .update({ features: resolveFeatures(p), saving_throws: p.savingThrows })
+          .update({ ...baseClassToInsert(p), features: resolveFeatures(p) })
           .eq("id", id);
         if (error) throw error;
       }
@@ -199,7 +202,8 @@ export function useClassByName(className: Ref<string>) {
   return computed(() => {
     const name = className.value;
     if (!name) return null;
-    return (customClasses.value ?? []).find(c => c.class_name === name)
+    return (customClasses.value ?? []).find(c => c.class_name === name && !c.source_document_key)
+      ?? (customClasses.value ?? []).find(c => c.class_name === name)
       ?? (systemClasses.value ?? []).find(c => c.class_name === name)
       ?? null;
   });

@@ -3,7 +3,7 @@
  * the Open5e `/v1/backgrounds/` schema plus Grimoire-specific fields
  * (tags, custom image, Tiptap JSON description).
  */
-export interface Background {
+export interface Background extends VersionedContentMetadata {
   id: string;
   user_id: string;
   name: string;
@@ -38,3 +38,4 @@ export interface Background {
 
 export type BackgroundInsert = Omit<Background, "id" | "user_id" | "created_at" | "updated_at">;
 export type BackgroundUpdate = Partial<BackgroundInsert>;
+import type { VersionedContentMetadata } from "@/types/content.types";

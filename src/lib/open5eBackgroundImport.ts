@@ -1,138 +1,141 @@
+import { fetchAll } from "@/lib/open5eApi";
 import type { BackgroundInsert } from "@/types/background.types";
+import type { RulesetKey } from "@/types/ruleset.types";
 
-// ── Open5e v1 API shapes ──────────────────────────────────────────────────────
+interface Open5eDocumentRef {
+  key: string;
+  name: string;
+  display_name?: string;
+  permalink?: string | null;
+  publisher?: { name: string; key: string };
+  gamesystem?: { name: string; key: string };
+}
 
-interface Open5eBackground {
-  slug: string;
+interface Open5eV2Document extends Open5eDocumentRef {
+  licenses?: Array<{ name: string; key: string }>;
+  publication_date?: string | null;
+}
+
+interface Open5eBenefit {
   name: string;
   desc: string;
-  skill_proficiencies: string;   // Comma-separated prose, e.g. "Insight, Religion"
-  tool_proficiencies: string;    // Comma-separated or "—"
-  languages: string;             // Comma-separated or "—" / "Two of your choice"
-  equipment: string;             // Prose list + closing gp amount
-  feature: string;
-  feature_desc: string;
-  suggested_characteristics: string;
-  document__slug: string;
-  document__title: string;
-  document__url: string;
+  type: string;
 }
 
-interface Open5eListResponse<T> {
-  count: number;
-  next: string | null;
-  results: T[];
+interface Open5eV2Background {
+  key: string;
+  name: string;
+  desc: string;
+  benefits: Open5eBenefit[];
+  document: Open5eDocumentRef;
 }
-
-// ── Pagination fetch ──────────────────────────────────────────────────────────
-
-async function fetchAll<T>(baseUrl: string): Promise<T[]> {
-  const results: T[] = [];
-  const sep = baseUrl.includes("?") ? "&" : "?";
-  let url: string | null = `${baseUrl}${sep}limit=500&format=json`;
-  while (url) {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`open5e fetch failed: ${res.status} ${url}`);
-    const json: Open5eListResponse<T> = await res.json();
-    results.push(...json.results);
-    url = json.next;
-  }
-  return results;
-}
-
-// ── Document list (shared endpoint) ───────────────────────────────────────────
 
 export interface Open5eDocument {
   slug: string;
   title: string;
+  ruleset: RulesetKey | null;
 }
 
-export async function fetchOpen5eDocuments(): Promise<Open5eDocument[]> {
-  const docs = await fetchAll<Open5eDocument>("https://api.open5e.com/v1/documents/");
-  return docs.slice().sort((a, b) => a.title.localeCompare(b.title));
+const DOCUMENTS_URL = "https://api.open5e.com/v2/documents/";
+const BACKGROUNDS_URL = "https://api.open5e.com/v2/backgrounds/";
+
+function rulesetForDocument(document: Open5eDocumentRef): RulesetKey | null {
+  const key = document.gamesystem?.key?.toLowerCase();
+  if (key === "5e-2024") return "2024";
+  if (key === "5e-2014" || key === "5e") return "2014";
+  return null;
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+function conceptualKey(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+}
 
-/**
- * Open5e ships skill / tool / language proficiencies as a single
- * comma-separated string (plus occasional prose like "Two of your
- * choice"). Split those into arrays, trim, and drop em-dashes that the
- * API uses to mean "none".
- */
 function splitProficiencies(raw: string | null | undefined): string[] {
   if (!raw) return [];
   const trimmed = raw.trim();
-  if (!trimmed || trimmed === "—" || trimmed === "-" || trimmed.toLowerCase() === "none") {
-    return [];
-  }
-  // Choice prose ("X, and either A, B, or C." / "Two of your choice.") must NOT
-  // be comma-split — doing so shatters "either A, B, or C" into separate array
-  // entries that downstream code then grants as if each were a fixed skill,
-  // turning a "choose one" into "grant all". Keep such prose intact as a single
-  // element; parseBackgroundSkills() reconstructs the fixed/choice split at use.
-  if (/\b(either|your choice|from among|between|plus)\b/i.test(trimmed)) {
+  if (!trimmed || trimmed === "—" || trimmed === "-" || trimmed.toLowerCase() === "none") return [];
+  if (/\b(either|your choice|from among|between|plus|choose)\b/i.test(trimmed)) {
     return [trimmed.replace(/\s*\.\s*$/, "")];
   }
-  return trimmed
-    .split(/[,;]+/)
-    .map((s) => s.trim())
-    .filter(Boolean);
+  return trimmed.split(/[,;]|\band\b/i).map(value => value.trim()).filter(Boolean);
 }
 
-// ── Mapper ────────────────────────────────────────────────────────────────────
+function benefit(background: Open5eV2Background, type: string): Open5eBenefit | undefined {
+  return background.benefits?.find(entry => entry.type === type);
+}
 
-function mapBackground(b: Open5eBackground): BackgroundInsert {
+function mapBackground(
+  background: Open5eV2Background,
+  documents: Map<string, Open5eV2Document>,
+): BackgroundInsert {
+  const documentMetadata = documents.get(background.document.key);
+  const document: Open5eDocumentRef = documentMetadata ?? background.document;
+  const feature = benefit(background, "feature")
+    ?? benefit(background, "adventures_and_advancement")
+    ?? background.benefits?.find(entry => ![
+      "ability_score", "equipment", "feat", "language", "skill_proficiency",
+      "tool_proficiency", "suggested_characteristics", "connection_and_memento",
+    ].includes(entry.type));
+  const feat = benefit(background, "feat");
+
   return {
-    name: b.name,
-    description: b.desc?.trim() || null,
-    skill_proficiencies: splitProficiencies(b.skill_proficiencies),
-    tool_proficiencies: splitProficiencies(b.tool_proficiencies),
-    languages: splitProficiencies(b.languages),
-    equipment: b.equipment?.trim() || null,
-    feature_name: b.feature?.trim() || null,
-    feature_description: b.feature_desc?.trim() || null,
-    feat_grant_name: null,
+    name: background.name,
+    description: background.desc?.trim() || null,
+    skill_proficiencies: splitProficiencies(benefit(background, "skill_proficiency")?.desc),
+    tool_proficiencies: splitProficiencies(benefit(background, "tool_proficiency")?.desc),
+    languages: splitProficiencies(benefit(background, "language")?.desc),
+    equipment: benefit(background, "equipment")?.desc?.trim() || null,
+    feature_name: feature?.name?.trim() || null,
+    feature_description: feature?.desc?.trim() || null,
+    feat_grant_name: feat?.desc?.trim() || null,
     feat_grant_description: null,
-    suggested_characteristics: b.suggested_characteristics?.trim() || null,
+    suggested_characteristics: benefit(background, "suggested_characteristics")?.desc?.trim() || null,
     tags: [],
-    source: b.document__slug ?? null,
-    source_title: b.document__title ?? null,
-    source_url: b.document__url ?? null,
+    source: document.key,
+    source_title: document.display_name || document.name,
+    source_url: document.permalink ?? null,
     open5e_import: true,
     image_url: null,
     focal_point: null,
+    ruleset: rulesetForDocument(document),
+    conceptual_key: conceptualKey(background.name),
+    source_document_key: document.key,
+    source_record_key: background.key,
+    source_revision: documentMetadata?.publication_date ?? document.name,
+    source_license: documentMetadata?.licenses?.map(license => license.key).join(", ") || null,
+    provenance: {
+      provider: "open5e-v2",
+      document: {
+        key: document.key,
+        name: document.name,
+        publisher: document.publisher ?? null,
+        gamesystem: document.gamesystem ?? null,
+        permalink: document.permalink ?? null,
+      },
+    },
   };
 }
 
-// ── Public API ────────────────────────────────────────────────────────────────
+export async function fetchOpen5eDocuments(): Promise<Open5eDocument[]> {
+  const documents = await fetchAll<Open5eV2Document>(DOCUMENTS_URL);
+  return documents
+    .map(document => ({
+      slug: document.key,
+      title: document.display_name || document.name,
+      ruleset: rulesetForDocument(document),
+    }))
+    .sort((a, b) => a.title.localeCompare(b.title));
+}
 
-/**
- * Fetch backgrounds from one or more Open5e documents. No argument =
- * cross-document corpus (42 entries as of 2026-04); otherwise a filtered
- * fetch by `document__slug`. Deduplicates by name so a cross-document
- * duplicate doesn't collide downstream.
- */
-export async function fetchBackgrounds(sourceSlugs?: string[]): Promise<BackgroundInsert[]> {
-  let raw: Open5eBackground[];
-
-  if (sourceSlugs && sourceSlugs.length > 0) {
-    const fetches = await Promise.all(
-      sourceSlugs.map((slug) =>
-        fetchAll<Open5eBackground>(`https://api.open5e.com/v1/backgrounds/?document__slug=${slug}`),
-      ),
-    );
-    raw = fetches.flat();
-  } else {
-    raw = await fetchAll<Open5eBackground>("https://api.open5e.com/v1/backgrounds/");
-  }
-
-  const seen = new Set<string>();
-  return raw
-    .map(mapBackground)
-    .filter((b) => {
-      if (seen.has(b.name)) return false;
-      seen.add(b.name);
-      return true;
-    });
+/** Fetch V2 records without collapsing equal names from different documents. */
+export async function fetchBackgrounds(sourceKeys?: string[]): Promise<BackgroundInsert[]> {
+  const query = sourceKeys?.length
+    ? `${BACKGROUNDS_URL}?document__key__in=${encodeURIComponent(sourceKeys.join(","))}`
+    : BACKGROUNDS_URL;
+  const [raw, documentRows] = await Promise.all([
+    fetchAll<Open5eV2Background>(query),
+    fetchAll<Open5eV2Document>(DOCUMENTS_URL),
+  ]);
+  const documents = new Map(documentRows.map(document => [document.key, document]));
+  return raw.map(background => mapBackground(background, documents));
 }

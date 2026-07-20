@@ -38,7 +38,7 @@ export interface CustomStep {
 /** Feature UUIDs grouped by level: { "3": ["<uuid>", "<uuid>"], "7": ["<uuid>"] } */
 export type CustomFeatures = Record<string, string[]>;
 
-export interface CustomSubclass {
+export interface CustomSubclass extends VersionedContentMetadata {
   id: string;
   user_id: string;
   campaign_id: string | null;
@@ -68,7 +68,7 @@ export type CustomSubclassUpdate = Partial<CustomSubclassInsert>;
 
 export type HitDie = 6 | 8 | 10 | 12;
 
-export interface CustomClass {
+export interface CustomClass extends VersionedContentMetadata {
   id: string;
   user_id: string;
   campaign_id: string | null;

@@ -3,14 +3,17 @@ import { computed, type Ref } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { Background, BackgroundInsert, BackgroundUpdate } from "@/types/background.types";
 import { removeStorageImages } from "@/composables/useImageUpload";
+import { useRuleset } from "@/composables/useRuleset";
+import type { RulesetKey } from "@/types/ruleset.types";
 
 const QUERY_KEY = "backgrounds";
 const OPEN5E_DOCS_KEY = "open5e-background-documents";
 
-async function fetchBackgrounds(): Promise<Background[]> {
+async function fetchBackgrounds(ruleset: RulesetKey): Promise<Background[]> {
   const { data, error } = await supabase
     .from("backgrounds")
     .select("*")
+    .or(`ruleset.is.null,ruleset.eq.${ruleset}`)
     .order("name", { ascending: true });
   if (error) throw error;
   return (data ?? []) as Background[];
@@ -52,7 +55,12 @@ async function deleteBackground(bg: Background): Promise<void> {
 }
 
 export function useBackgrounds() {
-  return useQuery({ queryKey: [QUERY_KEY], queryFn: fetchBackgrounds, staleTime: Infinity });
+  const { ruleset } = useRuleset();
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY, ruleset.value]),
+    queryFn: () => fetchBackgrounds(ruleset.value),
+    staleTime: Infinity,
+  });
 }
 
 /** Returns a Map<background_id, background_name> for fast inline lookups. */
@@ -121,7 +129,7 @@ export type BackgroundImportResult = { inserted: number; updated: number };
 /**
  * Pulls backgrounds from the selected Open5e documents and upserts them into
  * the `backgrounds` table as `open5e_import: true`. Mirrors the Spells /
- * Monsters sync shape: insert new-by-name, update existing open5e rows in
+ * Monsters sync shape: insert by provider identity, update existing rows in
  * place when source / description / features change, never touch
  * user-uploaded art.
  */
@@ -134,29 +142,28 @@ export function useImportBackgrounds() {
       const user = getCurrentUser();
       if (!user) throw new Error("Not authenticated");
 
-      const allNames = backgrounds.map((b) => b.name);
       type ExistingRow = {
-        name: string;
-        source: string | null;
-        source_title: string | null;
-        source_url: string | null;
-        description: string | null;
-        feature_name: string | null;
-        feature_description: string | null;
+        id: string;
+        source_document_key: string;
+        source_record_key: string;
       };
-      const existing: ExistingRow[] = [];
-      const CHUNK = 200;
-      for (let i = 0; i < allNames.length; i += CHUNK) {
-        const { data } = await supabase
-          .from("backgrounds")
-          .select("name, source, source_title, source_url, description, feature_name, feature_description")
-          .eq("open5e_import", true)
-          .in("name", allNames.slice(i, i + CHUNK));
-        existing.push(...((data ?? []) as ExistingRow[]));
-      }
-      const existingMap = new Map(existing.map((e) => [e.name, e]));
+      const { data: existingData, error: existingError } = await supabase
+        .from("backgrounds")
+        .select("id, source_document_key, source_record_key")
+        .eq("user_id", user.id)
+        .eq("open5e_import", true)
+        .not("source_document_key", "is", null)
+        .not("source_record_key", "is", null);
+      if (existingError) throw existingError;
+      const existing = (existingData ?? []) as ExistingRow[];
+      const existingMap = new Map(existing.map((row) => [
+        `${row.source_document_key}::${row.source_record_key}`,
+        row.id,
+      ]));
+      const identity = (background: BackgroundInsert) =>
+        `${background.source_document_key}::${background.source_record_key}`;
 
-      const toInsert = backgrounds.filter((b) => !existingMap.has(b.name));
+      const toInsert = backgrounds.filter((background) => !existingMap.has(identity(background)));
       const INSERT_BATCH = 100;
       for (let i = 0; i < toInsert.length; i += INSERT_BATCH) {
         const batch = toInsert
@@ -166,41 +173,18 @@ export function useImportBackgrounds() {
         if (error) throw error;
       }
 
-      const toUpdate = backgrounds.filter((b) => {
-        const cur = existingMap.get(b.name);
-        if (!cur) return false;
-        return (
-          cur.source !== b.source ||
-          cur.source_title !== b.source_title ||
-          cur.source_url !== b.source_url ||
-          cur.description !== b.description ||
-          cur.feature_name !== b.feature_name ||
-          cur.feature_description !== b.feature_description
-        );
-      });
+      const toUpdate = backgrounds.filter((background) => existingMap.has(identity(background)));
 
       const UPDATE_CONCURRENCY = 25;
       for (let i = 0; i < toUpdate.length; i += UPDATE_CONCURRENCY) {
         await Promise.all(
-          toUpdate.slice(i, i + UPDATE_CONCURRENCY).map((b) =>
-            supabase
+          toUpdate.slice(i, i + UPDATE_CONCURRENCY).map(async (b) => {
+            const { error } = await supabase
               .from("backgrounds")
-              .update({
-                source: b.source,
-                source_title: b.source_title,
-                source_url: b.source_url,
-                description: b.description,
-                skill_proficiencies: b.skill_proficiencies,
-                tool_proficiencies: b.tool_proficiencies,
-                languages: b.languages,
-                equipment: b.equipment,
-                feature_name: b.feature_name,
-                feature_description: b.feature_description,
-                suggested_characteristics: b.suggested_characteristics,
-              })
-              .eq("open5e_import", true)
-              .eq("name", b.name),
-          ),
+              .update(b)
+              .eq("id", existingMap.get(identity(b))!);
+            if (error) throw error;
+          }),
         );
       }
 
