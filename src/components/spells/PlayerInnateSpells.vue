@@ -81,17 +81,18 @@
             >DC {{ spellSaveDc }}</span>
 
             <button
-              v-if="entry.spell.damage_rolls?.length"
+              v-if="entry.spell.damage_rolls?.length && entry.spell.mechanics_reviewed !== false"
               class="shrink-0 font-cinzel text-[10px] rounded border border-red-500/30 bg-red-500/10 text-red-500 px-1.5 py-0.5 hover:bg-red-500/20"
               title="Roll damage after resolving the spell attack or target saving throw"
-              @click.stop="rollInnateDamage(entry)"
-            >Damage</button>
+              @click.stop="entry.spell.effects?.length ? openEffectResolution(entry) : rollInnateDamage(entry)"
+            >{{ entry.spell.effects?.length ? "Resolve" : "Damage" }}</button>
             <button
-              v-if="entry.spell.healing_dice"
+              v-if="entry.spell.healing_dice && entry.spell.mechanics_reviewed !== false"
               class="shrink-0 font-cinzel text-[10px] rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-500 px-1.5 py-0.5 hover:bg-emerald-500/20"
               title="Roll healing"
-              @click.stop="rollInnateHealing(entry)"
-            >Healing</button>
+              @click.stop="entry.spell.effects?.length ? openEffectResolution(entry) : rollInnateHealing(entry)"
+            >{{ entry.spell.effects?.length ? "Resolve" : "Healing" }}</button>
+            <span v-if="entry.spell.mechanics_reviewed === false" class="shrink-0 rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 font-cinzel text-[10px] text-amber-500">Manual</span>
 
             <!-- Use tracking: pips or "At will" -->
             <template v-if="entry.uses_per_day !== null">
@@ -141,6 +142,13 @@
     </div>
 
     <PlayerSpellModal :spell="selectedSpell" @close="selectedSpell = null" />
+    <SpellEffectResolver
+      :spell="pendingResolution?.spell ?? null"
+      :cast-level="pendingResolution?.castLevel ?? 0"
+      :character-level="thisMember?.level ?? 1"
+      :spellcasting-modifier="(spellAttackBonus ?? 0) - (thisMember?.proficiency_bonus ?? 0)"
+      @close="pendingResolution = null"
+    />
   </div>
 </template>
 
@@ -163,6 +171,7 @@ import { signedNum } from "@/lib/utils";
 import type { CharacterSpellEntry, Spell } from "@/types/spell.types";
 import type { ConcentrationState } from "@/types/party.types";
 import PlayerSpellModal from "@/components/spells/PlayerSpellModal.vue";
+import SpellEffectResolver from "@/components/spells/SpellEffectResolver.vue";
 import { canAutoRollSpellEffect } from "@/lib/spellcastingPolicy";
 import { useToast } from "@/composables/useToast";
 
@@ -200,6 +209,10 @@ const thisMember = computed(() =>
 );
 
 const selectedSpell = ref<Spell | null>(null);
+const pendingResolution = ref<{ spell: Spell; castLevel: number } | null>(null);
+function openEffectResolution(entry: CharacterSpellEntry) {
+  pendingResolution.value = { spell: entry.spell, castLevel: entry.spell.level };
+}
 
 // Only non-class spells
 const innateEntries = computed(() =>
@@ -306,10 +319,16 @@ async function castSpell(entry: CharacterSpellEntry) {
     await sendFlavorMessage(text, "spell");
     if (concentrationState) await sendFlavorMessage(`begins concentrating on ${spell.name}`, spell.name);
 
-    if (spell.damage_rolls?.length && canAutoRollSpellEffect(spell.attack_type, "damage", spell.mechanics_reviewed !== false)) {
+    if (spell.mechanics_reviewed !== false && spell.effects?.length) {
+      openEffectResolution(entry);
+    } else if (spell.mechanics_reviewed === false) {
+      toast.info("Imported mechanics are unreviewed; resolve this spell manually from its rules text.");
+    }
+
+    if (!spell.effects?.length && spell.damage_rolls?.length && canAutoRollSpellEffect(spell.attack_type, "damage", spell.mechanics_reviewed !== false)) {
       await rollInnateDamage(entry);
     }
-    if (spell.healing_dice && canAutoRollSpellEffect(spell.attack_type, "healing", spell.mechanics_reviewed !== false)) {
+    if (!spell.effects?.length && spell.healing_dice && canAutoRollSpellEffect(spell.attack_type, "healing", spell.mechanics_reviewed !== false)) {
       await rollInnateHealing(entry);
     }
 

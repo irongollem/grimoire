@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildStructuredSpellEffects, resolveSpellEffects } from "./spellEffects";
+import { buildStructuredSpellEffects, effectsForCast, resolveSpellEffects } from "./spellEffects";
 
 const base = {
   attack_roll: false,
@@ -38,5 +38,34 @@ describe("structured spell effect resolver", () => {
       casting_options: [{ type: "start_of_turn", damage_roll: "2d6", target_count: 3 }],
     });
     expect(phased[1]).toMatchObject({ phase: "turn_start", dice: "2d6", target: { count: 3 } });
+  });
+
+  it("doubles attack damage only for a confirmed critical hit", () => {
+    const effects = buildStructuredSpellEffects({ ...base, attack_roll: true, saving_throw_ability: "" });
+    expect(resolveSpellEffects(effects, "impact", { target: "critical_hit" })[0].effect.dice).toBe("16d6");
+    expect(resolveSpellEffects(effects, "impact", { target: "miss" })).toEqual([]);
+  });
+
+  it("selects only the highest eligible cantrip variant", () => {
+    const effects = buildStructuredSpellEffects({
+      ...base,
+      damage_roll: "1d6",
+      casting_options: [
+        { type: "player_level_5", damage_roll: "2d6" },
+        { type: "player_level_11", damage_roll: "3d6" },
+      ],
+    });
+    expect(effectsForCast(effects, 0, 0, 10).map((effect) => effect.dice)).toEqual(["2d6"]);
+    expect(effectsForCast(effects, 0, 0, 11).map((effect) => effect.dice)).toEqual(["3d6"]);
+  });
+
+  it("applies per-slot scaling to the matching component", () => {
+    const effect = { ...buildStructuredSpellEffects(base)[0], scaling: { mode: "slot" as const, dice: "1d6" } };
+    expect(effectsForCast([effect], 3, 5, 9)[0].dice).toBe("10d6");
+  });
+
+  it("marks explicit spellcasting ability modifiers structurally", () => {
+    const effects = buildStructuredSpellEffects({ ...base, saving_throw_ability: "", desc: "The target regains 1d8 plus your spellcasting ability modifier Hit Points." });
+    expect(effects[0]).toMatchObject({ kind: "healing", modifier: "spellcasting_ability" });
   });
 });

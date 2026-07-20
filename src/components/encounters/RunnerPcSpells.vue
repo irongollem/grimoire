@@ -22,11 +22,12 @@
         @click.stop="emit('roll-attack', spellAttackBonus, entry.spell.name)"
       >🎲 Atk {{ signedNum(spellAttackBonus) }}</button>
       <button
-        v-if="entry.spell.damage_rolls?.length"
+        v-if="entry.spell.damage_rolls?.length && entry.spell.mechanics_reviewed !== false"
         type="button"
         class="trait-roll-btn trait-dmg-btn"
-        @click.stop="emit('roll-spell', entry.spell)"
-      >🎲 {{ entry.spell.damage_rolls[0].dice }}</button>
+        @click.stop="entry.spell.effects?.length ? openEffectResolution(entry) : emit('roll-spell', entry.spell)"
+      >🎲 {{ entry.spell.effects?.length ? "Resolve" : entry.spell.damage_rolls[0].dice }}</button>
+      <span v-if="entry.spell.mechanics_reviewed === false" class="text-[9px] text-amber-500">Manual</span>
       <button
         v-if="entry.spell.attack_type === 'save' && spellSaveDc"
         type="button"
@@ -36,6 +37,13 @@
       >DC {{ spellSaveDc }} {{ entry.spell.save_attribute }}</button>
     </div>
   </div>
+  <SpellEffectResolver
+    :spell="pendingResolution?.spell ?? null"
+    :cast-level="pendingResolution?.castLevel ?? 0"
+    :character-level="member.level"
+    :spellcasting-modifier="(spellAttackBonus ?? 0) - member.proficiency_bonus"
+    @close="pendingResolution = null"
+  />
 </template>
 
 <script setup lang="ts">
@@ -48,6 +56,7 @@ import { useCastCharacterSpell } from "@/composables/useParty";
 import { useConcentration } from "@/composables/useConcentration";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { useToast } from "@/composables/useToast";
+import SpellEffectResolver from "@/components/spells/SpellEffectResolver.vue";
 
 const props = defineProps<{
   member: PartyMember;
@@ -62,6 +71,10 @@ const { prepareConcentration } = useConcentration();
 const { sendFlavorMessage } = useCampaignMessages();
 const toast = useToast();
 const castingId = ref<string | null>(null);
+const pendingResolution = ref<{ spell: Spell; castLevel: number } | null>(null);
+function openEffectResolution(entry: CharacterSpellEntry, castLevel = entry.spell.level) {
+  pendingResolution.value = { spell: entry.spell, castLevel };
+}
 
 function castSlot(spell: Spell) {
   if (spell.level === 0) return { level: 0, max: 0, used: 0, pool: "spellcasting" as const };
@@ -93,6 +106,11 @@ async function cast(entry: CharacterSpellEntry) {
     });
     await sendFlavorMessage(`casts ${entry.spell.name}${slot.level > entry.spell.level ? ` at level ${slot.level}` : ""}`, "spell");
     if (concentrationState) await sendFlavorMessage(`begins concentrating on ${entry.spell.name}`, entry.spell.name);
+    if (entry.spell.mechanics_reviewed !== false && entry.spell.effects?.length) {
+      openEffectResolution(entry, slot.level);
+    } else if (entry.spell.mechanics_reviewed === false) {
+      toast.info("Imported mechanics are unreviewed; resolve this spell manually from its rules text.");
+    }
   } catch (error) {
     toast.error(toast.fromError(error));
   } finally {

@@ -151,7 +151,7 @@ export interface HigherLevelDamage {
   type: string | null;
 }
 
-export type SpellOutcome = "automatic" | "hit" | "miss" | "failed_save" | "successful_save";
+export type SpellOutcome = "automatic" | "hit" | "critical_hit" | "miss" | "failed_save" | "successful_save";
 
 export interface StructuredSpellEffect {
   id: string;
@@ -165,6 +165,8 @@ export interface StructuredSpellEffect {
   condition: string | null;
   description: string | null;
   scaling: { mode: "slot" | "character_level"; interval?: number; dice: string } | null;
+  /** An explicit numeric bonus or the caster's spellcasting ability modifier. */
+  modifier?: number | "spellcasting_ability" | null;
 }
 
 export interface Spell {

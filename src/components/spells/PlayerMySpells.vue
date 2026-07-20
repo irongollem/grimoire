@@ -143,13 +143,13 @@
             >DC {{ saveDcFor(entry) }}</button>
 
             <button
-              v-if="isCastable(entry) && entry.spell.damage_rolls?.length"
+              v-if="isCastable(entry) && entry.spell.damage_rolls?.length && entry.spell.mechanics_reviewed !== false"
               class="shrink-0 font-cinzel text-[10px] rounded border border-red-500/30 bg-red-500/10 text-red-500 px-1.5 py-0.5 transition-colors hover:bg-red-500/20"
               title="Roll damage after resolving the spell attack or target saving throw"
-              @click.stop="rollSpellDamage(entry, lastCastLevel(entry))"
-            >Damage</button>
+              @click.stop="entry.spell.effects?.length ? openEffectResolution(entry, lastCastLevel(entry)) : rollSpellDamage(entry, lastCastLevel(entry))"
+            >{{ entry.spell.effects?.length ? "Resolve" : "Damage" }}</button>
             <button
-              v-if="isCastable(entry) && entry.spell.damage_rolls?.length && hasKnownMetamagic('Empowered Spell')"
+              v-if="isCastable(entry) && entry.spell.damage_rolls?.length && entry.spell.mechanics_reviewed !== false && hasKnownMetamagic('Empowered Spell')"
               class="shrink-0 font-cinzel text-[10px] rounded border border-violet-500/30 bg-violet-500/10 text-violet-500 px-1.5 py-0.5 transition-colors hover:bg-violet-500/20"
               title="After rolling damage, spend 1 SP to reroll eligible damage dice"
               @click.stop="applyReactiveMetamagic(entry, 'Empowered Spell')"
@@ -161,11 +161,12 @@
               @click.stop="applyReactiveMetamagic(entry, 'Seeking Spell')"
             >Seek</button>
             <button
-              v-if="isCastable(entry) && entry.spell.healing_dice"
+              v-if="isCastable(entry) && entry.spell.healing_dice && entry.spell.mechanics_reviewed !== false"
               class="shrink-0 font-cinzel text-[10px] rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-500 px-1.5 py-0.5 transition-colors hover:bg-emerald-500/20"
               title="Roll healing"
-              @click.stop="rollSpellHealing(entry, lastCastLevel(entry))"
-            >Healing</button>
+              @click.stop="entry.spell.effects?.length ? openEffectResolution(entry, lastCastLevel(entry)) : rollSpellHealing(entry, lastCastLevel(entry))"
+            >{{ entry.spell.effects?.length ? "Resolve" : "Healing" }}</button>
+            <span v-if="entry.spell.mechanics_reviewed === false" class="shrink-0 rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 font-cinzel text-[10px] text-amber-500" title="Imported mechanics have not been reviewed; resolve from the spell text">Manual</span>
 
             <select
               v-if="eligibleMetamagic(entry).length"
@@ -271,6 +272,13 @@
     @cast="confirmCast"
     @cancel="pendingCastEntry = null"
   />
+  <SpellEffectResolver
+    :spell="pendingResolution?.spell ?? null"
+    :cast-level="pendingResolution?.castLevel ?? 0"
+    :character-level="props.memberLevel ?? 1"
+    :spellcasting-modifier="pendingResolution?.modifier ?? 0"
+    @close="pendingResolution = null"
+  />
 </template>
 
 <script setup lang="ts">
@@ -298,6 +306,7 @@ import { pickSpellcastingStats, type SpellcastingClassStats } from "@/types/mult
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import PlayerSpellModal from "@/components/spells/PlayerSpellModal.vue";
 import SpellUpcastPicker from "@/components/spells/SpellUpcastPicker.vue";
+import SpellEffectResolver from "@/components/spells/SpellEffectResolver.vue";
 import { availableSlotsForSpell, canCastWithSlot, spellSlotKey, slotPool, type SpellSlotPool } from "@/lib/spellSlots";
 import { useToast } from "@/composables/useToast";
 import { useRuleset } from "@/composables/useRuleset";
@@ -364,6 +373,7 @@ const { candidate: replacementCandidate, choose: chooseReplacement, clear: clear
 
 // ── Modal ──────────────────────────────────────────────────────────────────────
 const selectedSpell = ref<Spell | null>(null);
+const pendingResolution = ref<{ spell: Spell; castLevel: number; modifier: number } | null>(null);
 
 // ── Slot helpers ───────────────────────────────────────────────────────────────
 function slotsForLevel(level: number): SpellSlotEntry[] {
@@ -506,6 +516,15 @@ function eligibleSecondaryMetamagic(entry: CharacterSpellEntry): MetamagicOption
 
 function lastCastLevel(entry: CharacterSpellEntry): number {
   return lastCastLevels.value[entry.id] ?? entry.spell.level;
+}
+
+function openEffectResolution(entry: CharacterSpellEntry, castLevel: number) {
+  const stats = statsFor(entry);
+  pendingResolution.value = {
+    spell: entry.spell,
+    castLevel,
+    modifier: (stats?.attack ?? props.spellAttackBonus ?? 0) - (thisMember.value?.proficiency_bonus ?? 0),
+  };
 }
 
 /** A spell is castable if it's prepared, a cantrip, or the caster always has it ready (known casters). */
@@ -686,10 +705,16 @@ async function castSpell(
       await sendFlavorMessage(`begins concentrating on ${spell.name}`, spell.name);
     }
 
-    if (spell.damage_rolls?.length && canAutoRollSpellEffect(spell.attack_type, "damage", spell.mechanics_reviewed !== false)) {
+    if (spell.mechanics_reviewed !== false && spell.effects?.length) {
+      openEffectResolution(entry, castLevel);
+    } else if (spell.mechanics_reviewed === false) {
+      toast.info("Imported mechanics are unreviewed; resolve this spell manually from its rules text.");
+    }
+
+    if (!spell.effects?.length && spell.damage_rolls?.length && canAutoRollSpellEffect(spell.attack_type, "damage", spell.mechanics_reviewed !== false)) {
       await rollSpellDamage(entry, castLevel);
     }
-    if (spell.healing_dice && canAutoRollSpellEffect(spell.attack_type, "healing", spell.mechanics_reviewed !== false)) {
+    if (!spell.effects?.length && spell.healing_dice && canAutoRollSpellEffect(spell.attack_type, "healing", spell.mechanics_reviewed !== false)) {
       await rollSpellHealing(entry, castLevel);
     }
     selectedMetamagic.value = { ...selectedMetamagic.value, [entry.id]: "" };

@@ -1,4 +1,5 @@
 import type { SpellOutcome, StructuredSpellEffect } from "@/types/spell.types";
+import { scaleExpression } from "@/lib/dice";
 
 export interface SpellEffectSource {
   attack_roll: boolean;
@@ -43,6 +44,9 @@ export function buildStructuredSpellEffects(source: SpellEffectSource): Structur
     condition: null,
     description: null,
     scaling: null,
+    modifier: /(?:plus|\+)\s+(?:your\s+)?spellcasting ability modifier/i.test(source.desc)
+      ? "spellcasting_ability"
+      : null,
   }] : [];
   if (source.saving_throw_ability && /half (?:as much )?damage|half the damage|half damage/i.test(source.desc) && base[0]) {
     base.push({ ...base[0], id: "base-save-half", outcome: "successful_save", multiplier: 0.5 });
@@ -69,6 +73,9 @@ export function buildStructuredSpellEffects(source: SpellEffectSource): Structur
       condition: null,
       description,
       scaling: level && dice ? { mode: "character_level", interval: Number(level[1]), dice } : null,
+      modifier: /(?:plus|\+)\s+(?:your\s+)?spellcasting ability modifier/i.test(description ?? "")
+        ? "spellcasting_ability"
+        : null,
     }];
   });
   return [...base, ...variants];
@@ -84,8 +91,44 @@ export function resolveSpellEffects(
   for (const [targetId, outcome] of Object.entries(outcomesByTarget)) {
     for (const effect of effects) {
       if (effect.phase !== phase) continue;
-      if (effect.outcome === outcome || effect.outcome === "automatic") resolved.push({ targetId, effect });
+      if (effect.outcome === outcome || (outcome === "critical_hit" && effect.outcome === "hit") || effect.outcome === "automatic") {
+        resolved.push({
+          targetId,
+          effect: outcome === "critical_hit" && effect.kind === "damage"
+            ? { ...effect, dice: effect.dice ? scaleExpression(effect.dice, 1, effect.dice) : null }
+            : effect,
+        });
+      }
     }
   }
   return resolved;
+}
+
+/** Select level-specific variants and apply slot scaling without combining alternatives. */
+export function effectsForCast(
+  effects: StructuredSpellEffect[],
+  spellLevel: number,
+  castLevel: number,
+  characterLevel: number,
+): StructuredSpellEffect[] {
+  const characterVariants = effects.filter((effect) =>
+    effect.scaling?.mode === "character_level" && (effect.scaling.interval ?? 0) <= characterLevel,
+  );
+  const selectedVariant = characterVariants.sort((a, b) =>
+    (b.scaling?.interval ?? 0) - (a.scaling?.interval ?? 0),
+  )[0];
+
+  return effects
+    .filter((effect) => effect.scaling?.mode !== "character_level")
+    .filter((effect) => !(selectedVariant && effect.id === "base"))
+    .concat(selectedVariant ? [{ ...selectedVariant, scaling: null }] : [])
+    .map((effect) => {
+      if (!effect.dice || effect.scaling?.mode !== "slot") return effect;
+      const increments = Math.max(0, castLevel - spellLevel);
+      return {
+        ...effect,
+        dice: increments > 0 ? scaleExpression(effect.dice, increments, effect.scaling.dice) : effect.dice,
+        scaling: null,
+      };
+    });
 }

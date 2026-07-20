@@ -236,6 +236,13 @@ export function mapOpen5eV2Spell(
   const { range, range_custom } = normalizeRange(spell);
   const damageType = spell.damage_types.length === 1 ? spell.damage_types[0].toLowerCase() : "";
   const healing = isHealingSpell(spell);
+  const higherLevelDamage = parseHigherLevelDamage(spell.higher_level);
+  const higherLevelHealing = parseHigherLevelHealing(spell.higher_level);
+  const effects = buildStructuredSpellEffects(spell).map((effect) => {
+    if (effect.id !== "base") return effect;
+    const dice = effect.kind === "healing" ? higherLevelHealing : higherLevelDamage?.dice_per_level;
+    return dice ? { ...effect, scaling: { mode: "slot" as const, dice } } : effect;
+  });
 
   return {
     id: stableAppId(spell.key),
@@ -254,7 +261,7 @@ export function mapOpen5eV2Spell(
     },
     casting_options: spell.casting_options ?? [],
     effect_schema_version: 1,
-    effects: buildStructuredSpellEffects(spell),
+    effects,
     mechanics_reviewed: false,
     name: spell.name,
     level: spell.level,
@@ -280,8 +287,8 @@ export function mapOpen5eV2Spell(
     condition_inflicted: null,
     description: spell.desc ?? "",
     higher_levels: spell.higher_level?.trim() || null,
-    higher_level_damage: parseHigherLevelDamage(spell.higher_level),
-    higher_level_healing: parseHigherLevelHealing(spell.higher_level),
+    higher_level_damage: higherLevelDamage,
+    higher_level_healing: higherLevelHealing,
     classes: normalizeClasses(spell),
     tags: [],
     source: spell.document.key,
