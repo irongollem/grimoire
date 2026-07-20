@@ -2,6 +2,7 @@ import { computed } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
+import { useRuleset } from "@/composables/useRuleset";
 
 const ENABLED_KEY         = "enabled-sources";
 const AVAILABLE_KEY       = "available-srd-sources";
@@ -71,16 +72,17 @@ export function useAvailableSrdSources() {
   });
 }
 
-async function fetchAvailableSrdSpellSources(): Promise<AvailableSrdSource[]> {
-  const { data, error } = await supabase.rpc("get_srd_spell_sources");
+async function fetchAvailableSrdSpellSources(ruleset: "2014" | "2024"): Promise<AvailableSrdSource[]> {
+  const { data, error } = await supabase.rpc("get_srd_spell_sources", { p_ruleset: ruleset });
   if (error) throw error;
   return (data ?? []) as AvailableSrdSource[];
 }
 
 export function useAvailableSrdSpellSources() {
+  const { ruleset } = useRuleset();
   return useQuery({
-    queryKey: [AVAILABLE_SPELL_KEY],
-    queryFn: fetchAvailableSrdSpellSources,
+    queryKey: computed(() => [AVAILABLE_SPELL_KEY, ruleset.value]),
+    queryFn: () => fetchAvailableSrdSpellSources(ruleset.value),
     staleTime: Infinity,
   });
 }

@@ -8,6 +8,8 @@ import { useSrdArtDefaults } from "@/composables/useSrdArtDefaults";
 import { useEnabledSources } from "@/composables/useEnabledSources";
 import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
+import { useRuleset } from "@/composables/useRuleset";
+import type { RulesetKey } from "@/types/ruleset.types";
 
 const SRD_QUERY_KEY = "srd-spells";
 
@@ -178,12 +180,13 @@ export function useSpells() {
   return { ...spellsQuery, data };
 }
 
-async function fetchSrdSpells(enabledSlugs: string[]): Promise<Spell[]> {
+async function fetchSrdSpells(enabledSlugs: string[], ruleset: RulesetKey): Promise<Spell[]> {
   if (enabledSlugs.length === 0) return [];
   const { data, error } = await supabase
     .from("srd_spells")
     .select("*")
     .in("source", enabledSlugs)
+    .eq("ruleset", ruleset)
     .order("level", { ascending: true })
     .order("name", { ascending: true });
   if (error) throw error;
@@ -199,14 +202,15 @@ export function useAllSpells() {
   const customQuery  = useSpells();
   const enabledQuery = useEnabledSources();
   const campaign     = useCampaignStore();
+  const { ruleset }  = useRuleset();
 
   const enabledSlugs = computed(() =>
     enabledQuery.data.value?.map((e) => e.source_slug) ?? null,
   );
 
   const srdQuery = useQuery({
-    queryKey: computed(() => [SRD_QUERY_KEY, enabledSlugs.value]),
-    queryFn: () => fetchSrdSpells(enabledSlugs.value!),
+    queryKey: computed(() => [SRD_QUERY_KEY, enabledSlugs.value, ruleset.value]),
+    queryFn: () => fetchSrdSpells(enabledSlugs.value!, ruleset.value),
     enabled: () => enabledSlugs.value !== null,
     staleTime: Infinity,
   });
@@ -295,65 +299,54 @@ export function useImportSrdSpells() {
     mutationFn: async (sourceSlugs: string[]): Promise<ImportResult> => {
       const { fetchSrdSpells } = await import("@/lib/open5eSpellImport");
       const spells = await fetchSrdSpells(sourceSlugs.length > 0 ? sourceSlugs : undefined);
-      const user = getCurrentUser();
-
-      // Fetch existing open5e-imported spells using the flag (not source='srd')
-      // so this stays correct after source values are updated.
-      const allNames = spells.map((s) => s.name);
-      type ExistingRow = {
+      const allNames = [...new Set(spells.map((spell) => spell.name))];
+      type ExistingSrdIdentity = {
+        id: string;
         name: string;
         source: string | null;
-        source_title: string | null;
-        source_url: string | null;
-        classes: string[];
+        source_record_key: string | null;
+        image_url: string | null;
       };
-      const existing: ExistingRow[] = [];
+      const existing: ExistingSrdIdentity[] = [];
       const CHUNK = 200;
       for (let i = 0; i < allNames.length; i += CHUNK) {
-        const { data } = await supabase
-          .from("spells")
-          .select("name, source, source_title, source_url, classes")
-          .eq("open5e_import", true)
+        const { data, error } = await supabase
+          .from("srd_spells")
+          .select("id, name, source, source_record_key, image_url")
           .in("name", allNames.slice(i, i + CHUNK));
-        existing.push(...((data ?? []) as ExistingRow[]));
+        if (error) throw error;
+        existing.push(...((data ?? []) as ExistingSrdIdentity[]));
       }
-      const existingMap = new Map(existing.map((e) => [e.name, e]));
 
-      // ── Insert new spells ──────────────────────────────────────────────────
-      const toInsert = spells.filter((s) => !existingMap.has(s.name));
-      const INSERT_BATCH = 100;
-      for (let i = 0; i < toInsert.length; i += INSERT_BATCH) {
-        const batch = toInsert.slice(i, i + INSERT_BATCH).map((s) => ({ ...s, user_id: user!.id }));
-        const { error } = await supabase.from("spells").insert(batch);
+      const bySourceRecord = new Map(
+        existing
+          .filter((row) => row.source_record_key)
+          .map((row) => [row.source_record_key!, row]),
+      );
+      const byLegacySourceName = new Map(
+        existing.map((row) => [`${row.source ?? ""}\0${row.name}`, row]),
+      );
+      const existingIds = new Set(existing.map((row) => row.id));
+      // Preserve app-facing IDs referenced by character_spells when adopting a
+      // legacy V1 row into its V2 source identity.
+      const rows = spells.map((spell) => {
+        const current = bySourceRecord.get(spell.source_record_key)
+          ?? byLegacySourceName.get(`${spell.source_document_key}\0${spell.name}`);
+        return current ? { ...spell, id: current.id, image_url: current.image_url } : spell;
+      });
+
+      const UPSERT_BATCH = 100;
+      for (let i = 0; i < rows.length; i += UPSERT_BATCH) {
+        const { error } = await supabase
+          .from("srd_spells")
+          .upsert(rows.slice(i, i + UPSERT_BATCH), {
+            onConflict: "id",
+          });
         if (error) throw error;
       }
 
-      // ── Update existing spells (source + classes only, never touch images) ─
-      const toUpdate = spells.filter((s) => {
-        const cur = existingMap.get(s.name);
-        if (!cur) return false;
-        const sameSource = cur.source === s.source;
-        const sameTitle = cur.source_title === s.source_title;
-        const sameUrl = cur.source_url === s.source_url;
-        const sameClasses =
-          JSON.stringify([...cur.classes].sort()) === JSON.stringify([...s.classes].sort());
-        return !sameSource || !sameTitle || !sameUrl || !sameClasses;
-      });
-
-      const UPDATE_CONCURRENCY = 25;
-      for (let i = 0; i < toUpdate.length; i += UPDATE_CONCURRENCY) {
-        await Promise.all(
-          toUpdate.slice(i, i + UPDATE_CONCURRENCY).map((s) =>
-            supabase
-              .from("spells")
-              .update({ source: s.source, source_title: s.source_title, source_url: s.source_url, classes: s.classes })
-              .eq("open5e_import", true)
-              .eq("name", s.name),
-          ),
-        );
-      }
-
-      return { inserted: toInsert.length, updated: toUpdate.length };
+      const updated = rows.filter((spell) => existingIds.has(spell.id)).length;
+      return { inserted: rows.length - updated, updated };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });

@@ -190,6 +190,17 @@ export interface Spell {
   source_title: string | null; // human-readable document title ("Deep Magic 5e")
   source_url: string | null;   // link to the product/document page
   open5e_import: boolean;      // internal flag — not shown in UI
+  /** Edition-independent identity for matching equivalent content across rulesets. */
+  conceptual_key?: string | null;
+  ruleset?: "2014" | "2024" | null;
+  source_document_key?: string | null;
+  source_record_key?: string | null;
+  source_revision?: string | null;
+  source_license?: string | null;
+  provenance?: Record<string, unknown>;
+  casting_options?: Array<Record<string, unknown>> | null;
+  /** Structured mechanics stay advisory until this flag is explicitly reviewed. */
+  mechanics_reviewed?: boolean;
   image_url: string | null; // optional art for card printing
   image_focal_point?: { x: number; y: number } | null;
   created_at: string;
