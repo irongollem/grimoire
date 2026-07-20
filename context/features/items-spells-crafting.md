@@ -238,7 +238,7 @@ Tab badges show counts (and max where applicable). "Known" badge shows `N/maxKno
 
 **Browse tab** — full paginated Spellbook with name search, level filter, school filter, and class filter (pre-filtered to the character's class). Spell rows show "Prepared", "Known", or an "Add to Spellbook / Prepare" button depending on caster type and current state. Clicking a spell row opens `PlayerSpellModal` (a slide-in detail view, not a navigation).
 
-**Spell attack bonus and save DC** — computed from character stats (proficiency bonus + casting ability modifier). Casting ability is derived from class: WIS for Cleric/Druid/Ranger, INT for Wizard/EK/AT, CHA for all others.
+**Spell attack bonus and save DC** — computed per source class (proficiency bonus + that class's casting ability modifier) via the shared `computeSpellcastingByClass` helper (`src/lib/spellcastingByClass.ts`), consumed by both `PlayerSpellsView` and the encounter runner's `RunnerPcPanel`. Innate/item grants resolve their stats through `grantAttackBonus`/`grantSaveDc` (`src/lib/spellGrantStats.ts`): `fixed_attack_bonus` and `fixed_save_dc` are independent overrides, then `casting_ability`, then per-class stats, then the surface's fallback.
 
 **Spell roll actions** (#460) — castable spell rows expose interactive `Atk +X` / `DC X` controls (in both `PlayerMySpells` and the encounter runner's `RunnerPcSpells`):
 
@@ -246,7 +246,21 @@ Tab badges show counts (and max where applicable). "Known" badge shows `N/maxKno
 - **Save spells** (`attack_type` = `save`): the `DC` badge announces a `DC X {ability} saving throw` (with half/negates effect from `save_effect`) so the table can roll against it — a flavor message in the player view, a chat announcement (respecting chat/silent mode) in the runner via the `roll-spell-save` event.
 - Damage/healing dice are still rolled by the **Cast** button (the upcast picker scales them); these buttons are slot-free, standalone rolls.
 
-**Multiclass support** — `useCharacterClasses` returns per-class level rows; `getMulticlassSpellSlots()` computes combined slot totals per PHB multiclass rules.
+**Multiclass support** — `useCharacterClasses` returns per-class level rows; `getMulticlassSpellSlots()` computes combined slot totals per PHB multiclass rules. Displayed slots come from `deriveEffectiveSpellSlots` (`src/lib/spellSlots.ts`), which reconciles stored server-owned pools against freshly derived maxima (usage preserved) so a campaign ruleset switch is reflected without losing spent slots.
+
+### Dual-ruleset spellcasting engine (EPIC #550)
+
+The campaign `ruleset` (`2014`/`2024`, campaign-wide, default 2014) drives every edition-sensitive spell rule. Support boundaries are documented in `docs/spellcasting-support-matrix.md`. Server-authoritative pieces (all SECURITY DEFINER RPCs authorize from `auth.uid()`; players cannot create illegal spell state via direct API):
+
+- **Casting** — `cast_character_spell_v4` (migrations `20260720000024`–`39`): one transaction spends the chosen slot/pool (Spellcasting, Pact, temporary, feature), records a `spell_cast_records` row (select-only RLS by design — clients must not forge cast records), enforces prepared/known/ritual eligibility (wizard spellbook rituals cast unprepared), turn-scoped rules via `private.active_turn_key()`, and metamagic eligibility/costs (Arcane Apotheosis free use at Sorcerer 18+).
+- **Slot pools** — server-owned in `party_members.spell_slots`; `spend_spell_slot` reconciles a client-derived template only to fill pools missing entirely (legacy characters), never to enlarge existing maxima.
+- **Rests** — `take_spellcasting_rest` atomically restores only eligible pools (Pact on short rest; Sorcerous Restoration tracked separately) and reopens preparation windows.
+- **Preparation windows** (`spell_change_windows`) — opened at class creation/level-up (trigger) and each long rest via `open_spell_change_windows`; closed when a non-cantrip slot cast occurs (the post-rest preparation period ends). `set_character_spell_prepared` / `change_prepared_spell` gate 2024 preparation/replacement on an open window and `remaining_changes`.
+- **Acquisition** — `validate_character_spell_source` checks class list/level/counts per pinned class definition (system or custom; legacy kind-NULL rows fall back to name-based custom class lookup). `delete_character_spells` protects leveled 2024 class spells behind replacement windows but allows cantrip and spellbook-entry deletion; `p_source_class_id = null` matches only unassigned rows.
+- **Level-up** — `required_level_up_spell_choices`/`apply_level_up` validate choice counts; the client mirrors the same logic per definition kind in `levelUpSpellChoiceCount` (`spellPreparationPolicy.ts`) — custom classes use their own progression even when named like an official class.
+- **Content identity** — character classes/subclasses/spells pin an exact content version (`class_definition_id`/`kind`); ruleset switches remap safe counterparts and flag the rest for player review (acknowledge RPCs). World bundles (format v2) carry the source campaign ruleset; v1 bundles strip pins on import.
+
+Mutation errors from these RPCs surface via toasts (`useCharacterSpells` mutations have `onError` handlers) — they are policy messages, not silent failures.
 
 ---
 
