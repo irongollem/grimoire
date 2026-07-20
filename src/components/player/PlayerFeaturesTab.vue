@@ -35,6 +35,12 @@
       :spell-slots="effectiveSlots"
     />
 
+    <PlayerSorcererFeatures
+      v-if="ruleset === '2024' && classLevel('Sorcerer') > 0"
+      :member="member"
+      :level="classLevel('Sorcerer')"
+    />
+
     <!-- ── Class features (one card per class, grouped for multiclass) ──────── -->
     <template v-if="featureDataPending">
       <div
@@ -227,6 +233,7 @@ import { useRouter, RouterLink } from "vue-router";
 import PlayerWildshapeTraits from "./PlayerWildshapeTraits.vue";
 import PlayerResourcePools from "./PlayerResourcePools.vue";
 import PlayerFlexibleCasting from "./PlayerFlexibleCasting.vue";
+import PlayerSorcererFeatures from "./PlayerSorcererFeatures.vue";
 import PlayerClassFeaturesList from "./PlayerClassFeaturesList.vue";
 import PlayerBattleMasterManeuvers from "./PlayerBattleMasterManeuvers.vue";
 import PlayerArtificerInfusions from "./PlayerArtificerInfusions.vue";
@@ -249,7 +256,7 @@ import { useClassByName, useAllSystemClasses, useAllCustomClasses } from "@/comp
 import { useCustomSubclassByClassAndSubclass, useAllCustomSubclasses } from "@/composables/useCustomSubclasses";
 import { useCharacterClasses } from "@/composables/useCharacterClasses";
 import type { SystemClass, CustomClass, CustomSubclass } from "@/levelup/customTypes";
-import { useUpdatePartyMember } from "@/composables/useParty";
+import { useRecordSorcererRest, useUpdatePartyMember } from "@/composables/useParty";
 import { useAllSpecies } from "@/composables/useSpecies";
 import { useConfirm } from "@/composables/useConfirm";
 import type { PartyMember, SpellSlotEntry } from "@/types/party.types";
@@ -275,6 +282,7 @@ const { data: allFeatures, isPending: featuresPending } = useAllFeatures();
 const { data: customSubclass } = useCustomSubclassByClassAndSubclass(memberClassRef, memberSubclassRef);
 
 const { mutate: updateMember } = useUpdatePartyMember();
+const { mutateAsync: recordSorcererRest } = useRecordSorcererRest();
 const { confirm } = useConfirm();
 const { data: allSpecies } = useAllSpecies();
 const linkedSpecies = computed(() =>
@@ -436,6 +444,7 @@ function shortRest() {
     if (r.rest === "short") r.current = r.max;
   }
   persistResources();
+  void recordSorcererRest({ partyMemberId: props.member.id, rest: "short" });
 
   if (effectiveSlots.value.length) {
     updateMember({ id: props.member.id, update: { spell_slots: restoreSpellSlots(effectiveSlots.value, "short") } });
@@ -456,6 +465,7 @@ async function longRest() {
     spell_slots: restoreSpellSlots(effectiveSlots.value, "long"),
     ...(props.member.rage_active ? { rage_active: false } : {}),
   }});
+  await recordSorcererRest({ partyMemberId: props.member.id, rest: "long" });
 }
 
 // ── Spell pick steps ──────────────────────────────────────────────────────────

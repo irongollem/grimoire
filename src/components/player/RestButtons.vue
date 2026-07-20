@@ -27,7 +27,7 @@
 import { ref, computed } from "vue";
 import { IconMoon, IconSun } from '@/lib/icons';
 import RestDialog from "@/components/player/RestDialog.vue";
-import { useUpdatePartyMember } from "@/composables/useParty";
+import { useRecordSorcererRest, useUpdatePartyMember } from "@/composables/useParty";
 import { getCasterType, getDefaultSpellSlots } from "@/types/spell.types";
 import { useClassByName } from "@/composables/useCustomClasses";
 import type { SpellSlotEntry, PartyMember, PartyMemberUpdate } from "@/types/party.types";
@@ -37,6 +37,7 @@ import { useOpenSpellChangeWindows } from "@/composables/useCharacterSpells";
 const props = defineProps<{ member: PartyMember }>();
 
 const { mutateAsync: updateMember } = useUpdatePartyMember();
+const { mutateAsync: recordSorcererRest } = useRecordSorcererRest();
 const { mutateAsync: openSpellWindows } = useOpenSpellChangeWindows();
 const resting = ref(false);
 const restDialog = ref<"short" | "long" | null>(null);
@@ -60,6 +61,9 @@ async function onRestConfirm(update: PartyMemberUpdate) {
   resting.value = true;
   try {
     await updateMember({ id: props.member.id, update });
+    if (completedRest) {
+      await recordSorcererRest({ partyMemberId: props.member.id, rest: completedRest });
+    }
     if (completedRest === "long") {
       await openSpellWindows({ partyMemberId: props.member.id, timing: "long_rest" });
     }

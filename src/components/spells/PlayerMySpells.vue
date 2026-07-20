@@ -181,6 +181,20 @@
               </option>
             </select>
 
+            <select
+              v-if="canCombineMetamagic && eligibleSecondaryMetamagic(entry).length"
+              v-model="selectedSecondMetamagic[entry.id]"
+              class="max-w-28 shrink-0 rounded border border-violet-500/30 bg-violet-500/10 px-1.5 py-0.5 font-cinzel text-[10px] text-violet-500"
+              title="Sorcery Incarnate: apply a second Metamagic option"
+              aria-label="Second Metamagic option"
+              @click.stop
+            >
+              <option value="">No second option</option>
+              <option v-for="option in eligibleSecondaryMetamagic(entry)" :key="option.name" :value="option.name">
+                {{ option.name }} ({{ option.sp_cost }} SP)
+              </option>
+            </select>
+
             <!-- Cast button (castable spells) -->
             <button
               v-if="isCastable(entry)"
@@ -260,7 +274,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { IconChevronRight, IconCircle, IconClose, IconFire, IconPopulate, IconWand } from '@/lib/icons';
 import {
   useCharacterSpellsWithDetails,
@@ -291,6 +305,7 @@ import { canAutoRollSpellEffect, canCastAsRitual } from "@/lib/spellcastingPolic
 import { getMetamagicMap, type MetamagicOption } from "@/data/metamagic";
 import { getSpellPreparationPolicy } from "@/lib/spellPreparationPolicy";
 import { useSpellReplacement } from "@/composables/useSpellReplacement";
+import { isInnateSorceryActive, metamagicLimit } from "@/lib/sorcererFeatures";
 
 const SLOT_LEVEL_LABELS = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"] as const;
 
@@ -318,6 +333,8 @@ const props = defineProps<{
   maxPrepared?: number | null;
   /** Total character level (sum of all class levels). Used for cantrip damage scaling. */
   memberLevel?: number;
+  /** Sorcerer class level, distinct from total level for multiclass characters. */
+  sorcererLevel?: number;
 }>();
 
 const { data: rawEntries, isLoading } = useCharacterSpellsWithDetails(
@@ -373,7 +390,12 @@ function attackBonusFor(entry: CharacterSpellEntry): number | null {
   return statsFor(entry)?.attack ?? props.spellAttackBonus;
 }
 function saveDcFor(entry: CharacterSpellEntry): number | null {
-  return statsFor(entry)?.dc ?? props.spellSaveDc;
+  const base = statsFor(entry)?.dc ?? props.spellSaveDc;
+  return base === null ? null : base + (innateActive.value && isSorcererSpell(entry) ? 1 : 0);
+}
+
+function isSorcererSpell(entry: CharacterSpellEntry): boolean {
+  return (statsFor(entry)?.className ?? props.memberClass) === "Sorcerer";
 }
 
 // ── Standalone roll actions (independent of casting / spending a slot) ──────────
@@ -382,7 +404,10 @@ function saveDcFor(entry: CharacterSpellEntry): number | null {
 async function rollSpellAttack(entry: CharacterSpellEntry, override: RollMode | null = null) {
   const atk = attackBonusFor(entry);
   if (atk === null) return;
-  const mode: RollMode = override ?? "normal";
+  const innateAdvantage = innateActive.value && isSorcererSpell(entry);
+  const mode: RollMode = innateAdvantage
+    ? (override === "disadvantage" ? "normal" : "advantage")
+    : (override ?? "normal");
   const modeTag = mode === "advantage" ? " (Adv)" : mode === "disadvantage" ? " (Dis)" : "";
   await promptRoll({
     counts: { 20: 1 },
@@ -408,6 +433,15 @@ async function promptSpellSave(entry: CharacterSpellEntry) {
 const isCasting = ref(false);
 const lastCastLevels = ref<Record<string, number>>({});
 const selectedMetamagic = ref<Record<string, string>>({});
+const selectedSecondMetamagic = ref<Record<string, string>>({});
+const innateClock = ref(Date.now());
+let innateTimer: ReturnType<typeof setInterval> | undefined;
+onMounted(() => { innateTimer = setInterval(() => { innateClock.value = Date.now(); }, 1_000); });
+onUnmounted(() => { if (innateTimer) clearInterval(innateTimer); });
+const innateActive = computed(() => !!thisMember.value && isInnateSorceryActive(thisMember.value, innateClock.value));
+const canCombineMetamagic = computed(() =>
+  metamagicLimit(ruleset.value, props.sorcererLevel ?? 0, innateActive.value) === 2,
+);
 
 function knownMetamagic(): MetamagicOption[] {
   const raw = thisMember.value?.class_choices?.metamagic_options;
@@ -463,6 +497,11 @@ function eligibleMetamagic(entry: CharacterSpellEntry): MetamagicOption[] {
       default: return true;
     }
   });
+}
+
+function eligibleSecondaryMetamagic(entry: CharacterSpellEntry): MetamagicOption[] {
+  const first = selectedMetamagic.value[entry.id];
+  return eligibleMetamagic(entry).filter((option) => option.name !== first);
 }
 
 function lastCastLevel(entry: CharacterSpellEntry): number {
@@ -606,6 +645,10 @@ async function castSpell(
     const spell = entry.spell;
     const isRitual = options.ritual === true;
     const metamagicName = options.metamagicName ?? (selectedMetamagic.value[entry.id] || null);
+    const metamagicNames = options.metamagicName
+      ? [options.metamagicName]
+      : [metamagicName, canCombineMetamagic.value ? selectedSecondMetamagic.value[entry.id] : null]
+        .filter((name): name is string => !!name);
     const extraLevels = isRitual ? 0 : castLevel - spell.level;
     lastCastLevels.value = { ...lastCastLevels.value, [entry.id]: castLevel };
 
@@ -622,14 +665,14 @@ async function castSpell(
       pool: options.pool ?? "spellcasting",
       slotTemplate: props.spellSlots,
       concentrationState,
-      metamagicName,
+      metamagicNames,
     });
 
     // Flavor text
     let text = `casts ${spell.name}`;
     if (isRitual) text += " as a ritual";
     else if (extraLevels > 0) text += ` (upcast ${SLOT_LEVEL_LABELS[castLevel - 1]})`;
-    if (metamagicName) text += ` with ${metamagicName}`;
+    if (metamagicNames.length) text += ` with ${metamagicNames.join(" and ")}`;
     const atk = attackBonusFor(entry);
     const dc  = saveDcFor(entry);
     if (castLevel > 0 && atk !== null
@@ -650,6 +693,7 @@ async function castSpell(
       await rollSpellHealing(entry, castLevel);
     }
     selectedMetamagic.value = { ...selectedMetamagic.value, [entry.id]: "" };
+    selectedSecondMetamagic.value = { ...selectedSecondMetamagic.value, [entry.id]: "" };
 
   } catch (error) {
     toast.error(toast.fromError(error));

@@ -49,6 +49,7 @@
       :spellcasting-by-class="spellcastingByClass"
       :max-prepared="maxPrepared"
       :member-level="memberLevel"
+      :sorcerer-level="sorcererLevel"
       view-mode="prepared"
     />
 
@@ -64,6 +65,7 @@
       :spell-save-dc="spellSaveDc"
       :spellcasting-by-class="spellcastingByClass"
       :max-prepared="maxPrepared"
+      :sorcerer-level="sorcererLevel"
       view-mode="spellbook"
     />
 
@@ -300,6 +302,11 @@ const spellcastingByClass = computed(() => {
   if (list.length === 0) return [];
   return computeSpellcastingPerClass(m, list);
 });
+
+const sorcererLevel = computed(() =>
+  (characterClasses.value ?? []).find((entry) => entry.class_name === "Sorcerer")?.levels
+    ?? (member.value?.class === "Sorcerer" ? member.value.level : 0),
+);
 
 // Character spells — IDs used for button state in browse tab
 const { data: characterSpells }        = useCharacterSpells(resolvedMemberId);

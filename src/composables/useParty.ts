@@ -124,6 +124,7 @@ export function useCastCharacterSpell() {
       slotTemplate,
       concentrationState = null,
       metamagicName = null,
+      metamagicNames,
       characterSpellId = null,
     }: {
       partyMemberId: string;
@@ -132,16 +133,48 @@ export function useCastCharacterSpell() {
       slotTemplate: SpellSlotEntry[];
       concentrationState?: PartyMember["concentration"];
       metamagicName?: string | null;
+      metamagicNames?: string[];
       characterSpellId?: string | null;
     }) => {
-      const { data, error } = await supabase.rpc("cast_character_spell", {
+      const { data, error } = await supabase.rpc("cast_character_spell_v2", {
         p_party_member_id: partyMemberId,
         p_slot_level: slotLevel,
         p_slot_pool: pool,
         p_slot_template: slotTemplate,
         p_concentration_state: concentrationState,
-        p_metamagic_name: metamagicName,
+        p_metamagic_names: metamagicNames ?? (metamagicName ? [metamagicName] : []),
         p_character_spell_id: characterSpellId,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+  });
+}
+
+function useSorcererRpc(name: "activate_innate_sorcery" | "end_innate_sorcery" | "restore_sorcery_points") {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (partyMemberId: string) => {
+      const { data, error } = await supabase.rpc(name, { p_party_member_id: partyMemberId });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+  });
+}
+
+export function useActivateInnateSorcery() { return useSorcererRpc("activate_innate_sorcery"); }
+export function useEndInnateSorcery() { return useSorcererRpc("end_innate_sorcery"); }
+export function useRestoreSorceryPoints() { return useSorcererRpc("restore_sorcery_points"); }
+
+export function useRecordSorcererRest() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ partyMemberId, rest }: { partyMemberId: string; rest: "short" | "long" }) => {
+      const { data, error } = await supabase.rpc("record_sorcerer_rest", {
+        p_party_member_id: partyMemberId,
+        p_rest: rest,
       });
       if (error) throw error;
       return data;
