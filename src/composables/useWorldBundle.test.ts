@@ -197,13 +197,14 @@ describe("character round-trip (export → import)", () => {
     const customClasses = bundle.custom_classes!.map((c) => remapCustomClassForImport(c, ctx));
     const customSubs = bundle.custom_subclasses!.map((c) => remapCustomSubclassForImport(c, ctx));
 
-    // Simulate the spell_id filter from executeImport: drop orphaned non-srd_ spell refs.
+    // Simulate executeImport's table-resolved filter: shared IDs come from the
+    // shared table lookup; bundled custom IDs come from idMap.
+    const sharedSpellIds = new Set(["srd_fireball"]);
     const charSpells = bundle.character_spells!
       .filter((cs) => {
         const sid = cs.spell_id as string | null;
         if (!sid) return false;
-        if ((sid as string).startsWith("srd_")) return true;
-        return idMap.has(sid as string); // bundled custom spell
+        return sharedSpellIds.has(sid) || idMap.has(sid); // bundled custom spell
       })
       .map((cs) => remapCharacterSpellForImport(cs, ctx));
 

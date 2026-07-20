@@ -1,6 +1,8 @@
+import type { VersionedContentMetadata } from "@/types/content.types";
+
 // ── SRD rules (shared, read-only from client) ─────────────────────────────────
 
-export interface SrdRule {
+export interface SrdRule extends VersionedContentMetadata {
   id: string;
   slug: string;
   name: string;
@@ -79,7 +81,7 @@ export interface TrackerDef {
   dmButtons?: DmButton[];
 }
 
-export interface Rule {
+export interface Rule extends VersionedContentMetadata {
   id: string;
   user_id: string;
   campaign_id: string | null;

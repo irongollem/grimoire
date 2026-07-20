@@ -8,6 +8,7 @@ import type {
   InnateResetsOn,
 } from "@/types/spell.types";
 import type { Species } from "@/types/species.types";
+import { isUuid } from "@/lib/contentIdentity";
 
 export interface SpellKnower {
   party_member_id: string;
@@ -36,8 +37,8 @@ export function useCharacterSpells(partyMemberId: MaybeRef<string | null>) {
   });
 }
 
-/** Full fetch with joined spell data — used in the spellbook/prepared tabs.
- *  spell_id is text and may reference spells.id (UUID, custom) or srd_spells.id (srd_* slug). */
+/** Full fetch with joined spell data. Provider IDs are opaque: query the shared
+ *  table for every ID and the UUID-backed custom table for UUID candidates. */
 export function useCharacterSpellsWithDetails(
   partyMemberId: MaybeRef<string | null>,
 ) {
@@ -58,21 +59,19 @@ export function useCharacterSpellsWithDetails(
       if (error) throw error;
 
       const rows = data as Omit<CharacterSpellEntry, "spell">[];
-      const srdIds = rows
-        .filter((r) => r.spell_id?.startsWith("srd_"))
-        .map((r) => r.spell_id);
-      const customIds = rows
-        .filter((r) => !r.spell_id?.startsWith("srd_"))
-        .map((r) => r.spell_id);
+      const allIds = [...new Set(rows.map((r) => r.spell_id).filter(Boolean))];
+      const customIds = allIds.filter(isUuid);
 
       const [srdRes, customRes] = await Promise.all([
-        srdIds.length > 0
-          ? supabase.from("srd_spells").select("*").in("id", srdIds)
+        allIds.length > 0
+          ? supabase.from("srd_spells").select("*").in("id", allIds)
           : Promise.resolve({ data: [] }),
         customIds.length > 0
           ? supabase.from("spells").select("*").in("id", customIds)
           : Promise.resolve({ data: [] }),
       ]);
+      if ("error" in srdRes && srdRes.error) throw srdRes.error;
+      if ("error" in customRes && customRes.error) throw customRes.error;
 
       const spellMap = new Map<string, CharacterSpellEntry["spell"]>();
       for (const s of srdRes.data ?? [])

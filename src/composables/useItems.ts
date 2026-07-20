@@ -9,6 +9,7 @@ import { useSrdArtDefaults } from "@/composables/useSrdArtDefaults";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
 import { useToast } from "@/composables/useToast";
+import { useRuleset } from "@/composables/useRuleset";
 
 interface ItemSource {
   slug: string;
@@ -110,15 +111,17 @@ export function useItems(getOptions?: () => UseItemsOptions) {
   const itemsQuery = useQuery({ queryKey: [QUERY_KEY], queryFn: fetchItems, staleTime: Infinity });
   const artDefaults = useSrdArtDefaults();
   const { activeCampaignId } = storeToRefs(useCampaignStore());
+  const { ruleset } = useRuleset();
 
   const data = computed(() => {
     const items = itemsQuery.data.value;
     const defaults = artDefaults.data.value;
     if (!items) return items;
     const opts = getOptions?.() ?? {};
+    const editionFiltered = items.filter((item) => !item.ruleset || item.ruleset === ruleset.value);
     const scopeFiltered = opts.includeAllScopes
-      ? items
-      : items.filter((i) => i.campaign_id === null || i.campaign_id === activeCampaignId.value);
+      ? editionFiltered
+      : editionFiltered.filter((i) => i.campaign_id === null || i.campaign_id === activeCampaignId.value);
     if (!defaults) return scopeFiltered;
     return scopeFiltered.map((item) => {
       if (item.image_url || !item.source) return item;
@@ -146,6 +149,7 @@ export function usePlayerVisibleItems(getOptions?: () => UseItemsOptions) {
   const ui = useUiStore();
   const artDefaults = useSrdArtDefaults();
   const { activeCampaignId } = storeToRefs(useCampaignStore());
+  const { ruleset } = useRuleset();
 
   // Real player → gated projection. DM preview → full owned catalog (the DM
   // isn't a campaign_member, so the projection returns nothing; the DM owns the
@@ -175,9 +179,10 @@ export function usePlayerVisibleItems(getOptions?: () => UseItemsOptions) {
     const defaults = artDefaults.data.value;
     if (!items) return items;
     const opts = getOptions?.() ?? {};
+    const editionFiltered = items.filter((item) => !item.ruleset || item.ruleset === ruleset.value);
     const scopeFiltered = opts.includeAllScopes
-      ? items
-      : items.filter((i) => i.campaign_id === null || i.campaign_id === activeCampaignId.value);
+      ? editionFiltered
+      : editionFiltered.filter((i) => i.campaign_id === null || i.campaign_id === activeCampaignId.value);
     if (!defaults) return scopeFiltered;
     return scopeFiltered.map((item) => {
       if (item.image_url || !item.source) return item;
@@ -240,25 +245,41 @@ export function useImportSrdItems() {
       const { SERVICES } = await import("@/data/services");
       const { AMMUNITION } = await import("@/data/ammunition");
       const apiItems = await fetchSrdItems();
-      const items = [...apiItems, ...GEAR, ...PROVISIONS, ...SERVICES, ...AMMUNITION];
+      const slug = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+      const items = [...apiItems, ...GEAR, ...PROVISIONS, ...SERVICES, ...AMMUNITION].map((item) => ({
+        ruleset: "2014" as const,
+        conceptual_key: item.conceptual_key ?? slug(item.name),
+        source_document_key: item.source_document_key ?? item.source ?? "grimoire-bundled",
+        source_record_key: item.source_record_key ?? `${item.source ?? "grimoire-bundled"}:${slug(item.name)}`,
+        source_revision: item.source_revision ?? (item.source ? "open5e-v1" : "bundled"),
+        source_license: item.source_license ?? null,
+        provenance: item.provenance ?? { provider: item.source ? "open5e" : "grimoire" },
+        ...item,
+      }));
 
       // Check which names already exist — match by name only (no source filter)
       // so that re-imports correctly find previously imported items regardless of
       // what source value they were stored with.
       const allNames = items.map((i) => i.name);
-      const existingByName = new Map<string, string>(); // name → id
+      type ExistingItem = { id: string; name: string; source: string | null; source_record_key: string | null };
+      const existing: ExistingItem[] = [];
       const NAME_CHUNK = 200;
       for (let i = 0; i < allNames.length; i += NAME_CHUNK) {
         const { data } = await supabase
           .from("items")
-          .select("id, name")
+          .select("id, name, source, source_record_key")
+          .eq("ruleset", "2014")
           .in("name", allNames.slice(i, i + NAME_CHUNK));
-        (data ?? []).forEach((r: { id: string; name: string }) => existingByName.set(r.name, r.id));
+        existing.push(...((data ?? []) as ExistingItem[]));
       }
+      const byRecord = new Map(existing.filter((row) => row.source_record_key).map((row) => [row.source_record_key!, row]));
+      const byLegacySourceName = new Map(existing.map((row) => [`${row.source ?? ""}\0${row.name}`, row]));
+      const existingFor = (item: typeof items[number]) => byRecord.get(item.source_record_key!)
+        ?? byLegacySourceName.get(`${item.source ?? ""}\0${item.name}`);
 
       const user = getCurrentUser();
-      const toInsert = items.filter((i) => !existingByName.has(i.name));
-      const toUpdate = items.filter((i) => existingByName.has(i.name));
+      const toInsert = items.filter((item) => !existingFor(item));
+      const toUpdate = items.filter((item) => !!existingFor(item));
 
       // Insert new items in batches of 100
       const BATCH = 100;
@@ -287,8 +308,15 @@ export function useImportSrdItems() {
                 weapon_range: item.weapon_range ?? null,
                 versatile_damage: item.versatile_damage ?? null,
                 tags: item.tags,
+                ruleset: item.ruleset,
+                conceptual_key: item.conceptual_key,
+                source_document_key: item.source_document_key,
+                source_record_key: item.source_record_key,
+                source_revision: item.source_revision,
+                source_license: item.source_license,
+                provenance: item.provenance,
               })
-              .eq("id", existingByName.get(item.name)!),
+              .eq("id", existingFor(item)!.id),
           ),
         );
       }

@@ -1,4 +1,5 @@
 import type { DamageRoll } from "@/lib/dice";
+import type { VersionedContentMetadata } from "@/types/content.types";
 import { OPEN5E_SOURCE_LABELS } from "@/types/spell.types";
 
 // Prefer the stored title from the DB; fall back to our hardcoded map, then the raw slug.
@@ -143,7 +144,7 @@ export interface BundleItemEntry {
   quantity?: number;
 }
 
-export interface Item {
+export interface Item extends VersionedContentMetadata {
   id: string;
   user_id: string;
   name: string;

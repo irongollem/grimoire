@@ -1,4 +1,5 @@
 import type { SpellcastingBlock } from "@/types/npc.types";
+import type { VersionedContentMetadata } from "@/types/content.types";
 
 export type MonsterType =
   | "aberration"
@@ -48,7 +49,7 @@ export interface MonsterStatBlock {
   spellcasting?: SpellcastingBlock;
 }
 
-export interface Monster {
+export interface Monster extends VersionedContentMetadata {
   id: string;
   user_id: string;
   name: string;

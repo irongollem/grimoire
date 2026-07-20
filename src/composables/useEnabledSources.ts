@@ -32,8 +32,8 @@ async function fetchEnabledSources(campaignId: string): Promise<EnabledSource[]>
   return data as EnabledSource[];
 }
 
-async function fetchAvailableSrdSources(): Promise<AvailableSrdSource[]> {
-  const { data, error } = await supabase.rpc("get_srd_monster_sources");
+async function fetchAvailableSrdSources(ruleset: "2014" | "2024"): Promise<AvailableSrdSource[]> {
+  const { data, error } = await supabase.rpc("get_srd_monster_sources", { p_ruleset: ruleset });
   if (error) throw error;
   return (data ?? []) as AvailableSrdSource[];
 }
@@ -65,9 +65,10 @@ export function useEnabledSources() {
 }
 
 export function useAvailableSrdSources() {
+  const { ruleset } = useRuleset();
   return useQuery({
-    queryKey: [AVAILABLE_KEY],
-    queryFn: fetchAvailableSrdSources,
+    queryKey: computed(() => [AVAILABLE_KEY, ruleset.value]),
+    queryFn: () => fetchAvailableSrdSources(ruleset.value),
     staleTime: Infinity,
   });
 }

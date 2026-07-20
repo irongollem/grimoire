@@ -4,6 +4,7 @@ import { computed } from "vue";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { Campaign } from "@/types/campaign.types";
+import { isUuid } from "@/lib/contentIdentity";
 import {
   sortByHierarchy,
   buildIdMapFromArrays,
@@ -350,15 +351,22 @@ export async function buildBundle(opts: BuildBundleOptions): Promise<GrimoireBun
     }
 
     // ── Custom spells ──────────────────────────────────────────────────────
-    // character_spells.spell_id is text: a custom-spell UUID or a global `srd_*`
-    // slug. SRD slugs resolve everywhere; only custom spell UUIDs must travel.
-    const spellIds = new Set<string>();
+    // Resolve shared IDs from their table; provider keys are opaque and have no
+    // required prefix. Only UUID-backed custom spell rows travel in bundles.
+    const referencedSpellIds = new Set<string>();
     for (const cs of bundle.character_spells ?? []) {
       const sid = cs.spell_id as string | null;
-      if (sid && !sid.startsWith("srd_")) spellIds.add(sid);
+      if (sid) referencedSpellIds.add(sid);
     }
+    const referenced = [...referencedSpellIds];
+    const { data: sharedSpellRows, error: sharedSpellError } = referenced.length
+      ? await supabase.from("srd_spells").select("id").in("id", referenced)
+      : { data: [], error: null };
+    if (sharedSpellError) throw sharedSpellError;
+    const sharedSpellIds = new Set((sharedSpellRows ?? []).map((row) => row.id));
+    const spellIds = referenced.filter((id) => !sharedSpellIds.has(id) && isUuid(id));
     const haveSpells = new Set((bundle.spells ?? []).map((s) => s.id as string));
-    const missingSpells = [...spellIds].filter((id) => !haveSpells.has(id));
+    const missingSpells = spellIds.filter((id) => !haveSpells.has(id));
     if (missingSpells.length) {
       const fetched = (await fetchByIds("spells", missingSpells)).map(stripLibraryRow);
       bundle.spells = [...(bundle.spells ?? []), ...fetched];
@@ -679,15 +687,21 @@ async function executeImport(opts: ImportBundleOptions): Promise<ImportResult> {
       );
     }
     if (bundle.character_spells?.length) {
-      // Filter out rows whose spell_id can't be resolved in the importing user's
-      // context: keep srd_* global slugs and custom spells that traveled in the
-      // bundle (id in idMap); drop orphaned UUIDs that reference an unbundled spell.
+      const referenced = [...new Set(bundle.character_spells
+        .map((row) => row.spell_id as string | null)
+        .filter((id): id is string => !!id))];
+      const { data: sharedRows, error: sharedError } = referenced.length
+        ? await supabase.from("srd_spells").select("id").in("id", referenced)
+        : { data: [], error: null };
+      if (sharedError) throw sharedError;
+      const sharedIds = new Set((sharedRows ?? []).map((row) => row.id));
+      // Keep globally resolvable shared records and bundled custom records;
+      // discard orphaned references without guessing their kind from the ID.
       const spellsToInsert = bundle.character_spells
         .filter((cs) => {
           const sid = cs.spell_id as string | null;
           if (!sid) return false;
-          if (sid.startsWith("srd_")) return true;
-          return ctx.idMap.has(sid); // bundled custom spell
+          return sharedIds.has(sid) || ctx.idMap.has(sid);
         })
         .map((cs) => remapCharacterSpellForImport(cs, ctx));
       await batchInsert("character_spells", spellsToInsert);

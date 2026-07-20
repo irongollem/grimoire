@@ -212,6 +212,13 @@ function mapMonster(m: Open5eMonster): MonsterInsert {
     legendary_actions: toTraits(m.legendary_actions),
   };
   return {
+    ruleset: "2014",
+    conceptual_key: m.name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, ""),
+    source_document_key: m.document__slug || "srd",
+    source_record_key: `${m.document__slug || "srd"}:${m.slug}`,
+    source_revision: "open5e-v1",
+    source_license: null,
+    provenance: { provider: "open5e", api_version: "v1" },
     name: m.name,
     monster_type: normalizeType(m.type),
     size: normalizeSize(m.size),

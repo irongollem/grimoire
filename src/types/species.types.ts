@@ -1,3 +1,5 @@
+import type { VersionedContentMetadata } from "@/types/content.types";
+
 export type SpeciesSize = "tiny" | "small" | "medium" | "large";
 
 export interface SpeciesSpellGrant {
@@ -30,7 +32,7 @@ export interface SpeciesSubrace {
   ability_score_increases?: Record<string, number | string> | null;
 }
 
-export interface Species {
+export interface Species extends VersionedContentMetadata {
   id: string;
   user_id: string;
   campaign_id: string | null;

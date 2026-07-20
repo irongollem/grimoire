@@ -8,6 +8,7 @@ import { useSrdArtDefaults } from "@/composables/useSrdArtDefaults";
 import { useEnabledSources } from "@/composables/useEnabledSources";
 import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
+import { isUuid } from "@/lib/contentIdentity";
 import { useRuleset } from "@/composables/useRuleset";
 import type { RulesetKey } from "@/types/ruleset.types";
 
@@ -221,11 +222,12 @@ export function useAllSpells() {
     // spells (campaign_id set) are hidden outside their owning campaign.
     const activeCampaignId = campaign.activeCampaignId;
     const custom = (customQuery.data.value ?? []).filter(
-      (s) => !s.open5e_import && (!s.campaign_id || s.campaign_id === activeCampaignId),
+      (s) => !s.open5e_import
+        && (!s.ruleset || s.ruleset === ruleset.value)
+        && (!s.campaign_id || s.campaign_id === activeCampaignId),
     );
     const srd    = srdQuery.data.value ?? [];
-    const customNames = new Set(custom.map((s) => s.name));
-    return [...srd.filter((s) => !customNames.has(s.name)), ...custom]
+    return [...srd, ...custom]
       .sort((a, b) => a.level - b.level || a.name.localeCompare(b.name));
   });
 
@@ -259,6 +261,22 @@ export function useSrdSpell(id: Ref<string>) {
     },
     enabled: () => !!id.value,
     staleTime: Infinity,
+  });
+}
+
+/** Resolve an opaque spell ID against explicit shared/custom stores. */
+export function useResolvedSpell(id: Ref<string>) {
+  return useQuery({
+    queryKey: computed(() => ["resolved-spell", id.value]),
+    queryFn: async () => {
+      const { data: shared, error: sharedError } = await supabase
+        .from("srd_spells").select("*").eq("id", id.value).maybeSingle();
+      if (sharedError) throw sharedError;
+      if (shared) return { spell: { ...shared, user_id: "" } as Spell, isShared: true };
+      if (!isUuid(id.value)) throw new Error("Spell not found");
+      return { spell: await fetchSpell(id.value), isShared: false };
+    },
+    enabled: () => !!id.value,
   });
 }
 

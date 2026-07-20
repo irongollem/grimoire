@@ -2,15 +2,18 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { computed, type Ref } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { ClassFeature, ClassFeatureInsert, ClassFeatureUpdate } from "@/types/feature.types";
+import { useRuleset } from "@/composables/useRuleset";
+import type { RulesetKey } from "@/types/ruleset.types";
 
 export type ImportResult = { inserted: number; updated: number };
 
 const QUERY_KEY = "class_features";
 
-async function fetchAll(): Promise<ClassFeature[]> {
+async function fetchAll(ruleset: RulesetKey): Promise<ClassFeature[]> {
   const { data, error } = await supabase
     .from("class_features")
     .select("*")
+    .or(`ruleset.is.null,ruleset.eq.${ruleset}`)
     .order("name", { ascending: true });
   if (error) throw error;
   return data as ClassFeature[];
@@ -55,7 +58,12 @@ async function deleteFeature(id: string): Promise<void> {
 
 /** Full list — used for EntityCombobox in the archetypes editor. staleTime Infinity since features change rarely. */
 export function useAllFeatures() {
-  return useQuery({ queryKey: [QUERY_KEY], queryFn: fetchAll, staleTime: Infinity });
+  const { ruleset } = useRuleset();
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY, ruleset.value]),
+    queryFn: () => fetchAll(ruleset.value),
+    staleTime: Infinity,
+  });
 }
 
 export function useFeature(id: Ref<string>) {
@@ -103,20 +111,23 @@ export function useImportSrdFeatures() {
       const user = getCurrentUser();
 
       const allNames = feats.map((f) => f.name);
-      type ExistingRow = { name: string; prerequisite: string | null; feature_type: string };
+      type ExistingRow = { id: string; name: string; source: string | null; source_record_key: string | null; prerequisite: string | null; feature_type: string };
       const existing: ExistingRow[] = [];
       const CHUNK = 200;
       for (let i = 0; i < allNames.length; i += CHUNK) {
         const { data } = await supabase
           .from("class_features")
-          .select("name, prerequisite, feature_type")
+          .select("id, name, source, source_record_key, prerequisite, feature_type")
           .eq("open5e_import", true)
           .in("name", allNames.slice(i, i + CHUNK));
         existing.push(...((data ?? []) as ExistingRow[]));
       }
-      const existingMap = new Map(existing.map((e) => [e.name, e]));
+      const byRecord = new Map(existing.filter((row) => row.source_record_key).map((row) => [row.source_record_key!, row]));
+      const byLegacySourceName = new Map(existing.map((row) => [`${row.source ?? ""}\0${row.name}`, row]));
+      const existingFor = (feat: ClassFeatureInsert) => byRecord.get(feat.source_record_key!)
+        ?? byLegacySourceName.get(`${feat.source ?? ""}\0${feat.name}`);
 
-      const toInsert = feats.filter((f) => !existingMap.has(f.name));
+      const toInsert = feats.filter((feat) => !existingFor(feat));
       const INSERT_BATCH = 100;
       for (let i = 0; i < toInsert.length; i += INSERT_BATCH) {
         const batch = toInsert.slice(i, i + INSERT_BATCH).map((f) => ({ ...f, user_id: user!.id }));
@@ -127,9 +138,11 @@ export function useImportSrdFeatures() {
       // Update existing rows — refresh prerequisite, feature_type, and description
       // from Open5e; never touch user-edited tags, source override, or campaign_id.
       const toUpdate = feats.filter((f) => {
-        const cur = existingMap.get(f.name);
+        const cur = existingFor(f);
         if (!cur) return false;
-        return cur.prerequisite !== f.prerequisite || cur.feature_type !== f.feature_type;
+        return cur.prerequisite !== f.prerequisite
+          || cur.feature_type !== f.feature_type
+          || cur.source_record_key !== f.source_record_key;
       });
       const UPDATE_CONCURRENCY = 25;
       for (let i = 0; i < toUpdate.length; i += UPDATE_CONCURRENCY) {
@@ -137,9 +150,18 @@ export function useImportSrdFeatures() {
           toUpdate.slice(i, i + UPDATE_CONCURRENCY).map((f) =>
             supabase
               .from("class_features")
-              .update({ prerequisite: f.prerequisite, feature_type: f.feature_type })
-              .eq("open5e_import", true)
-              .eq("name", f.name),
+              .update({
+                prerequisite: f.prerequisite,
+                feature_type: f.feature_type,
+                ruleset: f.ruleset,
+                conceptual_key: f.conceptual_key,
+                source_document_key: f.source_document_key,
+                source_record_key: f.source_record_key,
+                source_revision: f.source_revision,
+                source_license: f.source_license,
+                provenance: f.provenance,
+              })
+              .eq("id", existingFor(f)!.id),
           ),
         );
       }

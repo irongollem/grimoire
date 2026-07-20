@@ -3,24 +3,28 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import type { SrdRule, Rule, RuleInsert, RuleUpdate } from "@/types/rule.types";
+import { useRuleset } from "@/composables/useRuleset";
+import type { RulesetKey } from "@/types/ruleset.types";
 
 // ── SRD Rules ─────────────────────────────────────────────────────────────────
 
 const SRD_KEY = "srd_rules";
 
-async function fetchSrdRules(): Promise<SrdRule[]> {
+async function fetchSrdRules(ruleset: RulesetKey): Promise<SrdRule[]> {
   const { data, error } = await supabase
     .from("srd_rules")
     .select("*")
+    .eq("ruleset", ruleset)
     .order("name", { ascending: true });
   if (error) throw error;
   return data as SrdRule[];
 }
 
 export function useSrdRules() {
+  const { ruleset } = useRuleset();
   return useQuery({
-    queryKey: [SRD_KEY],
-    queryFn: fetchSrdRules,
+    queryKey: computed(() => [SRD_KEY, ruleset.value]),
+    queryFn: () => fetchSrdRules(ruleset.value),
     staleTime: Infinity,
   });
 }
@@ -29,11 +33,12 @@ export function useSrdRules() {
 
 const CUSTOM_KEY = "rules";
 
-async function fetchRules(campaignId: string): Promise<Rule[]> {
+async function fetchRules(campaignId: string, ruleset: RulesetKey): Promise<Rule[]> {
   const { data, error } = await supabase
     .from("rules")
     .select("*")
     .eq("campaign_id", campaignId)
+    .or(`ruleset.is.null,ruleset.eq.${ruleset}`)
     .order("title", { ascending: true });
   if (error) throw error;
   return data as Rule[];
@@ -75,9 +80,10 @@ async function deleteRule(id: string): Promise<void> {
 export function useRules() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
+  const { ruleset } = useRuleset();
   return useQuery({
-    queryKey: computed(() => [CUSTOM_KEY, campaignId.value]),
-    queryFn: () => fetchRules(campaignId.value!),
+    queryKey: computed(() => [CUSTOM_KEY, campaignId.value, ruleset.value]),
+    queryFn: () => fetchRules(campaignId.value!, ruleset.value),
     enabled: () => !!campaignId.value,
     staleTime: Infinity,
   });
@@ -85,13 +91,15 @@ export function useRules() {
 
 /** Player-facing: returns player-visible rules from the campaign DM (via RLS). */
 export function usePlayerVisibleRules() {
+  const { ruleset } = useRuleset();
   return useQuery({
-    queryKey: [CUSTOM_KEY, "player-visible"],
+    queryKey: computed(() => [CUSTOM_KEY, "player-visible", ruleset.value]),
     queryFn: async (): Promise<Rule[]> => {
       const { data, error } = await supabase
         .from("rules")
         .select("*")
         .eq("is_player_visible", true)
+        .or(`ruleset.is.null,ruleset.eq.${ruleset.value}`)
         .order("title", { ascending: true });
       if (error) throw error;
       return data as Rule[];

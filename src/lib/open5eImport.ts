@@ -97,8 +97,21 @@ function weaponTags(category: string): string[] {
   return [];
 }
 
+function versionMetadata(item: { slug: string; name: string; document__slug: string }) {
+  return {
+    ruleset: "2014" as const,
+    conceptual_key: item.name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, ""),
+    source_document_key: item.document__slug || "srd",
+    source_record_key: `${item.document__slug || "srd"}:${item.slug}`,
+    source_revision: "open5e-v1",
+    source_license: null,
+    provenance: { provider: "open5e", api_version: "v1" },
+  };
+}
+
 function mapWeapon(item: Open5eWeapon): ItemInsert {
   return {
+    ...versionMetadata(item),
     name: item.name,
     item_type: "weapon",
     subtype: item.category,
@@ -130,6 +143,7 @@ function mapWeapon(item: Open5eWeapon): ItemInsert {
 
 function mapArmor(item: Open5eArmor): ItemInsert {
   return {
+    ...versionMetadata(item),
     name: item.name,
     item_type: armorItemType(item.category),
     subtype: item.category,
@@ -158,6 +172,7 @@ function mapArmor(item: Open5eArmor): ItemInsert {
 function mapMagicItem(item: Open5eMagicItem): ItemInsert {
   const attunementStr = item.requires_attunement?.trim() ?? "";
   return {
+    ...versionMetadata(item),
     name: item.name,
     item_type: magicItemType(item.type),
     subtype: item.type,

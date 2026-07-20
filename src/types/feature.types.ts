@@ -1,3 +1,5 @@
+import type { VersionedContentMetadata } from "@/types/content.types";
+
 export const FEATURE_TYPES = [
   "passive",
   "active",
@@ -16,7 +18,7 @@ export const FEATURE_TYPE_LABELS: Record<FeatureType, string> = {
   legendary:    "Legendary",
 };
 
-export interface ClassFeature {
+export interface ClassFeature extends VersionedContentMetadata {
   id: string;
   user_id: string;
   campaign_id: string | null;

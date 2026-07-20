@@ -4,6 +4,7 @@ import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { CustomClass, CustomClassInsert, CustomClassUpdate, SystemClass } from "@/levelup/customTypes";
 import { fetchOpen5eBaseClasses, baseClassToInsert } from "@/lib/open5eClassImport";
 import { ensureClassFeatures, collectFeatureNames } from "@/lib/classFeatureSync";
+import { useRuleset } from "@/composables/useRuleset";
 
 const QUERY_KEY = "custom_classes";
 
@@ -105,12 +106,14 @@ export function useUpdateCustomClass() {
 }
 
 export function useAllSystemClasses() {
+  const { ruleset } = useRuleset();
   return useQuery({
-    queryKey: ["system_classes"],
+    queryKey: computed(() => ["system_classes", ruleset.value]),
     queryFn: async (): Promise<SystemClass[]> => {
       const { data, error } = await supabase
         .from("system_classes")
         .select("*")
+        .eq("ruleset", ruleset.value)
         .order("class_name", { ascending: true });
       if (error) throw error;
       return data as SystemClass[];

@@ -7,6 +7,9 @@ import { useUiStore } from "@/stores/ui";
 import type { Monster, MonsterInsert, MonsterUpdate } from "@/types/monster.types";
 import { useToast } from "@/composables/useToast";
 import { deleteByPublicUrl } from "@/lib/storage";
+import { isUuid } from "@/lib/contentIdentity";
+import { useRuleset } from "@/composables/useRuleset";
+import type { RulesetKey } from "@/types/ruleset.types";
 
 
 const QUERY_KEY = "monsters";
@@ -67,12 +70,13 @@ async function deleteMonster(monster: Monster): Promise<void> {
 
 const SRD_QUERY_KEY = "srd-monsters";
 
-async function fetchSrdMonsters(enabledSlugs: string[]): Promise<Monster[]> {
+async function fetchSrdMonsters(enabledSlugs: string[], ruleset: RulesetKey): Promise<Monster[]> {
   if (enabledSlugs.length === 0) return [];
   const { data, error } = await supabase
     .from("srd_monsters")
     .select("*")
     .in("source", enabledSlugs)
+    .eq("ruleset", ruleset)
     .order("name", { ascending: true });
   if (error) throw error;
   return (data ?? []).map((row) => ({ ...row, user_id: "" })) as Monster[];
@@ -90,14 +94,15 @@ export function useMonsters() {
 export function useAllMonsters() {
   const customQuery  = useMonsters();
   const enabledQuery = useEnabledSources();
+  const { ruleset } = useRuleset();
 
   const enabledSlugs = computed(() =>
     enabledQuery.data.value?.map((e) => e.source_slug) ?? null,
   );
 
   const srdQuery = useQuery({
-    queryKey: computed(() => [SRD_QUERY_KEY, enabledSlugs.value]),
-    queryFn: () => fetchSrdMonsters(enabledSlugs.value!),
+    queryKey: computed(() => [SRD_QUERY_KEY, enabledSlugs.value, ruleset.value]),
+    queryFn: () => fetchSrdMonsters(enabledSlugs.value!, ruleset.value),
     enabled: () => enabledSlugs.value !== null,
     staleTime: Infinity,
   });
@@ -105,10 +110,11 @@ export function useAllMonsters() {
   const data = computed<Monster[]>(() => {
     // Open5e imports in the monsters table are legacy — those now come from srd_monsters.
     // Only surface truly custom-created monsters from the user's table.
-    const custom  = (customQuery.data.value ?? []).filter((m) => !m.open5e_import);
+    const custom  = (customQuery.data.value ?? []).filter((m) =>
+      !m.open5e_import && (!m.ruleset || m.ruleset === ruleset.value),
+    );
     const srd     = srdQuery.data.value ?? [];
-    const dbNames = new Set(custom.map((m) => m.name));
-    return [...srd.filter((m: Monster) => !dbNames.has(m.name)), ...custom]
+    return [...srd, ...custom]
       .sort((a, b) => a.name.localeCompare(b.name));
   });
 
@@ -143,14 +149,15 @@ export function usePlayerVisibleMonsters() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   const enabledQuery = useEnabledSources();
+  const { ruleset } = useRuleset();
 
   const enabledSlugs = computed(() =>
     enabledQuery.data.value?.map((e) => e.source_slug) ?? null,
   );
 
   const srdQuery = useQuery({
-    queryKey: computed(() => [SRD_QUERY_KEY, enabledSlugs.value]),
-    queryFn: () => fetchSrdMonsters(enabledSlugs.value!),
+    queryKey: computed(() => [SRD_QUERY_KEY, enabledSlugs.value, ruleset.value]),
+    queryFn: () => fetchSrdMonsters(enabledSlugs.value!, ruleset.value),
     enabled: () => enabledSlugs.value !== null,
     staleTime: Infinity,
   });
@@ -176,10 +183,9 @@ export function usePlayerVisibleMonsters() {
     // srd_monsters instead, so drop them from the custom side (same rule as
     // useAllMonsters).
     const custom = ((ui.dmPreviewMode ? baseQuery.data.value : projectionQuery.data.value) ?? [])
-      .filter((m) => !m.open5e_import);
+      .filter((m) => !m.open5e_import && (!m.ruleset || m.ruleset === ruleset.value));
     const srd = srdQuery.data.value ?? [];
-    const dbNames = new Set(custom.map((m) => m.name));
-    return [...srd.filter((m: Monster) => !dbNames.has(m.name)), ...custom]
+    return [...srd, ...custom]
       .sort((a, b) => a.name.localeCompare(b.name));
   });
 
@@ -207,6 +213,22 @@ export function useSrdMonster(id: Ref<string>) {
     },
     enabled: () => !!id.value,
     staleTime: Infinity,
+  });
+}
+
+/** Resolve an opaque monster ID against explicit shared/custom stores. */
+export function useResolvedMonster(id: Ref<string>) {
+  return useQuery({
+    queryKey: computed(() => ["resolved-monster", id.value]),
+    queryFn: async () => {
+      const { data: shared, error: sharedError } = await supabase
+        .from("srd_monsters").select("*").eq("id", id.value).maybeSingle();
+      if (sharedError) throw sharedError;
+      if (shared) return { monster: { ...shared, user_id: "", is_srd: true } as Monster, isShared: true };
+      if (!isUuid(id.value)) throw new Error("Monster not found");
+      return { monster: await fetchMonster(id.value), isShared: false };
+    },
+    enabled: () => !!id.value,
   });
 }
 
@@ -327,21 +349,25 @@ export function useImportSrdMonsters() {
         source_title: string | null;
         source_url: string | null;
         stat_block: MonsterInsert["stat_block"];
+        source_record_key: string | null;
       };
       const existing: ExistingRow[] = [];
       const CHUNK = 200;
       for (let i = 0; i < allNames.length; i += CHUNK) {
         const { data } = await supabase
           .from("monsters")
-          .select("id, name, source, source_title, source_url, stat_block")
+          .select("id, name, source, source_title, source_url, stat_block, source_record_key")
           .eq("open5e_import", true)
           .in("name", allNames.slice(i, i + CHUNK));
         existing.push(...((data ?? []) as ExistingRow[]));
       }
-      const existingMap = new Map(existing.map((e) => [e.name, e]));
+      const byRecord = new Map(existing.filter((row) => row.source_record_key).map((row) => [row.source_record_key!, row]));
+      const byLegacySourceName = new Map(existing.map((row) => [`${row.source ?? ""}\0${row.name}`, row]));
+      const existingFor = (monster: MonsterInsert) => byRecord.get(monster.source_record_key!)
+        ?? byLegacySourceName.get(`${monster.source ?? ""}\0${monster.name}`);
 
       // ── Insert new monsters ───────────────────────────────────────────────
-      const toInsert = monsters.filter((m) => !existingMap.has(m.name));
+      const toInsert = monsters.filter((monster) => !existingFor(monster));
       const INSERT_BATCH = 100;
       for (let i = 0; i < toInsert.length; i += INSERT_BATCH) {
         const batch = toInsert
@@ -353,15 +379,16 @@ export function useImportSrdMonsters() {
 
       // ── Update existing monsters (source + stat block only, never art) ───
       const toUpdate = monsters.filter((m) => {
-        const cur = existingMap.get(m.name);
+        const cur = existingFor(m);
         if (!cur) return false;
         const sameSource = cur.source === m.source;
         const sameTitle = cur.source_title === m.source_title;
         const sameUrl = cur.source_url === m.source_url;
+        const sameIdentity = cur.source_record_key === m.source_record_key;
         // Stat block comparison is a structural JSON compare; any change in
         // CR / damage / actions upstream re-syncs down to the DB.
         const sameStats = JSON.stringify(cur.stat_block) === JSON.stringify(m.stat_block);
-        return !sameSource || !sameTitle || !sameUrl || !sameStats;
+        return !sameSource || !sameTitle || !sameUrl || !sameIdentity || !sameStats;
       });
 
       const UPDATE_CONCURRENCY = 25;
@@ -379,9 +406,15 @@ export function useImportSrdMonsters() {
                 alignment: m.alignment,
                 stat_block: m.stat_block,
                 is_srd: m.is_srd,
+                ruleset: m.ruleset,
+                conceptual_key: m.conceptual_key,
+                source_document_key: m.source_document_key,
+                source_record_key: m.source_record_key,
+                source_revision: m.source_revision,
+                source_license: m.source_license,
+                provenance: m.provenance,
               })
-              .eq("open5e_import", true)
-              .eq("name", m.name),
+              .eq("id", existingFor(m)!.id),
           ),
         );
       }

@@ -1,6 +1,8 @@
 // Types for DM-defined custom subclasses and class variants.
 // These live alongside the SRD class types in src/levelup/ to keep the domain self-contained.
 
+import type { VersionedContentMetadata } from "@/types/content.types";
+
 export type CasterType = "prepared" | "known" | "spellbook" | "none";
 /** Ability scores that can feed max-prepared calculations. */
 export type PreparedAbility = "wis" | "int" | "cha";
@@ -126,7 +128,7 @@ export type CustomClassInsert = Omit<CustomClass, "id" | "user_id" | "created_at
 export type CustomClassUpdate = Partial<CustomClassInsert>;
 
 /** Read-only SRD class template — stored in system_classes, visible to all users. */
-export interface SystemClass {
+export interface SystemClass extends VersionedContentMetadata {
   id: string;
   class_name: string;
   hit_die: HitDie;

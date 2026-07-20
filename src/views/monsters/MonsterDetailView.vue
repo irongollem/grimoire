@@ -138,7 +138,7 @@ import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useMediaQuery } from "@vueuse/core";
 import { IconChart, IconChevronLeft, IconEdit, IconHide, IconParty, IconReveal } from '@/lib/icons';
-import { useMonster, useSrdMonster } from "@/composables/useMonsters";
+import { useResolvedMonster } from "@/composables/useMonsters";
 import { useSrdMonsterArt } from "@/composables/useSrdMonsterArt";
 import { useMonsterVisibility } from "@/composables/useMonsterVisibility";
 import PageHeader from "@/components/common/PageHeader.vue";
@@ -153,7 +153,6 @@ const router = useRouter();
 
 const isNew = computed(() => route.name === "monster-new");
 const id = computed(() => (isNew.value ? "" : (route.params.id as string)));
-const isSrdId = computed(() => id.value.startsWith("srd_"));
 const isEditing = computed(() => isNew.value || route.query.edit === "true");
 
 // Mobile-only layers (<md). Desktop keeps the existing PageHeader +
@@ -170,25 +169,23 @@ function startEditing() {
 
 // Own art (user-uploaded) can override the canonical art already in srd_monsters.image_url
 const { data: artMap } = useSrdMonsterArt();
-const { data: srdMonsterData, isLoading: srdLoading } = useSrdMonster(id);
+const { data: resolvedData, isLoading: resolvedLoading } = useResolvedMonster(id);
+const isSrdId = computed(() => resolvedData.value?.isShared === true);
 const srdMonster = computed(() => {
-  if (!isSrdId.value || !srdMonsterData.value) return null;
-  const m = srdMonsterData.value;
+  if (!isSrdId.value || !resolvedData.value) return null;
+  const m = resolvedData.value.monster;
   const art = artMap.value?.[id.value];
   return art ? { ...m, image_url: art.image_url, portrait_focal_point: art.portrait_focal_point } : m;
 });
 
-const dbMonsterId = computed(() => isSrdId.value ? "" : id.value);
-const { data: dbMonster, isLoading: dbLoading } = useMonster(dbMonsterId);
-
 const isLoading = computed(() =>
-  !isNew.value && (isSrdId.value ? srdLoading.value : dbLoading.value),
+  !isNew.value && resolvedLoading.value,
 );
 
 const resolvedMonster = computed(() => {
   if (isNew.value) return null;
   if (isSrdId.value) return srdMonster.value;
-  return dbMonster.value ?? null;
+  return resolvedData.value?.monster ?? null;
 });
 
 const pageTitle = computed(() => {

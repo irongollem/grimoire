@@ -32,7 +32,7 @@
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconDocument, IconEdit } from '@/lib/icons';
-import { useSpell, useSrdSpell } from "@/composables/useSpells";
+import { useResolvedSpell } from "@/composables/useSpells";
 import { useSrdSpellArt } from "@/composables/useSrdSpellArt";
 import { spellLevelLabel } from "@/types/spell.types";
 import { useAuthStore } from "@/stores/auth";
@@ -52,7 +52,6 @@ const router = useRouter();
 
 const id = computed(() => route.params.id as string | undefined);
 const isNew = computed(() => !id.value || id.value === "new");
-const isSrdId = computed(() => !!id.value?.startsWith("srd_"));
 const isEditing = computed(() => (isNew.value || route.query.edit === "true") && canEdit.value);
 
 function startEditing() {
@@ -64,23 +63,20 @@ function stopEditing() {
   router.replace({ query: q });
 }
 
-const srdId = computed(() => (isSrdId.value ? (id.value ?? "") : ""));
-const dbId  = computed(() => (!isSrdId.value && !isNew.value ? (id.value ?? "") : ""));
-
-const { data: srdSpell,  isLoading: srdLoading } = useSrdSpell(srdId);
-const { data: dbSpell,   isLoading: dbLoading, error } = useSpell(dbId);
+const lookupId = computed(() => isNew.value ? "" : (id.value ?? ""));
+const { data: resolved, isLoading, error } = useResolvedSpell(lookupId);
 const { data: artMap } = useSrdSpellArt();
+const isSrdId = computed(() => resolved.value?.isShared === true);
 
 const resolvedSrdSpell = computed(() => {
-  const s = srdSpell.value;
+  const s = resolved.value?.spell;
   if (!s) return null;
   const art = artMap.value?.[s.id];
   if (!art) return s;
   return { ...s, image_url: art.image_url ?? s.image_url, image_focal_point: art.portrait_focal_point ?? s.image_focal_point };
 });
 
-const spell     = computed(() => isSrdId.value ? resolvedSrdSpell.value : dbSpell.value);
-const isLoading = computed(() => isSrdId.value ? srdLoading.value : dbLoading.value);
+const spell = computed(() => isSrdId.value ? resolvedSrdSpell.value : (resolved.value?.spell ?? null));
 
 const subtitle = computed(() => {
   const s = spell.value;

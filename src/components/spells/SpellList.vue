@@ -123,7 +123,7 @@
 
           <!-- Edit button — DM mode only, not shown for SRD spell cards -->
           <RouterLink
-            v-if="!props.playerMemberId && !spell.id.startsWith('srd_')"
+            v-if="!props.playerMemberId && !isSharedContent(spell)"
             :to="`/spells/${spell.id}?edit=true`"
             class="absolute top-2 left-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
             title="Edit spell"
@@ -192,6 +192,7 @@ import { SCHOOL_COLORS, spellLevelLabel } from "@/types/spell.types";
 import type { CasterType, Spell } from "@/types/spell.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
+import { isSharedContent } from "@/lib/contentIdentity";
 
 const props = defineProps<{
   search: string;

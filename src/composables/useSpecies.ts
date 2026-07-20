@@ -3,13 +3,16 @@ import { computed, type Ref } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { removeStorageImages } from "@/composables/useImageUpload";
 import type { Species, SpeciesInsert, SpeciesUpdate } from "@/types/species.types";
+import { useRuleset } from "@/composables/useRuleset";
+import type { RulesetKey } from "@/types/ruleset.types";
 
 const QUERY_KEY = "species";
 
-async function fetchAllSpecies(): Promise<Species[]> {
+async function fetchAllSpecies(ruleset: RulesetKey): Promise<Species[]> {
   const { data, error } = await supabase
     .from("species")
     .select("*")
+    .or(`ruleset.is.null,ruleset.eq.${ruleset}`)
     .order("name", { ascending: true });
   if (error) throw error;
   return data as Species[];
@@ -50,7 +53,12 @@ async function deleteSpecies(species: Species): Promise<void> {
 }
 
 export function useAllSpecies() {
-  return useQuery({ queryKey: [QUERY_KEY], queryFn: fetchAllSpecies, staleTime: Infinity });
+  const { ruleset } = useRuleset();
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY, ruleset.value]),
+    queryFn: () => fetchAllSpecies(ruleset.value),
+    staleTime: Infinity,
+  });
 }
 
 /** Returns a Map<species_id, species_name> for fast inline lookups. */
