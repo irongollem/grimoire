@@ -124,6 +124,7 @@ export function useCastCharacterSpell() {
       slotTemplate,
       concentrationState = null,
       metamagicName = null,
+      characterSpellId = null,
     }: {
       partyMemberId: string;
       slotLevel: number;
@@ -131,6 +132,7 @@ export function useCastCharacterSpell() {
       slotTemplate: SpellSlotEntry[];
       concentrationState?: PartyMember["concentration"];
       metamagicName?: string | null;
+      characterSpellId?: string | null;
     }) => {
       const { data, error } = await supabase.rpc("cast_character_spell", {
         p_party_member_id: partyMemberId,
@@ -139,6 +141,7 @@ export function useCastCharacterSpell() {
         p_slot_template: slotTemplate,
         p_concentration_state: concentrationState,
         p_metamagic_name: metamagicName,
+        p_character_spell_id: characterSpellId,
       });
       if (error) throw error;
       return data;

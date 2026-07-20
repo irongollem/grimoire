@@ -150,9 +150,8 @@ import { IconChevronRight, IconClose, IconGenerate, IconWand } from '@/lib/icons
 import {
   useCharacterSpellsWithDetails,
   useRemoveCharacterSpellById,
-  useSpendInnateUse,
 } from "@/composables/useCharacterSpells";
-import { useParty } from "@/composables/useParty";
+import { useCastCharacterSpell, useParty } from "@/composables/useParty";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { useConcentration } from "@/composables/useConcentration";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
@@ -162,6 +161,7 @@ import { parseExpression, parsedToCounts } from "@/lib/dice";
 import { rollParsed } from "@/lib/roller";
 import { signedNum } from "@/lib/utils";
 import type { CharacterSpellEntry, Spell } from "@/types/spell.types";
+import type { ConcentrationState } from "@/types/party.types";
 import PlayerSpellModal from "@/components/spells/PlayerSpellModal.vue";
 import { canAutoRollSpellEffect } from "@/lib/spellcastingPolicy";
 import { useToast } from "@/composables/useToast";
@@ -187,11 +187,11 @@ const { data: allEntries } = useCharacterSpellsWithDetails(
   computed(() => props.partyMemberId),
 );
 const { mutate: removeById, isPending: isRemoving } = useRemoveCharacterSpellById();
-const { mutate: spendUse, isPending: isCasting } = useSpendInnateUse();
+const { mutateAsync: commitCast, isPending: isCasting } = useCastCharacterSpell();
 const { sendFlavorMessage, sendRoll } = useCampaignMessages();
 const { promptRoll } = usePromptedRoll();
 const { data: partyList } = useParty();
-const { startConcentration } = useConcentration();
+const { prepareConcentration } = useConcentration();
 
 const thisMember = computed(() =>
   props.partyMemberId && partyList.value
@@ -278,12 +278,21 @@ async function castSpell(entry: CharacterSpellEntry) {
   if (entry.uses_per_day !== null && !entry.uses_remaining) return;
 
   const spell = entry.spell;
+  let concentrationState: ConcentrationState | null = null;
+  if (spell.concentration && thisMember.value) {
+    concentrationState = await prepareConcentration(thisMember.value, spell, { castAtLevel: spell.level });
+    if (!concentrationState) return;
+  }
 
-    // Concentration guard
-    if (spell.concentration && thisMember.value) {
-      const ok = await startConcentration(thisMember.value, spell, { castAtLevel: spell.level });
-      if (!ok) return;
-    }
+  try {
+    await commitCast({
+      partyMemberId: props.partyMemberId,
+      slotLevel: 0,
+      pool: "feature",
+      slotTemplate: thisMember.value?.spell_slots ?? [],
+      concentrationState,
+      characterSpellId: entry.id,
+    });
 
     // Flavor message
     let text = `casts ${spell.name}`;
@@ -295,6 +304,7 @@ async function castSpell(entry: CharacterSpellEntry) {
     }
     if (entry.source_label) text += ` [${entry.source_label}]`;
     await sendFlavorMessage(text, "spell");
+    if (concentrationState) await sendFlavorMessage(`begins concentrating on ${spell.name}`, spell.name);
 
     if (spell.damage_rolls?.length && canAutoRollSpellEffect(spell.attack_type, "damage")) {
       await rollInnateDamage(entry);
@@ -303,14 +313,9 @@ async function castSpell(entry: CharacterSpellEntry) {
       await rollInnateHealing(entry);
     }
 
-    // Spend a use (if limited)
-    if (entry.uses_per_day !== null && entry.uses_remaining !== null && entry.uses_remaining > 0) {
-      spendUse({
-        id: entry.id,
-        partyMemberId: props.partyMemberId,
-        newRemaining: entry.uses_remaining - 1,
-      });
-    }
+  } catch (error) {
+    toast.error(toast.fromError(error));
+  }
 }
 
 function handleRemove(entry: CharacterSpellEntry) {

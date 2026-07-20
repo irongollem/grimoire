@@ -81,6 +81,7 @@
     <!-- Prepared / Known Spells -->
     <RunnerPcSpells
       v-if="preparedOrKnownSpells.length"
+      :member="member"
       :spells="preparedOrKnownSpells"
       :caster-type="casterType"
       :spell-save-dc="spellSaveDc"
@@ -112,6 +113,8 @@ import { useSpeciesNameMap } from "@/composables/useSpecies";
 import { useCharacterSpellsWithDetails } from "@/composables/useCharacterSpells";
 import { useClassByName } from "@/composables/useCustomClasses";
 import { useShieldAcBonus } from "@/composables/useShieldAc";
+import { useRuleset } from "@/composables/useRuleset";
+import { getSpellPreparationPolicy } from "@/lib/spellPreparationPolicy";
 
 const { combatant, member, monsters } = defineProps<{
   combatant: RunCombatant;
@@ -132,12 +135,17 @@ const emit = defineEmits<{
 const store = useEncounterRunStore();
 const speciesNameMap = useSpeciesNameMap();
 const { bonusFor: shieldAcBonusFor } = useShieldAcBonus();
+const { ruleset } = useRuleset();
 
 const memberId = computed(() => member.id);
 
 const classRef = computed(() => member.class ?? "");
 const classData = useClassByName(classRef);
-const casterType = computed(() => classData.value?.caster_type ?? getCasterType(member.class ?? null));
+const casterType = computed(() =>
+  getSpellPreparationPolicy(member.class ?? "", ruleset.value)?.casterType
+    ?? classData.value?.caster_type
+    ?? getCasterType(member.class ?? null),
+);
 
 const { data: playerSpells } = useCharacterSpellsWithDetails(memberId);
 
