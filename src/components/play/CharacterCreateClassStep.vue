@@ -9,15 +9,19 @@
       <p class="font-fell text-sm text-muted-foreground italic">No classes available — skip for now.</p>
     </div>
     <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-      <button v-for="cls in mergedClasses" :key="cls.class_name" type="button"
+      <button v-for="cls in mergedClasses" :key="cls.choice_key" type="button"
         class="rounded-lg border overflow-hidden text-left transition-all p-3"
-        :class="f.class === cls.class_name
+        :class="selectedClassKey === cls.choice_key
           ? 'border-primary ring-1 ring-primary bg-primary/5'
           : 'border-border bg-card hover:border-primary/40'"
-        @click="onClassSelect(cls.class_name)">
+        @click="onClassSelect(cls.choice_key)">
         <div class="flex items-start gap-2">
           <div class="flex-1 min-w-0">
             <p class="font-cinzel text-sm font-bold text-foreground">{{ cls.class_name }}</p>
+            <p class="font-cinzel text-[9px] uppercase tracking-wider text-muted-foreground/70">
+              {{ cls.definition_kind === 'system' ? 'Official' : (cls.source_document_key ? 'Imported' : 'Custom') }}
+              <template v-if="cls.source_revision"> · {{ cls.source_revision }}</template>
+            </p>
             <p v-if="cls.primary_ability" class="font-fell text-xs text-muted-foreground mt-0.5">{{ cls.primary_ability }}</p>
           </div>
           <span class="shrink-0 px-2 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground">
@@ -199,7 +203,7 @@ import type { CharacterCreationForm } from "@/composables/useCharacterCreationFo
 const { form } = defineProps<{ form: CharacterCreationForm }>();
 
 const {
-  f, mergedClasses, onClassSelect, setSkillProf, skillBonus, toggleSave, saveBonus,
+  f, mergedClasses, selectedClassKey, onClassSelect, setSkillProf, skillBonus, toggleSave, saveBonus,
   bgSkillChoices, bgChosenSkills, bgChoiceLimit, bgFreeSkills, toggleBgSkillChoice,
 } = form;
 

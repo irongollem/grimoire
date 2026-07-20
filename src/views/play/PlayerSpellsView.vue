@@ -1,5 +1,34 @@
 <template>
   <div class="space-y-4 pb-8">
+    <div
+      v-if="rulesetReviewClasses.length"
+      class="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300"
+      role="status"
+    >
+      The campaign rules changed. Review {{ rulesetReviewClasses.map(entry => entry.label).join(", ") }} before changing its spells.
+      <RouterLink class="ml-1 underline font-semibold" to="/codex/classes">Compare classes</RouterLink>
+      <button
+        type="button"
+        class="ml-2 underline font-semibold disabled:opacity-50"
+        :disabled="acknowledgingRulesetReview"
+        @click="acknowledgeRulesetReview"
+      >Keep current choices</button>
+    </div>
+    <div
+      v-if="rulesetReviewSpells.length"
+      class="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300"
+      role="status"
+    >
+      No safe {{ ruleset }} counterpart was found for {{ rulesetReviewSpells.map(entry => entry.spell.name).join(", ") }}.
+      Review the spell text before play.
+      <RouterLink class="ml-1 underline font-semibold" to="/spells">Compare spells</RouterLink>
+      <button
+        type="button"
+        class="ml-2 underline font-semibold disabled:opacity-50"
+        :disabled="acknowledgingSpellRulesetReview"
+        @click="acknowledgeSpellRulesetReview"
+      >Keep current versions</button>
+    </div>
     <div v-if="legacySpells.length" class="rounded-lg border border-amber-500/35 bg-amber-500/10 p-4 space-y-2">
       <p class="font-cinzel text-xs font-bold tracking-wider text-amber-500">Review legacy spell sources</p>
       <p class="font-fell text-sm text-muted-foreground">These spells predate multiclass source tracking. Assign each one before changing its preparation.</p>
@@ -153,6 +182,10 @@
         :known-spell-ids="browseKnownSpellIds"
         :prepared-spell-ids="browsePreparedSpellIds"
         :source-class-id="browseSourceClassId"
+        :source-class-level="browseClassEntry?.levels ?? member?.level ?? 1"
+        :known-cantrip-count="browseKnownCantripCount"
+        :prepared-spell-count="browsePreparedSpellCount"
+        :official-rules-policy="!!browsePolicy"
         @spell-click="selectedSpell = $event"
       />
     </template>
@@ -163,7 +196,8 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { useRoute } from "vue-router";
+import { RouterLink, useRoute } from "vue-router";
+import { useQueryClient } from "@tanstack/vue-query";
 import { refDebounced } from "@vueuse/core";
 import { IconGenerate, IconSearch } from '@/lib/icons';
 import { useAuthStore } from "@/stores/auth";
@@ -176,13 +210,15 @@ import PlayerInnateSpells from "@/components/spells/PlayerInnateSpells.vue";
 import AddInnateSpellDialog from "@/components/spells/AddInnateSpellDialog.vue";
 import PlayerSpellModal from "@/components/spells/PlayerSpellModal.vue";
 import type { Spell } from "@/types/spell.types";
-import { SPELL_SCHOOLS, getCasterType, computeMaxPrepared, getDefaultSpellSlots, getMulticlassSpellSlots, getCasterCategory } from "@/types/spell.types";
+import { SPELL_SCHOOLS, getCasterType, computeMaxPrepared } from "@/types/spell.types";
 import { useCharacterClasses } from "@/composables/useCharacterClasses";
-import { useClassByName } from "@/composables/useCustomClasses";
-import { computeSpellcastingPerClass } from "@/types/multiclass.types";
+import { useAllCustomClasses, useAllSystemClasses } from "@/composables/useCustomClasses";
+import { computeSpellcastingByClass } from "@/lib/spellcastingByClass";
 import { useRuleset } from "@/composables/useRuleset";
 import { getSpellPreparationPolicy, policyValueAtLevel } from "@/lib/spellPreparationPolicy";
-import { reconcileSpellSlotUsage } from "@/lib/spellSlots";
+import { deriveEffectiveSpellSlots } from "@/lib/spellSlots";
+import { supabase } from "@/lib/supabase";
+import { useToast } from "@/composables/useToast";
 
 const addInnateOpen = ref(false);
 
@@ -212,12 +248,56 @@ const memberClass = computed(() => {
 });
 
 const { data: characterClasses } = useCharacterClasses(resolvedMemberId);
-const classData   = useClassByName(memberClass);
+const rulesetReviewClasses = computed(() => (characterClasses.value ?? [])
+  .filter(entry => entry.class_ruleset_review_required || entry.subclass_ruleset_review_required)
+  .map(entry => ({
+    id: entry.id,
+    label: entry.subclass_name ? `${entry.class_name} (${entry.subclass_name})` : entry.class_name,
+  })));
+const queryClient = useQueryClient();
+const toast = useToast();
+const acknowledgingRulesetReview = ref(false);
+async function acknowledgeRulesetReview() {
+  if (!rulesetReviewClasses.value.length || acknowledgingRulesetReview.value) return;
+  acknowledgingRulesetReview.value = true;
+  try {
+    const results = await Promise.allSettled(
+      rulesetReviewClasses.value.map((entry) =>
+        supabase.rpc("acknowledge_character_ruleset_review", { p_character_class_id: entry.id })
+          .then(({ error }) => { if (error) throw error; }),
+      ),
+    );
+    await queryClient.invalidateQueries({ queryKey: ["character_classes", resolvedMemberId.value] });
+    const failures = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
+    if (failures.length) {
+      toast.error(`Couldn't acknowledge ${failures.length} of ${results.length} rule change${results.length === 1 ? "" : "s"}: ${toast.fromError(failures[0].reason)}`);
+    }
+  } finally {
+    acknowledgingRulesetReview.value = false;
+  }
+}
+const { data: allSystemClasses } = useAllSystemClasses();
+const { data: allCustomClasses } = useAllCustomClasses();
 const member      = computed(() => partyMembers.value?.find((m) => m.id === resolvedMemberId.value) ?? null);
 const memberClassEntry = computed(() =>
   (characterClasses.value ?? []).find((entry) => entry.class_name === memberClass.value),
 );
-const memberPolicy = computed(() => getSpellPreparationPolicy(memberClass.value, ruleset.value));
+function definitionFor(entry: typeof memberClassEntry.value, fallbackName = "") {
+  if (entry?.class_definition_kind === "system" && entry.class_definition_id) {
+    return (allSystemClasses.value ?? []).find(definition => definition.id === entry.class_definition_id) ?? null;
+  }
+  if (entry?.class_definition_kind === "custom" && entry.class_definition_id) {
+    return (allCustomClasses.value ?? []).find(definition => definition.id === entry.class_definition_id) ?? null;
+  }
+  const className = entry?.class_name ?? fallbackName;
+  return (allSystemClasses.value ?? []).find(definition => definition.class_name === className)
+    ?? (allCustomClasses.value ?? []).find(definition => definition.class_name === className && !definition.source_document_key)
+    ?? null;
+}
+const classData = computed(() => definitionFor(memberClassEntry.value, memberClass.value));
+const memberPolicy = computed(() => memberClassEntry.value?.class_definition_kind === "custom"
+  ? null
+  : getSpellPreparationPolicy(memberClass.value, ruleset.value));
 const casterType  = computed(() => memberPolicy.value?.casterType ?? classData.value?.caster_type ?? getCasterType(memberClass.value));
 const maxPrepared = computed(() => {
   const policy = memberPolicy.value;
@@ -239,8 +319,13 @@ const browseSourceClassId = computed(() =>
   )?.id ?? null,
 );
 const browseClassName = computed(() => ui.playerSpellsClassFilter);
-const browseClassData = useClassByName(browseClassName);
-const browsePolicy = computed(() => getSpellPreparationPolicy(browseClassName.value, ruleset.value));
+const browseClassEntry = computed(() => (characterClasses.value ?? []).find(
+  entry => entry.id === browseSourceClassId.value,
+));
+const browseClassData = computed(() => definitionFor(browseClassEntry.value, browseClassName.value));
+const browsePolicy = computed(() => browseClassEntry.value?.class_definition_kind === "custom"
+  ? null
+  : getSpellPreparationPolicy(browseClassName.value, ruleset.value));
 const browseCasterType = computed(() =>
   browsePolicy.value?.casterType ?? browseClassData.value?.caster_type ?? getCasterType(browseClassName.value),
 );
@@ -257,19 +342,16 @@ const memberLevel = computed(() => {
 // legacy default when no character_classes rows exist yet.
 const effectiveSpellSlots = computed(() => {
   const m = member.value;
+  // casterType 'none' means no spellcasting class at all — a stale legacy
+  // class field with real persisted slots is handled by RestButtons, which
+  // reads member.spell_slots directly rather than through this computed.
   if (!m || casterType.value === "none") return [];
-  const list = (characterClasses.value ?? []).map((c) => ({ class_name: c.class_name, levels: c.levels }));
-  const canDeriveMulticlass = list.length > 1
-    && list.every((entry) => getCasterCategory(entry.class_name) !== "none");
-  if (canDeriveMulticlass) {
-    return reconcileSpellSlotUsage(
-      getMulticlassSpellSlots(list, ruleset.value),
-      m.spell_slots ?? [],
-    );
-  }
-  if (m.spell_slots?.length) return m.spell_slots;
-  if (list.length > 0) return getMulticlassSpellSlots(list, ruleset.value);
-  return getDefaultSpellSlots(m.class, m.level, ruleset.value);
+  return deriveEffectiveSpellSlots(
+    m,
+    characterClasses.value ?? [],
+    ruleset.value,
+    (entry) => definitionFor(entry, entry.class_name),
+  );
 });
 
 // Spell attack bonus and save DC
@@ -297,21 +379,52 @@ const spellSaveDc = computed(() => {
 // the source of truth in that case.
 const spellcastingByClass = computed(() => {
   const m = member.value;
-  if (!m) return [];
   const list = characterClasses.value ?? [];
-  if (list.length === 0) return [];
-  return computeSpellcastingPerClass(m, list);
+  if (!m || list.length === 0) return [];
+  return computeSpellcastingByClass(
+    m,
+    list,
+    { system: allSystemClasses.value ?? [], custom: allCustomClasses.value ?? [] },
+    ruleset.value,
+  );
 });
 
 const sorcererLevel = computed(() =>
-  (characterClasses.value ?? []).find((entry) => entry.class_name === "Sorcerer")?.levels
-    ?? (member.value?.class === "Sorcerer" ? member.value.level : 0),
+  (characterClasses.value ?? []).find((entry) =>
+    entry.class_name === "Sorcerer" && entry.class_definition_kind !== "custom",
+  )?.levels
+    ?? ((characterClasses.value ?? []).length === 0 && member.value?.class === "Sorcerer"
+      ? member.value.level
+      : 0),
 );
 
 // Character spells — IDs used for button state in browse tab
 const { data: characterSpells }        = useCharacterSpells(resolvedMemberId);
 // Details (with spell level) used for accurate known/cantrip counts
 const { data: characterSpellsDetails } = useCharacterSpellsWithDetails(resolvedMemberId);
+const rulesetReviewSpells = computed(() => (characterSpellsDetails.value ?? [])
+  .filter((entry) => entry.ruleset_review_required));
+const acknowledgingSpellRulesetReview = ref(false);
+async function acknowledgeSpellRulesetReview() {
+  if (!rulesetReviewSpells.value.length || acknowledgingSpellRulesetReview.value) return;
+  acknowledgingSpellRulesetReview.value = true;
+  try {
+    const results = await Promise.allSettled(
+      rulesetReviewSpells.value.map((entry) =>
+        supabase.rpc("acknowledge_character_spell_ruleset_review", { p_character_spell_id: entry.id })
+          .then(({ error }) => { if (error) throw error; }),
+      ),
+    );
+    await queryClient.invalidateQueries({ queryKey: ["characterSpellsDetails", resolvedMemberId.value] });
+    await queryClient.invalidateQueries({ queryKey: ["characterSpells", resolvedMemberId.value] });
+    const failures = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
+    if (failures.length) {
+      toast.error(`Couldn't acknowledge ${failures.length} of ${results.length} spell version${results.length === 1 ? "" : "s"}: ${toast.fromError(failures[0].reason)}`);
+    }
+  } finally {
+    acknowledgingSpellRulesetReview.value = false;
+  }
+}
 const { mutate: assignSpellSource, isPending: isAssigningSource } = useAssignCharacterSpellSource();
 const legacySpells = computed(() => (characterSpellsDetails.value ?? []).filter((entry) =>
   (!entry.source_type || entry.source_type === "class") && !entry.source_class_id,
@@ -339,6 +452,14 @@ const browseKnownSpellIds = computed(() => browseClassSpells.value.map((spell) =
 const browsePreparedSpellIds = computed(() =>
   browseClassSpells.value.filter((spell) => spell.is_prepared).map((spell) => spell.spell_id),
 );
+const browseClassSpellDetails = computed(() => (characterSpellsDetails.value ?? []).filter(spell => {
+  if (spell.source_type && spell.source_type !== "class") return false;
+  if (browseSourceClassId.value) return spell.source_class_id === browseSourceClassId.value;
+  return !spell.source_class_id && ui.playerSpellsClassFilter === memberClass.value;
+}));
+const browseKnownCantripCount = computed(() => browseClassSpellDetails.value.filter(spell => spell.spell?.level === 0).length);
+const browsePreparedSpellCount = computed(() => browseClassSpellDetails.value.filter(spell =>
+  spell.spell?.level > 0 && spell.is_prepared && !spell.always_prepared).length);
 // Cantrips and spells are separate pools — spells_known table never includes cantrips
 const knownCount    = computed(() => (characterSpellsDetails.value ?? []).filter(cs => (!cs.source_type || cs.source_type === "class") && cs.spell?.level > 0).length);
 const cantripCount  = computed(() => (characterSpellsDetails.value ?? []).filter(cs => (!cs.source_type || cs.source_type === "class") && cs.spell?.level === 0).length);

@@ -167,11 +167,9 @@ import { ref, computed } from "vue";
 import { IconMoon, IconSun } from '@/lib/icons';
 import type { PartyMember, PartyMemberUpdate } from "@/types/party.types";
 import { getHitDie } from "@/types/spell.types";
-import { restoreSpellSlots } from "@/lib/spellSlots";
 import { useClassByName } from "@/composables/useCustomClasses";
 import { abilityModifier } from "@/lib/utils";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
-import { restoreInnateUses } from "@/composables/useCharacterSpells";
 import { getExhaustionLevel, setExhaustionLevel } from "@/lib/conditions";
 import type { DieSize } from "@/lib/dice";
 
@@ -277,9 +275,6 @@ const hasSpellSlots = computed(() => props.effectiveSpellSlots.length > 0);
 
 function confirm() {
   const update: PartyMemberUpdate = {};
-  const restType = props.mode === "long" ? "long" : "short";
-  void restoreInnateUses(props.member.id, restType);
-
   if (props.mode === "short") {
     // HP from hit dice
     if (totalHealing.value > 0) {
@@ -291,22 +286,8 @@ function confirm() {
     // Hit dice spent
     update.hit_dice_remaining = remainingAfterSpend.value;
 
-    // Restore short-rest class resources
-    const updatedResources = { ...props.member.class_resources };
-    for (const key of Object.keys(updatedResources)) {
-      if (updatedResources[key].rest === "short") {
-        updatedResources[key] = {
-          ...updatedResources[key],
-          current: updatedResources[key].max,
-        };
-      }
-    }
-    if (Object.keys(updatedResources).length)
-      update.class_resources = updatedResources;
-
-    if (props.effectiveSpellSlots.length) {
-      update.spell_slots = restoreSpellSlots(props.effectiveSpellSlots, "short");
-    }
+    // Spell slots and class resources are restored server-side by
+    // useTakeSpellcastingRest (RestButtons.onRestConfirm) — not emitted here.
 
     // Wild Shape recharges on short rest (5e RAW)
     update.wildshapes_used = 0;
@@ -321,22 +302,8 @@ function confirm() {
       hitDiceRemaining.value + diceRecovered.value,
     );
 
-    // All class resources
-    const updatedResources = { ...props.member.class_resources };
-    for (const key of Object.keys(updatedResources)) {
-      updatedResources[key] = {
-        ...updatedResources[key],
-        current: updatedResources[key].max,
-      };
-    }
-    if (Object.keys(updatedResources).length)
-      update.class_resources = updatedResources;
-
-    // All spell slots — never write an empty array (would wipe a caster whose
-    // effective slots couldn't be derived); leave the column untouched instead.
-    if (props.effectiveSpellSlots.length) {
-      update.spell_slots = restoreSpellSlots(props.effectiveSpellSlots, "long");
-    }
+    // All class resources and spell slots are restored server-side by
+    // useTakeSpellcastingRest (RestButtons.onRestConfirm) — not emitted here.
 
     // Wild Shape: revert active form and reset uses
     update.wildshapes_used = 0;

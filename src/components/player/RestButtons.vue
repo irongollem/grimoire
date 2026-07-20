@@ -27,18 +27,16 @@
 import { ref, computed } from "vue";
 import { IconMoon, IconSun } from '@/lib/icons';
 import RestDialog from "@/components/player/RestDialog.vue";
-import { useRecordSorcererRest, useUpdatePartyMember } from "@/composables/useParty";
+import { useTakeSpellcastingRest, useUpdatePartyMember } from "@/composables/useParty";
 import { getCasterType, getDefaultSpellSlots } from "@/types/spell.types";
 import { useClassByName } from "@/composables/useCustomClasses";
 import type { SpellSlotEntry, PartyMember, PartyMemberUpdate } from "@/types/party.types";
 import { useRuleset } from "@/composables/useRuleset";
-import { useOpenSpellChangeWindows } from "@/composables/useCharacterSpells";
 
 const props = defineProps<{ member: PartyMember }>();
 
 const { mutateAsync: updateMember } = useUpdatePartyMember();
-const { mutateAsync: recordSorcererRest } = useRecordSorcererRest();
-const { mutateAsync: openSpellWindows } = useOpenSpellChangeWindows();
+const { mutateAsync: takeSpellcastingRest } = useTakeSpellcastingRest();
 const resting = ref(false);
 const restDialog = ref<"short" | "long" | null>(null);
 
@@ -60,12 +58,13 @@ async function onRestConfirm(update: PartyMemberUpdate) {
   restDialog.value = null;
   resting.value = true;
   try {
-    await updateMember({ id: props.member.id, update });
     if (completedRest) {
-      await recordSorcererRest({ partyMemberId: props.member.id, rest: completedRest });
-    }
-    if (completedRest === "long") {
-      await openSpellWindows({ partyMemberId: props.member.id, timing: "long_rest" });
+      // spell_slots/class_resources are restored server-side by takeSpellcastingRest,
+      // and RestDialog no longer emits them — update carries only non-spell fields.
+      await updateMember({ id: props.member.id, update });
+      await takeSpellcastingRest({ partyMemberId: props.member.id, rest: completedRest });
+    } else {
+      await updateMember({ id: props.member.id, update });
     }
   } finally {
     resting.value = false;

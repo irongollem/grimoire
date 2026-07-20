@@ -33,6 +33,8 @@ describe("SpellEffectResolver accessibility and responsive workflow", () => {
     expect(wrapper.findAll('input[aria-label^="Target "]')).toHaveLength(2);
     expect(wrapper.findAll('select[aria-label$=" outcome"]')).toHaveLength(2);
     expect(wrapper.get('button[aria-label="Close resolver"]').attributes("type")).toBe("button");
+    await wrapper.get('[role="dialog"]').trigger("keydown", { key: "Escape" });
+    expect(wrapper.emitted("close")).toHaveLength(1);
   });
 
   it("shows unreviewed imports as manual-only without outcome automation", () => {

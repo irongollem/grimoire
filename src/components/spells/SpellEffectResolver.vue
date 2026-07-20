@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <div v-if="spell" class="fixed inset-0 z-60 flex items-end sm:items-center justify-center bg-black/60 p-0 sm:p-4" @click.self="emit('close')">
-      <section class="w-full sm:max-w-xl max-h-[90vh] overflow-y-auto rounded-t-xl sm:rounded-xl border border-border bg-card shadow-2xl" role="dialog" aria-modal="true" :aria-label="`Resolve ${spell.name}`">
+      <section ref="dialogRef" tabindex="-1" class="w-full sm:max-w-xl max-h-[90vh] overflow-y-auto rounded-t-xl sm:rounded-xl border border-border bg-card shadow-2xl" role="dialog" aria-modal="true" :aria-label="`Resolve ${spell.name}`" @keydown.esc.stop="emit('close')">
         <header class="flex items-center gap-3 border-b border-border px-4 py-3">
           <div class="flex-1 min-w-0">
             <p class="font-cinzel text-sm font-bold truncate">Resolve {{ spell.name }}</p>
@@ -59,7 +59,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import type { Spell, SpellOutcome, StructuredSpellEffect } from "@/types/spell.types";
 import { effectsForCast, resolveSpellEffects } from "@/lib/spellEffects";
 import { parseExpression } from "@/lib/dice";
@@ -85,6 +85,7 @@ const targetCount = ref(1);
 const targets = ref<Array<{ id: number; name: string; outcome: SpellOutcome }>>([]);
 const selectedPhase = ref<StructuredSpellEffect["phase"]>("impact");
 const resolving = ref(false);
+const dialogRef = ref<HTMLElement | null>(null);
 
 const castEffects = computed(() => effectsForCast(
   props.spell?.effects ?? [],
@@ -100,6 +101,9 @@ const outcomeOptions = computed<Array<{ value: SpellOutcome; label: string }>>((
   ];
   if (props.spell?.attack_type === "save") return [
     { value: "failed_save", label: "Failed save" }, { value: "successful_save", label: "Successful save" },
+    ...(props.metamagicNames.includes("Careful Spell")
+      ? [{ value: "careful_save" as const, label: ruleset.value === "2024" ? "Careful: save, no damage" : "Careful: successful save" }]
+      : []),
   ];
   return [{ value: "automatic", label: "Automatic" }];
 });
@@ -108,6 +112,7 @@ watch(() => props.spell, (spell) => {
   if (!spell) return;
   targetCount.value = Math.min(20, Math.max(1, ...castEffects.value.map((effect) => effect.target.count ?? 1)) + metamagicTargetBonus(props.metamagicNames));
   selectedPhase.value = phases.value.includes("impact") ? "impact" : (phases.value[0] ?? "impact");
+  void nextTick(() => dialogRef.value?.focus());
 }, { immediate: true });
 watch([targetCount, outcomeOptions], () => {
   const count = Math.min(20, Math.max(1, targetCount.value || 1));
@@ -130,9 +135,17 @@ async function resolveSelectedPhase() {
   if (!props.spell || resolving.value) return;
   resolving.value = true;
   try {
+    const carefulTargets = targets.value.filter((target) => target.outcome === "careful_save").length;
+    const carefulLimit = Math.max(1, props.spellcastingModifier);
+    if (carefulTargets > carefulLimit) {
+      toast.error(`Careful Spell can protect at most ${carefulLimit} target${carefulLimit === 1 ? "" : "s"}.`);
+      return;
+    }
     const outcomes = Object.fromEntries(targets.value.map((target) => [String(target.id), target.outcome]));
     const names = new Map(targets.value.map((target) => [String(target.id), target.name.trim() || `Target ${target.id}`]));
-    const resolved = resolveSpellEffects(castEffects.value, selectedPhase.value, outcomes);
+    const resolved = resolveSpellEffects(castEffects.value, selectedPhase.value, outcomes, {
+      carefulPreventsDamage: ruleset.value === "2024",
+    });
     if (!resolved.length) {
       toast.info("No structured effect applies to the selected outcomes.");
       return;

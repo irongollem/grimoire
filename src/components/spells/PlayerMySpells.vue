@@ -327,6 +327,7 @@ import { useRuleset } from "@/composables/useRuleset";
 import { canAutoRollSpellEffect, canCastAsRitual } from "@/lib/spellcastingPolicy";
 import { getMetamagicMap, type MetamagicOption } from "@/data/metamagic";
 import { getSpellPreparationPolicy } from "@/lib/spellPreparationPolicy";
+import { grantAttackBonus, grantSaveDc } from "@/lib/spellGrantStats";
 import { useSpellReplacement } from "@/composables/useSpellReplacement";
 import { isInnateSorceryActive, metamagicLimit } from "@/lib/sorcererFeatures";
 import { isMetamagicEligible, TRANSMUTABLE_DAMAGE_TYPES } from "@/lib/metamagicPolicy";
@@ -412,15 +413,17 @@ function statsFor(entry: CharacterSpellEntry): SpellcastingClassStats | null {
   return pickSpellcastingStats(props.spellcastingByClass ?? [], entry.source_class_id);
 }
 function attackBonusFor(entry: CharacterSpellEntry): number | null {
-  return statsFor(entry)?.attack ?? props.spellAttackBonus;
+  return grantAttackBonus(entry, thisMember.value, statsFor(entry), props.spellAttackBonus);
 }
 function saveDcFor(entry: CharacterSpellEntry): number | null {
-  const base = statsFor(entry)?.dc ?? props.spellSaveDc;
+  const base = grantSaveDc(entry, thisMember.value, statsFor(entry), props.spellSaveDc);
   return base === null ? null : base + (innateActive.value && isSorcererSpell(entry) ? 1 : 0);
 }
 
 function isSorcererSpell(entry: CharacterSpellEntry): boolean {
-  return (statsFor(entry)?.className ?? props.memberClass) === "Sorcerer";
+  const stats = statsFor(entry);
+  if (stats) return stats.className === "Sorcerer" && stats.definitionKind !== "custom";
+  return props.memberClass === "Sorcerer" && (props.sorcererLevel ?? 0) > 0;
 }
 
 // ── Standalone roll actions (independent of casting / spending a slot) ──────────
@@ -457,6 +460,7 @@ async function promptSpellSave(entry: CharacterSpellEntry) {
 // ── Cast ───────────────────────────────────────────────────────────────────────
 const isCasting = ref(false);
 const lastCastLevels = ref<Record<string, number>>({});
+const lastCastIds = ref<Record<string, string>>({});
 const selectedMetamagic = ref<Record<string, string>>({});
 const selectedSecondMetamagic = ref<Record<string, string>>({});
 const transmutedDamageType = ref<Record<string, string>>({});
@@ -482,6 +486,11 @@ function hasKnownMetamagic(name: string): boolean {
 
 async function applyReactiveMetamagic(entry: CharacterSpellEntry, name: "Empowered Spell" | "Seeking Spell") {
   if (!props.partyMemberId || isCasting.value) return;
+  const parentCastId = lastCastIds.value[entry.id];
+  if (!parentCastId) {
+    toast.error(`Cast ${entry.spell.name} before applying ${name}.`);
+    return;
+  }
   isCasting.value = true;
   try {
     await commitCast({
@@ -491,6 +500,7 @@ async function applyReactiveMetamagic(entry: CharacterSpellEntry, name: "Empower
       slotTemplate: props.spellSlots,
       metamagicName: name,
       characterSpellId: entry.id,
+      parentCastId,
     });
     await sendFlavorMessage(`uses ${name} on ${entry.spell.name}`, "spell");
     if (name === "Seeking Spell") await rollSpellAttack(entry);
@@ -541,7 +551,7 @@ function openEffectResolution(entry: CharacterSpellEntry, castLevel: number, met
 /** A spell is castable if it's prepared, a cantrip, or the caster always has it ready (known casters). */
 function isCastable(entry: CharacterSpellEntry): boolean {
   if (props.viewMode === "prepared") return true;
-  if (props.casterType === "known") return true;
+  if ((statsFor(entry)?.casterType ?? props.casterType) === "known") return true;
   return entry.is_prepared || entry.spell.level === 0;
 }
 
@@ -553,6 +563,7 @@ function isRitualCastable(entry: CharacterSpellEntry): boolean {
     hasRitualTag: entry.spell.ritual,
     isReadyToCast: isCastable(entry),
     isInSpellbook: props.viewMode === "spellbook",
+    isOfficialClass: statsFor(entry)?.definitionKind !== "custom",
   });
 }
 
@@ -695,7 +706,7 @@ async function castSpell(
     }
 
     // Slot debit and concentration replacement share one row-locked transaction.
-    await commitCast({
+    const castResult = await commitCast({
       partyMemberId: props.partyMemberId,
       slotLevel: isRitual ? 0 : castLevel,
       pool: options.pool ?? "spellcasting",
@@ -705,6 +716,8 @@ async function castSpell(
       metamagicChoices: transmutedType ? { transmuted_damage_type: transmutedType } : {},
       characterSpellId: entry.id,
     });
+    const castId = (castResult as { cast_id?: string }).cast_id;
+    if (castId) lastCastIds.value = { ...lastCastIds.value, [entry.id]: castId };
 
     // Flavor text
     let text = `casts ${spell.name}`;
@@ -798,14 +811,19 @@ const removeTitle = computed(() => {
 
 function handleRemove(entry: CharacterSpellEntry) {
   if (!props.partyMemberId) return;
-  if (props.casterType === "spellbook" && props.viewMode === "prepared") {
+  const sourceStats = statsFor(entry);
+  const sourceClassName = sourceStats?.className ?? props.memberClass;
+  const policy = sourceStats?.definitionKind === "custom"
+    ? null
+    : getSpellPreparationPolicy(sourceClassName, ruleset.value);
+  const sourceCasterType = policy?.casterType ?? sourceStats?.casterType ?? props.casterType;
+  if (sourceCasterType === "spellbook" && props.viewMode === "prepared") {
     togglePreparedMutation({ id: entry.id, partyMemberId: props.partyMemberId, isPrepared: false });
     return;
   }
-  const policy = getSpellPreparationPolicy(props.memberClass, ruleset.value);
-  if (policy && entry.spell.level > 0 && props.casterType !== "spellbook") {
+  if (policy && entry.spell.level > 0 && sourceCasterType !== "spellbook") {
     chooseReplacement(entry);
-    toast.info(`Choose a new ${props.memberClass} spell in All Spells to replace ${entry.spell.name}.`);
+    toast.info(`Choose a new ${sourceClassName} spell in All Spells to replace ${entry.spell.name}.`);
     return;
   }
   removeSpell({ partyMemberId: props.partyMemberId, id: entry.id });

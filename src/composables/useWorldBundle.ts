@@ -4,6 +4,7 @@ import { computed } from "vue";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { Campaign } from "@/types/campaign.types";
+import type { RulesetKey } from "@/types/ruleset.types";
 import { isUuid } from "@/lib/contentIdentity";
 import {
   sortByHierarchy,
@@ -44,12 +45,21 @@ export interface PickerItem {
 }
 
 export interface GrimoireBundle {
-  version: "1";
+  version: "1" | "2";
   file_type: "world_bundle";
   name: string;
   description: string;
   author?: string;
   exported_at: string;
+  /**
+   * Source campaign's ruleset. Added in format version "2" — absent on
+   * version "1" bundles. When absent, import can't tell whether the bundle
+   * originated from a 2014 or 2024 campaign, so it defaults the destination
+   * to "2014" AND strips character_classes' class_definition_id/kind pins
+   * (falls back to name-based class resolution) rather than risk a pin from
+   * the wrong ruleset tripping the content-identity trigger.
+   */
+  ruleset?: RulesetKey;
   // Campaign-scoped
   npcs?: Row[];
   npc_relationships?: Row[];
@@ -189,6 +199,14 @@ export async function buildBundle(opts: BuildBundleOptions): Promise<GrimoireBun
   const { campaignId, name, description, author, selection } = opts;
   const entityCounts: Record<string, number> = {};
   const bundle: Partial<GrimoireBundle> = {};
+
+  const { data: sourceCampaign, error: campaignError } = await supabase
+    .from("campaigns")
+    .select("ruleset")
+    .eq("id", campaignId)
+    .single();
+  if (campaignError) throw new Error(`Failed to read source campaign: ${campaignError.message}`);
+  const sourceRuleset = (sourceCampaign as { ruleset: RulesetKey }).ruleset;
 
   await Promise.all([
 
@@ -373,9 +391,8 @@ export async function buildBundle(opts: BuildBundleOptions): Promise<GrimoireBun
     }
 
     // ── Custom class definitions ───────────────────────────────────────────
-    // character_classes links by class_name text (no UUID FK). Pull in any
-    // campaign-scoped custom_classes / custom_subclasses entries that match
-    // so the importer receives the full class rules, not just a text label.
+    // Include pinned custom class definitions (legacy rows still fall back to
+    // names) so imported characters keep the exact rules record they used.
     const charClassNames = new Set<string>();
     const charSubclassNames = new Set<string>();
     for (const cc of bundle.character_classes ?? []) {
@@ -433,12 +450,13 @@ export async function buildBundle(opts: BuildBundleOptions): Promise<GrimoireBun
   }
 
   return {
-    version: "1",
+    version: "2",
     file_type: "world_bundle",
     name,
     description,
     ...(author ? { author } : {}),
     exported_at: new Date().toISOString(),
+    ruleset: sourceRuleset,
     ...bundle,
     _meta: { entity_counts: entityCounts, app_version: "1.0.0" },
   };
@@ -489,6 +507,15 @@ export interface ImportRemapCtx {
   idMap: IdMap;
   campaignId: string;
   userId: string;
+  /**
+   * True when the bundle's source ruleset is unknown (version "1" bundle) or
+   * doesn't match the destination campaign's ruleset. A pinned
+   * class_definition_id/kind from one ruleset can violate the other
+   * ruleset's content-identity trigger (`validate_character_class_definition`),
+   * so imported character_classes rows fall back to name-based resolution
+   * instead of carrying a possibly-invalid pin.
+   */
+  stripClassDefinitionPins?: boolean;
 }
 
 export function remapSpeciesForImport(sp: Row, ctx: ImportRemapCtx): Row {
@@ -528,6 +555,13 @@ export function remapCharacterClassForImport(cc: Row, ctx: ImportRemapCtx): Row 
     ...cc,
     id: freshId(cc.id, ctx.idMap),
     party_member_id: rCamp(cc.party_member_id, ctx.idMap),
+    class_definition_id: ctx.stripClassDefinitionPins
+      ? null
+      : cc.class_definition_kind === "custom"
+        ? rCamp(cc.class_definition_id, ctx.idMap)
+        : cc.class_definition_id,
+    class_definition_kind: ctx.stripClassDefinitionPins ? null : cc.class_definition_kind,
+    subclass_definition_id: rCamp(cc.subclass_definition_id, ctx.idMap),
   };
 }
 
@@ -592,20 +626,37 @@ async function executeImport(opts: ImportBundleOptions): Promise<ImportResult> {
 
   let campaignId = opts.campaignId;
   let newCampaign: Campaign | null = null;
+  let destinationRuleset: RulesetKey;
 
   if (campaignId === null) {
     if (!opts.newCampaignName?.trim()) throw new Error("Campaign name is required");
+    // Old (version "1") bundles carry no ruleset — default the destination to
+    // "2014" (the historical baseline) since we can't know the true origin.
+    destinationRuleset = bundle.ruleset ?? "2014";
     const { data, error } = await supabase
       .from("campaigns")
-      .insert({ name: opts.newCampaignName.trim(), user_id: userId })
+      .insert({ name: opts.newCampaignName.trim(), user_id: userId, ruleset: destinationRuleset })
       .select()
       .single();
     if (error) throw new Error(`Campaign creation failed: ${error.message}`);
     newCampaign = data as Campaign;
     campaignId = newCampaign.id;
+  } else {
+    const { data, error } = await supabase
+      .from("campaigns")
+      .select("ruleset")
+      .eq("id", campaignId)
+      .single();
+    if (error) throw new Error(`Failed to read destination campaign: ${error.message}`);
+    destinationRuleset = (data as { ruleset: RulesetKey }).ruleset;
   }
 
-  const ctx: ImportRemapCtx = { idMap, campaignId, userId };
+  // A pinned class_definition_id/kind is only trustworthy when we know the
+  // bundle's source ruleset AND it matches the destination — otherwise the
+  // pin may reference a definition from the other ruleset's edition and trip
+  // the content-identity trigger. Fall back to name-based class resolution.
+  const stripClassDefinitionPins = bundle.ruleset === undefined || bundle.ruleset !== destinationRuleset;
+  const ctx: ImportRemapCtx = { idMap, campaignId, userId, stripClassDefinitionPins };
 
   // ── Campaign-scoped entities ──────────────────────────────────────────────
 
@@ -890,7 +941,7 @@ export async function parseBundleFile(file: File): Promise<GrimoireBundle> {
   if (json.file_type !== "world_bundle") {
     throw new Error("Unrecognised file type. Make sure you selected a .grimoire bundle file.");
   }
-  if (json.version !== "1") {
+  if (json.version !== "1" && json.version !== "2") {
     throw new Error(`Unsupported bundle version: ${json.version}`);
   }
   const hasContent = [

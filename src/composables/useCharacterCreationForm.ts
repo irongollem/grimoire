@@ -121,14 +121,15 @@ export function useCharacterCreationForm() {
   const { data: customClasses } = useAllCustomClasses();
   const { data: allSubclasses } = useAllCustomSubclasses();
 
-  const mergedClasses = computed(() => {
-    const byName = new Map<string, { class_name: string; hit_die: number; primary_ability: string | null; saving_throws: string[]; subclass_level: number; features: Record<string, string[]> }>();
-    for (const c of systemClasses.value ?? []) byName.set(c.class_name, c);
-    for (const c of customClasses.value  ?? []) { if (!byName.has(c.class_name)) byName.set(c.class_name, c); }
-    return [...byName.values()].sort((a, b) => a.class_name.localeCompare(b.class_name));
-  });
+  const mergedClasses = computed(() => [
+    ...(systemClasses.value ?? []).map(c => ({ ...c, definition_kind: "system" as const, choice_key: `system:${c.id}` })),
+    ...(customClasses.value ?? []).map(c => ({ ...c, definition_kind: "custom" as const, choice_key: `custom:${c.id}` })),
+  ].sort((a, b) => a.class_name.localeCompare(b.class_name)
+    || a.definition_kind.localeCompare(b.definition_kind)
+    || a.id.localeCompare(b.id)));
+  const selectedClassKey = ref("");
 
-  const allClassNames   = computed(() => mergedClasses.value.map(c => c.class_name));
+  const allClassNames   = computed(() => [...new Set(mergedClasses.value.map(c => c.class_name))]);
   const subclassOptions = computed(() => {
     if (!f.class) return [];
     return (allSubclasses.value ?? []).filter(sc => sc.class_name === f.class).map(sc => sc.subclass_name).sort();
@@ -147,7 +148,8 @@ export function useCharacterCreationForm() {
   }
 
   // ── Selected class / subrace (for HP / spell-slot / ASI derivation) ─────────
-  const selectedClass   = computed(() => mergedClasses.value.find(c => c.class_name === f.class) ?? null);
+  const selectedClass   = computed(() => mergedClasses.value.find(c => c.choice_key === selectedClassKey.value)
+    ?? mergedClasses.value.find(c => c.class_name === f.class) ?? null);
   const selectedBg      = computed(() => (allBackgrounds.value ?? []).find(b => b.id === f.background_id) ?? null);
   const selectedSubrace = computed(() =>
     (f.subrace && selectedSpecies.value?.subraces)
@@ -419,10 +421,12 @@ export function useCharacterCreationForm() {
 
   // ── Class selection ───────────────────────────────────────────────────────────
 
-  function onClassSelect(className: string) {
-    f.class   = className;
+  function onClassSelect(choiceKey: string) {
+    const cls = mergedClasses.value.find(c => c.choice_key === choiceKey);
+    if (!cls) return;
+    selectedClassKey.value = choiceKey;
+    f.class   = cls.class_name;
     f.subclass = "";
-    const cls = mergedClasses.value.find(c => c.class_name === className);
     if (cls?.saving_throws?.length) {
       f.saving_throw_proficiencies = [...cls.saving_throws] as SaveKey[];
     }
@@ -697,6 +701,8 @@ export function useCharacterCreationForm() {
             await addCharacterClass({
               party_member_id: created.id,
               class_name:      f.class,
+              class_definition_id: selectedClass.value?.id ?? null,
+              class_definition_kind: selectedClass.value?.definition_kind ?? null,
               subclass_name:   null,          // subclass comes from LevelUpWizard
               levels:          1,
               is_primary:      true,
@@ -791,7 +797,7 @@ export function useCharacterCreationForm() {
     allSpecies, allBackgrounds,
     speciesOptions, backgroundOptions, selectedSpecies, subraceOptions,
     selectedClass, selectedBg, selectedSubrace,
-    mergedClasses, allClassNames, subclassOptions,
+    mergedClasses, selectedClassKey, allClassNames, subclassOptions,
     pointsRemaining, suggestedHp, profBonus,
     derivedHp, derivedAc, derivedSpeed, derivedInitiative,
     passivePerception, passiveInsight, passiveInvestigation,

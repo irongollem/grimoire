@@ -72,13 +72,13 @@
 
             <!-- Attack / save info -->
             <span
-              v-if="entry.spell.level > 0 && spellAttackBonus !== null && (entry.spell.attack_type === 'ranged_spell' || entry.spell.attack_type === 'melee_spell')"
+              v-if="entry.spell.level > 0 && attackBonusFor(entry) !== null && (entry.spell.attack_type === 'ranged_spell' || entry.spell.attack_type === 'melee_spell')"
               class="shrink-0 font-cinzel text-[10px] text-muted-foreground"
-            >Atk {{ signedNum(spellAttackBonus) }}</span>
+            >Atk {{ signedNum(attackBonusFor(entry)!) }}</span>
             <span
-              v-else-if="entry.spell.level > 0 && spellSaveDc !== null && entry.spell.attack_type === 'save'"
+              v-else-if="entry.spell.level > 0 && saveDcFor(entry) !== null && entry.spell.attack_type === 'save'"
               class="shrink-0 font-cinzel text-[10px] text-muted-foreground"
-            >DC {{ spellSaveDc }}</span>
+            >DC {{ saveDcFor(entry) }}</span>
 
             <button
               v-if="entry.spell.damage_rolls?.length && entry.spell.mechanics_reviewed !== false"
@@ -146,7 +146,7 @@
       :spell="pendingResolution?.spell ?? null"
       :cast-level="pendingResolution?.castLevel ?? 0"
       :character-level="thisMember?.level ?? 1"
-      :spellcasting-modifier="(spellAttackBonus ?? 0) - (thisMember?.proficiency_bonus ?? 0)"
+      :spellcasting-modifier="pendingResolution?.modifier ?? 0"
       @close="pendingResolution = null"
     />
   </div>
@@ -174,6 +174,7 @@ import PlayerSpellModal from "@/components/spells/PlayerSpellModal.vue";
 import SpellEffectResolver from "@/components/spells/SpellEffectResolver.vue";
 import { canAutoRollSpellEffect } from "@/lib/spellcastingPolicy";
 import { useToast } from "@/composables/useToast";
+import { grantAttackBonus, grantSaveDc } from "@/lib/spellGrantStats";
 
 const SOURCE_TYPE_LABELS: Record<string, string> = {
   racial: "Racial",
@@ -209,9 +210,19 @@ const thisMember = computed(() =>
 );
 
 const selectedSpell = ref<Spell | null>(null);
-const pendingResolution = ref<{ spell: Spell; castLevel: number } | null>(null);
+const pendingResolution = ref<{ spell: Spell; castLevel: number; modifier: number } | null>(null);
+function attackBonusFor(entry: CharacterSpellEntry): number | null {
+  return grantAttackBonus(entry, thisMember.value, null, props.spellAttackBonus);
+}
+function saveDcFor(entry: CharacterSpellEntry): number | null {
+  return grantSaveDc(entry, thisMember.value, null, props.spellSaveDc);
+}
 function openEffectResolution(entry: CharacterSpellEntry) {
-  pendingResolution.value = { spell: entry.spell, castLevel: entry.spell.level };
+  pendingResolution.value = {
+    spell: entry.spell,
+    castLevel: entry.spell.level,
+    modifier: (attackBonusFor(entry) ?? 0) - (thisMember.value?.proficiency_bonus ?? 0),
+  };
 }
 
 // Only non-class spells
@@ -309,11 +320,13 @@ async function castSpell(entry: CharacterSpellEntry) {
 
     // Flavor message
     let text = `casts ${spell.name}`;
-    if (spell.level > 0 && props.spellAttackBonus !== null
+    const attackBonus = attackBonusFor(entry);
+    const saveDc = saveDcFor(entry);
+    if (spell.level > 0 && attackBonus !== null
       && (spell.attack_type === "ranged_spell" || spell.attack_type === "melee_spell")) {
-      text += ` (Atk ${signedNum(props.spellAttackBonus)})`;
-    } else if (spell.level > 0 && props.spellSaveDc !== null && spell.attack_type === "save") {
-      text += ` (DC ${props.spellSaveDc} ${spell.save_attribute ?? ""})`;
+      text += ` (Atk ${signedNum(attackBonus)})`;
+    } else if (spell.level > 0 && saveDc !== null && spell.attack_type === "save") {
+      text += ` (DC ${saveDc} ${spell.save_attribute ?? ""})`;
     }
     if (entry.source_label) text += ` [${entry.source_label}]`;
     await sendFlavorMessage(text, "spell");

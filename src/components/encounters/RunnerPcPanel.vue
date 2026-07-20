@@ -86,6 +86,7 @@
       :caster-type="casterType"
       :spell-save-dc="spellSaveDc"
       :spell-attack-bonus="spellAttackBonus"
+      :spellcasting-by-class="spellcastingByClass"
       @roll-spell="(spell) => emit('roll-spell', spell)"
       @roll-attack="(bonus, name) => emit('roll-attack', bonus, name)"
       @roll-spell-save="(spell, dc) => emit('roll-spell-save', spell, dc)"
@@ -111,10 +112,13 @@ import { getCasterType } from "@/types/spell.types";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useSpeciesNameMap } from "@/composables/useSpecies";
 import { useCharacterSpellsWithDetails } from "@/composables/useCharacterSpells";
-import { useClassByName } from "@/composables/useCustomClasses";
+import { useAllCustomClasses, useAllSystemClasses, useClassByName } from "@/composables/useCustomClasses";
+import { useCharacterClasses } from "@/composables/useCharacterClasses";
 import { useShieldAcBonus } from "@/composables/useShieldAc";
 import { useRuleset } from "@/composables/useRuleset";
 import { getSpellPreparationPolicy } from "@/lib/spellPreparationPolicy";
+import { pickSpellcastingStats } from "@/types/multiclass.types";
+import { computeSpellcastingByClass } from "@/lib/spellcastingByClass";
 
 const { combatant, member, monsters } = defineProps<{
   combatant: RunCombatant;
@@ -148,6 +152,16 @@ const casterType = computed(() =>
 );
 
 const { data: playerSpells } = useCharacterSpellsWithDetails(memberId);
+const { data: characterClasses } = useCharacterClasses(memberId);
+const { data: allSystemClasses } = useAllSystemClasses();
+const { data: allCustomClasses } = useAllCustomClasses();
+
+const spellcastingByClass = computed(() => computeSpellcastingByClass(
+  member,
+  characterClasses.value ?? [],
+  { system: allSystemClasses.value ?? [], custom: allCustomClasses.value ?? [] },
+  ruleset.value,
+));
 
 // ── Proficiency bonus ─────────────────────────────────────────────────────────
 
@@ -212,9 +226,13 @@ function skillBonus(key: string, ability: SaveKey): number {
 
 const preparedOrKnownSpells = computed(() => {
   const entries = playerSpells.value ?? [];
-  if (casterType.value === "none") return [];
-  if (casterType.value === "known") return entries;
-  return entries.filter((e) => e.is_prepared || e.spell.level === 0);
+  return entries.filter((entry) => {
+    if (entry.source_type !== "class") return true;
+    const sourceCaster = pickSpellcastingStats(spellcastingByClass.value, entry.source_class_id)?.casterType
+      ?? casterType.value;
+    if (sourceCaster === "none") return false;
+    return sourceCaster === "known" || entry.is_prepared || entry.spell.level === 0;
+  });
 });
 
 const spellSaveDc = computed(() => {

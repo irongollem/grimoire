@@ -787,6 +787,10 @@ async function executeImport(
         ...cc,
         id: r(cc.id, idMap),
         party_member_id: r(cc.party_member_id, idMap),
+        class_definition_id: cc.class_definition_kind === "custom"
+          ? r(cc.class_definition_id, idMap)
+          : cc.class_definition_id,
+        subclass_definition_id: r(cc.subclass_definition_id, idMap),
       })),
     );
     await batchInsert(

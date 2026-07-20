@@ -9,6 +9,7 @@ import type {
 } from "@/types/spell.types";
 import type { Species } from "@/types/species.types";
 import { isUuid } from "@/lib/contentIdentity";
+import { useToast } from "@/composables/useToast";
 
 export interface SpellKnower {
   party_member_id: string;
@@ -152,20 +153,6 @@ export function useSpellChangeWindows(partyMemberId: MaybeRef<string | null>) {
   });
 }
 
-export function useOpenSpellChangeWindows() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ partyMemberId, timing }: { partyMemberId: string; timing: "level_up" | "long_rest" }) => {
-      const { error } = await supabase.rpc("open_spell_change_windows", {
-        p_party_member_id: partyMemberId,
-        p_timing: timing,
-      });
-      if (error) throw error;
-    },
-    onSuccess: (_, { partyMemberId }) => qc.invalidateQueries({ queryKey: ["spellChangeWindows", partyMemberId] }),
-  });
-}
-
 export function useChangePreparedSpell() {
   const qc = useQueryClient();
   return useMutation({
@@ -210,6 +197,7 @@ export function useAssignCharacterSpellSource() {
 
 export function useRemoveCharacterSpell() {
   const qc = useQueryClient();
+  const toast = useToast();
   return useMutation({
     mutationFn: async ({
       partyMemberId,
@@ -220,15 +208,15 @@ export function useRemoveCharacterSpell() {
       spellId: string;
       sourceClassId?: string | null;
     }) => {
-      let query = supabase
-        .from("character_spells")
-        .delete()
-        .eq("party_member_id", partyMemberId)
-        .eq("spell_id", spellId);
-      query = sourceClassId
-        ? query.eq("source_class_id", sourceClassId)
-        : query.is("source_class_id", null);
-      const { error } = await query;
+      const { error } = await supabase.rpc("delete_character_spells", {
+        p_party_member_id: partyMemberId,
+        p_spell_id: spellId,
+        // Contract with the server: null means "match only source_class_id IS
+        // NULL rows" (a legacy pre-multiclass grant) — never a wildcard across
+        // all source classes. Passing a specific id removes only that class's grant.
+        p_source_class_id: sourceClassId ?? null,
+        p_source_type: "class",
+      });
       if (error) throw error;
     },
     onSuccess: (_, { partyMemberId }) => {
@@ -237,12 +225,14 @@ export function useRemoveCharacterSpell() {
         queryKey: ["characterSpellsDetails", partyMemberId],
       });
     },
+    onError: (e) => toast.error(toast.fromError(e)),
   });
 }
 
 /** Delete a spell from character_spells by partyMemberId + spellId. */
 export function useDeleteCharacterSpell() {
   const qc = useQueryClient();
+  const toast = useToast();
   return useMutation({
     mutationFn: async ({
       partyMemberId,
@@ -251,11 +241,10 @@ export function useDeleteCharacterSpell() {
       partyMemberId: string;
       spellId: string;
     }) => {
-      const { error } = await supabase
-        .from("character_spells")
-        .delete()
-        .eq("party_member_id", partyMemberId)
-        .eq("spell_id", spellId);
+      const { error } = await supabase.rpc("delete_character_spells", {
+        p_party_member_id: partyMemberId,
+        p_spell_id: spellId,
+      });
       if (error) throw error;
     },
     onSuccess: (_, { partyMemberId }) => {
@@ -266,12 +255,14 @@ export function useDeleteCharacterSpell() {
         queryKey: ["characterSpellsDetails", partyMemberId],
       });
     },
+    onError: (e) => toast.error(toast.fromError(e)),
   });
 }
 
 /** Toggle is_prepared on an existing character_spell row. */
 export function useTogglePrepared() {
   const qc = useQueryClient();
+  const toast = useToast();
   return useMutation({
     mutationFn: async ({
       id,
@@ -281,10 +272,10 @@ export function useTogglePrepared() {
       partyMemberId: string;
       isPrepared: boolean;
     }) => {
-      const { error } = await supabase
-        .from("character_spells")
-        .update({ is_prepared: isPrepared })
-        .eq("id", id);
+      const { error } = await supabase.rpc("set_character_spell_prepared", {
+        p_character_spell_id: id,
+        p_is_prepared: isPrepared,
+      });
       if (error) throw error;
     },
     onSuccess: (_, { partyMemberId }) => {
@@ -293,6 +284,7 @@ export function useTogglePrepared() {
         queryKey: ["characterSpellsDetails", partyMemberId],
       });
     },
+    onError: (e) => toast.error(toast.fromError(e)),
   });
 }
 
@@ -307,23 +299,26 @@ export function useAddInnateSpell() {
       sourceLabel,
       usesPerDay,
       resetsOn,
+      castingAbility,
     }: {
       partyMemberId: string;
       spellId: string;
       sourceType: InnateSourceType;
-      sourceLabel: string | null;
+      sourceLabel: string;
       usesPerDay: number | null;
       resetsOn: InnateResetsOn | null;
+      castingAbility: "int" | "wis" | "cha" | null;
     }) => {
       const { error } = await supabase.from("character_spells").insert({
         party_member_id: partyMemberId,
         spell_id: spellId,
         is_prepared: false,
         source_type: sourceType,
-        source_label: sourceLabel || null,
+        source_label: sourceLabel.trim(),
         uses_per_day: usesPerDay,
         uses_remaining: usesPerDay,
         resets_on: resetsOn,
+        casting_ability: castingAbility,
       });
       if (error) throw error;
     },
@@ -339,12 +334,13 @@ export function useAddInnateSpell() {
 /** Remove a character spell by its row id — safe when the same spell exists as both class and innate. */
 export function useRemoveCharacterSpellById() {
   const qc = useQueryClient();
+  const toast = useToast();
   return useMutation({
-    mutationFn: async ({ id }: { id: string; partyMemberId: string }) => {
-      const { error } = await supabase
-        .from("character_spells")
-        .delete()
-        .eq("id", id);
+    mutationFn: async ({ id, partyMemberId }: { id: string; partyMemberId: string }) => {
+      const { error } = await supabase.rpc("delete_character_spells", {
+        p_party_member_id: partyMemberId,
+        p_character_spell_id: id,
+      });
       if (error) throw error;
     },
     onSuccess: (_, { partyMemberId }) => {
@@ -353,6 +349,7 @@ export function useRemoveCharacterSpellById() {
         queryKey: ["characterSpellsDetails", partyMemberId],
       });
     },
+    onError: (e) => toast.error(toast.fromError(e)),
   });
 }
 
@@ -381,41 +378,6 @@ export function useSpendInnateUse() {
       });
     },
   });
-}
-
-/**
- * Resets uses_remaining = uses_per_day for all innate spells that recharge on the given rest type.
- * Long rest also resets short_rest spells (short rest is a subset of long rest recovery).
- * Called imperatively from RestDialog.confirm().
- */
-export async function restoreInnateUses(
-  partyMemberId: string,
-  restType: "long" | "short",
-): Promise<void> {
-  const resetOn: InnateResetsOn[] =
-    restType === "long" ? ["long_rest", "short_rest"] : ["short_rest"];
-
-  const { data, error } = await supabase
-    .from("character_spells")
-    .select("id, uses_per_day")
-    .eq("party_member_id", partyMemberId)
-    .neq("source_type", "class")
-    .not("uses_per_day", "is", null)
-    .in("resets_on", resetOn);
-
-  if (error) throw error;
-  if (!data?.length) return;
-
-  const results = await Promise.all(
-    data.map((row) =>
-      supabase
-        .from("character_spells")
-        .update({ uses_remaining: row.uses_per_day })
-        .eq("id", row.id),
-    ),
-  );
-  const firstError = results.find((r) => r.error)?.error;
-  if (firstError) throw firstError;
 }
 
 /**
@@ -480,11 +442,10 @@ export function useSpellKnowers(spellId: MaybeRefOrGetter<string>) {
  * shouldn't leave Thaumaturgy behind.
  */
 export async function removeSpeciesSpellGrants(partyMemberId: string): Promise<void> {
-  const { error } = await supabase
-    .from("character_spells")
-    .delete()
-    .eq("party_member_id", partyMemberId)
-    .eq("source_type", "racial");
+  const { error } = await supabase.rpc("delete_character_spells", {
+    p_party_member_id: partyMemberId,
+    p_source_type: "racial",
+  });
   if (error) throw error;
 }
 
@@ -513,10 +474,11 @@ export async function applySpeciesSpellGrants(
       spell_id: g.spell_id as string,
       is_prepared: false,
       source_type: "racial" as InnateSourceType,
-      source_label: g.source_label || null,
+      source_label: g.source_label || species.name,
       uses_per_day: g.uses_per_day,
       uses_remaining: g.uses_per_day,
       resets_on: (g.resets_on ?? null) as InnateResetsOn | null,
+      casting_ability: g.casting_ability ?? null,
     }));
 
     const { error } = await supabase

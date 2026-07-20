@@ -190,7 +190,7 @@ import EmptyState from "@/components/common/EmptyState.vue";
 import { isSharedContent } from "@/lib/contentIdentity";
 import { useSpellReplacement } from "@/composables/useSpellReplacement";
 import { useRuleset } from "@/composables/useRuleset";
-import { getSpellPreparationPolicy } from "@/lib/spellPreparationPolicy";
+import { getSpellPreparationPolicy, policyValueAtLevel } from "@/lib/spellPreparationPolicy";
 import { useToast } from "@/composables/useToast";
 
 const props = defineProps<{
@@ -209,6 +209,11 @@ const props = defineProps<{
   preparedSpellIds?: string[];
   /** character_classes row for the class selected in the player browse filter. */
   sourceClassId?: string | null;
+  sourceClassLevel?: number;
+  knownCantripCount?: number;
+  preparedSpellCount?: number;
+  /** The parent resolved this class row to an official edition policy. */
+  officialRulesPolicy?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -224,10 +229,22 @@ const toast = useToast();
 
 async function handleLearn(spell: Spell) {
   if (!props.playerMemberId || !props.sourceClassId) return;
-  const policy = getSpellPreparationPolicy(props.classFilter, ruleset.value);
+  const policy = props.officialRulesPolicy
+    ? getSpellPreparationPolicy(props.classFilter, ruleset.value)
+    : null;
   if (policy && policy.casterType !== "spellbook") {
     if (spell.level === 0) {
-      toast.info("Revised cantrip choices are made during level up.");
+      const limit = policyValueAtLevel(policy.cantrips, props.sourceClassLevel ?? 1);
+      if (limit !== null && (props.knownCantripCount ?? 0) < limit) {
+        await addSpell({
+          partyMemberId: props.playerMemberId,
+          spellId: spell.id,
+          isPrepared: true,
+          sourceClassId: props.sourceClassId,
+        });
+        return;
+      }
+      toast.info("Your revised cantrip choices are full; change them during level up.");
       return;
     }
     if (candidate.value && candidate.value.source_class_id !== props.sourceClassId) {
@@ -235,6 +252,16 @@ async function handleLearn(spell: Spell) {
       return;
     }
     if (!candidate.value && policy.changeCount !== null) {
+      const limit = policyValueAtLevel(policy.prepared, props.sourceClassLevel ?? 1);
+      if (limit !== null && (props.preparedSpellCount ?? 0) < limit) {
+        await addSpell({
+          partyMemberId: props.playerMemberId,
+          spellId: spell.id,
+          isPrepared: true,
+          sourceClassId: props.sourceClassId,
+        });
+        return;
+      }
       toast.info("Choose the prepared spell to replace first.");
       return;
     }
@@ -261,7 +288,9 @@ async function handleLearn(spell: Spell) {
 
 function handleKnownClick(spell: Spell) {
   if (!props.playerMemberId) return;
-  const policy = getSpellPreparationPolicy(props.classFilter, ruleset.value);
+  const policy = props.officialRulesPolicy
+    ? getSpellPreparationPolicy(props.classFilter, ruleset.value)
+    : null;
   if (policy) {
     toast.info(policy.casterType === "spellbook"
       ? "Change prepared Wizard spells from your Prepared tab after a long rest."

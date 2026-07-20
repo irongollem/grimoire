@@ -139,6 +139,47 @@ describe("remapCustomSubclassForImport", () => {
   });
 });
 
+describe("remapCharacterClassForImport", () => {
+  const idMap = new Map([["cc-1", "cc-fresh"], ["pm-1", "pm-fresh"]]);
+  const baseCtx: ImportRemapCtx = { idMap, campaignId: "camp-new", userId: "dm-importer" };
+  const systemPinnedRow = {
+    id: "cc-1",
+    party_member_id: "pm-1",
+    class_name: "Wizard",
+    class_definition_id: "sys-def-1",
+    class_definition_kind: "system",
+    subclass_definition_id: null,
+    levels: 5,
+  };
+
+  it("preserves a system class_definition_id pin when the ruleset matches (no stripping requested)", () => {
+    const result = remapCharacterClassForImport(systemPinnedRow, baseCtx);
+    expect(result.class_definition_id).toBe("sys-def-1");
+    expect(result.class_definition_kind).toBe("system");
+  });
+
+  it("remaps a custom class_definition_id through the idMap when not stripping", () => {
+    const customIdMap = new Map([...idMap, ["custom-def-1", "custom-def-fresh"]]);
+    const result = remapCharacterClassForImport(
+      { ...systemPinnedRow, class_definition_id: "custom-def-1", class_definition_kind: "custom" },
+      { ...baseCtx, idMap: customIdMap },
+    );
+    expect(result.class_definition_id).toBe("custom-def-fresh");
+    expect(result.class_definition_kind).toBe("custom");
+  });
+
+  it("strips both class_definition_id and class_definition_kind to null when the ruleset is unknown or mismatched", () => {
+    // Old (version 1) bundles or a cross-ruleset import set stripClassDefinitionPins —
+    // a pin from the wrong edition would otherwise trip the content-identity trigger.
+    const result = remapCharacterClassForImport(systemPinnedRow, { ...baseCtx, stripClassDefinitionPins: true });
+    expect(result.class_definition_id).toBeNull();
+    expect(result.class_definition_kind).toBeNull();
+    // Non-pin data (name-based resolution fallback) survives.
+    expect(result.class_name).toBe("Wizard");
+    expect(result.levels).toBe(5);
+  });
+});
+
 describe("character round-trip (export → import)", () => {
   it("lands unassigned, keeps class/level/spells, remaps FKs", () => {
     // ── A character as it lives in the source DB ────────────────────────────

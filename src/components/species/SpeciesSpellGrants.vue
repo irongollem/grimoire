@@ -127,6 +127,16 @@
         </div>
       </div>
 
+      <div>
+        <label class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">CASTING ABILITY</label>
+        <select v-model="grantForm.castingAbility" class="mt-1 w-full rounded-md border border-border bg-card px-2 py-1.5 font-fell text-sm text-foreground">
+          <option :value="null">Class/default</option>
+          <option value="int">Intelligence</option>
+          <option value="wis">Wisdom</option>
+          <option value="cha">Charisma</option>
+        </select>
+      </div>
+
       <div class="flex gap-2 pt-1">
         <button type="button" class="font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors" @click="cancel">Cancel</button>
         <button type="button" class="font-cinzel text-xs font-semibold text-primary hover:opacity-80 transition-opacity disabled:opacity-40" :disabled="!grantForm.isFreePick && !grantForm.spell" @click="confirm">Add Grant</button>
@@ -141,11 +151,9 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed } from "vue";
-import { refDebounced } from "@vueuse/core";
-import { useQuery } from "@tanstack/vue-query";
-import { supabase } from "@/lib/supabase";
 import type { SpeciesSpellGrant } from "@/types/species.types";
 import type { Spell, InnateResetsOn } from "@/types/spell.types";
+import { useSpellSearch } from "@/composables/useSpellSearch";
 
 const { grants, subraceNames } = defineProps<{
   grants: SpeciesSpellGrant[];
@@ -170,31 +178,16 @@ function makeGrantForm() {
     usesCount: 1,
     resetsOn: "long_rest" as InnateResetsOn,
     minLevel: 1,
+    castingAbility: null as "int" | "wis" | "cha" | null,
   };
 }
 
 const grantForm = reactive(makeGrantForm());
 
-const debouncedSearch = refDebounced(computed(() => grantForm.spellSearch), 300);
-
-const { data: spellResultsRaw } = useQuery({
-  queryKey: computed(() => ["grantSpellSearch", debouncedSearch.value]),
-  queryFn: async () => {
-    const q = debouncedSearch.value.trim();
-    if (q.length < 2) return [] as Spell[];
-    const { data, error } = await supabase
-      .from("spells")
-      .select("id, name, level, school, attack_type, save_attribute, concentration, ritual, damage_rolls, healing_dice")
-      .ilike("name", `%${q}%`)
-      .order("level").order("name")
-      .limit(10);
-    if (error) throw error;
-    return data as Spell[];
-  },
-  enabled: computed(() => debouncedSearch.value.length >= 2 && !grantForm.spell),
-});
-
-const spellResults = computed(() => spellResultsRaw.value ?? []);
+const { results: spellResults } = useSpellSearch(
+  computed(() => grantForm.spellSearch),
+  { limit: 10, enabled: () => !grantForm.spell },
+);
 
 function cancel() {
   adding.value = false;
@@ -213,6 +206,7 @@ function confirm() {
     min_level: grantForm.minLevel ?? 1,
     source_label: grantForm.sourceLabel.trim() || (grantForm.isFreePick ? "Player's choice" : grantForm.spell!.name),
     subrace: grantForm.subrace,
+    casting_ability: grantForm.castingAbility,
   };
   emit("add", grant);
   cancel();

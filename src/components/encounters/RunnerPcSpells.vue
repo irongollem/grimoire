@@ -1,6 +1,6 @@
 <template>
   <div class="detail-divider" />
-  <p class="detail-section-label">{{ casterType === 'known' ? 'Known Spells' : 'Prepared Spells' }}</p>
+  <p class="detail-section-label">Spells</p>
   <div v-for="entry in spells" :key="entry.id" class="detail-spell">
     <div class="spell-info">
       <span class="spell-level-badge">{{ entry.spell.level === 0 ? 'C' : entry.spell.level }}</span>
@@ -10,38 +10,38 @@
       <button
         type="button"
         class="trait-roll-btn spell-cast-btn"
-        :disabled="castingId === entry.id || !castSlot(entry.spell)"
-        :title="castTitle(entry.spell)"
+        :disabled="castingId === entry.id || !castSlot(entry)"
+        :title="castTitle(entry)"
         @click.stop="cast(entry)"
       >{{ castingId === entry.id ? 'Casting…' : 'Cast' }}</button>
       <button
-        v-if="(entry.spell.attack_type === 'ranged_spell' || entry.spell.attack_type === 'melee_spell') && spellAttackBonus !== null"
+        v-if="(entry.spell.attack_type === 'ranged_spell' || entry.spell.attack_type === 'melee_spell') && attackBonusFor(entry) !== null"
         type="button"
         class="trait-roll-btn trait-atk-btn"
         title="Roll spell attack (d20 + attack bonus)"
-        @click.stop="emit('roll-attack', spellAttackBonus, entry.spell.name)"
-      >🎲 Atk {{ signedNum(spellAttackBonus) }}</button>
+        @click.stop="emit('roll-attack', attackBonusFor(entry)!, entry.spell.name)"
+      >🎲 Atk {{ signedNum(attackBonusFor(entry)!) }}</button>
       <button
         v-if="entry.spell.damage_rolls?.length && entry.spell.mechanics_reviewed !== false"
         type="button"
         class="trait-roll-btn trait-dmg-btn"
-        @click.stop="entry.spell.effects?.length ? openEffectResolution(entry) : emit('roll-spell', entry.spell)"
+        @click.stop="entry.spell.effects?.length ? openEffectResolution(entry) : emit('roll-spell', spellForLastCast(entry))"
       >🎲 {{ entry.spell.effects?.length ? "Resolve" : entry.spell.damage_rolls[0].dice }}</button>
       <span v-if="entry.spell.mechanics_reviewed === false" class="text-[9px] text-amber-500">Manual</span>
       <button
-        v-if="entry.spell.attack_type === 'save' && spellSaveDc"
+        v-if="entry.spell.attack_type === 'save' && saveDcFor(entry)"
         type="button"
         class="trait-roll-btn spell-save-btn"
         title="Announce saving throw to the table"
-        @click.stop="emit('roll-spell-save', entry.spell, spellSaveDc)"
-      >DC {{ spellSaveDc }} {{ entry.spell.save_attribute }}</button>
+        @click.stop="emit('roll-spell-save', entry.spell, saveDcFor(entry)!)"
+      >DC {{ saveDcFor(entry) }} {{ entry.spell.save_attribute }}</button>
     </div>
   </div>
   <SpellEffectResolver
     :spell="pendingResolution?.spell ?? null"
     :cast-level="pendingResolution?.castLevel ?? 0"
     :character-level="member.level"
-    :spellcasting-modifier="(spellAttackBonus ?? 0) - member.proficiency_bonus"
+    :spellcasting-modifier="pendingResolution?.modifier ?? 0"
     @close="pendingResolution = null"
   />
 </template>
@@ -50,8 +50,12 @@
 import { ref } from "vue";
 import type { CharacterSpellEntry, Spell } from "@/types/spell.types";
 import type { PartyMember } from "@/types/party.types";
+import { pickSpellcastingStats, type SpellcastingClassStats } from "@/types/multiclass.types";
 import { signedNum } from "@/lib/utils";
+import { scaleExpression } from "@/lib/dice";
+import { cantripDiceMultiplier } from "@/types/spell.types";
 import { availableSlotsForSpell, slotPool } from "@/lib/spellSlots";
+import { grantAttackBonus, grantSaveDc } from "@/lib/spellGrantStats";
 import { useCastCharacterSpell } from "@/composables/useParty";
 import { useConcentration } from "@/composables/useConcentration";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
@@ -64,6 +68,7 @@ const props = defineProps<{
   casterType: string;
   spellSaveDc: number | null;
   spellAttackBonus: number | null;
+  spellcastingByClass?: SpellcastingClassStats[];
 }>();
 
 const { mutateAsync: commitCast } = useCastCharacterSpell();
@@ -71,30 +76,69 @@ const { prepareConcentration } = useConcentration();
 const { sendFlavorMessage } = useCampaignMessages();
 const toast = useToast();
 const castingId = ref<string | null>(null);
-const pendingResolution = ref<{ spell: Spell; castLevel: number } | null>(null);
-function openEffectResolution(entry: CharacterSpellEntry, castLevel = entry.spell.level) {
-  pendingResolution.value = { spell: entry.spell, castLevel };
+const lastCastLevels = ref<Record<string, number>>({});
+const pendingResolution = ref<{ spell: Spell; castLevel: number; modifier: number } | null>(null);
+function statsFor(entry: CharacterSpellEntry) {
+  return pickSpellcastingStats(props.spellcastingByClass ?? [], entry.source_class_id);
+}
+function attackBonusFor(entry: CharacterSpellEntry): number | null {
+  return grantAttackBonus(entry, props.member, statsFor(entry), props.spellAttackBonus);
+}
+function saveDcFor(entry: CharacterSpellEntry): number | null {
+  return grantSaveDc(entry, props.member, statsFor(entry), props.spellSaveDc);
+}
+function openEffectResolution(entry: CharacterSpellEntry, castLevel = lastCastLevels.value[entry.id] ?? entry.spell.level) {
+  pendingResolution.value = {
+    spell: entry.spell,
+    castLevel,
+    modifier: (attackBonusFor(entry) ?? 0) - props.member.proficiency_bonus,
+  };
 }
 
-function castSlot(spell: Spell) {
+function spellForLastCast(entry: CharacterSpellEntry): Spell {
+  const spell = entry.spell;
+  const castLevel = lastCastLevels.value[entry.id] ?? spell.level;
+  const extraLevels = Math.max(0, castLevel - spell.level);
+  const cantripMultiplier = spell.level === 0 ? cantripDiceMultiplier(props.member.level) : 1;
+  const damageRolls = (spell.damage_rolls ?? []).map((roll) => ({
+    ...roll,
+    dice: extraLevels > 0 && spell.higher_level_damage
+      ? scaleExpression(roll.dice, extraLevels, spell.higher_level_damage.dice_per_level)
+      : cantripMultiplier > 1
+        ? scaleExpression(roll.dice, cantripMultiplier - 1, roll.dice)
+        : roll.dice,
+  }));
+  return { ...spell, damage_rolls: damageRolls, higher_level_damage: null };
+}
+
+function castSlot(entry: CharacterSpellEntry) {
+  if (entry.source_type !== "class") {
+    return entry.uses_per_day !== null && !entry.uses_remaining
+      ? null
+      : { level: 0, max: 0, used: 0, pool: "feature" as const };
+  }
+  const spell = entry.spell;
   if (spell.level === 0) return { level: 0, max: 0, used: 0, pool: "spellcasting" as const };
   return availableSlotsForSpell(spell.level, props.member.spell_slots ?? [])[0] ?? null;
 }
 
-function castTitle(spell: Spell): string {
-  const slot = castSlot(spell);
-  if (!slot) return "No suitable spell slot remaining";
+function castTitle(entry: CharacterSpellEntry): string {
+  const slot = castSlot(entry);
+  if (!slot) return entry.source_type === "class" ? "No suitable spell slot remaining" : "No uses remaining";
+  if (entry.source_type !== "class") return `Cast from ${entry.source_label ?? entry.source_type}`;
+  const spell = entry.spell;
   return spell.level === 0 ? "Cast cantrip" : `Cast using a level ${slot.level} ${slotPool(slot)} slot`;
 }
 
 async function cast(entry: CharacterSpellEntry) {
   if (castingId.value) return;
-  const slot = castSlot(entry.spell);
+  const slot = castSlot(entry);
   if (!slot) return;
   castingId.value = entry.id;
   try {
+    const resolvedCastLevel = entry.source_type === "class" ? slot.level : entry.spell.level;
     const concentrationState = entry.spell.concentration
-      ? await prepareConcentration(props.member, entry.spell, { castAtLevel: slot.level })
+      ? await prepareConcentration(props.member, entry.spell, { castAtLevel: resolvedCastLevel })
       : null;
     if (entry.spell.concentration && !concentrationState) return;
     await commitCast({
@@ -105,10 +149,21 @@ async function cast(entry: CharacterSpellEntry) {
       concentrationState,
       characterSpellId: entry.id,
     });
-    await sendFlavorMessage(`casts ${entry.spell.name}${slot.level > entry.spell.level ? ` at level ${slot.level}` : ""}`, "spell");
+    lastCastLevels.value = { ...lastCastLevels.value, [entry.id]: resolvedCastLevel };
+    const attackBonus = attackBonusFor(entry);
+    const saveDc = saveDcFor(entry);
+    let castText = `casts ${entry.spell.name}${resolvedCastLevel > entry.spell.level ? ` at level ${resolvedCastLevel}` : ""}`;
+    if (entry.spell.level > 0 && attackBonus !== null
+      && (entry.spell.attack_type === "ranged_spell" || entry.spell.attack_type === "melee_spell")) {
+      castText += ` (Atk ${signedNum(attackBonus)})`;
+    } else if (entry.spell.level > 0 && saveDc !== null && entry.spell.attack_type === "save") {
+      castText += entry.spell.save_attribute ? ` (DC ${saveDc} ${entry.spell.save_attribute})` : ` (DC ${saveDc})`;
+    }
+    if (entry.source_type !== "class" && entry.source_label) castText += ` [${entry.source_label}]`;
+    await sendFlavorMessage(castText, "spell");
     if (concentrationState) await sendFlavorMessage(`begins concentrating on ${entry.spell.name}`, entry.spell.name);
     if (entry.spell.mechanics_reviewed !== false && entry.spell.effects?.length) {
-      openEffectResolution(entry, slot.level);
+      openEffectResolution(entry, resolvedCastLevel);
     } else if (entry.spell.mechanics_reviewed === false) {
       toast.info("Imported mechanics are unreviewed; resolve this spell manually from its rules text.");
     }

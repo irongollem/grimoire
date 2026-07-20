@@ -44,11 +44,11 @@
 
               <!-- IconSearch results -->
               <div
-                v-else-if="(searchResults?.length ?? 0) > 0 && spellSearch.length >= 2"
+                v-else-if="searchResults.length > 0 && spellSearch.length >= 2"
                 class="max-h-40 overflow-y-auto rounded-md border border-border bg-card divide-y divide-border"
               >
                 <button
-                  v-for="spell in (searchResults ?? [])"
+                  v-for="spell in searchResults"
                   :key="spell.id"
                   type="button"
                   class="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-muted/50 transition-colors text-left"
@@ -79,11 +79,11 @@
 
             <!-- Source label -->
             <div class="space-y-1">
-              <label class="font-cinzel text-xs text-muted-foreground tracking-wider">SOURCE LABEL <span class="text-muted-foreground/60 normal-case font-fell">(e.g. Tiefling, Magic Initiate)</span></label>
+              <label class="font-cinzel text-xs text-muted-foreground tracking-wider">SOURCE LABEL <span class="text-muted-foreground/60 normal-case font-fell">(required; e.g. Tiefling, Magic Initiate)</span></label>
               <input
                 v-model="sourceLabel"
                 type="text"
-                placeholder="Optional label…"
+                placeholder="What grants this spell?"
                 class="w-full bg-muted/30 border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
@@ -139,6 +139,16 @@
                 >Short Rest</button>
               </div>
             </div>
+
+            <div class="space-y-1">
+              <label class="font-cinzel text-xs text-muted-foreground tracking-wider">CASTING ABILITY</label>
+              <select v-model="castingAbility" class="w-full rounded-md border border-border bg-muted/30 px-3 py-1.5 font-fell text-sm text-foreground">
+                <option :value="null">Use class/default ability</option>
+                <option value="int">Intelligence</option>
+                <option value="wis">Wisdom</option>
+                <option value="cha">Charisma</option>
+              </select>
+            </div>
           </div>
 
           <!-- Footer -->
@@ -151,7 +161,7 @@
             <button
               type="button"
               class="cursor-pointer px-4 py-1.5 rounded-md bg-primary text-primary-foreground font-cinzel text-xs font-semibold tracking-wider hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
-              :disabled="!selectedSpell || isPending"
+              :disabled="!selectedSpell || !sourceLabel.trim() || isPending"
               @click="submit"
             >Add Spell</button>
           </div>
@@ -163,13 +173,11 @@
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import { refDebounced } from "@vueuse/core";
-import { useQuery } from "@tanstack/vue-query";
 import { IconGenerate, IconSearch } from '@/lib/icons';
-import { supabase } from "@/lib/supabase";
 import { useAddInnateSpell } from "@/composables/useCharacterSpells";
 import { SCHOOL_COLORS } from "@/types/spell.types";
 import type { Spell, InnateSourceType, InnateResetsOn } from "@/types/spell.types";
+import { useSpellSearch } from "@/composables/useSpellSearch";
 
 const SOURCE_TYPES = [
   { value: "racial" as InnateSourceType, label: "Racial" },
@@ -193,6 +201,7 @@ const sourceLabel   = ref("");
 const usesPerDay    = ref<number | null>(null);
 const usesInput     = ref(1);
 const resetsOn      = ref<InnateResetsOn>("long_rest");
+const castingAbility = ref<"int" | "wis" | "cha" | null>(null);
 
 function reset() {
   spellSearch.value   = "";
@@ -202,29 +211,14 @@ function reset() {
   usesPerDay.value    = null;
   usesInput.value     = 1;
   resetsOn.value      = "long_rest";
+  castingAbility.value = null;
 }
 
 watch(() => props.open, (val) => { if (val) reset(); });
 
 // ── Spell search ───────────────────────────────────────────────────────────────
-const debouncedSearch = refDebounced(spellSearch, 300);
-
-const { data: searchResults, isFetching: isSearching } = useQuery({
-  queryKey: ["innateSpellSearch", debouncedSearch],
-  queryFn: async () => {
-    const q = debouncedSearch.value.trim();
-    if (q.length < 2) return [] as Spell[];
-    const { data, error } = await supabase
-      .from("spells")
-      .select("id, name, level, school, attack_type, save_attribute, concentration, ritual, damage_rolls, healing_dice")
-      .ilike("name", `%${q}%`)
-      .order("level")
-      .order("name")
-      .limit(20);
-    if (error) throw error;
-    return data as Spell[];
-  },
-  enabled: () => debouncedSearch.value.length >= 2 && !selectedSpell.value,
+const { results: searchResults, isSearching } = useSpellSearch(spellSearch, {
+  enabled: () => !selectedSpell.value,
 });
 
 function pickSpell(spell: Spell) {
@@ -255,9 +249,10 @@ function submit() {
       partyMemberId: props.partyMemberId,
       spellId: selectedSpell.value.id,
       sourceType: sourceType.value,
-      sourceLabel: sourceLabel.value.trim() || null,
+      sourceLabel: sourceLabel.value.trim(),
       usesPerDay: usesPerDay.value,
       resetsOn: usesPerDay.value !== null ? resetsOn.value : null,
+      castingAbility: castingAbility.value,
     },
     { onSuccess: () => emit("close") },
   );

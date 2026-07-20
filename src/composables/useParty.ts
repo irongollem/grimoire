@@ -85,34 +85,6 @@ export function useUpdatePartyMember() {
   });
 }
 
-/** Row-locked spell-slot debit used by the cast flow. */
-export function useSpendSpellSlot() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async ({
-      partyMemberId,
-      slotLevel,
-      pool,
-      slotTemplate,
-    }: {
-      partyMemberId: string;
-      slotLevel: number;
-      pool: "spellcasting" | "pact" | "temporary" | "feature";
-      slotTemplate: SpellSlotEntry[];
-    }) => {
-      const { data, error } = await supabase.rpc("spend_spell_slot", {
-        p_party_member_id: partyMemberId,
-        p_slot_level: slotLevel,
-        p_slot_pool: pool,
-        p_slot_template: slotTemplate,
-      });
-      if (error) throw error;
-      return data as SpellSlotEntry[];
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
-  });
-}
-
 /** Atomic cast mutation: slot, Metamagic, and concentration commit together. */
 export function useCastCharacterSpell() {
   const queryClient = useQueryClient();
@@ -127,6 +99,7 @@ export function useCastCharacterSpell() {
       metamagicNames,
       metamagicChoices = {},
       characterSpellId = null,
+      parentCastId = null,
     }: {
       partyMemberId: string;
       slotLevel: number;
@@ -137,8 +110,9 @@ export function useCastCharacterSpell() {
       metamagicNames?: string[];
       metamagicChoices?: Record<string, unknown>;
       characterSpellId?: string | null;
+      parentCastId?: string | null;
     }) => {
-      const { data, error } = await supabase.rpc("cast_character_spell_v3", {
+      const { data, error } = await supabase.rpc("cast_character_spell_v4", {
         p_party_member_id: partyMemberId,
         p_slot_level: slotLevel,
         p_slot_pool: pool,
@@ -147,6 +121,7 @@ export function useCastCharacterSpell() {
         p_metamagic_names: metamagicNames ?? (metamagicName ? [metamagicName] : []),
         p_character_spell_id: characterSpellId,
         p_metamagic_choices: metamagicChoices,
+        p_parent_cast_id: parentCastId,
       });
       if (error) throw error;
       return data;
@@ -171,20 +146,26 @@ export function useActivateInnateSorcery() { return useSorcererRpc("activate_inn
 export function useEndInnateSorcery() { return useSorcererRpc("end_innate_sorcery"); }
 export function useRestoreSorceryPoints() { return useSorcererRpc("restore_sorcery_points"); }
 
-export function useRecordSorcererRest() {
+/** Atomic slot, class-resource, innate-use, and Sorcerer rest recovery. */
+export function useTakeSpellcastingRest() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ partyMemberId, rest }: { partyMemberId: string; rest: "short" | "long" }) => {
-      const { data, error } = await supabase.rpc("record_sorcerer_rest", {
+      const { data, error } = await supabase.rpc("take_spellcasting_rest", {
         p_party_member_id: partyMemberId,
         p_rest: rest,
       });
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+    onSuccess: (_data, { partyMemberId }) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: ["characterSpells", partyMemberId] });
+      queryClient.invalidateQueries({ queryKey: ["characterSpellsDetails", partyMemberId] });
+    },
   });
 }
+
 
 /** Atomic Flexible Casting conversion between Sorcery Points and spell slots. */
 export function useConvertSorceryPoints() {

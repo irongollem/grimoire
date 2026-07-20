@@ -36,9 +36,9 @@
     />
 
     <PlayerSorcererFeatures
-      v-if="ruleset === '2024' && classLevel('Sorcerer') > 0"
+      v-if="ruleset === '2024' && classLevel('Sorcerer', true) > 0"
       :member="member"
-      :level="classLevel('Sorcerer')"
+      :level="classLevel('Sorcerer', true)"
     />
 
     <!-- ── Class features (one card per class, grouped for multiclass) ──────── -->
@@ -251,12 +251,11 @@ import { useArtificerState } from "@/composables/useArtificerState";
 import { mapFeatureIds, type FeatureEntry } from "@/levelup/types";
 import type { CustomStep } from "@/levelup/customTypes";
 import { useAllFeatures } from "@/composables/useFeatures";
-import { getDefaultSpellSlots, getMulticlassSpellSlots, getCasterCategory } from "@/types/spell.types";
 import { useClassByName, useAllSystemClasses, useAllCustomClasses } from "@/composables/useCustomClasses";
 import { useCustomSubclassByClassAndSubclass, useAllCustomSubclasses } from "@/composables/useCustomSubclasses";
 import { useCharacterClasses } from "@/composables/useCharacterClasses";
 import type { SystemClass, CustomClass, CustomSubclass } from "@/levelup/customTypes";
-import { useRecordSorcererRest, useUpdatePartyMember } from "@/composables/useParty";
+import { useTakeSpellcastingRest, useUpdatePartyMember } from "@/composables/useParty";
 import { useAllSpecies } from "@/composables/useSpecies";
 import { useConfirm } from "@/composables/useConfirm";
 import type { PartyMember, SpellSlotEntry } from "@/types/party.types";
@@ -264,7 +263,7 @@ import type { Monster } from "@/types/monster.types";
 import type { ClassFeatureGroup } from "./PlayerClassFeaturesList.vue";
 import type { ResourceRow } from "./PlayerResourcePools.vue";
 import { useRuleset } from "@/composables/useRuleset";
-import { reconcileSpellSlotUsage, restoreSpellSlots } from "@/lib/spellSlots";
+import { deriveEffectiveSpellSlots } from "@/lib/spellSlots";
 
 const props = defineProps<{ member: PartyMember; showRestButtons?: boolean; wildshapeMonster?: Monster; isOwner?: boolean }>();
 
@@ -282,7 +281,7 @@ const { data: allFeatures, isPending: featuresPending } = useAllFeatures();
 const { data: customSubclass } = useCustomSubclassByClassAndSubclass(memberClassRef, memberSubclassRef);
 
 const { mutate: updateMember } = useUpdatePartyMember();
-const { mutateAsync: recordSorcererRest } = useRecordSorcererRest();
+const { mutateAsync: takeSpellcastingRest } = useTakeSpellcastingRest();
 const { confirm } = useConfirm();
 const { data: allSpecies } = useAllSpecies();
 const linkedSpecies = computed(() =>
@@ -306,11 +305,11 @@ const { data: allCustomSubclassEntries } = useAllCustomSubclasses();
 
 const featureDataPending = computed(() => featuresPending.value || classesPending.value);
 
-/** class_name → class data (custom wins over system on name collision). */
+/** Legacy name lookup only; pinned character rows resolve by exact id below. */
 const classDataMap = computed(() => {
   const map = new Map<string, SystemClass | CustomClass>();
-  for (const c of allSystemClasses.value ?? []) map.set(c.class_name, c);
   for (const c of allCustomClasses.value ?? []) map.set(c.class_name, c);
+  for (const c of allSystemClasses.value ?? []) map.set(c.class_name, c);
   return map;
 });
 
@@ -322,6 +321,26 @@ const subclassDataMap = computed(() => {
   }
   return map;
 });
+
+function classDefinitionFor(entry: NonNullable<typeof characterClasses.value>[number]) {
+  if (entry.class_definition_id) {
+    const definitions = entry.class_definition_kind === "custom"
+      ? (allCustomClasses.value ?? [])
+      : (allSystemClasses.value ?? []);
+    return definitions.find(definition => definition.id === entry.class_definition_id) ?? null;
+  }
+  return classDataMap.value.get(entry.class_name) ?? null;
+}
+
+function subclassDefinitionFor(entry: NonNullable<typeof characterClasses.value>[number]) {
+  if (!entry.subclass_name) return null;
+  if (entry.subclass_definition_id) {
+    return (allCustomSubclassEntries.value ?? []).find(
+      definition => definition.id === entry.subclass_definition_id,
+    ) ?? null;
+  }
+  return subclassDataMap.value.get(`${entry.class_name}::${entry.subclass_name}`) ?? null;
+}
 
 function buildFeaturesByLevel(
   cls: { features: Record<string, string[]> } | null | undefined,
@@ -345,15 +364,17 @@ function buildFeaturesByLevel(
 const classFeatureGroups = computed<ClassFeatureGroup[]>(() => {
   const rows = characterClasses.value ?? [];
   if (rows.length > 0) {
-    return rows.map(cc => ({
-      class_name: cc.class_name,
-      subclass_name: cc.subclass_name,
-      levels: cc.levels,
-      featuresByLevel: buildFeaturesByLevel(classDataMap.value.get(cc.class_name), cc.levels),
-      subclassFeaturesByLevel: cc.subclass_name
-        ? buildFeaturesByLevel(subclassDataMap.value.get(`${cc.class_name}::${cc.subclass_name}`), cc.levels)
-        : {},
-    }));
+    return rows.map(cc => {
+      const classDefinition = classDefinitionFor(cc);
+      const subclassDefinition = subclassDefinitionFor(cc);
+      return {
+        class_name: cc.class_name,
+        subclass_name: cc.subclass_name,
+        levels: cc.levels,
+        featuresByLevel: buildFeaturesByLevel(classDefinition, cc.levels),
+        subclassFeaturesByLevel: buildFeaturesByLevel(subclassDefinition, cc.levels),
+      };
+    });
   }
   if (!props.member.class) return [];
   const className = props.member.class;
@@ -388,21 +409,14 @@ watch(() => [props.member.id, props.member.updated_at], syncFromProps, { immedia
 
 // Spell slots — single source of truth: TanStack Query cache via props.member.spell_slots.
 // Falls back to multiclass or per-class defaults when DB has no stored slots yet.
-const effectiveSlots = computed((): SpellSlotEntry[] => {
-  const m = props.member;
-  const list = (characterClasses.value ?? []).map((c) => ({ class_name: c.class_name, levels: c.levels }));
-  const canDeriveMulticlass = list.length > 1
-    && list.every((entry) => getCasterCategory(entry.class_name) !== "none");
-  if (canDeriveMulticlass) {
-    return reconcileSpellSlotUsage(
-      getMulticlassSpellSlots(list, ruleset.value),
-      m.spell_slots ?? [],
-    );
-  }
-  if (m.spell_slots?.length) return m.spell_slots;
-  if (list.length > 0) return getMulticlassSpellSlots(list, ruleset.value);
-  return getDefaultSpellSlots(m.class, m.level, ruleset.value);
-});
+const effectiveSlots = computed((): SpellSlotEntry[] =>
+  deriveEffectiveSpellSlots(
+    props.member,
+    characterClasses.value ?? [],
+    ruleset.value,
+    classDefinitionFor,
+  ),
+);
 
 // ── Persist helpers ───────────────────────────────────────────────────────────
 
@@ -438,17 +452,8 @@ function confirmVariableSpend(key: string, amount: number) {
 
 // ── Rest ──────────────────────────────────────────────────────────────────────
 
-function shortRest() {
-  // Restore short-rest resources
-  for (const r of localResources.value) {
-    if (r.rest === "short") r.current = r.max;
-  }
-  persistResources();
-  void recordSorcererRest({ partyMemberId: props.member.id, rest: "short" });
-
-  if (effectiveSlots.value.length) {
-    updateMember({ id: props.member.id, update: { spell_slots: restoreSpellSlots(effectiveSlots.value, "short") } });
-  }
+async function shortRest() {
+  await takeSpellcastingRest({ partyMemberId: props.member.id, rest: "short" });
 }
 
 async function longRest() {
@@ -458,14 +463,11 @@ async function longRest() {
   );
   if (!ok) return;
 
-  for (const r of localResources.value) r.current = r.max;
-  persistResources();
+  await takeSpellcastingRest({ partyMemberId: props.member.id, rest: "long" });
   rageRef.value?.deactivate();
-  updateMember({ id: props.member.id, update: {
-    spell_slots: restoreSpellSlots(effectiveSlots.value, "long"),
-    ...(props.member.rage_active ? { rage_active: false } : {}),
-  }});
-  await recordSorcererRest({ partyMemberId: props.member.id, rest: "long" });
+  if (props.member.rage_active) {
+    updateMember({ id: props.member.id, update: { rage_active: false } });
+  }
 }
 
 // ── Spell pick steps ──────────────────────────────────────────────────────────
@@ -610,9 +612,13 @@ const isBattleMaster = computed(() => {
   return !!subclass && subclass.toLowerCase().includes("battle master");
 });
 
-function classLevel(className: string): number {
-  return (characterClasses.value ?? []).find(cc => cc.class_name === className)?.levels
-    ?? (props.member.class === className ? props.member.level : 0);
+function classLevel(className: string, officialOnly = false): number {
+  return (characterClasses.value ?? []).find(cc =>
+    cc.class_name === className && (!officialOnly || cc.class_definition_kind !== "custom"),
+  )?.levels
+    ?? ((characterClasses.value ?? []).length === 0 && props.member.class === className
+      ? props.member.level
+      : 0);
 }
 
 // ── Barbarian rage ────────────────────────────────────────────────────────────
