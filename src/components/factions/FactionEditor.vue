@@ -7,11 +7,11 @@
         class="relative aspect-square rounded-lg border border-border overflow-hidden bg-muted cursor-pointer group"
         @click="fileInput?.click()"
       >
-        <img
+        <FocalImage
           v-if="form.emblem_url"
           :src="form.emblem_url"
           alt="Faction emblem"
-          class="w-full h-full object-cover"
+          format="square"
         />
         <div
           v-else
@@ -157,6 +157,7 @@ import TagInput from "@/components/common/TagInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import PlayerVisibilityToggle from "@/components/common/PlayerVisibilityToggle.vue";
+import FocalImage from "@/components/common/FocalImage.vue";
 
 const props = defineProps<{
   faction: Faction | null;

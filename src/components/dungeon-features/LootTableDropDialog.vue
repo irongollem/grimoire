@@ -45,7 +45,7 @@
           <div class="space-y-1.5">
             <label class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Chest art (optional)</label>
             <div v-if="chestImageUrl" class="relative w-24 h-24 rounded border border-border overflow-hidden bg-muted">
-              <img :src="chestImageUrl" alt="Chest" class="w-full h-full object-cover" />
+              <FocalImage :src="chestImageUrl" alt="Chest" format="square" />
               <button
                 type="button"
                 class="absolute top-1 right-1 rounded bg-black/60 text-white p-0.5 hover:bg-black/80"
@@ -136,6 +136,7 @@ import { ref } from 'vue';
 import { IconClose, IconPackageOpen, IconWarning } from '@/lib/icons';
 import { formatCoinParts } from '@/lib/currency';
 import { useImageUpload } from '@/composables/useImageUpload';
+import FocalImage from '@/components/common/FocalImage.vue';
 import type { LootChestAtom } from '@/types/chat.types';
 import { unresolvedReasonLabel, type RolledUnresolvedEntry } from '@/lib/lootTableRoll';
 

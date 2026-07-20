@@ -7,7 +7,9 @@
         class="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted px-2.5 py-1"
         :class="e.status && e.status !== 'Active' && 'opacity-60'"
       >
-        <img v-if="e.faction.emblem_url" :src="e.faction.emblem_url" alt="" class="h-4 w-4 rounded-full object-cover shrink-0" />
+        <div v-if="e.faction.emblem_url" class="h-4 w-4 shrink-0">
+          <FocalImage :src="e.faction.emblem_url" alt="" format="token" class="w-full h-full" />
+        </div>
         <RouterLink :to="`/factions/${e.faction.id}`" class="font-cinzel text-[10px] font-semibold text-foreground hover:text-primary transition-colors">
           {{ e.faction.name }}
         </RouterLink>
@@ -57,6 +59,7 @@ import {
 import { NPC_FACTION_ROLES, NPC_FACTION_STATUS_COLORS, type NpcFactionStatus } from "@/types/faction.types";
 import type { FactionNpc, Faction } from "@/types/faction.types";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import FocalImage from "@/components/common/FocalImage.vue";
 
 const props = defineProps<{ npcId: string }>();
 

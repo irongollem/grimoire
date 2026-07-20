@@ -6,12 +6,9 @@
         :key="e.id"
         class="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted px-2.5 py-1"
       >
-        <img
-          v-if="e.faction.emblem_url"
-          :src="e.faction.emblem_url"
-          alt=""
-          class="h-4 w-4 rounded-full object-cover shrink-0"
-        />
+        <div v-if="e.faction.emblem_url" class="h-4 w-4 shrink-0">
+          <FocalImage :src="e.faction.emblem_url" alt="" format="token" class="w-full h-full" />
+        </div>
         <IconShield v-else class="h-3 w-3 text-muted-foreground shrink-0" />
         <RouterLink
           :to="`/factions/${e.faction.id}`"
@@ -55,6 +52,7 @@ import { useAllFactions } from "@/composables/useFactions";
 import type { FactionDeity } from "@/types/faction.types";
 import type { Faction } from "@/types/faction.types";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import FocalImage from "@/components/common/FocalImage.vue";
 
 const props = defineProps<{ deityId: string }>();
 

@@ -76,54 +76,49 @@
     <!-- Physical Description -->
     <label class="block">
       <span class="field-label">Physical Description</span>
-      <textarea
-        :value="form.physical_description"
-        rows="2"
-        class="field-input w-full resize-y"
+      <RichTextEditor
+        :model-value="form.physical_description"
+        min-height="4.5rem"
         placeholder="Hair, build, scars, anything that helps the table picture them."
-        @input="patch({ physical_description: ($event.target as HTMLTextAreaElement).value })"
+        @update:model-value="patch({ physical_description: $event })"
       />
     </label>
 
     <!-- Personality -->
     <label class="block">
       <span class="field-label">Personality Traits</span>
-      <textarea
-        :value="form.personality_traits"
-        rows="2"
-        class="field-input w-full resize-y"
+      <RichTextEditor
+        :model-value="form.personality_traits"
+        min-height="4.5rem"
         placeholder="Two short traits that shape their behaviour."
-        @input="patch({ personality_traits: ($event.target as HTMLTextAreaElement).value })"
+        @update:model-value="patch({ personality_traits: $event })"
       />
     </label>
     <label class="block">
       <span class="field-label">Ideals</span>
-      <textarea
-        :value="form.ideals"
-        rows="2"
-        class="field-input w-full resize-y"
+      <RichTextEditor
+        :model-value="form.ideals"
+        min-height="4.5rem"
         placeholder="What drives them — justice, freedom, knowledge…"
-        @input="patch({ ideals: ($event.target as HTMLTextAreaElement).value })"
+        @update:model-value="patch({ ideals: $event })"
       />
     </label>
     <label class="block">
       <span class="field-label">Bonds</span>
-      <textarea
-        :value="form.bonds"
-        rows="2"
-        class="field-input w-full resize-y"
+      <RichTextEditor
+        :model-value="form.bonds"
+        min-height="4.5rem"
         placeholder="People, places, or artifacts they'd die for."
-        @input="patch({ bonds: ($event.target as HTMLTextAreaElement).value })"
+        @update:model-value="patch({ bonds: $event })"
       />
     </label>
     <label class="block">
       <span class="field-label">Flaws</span>
-      <textarea
-        :value="form.flaws"
-        rows="2"
-        class="field-input w-full resize-y"
+      <RichTextEditor
+        :model-value="form.flaws"
+        min-height="4.5rem"
         placeholder="One clear weakness that gets them in trouble."
-        @input="patch({ flaws: ($event.target as HTMLTextAreaElement).value })"
+        @update:model-value="patch({ flaws: $event })"
       />
     </label>
   </div>
@@ -132,6 +127,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useAllDeities } from "@/composables/useDeities";
+import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import type { PersonaFormSlice } from "./partyMemberForm.types";
 
 const { form } = defineProps<{ form: PersonaFormSlice }>();

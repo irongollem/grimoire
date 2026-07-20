@@ -258,19 +258,19 @@
             <div class="cs-personality-grid">
               <div class="cs-trait-box">
                 <div class="cs-trait-title">Personality Traits</div>
-                <div class="cs-trait-text">{{ member.personality_traits || "" }}</div>
+                <div class="cs-trait-text">{{ tiptapToPlainText(member.personality_traits) }}</div>
               </div>
               <div class="cs-trait-box">
                 <div class="cs-trait-title">Ideals</div>
-                <div class="cs-trait-text">{{ member.ideals || "" }}</div>
+                <div class="cs-trait-text">{{ tiptapToPlainText(member.ideals) }}</div>
               </div>
               <div class="cs-trait-box">
                 <div class="cs-trait-title">Bonds</div>
-                <div class="cs-trait-text">{{ member.bonds || "" }}</div>
+                <div class="cs-trait-text">{{ tiptapToPlainText(member.bonds) }}</div>
               </div>
               <div class="cs-trait-box">
                 <div class="cs-trait-title">Flaws</div>
-                <div class="cs-trait-text">{{ member.flaws || "" }}</div>
+                <div class="cs-trait-text">{{ tiptapToPlainText(member.flaws) }}</div>
               </div>
             </div>
           </div>
@@ -301,6 +301,7 @@ import { computed } from "vue";
 import { SKILLS, type PartyMember, type SkillProficiencies } from "@/types/party.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import { getCastingAbility } from "@/types/spell.types";
+import { tiptapToPlainText } from "@/lib/tiptapText";
 import type { SheetPageSize, SheetTheme } from "@/composables/useCharacterSheetPdf";
 
 // acBonus is passed in (not derived here) because this component is also

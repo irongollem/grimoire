@@ -38,12 +38,9 @@
         >
           <!-- Item atom -->
           <template v-if="(atom.type ?? 'item') === 'item'">
-            <img
-              v-if="atom.item_image_url"
-              :src="atom.item_image_url"
-              :alt="atom.item_name"
-              class="w-7 h-7 rounded object-cover shrink-0"
-            />
+            <div v-if="atom.item_image_url" class="w-7 h-7 rounded overflow-hidden shrink-0">
+              <FocalImage :src="atom.item_image_url" :alt="atom.item_name" format="square" class="w-full h-full" />
+            </div>
             <IconPackage v-else class="w-5 h-5 text-muted-foreground shrink-0" />
             <div class="flex-1 min-w-0">
               <div class="flex items-baseline gap-2">
@@ -107,6 +104,7 @@
 import { computed } from 'vue';
 import { IconCoins, IconPackage, IconPackageOpen } from '@/lib/icons';
 import { formatCoinParts } from '@/lib/currency';
+import FocalImage from '@/components/common/FocalImage.vue';
 import type { LootChestMetadata, LootChestClaim } from '@/types/chat.types';
 
 const {

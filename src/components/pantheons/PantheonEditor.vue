@@ -9,11 +9,11 @@
           class="relative aspect-square rounded-lg border border-border overflow-hidden bg-muted cursor-pointer group"
           @click="fileInput?.click()"
         >
-          <img
+          <FocalImage
             v-if="form.emblem_url"
             :src="form.emblem_url"
             alt="Pantheon emblem"
-            class="w-full h-full object-cover"
+            format="square"
           />
           <div
             v-else
@@ -99,6 +99,7 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import PlayerVisibilityToggle from "@/components/common/PlayerVisibilityToggle.vue";
+import FocalImage from "@/components/common/FocalImage.vue";
 
 const { pantheon, isNew } = defineProps<{ pantheon: Pantheon | null; isNew: boolean }>();
 

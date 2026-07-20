@@ -72,27 +72,13 @@
           >
             Character:
           </label>
-          <select
-            :value="member.party_member_id ?? ''"
-            class="rounded-md border border-input bg-background px-2 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring min-w-40"
-            :disabled="updateMember.isPending.value"
-            @change="
-              assignPartyMember(
-                member.id,
-                ($event.target as HTMLSelectElement).value,
-              )
-            "
-          >
-            <option value="">— Unassigned —</option>
-            <option
-              v-for="pm in availablePartyMembers(member)"
-              :key="pm.id"
-              :value="pm.id"
-            >
-              {{ pm.name }}{{ pm.class ? ` · ${pm.class}` : ""
-              }}{{ pm.level ? ` ${pm.level}` : "" }}
-            </option>
-          </select>
+          <EntityCombobox
+            :model-value="member.party_member_id ?? ''"
+            :options="characterOptions(member)"
+            placeholder="Assign character…"
+            class="min-w-40"
+            @update:model-value="assignPartyMember(member.id, $event)"
+          />
         </div>
 
         <!-- DM label -->
@@ -226,6 +212,7 @@ import { useParty, useDeletePartyMember } from "@/composables/useParty";
 import { useCampaignPresence } from "@/composables/useCampaignPresence";
 import { useConfirm } from "@/composables/useConfirm";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import type { CampaignMember } from "@/types/campaign.types";
 import type { PartyMember } from "@/types/party.types";
 
@@ -275,6 +262,14 @@ function availablePartyMembers(forMember: CampaignMember) {
       .map((m) => m.party_member_id!),
   );
   return partyMembers.value.filter((pm) => !takenIds.has(pm.id));
+}
+
+// EntityCombobox options: composed "Name · Class Level" label, searchable by name.
+function characterOptions(forMember: CampaignMember): { id: string; name: string }[] {
+  return availablePartyMembers(forMember).map((pm) => ({
+    id: pm.id,
+    name: `${pm.name}${pm.class ? ` · ${pm.class}` : ""}${pm.level ? ` ${pm.level}` : ""}`,
+  }));
 }
 
 function assignPartyMember(memberId: string, partyMemberId: string) {

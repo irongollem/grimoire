@@ -428,7 +428,7 @@ const {
   stickyToolbar,
   aiContext,
 } = defineProps<{
-  modelValue: string | null;
+  modelValue: string | null | undefined;
   placeholder?: string;
   minHeight?: string;
   allowUpload?: boolean;
@@ -560,7 +560,7 @@ function stripLinkMarks(node: unknown): unknown {
   return result;
 }
 
-function parseContent(value: string | null): object | string | undefined {
+function parseContent(value: string | null | undefined): object | string | undefined {
   if (!value) return undefined;
   try {
     return stripLinkMarks(JSON.parse(value)) as object;

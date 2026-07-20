@@ -17,10 +17,10 @@
         :disabled="isUploadingThumb"
         @click="thumbInputRef?.click()"
       >
-        <img
+        <FocalImage
           v-if="sound.thumbnail_url"
           :src="sound.thumbnail_url"
-          class="w-full h-full object-cover"
+          format="square"
           alt=""
         />
         <IconImage v-else class="h-3.5 w-3.5 text-muted-foreground/40 group-hover/thumb:text-muted-foreground transition-colors" />
@@ -404,6 +404,7 @@
 import { computed, ref, nextTick, onMounted } from "vue";
 import { IconDelete, IconEdit, IconImage, IconLayers, IconMusicNote, IconPause, IconPlay, IconRepeat, IconRepeatOne, IconShuffle, IconSkipBack, IconSkipForward, IconStop, IconWarning } from '@/lib/icons';
 import SoundEffectPicker from "./SoundEffectPicker.vue";
+import FocalImage from "@/components/common/FocalImage.vue";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSpotifyStore } from "@/stores/spotify";
 import { useUpdateSound, useMoveSound, useSoundThumbnailUpload } from "@/composables/useSounds";

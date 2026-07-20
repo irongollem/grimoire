@@ -149,7 +149,7 @@
         </div>
         <label class="block">
           <span class="field-label">Physical Description</span>
-          <textarea v-model="f.physical_description" class="field-input w-full resize-y" rows="2"
+          <RichTextEditor v-model="f.physical_description" min-height="4.5rem"
             placeholder="Hair, build, scars, anything that helps the table picture them." />
         </label>
       </div>
@@ -166,22 +166,22 @@
       <div v-if="showPersonality" class="px-3 pb-3 space-y-2">
         <label class="block">
           <span class="field-label">Personality Traits</span>
-          <textarea v-model="f.personality_traits" rows="2" class="field-input w-full resize-y"
+          <RichTextEditor v-model="f.personality_traits" min-height="4.5rem"
             placeholder="Two short traits that shape their behaviour." />
         </label>
         <label class="block">
           <span class="field-label">Ideals</span>
-          <textarea v-model="f.ideals" rows="2" class="field-input w-full resize-y"
+          <RichTextEditor v-model="f.ideals" min-height="4.5rem"
             placeholder="What drives them — justice, freedom, knowledge…" />
         </label>
         <label class="block">
           <span class="field-label">Bonds</span>
-          <textarea v-model="f.bonds" rows="2" class="field-input w-full resize-y"
+          <RichTextEditor v-model="f.bonds" min-height="4.5rem"
             placeholder="People, places, or artifacts they'd die for." />
         </label>
         <label class="block">
           <span class="field-label">Flaws</span>
-          <textarea v-model="f.flaws" rows="2" class="field-input w-full resize-y"
+          <RichTextEditor v-model="f.flaws" min-height="4.5rem"
             placeholder="One clear weakness that gets them in trouble." />
         </label>
       </div>

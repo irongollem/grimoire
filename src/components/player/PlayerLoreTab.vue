@@ -46,8 +46,12 @@
         </div>
         <div>
           <label class="field-label">Physical Description</label>
-          <textarea v-model="form.physical_description" rows="3" class="field-input w-full resize-y"
-            placeholder="Height, build, hair, eyes, distinguishing marks…" @input="scheduleAutoSave" />
+          <RichTextEditor
+            :model-value="form.physical_description"
+            min-height="4.5rem"
+            placeholder="Height, build, hair, eyes, distinguishing marks…"
+            @update:model-value="form.physical_description = $event; scheduleAutoSave()"
+          />
         </div>
       </div>
       <div v-else-if="hasIdentity" class="p-4 space-y-2.5">
@@ -56,9 +60,11 @@
           <span v-if="member.gender"   class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-2xs md:text-sm text-foreground tracking-wider">{{ member.gender }}</span>
           <span v-if="member.pronouns" class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-2xs md:text-sm text-foreground tracking-wider">{{ member.pronouns }}</span>
         </div>
-        <p v-if="member.physical_description" class="font-fell text-sm text-foreground whitespace-pre-wrap">
-          {{ member.physical_description }}
-        </p>
+        <RichTextViewer
+          v-if="member.physical_description"
+          :content="member.physical_description"
+          class="font-fell text-sm text-foreground"
+        />
       </div>
       <div v-else class="px-4 py-3">
         <p class="font-fell text-sm text-muted-foreground italic">No identity details recorded.</p>
@@ -109,23 +115,39 @@
         </div>
         <div>
           <label class="field-label">Personality Traits</label>
-          <textarea v-model="form.personality_traits" rows="2" class="field-input w-full resize-y"
-            placeholder="I always have a plan…" @input="scheduleAutoSave" />
+          <RichTextEditor
+            :model-value="form.personality_traits"
+            min-height="4.5rem"
+            placeholder="I always have a plan…"
+            @update:model-value="form.personality_traits = $event; scheduleAutoSave()"
+          />
         </div>
         <div>
           <label class="field-label">Ideals</label>
-          <textarea v-model="form.ideals" rows="2" class="field-input w-full resize-y"
-            placeholder="What drives you…" @input="scheduleAutoSave" />
+          <RichTextEditor
+            :model-value="form.ideals"
+            min-height="4.5rem"
+            placeholder="What drives you…"
+            @update:model-value="form.ideals = $event; scheduleAutoSave()"
+          />
         </div>
         <div>
           <label class="field-label">Bonds</label>
-          <textarea v-model="form.bonds" rows="2" class="field-input w-full resize-y"
-            placeholder="Who or what do you protect…" @input="scheduleAutoSave" />
+          <RichTextEditor
+            :model-value="form.bonds"
+            min-height="4.5rem"
+            placeholder="Who or what do you protect…"
+            @update:model-value="form.bonds = $event; scheduleAutoSave()"
+          />
         </div>
         <div>
           <label class="field-label">Flaws</label>
-          <textarea v-model="form.flaws" rows="2" class="field-input w-full resize-y"
-            placeholder="Your weakness or vice…" @input="scheduleAutoSave" />
+          <RichTextEditor
+            :model-value="form.flaws"
+            min-height="4.5rem"
+            placeholder="Your weakness or vice…"
+            @update:model-value="form.flaws = $event; scheduleAutoSave()"
+          />
         </div>
       </div>
       <div v-else-if="hasPersonality" class="p-4 space-y-3">
@@ -135,19 +157,19 @@
         </div>
         <div v-if="member.personality_traits" class="space-y-0.5">
           <p class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">TRAITS</p>
-          <p class="font-fell text-sm text-foreground whitespace-pre-wrap">{{ member.personality_traits }}</p>
+          <RichTextViewer :content="member.personality_traits" class="font-fell text-sm text-foreground" />
         </div>
         <div v-if="member.ideals" class="space-y-0.5">
           <p class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">IDEALS</p>
-          <p class="font-fell text-sm text-foreground whitespace-pre-wrap">{{ member.ideals }}</p>
+          <RichTextViewer :content="member.ideals" class="font-fell text-sm text-foreground" />
         </div>
         <div v-if="member.bonds" class="space-y-0.5">
           <p class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">BONDS</p>
-          <p class="font-fell text-sm text-foreground whitespace-pre-wrap">{{ member.bonds }}</p>
+          <RichTextViewer :content="member.bonds" class="font-fell text-sm text-foreground" />
         </div>
         <div v-if="member.flaws" class="space-y-0.5">
           <p class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">FLAWS</p>
-          <p class="font-fell text-sm text-foreground whitespace-pre-wrap">{{ member.flaws }}</p>
+          <RichTextViewer :content="member.flaws" class="font-fell text-sm text-foreground" />
         </div>
       </div>
       <div v-else class="px-4 py-3">

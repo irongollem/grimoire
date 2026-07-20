@@ -17,11 +17,13 @@
           class="spawn-combobox"
         />
         <div class="spawn-controls">
-          <div class="spawn-field">
+          <div class="spawn-field spawn-faction-field">
             <label class="spawn-label">Faction</label>
-            <select v-model="factionId" class="spawn-select">
-              <option v-for="f in store.factions" :key="f.id" :value="f.id">{{ f.name }}</option>
-            </select>
+            <EntityCombobox
+              v-model="factionId"
+              :options="factionOptions"
+              placeholder="Faction…"
+            />
           </div>
           <div class="spawn-field">
             <label class="spawn-label">Count</label>
@@ -46,6 +48,10 @@ const tab = ref<"monster" | "npc">("monster");
 const entityId = ref("");
 const factionId = ref("enemy");
 const count = ref(1);
+
+const factionOptions = computed(() =>
+  store.factions.map((f) => ({ id: f.id, name: f.name })),
+);
 
 const monsterOptions = computed(() =>
   (store.availableMonsters ?? []).map((m) => ({ id: m.id, name: m.name })),
@@ -166,16 +172,8 @@ function handleAdd() {
   white-space: nowrap;
 }
 
-.spawn-select {
-  background: theme(colors.muted / 30%);
-  border: 1px solid theme(colors.border / 100%);
-  border-radius: 4px;
-  padding: 0.2rem 0.375rem;
-  font-family: var(--font-fell, serif);
-  font-size: 11px;
-  color: theme(colors.foreground / 100%);
-  outline: none;
-  min-width: 100px;
+.spawn-faction-field {
+  min-width: 160px;
 }
 
 .spawn-count-input {

@@ -46,7 +46,7 @@
           class="group flex items-center gap-3 rounded-lg border border-border bg-card hover:border-primary/50 transition-colors p-4"
         >
           <div class="shrink-0 h-12 w-12 rounded-lg border border-border bg-muted overflow-hidden flex items-center justify-center">
-            <img v-if="pantheon.emblem_url" :src="pantheon.emblem_url" alt="" class="w-full h-full object-cover" />
+            <FocalImage v-if="pantheon.emblem_url" :src="pantheon.emblem_url" alt="" format="square" />
             <IconFire v-else class="h-5 w-5 text-muted-foreground/40" />
           </div>
 
@@ -87,6 +87,7 @@ import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
+import FocalImage from "@/components/common/FocalImage.vue";
 import { useCreateGate } from "@/composables/useCreateGate";
 import { useUiStore } from "@/stores/ui";
 
