@@ -21,7 +21,9 @@
           @change="emit('update:newClassName', ($event.target as HTMLSelectElement).value)"
         >
           <option value="" disabled>Select…</option>
-          <option v-for="name in newClassCandidates" :key="name" :value="name">{{ name }}</option>
+          <option v-for="candidate in newClassCandidates" :key="candidate.key" :value="candidate.key">
+            {{ candidate.label }}
+          </option>
         </select>
       </div>
 
@@ -70,7 +72,7 @@ const {
   modelValue: string;
   newClassName: string;
   existingClassOptions: CharacterClass[];
-  newClassCandidates: string[];
+  newClassCandidates: { key: string; label: string }[];
   prereq: { ok: true } | { ok: false; reason: string };
   ignorePrereqs: boolean;
   proficiencyGrants: string[];

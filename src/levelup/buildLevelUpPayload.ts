@@ -32,13 +32,16 @@ export type ClassOp =
   | {
       op: "add";
       class_name: string;
+      class_definition_id?: string | null;
+      class_definition_kind?: "system" | "custom" | null;
       subclass_name: string | null;
+      subclass_definition_id?: string | null;
       levels: number;
       is_primary: boolean;
       hit_dice_used: number;
       sort_order: number;
     }
-  | { op: "update"; id: string; levels: number; subclass_name?: string | null };
+  | { op: "update"; id: string; levels: number; subclass_name?: string | null; subclass_definition_id?: string | null };
 
 export interface LevelUpPayload {
   /** party_members column updates (only present keys are applied by the RPC). */
@@ -73,11 +76,14 @@ export interface BuildLevelUpPayloadInput {
   asiSecondary: AbilityKey | "";
   featId: string;
   subclassInput: string;
+  subclassDefinitionId?: string | null;
   stepValues: Record<string, string>;
   stepMultiValues: Record<string, string[]>;
   selectedSpellIds: Set<string>;
   selectedCantripIds: Set<string>;
   newClassName: string;
+  newClassDefinitionId?: string | null;
+  newClassDefinitionKind?: "system" | "custom" | null;
   /** Spell ids the leveled subclass grants (always prepared) at this level. */
   grantedSpellsForThisLevel: string[];
   /** All spell ids the character already has — granted spells skip these. */
@@ -91,8 +97,9 @@ export function buildLevelUpPayload(input: BuildLevelUpPayloadInput): LevelUpPay
     classDefs, levelInChosenClass, classSteps, isAddingNewClass,
     newClassProficiencyGrants, memberClass, chosenExistingEntry, existingClassOptions,
     asiMode, asiPrimary, asiSecondary, featId,
-    subclassInput, stepValues, stepMultiValues,
+    subclassInput, subclassDefinitionId, stepValues, stepMultiValues,
     selectedSpellIds, selectedCantripIds, newClassName,
+    newClassDefinitionId, newClassDefinitionKind,
     grantedSpellsForThisLevel, existingSpellIds,
   } = input;
 
@@ -243,7 +250,10 @@ export function buildLevelUpPayload(input: BuildLevelUpPayloadInput): LevelUpPay
     classOp = {
       op: "add",
       class_name: newClassName,
+      class_definition_id: newClassDefinitionId ?? null,
+      class_definition_kind: newClassDefinitionKind ?? null,
       subclass_name: null,
+      subclass_definition_id: null,
       levels: 1,
       is_primary: existingClassOptions.length === 0,
       hit_dice_used: 0,
@@ -254,7 +264,10 @@ export function buildLevelUpPayload(input: BuildLevelUpPayloadInput): LevelUpPay
       op: "update",
       id: chosenExistingEntry.id,
       levels: chosenExistingEntry.levels + 1,
-      ...(needsSubclassChoice && subclass ? { subclass_name: subclass } : {}),
+      ...(needsSubclassChoice && subclass ? {
+        subclass_name: subclass,
+        subclass_definition_id: subclassDefinitionId ?? null,
+      } : {}),
     };
   } else if (existingClassOptions.length === 0 && memberClass) {
     // DM-built character levelling up with no character_classes rows yet —
@@ -266,6 +279,7 @@ export function buildLevelUpPayload(input: BuildLevelUpPayloadInput): LevelUpPay
       op: "add",
       class_name: memberClass,
       subclass_name: needsSubclassChoice && subclass ? subclass : member.subclass,
+      subclass_definition_id: needsSubclassChoice ? (subclassDefinitionId ?? null) : null,
       levels: levelInChosenClass,
       is_primary: true,
       hit_dice_used: 0,

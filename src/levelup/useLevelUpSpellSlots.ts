@@ -1,14 +1,20 @@
 import { computed } from "vue";
 import type { ComputedRef, Ref } from "vue";
 import { getMulticlassSpellSlots } from "@/types/spell.types";
+import type { CasterType } from "@/types/spell.types";
 import type { SpellSlotEntry } from "@/types/party.types";
 import type { RulesetKey } from "@/types/ruleset.types";
-import { getSpellPreparationPolicy } from "@/lib/spellPreparationPolicy";
+import {
+  getSpellPreparationPolicy,
+  levelUpSpellChoiceCount,
+  type SpellDefinitionKind,
+} from "@/lib/spellPreparationPolicy";
 
 interface ClassDataRef {
   spell_slots?: number[][] | null;
   spells_known?: number[] | null;
   cantrips_known?: number[] | null;
+  caster_type?: CasterType | null;
 }
 
 interface ClassEntry {
@@ -23,21 +29,37 @@ export function useLevelUpSpellSlots(opts: {
   levelInChosenClass: ComputedRef<number>;
   memberClassEntries: ComputedRef<ClassEntry[]>;
   isAddingNewClass: ComputedRef<boolean>;
-  newClassName: Ref<string>;
+  newClassName: Readonly<Ref<string>>;
   chosenExistingEntry: ComputedRef<ClassEntry | null>;
   ruleset: ComputedRef<RulesetKey>;
+  /**
+   * Whether the pinned class definition for this level-up is the official
+   * system class or a campaign's custom class. Only "system" may use the
+   * 2024 policy tables / Wizard spellbook special-case — see
+   * levelUpSpellChoiceCount for why. Defaults to "system" to match the
+   * server's coalesce(p_definition_kind, 'system').
+   */
+  definitionKind?: ComputedRef<SpellDefinitionKind>;
 }) {
   const {
     customClass, systemClass, levelInChosenClass,
     memberClassEntries, isAddingNewClass, newClassName, chosenExistingEntry, ruleset,
   } = opts;
+  const definitionKind = opts.definitionKind ?? computed<SpellDefinitionKind>(() => "system");
 
   const prevLevelInChosenClass = computed(() => Math.max(0, levelInChosenClass.value - 1));
   const chosenClassName = computed(() =>
     chosenExistingEntry.value?.class_name ?? newClassName.value,
   );
+  const chosenCasterType = computed<CasterType | null>(() =>
+    customClass.value?.caster_type ?? systemClass.value?.caster_type ?? null,
+  );
+  // Only a "system" definition may use the 2024 policy tables — a "custom"
+  // definition (even one sharing an official class's name) always falls back
+  // to its own spells_known/cantrips_known progression. Mirrors
+  // required_level_up_spell_choices (migration 20260720000026).
   const revisedPolicy = computed(() =>
-    getSpellPreparationPolicy(chosenClassName.value, ruleset.value),
+    definitionKind.value === "system" ? getSpellPreparationPolicy(chosenClassName.value, ruleset.value) : null,
   );
 
   function dbSlots(level: number): SpellSlotEntry[] {
@@ -101,17 +123,20 @@ export function useLevelUpSpellSlots(opts: {
   });
 
   const spellsKnownGain = computed(() => {
-    const policyTable = revisedPolicy.value?.casterType === "prepared"
-      ? revisedPolicy.value.prepared
-      : null;
-    const table = policyTable ?? customClass.value?.spells_known ?? systemClass.value?.spells_known;
-    if (!table) return 0;
-    const cur  = table[levelInChosenClass.value - 1] ?? 0;
-    const prev = table[prevLevelInChosenClass.value - 1] ?? 0;
-    return Math.max(0, cur - prev);
+    return levelUpSpellChoiceCount(
+      chosenClassName.value,
+      ruleset.value,
+      levelInChosenClass.value,
+      customClass.value?.spells_known ?? systemClass.value?.spells_known,
+      definitionKind.value,
+      chosenCasterType.value,
+    );
   });
 
   const spellsKnownTotal = computed(() => {
+    if (chosenClassName.value === "Wizard" && definitionKind.value === "system") {
+      return levelInChosenClass.value <= 0 ? 0 : 6 + (levelInChosenClass.value - 1) * 2;
+    }
     const policyTable = revisedPolicy.value?.casterType === "prepared"
       ? revisedPolicy.value.prepared
       : null;

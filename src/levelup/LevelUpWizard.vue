@@ -30,7 +30,7 @@
       <!-- Class picker -->
       <LevelUpClassPicker
         v-model="chosenClassSelector"
-        v-model:new-class-name="newClassName"
+        v-model:new-class-name="newClassChoiceKey"
         :existing-class-options="existingClassOptions"
         :new-class-candidates="newClassCandidates"
         :prereq="newClassPrereq"
@@ -89,6 +89,7 @@
       <LevelUpSubclassPicker
         v-if="needsSubclassChoice"
         v-model="subclassInput"
+        v-model:selected-id="subclassDefinitionId"
         :next-level="nextLevel"
         :class-name="memberClass"
         :subclass-options="subclassOptions"
@@ -163,8 +164,8 @@ import LevelUpSubclassPicker from "./LevelUpSubclassPicker.vue";
 import LevelUpSpellPicker from "./LevelUpSpellPicker.vue";
 import LevelUpClassSteps from "./LevelUpClassSteps.vue";
 import { useLevelUpConfirm } from "./useLevelUpConfirm";
-import { useAllCustomSubclasses, useCustomSubclassByClassAndSubclass } from "@/composables/useCustomSubclasses";
-import { useCustomClassByName, useAllSystemClasses, useAllCustomClasses } from "@/composables/useCustomClasses";
+import { useAllCustomSubclasses } from "@/composables/useCustomSubclasses";
+import { useAllSystemClasses, useAllCustomClasses } from "@/composables/useCustomClasses";
 import {
   useCharacterClasses,
   useMulticlassPrereqs,
@@ -174,6 +175,7 @@ import { meetsMulticlassPrereq } from "@/types/multiclass.types";
 import type { CharacterClass } from "@/types/multiclass.types";
 import { getHitDie } from "@/types/spell.types";
 import { useLevelUpSpellSlots } from "./useLevelUpSpellSlots";
+import { useClassScopedReset } from "./useClassScopedReset";
 import type { DieSize } from "@/lib/dice";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { useAllFeatures } from "@/composables/useFeatures";
@@ -207,7 +209,7 @@ const existingClassOptions = computed(() => memberClassEntries.value);
 const chosenClassSelector = ref<string>("");
 
 /** When adding a new class, which class is being taken. */
-const newClassName = ref<string>("");
+const newClassChoiceKey = ref<string>("");
 
 // Seed the picker on mount / when member classes load. Must be a watch — a
 // lazy computed that is never read in the template would never run, leaving
@@ -224,6 +226,18 @@ watch(
 );
 
 const isAddingNewClass = computed(() => chosenClassSelector.value === "__new__");
+
+const newClassDefinition = computed(() => {
+  const [kind, id] = newClassChoiceKey.value.split(":");
+  if (kind === "system") return (allSystemClasses.value ?? []).find(c => c.id === id)
+    ? { kind: "system" as const, value: (allSystemClasses.value ?? []).find(c => c.id === id)! } : null;
+  if (kind === "custom") return (allCustomClasses.value ?? []).find(c => c.id === id)
+    ? { kind: "custom" as const, value: (allCustomClasses.value ?? []).find(c => c.id === id)! } : null;
+  return null;
+});
+const newClassName = computed(() => newClassDefinition.value?.value.class_name ?? "");
+const newClassDefinitionId = computed(() => newClassDefinition.value?.value.id ?? null);
+const newClassDefinitionKind = computed(() => newClassDefinition.value?.kind ?? null);
 
 const chosenExistingEntry = computed<CharacterClass | null>(() => {
   if (isAddingNewClass.value) return null;
@@ -251,24 +265,44 @@ const levelInChosenClass = computed(() => {
   return 1;
 });
 
-const { data: customSubclass } = useCustomSubclassByClassAndSubclass(memberClass, memberSubclass);
-const { data: customClass }    = useCustomClassByName(memberClass);
-const systemClass = computed(() => (allSystemClasses.value ?? []).find(c => c.class_name === memberClass.value));
+const exactClassDefinition = computed(() => {
+  if (isAddingNewClass.value) return newClassDefinition.value;
+  const entry = chosenExistingEntry.value;
+  if (entry?.class_definition_kind === "system" && entry.class_definition_id) {
+    const value = (allSystemClasses.value ?? []).find(c => c.id === entry.class_definition_id);
+    if (value) return { kind: "system" as const, value };
+  }
+  if (entry?.class_definition_kind === "custom" && entry.class_definition_id) {
+    const value = (allCustomClasses.value ?? []).find(c => c.id === entry.class_definition_id);
+    if (value) return { kind: "custom" as const, value };
+  }
+  return null;
+});
+const customClass = computed(() => exactClassDefinition.value
+  ? (exactClassDefinition.value.kind === "custom" ? exactClassDefinition.value.value : null)
+  : (allCustomClasses.value ?? []).find(c => c.class_name === memberClass.value));
+const systemClass = computed(() => exactClassDefinition.value
+  ? (exactClassDefinition.value.kind === "system" ? exactClassDefinition.value.value : undefined)
+  : (allSystemClasses.value ?? []).find(c => c.class_name === memberClass.value));
 const { data: allFeatures }   = useAllFeatures();
 const { data: allCustomSubclasses } = useAllCustomSubclasses();
-const customSubclassNamesForClass = computed<string[]>(() =>
-  (allCustomSubclasses.value ?? [])
-    .filter(cs => cs.class_name === memberClass.value)
-    .map(cs => cs.subclass_name),
-);
+const subclassDefinitionId = ref("");
+const customSubclass = computed(() => {
+  const id = subclassDefinitionId.value || chosenExistingEntry.value?.subclass_definition_id;
+  if (id) return (allCustomSubclasses.value ?? []).find(subclass => subclass.id === id) ?? null;
+  return (allCustomSubclasses.value ?? []).find(subclass =>
+    subclass.class_name === memberClass.value && subclass.subclass_name === memberSubclass.value) ?? null;
+});
 
 // Classes the character doesn't already have — candidates for a new level.
-const newClassCandidates = computed<string[]>(() => {
+const newClassCandidates = computed(() => {
   const existing = new Set(existingClassOptions.value.map(c => c.class_name));
-  const custom = (allCustomClasses.value ?? []).map(c => c.class_name);
-  const system = (allSystemClasses.value ?? []).map(c => c.class_name);
-  const all = Array.from(new Set([...custom, ...system]));
-  return all.filter(name => !existing.has(name)).sort();
+  return [
+    ...(allSystemClasses.value ?? []).map(c => ({ key: `system:${c.id}`, className: c.class_name, label: `${c.class_name} — Official` })),
+    ...(allCustomClasses.value ?? []).map(c => ({ key: `custom:${c.id}`, className: c.class_name,
+      label: `${c.class_name} — ${c.source_document_key ? "Imported" : "Custom"}${c.source_revision ? ` (${c.source_revision})` : ""}` })),
+  ].filter(candidate => !existing.has(candidate.className))
+    .sort((a, b) => a.label.localeCompare(b.label));
 });
 
 const { data: campaignRulesData } = useOptionalRules();
@@ -364,7 +398,13 @@ const needsSubclassChoice = computed(() => {
   return false;
 });
 
-const subclassOptions = computed(() => customSubclassNamesForClass.value);
+const subclassOptions = computed(() => (allCustomSubclasses.value ?? [])
+  .filter(subclass => subclass.class_name === memberClass.value)
+  .map(subclass => ({
+    id: subclass.id,
+    name: subclass.subclass_name,
+    label: `${subclass.subclass_name} — ${subclass.source_document_key ? "Imported" : "Custom"}${subclass.source_revision ? ` (${subclass.source_revision})` : ""}`,
+  })));
 
 // ── Spell slot computation (multiclass-aware) ──────────────────────────────────
 const {
@@ -385,6 +425,11 @@ const {
   newClassName,
   chosenExistingEntry,
   ruleset,
+  // "system" default matches the server's coalesce(p_definition_kind,
+  // 'system') — see spellPreparationPolicy.ts. Only an exactly-pinned
+  // definition may claim "custom", so a custom class sharing an official
+  // name never borrows the official policy table.
+  definitionKind: computed(() => exactClassDefinition.value?.kind ?? "system"),
 });
 
 const wizardExpandedFeatures = ref(new Set<string>());
@@ -543,6 +588,18 @@ function toggleCantrip(id: string) {
   }
 }
 
+// Reset every per-class selection (subclass pin, spell/cantrip picks, class
+// steps) whenever the chosen class changes — otherwise a stale
+// subclassDefinitionId from the previous class can travel alongside the new
+// class's subclass name, and the server's class-name-mismatch trigger
+// (migration 20260720000030) rejects the level-up.
+const classIdentityKey = computed(() =>
+  isAddingNewClass.value ? `new:${newClassChoiceKey.value}` : `existing:${chosenClassSelector.value}`,
+);
+useClassScopedReset(classIdentityKey, {
+  subclassDefinitionId, subclassInput, selectedSpellIds, selectedCantripIds, stepValues, stepMultiValues,
+});
+
 // ── Validation ─────────────────────────────────────────────────────────────────
 const canConfirm = computed(() => {
   if (nextLevel.value > 20) return false;
@@ -564,6 +621,8 @@ const canConfirm = computed(() => {
       if (!stepValues.value[step.key]) return false;
     }
   }
+  if (selectedSpellIds.value.size !== spellsKnownGain.value) return false;
+  if (selectedCantripIds.value.size !== cantripsKnownGain.value) return false;
   return true;
 });
 
@@ -577,9 +636,11 @@ const grantedSpellsForThisLevel = computed<string[]>(() => {
       ? subclassInput.value.trim()
       : memberSubclass.value;
   if (!effectiveSubclass) return [];
-  const sub = (allCustomSubclasses.value ?? []).find(
-    (cs) => cs.class_name === memberClass.value && cs.subclass_name === effectiveSubclass,
-  );
+  const sub = customSubclass.value?.subclass_name === effectiveSubclass
+    ? customSubclass.value
+    : (allCustomSubclasses.value ?? []).find(
+      (cs) => cs.class_name === memberClass.value && cs.subclass_name === effectiveSubclass,
+    );
   return sub?.granted_spells?.[String(levelInChosenClass.value)] ?? [];
 });
 
@@ -609,11 +670,14 @@ const { confirm, error, isPending } = useLevelUpConfirm({
   asiSecondary,
   featId,
   subclassInput,
+  subclassDefinitionId: computed(() => subclassDefinitionId.value || null),
   stepValues,
   stepMultiValues,
   selectedSpellIds,
   selectedCantripIds,
   newClassName,
+  newClassDefinitionId,
+  newClassDefinitionKind,
   grantedSpellsForThisLevel,
   existingSpellIds: alreadyKnownIds,
 });

@@ -83,6 +83,9 @@ describe("buildLevelUpPayload", () => {
     expect(classOp).toEqual({
       op: "add",
       class_name: "Wizard",
+      class_definition_id: null,
+      class_definition_kind: null,
+      subclass_definition_id: null,
       subclass_name: null,
       levels: 1,
       is_primary: false,

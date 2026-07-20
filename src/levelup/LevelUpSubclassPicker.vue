@@ -5,12 +5,12 @@
     </p>
     <select
       v-if="subclassOptions.length > 0"
-      :value="modelValue"
+      :value="selectedId"
       class="w-full rounded border border-border bg-muted/40 px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-      @change="emit('update:modelValue', ($event.target as HTMLSelectElement).value)"
+      @change="selectSubclass(($event.target as HTMLSelectElement).value)"
     >
       <option value="" disabled>Select subclass…</option>
-      <option v-for="sc in subclassOptions" :key="sc" :value="sc">{{ sc }}</option>
+      <option v-for="sc in subclassOptions" :key="sc.id" :value="sc.id">{{ sc.label }}</option>
     </select>
     <input
       v-else
@@ -26,14 +26,21 @@
 <script setup lang="ts">
 import WizardStepCard from "@/components/common/WizardStepCard.vue";
 
-const { modelValue, nextLevel, className, subclassOptions } = defineProps<{
+const props = defineProps<{
   modelValue: string;
+  selectedId: string;
   nextLevel: number;
   className: string;
-  subclassOptions: string[];
+  subclassOptions: { id: string; name: string; label: string }[];
 }>();
 
 const emit = defineEmits<{
   "update:modelValue": [value: string];
+  "update:selectedId": [value: string];
 }>();
+
+function selectSubclass(id: string) {
+  emit("update:selectedId", id);
+  emit("update:modelValue", props.subclassOptions.find(option => option.id === id)?.name ?? "");
+}
 </script>

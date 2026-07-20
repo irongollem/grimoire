@@ -37,11 +37,14 @@ export interface ConfirmOptions {
   asiSecondary: Ref<AbilityKey | "">;
   featId: Ref<string>;
   subclassInput: Ref<string>;
+  subclassDefinitionId: ComputedRef<string | null>;
   stepValues: Ref<Record<string, string>>;
   stepMultiValues: Ref<Record<string, string[]>>;
   selectedSpellIds: Ref<Set<string>>;
   selectedCantripIds: Ref<Set<string>>;
-  newClassName: Ref<string>;
+  newClassName: Readonly<Ref<string>>;
+  newClassDefinitionId: ComputedRef<string | null>;
+  newClassDefinitionKind: ComputedRef<"system" | "custom" | null>;
   /** Spell ids granted (always prepared) by the leveled subclass at this level. */
   grantedSpellsForThisLevel: ComputedRef<string[]>;
   /** All spell ids the character already has — granted spells skip these. */
@@ -65,8 +68,9 @@ export function useLevelUpConfirm(opts: ConfirmOptions) {
       newClassProficiencyGrants, memberClass, chosenExistingEntry,
       existingClassOptions,
       asiMode, asiPrimary, asiSecondary, featId,
-      subclassInput, stepValues, stepMultiValues,
+      subclassInput, subclassDefinitionId, stepValues, stepMultiValues,
       selectedSpellIds, selectedCantripIds, newClassName,
+      newClassDefinitionId, newClassDefinitionKind,
       grantedSpellsForThisLevel, existingSpellIds,
     } = opts;
 
@@ -103,11 +107,14 @@ export function useLevelUpConfirm(opts: ConfirmOptions) {
       asiSecondary: asiSecondary.value,
       featId: featId.value,
       subclassInput: subclassInput.value,
+      subclassDefinitionId: subclassDefinitionId.value,
       stepValues: stepValues.value,
       stepMultiValues: stepMultiValues.value,
       selectedSpellIds: selectedSpellIds.value,
       selectedCantripIds: selectedCantripIds.value,
       newClassName: newClassName.value,
+      newClassDefinitionId: newClassDefinitionId.value,
+      newClassDefinitionKind: newClassDefinitionKind.value,
       grantedSpellsForThisLevel: grantedSpellsForThisLevel.value,
       existingSpellIds: existingSpellIds.value,
     });
