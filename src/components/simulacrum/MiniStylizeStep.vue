@@ -29,7 +29,7 @@
       <!-- Art direction is available BEFORE the first (paid) roll too — many
            source portraits carry very specific poses the mini shouldn't keep. -->
       <label class="block">
-        <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Art direction (optional)</span>
+        <span class="text-eyebrow font-semibold text-muted-foreground">Art direction (optional)</span>
         <input
           v-model="instructions"
           type="text"

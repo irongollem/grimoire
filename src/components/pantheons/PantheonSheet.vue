@@ -24,7 +24,7 @@
 
       <!-- Deity members -->
       <div v-if="memberDeities.length">
-        <p class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase mb-2">Deities</p>
+        <p class="text-eyebrow font-semibold text-muted-foreground mb-2">Deities</p>
         <div class="flex flex-col gap-1">
           <RouterLink
             v-for="d in memberDeities"
@@ -40,7 +40,7 @@
 
       <!-- Tags -->
       <div v-if="pantheon.tags?.length">
-        <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Tags</span>
+        <span class="text-eyebrow font-semibold text-muted-foreground">Tags</span>
         <div class="flex flex-wrap gap-1 mt-1">
           <span
             v-for="tag in pantheon.tags"

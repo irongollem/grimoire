@@ -123,7 +123,7 @@
         <template v-else>
           <div class="grid grid-cols-1 md:grid-cols-[1fr_8.75rem] gap-3">
             <div class="space-y-1.5">
-              <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Name</label>
+              <label class="text-eyebrow font-semibold text-muted-foreground">Name</label>
               <input
                 v-model="form.name"
                 required
@@ -132,7 +132,7 @@
               />
             </div>
             <div class="space-y-1.5">
-              <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Die</label>
+              <label class="text-eyebrow font-semibold text-muted-foreground">Die</label>
               <select
                 v-model="form.dice"
                 class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -144,7 +144,7 @@
           </div>
 
           <div class="space-y-1.5">
-            <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Description</label>
+            <label class="text-eyebrow font-semibold text-muted-foreground">Description</label>
             <textarea
               v-model="form.description"
               rows="2"
@@ -237,12 +237,12 @@
           </div>
 
           <div class="space-y-1.5">
-            <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Tags</label>
+            <label class="text-eyebrow font-semibold text-muted-foreground">Tags</label>
             <TagInput v-model="form.tags" />
           </div>
 
           <div class="space-y-1.5">
-            <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">DM Notes</label>
+            <label class="text-eyebrow font-semibold text-muted-foreground">DM Notes</label>
             <textarea
               v-model="form.notes"
               rows="3"
@@ -270,7 +270,7 @@
 
           <div v-if="lastRoll" class="rounded-md border border-border bg-muted/40 p-3 flex flex-col gap-1.5">
             <div class="flex items-center justify-between">
-              <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Result</span>
+              <span class="text-eyebrow font-semibold text-muted-foreground">Result</span>
               <span class="font-cinzel text-2xl font-bold text-primary">{{ lastRoll.rolled }}</span>
             </div>
             <template v-if="lastRoll.entry">

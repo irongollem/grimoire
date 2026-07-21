@@ -109,7 +109,7 @@
         </p>
 
         <button type="button"
-          class="mt-1 inline-flex items-center justify-center gap-1.5 px-2 py-1.5 rounded border border-destructive/40 font-cinzel text-2xs font-semibold tracking-wider uppercase text-destructive hover:bg-destructive/10 transition-colors"
+          class="mt-1 inline-flex items-center justify-center gap-1.5 px-2 py-1.5 rounded border border-destructive/40 text-eyebrow font-semibold text-destructive hover:bg-destructive/10 transition-colors"
           @click="$emit('delete', item.id)">
           <IconDelete class="h-3 w-3" /> Remove decoration
         </button>

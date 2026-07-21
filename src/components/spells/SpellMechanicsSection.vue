@@ -9,7 +9,7 @@
     <!-- Attack / targeting type -->
     <div class="grid grid-cols-2 gap-3">
       <label class="flex flex-col gap-1">
-        <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase"
+        <span class="text-eyebrow text-muted-foreground"
           >Attack / Targeting</span
         >
         <select
@@ -27,7 +27,7 @@
       <!-- Save attribute + effect (only for saving throw) -->
       <template v-if="attackType === 'save'">
         <label class="flex flex-col gap-1">
-          <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase"
+          <span class="text-eyebrow text-muted-foreground"
             >Save Attribute</span
           >
           <select
@@ -40,7 +40,7 @@
           </select>
         </label>
         <label class="flex flex-col gap-1 col-span-2">
-          <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase"
+          <span class="text-eyebrow text-muted-foreground"
             >Effect on Successful Save</span
           >
           <select
@@ -59,7 +59,7 @@
 
     <!-- Damage rolls -->
     <div class="flex flex-col gap-1">
-      <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase"
+      <span class="text-eyebrow text-muted-foreground"
         >Damage</span
       >
       <DamageRollsInput :model-value="damageRolls" :school="school" @update:model-value="$emit('update:damageRolls', $event)" />
@@ -67,7 +67,7 @@
 
     <!-- Healing -->
     <label class="flex flex-col gap-1">
-      <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase"
+      <span class="text-eyebrow text-muted-foreground"
         >Healing Dice
         <span class="normal-case font-fell font-normal">(if applicable)</span></span
       >
@@ -81,7 +81,7 @@
 
     <!-- Target description -->
     <label class="flex flex-col gap-1">
-      <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase"
+      <span class="text-eyebrow text-muted-foreground"
         >Target Description
         <span class="normal-case font-fell font-normal">(what does it hit?)</span></span
       >
@@ -96,7 +96,7 @@
     <!-- AoE -->
     <div class="grid grid-cols-2 gap-3">
       <label class="flex flex-col gap-1">
-        <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase"
+        <span class="text-eyebrow text-muted-foreground"
           >AoE Shape
           <span class="normal-case font-fell font-normal">(if applicable)</span></span
         >
@@ -112,7 +112,7 @@
         </select>
       </label>
       <label class="flex flex-col gap-1">
-        <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase"
+        <span class="text-eyebrow text-muted-foreground"
           >AoE Size</span
         >
         <input
@@ -126,7 +126,7 @@
 
     <!-- Condition inflicted -->
     <label class="flex flex-col gap-1">
-      <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase"
+      <span class="text-eyebrow text-muted-foreground"
         >Condition Inflicted
         <span class="normal-case font-fell font-normal">(optional)</span></span
       >

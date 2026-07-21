@@ -36,7 +36,7 @@
 
       <!-- Falloff curve pills -->
       <div class="flex items-center gap-1.5">
-        <span class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase mr-1">Falloff</span>
+        <span class="text-eyebrow text-muted-foreground mr-1">Falloff</span>
         <button
           v-for="curve in (['linear', 'quadratic', 'cubic'] as FalloffCurve[])"
           :key="curve"
@@ -52,7 +52,7 @@
       <!-- Focus radius -->
       <div>
         <div class="flex items-center justify-between mb-1">
-          <label class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase">Focus radius</label>
+          <label class="text-eyebrow text-muted-foreground">Focus radius</label>
           <span class="font-fell text-xs text-muted-foreground tabular-nums">{{ Math.round(dof.focusRadius * 100) }}</span>
         </div>
         <input
@@ -66,7 +66,7 @@
       <!-- Blur strength -->
       <div>
         <div class="flex items-center justify-between mb-1">
-          <label class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase">Blur</label>
+          <label class="text-eyebrow text-muted-foreground">Blur</label>
           <span class="font-fell text-xs text-muted-foreground tabular-nums">{{ Math.round(dof.blurStrength * 100) }}</span>
         </div>
         <input
@@ -80,7 +80,7 @@
       <!-- Desaturation -->
       <div>
         <div class="flex items-center justify-between mb-1">
-          <label class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase">Desaturation</label>
+          <label class="text-eyebrow text-muted-foreground">Desaturation</label>
           <span class="font-fell text-xs text-muted-foreground tabular-nums">{{ Math.round(dof.desaturation * 100) }}</span>
         </div>
         <input

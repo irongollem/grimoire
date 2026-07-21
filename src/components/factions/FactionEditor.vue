@@ -52,7 +52,7 @@
 
       <!-- Type -->
       <div class="space-y-1.5">
-        <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Type</label>
+        <label class="text-eyebrow font-semibold text-muted-foreground">Type</label>
         <EntityCombobox
           v-model="factionTypeStr"
           :options="FACTION_TYPE_OPTIONS"
@@ -62,7 +62,7 @@
 
       <!-- Alignment -->
       <div class="space-y-1.5">
-        <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Alignment</label>
+        <label class="text-eyebrow font-semibold text-muted-foreground">Alignment</label>
         <EntityCombobox
           v-model="alignmentStr"
           :options="FACTION_ALIGNMENT_OPTIONS"
@@ -72,7 +72,7 @@
 
       <!-- Visibility -->
       <div class="space-y-1.5">
-        <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Visible to Players</label>
+        <label class="text-eyebrow font-semibold text-muted-foreground">Visible to Players</label>
         <PlayerVisibilityToggle
           :visible-to="form.player_visible_to"
           @update:visible-to="form.player_visible_to = $event"
@@ -81,7 +81,7 @@
 
       <!-- Tags -->
       <div class="space-y-1.5">
-        <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Tags</label>
+        <label class="text-eyebrow font-semibold text-muted-foreground">Tags</label>
         <TagInput v-model="tags" />
       </div>
     </div>
@@ -89,7 +89,7 @@
     <!-- Right: name + description -->
     <div class="flex flex-col gap-4">
       <div class="space-y-1.5">
-        <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Name</label>
+        <label class="text-eyebrow font-semibold text-muted-foreground">Name</label>
         <input
           v-model="form.name"
           placeholder="Faction name…"
@@ -98,7 +98,7 @@
         />
       </div>
       <div class="flex-1 space-y-1.5">
-        <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Description & Notes</label>
+        <label class="text-eyebrow font-semibold text-muted-foreground">Description & Notes</label>
         <RichTextEditor
           v-model="form.description"
           placeholder="History, motives, known activities…"

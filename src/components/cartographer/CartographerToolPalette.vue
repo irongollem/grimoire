@@ -1,6 +1,6 @@
 <template>
   <aside class="flex lg:flex-col flex-row gap-1 lg:w-44 shrink-0 bg-card border border-border rounded-lg p-2">
-    <h4 class="hidden lg:block font-cinzel text-2xs tracking-wider text-muted-foreground uppercase px-1 pb-1">
+    <h4 class="hidden lg:block text-eyebrow text-muted-foreground px-1 pb-1">
       Tools
     </h4>
     <button

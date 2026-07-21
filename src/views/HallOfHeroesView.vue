@@ -81,7 +81,7 @@
             </div>
 
             <span
-              class="absolute top-2 left-2 rounded-full bg-black/60 px-2 py-0.5 font-cinzel text-2xs font-semibold tracking-wider text-white uppercase backdrop-blur-sm"
+              class="absolute top-2 left-2 rounded-full bg-black/60 px-2 py-0.5 text-eyebrow font-semibold text-white backdrop-blur-sm"
             >
               {{ settingLabel(hero.setting) }}
             </span>

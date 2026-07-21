@@ -28,7 +28,7 @@
 
       <!-- Favourites pinned section -->
       <div v-if="!isFiltering && favouriteLocations.length" class="flex flex-col gap-1.5">
-        <p class="font-cinzel text-2xs md:text-sm tracking-wider text-muted-foreground uppercase">Favourites</p>
+        <p class="text-eyebrow md:text-sm text-muted-foreground">Favourites</p>
         <PlayerLocationCard
           v-for="loc in favouriteLocations"
           :key="`fav-${loc.id}`"

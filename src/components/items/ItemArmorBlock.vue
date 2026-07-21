@@ -4,7 +4,7 @@
       Defense
     </h3>
     <label class="flex flex-col gap-1">
-      <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase">Armor Class</span>
+      <span class="text-eyebrow text-muted-foreground">Armor Class</span>
       <input
         :value="armorClass"
         placeholder="e.g. 13 + DEX modifier (max 2)"

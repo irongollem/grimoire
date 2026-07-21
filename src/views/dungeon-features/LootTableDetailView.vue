@@ -114,7 +114,7 @@
 
           <!-- Linked monsters -->
           <div v-if="table.monster_ids?.length" class="flex flex-col gap-1.5">
-            <h3 class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Linked Monsters</h3>
+            <h3 class="text-eyebrow font-semibold text-muted-foreground">Linked Monsters</h3>
             <div class="flex flex-wrap gap-1.5">
               <RouterLink
                 v-for="mid in table.monster_ids"
@@ -135,7 +135,7 @@
         <template v-else>
         <div class="grid grid-cols-1 md:grid-cols-[1fr_11.25rem] gap-3">
           <div class="space-y-1.5">
-            <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Name</label>
+            <label class="text-eyebrow font-semibold text-muted-foreground">Name</label>
             <input
               v-model="form.name"
               required
@@ -144,7 +144,7 @@
             />
           </div>
           <div class="space-y-1.5">
-            <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">CR Tier</label>
+            <label class="text-eyebrow font-semibold text-muted-foreground">CR Tier</label>
             <select
               v-model="form.cr_tier"
               class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -155,7 +155,7 @@
         </div>
 
         <div class="space-y-1.5">
-          <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Description</label>
+          <label class="text-eyebrow font-semibold text-muted-foreground">Description</label>
           <textarea
             v-model="form.description"
             rows="2"
@@ -175,12 +175,12 @@
         />
 
         <div class="space-y-1.5">
-          <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Tags</label>
+          <label class="text-eyebrow font-semibold text-muted-foreground">Tags</label>
           <TagInput v-model="form.tags" />
         </div>
 
         <div class="space-y-1.5">
-          <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Linked Monsters</label>
+          <label class="text-eyebrow font-semibold text-muted-foreground">Linked Monsters</label>
           <div v-if="form.monster_ids.length" class="flex flex-wrap gap-1.5">
             <span
               v-for="mid in form.monster_ids"
@@ -202,7 +202,7 @@
         </div>
 
         <div class="space-y-1.5">
-          <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">DM Notes</label>
+          <label class="text-eyebrow font-semibold text-muted-foreground">DM Notes</label>
           <textarea
             v-model="form.notes"
             rows="3"
@@ -229,7 +229,7 @@
           </button>
 
           <div v-if="lastRoll" class="rounded-md border border-border bg-muted/40 p-3 flex flex-col gap-2">
-            <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Drops</span>
+            <span class="text-eyebrow font-semibold text-muted-foreground">Drops</span>
             <ul v-if="lastRoll.length" class="flex flex-col gap-1.5">
               <li v-for="r in lastRoll" :key="r.entry_id" class="flex items-center gap-2">
                 <template v-if="r.type === 'item'">

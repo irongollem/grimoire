@@ -50,7 +50,7 @@
         <p class="font-fell text-sm text-muted-foreground italic text-center">
           The simulacrum takes shape…
         </p>
-        <p class="font-cinzel text-2xs tracking-wider text-muted-foreground/70 uppercase">
+        <p class="text-eyebrow text-muted-foreground/70">
           {{ MINI_STATUS_LABELS[mini.status] }}
         </p>
       </div>
@@ -69,7 +69,7 @@
 
       <!-- Base & scale — free, instant swap; no Meshy re-run -->
       <div class="flex flex-col items-center gap-1.5 pt-1">
-        <p class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase">Base &amp; scale</p>
+        <p class="text-eyebrow text-muted-foreground">Base &amp; scale</p>
         <div class="flex items-center gap-2">
           <button
             v-for="base in MINI_BASES"

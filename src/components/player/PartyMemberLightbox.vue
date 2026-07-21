@@ -97,7 +97,7 @@
                 </div>
 
                 <div v-if="member.player_description">
-                  <p class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider uppercase mb-1.5">About</p>
+                  <p class="text-eyebrow md:text-sm text-muted-foreground mb-1.5">About</p>
                   <RichTextViewer :content="member.player_description" />
                 </div>
 

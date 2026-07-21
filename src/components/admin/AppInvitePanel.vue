@@ -134,7 +134,7 @@
                     </p>
                     <span
                       v-if="invite.granted_plan !== 'free'"
-                      class="px-1.5 py-0.5 rounded font-cinzel text-2xs font-semibold tracking-wider uppercase"
+                      class="px-1.5 py-0.5 rounded text-eyebrow font-semibold"
                       :class="invite.granted_plan === 'admin'
                         ? 'bg-primary/10 text-primary'
                         : 'bg-amber-500/10 text-amber-400'"

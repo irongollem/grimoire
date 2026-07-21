@@ -33,7 +33,7 @@
     <div v-if="formerMembers.length">
       <button
         type="button"
-        class="flex items-center gap-1.5 font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase hover:text-foreground transition-colors mb-1.5"
+        class="flex items-center gap-1.5 text-eyebrow font-semibold text-muted-foreground hover:text-foreground transition-colors mb-1.5"
         @click="showFormer = !showFormer"
       >
         <IconChevronDown class="h-3 w-3 transition-transform" :class="showFormer && 'rotate-180'" />

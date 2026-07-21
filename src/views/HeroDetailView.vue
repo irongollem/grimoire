@@ -51,7 +51,7 @@
           <dl class="space-y-2 text-sm">
             <div v-if="hero.race">
               <dt
-                class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase"
+                class="text-eyebrow font-semibold text-muted-foreground"
               >
                 Species
               </dt>
@@ -59,7 +59,7 @@
             </div>
             <div v-if="hero.alignment">
               <dt
-                class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase"
+                class="text-eyebrow font-semibold text-muted-foreground"
               >
                 Alignment
               </dt>
@@ -67,7 +67,7 @@
             </div>
             <div v-if="hero.occupation">
               <dt
-                class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase"
+                class="text-eyebrow font-semibold text-muted-foreground"
               >
                 Occupation
               </dt>
@@ -75,7 +75,7 @@
             </div>
             <div v-if="hero.age">
               <dt
-                class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase"
+                class="text-eyebrow font-semibold text-muted-foreground"
               >
                 Age
               </dt>
@@ -83,7 +83,7 @@
             </div>
             <div>
               <dt
-                class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase"
+                class="text-eyebrow font-semibold text-muted-foreground"
               >
                 Status
               </dt>
@@ -96,7 +96,7 @@
             </div>
             <div>
               <dt
-                class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase"
+                class="text-eyebrow font-semibold text-muted-foreground"
               >
                 Setting
               </dt>

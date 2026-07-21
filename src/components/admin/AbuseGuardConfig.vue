@@ -22,15 +22,15 @@
 
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <label class="space-y-1">
-          <span class="block font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">New-account age (days)</span>
+          <span class="block text-eyebrow font-semibold text-muted-foreground">New-account age (days)</span>
           <input v-model.number="local.young_account_days" type="number" min="0" class="w-full bg-muted border border-border rounded px-2.5 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
         </label>
         <label class="space-y-1">
-          <span class="block font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Window (hours)</span>
+          <span class="block text-eyebrow font-semibold text-muted-foreground">Window (hours)</span>
           <input v-model.number="local.window_hours" type="number" min="1" class="w-full bg-muted border border-border rounded px-2.5 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
         </label>
         <label class="space-y-1">
-          <span class="block font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Max purchased / window</span>
+          <span class="block text-eyebrow font-semibold text-muted-foreground">Max purchased / window</span>
           <input v-model.number="local.max_purchased_spend_window" type="number" min="0" class="w-full bg-muted border border-border rounded px-2.5 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
         </label>
       </div>

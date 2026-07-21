@@ -53,7 +53,7 @@
           :key="entity.type"
           class="flex flex-col gap-1.5"
         >
-          <p class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">
+          <p class="text-eyebrow font-semibold text-muted-foreground">
             {{ entity.label }}
           </p>
 

@@ -40,7 +40,7 @@
 
             <!-- 1. School → immediately shows design notes -->
             <label class="flex flex-col gap-1">
-              <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase"
+              <span class="text-eyebrow text-muted-foreground"
                 >School of Magic</span
               >
               <select
@@ -59,7 +59,7 @@
               v-if="schoolTip"
               class="rounded-md border border-border bg-muted/40 p-3 flex flex-col gap-2"
             >
-              <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase"
+              <span class="text-eyebrow text-muted-foreground"
                 >{{ schoolTip.title }} design notes</span
               >
               <ul class="space-y-1">
@@ -75,7 +75,7 @@
 
             <!-- 3. Effect type -->
             <label class="flex flex-col gap-1">
-              <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase"
+              <span class="text-eyebrow text-muted-foreground"
                 >Main Effect</span
               >
               <select
@@ -95,7 +95,7 @@
               v-if="adv.effectType !== 'damage' && adv.effectType !== 'healing'"
               class="flex flex-col gap-1"
             >
-              <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase"
+              <span class="text-eyebrow text-muted-foreground"
                 >Effect Intensity</span
               >
               <select
@@ -142,7 +142,7 @@
               v-if="adv.effectType === 'damage' || adv.effectType === 'healing'"
               class="flex flex-col gap-1"
             >
-              <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase">
+              <span class="text-eyebrow text-muted-foreground">
                 {{ adv.effectType === "damage" ? "Damage Dice" : "Healing Dice" }}
               </span>
               <DiceInput
@@ -157,7 +157,7 @@
 
             <!-- 6. Targeting -->
             <label class="flex flex-col gap-1">
-              <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase"
+              <span class="text-eyebrow text-muted-foreground"
                 >Targeting</span
               >
               <select
@@ -177,7 +177,7 @@
 
             <!-- 7. Save type -->
             <label class="flex flex-col gap-1">
-              <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase"
+              <span class="text-eyebrow text-muted-foreground"
                 >Targeting / Save</span
               >
               <select
@@ -193,7 +193,7 @@
 
             <!-- 8. Duration -->
             <label class="flex flex-col gap-1">
-              <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase"
+              <span class="text-eyebrow text-muted-foreground"
                 >Duration Tier</span
               >
               <select
@@ -247,7 +247,7 @@
               >
                 <div class="border-t border-primary/20 pt-2 flex flex-col gap-1">
                   <span
-                    class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase"
+                    class="text-eyebrow text-muted-foreground"
                     >Reference spells at this level</span
                   >
                   <p

@@ -4,12 +4,12 @@
       Weapon
     </h3>
     <div class="flex flex-col gap-1">
-      <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase">Damage</span>
+      <span class="text-eyebrow text-muted-foreground">Damage</span>
       <DamageRollsInput :model-value="damageRolls" @update:model-value="emit('update:damageRolls', $event)" />
     </div>
     <div class="grid grid-cols-2 gap-3">
       <label class="flex flex-col gap-1">
-        <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase">Versatile Damage</span>
+        <span class="text-eyebrow text-muted-foreground">Versatile Damage</span>
         <DiceExprInput
           :model-value="versatileDamage || null"
           placeholder="e.g. 1d10"
@@ -17,7 +17,7 @@
         />
       </label>
       <label class="flex flex-col gap-1">
-        <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase">Range</span>
+        <span class="text-eyebrow text-muted-foreground">Range</span>
         <input
           :value="weaponRange"
           placeholder="e.g. 80/320 ft."
@@ -27,7 +27,7 @@
       </label>
     </div>
     <div class="flex flex-col gap-2">
-      <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase">Properties</span>
+      <span class="text-eyebrow text-muted-foreground">Properties</span>
       <div class="flex flex-wrap gap-x-4 gap-y-2">
         <label
           v-for="p in WEAPON_PROPERTIES"

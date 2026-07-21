@@ -110,7 +110,7 @@
           class="rounded-lg border border-border bg-card/50 p-3 flex flex-col gap-1"
         >
           <h3
-            class="font-cinzel text-2xs font-bold tracking-wider text-muted-foreground uppercase"
+            class="text-eyebrow font-bold text-muted-foreground"
           >
             Weapon
           </h3>
@@ -140,7 +140,7 @@
           class="rounded-lg border border-border bg-card/50 p-3 flex flex-col gap-1"
         >
           <h3
-            class="font-cinzel text-2xs font-bold tracking-wider text-muted-foreground uppercase"
+            class="text-eyebrow font-bold text-muted-foreground"
           >
             Armor Class
           </h3>
@@ -153,7 +153,7 @@
           class="rounded-lg border border-border bg-card/50 p-3 flex flex-col gap-1"
         >
           <h3
-            class="font-cinzel text-2xs font-bold tracking-wider text-muted-foreground uppercase"
+            class="text-eyebrow font-bold text-muted-foreground"
           >
             {{ item.item_type === "ammunition" ? "Quantity" : "Charges" }}
           </h3>
@@ -166,7 +166,7 @@
 
         <!-- Mundane description (pre-identification) — DM only -->
         <div v-if="item.mundane_description" class="flex flex-col gap-1 rounded-lg border border-border bg-card/50 p-3">
-          <h3 class="font-cinzel text-2xs font-bold tracking-wider text-muted-foreground uppercase">
+          <h3 class="text-eyebrow font-bold text-muted-foreground">
             Mundane Description
             <span class="normal-case font-fell font-normal text-muted-foreground/60"> — shown before identification</span>
           </h3>

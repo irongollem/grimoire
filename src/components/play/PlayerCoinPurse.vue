@@ -22,7 +22,7 @@
 
       <!-- Drop form -->
       <div v-if="showCoinDrop" class="mt-3 border-t border-border pt-3">
-        <p class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider uppercase mb-2">
+        <p class="text-eyebrow md:text-sm text-muted-foreground mb-2">
           Drop to Chat
         </p>
         <div class="grid grid-cols-5 gap-1.5 mb-3">

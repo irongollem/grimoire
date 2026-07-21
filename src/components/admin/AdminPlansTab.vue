@@ -51,7 +51,7 @@
         <!-- Monthly included AI credits — configurable on every plan -->
         <div class="rounded-md bg-muted/40 border border-border p-3 space-y-1">
           <label
-            class="block font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase"
+            class="block text-eyebrow font-semibold text-muted-foreground"
           >
             Monthly Included Credits
           </label>
@@ -83,7 +83,7 @@
             class="space-y-1"
           >
             <label
-              class="block font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase"
+              class="block text-eyebrow font-semibold text-muted-foreground"
             >
               {{ LABELS[resource] }}
             </label>
@@ -104,7 +104,7 @@
             class="space-y-1"
           >
             <p
-              class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase"
+              class="text-eyebrow font-semibold text-muted-foreground"
             >
               {{ LABELS[resource] }}
             </p>
@@ -164,7 +164,7 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div class="space-y-1">
               <label
-                class="block font-cinzel text-2xs tracking-wider text-muted-foreground uppercase"
+                class="block text-eyebrow text-muted-foreground"
                 >Monthly Price ID</label
               >
               <div class="flex items-center gap-2">
@@ -194,7 +194,7 @@
             </div>
             <div class="space-y-1">
               <label
-                class="block font-cinzel text-2xs tracking-wider text-muted-foreground uppercase"
+                class="block text-eyebrow text-muted-foreground"
                 >Annual Price ID</label
               >
               <div class="flex items-center gap-2">

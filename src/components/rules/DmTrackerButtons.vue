@@ -7,7 +7,7 @@
     >
       <!-- Rule name + tracker value -->
       <div class="flex items-center justify-between">
-        <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">
+        <span class="text-eyebrow font-semibold text-muted-foreground">
           {{ entry.label }}
         </span>
         <span class="font-cinzel text-2xs text-muted-foreground">

@@ -127,7 +127,7 @@
                   {{ getEventMessage(event) }}
                 </p>
                 <p
-                  class="font-cinzel text-2xs text-amber-500/70 tracking-wider uppercase"
+                  class="text-eyebrow text-amber-500/70"
                   :class="getEventMessage(event) ? 'mt-1' : 'text-sm text-foreground'"
                 >
                   {{ event.name }}

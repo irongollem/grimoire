@@ -32,7 +32,7 @@
     >
       <!-- Mode pill buttons -->
       <div class="flex items-center gap-1.5">
-        <span class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase mr-1">Mode</span>
+        <span class="text-eyebrow text-muted-foreground mr-1">Mode</span>
         <button
           v-for="m in (['transparent', 'colour'] as VignetteMode[])"
           :key="m"
@@ -47,7 +47,7 @@
 
       <!-- Colour picker — only in colour mode -->
       <div v-if="vignette.mode === 'colour'" class="flex items-center gap-2">
-        <span class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase">Colour</span>
+        <span class="text-eyebrow text-muted-foreground">Colour</span>
         <input
           type="color"
           :value="vignette.colour"
@@ -60,7 +60,7 @@
       <!-- Strength slider -->
       <div>
         <div class="flex items-center justify-between mb-1">
-          <label class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase">Strength</label>
+          <label class="text-eyebrow text-muted-foreground">Strength</label>
           <span class="font-fell text-xs text-muted-foreground tabular-nums">{{ Math.round(vignette.strength * 100) }}</span>
         </div>
         <input
@@ -74,7 +74,7 @@
       <!-- Softness slider -->
       <div>
         <div class="flex items-center justify-between mb-1">
-          <label class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase">Softness</label>
+          <label class="text-eyebrow text-muted-foreground">Softness</label>
           <span class="font-fell text-xs text-muted-foreground tabular-nums">{{ Math.round(vignette.softness * 100) }}</span>
         </div>
         <input

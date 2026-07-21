@@ -43,7 +43,7 @@
           </span>
           <span
             v-if="subscription"
-            class="ml-1 px-2 py-0.5 rounded-full font-cinzel text-2xs font-semibold tracking-wider uppercase"
+            class="ml-1 px-2 py-0.5 rounded-full text-eyebrow font-semibold"
             :class="statusClass"
           >
             {{ subscription.status }}
@@ -80,7 +80,7 @@
           v-if="isPendingCancellation && downgradeImpact.length > 0"
           class="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 space-y-1"
         >
-          <p class="font-cinzel text-2xs font-semibold tracking-wider text-amber-400 uppercase">
+          <p class="text-eyebrow font-semibold text-amber-400">
             On cancellation
           </p>
           <ul class="space-y-0.5">
@@ -321,7 +321,7 @@
       <!-- Credit pack purchase -->
       <div class="space-y-2">
         <div class="flex items-center justify-between">
-          <p class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">
+          <p class="text-eyebrow font-semibold text-muted-foreground">
             Buy more credits
           </p>
           <div v-if="pricingCurrencies.length > 1" class="flex gap-1">

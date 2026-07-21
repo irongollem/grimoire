@@ -58,7 +58,7 @@
       <template v-if="companions?.length">
         <div class="mt-1 mb-0.5 flex items-center gap-2">
           <div class="h-px flex-1 bg-border" />
-          <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase shrink-0">Companions</span>
+          <span class="text-eyebrow text-muted-foreground shrink-0">Companions</span>
           <div class="h-px flex-1 bg-border" />
         </div>
         <label

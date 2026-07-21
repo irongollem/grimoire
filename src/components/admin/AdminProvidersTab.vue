@@ -36,7 +36,7 @@
         <!-- Platform API Key -->
         <div class="p-3 rounded-md bg-muted/40 border border-border space-y-2">
           <div class="flex items-center justify-between">
-            <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Platform API Key</span>
+            <span class="text-eyebrow font-semibold text-muted-foreground">Platform API Key</span>
             <div class="flex items-center gap-2">
               <span v-if="isKeySet(row.provider as KeyProvider)" class="font-cinzel text-2xs tracking-widest text-emerald-500 uppercase">
                 Set · {{ new Date(keyUpdatedAt(row.provider as KeyProvider)!).toLocaleDateString() }}
@@ -87,7 +87,7 @@
           <!-- Text generation -->
           <div class="space-y-2 p-3 rounded-md bg-muted/40 border border-border">
             <div class="flex items-center justify-between">
-              <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Text</span>
+              <span class="text-eyebrow font-semibold text-muted-foreground">Text</span>
               <template v-if="draftProviders[row.provider]?.text_model !== null">
                 <button
                   type="button"
@@ -101,7 +101,7 @@
                   />
                 </button>
               </template>
-              <span v-else class="font-cinzel text-2xs tracking-wider text-muted-foreground/50 uppercase">N/A</span>
+              <span v-else class="text-eyebrow text-muted-foreground/50">N/A</span>
             </div>
             <template v-if="draftProviders[row.provider]?.text_model !== null">
               <div class="space-y-1">
@@ -132,7 +132,7 @@
           <!-- Image generation -->
           <div class="space-y-2 p-3 rounded-md bg-muted/40 border border-border">
             <div class="flex items-center justify-between">
-              <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Image</span>
+              <span class="text-eyebrow font-semibold text-muted-foreground">Image</span>
               <template v-if="draftProviders[row.provider]?.image_model !== null">
                 <button
                   type="button"
@@ -146,7 +146,7 @@
                   />
                 </button>
               </template>
-              <span v-else class="font-cinzel text-2xs tracking-wider text-muted-foreground/50 uppercase">N/A</span>
+              <span v-else class="text-eyebrow text-muted-foreground/50">N/A</span>
             </div>
             <template v-if="draftProviders[row.provider]?.image_model !== null">
               <div class="space-y-1">
@@ -193,7 +193,7 @@
           <!-- Audio generation -->
           <div class="space-y-2 p-3 rounded-md bg-muted/40 border border-border">
             <div class="flex items-center justify-between">
-              <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Audio</span>
+              <span class="text-eyebrow font-semibold text-muted-foreground">Audio</span>
               <template v-if="draftProviders[row.provider]?.audio_model !== null && draftProviders[row.provider]?.audio_model !== undefined">
                 <button
                   type="button"
@@ -207,7 +207,7 @@
                   />
                 </button>
               </template>
-              <span v-else class="font-cinzel text-2xs tracking-wider text-muted-foreground/50 uppercase">N/A</span>
+              <span v-else class="text-eyebrow text-muted-foreground/50">N/A</span>
             </div>
             <template v-if="draftProviders[row.provider]?.audio_model !== null && draftProviders[row.provider]?.audio_model !== undefined">
               <div class="space-y-1">
@@ -251,7 +251,7 @@
 
         <!-- Model API Costs -->
         <div v-if="modelsByProvider[row.provider]?.length" class="border-t border-border pt-4 space-y-2">
-          <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Model API Costs</span>
+          <span class="text-eyebrow font-semibold text-muted-foreground">Model API Costs</span>
           <div class="space-y-1.5">
             <div
               v-for="m in modelsByProvider[row.provider]"

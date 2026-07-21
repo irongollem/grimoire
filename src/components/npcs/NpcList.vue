@@ -103,7 +103,7 @@
             class="group-hover:scale-105 transition-transform duration-300"
           />
           <span
-            class="absolute top-2 right-2 px-1.5 py-0.5 rounded text-2xs font-cinzel font-bold tracking-wider uppercase text-white"
+            class="absolute top-2 right-2 px-1.5 py-0.5 rounded text-eyebrow font-bold text-white"
             :style="{ backgroundColor: relColor(npc.relationship) + 'EE' }"
           >
             {{ npc.relationship }}

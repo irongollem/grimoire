@@ -30,7 +30,7 @@
             </p>
           </div>
 
-          <span :class="['font-cinzel text-2xs uppercase tracking-wider px-2 py-0.5 rounded-full shrink-0', badge(lot).class]">
+          <span :class="['text-eyebrow px-2 py-0.5 rounded-full shrink-0', badge(lot).class]">
             {{ badge(lot).label }}
           </span>
 

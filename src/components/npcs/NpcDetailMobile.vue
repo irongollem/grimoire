@@ -96,20 +96,20 @@
       <div class="absolute inset-x-0 bottom-0 flex flex-col gap-1.5 px-4 pb-3">
         <div class="flex flex-wrap items-center gap-1.5">
           <span
-            class="rounded px-2 py-0.5 font-cinzel text-2xs font-bold uppercase tracking-wider text-white"
+            class="rounded px-2 py-0.5 text-eyebrow font-bold text-white"
             :style="{ backgroundColor: relColor + 'EE' }"
           >
             {{ NPC_RELATIONSHIP_LABELS[npc.relationship] }}
           </span>
           <span
-            class="rounded px-2 py-0.5 font-cinzel text-2xs font-bold uppercase tracking-wider text-white"
+            class="rounded px-2 py-0.5 text-eyebrow font-bold text-white"
             :style="{ backgroundColor: statusColor + 'EE' }"
           >
             {{ npc.status }}
           </span>
           <span
             v-if="shared"
-            class="flex items-center gap-1 rounded bg-black/55 px-1.5 py-0.5 font-cinzel text-2xs font-bold uppercase tracking-wider text-primary"
+            class="flex items-center gap-1 rounded bg-black/55 px-1.5 py-0.5 text-eyebrow font-bold text-primary"
           >
             <IconReveal class="size-3" /> Shared
           </span>

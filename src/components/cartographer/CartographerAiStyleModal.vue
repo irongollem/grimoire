@@ -39,7 +39,7 @@
               </button>
             </div>
             <!-- Freeform suffix -->
-            <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground uppercase mb-1">
+            <label class="block text-eyebrow text-muted-foreground mb-1">
               Additional details <span class="normal-case">(optional)</span>
             </label>
             <textarea
@@ -97,7 +97,7 @@
               />
             </div>
             <!-- Save to Atlas inline -->
-            <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground uppercase mb-1">
+            <label class="block text-eyebrow text-muted-foreground mb-1">
               Save to location
             </label>
             <EntityCombobox

@@ -43,7 +43,7 @@
     <div v-if="open" class="flex flex-col gap-3">
       <!-- Effect type -->
       <label class="flex flex-col gap-1">
-        <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase"
+        <span class="text-eyebrow text-muted-foreground"
           >Main Effect</span
         >
         <select
@@ -63,7 +63,7 @@
         v-if="adv.effectType !== 'damage' && adv.effectType !== 'healing'"
         class="flex flex-col gap-1"
       >
-        <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase"
+        <span class="text-eyebrow text-muted-foreground"
           >Effect Intensity</span
         >
         <select
@@ -96,7 +96,7 @@
         v-if="adv.effectType === 'damage' || adv.effectType === 'healing'"
         class="flex flex-col gap-1"
       >
-        <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase">
+        <span class="text-eyebrow text-muted-foreground">
           {{ adv.effectType === "damage" ? "Damage Dice" : "Healing Dice" }}
         </span>
         <DiceInput
@@ -111,7 +111,7 @@
 
       <!-- Targeting -->
       <label class="flex flex-col gap-1">
-        <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase"
+        <span class="text-eyebrow text-muted-foreground"
           >Targeting</span
         >
         <select
@@ -131,7 +131,7 @@
 
       <!-- Save type -->
       <label class="flex flex-col gap-1">
-        <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase"
+        <span class="text-eyebrow text-muted-foreground"
           >Targeting / Save</span
         >
         <select
@@ -147,7 +147,7 @@
 
       <!-- Duration -->
       <label class="flex flex-col gap-1">
-        <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase"
+        <span class="text-eyebrow text-muted-foreground"
           >Duration Tier</span
         >
         <select
@@ -204,7 +204,7 @@
         >
           <div class="border-t border-primary/20 pt-2 flex flex-col gap-0.5">
             <span
-              class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase"
+              class="text-eyebrow text-muted-foreground"
               >Reference spells at this level</span
             >
             <p
@@ -246,7 +246,7 @@
         class="rounded-md border border-border bg-muted/40 p-3 flex flex-col gap-2"
       >
         <div class="flex items-baseline justify-between gap-2">
-          <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase"
+          <span class="text-eyebrow text-muted-foreground"
             >{{ schoolTip.title }} design notes</span
           >
           <span class="font-fell text-2xs text-muted-foreground/60 italic shrink-0"

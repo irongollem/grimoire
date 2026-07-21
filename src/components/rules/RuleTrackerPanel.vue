@@ -2,7 +2,7 @@
   <div class="flex flex-col gap-1.5">
     <!-- Label + current level name -->
     <div class="flex items-center justify-between gap-2">
-      <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">
+      <span class="text-eyebrow font-semibold text-muted-foreground">
         {{ tracker.label }}
       </span>
       <span

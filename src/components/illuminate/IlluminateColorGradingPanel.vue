@@ -32,7 +32,7 @@
     >
       <!-- Preset buttons -->
       <div class="flex items-center gap-1.5 flex-wrap">
-        <span class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase mr-1">Presets</span>
+        <span class="text-eyebrow text-muted-foreground mr-1">Presets</span>
         <button
           v-for="preset in GRADING_PRESETS"
           :key="preset.label"
@@ -50,7 +50,7 @@
       <!-- Grading sliders -->
       <div v-for="gs in GRADING_SLIDERS" :key="gs.key">
         <div class="flex items-center justify-between mb-1">
-          <label class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase">
+          <label class="text-eyebrow text-muted-foreground">
             {{ gs.label }}
           </label>
           <span class="font-fell text-xs text-muted-foreground tabular-nums">

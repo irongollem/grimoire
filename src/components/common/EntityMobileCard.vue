@@ -88,7 +88,7 @@
         />
         <span
           v-if="badgeText"
-          class="absolute right-1.5 top-1.5 rounded px-1.5 py-0.5 font-cinzel text-2xs font-bold uppercase tracking-wider text-white"
+          class="absolute right-1.5 top-1.5 rounded px-1.5 py-0.5 text-eyebrow font-bold text-white"
           :style="{ backgroundColor: (badgeColor ?? '#6b7280') + 'EE' }"
         >
           {{ badgeText }}

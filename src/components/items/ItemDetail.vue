@@ -146,7 +146,7 @@
           </h3>
           <div class="grid grid-cols-2 gap-3">
             <label class="flex flex-col gap-1">
-              <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase">{{ itemType === "ammunition" ? "Count" : "Max Charges" }}</span>
+              <span class="text-eyebrow text-muted-foreground">{{ itemType === "ammunition" ? "Count" : "Max Charges" }}</span>
               <input
                 v-model.number="charges"
                 type="number"
@@ -156,7 +156,7 @@
               />
             </label>
             <div v-if="isMagic && itemType !== 'ammunition'" class="flex flex-col gap-1">
-              <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase">Recharge</span>
+              <span class="text-eyebrow text-muted-foreground">Recharge</span>
               <DiceExprInput
                 :model-value="rechargeRoll"
                 placeholder="1d6+4"

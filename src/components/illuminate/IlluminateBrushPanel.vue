@@ -15,7 +15,7 @@
     <div v-show="open" class="px-4 pb-4 flex flex-col gap-3">
       <!-- Brush type selector -->
       <div class="flex items-center gap-1.5 flex-wrap">
-        <span class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase mr-1">Shape</span>
+        <span class="text-eyebrow text-muted-foreground mr-1">Shape</span>
         <button
           v-for="bt in (['round', 'splatter', 'rough', 'chalk'] as BrushType[])"
           :key="bt"
@@ -30,7 +30,7 @@
 
       <!-- Pressure target toggle -->
       <div class="flex items-center gap-1.5">
-        <span class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase mr-1">Pressure →</span>
+        <span class="text-eyebrow text-muted-foreground mr-1">Pressure →</span>
         <button
           v-for="pt in (['size', 'opacity'] as PressureTarget[])"
           :key="pt"
@@ -46,7 +46,7 @@
       <!-- Brush sliders (hardness hidden for non-round shapes) -->
       <div v-for="bs in activeBrushSliders" :key="bs.key">
         <div class="flex items-center justify-between mb-1">
-          <label class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase">{{ bs.label }}</label>
+          <label class="text-eyebrow text-muted-foreground">{{ bs.label }}</label>
           <span class="font-fell text-xs text-muted-foreground tabular-nums">{{ brushDisplay(bs.key) }}</span>
         </div>
         <input

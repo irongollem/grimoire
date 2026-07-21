@@ -27,7 +27,7 @@
         <div class="flex items-center gap-1.5 shrink-0">
           <span
             v-if="powerfulBuild"
-            class="font-cinzel text-2xs md:text-sm text-amber-400/70 tracking-wider uppercase"
+            class="text-eyebrow md:text-sm text-amber-400/70"
           >Powerful Build</span>
           <span class="font-cinzel text-2xs md:text-sm text-foreground">{{ formatWeightLb(totalCarriedWeight) }}</span>
           <span class="font-cinzel text-2xs md:text-sm text-muted-foreground/40">/</span>

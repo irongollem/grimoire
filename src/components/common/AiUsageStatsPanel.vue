@@ -28,10 +28,10 @@
 
       <div v-if="displayStats.length" class="space-y-1">
         <div class="flex items-center gap-2 px-2.5 pb-0.5">
-          <span class="flex-1 font-cinzel text-2xs uppercase tracking-wider text-muted-foreground">Model</span>
-          <span class="font-cinzel text-2xs uppercase tracking-wider text-muted-foreground shrink-0 w-10 text-right">Gens</span>
-          <span class="font-cinzel text-2xs uppercase tracking-wider text-muted-foreground shrink-0 w-20 text-right">Total</span>
-          <span class="font-cinzel text-2xs uppercase tracking-wider text-muted-foreground shrink-0 w-20 text-right">Avg/gen</span>
+          <span class="flex-1 text-eyebrow text-muted-foreground">Model</span>
+          <span class="text-eyebrow text-muted-foreground shrink-0 w-10 text-right">Gens</span>
+          <span class="text-eyebrow text-muted-foreground shrink-0 w-20 text-right">Total</span>
+          <span class="text-eyebrow text-muted-foreground shrink-0 w-20 text-right">Avg/gen</span>
         </div>
         <div
           v-for="stat in displayStats"

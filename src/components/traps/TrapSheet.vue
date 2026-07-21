@@ -66,32 +66,32 @@
       <div class="p-4 flex flex-col gap-3">
         <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2">
           <div v-if="trap.trigger_type">
-            <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Trigger</span>
+            <span class="text-eyebrow font-semibold text-muted-foreground">Trigger</span>
             <p class="font-fell text-sm text-foreground">{{ trap.trigger_type }}</p>
           </div>
           <div v-if="trap.detection_dc">
-            <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Detection DC</span>
+            <span class="text-eyebrow font-semibold text-muted-foreground">Detection DC</span>
             <p class="font-cinzel text-lg font-bold text-foreground">{{ trap.detection_dc }}</p>
           </div>
           <div v-if="trap.disarm_dc">
-            <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Disarm DC</span>
+            <span class="text-eyebrow font-semibold text-muted-foreground">Disarm DC</span>
             <p class="font-cinzel text-lg font-bold text-foreground">{{ trap.disarm_dc }}</p>
           </div>
           <div>
-            <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Reset</span>
+            <span class="text-eyebrow font-semibold text-muted-foreground">Reset</span>
             <p class="font-fell text-sm text-foreground">{{ trap.reset_type }}</p>
           </div>
           <div v-if="trap.trap_hp">
-            <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">HP</span>
+            <span class="text-eyebrow font-semibold text-muted-foreground">HP</span>
             <p class="font-cinzel text-lg font-bold text-foreground">{{ trap.trap_hp }}</p>
           </div>
           <div v-if="trap.trap_ac">
-            <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">AC</span>
+            <span class="text-eyebrow font-semibold text-muted-foreground">AC</span>
             <p class="font-cinzel text-lg font-bold text-foreground">{{ trap.trap_ac }}</p>
           </div>
         </div>
         <div v-if="trap.damage_immunities.length">
-          <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Damage Immunities</span>
+          <span class="text-eyebrow font-semibold text-muted-foreground">Damage Immunities</span>
           <div class="flex flex-wrap gap-1 mt-1">
             <span
               v-for="imm in trap.damage_immunities"

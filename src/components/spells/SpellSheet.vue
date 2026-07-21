@@ -55,7 +55,7 @@
         >
           <div class="text-center">
             <p
-              class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase"
+              class="text-eyebrow text-muted-foreground"
             >
               Casting Time
             </p>
@@ -65,7 +65,7 @@
           </div>
           <div class="text-center">
             <p
-              class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase"
+              class="text-eyebrow text-muted-foreground"
             >
               Range
             </p>
@@ -75,7 +75,7 @@
           </div>
           <div class="text-center">
             <p
-              class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase"
+              class="text-eyebrow text-muted-foreground"
             >
               Duration
             </p>

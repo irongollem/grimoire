@@ -18,7 +18,7 @@
         <div class="flex items-center justify-between gap-2">
           <span class="font-cinzel text-xs font-semibold tracking-wide text-foreground">Meshy platform key</span>
           <template v-if="meshyKeySet">
-            <span class="font-cinzel text-2xs tracking-wider text-green-500 uppercase">
+            <span class="text-eyebrow text-green-500">
               Set · {{ meshyKeyDate }}
             </span>
           </template>

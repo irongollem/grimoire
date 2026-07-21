@@ -4,7 +4,7 @@
     <div class="flex flex-col gap-4">
       <!-- Emblem image -->
       <div>
-        <p class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase mb-1.5">Emblem</p>
+        <p class="text-eyebrow font-semibold text-muted-foreground mb-1.5">Emblem</p>
         <div
           class="relative aspect-square rounded-lg border border-border overflow-hidden bg-muted cursor-pointer group"
           @click="fileInput?.click()"
@@ -46,7 +46,7 @@
 
       <!-- Visibility -->
       <div class="space-y-1.5">
-        <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Visible to Players</label>
+        <label class="text-eyebrow font-semibold text-muted-foreground">Visible to Players</label>
         <PlayerVisibilityToggle
           :visible-to="form.player_visible_to"
           @update:visible-to="form.player_visible_to = $event"
@@ -55,7 +55,7 @@
 
       <!-- Tags -->
       <div class="space-y-1.5">
-        <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Tags</label>
+        <label class="text-eyebrow font-semibold text-muted-foreground">Tags</label>
         <TagInput v-model="tags" />
       </div>
     </div>
@@ -64,7 +64,7 @@
     <div class="flex flex-col gap-4">
       <!-- Name -->
       <div class="space-y-1.5">
-        <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Name</label>
+        <label class="text-eyebrow font-semibold text-muted-foreground">Name</label>
         <input
           v-model="form.name"
           placeholder="Pantheon name…"
@@ -75,7 +75,7 @@
 
       <!-- Description -->
       <div class="flex-1 space-y-1.5">
-        <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Description &amp; History</label>
+        <label class="text-eyebrow font-semibold text-muted-foreground">Description &amp; History</label>
         <RichTextEditor
           v-model="form.description"
           placeholder="Origins, major deities, holy wars, theological schisms…"

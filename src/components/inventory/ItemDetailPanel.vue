@@ -125,7 +125,7 @@
 
         <!-- Spells (shown when item has associated spells and is identified) -->
         <div v-if="itemSpells?.length && localIdentified" class="rounded-lg border border-border bg-card/50 p-3 flex flex-col gap-2">
-          <p class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider uppercase">Spells</p>
+          <p class="text-eyebrow font-semibold text-muted-foreground">Spells</p>
           <div class="divide-y divide-border">
             <div
               v-for="spell in itemSpells"
@@ -177,7 +177,7 @@
           v-if="vaultItem?.bundle_items?.length"
           class="rounded-lg border border-border bg-card/50 p-3 flex flex-col gap-2"
         >
-          <p class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider uppercase">Contents</p>
+          <p class="text-eyebrow font-semibold text-muted-foreground">Contents</p>
           <ul class="space-y-0.5">
             <li
               v-for="(entry, i) in vaultItem.bundle_items"
@@ -192,7 +192,7 @@
 
         <!-- Notes -->
         <div v-if="inv.notes" class="rounded-lg border border-border bg-card/50 p-3">
-          <p class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider uppercase mb-1">Notes</p>
+          <p class="text-eyebrow font-semibold text-muted-foreground mb-1">Notes</p>
           <p class="font-fell text-sm text-foreground">{{ inv.notes }}</p>
         </div>
 

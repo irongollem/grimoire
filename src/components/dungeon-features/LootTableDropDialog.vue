@@ -20,7 +20,7 @@
         <div class="overflow-y-auto px-5 py-4 flex flex-col gap-3">
           <!-- How it works -->
           <div class="rounded-md border border-border bg-muted/30 px-3 py-2.5 flex flex-col gap-1">
-            <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">How it works</span>
+            <span class="text-eyebrow font-semibold text-muted-foreground">How it works</span>
             <ol class="font-fell text-xs text-muted-foreground list-decimal list-inside space-y-0.5 leading-relaxed">
               <li>The table is rolled now — the <strong class="text-foreground">preview</strong> below shows what drops.</li>
               <li><strong class="text-foreground">Claims</strong> sets how many times players can take an item before the chest closes.</li>
@@ -30,7 +30,7 @@
           </div>
 
           <div class="space-y-1.5">
-            <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Claims (dice or fixed)</label>
+            <label class="text-eyebrow font-semibold text-muted-foreground">Claims (dice or fixed)</label>
             <input
               :value="claimsDice"
               placeholder="1d4, 2, 1d6+1…"
@@ -43,7 +43,7 @@
           </div>
 
           <div class="space-y-1.5">
-            <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Chest art (optional)</label>
+            <label class="text-eyebrow font-semibold text-muted-foreground">Chest art (optional)</label>
             <div v-if="chestImageUrl" class="relative w-24 h-24 rounded border border-border overflow-hidden bg-muted">
               <FocalImage :src="chestImageUrl" alt="Chest" format="square" />
               <button
@@ -73,7 +73,7 @@
           </button>
 
           <div class="rounded-md border border-border bg-muted/40 p-3 flex flex-col gap-1.5">
-            <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">
+            <span class="text-eyebrow font-semibold text-muted-foreground">
               Preview ({{ atoms.length }} {{ atoms.length === 1 ? "item" : "items" }})
             </span>
             <ul v-if="atoms.length" class="flex flex-col gap-0.5">
@@ -93,7 +93,7 @@
             v-if="unresolved.length"
             class="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 flex flex-col gap-1.5"
           >
-            <span class="font-cinzel text-2xs font-semibold tracking-wider text-amber-500 uppercase flex items-center gap-1.5">
+            <span class="text-eyebrow font-semibold text-amber-500 flex items-center gap-1.5">
               <IconWarning class="h-3 w-3" />
               Under-delivered ({{ unresolved.length }})
             </span>

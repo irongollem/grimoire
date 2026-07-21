@@ -1,7 +1,7 @@
 <template>
   <aside class="lg:w-56 shrink-0 bg-card border border-border rounded-lg p-3 space-y-3">
     <div>
-      <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground uppercase mb-1">
+      <label class="block text-eyebrow text-muted-foreground mb-1">
         Name
       </label>
       <input
@@ -13,7 +13,7 @@
     </div>
 
     <div>
-      <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground uppercase mb-1">
+      <label class="block text-eyebrow text-muted-foreground mb-1">
         Tile Pack
       </label>
       <div class="space-y-1">
@@ -52,7 +52,7 @@
 
     <!-- Object stamp picker -->
     <div v-if="activeTool === 'stamp'">
-      <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground uppercase mb-1">
+      <label class="block text-eyebrow text-muted-foreground mb-1">
         Object
       </label>
       <div class="grid grid-cols-3 gap-1 mb-2">
@@ -99,7 +99,7 @@
 
     <!-- Annotation editor -->
     <div v-if="activeTool === 'annotate' && selectedCell">
-      <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground uppercase mb-1">
+      <label class="block text-eyebrow text-muted-foreground mb-1">
         Label ({{ selectedCell[0] }}, {{ selectedCell[1] }})
       </label>
       <input
@@ -119,7 +119,7 @@
 
     <!-- Entity link inspector -->
     <div v-if="activeTool === 'link' && selectedCell">
-      <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground uppercase mb-1">
+      <label class="block text-eyebrow text-muted-foreground mb-1">
         Links ({{ selectedCell[0] }}, {{ selectedCell[1] }})
       </label>
       <div class="space-y-2">
@@ -149,7 +149,7 @@
 
     <!-- Room template shape picker -->
     <div v-if="activeTool === 'template'">
-      <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground uppercase mb-1">
+      <label class="block text-eyebrow text-muted-foreground mb-1">
         Shape
       </label>
       <div class="grid grid-cols-3 gap-1 mb-2">
@@ -172,7 +172,7 @@
 
     <!-- Cave brush radius picker -->
     <div v-if="activeTool === 'cave'">
-      <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground uppercase mb-1">
+      <label class="block text-eyebrow text-muted-foreground mb-1">
         Brush size
       </label>
       <div class="flex gap-1 mb-2">

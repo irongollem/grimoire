@@ -3,7 +3,7 @@
 
     <!-- Mode toggle -->
     <div class="px-4 py-3 border-b border-border flex items-center gap-2">
-      <span class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase mr-1">Mode</span>
+      <span class="text-eyebrow text-muted-foreground mr-1">Mode</span>
       <button
         v-for="m in (['auto', 'brush'] as IlluminatorMode[])"
         :key="m"

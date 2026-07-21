@@ -68,10 +68,10 @@
       <table v-else class="w-full text-sm">
         <thead>
           <tr class="border-b border-border">
-            <th class="text-left pb-2 font-cinzel text-2xs tracking-wider text-muted-foreground uppercase">Pack</th>
-            <th class="text-right pb-2 font-cinzel text-2xs tracking-wider text-muted-foreground uppercase w-20">Credits</th>
-            <th class="text-right pb-2 pl-3 font-cinzel text-2xs tracking-wider text-muted-foreground uppercase w-24">Price</th>
-            <th class="pb-2 pl-3 font-cinzel text-2xs tracking-wider text-muted-foreground uppercase">Stripe Price ID</th>
+            <th class="text-left pb-2 text-eyebrow text-muted-foreground">Pack</th>
+            <th class="text-right pb-2 text-eyebrow text-muted-foreground w-20">Credits</th>
+            <th class="text-right pb-2 pl-3 text-eyebrow text-muted-foreground w-24">Price</th>
+            <th class="pb-2 pl-3 text-eyebrow text-muted-foreground">Stripe Price ID</th>
             <th class="w-16" />
           </tr>
         </thead>
@@ -126,9 +126,9 @@
       <table v-else class="w-full text-sm">
         <thead>
           <tr class="border-b border-border">
-            <th class="text-left pb-2 font-cinzel text-2xs tracking-wider text-muted-foreground uppercase">Generator</th>
-            <th class="text-right pb-2 font-cinzel text-2xs tracking-wider text-muted-foreground uppercase w-32">Credits</th>
-            <th class="text-right pb-2 pl-4 font-cinzel text-2xs tracking-wider text-muted-foreground uppercase">Calibration</th>
+            <th class="text-left pb-2 text-eyebrow text-muted-foreground">Generator</th>
+            <th class="text-right pb-2 text-eyebrow text-muted-foreground w-32">Credits</th>
+            <th class="text-right pb-2 pl-4 text-eyebrow text-muted-foreground">Calibration</th>
             <th class="w-16" />
           </tr>
         </thead>

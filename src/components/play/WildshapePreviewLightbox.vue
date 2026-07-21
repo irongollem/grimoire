@@ -18,7 +18,7 @@
 
     <!-- Special abilities -->
     <div v-if="beast?.stat_block?.special_abilities?.length" class="space-y-2">
-      <p class="font-cinzel text-2xs md:text-sm font-semibold tracking-wider text-primary/70 uppercase border-b border-primary/20 pb-1">Special Abilities</p>
+      <p class="text-eyebrow md:text-sm font-semibold text-primary/70 border-b border-primary/20 pb-1">Special Abilities</p>
       <div
         v-for="trait in beast.stat_block.special_abilities"
         :key="trait.name"
@@ -31,7 +31,7 @@
 
     <!-- Actions -->
     <div v-if="beast?.stat_block?.actions?.length" class="space-y-2">
-      <p class="font-cinzel text-2xs md:text-sm font-semibold tracking-wider text-primary/70 uppercase border-b border-primary/20 pb-1">Actions</p>
+      <p class="text-eyebrow md:text-sm font-semibold text-primary/70 border-b border-primary/20 pb-1">Actions</p>
       <div
         v-for="action in beast.stat_block.actions"
         :key="action.name"
@@ -44,7 +44,7 @@
 
     <!-- Bonus Actions -->
     <div v-if="beast?.stat_block?.bonus_actions?.length" class="space-y-2">
-      <p class="font-cinzel text-2xs md:text-sm font-semibold tracking-wider text-primary/70 uppercase border-b border-primary/20 pb-1">Bonus Actions</p>
+      <p class="text-eyebrow md:text-sm font-semibold text-primary/70 border-b border-primary/20 pb-1">Bonus Actions</p>
       <div
         v-for="action in beast.stat_block.bonus_actions"
         :key="action.name"
@@ -57,7 +57,7 @@
 
     <!-- Reactions -->
     <div v-if="beast?.stat_block?.reactions?.length" class="space-y-2">
-      <p class="font-cinzel text-2xs md:text-sm font-semibold tracking-wider text-primary/70 uppercase border-b border-primary/20 pb-1">Reactions</p>
+      <p class="text-eyebrow md:text-sm font-semibold text-primary/70 border-b border-primary/20 pb-1">Reactions</p>
       <div
         v-for="action in beast.stat_block.reactions"
         :key="action.name"

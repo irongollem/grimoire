@@ -51,7 +51,7 @@
 
       <!-- Blend mode pills -->
       <div class="flex items-center gap-1.5 flex-wrap">
-        <span class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase mr-1">Blend</span>
+        <span class="text-eyebrow text-muted-foreground mr-1">Blend</span>
         <button
           v-for="mode in BLEND_MODES"
           :key="mode"
@@ -67,7 +67,7 @@
       <!-- Opacity slider -->
       <div>
         <div class="flex items-center justify-between mb-1">
-          <label class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase">Opacity</label>
+          <label class="text-eyebrow text-muted-foreground">Opacity</label>
           <span class="font-fell text-xs text-muted-foreground tabular-nums">{{ Math.round(texture.opacity * 100) }}</span>
         </div>
         <input
@@ -81,7 +81,7 @@
       <!-- Scale slider -->
       <div>
         <div class="flex items-center justify-between mb-1">
-          <label class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase">Tile scale</label>
+          <label class="text-eyebrow text-muted-foreground">Tile scale</label>
           <span class="font-fell text-xs text-muted-foreground tabular-nums">×{{ texture.scale.toFixed(2) }}</span>
         </div>
         <input

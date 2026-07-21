@@ -53,7 +53,7 @@
               </div>
               <span
                 v-if="row.advLabel"
-                class="ml-1 font-cinzel text-2xs uppercase tracking-wider text-muted-foreground"
+                class="ml-1 text-eyebrow text-muted-foreground"
               >
                 {{ row.advLabel }}
               </span>

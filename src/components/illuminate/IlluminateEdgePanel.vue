@@ -55,7 +55,7 @@
         >
           <div v-for="slider in SLIDERS" :key="slider.key">
             <div class="flex items-center justify-between mb-1">
-              <label class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase">
+              <label class="text-eyebrow text-muted-foreground">
                 {{ slider.label }}
               </label>
               <span class="font-fell text-xs text-muted-foreground tabular-nums">

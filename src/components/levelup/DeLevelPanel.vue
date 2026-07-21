@@ -3,14 +3,14 @@
   <template v-if="member.level > 1">
     <!-- No history warning (subtle) -->
     <div v-if="!lastChoice" class="flex items-center gap-2 pt-2">
-      <span class="font-cinzel text-2xs tracking-wider text-amber-500/70 uppercase">No level history</span>
+      <span class="text-eyebrow text-amber-500/70">No level history</span>
       <span class="font-fell text-xs text-muted-foreground">— ask your DM to seed <code class="font-mono">level_choices</code> before de-leveling</span>
     </div>
 
     <template v-else>
       <!-- Confirmation details (shown above the action row when active) -->
       <div v-if="showConfirmation && targetEntry" class="rounded-md border border-border/60 bg-muted/20 p-3 space-y-2">
-        <p class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase">Reversing level {{ member.level }} — {{ lastChoice.class_name }}</p>
+        <p class="text-eyebrow text-muted-foreground">Reversing level {{ member.level }} — {{ lastChoice.class_name }}</p>
 
         <div class="space-y-1">
           <p class="font-fell text-xs text-foreground">

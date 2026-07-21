@@ -60,7 +60,7 @@
       </div>
       <div class="p-4 flex flex-col gap-3">
         <div v-if="background.skill_proficiencies.length">
-          <span class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase block mb-1.5">Skills</span>
+          <span class="text-eyebrow text-muted-foreground block mb-1.5">Skills</span>
           <div class="flex flex-wrap gap-1">
             <span
               v-for="s in background.skill_proficiencies"
@@ -70,7 +70,7 @@
           </div>
         </div>
         <div v-if="background.tool_proficiencies.length">
-          <span class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase block mb-1.5">Tools</span>
+          <span class="text-eyebrow text-muted-foreground block mb-1.5">Tools</span>
           <div class="flex flex-wrap gap-1">
             <span
               v-for="t in background.tool_proficiencies"
@@ -80,7 +80,7 @@
           </div>
         </div>
         <div v-if="background.languages.length">
-          <span class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase block mb-1.5">Languages</span>
+          <span class="text-eyebrow text-muted-foreground block mb-1.5">Languages</span>
           <div class="flex flex-wrap gap-1">
             <span
               v-for="l in background.languages"
@@ -154,7 +154,7 @@
         <!-- Lootbox expansion -->
         <div v-if="lootboxOpen" class="flex flex-col gap-3 border-t border-border pt-3">
           <label class="flex flex-col gap-1">
-            <span class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase">Grant to</span>
+            <span class="text-eyebrow text-muted-foreground">Grant to</span>
             <EntityCombobox
               v-model="selectedMemberId"
               :options="memberOptions"
@@ -163,7 +163,7 @@
           </label>
 
           <div class="flex flex-col gap-1.5">
-            <span class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase">Items</span>
+            <span class="text-eyebrow text-muted-foreground">Items</span>
             <div
               v-for="(_, i) in lootboxItems"
               :key="i"

@@ -98,7 +98,7 @@
               {{ doc.title }}
             </h3>
             <span
-              class="shrink-0 px-1.5 py-0.5 rounded font-cinzel text-2xs font-bold tracking-wider uppercase"
+              class="shrink-0 px-1.5 py-0.5 rounded text-eyebrow font-bold"
               :style="{
                 backgroundColor: typeColor(doc.doc_type) + '22',
                 color: typeColor(doc.doc_type),

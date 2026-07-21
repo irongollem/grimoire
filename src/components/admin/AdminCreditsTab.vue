@@ -53,7 +53,7 @@
         <!-- Grant (scoped to the selected user) -->
         <div class="flex flex-wrap items-end gap-2">
           <div class="space-y-1">
-            <label class="block font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Grant amount</label>
+            <label class="block text-eyebrow font-semibold text-muted-foreground">Grant amount</label>
             <input
               v-model.number="grantAmount"
               type="number"
@@ -63,7 +63,7 @@
             />
           </div>
           <div class="space-y-1 flex-1 min-w-32">
-            <label class="block font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Reason</label>
+            <label class="block text-eyebrow font-semibold text-muted-foreground">Reason</label>
             <input
               v-model="grantReason"
               type="text"
@@ -103,10 +103,10 @@
         </div>
         <div v-else-if="ledger.rows.value.length" class="space-y-1">
           <div class="flex items-center gap-2 px-2.5 pb-0.5">
-            <span class="font-cinzel text-2xs uppercase tracking-wider text-muted-foreground shrink-0 w-28">When</span>
-            <span class="flex-1 font-cinzel text-2xs uppercase tracking-wider text-muted-foreground">Reason / model</span>
-            <span class="font-cinzel text-2xs uppercase tracking-wider text-muted-foreground shrink-0 w-16 text-right">Δ</span>
-            <span class="font-cinzel text-2xs uppercase tracking-wider text-muted-foreground shrink-0 w-16 text-right">Bal</span>
+            <span class="text-eyebrow text-muted-foreground shrink-0 w-28">When</span>
+            <span class="flex-1 text-eyebrow text-muted-foreground">Reason / model</span>
+            <span class="text-eyebrow text-muted-foreground shrink-0 w-16 text-right">Δ</span>
+            <span class="text-eyebrow text-muted-foreground shrink-0 w-16 text-right">Bal</span>
           </div>
           <div
             v-for="row in ledger.rows.value"

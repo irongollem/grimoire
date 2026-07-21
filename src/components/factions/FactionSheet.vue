@@ -15,15 +15,15 @@
 
       <div class="flex flex-col gap-1.5">
         <div v-if="faction.faction_type">
-          <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Type</span>
+          <span class="text-eyebrow font-semibold text-muted-foreground">Type</span>
           <p class="font-fell text-sm text-foreground">{{ faction.faction_type }}</p>
         </div>
         <div v-if="faction.alignment" class="mt-2">
-          <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Alignment</span>
+          <span class="text-eyebrow font-semibold text-muted-foreground">Alignment</span>
           <p class="font-fell text-sm text-foreground">{{ faction.alignment }}</p>
         </div>
         <div v-if="faction.tags?.length" class="mt-2">
-          <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Tags</span>
+          <span class="text-eyebrow font-semibold text-muted-foreground">Tags</span>
           <div class="flex flex-wrap gap-1 mt-1">
             <span
               v-for="tag in faction.tags"
@@ -68,7 +68,7 @@
 
       <!-- Patron Deities -->
       <div class="border-t border-border pt-4">
-        <p class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase mb-2">Patron Deities</p>
+        <p class="text-eyebrow font-semibold text-muted-foreground mb-2">Patron Deities</p>
         <FactionDeitiesSection :faction-id="faction.id" />
       </div>
     </div>

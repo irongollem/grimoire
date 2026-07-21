@@ -355,6 +355,21 @@
   padding-right: env(safe-area-inset-right);
 }
 
+/* ── Semantic typography roles (#552) ──────────────────────────────────────
+   Role-keyed text styles that bundle the properties uniform for that role, so
+   the recipe lives in one place instead of being re-declared at every call
+   site. Compose font-weight and text-<color> separately (those vary per use).
+
+   text-eyebrow — the app's most common micro-label: Cinzel, tiny, wide-tracked,
+   uppercase. Equivalent to `font-cinzel text-2xs tracking-wider uppercase`. */
+@utility text-eyebrow {
+  font-family: var(--font-cinzel);
+  font-size: 0.625rem;
+  line-height: 1;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
 /* Hide the native scrollbar while keeping the element scrollable (used by the
    soundboard page tabs, which cue overflow with edge fades + chevrons). */
 @utility scrollbar-none {

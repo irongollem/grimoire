@@ -60,15 +60,15 @@
       </div>
       <div class="p-4 grid grid-cols-3 gap-x-6">
         <div v-if="feature.perception_dc">
-          <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Perception DC</span>
+          <span class="text-eyebrow font-semibold text-muted-foreground">Perception DC</span>
           <p class="font-cinzel text-2xl font-bold text-foreground">{{ feature.perception_dc }}</p>
         </div>
         <div v-if="feature.investigation_dc">
-          <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Investigation DC</span>
+          <span class="text-eyebrow font-semibold text-muted-foreground">Investigation DC</span>
           <p class="font-cinzel text-2xl font-bold text-foreground">{{ feature.investigation_dc }}</p>
         </div>
         <div v-if="feature.arcana_dc">
-          <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Arcana DC</span>
+          <span class="text-eyebrow font-semibold text-muted-foreground">Arcana DC</span>
           <p class="font-cinzel text-2xl font-bold text-foreground">{{ feature.arcana_dc }}</p>
         </div>
       </div>

@@ -26,7 +26,7 @@
         <EntityNewDot :is-new="isNew ?? false" class="absolute top-1.5 left-1.5 z-10" />
         <!-- Relationship always shown — "unknown" is a valid soft-hidden state. -->
         <span
-          class="absolute top-2 right-2 px-1.5 py-0.5 rounded text-2xs font-cinzel font-bold tracking-wider uppercase text-white"
+          class="absolute top-2 right-2 px-1.5 py-0.5 rounded text-eyebrow font-bold text-white"
           :style="{ backgroundColor: relColor(npc.relationship) + 'EE' }"
         >{{ npc.relationship }}</span>
       </MiniPortraitOverlay>

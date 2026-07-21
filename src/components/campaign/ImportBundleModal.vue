@@ -53,7 +53,7 @@
           <template v-else>
             <!-- Bundle info -->
             <div class="rounded-md border border-border bg-muted/30 px-4 py-3 space-y-1">
-              <p class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Bundle</p>
+              <p class="text-eyebrow font-semibold text-muted-foreground">Bundle</p>
               <p class="font-cinzel text-sm font-bold text-foreground">{{ preview.name }}</p>
               <p v-if="preview.description" class="font-fell text-xs text-muted-foreground">
                 {{ preview.description }}
@@ -63,7 +63,7 @@
 
             <!-- Import mode -->
             <div class="space-y-2">
-              <p class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">
+              <p class="text-eyebrow font-semibold text-muted-foreground">
                 Import into
               </p>
               <div class="space-y-2">
@@ -104,7 +104,7 @@
 
               <!-- New campaign name -->
               <div v-if="importMode === 'new-campaign'" class="pt-1">
-                <label class="block font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase mb-1">
+                <label class="block text-eyebrow font-semibold text-muted-foreground mb-1">
                   Campaign Name
                 </label>
                 <input
@@ -118,7 +118,7 @@
 
             <!-- Entity type toggles -->
             <div class="space-y-2">
-              <p class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">
+              <p class="text-eyebrow font-semibold text-muted-foreground">
                 Include
               </p>
               <div class="space-y-1.5">

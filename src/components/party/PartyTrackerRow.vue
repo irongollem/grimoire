@@ -184,7 +184,7 @@
           <span
             v-for="save in member.saving_throw_proficiencies"
             :key="save"
-            class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-foreground font-semibold uppercase tracking-wider"
+            class="px-1.5 py-0.5 rounded bg-muted text-eyebrow text-foreground font-semibold"
           >{{ save }}</span>
         </div>
 
@@ -197,7 +197,7 @@
     <!-- Companions for this member -->
     <div v-if="companions.length" class="border-t border-border bg-muted/10 px-4 py-3 flex flex-col gap-2">
       <div class="flex items-center justify-between">
-        <span class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider uppercase">Companions</span>
+        <span class="text-eyebrow font-semibold text-muted-foreground">Companions</span>
         <button
           type="button"
           class="font-cinzel text-2xs text-primary hover:opacity-80 transition-opacity"

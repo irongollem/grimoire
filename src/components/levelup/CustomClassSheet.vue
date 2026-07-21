@@ -49,7 +49,7 @@
       </div>
       <div class="p-4 flex flex-col gap-3">
         <div v-if="cls.saving_throws.length">
-          <span class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase block mb-1.5">Saving Throws</span>
+          <span class="text-eyebrow text-muted-foreground block mb-1.5">Saving Throws</span>
           <div class="flex flex-wrap gap-1">
             <span
               v-for="st in cls.saving_throws"
@@ -59,7 +59,7 @@
           </div>
         </div>
         <div v-if="cls.armor_proficiencies.length">
-          <span class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase block mb-1.5">Armor</span>
+          <span class="text-eyebrow text-muted-foreground block mb-1.5">Armor</span>
           <div class="flex flex-wrap gap-1">
             <span
               v-for="a in cls.armor_proficiencies"
@@ -69,7 +69,7 @@
           </div>
         </div>
         <div v-if="cls.weapon_proficiencies.length">
-          <span class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase block mb-1.5">Weapons</span>
+          <span class="text-eyebrow text-muted-foreground block mb-1.5">Weapons</span>
           <div class="flex flex-wrap gap-1">
             <span
               v-for="w in cls.weapon_proficiencies"

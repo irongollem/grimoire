@@ -16,7 +16,7 @@
           v-for="group in typeGroups"
           :key="group.label"
         >
-          <p class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase px-4 py-2 bg-muted/30">
+          <p class="text-eyebrow font-semibold text-muted-foreground px-4 py-2 bg-muted/30">
             {{ group.label }}
           </p>
           <div class="px-4 py-3 space-y-2.5">
@@ -80,7 +80,7 @@
           <IconChevronLeft class="h-4 w-4" />
         </button>
         <div>
-          <p class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">
+          <p class="text-eyebrow font-semibold text-muted-foreground">
             Step {{ pickIndex + 2 }} of {{ orderedCategories.length + 2 }}
           </p>
           <h3 class="font-cinzel text-sm font-semibold text-foreground">
@@ -188,7 +188,7 @@
           <IconChevronLeft class="h-4 w-4" />
         </button>
         <div>
-          <p class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">
+          <p class="text-eyebrow font-semibold text-muted-foreground">
             Final step
           </p>
           <h3 class="font-cinzel text-sm font-semibold text-foreground">Bundle Details</h3>
@@ -197,7 +197,7 @@
 
       <div class="space-y-3">
         <div>
-          <label class="block font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase mb-1">
+          <label class="block text-eyebrow font-semibold text-muted-foreground mb-1">
             Bundle Name *
           </label>
           <input
@@ -209,7 +209,7 @@
         </div>
 
         <div>
-          <label class="block font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase mb-1">
+          <label class="block text-eyebrow font-semibold text-muted-foreground mb-1">
             Description
           </label>
           <textarea
@@ -223,7 +223,7 @@
 
       <!-- Selection summary -->
       <div class="rounded-md border border-border bg-muted/30 px-4 py-3 space-y-2">
-        <p class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">
+        <p class="text-eyebrow font-semibold text-muted-foreground">
           Bundle Contents
         </p>
         <div class="grid grid-cols-2 gap-x-6 gap-y-0.5">

@@ -110,7 +110,7 @@
             @click="showArchived = !showArchived"
           >
             <IconArchive class="h-3 w-3 text-muted-foreground/60" />
-            <span class="font-cinzel text-2xs text-muted-foreground/60 tracking-wider uppercase flex-1">
+            <span class="text-eyebrow text-muted-foreground/60 flex-1">
               Archived ({{ archivedCampaigns.length }})
             </span>
             <IconChevronDown

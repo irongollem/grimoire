@@ -4,7 +4,7 @@
     <div class="flex flex-col gap-4">
       <!-- Divine portrait / avatar -->
       <div>
-        <p class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase mb-1.5">Divine Form</p>
+        <p class="text-eyebrow font-semibold text-muted-foreground mb-1.5">Divine Form</p>
         <ImageUpload
           :model-value="form.portrait_url || null"
           :focal-point="form.portrait_focal_point"
@@ -17,7 +17,7 @@
 
       <!-- Holy symbol image -->
       <div>
-        <p class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase mb-1.5">Holy Symbol</p>
+        <p class="text-eyebrow font-semibold text-muted-foreground mb-1.5">Holy Symbol</p>
         <div
           class="relative aspect-square rounded-lg border border-border overflow-hidden bg-muted cursor-pointer group"
           @click="fileInput?.click()"
@@ -59,7 +59,7 @@
 
       <!-- Pantheon -->
       <div class="space-y-1.5">
-        <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Pantheon</label>
+        <label class="text-eyebrow font-semibold text-muted-foreground">Pantheon</label>
         <EntityCombobox
           :model-value="form.pantheon_id ?? ''"
           :options="pantheonOptions"
@@ -70,7 +70,7 @@
 
       <!-- Alignment -->
       <div class="space-y-1.5">
-        <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Alignment</label>
+        <label class="text-eyebrow font-semibold text-muted-foreground">Alignment</label>
         <EntityCombobox
           v-model="alignmentStr"
           :options="DEITY_ALIGNMENT_OPTIONS"
@@ -80,7 +80,7 @@
 
       <!-- Symbol description -->
       <div class="space-y-1.5">
-        <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Symbol Description</label>
+        <label class="text-eyebrow font-semibold text-muted-foreground">Symbol Description</label>
         <input
           v-model="form.symbol"
           placeholder="Describe the holy symbol…"
@@ -90,7 +90,7 @@
 
       <!-- Visibility -->
       <div class="space-y-1.5">
-        <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Visible to Players</label>
+        <label class="text-eyebrow font-semibold text-muted-foreground">Visible to Players</label>
         <PlayerVisibilityToggle
           :visible-to="form.player_visible_to"
           @update:visible-to="form.player_visible_to = $event"
@@ -99,7 +99,7 @@
 
       <!-- Tags -->
       <div class="space-y-1.5">
-        <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Tags</label>
+        <label class="text-eyebrow font-semibold text-muted-foreground">Tags</label>
         <TagInput v-model="tags" />
       </div>
     </div>
@@ -108,7 +108,7 @@
     <div class="flex flex-col gap-4">
       <!-- Name -->
       <div class="space-y-1.5">
-        <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Name</label>
+        <label class="text-eyebrow font-semibold text-muted-foreground">Name</label>
         <input
           v-model="form.name"
           placeholder="Deity name…"
@@ -119,7 +119,7 @@
 
       <!-- Titles / epithets -->
       <div class="space-y-1.5">
-        <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Titles &amp; Epithets</label>
+        <label class="text-eyebrow font-semibold text-muted-foreground">Titles &amp; Epithets</label>
         <input
           v-model="form.titles"
           placeholder="e.g. The Morninglord, Lord of Dawn…"
@@ -129,14 +129,14 @@
 
       <!-- Alternate names -->
       <div class="space-y-1.5">
-        <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Alternate Names</label>
+        <label class="text-eyebrow font-semibold text-muted-foreground">Alternate Names</label>
         <TagInput v-model="alternateNames" placeholder="Add name…" />
         <p class="font-fell text-[0.6875rem] italic text-muted-foreground">Known by different names in different cultures or regions.</p>
       </div>
 
       <!-- Cleric domains -->
       <div class="space-y-1.5">
-        <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Cleric Domains</label>
+        <label class="text-eyebrow font-semibold text-muted-foreground">Cleric Domains</label>
         <div class="flex flex-wrap gap-1.5">
           <button
             v-for="domain in CLERIC_DOMAINS"
@@ -157,7 +157,7 @@
 
       <!-- Portfolio -->
       <div class="space-y-1.5">
-        <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Portfolio</label>
+        <label class="text-eyebrow font-semibold text-muted-foreground">Portfolio</label>
         <input
           v-model="form.portfolio"
           placeholder="What does this deity govern? (war, harvest, death…)"
@@ -167,7 +167,7 @@
 
       <!-- Description / Lore -->
       <div class="space-y-1.5">
-        <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Lore &amp; Description</label>
+        <label class="text-eyebrow font-semibold text-muted-foreground">Lore &amp; Description</label>
         <RichTextEditor
           v-model="form.description"
           placeholder="Origin myth, appearance, worshippers, holy sites…"
@@ -177,7 +177,7 @@
 
       <!-- DM Notes (secrets) -->
       <div class="space-y-1.5">
-        <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">DM Secrets</label>
+        <label class="text-eyebrow font-semibold text-muted-foreground">DM Secrets</label>
         <RichTextEditor
           v-model="form.dm_notes"
           placeholder="Hidden truths, true motivations, secret agenda…"

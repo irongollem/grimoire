@@ -34,7 +34,7 @@
         <!-- Pantheon -->
         <div v-if="pantheonName">
           <span
-            class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase"
+            class="text-eyebrow font-semibold text-muted-foreground"
             >Pantheon</span
           >
           <RouterLink
@@ -51,7 +51,7 @@
         <!-- Alignment -->
         <div v-if="deity.alignment">
           <span
-            class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase"
+            class="text-eyebrow font-semibold text-muted-foreground"
             >Alignment</span
           >
           <p class="font-fell text-sm text-foreground">{{ deity.alignment }}</p>
@@ -60,7 +60,7 @@
         <!-- Holy symbol description -->
         <div v-if="deity.symbol">
           <span
-            class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase"
+            class="text-eyebrow font-semibold text-muted-foreground"
             >Holy Symbol</span
           >
           <p class="font-fell text-sm text-foreground">{{ deity.symbol }}</p>
@@ -69,7 +69,7 @@
         <!-- Portfolio -->
         <div v-if="deity.portfolio">
           <span
-            class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase"
+            class="text-eyebrow font-semibold text-muted-foreground"
             >Portfolio</span
           >
           <p class="font-fell text-sm text-foreground">{{ deity.portfolio }}</p>
@@ -78,7 +78,7 @@
         <!-- Domains -->
         <div v-if="deity.domains?.length">
           <span
-            class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase"
+            class="text-eyebrow font-semibold text-muted-foreground"
             >Cleric Domains</span
           >
           <div class="flex flex-wrap gap-1 mt-1">
@@ -94,7 +94,7 @@
         <!-- Alternate names -->
         <div v-if="deity.alternate_names?.length">
           <span
-            class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase"
+            class="text-eyebrow font-semibold text-muted-foreground"
             >Also Known As</span
           >
           <div class="flex flex-wrap gap-1 mt-1">
@@ -110,7 +110,7 @@
         <!-- Tags -->
         <div v-if="deity.tags?.length">
           <span
-            class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase"
+            class="text-eyebrow font-semibold text-muted-foreground"
             >Tags</span
           >
           <div class="flex flex-wrap gap-1 mt-1">
@@ -149,7 +149,7 @@
       <!-- DM secrets block -->
       <div v-if="hasDmNotes" class="border-t border-border pt-4">
         <p
-          class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase mb-2"
+          class="text-eyebrow font-semibold text-muted-foreground mb-2"
         >
           DM Secrets
         </p>
@@ -158,7 +158,7 @@
 
       <!-- Worshipping factions -->
       <div class="border-t border-border pt-4">
-        <p class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase mb-2">Worshipping Factions</p>
+        <p class="text-eyebrow font-semibold text-muted-foreground mb-2">Worshipping Factions</p>
         <DeityFactionsSection :deity-id="deity.id" />
       </div>
     </div>
