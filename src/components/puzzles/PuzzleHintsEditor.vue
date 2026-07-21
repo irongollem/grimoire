@@ -4,7 +4,7 @@
       <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Hints</span>
       <button
         type="button"
-        class="font-cinzel text-[10px] font-semibold text-primary hover:opacity-80 transition-opacity tracking-wider"
+        class="font-cinzel text-2xs font-semibold text-primary hover:opacity-80 transition-opacity tracking-wider"
         @click="emit('add-hint')"
       >
         + Add Hint
@@ -15,7 +15,7 @@
         No hints yet. Add tiered hints from subtle to obvious.
       </p>
       <div v-for="(hint, i) in sortedHints" :key="hint.order" class="flex items-start gap-2">
-        <span class="shrink-0 mt-1.5 font-cinzel text-[10px] font-bold text-muted-foreground w-6 text-right">{{ hint.order }}</span>
+        <span class="shrink-0 mt-1.5 font-cinzel text-2xs font-bold text-muted-foreground w-6 text-right">{{ hint.order }}</span>
         <RichTextEditor
           :model-value="hint.text"
           :placeholder="`Hint ${hint.order}…`"

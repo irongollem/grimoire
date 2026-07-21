@@ -18,22 +18,22 @@
         <div class="flex items-start gap-2">
           <div class="flex-1 min-w-0">
             <p class="font-cinzel text-sm font-bold text-foreground">{{ cls.class_name }}</p>
-            <p class="font-cinzel text-[9px] uppercase tracking-wider text-muted-foreground/70">
+            <p class="font-cinzel text-[0.5625rem] uppercase tracking-wider text-muted-foreground/70">
               {{ cls.definition_kind === 'system' ? 'Official' : (cls.source_document_key ? 'Imported' : 'Custom') }}
               <template v-if="cls.source_revision"> · {{ cls.source_revision }}</template>
             </p>
             <p v-if="cls.primary_ability" class="font-fell text-xs text-muted-foreground mt-0.5">{{ cls.primary_ability }}</p>
           </div>
-          <span class="shrink-0 px-2 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground">
+          <span class="shrink-0 px-2 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground">
             d{{ cls.hit_die }}
           </span>
         </div>
         <div v-if="cls.saving_throws?.length" class="mt-1.5 flex flex-wrap gap-1">
           <span v-for="st in cls.saving_throws" :key="st"
-            class="px-1.5 py-0.5 rounded bg-muted/60 font-cinzel text-[9px] text-muted-foreground uppercase">{{ st }}</span>
+            class="px-1.5 py-0.5 rounded bg-muted/60 font-cinzel text-[0.5625rem] text-muted-foreground uppercase">{{ st }}</span>
         </div>
         <!-- Skill pick count hint on each card -->
-        <p v-if="classSkillDataFor(cls.class_name)" class="font-cinzel text-[9px] text-muted-foreground/70 mt-1.5">
+        <p v-if="classSkillDataFor(cls.class_name)" class="font-cinzel text-[0.5625rem] text-muted-foreground/70 mt-1.5">
           {{ classSkillDataFor(cls.class_name)!.count }} skill pick{{ classSkillDataFor(cls.class_name)!.count !== 1 ? 's' : '' }}
           {{ classSkillDataFor(cls.class_name)!.skills.length ? `from ${classSkillDataFor(cls.class_name)!.skills.length} options` : 'from any skill' }}
         </p>
@@ -58,13 +58,13 @@
         <div>
           <div class="flex items-baseline justify-between mb-2">
             <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">SAVING THROWS</p>
-            <p v-if="f.class" class="font-fell text-[10px] text-muted-foreground/70 italic">fixed by class</p>
+            <p v-if="f.class" class="font-fell text-2xs text-muted-foreground/70 italic">fixed by class</p>
           </div>
 
           <!-- Class selected: read-only coloured chips -->
           <div v-if="f.class" class="flex flex-wrap gap-1.5">
             <span v-for="save in SAVE_STATS" :key="save.key"
-              class="px-2 py-0.5 rounded font-cinzel text-[10px] border transition-colors"
+              class="px-2 py-0.5 rounded font-cinzel text-2xs border transition-colors"
               :class="f.saving_throw_proficiencies.includes(save.key)
                 ? 'bg-primary/15 border-primary/40 text-primary'
                 : 'bg-muted border-border text-muted-foreground'">
@@ -81,7 +81,7 @@
               <input type="checkbox" :checked="f.saving_throw_proficiencies.includes(save.key)"
                 class="rounded" @change="toggleSave(save.key)" />
               <span class="font-cinzel text-xs text-foreground">{{ save.label }}</span>
-              <span class="font-cinzel text-[10px] text-muted-foreground">{{ saveBonus(save.key) }}</span>
+              <span class="font-cinzel text-2xs text-muted-foreground">{{ saveBonus(save.key) }}</span>
             </label>
           </div>
         </div>
@@ -91,7 +91,7 @@
           <div class="flex items-baseline justify-between mb-2">
             <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">SKILLS</p>
             <!-- Budget indicator -->
-            <p v-if="classSkillData" class="font-cinzel text-[10px]"
+            <p v-if="classSkillData" class="font-cinzel text-2xs"
               :class="picksRemaining === 0 ? 'text-primary' : picksRemaining < 0 ? 'text-destructive' : 'text-muted-foreground'">
               {{ classChosenCount }} / {{ classSkillData.count }} class picks used
               <span v-if="picksRemaining > 0"> · {{ picksRemaining }} left</span>
@@ -102,14 +102,14 @@
           <!-- Background skill choice ("choose one of …") -->
           <div v-for="(choice, ci) in bgSkillChoices" :key="`bgchoice-${ci}`"
             class="mb-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-2">
-            <p class="font-cinzel text-[10px] text-amber-700 dark:text-amber-400 mb-1.5">
+            <p class="font-cinzel text-2xs text-amber-700 dark:text-amber-400 mb-1.5">
               BACKGROUND CHOICE — pick {{ choice.count }}
               <span class="text-amber-600/70">({{ bgChosenSkills.length }}/{{ bgChoiceLimit }} chosen)</span>
             </p>
             <div class="flex flex-wrap gap-1.5">
               <button v-for="opt in (choice.options.length ? choice.options : SKILLS.map(s => s.key))"
                 :key="opt" type="button"
-                class="px-2 py-0.5 rounded font-cinzel text-[10px] border transition-colors"
+                class="px-2 py-0.5 rounded font-cinzel text-2xs border transition-colors"
                 :class="bgChosenSkills.includes(opt)
                   ? 'bg-amber-500/25 border-amber-500/50 text-amber-700 dark:text-amber-400'
                   : bgChosenSkills.length >= bgChoiceLimit
@@ -129,7 +129,7 @@
                 ? 'opacity-50'
                 : ''">
               <!-- Proficiency toggle -->
-              <div class="flex rounded overflow-hidden border text-[10px] font-cinzel font-semibold shrink-0"
+              <div class="flex rounded overflow-hidden border text-2xs font-cinzel font-semibold shrink-0"
                 :class="isFromBackground(skill.key)
                   ? 'border-amber-500/40 opacity-80 cursor-not-allowed'
                   : 'border-border'">
@@ -153,17 +153,17 @@
 
               <!-- Background badge OR bonus -->
               <span v-if="isFromBackground(skill.key)"
-                class="font-cinzel text-[8px] px-1 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0">
+                class="font-cinzel text-[0.5rem] px-1 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0">
                 BG
               </span>
-              <span v-else class="font-cinzel text-[10px] text-muted-foreground shrink-0">
+              <span v-else class="font-cinzel text-2xs text-muted-foreground shrink-0">
                 {{ skillBonus(skill.key, skill.ability) }}
               </span>
             </div>
           </div>
 
           <!-- Legend -->
-          <p v-if="f.class" class="font-cinzel text-[9px] text-muted-foreground/60 mt-2 leading-relaxed">
+          <p v-if="f.class" class="font-cinzel text-[0.5625rem] text-muted-foreground/60 mt-2 leading-relaxed">
             <span v-if="classSkillData?.skills.length">In-class skills are full opacity · dimmed skills are outside your class list · </span>
             <span v-else>Your class may choose from any skill · </span>
             <span class="text-amber-600 dark:text-amber-400">BG</span> = granted by background, not counted against your picks.

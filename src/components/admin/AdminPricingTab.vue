@@ -68,10 +68,10 @@
       <table v-else class="w-full text-sm">
         <thead>
           <tr class="border-b border-border">
-            <th class="text-left pb-2 font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase">Pack</th>
-            <th class="text-right pb-2 font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase w-20">Credits</th>
-            <th class="text-right pb-2 pl-3 font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase w-24">Price</th>
-            <th class="pb-2 pl-3 font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase">Stripe Price ID</th>
+            <th class="text-left pb-2 font-cinzel text-2xs tracking-wider text-muted-foreground uppercase">Pack</th>
+            <th class="text-right pb-2 font-cinzel text-2xs tracking-wider text-muted-foreground uppercase w-20">Credits</th>
+            <th class="text-right pb-2 pl-3 font-cinzel text-2xs tracking-wider text-muted-foreground uppercase w-24">Price</th>
+            <th class="pb-2 pl-3 font-cinzel text-2xs tracking-wider text-muted-foreground uppercase">Stripe Price ID</th>
             <th class="w-16" />
           </tr>
         </thead>
@@ -101,7 +101,7 @@
             </td>
             <td class="py-2 pl-2 text-right">
               <button
-                class="px-2.5 py-1 font-cinzel text-[10px] font-semibold tracking-wider bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50 transition-opacity"
+                class="px-2.5 py-1 font-cinzel text-2xs font-semibold tracking-wider bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50 transition-opacity"
                 :disabled="packSaving[pack.pack_id]"
                 @click="savePack(pack)"
               >
@@ -126,9 +126,9 @@
       <table v-else class="w-full text-sm">
         <thead>
           <tr class="border-b border-border">
-            <th class="text-left pb-2 font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase">Generator</th>
-            <th class="text-right pb-2 font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase w-32">Credits</th>
-            <th class="text-right pb-2 pl-4 font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase">Calibration</th>
+            <th class="text-left pb-2 font-cinzel text-2xs tracking-wider text-muted-foreground uppercase">Generator</th>
+            <th class="text-right pb-2 font-cinzel text-2xs tracking-wider text-muted-foreground uppercase w-32">Credits</th>
+            <th class="text-right pb-2 pl-4 font-cinzel text-2xs tracking-wider text-muted-foreground uppercase">Calibration</th>
             <th class="w-16" />
           </tr>
         </thead>
@@ -138,11 +138,11 @@
               <p class="font-fell text-foreground">
                 {{ gen.label }}
                 <span
-                  class="ml-1 rounded px-1 py-0.5 font-cinzel text-[9px] tracking-wider align-middle"
+                  class="ml-1 rounded px-1 py-0.5 font-cinzel text-[0.5625rem] tracking-wider align-middle"
                   :class="CATEGORY_CLASS[categoryOf(gen.generation_type)]"
                 >{{ categoryOf(gen.generation_type) }}</span>
               </p>
-              <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider">{{ gen.generation_type }}</p>
+              <p class="font-cinzel text-2xs text-muted-foreground tracking-wider">{{ gen.generation_type }}</p>
             </td>
             <td class="py-2 text-right">
               <input
@@ -152,41 +152,41 @@
               />
               <p
                 v-if="derivedNonSquare(gen.generation_type)"
-                class="font-fell text-[10px] text-muted-foreground/60 mt-0.5 whitespace-nowrap"
+                class="font-fell text-2xs text-muted-foreground/60 mt-0.5 whitespace-nowrap"
                 title="Non-square renders are charged base × pixel-area (1.5× for 3:2 / 2:3). This is derived, not separately editable."
               >{{ derivedNonSquare(gen.generation_type)!.label }} ×1.5 = {{ derivedNonSquare(gen.generation_type)!.cost }}</p>
             </td>
             <td class="py-2 pl-4 text-right">
-              <span v-if="calibrationQuery.isPending.value" class="font-fell text-[10px] text-muted-foreground/40">…</span>
-              <span v-else-if="!calibrationHints[gen.generation_type]" class="font-fell text-[10px] text-muted-foreground/30">—</span>
+              <span v-if="calibrationQuery.isPending.value" class="font-fell text-2xs text-muted-foreground/40">…</span>
+              <span v-else-if="!calibrationHints[gen.generation_type]" class="font-fell text-2xs text-muted-foreground/30">—</span>
               <!-- No suggestion yet (< 20 samples) — show raw cost as informational -->
               <span
                 v-else-if="calibrationHints[gen.generation_type].suggested_cost === null"
-                class="font-cinzel text-[10px] text-muted-foreground/50 tracking-wide whitespace-nowrap"
+                class="font-cinzel text-2xs text-muted-foreground/50 tracking-wide whitespace-nowrap"
                 :title="`${calibrationHints[gen.generation_type].sample_size} samples (need 20 for suggestion)`"
               >~${{ (calibrationHints[gen.generation_type].avg_actual_usd_cents / 100).toFixed(4) }}</span>
               <!-- Well calibrated — green -->
               <span
                 v-else-if="calibrationStatus(calibrationHints[gen.generation_type]) === 'ok'"
-                class="font-cinzel text-[10px] text-green-500 tracking-wide"
+                class="font-cinzel text-2xs text-green-500 tracking-wide"
                 :title="`avg actual: $${(calibrationHints[gen.generation_type].avg_actual_usd_cents / 100).toFixed(4)} (${calibrationHints[gen.generation_type].sample_size} samples)`"
               >✓</span>
               <!-- Under-charging: current cost < API cost — red, raise price -->
               <span
                 v-else-if="calibrationStatus(calibrationHints[gen.generation_type]) === 'under'"
-                class="font-cinzel text-[10px] text-red-500 tracking-wide whitespace-nowrap font-semibold"
+                class="font-cinzel text-2xs text-red-500 tracking-wide whitespace-nowrap font-semibold"
                 :title="`Under-charging — avg actual: $${(calibrationHints[gen.generation_type].avg_actual_usd_cents / 100).toFixed(4)} (${calibrationHints[gen.generation_type].sample_size} samples)`"
               >↑ {{ calibrationHints[gen.generation_type].suggested_cost }}</span>
               <!-- Over-charging: steep margin — blue -->
               <span
                 v-else
-                class="font-cinzel text-[10px] text-sky-400 tracking-wide whitespace-nowrap"
+                class="font-cinzel text-2xs text-sky-400 tracking-wide whitespace-nowrap"
                 :title="`Steep margin — avg actual: $${(calibrationHints[gen.generation_type].avg_actual_usd_cents / 100).toFixed(4)} (${calibrationHints[gen.generation_type].sample_size} samples)`"
               >↓ {{ calibrationHints[gen.generation_type].suggested_cost }}</span>
             </td>
             <td class="py-2 pl-2 text-right">
               <button
-                class="px-2.5 py-1 font-cinzel text-[10px] font-semibold tracking-wider bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50 transition-opacity"
+                class="px-2.5 py-1 font-cinzel text-2xs font-semibold tracking-wider bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50 transition-opacity"
                 :disabled="genCostSaving[gen.generation_type]"
                 @click="saveGenCost(gen)"
               >

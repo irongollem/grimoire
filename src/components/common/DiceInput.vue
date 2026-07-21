@@ -144,7 +144,7 @@ function onBlur() {
 }
 .dice-drop-enter-from {
   opacity: 0;
-  transform: translateY(-4px);
+  transform: translateY(-0.25rem);
 }
 .dice-drop-leave-to {
   opacity: 0;

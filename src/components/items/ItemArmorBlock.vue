@@ -1,10 +1,10 @@
 <template>
   <div class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-3">
-    <h3 class="font-cinzel text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
+    <h3 class="font-cinzel text-[0.6875rem] font-bold tracking-wider text-muted-foreground uppercase">
       Defense
     </h3>
     <label class="flex flex-col gap-1">
-      <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Armor Class</span>
+      <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase">Armor Class</span>
       <input
         :value="armorClass"
         placeholder="e.g. 13 + DEX modifier (max 2)"

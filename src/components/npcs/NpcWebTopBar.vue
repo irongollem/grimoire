@@ -61,11 +61,11 @@
 
       <!-- Legend -->
       <div class="flex items-center gap-3 pl-2 border-l border-border">
-        <span v-for="[type, color] in legendItems" :key="type" class="flex items-center gap-1.5 font-cinzel text-[10px] tracking-wider text-muted-foreground">
+        <span v-for="[type, color] in legendItems" :key="type" class="flex items-center gap-1.5 font-cinzel text-2xs tracking-wider text-muted-foreground">
           <span class="inline-block h-2.5 w-2.5 rounded-full" :style="{ backgroundColor: color }" />
           {{ type }}
         </span>
-        <span class="flex items-center gap-1.5 font-cinzel text-[10px] tracking-wider text-muted-foreground">
+        <span class="flex items-center gap-1.5 font-cinzel text-2xs tracking-wider text-muted-foreground">
           <span class="inline-block w-5 border-t-2 border-dashed border-muted-foreground/70" />
           PC link
         </span>

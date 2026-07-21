@@ -50,7 +50,7 @@
               {{ member.display_name || "(unnamed player)" }}
             </p>
             <span
-              class="inline-block text-[10px] font-cinzel tracking-widest uppercase px-1.5 py-0.5 rounded"
+              class="inline-block text-2xs font-cinzel tracking-widest uppercase px-1.5 py-0.5 rounded"
               :class="
                 member.role === 'dm'
                   ? 'bg-gold-500/15 text-gold-400'

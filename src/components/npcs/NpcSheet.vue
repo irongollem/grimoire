@@ -11,22 +11,22 @@
         class="w-full rounded-lg overflow-hidden max-h-80 lg:max-h-none lg:flex-1 lg:min-h-0"
       />
       <div class="flex flex-wrap gap-1">
-        <span class="font-cinzel text-[10px] tracking-wider bg-muted text-muted-foreground rounded px-2 py-0.5 capitalize">{{ npc.status }}</span>
-        <span class="font-cinzel text-[10px] tracking-wider bg-muted text-muted-foreground rounded px-2 py-0.5 capitalize">{{ npc.relationship }}</span>
+        <span class="font-cinzel text-2xs tracking-wider bg-muted text-muted-foreground rounded px-2 py-0.5 capitalize">{{ npc.status }}</span>
+        <span class="font-cinzel text-2xs tracking-wider bg-muted text-muted-foreground rounded px-2 py-0.5 capitalize">{{ npc.relationship }}</span>
       </div>
       <div v-if="npc.tags?.length" class="flex flex-wrap gap-1">
-        <span v-for="tag in npc.tags" :key="tag" class="font-cinzel text-[10px] tracking-wider bg-muted/60 text-muted-foreground rounded px-2 py-0.5">{{ tag }}</span>
+        <span v-for="tag in npc.tags" :key="tag" class="font-cinzel text-2xs tracking-wider bg-muted/60 text-muted-foreground rounded px-2 py-0.5">{{ tag }}</span>
       </div>
 
       <!-- Factions -->
       <div v-if="npcFactions?.length" class="pt-1 border-t border-border/50">
-        <p class="font-cinzel text-[10px] tracking-widest text-muted-foreground mb-1.5">FACTIONS</p>
+        <p class="font-cinzel text-2xs tracking-widest text-muted-foreground mb-1.5">FACTIONS</p>
         <div class="flex flex-wrap gap-1">
           <RouterLink
             v-for="row in npcFactions"
             :key="row.faction.id"
             :to="`/factions/${row.faction.id}`"
-            class="font-cinzel text-[10px] px-2 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
+            class="font-cinzel text-2xs px-2 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
           >
             {{ row.faction.name }}
           </RouterLink>
@@ -35,7 +35,7 @@
 
       <!-- Alter ego reveal control (DM only — always visible in the sheet) -->
       <div v-if="hasDisguise" class="pt-1 border-t border-border/50">
-        <p class="font-cinzel text-[10px] tracking-widest text-muted-foreground mb-1.5">ALTER EGO</p>
+        <p class="font-cinzel text-2xs tracking-widest text-muted-foreground mb-1.5">ALTER EGO</p>
         <div class="flex flex-col gap-1.5">
           <p class="font-fell text-xs text-muted-foreground italic">
             {{ npc.is_revealed ? `True form revealed` : `Disguised as ${npc.disguise_name || 'unknown'}` }}
@@ -43,7 +43,7 @@
           <button
             type="button"
             :disabled="isToggling"
-            class="w-full py-1 font-cinzel text-[10px] font-semibold tracking-wider rounded border transition-colors disabled:opacity-50"
+            class="w-full py-1 font-cinzel text-2xs font-semibold tracking-wider rounded border transition-colors disabled:opacity-50"
             :class="npc.is_revealed
               ? 'border-border text-muted-foreground hover:border-foreground/40'
               : 'border-amber-500/50 text-amber-500 bg-amber-500/10 hover:bg-amber-500/20'"

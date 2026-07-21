@@ -18,11 +18,11 @@
         <h2 class="font-cinzel text-xl font-bold text-foreground leading-tight">{{ puzzle.name }}</h2>
         <div class="flex flex-wrap gap-2">
           <span
-            class="font-cinzel text-[10px] px-2 py-0.5 rounded tracking-wider text-white font-bold"
+            class="font-cinzel text-2xs px-2 py-0.5 rounded tracking-wider text-white font-bold"
             :style="{ backgroundColor: PUZZLE_TYPE_COLORS[puzzle.puzzle_type] + 'DD' }"
           >{{ puzzle.puzzle_type }}</span>
           <span
-            class="font-cinzel text-[10px] px-2 py-0.5 rounded tracking-wider text-white font-bold"
+            class="font-cinzel text-2xs px-2 py-0.5 rounded tracking-wider text-white font-bold"
             :style="{ backgroundColor: PUZZLE_DIFFICULTY_COLORS[puzzle.difficulty] + 'DD' }"
           >{{ puzzle.difficulty }}</span>
         </div>
@@ -30,7 +30,7 @@
           <span
             v-for="tag in puzzle.tags"
             :key="tag"
-            class="font-cinzel text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground tracking-wider"
+            class="font-cinzel text-[0.5625rem] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground tracking-wider"
           >{{ tag }}</span>
         </div>
 
@@ -39,7 +39,7 @@
           <span
             v-for="sc in puzzle.skill_checks"
             :key="sc.skill"
-            class="font-fell text-[11px] text-muted-foreground"
+            class="font-fell text-[0.6875rem] text-muted-foreground"
           >
             {{ sc.skill }} DC {{ sc.dc }}
           </span>

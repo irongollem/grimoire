@@ -38,7 +38,7 @@
               <div v-if="selectedSpell" class="flex items-center gap-2 px-3 py-1.5 rounded-md bg-violet-500/10 border border-violet-500/30">
                 <div class="h-2 w-2 rounded-full shrink-0" :style="{ backgroundColor: SCHOOL_COLORS[selectedSpell.school] }" />
                 <span class="font-fell text-sm text-foreground flex-1">{{ selectedSpell.name }}</span>
-                <span class="font-cinzel text-[10px] text-muted-foreground">{{ selectedSpell.level === 0 ? 'Cantrip' : `Lvl ${selectedSpell.level}` }}</span>
+                <span class="font-cinzel text-2xs text-muted-foreground">{{ selectedSpell.level === 0 ? 'Cantrip' : `Lvl ${selectedSpell.level}` }}</span>
                 <button type="button" class="text-muted-foreground hover:text-foreground" @click="clearSpell">×</button>
               </div>
 
@@ -56,7 +56,7 @@
                 >
                   <div class="h-2 w-2 rounded-full shrink-0" :style="{ backgroundColor: SCHOOL_COLORS[spell.school] }" />
                   <span class="font-fell text-sm text-foreground flex-1 truncate">{{ spell.name }}</span>
-                  <span class="font-cinzel text-[10px] text-muted-foreground shrink-0">{{ spell.level === 0 ? 'C' : spell.level }}</span>
+                  <span class="font-cinzel text-2xs text-muted-foreground shrink-0">{{ spell.level === 0 ? 'C' : spell.level }}</span>
                 </button>
               </div>
               <p v-else-if="spellSearch.length >= 2 && !isSearching" class="font-fell text-xs text-muted-foreground italic px-1">No spells found</p>

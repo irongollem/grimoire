@@ -11,7 +11,7 @@
       <button
         v-if="locationNpcs.length > 3"
         type="button"
-        class="font-cinzel text-[10px] text-muted-foreground hover:text-foreground transition-colors tracking-wider"
+        class="font-cinzel text-2xs text-muted-foreground hover:text-foreground transition-colors tracking-wider"
         @click="npcsExpanded = !npcsExpanded"
       >
         {{ npcsExpanded ? "Show less" : `Show all ${locationNpcs.length}` }}
@@ -38,7 +38,7 @@
           </p>
           <p
             v-if="npc.location_id && npc.location_id !== locationId"
-            class="font-cinzel text-[10px] text-muted-foreground/60 tracking-wide truncate mt-0.5"
+            class="font-cinzel text-2xs text-muted-foreground/60 tracking-wide truncate mt-0.5"
           >
             {{ allLocationsMap.get(npc.location_id)?.name ?? "" }}
           </p>
@@ -73,7 +73,7 @@
         >
         <span
           v-if="enc.is_finished"
-          class="font-cinzel text-[10px] text-muted-foreground tracking-wider"
+          class="font-cinzel text-2xs text-muted-foreground tracking-wider"
           >Done</span
         >
         <IconChevronRight
@@ -109,7 +109,7 @@
       </RouterLink>
       <span
         v-if="m.class"
-        class="font-fell text-[10px] text-muted-foreground italic"
+        class="font-fell text-2xs text-muted-foreground italic"
         >{{ m.class }}</span
       >
       <button

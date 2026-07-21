@@ -10,12 +10,12 @@
         <div v-if="e.faction.emblem_url" class="h-4 w-4 shrink-0">
           <FocalImage :src="e.faction.emblem_url" alt="" format="token" class="w-full h-full" />
         </div>
-        <RouterLink :to="`/factions/${e.faction.id}`" class="font-cinzel text-[10px] font-semibold text-foreground hover:text-primary transition-colors">
+        <RouterLink :to="`/factions/${e.faction.id}`" class="font-cinzel text-2xs font-semibold text-foreground hover:text-primary transition-colors">
           {{ e.faction.name }}
         </RouterLink>
         <select
           :value="e.role ?? 'Member'"
-          class="bg-transparent border-none font-fell text-[10px] text-muted-foreground focus:outline-none cursor-pointer"
+          class="bg-transparent border-none font-fell text-2xs text-muted-foreground focus:outline-none cursor-pointer"
           @change="updateRole(e, ($event.target as HTMLSelectElement).value)"
         >
           <option v-for="r in NPC_FACTION_ROLES" :key="r" :value="r">{{ r }}</option>
@@ -23,7 +23,7 @@
         <!-- Status badge — shown when not Active -->
         <span
           v-if="e.status && e.status !== 'Active'"
-          class="font-cinzel text-[9px] font-semibold italic"
+          class="font-cinzel text-[0.5625rem] font-semibold italic"
           :style="{ color: NPC_FACTION_STATUS_COLORS[e.status as NpcFactionStatus] }"
         >{{ e.status }}</span>
         <button type="button" class="text-muted-foreground hover:text-destructive transition-colors text-sm leading-none shrink-0" @click="remove(e)">×</button>

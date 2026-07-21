@@ -14,7 +14,7 @@
 
         <!-- Slot level picker -->
         <div>
-          <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider mb-2">CAST AT LEVEL</p>
+          <p class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider mb-2">CAST AT LEVEL</p>
           <div class="flex flex-wrap gap-2">
             <button
               v-for="slot in upcastSlots"
@@ -26,8 +26,8 @@
               @click="selectedKey = spellSlotKey(slot)"
             >
               <span>{{ SLOT_LEVEL_LABELS[slot.level - 1] }}</span>
-              <span class="font-fell text-[9px] font-normal opacity-70">{{ poolLabel(slot) }}</span>
-              <span v-if="scaledDiceLabel(slot.level)" class="font-fell text-[10px] font-normal mt-0.5 opacity-80">
+              <span class="font-fell text-[0.5625rem] font-normal opacity-70">{{ poolLabel(slot) }}</span>
+              <span v-if="scaledDiceLabel(slot.level)" class="font-fell text-2xs font-normal mt-0.5 opacity-80">
                 {{ scaledDiceLabel(slot.level) }}
               </span>
             </button>

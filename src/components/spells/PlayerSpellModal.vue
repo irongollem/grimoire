@@ -92,7 +92,7 @@ const spellSubtitle = computed(() => {
 }
 .spell-modal-enter-from .relative,
 .spell-modal-leave-to .relative {
-  transform: translateY(12px);
+  transform: translateY(0.75rem);
   opacity: 0;
 }
 </style>

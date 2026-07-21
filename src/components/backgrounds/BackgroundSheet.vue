@@ -37,7 +37,7 @@
           <div class="flex flex-wrap gap-1.5">
             <span
               v-if="background.source_title || background.source"
-              class="font-cinzel text-[10px] tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
+              class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
             >{{ background.source_title ?? background.source }}</span>
           </div>
           <p
@@ -60,32 +60,32 @@
       </div>
       <div class="p-4 flex flex-col gap-3">
         <div v-if="background.skill_proficiencies.length">
-          <span class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase block mb-1.5">Skills</span>
+          <span class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase block mb-1.5">Skills</span>
           <div class="flex flex-wrap gap-1">
             <span
               v-for="s in background.skill_proficiencies"
               :key="s"
-              class="font-cinzel text-[10px] tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
+              class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
             >{{ s }}</span>
           </div>
         </div>
         <div v-if="background.tool_proficiencies.length">
-          <span class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase block mb-1.5">Tools</span>
+          <span class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase block mb-1.5">Tools</span>
           <div class="flex flex-wrap gap-1">
             <span
               v-for="t in background.tool_proficiencies"
               :key="t"
-              class="font-cinzel text-[10px] tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
+              class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
             >{{ t }}</span>
           </div>
         </div>
         <div v-if="background.languages.length">
-          <span class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase block mb-1.5">Languages</span>
+          <span class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase block mb-1.5">Languages</span>
           <div class="flex flex-wrap gap-1">
             <span
               v-for="l in background.languages"
               :key="l"
-              class="font-cinzel text-[10px] tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
+              class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
             >{{ l }}</span>
           </div>
         </div>
@@ -96,7 +96,7 @@
     <div v-if="background.feat_grant_name" class="rounded-lg border border-primary/30 bg-primary/5 overflow-hidden">
       <div class="px-3 py-2 border-b border-primary/20 bg-primary/10 flex items-center gap-2">
         <span class="font-cinzel text-xs font-semibold text-primary tracking-wider">Feat Grant</span>
-        <span class="font-cinzel text-[10px] text-primary/60 tracking-wider">2024 PHB</span>
+        <span class="font-cinzel text-2xs text-primary/60 tracking-wider">2024 PHB</span>
       </div>
       <div class="p-4 flex flex-col gap-2">
         <p class="font-cinzel text-sm font-bold text-foreground">{{ background.feat_grant_name }}</p>
@@ -113,7 +113,7 @@
         <span
           v-for="tag in background.tags"
           :key="tag"
-          class="font-cinzel text-[10px] tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
+          class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
         >{{ tag }}</span>
       </div>
     </div>
@@ -135,12 +135,12 @@
         <div class="flex items-center gap-2">
           <span
             v-if="grantDone"
-            class="font-cinzel text-[10px] tracking-wider text-emerald-500"
+            class="font-cinzel text-2xs tracking-wider text-emerald-500"
           >Added!</span>
           <button
             v-if="hasCampaign"
             type="button"
-            class="inline-flex items-center gap-1 font-cinzel text-[10px] tracking-wider text-primary hover:text-primary/80 transition-colors"
+            class="inline-flex items-center gap-1 font-cinzel text-2xs tracking-wider text-primary hover:text-primary/80 transition-colors"
             @click="openLootbox"
           >
             <IconAddItem class="h-3.5 w-3.5" />
@@ -154,7 +154,7 @@
         <!-- Lootbox expansion -->
         <div v-if="lootboxOpen" class="flex flex-col gap-3 border-t border-border pt-3">
           <label class="flex flex-col gap-1">
-            <span class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase">Grant to</span>
+            <span class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase">Grant to</span>
             <EntityCombobox
               v-model="selectedMemberId"
               :options="memberOptions"
@@ -163,7 +163,7 @@
           </label>
 
           <div class="flex flex-col gap-1.5">
-            <span class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase">Items</span>
+            <span class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase">Items</span>
             <div
               v-for="(_, i) in lootboxItems"
               :key="i"

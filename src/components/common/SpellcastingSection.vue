@@ -14,7 +14,7 @@
         <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">SPELLCASTING</p>
         <button
           type="button"
-          class="font-cinzel text-[10px] text-destructive hover:opacity-80 transition-opacity"
+          class="font-cinzel text-2xs text-destructive hover:opacity-80 transition-opacity"
           @click="model = null"
         >
           Remove
@@ -129,7 +129,7 @@
                   class="px-3 py-1.5 font-fell text-sm text-foreground hover:bg-muted/60 transition-colors cursor-pointer flex items-center gap-2"
                   @mousedown.prevent="addSpell(i, spell.id)"
                 >
-                  <span class="font-cinzel text-[10px] text-muted-foreground w-16 shrink-0">{{ levelLabel(spell.level) }}</span>
+                  <span class="font-cinzel text-2xs text-muted-foreground w-16 shrink-0">{{ levelLabel(spell.level) }}</span>
                   {{ spell.name }}
                 </li>
               </ul>

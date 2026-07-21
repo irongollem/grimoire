@@ -35,13 +35,13 @@
           <template v-else-if="linkedNote">
             <!-- Meta badges -->
             <div class="flex flex-wrap gap-1.5">
-              <span v-if="linkedNote.session_num" class="font-cinzel text-[10px] tracking-wider bg-primary/10 text-primary rounded px-2 py-0.5">
+              <span v-if="linkedNote.session_num" class="font-cinzel text-2xs tracking-wider bg-primary/10 text-primary rounded px-2 py-0.5">
                 Session {{ linkedNote.session_num }}
               </span>
-              <span v-if="linkedNote.session_real_date" class="font-cinzel text-[10px] tracking-wider bg-muted text-muted-foreground rounded px-2 py-0.5">
+              <span v-if="linkedNote.session_real_date" class="font-cinzel text-2xs tracking-wider bg-muted text-muted-foreground rounded px-2 py-0.5">
                 {{ linkedNote.session_real_date }}
               </span>
-              <span v-for="tag in linkedNote.tags" :key="tag" class="font-cinzel text-[10px] tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
+              <span v-for="tag in linkedNote.tags" :key="tag" class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
                 {{ tag }}
               </span>
             </div>

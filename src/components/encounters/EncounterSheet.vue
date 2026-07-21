@@ -164,7 +164,7 @@
           <IconUserRound class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           <div class="flex-1 min-w-0">
             <p class="font-cinzel text-xs font-semibold text-foreground truncate">{{ m.name }}</p>
-            <p v-if="m.factionName" class="font-fell text-[10px] text-muted-foreground italic truncate">
+            <p v-if="m.factionName" class="font-fell text-2xs text-muted-foreground italic truncate">
               {{ m.factionName }}
             </p>
           </div>
@@ -190,11 +190,11 @@
           <span class="flex-1 font-fell text-sm text-foreground truncate">{{ c.name }}</span>
           <span
             v-if="c.factionName"
-            class="font-cinzel text-[10px] tracking-wider text-muted-foreground"
+            class="font-cinzel text-2xs tracking-wider text-muted-foreground"
           >{{ c.factionName }}</span>
           <span
             v-if="c.cr"
-            class="font-cinzel text-[10px] tracking-wider rounded px-1.5 py-0.5 bg-muted text-muted-foreground"
+            class="font-cinzel text-2xs tracking-wider rounded px-1.5 py-0.5 bg-muted text-muted-foreground"
           >CR {{ c.cr }}</span>
         </RouterLink>
       </div>

@@ -9,7 +9,7 @@
       </p>
       <div class="flex items-center gap-2">
         <span
-          class="px-1.5 py-0.5 rounded font-cinzel text-[10px] font-bold tracking-wider uppercase"
+          class="px-1.5 py-0.5 rounded font-cinzel text-2xs font-bold tracking-wider uppercase"
           :style="{
             backgroundColor: docTypeColor(docType) + '22',
             color: docTypeColor(docType),
@@ -32,7 +32,7 @@
           <button
             type="button"
             :title="zoomMode === 'fit' ? 'Fit to width' : 'Click to fit to width'"
-            class="px-1.5 h-6.5 font-cinzel text-[9px] font-semibold tracking-wider border-x border-border transition-colors min-w-9.5 text-center"
+            class="px-1.5 h-6.5 font-cinzel text-[0.5625rem] font-semibold tracking-wider border-x border-border transition-colors min-w-9.5 text-center"
             :class="zoomMode === 'fit' ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-muted'"
             @click="zoomFit"
           >
@@ -53,7 +53,7 @@
           type="button"
           title="Export as PDF"
           :disabled="isGeneratingPdf"
-          class="inline-flex items-center gap-1 px-2 py-1 rounded font-cinzel text-[10px] font-semibold border border-border text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors tracking-wider uppercase disabled:opacity-50 disabled:cursor-not-allowed"
+          class="inline-flex items-center gap-1 px-2 py-1 rounded font-cinzel text-2xs font-semibold border border-border text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors tracking-wider uppercase disabled:opacity-50 disabled:cursor-not-allowed"
           @click="$emit('exportPdf')"
         >
           <IconLoading v-if="isGeneratingPdf" class="h-3 w-3 animate-spin" />

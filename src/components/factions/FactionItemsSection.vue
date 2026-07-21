@@ -12,7 +12,7 @@
         <RouterLink :to="`/vault/${e.item.id}`" class="font-cinzel text-xs font-semibold text-foreground hover:text-primary transition-colors flex-1 truncate">
           {{ e.item.name }}
         </RouterLink>
-        <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider shrink-0 capitalize">{{ e.item.rarity }}</span>
+        <span class="font-cinzel text-2xs text-muted-foreground tracking-wider shrink-0 capitalize">{{ e.item.rarity }}</span>
         <button type="button" class="shrink-0 text-muted-foreground hover:text-destructive transition-colors text-base leading-none" @click="remove(e)">×</button>
       </div>
     </div>

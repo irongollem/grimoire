@@ -12,10 +12,10 @@
     >
       <thead>
         <tr class="border-b border-border/40">
-          <th class="py-1 px-1.5 text-[9px] font-cinzel tracking-wider text-muted-foreground/70 text-left font-normal"></th>
-          <th class="py-1 text-[9px] font-cinzel tracking-wider text-muted-foreground/70 text-center font-normal">#</th>
-          <th class="py-1 text-[9px] font-cinzel tracking-wider text-muted-foreground/70 text-center font-normal">MOD</th>
-          <th class="py-1 px-1.5 text-[9px] font-cinzel tracking-wider text-muted-foreground/70 text-center font-normal">SAVE</th>
+          <th class="py-1 px-1.5 text-[0.5625rem] font-cinzel tracking-wider text-muted-foreground/70 text-left font-normal"></th>
+          <th class="py-1 text-[0.5625rem] font-cinzel tracking-wider text-muted-foreground/70 text-center font-normal">#</th>
+          <th class="py-1 text-[0.5625rem] font-cinzel tracking-wider text-muted-foreground/70 text-center font-normal">MOD</th>
+          <th class="py-1 px-1.5 text-[0.5625rem] font-cinzel tracking-wider text-muted-foreground/70 text-center font-normal">SAVE</th>
         </tr>
       </thead>
       <tbody class="divide-y divide-border/30">
@@ -26,7 +26,7 @@
         >
           <td class="py-0 px-0">
             <button
-              class="w-full py-1.5 px-1.5 font-cinzel text-[10px] font-bold tracking-wider text-left transition-opacity hover:opacity-60 cursor-pointer"
+              class="w-full py-1.5 px-1.5 font-cinzel text-2xs font-bold tracking-wider text-left transition-opacity hover:opacity-60 cursor-pointer"
               :style="{ color: ab.color }"
               :title="`Roll ${ab.label} check`"
               v-roll-mode="{ enabled: rollModePicker, on: (m: RollMode | null) => emit('roll-ability', ab.key, ab.label, mod(ab.key), m) }"
@@ -58,7 +58,7 @@
                 :class="isProficient(ab.key) ? 'bg-primary border-primary' : 'border-muted-foreground/30 group-hover:border-primary/50'"
               />
               <span
-                class="font-cinzel text-[10px] font-bold group-hover:text-primary transition-colors"
+                class="font-cinzel text-2xs font-bold group-hover:text-primary transition-colors"
                 :class="saveBonus(ab.key) >= 0 ? 'text-foreground' : 'text-destructive'"
               >{{ fmt(saveBonus(ab.key)) }}</span>
             </button>
@@ -79,10 +79,10 @@
   >
     <thead>
       <tr class="border-b border-border/40">
-        <th class="py-1 px-3 text-[9px] font-cinzel tracking-wider text-muted-foreground/70 text-left font-normal"></th>
-        <th class="py-1 text-[9px] font-cinzel tracking-wider text-muted-foreground/70 text-center font-normal">#</th>
-        <th class="py-1 text-[9px] font-cinzel tracking-wider text-muted-foreground/70 text-center font-normal">MOD</th>
-        <th class="py-1 px-3 text-[9px] font-cinzel tracking-wider text-muted-foreground/70 text-center font-normal">SAVE</th>
+        <th class="py-1 px-3 text-[0.5625rem] font-cinzel tracking-wider text-muted-foreground/70 text-left font-normal"></th>
+        <th class="py-1 text-[0.5625rem] font-cinzel tracking-wider text-muted-foreground/70 text-center font-normal">#</th>
+        <th class="py-1 text-[0.5625rem] font-cinzel tracking-wider text-muted-foreground/70 text-center font-normal">MOD</th>
+        <th class="py-1 px-3 text-[0.5625rem] font-cinzel tracking-wider text-muted-foreground/70 text-center font-normal">SAVE</th>
       </tr>
     </thead>
     <tbody class="divide-y divide-border/30">
@@ -93,7 +93,7 @@
       >
         <td class="py-0 px-0">
           <button
-            class="w-full py-1.5 px-3 font-cinzel text-[10px] font-bold tracking-wider text-left transition-opacity hover:opacity-60 cursor-pointer"
+            class="w-full py-1.5 px-3 font-cinzel text-2xs font-bold tracking-wider text-left transition-opacity hover:opacity-60 cursor-pointer"
             :style="{ color: ab.color }"
             :title="`Roll ${ab.label} check`"
             v-roll-mode="{ enabled: rollModePicker, on: (m: RollMode | null) => emit('roll-ability', ab.key, ab.label, mod(ab.key), m) }"
@@ -125,7 +125,7 @@
               :class="isProficient(ab.key) ? 'bg-primary border-primary' : 'border-muted-foreground/30 group-hover:border-primary/50'"
             />
             <span
-              class="font-cinzel text-[10px] font-bold group-hover:text-primary transition-colors"
+              class="font-cinzel text-2xs font-bold group-hover:text-primary transition-colors"
               :class="saveBonus(ab.key) >= 0 ? 'text-foreground' : 'text-destructive'"
             >{{ fmt(saveBonus(ab.key)) }}</span>
           </button>

@@ -39,27 +39,27 @@
           <div class="flex flex-wrap gap-1.5">
             <span
               v-if="species.size"
-              class="font-cinzel text-[10px] tracking-wider bg-primary/10 text-primary rounded px-2 py-0.5"
+              class="font-cinzel text-2xs tracking-wider bg-primary/10 text-primary rounded px-2 py-0.5"
             >{{ capitalize(species.size) }}</span>
             <span
               v-if="species.source"
-              class="font-cinzel text-[10px] tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
+              class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
             >{{ species.source }}</span>
           </div>
           <div v-if="speedPills.length" class="flex flex-wrap gap-1">
             <span
               v-for="pill in speedPills"
               :key="pill"
-              class="font-cinzel text-[10px] tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
+              class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
             >{{ pill }}</span>
           </div>
           <p v-if="asiText" class="font-fell text-sm text-muted-foreground">{{ asiText }}</p>
           <div v-if="species.languages.length" class="flex flex-wrap gap-1 mt-0.5">
-            <span class="font-cinzel text-[10px] tracking-wider text-muted-foreground self-center">Lang:</span>
+            <span class="font-cinzel text-2xs tracking-wider text-muted-foreground self-center">Lang:</span>
             <span
               v-for="lang in species.languages"
               :key="lang"
-              class="font-cinzel text-[10px] tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
+              class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
             >{{ lang }}</span>
           </div>
         </div>
@@ -69,7 +69,7 @@
         <span
           v-for="tag in species.tags"
           :key="tag"
-          class="font-cinzel text-[10px] tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
+          class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
         >{{ tag }}</span>
       </div>
     </div>
@@ -91,7 +91,7 @@
       </div>
       <div class="p-4 flex flex-col gap-3">
         <div v-for="trait in species.traits" :key="trait.name">
-          <span class="inline-block font-cinzel text-[10px] font-semibold tracking-wider bg-primary/10 text-primary rounded px-2 py-0.5 mb-1">
+          <span class="inline-block font-cinzel text-2xs font-semibold tracking-wider bg-primary/10 text-primary rounded px-2 py-0.5 mb-1">
             {{ trait.name }}
           </span>
           <RichTextViewer :content="trait.description" class="font-fell text-sm" />
@@ -113,7 +113,7 @@
           <RichTextViewer v-if="sub.description" :content="sub.description" class="mb-2" />
           <div v-if="sub.traits?.length" class="flex flex-col gap-2 pl-3 border-l border-border">
             <div v-for="trait in sub.traits" :key="trait.name">
-              <span class="inline-block font-cinzel text-[10px] font-semibold tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5 mb-0.5">
+              <span class="inline-block font-cinzel text-2xs font-semibold tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5 mb-0.5">
                 {{ trait.name }}
               </span>
               <RichTextViewer :content="trait.description" class="font-fell text-sm" />

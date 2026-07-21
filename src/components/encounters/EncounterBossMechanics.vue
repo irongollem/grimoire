@@ -18,14 +18,14 @@
       </label>
     </div>
     <div v-if="lairEnabled" class="flex flex-col gap-2">
-      <label class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider">LAIR OWNER</label>
+      <label class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider">LAIR OWNER</label>
       <EntityCombobox
         :model-value="lairOwnerDefId ?? ''"
         :options="lairOwnerOptions"
         placeholder="Search combatants…"
         @update:model-value="$emit('update:lair-owner-def-id', $event || null)"
       />
-      <p v-if="lairEnabled && !lairOwnerDefId" class="font-fell text-[11px] text-amber-500/80 italic">
+      <p v-if="lairEnabled && !lairOwnerDefId" class="font-fell text-[0.6875rem] text-amber-500/80 italic">
         Pick a combatant whose stat block has Lair Actions. Without one, the runner won't show the lair card.
       </p>
     </div>

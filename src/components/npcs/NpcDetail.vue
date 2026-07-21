@@ -35,17 +35,17 @@
       @update:model-value="form.player_visible_fields = $event"
     >
       <div class="pt-1">
-        <p class="font-cinzel text-[10px] font-semibold tracking-widest text-muted-foreground mb-2">PARTY NOTES</p>
+        <p class="font-cinzel text-2xs font-semibold tracking-widest text-muted-foreground mb-2">PARTY NOTES</p>
         <PlayerNotesWidget entity-type="npc" :entity-id="npc.id" placeholder="Notes visible to the whole party…" />
       </div>
       <div class="pt-1">
-        <p class="font-cinzel text-[10px] font-semibold tracking-widest text-muted-foreground mb-2">PC CONNECTION NOTES</p>
-        <p class="font-fell text-[11px] text-muted-foreground/60 italic mb-2">Per-player notes visible only to the relevant PC.</p>
+        <p class="font-cinzel text-2xs font-semibold tracking-widest text-muted-foreground mb-2">PC CONNECTION NOTES</p>
+        <p class="font-fell text-[0.6875rem] text-muted-foreground/60 italic mb-2">Per-player notes visible only to the relevant PC.</p>
         <NpcPcNotesSection :npc-id="npc.id" />
       </div>
     </RevealedFieldsPanel>
 
-    <div class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6 lg:items-start min-w-0 max-w-full">
+    <div class="grid grid-cols-1 lg:grid-cols-[13.75rem_1fr] gap-6 lg:items-start min-w-0 max-w-full">
       <!-- ── Left: portrait + meta ────────────────────────────────── -->
       <NpcSidebar
         :art-tab="artTab"
@@ -144,7 +144,7 @@
                   placeholder="Search monsters…"
                   @update:model-value="onMonsterLinked($event || null)"
                 />
-                <p v-if="form.linked_monster_id" class="font-fell text-[11px] text-muted-foreground italic">
+                <p v-if="form.linked_monster_id" class="font-fell text-[0.6875rem] text-muted-foreground italic">
                   Monster data imported. Edit fields to override.
                 </p>
                 <div class="flex items-center gap-2">

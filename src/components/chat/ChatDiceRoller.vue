@@ -5,7 +5,7 @@
         v-for="d in ALL_DICE"
         :key="d"
         type="button"
-        class="h-7 w-9 rounded border font-cinzel text-[10px] font-bold transition-colors"
+        class="h-7 w-9 rounded border font-cinzel text-2xs font-bold transition-colors"
         :class="
           (diceCounts[d] ?? 0) > 0
             ? 'border-primary/60 bg-primary/15 text-primary'
@@ -19,7 +19,7 @@
     <div v-if="totalDice > 0" class="flex flex-wrap gap-2">
       <div v-for="d in ALL_DICE" :key="d" class="flex items-center gap-1">
         <template v-if="(diceCounts[d] ?? 0) > 0">
-          <span class="font-cinzel text-[10px] text-muted-foreground">d{{ d }}:</span>
+          <span class="font-cinzel text-2xs text-muted-foreground">d{{ d }}:</span>
           <button type="button" class="count-btn" @click="decrement(d)">−</button>
           <span class="font-cinzel text-xs font-bold text-foreground w-4 text-center">{{ diceCounts[d] }}</span>
           <button type="button" class="count-btn" @click="increment(d)">+</button>
@@ -27,7 +27,7 @@
       </div>
     </div>
     <div class="flex items-center gap-2">
-      <span class="font-cinzel text-[10px] text-muted-foreground">Mod:</span>
+      <span class="font-cinzel text-2xs text-muted-foreground">Mod:</span>
       <button type="button" class="count-btn" @click="modifier--">−</button>
       <input
         v-model.number="modifier"
@@ -40,7 +40,7 @@
           v-for="m in MODES"
           :key="m.value"
           type="button"
-          class="px-2 py-0.5 font-cinzel text-[9px] font-bold tracking-wider transition-colors"
+          class="px-2 py-0.5 font-cinzel text-[0.5625rem] font-bold tracking-wider transition-colors"
           :class="
             mode === m.value
               ? 'bg-primary text-primary-foreground'

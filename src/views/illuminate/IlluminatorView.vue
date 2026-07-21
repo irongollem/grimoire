@@ -11,7 +11,7 @@
     </PageHeader>
 
     <div class="px-4 pb-4 md:px-6 lg:flex-1 lg:min-h-0 lg:overflow-hidden">
-      <div class="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6 lg:h-full">
+      <div class="grid grid-cols-1 lg:grid-cols-[1fr_18.75rem] gap-6 lg:h-full">
 
         <!-- ── Preview column ───────────────────────────────────────────── -->
         <IlluminatePreviewPanel

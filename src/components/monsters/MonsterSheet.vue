@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col gap-6">
     <!-- Top: portrait left + stat block right -->
-    <div class="grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-[12.5rem_1fr] gap-6">
       <!-- Left: portrait -->
       <div class="flex flex-col gap-3">
         <FocalImage
@@ -16,7 +16,7 @@
           <span
             v-for="tag in monster.tags"
             :key="tag"
-            class="font-cinzel text-[10px] tracking-wider bg-muted text-muted-foreground rounded px-2 py-0.5"
+            class="font-cinzel text-2xs tracking-wider bg-muted text-muted-foreground rounded px-2 py-0.5"
             >{{ tag }}</span
           >
         </div>
@@ -102,7 +102,7 @@
           v-for="enc in featuredIn"
           :key="enc.id"
           :to="`/encounters/${enc.id}`"
-          class="inline-flex items-center gap-1 font-cinzel text-[10px] px-2 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
+          class="inline-flex items-center gap-1 font-cinzel text-2xs px-2 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
           :class="enc.is_finished ? 'opacity-50' : ''"
         >
           <IconEncounter class="h-2.5 w-2.5 shrink-0" />{{ enc.name }}
@@ -120,7 +120,7 @@
           v-for="lt in lootTables"
           :key="lt.id"
           :to="`/loot-tables/${lt.id}`"
-          class="inline-flex items-center gap-1 font-cinzel text-[10px] px-2 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
+          class="inline-flex items-center gap-1 font-cinzel text-2xs px-2 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
         >
           <IconPackage class="h-2.5 w-2.5 shrink-0" />{{ lt.name }}
         </RouterLink>

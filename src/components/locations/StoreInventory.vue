@@ -31,7 +31,7 @@
             @click="selected = si"
           >
             <span class="font-cinzel text-xs font-semibold text-foreground truncate block">{{ si.item.name }}</span>
-            <span class="font-fell text-[10px] text-muted-foreground italic">
+            <span class="font-fell text-2xs text-muted-foreground italic">
               {{ ITEM_TYPE_LABELS[si.item.item_type] }}
               <span v-if="!si.visible" class="text-amber-500/70"> · under the counter</span>
             </span>
@@ -74,7 +74,7 @@
 
         <!-- Inline offer form -->
         <div v-if="offeringId === si.id" class="border-t border-border/60 bg-muted/20 px-3 py-2 space-y-2">
-          <p class="font-cinzel text-[9px] text-emerald-400/80 tracking-widest uppercase">Vendor Offer</p>
+          <p class="font-cinzel text-[0.5625rem] text-emerald-400/80 tracking-widest uppercase">Vendor Offer</p>
           <input
             v-model="offerDesc"
             type="text"
@@ -84,7 +84,7 @@
           <!-- Coin price inputs -->
           <div class="grid grid-cols-5 gap-1">
             <div v-for="coin in COINS" :key="coin.key" class="flex flex-col items-center gap-0.5">
-              <span class="font-cinzel text-[9px] font-bold" :class="coin.color">{{ coin.symbol }}</span>
+              <span class="font-cinzel text-[0.5625rem] font-bold" :class="coin.color">{{ coin.symbol }}</span>
               <input
                 v-model.number="offerPrice[coin.key]"
                 type="number" min="0"
@@ -96,12 +96,12 @@
             <button
               type="button"
               :disabled="!offerDesc.trim() || !offerHasPrice"
-              class="flex-1 py-1 bg-emerald-600 text-white rounded font-cinzel text-[10px] tracking-wider hover:opacity-90 transition-opacity disabled:opacity-40"
+              class="flex-1 py-1 bg-emerald-600 text-white rounded font-cinzel text-2xs tracking-wider hover:opacity-90 transition-opacity disabled:opacity-40"
               @click="postOffer(si)"
             >Post to Chat</button>
             <button
               type="button"
-              class="px-2 py-1 border border-border rounded font-cinzel text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+              class="px-2 py-1 border border-border rounded font-cinzel text-2xs text-muted-foreground hover:text-foreground transition-colors"
               @click="offeringId = null"
             >Cancel</button>
           </div>
@@ -138,8 +138,8 @@
           @mousedown.prevent="addItem(item)"
         >
           <span class="font-cinzel text-xs font-semibold text-foreground truncate flex-1">{{ item.name }}</span>
-          <span class="font-fell text-[10px] text-muted-foreground shrink-0">{{ ITEM_TYPE_LABELS[item.item_type] }}</span>
-          <span v-if="item.cost" class="font-fell text-[10px] text-muted-foreground/70 shrink-0">{{ item.cost }}</span>
+          <span class="font-fell text-2xs text-muted-foreground shrink-0">{{ ITEM_TYPE_LABELS[item.item_type] }}</span>
+          <span v-if="item.cost" class="font-fell text-2xs text-muted-foreground/70 shrink-0">{{ item.cost }}</span>
         </button>
       </div>
     </div>
@@ -170,13 +170,13 @@
       <button
         type="button"
         :disabled="fillPoolSize === 0 || isFilling"
-        class="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 font-cinzel text-[11px] font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-40"
+        class="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 font-cinzel text-[0.6875rem] font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-40"
         @click="quickFill"
       >
         <IconShuffle class="size-3" />
         {{ isFilling ? "Filling…" : "Fill" }}
       </button>
-      <span class="font-fell text-[10px] text-muted-foreground italic">
+      <span class="font-fell text-2xs text-muted-foreground italic">
         {{ fillPoolSize }} available
       </span>
     </div>

@@ -11,7 +11,7 @@
       </div>
 
       <div class="rounded-md border border-border bg-muted/30 px-4 py-3 space-y-1.5">
-        <p class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Included</p>
+        <p class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Included</p>
         <ul class="font-fell text-xs text-muted-foreground space-y-0.5 list-disc list-inside">
           <li>Party members, character classes &amp; spells</li>
           <li>NPCs, factions, locations, quests, encounters</li>
@@ -19,7 +19,7 @@
           <li>Crafting recipes, roll tables, loot tables</li>
           <li>Session scheduling, puzzle rooms, sounds</li>
         </ul>
-        <p class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mt-2">Not included</p>
+        <p class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase mt-2">Not included</p>
         <ul class="font-fell text-xs text-muted-foreground space-y-0.5 list-disc list-inside">
           <li>API keys &amp; Spotify credentials (security)</li>
           <li>Campaign members &amp; invite links (fresh start)</li>

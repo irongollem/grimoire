@@ -45,7 +45,7 @@
         </ListFilterSelect>
         <label class="inline-flex items-center gap-1.5 cursor-pointer">
           <input type="checkbox" v-model="showAllScopes" class="rounded" />
-          <span class="font-cinzel text-[11px] tracking-wider text-muted-foreground">Show items from all campaigns</span>
+          <span class="font-cinzel text-[0.6875rem] tracking-wider text-muted-foreground">Show items from all campaigns</span>
         </label>
       </ListFilterBar>
     </template>

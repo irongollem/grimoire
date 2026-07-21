@@ -32,7 +32,7 @@
 
     <!-- ── Active built-in optional rules ──────────────────────────────── -->
     <div v-if="enabledBuiltIns.length" class="mb-6 space-y-2">
-      <p class="font-cinzel text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">Active Optional Rules</p>
+      <p class="font-cinzel text-2xs font-semibold tracking-widest text-muted-foreground uppercase">Active Optional Rules</p>
       <div class="flex flex-col gap-1">
         <div
           v-for="def in enabledBuiltIns"
@@ -49,7 +49,7 @@
               :class="openBuiltIns.has(def.key) ? 'rotate-90' : ''"
             />
             <span class="font-cinzel text-sm font-bold text-foreground flex-1">{{ def.name }}</span>
-            <span class="shrink-0 px-1.5 py-0.5 rounded bg-emerald-500/10 font-cinzel text-[10px] text-emerald-400 tracking-wider">active</span>
+            <span class="shrink-0 px-1.5 py-0.5 rounded bg-emerald-500/10 font-cinzel text-2xs text-emerald-400 tracking-wider">active</span>
           </button>
           <div v-if="openBuiltIns.has(def.key)" class="px-4 pb-4 border-t border-border">
             <p class="font-fell text-xs text-muted-foreground italic mt-3 mb-2">{{ def.summary }}</p>
@@ -101,7 +101,7 @@
             <IconReveal v-if="rule.is_player_visible" class="h-3 w-3 text-primary/60" title="Visible to players" />
             <span
               v-if="rule.category"
-              class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground tracking-wider"
+              class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground tracking-wider"
             >
               {{ rule.category }}
             </span>
@@ -111,11 +111,11 @@
           <span
             v-for="tag in rule.tags.slice(0, 4)"
             :key="tag"
-            class="px-1.5 py-0.5 rounded bg-primary/10 font-cinzel text-[10px] text-primary tracking-wider"
+            class="px-1.5 py-0.5 rounded bg-primary/10 font-cinzel text-2xs text-primary tracking-wider"
           >
             {{ tag }}
           </span>
-          <span v-if="rule.tags.length > 4" class="font-fell text-[10px] text-muted-foreground italic self-center">
+          <span v-if="rule.tags.length > 4" class="font-fell text-2xs text-muted-foreground italic self-center">
             +{{ rule.tags.length - 4 }}
           </span>
         </div>

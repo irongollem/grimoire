@@ -3,7 +3,7 @@
     <div class="flex items-center justify-between">
       <h2 class="font-cinzel text-xs tracking-widest uppercase text-muted-foreground">Resource Pools</h2>
       <button type="button"
-        class="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 font-cinzel text-[10px] tracking-wider text-foreground hover:bg-muted/40 transition-colors"
+        class="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 font-cinzel text-2xs tracking-wider text-foreground hover:bg-muted/40 transition-colors"
         @click="addResource">
         <IconAdd class="h-3 w-3" />
         Add resource
@@ -22,13 +22,13 @@
 
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground mb-1">KEY</label>
+          <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1">KEY</label>
           <input :value="res.key" placeholder="e.g. grit_points"
             class="w-full bg-muted/40 border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             @input="updateResource(i, 'key', ($event.target as HTMLInputElement).value)" />
         </div>
         <div>
-          <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground mb-1">LABEL</label>
+          <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1">LABEL</label>
           <input :value="res.label" placeholder="e.g. Grit Points"
             class="w-full bg-muted/40 border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             @input="updateResource(i, 'label', ($event.target as HTMLInputElement).value)" />
@@ -37,7 +37,7 @@
 
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground mb-1">RECHARGES ON</label>
+          <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1">RECHARGES ON</label>
           <select :value="res.rest" class="w-full bg-muted/40 border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             @change="updateResource(i, 'rest', ($event.target as HTMLSelectElement).value as 'short' | 'long')">
             <option value="short">Short Rest</option>
@@ -45,7 +45,7 @@
           </select>
         </div>
         <div>
-          <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground mb-1">SCALING</label>
+          <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1">SCALING</label>
           <select :value="res.scaling" class="w-full bg-muted/40 border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             @change="updateResource(i, 'scaling', ($event.target as HTMLSelectElement).value as 'fixed' | 'per_level' | 'table')">
             <option value="fixed">Fixed value</option>
@@ -56,17 +56,17 @@
       </div>
 
       <div v-if="res.scaling === 'fixed'">
-        <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground mb-1">VALUE</label>
+        <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1">VALUE</label>
         <input :value="res.fixed_value" type="number" min="0" placeholder="e.g. 1"
           class="w-full bg-muted/40 border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           @input="updateResource(i, 'fixed_value', Number(($event.target as HTMLInputElement).value))" />
       </div>
 
       <div v-if="res.scaling === 'table'">
-        <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground mb-1.5">VALUES PER LEVEL (1–20)</label>
+        <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1.5">VALUES PER LEVEL (1–20)</label>
         <div class="grid grid-cols-5 gap-1.5">
           <div v-for="n in 20" :key="n" class="space-y-0.5">
-            <span class="block font-cinzel text-[9px] text-muted-foreground text-center">{{ n }}</span>
+            <span class="block font-cinzel text-[0.5625rem] text-muted-foreground text-center">{{ n }}</span>
             <input :value="(res.table_values ?? [])[n - 1] ?? ''" type="number" min="0"
               class="w-full bg-muted/40 border border-border rounded px-1.5 py-1 font-fell text-xs text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
               @input="setTableValue(i, n - 1, ($event.target as HTMLInputElement).valueAsNumber)" />

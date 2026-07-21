@@ -13,7 +13,7 @@
       >
         <span
           v-if="idx === 0"
-          class="font-cinzel text-[9px] text-primary tracking-wider shrink-0 w-10"
+          class="font-cinzel text-[0.5625rem] text-primary tracking-wider shrink-0 w-10"
           >PRIMARY</span
         >
         <span v-else class="w-10 shrink-0" />
@@ -65,7 +65,7 @@
           @click="emit('addItem', item.id)"
         >
           <span class="font-cinzel text-xs font-semibold text-foreground flex-1 truncate">{{ item.name }}</span>
-          <span class="font-fell text-[10px] text-muted-foreground capitalize shrink-0">{{ item.item_type.replace(/_/g, " ") }}</span>
+          <span class="font-fell text-2xs text-muted-foreground capitalize shrink-0">{{ item.item_type.replace(/_/g, " ") }}</span>
         </button>
         <p v-if="filteredItems.length === 0" class="px-3 py-2 font-fell text-xs text-muted-foreground italic">
           No items found.

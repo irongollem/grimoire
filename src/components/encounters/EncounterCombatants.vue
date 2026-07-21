@@ -48,7 +48,7 @@
           @click="addNpcToCombatants(npc)"
         >
           <span class="font-fell text-sm text-foreground">{{ npc.name }}</span>
-          <span class="font-cinzel text-[10px] text-muted-foreground">
+          <span class="font-cinzel text-2xs text-muted-foreground">
             CR {{ npc.stat_block?.challenge_rating ?? "—" }}
           </span>
         </button>
@@ -88,7 +88,7 @@
             @click="addMonsterToCombatants(monster)"
           >
             <span class="font-fell text-sm text-foreground">{{ monster.name }}</span>
-            <span class="font-cinzel text-[10px] text-muted-foreground">
+            <span class="font-cinzel text-2xs text-muted-foreground">
               CR {{ monster.stat_block.challenge_rating }} · AC {{ monster.stat_block.armor_class }} · {{ monster.stat_block.speed }}
             </span>
           </button>
@@ -125,13 +125,13 @@
               {{ combatantLabel(entry) }}
             </span>
             <div class="flex flex-wrap gap-x-2 gap-y-0">
-              <span class="font-cinzel text-[10px] text-muted-foreground">
+              <span class="font-cinzel text-2xs text-muted-foreground">
                 {{ combatantCrLine(entry) }}
               </span>
-              <span v-if="combatantAc(entry)" class="font-cinzel text-[10px] text-muted-foreground">
+              <span v-if="combatantAc(entry)" class="font-cinzel text-2xs text-muted-foreground">
                 AC {{ combatantAc(entry) }}
               </span>
-              <span v-if="combatantSpeed(entry)" class="font-cinzel text-[10px] text-muted-foreground">
+              <span v-if="combatantSpeed(entry)" class="font-cinzel text-2xs text-muted-foreground">
                 {{ combatantSpeed(entry) }}
               </span>
             </div>

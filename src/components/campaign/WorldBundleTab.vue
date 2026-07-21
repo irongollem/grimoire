@@ -16,7 +16,7 @@
           v-for="group in typeGroups"
           :key="group.label"
         >
-          <p class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase px-4 py-2 bg-muted/30">
+          <p class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase px-4 py-2 bg-muted/30">
             {{ group.label }}
           </p>
           <div class="px-4 py-3 space-y-2.5">
@@ -41,7 +41,7 @@
               </span>
               <span
                 v-if="isLocked(type.key)"
-                class="font-cinzel text-[10px] tracking-wider text-primary/60"
+                class="font-cinzel text-2xs tracking-wider text-primary/60"
               >
                 required by Characters
               </span>
@@ -80,7 +80,7 @@
           <IconChevronLeft class="h-4 w-4" />
         </button>
         <div>
-          <p class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
+          <p class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">
             Step {{ pickIndex + 2 }} of {{ orderedCategories.length + 2 }}
           </p>
           <h3 class="font-cinzel text-sm font-semibold text-foreground">
@@ -118,14 +118,14 @@
         </span>
         <div class="flex gap-2">
           <button
-            class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+            class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground hover:text-foreground transition-colors"
             @click="selectAll"
           >
             All
           </button>
           <span class="text-border">·</span>
           <button
-            class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+            class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground hover:text-foreground transition-colors"
             @click="selectNone"
           >
             None
@@ -188,7 +188,7 @@
           <IconChevronLeft class="h-4 w-4" />
         </button>
         <div>
-          <p class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
+          <p class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">
             Final step
           </p>
           <h3 class="font-cinzel text-sm font-semibold text-foreground">Bundle Details</h3>
@@ -197,7 +197,7 @@
 
       <div class="space-y-3">
         <div>
-          <label class="block font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1">
+          <label class="block font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase mb-1">
             Bundle Name *
           </label>
           <input
@@ -209,7 +209,7 @@
         </div>
 
         <div>
-          <label class="block font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1">
+          <label class="block font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase mb-1">
             Description
           </label>
           <textarea
@@ -223,7 +223,7 @@
 
       <!-- Selection summary -->
       <div class="rounded-md border border-border bg-muted/30 px-4 py-3 space-y-2">
-        <p class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
+        <p class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">
           Bundle Contents
         </p>
         <div class="grid grid-cols-2 gap-x-6 gap-y-0.5">

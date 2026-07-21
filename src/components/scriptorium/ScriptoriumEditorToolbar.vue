@@ -10,7 +10,7 @@
         :class="tbCls(editor.isActive('bold'))"
         @click="editor.chain().focus().toggleBold().run()"
       >
-        <strong class="text-[11px] leading-none">B</strong>
+        <strong class="text-[0.6875rem] leading-none">B</strong>
       </button>
       <button
         type="button"
@@ -18,7 +18,7 @@
         :class="tbCls(editor.isActive('italic'))"
         @click="editor.chain().focus().toggleItalic().run()"
       >
-        <em class="text-[11px] leading-none">I</em>
+        <em class="text-[0.6875rem] leading-none">I</em>
       </button>
       <button
         type="button"
@@ -46,7 +46,7 @@
         :class="tbCls(editor.isActive('heading', { level: 1 }))"
         @click="editor.chain().focus().toggleHeading({ level: 1 }).run()"
       >
-        <span class="text-[10px] font-cinzel font-bold leading-none">H1</span>
+        <span class="text-2xs font-cinzel font-bold leading-none">H1</span>
       </button>
       <button
         type="button"
@@ -54,7 +54,7 @@
         :class="tbCls(editor.isActive('heading', { level: 2 }))"
         @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
       >
-        <span class="text-[10px] font-cinzel font-bold leading-none">H2</span>
+        <span class="text-2xs font-cinzel font-bold leading-none">H2</span>
       </button>
       <button
         type="button"
@@ -62,7 +62,7 @@
         :class="tbCls(editor.isActive('heading', { level: 3 }))"
         @click="editor.chain().focus().toggleHeading({ level: 3 }).run()"
       >
-        <span class="text-[10px] font-cinzel font-bold leading-none">H3</span>
+        <span class="text-2xs font-cinzel font-bold leading-none">H3</span>
       </button>
 
       <div class="w-px h-5 bg-border mx-0.5" />
@@ -124,7 +124,7 @@
         type="button"
         title="Insert asset as new page (NPC, Monster…)"
         :class="tbCls(false)"
-        class="gap-1 px-2 font-cinzel text-[10px] font-semibold tracking-wider"
+        class="gap-1 px-2 font-cinzel text-2xs font-semibold tracking-wider"
         @click="$emit('openAssetPanel')"
       >
         <IconAddItem class="h-3.5 w-3.5" />
@@ -136,7 +136,7 @@
         type="button"
         title="Insert block…"
         :class="tbCls(showBlockPicker)"
-        class="gap-1 px-2 font-cinzel text-[10px] font-semibold tracking-wider"
+        class="gap-1 px-2 font-cinzel text-2xs font-semibold tracking-wider"
         @click="$emit('openBlockPicker')"
       >
         <IconGridView class="h-3.5 w-3.5" />
@@ -147,7 +147,7 @@
 
       <!-- Image controls (shown when an image is selected) -->
       <template v-if="editor.isActive('image')">
-        <span class="font-cinzel text-[9px] text-muted-foreground tracking-wider px-1 self-center">IMG</span>
+        <span class="font-cinzel text-[0.5625rem] text-muted-foreground tracking-wider px-1 self-center">IMG</span>
         <button
           v-for="size in IMAGE_SIZES"
           :key="size.w"
@@ -156,7 +156,7 @@
           :class="tbCls(editor.getAttributes('image').width === String(size.w))"
           @click="editor.chain().focus().updateAttributes('image', { width: String(size.w) }).run()"
         >
-          <span class="font-cinzel text-[9px] font-bold leading-none">{{ size.label }}</span>
+          <span class="font-cinzel text-[0.5625rem] font-bold leading-none">{{ size.label }}</span>
         </button>
         <div class="w-px h-5 bg-border mx-0.5" />
         <button
@@ -185,7 +185,7 @@
         </button>
         <div class="w-px h-5 bg-border mx-0.5" />
         <!-- Layout mode controls -->
-        <span class="font-cinzel text-[9px] text-muted-foreground tracking-wider px-1 self-center">LAYOUT</span>
+        <span class="font-cinzel text-[0.5625rem] text-muted-foreground tracking-wider px-1 self-center">LAYOUT</span>
         <button
           type="button"
           title="Wrap left — text flows around right edge"
@@ -220,56 +220,56 @@
             :class="tbCls(editor.getAttributes('image').gutterBleed === true)"
             @click="editor.chain().focus().updateAttributes('image', { gutterBleed: !editor.getAttributes('image').gutterBleed }).run()"
           >
-            <span class="font-cinzel text-[9px] font-bold leading-none">⇔</span>
+            <span class="font-cinzel text-[0.5625rem] font-bold leading-none">⇔</span>
           </button>
         </template>
         <!-- Absolute position inputs (absolute mode only) -->
         <template v-if="editor.getAttributes('image').layoutMode === 'absolute'">
           <div class="w-px h-5 bg-border mx-0.5" />
           <label class="flex items-center gap-0.5">
-            <span class="font-cinzel text-[9px] text-muted-foreground">T</span>
+            <span class="font-cinzel text-[0.5625rem] text-muted-foreground">T</span>
             <input
               type="number"
               :value="editor.getAttributes('image').posTop ?? ''"
               min="0"
               max="1200"
-              class="w-12 h-5.5 rounded border border-border bg-card px-1 font-mono text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-12 h-5.5 rounded border border-border bg-card px-1 font-mono text-2xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               placeholder="px"
               @change="$emit('setImagePos', 'posTop', ($event.target as HTMLInputElement).value)"
             />
           </label>
           <label class="flex items-center gap-0.5">
-            <span class="font-cinzel text-[9px] text-muted-foreground">L</span>
+            <span class="font-cinzel text-[0.5625rem] text-muted-foreground">L</span>
             <input
               type="number"
               :value="editor.getAttributes('image').posLeft ?? ''"
               min="0"
               max="800"
-              class="w-12 h-5.5 rounded border border-border bg-card px-1 font-mono text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-12 h-5.5 rounded border border-border bg-card px-1 font-mono text-2xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               placeholder="px"
               @change="$emit('setImagePos', 'posLeft', ($event.target as HTMLInputElement).value)"
             />
           </label>
           <label class="flex items-center gap-0.5">
-            <span class="font-cinzel text-[9px] text-muted-foreground">R</span>
+            <span class="font-cinzel text-[0.5625rem] text-muted-foreground">R</span>
             <input
               type="number"
               :value="editor.getAttributes('image').posRight ?? ''"
               min="0"
               max="800"
-              class="w-12 h-5.5 rounded border border-border bg-card px-1 font-mono text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-12 h-5.5 rounded border border-border bg-card px-1 font-mono text-2xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               placeholder="px"
               @change="$emit('setImagePos', 'posRight', ($event.target as HTMLInputElement).value)"
             />
           </label>
           <label class="flex items-center gap-0.5">
-            <span class="font-cinzel text-[9px] text-muted-foreground">B</span>
+            <span class="font-cinzel text-[0.5625rem] text-muted-foreground">B</span>
             <input
               type="number"
               :value="editor.getAttributes('image').posBottom ?? ''"
               min="0"
               max="1200"
-              class="w-12 h-5.5 rounded border border-border bg-card px-1 font-mono text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-12 h-5.5 rounded border border-border bg-card px-1 font-mono text-2xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               placeholder="px"
               @change="$emit('setImagePos', 'posBottom', ($event.target as HTMLInputElement).value)"
             />
@@ -292,12 +292,12 @@
       <!-- Cover page controls (shown when a cover page is selected) -->
       <template v-if="editor.isActive('coverPage')">
         <div class="w-px h-5 bg-border mx-0.5" />
-        <span class="font-cinzel text-[9px] text-muted-foreground tracking-wider px-1 self-center">COVER</span>
+        <span class="font-cinzel text-[0.5625rem] text-muted-foreground tracking-wider px-1 self-center">COVER</span>
         <button
           type="button"
           title="Edit cover page text"
           :class="tbCls(showCoverInspector)"
-          class="gap-1 px-2 font-cinzel text-[10px] font-semibold tracking-wider"
+          class="gap-1 px-2 font-cinzel text-2xs font-semibold tracking-wider"
           @click="$emit('openCoverInspector')"
         >
           <IconPencilLine class="h-3.5 w-3.5" />
@@ -348,7 +348,7 @@
           role="radio"
           :aria-checked="theme === 'onednd2024'"
           title="OneDnD 2024 theme"
-          class="px-2 h-6.5 font-cinzel text-[9px] font-semibold tracking-wider uppercase transition-colors"
+          class="px-2 h-6.5 font-cinzel text-[0.5625rem] font-semibold tracking-wider uppercase transition-colors"
           :class="theme === 'onednd2024' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'"
           @click="$emit('update:theme', 'onednd2024')"
         >
@@ -359,7 +359,7 @@
           role="radio"
           :aria-checked="theme === 'phb2014'"
           title="Classic PHB (2014) theme"
-          class="px-2 h-6.5 font-cinzel text-[9px] font-semibold tracking-wider uppercase transition-colors border-l border-border"
+          class="px-2 h-6.5 font-cinzel text-[0.5625rem] font-semibold tracking-wider uppercase transition-colors border-l border-border"
           :class="theme === 'phb2014' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'"
           @click="$emit('update:theme', 'phb2014')"
         >
@@ -382,7 +382,7 @@
           role="radio"
           :aria-checked="pageSize === sz"
           :title="`Page size: ${sz}`"
-          class="px-2 h-6.5 font-cinzel text-[9px] font-semibold tracking-wider uppercase transition-colors"
+          class="px-2 h-6.5 font-cinzel text-[0.5625rem] font-semibold tracking-wider uppercase transition-colors"
           :class="[
             idx > 0 ? 'border-l border-border' : '',
             pageSize === sz ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted',
@@ -398,7 +398,7 @@
         type="button"
         title="Ink-friendly export (strips backgrounds & decorations)"
         :class="tbCls(inkFriendly)"
-        class="gap-1 px-2 font-cinzel text-[10px] font-semibold tracking-wider"
+        class="gap-1 px-2 font-cinzel text-2xs font-semibold tracking-wider"
         @click="$emit('update:inkFriendly', !inkFriendly)"
       >
         <IconPrint class="h-3.5 w-3.5" />
@@ -473,7 +473,7 @@ defineEmits<{
 
 function tbCls(active: boolean) {
   return [
-    "p-1 rounded min-w-[26px] h-[26px] flex items-center justify-center transition-colors disabled:opacity-40",
+    "p-1 rounded min-w-6.5 h-6.5 flex items-center justify-center transition-colors disabled:opacity-40",
     active
       ? "bg-primary/20 text-primary"
       : "text-muted-foreground hover:text-foreground hover:bg-muted",

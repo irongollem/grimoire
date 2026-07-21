@@ -61,7 +61,7 @@
           <!-- Slot pips for this level -->
           <template v-for="slot in slotsForLevel(group.level)" :key="spellSlotKey(slot)">
             <div class="flex items-center gap-0.5 ml-1" @click.stop>
-              <span v-if="slotPool(slot) !== 'spellcasting'" class="font-cinzel text-[8px] text-violet-400">
+              <span v-if="slotPool(slot) !== 'spellcasting'" class="font-cinzel text-[0.5rem] text-violet-400">
                 {{ slotPool(slot) === 'pact' ? 'PACT' : slotPool(slot) === 'temporary' ? 'CREATED' : 'FEATURE' }}
               </span>
               <button
@@ -75,13 +75,13 @@
                 @click="togglePip(slot, pip)"
               />
             </div>
-            <span class="font-cinzel text-[10px] text-muted-foreground">
+            <span class="font-cinzel text-2xs text-muted-foreground">
               {{ slot.max - slot.used }}/{{ slot.max }}
             </span>
           </template>
 
           <!-- Spell count badge -->
-          <span class="ml-auto font-cinzel text-[10px] text-muted-foreground tracking-wider">
+          <span class="ml-auto font-cinzel text-2xs text-muted-foreground tracking-wider">
             {{ group.entries.length }}
           </span>
         </button>
@@ -113,38 +113,38 @@
             <!-- Badges -->
             <span
               v-if="entry.spell.ritual"
-              class="shrink-0 font-cinzel text-[10px] tracking-wider text-muted-foreground border border-border rounded px-1"
+              class="shrink-0 font-cinzel text-2xs tracking-wider text-muted-foreground border border-border rounded px-1"
             >R</span>
             <span
               v-if="entry.spell.concentration"
-              class="shrink-0 font-cinzel text-[10px] tracking-wider text-primary/70 border border-primary/30 rounded px-1"
+              class="shrink-0 font-cinzel text-2xs tracking-wider text-primary/70 border border-primary/30 rounded px-1"
             >C</span>
 
             <!-- Subclass-granted (always prepared, doesn't count toward limit) -->
             <span
               v-if="entry.always_prepared"
-              class="shrink-0 font-cinzel text-[10px] tracking-wider text-emerald-500/80 border border-emerald-500/30 rounded px-2 py-0.5"
+              class="shrink-0 font-cinzel text-2xs tracking-wider text-emerald-500/80 border border-emerald-500/30 rounded px-2 py-0.5"
               title="Granted by your subclass — always prepared, doesn't count toward your prepared limit"
             >Granted</span>
 
             <!-- Spell attack roll (multiclass-aware via source class) -->
             <button
               v-if="isCastable(entry) && attackBonusFor(entry) !== null && (entry.spell.attack_type === 'ranged_spell' || entry.spell.attack_type === 'melee_spell')"
-              class="shrink-0 font-cinzel text-[10px] rounded border border-border bg-muted/40 text-muted-foreground px-1.5 py-0.5 transition-colors hover:bg-primary/10 hover:text-primary hover:border-primary/30"
+              class="shrink-0 font-cinzel text-2xs rounded border border-border bg-muted/40 text-muted-foreground px-1.5 py-0.5 transition-colors hover:bg-primary/10 hover:text-primary hover:border-primary/30"
               title="Roll spell attack (d20 + attack bonus)"
               v-roll-mode="{ enabled: true, on: (m: RollMode | null, ev: Event) => { ev.stopPropagation(); rollSpellAttack(entry, m); } }"
             >Atk {{ signedNum(attackBonusFor(entry)!) }}</button>
             <!-- Saving-throw prompt — announces DC + ability to the table -->
             <button
               v-else-if="isCastable(entry) && saveDcFor(entry) !== null && entry.spell.attack_type === 'save'"
-              class="shrink-0 font-cinzel text-[10px] rounded border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 transition-colors hover:bg-amber-500/20"
+              class="shrink-0 font-cinzel text-2xs rounded border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 transition-colors hover:bg-amber-500/20"
               :title="`Announce DC ${saveDcFor(entry)} ${entry.spell.save_attribute ?? ''} saving throw`"
               @click.stop="promptSpellSave(entry)"
             >DC {{ saveDcFor(entry) }}</button>
 
             <button
               v-if="isCastable(entry) && entry.spell.damage_rolls?.length && entry.spell.mechanics_reviewed !== false"
-              class="shrink-0 font-cinzel text-[10px] rounded border border-red-500/30 bg-red-500/10 text-red-500 px-1.5 py-0.5 transition-colors hover:bg-red-500/20"
+              class="shrink-0 font-cinzel text-2xs rounded border border-red-500/30 bg-red-500/10 text-red-500 px-1.5 py-0.5 transition-colors hover:bg-red-500/20"
               title="Roll damage after resolving the spell attack or target saving throw"
               @click.stop="entry.spell.effects?.length ? openEffectResolution(entry, lastCastLevel(entry)) : rollSpellDamage(entry, lastCastLevel(entry), transmutedDamageType[entry.id])"
             >{{ entry.spell.effects?.length ? "Resolve" : "Damage" }}</button>
@@ -152,22 +152,22 @@
             <button
               v-for="option in eligiblePostRollMetamagic(entry)"
               :key="option.name"
-              class="shrink-0 font-cinzel text-[10px] rounded border border-violet-500/30 bg-violet-500/10 text-violet-500 px-1.5 py-0.5 transition-colors hover:bg-violet-500/20"
+              class="shrink-0 font-cinzel text-2xs rounded border border-violet-500/30 bg-violet-500/10 text-violet-500 px-1.5 py-0.5 transition-colors hover:bg-violet-500/20"
               :title="`After the roll, spend ${option.sp_cost} SP — ${option.description}`"
               @click.stop="applyReactiveMetamagic(entry, option.name)"
             >{{ option.name.replace(" Spell", "") }}</button>
             <button
               v-if="isCastable(entry) && entry.spell.healing_dice && entry.spell.mechanics_reviewed !== false"
-              class="shrink-0 font-cinzel text-[10px] rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-500 px-1.5 py-0.5 transition-colors hover:bg-emerald-500/20"
+              class="shrink-0 font-cinzel text-2xs rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-500 px-1.5 py-0.5 transition-colors hover:bg-emerald-500/20"
               title="Roll healing"
               @click.stop="entry.spell.effects?.length ? openEffectResolution(entry, lastCastLevel(entry)) : rollSpellHealing(entry, lastCastLevel(entry))"
             >{{ entry.spell.effects?.length ? "Resolve" : "Healing" }}</button>
-            <span v-if="entry.spell.mechanics_reviewed === false" class="shrink-0 rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 font-cinzel text-[10px] text-amber-500" title="Imported mechanics have not been reviewed; resolve from the spell text">Manual</span>
+            <span v-if="entry.spell.mechanics_reviewed === false" class="shrink-0 rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 font-cinzel text-2xs text-amber-500" title="Imported mechanics have not been reviewed; resolve from the spell text">Manual</span>
 
             <select
               v-if="eligibleMetamagic(entry).length"
               v-model="selectedMetamagic[entry.id]"
-              class="max-w-28 shrink-0 rounded border border-violet-500/30 bg-violet-500/10 px-1.5 py-0.5 font-cinzel text-[10px] text-violet-500"
+              class="max-w-28 shrink-0 rounded border border-violet-500/30 bg-violet-500/10 px-1.5 py-0.5 font-cinzel text-2xs text-violet-500"
               title="Apply Metamagic to this casting"
               aria-label="Metamagic option"
               @click.stop
@@ -181,7 +181,7 @@
             <select
               v-if="selectedMetamagicNames(entry).includes('Transmuted Spell')"
               v-model="transmutedDamageType[entry.id]"
-              class="max-w-24 shrink-0 rounded border border-violet-500/30 bg-violet-500/10 px-1.5 py-0.5 font-cinzel text-[10px] text-violet-500"
+              class="max-w-24 shrink-0 rounded border border-violet-500/30 bg-violet-500/10 px-1.5 py-0.5 font-cinzel text-2xs text-violet-500"
               title="Choose the new damage type"
               aria-label="Transmuted damage type"
               @click.stop
@@ -193,7 +193,7 @@
             <select
               v-if="canCombineMetamagic && eligibleSecondaryMetamagic(entry).length"
               v-model="selectedSecondMetamagic[entry.id]"
-              class="max-w-28 shrink-0 rounded border border-violet-500/30 bg-violet-500/10 px-1.5 py-0.5 font-cinzel text-[10px] text-violet-500"
+              class="max-w-28 shrink-0 rounded border border-violet-500/30 bg-violet-500/10 px-1.5 py-0.5 font-cinzel text-2xs text-violet-500"
               title="Sorcery Incarnate: apply a second Metamagic option"
               aria-label="Second Metamagic option"
               @click.stop
@@ -207,7 +207,7 @@
             <!-- Cast button (castable spells) -->
             <button
               v-if="isCastable(entry)"
-              class="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded font-cinzel text-[10px] font-semibold tracking-wider transition-colors border"
+              class="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded font-cinzel text-2xs font-semibold tracking-wider transition-colors border"
               :class="castButtonClass(entry)"
               :disabled="isCasting"
               :title="castButtonTitle(entry)"
@@ -219,7 +219,7 @@
 
             <button
               v-if="isRitualCastable(entry)"
-              class="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded font-cinzel text-[10px] font-semibold tracking-wider transition-colors border border-violet-500/30 bg-violet-500/10 text-violet-400 hover:bg-violet-500/20"
+              class="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded font-cinzel text-2xs font-semibold tracking-wider transition-colors border border-violet-500/30 bg-violet-500/10 text-violet-400 hover:bg-violet-500/20"
               :disabled="isCasting"
               title="Cast as a ritual — takes 10 minutes longer and spends no spell slot"
               @click="castRitual(entry)"
@@ -230,7 +230,7 @@
             <!-- Prepare toggle (Wizard spellbook tab). Granted spells are locked. -->
             <button
               v-if="showPrepareToggle && entry.spell.level > 0 && !entry.always_prepared"
-              class="shrink-0 flex items-center gap-1 rounded px-2 py-0.5 font-cinzel text-[10px] font-semibold tracking-wider transition-colors cursor-pointer border"
+              class="shrink-0 flex items-center gap-1 rounded px-2 py-0.5 font-cinzel text-2xs font-semibold tracking-wider transition-colors cursor-pointer border"
               :class="entry.is_prepared
                 ? 'bg-primary/15 text-primary border-primary/30 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30'
                 : 'bg-muted text-muted-foreground border-border hover:bg-primary/10 hover:text-primary hover:border-primary/30'"
@@ -246,7 +246,7 @@
             <!-- Cantrip always-prepared badge (Wizard spellbook only) -->
             <span
               v-else-if="showPrepareToggle && entry.spell.level === 0"
-              class="shrink-0 font-cinzel text-[10px] tracking-wider text-emerald-500/70 border border-emerald-500/20 rounded px-2 py-0.5"
+              class="shrink-0 font-cinzel text-2xs tracking-wider text-emerald-500/70 border border-emerald-500/20 rounded px-2 py-0.5"
             >Always</span>
 
             <!-- Remove button — hidden for subclass-granted spells (locked) -->

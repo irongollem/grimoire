@@ -75,7 +75,7 @@ defineExpose({ close });
 
 .picker-popover {
   position: absolute;
-  bottom: calc(100% + 6px);
+  bottom: calc(100% + 0.375rem);
   left: 0;
   z-index: 50;
   @apply bg-card border border-border rounded-lg shadow-xl p-2;
@@ -89,7 +89,7 @@ defineExpose({ close });
 }
 
 .picker-chip {
-  @apply font-cinzel text-[9px] font-semibold px-1.5 py-1 rounded border transition-colors text-center cursor-pointer;
+  @apply font-cinzel text-[0.5625rem] font-semibold px-1.5 py-1 rounded border transition-colors text-center cursor-pointer;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -110,6 +110,6 @@ defineExpose({ close });
 .picker-fade-enter-from,
 .picker-fade-leave-to {
   opacity: 0;
-  transform: translateY(4px);
+  transform: translateY(0.25rem);
 }
 </style>

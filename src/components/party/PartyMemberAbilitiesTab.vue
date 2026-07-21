@@ -9,7 +9,7 @@
       :key="stat.key"
       class="flex flex-col items-center gap-1"
     >
-      <span class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider">{{ stat.label }}</span>
+      <span class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider">{{ stat.label }}</span>
       <input
         :value="form[stat.key]"
         type="number"
@@ -108,15 +108,15 @@
   <!-- Computed passives (read-only) -->
   <div class="rounded-lg bg-muted/30 border border-border p-3 grid grid-cols-3 gap-2 text-center">
     <div>
-      <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider">PASSIVE PERC.</p>
+      <p class="font-cinzel text-2xs text-muted-foreground tracking-wider">PASSIVE PERC.</p>
       <p class="font-cinzel text-base font-bold text-foreground">{{ passivePerception }}</p>
     </div>
     <div>
-      <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider">PASSIVE INS.</p>
+      <p class="font-cinzel text-2xs text-muted-foreground tracking-wider">PASSIVE INS.</p>
       <p class="font-cinzel text-base font-bold text-foreground">{{ passiveInsight }}</p>
     </div>
     <div>
-      <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider">PASSIVE INV.</p>
+      <p class="font-cinzel text-2xs text-muted-foreground tracking-wider">PASSIVE INV.</p>
       <p class="font-cinzel text-base font-bold text-foreground">{{ passiveInvestigation }}</p>
     </div>
   </div>
@@ -128,7 +128,7 @@
     </p>
     <button
       type="button"
-      class="font-cinzel text-[10px] tracking-wider text-primary/70 hover:text-primary transition-colors"
+      class="font-cinzel text-2xs tracking-wider text-primary/70 hover:text-primary transition-colors"
       @click="emit('resetSlots')"
     >
       Reset to class defaults
@@ -140,7 +140,7 @@
       :key="lvl"
       class="flex flex-col items-center gap-1"
     >
-      <span class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider">
+      <span class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider">
         {{ SLOT_LEVEL_LABELS[lvl - 1] }}
       </span>
       <input

@@ -5,21 +5,21 @@
       <div class="flex items-center gap-1.5">
         <button
           type="button"
-          class="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1.5 font-cinzel text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+          class="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1.5 font-cinzel text-[0.6875rem] font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
           @click="emit('add', 'item')"
         >
           <IconAdd class="size-3" />Item
         </button>
         <button
           type="button"
-          class="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1.5 font-cinzel text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+          class="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1.5 font-cinzel text-[0.6875rem] font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
           @click="emit('add', 'currency')"
         >
           <IconAdd class="size-3" />Currency
         </button>
         <button
           type="button"
-          class="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1.5 font-cinzel text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+          class="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1.5 font-cinzel text-[0.6875rem] font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
           @click="emit('add', 'random')"
         >
           <IconAdd class="size-3" />Random
@@ -43,7 +43,7 @@
       >
         <!-- ── Item entry ───────────────────────────────────────── -->
         <template v-if="(entry.type ?? 'item') === 'item'">
-          <div class="grid grid-cols-[1fr_90px_120px_auto] gap-2 items-center">
+          <div class="grid grid-cols-[1fr_5.625rem_7.5rem_auto] gap-2 items-center">
             <EntityCombobox
               :model-value="entry.item_id ?? ''"
               :options="itemOptions"
@@ -72,7 +72,7 @@
 
         <!-- ── Currency entry ───────────────────────────────────── -->
         <template v-else-if="entry.type === 'currency'">
-          <div class="grid grid-cols-[1fr_90px_auto] gap-2 items-center">
+          <div class="grid grid-cols-[1fr_5.625rem_auto] gap-2 items-center">
             <input
               v-model="entry.currency_label"
               placeholder="Label (e.g. Belt pouch)"
@@ -93,7 +93,7 @@
           <!-- Coin amounts -->
           <div class="grid grid-cols-5 gap-1.5">
             <div v-for="coin in COINS" :key="coin.key" class="flex flex-col gap-0.5">
-              <span class="font-cinzel text-[9px] font-semibold tracking-wider text-muted-foreground uppercase text-center">{{ coin.symbol }}</span>
+              <span class="font-cinzel text-[0.5625rem] font-semibold tracking-wider text-muted-foreground uppercase text-center">{{ coin.symbol }}</span>
               <input
                 :value="getCoinVal(entry, coin.key)"
                 type="number" min="0"
@@ -107,7 +107,7 @@
 
         <!-- ── Random-pick entry ───────────────────────────────── -->
         <template v-else-if="entry.type === 'random'">
-          <div class="grid grid-cols-[1fr_90px_120px_auto] gap-2 items-center">
+          <div class="grid grid-cols-[1fr_5.625rem_7.5rem_auto] gap-2 items-center">
             <!-- Rarity + type filter -->
             <div class="flex gap-1.5">
               <select
@@ -147,7 +147,7 @@
           </div>
           <!-- Pool size hint — amber when empty, since the entry can only ever under-deliver -->
           <p
-            class="font-fell text-[10px] italic"
+            class="font-fell text-2xs italic"
             :class="(randomPoolSizes.get(entry.id) ?? 0) === 0 ? 'text-amber-500' : 'text-muted-foreground'"
           >
             {{ randomPoolSizes.get(entry.id) ?? 0 }} matching item{{ randomPoolSizes.get(entry.id) === 1 ? '' : 's' }} in vault{{ (randomPoolSizes.get(entry.id) ?? 0) === 0 ? ' — this entry will drop nothing' : '' }}
@@ -165,7 +165,7 @@
         <button
           v-else
           type="button"
-          class="text-left font-fell text-[10px] text-muted-foreground hover:text-foreground italic"
+          class="text-left font-fell text-2xs text-muted-foreground hover:text-foreground italic"
           @click="entry.notes = ''"
         >
           + add note

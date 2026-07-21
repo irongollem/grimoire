@@ -38,9 +38,9 @@
                 <component :is="ing.matched ? IconCheckCircle : IconCloseCircle" class="h-4 w-4 shrink-0" :class="ing.matched ? 'text-elven-green' : 'text-destructive'" />
                 <div class="flex-1 min-w-0">
                   <p class="font-cinzel text-xs font-semibold text-foreground truncate" :class="{ italic: !ing.item_id }">{{ ing.itemName }}</p>
-                  <p class="font-fell text-[10px] text-muted-foreground">Need {{ ing.needed }}×<span v-if="ing.matched"> · Have {{ ing.available }}×</span></p>
+                  <p class="font-fell text-2xs text-muted-foreground">Need {{ ing.needed }}×<span v-if="ing.matched"> · Have {{ ing.available }}×</span></p>
                 </div>
-                <span v-if="idx === 0" class="font-cinzel text-[9px] text-primary tracking-wider shrink-0">PRIMARY</span>
+                <span v-if="idx === 0" class="font-cinzel text-[0.5625rem] text-primary tracking-wider shrink-0">PRIMARY</span>
               </div>
             </div>
           </div>

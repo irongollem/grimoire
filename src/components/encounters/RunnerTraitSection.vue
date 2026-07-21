@@ -83,7 +83,7 @@ function renderTraitDesc(desc: string): string {
 }
 
 .detail-section-label {
-  @apply font-cinzel text-[10px] font-bold tracking-wider text-muted-foreground uppercase mt-1;
+  @apply font-cinzel text-2xs font-bold tracking-wider text-muted-foreground uppercase mt-1;
 }
 
 .detail-trait {
@@ -103,7 +103,7 @@ function renderTraitDesc(desc: string): string {
 }
 
 .trait-roll-btn {
-  @apply inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded font-cinzel text-[9px] font-semibold tracking-wider cursor-pointer transition-colors whitespace-nowrap;
+  @apply inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded font-cinzel text-[0.5625rem] font-semibold tracking-wider cursor-pointer transition-colors whitespace-nowrap;
 }
 
 .trait-atk-btn {

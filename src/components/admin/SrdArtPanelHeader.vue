@@ -32,7 +32,7 @@ const emit = defineEmits<{ toggle: [] }>();
       </div>
       <div
         v-if="stagingCount > 0"
-        class="font-cinzel text-[10px] text-primary tabular-nums"
+        class="font-cinzel text-2xs text-primary tabular-nums"
       >
         {{ stagingCount }} staged
       </div>

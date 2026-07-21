@@ -1,5 +1,5 @@
 <template>
-  <div class="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-5">
+  <div class="grid grid-cols-1 lg:grid-cols-[15rem_1fr] gap-5">
     <!-- Left: emblem + deities in this pantheon -->
     <div class="flex flex-col gap-4">
       <div
@@ -24,7 +24,7 @@
 
       <!-- Deity members -->
       <div v-if="memberDeities.length">
-        <p class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-2">Deities</p>
+        <p class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase mb-2">Deities</p>
         <div class="flex flex-col gap-1">
           <RouterLink
             v-for="d in memberDeities"
@@ -40,12 +40,12 @@
 
       <!-- Tags -->
       <div v-if="pantheon.tags?.length">
-        <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Tags</span>
+        <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Tags</span>
         <div class="flex flex-wrap gap-1 mt-1">
           <span
             v-for="tag in pantheon.tags"
             :key="tag"
-            class="font-cinzel text-[10px] tracking-wider bg-muted/60 text-muted-foreground rounded px-2 py-0.5"
+            class="font-cinzel text-2xs tracking-wider bg-muted/60 text-muted-foreground rounded px-2 py-0.5"
           >{{ tag }}</span>
         </div>
       </div>

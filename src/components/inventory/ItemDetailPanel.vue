@@ -13,7 +13,7 @@
             <div class="flex items-center gap-2 shrink-0">
               <button
                 v-if="inv.location === 'equipped'"
-                class="font-cinzel text-[10px] tracking-wider text-destructive hover:opacity-70 transition-opacity"
+                class="font-cinzel text-2xs tracking-wider text-destructive hover:opacity-70 transition-opacity"
                 @click="emit('unequip')"
               >Unequip</button>
               <button class="text-muted-foreground hover:text-foreground" @click="$emit('close')">
@@ -57,7 +57,7 @@
             </span>
           </div>
           <button
-            class="shrink-0 px-3 py-1 rounded-md font-cinzel text-[10px] tracking-wider border transition-colors cursor-pointer"
+            class="shrink-0 px-3 py-1 rounded-md font-cinzel text-2xs tracking-wider border transition-colors cursor-pointer"
             :class="localIdentified
               ? 'border-border text-muted-foreground hover:border-amber-500/50 hover:text-amber-500 hover:bg-amber-500/5'
               : 'border-amber-500/50 text-amber-500 hover:bg-amber-500/10'"
@@ -125,7 +125,7 @@
 
         <!-- Spells (shown when item has associated spells and is identified) -->
         <div v-if="itemSpells?.length && localIdentified" class="rounded-lg border border-border bg-card/50 p-3 flex flex-col gap-2">
-          <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider uppercase">Spells</p>
+          <p class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider uppercase">Spells</p>
           <div class="divide-y divide-border">
             <div
               v-for="spell in itemSpells"
@@ -137,12 +137,12 @@
               <!-- Name + level -->
               <div class="flex-1 min-w-0">
                 <span class="font-fell text-sm text-foreground">{{ spell.name }}</span>
-                <span class="font-cinzel text-[10px] text-muted-foreground ml-1.5">{{ spell.level === 0 ? 'Cantrip' : `Lvl ${spell.level}` }}</span>
+                <span class="font-cinzel text-2xs text-muted-foreground ml-1.5">{{ spell.level === 0 ? 'Cantrip' : `Lvl ${spell.level}` }}</span>
               </div>
               <!-- Cast button -->
               <button
                 type="button"
-                class="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded font-cinzel text-[10px] font-semibold tracking-wider transition-colors border"
+                class="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded font-cinzel text-2xs font-semibold tracking-wider transition-colors border"
                 :class="canCastSpell ? 'bg-primary/10 border-primary/30 text-primary hover:bg-primary/20' : 'bg-muted/30 border-border/50 text-muted-foreground/40 cursor-not-allowed'"
                 :disabled="!canCastSpell || isCasting"
                 :title="castButtonTitle"
@@ -162,7 +162,7 @@
             <span v-if="vaultItem.attunement_requirements" class="font-fell text-xs text-muted-foreground italic">{{ vaultItem.attunement_requirements }}</span>
           </div>
           <button
-            class="shrink-0 px-3 py-1 rounded-md font-cinzel text-[10px] tracking-wider transition-colors cursor-pointer disabled:cursor-not-allowed"
+            class="shrink-0 px-3 py-1 rounded-md font-cinzel text-2xs tracking-wider transition-colors cursor-pointer disabled:cursor-not-allowed"
             :class="localAttuned
               ? 'bg-primary/20 text-primary border border-primary/40 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40'
               : 'border border-border text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40'"
@@ -177,7 +177,7 @@
           v-if="vaultItem?.bundle_items?.length"
           class="rounded-lg border border-border bg-card/50 p-3 flex flex-col gap-2"
         >
-          <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider uppercase">Contents</p>
+          <p class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider uppercase">Contents</p>
           <ul class="space-y-0.5">
             <li
               v-for="(entry, i) in vaultItem.bundle_items"
@@ -192,7 +192,7 @@
 
         <!-- Notes -->
         <div v-if="inv.notes" class="rounded-lg border border-border bg-card/50 p-3">
-          <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider uppercase mb-1">Notes</p>
+          <p class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider uppercase mb-1">Notes</p>
           <p class="font-fell text-sm text-foreground">{{ inv.notes }}</p>
         </div>
 
@@ -213,7 +213,7 @@
               v-if="canIdentify && inv"
               type="button"
               :disabled="isTogglingCurse"
-              class="inline-flex items-center gap-1.5 rounded px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider border transition-colors disabled:opacity-50"
+              class="inline-flex items-center gap-1.5 rounded px-2 py-1 font-cinzel text-2xs font-semibold tracking-wider border transition-colors disabled:opacity-50"
               :class="inv.curse_revealed
                 ? 'border-amber-500/50 text-amber-500 hover:bg-amber-500/10'
                 : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'"
@@ -231,17 +231,17 @@
         <div class="border-t border-border pt-4">
           <button
             v-if="!sellOpen"
-            class="flex items-center gap-1.5 font-cinzel text-[10px] tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+            class="flex items-center gap-1.5 font-cinzel text-2xs tracking-wider text-muted-foreground hover:text-foreground transition-colors"
             @click="openSell"
           >
             <IconShop class="h-3.5 w-3.5" />
             List for Sale
           </button>
           <div v-else class="space-y-2">
-            <p class="font-cinzel text-[10px] text-amber-400/80 tracking-widest uppercase">List for Sale</p>
+            <p class="font-cinzel text-2xs text-amber-400/80 tracking-widest uppercase">List for Sale</p>
             <div class="grid grid-cols-5 gap-1">
               <div v-for="coin in COINS" :key="coin.key" class="flex flex-col items-center gap-0.5">
-                <span class="font-cinzel text-[9px] font-bold" :class="coin.color">{{ coin.symbol }}</span>
+                <span class="font-cinzel text-[0.5625rem] font-bold" :class="coin.color">{{ coin.symbol }}</span>
                 <input
                   v-model.number="sellPrice[coin.key]"
                   type="number" min="0"
@@ -252,11 +252,11 @@
             <div class="flex gap-2">
               <button
                 :disabled="!sellHasPrice"
-                class="flex-1 py-1 bg-amber-600/80 text-white rounded font-cinzel text-[10px] tracking-wider hover:opacity-90 transition-opacity disabled:opacity-40"
+                class="flex-1 py-1 bg-amber-600/80 text-white rounded font-cinzel text-2xs tracking-wider hover:opacity-90 transition-opacity disabled:opacity-40"
                 @click="confirmSell"
               >Post to Chat</button>
               <button
-                class="px-2 py-1 border border-border rounded font-cinzel text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                class="px-2 py-1 border border-border rounded font-cinzel text-2xs text-muted-foreground hover:text-foreground transition-colors"
                 @click="sellOpen = false"
               >Cancel</button>
             </div>

@@ -38,7 +38,7 @@
                 ? 'border-primary/50 bg-primary/10 text-primary'
                 : 'border-border bg-muted/30 text-muted-foreground'"
             >
-              <span class="text-[10px]">{{ e.portraitUrl ? '▣' : '◻' }}</span>
+              <span class="text-2xs">{{ e.portraitUrl ? '▣' : '◻' }}</span>
               {{ e.label }}
             </span>
           </div>
@@ -62,7 +62,7 @@
               @click="size = s.value"
             >
               <span class="font-cinzel text-xs">{{ s.label }}</span>
-              <span class="font-fell text-[10px] opacity-60">{{ byok ? 'BYOK' : `${shapeCost(s.value)} cr` }}</span>
+              <span class="font-fell text-2xs opacity-60">{{ byok ? 'BYOK' : `${shapeCost(s.value)} cr` }}</span>
             </button>
           </div>
         </div>
@@ -77,7 +77,7 @@
             <p class="font-fell text-xs text-muted-foreground leading-snug">{{ currentLoadingQuote }}</p>
             <span class="ml-auto font-fell text-xs tabular-nums text-muted-foreground/60 shrink-0">{{ elapsedLabel }}</span>
           </div>
-          <p class="font-fell text-[11px] leading-snug pl-5.5" :class="reassurance.tone">{{ reassurance.text }}</p>
+          <p class="font-fell text-[0.6875rem] leading-snug pl-5.5" :class="reassurance.tone">{{ reassurance.text }}</p>
         </div>
 
         <!-- Error -->

@@ -7,7 +7,7 @@
       @keydown.esc="$emit('close')"
     >
       <div
-        class="flex flex-col w-[min(560px,94vw)] max-h-[min(640px,90vh)] bg-card rounded-xl border border-border shadow-2xl overflow-hidden"
+        class="flex flex-col w-[min(35rem,94vw)] max-h-[min(40rem,90vh)] bg-card rounded-xl border border-border shadow-2xl overflow-hidden"
       >
         <!-- Header -->
         <div
@@ -32,7 +32,7 @@
           <!-- Registry groups -->
           <section v-for="group in visibleGroups" :key="group">
             <h3
-              class="font-cinzel text-[10px] font-semibold tracking-widest uppercase text-muted-foreground mb-2"
+              class="font-cinzel text-2xs font-semibold tracking-widest uppercase text-muted-foreground mb-2"
             >
               {{ group }}
             </h3>
@@ -79,7 +79,7 @@
           <!-- Images — hardcoded section because actions trigger external state -->
           <section>
             <h3
-              class="font-cinzel text-[10px] font-semibold tracking-widest uppercase text-muted-foreground mb-2"
+              class="font-cinzel text-2xs font-semibold tracking-widest uppercase text-muted-foreground mb-2"
             >
               Images
             </h3>

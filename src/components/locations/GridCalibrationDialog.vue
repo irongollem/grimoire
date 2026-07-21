@@ -143,7 +143,7 @@
                 step="0.05"
                 class="w-48"
               />
-              <span class="font-fell text-[11px] text-muted-foreground/70 italic">
+              <span class="font-fell text-[0.6875rem] text-muted-foreground/70 italic">
                 Lower if the map already has its own gridlines.
               </span>
             </label>
@@ -395,8 +395,8 @@ function save() {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 3px;
-  height: 3px;
+  width: 0.1875rem;
+  height: 0.1875rem;
   border-radius: 9999px;
   background: var(--handle-color);
   transform: translate(-50%, -50%);

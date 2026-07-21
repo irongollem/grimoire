@@ -3,14 +3,14 @@
   <template v-if="member.level > 1">
     <!-- No history warning (subtle) -->
     <div v-if="!lastChoice" class="flex items-center gap-2 pt-2">
-      <span class="font-cinzel text-[10px] tracking-wider text-amber-500/70 uppercase">No level history</span>
+      <span class="font-cinzel text-2xs tracking-wider text-amber-500/70 uppercase">No level history</span>
       <span class="font-fell text-xs text-muted-foreground">— ask your DM to seed <code class="font-mono">level_choices</code> before de-leveling</span>
     </div>
 
     <template v-else>
       <!-- Confirmation details (shown above the action row when active) -->
       <div v-if="showConfirmation && targetEntry" class="rounded-md border border-border/60 bg-muted/20 p-3 space-y-2">
-        <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">Reversing level {{ member.level }} — {{ lastChoice.class_name }}</p>
+        <p class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase">Reversing level {{ member.level }} — {{ lastChoice.class_name }}</p>
 
         <div class="space-y-1">
           <p class="font-fell text-xs text-foreground">
@@ -38,7 +38,7 @@
           v-if="manualReviewItems.length > 0"
           class="rounded-md bg-amber-500/10 border border-amber-500/30 px-3 py-2 space-y-1"
         >
-          <p class="font-cinzel text-[10px] text-amber-400 tracking-wider">REVIEW MANUALLY</p>
+          <p class="font-cinzel text-2xs text-amber-400 tracking-wider">REVIEW MANUALLY</p>
           <ul class="space-y-0.5">
             <li v-for="item in manualReviewItems" :key="item" class="font-fell text-xs text-amber-400">• {{ item }}</li>
           </ul>

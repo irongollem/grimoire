@@ -83,7 +83,7 @@
               <span class="font-cinzel text-xs text-muted-foreground tracking-wide">Preview</span>
               <button
                 type="button"
-                class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-colors"
+                class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-colors"
                 @click="resetToInput"
               >
                 ← Edit

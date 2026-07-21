@@ -11,13 +11,13 @@
       <!-- Multi-level progress indicator -->
       <div v-if="targetLevel && targetLevel > nextLevel" class="flex items-center justify-center gap-1 mt-2 flex-wrap">
         <template v-for="lvl in (targetLevel - member.level)" :key="lvl">
-          <span class="font-cinzel text-[10px] px-1.5 py-0.5 rounded"
+          <span class="font-cinzel text-2xs px-1.5 py-0.5 rounded"
             :class="lvl === 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'">
             {{ member.level + lvl }}
           </span>
           <span v-if="lvl < (targetLevel - member.level)" class="text-muted-foreground/40 text-xs">→</span>
         </template>
-        <span class="font-cinzel text-[10px] text-muted-foreground ml-1">({{ nextLevel - member.level }} of {{ targetLevel - member.level }})</span>
+        <span class="font-cinzel text-2xs text-muted-foreground ml-1">({{ nextLevel - member.level }} of {{ targetLevel - member.level }})</span>
       </div>
     </div>
 

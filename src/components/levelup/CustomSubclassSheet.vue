@@ -25,13 +25,13 @@
       </div>
       <div class="p-4 flex flex-col gap-2">
         <div class="flex flex-wrap gap-2 items-center">
-          <span class="font-cinzel text-[10px] tracking-wider bg-primary/10 text-primary rounded px-2 py-0.5">
+          <span class="font-cinzel text-2xs tracking-wider bg-primary/10 text-primary rounded px-2 py-0.5">
             {{ sub.class_name }}
           </span>
-          <span v-if="sub.source" class="font-cinzel text-[10px] tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
+          <span v-if="sub.source" class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
             {{ sub.source }}
           </span>
-          <span class="font-cinzel text-[10px] tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
+          <span class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
             {{ sub.campaign_id ? 'Campaign-scoped' : 'All campaigns' }}
           </span>
         </div>
@@ -51,7 +51,7 @@
             <span
               v-for="fid in sub.features[lvl.toString()]"
               :key="fid"
-              class="font-cinzel text-[10px] tracking-wider bg-primary/10 text-primary rounded px-2 py-0.5"
+              class="font-cinzel text-2xs tracking-wider bg-primary/10 text-primary rounded px-2 py-0.5"
             >{{ featureNameById(fid) }}</span>
           </div>
         </div>
@@ -70,7 +70,7 @@
             <span
               v-for="sid in sub.granted_spells[lvl.toString()]"
               :key="sid"
-              class="font-cinzel text-[10px] tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded px-2 py-0.5"
+              class="font-cinzel text-2xs tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded px-2 py-0.5"
             >{{ spellNameById(sid) }}</span>
           </div>
         </div>
@@ -86,7 +86,7 @@
         <div v-for="step in sub.steps" :key="step.key" class="flex items-center gap-3">
           <span class="font-cinzel text-xs text-primary tracking-wider w-6 shrink-0">{{ step.level }}</span>
           <span class="font-fell text-sm text-foreground flex-1">{{ step.label || step.key }}</span>
-          <span class="font-cinzel text-[10px] tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5 shrink-0">
+          <span class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5 shrink-0">
             ×{{ step.count ?? 1 }}
           </span>
         </div>
@@ -101,10 +101,10 @@
       <div class="p-4 flex flex-col gap-2">
         <div v-for="res in sub.resources" :key="res.key" class="flex items-center gap-2">
           <span class="font-fell text-sm text-foreground flex-1">{{ res.label || res.key }}</span>
-          <span class="font-cinzel text-[10px] tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
+          <span class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
             {{ res.rest === 'short' ? 'Short rest' : 'Long rest' }}
           </span>
-          <span class="font-cinzel text-[10px] tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
+          <span class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
             {{ res.scaling }}
           </span>
         </div>

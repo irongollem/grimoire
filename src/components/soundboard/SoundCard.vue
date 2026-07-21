@@ -76,7 +76,7 @@
           v-if="editingCategory"
           ref="categoryInput"
           :value="sound.category"
-          class="w-full rounded border border-gold-500/50 bg-background px-1 py-0.5 font-fell text-[10px] text-foreground capitalize focus:outline-none focus:ring-1 focus:ring-gold-500"
+          class="w-full rounded border border-gold-500/50 bg-background px-1 py-0.5 font-fell text-2xs text-foreground capitalize focus:outline-none focus:ring-1 focus:ring-gold-500"
           @change="saveCategory(($event.target as HTMLSelectElement).value)"
           @blur="editingCategory = false"
         >
@@ -87,7 +87,7 @@
         </select>
         <p
           v-else
-          class="font-fell text-[10px] text-muted-foreground/60 italic capitalize cursor-pointer hover:text-muted-foreground"
+          class="font-fell text-2xs text-muted-foreground/60 italic capitalize cursor-pointer hover:text-muted-foreground"
           title="Change category"
           @click="startCategoryEdit"
         >{{ sound.category }}</p>
@@ -106,7 +106,7 @@
       <!-- WebM warning -->
       <span
         v-if="isWebM"
-        class="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-cinzel text-amber-400/80 bg-amber-500/10 border border-amber-500/20"
+        class="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded text-2xs font-cinzel text-amber-400/80 bg-amber-500/10 border border-amber-500/20"
         title="Encoded as WebM/Opus — won't play in Safari. Re-upload on Firefox."
       >
         <IconWarning class="h-2.5 w-2.5 shrink-0" />
@@ -117,7 +117,7 @@
       <button
         v-if="audioState.loadError"
         type="button"
-        class="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-cinzel text-amber-400/80 bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 hover:text-amber-300 transition-colors"
+        class="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded text-2xs font-cinzel text-amber-400/80 bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 hover:text-amber-300 transition-colors"
         title="Source failed to load — click to retry"
         @click.stop="soundboardStore.retryLoad(props.sound.id, props.sound.file_url)"
       >
@@ -168,7 +168,7 @@
       <IconMusicNote class="h-3.5 w-3.5 text-green-400/70 shrink-0" />
       <p class="font-fell text-xs text-muted-foreground italic flex-1">Connect Spotify to play</p>
       <button
-        class="font-fell text-[11px] text-green-400 hover:text-green-300 transition-colors shrink-0"
+        class="font-fell text-[0.6875rem] text-green-400 hover:text-green-300 transition-colors shrink-0"
         @click="spotifyStore.connect()"
       >
         Connect →
@@ -190,7 +190,7 @@
         />
         <div class="min-w-0">
           <p class="font-fell text-xs text-foreground truncate">{{ spotifyStore.trackName }}</p>
-          <p class="font-fell text-[10px] text-muted-foreground truncate">{{ spotifyStore.artistName }}</p>
+          <p class="font-fell text-2xs text-muted-foreground truncate">{{ spotifyStore.artistName }}</p>
         </div>
       </div>
 
@@ -251,7 +251,7 @@
 
       <!-- Spotify progress bar (only when this card is active) -->
       <div v-if="isActive && spotifyStore.durationMs > 0" class="flex items-center gap-2">
-        <span class="font-fell text-[10px] text-muted-foreground tabular-nums shrink-0">
+        <span class="font-fell text-2xs text-muted-foreground tabular-nums shrink-0">
           {{ formatTime(spotifyStore.positionMs) }}
         </span>
         <div
@@ -263,7 +263,7 @@
             :style="{ width: spotifyProgressPercent + '%' }"
           />
         </div>
-        <span class="font-fell text-[10px] text-muted-foreground tabular-nums shrink-0">
+        <span class="font-fell text-2xs text-muted-foreground tabular-nums shrink-0">
           {{ formatTime(spotifyStore.durationMs) }}
         </span>
         <!-- IconRepeat -->
@@ -290,7 +290,7 @@
       <!-- Not-ready indicator -->
       <p
         v-if="!spotifyStore.isReady"
-        class="font-fell text-[10px] text-muted-foreground italic text-center"
+        class="font-fell text-2xs text-muted-foreground italic text-center"
       >
         Connecting to Spotify device…
       </p>
@@ -368,7 +368,7 @@
 
       <!-- Progress bar (finite tracks only) -->
       <div v-if="audioState.duration > 0" class="flex items-center gap-2">
-        <span class="font-fell text-[10px] text-muted-foreground tabular-nums shrink-0">
+        <span class="font-fell text-2xs text-muted-foreground tabular-nums shrink-0">
           {{ formatTime(audioState.currentTime) }}
         </span>
         <div
@@ -380,7 +380,7 @@
             :style="{ width: audioProgressPercent + '%' }"
           />
         </div>
-        <span class="font-fell text-[10px] text-muted-foreground tabular-nums shrink-0">
+        <span class="font-fell text-2xs text-muted-foreground tabular-nums shrink-0">
           {{ formatTime(audioState.duration) }}
         </span>
       </div>
@@ -392,7 +392,7 @@
       :href="sound.attribution_url ?? undefined"
       target="_blank"
       rel="noopener noreferrer"
-      class="font-fell text-[10px] text-muted-foreground/70 hover:text-muted-foreground italic truncate"
+      class="font-fell text-2xs text-muted-foreground/70 hover:text-muted-foreground italic truncate"
       :title="sound.attribution"
     >
       {{ sound.attribution }}

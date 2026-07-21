@@ -23,7 +23,7 @@
       <!-- On desktop: flex-1 + min-h-0 lets the canvas fill available height -->
       <div
         class="relative rounded-xl overflow-hidden lg:flex-1 lg:min-h-0 flex items-center justify-center"
-        style="background: repeating-conic-gradient(#3a3a3a 0% 25%, #2a2a2a 0% 50%) 0 0 / 20px 20px;"
+        style="background: repeating-conic-gradient(#3a3a3a 0% 25%, #2a2a2a 0% 50%) 0 0 / 1.25rem 1.25rem;"
       >
         <canvas
           ref="canvasEl"

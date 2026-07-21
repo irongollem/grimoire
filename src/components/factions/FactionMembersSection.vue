@@ -22,7 +22,7 @@
           </RouterLink>
         </template>
         <template #subtitle>
-          <p v-if="m.npc.occupation || m.npc.race" class="font-fell text-[11px] text-muted-foreground italic truncate">
+          <p v-if="m.npc.occupation || m.npc.race" class="font-fell text-[0.6875rem] text-muted-foreground italic truncate">
             {{ [m.npc.race, m.npc.occupation].filter(Boolean).join(" · ") }}
           </p>
         </template>
@@ -33,7 +33,7 @@
     <div v-if="formerMembers.length">
       <button
         type="button"
-        class="flex items-center gap-1.5 font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase hover:text-foreground transition-colors mb-1.5"
+        class="flex items-center gap-1.5 font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase hover:text-foreground transition-colors mb-1.5"
         @click="showFormer = !showFormer"
       >
         <IconChevronDown class="h-3 w-3 transition-transform" :class="showFormer && 'rotate-180'" />
@@ -60,7 +60,7 @@
             </RouterLink>
           </template>
           <template #subtitle>
-            <p v-if="m.npc.occupation || m.npc.race" class="font-fell text-[11px] text-muted-foreground italic truncate">
+            <p v-if="m.npc.occupation || m.npc.race" class="font-fell text-[0.6875rem] text-muted-foreground italic truncate">
               {{ [m.npc.race, m.npc.occupation].filter(Boolean).join(" · ") }}
             </p>
           </template>

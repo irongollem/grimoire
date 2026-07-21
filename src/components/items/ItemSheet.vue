@@ -1,6 +1,6 @@
 <template>
   <div class="flex flex-col gap-6">
-    <div class="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-[18.75rem_1fr] gap-6">
       <!-- Left: image(s) -->
       <div class="flex flex-col gap-3">
         <!-- Tabbed art (identified / mundane) when both exist; otherwise single image -->
@@ -9,7 +9,7 @@
             <button
               v-for="tab in (['identified', 'mundane'] as const)"
               :key="tab"
-              class="px-3 py-1.5 font-cinzel text-[11px] font-semibold tracking-wider border-b-2 transition-colors capitalize"
+              class="px-3 py-1.5 font-cinzel text-[0.6875rem] font-semibold tracking-wider border-b-2 transition-colors capitalize"
               :class="sheetArtTab === tab
                 ? 'border-primary text-primary'
                 : 'border-transparent text-muted-foreground hover:text-foreground'"
@@ -42,7 +42,7 @@
         </div>
         <!-- Rarity badge -->
         <div
-          class="rounded-lg border bg-card p-3 flex flex-col gap-1.5 font-stat text-[15px]"
+          class="rounded-lg border bg-card p-3 flex flex-col gap-1.5 font-stat text-[0.9375rem]"
           :style="{ borderColor: rarityColor + '66' }"
         >
           <div class="flex justify-between">
@@ -80,7 +80,7 @@
           <span
             v-for="tag in item.tags"
             :key="tag"
-            class="font-cinzel text-[10px] tracking-wider bg-muted text-muted-foreground rounded px-2 py-0.5"
+            class="font-cinzel text-2xs tracking-wider bg-muted text-muted-foreground rounded px-2 py-0.5"
             >{{ tag }}</span
           >
         </div>
@@ -89,14 +89,14 @@
       <!-- Right: details -->
       <div class="flex flex-col gap-4">
         <!-- Arcane focus -->
-        <div v-if="item.is_arcane_focus" class="font-stat text-[15px] text-muted-foreground italic">
+        <div v-if="item.is_arcane_focus" class="font-stat text-[0.9375rem] text-muted-foreground italic">
           Can be used as an arcane focus
         </div>
 
         <!-- Attunement -->
         <div
           v-if="item.requires_attunement"
-          class="font-stat text-[15px] text-primary italic"
+          class="font-stat text-[0.9375rem] text-primary italic"
         >
           Requires attunement
           <span v-if="item.attunement_requirements"
@@ -110,11 +110,11 @@
           class="rounded-lg border border-border bg-card/50 p-3 flex flex-col gap-1"
         >
           <h3
-            class="font-cinzel text-[10px] font-bold tracking-wider text-muted-foreground uppercase"
+            class="font-cinzel text-2xs font-bold tracking-wider text-muted-foreground uppercase"
           >
             Weapon
           </h3>
-          <p v-if="item.damage_rolls?.length" class="font-stat text-[15px]">
+          <p v-if="item.damage_rolls?.length" class="font-stat text-[0.9375rem]">
             {{ item.damage_rolls.map((r) => `${r.dice} ${r.type}`).join(" + ")
             }}<span v-if="item.versatile_damage" class="text-muted-foreground">
               ({{ item.versatile_damage }} two-handed)</span
@@ -122,13 +122,13 @@
           </p>
           <p
             v-if="item.weapon_range"
-            class="font-stat text-[14px] text-muted-foreground"
+            class="font-stat text-sm text-muted-foreground"
           >
             Range: {{ item.weapon_range }}
           </p>
           <p
             v-if="item.properties?.length"
-            class="font-stat text-[13px] text-muted-foreground capitalize"
+            class="font-stat text-[0.8125rem] text-muted-foreground capitalize"
           >
             {{ item.properties.join(", ") }}
           </p>
@@ -140,11 +140,11 @@
           class="rounded-lg border border-border bg-card/50 p-3 flex flex-col gap-1"
         >
           <h3
-            class="font-cinzel text-[10px] font-bold tracking-wider text-muted-foreground uppercase"
+            class="font-cinzel text-2xs font-bold tracking-wider text-muted-foreground uppercase"
           >
             Armor Class
           </h3>
-          <p class="font-stat text-[15px]">{{ item.armor_class }}</p>
+          <p class="font-stat text-[0.9375rem]">{{ item.armor_class }}</p>
         </div>
 
         <!-- Charges / Quantity -->
@@ -153,11 +153,11 @@
           class="rounded-lg border border-border bg-card/50 p-3 flex flex-col gap-1"
         >
           <h3
-            class="font-cinzel text-[10px] font-bold tracking-wider text-muted-foreground uppercase"
+            class="font-cinzel text-2xs font-bold tracking-wider text-muted-foreground uppercase"
           >
             {{ item.item_type === "ammunition" ? "Quantity" : "Charges" }}
           </h3>
-          <p class="font-stat text-[15px]">
+          <p class="font-stat text-[0.9375rem]">
             {{ item.charges
             }}<span v-if="item.item_type !== 'ammunition'"> charges</span
             ><span v-if="item.recharge"> · {{ item.recharge }}</span>
@@ -166,7 +166,7 @@
 
         <!-- Mundane description (pre-identification) — DM only -->
         <div v-if="item.mundane_description" class="flex flex-col gap-1 rounded-lg border border-border bg-card/50 p-3">
-          <h3 class="font-cinzel text-[10px] font-bold tracking-wider text-muted-foreground uppercase">
+          <h3 class="font-cinzel text-2xs font-bold tracking-wider text-muted-foreground uppercase">
             Mundane Description
             <span class="normal-case font-fell font-normal text-muted-foreground/60"> — shown before identification</span>
           </h3>
@@ -207,7 +207,7 @@
 
         <div
           v-if="item.source"
-          class="font-stat text-[13px] text-muted-foreground italic"
+          class="font-stat text-[0.8125rem] text-muted-foreground italic"
         >
           <a
             v-if="item.source_url"
@@ -234,7 +234,7 @@
           v-for="h in holders"
           :key="`${h.type}-${h.id}`"
           :to="h.to"
-          class="inline-flex items-center gap-1 font-cinzel text-[10px] px-2 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
+          class="inline-flex items-center gap-1 font-cinzel text-2xs px-2 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
         >
           <IconUser v-if="h.type === 'npc'" class="h-2.5 w-2.5 shrink-0" />
           <IconParty v-else-if="h.type === 'party_member'" class="h-2.5 w-2.5 shrink-0" />
@@ -254,7 +254,7 @@
           v-for="table in containedIn"
           :key="table.id"
           :to="`/loot-tables/${table.id}`"
-          class="inline-flex items-center gap-1 font-cinzel text-[10px] px-2 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
+          class="inline-flex items-center gap-1 font-cinzel text-2xs px-2 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
         >
           <IconPackage class="h-2.5 w-2.5 shrink-0" />{{ table.name }}
         </RouterLink>

@@ -23,7 +23,7 @@
           v-for="opt in planOptions"
           :key="opt.value"
           type="button"
-          class="px-3 py-1 rounded-md font-cinzel text-[11px] font-semibold tracking-wider border transition-colors"
+          class="px-3 py-1 rounded-md font-cinzel text-[0.6875rem] font-semibold tracking-wider border transition-colors"
           :class="newGrantedPlan === opt.value
             ? opt.activeClass
             : 'border-border text-muted-foreground hover:text-foreground'"
@@ -70,7 +70,7 @@
               </p>
               <span
                 v-if="invite.granted_plan !== 'free'"
-                class="px-1.5 py-0.5 rounded font-cinzel text-[10px] font-semibold tracking-wider uppercase"
+                class="px-1.5 py-0.5 rounded font-cinzel text-2xs font-semibold tracking-wider uppercase"
                 :class="invite.granted_plan === 'admin'
                   ? 'bg-primary/10 text-primary'
                   : 'bg-amber-500/10 text-amber-400'"
@@ -91,7 +91,7 @@
           </button>
         </div>
         <div class="flex items-center gap-2 rounded bg-background px-2 py-1.5">
-          <code class="flex-1 text-[11px] text-muted-foreground truncate font-mono">
+          <code class="flex-1 text-[0.6875rem] text-muted-foreground truncate font-mono">
             {{ signupUrl(invite.token) }}
           </code>
           <button

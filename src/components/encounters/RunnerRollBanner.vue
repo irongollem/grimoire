@@ -57,7 +57,7 @@ const rollResultClass = computed(() => {
   @apply flex flex-col;
 }
 .roll-result-label {
-  @apply font-cinzel text-[10px] font-bold tracking-wider text-muted-foreground uppercase;
+  @apply font-cinzel text-2xs font-bold tracking-wider text-muted-foreground uppercase;
 }
 .roll-result-breakdown {
   @apply flex items-center gap-1 flex-wrap;
@@ -79,6 +79,6 @@ const rollResultClass = computed(() => {
 .roll-fade-enter-from,
 .roll-fade-leave-to {
   opacity: 0;
-  transform: translateY(-4px);
+  transform: translateY(-0.25rem);
 }
 </style>

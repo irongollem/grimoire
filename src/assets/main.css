@@ -42,8 +42,8 @@
 
   /* Border radius */
   --radius-lg: var(--radius);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 0.125rem);
+  --radius-sm: calc(var(--radius) - 0.25rem);
 
   /* Sub-xs text size for dense player UI — rem-based so it scales with user font prefs */
   --text-2xs: 0.625rem;

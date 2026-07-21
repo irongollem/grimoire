@@ -102,7 +102,7 @@
             >
               <span
                 v-if="!activeDiscipline"
-                class="inline-flex items-center gap-1 shrink-0 font-cinzel text-[10px] tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
+                class="inline-flex items-center gap-1 shrink-0 font-cinzel text-2xs tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
                 :title="getDiscipline(recipe.discipline).label"
               >
                 <component :is="getDiscipline(recipe.discipline).icon" class="h-3 w-3" />
@@ -110,7 +110,7 @@
               </span>
               <span
                 v-if="recipe.requires_proficiency"
-                class="inline-flex items-center gap-1 shrink-0 font-cinzel text-[10px] tracking-wider px-1.5 py-0.5 rounded border border-destructive/40 text-destructive bg-destructive/10"
+                class="inline-flex items-center gap-1 shrink-0 font-cinzel text-2xs tracking-wider px-1.5 py-0.5 rounded border border-destructive/40 text-destructive bg-destructive/10"
                 title="Requires tool proficiency"
               >
                 <IconAward class="h-3 w-3" />
@@ -118,7 +118,7 @@
               </span>
               <span
                 v-if="recipe.requires_tools"
-                class="inline-flex items-center gap-1 shrink-0 font-cinzel text-[10px] tracking-wider px-1.5 py-0.5 rounded border border-destructive/40 text-destructive bg-destructive/10"
+                class="inline-flex items-center gap-1 shrink-0 font-cinzel text-2xs tracking-wider px-1.5 py-0.5 rounded border border-destructive/40 text-destructive bg-destructive/10"
                 title="Requires physical tools"
               >
                 <IconTool class="h-3 w-3" />

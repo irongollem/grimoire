@@ -30,18 +30,18 @@
       class="px-4 pb-4 flex flex-col gap-3 transition-opacity"
       :class="enabled ? 'opacity-100' : 'opacity-35'"
     >
-      <p v-if="enabled && hasImage" class="font-fell text-[11px] text-muted-foreground italic">
+      <p v-if="enabled && hasImage" class="font-fell text-[0.6875rem] text-muted-foreground italic">
         Click the image to set the focal point
       </p>
 
       <!-- Falloff curve pills -->
       <div class="flex items-center gap-1.5">
-        <span class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mr-1">Falloff</span>
+        <span class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase mr-1">Falloff</span>
         <button
           v-for="curve in (['linear', 'quadratic', 'cubic'] as FalloffCurve[])"
           :key="curve"
           type="button"
-          class="font-cinzel text-[10px] tracking-wider px-2 py-0.5 rounded border transition-colors"
+          class="font-cinzel text-2xs tracking-wider px-2 py-0.5 rounded border transition-colors"
           :class="dof.falloff === curve
             ? 'border-primary text-primary'
             : 'border-border hover:border-primary/60 hover:text-foreground text-muted-foreground'"
@@ -52,7 +52,7 @@
       <!-- Focus radius -->
       <div>
         <div class="flex items-center justify-between mb-1">
-          <label class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase">Focus radius</label>
+          <label class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase">Focus radius</label>
           <span class="font-fell text-xs text-muted-foreground tabular-nums">{{ Math.round(dof.focusRadius * 100) }}</span>
         </div>
         <input
@@ -66,7 +66,7 @@
       <!-- Blur strength -->
       <div>
         <div class="flex items-center justify-between mb-1">
-          <label class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase">Blur</label>
+          <label class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase">Blur</label>
           <span class="font-fell text-xs text-muted-foreground tabular-nums">{{ Math.round(dof.blurStrength * 100) }}</span>
         </div>
         <input
@@ -80,7 +80,7 @@
       <!-- Desaturation -->
       <div>
         <div class="flex items-center justify-between mb-1">
-          <label class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase">Desaturation</label>
+          <label class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase">Desaturation</label>
           <span class="font-fell text-xs text-muted-foreground tabular-nums">{{ Math.round(dof.desaturation * 100) }}</span>
         </div>
         <input

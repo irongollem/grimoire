@@ -19,7 +19,7 @@
 }
 
 .loading-logo {
-  max-width: min(480px, 80vw);
+  max-width: min(30rem, 80vw);
   height: auto;
 }
 

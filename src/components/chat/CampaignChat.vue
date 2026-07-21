@@ -465,7 +465,7 @@ async function handleDeleteAll() {
 .tab-fade-enter-from,
 .tab-fade-leave-to {
   opacity: 0;
-  transform: translateX(8px);
+  transform: translateX(0.5rem);
 }
 
 .slide-up-enter-active,

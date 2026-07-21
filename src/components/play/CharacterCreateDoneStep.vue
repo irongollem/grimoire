@@ -27,9 +27,9 @@
       <!-- Ability scores -->
       <div class="px-4 pt-3 pb-2 grid grid-cols-6 gap-2">
         <div v-for="stat in ABILITY_STATS" :key="stat.key" class="text-center">
-          <p class="font-cinzel text-[9px] text-muted-foreground tracking-wider">{{ stat.label }}</p>
+          <p class="font-cinzel text-[0.5625rem] text-muted-foreground tracking-wider">{{ stat.label }}</p>
           <p class="font-cinzel text-sm font-bold">{{ displayScore(stat.key) }}</p>
-          <p class="font-cinzel text-[10px]"
+          <p class="font-cinzel text-2xs"
             :class="totalMod(stat.key) >= 0 ? 'text-green-500' : 'text-destructive'">
             {{ totalMod(stat.key) >= 0 ? '+' : '' }}{{ totalMod(stat.key) }}
           </p>
@@ -39,48 +39,48 @@
       <!-- Derived combat stats (new chars only) -->
       <div v-if="!isEditMode" class="px-4 pb-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div class="rounded-md bg-muted/40 p-2 text-center">
-          <p class="font-cinzel text-[9px] text-muted-foreground tracking-wider">MAX HP</p>
+          <p class="font-cinzel text-[0.5625rem] text-muted-foreground tracking-wider">MAX HP</p>
           <p class="font-cinzel text-lg font-bold text-foreground">{{ derivedHp ?? '—' }}</p>
-          <p v-if="selectedClass" class="font-cinzel text-[9px] text-muted-foreground">d{{ selectedClass.hit_die }} + CON</p>
-          <p v-else class="font-cinzel text-[9px] text-muted-foreground">pick a class</p>
+          <p v-if="selectedClass" class="font-cinzel text-[0.5625rem] text-muted-foreground">d{{ selectedClass.hit_die }} + CON</p>
+          <p v-else class="font-cinzel text-[0.5625rem] text-muted-foreground">pick a class</p>
         </div>
         <div class="rounded-md bg-muted/40 p-2 text-center">
-          <p class="font-cinzel text-[9px] text-muted-foreground tracking-wider">ARMOR CLASS</p>
+          <p class="font-cinzel text-[0.5625rem] text-muted-foreground tracking-wider">ARMOR CLASS</p>
           <p class="font-cinzel text-lg font-bold text-foreground">{{ derivedAc }}</p>
-          <p class="font-cinzel text-[9px] text-muted-foreground">10 + DEX</p>
+          <p class="font-cinzel text-[0.5625rem] text-muted-foreground">10 + DEX</p>
         </div>
         <div class="rounded-md bg-muted/40 p-2 text-center">
-          <p class="font-cinzel text-[9px] text-muted-foreground tracking-wider">SPEED</p>
+          <p class="font-cinzel text-[0.5625rem] text-muted-foreground tracking-wider">SPEED</p>
           <p class="font-cinzel text-lg font-bold text-foreground">{{ derivedSpeed }} ft</p>
-          <p class="font-cinzel text-[9px] text-muted-foreground">{{ selectedSpecies?.name ?? 'base' }}</p>
+          <p class="font-cinzel text-[0.5625rem] text-muted-foreground">{{ selectedSpecies?.name ?? 'base' }}</p>
         </div>
         <div class="rounded-md bg-muted/40 p-2 text-center">
-          <p class="font-cinzel text-[9px] text-muted-foreground tracking-wider">INITIATIVE</p>
+          <p class="font-cinzel text-[0.5625rem] text-muted-foreground tracking-wider">INITIATIVE</p>
           <p class="font-cinzel text-lg font-bold text-foreground">
             {{ derivedInitiative >= 0 ? '+' : '' }}{{ derivedInitiative }}
           </p>
-          <p class="font-cinzel text-[9px] text-muted-foreground">DEX mod</p>
+          <p class="font-cinzel text-[0.5625rem] text-muted-foreground">DEX mod</p>
         </div>
       </div>
 
       <!-- Choices summary row -->
       <div v-if="selectedBg || f.alignment" class="px-4 pb-3 flex flex-wrap gap-x-4 gap-y-1">
         <div v-if="selectedBg" class="flex items-center gap-1">
-          <span class="font-cinzel text-[9px] text-muted-foreground tracking-wider">BG</span>
+          <span class="font-cinzel text-[0.5625rem] text-muted-foreground tracking-wider">BG</span>
           <span class="font-fell text-xs text-foreground">{{ selectedBg.name }}</span>
         </div>
         <div v-if="f.alignment" class="flex items-center gap-1">
-          <span class="font-cinzel text-[9px] text-muted-foreground tracking-wider">ALIGN</span>
+          <span class="font-cinzel text-[0.5625rem] text-muted-foreground tracking-wider">ALIGN</span>
           <span class="font-fell text-xs text-foreground">{{ f.alignment }}</span>
         </div>
       </div>
 
       <!-- Spell slots (if class is a caster) -->
       <div v-if="spellSlotMaxes.some(v => v > 0)" class="px-4 pb-3">
-        <p class="font-cinzel text-[9px] text-muted-foreground tracking-wider mb-1.5">SPELL SLOTS</p>
+        <p class="font-cinzel text-[0.5625rem] text-muted-foreground tracking-wider mb-1.5">SPELL SLOTS</p>
         <div class="flex flex-wrap gap-1.5">
           <span v-for="(max, idx) in spellSlotMaxes" v-show="max > 0" :key="idx"
-            class="px-2 py-0.5 rounded bg-primary/10 border border-primary/20 font-cinzel text-[10px] text-primary">
+            class="px-2 py-0.5 rounded bg-primary/10 border border-primary/20 font-cinzel text-2xs text-primary">
             {{ SLOT_LEVEL_LABELS[idx] }}: {{ max }}
           </span>
         </div>

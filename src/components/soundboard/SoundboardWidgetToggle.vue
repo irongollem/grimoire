@@ -9,7 +9,7 @@
     <span v-if="!iconOnly" class="font-fell">Soundboard</span>
     <span
       v-if="totalPlaying > 0"
-      class="flex items-center justify-center h-4 w-4 rounded-full bg-gold-500/20 border border-gold-500/40 text-gold-300 text-[9px] font-cinzel"
+      class="flex items-center justify-center h-4 w-4 rounded-full bg-gold-500/20 border border-gold-500/40 text-gold-300 text-[0.5625rem] font-cinzel"
       :class="iconOnly ? '' : 'ml-auto'"
     >
       {{ totalPlaying }}

@@ -16,7 +16,7 @@
         @change="toggleSave(save.key)"
       />
       <span class="font-cinzel text-xs text-foreground">{{ save.label }}</span>
-      <span class="font-cinzel text-[10px] text-muted-foreground">{{ saveBonus(save.key) }}</span>
+      <span class="font-cinzel text-2xs text-muted-foreground">{{ saveBonus(save.key) }}</span>
     </label>
   </div>
 
@@ -26,7 +26,7 @@
   </p>
   <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
     <div v-for="skill in SKILLS" :key="skill.key" class="flex items-center gap-2">
-      <div class="flex rounded overflow-hidden border border-border text-[10px] font-cinzel font-semibold shrink-0">
+      <div class="flex rounded overflow-hidden border border-border text-2xs font-cinzel font-semibold shrink-0">
         <button
           v-for="level in PROF_LEVELS"
           :key="level.value"
@@ -43,7 +43,7 @@
         </button>
       </div>
       <span class="font-fell text-xs text-foreground flex-1">{{ skill.label }}</span>
-      <span class="font-cinzel text-[10px] text-muted-foreground shrink-0">
+      <span class="font-cinzel text-2xs text-muted-foreground shrink-0">
         {{ skillBonus(skill.key, skill.ability) }}
       </span>
     </div>

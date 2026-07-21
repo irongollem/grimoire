@@ -23,7 +23,7 @@
           <CastButton />
           <button
             v-if="store.playingCount > 0 || spotifyStore.isPlaying"
-            class="font-fell text-[10px] text-muted-foreground hover:text-destructive transition-colors px-1.5 py-0.5 rounded border border-border hover:border-destructive/40"
+            class="font-fell text-2xs text-muted-foreground hover:text-destructive transition-colors px-1.5 py-0.5 rounded border border-border hover:border-destructive/40"
             title="Stop all sounds"
             @click="stopAll"
           >
@@ -55,7 +55,7 @@
                 <p class="font-cinzel text-xs font-medium text-foreground truncate">
                   {{ spotifyStore.trackName }}
                 </p>
-                <p class="font-fell text-[10px] text-muted-foreground truncate">
+                <p class="font-fell text-2xs text-muted-foreground truncate">
                   {{ spotifyStore.artistName }}
                 </p>
               </div>
@@ -96,7 +96,7 @@
 
             <!-- Progress bar + repeat/shuffle on same row -->
             <div class="flex items-center gap-1.5 px-2">
-              <span class="font-fell text-[9px] text-muted-foreground tabular-nums">
+              <span class="font-fell text-[0.5625rem] text-muted-foreground tabular-nums">
                 {{ formatSpotifyTime(spotifyStore.positionMs) }}
               </span>
               <div class="flex-1 h-1 bg-border/50 rounded-full">
@@ -105,7 +105,7 @@
                   :style="{ width: spotifyProgress + '%' }"
                 />
               </div>
-              <span class="font-fell text-[9px] text-muted-foreground tabular-nums">
+              <span class="font-fell text-[0.5625rem] text-muted-foreground tabular-nums">
                 {{ formatSpotifyTime(spotifyStore.durationMs) }}
               </span>
               <!-- IconRepeat -->
@@ -135,7 +135,7 @@
             v-if="spotifyStore.playError"
             class="flex items-start gap-2 px-2 py-1.5 rounded-md bg-destructive/10 border border-destructive/30"
           >
-            <p class="font-fell text-[10px] text-destructive flex-1 leading-snug">
+            <p class="font-fell text-2xs text-destructive flex-1 leading-snug">
               {{ spotifyStore.playError }}
               <span v-if="spotifyStore.playError.includes('Not allowed')" class="block mt-0.5 text-muted-foreground">
                 Close the Spotify desktop app and try again.
@@ -157,7 +157,7 @@
                 <p class="font-cinzel text-xs font-medium text-foreground truncate">
                   {{ store.activeMusicPlaylist.playlistName }}
                 </p>
-                <p v-if="activeMusicTrackName" class="font-fell text-[10px] text-muted-foreground truncate">
+                <p v-if="activeMusicTrackName" class="font-fell text-2xs text-muted-foreground truncate">
                   ♪ {{ activeMusicTrackName }}
                   <span class="ml-1 opacity-60">
                     {{ store.activeMusicPlaylist.currentIndex + 1 }} / {{ store.activeMusicPlaylist.trackSoundIds.length }}
@@ -207,7 +207,7 @@
                 <p class="font-cinzel text-xs font-medium text-foreground truncate">
                   {{ store.activeAmbientPlaylist.playlistName }}
                 </p>
-                <p class="font-fell text-[10px] text-muted-foreground">
+                <p class="font-fell text-2xs text-muted-foreground">
                   {{ store.activeAmbientPlaylist.soundIds.length }} layered tracks
                 </p>
               </div>
@@ -265,7 +265,7 @@
             <p class="font-fell text-xs text-muted-foreground italic">No sounds playing</p>
             <RouterLink
               to="/soundboard"
-              class="font-fell text-[11px] text-gold-400 hover:text-gold-300 transition-colors"
+              class="font-fell text-[0.6875rem] text-gold-400 hover:text-gold-300 transition-colors"
               @click="store.widgetOpen = false"
             >
               Open Soundboard →

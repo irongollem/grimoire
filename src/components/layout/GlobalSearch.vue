@@ -48,7 +48,7 @@
       <template v-else>
         <template v-for="group in groups" :key="group.type">
           <!-- Group header -->
-          <div class="px-3 py-1.5 font-cinzel text-[10px] tracking-widest text-muted-foreground/60 uppercase bg-secondary/30 border-b border-border/50">
+          <div class="px-3 py-1.5 font-cinzel text-2xs tracking-widest text-muted-foreground/60 uppercase bg-secondary/30 border-b border-border/50">
             {{ group.label }}
           </div>
           <!-- Group items -->

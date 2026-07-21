@@ -36,7 +36,7 @@
         <div class="flex justify-between">
           <span class="text-muted-foreground">
             Ally offset
-            <span class="text-[10px]">(× {{ props.difficulty.allyMultiplier }})</span>
+            <span class="text-2xs">(× {{ props.difficulty.allyMultiplier }})</span>
           </span>
           <span class="font-bold text-green-500">− {{ props.difficulty.allyAdjustedXp.toLocaleString() }}</span>
         </div>
@@ -53,11 +53,11 @@
 
     <!-- Threshold bars -->
     <div v-if="props.difficulty.partyThresholds.deadly > 0" class="flex flex-col gap-2">
-      <div class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-1">
+      <div class="font-cinzel text-2xs text-muted-foreground tracking-wider mb-1">
         PARTY THRESHOLDS
       </div>
       <div v-for="tier in props.thresholdTiers" :key="tier.label" class="flex items-center gap-2">
-        <span class="font-cinzel text-[10px] w-14 shrink-0" :style="{ color: tier.color }">
+        <span class="font-cinzel text-2xs w-14 shrink-0" :style="{ color: tier.color }">
           {{ tier.label }}
         </span>
         <div class="flex-1 h-2 rounded-full bg-muted overflow-hidden relative">
@@ -72,7 +72,7 @@
             :style="{ left: `${markerPct}%` }"
           />
         </div>
-        <span class="font-cinzel text-[10px] text-muted-foreground w-12 text-right shrink-0">
+        <span class="font-cinzel text-2xs text-muted-foreground w-12 text-right shrink-0">
           {{ tier.value.toLocaleString() }}
         </span>
       </div>
@@ -80,13 +80,13 @@
 
     <!-- Enemy breakdown -->
     <div v-if="props.enemyEntries.length" class="flex flex-col gap-1 border-t border-border pt-3">
-      <div class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-1">
+      <div class="font-cinzel text-2xs text-muted-foreground tracking-wider mb-1">
         ENEMY BREAKDOWN
       </div>
       <div
         v-for="entry in props.enemyEntries"
         :key="entry.id"
-        class="flex items-center justify-between font-cinzel text-[11px]"
+        class="flex items-center justify-between font-cinzel text-[0.6875rem]"
       >
         <span class="text-foreground line-clamp-1 flex-1">
           {{ entry.name }}{{ entry.count > 1 ? ` ×${entry.count}` : "" }}

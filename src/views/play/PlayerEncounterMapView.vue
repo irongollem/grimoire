@@ -365,8 +365,8 @@ const gridStrokeOpacity = computed(
 
 .hidden-loader {
   position: absolute;
-  width: 1px;
-  height: 1px;
+  width: 0.0625rem;
+  height: 0.0625rem;
   opacity: 0;
   pointer-events: none;
 }

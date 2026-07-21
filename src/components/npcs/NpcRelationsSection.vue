@@ -87,7 +87,7 @@
       >
         <!-- Type badge -->
         <span
-          class="shrink-0 mt-0.5 px-2 py-0.5 rounded font-cinzel text-[10px] font-bold tracking-wider"
+          class="shrink-0 mt-0.5 px-2 py-0.5 rounded font-cinzel text-2xs font-bold tracking-wider"
           :style="{
             backgroundColor: typeColor(rel) + '22',
             color: typeColor(rel),

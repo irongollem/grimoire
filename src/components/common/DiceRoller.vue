@@ -74,7 +74,7 @@
         <!-- Modifier -->
         <div class="modifier-row">
           <span
-            class="font-cinzel text-[10px] text-muted-foreground tracking-wider"
+            class="font-cinzel text-2xs text-muted-foreground tracking-wider"
             >MODIFIER</span
           >
           <div class="modifier-input-wrap">
@@ -132,7 +132,7 @@
               />
             </div>
             <div
-              class="result-label font-cinzel text-[10px] text-muted-foreground tracking-wider text-center"
+              class="result-label font-cinzel text-2xs text-muted-foreground tracking-wider text-center"
             >
               {{ result.label }}
             </div>
@@ -334,7 +334,7 @@ function clearAll() {
   @apply h-5 w-5 text-foreground;
 }
 .die-label {
-  @apply font-cinzel text-[9px] font-bold tracking-wider text-muted-foreground;
+  @apply font-cinzel text-[0.5625rem] font-bold tracking-wider text-muted-foreground;
 }
 
 .die-count-row {
@@ -362,7 +362,7 @@ function clearAll() {
   @apply flex rounded-lg overflow-hidden border border-border;
 }
 .adv-btn {
-  @apply flex-1 py-1.5 font-cinzel text-[10px] font-bold tracking-wider text-muted-foreground hover:text-foreground transition-colors;
+  @apply flex-1 py-1.5 font-cinzel text-2xs font-bold tracking-wider text-muted-foreground hover:text-foreground transition-colors;
 }
 .adv-active {
   @apply text-foreground;
@@ -407,7 +407,7 @@ function clearAll() {
 }
 
 .clear-btn {
-  @apply w-full py-1 font-cinzel text-[10px] tracking-wider text-muted-foreground hover:text-foreground transition-colors;
+  @apply w-full py-1 font-cinzel text-2xs tracking-wider text-muted-foreground hover:text-foreground transition-colors;
 }
 
 /* Transitions */
@@ -420,7 +420,7 @@ function clearAll() {
 .dice-panel-enter-from,
 .dice-panel-leave-to {
   opacity: 0;
-  transform: translateY(-6px) scale(0.97);
+  transform: translateY(-0.375rem) scale(0.97);
 }
 .result-fade-enter-active,
 .result-fade-leave-active {

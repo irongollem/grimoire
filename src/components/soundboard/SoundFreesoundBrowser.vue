@@ -52,7 +52,7 @@
           <div class="flex items-center gap-1.5">
             <p class="font-cinzel text-xs text-foreground truncate">{{ hit.name }}</p>
             <span
-              class="shrink-0 px-1 py-0.5 rounded font-fell text-[10px] tracking-wide"
+              class="shrink-0 px-1 py-0.5 rounded font-fell text-2xs tracking-wide"
               :class="
                 hit.license === 'cc0'
                   ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
@@ -62,7 +62,7 @@
               {{ hit.license === "cc0" ? "CC0" : "CC-BY" }}
             </span>
           </div>
-          <p class="font-fell text-[11px] text-muted-foreground truncate">
+          <p class="font-fell text-[0.6875rem] text-muted-foreground truncate">
             by {{ hit.username }} · {{ formatDuration(hit.duration) }}
             <span v-if="hit.tags.length > 0" class="opacity-60">· {{ hit.tags.slice(0, 3).join(", ") }}</span>
           </p>
@@ -71,7 +71,7 @@
         <!-- Add button -->
         <button
           type="button"
-          class="shrink-0 px-2 py-1 rounded-md border bg-gold-500/15 border-gold-500/40 text-gold-300 hover:bg-gold-500/25 font-cinzel text-[11px] tracking-wide transition-colors disabled:opacity-50"
+          class="shrink-0 px-2 py-1 rounded-md border bg-gold-500/15 border-gold-500/40 text-gold-300 hover:bg-gold-500/25 font-cinzel text-[0.6875rem] tracking-wide transition-colors disabled:opacity-50"
           :disabled="addingId === hit.id"
           @click="addHit(hit)"
         >

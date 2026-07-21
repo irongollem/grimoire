@@ -98,14 +98,14 @@ function handleAdd() {
 
 .spawn-title {
   font-family: var(--font-cinzel, serif);
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 700;
   color: theme(colors.muted-foreground / 100%);
   letter-spacing: 0.1em;
 }
 
 .spawn-toggle {
-  font-size: 10px;
+  font-size: 0.625rem;
   color: theme(colors.muted-foreground / 100%);
 }
 
@@ -117,7 +117,7 @@ function handleAdd() {
   flex: 1;
   padding: 0.3rem 0.5rem;
   font-family: var(--font-cinzel, serif);
-  font-size: 9px;
+  font-size: 0.5625rem;
   font-weight: 700;
   letter-spacing: 0.05em;
   color: theme(colors.muted-foreground / 100%);
@@ -147,7 +147,7 @@ function handleAdd() {
 
 .spawn-combobox {
   flex: 1;
-  min-width: 180px;
+  min-width: 11.25rem;
 }
 
 .spawn-controls {
@@ -165,7 +165,7 @@ function handleAdd() {
 
 .spawn-label {
   font-family: var(--font-cinzel, serif);
-  font-size: 9px;
+  font-size: 0.5625rem;
   font-weight: 700;
   letter-spacing: 0.05em;
   color: theme(colors.muted-foreground / 100%);
@@ -173,17 +173,17 @@ function handleAdd() {
 }
 
 .spawn-faction-field {
-  min-width: 160px;
+  min-width: 10rem;
 }
 
 .spawn-count-input {
-  width: 48px;
+  width: 3rem;
   background: theme(colors.muted / 30%);
   border: 1px solid theme(colors.border / 100%);
-  border-radius: 4px;
+  border-radius: 0.25rem;
   padding: 0.2rem 0.375rem;
   font-family: var(--font-cinzel, serif);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 700;
   color: theme(colors.foreground / 100%);
   text-align: center;
@@ -192,12 +192,12 @@ function handleAdd() {
 
 .spawn-add-btn {
   padding: 0.25rem 0.75rem;
-  border-radius: 4px;
+  border-radius: 0.25rem;
   border: 1px solid theme(colors.border / 100%);
   background: theme(colors.muted / 40%);
   color: theme(colors.foreground / 100%);
   font-family: var(--font-cinzel, serif);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.15s;

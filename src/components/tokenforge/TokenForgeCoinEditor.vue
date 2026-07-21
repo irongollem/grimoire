@@ -9,7 +9,7 @@
           v-for="m in COIN_METALS"
           :key="m.id"
           type="button"
-          class="px-3 py-1.5 rounded-md font-cinzel text-[11px] font-semibold tracking-wider border transition-colors"
+          class="px-3 py-1.5 rounded-md font-cinzel text-[0.6875rem] font-semibold tracking-wider border transition-colors"
           :class="coin.metal === m.id
             ? 'bg-primary/15 text-primary border-primary/40'
             : 'text-muted-foreground border-border hover:border-foreground/30'"
@@ -45,7 +45,7 @@
           @click="emit('update:coin', { ...coin, motif: m.id })"
         >
           <span v-if="m.symbol" class="text-base leading-none">{{ m.symbol }}</span>
-          <span v-else class="font-cinzel text-[10px] tracking-wider">None</span>
+          <span v-else class="font-cinzel text-2xs tracking-wider">None</span>
         </button>
       </div>
     </div>
@@ -80,14 +80,14 @@
           v-for="ps in COIN_PRINT_SIZES"
           :key="ps.id"
           type="button"
-          class="px-3 py-1.5 rounded-md font-cinzel text-[11px] font-semibold tracking-wider border transition-colors"
+          class="px-3 py-1.5 rounded-md font-cinzel text-[0.6875rem] font-semibold tracking-wider border transition-colors"
           :class="coin.printSize === ps.id
             ? 'bg-primary/15 text-primary border-primary/40'
             : 'text-muted-foreground border-border hover:border-foreground/30'"
           @click="emit('update:coin', { ...coin, printSize: ps.id })"
         >
           {{ ps.label }}
-          <span class="ml-1 font-fell font-normal text-[10px] opacity-60">~{{ ps.perSheet }}/sheet</span>
+          <span class="ml-1 font-fell font-normal text-2xs opacity-60">~{{ ps.perSheet }}/sheet</span>
         </button>
       </div>
     </div>

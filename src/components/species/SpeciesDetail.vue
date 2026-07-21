@@ -13,7 +13,7 @@
     <p v-if="saveError" class="text-destructive font-fell text-sm">{{ saveError }}</p>
 
     <!-- Two-column: portrait sidebar + details -->
-    <div class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-[13.75rem_1fr] gap-6">
       <!-- Left: Portrait -->
       <div class="space-y-4">
         <EntityImageBlock
@@ -119,7 +119,7 @@
           <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">SPEED (ft)</label>
           <div class="grid grid-cols-3 sm:grid-cols-5 gap-2">
             <div v-for="type in SPEED_TYPES" :key="type">
-              <label class="block font-fell text-[11px] text-muted-foreground mb-0.5 capitalize">{{ type }}</label>
+              <label class="block font-fell text-[0.6875rem] text-muted-foreground mb-0.5 capitalize">{{ type }}</label>
               <input
                 :value="form.speed[type] ?? ''"
                 type="number"
@@ -181,7 +181,7 @@
               </button>
             </div>
             <label class="block">
-              <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">ABILITY BONUS</span>
+              <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground">ABILITY BONUS</span>
               <input
                 v-model="sub.asiText"
                 placeholder="e.g. CHA +1 or +1 Charisma"

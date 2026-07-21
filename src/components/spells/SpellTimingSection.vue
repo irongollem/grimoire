@@ -2,7 +2,7 @@
   <!-- Casting Time + Range -->
   <div class="grid grid-cols-2 gap-3">
     <div class="flex flex-col gap-1">
-      <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase"
+      <span class="font-cinzel text-[0.6875rem] text-muted-foreground tracking-wider uppercase"
         >Casting Time</span
       >
       <select
@@ -30,7 +30,7 @@
       />
     </div>
     <div class="flex flex-col gap-1">
-      <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase"
+      <span class="font-cinzel text-[0.6875rem] text-muted-foreground tracking-wider uppercase"
         >Range</span
       >
       <select
@@ -55,7 +55,7 @@
   <!-- Duration + flags -->
   <div class="grid grid-cols-2 gap-3">
     <div class="flex flex-col gap-1">
-      <span class="font-cinzel text-[11px] text-muted-foreground tracking-wider uppercase"
+      <span class="font-cinzel text-[0.6875rem] text-muted-foreground tracking-wider uppercase"
         >Duration</span
       >
       <select

@@ -9,7 +9,7 @@
       <div class="mt-3 flex items-center gap-1 overflow-x-auto pb-1">
         <template v-for="(step, idx) in activeSteps" :key="step.id">
           <button type="button"
-            class="shrink-0 flex items-center gap-1.5 px-2 py-1 rounded font-cinzel text-[10px] font-semibold tracking-wider transition-colors"
+            class="shrink-0 flex items-center gap-1.5 px-2 py-1 rounded font-cinzel text-2xs font-semibold tracking-wider transition-colors"
             :class="wizardStep === idx
               ? 'bg-primary text-primary-foreground'
               : idx < wizardStep
@@ -17,7 +17,7 @@
                 : 'text-muted-foreground/40 cursor-default'"
             :disabled="idx > wizardStep"
             @click="idx < wizardStep && (wizardStep = idx)">
-            <span class="w-4 h-4 rounded-full text-[9px] flex items-center justify-center shrink-0"
+            <span class="w-4 h-4 rounded-full text-[0.5625rem] flex items-center justify-center shrink-0"
               :class="wizardStep === idx ? 'bg-white/20' : idx < wizardStep ? 'bg-primary/20' : 'bg-muted'">
               {{ idx + 1 }}
             </span>

@@ -22,7 +22,7 @@
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <!-- Caster type -->
         <div>
-          <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground mb-1.5">CASTER TYPE</label>
+          <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1.5">CASTER TYPE</label>
           <div class="flex flex-wrap gap-3">
             <label v-for="opt in CASTER_TYPE_OPTIONS" :key="opt.value" class="flex items-center gap-1.5 cursor-pointer font-fell text-sm text-foreground">
               <input type="radio" :checked="casterType === opt.value" :value="opt.value" class="accent-primary" @change="emit('update:casterType', opt.value)" /> {{ opt.label }}
@@ -32,7 +32,7 @@
 
         <!-- Slot recovery -->
         <div>
-          <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground mb-1.5">SLOT RECOVERY</label>
+          <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1.5">SLOT RECOVERY</label>
           <div class="flex gap-3">
             <label class="flex items-center gap-1.5 cursor-pointer font-fell text-sm text-foreground">
               <input type="radio" :checked="slotRecovery === 'long'" value="long" class="accent-primary" @change="emit('update:slotRecovery', 'long')" /> Long rest
@@ -45,7 +45,7 @@
 
         <!-- Spells known toggle -->
         <div>
-          <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground mb-1.5">SPELLS KNOWN TABLE</label>
+          <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1.5">SPELLS KNOWN TABLE</label>
           <label class="flex items-center gap-2 cursor-pointer font-fell text-sm text-foreground">
             <input type="checkbox" :checked="spellsKnown !== null" class="accent-primary" @change="onToggleSpellsKnown" />
             Known caster (Bard, Ranger, Sorcerer, Warlock style)
@@ -54,7 +54,7 @@
 
         <!-- Cantrips known toggle -->
         <div>
-          <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground mb-1.5">CANTRIPS KNOWN TABLE</label>
+          <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1.5">CANTRIPS KNOWN TABLE</label>
           <label class="flex items-center gap-2 cursor-pointer font-fell text-sm text-foreground">
             <input type="checkbox" :checked="cantripsKnown !== null" class="accent-primary" @change="onToggleCantripsKnown" />
             Track cantrips known per level
@@ -64,7 +64,7 @@
         <!-- Prepared spell formula (only for prepared/spellbook) -->
         <template v-if="casterType === 'prepared' || casterType === 'spellbook'">
           <div>
-            <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground mb-1.5">PREPARED SPELL ABILITY</label>
+            <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1.5">PREPARED SPELL ABILITY</label>
             <div class="flex gap-3">
               <label v-for="ab in PREPARED_ABILITY_OPTIONS" :key="ab.value" class="flex items-center gap-1.5 cursor-pointer font-fell text-sm text-foreground">
                 <input type="radio" :checked="preparedAbility === ab.value" :value="ab.value" class="accent-primary" @change="emit('update:preparedAbility', ab.value)" /> {{ ab.label }}
@@ -72,7 +72,7 @@
             </div>
           </div>
           <div>
-            <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground mb-1.5">PREPARED SPELL SCALING</label>
+            <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1.5">PREPARED SPELL SCALING</label>
             <div class="flex gap-3">
               <label class="flex items-center gap-1.5 cursor-pointer font-fell text-sm text-foreground">
                 <input type="radio" :checked="preparedDivisor === 1" :value="1" class="accent-primary" @change="emit('update:preparedDivisor', 1)" /> Full level (Cleric, Druid, Wizard)
@@ -90,15 +90,15 @@
         <table class="w-full text-center border-collapse">
           <thead>
             <tr>
-              <th class="font-cinzel text-[9px] tracking-widest text-muted-foreground pb-1.5 pr-2 text-left w-8">LVL</th>
-              <th v-for="sl in 9" :key="sl" class="font-cinzel text-[9px] tracking-widest text-muted-foreground pb-1.5 w-10">{{ sl }}</th>
-              <th v-if="spellsKnown !== null" class="font-cinzel text-[9px] tracking-widest text-muted-foreground pb-1.5 w-12 pl-2">KNOWN</th>
-              <th v-if="cantripsKnown !== null" class="font-cinzel text-[9px] tracking-widest text-muted-foreground pb-1.5 w-12 pl-2">CANTRIPS</th>
+              <th class="font-cinzel text-[0.5625rem] tracking-widest text-muted-foreground pb-1.5 pr-2 text-left w-8">LVL</th>
+              <th v-for="sl in 9" :key="sl" class="font-cinzel text-[0.5625rem] tracking-widest text-muted-foreground pb-1.5 w-10">{{ sl }}</th>
+              <th v-if="spellsKnown !== null" class="font-cinzel text-[0.5625rem] tracking-widest text-muted-foreground pb-1.5 w-12 pl-2">KNOWN</th>
+              <th v-if="cantripsKnown !== null" class="font-cinzel text-[0.5625rem] tracking-widest text-muted-foreground pb-1.5 w-12 pl-2">CANTRIPS</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="lvl in 20" :key="lvl" class="border-t border-border/40">
-              <td class="font-cinzel text-[10px] text-primary pr-2 text-left py-0.5">{{ lvl }}</td>
+              <td class="font-cinzel text-2xs text-primary pr-2 text-left py-0.5">{{ lvl }}</td>
               <td v-for="sl in 9" :key="sl" class="py-0.5 px-0.5">
                 <input
                   :value="(spellSlots[lvl - 1] ?? [])[sl - 1] ?? 0"

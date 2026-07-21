@@ -24,7 +24,7 @@
         <p class="font-cinzel text-sm font-semibold text-foreground truncate leading-tight">
           {{ companion.name || "Unnamed" }}
         </p>
-        <p class="font-fell text-[10px] text-muted-foreground italic leading-tight">
+        <p class="font-fell text-2xs text-muted-foreground italic leading-tight">
           {{ COMPANION_TYPE_LABELS[companion.companion_type] }}
           <template v-if="sourceName">
             · <RouterLink :to="sourceLink ?? '#'" class="hover:text-primary transition-colors">{{ sourceName }}</RouterLink>
@@ -35,7 +35,7 @@
       <!-- HP -->
       <div class="text-right shrink-0">
         <span class="font-cinzel text-sm font-bold" :class="hpTextColor">{{ companion.current_hp }}</span>
-        <span class="font-fell text-[11px] text-muted-foreground">/{{ companion.max_hp }}</span>
+        <span class="font-fell text-[0.6875rem] text-muted-foreground">/{{ companion.max_hp }}</span>
       </div>
 
       <!-- Edit / delete -->
@@ -70,10 +70,10 @@
 
     <!-- Quick stats + HP controls -->
     <div class="flex items-center gap-2 flex-wrap">
-      <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider px-1.5 py-0.5 rounded bg-muted" title="Armour Class">
+      <span class="font-cinzel text-2xs text-muted-foreground tracking-wider px-1.5 py-0.5 rounded bg-muted" title="Armour Class">
         AC {{ companion.ac }}
       </span>
-      <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider px-1.5 py-0.5 rounded bg-muted" title="Speed">
+      <span class="font-cinzel text-2xs text-muted-foreground tracking-wider px-1.5 py-0.5 rounded bg-muted" title="Speed">
         {{ companion.speed }} ft
       </span>
 
@@ -88,7 +88,7 @@
         />
         <button
           type="button"
-          class="px-1.5 py-0.5 rounded bg-red-500/10 border border-red-500/30 font-cinzel text-[10px] font-semibold text-red-400 hover:bg-red-500/20 transition-colors"
+          class="px-1.5 py-0.5 rounded bg-red-500/10 border border-red-500/30 font-cinzel text-2xs font-semibold text-red-400 hover:bg-red-500/20 transition-colors"
           title="Deal damage"
           @click="damage"
         >
@@ -96,7 +96,7 @@
         </button>
         <button
           type="button"
-          class="px-1.5 py-0.5 rounded bg-green-500/10 border border-green-500/30 font-cinzel text-[10px] font-semibold text-green-400 hover:bg-green-500/20 transition-colors"
+          class="px-1.5 py-0.5 rounded bg-green-500/10 border border-green-500/30 font-cinzel text-2xs font-semibold text-green-400 hover:bg-green-500/20 transition-colors"
           title="Heal"
           @click="heal"
         >
@@ -115,7 +115,7 @@
       <span
         v-for="cond in companion.conditions.filter((c) => !isExhaustion(c))"
         :key="cond"
-        class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-destructive/10 border border-destructive/20 font-cinzel text-[10px] text-destructive tracking-wider"
+        class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-destructive/10 border border-destructive/20 font-cinzel text-2xs text-destructive tracking-wider"
         :title="getConditionDescription(cond)"
       >
         {{ cond }}
@@ -124,7 +124,7 @@
       <button
         v-if="!addingCondition"
         type="button"
-        class="px-1.5 py-0.5 rounded border border-dashed border-border font-cinzel text-[10px] text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors"
+        class="px-1.5 py-0.5 rounded border border-dashed border-border font-cinzel text-2xs text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors"
         @click="addingCondition = true"
       >
         + Condition
@@ -148,7 +148,7 @@
     <div v-else-if="!companion.conditions.length">
       <button
         type="button"
-        class="px-1.5 py-0.5 rounded border border-dashed border-border font-cinzel text-[10px] text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors"
+        class="px-1.5 py-0.5 rounded border border-dashed border-border font-cinzel text-2xs text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors"
         @click="addingCondition = true"
       >
         + Condition

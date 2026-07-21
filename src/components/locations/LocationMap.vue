@@ -99,7 +99,7 @@
               />
               <span
                 v-else
-                class="font-cinzel font-bold text-white text-[10px] leading-none select-none pointer-events-none"
+                class="font-cinzel font-bold text-white text-2xs leading-none select-none pointer-events-none"
               >
                 {{ pin.child_name.charAt(0).toUpperCase() }}
               </span>
@@ -226,7 +226,7 @@
           <span class="font-cinzel text-xs text-foreground">{{ child.name }}</span>
           <span
             v-if="child.parent_chain?.length"
-            class="font-fell text-[10px] text-muted-foreground italic"
+            class="font-fell text-2xs text-muted-foreground italic"
           >
             · {{ child.parent_chain.join(" › ") }}
           </span>

@@ -93,7 +93,7 @@ const traitSections = computed(() => {
 
 .detail-portrait {
   @apply w-full rounded-md object-cover mb-1 overflow-hidden;
-  max-height: 200px;
+  max-height: 12.5rem;
 }
 
 .detail-meta {
@@ -113,7 +113,7 @@ const traitSections = computed(() => {
 }
 
 .detail-stat span {
-  @apply font-cinzel text-[9px] tracking-wider text-muted-foreground uppercase;
+  @apply font-cinzel text-[0.5625rem] tracking-wider text-muted-foreground uppercase;
 }
 
 .detail-stat strong {
@@ -125,6 +125,6 @@ const traitSections = computed(() => {
 }
 
 .detail-line span {
-  @apply font-cinzel text-[9px] font-bold tracking-wider text-muted-foreground uppercase mr-1;
+  @apply font-cinzel text-[0.5625rem] font-bold tracking-wider text-muted-foreground uppercase mr-1;
 }
 </style>

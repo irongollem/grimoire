@@ -24,11 +24,11 @@
       <div class="flex-1 min-w-0">
         <p class="font-cinzel text-sm font-bold text-foreground truncate leading-tight">{{ title }}</p>
         <p v-if="subtitle" class="font-fell text-xs text-muted-foreground italic truncate mt-0.5">{{ subtitle }}</p>
-        <p v-if="meta" class="font-cinzel text-[10px] text-muted-foreground tracking-wider mt-0.5 truncate">{{ meta }}</p>
+        <p v-if="meta" class="font-cinzel text-2xs text-muted-foreground tracking-wider mt-0.5 truncate">{{ meta }}</p>
       </div>
       <div v-if="badge || count" class="shrink-0 flex flex-col items-end gap-0.5">
-        <span v-if="badge" class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground capitalize">{{ badge }}</span>
-        <span v-if="count" class="font-cinzel text-[10px] text-muted-foreground/60">{{ count }}</span>
+        <span v-if="badge" class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground capitalize">{{ badge }}</span>
+        <span v-if="count" class="font-cinzel text-2xs text-muted-foreground/60">{{ count }}</span>
       </div>
     </div>
   </button>

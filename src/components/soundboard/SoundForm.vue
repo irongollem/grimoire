@@ -71,7 +71,7 @@
           @click="isPro ? onUploadTabClick() : undefined"
         >
           Upload
-          <span v-if="!isPro" class="absolute -top-1.5 -right-1.5 px-1 rounded text-[9px] font-cinzel bg-amber-500 text-black leading-4">PRO</span>
+          <span v-if="!isPro" class="absolute -top-1.5 -right-1.5 px-1 rounded text-[0.5625rem] font-cinzel bg-amber-500 text-black leading-4">PRO</span>
         </button>
         <button
           v-if="spotifyStore.isEnabled"
@@ -101,7 +101,7 @@
           @click="isPro ? (activeSourceTab = 'generate') : undefined"
         >
           Generate
-          <span v-if="!isPro" class="absolute -top-1.5 -right-1.5 px-1 rounded text-[9px] font-cinzel bg-amber-500 text-black leading-4">PRO</span>
+          <span v-if="!isPro" class="absolute -top-1.5 -right-1.5 px-1 rounded text-[0.5625rem] font-cinzel bg-amber-500 text-black leading-4">PRO</span>
         </button>
         <button
           type="button"
@@ -165,7 +165,7 @@
               Lyrics <span class="opacity-60">(optional)</span>
             </label>
             <span
-              class="font-fell text-[10px] tabular-nums transition-colors"
+              class="font-fell text-2xs tabular-nums transition-colors"
               :class="lyricsCharsLeft < 200 ? (lyricsCharsLeft < 0 ? 'text-destructive' : 'text-amber-400') : 'text-muted-foreground'"
             >{{ generateLyrics.length }} / {{ LYRICS_MAX_CHARS }}</span>
           </div>
@@ -176,7 +176,7 @@
             placeholder="[Verse 1]&#10;In the depths of shadow and stone…&#10;&#10;[Chorus]&#10;Rise, brave adventurer, rise…"
             class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm font-fell text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-violet-500 resize-none"
           />
-          <p class="font-fell text-[10px] text-muted-foreground/60">
+          <p class="font-fell text-2xs text-muted-foreground/60">
             Best paired with Full Song. Use [Verse], [Chorus], [Bridge] markers.
           </p>
         </div>
@@ -198,7 +198,7 @@
               @click="generateModel = m.id"
             >
               <span>{{ m.label }}</span>
-              <span class="font-fell text-[10px] opacity-70 normal-case tracking-normal">
+              <span class="font-fell text-2xs opacity-70 normal-case tracking-normal">
                 {{ geminiApiKey ? 'BYOK' : `${costOf(m.generationType)} cr` }} · {{ m.hint }}
               </span>
             </button>
@@ -207,10 +207,10 @@
 
         <!-- Structured prompt preview -->
         <details v-if="structuredPrompt" class="group">
-          <summary class="font-fell text-[10px] text-muted-foreground/60 cursor-pointer hover:text-muted-foreground transition-colors select-none">
+          <summary class="font-fell text-2xs text-muted-foreground/60 cursor-pointer hover:text-muted-foreground transition-colors select-none">
             Expanded prompt ▸
           </summary>
-          <p class="mt-1 font-fell text-[10px] text-muted-foreground/80 whitespace-pre-wrap leading-relaxed">{{ structuredPrompt }}</p>
+          <p class="mt-1 font-fell text-2xs text-muted-foreground/80 whitespace-pre-wrap leading-relaxed">{{ structuredPrompt }}</p>
         </details>
 
         <!-- Status / error -->
@@ -247,7 +247,7 @@
           <span class="flex-1 font-fell text-xs text-foreground truncate">{{ selectedFile.name }}</span>
           <button
             type="button"
-            class="shrink-0 font-cinzel text-[10px] tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+            class="shrink-0 font-cinzel text-2xs tracking-wider text-muted-foreground hover:text-foreground transition-colors"
             @click="fileInputRef?.click()"
           >Change</button>
         </div>

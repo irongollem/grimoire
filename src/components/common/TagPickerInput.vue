@@ -5,7 +5,7 @@
       <span
         v-for="(tag, idx) in model"
         :key="tag"
-        class="inline-flex items-center gap-1 rounded-full border border-border bg-muted/50 px-2.5 py-0.5 font-cinzel text-[10px] tracking-wide text-foreground"
+        class="inline-flex items-center gap-1 rounded-full border border-border bg-muted/50 px-2.5 py-0.5 font-cinzel text-2xs tracking-wide text-foreground"
       >
         {{ tag }}
         <button
@@ -40,7 +40,7 @@
             v-for="item in filteredItems"
             :key="item"
             type="button"
-            class="rounded-full border px-2.5 py-1 font-cinzel text-[10px] tracking-wide transition-colors"
+            class="rounded-full border px-2.5 py-1 font-cinzel text-2xs tracking-wide transition-colors"
             :class="isSelected(item)
               ? 'cursor-default border-border bg-muted text-foreground opacity-50'
               : 'border-border bg-card text-muted-foreground hover:border-primary/40 hover:bg-primary/10 hover:text-primary'"
@@ -53,7 +53,7 @@
           <button
             v-if="canAddCustom"
             type="button"
-            class="rounded-full border border-dashed border-primary/40 bg-transparent px-2.5 py-1 font-cinzel text-[10px] tracking-wide text-primary transition-colors hover:bg-primary/10"
+            class="rounded-full border border-dashed border-primary/40 bg-transparent px-2.5 py-1 font-cinzel text-2xs tracking-wide text-primary transition-colors hover:bg-primary/10"
             @mousedown.prevent
             @click="addCustom"
           >
@@ -69,7 +69,7 @@
       <template v-else>
         <div class="max-h-64 overflow-y-auto">
           <div v-for="group in groups" :key="group.name" class="p-2 pb-1">
-            <p class="mb-1.5 px-0.5 font-cinzel text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <p class="mb-1.5 px-0.5 font-cinzel text-[0.5625rem] font-semibold uppercase tracking-wider text-muted-foreground">
               {{ group.name }}
             </p>
             <div class="flex flex-wrap gap-1">
@@ -77,7 +77,7 @@
                 v-for="item in group.items"
                 :key="item"
                 type="button"
-                class="rounded-full border px-2.5 py-1 font-cinzel text-[10px] tracking-wide transition-colors"
+                class="rounded-full border px-2.5 py-1 font-cinzel text-2xs tracking-wide transition-colors"
                 :class="isSelected(item)
                   ? 'border-border bg-muted font-semibold text-foreground'
                   : 'border-border bg-card text-muted-foreground hover:border-primary/40 hover:bg-primary/10 hover:text-primary'"
@@ -90,7 +90,7 @@
           </div>
         </div>
         <div class="border-t border-border px-2 py-1.5">
-          <p class="font-fell text-[10px] italic text-muted-foreground/60">
+          <p class="font-fell text-2xs italic text-muted-foreground/60">
             Type above to search or add a custom entry
           </p>
         </div>

@@ -36,13 +36,13 @@
             }}
           </span>
         </div>
-        <span class="font-cinzel text-[10px] text-muted-foreground shrink-0">
+        <span class="font-cinzel text-2xs text-muted-foreground shrink-0">
           Lv {{ memberLevelDisplay(member.id, member.level) }}
         </span>
         <select
           v-if="partyMemberIds.includes(member.id)"
           :value="partyMemberFactions[member.id] ?? 'players'"
-          class="shrink-0 bg-muted border border-border rounded px-2 py-0.5 font-cinzel text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="shrink-0 bg-muted border border-border rounded px-2 py-0.5 font-cinzel text-2xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           :style="{
             borderColor:
               factions.find((f) => f.id === (partyMemberFactions[member.id] ?? 'players'))?.color ?? undefined,
@@ -58,7 +58,7 @@
       <template v-if="companions?.length">
         <div class="mt-1 mb-0.5 flex items-center gap-2">
           <div class="h-px flex-1 bg-border" />
-          <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase shrink-0">Companions</span>
+          <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase shrink-0">Companions</span>
           <div class="h-px flex-1 bg-border" />
         </div>
         <label
@@ -79,13 +79,13 @@
               {{ comp.companion_type.replace('_', ' ') }}
             </span>
           </div>
-          <span class="font-cinzel text-[10px] text-muted-foreground shrink-0">
+          <span class="font-cinzel text-2xs text-muted-foreground shrink-0">
             {{ comp.current_hp }}/{{ comp.max_hp }} HP
           </span>
           <select
             v-if="companionIds.includes(comp.id)"
             :value="partyMemberFactions[comp.id] ?? 'players'"
-            class="shrink-0 bg-muted border border-border rounded px-2 py-0.5 font-cinzel text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="shrink-0 bg-muted border border-border rounded px-2 py-0.5 font-cinzel text-2xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             :style="{
               borderColor:
                 factions.find((f) => f.id === (partyMemberFactions[comp.id] ?? 'players'))?.color ?? undefined,

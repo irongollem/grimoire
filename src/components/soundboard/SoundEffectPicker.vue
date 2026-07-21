@@ -32,7 +32,7 @@
             v-for="opt in OPTIONS"
             :key="opt.value"
             type="button"
-            class="px-2 py-1 rounded-md font-cinzel text-[10px] tracking-wide transition-colors whitespace-nowrap border"
+            class="px-2 py-1 rounded-md font-cinzel text-2xs tracking-wide transition-colors whitespace-nowrap border"
             :class="modelValue === opt.value
               ? 'bg-gold-500/20 border-gold-500/40 text-gold-400'
               : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50'"

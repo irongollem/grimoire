@@ -6,7 +6,7 @@
       </span>
       <button
         type="button"
-        class="font-cinzel text-[10px] text-primary hover:opacity-80 transition-opacity"
+        class="font-cinzel text-2xs text-primary hover:opacity-80 transition-opacity"
         @click="openAddItem"
       >+ Add Item</button>
     </div>
@@ -41,7 +41,7 @@
             @keydown.escape="showItemDropdown = false"
           >
             <span class="truncate">{{ item.name }}</span>
-            <span class="font-cinzel text-[10px] text-muted-foreground shrink-0 capitalize">{{ item.rarity }}</span>
+            <span class="font-cinzel text-2xs text-muted-foreground shrink-0 capitalize">{{ item.rarity }}</span>
           </button>
           <div v-if="newItem.name.trim()" class="border-t border-border">
             <button
@@ -113,7 +113,7 @@
             <p v-else class="font-fell text-sm text-foreground leading-tight truncate">{{ item.name }}</p>
             <span
               v-if="item.item_id && catalogItemMap.get(item.item_id)"
-              class="hidden sm:inline font-cinzel text-[9px] text-muted-foreground/60 shrink-0"
+              class="hidden sm:inline font-cinzel text-[0.5625rem] text-muted-foreground/60 shrink-0"
             >{{ ITEM_TYPE_LABELS[catalogItemMap.get(item.item_id)!.item_type] }}</span>
           </div>
           <p v-if="item.notes" class="font-fell text-xs text-muted-foreground italic truncate">{{ item.notes }}</p>
@@ -133,7 +133,7 @@
         </select>
         <button
           type="button"
-          class="shrink-0 font-cinzel text-[10px] px-1.5 py-0.5 rounded border transition-colors"
+          class="shrink-0 font-cinzel text-2xs px-1.5 py-0.5 rounded border transition-colors"
           :class="item.is_attuned
             ? 'border-amber-400/50 bg-amber-400/10 text-amber-400'
             : 'border-border text-muted-foreground/40 hover:text-muted-foreground'"

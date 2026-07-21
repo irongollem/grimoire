@@ -71,14 +71,14 @@
         <div class="flex items-center justify-between px-4 py-3">
           <div>
             <span class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">TRACKER</span>
-            <p class="font-fell text-[11px] text-muted-foreground italic mt-0.5">
+            <p class="font-fell text-[0.6875rem] text-muted-foreground italic mt-0.5">
               Attach a per-player track (like Corruption, Hunger, Sanity) with named levels and DM controls.
             </p>
           </div>
           <button
             v-if="!tracker"
             type="button"
-            class="inline-flex items-center gap-1 rounded-md border border-dashed border-border px-2.5 py-1 font-cinzel text-[11px] text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+            class="inline-flex items-center gap-1 rounded-md border border-dashed border-border px-2.5 py-1 font-cinzel text-[0.6875rem] text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
             @click="addTracker"
           >
             <IconAdd class="size-3" /> Add Tracker
@@ -99,7 +99,7 @@
           <!-- Label + Type -->
           <div class="grid grid-cols-2 gap-3">
             <div class="space-y-1.5">
-              <label class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">TRACK LABEL</label>
+              <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground">TRACK LABEL</label>
               <input
                 v-model="tracker.label"
                 type="text"
@@ -108,7 +108,7 @@
               />
             </div>
             <div class="space-y-1.5">
-              <label class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">TYPE</label>
+              <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground">TYPE</label>
               <select
                 v-model="tracker.type"
                 class="w-full bg-background border border-border rounded px-2.5 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -123,7 +123,7 @@
           <!-- Min / Max -->
           <div class="grid grid-cols-2 gap-3">
             <div class="space-y-1.5">
-              <label class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">MIN VALUE</label>
+              <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground">MIN VALUE</label>
               <input
                 v-model.number="tracker.min"
                 type="number"
@@ -131,7 +131,7 @@
               />
             </div>
             <div class="space-y-1.5">
-              <label class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">MAX VALUE</label>
+              <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground">MAX VALUE</label>
               <input
                 v-model.number="tracker.max"
                 type="number"
@@ -143,10 +143,10 @@
           <!-- ── Levels (type = "level") ──────────────────────────────────── -->
           <div v-if="tracker.type === 'level'" class="space-y-2">
             <div class="flex items-center justify-between">
-              <label class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">LEVELS</label>
+              <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground">LEVELS</label>
               <button
                 type="button"
-                class="inline-flex items-center gap-1 font-cinzel text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                class="inline-flex items-center gap-1 font-cinzel text-2xs text-muted-foreground hover:text-foreground transition-colors"
                 @click="addLevel"
               >
                 <IconAdd class="size-3" /> Add Level
@@ -168,7 +168,7 @@
               <!-- Level header row: value, label, color, delete -->
               <div class="flex items-center gap-2">
                 <div class="flex flex-col items-center gap-0.5 shrink-0">
-                  <span class="font-cinzel text-[9px] text-muted-foreground">VAL</span>
+                  <span class="font-cinzel text-[0.5625rem] text-muted-foreground">VAL</span>
                   <input
                     :value="lvl.value"
                     type="text"
@@ -250,7 +250,7 @@
                       <option value="">Ability</option>
                       <option v-for="ab in SAVE_ABILITIES" :key="ab.value" :value="ab.value">{{ ab.label }}</option>
                     </select>
-                    <span class="font-cinzel text-[9px] text-muted-foreground shrink-0">DC</span>
+                    <span class="font-cinzel text-[0.5625rem] text-muted-foreground shrink-0">DC</span>
                     <input
                       v-model.number="fx.dcBase"
                       type="number"
@@ -261,7 +261,7 @@
                     />
                     <label class="flex items-center gap-1 shrink-0 cursor-pointer" title="Add current tracker value to DC">
                       <input type="checkbox" v-model="fx.dcAddTracker" class="rounded" />
-                      <span class="font-cinzel text-[9px] text-muted-foreground">+VAL</span>
+                      <span class="font-cinzel text-[0.5625rem] text-muted-foreground">+VAL</span>
                     </label>
                   </template>
                   <input
@@ -281,7 +281,7 @@
                 </div>
                 <button
                   type="button"
-                  class="font-fell text-[10px] text-muted-foreground hover:text-foreground italic transition-colors"
+                  class="font-fell text-2xs text-muted-foreground hover:text-foreground italic transition-colors"
                   @click="addEffect(lvl)"
                 >
                   + add effect
@@ -293,16 +293,16 @@
           <!-- ── DM Buttons ───────────────────────────────────────────────── -->
           <div class="space-y-2">
             <div class="flex items-center justify-between">
-              <label class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">TRACKER BUTTONS</label>
+              <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground">TRACKER BUTTONS</label>
               <button
                 type="button"
-                class="inline-flex items-center gap-1 font-cinzel text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                class="inline-flex items-center gap-1 font-cinzel text-2xs text-muted-foreground hover:text-foreground transition-colors"
                 @click="addButton"
               >
                 <IconAdd class="size-3" /> Add Button
               </button>
             </div>
-            <p class="font-fell text-[11px] text-muted-foreground italic">
+            <p class="font-fell text-[0.6875rem] text-muted-foreground italic">
               Controls shown in the party panel. "Δ change by" adjusts the current value; "= set to" snaps to an exact value. Toggle "Players" to also show the button in the player portal.
             </p>
 
@@ -329,7 +329,7 @@
                 <button
                   type="button"
                   :class="[
-                    'px-2 py-1.5 font-cinzel text-[10px] transition-colors',
+                    'px-2 py-1.5 font-cinzel text-2xs transition-colors',
                     (!btn.mode || btn.mode === 'delta') ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:text-foreground',
                   ]"
                   @click="btn.mode = 'delta'"
@@ -338,7 +338,7 @@
                 <button
                   type="button"
                   :class="[
-                    'px-2 py-1.5 font-cinzel text-[10px] transition-colors',
+                    'px-2 py-1.5 font-cinzel text-2xs transition-colors',
                     btn.mode === 'set' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:text-foreground',
                   ]"
                   @click="btn.mode = 'set'"
@@ -366,7 +366,7 @@
                 title="Also show this button to players in their portal"
               >
                 <input type="checkbox" v-model="btn.playerVisible" class="rounded" />
-                <span class="font-cinzel text-[9px] text-muted-foreground">Players</span>
+                <span class="font-cinzel text-[0.5625rem] text-muted-foreground">Players</span>
               </label>
               <button
                 type="button"

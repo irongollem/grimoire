@@ -1,6 +1,6 @@
 <template>
   <aside class="flex lg:flex-col flex-row gap-1 lg:w-44 shrink-0 bg-card border border-border rounded-lg p-2">
-    <h4 class="hidden lg:block font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase px-1 pb-1">
+    <h4 class="hidden lg:block font-cinzel text-2xs tracking-wider text-muted-foreground uppercase px-1 pb-1">
       Tools
     </h4>
     <button
@@ -23,11 +23,11 @@
       <span class="hidden lg:inline flex-1">{{ t.label }}</span>
       <kbd
         v-if="toolBadge(t)"
-        class="hidden lg:inline font-cinzel text-[9px] tracking-wider text-muted-foreground bg-muted/60 border border-border rounded px-1 py-0.5"
+        class="hidden lg:inline font-cinzel text-[0.5625rem] tracking-wider text-muted-foreground bg-muted/60 border border-border rounded px-1 py-0.5"
       >{{ toolBadge(t) }}</kbd>
     </button>
 
-    <div class="hidden lg:block mt-3 border-t border-border pt-2 text-[10px] font-fell text-muted-foreground italic space-y-1">
+    <div class="hidden lg:block mt-3 border-t border-border pt-2 text-2xs font-fell text-muted-foreground italic space-y-1">
       <p>RMB or shift-drag pans. Shift+click with Wall wraps all 4 edges. Rect: shift-drag adds perimeter walls.</p>
       <p>Ctrl+Z undo · Ctrl+Shift+Z redo.</p>
     </div>

@@ -30,17 +30,17 @@
     <select
       v-if="!readonlyRole"
       :value="role ?? 'Member'"
-      class="bg-muted border border-border rounded px-2 py-0.5 font-cinzel text-[10px] text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shrink-0"
+      class="bg-muted border border-border rounded px-2 py-0.5 font-cinzel text-2xs text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shrink-0"
       @change="emit('update:role', ($event.target as HTMLSelectElement).value)"
     >
       <option v-for="r in NPC_FACTION_ROLES" :key="r" :value="r">{{ r }}</option>
     </select>
-    <span v-else class="font-cinzel text-[10px] text-muted-foreground shrink-0">{{ role ?? 'Member' }}</span>
+    <span v-else class="font-cinzel text-2xs text-muted-foreground shrink-0">{{ role ?? 'Member' }}</span>
 
     <!-- Status -->
     <select
       :value="status ?? 'Active'"
-      class="bg-muted border border-border rounded px-2 py-0.5 font-cinzel text-[10px] focus:outline-none focus:ring-1 focus:ring-ring shrink-0"
+      class="bg-muted border border-border rounded px-2 py-0.5 font-cinzel text-2xs focus:outline-none focus:ring-1 focus:ring-ring shrink-0"
       :style="{ color: NPC_FACTION_STATUS_COLORS[(status ?? 'Active') as NpcFactionStatus] ?? NPC_FACTION_STATUS_COLORS.Active }"
       @change="emit('update:status', ($event.target as HTMLSelectElement).value)"
     >

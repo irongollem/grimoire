@@ -15,7 +15,7 @@
         <RouterLink
           v-if="item.item_id"
           :to="`/vault/${item.item_id}`"
-          class="font-cinzel text-[10px] text-primary hover:opacity-80 transition-opacity shrink-0"
+          class="font-cinzel text-2xs text-primary hover:opacity-80 transition-opacity shrink-0"
           title="View in vault"
         >Vault</RouterLink>
         <span v-if="item.notes" class="font-fell text-xs text-muted-foreground italic truncate max-w-32">

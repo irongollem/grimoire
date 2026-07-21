@@ -37,13 +37,13 @@
         <div class="flex-1 flex flex-col gap-2">
           <h1 class="font-cinzel text-xl font-bold text-foreground leading-tight">{{ trap.name }}</h1>
           <div class="flex flex-wrap gap-1.5">
-            <span class="font-cinzel text-[10px] font-semibold tracking-wider bg-muted/60 text-muted-foreground rounded px-2 py-0.5">
+            <span class="font-cinzel text-2xs font-semibold tracking-wider bg-muted/60 text-muted-foreground rounded px-2 py-0.5">
               {{ trap.trap_type }}
             </span>
-            <span v-if="trap.cr" class="font-cinzel text-[10px] font-semibold tracking-wider bg-primary/10 text-primary rounded px-2 py-0.5">
+            <span v-if="trap.cr" class="font-cinzel text-2xs font-semibold tracking-wider bg-primary/10 text-primary rounded px-2 py-0.5">
               CR {{ trap.cr }}
             </span>
-            <span v-if="crXp" class="font-cinzel text-[10px] tracking-wider text-muted-foreground rounded px-2 py-0.5">
+            <span v-if="crXp" class="font-cinzel text-2xs tracking-wider text-muted-foreground rounded px-2 py-0.5">
               {{ crXp }} XP
             </span>
           </div>
@@ -51,7 +51,7 @@
             <span
               v-for="tag in trap.tags"
               :key="tag"
-              class="font-cinzel text-[10px] tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
+              class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
             >{{ tag }}</span>
           </div>
         </div>
@@ -66,37 +66,37 @@
       <div class="p-4 flex flex-col gap-3">
         <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2">
           <div v-if="trap.trigger_type">
-            <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Trigger</span>
+            <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Trigger</span>
             <p class="font-fell text-sm text-foreground">{{ trap.trigger_type }}</p>
           </div>
           <div v-if="trap.detection_dc">
-            <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Detection DC</span>
+            <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Detection DC</span>
             <p class="font-cinzel text-lg font-bold text-foreground">{{ trap.detection_dc }}</p>
           </div>
           <div v-if="trap.disarm_dc">
-            <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Disarm DC</span>
+            <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Disarm DC</span>
             <p class="font-cinzel text-lg font-bold text-foreground">{{ trap.disarm_dc }}</p>
           </div>
           <div>
-            <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Reset</span>
+            <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Reset</span>
             <p class="font-fell text-sm text-foreground">{{ trap.reset_type }}</p>
           </div>
           <div v-if="trap.trap_hp">
-            <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">HP</span>
+            <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">HP</span>
             <p class="font-cinzel text-lg font-bold text-foreground">{{ trap.trap_hp }}</p>
           </div>
           <div v-if="trap.trap_ac">
-            <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">AC</span>
+            <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">AC</span>
             <p class="font-cinzel text-lg font-bold text-foreground">{{ trap.trap_ac }}</p>
           </div>
         </div>
         <div v-if="trap.damage_immunities.length">
-          <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Damage Immunities</span>
+          <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Damage Immunities</span>
           <div class="flex flex-wrap gap-1 mt-1">
             <span
               v-for="imm in trap.damage_immunities"
               :key="imm"
-              class="font-cinzel text-[10px] tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5 capitalize"
+              class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5 capitalize"
             >{{ imm }}</span>
           </div>
         </div>
@@ -116,13 +116,13 @@
         <div class="flex flex-wrap gap-2">
           <span
             v-if="trap.attack_bonus != null"
-            class="font-cinzel text-[11px] font-semibold tracking-wider bg-primary/10 text-primary rounded px-2.5 py-1"
+            class="font-cinzel text-[0.6875rem] font-semibold tracking-wider bg-primary/10 text-primary rounded px-2.5 py-1"
           >
             ATK +{{ trap.attack_bonus }}
           </span>
           <span
             v-if="trap.save_type && trap.save_dc"
-            class="font-cinzel text-[11px] font-semibold tracking-wider bg-amber-500/10 text-amber-400 rounded px-2.5 py-1"
+            class="font-cinzel text-[0.6875rem] font-semibold tracking-wider bg-amber-500/10 text-amber-400 rounded px-2.5 py-1"
           >
             {{ trap.save_type }} Save DC {{ trap.save_dc }}
           </span>
@@ -131,7 +131,7 @@
           <span
             v-for="(entry, i) in trap.damage_entries"
             :key="i"
-            class="font-cinzel text-[11px] font-semibold tracking-wider bg-destructive/10 text-destructive rounded px-2.5 py-1 capitalize"
+            class="font-cinzel text-[0.6875rem] font-semibold tracking-wider bg-destructive/10 text-destructive rounded px-2.5 py-1 capitalize"
           >
             {{ entry.dice }}{{ entry.type ? ` ${entry.type}` : "" }}
           </span>

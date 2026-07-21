@@ -62,7 +62,7 @@ const emit = defineEmits<{ close: [] }>();
 }
 .srd-preview-enter-from .relative,
 .srd-preview-leave-to .relative {
-  transform: translateY(12px);
+  transform: translateY(0.75rem);
   opacity: 0;
 }
 </style>

@@ -61,12 +61,12 @@
 
         <!-- Hostile to chips -->
         <div class="flex flex-wrap gap-1">
-          <span class="font-cinzel text-[10px] text-muted-foreground self-center mr-1">Hostile to:</span>
+          <span class="font-cinzel text-2xs text-muted-foreground self-center mr-1">Hostile to:</span>
           <button
             v-for="other in localFactions.filter((f) => f.id !== faction.id)"
             :key="other.id"
             type="button"
-            class="px-2 py-0.5 rounded-full font-cinzel text-[10px] font-semibold border transition-colors"
+            class="px-2 py-0.5 rounded-full font-cinzel text-2xs font-semibold border transition-colors"
             :class="
               faction.hostile_to.includes(other.id)
                 ? 'bg-destructive/20 border-destructive/50 text-destructive'
@@ -76,7 +76,7 @@
           >
             {{ other.name }}
           </button>
-          <span v-if="faction.hostile_to.length === 0" class="font-fell text-[11px] text-muted-foreground italic">
+          <span v-if="faction.hostile_to.length === 0" class="font-fell text-[0.6875rem] text-muted-foreground italic">
             None
           </span>
         </div>

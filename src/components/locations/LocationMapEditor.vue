@@ -54,7 +54,7 @@
         <button
           type="button"
           :disabled="isMapUploading"
-          class="font-cinzel text-[10px] tracking-wider text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+          class="font-cinzel text-2xs tracking-wider text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
           @click="mapFileInput?.click()"
         >
           {{ isMapUploading ? "Uploading…" : "Change map" }}
@@ -62,7 +62,7 @@
         <span class="text-muted-foreground/40 text-xs">·</span>
         <button
           type="button"
-          class="font-cinzel text-[10px] tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+          class="font-cinzel text-2xs tracking-wider text-muted-foreground hover:text-foreground transition-colors"
           :title="mapCompact ? 'Show full size' : 'Compact map'"
           @click="mapCompact = !mapCompact"
         >
@@ -71,7 +71,7 @@
         <span class="text-muted-foreground/40 text-xs">·</span>
         <button
           type="button"
-          class="font-cinzel text-[10px] tracking-wider text-destructive hover:opacity-80 transition-opacity"
+          class="font-cinzel text-2xs tracking-wider text-destructive hover:opacity-80 transition-opacity"
           @click="onClearMap"
         >
           Remove
@@ -80,7 +80,7 @@
           <span class="text-muted-foreground/40 text-xs">·</span>
           <RouterLink
             :to="`/cartographer/${sourceMapId}`"
-            class="font-cinzel text-[10px] tracking-wider text-primary hover:opacity-80 transition-opacity"
+            class="font-cinzel text-2xs tracking-wider text-primary hover:opacity-80 transition-opacity"
           >
             Edit in Cartographer
           </RouterLink>
@@ -88,7 +88,7 @@
         <template v-if="locationId">
           <span class="text-muted-foreground/40 text-xs">·</span>
           <label
-            class="inline-flex items-center gap-1 font-cinzel text-[10px] tracking-wider text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
+            class="inline-flex items-center gap-1 font-cinzel text-2xs tracking-wider text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
             :title="isBattleMap ? 'This map is a tactical battle map: hidden from the player atlas, available in the VTT.' : 'Mark this map as a tactical battle map (hidden from the player atlas; enables VTT + fog).'"
           >
             <input
@@ -103,7 +103,7 @@
             <span class="text-muted-foreground/40 text-xs">·</span>
             <button
               type="button"
-              class="font-cinzel text-[10px] tracking-wider transition-colors"
+              class="font-cinzel text-2xs tracking-wider transition-colors"
               :class="gridCalibration
                 ? 'text-muted-foreground hover:text-foreground'
                 : 'text-primary hover:opacity-80'"

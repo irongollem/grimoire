@@ -28,10 +28,10 @@
           <span class="font-cinzel text-xs font-bold tracking-wider text-foreground">
             {{ group.label }}
           </span>
-          <span class="font-cinzel text-[10px] px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-400 border border-violet-500/20">
+          <span class="font-cinzel text-2xs px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-400 border border-violet-500/20">
             {{ SOURCE_TYPE_LABELS[group.entries[0].source_type] ?? group.entries[0].source_type }}
           </span>
-          <span class="ml-auto font-cinzel text-[10px] text-muted-foreground tracking-wider">
+          <span class="ml-auto font-cinzel text-2xs text-muted-foreground tracking-wider">
             {{ group.entries.length }}
           </span>
         </button>
@@ -63,36 +63,36 @@
             <!-- Concentration / ritual badges -->
             <span
               v-if="entry.spell.ritual"
-              class="shrink-0 font-cinzel text-[10px] tracking-wider text-muted-foreground border border-border rounded px-1"
+              class="shrink-0 font-cinzel text-2xs tracking-wider text-muted-foreground border border-border rounded px-1"
             >R</span>
             <span
               v-if="entry.spell.concentration"
-              class="shrink-0 font-cinzel text-[10px] tracking-wider text-primary/70 border border-primary/30 rounded px-1"
+              class="shrink-0 font-cinzel text-2xs tracking-wider text-primary/70 border border-primary/30 rounded px-1"
             >C</span>
 
             <!-- Attack / save info -->
             <span
               v-if="entry.spell.level > 0 && attackBonusFor(entry) !== null && (entry.spell.attack_type === 'ranged_spell' || entry.spell.attack_type === 'melee_spell')"
-              class="shrink-0 font-cinzel text-[10px] text-muted-foreground"
+              class="shrink-0 font-cinzel text-2xs text-muted-foreground"
             >Atk {{ signedNum(attackBonusFor(entry)!) }}</span>
             <span
               v-else-if="entry.spell.level > 0 && saveDcFor(entry) !== null && entry.spell.attack_type === 'save'"
-              class="shrink-0 font-cinzel text-[10px] text-muted-foreground"
+              class="shrink-0 font-cinzel text-2xs text-muted-foreground"
             >DC {{ saveDcFor(entry) }}</span>
 
             <button
               v-if="entry.spell.damage_rolls?.length && entry.spell.mechanics_reviewed !== false"
-              class="shrink-0 font-cinzel text-[10px] rounded border border-red-500/30 bg-red-500/10 text-red-500 px-1.5 py-0.5 hover:bg-red-500/20"
+              class="shrink-0 font-cinzel text-2xs rounded border border-red-500/30 bg-red-500/10 text-red-500 px-1.5 py-0.5 hover:bg-red-500/20"
               title="Roll damage after resolving the spell attack or target saving throw"
               @click.stop="entry.spell.effects?.length ? openEffectResolution(entry) : rollInnateDamage(entry)"
             >{{ entry.spell.effects?.length ? "Resolve" : "Damage" }}</button>
             <button
               v-if="entry.spell.healing_dice && entry.spell.mechanics_reviewed !== false"
-              class="shrink-0 font-cinzel text-[10px] rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-500 px-1.5 py-0.5 hover:bg-emerald-500/20"
+              class="shrink-0 font-cinzel text-2xs rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-500 px-1.5 py-0.5 hover:bg-emerald-500/20"
               title="Roll healing"
               @click.stop="entry.spell.effects?.length ? openEffectResolution(entry) : rollInnateHealing(entry)"
             >{{ entry.spell.effects?.length ? "Resolve" : "Healing" }}</button>
-            <span v-if="entry.spell.mechanics_reviewed === false" class="shrink-0 rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 font-cinzel text-[10px] text-amber-500">Manual</span>
+            <span v-if="entry.spell.mechanics_reviewed === false" class="shrink-0 rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 font-cinzel text-2xs text-amber-500">Manual</span>
 
             <!-- Use tracking: pips or "At will" -->
             <template v-if="entry.uses_per_day !== null">
@@ -106,18 +106,18 @@
                     : 'border-muted-foreground/30'"
                 />
               </div>
-              <span class="font-cinzel text-[10px] text-muted-foreground shrink-0">
+              <span class="font-cinzel text-2xs text-muted-foreground shrink-0">
                 {{ entry.uses_remaining ?? 0 }}/{{ entry.uses_per_day }}
               </span>
             </template>
             <span
               v-else
-              class="shrink-0 font-cinzel text-[10px] tracking-wider text-emerald-500/70 border border-emerald-500/20 rounded px-1.5 py-0.5"
+              class="shrink-0 font-cinzel text-2xs tracking-wider text-emerald-500/70 border border-emerald-500/20 rounded px-1.5 py-0.5"
             >At will</span>
 
             <!-- Cast button -->
             <button
-              class="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded font-cinzel text-[10px] font-semibold tracking-wider transition-colors border"
+              class="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded font-cinzel text-2xs font-semibold tracking-wider transition-colors border"
               :class="castButtonClass(entry)"
               :disabled="isCasting || (entry.uses_per_day !== null && !entry.uses_remaining)"
               :title="castButtonTitle(entry)"

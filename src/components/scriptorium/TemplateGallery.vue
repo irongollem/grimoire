@@ -28,7 +28,7 @@
             <div class="h-1 rounded-xs bg-foreground/10 w-2/3" />
           </div>
           <span
-            class="absolute top-2 right-2 px-1.5 py-0.5 rounded font-cinzel text-[9px] font-bold tracking-wider uppercase"
+            class="absolute top-2 right-2 px-1.5 py-0.5 rounded font-cinzel text-[0.5625rem] font-bold tracking-wider uppercase"
             :style="{ backgroundColor: `${accent(t)}22`, color: accent(t) }"
           >
             {{ label(t) }}

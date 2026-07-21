@@ -28,19 +28,19 @@
 
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2 w-full max-w-2xl text-left">
         <div class="rounded-lg border border-border bg-card p-3 space-y-1">
-          <p class="font-cinzel text-[10px] tracking-widest uppercase text-primary">Identity</p>
+          <p class="font-cinzel text-2xs tracking-widest uppercase text-primary">Identity</p>
           <p class="font-fell text-xs text-muted-foreground">
             Hit die, primary ability, saving throws, armor &amp; weapon proficiencies, and subclass-granting level.
           </p>
         </div>
         <div class="rounded-lg border border-border bg-card p-3 space-y-1">
-          <p class="font-cinzel text-[10px] tracking-widest uppercase text-primary">Feature Progression</p>
+          <p class="font-cinzel text-2xs tracking-widest uppercase text-primary">Feature Progression</p>
           <p class="font-fell text-xs text-muted-foreground">
             Link abilities from the compendium to each level, define Ability Score Increase levels, and add wizard steps for player choices.
           </p>
         </div>
         <div class="rounded-lg border border-border bg-card p-3 space-y-1">
-          <p class="font-cinzel text-[10px] tracking-widest uppercase text-primary">Resource Pools</p>
+          <p class="font-cinzel text-2xs tracking-widest uppercase text-primary">Resource Pools</p>
           <p class="font-fell text-xs text-muted-foreground">
             Tracked uses that appear on the character sheet — Grit Points, Ki, Superiority Dice, etc.
           </p>
@@ -102,7 +102,7 @@
           <button
             type="button"
             :disabled="duplicating === cls.id"
-            class="inline-flex items-center gap-1 rounded border border-border px-2.5 py-1 font-cinzel text-[10px] tracking-wider text-foreground hover:bg-muted/40 transition-colors disabled:opacity-50 shrink-0"
+            class="inline-flex items-center gap-1 rounded border border-border px-2.5 py-1 font-cinzel text-2xs tracking-wider text-foreground hover:bg-muted/40 transition-colors disabled:opacity-50 shrink-0"
             @click="duplicate(cls)"
           >
             <IconCopy class="h-3 w-3" />

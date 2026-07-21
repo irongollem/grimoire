@@ -32,7 +32,7 @@
             </div>
             <!-- Feat badge -->
             <div v-if="bg.feat_grant_name"
-              class="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/60 font-cinzel text-[9px] text-amber-300 tracking-wider leading-none">
+              class="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/60 font-cinzel text-[0.5625rem] text-amber-300 tracking-wider leading-none">
               ✦ {{ bg.feat_grant_name }}
             </div>
           </div>
@@ -42,22 +42,22 @@
             <!-- Proficiencies summary -->
             <div class="mt-1.5 flex flex-wrap gap-1">
               <span v-for="sk in bg.skill_proficiencies" :key="sk"
-                class="px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 font-cinzel text-[9px] text-primary">
+                class="px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 font-cinzel text-[0.5625rem] text-primary">
                 {{ sk }}
               </span>
               <span v-for="t in bg.tool_proficiencies" :key="t"
-                class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[9px] text-muted-foreground">
+                class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[0.5625rem] text-muted-foreground">
                 {{ t }}
               </span>
               <span v-if="bg.languages?.length"
-                class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[9px] text-muted-foreground">
+                class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[0.5625rem] text-muted-foreground">
                 {{ bg.languages.length === 1 ? bg.languages[0] : `${bg.languages.length} languages` }}
               </span>
             </div>
             <p v-if="bg.feature_name" class="font-fell text-xs text-muted-foreground mt-1.5 italic line-clamp-1">
               {{ bg.feature_name }}
             </p>
-            <p v-if="bg.source_title" class="font-cinzel text-[9px] text-muted-foreground/50 mt-1">
+            <p v-if="bg.source_title" class="font-cinzel text-[0.5625rem] text-muted-foreground/50 mt-1">
               {{ bg.source_title }}
             </p>
           </div>
@@ -69,7 +69,7 @@
         class="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 space-y-1">
         <div class="flex items-center gap-2">
           <p class="font-cinzel text-xs font-semibold text-amber-600 dark:text-amber-400 tracking-wider">FEAT GRANT</p>
-          <span class="font-cinzel text-[10px] text-amber-600/60 dark:text-amber-400/60 tracking-wider">2024 PHB</span>
+          <span class="font-cinzel text-2xs text-amber-600/60 dark:text-amber-400/60 tracking-wider">2024 PHB</span>
         </div>
         <p class="font-cinzel text-sm font-bold text-foreground">{{ selectedBg.feat_grant_name }}</p>
         <p v-if="selectedBg.feat_grant_description && typeof selectedBg.feat_grant_description === 'string' && !selectedBg.feat_grant_description.startsWith('{')"
@@ -82,7 +82,7 @@
       <div v-if="selectedBg?.equipment" class="rounded-lg border border-primary/20 bg-primary/3 p-3 space-y-1">
         <p class="font-cinzel text-xs font-semibold text-primary/80 tracking-wider">STARTING EQUIPMENT</p>
         <p class="font-fell text-sm text-foreground/80 whitespace-pre-wrap">{{ selectedBg.equipment }}</p>
-        <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider">
+        <p class="font-cinzel text-2xs text-muted-foreground tracking-wider">
           Manage inventory import on the Equipment step →
         </p>
       </div>

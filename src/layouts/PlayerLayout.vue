@@ -246,10 +246,10 @@
                 :class="c.id === campaign.activeCampaignId ? 'bg-primary' : 'bg-muted-foreground/30'" />
               <div class="flex-1 min-w-0">
                 <p class="font-cinzel text-xs font-semibold truncate">{{ c.name }}</p>
-                <p class="font-fell text-[11px] text-muted-foreground italic truncate">{{ c.setting }}</p>
+                <p class="font-fell text-[0.6875rem] text-muted-foreground italic truncate">{{ c.setting }}</p>
               </div>
               <span
-                class="font-cinzel text-[9px] tracking-wider px-1.5 py-0.5 rounded shrink-0"
+                class="font-cinzel text-[0.5625rem] tracking-wider px-1.5 py-0.5 rounded shrink-0"
                 :class="campaignRoleMap.get(c.id) === 'dm'
                   ? 'bg-amber-500/15 text-amber-400'
                   : 'bg-primary/15 text-primary'"
@@ -485,7 +485,7 @@ async function handleSignOut() {
 }
 .toast-enter-from,
 .toast-leave-to {
-  transform: translateY(-8px);
+  transform: translateY(-0.5rem);
   opacity: 0;
 }
 
@@ -520,7 +520,7 @@ async function handleSignOut() {
 }
 
 .encounter-resize-handle {
-  width: 6px;
+  width: 0.375rem;
   flex-shrink: 0;
   cursor: col-resize;
   background: theme(colors.border / 100%);
@@ -533,15 +533,15 @@ async function handleSignOut() {
   content: '';
   position: absolute;
   inset: 0;
-  margin-inline: -19px;
+  margin-inline: -1.1875rem;
 }
 .encounter-resize-handle::after {
   content: '';
   position: absolute;
-  top: calc(50% - 20px);
-  left: 1px;
-  width: 4px;
-  height: 40px;
+  top: calc(50% - 1.25rem);
+  left: 0.0625rem;
+  width: 0.25rem;
+  height: 2.5rem;
   border-left: 1.5px dotted theme(colors.muted-foreground / 50%);
   border-right: 1.5px dotted theme(colors.muted-foreground / 50%);
 }

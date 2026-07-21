@@ -29,7 +29,7 @@
         <div v-for="stat in ABILITY_STATS" :key="stat.key"
           class="rounded-lg border bg-card p-3 flex flex-col items-center gap-1.5 transition-colors"
           :class="asiMode === 'bonus' && racialBonusMap[stat.key] ? 'border-primary/40 bg-primary/2' : 'border-border'">
-          <span class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider">{{ stat.label }}</span>
+          <span class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider">{{ stat.label }}</span>
           <div class="flex items-center gap-2">
             <button type="button"
               class="w-6 h-6 rounded-full border border-border font-cinzel text-sm font-bold transition-colors hover:border-primary hover:text-primary disabled:opacity-30"
@@ -42,14 +42,14 @@
               @click="f[stat.key]++">+</button>
           </div>
           <span v-if="asiMode === 'bonus' && racialBonusMap[stat.key]"
-            class="font-cinzel text-[9px] font-bold text-primary leading-none">
+            class="font-cinzel text-[0.5625rem] font-bold text-primary leading-none">
             +{{ racialBonusMap[stat.key] }} racial
           </span>
           <span class="font-cinzel text-xs font-bold"
             :class="totalMod(stat.key) >= 0 ? 'text-green-500' : 'text-destructive'">
             {{ totalMod(stat.key) >= 0 ? '+' : '' }}{{ totalMod(stat.key) }}
           </span>
-          <span class="font-cinzel text-[9px] text-muted-foreground">{{ POINT_BUY_COSTS[f[stat.key]] ?? 0 }} pts</span>
+          <span class="font-cinzel text-[0.5625rem] text-muted-foreground">{{ POINT_BUY_COSTS[f[stat.key]] ?? 0 }} pts</span>
         </div>
       </div>
     </div>
@@ -66,7 +66,7 @@
           @click="rollAbilityScores">Reroll Pool</button>
       </div>
       <div class="flex items-center gap-1.5 flex-wrap rounded-md border border-border bg-card px-3 py-2">
-        <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider mr-1">POOL</span>
+        <span class="font-cinzel text-2xs text-muted-foreground tracking-wider mr-1">POOL</span>
         <span v-for="(val, idx) in scorePool" :key="idx"
           class="w-9 h-9 rounded-md border font-cinzel text-sm font-bold flex items-center justify-center transition-colors"
           :class="Object.values(scoreAssignment).includes(idx)
@@ -78,14 +78,14 @@
         <div v-for="stat in ABILITY_STATS" :key="stat.key"
           class="rounded-lg border bg-card p-3 flex flex-col items-center gap-1.5 transition-colors"
           :class="asiMode === 'bonus' && racialBonusMap[stat.key] ? 'border-primary/40 bg-primary/2' : 'border-border'">
-          <span class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider">{{ stat.label }}</span>
+          <span class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider">{{ stat.label }}</span>
           <select :value="scoreAssignment[stat.key] ?? ''" class="field-input w-full text-center"
             @change="onPoolPick(stat.key, ($event.target as HTMLSelectElement).value)">
             <option value="">—</option>
             <option v-for="opt in availableForAbility(stat.key)" :key="opt.idx" :value="opt.idx">{{ opt.val }}</option>
           </select>
           <span v-if="asiMode === 'bonus' && racialBonusMap[stat.key]"
-            class="font-cinzel text-[9px] font-bold text-primary leading-none">
+            class="font-cinzel text-[0.5625rem] font-bold text-primary leading-none">
             +{{ racialBonusMap[stat.key] }} racial
           </span>
           <span class="font-cinzel text-xs font-bold"
@@ -101,11 +101,11 @@
       <p class="font-fell text-sm text-muted-foreground italic">Enter your scores directly.</p>
       <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
         <label v-for="stat in ABILITY_STATS" :key="stat.key" class="flex flex-col items-center gap-1">
-          <span class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider">{{ stat.label }}</span>
+          <span class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider">{{ stat.label }}</span>
           <input v-model.number="f[stat.key]" type="number" min="1" max="30"
             class="field-input w-full text-center px-1" />
           <span v-if="asiMode === 'bonus' && racialBonusMap[stat.key]"
-            class="font-cinzel text-[9px] font-bold text-primary leading-none">
+            class="font-cinzel text-[0.5625rem] font-bold text-primary leading-none">
             +{{ racialBonusMap[stat.key] }} racial
           </span>
           <span class="font-cinzel text-xs font-bold"
@@ -125,7 +125,7 @@
         <p class="font-cinzel text-xs font-semibold text-primary tracking-wider">
           {{ selectedSpecies.name.toUpperCase() }} BONUSES
         </p>
-        <div class="flex rounded overflow-hidden border border-primary/30 text-[11px] font-cinzel font-semibold">
+        <div class="flex rounded overflow-hidden border border-primary/30 text-[0.6875rem] font-cinzel font-semibold">
           <button v-if="asiIsStructured" type="button"
             class="px-2.5 py-1 transition-colors"
             :class="asiMode === 'bonus' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
@@ -165,7 +165,7 @@
         </p>
         <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
           <div v-for="stat in ABILITY_STATS" :key="stat.key" class="flex flex-col items-center gap-1">
-            <span class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider">{{ stat.label }}</span>
+            <span class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider">{{ stat.label }}</span>
             <div class="flex items-center gap-1">
               <button type="button"
                 class="w-5 h-5 rounded border border-border font-cinzel text-xs font-bold transition-colors hover:border-primary hover:text-primary disabled:opacity-30"

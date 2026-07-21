@@ -94,7 +94,7 @@
 
     <!-- Two-column body: portrait sidebar + stat block content -->
     <!-- Left col is NOT in fieldset — ImageUploads must remain interactive for SRD art -->
-    <div class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-[13.75rem_1fr] gap-6">
       <!-- Left: Portrait + Tags -->
       <div class="space-y-4">
         <!-- Portrait -->
@@ -119,7 +119,7 @@
             <span
               v-for="tag in form.tags"
               :key="tag"
-              class="inline-flex items-center px-2 py-0.5 rounded bg-muted font-cinzel text-[11px] text-muted-foreground tracking-wider"
+              class="inline-flex items-center px-2 py-0.5 rounded bg-muted font-cinzel text-[0.6875rem] text-muted-foreground tracking-wider"
               >{{ tag }}</span
             >
           </div>

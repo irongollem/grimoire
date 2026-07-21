@@ -5,7 +5,7 @@
     <span
       v-for="curse in curses"
       :key="curse"
-      class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-violet-500/15 border border-violet-500/30 font-cinzel text-[9px] text-violet-400 cursor-pointer hover:bg-destructive/20 hover:text-destructive transition-colors"
+      class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-violet-500/15 border border-violet-500/30 font-cinzel text-[0.5625rem] text-violet-400 cursor-pointer hover:bg-destructive/20 hover:text-destructive transition-colors"
       title="Click to remove"
       @click="emit('remove-curse', curse)"
     >{{ curse }} ×</span>
@@ -56,6 +56,6 @@ function addCurse() {
 }
 
 .detail-section-label {
-  @apply font-cinzel text-[10px] font-bold tracking-wider text-muted-foreground uppercase mt-1;
+  @apply font-cinzel text-2xs font-bold tracking-wider text-muted-foreground uppercase mt-1;
 }
 </style>

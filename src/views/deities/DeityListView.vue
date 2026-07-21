@@ -80,7 +80,7 @@
             <!-- Alignment badge -->
             <span
               v-if="deity.alignment"
-              class="absolute top-1.5 right-1.5 font-cinzel text-[9px] tracking-wider bg-black/60 text-white px-1.5 py-0.5 rounded"
+              class="absolute top-1.5 right-1.5 font-cinzel text-[0.5625rem] tracking-wider bg-black/60 text-white px-1.5 py-0.5 rounded"
             >{{ deity.alignment }}</span>
             <!-- Player visible indicator -->
             <IconReveal
@@ -94,7 +94,7 @@
             <p v-if="deity.titles" class="font-fell text-xs text-muted-foreground italic truncate">{{ deity.titles }}</p>
 
             <!-- Pantheon -->
-            <p v-if="deity.pantheon?.name" class="font-cinzel text-[10px] text-muted-foreground tracking-wider">
+            <p v-if="deity.pantheon?.name" class="font-cinzel text-2xs text-muted-foreground tracking-wider">
               {{ deity.pantheon.name }}
             </p>
 
@@ -103,11 +103,11 @@
               <span
                 v-for="domain in deity.domains.slice(0, 3)"
                 :key="domain"
-                class="px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 font-cinzel text-[9px] text-primary tracking-wider"
+                class="px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 font-cinzel text-[0.5625rem] text-primary tracking-wider"
               >{{ domain }}</span>
               <span
                 v-if="deity.domains.length > 3"
-                class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[9px] text-muted-foreground"
+                class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[0.5625rem] text-muted-foreground"
               >+{{ deity.domains.length - 3 }}</span>
             </div>
           </div>

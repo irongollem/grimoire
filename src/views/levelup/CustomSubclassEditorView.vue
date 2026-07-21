@@ -42,7 +42,7 @@
         <h2 class="font-cinzel text-xs tracking-widest uppercase text-muted-foreground">Identity</h2>
 
         <div>
-          <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground mb-1.5">DESCRIPTION</label>
+          <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1.5">DESCRIPTION</label>
           <RichTextEditor
             v-model="form.description"
             placeholder="Flavour text describing this archetype…"
@@ -52,7 +52,7 @@
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground mb-1.5">BASE CLASS</label>
+            <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1.5">BASE CLASS</label>
             <select
               v-model="form.class_name"
               class="w-full bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -63,7 +63,7 @@
           </div>
 
           <div>
-            <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground mb-1.5">CAMPAIGN SCOPE</label>
+            <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1.5">CAMPAIGN SCOPE</label>
             <select
               v-model="campaignScope"
               class="w-full bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"

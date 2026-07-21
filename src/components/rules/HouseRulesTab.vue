@@ -34,7 +34,7 @@
 
       <!-- ── Built-in optional rules (enabled by DM) ────────────────────── -->
       <template v-if="filteredBuiltIns.length">
-        <p class="font-cinzel text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
+        <p class="font-cinzel text-2xs font-semibold tracking-widest text-muted-foreground uppercase">
           Optional Rules (active this campaign)
         </p>
         <div class="flex flex-col gap-1">
@@ -53,7 +53,7 @@
                 :class="openBuiltIns.has(def.key) ? 'rotate-90' : ''"
               />
               <span class="font-cinzel text-sm font-bold text-foreground flex-1">{{ def.name }}</span>
-              <span class="shrink-0 px-1.5 py-0.5 rounded bg-emerald-500/10 font-cinzel text-[10px] text-emerald-400 tracking-wider">active</span>
+              <span class="shrink-0 px-1.5 py-0.5 rounded bg-emerald-500/10 font-cinzel text-2xs text-emerald-400 tracking-wider">active</span>
             </button>
             <div v-if="openBuiltIns.has(def.key)" class="px-4 pb-4 border-t border-border">
               <p class="font-fell text-xs text-muted-foreground italic mt-3 mb-2">{{ def.summary }}</p>
@@ -66,7 +66,7 @@
 
       <!-- ── Custom (player-visible) rules ─────────────────────────────── -->
       <template v-if="filteredCustom.length">
-        <p v-if="filteredBuiltIns.length" class="font-cinzel text-[10px] font-semibold tracking-widest text-muted-foreground uppercase mt-2">
+        <p v-if="filteredBuiltIns.length" class="font-cinzel text-2xs font-semibold tracking-widest text-muted-foreground uppercase mt-2">
           House Rules
         </p>
         <div class="flex flex-col gap-1">
@@ -87,7 +87,7 @@
               <span class="font-cinzel text-sm font-bold text-foreground flex-1">{{ rule.title }}</span>
               <span
                 v-if="rule.category"
-                class="shrink-0 px-1.5 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground tracking-wider"
+                class="shrink-0 px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground tracking-wider"
               >
                 {{ rule.category }}
               </span>
@@ -95,7 +95,7 @@
                 <span
                   v-for="tag in rule.tags"
                   :key="tag"
-                  class="px-1.5 py-0.5 rounded bg-primary/10 font-cinzel text-[10px] text-primary tracking-wider"
+                  class="px-1.5 py-0.5 rounded bg-primary/10 font-cinzel text-2xs text-primary tracking-wider"
                 >
                   {{ tag }}
                 </span>
@@ -107,7 +107,7 @@
                 <span
                   v-for="tag in rule.tags"
                   :key="tag"
-                  class="px-1.5 py-0.5 rounded bg-primary/10 font-cinzel text-[10px] text-primary tracking-wider"
+                  class="px-1.5 py-0.5 rounded bg-primary/10 font-cinzel text-2xs text-primary tracking-wider"
                 >
                   {{ tag }}
                 </span>

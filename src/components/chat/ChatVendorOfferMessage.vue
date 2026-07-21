@@ -9,7 +9,7 @@
   >
     <div class="px-3 py-2 border-b border-border/50 flex items-center gap-2">
       <IconShop class="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-      <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider">
+      <span class="font-cinzel text-2xs text-muted-foreground tracking-wider">
         {{ senderName }} offers
       </span>
     </div>
@@ -35,7 +35,7 @@
       <template v-else-if="linkedPartyMemberId">
         <button
           type="button"
-          class="mt-1 px-2.5 py-1 rounded border font-cinzel text-[10px] tracking-wider transition-colors"
+          class="mt-1 px-2.5 py-1 rounded border font-cinzel text-2xs tracking-wider transition-colors"
           :class="canAfford
             ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/30'
             : 'border-border text-muted-foreground/40 cursor-not-allowed'"
@@ -43,9 +43,9 @@
           :title="canAfford ? 'Pay' : 'Insufficient funds'"
           @click="emit('pay-vendor-offer', { messageId })"
         >Pay</button>
-        <span v-if="!canAfford" class="ml-2 font-fell text-[10px] text-destructive/70">Insufficient funds</span>
+        <span v-if="!canAfford" class="ml-2 font-fell text-2xs text-destructive/70">Insufficient funds</span>
       </template>
-      <p class="font-fell text-[10px] text-muted-foreground/50 mt-1.5">
+      <p class="font-fell text-2xs text-muted-foreground/50 mt-1.5">
         {{ timeLabel }}
       </p>
     </div>

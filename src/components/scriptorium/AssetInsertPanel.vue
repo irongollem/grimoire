@@ -7,7 +7,7 @@
       @keydown.esc="$emit('close')"
     >
       <div
-        class="flex flex-col w-[min(680px,94vw)] h-[min(600px,90vh)] bg-card rounded-xl border border-border shadow-2xl overflow-hidden"
+        class="flex flex-col w-[min(42.5rem,94vw)] h-[min(37.5rem,90vh)] bg-card rounded-xl border border-border shadow-2xl overflow-hidden"
       >
         <!-- Header -->
         <div class="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
@@ -91,7 +91,7 @@
               <div class="flex items-center gap-2 shrink-0">
                 <span
                   v-if="item.badge"
-                  class="px-2 py-0.5 rounded font-cinzel text-[10px] font-bold tracking-wider capitalize"
+                  class="px-2 py-0.5 rounded font-cinzel text-2xs font-bold tracking-wider capitalize"
                   :style="{
                     backgroundColor: item.badgeColor + '22',
                     color: item.badgeColor,
@@ -101,7 +101,7 @@
                   {{ item.badge }}
                 </span>
                 <span
-                  class="font-cinzel text-[10px] text-muted-foreground group-hover:text-primary transition-colors tracking-wider"
+                  class="font-cinzel text-2xs text-muted-foreground group-hover:text-primary transition-colors tracking-wider"
                 >
                   Insert →
                 </span>

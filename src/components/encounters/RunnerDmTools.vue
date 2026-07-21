@@ -89,7 +89,7 @@ function toggleTrapDetail(id: string) {
 /* ── Events panel ─────────────────────────────────────────────────────────── */
 
 .events-panel {
-  width: 200px;
+  width: 12.5rem;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -103,7 +103,7 @@ function toggleTrapDetail(id: string) {
 }
 .events-title {
   font-family: var(--font-cinzel, serif);
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 700;
   color: theme(colors.muted-foreground / 100%);
   letter-spacing: 0.1em;
@@ -128,11 +128,11 @@ function toggleTrapDetail(id: string) {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 0.0625rem;
 }
 .event-name {
   font-family: var(--font-cinzel, serif);
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 600;
   color: theme(colors.foreground / 100%);
   white-space: nowrap;
@@ -141,30 +141,30 @@ function toggleTrapDetail(id: string) {
 }
 .event-trigger {
   font-family: var(--font-fell, serif);
-  font-size: 10px;
+  font-size: 0.625rem;
   color: theme(colors.muted-foreground / 100%);
 }
 .event-badges { display: flex; }
 .badge-fired {
   font-family: var(--font-cinzel, serif);
-  font-size: 9px;
-  padding: 1px 4px;
-  border-radius: 3px;
+  font-size: 0.5625rem;
+  padding: 0.0625rem 0.25rem;
+  border-radius: 0.1875rem;
   background: rgba(22, 163, 74, 0.15);
   color: #16a34a;
 }
 .badge-pending {
   font-family: var(--font-cinzel, serif);
-  font-size: 9px;
-  padding: 1px 4px;
-  border-radius: 3px;
+  font-size: 0.5625rem;
+  padding: 0.0625rem 0.25rem;
+  border-radius: 0.1875rem;
   background: rgba(202, 138, 4, 0.15);
   color: #ca8a04;
 }
 .fire-btn {
-  font-size: 10px;
-  padding: 2px 5px;
-  border-radius: 3px;
+  font-size: 0.625rem;
+  padding: 0.125rem 0.3125rem;
+  border-radius: 0.1875rem;
   border: 1px solid theme(colors.border / 100%);
   background: transparent;
   color: theme(colors.muted-foreground / 100%);
@@ -193,7 +193,7 @@ function toggleTrapDetail(id: string) {
 }
 .traps-title {
   font-family: var(--font-cinzel, serif);
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 700;
   color: theme(colors.muted-foreground / 100%);
   letter-spacing: 0.1em;
@@ -222,11 +222,11 @@ function toggleTrapDetail(id: string) {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 0.0625rem;
 }
 .trap-name {
   font-family: var(--font-cinzel, serif);
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 600;
   color: theme(colors.foreground / 100%);
   white-space: nowrap;
@@ -235,24 +235,24 @@ function toggleTrapDetail(id: string) {
 }
 .trap-type {
   font-family: var(--font-fell, serif);
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 500;
 }
 .trap-trigger {
   font-family: var(--font-fell, serif);
-  font-size: 9px;
+  font-size: 0.5625rem;
   color: theme(colors.muted-foreground / 100%);
 }
 .trap-badges {
   display: flex;
-  gap: 4px;
+  gap: 0.25rem;
   flex-wrap: wrap;
   font-family: var(--font-cinzel, serif);
-  font-size: 9px;
+  font-size: 0.5625rem;
 }
 .trap-badge {
-  padding: 1px 4px;
-  border-radius: 3px;
+  padding: 0.0625rem 0.25rem;
+  border-radius: 0.1875rem;
   background: theme(colors.muted / 30%);
   color: theme(colors.muted-foreground / 100%);
   white-space: nowrap;
@@ -261,7 +261,7 @@ function toggleTrapDetail(id: string) {
 /* ── Shared right sidebar column (traps + spawn) ──────────────────────────── */
 
 .side-column {
-  width: 200px;
+  width: 12.5rem;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;

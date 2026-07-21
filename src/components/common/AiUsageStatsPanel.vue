@@ -13,25 +13,25 @@
       <div class="grid grid-cols-3 gap-2">
         <div class="rounded-md bg-muted/30 border border-border px-3 py-2 text-center">
           <p class="font-cinzel text-base font-bold text-foreground">{{ stats.totalGenerations.value }}</p>
-          <p class="font-fell text-[11px] text-muted-foreground italic">Total gens</p>
+          <p class="font-fell text-[0.6875rem] text-muted-foreground italic">Total gens</p>
         </div>
         <div class="rounded-md bg-muted/30 border border-border px-3 py-2 text-center">
           <p v-if="currency === 'credits'" class="font-cinzel text-base font-bold text-foreground">{{ Math.round(stats.totalCreditsSpent.value) }}</p>
           <p v-else class="font-cinzel text-base font-bold text-foreground">${{ stats.totalEstimatedCostUsd.value.toFixed(2) }}</p>
-          <p class="font-fell text-[11px] text-muted-foreground italic">{{ currency === 'credits' ? 'Credits used' : 'Est. cost (USD)' }}</p>
+          <p class="font-fell text-[0.6875rem] text-muted-foreground italic">{{ currency === 'credits' ? 'Credits used' : 'Est. cost (USD)' }}</p>
         </div>
         <div class="rounded-md bg-muted/30 border border-border px-3 py-2 text-center">
           <p class="font-cinzel text-base font-bold text-foreground">{{ stats.byokCount.value }}</p>
-          <p class="font-fell text-[11px] text-muted-foreground italic">BYOK gens</p>
+          <p class="font-fell text-[0.6875rem] text-muted-foreground italic">BYOK gens</p>
         </div>
       </div>
 
       <div v-if="displayStats.length" class="space-y-1">
         <div class="flex items-center gap-2 px-2.5 pb-0.5">
-          <span class="flex-1 font-cinzel text-[10px] uppercase tracking-wider text-muted-foreground">Model</span>
-          <span class="font-cinzel text-[10px] uppercase tracking-wider text-muted-foreground shrink-0 w-10 text-right">Gens</span>
-          <span class="font-cinzel text-[10px] uppercase tracking-wider text-muted-foreground shrink-0 w-20 text-right">Total</span>
-          <span class="font-cinzel text-[10px] uppercase tracking-wider text-muted-foreground shrink-0 w-20 text-right">Avg/gen</span>
+          <span class="flex-1 font-cinzel text-2xs uppercase tracking-wider text-muted-foreground">Model</span>
+          <span class="font-cinzel text-2xs uppercase tracking-wider text-muted-foreground shrink-0 w-10 text-right">Gens</span>
+          <span class="font-cinzel text-2xs uppercase tracking-wider text-muted-foreground shrink-0 w-20 text-right">Total</span>
+          <span class="font-cinzel text-2xs uppercase tracking-wider text-muted-foreground shrink-0 w-20 text-right">Avg/gen</span>
         </div>
         <div
           v-for="stat in displayStats"
@@ -40,7 +40,7 @@
         >
           <div class="flex-1 min-w-0">
             <span class="font-cinzel text-xs font-semibold text-foreground">{{ stat.model }}</span>
-            <span class="font-fell text-[11px] text-muted-foreground italic ml-1">· {{ stat.provider }}</span>
+            <span class="font-fell text-[0.6875rem] text-muted-foreground italic ml-1">· {{ stat.provider }}</span>
           </div>
           <span class="font-fell text-xs text-muted-foreground shrink-0 w-10 text-right">{{ currency === 'credits' ? stat.charged_count : stat.count }}×</span>
           <template v-if="currency === 'credits'">

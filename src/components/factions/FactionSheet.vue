@@ -1,5 +1,5 @@
 <template>
-  <div class="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-5">
+  <div class="grid grid-cols-1 lg:grid-cols-[15rem_1fr] gap-5">
     <!-- Left: emblem + meta chips -->
     <div class="flex flex-col gap-4">
       <div class="relative aspect-square rounded-lg border border-border overflow-hidden bg-muted">
@@ -15,20 +15,20 @@
 
       <div class="flex flex-col gap-1.5">
         <div v-if="faction.faction_type">
-          <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Type</span>
+          <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Type</span>
           <p class="font-fell text-sm text-foreground">{{ faction.faction_type }}</p>
         </div>
         <div v-if="faction.alignment" class="mt-2">
-          <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Alignment</span>
+          <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Alignment</span>
           <p class="font-fell text-sm text-foreground">{{ faction.alignment }}</p>
         </div>
         <div v-if="faction.tags?.length" class="mt-2">
-          <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Tags</span>
+          <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Tags</span>
           <div class="flex flex-wrap gap-1 mt-1">
             <span
               v-for="tag in faction.tags"
               :key="tag"
-              class="font-cinzel text-[10px] tracking-wider bg-muted/60 text-muted-foreground rounded px-2 py-0.5"
+              class="font-cinzel text-2xs tracking-wider bg-muted/60 text-muted-foreground rounded px-2 py-0.5"
             >{{ tag }}</span>
           </div>
         </div>
@@ -68,7 +68,7 @@
 
       <!-- Patron Deities -->
       <div class="border-t border-border pt-4">
-        <p class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-2">Patron Deities</p>
+        <p class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase mb-2">Patron Deities</p>
         <FactionDeitiesSection :faction-id="faction.id" />
       </div>
     </div>

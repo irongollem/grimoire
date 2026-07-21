@@ -48,10 +48,10 @@
             </div>
             <div class="flex flex-col items-end gap-1 shrink-0">
               <span v-if="sp.size"
-                class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[9px] text-muted-foreground capitalize">
+                class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[0.5625rem] text-muted-foreground capitalize">
                 {{ sp.size }}
               </span>
-              <span v-if="sp.subraces?.length" class="font-cinzel text-[9px] text-muted-foreground/60">
+              <span v-if="sp.subraces?.length" class="font-cinzel text-[0.5625rem] text-muted-foreground/60">
                 {{ sp.subraces.length }} variant{{ sp.subraces.length > 1 ? 's' : '' }}
               </span>
             </div>

@@ -9,10 +9,10 @@
   >
     <div class="px-3 py-2 border-b border-border/50 flex items-center gap-2">
       <IconPackageOpen class="h-3.5 w-3.5 text-amber-400 shrink-0" />
-      <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider flex-1 truncate">
+      <span class="font-cinzel text-2xs text-muted-foreground tracking-wider flex-1 truncate">
         {{ senderName }} dropped {{ meta.loot_table_name }}
       </span>
-      <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider shrink-0">
+      <span class="font-cinzel text-2xs text-muted-foreground tracking-wider shrink-0">
         {{ meta.claims?.length ?? 0 }} / {{ meta.claims_total ?? 0 }}
       </span>
     </div>
@@ -45,9 +45,9 @@
             <div class="flex-1 min-w-0">
               <div class="flex items-baseline gap-2">
                 <span class="font-fell text-sm font-semibold text-foreground truncate">{{ atom.item_name }}</span>
-                <span v-if="atom.item_rarity" class="font-cinzel text-[9px] uppercase tracking-wider text-muted-foreground shrink-0">{{ atom.item_rarity }}</span>
+                <span v-if="atom.item_rarity" class="font-cinzel text-[0.5625rem] uppercase tracking-wider text-muted-foreground shrink-0">{{ atom.item_rarity }}</span>
               </div>
-              <span v-if="atomClaim(atom.atom_id)" class="font-fell text-[10px] text-muted-foreground italic">
+              <span v-if="atomClaim(atom.atom_id)" class="font-fell text-2xs text-muted-foreground italic">
                 claimed by {{ atomClaim(atom.atom_id)!.claimed_by_name }}
               </span>
             </div>
@@ -62,7 +62,7 @@
                   {{ atom.currency_label ? atom.currency_label + ': ' : '' }}{{ formatCoinParts(atom.pp ?? 0, atom.gp ?? 0, atom.ep ?? 0, atom.sp ?? 0, atom.cp ?? 0).join(', ') || '0 GP' }}
                 </span>
               </div>
-              <span v-if="atomClaim(atom.atom_id)" class="font-fell text-[10px] text-muted-foreground italic">
+              <span v-if="atomClaim(atom.atom_id)" class="font-fell text-2xs text-muted-foreground italic">
                 claimed by {{ atomClaim(atom.atom_id)!.claimed_by_name }}
               </span>
             </div>
@@ -73,7 +73,7 @@
             <IconPackage class="w-5 h-5 text-muted-foreground shrink-0" />
             <div class="flex-1 min-w-0">
               <span class="font-fell text-sm font-semibold text-foreground truncate">{{ atom.item_name }}</span>
-              <span v-if="atomClaim(atom.atom_id)" class="font-fell text-[10px] text-muted-foreground italic block">
+              <span v-if="atomClaim(atom.atom_id)" class="font-fell text-2xs text-muted-foreground italic block">
                 claimed by {{ atomClaim(atom.atom_id)!.claimed_by_name }}
               </span>
             </div>
@@ -82,7 +82,7 @@
           <button
             v-if="!atomClaim(atom.atom_id) && !empty && linkedPartyMemberId"
             type="button"
-            class="font-cinzel text-[11px] font-semibold tracking-wider px-2.5 py-1 rounded bg-primary text-primary-foreground hover:opacity-90 transition-opacity shrink-0"
+            class="font-cinzel text-[0.6875rem] font-semibold tracking-wider px-2.5 py-1 rounded bg-primary text-primary-foreground hover:opacity-90 transition-opacity shrink-0"
             @click="emit('claim-loot-chest', { messageId, atomId: atom.atom_id })"
           >
             Claim
@@ -92,7 +92,7 @@
 
       <p
         v-if="empty"
-        class="font-fell text-[11px] text-muted-foreground italic text-center"
+        class="font-fell text-[0.6875rem] text-muted-foreground italic text-center"
       >
         Chest is empty.
       </p>

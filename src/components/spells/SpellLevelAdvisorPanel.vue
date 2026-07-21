@@ -26,7 +26,7 @@
       <button
         v-if="open"
         type="button"
-        class="font-cinzel text-[10px] text-muted-foreground hover:text-foreground tracking-wider transition-colors shrink-0"
+        class="font-cinzel text-2xs text-muted-foreground hover:text-foreground tracking-wider transition-colors shrink-0"
         @click="emit('toggle')"
       >
         Skip →
@@ -43,7 +43,7 @@
     <div v-if="open" class="flex flex-col gap-3">
       <!-- Effect type -->
       <label class="flex flex-col gap-1">
-        <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
+        <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase"
           >Main Effect</span
         >
         <select
@@ -63,7 +63,7 @@
         v-if="adv.effectType !== 'damage' && adv.effectType !== 'healing'"
         class="flex flex-col gap-1"
       >
-        <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
+        <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase"
           >Effect Intensity</span
         >
         <select
@@ -96,7 +96,7 @@
         v-if="adv.effectType === 'damage' || adv.effectType === 'healing'"
         class="flex flex-col gap-1"
       >
-        <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">
+        <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase">
           {{ adv.effectType === "damage" ? "Damage Dice" : "Healing Dice" }}
         </span>
         <DiceInput
@@ -104,14 +104,14 @@
           placeholder="e.g. 8d6 · 2d6 fire + 1d6 force · 3d8 + 5"
           class="bg-muted border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring w-full"
         />
-        <span v-if="adv.damageDice" class="font-fell text-[11px] text-muted-foreground">
+        <span v-if="adv.damageDice" class="font-fell text-[0.6875rem] text-muted-foreground">
           Avg: {{ Math.round(parseDiceAvg(adv.damageDice)) }}
         </span>
       </label>
 
       <!-- Targeting -->
       <label class="flex flex-col gap-1">
-        <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
+        <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase"
           >Targeting</span
         >
         <select
@@ -131,7 +131,7 @@
 
       <!-- Save type -->
       <label class="flex flex-col gap-1">
-        <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
+        <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase"
           >Targeting / Save</span
         >
         <select
@@ -147,7 +147,7 @@
 
       <!-- Duration -->
       <label class="flex flex-col gap-1">
-        <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
+        <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase"
           >Duration Tier</span
         >
         <select
@@ -204,7 +204,7 @@
         >
           <div class="border-t border-primary/20 pt-2 flex flex-col gap-0.5">
             <span
-              class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
+              class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase"
               >Reference spells at this level</span
             >
             <p
@@ -229,7 +229,7 @@
         </template>
         <button
           type="button"
-          class="mt-1 inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 font-cinzel text-[11px] font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+          class="mt-1 inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 font-cinzel text-[0.6875rem] font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
           @click="emit('apply')"
         >
           Apply to Spell (Level
@@ -246,10 +246,10 @@
         class="rounded-md border border-border bg-muted/40 p-3 flex flex-col gap-2"
       >
         <div class="flex items-baseline justify-between gap-2">
-          <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
+          <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase"
             >{{ schoolTip.title }} design notes</span
           >
-          <span class="font-fell text-[10px] text-muted-foreground/60 italic shrink-0"
+          <span class="font-fell text-2xs text-muted-foreground/60 italic shrink-0"
             >from School field ↑</span
           >
         </div>
@@ -267,13 +267,13 @@
       <!-- Reference table toggle -->
       <button
         type="button"
-        class="font-cinzel text-[10px] text-muted-foreground tracking-wider hover:text-foreground transition-colors text-left"
+        class="font-cinzel text-2xs text-muted-foreground tracking-wider hover:text-foreground transition-colors text-left"
         @click="emit('toggle-table')"
       >
         {{ showTable ? "▲ Hide" : "▼ Show" }} damage benchmark table
       </button>
       <div v-if="showTable" class="overflow-x-auto">
-        <table class="w-full text-[10px] font-fell">
+        <table class="w-full text-2xs font-fell">
           <thead>
             <tr class="border-b border-border text-muted-foreground">
               <th class="text-left py-1 pr-2">Lvl</th>

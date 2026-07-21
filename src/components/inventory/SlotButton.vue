@@ -12,8 +12,8 @@
     :title="item ? item.name : disabled ? `No ${label.toLowerCase()} in inventory` : label"
     @click.stop="$emit('click')"
   >
-    <span v-if="item" class="font-cinzel text-[7px] font-bold leading-none">{{ item.name.charAt(0) }}</span>
-    <span v-else-if="!disabled" class="font-cinzel text-[7px] font-bold leading-none">+</span>
+    <span v-if="item" class="font-cinzel text-[0.4375rem] font-bold leading-none">{{ item.name.charAt(0) }}</span>
+    <span v-else-if="!disabled" class="font-cinzel text-[0.4375rem] font-bold leading-none">+</span>
   </button>
 </template>
 

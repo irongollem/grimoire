@@ -15,7 +15,7 @@
             :key="btn.label"
             type="button"
             :disabled="applying"
-            class="inline-flex items-center px-2 py-0.5 rounded border border-border bg-card font-cinzel text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors disabled:opacity-50"
+            class="inline-flex items-center px-2 py-0.5 rounded border border-border bg-card font-cinzel text-2xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors disabled:opacity-50"
             @click="applyButton(t, btn)"
           >
             {{ btn.label }}

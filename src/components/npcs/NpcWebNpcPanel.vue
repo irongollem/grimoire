@@ -21,16 +21,16 @@
     <div v-if="npc.race" class="font-fell text-xs text-foreground">{{ npc.race }}</div>
     <div class="flex gap-1.5 flex-wrap">
       <span
-        class="px-1.5 py-0.5 rounded font-cinzel text-[10px] font-bold tracking-wider"
+        class="px-1.5 py-0.5 rounded font-cinzel text-2xs font-bold tracking-wider"
         :style="{ backgroundColor: relColor(npc.relationship) + '22', color: relColor(npc.relationship) }"
       >{{ npc.relationship }}</span>
-      <span class="px-1.5 py-0.5 rounded font-cinzel text-[10px] font-bold tracking-wider bg-muted text-muted-foreground">{{ npc.status }}</span>
+      <span class="px-1.5 py-0.5 rounded font-cinzel text-2xs font-bold tracking-wider bg-muted text-muted-foreground">{{ npc.status }}</span>
     </div>
 
     <!-- Shift-click hint -->
     <div class="flex items-start gap-1.5 px-2.5 py-2 rounded-md bg-muted/60 text-muted-foreground">
       <IconInfo class="h-3 w-3 shrink-0 mt-0.5" />
-      <p class="font-fell text-[11px] leading-snug">Shift+click another node to define a relationship directly from this panel.</p>
+      <p class="font-fell text-[0.6875rem] leading-snug">Shift+click another node to define a relationship directly from this panel.</p>
     </div>
 
     <RouterLink
@@ -43,7 +43,7 @@
 
   <!-- Connected to this NPC -->
   <div v-if="connections.length" class="px-4 pb-4">
-    <div class="font-cinzel text-[10px] font-bold tracking-wider text-muted-foreground mb-2">CONNECTIONS</div>
+    <div class="font-cinzel text-2xs font-bold tracking-wider text-muted-foreground mb-2">CONNECTIONS</div>
     <div class="space-y-1.5">
       <template v-for="conn in connections" :key="conn.id">
         <!-- Inline edit form -->
@@ -55,17 +55,17 @@
           <div class="flex items-center gap-1.5">
             <button
               type="button"
-              class="flex-1 px-2 py-1 font-cinzel text-[10px] font-semibold bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50 transition-opacity"
+              class="flex-1 px-2 py-1 font-cinzel text-2xs font-semibold bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50 transition-opacity"
               @click="$emit('saveEditRel', conn)"
             >Save</button>
             <button
               type="button"
-              class="px-2 py-1 font-cinzel text-[10px] font-semibold border border-border rounded text-muted-foreground hover:text-foreground transition-colors"
+              class="px-2 py-1 font-cinzel text-2xs font-semibold border border-border rounded text-muted-foreground hover:text-foreground transition-colors"
               @click="$emit('cancelEditRel')"
             >Cancel</button>
             <button
               type="button"
-              class="px-2 py-1 font-cinzel text-[10px] font-semibold text-destructive hover:opacity-80 transition-opacity"
+              class="px-2 py-1 font-cinzel text-2xs font-semibold text-destructive hover:opacity-80 transition-opacity"
               @click="$emit('deleteRel', conn.id)"
             >Delete</button>
           </div>
@@ -79,7 +79,7 @@
           @click="$emit('startEditRel', conn)"
         >
           <span
-            class="shrink-0 px-1.5 py-0.5 rounded font-cinzel text-[9px] font-bold"
+            class="shrink-0 px-1.5 py-0.5 rounded font-cinzel text-[0.5625rem] font-bold"
             :style="{ backgroundColor: conn.color + '22', color: conn.color }"
           >{{ conn.typeLabel }}</span>
           <span class="font-fell text-foreground truncate flex-1 text-left">{{ conn.name }}</span>

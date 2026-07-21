@@ -10,7 +10,7 @@ const emit = defineEmits<{ "update:activeTab": ["library" | "staging"] }>();
 <template>
   <div class="flex gap-1 border-b border-border pb-0.5">
     <button
-      class="px-3 py-1.5 font-cinzel text-[11px] tracking-wide rounded-t transition-colors"
+      class="px-3 py-1.5 font-cinzel text-[0.6875rem] tracking-wide rounded-t transition-colors"
       :class="
         activeTab === 'library'
           ? 'bg-muted text-foreground'
@@ -21,7 +21,7 @@ const emit = defineEmits<{ "update:activeTab": ["library" | "staging"] }>();
       Library
     </button>
     <button
-      class="relative px-3 py-1.5 font-cinzel text-[11px] tracking-wide rounded-t transition-colors"
+      class="relative px-3 py-1.5 font-cinzel text-[0.6875rem] tracking-wide rounded-t transition-colors"
       :class="
         activeTab === 'staging'
           ? 'bg-muted text-foreground'
@@ -32,7 +32,7 @@ const emit = defineEmits<{ "update:activeTab": ["library" | "staging"] }>();
       Staging
       <span
         v-if="stagingCount > 0"
-        class="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full bg-primary text-primary-foreground text-[9px] font-bold"
+        class="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full bg-primary text-primary-foreground text-[0.5625rem] font-bold"
       >
         {{ stagingCount }}
       </span>

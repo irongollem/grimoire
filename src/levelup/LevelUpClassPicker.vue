@@ -14,7 +14,7 @@
 
     <template v-if="isAddingNewClass">
       <div class="space-y-2">
-        <label class="font-cinzel text-[10px] text-muted-foreground tracking-wider">New Class</label>
+        <label class="font-cinzel text-2xs text-muted-foreground tracking-wider">New Class</label>
         <select
           :value="newClassName"
           class="w-full rounded border border-border bg-muted/40 px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -35,7 +35,7 @@
           ? 'bg-amber-500/10 border border-amber-500/30 text-amber-400'
           : 'bg-destructive/10 border border-destructive/30 text-destructive'"
       >
-        <span class="font-cinzel text-[10px] tracking-wider shrink-0">{{ ignorePrereqs ? 'PREREQ IGNORED' : 'PREREQ' }}</span>
+        <span class="font-cinzel text-2xs tracking-wider shrink-0">{{ ignorePrereqs ? 'PREREQ IGNORED' : 'PREREQ' }}</span>
         <span class="font-fell text-xs">
           {{ prereq.reason }}.
           <template v-if="ignorePrereqs">

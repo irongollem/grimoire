@@ -153,7 +153,7 @@
         <div v-for="pin in pins" :key="pin.id" class="flex items-center gap-2 rounded-md border border-border bg-muted/50 px-3 py-2">
           <span :style="{ backgroundColor: pin.color }" class="w-2 h-2 rounded-full shrink-0" />
           <span class="font-fell text-sm text-foreground flex-1">{{ formatPin(pin) }}</span>
-          <RouterLink :to="calendarRoute(pin)" class="font-cinzel text-[10px] text-primary hover:opacity-80 transition-opacity shrink-0">View</RouterLink>
+          <RouterLink :to="calendarRoute(pin)" class="font-cinzel text-2xs text-primary hover:opacity-80 transition-opacity shrink-0">View</RouterLink>
           <button type="button" class="text-muted-foreground hover:text-destructive transition-colors" @click="removePin(pin.id)">
             <IconClose class="h-3.5 w-3.5" />
           </button>

@@ -72,10 +72,10 @@
                 <span
                   v-for="tag in quest.tags.slice(0, 2)"
                   :key="tag"
-                  class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground tracking-wider"
+                  class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground tracking-wider"
                 >{{ tag }}</span>
               </div>
-              <span class="font-fell text-[10px] text-muted-foreground italic ml-auto">
+              <span class="font-fell text-2xs text-muted-foreground italic ml-auto">
                 {{ timeAgo(quest.updated_at) }}
               </span>
             </div>
@@ -113,7 +113,7 @@
             </div>
 
             <span
-              class="self-start px-1.5 py-0.5 rounded font-cinzel text-[10px] font-bold tracking-wider"
+              class="self-start px-1.5 py-0.5 rounded font-cinzel text-2xs font-bold tracking-wider"
               :style="{
                 backgroundColor: QUEST_STATUS_COLORS[quest.status] + '22',
                 color: QUEST_STATUS_COLORS[quest.status],
@@ -132,10 +132,10 @@
                 <span
                   v-for="tag in quest.tags.slice(0, 2)"
                   :key="tag"
-                  class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground tracking-wider"
+                  class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground tracking-wider"
                 >{{ tag }}</span>
               </div>
-              <span class="font-fell text-[10px] text-muted-foreground italic shrink-0 ml-auto">
+              <span class="font-fell text-2xs text-muted-foreground italic shrink-0 ml-auto">
                 {{ timeAgo(quest.updated_at) }}
               </span>
             </div>

@@ -41,7 +41,7 @@
               <IconScrollText class="h-3.5 w-3.5" />
               <span
                 v-if="unreadJournalCount > 0"
-                class="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-destructive text-[8px] font-bold text-white flex items-center justify-center leading-none"
+                class="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-destructive text-[0.5rem] font-bold text-white flex items-center justify-center leading-none"
               />
             </button>
           </div>
@@ -54,23 +54,23 @@
           </p>
           <span
             v-if="isInDisguise(member)"
-            class="inline-flex items-center gap-1 font-cinzel text-[10px] text-amber-500/80 tracking-wider"
+            class="inline-flex items-center gap-1 font-cinzel text-2xs text-amber-500/80 tracking-wider"
             title="Currently in disguise"
           >◈ disguised</span>
-          <p v-if="member.player_name" class="font-fell text-[11px] text-muted-foreground">
+          <p v-if="member.player_name" class="font-fell text-[0.6875rem] text-muted-foreground">
             {{ member.player_name }}
           </p>
           <RouterLink
             v-if="member.current_location_id"
             :to="`/locations/${member.current_location_id}`"
-            class="inline-flex items-center gap-0.5 font-cinzel text-[10px] text-muted-foreground hover:text-primary transition-colors"
+            class="inline-flex items-center gap-0.5 font-cinzel text-2xs text-muted-foreground hover:text-primary transition-colors"
           >
             <IconLocation class="h-2.5 w-2.5 shrink-0" />
             {{ locationNameMap.get(member.current_location_id) ?? '…' }}
           </RouterLink>
           <span
             v-else
-            class="inline-flex items-center gap-0.5 font-cinzel text-[10px] text-muted-foreground/40 italic"
+            class="inline-flex items-center gap-0.5 font-cinzel text-2xs text-muted-foreground/40 italic"
           >
             <IconLocation class="h-2.5 w-2.5 shrink-0" />
             Location unknown
@@ -180,11 +180,11 @@
 
         <!-- Saving throw proficiencies -->
         <div v-if="member.saving_throw_proficiencies.length" class="flex flex-wrap gap-1">
-          <span class="font-cinzel text-[10px] text-muted-foreground mr-1 self-center">SAVES:</span>
+          <span class="font-cinzel text-2xs text-muted-foreground mr-1 self-center">SAVES:</span>
           <span
             v-for="save in member.saving_throw_proficiencies"
             :key="save"
-            class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[10px] text-foreground font-semibold uppercase tracking-wider"
+            class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-foreground font-semibold uppercase tracking-wider"
           >{{ save }}</span>
         </div>
 
@@ -197,10 +197,10 @@
     <!-- Companions for this member -->
     <div v-if="companions.length" class="border-t border-border bg-muted/10 px-4 py-3 flex flex-col gap-2">
       <div class="flex items-center justify-between">
-        <span class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider uppercase">Companions</span>
+        <span class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider uppercase">Companions</span>
         <button
           type="button"
-          class="font-cinzel text-[10px] text-primary hover:opacity-80 transition-opacity"
+          class="font-cinzel text-2xs text-primary hover:opacity-80 transition-opacity"
           @click="emit('open-companion-form', { companion: null, ownerId: member.id })"
         >+ Add</button>
       </div>
@@ -218,7 +218,7 @@
       <span class="font-fell text-xs text-muted-foreground italic">No companions</span>
       <button
         type="button"
-        class="font-cinzel text-[10px] text-muted-foreground hover:text-primary transition-colors"
+        class="font-cinzel text-2xs text-muted-foreground hover:text-primary transition-colors"
         @click="emit('open-companion-form', { companion: null, ownerId: member.id })"
       >+ Add Companion</button>
     </div>

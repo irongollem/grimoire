@@ -6,7 +6,7 @@
         v-for="variant in variants"
         :key="variant.id"
         type="button"
-        class="px-3 py-1.5 font-cinzel text-[11px] font-semibold tracking-wider border-b-2 transition-colors"
+        class="px-3 py-1.5 font-cinzel text-[0.6875rem] font-semibold tracking-wider border-b-2 transition-colors"
         :class="activeVariantId === variant.id
           ? 'border-primary text-primary'
           : 'border-transparent text-muted-foreground hover:text-foreground'"
@@ -32,7 +32,7 @@
           v-if="showAiButton"
           type="button"
           :disabled="isGenerating || disabled || !affordable(imageCost, imageByok)"
-          class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 font-cinzel text-[11px] font-semibold tracking-wider border border-border rounded-md hover:bg-muted disabled:opacity-50 transition-colors"
+          class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 font-cinzel text-[0.6875rem] font-semibold tracking-wider border border-border rounded-md hover:bg-muted disabled:opacity-50 transition-colors"
           @click="runGenerate"
         >
           <IconGenerate class="h-3.5 w-3.5" :class="isGenerating ? 'animate-pulse text-primary' : ''" />
@@ -42,7 +42,7 @@
           v-if="showMiniButton"
           type="button"
           title="Forge a 3D mini from this portrait"
-          class="shrink-0 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 font-cinzel text-[11px] font-semibold tracking-wider border border-border rounded-md hover:bg-muted transition-colors"
+          class="shrink-0 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 font-cinzel text-[0.6875rem] font-semibold tracking-wider border border-border rounded-md hover:bg-muted transition-colors"
           @click="goToMiniForge"
         >
           <VitruvianIcon class="text-sm" />
@@ -52,10 +52,10 @@
       <div v-if="showAiButton && !isGenerating" class="flex justify-center">
         <GenerationCostBadge :credits="imageCost" :byok="imageByok" :show-balance="false" />
       </div>
-      <p v-if="isGenerating" class="font-fell text-[11px] text-muted-foreground italic text-center">
+      <p v-if="isGenerating" class="font-fell text-[0.6875rem] text-muted-foreground italic text-center">
         {{ currentLoadingQuote }}
       </p>
-      <p v-if="error" class="font-fell text-[11px] text-destructive">{{ error }}</p>
+      <p v-if="error" class="font-fell text-[0.6875rem] text-destructive">{{ error }}</p>
     </div>
   </div>
 </template>

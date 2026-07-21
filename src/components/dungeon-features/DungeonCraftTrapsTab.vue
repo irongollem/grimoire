@@ -38,15 +38,15 @@
             class="group-hover:scale-105 transition-transform duration-300"
           />
           <span
-            class="absolute top-2 left-2 font-cinzel text-[9px] px-1.5 py-0.5 rounded tracking-wider text-white font-bold"
+            class="absolute top-2 left-2 font-cinzel text-[0.5625rem] px-1.5 py-0.5 rounded tracking-wider text-white font-bold"
             :style="{ backgroundColor: TRAP_TYPE_COLORS[trap.trap_type] + 'DD' }"
           >{{ trap.trap_type }}</span>
         </div>
         <div class="p-2.5 flex flex-col gap-0.5">
           <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight truncate">{{ trap.name }}</h3>
           <div class="flex items-center gap-2">
-            <span v-if="trap.cr" class="font-cinzel text-[10px] text-muted-foreground tracking-wider">CR {{ trap.cr }}</span>
-            <span v-if="trap.trigger_type" class="font-fell text-[10px] text-muted-foreground italic truncate">{{ trap.trigger_type }}</span>
+            <span v-if="trap.cr" class="font-cinzel text-2xs text-muted-foreground tracking-wider">CR {{ trap.cr }}</span>
+            <span v-if="trap.trigger_type" class="font-fell text-2xs text-muted-foreground italic truncate">{{ trap.trigger_type }}</span>
           </div>
         </div>
       </RouterLink>

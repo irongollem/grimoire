@@ -64,7 +64,7 @@
         :style="visPopoverStyle"
         @mousedown.stop
       >
-        <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider truncate">
+        <p class="font-cinzel text-2xs text-muted-foreground tracking-wider truncate">
           {{ resolvedMonster?.name }}
         </p>
 
@@ -124,7 +124,7 @@
             <IconHide class="h-3 w-3 shrink-0" />
             Hide from all players
           </button>
-          <p v-else class="font-fell text-[10px] text-muted-foreground italic px-2">
+          <p v-else class="font-fell text-2xs text-muted-foreground italic px-2">
             Select players above to share.
           </p>
         </div>

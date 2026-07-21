@@ -39,7 +39,7 @@
         <div>
           <span class="field-label">Species</span>
           <p v-if="!!f.species_id" class="font-fell text-sm text-foreground inline">
-            {{ currentSpeciesName }}&ensp;<RouterLink to="/play/species" class="font-cinzel text-[11px] text-primary hover:underline">Change</RouterLink>
+            {{ currentSpeciesName }}&ensp;<RouterLink to="/play/species" class="font-cinzel text-[0.6875rem] text-primary hover:underline">Change</RouterLink>
           </p>
           <RouterLink v-else to="/play/species" class="font-cinzel text-xs font-semibold text-primary hover:underline">
             Browse &amp; Pick a Species
@@ -58,7 +58,7 @@
         <div>
           <span class="field-label">Background</span>
           <p v-if="currentBgName" class="font-fell text-sm text-foreground inline">
-            {{ currentBgName }}&ensp;<RouterLink to="/play/background" class="font-cinzel text-[11px] text-primary hover:underline">Change</RouterLink>
+            {{ currentBgName }}&ensp;<RouterLink to="/play/background" class="font-cinzel text-[0.6875rem] text-primary hover:underline">Change</RouterLink>
           </p>
           <RouterLink v-else to="/play/background" class="font-cinzel text-xs font-semibold text-primary hover:underline">
             Browse &amp; Pick a Background
@@ -77,7 +77,7 @@
       <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase">Ability Scores</p>
       <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
         <label v-for="stat in ABILITY_STATS" :key="stat.key" class="flex flex-col items-center gap-1">
-          <span class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider">{{ stat.label }}</span>
+          <span class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider">{{ stat.label }}</span>
           <input v-model.number="f[stat.key]" type="number" min="1" max="30" class="field-input w-full text-center px-1" />
           <span class="font-cinzel text-xs font-bold" :class="mod(f[stat.key]) >= 0 ? 'text-green-500' : 'text-destructive'">
             {{ mod(f[stat.key]) >= 0 ? "+" : "" }}{{ mod(f[stat.key]) }}
@@ -118,18 +118,18 @@
       </div>
 
       <div class="rounded-lg bg-muted/30 border border-border p-3 grid grid-cols-3 gap-2 text-center">
-        <div><p class="font-cinzel text-[10px] text-muted-foreground tracking-wider">PASSIVE PERC.</p><p class="font-cinzel text-base font-bold">{{ passivePerception }}</p></div>
-        <div><p class="font-cinzel text-[10px] text-muted-foreground tracking-wider">PASSIVE INS.</p><p class="font-cinzel text-base font-bold">{{ passiveInsight }}</p></div>
-        <div><p class="font-cinzel text-[10px] text-muted-foreground tracking-wider">PASSIVE INV.</p><p class="font-cinzel text-base font-bold">{{ passiveInvestigation }}</p></div>
+        <div><p class="font-cinzel text-2xs text-muted-foreground tracking-wider">PASSIVE PERC.</p><p class="font-cinzel text-base font-bold">{{ passivePerception }}</p></div>
+        <div><p class="font-cinzel text-2xs text-muted-foreground tracking-wider">PASSIVE INS.</p><p class="font-cinzel text-base font-bold">{{ passiveInsight }}</p></div>
+        <div><p class="font-cinzel text-2xs text-muted-foreground tracking-wider">PASSIVE INV.</p><p class="font-cinzel text-base font-bold">{{ passiveInvestigation }}</p></div>
       </div>
 
       <div class="flex items-center justify-between mt-2">
         <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase">Spell Slots (Max per Level)</p>
-        <button type="button" class="font-cinzel text-[10px] tracking-wider text-primary/70 hover:text-primary transition-colors" @click="resetSlotsToDefault">Reset to class defaults</button>
+        <button type="button" class="font-cinzel text-2xs tracking-wider text-primary/70 hover:text-primary transition-colors" @click="resetSlotsToDefault">Reset to class defaults</button>
       </div>
       <div class="grid grid-cols-3 gap-2">
         <label v-for="lvl in 9" :key="lvl" class="flex flex-col items-center gap-1">
-          <span class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider">{{ SLOT_LEVEL_LABELS[lvl - 1] }}</span>
+          <span class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider">{{ SLOT_LEVEL_LABELS[lvl - 1] }}</span>
           <input v-model.number="spellSlotMaxes[lvl - 1]" type="number" min="0" max="9" class="field-input w-full text-center px-1" />
         </label>
       </div>
@@ -142,20 +142,20 @@
         <label v-for="save in SAVE_STATS" :key="save.key" class="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" :checked="f.saving_throw_proficiencies.includes(save.key)" class="rounded" @change="toggleSave(save.key)" />
           <span class="font-cinzel text-xs text-foreground">{{ save.label }}</span>
-          <span class="font-cinzel text-[10px] text-muted-foreground">{{ saveBonus(save.key) }}</span>
+          <span class="font-cinzel text-2xs text-muted-foreground">{{ saveBonus(save.key) }}</span>
         </label>
       </div>
       <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase mt-2">Skills</p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
         <div v-for="skill in SKILLS" :key="skill.key" class="flex items-center gap-2">
-          <div class="flex rounded overflow-hidden border border-border text-[10px] font-cinzel font-semibold shrink-0">
+          <div class="flex rounded overflow-hidden border border-border text-2xs font-cinzel font-semibold shrink-0">
             <button v-for="level in PROF_LEVELS" :key="level.value" type="button"
               class="px-1.5 py-0.5 transition-colors"
               :class="(f.skill_proficiencies[skill.key] ?? 'none') === level.value ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
               @click="setSkillProf(skill.key, level.value)">{{ level.label }}</button>
           </div>
           <span class="font-fell text-xs text-foreground flex-1">{{ skill.label }}</span>
-          <span class="font-cinzel text-[10px] text-muted-foreground shrink-0">{{ skillBonus(skill.key, skill.ability) }}</span>
+          <span class="font-cinzel text-2xs text-muted-foreground shrink-0">{{ skillBonus(skill.key, skill.ability) }}</span>
         </div>
       </div>
       <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase mt-4">Tool Proficiencies</p>

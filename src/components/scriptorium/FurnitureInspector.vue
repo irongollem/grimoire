@@ -3,7 +3,7 @@
     <div
       v-if="item"
       ref="panelRef"
-      class="fixed z-50 w-[min(320px,92vw)] max-h-[80vh] overflow-y-auto rounded-xl border border-border bg-card shadow-2xl"
+      class="fixed z-50 w-[min(20rem,92vw)] max-h-[80vh] overflow-y-auto rounded-xl border border-border bg-card shadow-2xl"
       :class="pos ? '' : 'bottom-4 left-4'"
       :style="pos ? { left: pos.left + 'px', top: pos.top + 'px' } : undefined"
     >
@@ -72,7 +72,7 @@
             <span class="fi-label mt-1">Corner</span>
             <div class="grid grid-cols-2 gap-1 flex-1">
               <button v-for="c in CORNERS" :key="c.v" type="button"
-                class="px-1.5 py-1 rounded border font-cinzel text-[9px] tracking-wider uppercase transition-colors"
+                class="px-1.5 py-1 rounded border font-cinzel text-[0.5625rem] tracking-wider uppercase transition-colors"
                 :class="str('position', 'bottom-right') === c.v ? 'border-primary/50 text-primary bg-primary/10' : 'border-border text-muted-foreground hover:bg-muted'"
                 @click="patchProps({ position: c.v })">{{ c.label }}</button>
             </div>
@@ -95,21 +95,21 @@
         <div class="fi-row">
           <span class="fi-label">Layer</span>
           <div class="flex gap-1 flex-1">
-            <button type="button" class="flex-1 px-2 py-1 rounded border font-cinzel text-[9px] tracking-wider uppercase transition-colors"
+            <button type="button" class="flex-1 px-2 py-1 rounded border font-cinzel text-[0.5625rem] tracking-wider uppercase transition-colors"
               :class="item.z === 'under' ? 'border-primary/50 text-primary bg-primary/10' : 'border-border text-muted-foreground hover:bg-muted'"
               @click="patch({ z: 'under' })">Behind</button>
-            <button type="button" class="flex-1 px-2 py-1 rounded border font-cinzel text-[9px] tracking-wider uppercase transition-colors"
+            <button type="button" class="flex-1 px-2 py-1 rounded border font-cinzel text-[0.5625rem] tracking-wider uppercase transition-colors"
               :class="item.z === 'over' ? 'border-primary/50 text-primary bg-primary/10' : 'border-border text-muted-foreground hover:bg-muted'"
               @click="patch({ z: 'over' })">Above</button>
           </div>
         </div>
 
-        <p class="font-fell text-[11px] text-muted-foreground italic">
+        <p class="font-fell text-[0.6875rem] text-muted-foreground italic">
           Drag the decoration on the page to move it; drag its corner to resize.
         </p>
 
         <button type="button"
-          class="mt-1 inline-flex items-center justify-center gap-1.5 px-2 py-1.5 rounded border border-destructive/40 font-cinzel text-[10px] font-semibold tracking-wider uppercase text-destructive hover:bg-destructive/10 transition-colors"
+          class="mt-1 inline-flex items-center justify-center gap-1.5 px-2 py-1.5 rounded border border-destructive/40 font-cinzel text-2xs font-semibold tracking-wider uppercase text-destructive hover:bg-destructive/10 transition-colors"
           @click="$emit('delete', item.id)">
           <IconDelete class="h-3 w-3" /> Remove decoration
         </button>
@@ -206,13 +206,13 @@ function patchProps(p: Record<string, string | number>) {
   @apply flex items-center gap-2;
 }
 .fi-label {
-  @apply font-cinzel text-[10px] tracking-wider uppercase text-muted-foreground shrink-0 w-16;
+  @apply font-cinzel text-2xs tracking-wider uppercase text-muted-foreground shrink-0 w-16;
 }
 .fi-range {
   @apply flex-1 accent-primary;
 }
 .fi-val {
-  @apply font-fell text-[10px] text-muted-foreground w-7 text-right;
+  @apply font-fell text-2xs text-muted-foreground w-7 text-right;
 }
 .sc-inp {
   @apply rounded border border-border bg-background px-1.5 py-1 font-fell text-xs text-foreground;

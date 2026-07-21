@@ -43,7 +43,7 @@ const emit = defineEmits<{
 }
 .la-label {
   font-family: var(--font-cinzel, serif);
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   color: theme(colors.muted-foreground / 100%);
@@ -51,12 +51,12 @@ const emit = defineEmits<{
 }
 .la-pips {
   display: flex;
-  gap: 3px;
+  gap: 0.1875rem;
   align-items: center;
 }
 .la-pip {
-  width: 10px;
-  height: 10px;
+  width: 0.625rem;
+  height: 0.625rem;
   border-radius: 50%;
   border: 1px solid;
   flex-shrink: 0;
@@ -71,17 +71,17 @@ const emit = defineEmits<{
 }
 .la-count {
   font-family: var(--font-cinzel, serif);
-  font-size: 10px;
+  font-size: 0.625rem;
   color: theme(colors.muted-foreground / 100%);
   flex-shrink: 0;
 }
 .la-spend-btn {
   margin-left: auto;
   font-family: var(--font-cinzel, serif);
-  font-size: 9px;
+  font-size: 0.5625rem;
   font-weight: 700;
-  padding: 2px 7px;
-  border-radius: 3px;
+  padding: 0.125rem 0.4375rem;
+  border-radius: 0.1875rem;
   border: 1px solid theme(colors.purple.500 / 50%);
   color: theme(colors.purple.400 / 100%);
   background: transparent;

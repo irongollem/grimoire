@@ -7,7 +7,7 @@
       @keydown.esc="$emit('close')"
     >
       <div
-        class="flex flex-col w-[min(820px,95vw)] h-[min(580px,90vh)] bg-card rounded-xl border border-border shadow-2xl overflow-hidden"
+        class="flex flex-col w-[min(51.25rem,95vw)] h-[min(36.25rem,90vh)] bg-card rounded-xl border border-border shadow-2xl overflow-hidden"
       >
         <!-- Header -->
         <div class="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">

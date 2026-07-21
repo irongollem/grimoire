@@ -7,7 +7,7 @@
     <div class="p-3 flex flex-wrap items-end gap-2">
       <!-- Amount -->
       <label class="flex flex-col gap-1">
-        <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">XP</span>
+        <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase">XP</span>
         <input
           v-model.number="amount"
           type="number"
@@ -20,7 +20,7 @@
 
       <!-- Target: Everyone or a specific member -->
       <label class="flex flex-col gap-1 min-w-44 flex-1 max-w-xs">
-        <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">To</span>
+        <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase">To</span>
         <EntityCombobox v-model="targetId" :options="targetOptions" placeholder="Everyone" />
       </label>
 

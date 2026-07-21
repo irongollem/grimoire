@@ -99,14 +99,14 @@
               :key="hint.order"
               class="flex items-start gap-3 px-4 py-3"
             >
-              <span class="shrink-0 font-cinzel text-[10px] font-bold text-muted-foreground/60 w-4 mt-0.5">{{ hint.order }}</span>
+              <span class="shrink-0 font-cinzel text-2xs font-bold text-muted-foreground/60 w-4 mt-0.5">{{ hint.order }}</span>
               <div class="flex-1 min-w-0">
                 <RichTextViewer :content="hint.text" />
               </div>
               <!-- Reveal toggle -->
               <button
                 type="button"
-                class="shrink-0 inline-flex items-center gap-1 font-cinzel text-[10px] font-semibold tracking-wider px-2 py-1 rounded transition-colors"
+                class="shrink-0 inline-flex items-center gap-1 font-cinzel text-2xs font-semibold tracking-wider px-2 py-1 rounded transition-colors"
                 :class="shareState.shared_hints.includes(hint.order)
                   ? 'bg-primary/15 text-primary hover:bg-primary/25'
                   : 'bg-muted text-muted-foreground hover:text-foreground'"
@@ -129,7 +129,7 @@
             @click="solutionOpen = !solutionOpen"
           >
             <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Solution</span>
-            <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider">{{ solutionOpen ? 'Hide' : 'Reveal' }}</span>
+            <span class="font-cinzel text-2xs text-muted-foreground tracking-wider">{{ solutionOpen ? 'Hide' : 'Reveal' }}</span>
           </button>
           <div v-if="solutionOpen" class="p-4">
             <RichTextViewer :content="puzzle.solution" />
@@ -143,11 +143,11 @@
           </div>
           <div class="divide-y divide-border">
             <div v-if="puzzle.success_outcome" class="p-4">
-              <p class="font-cinzel text-[10px] font-semibold text-primary tracking-wider mb-1.5">SUCCESS</p>
+              <p class="font-cinzel text-2xs font-semibold text-primary tracking-wider mb-1.5">SUCCESS</p>
               <RichTextViewer :content="puzzle.success_outcome" />
             </div>
             <div v-if="puzzle.failure_consequence" class="p-4">
-              <p class="font-cinzel text-[10px] font-semibold text-destructive tracking-wider mb-1.5">FAILURE</p>
+              <p class="font-cinzel text-2xs font-semibold text-destructive tracking-wider mb-1.5">FAILURE</p>
               <RichTextViewer :content="puzzle.failure_consequence" />
             </div>
           </div>

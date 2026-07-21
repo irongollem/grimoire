@@ -10,11 +10,11 @@
       </span>
       <button
         type="button"
-        class="font-cinzel text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+        class="font-cinzel text-2xs text-muted-foreground hover:text-foreground transition-colors"
         @click="showSurprise = !showSurprise"
       >{{ showSurprise ? 'Hide' : 'Mark surprised' }}</button>
     </div>
-    <p v-if="!showSurprise && surprisedCount === 0" class="font-fell text-[11px] text-muted-foreground italic mt-0.5">
+    <p v-if="!showSurprise && surprisedCount === 0" class="font-fell text-[0.6875rem] text-muted-foreground italic mt-0.5">
       Mark creatures that are surprised — they'll skip their first turn.
     </p>
     <div v-else-if="showSurprise" class="mt-2 flex flex-wrap gap-1.5">
@@ -22,14 +22,14 @@
         v-for="c in store.combatants"
         :key="c.instance_id"
         type="button"
-        class="px-2 py-0.5 rounded font-cinzel text-[10px] tracking-wider border transition-colors"
+        class="px-2 py-0.5 rounded font-cinzel text-2xs tracking-wider border transition-colors"
         :class="c.surprised
           ? 'bg-amber-500/20 border-amber-500/60 text-amber-400'
           : 'bg-card border-border text-muted-foreground hover:border-amber-500/40'"
         @click="store.toggleSurprised(c.instance_id)"
       >{{ c.name }}{{ c.surprised ? ' ✦' : '' }}</button>
     </div>
-    <p v-if="!showSurprise && surprisedCount > 0" class="font-fell text-[11px] text-amber-400 mt-0.5">
+    <p v-if="!showSurprise && surprisedCount > 0" class="font-fell text-[0.6875rem] text-amber-400 mt-0.5">
       {{ surprisedCount }} surprised creature{{ surprisedCount > 1 ? 's' : '' }}.
     </p>
   </div>
@@ -44,7 +44,7 @@
       <span class="font-cinzel text-xs font-semibold tracking-wider"
         :class="store.lairCanFireThisRound ? 'text-violet-400' : 'text-muted-foreground'"
       >✦ INIT 20 — LAIR ACTION</span>
-      <span class="font-fell text-[11px] text-muted-foreground flex-1">
+      <span class="font-fell text-[0.6875rem] text-muted-foreground flex-1">
         <template v-if="!store.lairCanFireThisRound">Fired this round. Resets on round rollover.</template>
         <template v-else-if="lairActions.length === 0">Owner's stat block has no Lair Actions — check the monster entry.</template>
         <template v-else>Click an action to fire it for this round.</template>
@@ -55,7 +55,7 @@
         v-for="(action, idx) in lairActions"
         :key="idx"
         type="button"
-        class="px-2 py-1 rounded-md border border-violet-500/30 bg-violet-500/10 text-violet-300 font-cinzel text-[10px] tracking-wider hover:bg-violet-500/20 hover:border-violet-500/60 transition-colors"
+        class="px-2 py-1 rounded-md border border-violet-500/30 bg-violet-500/10 text-violet-300 font-cinzel text-2xs tracking-wider hover:bg-violet-500/20 hover:border-violet-500/60 transition-colors"
         :title="action.description"
         @click="fireLairAction(action)"
       >{{ action.name }}</button>
@@ -73,7 +73,7 @@
       <span class="font-cinzel text-xs font-semibold text-rose-400 tracking-wider">
         ⚔ {{ legendary.name.toUpperCase() }} — LEGENDARY ACTIONS
       </span>
-      <span class="font-cinzel text-[10px] text-muted-foreground">
+      <span class="font-cinzel text-2xs text-muted-foreground">
         {{ legendary.legendary_actions_remaining }} / {{ legendary.legendary_action_cap }} remaining
       </span>
     </div>
@@ -82,7 +82,7 @@
         v-for="(action, idx) in getLegendaryActions(legendary.monster_id)"
         :key="idx"
         type="button"
-        class="px-2 py-1 rounded-md border border-rose-500/30 bg-rose-500/10 text-rose-300 font-cinzel text-[10px] tracking-wider hover:bg-rose-500/20 hover:border-rose-500/60 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        class="px-2 py-1 rounded-md border border-rose-500/30 bg-rose-500/10 text-rose-300 font-cinzel text-2xs tracking-wider hover:bg-rose-500/20 hover:border-rose-500/60 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         :title="action.description"
         :disabled="actionCost(action.name) > (legendary.legendary_actions_remaining ?? 0)"
         @click="fireLegendaryAction(legendary.instance_id, legendary.name, action)"

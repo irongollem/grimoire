@@ -27,7 +27,7 @@
           class="font-fell text-sm text-foreground flex-1 truncate text-left hover:text-primary transition-colors"
           @click="previewTrap = trap"
         >{{ trap.name }}</button>
-        <span v-if="trap.cr" class="font-cinzel text-[10px] text-muted-foreground shrink-0">
+        <span v-if="trap.cr" class="font-cinzel text-2xs text-muted-foreground shrink-0">
           CR {{ trap.cr }} · {{ crToXp(trap.cr) * qty }} XP
         </span>
 

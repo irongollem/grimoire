@@ -17,7 +17,7 @@
             <p class="font-fell text-sm text-muted-foreground mb-4">
               Bake this map and attach it to a location in your Atlas.
             </p>
-            <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mb-1">
+            <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground uppercase mb-1">
               Location
             </label>
             <EntityCombobox

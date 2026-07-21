@@ -24,16 +24,16 @@
         <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Identity</span>
       </div>
       <div class="p-4 flex flex-wrap gap-3 items-center">
-        <span class="font-cinzel text-[10px] tracking-wider bg-primary/10 text-primary rounded px-2 py-0.5">
+        <span class="font-cinzel text-2xs tracking-wider bg-primary/10 text-primary rounded px-2 py-0.5">
           d{{ cls.hit_die }}
         </span>
-        <span v-if="cls.primary_ability" class="font-cinzel text-[10px] tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
+        <span v-if="cls.primary_ability" class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
           {{ cls.primary_ability }}
         </span>
-        <span class="font-cinzel text-[10px] tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
+        <span class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
           Subclass at level {{ cls.subclass_level }}
         </span>
-        <span class="font-cinzel text-[10px] tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
+        <span class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
           {{ cls.campaign_id ? 'Campaign-scoped' : 'All campaigns' }}
         </span>
       </div>
@@ -49,32 +49,32 @@
       </div>
       <div class="p-4 flex flex-col gap-3">
         <div v-if="cls.saving_throws.length">
-          <span class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase block mb-1.5">Saving Throws</span>
+          <span class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase block mb-1.5">Saving Throws</span>
           <div class="flex flex-wrap gap-1">
             <span
               v-for="st in cls.saving_throws"
               :key="st"
-              class="font-cinzel text-[10px] tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
+              class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
             >{{ st }}</span>
           </div>
         </div>
         <div v-if="cls.armor_proficiencies.length">
-          <span class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase block mb-1.5">Armor</span>
+          <span class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase block mb-1.5">Armor</span>
           <div class="flex flex-wrap gap-1">
             <span
               v-for="a in cls.armor_proficiencies"
               :key="a"
-              class="font-cinzel text-[10px] tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
+              class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
             >{{ a }}</span>
           </div>
         </div>
         <div v-if="cls.weapon_proficiencies.length">
-          <span class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase block mb-1.5">Weapons</span>
+          <span class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase block mb-1.5">Weapons</span>
           <div class="flex flex-wrap gap-1">
             <span
               v-for="w in cls.weapon_proficiencies"
               :key="w"
-              class="font-cinzel text-[10px] tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
+              class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
             >{{ w }}</span>
           </div>
         </div>
@@ -93,7 +93,7 @@
             <span
               v-for="fid in cls.features[lvl.toString()]"
               :key="fid"
-              class="font-cinzel text-[10px] tracking-wider bg-primary/10 text-primary rounded px-2 py-0.5"
+              class="font-cinzel text-2xs tracking-wider bg-primary/10 text-primary rounded px-2 py-0.5"
             >{{ featureNameById(fid) }}</span>
           </div>
         </div>
@@ -109,7 +109,7 @@
         <span
           v-for="lvl in cls.asi_levels"
           :key="lvl"
-          class="font-cinzel text-[10px] tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
+          class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
         >{{ lvl }}</span>
       </div>
     </div>
@@ -120,13 +120,13 @@
         <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Spellcasting</span>
       </div>
       <div class="p-4 flex flex-wrap gap-2">
-        <span class="font-cinzel text-[10px] tracking-wider bg-primary/10 text-primary rounded px-2 py-0.5">
+        <span class="font-cinzel text-2xs tracking-wider bg-primary/10 text-primary rounded px-2 py-0.5">
           {{ casterTypeLabel }}
         </span>
-        <span class="font-cinzel text-[10px] tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
+        <span class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
           {{ cls.slot_recovery === 'long' ? 'Long rest recovery' : 'Short rest recovery' }}
         </span>
-        <span class="font-cinzel text-[10px] tracking-wider text-muted-foreground italic font-fell text-xs self-center">
+        <span class="font-cinzel text-2xs tracking-wider text-muted-foreground italic font-fell text-xs self-center">
           Spell slot table defined
         </span>
       </div>
@@ -141,7 +141,7 @@
         <div v-for="step in cls.steps" :key="step.key" class="flex items-center gap-3">
           <span class="font-cinzel text-xs text-primary tracking-wider w-6 shrink-0">{{ step.level }}</span>
           <span class="font-fell text-sm text-foreground flex-1">{{ step.label || step.key }}</span>
-          <span class="font-cinzel text-[10px] tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5 shrink-0">
+          <span class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5 shrink-0">
             ×{{ step.count ?? 1 }}
           </span>
         </div>
@@ -156,10 +156,10 @@
       <div class="p-4 flex flex-col gap-2">
         <div v-for="res in cls.resources" :key="res.key" class="flex items-center gap-2">
           <span class="font-fell text-sm text-foreground flex-1">{{ res.label || res.key }}</span>
-          <span class="font-cinzel text-[10px] tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
+          <span class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
             {{ res.rest === 'short' ? 'Short rest' : 'Long rest' }}
           </span>
-          <span class="font-cinzel text-[10px] tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
+          <span class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
             {{ res.scaling }}
           </span>
         </div>

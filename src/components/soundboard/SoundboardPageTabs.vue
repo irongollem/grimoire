@@ -106,7 +106,7 @@
     >
       <IconAdd class="h-3 w-3" />
       Add Page
-      <span v-if="!canCreatePage" class="absolute -top-1.5 -right-1.5 px-1 rounded text-[9px] font-cinzel bg-amber-500 text-black leading-4">PRO</span>
+      <span v-if="!canCreatePage" class="absolute -top-1.5 -right-1.5 px-1 rounded text-[0.5625rem] font-cinzel bg-amber-500 text-black leading-4">PRO</span>
     </button>
   </div>
 

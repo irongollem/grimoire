@@ -20,7 +20,7 @@
     <div class="flex flex-wrap items-center justify-end gap-2">
       <span
         v-if="location.location_type"
-        class="font-cinzel text-[10px] tracking-wider bg-muted text-muted-foreground rounded px-2 py-0.5 capitalize"
+        class="font-cinzel text-2xs tracking-wider bg-muted text-muted-foreground rounded px-2 py-0.5 capitalize"
       >{{ LOCATION_TYPE_LABELS[location.location_type] }}</span>
       <button
         type="button"
@@ -65,7 +65,7 @@
           <span
             v-for="tag in location.tags"
             :key="tag"
-            class="font-cinzel text-[10px] tracking-wider bg-muted/60 text-muted-foreground rounded px-2 py-0.5"
+            class="font-cinzel text-2xs tracking-wider bg-muted/60 text-muted-foreground rounded px-2 py-0.5"
           >{{ tag }}</span>
         </div>
       </div>
@@ -152,7 +152,7 @@
         <button
           v-if="locationNpcs.length > 3"
           type="button"
-          class="font-cinzel text-[10px] text-muted-foreground hover:text-foreground tracking-wider transition-colors"
+          class="font-cinzel text-2xs text-muted-foreground hover:text-foreground tracking-wider transition-colors"
           @click="npcsExpanded = !npcsExpanded"
         >
           {{ npcsExpanded ? "Show less" : `Show all ${locationNpcs.length}` }}
@@ -173,7 +173,7 @@
             >{{ [npc.race, npc.occupation].filter(Boolean).join(" · ") }}</p>
             <p
               v-if="npc.location_id && npc.location_id !== location.id"
-              class="font-cinzel text-[10px] text-muted-foreground/60 tracking-wide truncate mt-0.5"
+              class="font-cinzel text-2xs text-muted-foreground/60 tracking-wide truncate mt-0.5"
             >{{ allLocations?.find((l) => l.id === npc.location_id)?.name ?? "" }}</p>
           </div>
           <IconChevronRight class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
@@ -197,7 +197,7 @@
           <span class="flex-1 font-cinzel text-sm font-semibold text-foreground truncate">{{ enc.name }}</span>
           <span
             v-if="enc.is_finished"
-            class="font-cinzel text-[10px] text-muted-foreground tracking-wider"
+            class="font-cinzel text-2xs text-muted-foreground tracking-wider"
           >Done</span>
           <IconChevronRight class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
         </RouterLink>
@@ -221,7 +221,7 @@
           <span class="font-cinzel text-xs font-semibold text-foreground">{{ m.name }}</span>
           <span
             v-if="m.class"
-            class="font-fell text-[10px] text-muted-foreground italic"
+            class="font-fell text-2xs text-muted-foreground italic"
           >{{ m.class }}</span>
         </RouterLink>
       </div>

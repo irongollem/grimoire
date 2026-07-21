@@ -12,9 +12,9 @@
         <IconShield v-else class="h-3 w-3 text-muted-foreground shrink-0" />
         <RouterLink
           :to="`/factions/${e.faction.id}`"
-          class="font-cinzel text-[10px] font-semibold text-foreground hover:text-primary transition-colors"
+          class="font-cinzel text-2xs font-semibold text-foreground hover:text-primary transition-colors"
         >{{ e.faction.name }}</RouterLink>
-        <span v-if="e.faction.faction_type" class="font-fell text-[10px] text-muted-foreground italic">{{ e.faction.faction_type }}</span>
+        <span v-if="e.faction.faction_type" class="font-fell text-2xs text-muted-foreground italic">{{ e.faction.faction_type }}</span>
         <button
           type="button"
           class="text-muted-foreground hover:text-destructive transition-colors text-sm leading-none shrink-0"

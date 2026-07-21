@@ -20,7 +20,7 @@
             @click="activeGenerator.openPanel()"
           >
             <IconLoading class="h-3 w-3 text-primary animate-spin" />
-            <span class="font-cinzel text-[9px] text-primary tracking-wider">AI</span>
+            <span class="font-cinzel text-[0.5625rem] text-primary tracking-wider">AI</span>
           </button>
           <!-- Live encounter indicator -->
           <RouterLink
@@ -30,7 +30,7 @@
             title="Encounter in progress"
           >
             <span class="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
-            <span class="font-cinzel text-[9px] text-green-400 tracking-wider">Live</span>
+            <span class="font-cinzel text-[0.5625rem] text-green-400 tracking-wider">Live</span>
           </RouterLink>
         </div>
       </div>
@@ -44,7 +44,7 @@
         :title="ui.dmMode === 'play'
           ? 'Play mode — visibility changes broadcast to chat. Click to stop broadcasting.'
           : 'Prep mode — visibility changes are silent. Click to start broadcasting.'"
-        class="w-full flex items-center rounded border overflow-hidden font-cinzel text-[9px] tracking-widest font-bold transition-colors"
+        class="w-full flex items-center rounded border overflow-hidden font-cinzel text-[0.5625rem] tracking-widest font-bold transition-colors"
         :class="ui.dmMode === 'play' ? 'border-primary/50' : 'border-border'"
         @click="ui.toggleDmMode()"
       >
@@ -73,7 +73,7 @@
     <nav class="flex-1 overflow-y-auto px-2 py-4">
       <template v-for="group in visibleNavGroups" :key="group.label">
         <p
-          class="px-2 pt-4 pb-1 font-cinzel text-[10px] font-bold tracking-widest text-muted-foreground/60 uppercase first:pt-0"
+          class="px-2 pt-4 pb-1 font-cinzel text-2xs font-bold tracking-widest text-muted-foreground/60 uppercase first:pt-0"
         >
           {{ group.label }}
         </p>
@@ -81,7 +81,7 @@
       </template>
       <!-- Admin link — only visible to app admins -->
       <template v-if="auth.isAppAdmin">
-        <p class="px-2 pt-4 pb-1 font-cinzel text-[10px] font-bold tracking-widest text-muted-foreground/60 uppercase">
+        <p class="px-2 pt-4 pb-1 font-cinzel text-2xs font-bold tracking-widest text-muted-foreground/60 uppercase">
           System
         </p>
         <RouterLink
@@ -145,7 +145,7 @@
           >
             <IconBilling class="h-3.5 w-3.5 shrink-0" />
             <span class="font-fell">Billing</span>
-            <span v-if="isPro" class="ml-auto font-cinzel text-[9px] font-semibold tracking-wider text-amber-400 uppercase">Pro</span>
+            <span v-if="isPro" class="ml-auto font-cinzel text-[0.5625rem] font-semibold tracking-wider text-amber-400 uppercase">Pro</span>
           </RouterLink>
 
           <div class="border-t border-border my-1" />

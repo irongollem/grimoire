@@ -4,7 +4,7 @@
 
     <!-- Saving throws -->
     <div>
-      <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground mb-2">SAVING THROWS</label>
+      <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-2">SAVING THROWS</label>
       <div class="flex flex-wrap gap-2">
         <label
           v-for="st in SAVE_KEYS"
@@ -25,13 +25,13 @@
 
     <!-- Armor -->
     <div>
-      <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground mb-1.5">ARMOR PROFICIENCIES</label>
+      <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1.5">ARMOR PROFICIENCIES</label>
       <TagInput :model-value="armorProficiencies" placeholder="e.g. Light armor, Shields…" @update:model-value="emit('update:armorProficiencies', $event)" />
     </div>
 
     <!-- Weapons -->
     <div>
-      <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground mb-1.5">WEAPON PROFICIENCIES</label>
+      <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1.5">WEAPON PROFICIENCIES</label>
       <TagInput :model-value="weaponProficiencies" placeholder="e.g. Simple weapons, Firearms…" @update:model-value="emit('update:weaponProficiencies', $event)" />
     </div>
   </section>

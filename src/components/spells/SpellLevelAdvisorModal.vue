@@ -40,7 +40,7 @@
 
             <!-- 1. School → immediately shows design notes -->
             <label class="flex flex-col gap-1">
-              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
+              <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase"
                 >School of Magic</span
               >
               <select
@@ -59,7 +59,7 @@
               v-if="schoolTip"
               class="rounded-md border border-border bg-muted/40 p-3 flex flex-col gap-2"
             >
-              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
+              <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase"
                 >{{ schoolTip.title }} design notes</span
               >
               <ul class="space-y-1">
@@ -75,7 +75,7 @@
 
             <!-- 3. Effect type -->
             <label class="flex flex-col gap-1">
-              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
+              <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase"
                 >Main Effect</span
               >
               <select
@@ -95,7 +95,7 @@
               v-if="adv.effectType !== 'damage' && adv.effectType !== 'healing'"
               class="flex flex-col gap-1"
             >
-              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
+              <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase"
                 >Effect Intensity</span
               >
               <select
@@ -142,7 +142,7 @@
               v-if="adv.effectType === 'damage' || adv.effectType === 'healing'"
               class="flex flex-col gap-1"
             >
-              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase">
+              <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase">
                 {{ adv.effectType === "damage" ? "Damage Dice" : "Healing Dice" }}
               </span>
               <DiceInput
@@ -150,14 +150,14 @@
                 placeholder="e.g. 8d6 · 2d6 fire + 1d6 force · 3d8 + 5"
                 class="bg-muted border border-border rounded px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring w-full"
               />
-              <span v-if="adv.damageDice" class="font-fell text-[11px] text-muted-foreground">
+              <span v-if="adv.damageDice" class="font-fell text-[0.6875rem] text-muted-foreground">
                 Avg: {{ Math.round(parseDiceAvg(adv.damageDice)) }}
               </span>
             </label>
 
             <!-- 6. Targeting -->
             <label class="flex flex-col gap-1">
-              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
+              <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase"
                 >Targeting</span
               >
               <select
@@ -177,7 +177,7 @@
 
             <!-- 7. Save type -->
             <label class="flex flex-col gap-1">
-              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
+              <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase"
                 >Targeting / Save</span
               >
               <select
@@ -193,7 +193,7 @@
 
             <!-- 8. Duration -->
             <label class="flex flex-col gap-1">
-              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
+              <span class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase"
                 >Duration Tier</span
               >
               <select
@@ -247,7 +247,7 @@
               >
                 <div class="border-t border-primary/20 pt-2 flex flex-col gap-1">
                   <span
-                    class="font-cinzel text-[10px] text-muted-foreground tracking-wider uppercase"
+                    class="font-cinzel text-2xs text-muted-foreground tracking-wider uppercase"
                     >Reference spells at this level</span
                   >
                   <p
@@ -340,6 +340,6 @@ const emit = defineEmits<{
 .advisor-modal-enter-from,
 .advisor-modal-leave-to {
   opacity: 0;
-  transform: scale(0.96) translateY(-6px);
+  transform: scale(0.96) translateY(-0.375rem);
 }
 </style>

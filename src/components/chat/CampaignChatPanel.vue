@@ -23,7 +23,7 @@
         <template v-if="msg.type === 'roll' && msg.metadata">
           <div class="flex items-baseline gap-2">
             <span
-              class="font-cinzel text-[10px] text-muted-foreground tracking-wider"
+              class="font-cinzel text-2xs text-muted-foreground tracking-wider"
             >
               {{ msg.sender_name ?? "Unknown" }}
             </span>
@@ -60,18 +60,18 @@
               </span>
               <span
                 v-if="(msg.metadata as RollMetadata).isCrit"
-                class="font-cinzel text-[10px] text-gold-500 tracking-wider"
+                class="font-cinzel text-2xs text-gold-500 tracking-wider"
                 >NAT 20!</span
               >
               <span
                 v-else-if="(msg.metadata as RollMetadata).isFumble"
-                class="font-cinzel text-[10px] text-destructive tracking-wider"
+                class="font-cinzel text-2xs text-destructive tracking-wider"
                 >NAT 1</span
               >
             </template>
             <span
               v-if="(msg.metadata as RollMetadata).manual"
-              class="font-cinzel text-[10px] text-muted-foreground tracking-wider"
+              class="font-cinzel text-2xs text-muted-foreground tracking-wider"
               title="Entered from physical dice"
               >MANUAL</span
             >
@@ -81,10 +81,10 @@
         <!-- Chat message -->
         <template v-else>
           <div class="flex items-baseline gap-2">
-            <span class="font-cinzel text-[10px] text-primary tracking-wider">
+            <span class="font-cinzel text-2xs text-primary tracking-wider">
               {{ msg.sender_name ?? "Unknown" }}
             </span>
-            <span class="font-cinzel text-[10px] text-muted-foreground">
+            <span class="font-cinzel text-2xs text-muted-foreground">
               {{ formatTime(msg.created_at) }}
             </span>
           </div>
@@ -105,7 +105,7 @@
     <div class="border-t border-border px-3 py-3 shrink-0 space-y-2">
       <div v-if="otherMembers.length" class="flex items-center gap-2">
         <span
-          class="font-cinzel text-[10px] text-muted-foreground tracking-wider shrink-0"
+          class="font-cinzel text-2xs text-muted-foreground tracking-wider shrink-0"
           >To:</span
         >
         <select

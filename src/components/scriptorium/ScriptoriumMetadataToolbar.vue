@@ -47,7 +47,7 @@
         @input="$emit('update:footerText', ($event.target as HTMLInputElement).value)"
       />
       <label class="flex items-center gap-1.5">
-        <span class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider whitespace-nowrap">START #</span>
+        <span class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider whitespace-nowrap">START #</span>
         <input
           :value="pageNumberStart"
           type="number"

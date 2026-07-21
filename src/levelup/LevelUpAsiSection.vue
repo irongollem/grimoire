@@ -18,7 +18,7 @@
     <template v-if="asiMode !== 'feat'">
       <div class="flex flex-wrap gap-3">
         <div class="space-y-1">
-          <label class="font-cinzel text-[10px] text-muted-foreground tracking-wider">
+          <label class="font-cinzel text-2xs text-muted-foreground tracking-wider">
             {{ asiMode === 'plus2' ? '+2 Ability' : '+1 First Ability' }}
           </label>
           <select
@@ -31,7 +31,7 @@
           </select>
         </div>
         <div v-if="asiMode === 'plus1plus1'" class="space-y-1">
-          <label class="font-cinzel text-[10px] text-muted-foreground tracking-wider">+1 Second Ability</label>
+          <label class="font-cinzel text-2xs text-muted-foreground tracking-wider">+1 Second Ability</label>
           <select
             :value="asiSecondary"
             class="rounded border border-border bg-muted/40 px-2 py-1.5 font-cinzel text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -64,7 +64,7 @@
             :class="featId === f.id ? 'bg-primary/10 text-primary' : 'bg-card text-foreground hover:bg-muted/40'"
             @click="emit('update:featId', featId === f.id ? '' : f.id)">
             <p class="font-cinzel text-xs font-semibold">{{ f.name }}</p>
-            <p v-if="f.description" class="font-fell text-[11px] text-muted-foreground line-clamp-1 mt-0.5">{{ f.description }}</p>
+            <p v-if="f.description" class="font-fell text-[0.6875rem] text-muted-foreground line-clamp-1 mt-0.5">{{ f.description }}</p>
           </button>
         </div>
         <p v-else-if="featSearch" class="font-fell text-sm text-muted-foreground italic">No matching features found.</p>

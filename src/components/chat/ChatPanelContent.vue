@@ -162,7 +162,7 @@
         v-if="vendorOpen && auth.isDM"
         class="shrink-0 border-t border-border bg-muted/20 px-3 py-2 space-y-2"
       >
-        <p class="font-cinzel text-[10px] text-muted-foreground tracking-widest uppercase">Vendor Offer</p>
+        <p class="font-cinzel text-2xs text-muted-foreground tracking-widest uppercase">Vendor Offer</p>
         <input
           v-model="vendorDesc"
           type="text"
@@ -194,14 +194,14 @@
               @click="vendorItemQuery = it.name; vendorItemId = it.id; vendorShowItems = false"
             >
               <span class="truncate">{{ it.name }}</span>
-              <span class="font-cinzel text-[9px] text-muted-foreground shrink-0 capitalize">{{ it.item_type }}</span>
+              <span class="font-cinzel text-[0.5625rem] text-muted-foreground shrink-0 capitalize">{{ it.item_type }}</span>
             </button>
           </div>
           <div v-if="vendorShowItems" class="fixed inset-0 z-10" @click="vendorShowItems = false" />
         </div>
         <div class="grid grid-cols-5 gap-1">
           <div v-for="coin in COINS" :key="coin.key" class="flex flex-col items-center gap-0.5">
-            <span class="font-cinzel text-[9px] font-bold" :class="coin.color">{{ coin.symbol }}</span>
+            <span class="font-cinzel text-[0.5625rem] font-bold" :class="coin.color">{{ coin.symbol }}</span>
             <input
               v-model.number="vendorPrice[coin.key]"
               type="number" min="0"
@@ -231,7 +231,7 @@
       v-if="auth.isDM"
       class="shrink-0 px-2 pt-1.5 flex items-center gap-2"
     >
-      <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider shrink-0">As:</span>
+      <span class="font-cinzel text-2xs text-muted-foreground tracking-wider shrink-0">As:</span>
       <EntityCombobox
         :model-value="ui.dmTalkAsNpcId"
         :options="props.npcs"
@@ -246,7 +246,7 @@
       class="pb-2 shrink-0 px-2 pt-1.5 flex items-center gap-2"
     >
       <span
-        class="font-cinzel text-[10px] text-muted-foreground tracking-wider shrink-0"
+        class="font-cinzel text-2xs text-muted-foreground tracking-wider shrink-0"
         >To:</span
       >
       <select
@@ -298,7 +298,7 @@
         :placeholder="whisperTarget ? 'Whisper…' : 'Type a message…'"
         class="flex-1 resize-none bg-muted/40 border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring leading-snug overflow-hidden"
         :class="whisperTarget ? 'border-amber-500/40 bg-amber-500/5' : ''"
-        style="max-height: 80px; min-height: 2rem"
+        style="max-height: 5rem; min-height: 2rem"
         @keydown.enter.exact.prevent="send"
         @input="autoResize"
       />
@@ -596,7 +596,7 @@ function renderMessage(text: string): string {
     max-height 0.2s ease,
     opacity 0.15s ease;
   overflow: hidden;
-  max-height: 300px;
+  max-height: 18.75rem;
 }
 .dice-expand-enter-from,
 .dice-expand-leave-to {

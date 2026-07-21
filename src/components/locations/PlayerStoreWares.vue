@@ -11,7 +11,7 @@
       >
         <div class="flex-1 min-w-0">
           <p class="font-cinzel text-xs font-semibold text-foreground truncate">{{ si.item.name }}</p>
-          <p class="font-fell text-[10px] text-muted-foreground italic">{{ ITEM_TYPE_LABELS[si.item.item_type] }}</p>
+          <p class="font-fell text-2xs text-muted-foreground italic">{{ ITEM_TYPE_LABELS[si.item.item_type] }}</p>
         </div>
         <span class="font-fell text-xs text-muted-foreground shrink-0">
           {{ si.price_override ?? si.item.cost ?? '—' }}

@@ -1,7 +1,7 @@
 <template>
   <aside class="lg:w-56 shrink-0 bg-card border border-border rounded-lg p-3 space-y-3">
     <div>
-      <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mb-1">
+      <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground uppercase mb-1">
         Name
       </label>
       <input
@@ -13,7 +13,7 @@
     </div>
 
     <div>
-      <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mb-1">
+      <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground uppercase mb-1">
         Tile Pack
       </label>
       <div class="space-y-1">
@@ -30,7 +30,7 @@
           <span class="flex-1 truncate">{{ p.name }}</span>
           <span
             v-if="loadedPackIds.has(p.pack_id)"
-            class="font-cinzel text-[9px] tracking-wider shrink-0"
+            class="font-cinzel text-[0.5625rem] tracking-wider shrink-0"
             :class="currentPackId === p.pack_id ? 'text-muted-foreground' : 'text-muted-foreground/50'"
           >v{{ p.pack_version }}</span>
           <svg v-else class="h-3 w-3 shrink-0 animate-spin text-muted-foreground/50" viewBox="0 0 24 24" fill="none">
@@ -40,19 +40,19 @@
       </div>
       <p
         v-if="packValidationMissing > 0"
-        class="font-fell text-[10px] text-amber-500 mt-1.5"
+        class="font-fell text-2xs text-amber-500 mt-1.5"
       >
         {{ packValidationMissing }} slot(s) missing — using placeholders.
       </p>
     </div>
 
-    <p class="font-fell text-[10px] text-muted-foreground italic leading-relaxed">
+    <p class="font-fell text-2xs text-muted-foreground italic leading-relaxed">
       Switching packs changes future strokes only — existing cells keep their stored pack.
     </p>
 
     <!-- Object stamp picker -->
     <div v-if="activeTool === 'stamp'">
-      <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mb-1">
+      <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground uppercase mb-1">
         Object
       </label>
       <div class="grid grid-cols-3 gap-1 mb-2">
@@ -60,7 +60,7 @@
           v-for="cat in objectCategories"
           :key="cat"
           type="button"
-          class="flex flex-col items-center gap-0.5 rounded-md py-1.5 px-1 font-fell text-[10px] transition-colors capitalize"
+          class="flex flex-col items-center gap-0.5 rounded-md py-1.5 px-1 font-fell text-2xs transition-colors capitalize"
           :class="activeObjectCategory === cat
             ? 'bg-primary/15 text-foreground ring-1 ring-inset ring-primary/40'
             : 'hover:bg-muted text-muted-foreground'"
@@ -68,30 +68,30 @@
         >{{ cat.replace('object', '') }}</button>
       </div>
       <div class="flex flex-wrap items-center gap-1">
-        <span class="font-cinzel text-[9px] tracking-wider text-muted-foreground uppercase w-full">Rotate</span>
+        <span class="font-cinzel text-[0.5625rem] tracking-wider text-muted-foreground uppercase w-full">Rotate</span>
         <button
           type="button"
           title="–1° ([)"
-          class="rounded px-1.5 py-0.5 font-cinzel text-[9px] bg-muted hover:bg-muted/80 text-foreground"
+          class="rounded px-1.5 py-0.5 font-cinzel text-[0.5625rem] bg-muted hover:bg-muted/80 text-foreground"
           @click="$emit('update:stampRotation', (stampRotation + 359) % 360)"
         >–1°</button>
         <button
           type="button"
           title="Rotate CCW 90° (Q)"
-          class="rounded px-1.5 py-0.5 font-cinzel text-[9px] bg-muted hover:bg-muted/80 text-foreground"
+          class="rounded px-1.5 py-0.5 font-cinzel text-[0.5625rem] bg-muted hover:bg-muted/80 text-foreground"
           @click="$emit('update:stampRotation', (stampRotation + 270) % 360)"
         >↺ Q</button>
         <span class="font-fell text-xs text-foreground w-9 text-center">{{ stampRotation }}°</span>
         <button
           type="button"
           title="Rotate CW 90° (E)"
-          class="rounded px-1.5 py-0.5 font-cinzel text-[9px] bg-muted hover:bg-muted/80 text-foreground"
+          class="rounded px-1.5 py-0.5 font-cinzel text-[0.5625rem] bg-muted hover:bg-muted/80 text-foreground"
           @click="$emit('update:stampRotation', (stampRotation + 90) % 360)"
         >↻ E</button>
         <button
           type="button"
           title="+1° (])"
-          class="rounded px-1.5 py-0.5 font-cinzel text-[9px] bg-muted hover:bg-muted/80 text-foreground"
+          class="rounded px-1.5 py-0.5 font-cinzel text-[0.5625rem] bg-muted hover:bg-muted/80 text-foreground"
           @click="$emit('update:stampRotation', (stampRotation + 1) % 360)"
         >+1°</button>
       </div>
@@ -99,7 +99,7 @@
 
     <!-- Annotation editor -->
     <div v-if="activeTool === 'annotate' && selectedCell">
-      <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mb-1">
+      <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground uppercase mb-1">
         Label ({{ selectedCell[0] }}, {{ selectedCell[1] }})
       </label>
       <input
@@ -111,20 +111,20 @@
         class="w-full bg-background border border-border rounded-md px-2 py-1 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         @input="$emit('update:annotationText', ($event.target as HTMLInputElement).value)"
       />
-      <p class="font-fell text-[10px] text-muted-foreground mt-1">Click a cell to select it.</p>
+      <p class="font-fell text-2xs text-muted-foreground mt-1">Click a cell to select it.</p>
     </div>
     <div v-else-if="activeTool === 'annotate'">
-      <p class="font-fell text-[10px] text-muted-foreground italic">Click a cell to add a label.</p>
+      <p class="font-fell text-2xs text-muted-foreground italic">Click a cell to add a label.</p>
     </div>
 
     <!-- Entity link inspector -->
     <div v-if="activeTool === 'link' && selectedCell">
-      <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mb-1">
+      <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground uppercase mb-1">
         Links ({{ selectedCell[0] }}, {{ selectedCell[1] }})
       </label>
       <div class="space-y-2">
         <div>
-          <span class="block font-cinzel text-[9px] tracking-wider text-muted-foreground mb-0.5">Note</span>
+          <span class="block font-cinzel text-[0.5625rem] tracking-wider text-muted-foreground mb-0.5">Note</span>
           <EntityCombobox
             :model-value="linkedNoteId"
             :options="noteOptions"
@@ -133,7 +133,7 @@
           />
         </div>
         <div>
-          <span class="block font-cinzel text-[9px] tracking-wider text-muted-foreground mb-0.5">Encounter</span>
+          <span class="block font-cinzel text-[0.5625rem] tracking-wider text-muted-foreground mb-0.5">Encounter</span>
           <EntityCombobox
             :model-value="linkedEncounterId"
             :options="encounterOptions"
@@ -144,12 +144,12 @@
       </div>
     </div>
     <div v-else-if="activeTool === 'link'">
-      <p class="font-fell text-[10px] text-muted-foreground italic">Click a cell to attach entities.</p>
+      <p class="font-fell text-2xs text-muted-foreground italic">Click a cell to attach entities.</p>
     </div>
 
     <!-- Room template shape picker -->
     <div v-if="activeTool === 'template'">
-      <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mb-1">
+      <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground uppercase mb-1">
         Shape
       </label>
       <div class="grid grid-cols-3 gap-1 mb-2">
@@ -164,15 +164,15 @@
           @click="$emit('update:activeTemplateShape', shape.id)"
         >
           <span class="text-base leading-none">{{ shape.icon }}</span>
-          <span class="font-cinzel text-[9px] tracking-wide">{{ shape.label }}</span>
+          <span class="font-cinzel text-[0.5625rem] tracking-wide">{{ shape.label }}</span>
         </button>
       </div>
-      <p class="font-fell text-[10px] text-muted-foreground">Click center, drag to size. Walls auto-added.</p>
+      <p class="font-fell text-2xs text-muted-foreground">Click center, drag to size. Walls auto-added.</p>
     </div>
 
     <!-- Cave brush radius picker -->
     <div v-if="activeTool === 'cave'">
-      <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mb-1">
+      <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground uppercase mb-1">
         Brush size
       </label>
       <div class="flex gap-1 mb-2">
@@ -180,14 +180,14 @@
           v-for="size in [3, 5, 7, 9]"
           :key="size"
           type="button"
-          class="flex-1 rounded-md py-1 font-cinzel text-[10px] font-semibold transition-colors"
+          class="flex-1 rounded-md py-1 font-cinzel text-2xs font-semibold transition-colors"
           :class="caveRadius === size
             ? 'bg-primary/15 text-foreground ring-1 ring-inset ring-primary/40'
             : 'hover:bg-muted text-muted-foreground'"
           @click="$emit('update:caveRadius', size)"
         >{{ size }}</button>
       </div>
-      <p class="font-fell text-[10px] text-muted-foreground">Each stroke uses a different noise seed — repaint to vary the organic shape.</p>
+      <p class="font-fell text-2xs text-muted-foreground">Each stroke uses a different noise seed — repaint to vary the organic shape.</p>
     </div>
   </aside>
 </template>

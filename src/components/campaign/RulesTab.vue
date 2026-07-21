@@ -58,7 +58,7 @@
             <span class="font-cinzel text-xs font-semibold text-foreground">{{ def.name }}</span>
             <span
               v-if="isEnabled(def.key)"
-              class="font-cinzel text-[9px] tracking-widest text-emerald-400/80 uppercase"
+              class="font-cinzel text-[0.5625rem] tracking-widest text-emerald-400/80 uppercase"
             >active</span>
           </div>
           <p class="font-fell text-xs text-muted-foreground mt-0.5">{{ def.summary }}</p>

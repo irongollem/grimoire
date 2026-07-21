@@ -3,7 +3,7 @@
     v-if="visibleTo.length > 0"
     class="mb-4 border border-primary/20 rounded-lg px-4 py-3 bg-primary/5 space-y-3"
   >
-    <p class="font-cinzel text-[10px] font-semibold tracking-widest text-muted-foreground">REVEALED FIELDS</p>
+    <p class="font-cinzel text-2xs font-semibold tracking-widest text-muted-foreground">REVEALED FIELDS</p>
     <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1">
       <label
         v-for="f in fields"

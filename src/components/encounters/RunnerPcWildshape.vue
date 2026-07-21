@@ -48,12 +48,12 @@
     <div class="flex items-center justify-between">
       <p class="detail-section-label">Wildshape</p>
       <div class="flex items-center gap-1.5">
-        <span class="font-fell text-[10px] text-muted-foreground">Max CR {{ wildshapeCrDisplay }}</span>
-        <span v-if="isCircleOfMoon" class="font-cinzel text-[9px] tracking-wider px-1 py-0.5 rounded border border-primary/40 text-primary bg-primary/10">MOON</span>
+        <span class="font-fell text-2xs text-muted-foreground">Max CR {{ wildshapeCrDisplay }}</span>
+        <span v-if="isCircleOfMoon" class="font-cinzel text-[0.5625rem] tracking-wider px-1 py-0.5 rounded border border-primary/40 text-primary bg-primary/10">MOON</span>
         <button
           ref="triggerRef"
           type="button"
-          class="font-cinzel text-[10px] px-2 py-1 rounded border border-border hover:border-primary hover:text-primary transition-colors"
+          class="font-cinzel text-2xs px-2 py-1 rounded border border-border hover:border-primary hover:text-primary transition-colors"
           @click="showWildshapePicker = !showWildshapePicker"
         >{{ showWildshapePicker ? 'Cancel' : '🐺 Choose Form' }}</button>
       </div>
@@ -296,7 +296,7 @@ const wildshapeTraitSections = computed(() => {
 }
 
 .detail-stat span {
-  @apply font-cinzel text-[9px] tracking-wider text-muted-foreground uppercase;
+  @apply font-cinzel text-[0.5625rem] tracking-wider text-muted-foreground uppercase;
 }
 
 .detail-stat strong {
@@ -304,7 +304,7 @@ const wildshapeTraitSections = computed(() => {
 }
 
 .detail-section-label {
-  @apply font-cinzel text-[10px] font-bold tracking-wider text-muted-foreground uppercase mt-1;
+  @apply font-cinzel text-2xs font-bold tracking-wider text-muted-foreground uppercase mt-1;
 }
 
 .wildshape-banner {
@@ -316,7 +316,7 @@ const wildshapeTraitSections = computed(() => {
 }
 
 .wildshape-revert-btn {
-  @apply font-cinzel text-[10px] px-2 py-1 rounded border border-amber-500/40 text-amber-400 hover:bg-amber-500/10 transition-colors shrink-0;
+  @apply font-cinzel text-2xs px-2 py-1 rounded border border-amber-500/40 text-amber-400 hover:bg-amber-500/10 transition-colors shrink-0;
 }
 
 .wildshape-popover {
@@ -333,7 +333,7 @@ const wildshapeTraitSections = computed(() => {
 }
 
 .wildshape-pin-toggle {
-  @apply w-full font-cinzel text-[10px] px-2 py-1.5 mt-0.5 rounded border border-dashed border-border text-muted-foreground hover:border-primary hover:text-primary transition-colors;
+  @apply w-full font-cinzel text-2xs px-2 py-1.5 mt-0.5 rounded border border-dashed border-border text-muted-foreground hover:border-primary hover:text-primary transition-colors;
 }
 
 .pick-pin {
@@ -345,14 +345,14 @@ const wildshapeTraitSections = computed(() => {
 }
 
 .pick-cr {
-  @apply font-cinzel text-[10px] text-muted-foreground shrink-0;
+  @apply font-cinzel text-2xs text-muted-foreground shrink-0;
 }
 
 .pick-ac {
-  @apply font-cinzel text-[10px] text-muted-foreground shrink-0;
+  @apply font-cinzel text-2xs text-muted-foreground shrink-0;
 }
 
 .pick-speed {
-  @apply font-fell text-[10px] text-muted-foreground shrink-0 truncate max-w-24 hidden sm:block;
+  @apply font-fell text-2xs text-muted-foreground shrink-0 truncate max-w-24 hidden sm:block;
 }
 </style>

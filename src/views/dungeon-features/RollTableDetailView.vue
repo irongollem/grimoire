@@ -61,7 +61,7 @@
       <LoadingSpinner />
     </div>
 
-    <div v-else class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
+    <div v-else class="grid grid-cols-1 lg:grid-cols-[1fr_20rem] gap-6">
       <!-- ── Left column ─────────────────────────────────────────────────────── -->
       <div class="flex flex-col gap-4">
 
@@ -74,7 +74,7 @@
           <div class="space-y-2">
             <div class="flex items-center justify-between">
               <h3 class="font-cinzel text-sm font-bold text-foreground">Entries ({{ table.entries.length }})</h3>
-              <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider">{{ table.dice }}</span>
+              <span class="font-cinzel text-2xs text-muted-foreground tracking-wider">{{ table.dice }}</span>
             </div>
 
             <div v-if="!table.entries.length" class="rounded-md border border-dashed border-border px-4 py-8 text-center font-fell text-sm text-muted-foreground italic">
@@ -96,7 +96,7 @@
                   <RouterLink
                     v-if="entry.encounter_id"
                     :to="`/encounters/${entry.encounter_id}`"
-                    class="inline-flex items-center gap-1 font-cinzel text-[11px] font-semibold text-primary hover:underline self-start"
+                    class="inline-flex items-center gap-1 font-cinzel text-[0.6875rem] font-semibold text-primary hover:underline self-start"
                   >
                     Open encounter →
                   </RouterLink>
@@ -111,7 +111,7 @@
             <span
               v-for="tag in table.tags"
               :key="tag"
-              class="font-cinzel text-[10px] tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
+              class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
             >{{ tag }}</span>
           </div>
 
@@ -121,9 +121,9 @@
 
         <!-- ── EDIT MODE ───────────────────────────────────────────────── -->
         <template v-else>
-          <div class="grid grid-cols-1 md:grid-cols-[1fr_140px] gap-3">
+          <div class="grid grid-cols-1 md:grid-cols-[1fr_8.75rem] gap-3">
             <div class="space-y-1.5">
-              <label class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Name</label>
+              <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Name</label>
               <input
                 v-model="form.name"
                 required
@@ -132,7 +132,7 @@
               />
             </div>
             <div class="space-y-1.5">
-              <label class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Die</label>
+              <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Die</label>
               <select
                 v-model="form.dice"
                 class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -144,7 +144,7 @@
           </div>
 
           <div class="space-y-1.5">
-            <label class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Description</label>
+            <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Description</label>
             <textarea
               v-model="form.description"
               rows="2"
@@ -159,7 +159,7 @@
               <h2 class="font-cinzel text-sm font-bold text-foreground">Entries ({{ form.entries.length }})</h2>
               <button
                 type="button"
-                class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 font-cinzel text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+                class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 font-cinzel text-[0.6875rem] font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
                 @click="addEntry"
               >
                 <IconAdd class="size-3.5" />
@@ -177,7 +177,7 @@
               <div
                 v-for="(entry, idx) in form.entries"
                 :key="entry.id"
-                class="grid grid-cols-[80px_1fr_auto] gap-2 items-start rounded-md border border-border bg-card p-2"
+                class="grid grid-cols-[5rem_1fr_auto] gap-2 items-start rounded-md border border-border bg-card p-2"
               >
                 <div class="flex items-center gap-1">
                   <input
@@ -227,7 +227,7 @@
                 <button
                   v-else
                   type="button"
-                  class="col-span-3 text-left font-fell text-[10px] text-muted-foreground hover:text-foreground italic"
+                  class="col-span-3 text-left font-fell text-2xs text-muted-foreground hover:text-foreground italic"
                   @click="entry.notes = ''"
                 >
                   + add note
@@ -237,12 +237,12 @@
           </div>
 
           <div class="space-y-1.5">
-            <label class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Tags</label>
+            <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Tags</label>
             <TagInput v-model="form.tags" />
           </div>
 
           <div class="space-y-1.5">
-            <label class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">DM Notes</label>
+            <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">DM Notes</label>
             <textarea
               v-model="form.notes"
               rows="3"
@@ -270,7 +270,7 @@
 
           <div v-if="lastRoll" class="rounded-md border border-border bg-muted/40 p-3 flex flex-col gap-1.5">
             <div class="flex items-center justify-between">
-              <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Result</span>
+              <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Result</span>
               <span class="font-cinzel text-2xl font-bold text-primary">{{ lastRoll.rolled }}</span>
             </div>
             <template v-if="lastRoll.entry">
@@ -278,7 +278,7 @@
               <RouterLink
                 v-if="lastRoll.entry.encounter_id"
                 :to="`/encounters/${lastRoll.entry.encounter_id}`"
-                class="inline-flex items-center gap-1 font-cinzel text-[11px] font-semibold text-primary hover:underline"
+                class="inline-flex items-center gap-1 font-cinzel text-[0.6875rem] font-semibold text-primary hover:underline"
               >
                 Open encounter →
               </RouterLink>
@@ -287,7 +287,7 @@
             <p v-else class="font-fell text-xs text-muted-foreground italic">No entry covers this result.</p>
           </div>
 
-          <p class="font-fell text-[10px] text-muted-foreground italic">
+          <p class="font-fell text-2xs text-muted-foreground italic">
             {{ rollableEntries.length }} entries · die range 1–{{ dieMax }}
           </p>
         </div>

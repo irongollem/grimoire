@@ -8,7 +8,7 @@
           the encounter and seeded into the runner when combat starts.
         </p>
       </div>
-      <span v-if="!isReady" class="font-fell text-[11px] text-amber-500/80 italic">
+      <span v-if="!isReady" class="font-fell text-[0.6875rem] text-amber-500/80 italic">
         {{ readinessHint }}
       </span>
     </summary>
@@ -24,7 +24,7 @@
           <span class="text-muted-foreground/40">·</span>
           <button
             type="button"
-            class="font-cinzel text-[10px] tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+            class="font-cinzel text-2xs tracking-wider text-muted-foreground hover:text-foreground transition-colors"
             @click="clearPositions"
           >
             Clear all placements
@@ -317,8 +317,8 @@ watch(
 
 .hidden-loader {
   position: absolute;
-  width: 1px;
-  height: 1px;
+  width: 0.0625rem;
+  height: 0.0625rem;
   opacity: 0;
   pointer-events: none;
 }

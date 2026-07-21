@@ -114,7 +114,7 @@
               <button
                 type="button"
                 :disabled="isEnhancing"
-                class="flex items-center gap-1.5 px-2.5 py-1.5 font-cinzel text-[11px] font-semibold tracking-wide text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+                class="flex items-center gap-1.5 px-2.5 py-1.5 font-cinzel text-[0.6875rem] font-semibold tracking-wide text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
                 @click="onEnhance"
               >
                 <IconLoadingAlt v-if="isEnhancing" class="h-3 w-3 animate-spin" />
@@ -137,7 +137,7 @@
 
         <!-- Word count footer -->
         <div class="px-4 py-1.5 border-t border-border bg-muted/20 flex justify-end shrink-0">
-          <span class="font-fell text-[11px] text-muted-foreground italic">{{ wordCount }} words</span>
+          <span class="font-fell text-[0.6875rem] text-muted-foreground italic">{{ wordCount }} words</span>
         </div>
       </div>
 

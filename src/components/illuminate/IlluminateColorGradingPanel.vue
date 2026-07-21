@@ -32,17 +32,17 @@
     >
       <!-- Preset buttons -->
       <div class="flex items-center gap-1.5 flex-wrap">
-        <span class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mr-1">Presets</span>
+        <span class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase mr-1">Presets</span>
         <button
           v-for="preset in GRADING_PRESETS"
           :key="preset.label"
           type="button"
-          class="font-cinzel text-[10px] tracking-wider px-2 py-0.5 rounded border border-border hover:border-primary hover:text-primary transition-colors"
+          class="font-cinzel text-2xs tracking-wider px-2 py-0.5 rounded border border-border hover:border-primary hover:text-primary transition-colors"
           @click="emit('apply-preset', preset.values)"
         >{{ preset.label }}</button>
         <button
           type="button"
-          class="font-cinzel text-[10px] tracking-wider text-muted-foreground hover:text-foreground transition-colors ml-auto"
+          class="font-cinzel text-2xs tracking-wider text-muted-foreground hover:text-foreground transition-colors ml-auto"
           @click="emit('reset')"
         >Reset</button>
       </div>
@@ -50,7 +50,7 @@
       <!-- Grading sliders -->
       <div v-for="gs in GRADING_SLIDERS" :key="gs.key">
         <div class="flex items-center justify-between mb-1">
-          <label class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase">
+          <label class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase">
             {{ gs.label }}
           </label>
           <span class="font-fell text-xs text-muted-foreground tabular-nums">

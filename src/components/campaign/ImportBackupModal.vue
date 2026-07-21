@@ -54,7 +54,7 @@
           <!-- Step 2: Preview & confirm -->
           <template v-else>
             <div class="rounded-md border border-border bg-muted/30 px-4 py-3 space-y-2">
-              <p class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
+              <p class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">
                 Original campaign
               </p>
               <p class="font-cinzel text-sm font-bold text-foreground">{{ preview.campaignName }}</p>
@@ -65,7 +65,7 @@
 
             <!-- Entity counts -->
             <div class="space-y-1">
-              <p class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
+              <p class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">
                 Contents
               </p>
               <div class="grid grid-cols-2 gap-x-4 gap-y-0.5">

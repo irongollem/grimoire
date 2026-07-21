@@ -28,7 +28,7 @@
               {{ loc.name || "Unnamed Location" }}
             </h3>
             <span
-              class="shrink-0 px-1.5 py-0.5 rounded font-cinzel text-[10px] font-bold tracking-wider capitalize"
+              class="shrink-0 px-1.5 py-0.5 rounded font-cinzel text-2xs font-bold tracking-wider capitalize"
               :style="{
                 backgroundColor: LOCATION_TYPE_COLORS[loc.location_type] + '22',
                 color: LOCATION_TYPE_COLORS[loc.location_type],
@@ -37,7 +37,7 @@
               {{ LOCATION_TYPE_LABELS[loc.location_type] }}
             </span>
           </div>
-          <span v-if="parentName" class="font-fell text-[11px] text-muted-foreground italic">
+          <span v-if="parentName" class="font-fell text-[0.6875rem] text-muted-foreground italic">
             in {{ parentName }}
           </span>
         </div>
@@ -54,7 +54,7 @@
         <span
           v-for="tag in loc.tags.slice(0, 3)"
           :key="tag"
-          class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground tracking-wider"
+          class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground tracking-wider"
         >
           {{ tag }}
         </span>

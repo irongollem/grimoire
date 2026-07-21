@@ -1,6 +1,6 @@
 <template>
   <div
-    class="rounded-lg border bg-card p-3 flex flex-col gap-1.5 font-stat text-[15px]"
+    class="rounded-lg border bg-card p-3 flex flex-col gap-1.5 font-stat text-[0.9375rem]"
     :style="isIdentified ? { borderColor: rarityColor + '66' } : {}"
   >
     <div v-if="displayItemTypeLabel" class="flex justify-between">

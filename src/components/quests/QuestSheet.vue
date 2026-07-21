@@ -4,7 +4,7 @@
          sheet convention (#168). -->
     <div class="flex flex-wrap items-center justify-end gap-2">
       <span
-        class="font-cinzel text-[10px] tracking-wider rounded px-2 py-0.5 font-semibold text-white"
+        class="font-cinzel text-2xs tracking-wider rounded px-2 py-0.5 font-semibold text-white"
         :style="{ backgroundColor: QUEST_STATUS_COLORS[quest.status] }"
       >{{ QUEST_STATUS_LABELS[quest.status] }}</span>
       <button
@@ -64,7 +64,7 @@
       <span
         v-for="tag in quest.tags"
         :key="tag"
-        class="font-cinzel text-[10px] tracking-wider bg-muted/60 text-muted-foreground rounded px-2 py-0.5"
+        class="font-cinzel text-2xs tracking-wider bg-muted/60 text-muted-foreground rounded px-2 py-0.5"
       >{{ tag }}</span>
     </div>
 
@@ -168,7 +168,7 @@
         >
           <IconEncounter class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           <span class="flex-1 font-cinzel text-sm font-semibold text-foreground truncate">{{ enc.name }}</span>
-          <span v-if="enc.is_finished" class="font-cinzel text-[10px] text-muted-foreground tracking-wider">Done</span>
+          <span v-if="enc.is_finished" class="font-cinzel text-2xs text-muted-foreground tracking-wider">Done</span>
           <IconChevronRight class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
         </RouterLink>
       </div>
@@ -273,7 +273,7 @@
           <IconScrollText class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           <span class="flex-1 font-cinzel text-sm font-semibold text-foreground truncate">{{ sub.title }}</span>
           <span
-            class="font-cinzel text-[10px] tracking-wider rounded px-1.5 py-0.5 text-white"
+            class="font-cinzel text-2xs tracking-wider rounded px-1.5 py-0.5 text-white"
             :style="{ backgroundColor: QUEST_STATUS_COLORS[sub.status] }"
           >{{ QUEST_STATUS_LABELS[sub.status] }}</span>
           <IconChevronRight class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />

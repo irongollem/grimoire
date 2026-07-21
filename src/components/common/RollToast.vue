@@ -5,7 +5,7 @@
         v-if="visible"
         class="fixed bottom-6 right-6 z-50 rounded-lg border border-primary/40 bg-card shadow-lg px-4 py-3 min-w-56 max-w-72"
       >
-        <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider mb-0.5">{{ current!.label }}</p>
+        <p class="font-cinzel text-2xs text-muted-foreground tracking-wider mb-0.5">{{ current!.label }}</p>
         <div class="flex items-baseline gap-2">
           <span class="font-cinzel text-3xl font-bold text-foreground">{{ current!.masked ? "?" : current!.total }}</span>
           <span class="font-fell text-sm text-muted-foreground">
@@ -59,6 +59,6 @@ onUnmounted(() => { if (timer) clearTimeout(timer); });
 <style scoped>
 .toast-enter-active { transition: all 0.2s ease-out; }
 .toast-leave-active { transition: all 0.15s ease-in; }
-.toast-enter-from   { opacity: 0; transform: translateY(8px) scale(0.95); }
-.toast-leave-to     { opacity: 0; transform: translateY(4px) scale(0.97); }
+.toast-enter-from   { opacity: 0; transform: translateY(0.5rem) scale(0.95); }
+.toast-leave-to     { opacity: 0; transform: translateY(0.25rem) scale(0.97); }
 </style>

@@ -77,8 +77,8 @@
           class="absolute inset-0 z-20 flex flex-col items-center justify-center gap-1.5 bg-background/80 backdrop-blur-sm"
         >
           <IconLock class="h-4 w-4 text-muted-foreground" />
-          <p class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">Locked</p>
-          <RouterLink to="/billing" class="font-cinzel text-[9px] tracking-wider text-primary/80 hover:text-primary transition-colors">
+          <p class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground">Locked</p>
+          <RouterLink to="/billing" class="font-cinzel text-[0.5625rem] tracking-wider text-primary/80 hover:text-primary transition-colors">
             Upgrade to access
           </RouterLink>
         </div>
@@ -98,7 +98,7 @@
               {{ doc.title }}
             </h3>
             <span
-              class="shrink-0 px-1.5 py-0.5 rounded font-cinzel text-[10px] font-bold tracking-wider uppercase"
+              class="shrink-0 px-1.5 py-0.5 rounded font-cinzel text-2xs font-bold tracking-wider uppercase"
               :style="{
                 backgroundColor: typeColor(doc.doc_type) + '22',
                 color: typeColor(doc.doc_type),
@@ -113,13 +113,13 @@
             <span
               v-for="tag in doc.tags.slice(0, 3)"
               :key="tag"
-              class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground tracking-wider"
+              class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground tracking-wider"
             >
               {{ tag }}
             </span>
             <span
               v-if="doc.tags.length > 3"
-              class="font-fell text-[10px] text-muted-foreground italic self-center"
+              class="font-fell text-2xs text-muted-foreground italic self-center"
             >
               +{{ doc.tags.length - 3 }}
             </span>
@@ -127,10 +127,10 @@
 
           <!-- Footer -->
           <div class="flex items-center justify-between mt-auto pt-1">
-            <span class="font-fell text-[11px] text-muted-foreground italic">
+            <span class="font-fell text-[0.6875rem] text-muted-foreground italic">
               {{ doc.word_count }} words
             </span>
-            <span class="font-fell text-[11px] text-muted-foreground">
+            <span class="font-fell text-[0.6875rem] text-muted-foreground">
               {{ formatDate(doc.updated_at) }}
             </span>
           </div>
@@ -139,7 +139,7 @@
           <div v-if="doc.is_published" class="flex items-center gap-1">
             <IconFaction class="h-3 w-3 text-green-500" />
             <span
-              class="font-cinzel text-[10px] text-green-500 font-semibold tracking-wider"
+              class="font-cinzel text-2xs text-green-500 font-semibold tracking-wider"
               >Published</span
             >
           </div>

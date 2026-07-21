@@ -1,6 +1,6 @@
 <template>
   <div class="flex flex-col gap-6">
-    <div class="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-[18.75rem_1fr] gap-6">
       <!-- Left: image -->
       <div class="flex flex-col gap-3">
         <FocalImage
@@ -12,7 +12,7 @@
           class="w-full rounded-lg overflow-hidden flex-1 min-h-0 max-h-[80vh]"
         />
         <div
-          class="rounded-lg border border-border bg-card p-3 flex flex-col gap-1.5 font-stat text-[15px]"
+          class="rounded-lg border border-border bg-card p-3 flex flex-col gap-1.5 font-stat text-[0.9375rem]"
         >
           <div class="flex justify-between">
             <span class="text-muted-foreground">Level</span>
@@ -41,7 +41,7 @@
           <span
             v-for="tag in spell.tags"
             :key="tag"
-            class="font-cinzel text-[10px] tracking-wider bg-muted text-muted-foreground rounded px-2 py-0.5"
+            class="font-cinzel text-2xs tracking-wider bg-muted text-muted-foreground rounded px-2 py-0.5"
             >{{ tag }}</span
           >
         </div>
@@ -55,45 +55,45 @@
         >
           <div class="text-center">
             <p
-              class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase"
+              class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase"
             >
               Casting Time
             </p>
-            <p class="font-stat text-[15px] font-semibold">
+            <p class="font-stat text-[0.9375rem] font-semibold">
               {{ spell.casting_time_custom || spell.casting_time }}
             </p>
           </div>
           <div class="text-center">
             <p
-              class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase"
+              class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase"
             >
               Range
             </p>
-            <p class="font-stat text-[15px] font-semibold">
+            <p class="font-stat text-[0.9375rem] font-semibold">
               {{ spell.range_custom || spell.range }}
             </p>
           </div>
           <div class="text-center">
             <p
-              class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase"
+              class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase"
             >
               Duration
             </p>
-            <p class="font-stat text-[15px] font-semibold">
+            <p class="font-stat text-[0.9375rem] font-semibold">
               {{ spell.duration_custom || spell.duration }}
             </p>
           </div>
         </div>
 
         <!-- Components + material -->
-        <div class="font-stat text-[15px]">
+        <div class="font-stat text-[0.9375rem]">
           <span class="font-semibold">Components: </span>
           <span>{{ spell.components.join(", ") }}</span>
           <span v-if="spell.material"> ({{ spell.material }})</span>
         </div>
 
         <!-- Mechanics row -->
-        <div v-if="hasMechanics" class="flex flex-wrap gap-3 font-stat text-[15px]">
+        <div v-if="hasMechanics" class="flex flex-wrap gap-3 font-stat text-[0.9375rem]">
           <span v-if="spell.attack_type"
             ><strong>Attack:</strong> {{ attackTypeLabel }}</span
           >
@@ -135,14 +135,14 @@
         <!-- Classes + source -->
         <div
           v-if="spell.classes?.length"
-          class="font-stat text-[13px] text-muted-foreground"
+          class="font-stat text-[0.8125rem] text-muted-foreground"
         >
           <strong class="font-cinzel tracking-wider">Classes:</strong>
           {{ spell.classes.join(", ") }}
         </div>
         <div
           v-if="spell.source"
-          class="font-stat text-[13px] text-muted-foreground italic"
+          class="font-stat text-[0.8125rem] text-muted-foreground italic"
         >
           <a
             v-if="spell.source_url"
@@ -163,7 +163,7 @@
             <span
               v-for="k in knowers"
               :key="k.party_member_id"
-              class="inline-flex items-center gap-1 font-cinzel text-[10px] px-2 py-0.5 rounded bg-muted text-muted-foreground"
+              class="inline-flex items-center gap-1 font-cinzel text-2xs px-2 py-0.5 rounded bg-muted text-muted-foreground"
             >
               <IconParty class="h-2.5 w-2.5 shrink-0" />
               {{ k.name }}
@@ -182,7 +182,7 @@
               v-for="c in npcCasters"
               :key="c.npc_id"
               :to="`/npcs/${c.npc_id}`"
-              class="inline-flex items-center gap-1 font-cinzel text-[10px] px-2 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
+              class="inline-flex items-center gap-1 font-cinzel text-2xs px-2 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
             >
               <IconUser class="h-2.5 w-2.5 shrink-0" />
               {{ c.name }}

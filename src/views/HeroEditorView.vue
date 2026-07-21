@@ -44,7 +44,7 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-1 gap-8 lg:grid-cols-[280px_1fr]">
+      <div class="grid grid-cols-1 gap-8 lg:grid-cols-[17.5rem_1fr]">
         <!-- Left: portrait + basic fields -->
         <div class="space-y-4">
           <ImageUpload

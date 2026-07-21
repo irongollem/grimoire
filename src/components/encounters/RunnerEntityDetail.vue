@@ -484,7 +484,7 @@ function renderTraitDesc(desc: string): string {
 }
 
 .detail-stat span {
-  @apply font-cinzel text-[9px] tracking-wider text-muted-foreground uppercase;
+  @apply font-cinzel text-[0.5625rem] tracking-wider text-muted-foreground uppercase;
 }
 
 .detail-stat strong {
@@ -500,7 +500,7 @@ function renderTraitDesc(desc: string): string {
 }
 
 .detail-check-btn span {
-  @apply font-cinzel text-[9px] tracking-wider text-muted-foreground uppercase truncate;
+  @apply font-cinzel text-[0.5625rem] tracking-wider text-muted-foreground uppercase truncate;
 }
 
 .detail-check-btn em {
@@ -508,11 +508,11 @@ function renderTraitDesc(desc: string): string {
 }
 
 .detail-section-label {
-  @apply font-cinzel text-[10px] font-bold tracking-wider text-muted-foreground uppercase mt-1;
+  @apply font-cinzel text-2xs font-bold tracking-wider text-muted-foreground uppercase mt-1;
 }
 
 .trait-roll-btn {
-  @apply inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded font-cinzel text-[9px] font-semibold tracking-wider cursor-pointer transition-colors whitespace-nowrap;
+  @apply inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded font-cinzel text-[0.5625rem] font-semibold tracking-wider cursor-pointer transition-colors whitespace-nowrap;
 }
 
 .trait-atk-btn {
@@ -538,7 +538,7 @@ function renderTraitDesc(desc: string): string {
 /* Trap type label in detail panel */
 .trap-type {
   font-family: var(--font-fell, serif);
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 500;
 }
 </style>

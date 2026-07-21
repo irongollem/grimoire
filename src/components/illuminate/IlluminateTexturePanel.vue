@@ -44,19 +44,19 @@
         <span class="font-fell text-xs text-muted-foreground truncate flex-1">{{ filename }}</span>
         <button
           type="button"
-          class="font-cinzel text-[10px] tracking-wider text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          class="font-cinzel text-2xs tracking-wider text-muted-foreground hover:text-foreground transition-colors shrink-0"
           @click="emit('clear')"
         >Remove</button>
       </div>
 
       <!-- Blend mode pills -->
       <div class="flex items-center gap-1.5 flex-wrap">
-        <span class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mr-1">Blend</span>
+        <span class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase mr-1">Blend</span>
         <button
           v-for="mode in BLEND_MODES"
           :key="mode"
           type="button"
-          class="font-cinzel text-[10px] tracking-wider px-2 py-0.5 rounded border transition-colors"
+          class="font-cinzel text-2xs tracking-wider px-2 py-0.5 rounded border transition-colors"
           :class="texture.blendMode === mode
             ? 'border-primary text-primary'
             : 'border-border hover:border-primary/60 hover:text-foreground text-muted-foreground'"
@@ -67,7 +67,7 @@
       <!-- Opacity slider -->
       <div>
         <div class="flex items-center justify-between mb-1">
-          <label class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase">Opacity</label>
+          <label class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase">Opacity</label>
           <span class="font-fell text-xs text-muted-foreground tabular-nums">{{ Math.round(texture.opacity * 100) }}</span>
         </div>
         <input
@@ -81,7 +81,7 @@
       <!-- Scale slider -->
       <div>
         <div class="flex items-center justify-between mb-1">
-          <label class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase">Tile scale</label>
+          <label class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase">Tile scale</label>
           <span class="font-fell text-xs text-muted-foreground tabular-nums">×{{ texture.scale.toFixed(2) }}</span>
         </div>
         <input

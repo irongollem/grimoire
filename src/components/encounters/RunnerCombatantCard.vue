@@ -219,11 +219,11 @@ function toggleDetail() {
 }
 
 .avatar-initials {
-  @apply w-full h-full flex items-center justify-center font-cinzel text-[11px] font-bold;
+  @apply w-full h-full flex items-center justify-center font-cinzel text-[0.6875rem] font-bold;
 }
 
 .reveal-btn {
-  @apply absolute bottom-0 right-0 flex items-center justify-center w-4 h-4 rounded-tl text-[10px] transition-colors;
+  @apply absolute bottom-0 right-0 flex items-center justify-center w-4 h-4 rounded-tl text-2xs transition-colors;
 }
 .reveal-hidden   { @apply bg-muted/80 text-muted-foreground hover:bg-amber-500/80 hover:text-white; }
 .reveal-unseen   { @apply bg-amber-500/80 text-white hover:bg-green-500/80; }
@@ -238,7 +238,7 @@ function toggleDetail() {
 }
 
 .type-badge {
-  @apply font-cinzel text-[9px] font-bold px-1.5 py-0.5 rounded uppercase;
+  @apply font-cinzel text-[0.5625rem] font-bold px-1.5 py-0.5 rounded uppercase;
 }
 .type-badge.player  { @apply bg-primary/20 text-primary; }
 .type-badge.monster { @apply bg-muted text-muted-foreground; }
@@ -246,25 +246,25 @@ function toggleDetail() {
 .dead-badge { @apply text-destructive text-xs; }
 
 .wildshape-row-badge {
-  @apply font-fell text-[10px] text-amber-400 italic ml-1;
+  @apply font-fell text-2xs text-amber-400 italic ml-1;
 }
 
 .surprised-badge {
-  @apply font-cinzel text-[9px] text-amber-500 tracking-wider px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 ml-1;
+  @apply font-cinzel text-[0.5625rem] text-amber-500 tracking-wider px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 ml-1;
 }
 .surprised-toggle { cursor: pointer; }
 .surprised-toggle:hover { @apply bg-amber-500/20 border-amber-500/60; }
 
 .surprised-set-btn {
-  @apply font-cinzel text-[9px] text-muted-foreground/50 tracking-wider px-1 py-0.5 rounded border border-dashed border-muted-foreground/20 hover:text-amber-500 hover:border-amber-500/40 transition-colors;
+  @apply font-cinzel text-[0.5625rem] text-muted-foreground/50 tracking-wider px-1 py-0.5 rounded border border-dashed border-muted-foreground/20 hover:text-amber-500 hover:border-amber-500/40 transition-colors;
 }
 
 .cond-badge {
-  @apply inline-flex items-center px-1.5 py-0.5 rounded font-cinzel text-[9px] font-semibold bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/30 cursor-pointer hover:bg-destructive/20 hover:text-destructive transition-colors;
+  @apply inline-flex items-center px-1.5 py-0.5 rounded font-cinzel text-[0.5625rem] font-semibold bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/30 cursor-pointer hover:bg-destructive/20 hover:text-destructive transition-colors;
 }
 
 .reaction-chip {
-  @apply inline-flex items-center px-1.5 py-0.5 rounded font-cinzel text-[9px] font-semibold border transition-colors cursor-pointer;
+  @apply inline-flex items-center px-1.5 py-0.5 rounded font-cinzel text-[0.5625rem] font-semibold border transition-colors cursor-pointer;
 }
 .reaction-ready { @apply bg-sky-500/10 text-sky-400 border-sky-500/30 hover:bg-sky-500/20; }
 .reaction-used  { @apply bg-muted text-muted-foreground/40 border-border line-through hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/30; }
@@ -284,8 +284,8 @@ function toggleDetail() {
 
 @keyframes damage-flash {
   0%   { opacity: 1; transform: translateX(-50%) translateY(0); }
-  70%  { opacity: 1; transform: translateX(-50%) translateY(-4px); }
-  100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+  70%  { opacity: 1; transform: translateX(-50%) translateY(-0.25rem); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-0.625rem); }
 }
 
 .damage-flash {
@@ -313,7 +313,7 @@ function toggleDetail() {
   border-radius: 0.25rem;
   padding: 0.2rem 0.4rem;
   font-family: var(--font-cinzel, serif);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 700;
   text-align: center;
   color: theme(colors.foreground);
@@ -327,7 +327,7 @@ function toggleDetail() {
   padding: 0.2rem 0.5rem;
   border-radius: 0.25rem;
   font-family: var(--font-cinzel, serif);
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   border: 1px solid;
@@ -358,8 +358,8 @@ function toggleDetail() {
   left: 0;
   top: 0;
   bottom: 0;
-  width: 3px;
-  border-radius: 0 2px 2px 0;
+  width: 0.1875rem;
+  border-radius: 0 0.125rem 0.125rem 0;
   background-color: var(--faction-color);
 }
 
@@ -403,7 +403,7 @@ function toggleDetail() {
   gap: 0.75rem;
   padding-left: 3.125rem;
   font-family: var(--font-cinzel, serif);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .mc-stat-init,
@@ -414,10 +414,10 @@ function toggleDetail() {
   gap: 0.375rem;
 }
 
-.mc-stat-label { @apply font-cinzel text-[10px] tracking-wider text-muted-foreground; }
+.mc-stat-label { @apply font-cinzel text-2xs tracking-wider text-muted-foreground; }
 .mc-stat-value { @apply font-cinzel text-sm font-bold text-foreground; }
 .mc-stat-sep   { @apply text-muted-foreground font-normal mx-0.5; }
-.mc-stat-temp  { @apply font-cinzel text-[10px] font-bold text-sky-400; }
+.mc-stat-temp  { @apply font-cinzel text-2xs font-bold text-sky-400; }
 
 .mc-hp-controls {
   display: flex;

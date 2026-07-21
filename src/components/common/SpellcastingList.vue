@@ -1,9 +1,9 @@
 <template>
   <div v-if="spellcasting?.entries?.length && spellsByLevel.size" class="flex flex-col gap-2 font-stat">
-    <h3 class="text-[20px] font-normal text-primary border-b border-primary/30 pb-1">
+    <h3 class="text-xl font-normal text-primary border-b border-primary/30 pb-1">
       Spellcasting
     </h3>
-    <p v-if="castingInfo" class="text-[14px] text-muted-foreground">{{ castingInfo }}</p>
+    <p v-if="castingInfo" class="text-sm text-muted-foreground">{{ castingInfo }}</p>
 
     <!-- One collapsible <details> per spell level -->
     <details
@@ -12,10 +12,10 @@
       open
       class="group"
     >
-      <summary class="flex items-center gap-1 cursor-pointer list-none text-[15px] text-primary font-semibold select-none py-0.5">
+      <summary class="flex items-center gap-1 cursor-pointer list-none text-[0.9375rem] text-primary font-semibold select-none py-0.5">
         <IconChevronRight class="h-3.5 w-3.5 transition-transform group-open:rotate-90 shrink-0" />
         {{ levelGroupLabel(level) }}
-        <span class="ml-1 font-normal text-muted-foreground text-[13px]">({{ items.length }})</span>
+        <span class="ml-1 font-normal text-muted-foreground text-[0.8125rem]">({{ items.length }})</span>
       </summary>
 
       <div class="flex flex-col gap-0.5 pl-4 pt-1">
@@ -27,13 +27,13 @@
           <button
             v-if="item.spell"
             type="button"
-            class="font-stat text-[14px] text-primary hover:underline text-left"
+            class="font-stat text-sm text-primary hover:underline text-left"
             @click="openModal(item.spell!)"
           >
             {{ item.spell.name }}
           </button>
-          <span v-else class="font-stat text-[14px] text-muted-foreground italic">Unknown Spell</span>
-          <span v-if="item.frequency" class="font-fell text-[12px] text-muted-foreground italic shrink-0">{{ item.frequency }}</span>
+          <span v-else class="font-stat text-sm text-muted-foreground italic">Unknown Spell</span>
+          <span v-if="item.frequency" class="font-fell text-xs text-muted-foreground italic shrink-0">{{ item.frequency }}</span>
         </div>
       </div>
     </details>

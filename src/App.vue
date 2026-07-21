@@ -163,9 +163,9 @@ const layout = computed(() => {
   z-index: 9999;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 16px;
-  border-radius: 0 0 10px 10px;
+  gap: 0.375rem;
+  padding: 0.375rem 1rem;
+  border-radius: 0 0 0.625rem 0.625rem;
   background: hsl(var(--primary));
   color: hsl(var(--primary-foreground));
   pointer-events: none;
@@ -177,7 +177,7 @@ const layout = computed(() => {
 }
 
 .ptr-arrow {
-  font-size: 14px;
+  font-size: 0.875rem;
   transition: transform 0.15s ease;
 }
 
@@ -187,7 +187,7 @@ const layout = computed(() => {
 
 .ptr-label {
   font-family: var(--font-cinzel, sans-serif);
-  font-size: 10px;
+  font-size: 0.625rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }

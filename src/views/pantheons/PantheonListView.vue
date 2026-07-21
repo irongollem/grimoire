@@ -55,14 +55,14 @@
               <p class="font-cinzel text-sm font-bold text-foreground truncate flex-1">{{ pantheon.name }}</p>
               <IconReveal v-if="pantheon.player_visible_to?.length" class="h-3 w-3 shrink-0 text-elven-green" />
             </div>
-            <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider mt-0.5">
+            <p class="font-cinzel text-2xs text-muted-foreground tracking-wider mt-0.5">
               {{ deityCount(pantheon.id) }} {{ deityCount(pantheon.id) === 1 ? 'deity' : 'deities' }}
             </p>
             <div v-if="pantheon.tags.length" class="flex flex-wrap gap-1 mt-1.5">
               <span
                 v-for="tag in pantheon.tags.slice(0, 3)"
                 :key="tag"
-                class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground tracking-wider"
+                class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground tracking-wider"
               >{{ tag }}</span>
             </div>
           </div>

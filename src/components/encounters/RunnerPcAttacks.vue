@@ -19,7 +19,7 @@
         >🎲 {{ actionDiceLabel(atk.damageDice) }}</button>
         <span
           v-else-if="atk.damageFixed"
-          class="font-cinzel text-[9px] text-muted-foreground whitespace-nowrap self-center"
+          class="font-cinzel text-[0.5625rem] text-muted-foreground whitespace-nowrap self-center"
         >{{ atk.damageFixed }}</span>
       </div>
     </div>
@@ -50,7 +50,7 @@
               @click.stop="emit('roll-damage', atk.damageDice, atk.name)"
             >🎲 {{ actionDiceLabel(atk.damageDice) }}</button>
             <span
-              class="font-cinzel text-[9px] whitespace-nowrap self-center"
+              class="font-cinzel text-[0.5625rem] whitespace-nowrap self-center"
               :class="weaponSelfChargesRemaining(atk.weaponInvId, weaponMaxCharges(atk.weaponInvId)) > 0 ? 'text-muted-foreground' : 'text-destructive'"
             >⚡ {{ weaponSelfChargesRemaining(atk.weaponInvId, weaponMaxCharges(atk.weaponInvId)) }}</span>
           </template>
@@ -71,11 +71,11 @@
             >🎲 {{ actionDiceLabel(atk.damageDice) }}</button>
             <span
               v-if="availableAmmoFor(atk.ammoTag)"
-              class="font-cinzel text-[9px] text-muted-foreground whitespace-nowrap self-center"
+              class="font-cinzel text-[0.5625rem] text-muted-foreground whitespace-nowrap self-center"
             >× {{ ammoRemainingCount(availableAmmoFor(atk.ammoTag)) }}</span>
             <span
               v-else
-              class="font-cinzel text-[9px] text-destructive whitespace-nowrap self-center"
+              class="font-cinzel text-[0.5625rem] text-destructive whitespace-nowrap self-center"
             >— no ammo</span>
           </template>
         </div>
@@ -368,7 +368,7 @@ function actionDiceLabel(desc: string): string {
 }
 
 .detail-section-label {
-  @apply font-cinzel text-[10px] font-bold tracking-wider text-muted-foreground uppercase mt-1;
+  @apply font-cinzel text-2xs font-bold tracking-wider text-muted-foreground uppercase mt-1;
 }
 
 .detail-trait {
@@ -380,7 +380,7 @@ function actionDiceLabel(desc: string): string {
 }
 
 .detail-trait-header strong {
-  @apply font-cinzel text-[10px] font-bold text-foreground;
+  @apply font-cinzel text-2xs font-bold text-foreground;
 }
 
 .trait-roll-bar {
@@ -388,7 +388,7 @@ function actionDiceLabel(desc: string): string {
 }
 
 .trait-roll-btn {
-  @apply inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded font-cinzel text-[9px] font-semibold tracking-wider cursor-pointer transition-colors whitespace-nowrap;
+  @apply inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded font-cinzel text-[0.5625rem] font-semibold tracking-wider cursor-pointer transition-colors whitespace-nowrap;
 }
 
 .trait-atk-btn {

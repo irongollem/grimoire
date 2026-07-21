@@ -67,7 +67,7 @@
           >
             <h3 class="font-cinzel text-sm font-semibold text-foreground">{{ hook.title }}</h3>
             <p class="font-fell text-xs text-muted-foreground/70 italic">
-              <span class="font-cinzel not-italic text-[10px] tracking-wider text-muted-foreground/50 mr-1">PLAYER LOG</span>{{ hook.summary }}
+              <span class="font-cinzel not-italic text-2xs tracking-wider text-muted-foreground/50 mr-1">PLAYER LOG</span>{{ hook.summary }}
             </p>
 
             <ul v-if="hook.objectives.length" class="space-y-1">
@@ -85,7 +85,7 @@
               <span
                 v-for="tag in hook.tags"
                 :key="tag"
-                class="rounded-full bg-muted border border-border px-2 py-0.5 font-fell text-[10px] text-muted-foreground"
+                class="rounded-full bg-muted border border-border px-2 py-0.5 font-fell text-2xs text-muted-foreground"
               >
                 {{ tag }}
               </span>

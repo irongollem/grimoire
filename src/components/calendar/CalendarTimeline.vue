@@ -30,7 +30,7 @@
         <!-- Axis line -->
         <div
           class="absolute left-0 right-0 bg-border"
-          :style="{ height: '2px', top: axisY + 'px' }"
+          :style="{ height: '0.125rem', top: axisY + 'px' }"
         />
 
         <!-- Ticks + labels -->
@@ -48,8 +48,8 @@
             />
             <span
               class="absolute font-cinzel font-semibold text-muted-foreground whitespace-nowrap"
-              :class="year % 10 === 0 ? 'text-xs' : 'text-[10px]'"
-              style="top: 14px; left: 50%; transform: translateX(-50%)"
+              :class="year % 10 === 0 ? 'text-xs' : 'text-2xs'"
+              style="top: 0.875rem; left: 50%; transform: translateX(-50%)"
             >
               {{ year }}
             </span>
@@ -74,8 +74,8 @@
             <span
               v-if="tick.isFirst || pixelsPerYear / 12 >= 50"
               class="absolute font-cinzel font-semibold text-muted-foreground whitespace-nowrap"
-              :class="tick.isFirst ? 'text-xs' : 'text-[10px]'"
-              style="top: 16px; left: 50%; transform: translateX(-50%)"
+              :class="tick.isFirst ? 'text-xs' : 'text-2xs'"
+              style="top: 1rem; left: 50%; transform: translateX(-50%)"
             >
               {{ tick.label }}
             </span>
@@ -99,7 +99,7 @@
               }"
             />
             <span
-              class="absolute font-cinzel font-semibold text-muted-foreground whitespace-nowrap text-[10px]"
+              class="absolute font-cinzel font-semibold text-muted-foreground whitespace-nowrap text-2xs"
               :style="{
                 left: fractionalYearToX(tick.frac) + 'px',
                 top: axisY + 8 + 'px',
@@ -124,7 +124,7 @@
           <div class="w-0.5 h-10 bg-primary mx-auto" />
           <span
             class="absolute font-cinzel text-xs font-bold text-primary whitespace-nowrap"
-            style="top: 20px; left: 50%; transform: translateX(-50%)"
+            style="top: 1.25rem; left: 50%; transform: translateX(-50%)"
           >
             ★ {{ calendar.currentYear }}
           </span>
@@ -147,7 +147,7 @@
           <div class="w-px h-full bg-amber-400/70" />
           <span
             class="absolute font-cinzel text-xs font-bold text-amber-400 whitespace-nowrap"
-            style="top: 4px; left: 50%; transform: translateX(-50%)"
+            style="top: 0.25rem; left: 50%; transform: translateX(-50%)"
           >
             ◆ Today
           </span>
@@ -161,7 +161,7 @@
         />
         <span
           class="absolute font-cinzel font-bold tracking-widest text-muted-foreground uppercase"
-          style="font-size: 9px; left: 4px"
+          style="font-size: 0.5625rem; left: 0.25rem"
           :style="{ top: SESSION_STRIP_Y - 18 + 'px' }"
           >Chronicle</span
         >
@@ -185,7 +185,7 @@
           >
             <span
               v-if="pe.barWidth >= 36"
-              class="font-fell text-[10px] font-semibold whitespace-nowrap px-1 leading-none pointer-events-none truncate"
+              class="font-fell text-2xs font-semibold whitespace-nowrap px-1 leading-none pointer-events-none truncate"
               :style="{ color: eventColor(pe.event) }"
             >
               {{ pe.event.title }}
@@ -199,7 +199,7 @@
               top: SESSION_STRIP_Y - SESSION_STRIP_HEIGHT / 2 - 14 + 'px',
               color: eventColor(pe.event),
             }"
-            class="absolute font-fell text-[10px] font-semibold pointer-events-none whitespace-nowrap"
+            class="absolute font-fell text-2xs font-semibold pointer-events-none whitespace-nowrap"
             style="transform: translateX(-50%)"
           >
             {{ pe.event.title }}

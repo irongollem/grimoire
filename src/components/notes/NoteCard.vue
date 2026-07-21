@@ -20,8 +20,8 @@
       class="absolute inset-0 z-20 flex flex-col items-center justify-center gap-1.5 bg-background/80 backdrop-blur-sm"
     >
       <IconLock class="h-4 w-4 text-muted-foreground" />
-      <p class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">Locked</p>
-      <RouterLink to="/billing" class="font-cinzel text-[9px] tracking-wider text-primary/80 hover:text-primary transition-colors">
+      <p class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground">Locked</p>
+      <RouterLink to="/billing" class="font-cinzel text-[0.5625rem] tracking-wider text-primary/80 hover:text-primary transition-colors">
         Upgrade to access
       </RouterLink>
     </div>
@@ -42,7 +42,7 @@
       <!-- Category + session -->
       <div class="flex items-center gap-2">
         <span
-          class="px-1.5 py-0.5 rounded font-cinzel text-[10px] font-bold tracking-wider capitalize"
+          class="px-1.5 py-0.5 rounded font-cinzel text-2xs font-bold tracking-wider capitalize"
           :style="{ backgroundColor: categoryColor(note.category) + '22', color: categoryColor(note.category) }"
         >
           {{ note.category }}
@@ -64,12 +64,12 @@
           <span
             v-for="tag in note.tags.slice(0, 2)"
             :key="tag"
-            class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground tracking-wider"
+            class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground tracking-wider"
           >
             {{ tag }}
           </span>
         </div>
-        <span class="font-fell text-[10px] text-muted-foreground italic shrink-0 ml-auto">
+        <span class="font-fell text-2xs text-muted-foreground italic shrink-0 ml-auto">
           {{ timeAgo(note.updated_at) }}
         </span>
       </div>

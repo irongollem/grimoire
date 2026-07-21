@@ -45,21 +45,21 @@
             class="group-hover:scale-105 transition-transform duration-300"
           />
           <span
-            class="absolute top-2 left-2 font-cinzel text-[9px] px-1.5 py-0.5 rounded tracking-wider text-white font-bold"
+            class="absolute top-2 left-2 font-cinzel text-[0.5625rem] px-1.5 py-0.5 rounded tracking-wider text-white font-bold"
             :style="{ backgroundColor: PUZZLE_TYPE_COLORS[puzzle.puzzle_type] + 'DD' }"
           >{{ puzzle.puzzle_type }}</span>
           <span
-            class="absolute bottom-2 right-2 font-cinzel text-[9px] px-1.5 py-0.5 rounded tracking-wider text-white font-bold"
+            class="absolute bottom-2 right-2 font-cinzel text-[0.5625rem] px-1.5 py-0.5 rounded tracking-wider text-white font-bold"
             :style="{ backgroundColor: PUZZLE_DIFFICULTY_COLORS[puzzle.difficulty] + 'DD' }"
           >{{ puzzle.difficulty }}</span>
         </div>
         <div class="p-2.5 flex flex-col gap-0.5">
           <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight truncate">{{ puzzle.name }}</h3>
           <div class="flex items-center gap-2">
-            <span class="font-fell text-[10px] text-muted-foreground italic">
+            <span class="font-fell text-2xs text-muted-foreground italic">
               {{ puzzle.hints.length }} hint{{ puzzle.hints.length === 1 ? '' : 's' }}
             </span>
-            <span v-if="puzzle.skill_checks.length" class="font-fell text-[10px] text-muted-foreground italic truncate">
+            <span v-if="puzzle.skill_checks.length" class="font-fell text-2xs text-muted-foreground italic truncate">
               · {{ puzzle.skill_checks.map((s) => s.skill).join(', ') }}
             </span>
           </div>

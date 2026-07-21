@@ -165,14 +165,14 @@
       />
       <div v-else class="field-input bg-muted/30 text-muted-foreground flex items-center">
         {{ hasMulticlassData ? multiclassTotal : form.level }}
-        <span class="ml-2 text-[11px] italic font-fell">total</span>
+        <span class="ml-2 text-[0.6875rem] italic font-fell">total</span>
       </div>
     </label>
     <div>
       <label class="field-label">Proficiency Bonus</label>
       <div class="field-input bg-muted/30 text-muted-foreground flex items-center">
         +{{ profBonus }}
-        <span class="ml-2 text-[11px]">(from level {{ form.level }})</span>
+        <span class="ml-2 text-[0.6875rem]">(from level {{ form.level }})</span>
       </div>
     </div>
   </div>

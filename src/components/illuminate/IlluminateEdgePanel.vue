@@ -13,7 +13,7 @@
       </span>
       <span
         v-if="EDGE_KEYS.some(e => opts[e].enabled)"
-        class="font-cinzel text-[10px] tracking-wider text-primary mr-2"
+        class="font-cinzel text-2xs tracking-wider text-primary mr-2"
       >{{ EDGE_KEYS.filter(e => opts[e].enabled).length }} active</span>
     </div>
 
@@ -32,7 +32,7 @@
             :class="edgeOpen[edge] ? 'rotate-90' : ''"
           />
           <span
-            class="flex-1 font-cinzel text-[10px] font-semibold tracking-widest uppercase transition-colors"
+            class="flex-1 font-cinzel text-2xs font-semibold tracking-widest uppercase transition-colors"
             :class="opts[edge].enabled ? 'text-foreground' : 'text-muted-foreground'"
           >{{ edge }}</span>
           <button
@@ -55,7 +55,7 @@
         >
           <div v-for="slider in SLIDERS" :key="slider.key">
             <div class="flex items-center justify-between mb-1">
-              <label class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase">
+              <label class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase">
                 {{ slider.label }}
               </label>
               <span class="font-fell text-xs text-muted-foreground tabular-nums">

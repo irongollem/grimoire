@@ -70,7 +70,7 @@
             />
             <!-- Type badge -->
             <span
-              class="absolute top-2 left-2 font-cinzel text-[9px] px-1.5 py-0.5 rounded tracking-wider text-white font-bold"
+              class="absolute top-2 left-2 font-cinzel text-[0.5625rem] px-1.5 py-0.5 rounded tracking-wider text-white font-bold"
               :style="{ backgroundColor: DUNGEON_FEATURE_TYPE_COLORS[feature.feature_type] + 'DD' }"
             >{{ feature.feature_type }}</span>
           </div>
@@ -79,10 +79,10 @@
           <div class="p-2.5 flex flex-col gap-0.5">
             <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight truncate">{{ feature.name }}</h3>
             <div class="flex items-center gap-2">
-              <span v-if="feature.trigger_type" class="font-fell text-[10px] text-muted-foreground italic truncate">
+              <span v-if="feature.trigger_type" class="font-fell text-2xs text-muted-foreground italic truncate">
                 {{ feature.trigger_type }}
               </span>
-              <span v-if="feature.perception_dc" class="font-cinzel text-[10px] text-muted-foreground tracking-wider">
+              <span v-if="feature.perception_dc" class="font-cinzel text-2xs text-muted-foreground tracking-wider">
                 Perc {{ feature.perception_dc }}
               </span>
             </div>

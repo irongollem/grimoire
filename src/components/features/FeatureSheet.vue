@@ -22,14 +22,14 @@
     <div class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="p-4 flex flex-col gap-3">
         <div class="flex flex-wrap items-center gap-2">
-          <span class="font-cinzel text-[10px] font-semibold tracking-wider bg-primary/10 text-primary rounded px-2 py-0.5">
+          <span class="font-cinzel text-2xs font-semibold tracking-wider bg-primary/10 text-primary rounded px-2 py-0.5">
             {{ FEATURE_TYPE_LABELS[feature.feature_type] }}
           </span>
-          <span v-if="feature.source" class="font-cinzel text-[10px] tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
+          <span v-if="feature.source" class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
             {{ feature.source }}
           </span>
           <span
-            class="font-cinzel text-[10px] tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
+            class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
           >
             {{ feature.campaign_id ? 'Campaign-scoped' : 'All campaigns' }}
           </span>
@@ -41,7 +41,7 @@
           <span
             v-for="tag in feature.tags"
             :key="tag"
-            class="font-cinzel text-[10px] tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
+            class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
           >{{ tag }}</span>
         </div>
       </div>

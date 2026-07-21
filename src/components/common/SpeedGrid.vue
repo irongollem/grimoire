@@ -1,7 +1,7 @@
 <template>
   <div class="grid grid-cols-5 gap-2">
     <div v-for="sp in SPEED_TYPES" :key="sp.key" class="flex flex-col items-center gap-1">
-      <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">{{ sp.label }}</span>
+      <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground">{{ sp.label }}</span>
 
       <!-- Fly: hover toggle embedded on the left edge -->
       <div
@@ -34,7 +34,7 @@
           @focus="($event.target as HTMLInputElement).select()"
           @input="setSpeed('fly', ($event.target as HTMLInputElement).value)"
         />
-        <span class="absolute inset-y-0 right-1.5 flex items-center pointer-events-none font-cinzel text-[10px] text-muted-foreground">ft.</span>
+        <span class="absolute inset-y-0 right-1.5 flex items-center pointer-events-none font-cinzel text-2xs text-muted-foreground">ft.</span>
       </div>
 
       <!-- Other speeds -->
@@ -49,7 +49,7 @@
           @focus="($event.target as HTMLInputElement).select()"
           @input="setSpeed(sp.key, ($event.target as HTMLInputElement).value)"
         />
-        <span class="absolute inset-y-0 right-1.5 flex items-center pointer-events-none font-cinzel text-[10px] text-muted-foreground">ft.</span>
+        <span class="absolute inset-y-0 right-1.5 flex items-center pointer-events-none font-cinzel text-2xs text-muted-foreground">ft.</span>
       </div>
     </div>
   </div>

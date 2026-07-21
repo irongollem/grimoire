@@ -78,7 +78,7 @@
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center gap-2 flex-wrap">
                     <span class="font-cinzel text-xs font-semibold text-foreground">{{ event.title }}</span>
-                    <span class="font-cinzel text-[10px] text-muted-foreground">{{ event.harptos_year }} DR</span>
+                    <span class="font-cinzel text-2xs text-muted-foreground">{{ event.harptos_year }} DR</span>
                   </div>
                   <p class="font-fell text-xs text-muted-foreground mt-0.5 line-clamp-2">
                     {{ event.description }}

@@ -26,7 +26,7 @@
               {{ plan.name }}
             </h2>
             <span
-              class="font-cinzel text-[10px] tracking-widest text-muted-foreground uppercase"
+              class="font-cinzel text-2xs tracking-widest text-muted-foreground uppercase"
             >
               {{ plan.id }}
             </span>
@@ -51,7 +51,7 @@
         <!-- Monthly included AI credits — configurable on every plan -->
         <div class="rounded-md bg-muted/40 border border-border p-3 space-y-1">
           <label
-            class="block font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase"
+            class="block font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase"
           >
             Monthly Included Credits
           </label>
@@ -62,11 +62,11 @@
               min="0"
               class="w-32 bg-background border border-border rounded px-2.5 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
-            <p class="font-fell text-[11px] text-muted-foreground italic">
+            <p class="font-fell text-[0.6875rem] text-muted-foreground italic">
               {{ creditsHelper(draftMonthlyCredits[plan.id]) }}
             </p>
           </div>
-          <p class="font-fell text-[10px] text-muted-foreground/60 italic">
+          <p class="font-fell text-2xs text-muted-foreground/60 italic">
             Use-it-or-lose-it allowance granted each billing period. Resets
             monthly; purchased packs are separate and permanent.
           </p>
@@ -83,7 +83,7 @@
             class="space-y-1"
           >
             <label
-              class="block font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase"
+              class="block font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase"
             >
               {{ LABELS[resource] }}
             </label>
@@ -104,7 +104,7 @@
             class="space-y-1"
           >
             <p
-              class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase"
+              class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase"
             >
               {{ LABELS[resource] }}
             </p>
@@ -154,7 +154,7 @@
               {{ plan.name }}
             </h3>
             <button
-              class="px-2.5 py-1 font-cinzel text-[10px] font-semibold tracking-wider bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50 transition-opacity"
+              class="px-2.5 py-1 font-cinzel text-2xs font-semibold tracking-wider bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50 transition-opacity"
               :disabled="planPriceSyncing[plan.id]"
               @click="syncPlanPrices(plan.id)"
             >
@@ -164,7 +164,7 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div class="space-y-1">
               <label
-                class="block font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase"
+                class="block font-cinzel text-2xs tracking-wider text-muted-foreground uppercase"
                 >Monthly Price ID</label
               >
               <div class="flex items-center gap-2">
@@ -194,7 +194,7 @@
             </div>
             <div class="space-y-1">
               <label
-                class="block font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase"
+                class="block font-cinzel text-2xs tracking-wider text-muted-foreground uppercase"
                 >Annual Price ID</label
               >
               <div class="flex items-center gap-2">

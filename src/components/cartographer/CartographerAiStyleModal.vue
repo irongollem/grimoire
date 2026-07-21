@@ -34,12 +34,12 @@
                 @click="$emit('update:selectedPresetId', preset.id)"
               >
                 <span class="text-lg leading-none">{{ preset.icon }}</span>
-                <span class="font-cinzel text-[10px] font-semibold tracking-wider leading-tight">{{ preset.label }}</span>
-                <span class="font-fell text-[9px] leading-tight opacity-70">{{ preset.description }}</span>
+                <span class="font-cinzel text-2xs font-semibold tracking-wider leading-tight">{{ preset.label }}</span>
+                <span class="font-fell text-[0.5625rem] leading-tight opacity-70">{{ preset.description }}</span>
               </button>
             </div>
             <!-- Freeform suffix -->
-            <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mb-1">
+            <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground uppercase mb-1">
               Additional details <span class="normal-case">(optional)</span>
             </label>
             <textarea
@@ -97,7 +97,7 @@
               />
             </div>
             <!-- Save to Atlas inline -->
-            <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mb-1">
+            <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground uppercase mb-1">
               Save to location
             </label>
             <EntityCombobox

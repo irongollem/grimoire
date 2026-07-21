@@ -505,7 +505,7 @@ async function handleEndCombat() {
 
 .resize-handle {
   position: relative;
-  width: 5px;
+  width: 0.3125rem;
   flex-shrink: 0;
   cursor: col-resize;
   background: theme(colors.border / 100%);
@@ -518,7 +518,7 @@ async function handleEndCombat() {
   content: "";
   position: absolute;
   inset: 0;
-  margin-inline: -20px;
+  margin-inline: -1.25rem;
 }
 
 .resize-handle:hover {

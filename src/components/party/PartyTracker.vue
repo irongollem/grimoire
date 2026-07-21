@@ -48,7 +48,7 @@
         <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Unassigned Companions</span>
         <button
           type="button"
-          class="font-cinzel text-[10px] text-primary hover:opacity-80 transition-opacity"
+          class="font-cinzel text-2xs text-primary hover:opacity-80 transition-opacity"
           @click="openCompanionForm(null)"
         >+ Add</button>
       </div>

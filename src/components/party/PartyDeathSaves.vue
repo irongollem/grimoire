@@ -1,8 +1,8 @@
 <template>
   <div class="flex items-center gap-3 p-2 rounded bg-destructive/10 border border-destructive/20">
-    <span class="font-cinzel text-[10px] font-bold text-destructive tracking-wider">DEATH SAVES</span>
+    <span class="font-cinzel text-2xs font-bold text-destructive tracking-wider">DEATH SAVES</span>
     <div class="flex items-center gap-1">
-      <span class="font-cinzel text-[10px] text-green-500">✓</span>
+      <span class="font-cinzel text-2xs text-green-500">✓</span>
       <div class="flex gap-1">
         <button
           v-for="i in 3"
@@ -15,7 +15,7 @@
       </div>
     </div>
     <div class="flex items-center gap-1">
-      <span class="font-cinzel text-[10px] text-destructive">✗</span>
+      <span class="font-cinzel text-2xs text-destructive">✗</span>
       <div class="flex gap-1">
         <button
           v-for="i in 3"

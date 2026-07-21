@@ -48,7 +48,7 @@
           <span class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">TRACKER</span>
           <span v-if="rule.tracker.label" class="ml-2 font-cinzel text-xs font-semibold text-foreground">{{ rule.tracker.label }}</span>
         </div>
-        <span class="font-cinzel text-[10px] text-muted-foreground capitalize px-2 py-0.5 rounded bg-muted">
+        <span class="font-cinzel text-2xs text-muted-foreground capitalize px-2 py-0.5 rounded bg-muted">
           {{ rule.tracker.type }} · {{ rule.tracker.min }}–{{ rule.tracker.max }}
         </span>
       </div>
@@ -75,14 +75,14 @@
 
       <!-- DM Buttons -->
       <div v-if="rule.tracker.dmButtons?.length" class="px-4 py-3 border-t border-border flex flex-wrap gap-2">
-        <span class="w-full font-cinzel text-[10px] text-muted-foreground tracking-wider mb-0.5">DM BUTTONS</span>
+        <span class="w-full font-cinzel text-2xs text-muted-foreground tracking-wider mb-0.5">DM BUTTONS</span>
         <span
           v-for="btn in rule.tracker.dmButtons"
           :key="btn.label"
           class="inline-flex items-center gap-1 px-2 py-1 rounded border border-border bg-muted font-fell text-xs text-foreground"
         >
           {{ btn.label }}
-          <span class="font-cinzel text-[10px] text-muted-foreground">{{ btn.delta > 0 ? `+${btn.delta}` : btn.delta }}</span>
+          <span class="font-cinzel text-2xs text-muted-foreground">{{ btn.delta > 0 ? `+${btn.delta}` : btn.delta }}</span>
         </span>
       </div>
     </div>

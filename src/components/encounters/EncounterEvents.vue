@@ -22,7 +22,7 @@
         <div v-if="editingEventId === event.id" class="flex flex-col gap-2 rounded-md border border-primary/30 bg-primary/5 p-3">
           <input v-model="editEventData.name" type="text" placeholder="Event name…" class="w-full bg-card border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
           <div class="flex flex-col gap-1">
-            <label class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider">TRIGGER</label>
+            <label class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider">TRIGGER</label>
             <select v-model="editEventData.triggerType" class="w-full bg-card border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
               <option value="round_start">Round Start</option>
               <option value="combatant_hp_pct">HP Threshold</option>
@@ -44,7 +44,7 @@
             </template>
           </div>
           <div class="flex flex-col gap-1">
-            <label class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider">ACTION</label>
+            <label class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider">ACTION</label>
             <select v-model="editEventData.actionType" class="w-full bg-card border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
               <option value="spawn_combatants">Spawn Combatants</option>
               <option value="broadcast_message">Broadcast Message</option>
@@ -95,7 +95,7 @@
             <div class="font-cinzel text-xs font-semibold text-foreground truncate">{{ event.name }}</div>
             <div class="font-fell text-xs text-muted-foreground mt-0.5 truncate">{{ eventSummary(event) }}</div>
           </div>
-          <span v-if="!event.fire_once" class="shrink-0 font-cinzel text-[9px] px-1 py-0.5 rounded bg-primary/10 text-primary" title="Repeating">∞</span>
+          <span v-if="!event.fire_once" class="shrink-0 font-cinzel text-[0.5625rem] px-1 py-0.5 rounded bg-primary/10 text-primary" title="Repeating">∞</span>
           <button
             type="button"
             class="shrink-0 transition-colors"
@@ -124,7 +124,7 @@
       <div v-if="showEventForm" class="flex flex-col gap-2 rounded-md border border-primary/30 bg-primary/5 p-3">
         <input v-model="newEvent.name" type="text" placeholder="Event name…" class="w-full bg-card border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
         <div class="flex flex-col gap-1">
-          <label class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider">TRIGGER</label>
+          <label class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider">TRIGGER</label>
           <select v-model="newEvent.triggerType" class="w-full bg-card border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
             <option value="round_start">Round Start</option>
             <option value="combatant_hp_pct">HP Threshold</option>
@@ -146,7 +146,7 @@
           </template>
         </div>
         <div class="flex flex-col gap-1">
-          <label class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider">ACTION</label>
+          <label class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider">ACTION</label>
           <select v-model="newEvent.actionType" class="w-full bg-card border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
             <option value="spawn_combatants">Spawn Combatants</option>
             <option value="broadcast_message">Broadcast Message</option>

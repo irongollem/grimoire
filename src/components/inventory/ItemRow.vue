@@ -8,9 +8,9 @@
         type="button"
         class="font-fell text-sm text-foreground truncate text-left hover:text-primary transition-colors w-full"
         @click="$emit('open-detail', item)"
-      >{{ item.name }}<span v-if="item.is_attuned" class="ml-1 font-cinzel text-[9px] text-primary/70" title="Attuned">✦</span></button>
+      >{{ item.name }}<span v-if="item.is_attuned" class="ml-1 font-cinzel text-[0.5625rem] text-primary/70" title="Attuned">✦</span></button>
       <p v-if="item.notes" class="font-fell text-xs text-muted-foreground italic truncate">{{ item.notes }}</p>
-      <p v-if="showCarrier && item.carried_by" class="font-cinzel text-[9px] text-muted-foreground/60 tracking-wider">
+      <p v-if="showCarrier && item.carried_by" class="font-cinzel text-[0.5625rem] text-muted-foreground/60 tracking-wider">
         {{ carrierName(item.carried_by) }}
       </p>
     </div>
@@ -18,7 +18,7 @@
     <!-- Weight -->
     <span
       v-if="unitWeight > 0"
-      class="font-cinzel text-[10px] text-muted-foreground/50 shrink-0 whitespace-nowrap"
+      class="font-cinzel text-2xs text-muted-foreground/50 shrink-0 whitespace-nowrap"
     >{{ fmtW(unitWeight) }}<span v-if="item.quantity > 1" class="hidden sm:inline"> ({{ fmtW(totalWeight) }})</span> lb.</span>
 
     <!-- Qty -->

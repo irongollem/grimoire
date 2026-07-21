@@ -183,16 +183,16 @@
 
         <!-- Ability scores -->
         <div>
-          <p class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground mb-1.5">ABILITY SCORES</p>
+          <p class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground mb-1.5">ABILITY SCORES</p>
           <div class="grid grid-cols-6 gap-1">
             <div v-for="ab in ABILITIES" :key="ab.key" class="text-center">
-              <p class="font-cinzel text-[9px] font-bold tracking-wider text-muted-foreground mb-0.5">{{ ab.label }}</p>
+              <p class="font-cinzel text-[0.5625rem] font-bold tracking-wider text-muted-foreground mb-0.5">{{ ab.label }}</p>
               <input
                 v-model.number="(sb as Record<string, unknown>)[ab.key]"
                 type="number" min="1" max="30"
                 class="sb-input text-center px-0.5 text-xs"
               />
-              <p class="font-fell text-[10px] text-muted-foreground mt-0.5">{{ modifier((sb as Record<string, unknown>)[ab.key] as number) }}</p>
+              <p class="font-fell text-2xs text-muted-foreground mt-0.5">{{ modifier((sb as Record<string, unknown>)[ab.key] as number) }}</p>
             </div>
           </div>
         </div>

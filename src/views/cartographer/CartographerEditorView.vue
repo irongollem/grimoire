@@ -111,7 +111,7 @@
 
         <!-- Status bar -->
         <div
-          class="absolute bottom-0 left-0 right-0 flex items-center gap-3 px-3 py-1 bg-card/95 border-t border-border font-fell text-[10px] text-muted-foreground"
+          class="absolute bottom-0 left-0 right-0 flex items-center gap-3 px-3 py-1 bg-card/95 border-t border-border font-fell text-2xs text-muted-foreground"
         >
           <span>
             Cursor: <strong class="text-foreground">{{ hoverCell?.[0] ?? "—" }}, {{ hoverCell?.[1] ?? "—" }}</strong>

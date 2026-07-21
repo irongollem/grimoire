@@ -1,7 +1,7 @@
 <template>
   <div
     class="rich-editor relative flex flex-col rounded-lg border border-border bg-card overflow-clip"
-    :style="{ minHeight: minHeight ?? '180px' }"
+    :style="{ minHeight: minHeight ?? '11.25rem' }"
   >
     <div
       :class="[
@@ -16,7 +16,7 @@
           :class="tbCls(editor.isActive('bold'))"
           @click="editor.chain().focus().toggleBold().run()"
         >
-          <strong class="text-[11px] leading-none">B</strong>
+          <strong class="text-[0.6875rem] leading-none">B</strong>
         </button>
         <button
           type="button"
@@ -24,7 +24,7 @@
           :class="tbCls(editor.isActive('italic'))"
           @click="editor.chain().focus().toggleItalic().run()"
         >
-          <em class="text-[11px] leading-none">I</em>
+          <em class="text-[0.6875rem] leading-none">I</em>
         </button>
         <button
           type="button"
@@ -82,7 +82,7 @@
           :class="tbCls(editor.isActive('heading', { level: 1 }))"
           @click="editor.chain().focus().toggleHeading({ level: 1 }).run()"
         >
-          <span class="text-[10px] font-cinzel font-bold leading-none">H1</span>
+          <span class="text-2xs font-cinzel font-bold leading-none">H1</span>
         </button>
         <button
           type="button"
@@ -90,7 +90,7 @@
           :class="tbCls(editor.isActive('heading', { level: 2 }))"
           @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
         >
-          <span class="text-[10px] font-cinzel font-bold leading-none">H2</span>
+          <span class="text-2xs font-cinzel font-bold leading-none">H2</span>
         </button>
         <button
           type="button"
@@ -98,7 +98,7 @@
           :class="tbCls(editor.isActive('heading', { level: 3 }))"
           @click="editor.chain().focus().toggleHeading({ level: 3 }).run()"
         >
-          <span class="text-[10px] font-cinzel font-bold leading-none">H3</span>
+          <span class="text-2xs font-cinzel font-bold leading-none">H3</span>
         </button>
         <div class="w-px h-5 bg-border mx-0.5" />
         <button
@@ -181,7 +181,7 @@
             @click="editor.chain().focus().deleteColumn().run()"
           >
             <span
-              class="text-[9px] font-cinzel font-bold leading-none text-destructive"
+              class="text-[0.5625rem] font-cinzel font-bold leading-none text-destructive"
               >−C</span
             >
           </button>
@@ -192,7 +192,7 @@
             @click="editor.chain().focus().deleteRow().run()"
           >
             <span
-              class="text-[9px] font-cinzel font-bold leading-none text-destructive"
+              class="text-[0.5625rem] font-cinzel font-bold leading-none text-destructive"
               >−R</span
             >
           </button>
@@ -229,7 +229,7 @@
             :class="tbCls(editor.getAttributes('image').width === preset.value)"
             @click="editor.chain().focus().updateAttributes('image', { width: preset.value }).run()"
           >
-            <span class="text-[9px] font-cinzel font-bold leading-none">{{ preset.label }}</span>
+            <span class="text-[0.5625rem] font-cinzel font-bold leading-none">{{ preset.label }}</span>
           </button>
         </template>
         <div class="w-px h-5 bg-border mx-0.5" />
@@ -303,7 +303,7 @@
         <button
           type="button"
           :disabled="isEnhancing"
-          class="flex items-center gap-1.5 px-2.5 py-1.5 font-cinzel text-[11px] font-semibold tracking-wide text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+          class="flex items-center gap-1.5 px-2.5 py-1.5 font-cinzel text-[0.6875rem] font-semibold tracking-wide text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
           @click="onEnhance"
         >
           <IconLoadingAlt v-if="isEnhancing" class="h-3 w-3 animate-spin" />
@@ -977,8 +977,8 @@ function tbCls(active: boolean) {
 .entity-suggestion-popup {
   position: absolute;
   z-index: 9999;
-  min-width: 180px;
-  max-width: 280px;
+  min-width: 11.25rem;
+  max-width: 17.5rem;
   background: theme(colors.card);
   border: 1px solid theme(colors.border);
   border-radius: 0.5rem;
@@ -1033,7 +1033,7 @@ function tbCls(active: boolean) {
 .enhance-error-enter-active { transition: all 0.15s ease-out; }
 .enhance-error-leave-active { transition: all 0.15s ease-in; }
 .enhance-error-enter-from,
-.enhance-error-leave-to    { opacity: 0; transform: translateY(4px); }
+.enhance-error-leave-to    { opacity: 0; transform: translateY(0.25rem); }
 
 .entity-suggestion-badge--monster {
   color: theme(colors.rose-400);

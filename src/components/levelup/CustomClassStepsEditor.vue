@@ -4,7 +4,7 @@
       <h2 class="font-cinzel text-xs tracking-widest uppercase text-muted-foreground">Wizard Steps</h2>
       <button
         type="button"
-        class="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 font-cinzel text-[10px] tracking-wider text-foreground hover:bg-muted/40 transition-colors"
+        class="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 font-cinzel text-2xs tracking-wider text-foreground hover:bg-muted/40 transition-colors"
         @click="addStep"
       >
         <IconAdd class="h-3 w-3" />
@@ -24,13 +24,13 @@
 
       <div class="grid grid-cols-3 gap-3">
         <div>
-          <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground mb-1">LEVEL</label>
+          <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1">LEVEL</label>
           <input :value="step.level" type="number" min="1" max="20"
             class="w-full bg-muted/40 border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             @input="updateStep(i, 'level', Number(($event.target as HTMLInputElement).value))" />
         </div>
         <div>
-          <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground mb-1">TYPE</label>
+          <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1">TYPE</label>
           <select :value="step.type" class="w-full bg-muted/40 border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             @change="updateStep(i, 'type', ($event.target as HTMLSelectElement).value as 'select' | 'append')">
             <option value="select">Pick one</option>
@@ -38,7 +38,7 @@
           </select>
         </div>
         <div>
-          <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground mb-1">OPTIONS FROM</label>
+          <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1">OPTIONS FROM</label>
           <select :value="step.step_type" class="w-full bg-muted/40 border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             @change="updateStep(i, 'step_type', ($event.target as HTMLSelectElement).value as 'feature_pick' | 'spell_pick' | 'text_pick')">
             <option value="feature_pick">Abilities compendium</option>
@@ -50,13 +50,13 @@
 
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground mb-1">KEY</label>
+          <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1">KEY</label>
           <input :value="step.key" placeholder="e.g. fighting_style"
             class="w-full bg-muted/40 border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             @input="updateStep(i, 'key', ($event.target as HTMLInputElement).value)" />
         </div>
         <div>
-          <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground mb-1">PICKS (count)</label>
+          <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1">PICKS (count)</label>
           <input :value="step.count" type="number" min="1" placeholder="1"
             class="w-full bg-muted/40 border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             @input="updateStep(i, 'count', Number(($event.target as HTMLInputElement).value))" />
@@ -64,21 +64,21 @@
       </div>
 
       <div>
-        <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground mb-1">LABEL</label>
+        <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1">LABEL</label>
         <input :value="step.label" placeholder="e.g. Choose Fighting Style"
           class="w-full bg-muted/40 border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           @input="updateStep(i, 'label', ($event.target as HTMLInputElement).value)" />
       </div>
 
       <div>
-        <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground mb-1">DESCRIPTION (optional)</label>
+        <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1">DESCRIPTION (optional)</label>
         <input :value="step.description" placeholder="Optional hint shown in wizard…"
           class="w-full bg-muted/40 border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           @input="updateStep(i, 'description', ($event.target as HTMLInputElement).value)" />
       </div>
 
       <div>
-        <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground mb-1">OPTIONS</label>
+        <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1">OPTIONS</label>
         <template v-if="step.step_type === 'feature_pick'">
           <div v-if="step.options.length > 0" class="flex flex-wrap gap-1.5 mb-2">
             <span v-for="fid in step.options" :key="fid"

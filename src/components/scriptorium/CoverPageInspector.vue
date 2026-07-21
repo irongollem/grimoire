@@ -12,7 +12,7 @@
       @keydown.esc="$emit('close')"
     >
       <div
-        class="flex flex-col w-[min(480px,94vw)] max-h-[90vh] bg-card rounded-xl border border-border shadow-2xl overflow-hidden"
+        class="flex flex-col w-[min(30rem,94vw)] max-h-[90vh] bg-card rounded-xl border border-border shadow-2xl overflow-hidden"
       >
         <!-- Header -->
         <div class="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
@@ -33,7 +33,7 @@
           <!-- Front / Inside -->
           <template v-if="variant === 'front' || variant === 'inside'">
             <div class="space-y-1.5">
-              <label class="block font-cinzel text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Title</label>
+              <label class="block font-cinzel text-[0.6875rem] font-semibold tracking-wider text-muted-foreground uppercase">Title</label>
               <input
                 v-model="local.title"
                 type="text"
@@ -42,7 +42,7 @@
               />
             </div>
             <div class="space-y-1.5">
-              <label class="block font-cinzel text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Subtitle</label>
+              <label class="block font-cinzel text-[0.6875rem] font-semibold tracking-wider text-muted-foreground uppercase">Subtitle</label>
               <input
                 v-model="local.subtitle"
                 type="text"
@@ -52,10 +52,10 @@
             </div>
             <div class="space-y-1.5">
               <div class="flex items-center justify-between">
-                <label class="block font-cinzel text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Background Art</label>
+                <label class="block font-cinzel text-[0.6875rem] font-semibold tracking-wider text-muted-foreground uppercase">Background Art</label>
                 <button
                   type="button"
-                  class="inline-flex items-center gap-1 font-cinzel text-[10px] tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+                  class="inline-flex items-center gap-1 font-cinzel text-2xs tracking-wider text-muted-foreground hover:text-foreground transition-colors"
                   @click="showArtPicker = true"
                 >
                   <IconLibrary class="h-3 w-3" />
@@ -75,7 +75,7 @@
             >
               <input v-model="local.titleScrim" type="checkbox" class="mt-0.5 h-4 w-4 accent-primary shrink-0" />
               <span class="space-y-0.5">
-                <span class="block font-cinzel text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Darken behind title</span>
+                <span class="block font-cinzel text-[0.6875rem] font-semibold tracking-wider text-muted-foreground uppercase">Darken behind title</span>
                 <span class="block font-fell text-xs text-muted-foreground italic">Adds a soft gradient under the title for legibility. Turn off if your art already leaves room for it.</span>
               </span>
             </label>
@@ -84,7 +84,7 @@
           <!-- Part divider -->
           <template v-else-if="variant === 'part'">
             <div class="space-y-1.5">
-              <label class="block font-cinzel text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Part Number</label>
+              <label class="block font-cinzel text-[0.6875rem] font-semibold tracking-wider text-muted-foreground uppercase">Part Number</label>
               <input
                 v-model="local.partNumber"
                 type="text"
@@ -93,7 +93,7 @@
               />
             </div>
             <div class="space-y-1.5">
-              <label class="block font-cinzel text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Subtitle</label>
+              <label class="block font-cinzel text-[0.6875rem] font-semibold tracking-wider text-muted-foreground uppercase">Subtitle</label>
               <input
                 v-model="local.subtitle"
                 type="text"
@@ -106,7 +106,7 @@
           <!-- Back cover -->
           <template v-else-if="variant === 'back'">
             <div class="space-y-1.5">
-              <label class="block font-cinzel text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Subtitle</label>
+              <label class="block font-cinzel text-[0.6875rem] font-semibold tracking-wider text-muted-foreground uppercase">Subtitle</label>
               <input
                 v-model="local.subtitle"
                 type="text"
@@ -115,7 +115,7 @@
               />
             </div>
             <div class="space-y-1.5">
-              <label class="block font-cinzel text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Blurb 1</label>
+              <label class="block font-cinzel text-[0.6875rem] font-semibold tracking-wider text-muted-foreground uppercase">Blurb 1</label>
               <textarea
                 v-model="local.blurb1"
                 rows="3"
@@ -124,7 +124,7 @@
               />
             </div>
             <div class="space-y-1.5">
-              <label class="block font-cinzel text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Blurb 2</label>
+              <label class="block font-cinzel text-[0.6875rem] font-semibold tracking-wider text-muted-foreground uppercase">Blurb 2</label>
               <textarea
                 v-model="local.blurb2"
                 rows="3"
@@ -133,7 +133,7 @@
               />
             </div>
             <div class="space-y-1.5">
-              <label class="block font-cinzel text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Blurb 3</label>
+              <label class="block font-cinzel text-[0.6875rem] font-semibold tracking-wider text-muted-foreground uppercase">Blurb 3</label>
               <textarea
                 v-model="local.blurb3"
                 rows="2"
@@ -142,7 +142,7 @@
               />
             </div>
             <div class="space-y-1.5">
-              <label class="block font-cinzel text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Tagline</label>
+              <label class="block font-cinzel text-[0.6875rem] font-semibold tracking-wider text-muted-foreground uppercase">Tagline</label>
               <input
                 v-model="local.tagline"
                 type="text"
@@ -151,7 +151,7 @@
               />
             </div>
             <div class="space-y-1.5">
-              <label class="block font-cinzel text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Product URL</label>
+              <label class="block font-cinzel text-[0.6875rem] font-semibold tracking-wider text-muted-foreground uppercase">Product URL</label>
               <input
                 v-model="local.productUrl"
                 type="text"
@@ -161,10 +161,10 @@
             </div>
             <div class="space-y-1.5">
               <div class="flex items-center justify-between">
-                <label class="block font-cinzel text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Background Art</label>
+                <label class="block font-cinzel text-[0.6875rem] font-semibold tracking-wider text-muted-foreground uppercase">Background Art</label>
                 <button
                   type="button"
-                  class="inline-flex items-center gap-1 font-cinzel text-[10px] tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+                  class="inline-flex items-center gap-1 font-cinzel text-2xs tracking-wider text-muted-foreground hover:text-foreground transition-colors"
                   @click="showArtPicker = true"
                 >
                   <IconLibrary class="h-3 w-3" />

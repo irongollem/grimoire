@@ -36,15 +36,15 @@
         <!-- Platform API Key -->
         <div class="p-3 rounded-md bg-muted/40 border border-border space-y-2">
           <div class="flex items-center justify-between">
-            <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Platform API Key</span>
+            <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Platform API Key</span>
             <div class="flex items-center gap-2">
-              <span v-if="isKeySet(row.provider as KeyProvider)" class="font-cinzel text-[10px] tracking-widest text-emerald-500 uppercase">
+              <span v-if="isKeySet(row.provider as KeyProvider)" class="font-cinzel text-2xs tracking-widest text-emerald-500 uppercase">
                 Set · {{ new Date(keyUpdatedAt(row.provider as KeyProvider)!).toLocaleDateString() }}
               </span>
-              <span v-else class="font-cinzel text-[10px] tracking-widest text-muted-foreground/60 uppercase">Not configured</span>
+              <span v-else class="font-cinzel text-2xs tracking-widest text-muted-foreground/60 uppercase">Not configured</span>
               <button
                 v-if="isKeySet(row.provider as KeyProvider)"
-                class="px-2 py-0.5 font-cinzel text-[9px] font-semibold tracking-wider text-destructive border border-destructive/40 rounded hover:bg-destructive/10 disabled:opacity-50 transition-colors"
+                class="px-2 py-0.5 font-cinzel text-[0.5625rem] font-semibold tracking-wider text-destructive border border-destructive/40 rounded hover:bg-destructive/10 disabled:opacity-50 transition-colors"
                 :disabled="keyClearing[row.provider as KeyProvider]"
                 @click="doClrKey(row.provider as KeyProvider)"
               >
@@ -87,7 +87,7 @@
           <!-- Text generation -->
           <div class="space-y-2 p-3 rounded-md bg-muted/40 border border-border">
             <div class="flex items-center justify-between">
-              <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Text</span>
+              <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Text</span>
               <template v-if="draftProviders[row.provider]?.text_model !== null">
                 <button
                   type="button"
@@ -101,11 +101,11 @@
                   />
                 </button>
               </template>
-              <span v-else class="font-cinzel text-[10px] tracking-wider text-muted-foreground/50 uppercase">N/A</span>
+              <span v-else class="font-cinzel text-2xs tracking-wider text-muted-foreground/50 uppercase">N/A</span>
             </div>
             <template v-if="draftProviders[row.provider]?.text_model !== null">
               <div class="space-y-1">
-                <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground">Model</label>
+                <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground">Model</label>
                 <input
                   v-model="draftProviders[row.provider].text_model"
                   :list="`text-models-${row.provider}`"
@@ -118,7 +118,7 @@
                 </datalist>
               </div>
               <div class="space-y-1">
-                <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground">Multiplier</label>
+                <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground">Multiplier</label>
                 <input
                   v-model.number="draftProviders[row.provider].text_multiplier"
                   type="number" step="0.1" min="0.1"
@@ -132,7 +132,7 @@
           <!-- Image generation -->
           <div class="space-y-2 p-3 rounded-md bg-muted/40 border border-border">
             <div class="flex items-center justify-between">
-              <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Image</span>
+              <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Image</span>
               <template v-if="draftProviders[row.provider]?.image_model !== null">
                 <button
                   type="button"
@@ -146,11 +146,11 @@
                   />
                 </button>
               </template>
-              <span v-else class="font-cinzel text-[10px] tracking-wider text-muted-foreground/50 uppercase">N/A</span>
+              <span v-else class="font-cinzel text-2xs tracking-wider text-muted-foreground/50 uppercase">N/A</span>
             </div>
             <template v-if="draftProviders[row.provider]?.image_model !== null">
               <div class="space-y-1">
-                <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground">Model</label>
+                <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground">Model</label>
                 <input
                   v-model="draftProviders[row.provider].image_model"
                   :list="`image-models-${row.provider}`"
@@ -163,23 +163,23 @@
                 </datalist>
               </div>
               <div v-if="IMAGE_QUALITY_OPTIONS[row.provider]" class="space-y-1">
-                <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground">Quality</label>
+                <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground">Quality</label>
                 <div class="flex gap-1">
                   <button
                     v-for="opt in IMAGE_QUALITY_OPTIONS[row.provider]"
                     :key="opt.value"
                     type="button"
-                    class="flex-1 px-1.5 py-1 font-cinzel text-[10px] font-semibold tracking-wider rounded border transition-colors"
+                    class="flex-1 px-1.5 py-1 font-cinzel text-2xs font-semibold tracking-wider rounded border transition-colors"
                     :class="draftProviders[row.provider]?.image_quality === opt.value
                       ? 'bg-primary text-primary-foreground border-primary'
                       : 'bg-background text-muted-foreground border-border hover:text-foreground'"
                     @click="draftProviders[row.provider].image_quality = opt.value"
                   >{{ opt.label }}</button>
                 </div>
-                <p class="font-fell text-[9px] text-muted-foreground/60 italic">Higher = more output tokens = higher real cost.</p>
+                <p class="font-fell text-[0.5625rem] text-muted-foreground/60 italic">Higher = more output tokens = higher real cost.</p>
               </div>
               <div class="space-y-1">
-                <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground">Multiplier</label>
+                <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground">Multiplier</label>
                 <input
                   v-model.number="draftProviders[row.provider].image_multiplier"
                   type="number" step="0.1" min="0.1"
@@ -193,7 +193,7 @@
           <!-- Audio generation -->
           <div class="space-y-2 p-3 rounded-md bg-muted/40 border border-border">
             <div class="flex items-center justify-between">
-              <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Audio</span>
+              <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Audio</span>
               <template v-if="draftProviders[row.provider]?.audio_model !== null && draftProviders[row.provider]?.audio_model !== undefined">
                 <button
                   type="button"
@@ -207,18 +207,18 @@
                   />
                 </button>
               </template>
-              <span v-else class="font-cinzel text-[10px] tracking-wider text-muted-foreground/50 uppercase">N/A</span>
+              <span v-else class="font-cinzel text-2xs tracking-wider text-muted-foreground/50 uppercase">N/A</span>
             </div>
             <template v-if="draftProviders[row.provider]?.audio_model !== null && draftProviders[row.provider]?.audio_model !== undefined">
               <div class="space-y-1">
-                <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground">Models</label>
+                <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground">Models</label>
                 <!-- Multiple known models: show as static list; user selects in the app UI -->
                 <template v-if="(KNOWN_AUDIO_MODELS[row.provider] ?? []).length > 1">
                   <div class="space-y-0.5">
                     <div
                       v-for="m in KNOWN_AUDIO_MODELS[row.provider]"
                       :key="m"
-                      class="font-mono text-[10px] text-muted-foreground px-2 py-1 rounded bg-muted/30"
+                      class="font-mono text-2xs text-muted-foreground px-2 py-1 rounded bg-muted/30"
                     >{{ m }}</div>
                   </div>
                 </template>
@@ -237,7 +237,7 @@
                 </template>
               </div>
               <div class="space-y-1">
-                <label class="block font-cinzel text-[10px] tracking-wider text-muted-foreground">Multiplier</label>
+                <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground">Multiplier</label>
                 <input
                   v-model.number="draftProviders[row.provider].audio_multiplier"
                   type="number" step="0.1" min="0.1"
@@ -251,7 +251,7 @@
 
         <!-- Model API Costs -->
         <div v-if="modelsByProvider[row.provider]?.length" class="border-t border-border pt-4 space-y-2">
-          <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Model API Costs</span>
+          <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Model API Costs</span>
           <div class="space-y-1.5">
             <div
               v-for="m in modelsByProvider[row.provider]"
@@ -261,7 +261,7 @@
               <!-- Model name + type badge -->
               <span class="font-mono text-xs text-foreground truncate w-36 shrink-0">{{ m.model }}</span>
               <span
-                class="font-cinzel text-[9px] tracking-wider px-1.5 py-0.5 rounded shrink-0"
+                class="font-cinzel text-[0.5625rem] tracking-wider px-1.5 py-0.5 rounded shrink-0"
                 :class="{
                   'text-sky-400 bg-sky-400/10':    m.model_type === 'text',
                   'text-violet-400 bg-violet-400/10': m.model_type === 'image',
@@ -272,62 +272,62 @@
               <!-- Cost fields -->
               <template v-if="m.model_type === 'text'">
                 <div class="flex items-center gap-1 shrink-0">
-                  <span class="font-cinzel text-[9px] text-muted-foreground">TXT-IN $</span>
+                  <span class="font-cinzel text-[0.5625rem] text-muted-foreground">TXT-IN $</span>
                   <input
                     type="text" inputmode="decimal"
                     :value="draftModelPricing[m.model].input_cost_per_million_tokens ?? ''"
                     @blur="(e) => setDecimal(draftModelPricing[m.model], 'input_cost_per_million_tokens', e)"
                     class="w-16 bg-background border border-border rounded px-1.5 py-0.5 font-mono text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
                   />
-                  <span class="font-cinzel text-[9px] text-muted-foreground">/M</span>
+                  <span class="font-cinzel text-[0.5625rem] text-muted-foreground">/M</span>
                 </div>
                 <div class="flex items-center gap-1 shrink-0">
-                  <span class="font-cinzel text-[9px] text-muted-foreground">OUT $</span>
+                  <span class="font-cinzel text-[0.5625rem] text-muted-foreground">OUT $</span>
                   <input
                     type="text" inputmode="decimal"
                     :value="draftModelPricing[m.model].output_cost_per_million_tokens ?? ''"
                     @blur="(e) => setDecimal(draftModelPricing[m.model], 'output_cost_per_million_tokens', e)"
                     class="w-16 bg-background border border-border rounded px-1.5 py-0.5 font-mono text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
                   />
-                  <span class="font-cinzel text-[9px] text-muted-foreground">/M</span>
+                  <span class="font-cinzel text-[0.5625rem] text-muted-foreground">/M</span>
                 </div>
               </template>
               <template v-else-if="m.model_type === 'image'">
                 <div class="flex items-center gap-1 shrink-0">
-                  <span class="font-cinzel text-[9px] text-muted-foreground">TXT-IN $</span>
+                  <span class="font-cinzel text-[0.5625rem] text-muted-foreground">TXT-IN $</span>
                   <input
                     type="text" inputmode="decimal"
                     :value="draftModelPricing[m.model].input_cost_per_million_tokens ?? ''"
                     @blur="(e) => setDecimal(draftModelPricing[m.model], 'input_cost_per_million_tokens', e)"
                     class="w-14 bg-background border border-border rounded px-1.5 py-0.5 font-mono text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
                   />
-                  <span class="font-cinzel text-[9px] text-muted-foreground">/M</span>
+                  <span class="font-cinzel text-[0.5625rem] text-muted-foreground">/M</span>
                 </div>
                 <div class="flex items-center gap-1 shrink-0">
-                  <span class="font-cinzel text-[9px] text-muted-foreground">IMG-IN $</span>
+                  <span class="font-cinzel text-[0.5625rem] text-muted-foreground">IMG-IN $</span>
                   <input
                     type="text" inputmode="decimal"
                     :value="draftModelPricing[m.model].image_input_cost_per_million_tokens ?? ''"
                     @blur="(e) => setDecimal(draftModelPricing[m.model], 'image_input_cost_per_million_tokens', e)"
                     class="w-14 bg-background border border-border rounded px-1.5 py-0.5 font-mono text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
                   />
-                  <span class="font-cinzel text-[9px] text-muted-foreground">/M</span>
+                  <span class="font-cinzel text-[0.5625rem] text-muted-foreground">/M</span>
                 </div>
                 <div class="flex items-center gap-1 shrink-0">
-                  <span class="font-cinzel text-[9px] text-muted-foreground">IMG-OUT $</span>
+                  <span class="font-cinzel text-[0.5625rem] text-muted-foreground">IMG-OUT $</span>
                   <input
                     type="text" inputmode="decimal"
                     :value="draftModelPricing[m.model].image_output_cost_per_million_tokens ?? ''"
                     @blur="(e) => setDecimal(draftModelPricing[m.model], 'image_output_cost_per_million_tokens', e)"
                     class="w-14 bg-background border border-border rounded px-1.5 py-0.5 font-mono text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
                   />
-                  <span class="font-cinzel text-[9px] text-muted-foreground">/M</span>
+                  <span class="font-cinzel text-[0.5625rem] text-muted-foreground">/M</span>
                 </div>
               </template>
               <template v-else>
                 <!-- audio: flat per-generation cost -->
                 <div class="flex items-center gap-1 shrink-0">
-                  <span class="font-cinzel text-[9px] text-muted-foreground">PER GEN $</span>
+                  <span class="font-cinzel text-[0.5625rem] text-muted-foreground">PER GEN $</span>
                   <input
                     type="text" inputmode="decimal"
                     :value="draftModelPricing[m.model].cost_per_image_usd ?? ''"
@@ -335,11 +335,11 @@
                     class="w-20 bg-background border border-border rounded px-1.5 py-0.5 font-mono text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
                   />
                 </div>
-                <span class="font-cinzel text-[9px] text-amber-400/60 shrink-0">est.</span>
+                <span class="font-cinzel text-[0.5625rem] text-amber-400/60 shrink-0">est.</span>
               </template>
 
               <!-- Usage (all-time) -->
-              <span class="flex-1 text-right font-fell text-[10px] text-muted-foreground/50 whitespace-nowrap min-w-24">
+              <span class="flex-1 text-right font-fell text-2xs text-muted-foreground/50 whitespace-nowrap min-w-24">
                 <template v-if="modelStatsByModel[m.model]">
                   {{ modelStatsByModel[m.model].count }} gen · ~${{ modelStatsByModel[m.model].estimated_cost_usd.toFixed(2) }}
                 </template>
@@ -347,13 +347,13 @@
               </span>
 
               <!-- Last verified -->
-              <span class="font-cinzel text-[9px] text-muted-foreground/40 shrink-0 text-right w-16">
+              <span class="font-cinzel text-[0.5625rem] text-muted-foreground/40 shrink-0 text-right w-16">
                 {{ draftModelPricing[m.model]?.last_verified_at ? new Date(draftModelPricing[m.model].last_verified_at!).toLocaleDateString() : 'never' }}
               </span>
 
               <!-- Save (marks verified) -->
               <button
-                class="px-2 py-0.5 font-cinzel text-[9px] font-semibold tracking-wider bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50 transition-opacity shrink-0"
+                class="px-2 py-0.5 font-cinzel text-[0.5625rem] font-semibold tracking-wider bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50 transition-opacity shrink-0"
                 :disabled="modelPricingSaving[m.model]"
                 @click="saveModelPricing(m.model, row.provider, m.model_type)"
               >

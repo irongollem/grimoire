@@ -11,7 +11,7 @@
       <p v-else-if="!members?.length" class="font-fell text-muted-foreground italic">
         No party members yet.
       </p>
-      <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">
+      <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(11.25rem,1fr))] gap-4">
 
         <!-- Group portrait card — spans 2 columns -->
         <div
@@ -104,7 +104,7 @@
           v-if="!filteredNpcs.length"
           class="font-fell text-sm text-muted-foreground italic"
         >No people match your filters.</p>
-        <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">
+        <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(11.25rem,1fr))] gap-4">
           <PlayerNpcCard
             v-for="npc in filteredNpcs"
             :key="npc.id"

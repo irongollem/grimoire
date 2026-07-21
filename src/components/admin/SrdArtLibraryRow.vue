@@ -104,7 +104,7 @@ function resolvedFocalPoint() {
       v-if="dragging"
       class="absolute inset-0 flex items-center justify-center pointer-events-none z-10"
     >
-      <span class="font-cinzel text-[10px] text-primary tracking-wide">Drop to upload</span>
+      <span class="font-cinzel text-2xs text-primary tracking-wide">Drop to upload</span>
     </div>
 
     <!-- main row -->
@@ -143,12 +143,12 @@ function resolvedFocalPoint() {
           class="font-cinzel text-xs font-semibold text-foreground truncate block text-left hover:text-primary hover:underline transition-colors w-full"
           @click.stop="emit('preview')"
         >{{ entity.name }}</button>
-        <span class="font-fell text-[10px] text-muted-foreground capitalize">{{ entity.subtitle }}</span>
+        <span class="font-fell text-2xs text-muted-foreground capitalize">{{ entity.subtitle }}</span>
       </div>
 
       <span
         v-if="errorMsg"
-        class="font-fell text-[10px] text-destructive truncate max-w-30"
+        class="font-fell text-2xs text-destructive truncate max-w-30"
         :title="errorMsg"
       >
         {{ errorMsg }}
@@ -161,7 +161,7 @@ function resolvedFocalPoint() {
         />
         <template v-else>
           <button
-            class="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-cinzel tracking-wide border transition-colors"
+            class="flex items-center gap-1 px-2 py-1 rounded text-[0.6875rem] font-cinzel tracking-wide border transition-colors"
             :class="
               status === 'error'
                 ? 'border-destructive text-destructive hover:bg-destructive/10'

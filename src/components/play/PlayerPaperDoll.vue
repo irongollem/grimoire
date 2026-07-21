@@ -23,7 +23,7 @@
         />
         <!-- NECK -->
         <SlotButton
-          style="top: 34px; left: 50%; transform: translateX(-50%)"
+          style="top: 2.125rem; left: 50%; transform: translateX(-50%)"
           :item="slotItem('neck')"
           :disabled="!slotItem('neck') && !canEquipSlot('neck')"
           label="Neck"
@@ -31,7 +31,7 @@
         />
         <!-- SHOULDERS -->
         <SlotButton
-          style="top: 40px; left: -10px"
+          style="top: 2.5rem; left: -0.625rem"
           :item="slotItem('shoulders')"
           :disabled="!slotItem('shoulders') && !canEquipSlot('shoulders')"
           label="Shldr"
@@ -39,7 +39,7 @@
         />
         <!-- BODY -->
         <SlotButton
-          style="top: 66px; left: 50%; transform: translateX(-50%)"
+          style="top: 4.125rem; left: 50%; transform: translateX(-50%)"
           :item="slotItem('body')"
           :disabled="!slotItem('body') && !canEquipSlot('body')"
           label="Body"
@@ -47,7 +47,7 @@
         />
         <!-- HANDS -->
         <SlotButton
-          style="top: 116px; right: -10px"
+          style="top: 7.25rem; right: -0.625rem"
           :item="slotItem('hands')"
           :disabled="!slotItem('hands') && !canEquipSlot('hands')"
           label="Gloves"
@@ -55,7 +55,7 @@
         />
         <!-- RING (left) -->
         <SlotButton
-          style="top: 132px; left: -12px"
+          style="top: 8.25rem; left: -0.75rem"
           :item="slotItem('ring')"
           :disabled="!slotItem('ring') && !canEquipSlot('ring')"
           label="Ring"
@@ -63,7 +63,7 @@
         />
         <!-- WAIST -->
         <SlotButton
-          style="top: 106px; left: 50%; transform: translateX(-50%)"
+          style="top: 6.625rem; left: 50%; transform: translateX(-50%)"
           :item="slotItem('waist')"
           :disabled="!slotItem('waist') && !canEquipSlot('waist')"
           label="Waist"
@@ -71,7 +71,7 @@
         />
         <!-- CLOTHES (legs) -->
         <SlotButton
-          style="top: 148px; right: -10px"
+          style="top: 9.25rem; right: -0.625rem"
           :item="slotItem('clothes')"
           :warn="!slotItem('clothes') && canEquipSlot('clothes')"
           :disabled="!slotItem('clothes') && !canEquipSlot('clothes')"
@@ -80,7 +80,7 @@
         />
         <!-- FEET -->
         <SlotButton
-          style="bottom: 2px; left: 50%; transform: translateX(-50%)"
+          style="bottom: 0.125rem; left: 50%; transform: translateX(-50%)"
           :item="slotItem('feet')"
           :disabled="!slotItem('feet') && !canEquipSlot('feet')"
           label="Boots"

@@ -26,7 +26,7 @@
     </div>
 
     <template v-else-if="hero">
-      <div class="grid grid-cols-1 gap-8 lg:grid-cols-[280px_1fr]">
+      <div class="grid grid-cols-1 gap-8 lg:grid-cols-[17.5rem_1fr]">
         <!-- Left column: portrait + identity -->
         <div class="space-y-4">
           <!-- Portrait -->
@@ -51,7 +51,7 @@
           <dl class="space-y-2 text-sm">
             <div v-if="hero.race">
               <dt
-                class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase"
+                class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase"
               >
                 Species
               </dt>
@@ -59,7 +59,7 @@
             </div>
             <div v-if="hero.alignment">
               <dt
-                class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase"
+                class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase"
               >
                 Alignment
               </dt>
@@ -67,7 +67,7 @@
             </div>
             <div v-if="hero.occupation">
               <dt
-                class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase"
+                class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase"
               >
                 Occupation
               </dt>
@@ -75,7 +75,7 @@
             </div>
             <div v-if="hero.age">
               <dt
-                class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase"
+                class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase"
               >
                 Age
               </dt>
@@ -83,7 +83,7 @@
             </div>
             <div>
               <dt
-                class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase"
+                class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase"
               >
                 Status
               </dt>
@@ -96,7 +96,7 @@
             </div>
             <div>
               <dt
-                class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase"
+                class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase"
               >
                 Setting
               </dt>

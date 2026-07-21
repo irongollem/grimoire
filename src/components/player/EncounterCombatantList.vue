@@ -240,7 +240,7 @@ function hpLabel(c: RunCombatant): string {
   align-items: center;
   justify-content: center;
   font-family: var(--font-cinzel, serif);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 700;
 }
 

@@ -37,21 +37,21 @@
 
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2 w-full max-w-2xl text-left">
       <div class="rounded-lg border border-border bg-card p-3 space-y-1">
-        <p class="font-cinzel text-[10px] tracking-widest uppercase text-primary">Features</p>
+        <p class="font-cinzel text-2xs tracking-widest uppercase text-primary">Features</p>
         <p class="font-fell text-xs text-muted-foreground">
           Names of class features granted at each level (e.g. "Dread Ambusher" at level 3).
           These appear in the level-up summary.
         </p>
       </div>
       <div class="rounded-lg border border-border bg-card p-3 space-y-1">
-        <p class="font-cinzel text-[10px] tracking-widest uppercase text-primary">Wizard Steps</p>
+        <p class="font-cinzel text-2xs tracking-widest uppercase text-primary">Wizard Steps</p>
         <p class="font-fell text-xs text-muted-foreground">
           Choices shown to the player during level-up — e.g. pick a fighting style or a bonus spell.
           Results are saved in class_choices.
         </p>
       </div>
       <div class="rounded-lg border border-border bg-card p-3 space-y-1">
-        <p class="font-cinzel text-[10px] tracking-widest uppercase text-primary">Resource Pools</p>
+        <p class="font-cinzel text-2xs tracking-widest uppercase text-primary">Resource Pools</p>
         <p class="font-fell text-xs text-muted-foreground">
           Tracked uses that appear on the character sheet — e.g. Rage uses, Ki points, Channel
           Divinity. Set how they scale and which rest recharges them.

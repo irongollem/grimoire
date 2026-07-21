@@ -8,7 +8,7 @@
     <span
       v-for="cond in nonExhaustionConditions"
       :key="cond"
-      class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-destructive/10 border border-destructive/30 font-cinzel text-[10px] font-semibold text-destructive"
+      class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-destructive/10 border border-destructive/30 font-cinzel text-2xs font-semibold text-destructive"
       :title="getConditionDescription(cond)"
     >
       {{ cond }}
@@ -18,7 +18,7 @@
     <span
       v-for="curse in member.curses"
       :key="curse"
-      class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-500/10 border border-violet-500/30 font-cinzel text-[10px] font-semibold text-violet-400"
+      class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-500/10 border border-violet-500/30 font-cinzel text-2xs font-semibold text-violet-400"
     >
       Cursed: {{ curse }}
       <button type="button" class="hover:text-violet-400/60 transition-colors" @click="removeCurse(curse)">×</button>
@@ -29,13 +29,13 @@
         :ref="(el) => { if (el) curseInputEl = el as HTMLInputElement }"
         v-model="curseInputText"
         placeholder="Curse name…"
-        class="px-2 py-0.5 rounded-full border border-violet-500/50 bg-violet-500/10 font-cinzel text-[10px] text-violet-400 placeholder:text-violet-400/40 focus:outline-none w-32"
+        class="px-2 py-0.5 rounded-full border border-violet-500/50 bg-violet-500/10 font-cinzel text-2xs text-violet-400 placeholder:text-violet-400/40 focus:outline-none w-32"
         @keydown.enter.prevent="addCurse"
         @keydown.escape="curseInputOpen = false"
       />
       <button
         type="button"
-        class="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full border border-violet-500/50 font-cinzel text-[10px] text-violet-400 hover:bg-violet-500/20 transition-colors"
+        class="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full border border-violet-500/50 font-cinzel text-2xs text-violet-400 hover:bg-violet-500/20 transition-colors"
         @click="addCurse"
       >Add</button>
     </template>
@@ -43,7 +43,7 @@
     <div class="relative">
       <button
         type="button"
-        class="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full border border-dashed border-muted-foreground/40 font-cinzel text-[10px] text-muted-foreground hover:border-primary/50 hover:text-primary transition-colors"
+        class="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full border border-dashed border-muted-foreground/40 font-cinzel text-2xs text-muted-foreground hover:border-primary/50 hover:text-primary transition-colors"
         @click="toggleDropdown"
       >
         <IconAdd class="h-2.5 w-2.5" /> Condition
@@ -58,14 +58,14 @@
           v-for="cond in availableConditions"
           :key="cond"
           type="button"
-          class="w-full text-left px-2 py-1 rounded font-cinzel text-[11px] text-foreground hover:bg-muted transition-colors"
+          class="w-full text-left px-2 py-1 rounded font-cinzel text-[0.6875rem] text-foreground hover:bg-muted transition-colors"
           :title="getConditionDescription(cond)"
           @click="addCondition(cond)"
         >{{ cond }}</button>
         <div class="border-t border-border mt-1 pt-1">
           <button
             type="button"
-            class="w-full text-left px-2 py-1 rounded font-cinzel text-[11px] text-violet-400 hover:bg-muted transition-colors"
+            class="w-full text-left px-2 py-1 rounded font-cinzel text-[0.6875rem] text-violet-400 hover:bg-muted transition-colors"
             @click="openCurseInput"
           >Cursed…</button>
         </div>

@@ -81,14 +81,14 @@
             </div>
 
             <span
-              class="absolute top-2 left-2 rounded-full bg-black/60 px-2 py-0.5 font-cinzel text-[10px] font-semibold tracking-wider text-white uppercase backdrop-blur-sm"
+              class="absolute top-2 left-2 rounded-full bg-black/60 px-2 py-0.5 font-cinzel text-2xs font-semibold tracking-wider text-white uppercase backdrop-blur-sm"
             >
               {{ settingLabel(hero.setting) }}
             </span>
 
             <span
               v-if="campaignSetting && hero.setting === campaignSetting"
-              class="absolute top-2 right-2 rounded-full bg-primary/80 px-1.5 py-0.5 font-cinzel text-[9px] font-semibold tracking-wider text-primary-foreground uppercase backdrop-blur-sm"
+              class="absolute top-2 right-2 rounded-full bg-primary/80 px-1.5 py-0.5 font-cinzel text-[0.5625rem] font-semibold tracking-wider text-primary-foreground uppercase backdrop-blur-sm"
               title="Matches your campaign's setting"
             >
               ✦
@@ -104,9 +104,9 @@
               <span
                 v-for="tag in hero.tags.slice(0, 3)"
                 :key="tag"
-                class="rounded-full bg-muted px-2 py-0.5 font-fell text-[10px] text-muted-foreground"
+                class="rounded-full bg-muted px-2 py-0.5 font-fell text-2xs text-muted-foreground"
               >{{ tag }}</span>
-              <span v-if="hero.tags.length > 3" class="font-fell text-[10px] text-muted-foreground">+{{ hero.tags.length - 3 }}</span>
+              <span v-if="hero.tags.length > 3" class="font-fell text-2xs text-muted-foreground">+{{ hero.tags.length - 3 }}</span>
             </div>
           </div>
         </RouterLink>
@@ -116,7 +116,7 @@
             type="button"
             :disabled="!hasCampaign || isImporting === hero.id"
             :title="hasCampaign ? 'Add to current campaign' : 'No active campaign'"
-            class="flex-1 rounded-md bg-primary/10 px-2 py-1.5 font-cinzel text-[11px] font-semibold text-primary hover:bg-primary/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            class="flex-1 rounded-md bg-primary/10 px-2 py-1.5 font-cinzel text-[0.6875rem] font-semibold text-primary hover:bg-primary/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             @click="handleImport(hero)"
           >
             {{ isImporting === hero.id ? 'Adding…' : 'Add to Campaign' }}

@@ -61,7 +61,7 @@
                 {{ spell.name }}
               </h3>
               <span
-                class="shrink-0 px-1.5 py-0.5 rounded font-cinzel text-[10px] font-bold tracking-wider text-white whitespace-nowrap"
+                class="shrink-0 px-1.5 py-0.5 rounded font-cinzel text-2xs font-bold tracking-wider text-white whitespace-nowrap"
                 :style="{ backgroundColor: SCHOOL_COLORS[spell.school] }"
               >
                 {{ spell.level === 0 ? "C" : spell.level }}
@@ -75,13 +75,13 @@
             </p>
 
             <!-- Cast time + range -->
-            <div class="flex gap-3 font-cinzel text-[11px] text-muted-foreground">
+            <div class="flex gap-3 font-cinzel text-[0.6875rem] text-muted-foreground">
               <span><span class="text-foreground font-bold">Cast</span> {{ spell.casting_time }}</span>
               <span><span class="text-foreground font-bold">Range</span> {{ spell.range }}</span>
             </div>
 
             <!-- Components -->
-            <p class="font-cinzel text-[11px] text-muted-foreground">
+            <p class="font-cinzel text-[0.6875rem] text-muted-foreground">
               <span class="text-foreground font-bold">Components</span>
               {{ spell.components.join(", ") || "—" }}
               <span v-if="spell.concentration"> · <em class="text-primary">Conc.</em></span>
@@ -90,7 +90,7 @@
             <!-- Classes -->
             <p
               v-if="spell.classes.length"
-              class="font-fell text-[11px] text-muted-foreground truncate"
+              class="font-fell text-[0.6875rem] text-muted-foreground truncate"
             >
               {{ spell.classes.join(", ") }}
             </p>
@@ -100,7 +100,7 @@
               <span
                 v-for="tag in spell.tags.slice(0, 3)"
                 :key="tag"
-                class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground tracking-wider"
+                class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground tracking-wider"
               >
                 {{ tag }}
               </span>
@@ -112,14 +112,14 @@
               :href="spell.source_url"
               target="_blank"
               rel="noopener noreferrer"
-              class="relative z-10 mt-auto font-cinzel text-[9px] text-muted-foreground/60 hover:text-muted-foreground truncate transition-colors"
+              class="relative z-10 mt-auto font-cinzel text-[0.5625rem] text-muted-foreground/60 hover:text-muted-foreground truncate transition-colors"
               @click.stop
             >
               {{ spell.source_title ?? spell.source ?? "SRD" }}
             </a>
             <span
               v-else-if="spell.source_title || spell.source"
-              class="mt-auto font-cinzel text-[9px] text-muted-foreground/60 truncate"
+              class="mt-auto font-cinzel text-[0.5625rem] text-muted-foreground/60 truncate"
             >
               {{ spell.source_title ?? spell.source }}
             </span>
@@ -129,7 +129,7 @@
           <RouterLink
             v-if="!props.playerMemberId && !isSharedContent(spell)"
             :to="`/spells/${spell.id}?edit=true`"
-            class="absolute top-2 left-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
+            class="absolute top-2 left-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 font-cinzel text-2xs font-semibold tracking-wider text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
             title="Edit spell"
           >
             <IconEdit class="max-md:h-4 max-md:w-4 h-3 w-3" />
@@ -140,7 +140,7 @@
           <template v-if="showLearnButton">
             <button
               v-if="!isKnown(spell.id)"
-              class="absolute bottom-2 right-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider text-white bg-primary/80 hover:bg-primary [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-40 cursor-pointer"
+              class="absolute bottom-2 right-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 font-cinzel text-2xs font-semibold tracking-wider text-white bg-primary/80 hover:bg-primary [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-40 cursor-pointer"
               :disabled="isAdding || isChanging"
               @click.prevent.stop="handleLearn(spell)"
             >
@@ -149,7 +149,7 @@
             </button>
             <button
               v-else
-              class="absolute bottom-2 right-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-40 cursor-pointer"
+              class="absolute bottom-2 right-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 font-cinzel text-2xs font-semibold tracking-wider bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-40 cursor-pointer"
               :class="isRemoving ? 'text-muted-foreground' : 'text-emerald-400 hover:text-red-400'"
               :disabled="isRemoving"
               :title="props.casterType === 'prepared' ? 'Unprepare' : 'Remove from spellbook'"

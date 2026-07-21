@@ -53,7 +53,7 @@
           :key="entity.type"
           class="flex flex-col gap-1.5"
         >
-          <p class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
+          <p class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">
             {{ entity.label }}
           </p>
 
@@ -91,7 +91,7 @@
           <!-- Coordinates -->
           <p
             v-if="placeholderFocalPoints[entity.type]"
-            class="font-cinzel text-[9px] text-muted-foreground/60 tracking-wider text-center"
+            class="font-cinzel text-[0.5625rem] text-muted-foreground/60 tracking-wider text-center"
           >
             {{ placeholderFocalPoints[entity.type].x }}%, {{ placeholderFocalPoints[entity.type].y }}%
           </p>

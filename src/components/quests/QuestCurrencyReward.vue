@@ -7,7 +7,7 @@
       <button
         v-if="!isNew && hasAny"
         type="button"
-        class="inline-flex items-center gap-1 font-cinzel text-[10px] font-semibold text-amber-400 hover:opacity-80 transition-opacity tracking-wider"
+        class="inline-flex items-center gap-1 font-cinzel text-2xs font-semibold text-amber-400 hover:opacity-80 transition-opacity tracking-wider"
         @click="$emit('drop-to-chat')"
       >
         <IconCoins class="h-3 w-3" />
@@ -21,7 +21,7 @@
         class="flex flex-col gap-0.5"
       >
         <label
-          class="font-cinzel text-[9px] font-semibold tracking-wider text-center"
+          class="font-cinzel text-[0.5625rem] font-semibold tracking-wider text-center"
           :style="{ color: coin.color }"
         >
           {{ coin.label }}

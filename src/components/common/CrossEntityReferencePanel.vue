@@ -30,7 +30,7 @@
         >{{ entity.name }}</component>
         <button
           type="button"
-          class="font-cinzel text-[10px] tracking-wider text-muted-foreground hover:text-destructive transition-colors shrink-0"
+          class="font-cinzel text-2xs tracking-wider text-muted-foreground hover:text-destructive transition-colors shrink-0"
           :title="`Remove ${entity.name}`"
           @click="onRemove(entity.id)"
         >×</button>

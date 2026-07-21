@@ -13,7 +13,7 @@
       v-if="open"
       class="absolute bottom-full left-0 right-0 mb-2 rounded-lg border border-border bg-card shadow-lg p-3 space-y-2 z-50"
     >
-      <p class="font-cinzel text-[10px] font-semibold text-muted-foreground tracking-wider">
+      <p class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider">
         IconSend Announcement
       </p>
       <textarea
@@ -31,7 +31,7 @@
         >Cancel</button>
         <button
           :disabled="!text.trim() || sending"
-          class="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1 font-cinzel text-[10px] font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
+          class="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1 font-cinzel text-2xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
           @click="send"
         >
           <IconSend class="h-3 w-3" />

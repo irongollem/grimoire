@@ -32,7 +32,7 @@
           <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Set In-Game Today</p>
           <div class="grid grid-cols-3 gap-1.5">
             <div class="flex flex-col gap-0.5">
-              <label class="font-cinzel text-[10px] text-muted-foreground tracking-wider">Month</label>
+              <label class="font-cinzel text-2xs text-muted-foreground tracking-wider">Month</label>
               <input
                 v-model.number="todayForm.month"
                 type="number"
@@ -42,7 +42,7 @@
               />
             </div>
             <div class="flex flex-col gap-0.5">
-              <label class="font-cinzel text-[10px] text-muted-foreground tracking-wider">Day</label>
+              <label class="font-cinzel text-2xs text-muted-foreground tracking-wider">Day</label>
               <input
                 v-model.number="todayForm.day"
                 type="number"
@@ -52,7 +52,7 @@
               />
             </div>
             <div class="flex flex-col gap-0.5">
-              <label class="font-cinzel text-[10px] text-muted-foreground tracking-wider">Year</label>
+              <label class="font-cinzel text-2xs text-muted-foreground tracking-wider">Year</label>
               <input
                 v-model.number="todayForm.year"
                 type="number"

@@ -32,12 +32,12 @@
     <div class="flex items-center gap-3 flex-wrap">
       <button
         type="button"
-        class="font-cinzel text-[10px] text-muted-foreground hover:text-foreground tracking-wider transition-colors"
+        class="font-cinzel text-2xs text-muted-foreground hover:text-foreground tracking-wider transition-colors"
         @click="addRow"
       >
         + Add damage
       </button>
-      <span v-if="totalAvg > 0" class="font-fell text-[11px] text-muted-foreground">
+      <span v-if="totalAvg > 0" class="font-fell text-[0.6875rem] text-muted-foreground">
         Avg: {{ Math.round(totalAvg) }}
       </span>
     </div>
@@ -52,7 +52,7 @@
       />
       <button
         type="button"
-        class="font-cinzel text-[10px] text-primary hover:opacity-80 tracking-wider transition-opacity shrink-0"
+        class="font-cinzel text-2xs text-primary hover:opacity-80 tracking-wider transition-opacity shrink-0"
         @click="parseAndApply"
       >
         Parse →

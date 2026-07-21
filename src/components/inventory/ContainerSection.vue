@@ -10,7 +10,7 @@
       <button class="flex items-center gap-1.5 flex-1 text-left" @click="open = !open">
         <IconChevronRight class="h-3 w-3 text-muted-foreground transition-transform" :class="open ? 'rotate-90' : ''" />
         <span class="font-cinzel text-xs font-semibold text-foreground tracking-wider">{{ label }}</span>
-        <span class="font-cinzel text-[9px] text-muted-foreground/60 ml-1">
+        <span class="font-cinzel text-[0.5625rem] text-muted-foreground/60 ml-1">
           ({{ items.length }}<template v-if="weight != null"> · {{ formatWeightLb(weight) }}</template>)
         </span>
       </button>
@@ -21,12 +21,12 @@
         @click.stop="$emit('open-detail', container)"
       ><IconInfo class="h-3 w-3" /></button>
       <button
-        class="font-cinzel text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+        class="font-cinzel text-2xs text-muted-foreground hover:text-foreground transition-colors"
         @click="showAdd = !showAdd"
       >+ Add</button>
       <button
         v-if="removable"
-        class="font-cinzel text-[10px] text-destructive/60 hover:text-destructive transition-colors ml-1"
+        class="font-cinzel text-2xs text-destructive/60 hover:text-destructive transition-colors ml-1"
         @click="$emit('remove-container')"
       >Remove</button>
     </div>
@@ -62,10 +62,10 @@
           </div>
           <div v-if="showSuggestions" class="fixed inset-0 z-10" @click="showSuggestions = false" />
         </div>
-        <button type="submit" class="px-2 py-1 bg-primary text-primary-foreground rounded font-cinzel text-[10px] tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50" :disabled="!addSelectedId">
+        <button type="submit" class="px-2 py-1 bg-primary text-primary-foreground rounded font-cinzel text-2xs tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50" :disabled="!addSelectedId">
           Add
         </button>
-        <button type="button" class="font-cinzel text-[10px] text-muted-foreground hover:text-foreground" @click="showAdd = false">✕</button>
+        <button type="button" class="font-cinzel text-2xs text-muted-foreground hover:text-foreground" @click="showAdd = false">✕</button>
       </form>
 
       <VueDraggable v-model="localItems" group="inventory" handle=".drag-handle" :animation="150" @end="onEnd" @add="onCrossAdd">

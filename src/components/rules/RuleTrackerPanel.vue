@@ -2,17 +2,17 @@
   <div class="flex flex-col gap-1.5">
     <!-- Label + current level name -->
     <div class="flex items-center justify-between gap-2">
-      <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
+      <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">
         {{ tracker.label }}
       </span>
       <span
         v-if="tracker.type === 'level' && currentLevel"
-        class="font-cinzel text-[10px] font-semibold tracking-wider px-1.5 py-0.5 rounded"
+        class="font-cinzel text-2xs font-semibold tracking-wider px-1.5 py-0.5 rounded"
         :class="levelColorClass(currentLevel.color)"
       >
         {{ currentLevel.label }}
       </span>
-      <span v-else-if="tracker.type === 'points'" class="font-cinzel text-[10px] text-muted-foreground">
+      <span v-else-if="tracker.type === 'points'" class="font-cinzel text-2xs text-muted-foreground">
         {{ value }} / {{ tracker.max }}
       </span>
     </div>
@@ -38,7 +38,7 @@
       <span
         v-for="(effect, i) in activeEffects"
         :key="i"
-        class="font-fell text-[10px] italic text-destructive/80"
+        class="font-fell text-2xs italic text-destructive/80"
       >
         {{ effectLabel(effect) }}
       </span>

@@ -118,7 +118,7 @@
     <div v-if="backgroundFeat" class="rounded-lg border border-amber-500/30 bg-amber-500/5 overflow-hidden">
       <div class="px-4 py-2.5 border-b border-amber-500/20 bg-amber-500/10 flex items-center gap-2">
         <p class="font-cinzel text-xs font-semibold text-amber-600 dark:text-amber-400 tracking-wider">Background Feat</p>
-        <span class="font-cinzel text-[10px] text-amber-600/60 dark:text-amber-400/60 tracking-wider">2024 PHB</span>
+        <span class="font-cinzel text-2xs text-amber-600/60 dark:text-amber-400/60 tracking-wider">2024 PHB</span>
       </div>
       <div class="px-4 py-3">
         <p class="font-cinzel text-sm font-bold text-foreground">{{ backgroundFeat }}</p>

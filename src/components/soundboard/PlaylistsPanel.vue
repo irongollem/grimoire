@@ -13,8 +13,8 @@
       >
         <IconAdd class="h-3.5 w-3.5" />
         New Playlist
-        <span v-if="playlistQuota && !playlistQuota.unlimited" class="font-fell text-[10px] tabular-nums opacity-60">{{ playlistQuota.current }}/{{ playlistQuota.limit }}</span>
-        <span v-if="!canCreatePlaylist" class="absolute -top-1.5 -right-1.5 px-1 rounded text-[9px] font-cinzel bg-amber-500 text-black leading-4">PRO</span>
+        <span v-if="playlistQuota && !playlistQuota.unlimited" class="font-fell text-2xs tabular-nums opacity-60">{{ playlistQuota.current }}/{{ playlistQuota.limit }}</span>
+        <span v-if="!canCreatePlaylist" class="absolute -top-1.5 -right-1.5 px-1 rounded text-[0.5625rem] font-cinzel bg-amber-500 text-black leading-4">PRO</span>
       </button>
     </div>
 

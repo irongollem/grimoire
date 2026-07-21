@@ -86,8 +86,8 @@
           class="absolute inset-0 z-20 flex flex-col items-center justify-center gap-1.5 bg-background/80 backdrop-blur-sm"
         >
           <IconLock class="h-4 w-4 text-muted-foreground" />
-          <p class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground">Locked</p>
-          <RouterLink to="/billing" class="font-cinzel text-[9px] tracking-wider text-primary/80 hover:text-primary transition-colors">
+          <p class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground">Locked</p>
+          <RouterLink to="/billing" class="font-cinzel text-[0.5625rem] tracking-wider text-primary/80 hover:text-primary transition-colors">
             Upgrade to access
           </RouterLink>
         </div>
@@ -103,7 +103,7 @@
             class="group-hover:scale-105 transition-transform duration-300"
           />
           <span
-            class="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[10px] font-cinzel font-bold tracking-wider uppercase text-white"
+            class="absolute top-2 right-2 px-1.5 py-0.5 rounded text-2xs font-cinzel font-bold tracking-wider uppercase text-white"
             :style="{ backgroundColor: relColor(npc.relationship) + 'EE' }"
           >
             {{ npc.relationship }}
@@ -143,13 +143,13 @@
             <span
               v-for="tag in npc.tags.slice(0, 3)"
               :key="tag"
-              class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground tracking-wider"
+              class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground tracking-wider"
             >
               {{ tag }}
             </span>
             <span
               v-if="npc.tags.length > 3"
-              class="font-fell text-[10px] text-muted-foreground italic self-center"
+              class="font-fell text-2xs text-muted-foreground italic self-center"
             >
               +{{ npc.tags.length - 3 }}
             </span>
@@ -160,7 +160,7 @@
         <div class="absolute top-2 left-2 z-10 flex items-center gap-1.5">
           <RouterLink
             :to="`/npcs/${npc.id}?edit=true`"
-            class="flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
+            class="flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 font-cinzel text-2xs font-semibold tracking-wider text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
             title="Edit NPC"
           >
             <IconEdit class="max-md:h-4 max-md:w-4 h-3 w-3" />
@@ -168,7 +168,7 @@
           </RouterLink>
           <button
             type="button"
-            class="flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:min-w-11 max-md:px-3 max-md:py-2 px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider transition-opacity cursor-pointer"
+            class="flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:min-w-11 max-md:px-3 max-md:py-2 px-2 py-1 font-cinzel text-2xs font-semibold tracking-wider transition-opacity cursor-pointer"
             :class="isShared(npc)
               ? 'text-primary bg-black/60 opacity-100'
               : 'text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100'"
@@ -204,7 +204,7 @@
         :style="popover.style"
         @mousedown.stop
       >
-        <p class="font-cinzel text-[10px] text-muted-foreground tracking-wider truncate">{{ popoverNpc.name }}</p>
+        <p class="font-cinzel text-2xs text-muted-foreground tracking-wider truncate">{{ popoverNpc.name }}</p>
 
         <!-- Whole party -->
         <button
@@ -241,7 +241,7 @@
 
         <!-- Field reveal — what the chosen players actually see -->
         <div v-if="isShared(popoverNpc)" class="border-t border-border pt-2 space-y-1">
-          <p class="font-cinzel text-[9px] tracking-widest text-muted-foreground px-1">REVEALED FIELDS</p>
+          <p class="font-cinzel text-[0.5625rem] tracking-widest text-muted-foreground px-1">REVEALED FIELDS</p>
           <label
             v-for="f in NPC_PLAYER_FIELDS"
             :key="f.key"
@@ -268,7 +268,7 @@
             <IconHide class="h-3 w-3 shrink-0" />
             Hide from all players
           </button>
-          <p v-else class="font-fell text-[10px] text-muted-foreground italic px-2">
+          <p v-else class="font-fell text-2xs text-muted-foreground italic px-2">
             Select players above to share.
           </p>
         </div>

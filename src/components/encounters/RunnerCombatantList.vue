@@ -54,7 +54,7 @@ const store = useEncounterRunStore();
   display: grid;
   grid-template-columns: 2.5rem 3.5rem 1fr 10rem 3rem 1fr;
   gap: 0.5rem;
-  @apply pr-3 py-1.5 font-cinzel text-[10px] tracking-wider text-muted-foreground border-b border-border bg-muted/30 items-center;
+  @apply pr-3 py-1.5 font-cinzel text-2xs tracking-wider text-muted-foreground border-b border-border bg-muted/30 items-center;
 }
 
 .combatant-header span:nth-child(2),

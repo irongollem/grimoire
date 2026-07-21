@@ -41,16 +41,16 @@
       >
         <div class="flex-1 min-w-0">
           <p class="font-cinzel text-xs font-semibold">{{ spell.name }}</p>
-          <p class="font-fell text-[11px] text-muted-foreground">
+          <p class="font-fell text-[0.6875rem] text-muted-foreground">
             {{ isCantrip ? 'Cantrip' : `Level ${spell.level}` }} · {{ spell.school }}
           </p>
         </div>
-        <span v-if="alreadyKnownIds.has(spell.id)" class="font-cinzel text-[10px] text-muted-foreground shrink-0">known</span>
-        <span v-else-if="selectedIds.has(spell.id)" class="font-cinzel text-[10px] text-primary shrink-0">✓</span>
+        <span v-if="alreadyKnownIds.has(spell.id)" class="font-cinzel text-2xs text-muted-foreground shrink-0">known</span>
+        <span v-else-if="selectedIds.has(spell.id)" class="font-cinzel text-2xs text-primary shrink-0">✓</span>
       </button>
     </div>
 
-    <p v-if="selectedIds.size < needed" class="font-cinzel text-[10px] text-muted-foreground tracking-wider">
+    <p v-if="selectedIds.size < needed" class="font-cinzel text-2xs text-muted-foreground tracking-wider">
       You can also add {{ isCantrip ? 'cantrips' : 'spells' }} later from your Spellbook tab.
     </p>
   </WizardStepCard>

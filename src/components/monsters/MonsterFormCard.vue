@@ -22,13 +22,13 @@
           <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight">{{ name }}</h3>
           <p v-if="monster" class="font-fell text-xs text-muted-foreground italic capitalize">{{ monster.size }} {{ monster.monster_type }}</p>
         </div>
-        <div v-if="monster" class="flex gap-3 font-cinzel text-[11px] text-muted-foreground">
+        <div v-if="monster" class="flex gap-3 font-cinzel text-[0.6875rem] text-muted-foreground">
           <template v-if="revealStats">
             <span><span class="text-foreground font-bold">AC</span> {{ monster.stat_block.armor_class }}</span>
             <span><span class="text-foreground font-bold">HP</span> {{ formatHitPoints(monster.stat_block.hit_points) }}</span>
           </template>
           <span
-            class="ml-auto px-1.5 py-0.5 rounded font-bold text-white text-[9px]"
+            class="ml-auto px-1.5 py-0.5 rounded font-bold text-white text-[0.5625rem]"
             :style="{ backgroundColor: crColor(monster.stat_block.challenge_rating) }"
           >CR {{ monster.stat_block.challenge_rating }}</span>
         </div>

@@ -277,7 +277,7 @@ function handleWildshape(monster: Monster) {
 
 .detail-portrait {
   @apply w-full rounded-md object-cover mb-1 overflow-hidden;
-  max-height: 200px;
+  max-height: 12.5rem;
 }
 
 .detail-meta {
@@ -297,7 +297,7 @@ function handleWildshape(monster: Monster) {
 }
 
 .detail-stat span {
-  @apply font-cinzel text-[9px] tracking-wider text-muted-foreground uppercase;
+  @apply font-cinzel text-[0.5625rem] tracking-wider text-muted-foreground uppercase;
 }
 
 .detail-stat strong {
@@ -313,7 +313,7 @@ function handleWildshape(monster: Monster) {
 }
 
 .detail-check-btn span {
-  @apply font-cinzel text-[9px] tracking-wider text-muted-foreground uppercase truncate;
+  @apply font-cinzel text-[0.5625rem] tracking-wider text-muted-foreground uppercase truncate;
 }
 
 .detail-check-btn em {
@@ -329,7 +329,7 @@ function handleWildshape(monster: Monster) {
 }
 
 .detail-section-label {
-  @apply font-cinzel text-[10px] font-bold tracking-wider text-muted-foreground uppercase mt-1;
+  @apply font-cinzel text-2xs font-bold tracking-wider text-muted-foreground uppercase mt-1;
 }
 
 .detail-notes {

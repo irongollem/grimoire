@@ -44,7 +44,7 @@
       <LoadingSpinner />
     </div>
 
-    <div v-else class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
+    <div v-else class="grid grid-cols-1 lg:grid-cols-[1fr_20rem] gap-6">
       <!-- ── Left: identity + entries ─────────────────────────────────────── -->
       <div class="flex flex-col gap-4">
 
@@ -55,10 +55,10 @@
 
           <!-- CR tier chip -->
           <div class="flex items-center gap-2">
-            <span class="font-cinzel text-[10px] font-semibold tracking-wider bg-muted/60 text-muted-foreground rounded px-2 py-0.5">
+            <span class="font-cinzel text-2xs font-semibold tracking-wider bg-muted/60 text-muted-foreground rounded px-2 py-0.5">
               {{ LOOT_CR_TIER_LABELS[table.cr_tier] }}
             </span>
-            <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider">{{ table.entries.length }} entries · {{ summaryDropPercent }}% expected hit rate</span>
+            <span class="font-cinzel text-2xs text-muted-foreground tracking-wider">{{ table.entries.length }} entries · {{ summaryDropPercent }}% expected hit rate</span>
           </div>
 
           <!-- Read-only entry list -->
@@ -74,12 +74,12 @@
                 class="rounded-md border border-border bg-card px-3 py-2 flex items-center gap-3"
               >
                 <!-- drop % badge -->
-                <span class="shrink-0 font-cinzel text-[10px] font-semibold tracking-wider bg-primary/10 text-primary rounded px-2 py-0.5">{{ entry.drop_chance ?? 100 }}%</span>
+                <span class="shrink-0 font-cinzel text-2xs font-semibold tracking-wider bg-primary/10 text-primary rounded px-2 py-0.5">{{ entry.drop_chance ?? 100 }}%</span>
                 <template v-if="(entry.type ?? 'item') === 'item'">
                   <span class="font-fell text-sm text-foreground flex-1 truncate">
                     {{ itemsById.get(entry.item_id ?? '')?.name ?? entry.item_id ?? '—' }}
                   </span>
-                  <span class="font-cinzel text-[10px] text-muted-foreground shrink-0">
+                  <span class="font-cinzel text-2xs text-muted-foreground shrink-0">
                     {{ entry.dice ?? entry.fixed_qty ?? 1 }}×
                   </span>
                 </template>
@@ -87,7 +87,7 @@
                   <span class="font-fell text-sm text-foreground flex-1 truncate">
                     {{ entry.currency_label || 'Currency' }}
                   </span>
-                  <span class="font-cinzel text-[10px] text-amber-400 shrink-0">
+                  <span class="font-cinzel text-2xs text-amber-400 shrink-0">
                     {{ formatCoinParts(entry.pp ?? 0, entry.gp ?? 0, entry.ep ?? 0, entry.sp ?? 0, entry.cp ?? 0).join(', ') || '—' }}
                   </span>
                 </template>
@@ -95,7 +95,7 @@
                   <span class="font-fell text-sm text-foreground flex-1 truncate">
                     Random {{ entry.rarity ? ITEM_RARITY_LABELS[entry.rarity as keyof typeof ITEM_RARITY_LABELS] : '' }}{{ entry.item_type_filter ? ` ${ITEM_TYPE_LABELS[entry.item_type_filter as keyof typeof ITEM_TYPE_LABELS]}` : '' }}
                   </span>
-                  <span class="font-cinzel text-[10px] text-muted-foreground shrink-0">
+                  <span class="font-cinzel text-2xs text-muted-foreground shrink-0">
                     {{ entry.dice ?? entry.fixed_qty ?? 1 }}×
                   </span>
                 </template>
@@ -108,19 +108,19 @@
             <span
               v-for="tag in table.tags"
               :key="tag"
-              class="font-cinzel text-[10px] tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
+              class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
             >{{ tag }}</span>
           </div>
 
           <!-- Linked monsters -->
           <div v-if="table.monster_ids?.length" class="flex flex-col gap-1.5">
-            <h3 class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Linked Monsters</h3>
+            <h3 class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Linked Monsters</h3>
             <div class="flex flex-wrap gap-1.5">
               <RouterLink
                 v-for="mid in table.monster_ids"
                 :key="mid"
                 :to="`/monsters/${mid}`"
-                class="inline-flex items-center gap-1 font-cinzel text-[10px] px-2 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
+                class="inline-flex items-center gap-1 font-cinzel text-2xs px-2 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
               >
                 <IconMonster class="h-2.5 w-2.5 shrink-0" />{{ monstersById.get(mid)?.name ?? mid }}
               </RouterLink>
@@ -133,9 +133,9 @@
 
         <!-- ── EDIT MODE ───────────────────────────────────────────────── -->
         <template v-else>
-        <div class="grid grid-cols-1 md:grid-cols-[1fr_180px] gap-3">
+        <div class="grid grid-cols-1 md:grid-cols-[1fr_11.25rem] gap-3">
           <div class="space-y-1.5">
-            <label class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Name</label>
+            <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Name</label>
             <input
               v-model="form.name"
               required
@@ -144,7 +144,7 @@
             />
           </div>
           <div class="space-y-1.5">
-            <label class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">CR Tier</label>
+            <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">CR Tier</label>
             <select
               v-model="form.cr_tier"
               class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -155,7 +155,7 @@
         </div>
 
         <div class="space-y-1.5">
-          <label class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Description</label>
+          <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Description</label>
           <textarea
             v-model="form.description"
             rows="2"
@@ -175,17 +175,17 @@
         />
 
         <div class="space-y-1.5">
-          <label class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Tags</label>
+          <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Tags</label>
           <TagInput v-model="form.tags" />
         </div>
 
         <div class="space-y-1.5">
-          <label class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Linked Monsters</label>
+          <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Linked Monsters</label>
           <div v-if="form.monster_ids.length" class="flex flex-wrap gap-1.5">
             <span
               v-for="mid in form.monster_ids"
               :key="mid"
-              class="inline-flex items-center gap-1 font-cinzel text-[10px] bg-muted/60 text-muted-foreground rounded px-2 py-0.5"
+              class="inline-flex items-center gap-1 font-cinzel text-2xs bg-muted/60 text-muted-foreground rounded px-2 py-0.5"
             >
               <IconMonster class="h-2.5 w-2.5 shrink-0" />{{ monstersById.get(mid)?.name ?? mid }}
               <button type="button" class="ml-0.5 hover:text-destructive transition-colors" @click="removeMonster(mid)">
@@ -202,7 +202,7 @@
         </div>
 
         <div class="space-y-1.5">
-          <label class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">DM Notes</label>
+          <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">DM Notes</label>
           <textarea
             v-model="form.notes"
             rows="3"
@@ -229,7 +229,7 @@
           </button>
 
           <div v-if="lastRoll" class="rounded-md border border-border bg-muted/40 p-3 flex flex-col gap-2">
-            <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">Drops</span>
+            <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">Drops</span>
             <ul v-if="lastRoll.length" class="flex flex-col gap-1.5">
               <li v-for="r in lastRoll" :key="r.entry_id" class="flex items-center gap-2">
                 <template v-if="r.type === 'item'">
@@ -255,7 +255,7 @@
             </p>
           </div>
 
-          <p class="font-fell text-[10px] text-muted-foreground italic">
+          <p class="font-fell text-2xs text-muted-foreground italic">
             {{ form.entries.length }} entries · {{ summaryDropPercent }}% expected hit rate
           </p>
 

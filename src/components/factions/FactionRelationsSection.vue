@@ -4,7 +4,7 @@
 
     <!-- Outgoing (we define these) -->
     <div class="flex flex-col gap-1.5">
-      <p class="font-cinzel text-[10px] tracking-wider text-muted-foreground">Our stance</p>
+      <p class="font-cinzel text-2xs tracking-wider text-muted-foreground">Our stance</p>
 
       <div v-for="rel in outgoing" :key="rel.id" class="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2">
         <span
@@ -14,7 +14,7 @@
         <RouterLink :to="`/factions/${rel.target_faction.id}`" class="font-cinzel text-xs font-semibold text-foreground hover:text-primary transition-colors flex-1 truncate">
           {{ rel.target_faction.name }}
         </RouterLink>
-        <span class="font-cinzel text-[10px] tracking-wider shrink-0" :style="{ color: meta(rel.relation_type).color }">
+        <span class="font-cinzel text-2xs tracking-wider shrink-0" :style="{ color: meta(rel.relation_type).color }">
           {{ meta(rel.relation_type).label }}
         </span>
         <button type="button" class="shrink-0 text-muted-foreground hover:text-destructive transition-colors text-base leading-none ml-1" @click="remove(rel)">×</button>
@@ -47,7 +47,7 @@
 
     <!-- Incoming (others define these, read-only here) -->
     <template v-if="incoming.length">
-      <p class="font-cinzel text-[10px] tracking-wider text-muted-foreground mt-1">How others see us</p>
+      <p class="font-cinzel text-2xs tracking-wider text-muted-foreground mt-1">How others see us</p>
       <div v-for="rel in incoming" :key="rel.id" class="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-3 py-2">
         <span
           class="shrink-0 h-2 w-2 rounded-full"
@@ -56,8 +56,8 @@
         <RouterLink :to="`/factions/${rel.source_faction.id}`" class="font-cinzel text-xs font-semibold text-foreground hover:text-primary transition-colors flex-1 truncate">
           {{ rel.source_faction.name }}
         </RouterLink>
-        <span class="font-cinzel text-[10px] tracking-wider shrink-0 italic text-muted-foreground">views us as</span>
-        <span class="font-cinzel text-[10px] tracking-wider shrink-0" :style="{ color: meta(rel.relation_type).color }">
+        <span class="font-cinzel text-2xs tracking-wider shrink-0 italic text-muted-foreground">views us as</span>
+        <span class="font-cinzel text-2xs tracking-wider shrink-0" :style="{ color: meta(rel.relation_type).color }">
           {{ meta(rel.relation_type).label }}
         </span>
       </div>

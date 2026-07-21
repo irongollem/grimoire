@@ -40,7 +40,7 @@
         <div class="flex items-center gap-3 mt-1.5">
           <label
             :for="inputId"
-            class="font-cinzel text-[10px] tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+            class="font-cinzel text-2xs tracking-wider text-muted-foreground hover:text-foreground transition-colors"
             :class="isUploading ? 'opacity-50 pointer-events-none cursor-default' : 'cursor-pointer'"
           >
             {{ isUploading ? "Uploading…" : "Change image" }}
@@ -48,7 +48,7 @@
           <span class="text-muted-foreground/40 text-xs">·</span>
           <button
             type="button"
-            class="font-cinzel text-[10px] text-destructive hover:opacity-80 transition-opacity tracking-wider"
+            class="font-cinzel text-2xs text-destructive hover:opacity-80 transition-opacity tracking-wider"
             @click="removeImage"
           >
             Remove
@@ -84,7 +84,7 @@
       </div>
       <button
         type="button"
-        class="mt-1 font-cinzel text-[10px] text-muted-foreground/50 hover:text-destructive tracking-wider transition-colors"
+        class="mt-1 font-cinzel text-2xs text-muted-foreground/50 hover:text-destructive tracking-wider transition-colors"
         @click="removeImage"
       >
         Remove

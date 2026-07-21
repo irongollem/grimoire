@@ -32,7 +32,7 @@
             @input="emit('update:ringColor', ($event.target as HTMLInputElement).value)"
           />
         </label>
-        <span class="font-cinzel text-[10px] text-muted-foreground tracking-wider ml-1">{{ ringColor.toUpperCase() }}</span>
+        <span class="font-cinzel text-2xs text-muted-foreground tracking-wider ml-1">{{ ringColor.toUpperCase() }}</span>
       </div>
     </div>
 
@@ -44,7 +44,7 @@
           v-for="w in RING_WIDTHS"
           :key="w.label"
           type="button"
-          class="px-3 py-1.5 rounded-md font-cinzel text-[11px] font-semibold tracking-wider border transition-colors"
+          class="px-3 py-1.5 rounded-md font-cinzel text-[0.6875rem] font-semibold tracking-wider border transition-colors"
           :class="ringWidth === w.value
             ? 'bg-primary/15 text-primary border-primary/40'
             : 'text-muted-foreground border-border hover:border-foreground/30'"
@@ -83,7 +83,7 @@
           v-for="s in EXPORT_SIZES"
           :key="s.value"
           type="button"
-          class="px-3 py-1.5 rounded-md font-cinzel text-[11px] font-semibold tracking-wider border transition-colors"
+          class="px-3 py-1.5 rounded-md font-cinzel text-[0.6875rem] font-semibold tracking-wider border transition-colors"
           :class="exportSize === s.value
             ? 'bg-primary/15 text-primary border-primary/40'
             : 'text-muted-foreground border-border hover:border-foreground/30'"

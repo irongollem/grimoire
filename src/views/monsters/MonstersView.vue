@@ -49,7 +49,7 @@
               <span class="font-fell text-sm text-foreground flex-1 min-w-0 truncate">
                 {{ src.source_title ?? src.source }}
               </span>
-              <span class="font-cinzel text-[10px] text-muted-foreground shrink-0">{{ src.count.toLocaleString() }}</span>
+              <span class="font-cinzel text-2xs text-muted-foreground shrink-0">{{ src.count.toLocaleString() }}</span>
             </label>
           </div>
         </div>

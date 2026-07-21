@@ -209,18 +209,18 @@
         @change="emit('update:generateAlterEgo', ($event.target as HTMLInputElement).checked)"
       />
       <span
-        class="font-cinzel text-[11px] font-semibold tracking-wider text-foreground"
+        class="font-cinzel text-[0.6875rem] font-semibold tracking-wider text-foreground"
         >Generate Alter Ego</span
       >
     </label>
     <p
       v-if="generateAlterEgo"
-      class="font-fell text-[11px] text-amber-500 italic"
+      class="font-fell text-[0.6875rem] text-amber-500 italic"
     >
       ⚠ Uses 2× generation credits — a true-form portrait is generated
       first, then used as seed for the disguise portrait.
     </p>
-    <p v-else class="font-fell text-[11px] text-muted-foreground italic">
+    <p v-else class="font-fell text-[0.6875rem] text-muted-foreground italic">
       Also generate a disguised identity (name + portrait) for this NPC.
     </p>
   </div>

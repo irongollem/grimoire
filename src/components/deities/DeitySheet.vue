@@ -1,5 +1,5 @@
 <template>
-  <div class="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-5">
+  <div class="grid grid-cols-1 lg:grid-cols-[15rem_1fr] gap-5">
     <!-- Left: portrait + meta -->
     <div class="flex flex-col gap-4">
       <!-- Divine portrait -->
@@ -34,7 +34,7 @@
         <!-- Pantheon -->
         <div v-if="pantheonName">
           <span
-            class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase"
+            class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase"
             >Pantheon</span
           >
           <RouterLink
@@ -51,7 +51,7 @@
         <!-- Alignment -->
         <div v-if="deity.alignment">
           <span
-            class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase"
+            class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase"
             >Alignment</span
           >
           <p class="font-fell text-sm text-foreground">{{ deity.alignment }}</p>
@@ -60,7 +60,7 @@
         <!-- Holy symbol description -->
         <div v-if="deity.symbol">
           <span
-            class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase"
+            class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase"
             >Holy Symbol</span
           >
           <p class="font-fell text-sm text-foreground">{{ deity.symbol }}</p>
@@ -69,7 +69,7 @@
         <!-- Portfolio -->
         <div v-if="deity.portfolio">
           <span
-            class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase"
+            class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase"
             >Portfolio</span
           >
           <p class="font-fell text-sm text-foreground">{{ deity.portfolio }}</p>
@@ -78,14 +78,14 @@
         <!-- Domains -->
         <div v-if="deity.domains?.length">
           <span
-            class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase"
+            class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase"
             >Cleric Domains</span
           >
           <div class="flex flex-wrap gap-1 mt-1">
             <span
               v-for="domain in deity.domains"
               :key="domain"
-              class="font-cinzel text-[10px] tracking-wider bg-primary/10 text-primary rounded px-2 py-0.5 border border-primary/20"
+              class="font-cinzel text-2xs tracking-wider bg-primary/10 text-primary rounded px-2 py-0.5 border border-primary/20"
               >{{ domain }}</span
             >
           </div>
@@ -94,14 +94,14 @@
         <!-- Alternate names -->
         <div v-if="deity.alternate_names?.length">
           <span
-            class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase"
+            class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase"
             >Also Known As</span
           >
           <div class="flex flex-wrap gap-1 mt-1">
             <span
               v-for="alt in deity.alternate_names"
               :key="alt"
-              class="font-cinzel text-[10px] tracking-wider bg-muted/60 text-muted-foreground rounded px-2 py-0.5"
+              class="font-cinzel text-2xs tracking-wider bg-muted/60 text-muted-foreground rounded px-2 py-0.5"
               >{{ alt }}</span
             >
           </div>
@@ -110,14 +110,14 @@
         <!-- Tags -->
         <div v-if="deity.tags?.length">
           <span
-            class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase"
+            class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase"
             >Tags</span
           >
           <div class="flex flex-wrap gap-1 mt-1">
             <span
               v-for="tag in deity.tags"
               :key="tag"
-              class="font-cinzel text-[10px] tracking-wider bg-muted/60 text-muted-foreground rounded px-2 py-0.5"
+              class="font-cinzel text-2xs tracking-wider bg-muted/60 text-muted-foreground rounded px-2 py-0.5"
               >{{ tag }}</span
             >
           </div>
@@ -149,7 +149,7 @@
       <!-- DM secrets block -->
       <div v-if="hasDmNotes" class="border-t border-border pt-4">
         <p
-          class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-2"
+          class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase mb-2"
         >
           DM Secrets
         </p>
@@ -158,7 +158,7 @@
 
       <!-- Worshipping factions -->
       <div class="border-t border-border pt-4">
-        <p class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-2">Worshipping Factions</p>
+        <p class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase mb-2">Worshipping Factions</p>
         <DeityFactionsSection :deity-id="deity.id" />
       </div>
     </div>

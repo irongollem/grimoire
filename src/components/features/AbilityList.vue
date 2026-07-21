@@ -33,7 +33,7 @@
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-2 flex-wrap">
           <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ feat.name }}</p>
-          <span class="shrink-0 rounded px-1.5 py-0.5 font-cinzel text-[10px] tracking-wider uppercase bg-muted text-muted-foreground">
+          <span class="shrink-0 rounded px-1.5 py-0.5 font-cinzel text-2xs tracking-wider uppercase bg-muted text-muted-foreground">
             {{ FEATURE_TYPE_LABELS[feat.feature_type] }}
           </span>
           <span v-if="feat.source" class="font-fell text-xs text-muted-foreground">{{ feat.source }}</span>
@@ -42,7 +42,7 @@
           <span
             v-for="tag in feat.tags.slice(0, 4)"
             :key="tag"
-            class="rounded bg-muted px-1.5 py-0.5 font-cinzel text-[10px] text-muted-foreground tracking-wider"
+            class="rounded bg-muted px-1.5 py-0.5 font-cinzel text-2xs text-muted-foreground tracking-wider"
           >{{ tag }}</span>
         </div>
       </div>

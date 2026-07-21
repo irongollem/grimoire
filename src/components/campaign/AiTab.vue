@@ -71,8 +71,8 @@
           <div class="flex items-center justify-between">
             <label class="font-cinzel text-xs text-muted-foreground tracking-wide">
               {{ p.label }}
-              <span v-if="clearedKeys[p.id]" class="ml-1.5 font-fell text-[10px] normal-case tracking-normal text-yellow-600 dark:text-yellow-500">— will be removed on save</span>
-              <span v-else-if="providerHasKey(p.id) && !form.keys[p.id].trim()" class="ml-1.5 font-fell text-[10px] normal-case tracking-normal text-primary/80">— key on file (leave blank to keep)</span>
+              <span v-if="clearedKeys[p.id]" class="ml-1.5 font-fell text-2xs normal-case tracking-normal text-yellow-600 dark:text-yellow-500">— will be removed on save</span>
+              <span v-else-if="providerHasKey(p.id) && !form.keys[p.id].trim()" class="ml-1.5 font-fell text-2xs normal-case tracking-normal text-primary/80">— key on file (leave blank to keep)</span>
             </label>
             <div class="flex items-center gap-3">
               <button
@@ -184,7 +184,7 @@
         <button
           v-if="settingDefaultPrompt"
           type="button"
-          class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-colors"
+          class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-colors"
           @click="form.ai_setting_prompt = settingDefaultPrompt"
         >
           Load {{ settingLabel }} Defaults

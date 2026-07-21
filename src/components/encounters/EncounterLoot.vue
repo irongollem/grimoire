@@ -71,7 +71,7 @@
             type="button"
             :disabled="!hasCoins(pool)"
             :title="'Drop \'' + (pool.label || 'Pool') + '\' to chat'"
-            class="shrink-0 inline-flex items-center gap-1 font-cinzel text-[10px] font-semibold text-amber-400 hover:opacity-80 transition-opacity disabled:opacity-30 tracking-wider"
+            class="shrink-0 inline-flex items-center gap-1 font-cinzel text-2xs font-semibold text-amber-400 hover:opacity-80 transition-opacity disabled:opacity-30 tracking-wider"
             @click="emit('drop-pool', pool)"
           >
             <IconCoins class="h-3 w-3" />
@@ -86,7 +86,7 @@
         <div class="grid grid-cols-5 gap-1.5">
           <div v-for="coin in COIN_TYPES" :key="coin.key" class="flex flex-col gap-0.5">
             <label
-              class="font-cinzel text-[9px] font-semibold tracking-wider text-center"
+              class="font-cinzel text-[0.5625rem] font-semibold tracking-wider text-center"
               :style="{ color: coin.color }"
             >{{ coin.label }}</label>
             <input

@@ -7,10 +7,10 @@
     >
       <!-- Rule name + tracker value -->
       <div class="flex items-center justify-between">
-        <span class="font-cinzel text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
+        <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground uppercase">
           {{ entry.label }}
         </span>
-        <span class="font-cinzel text-[10px] text-muted-foreground">
+        <span class="font-cinzel text-2xs text-muted-foreground">
           {{ entry.value }} / {{ entry.max }}
         </span>
       </div>
@@ -21,7 +21,7 @@
           :key="btn.label"
           type="button"
           :disabled="applying"
-          class="inline-flex items-center px-2 py-0.5 rounded border border-border bg-card font-cinzel text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors disabled:opacity-50"
+          class="inline-flex items-center px-2 py-0.5 rounded border border-border bg-card font-cinzel text-2xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors disabled:opacity-50"
           @click="apply(entry, btn)"
         >
           {{ btn.label }}

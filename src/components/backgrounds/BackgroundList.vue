@@ -85,7 +85,7 @@
           -->
           <p
             v-if="profsSummary(b)"
-            class="font-fell text-[11px] text-foreground/70 line-clamp-2"
+            class="font-fell text-[0.6875rem] text-foreground/70 line-clamp-2"
           >
             {{ profsSummary(b) }}
           </p>
@@ -93,14 +93,14 @@
           <div class="flex items-center gap-1.5 mt-auto pt-1.5">
             <span
               v-if="b.source_title || b.source"
-              class="font-cinzel text-[10px] text-muted-foreground tracking-wider truncate"
+              class="font-cinzel text-2xs text-muted-foreground tracking-wider truncate"
               :title="b.source_title ?? b.source ?? ''"
             >
               {{ b.source_title ?? b.source }}
             </span>
             <span
               v-if="b.open5e_import"
-              class="ml-auto shrink-0 font-cinzel text-[9px] tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
+              class="ml-auto shrink-0 font-cinzel text-[0.5625rem] tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
               title="Imported from Open5e"
             >
               OPEN5E
@@ -111,7 +111,7 @@
             <span
               v-for="tag in b.tags.slice(0, 3)"
               :key="tag"
-              class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[10px] text-muted-foreground tracking-wider"
+              class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground tracking-wider"
             >
               {{ tag }}
             </span>
@@ -132,7 +132,7 @@
         <RouterLink
           v-if="!readonly && !selectMode"
           :to="`/backgrounds/${b.id}?edit=true`"
-          class="absolute top-2 left-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 font-cinzel text-[10px] font-semibold tracking-wider text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
+          class="absolute top-2 left-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 font-cinzel text-2xs font-semibold tracking-wider text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
           title="Edit background"
         >
           <IconEdit class="max-md:h-4 max-md:w-4 h-3 w-3" />

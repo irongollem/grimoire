@@ -3,12 +3,12 @@
 
     <!-- Mode toggle -->
     <div class="px-4 py-3 border-b border-border flex items-center gap-2">
-      <span class="font-cinzel text-[10px] tracking-wider text-muted-foreground uppercase mr-1">Mode</span>
+      <span class="font-cinzel text-2xs tracking-wider text-muted-foreground uppercase mr-1">Mode</span>
       <button
         v-for="m in (['auto', 'brush'] as IlluminatorMode[])"
         :key="m"
         type="button"
-        class="font-cinzel text-[10px] tracking-wider px-3 py-1 rounded-full border transition-colors"
+        class="font-cinzel text-2xs tracking-wider px-3 py-1 rounded-full border transition-colors"
         :class="mode === m
           ? 'border-primary text-primary bg-primary/10'
           : 'border-border text-muted-foreground hover:border-primary/60 hover:text-foreground'"
@@ -97,7 +97,7 @@
     <div class="border-t border-border p-4 flex flex-col gap-2">
       <button
         type="button"
-        class="font-cinzel text-[10px] tracking-wider text-muted-foreground hover:text-foreground transition-colors text-right mb-1"
+        class="font-cinzel text-2xs tracking-wider text-muted-foreground hover:text-foreground transition-colors text-right mb-1"
         @click="emit('reset')"
       >Reset all to defaults</button>
 

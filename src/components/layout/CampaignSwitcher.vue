@@ -25,7 +25,7 @@
             }}
           </p>
           <p
-            class="font-fell text-[10px] text-muted-foreground italic truncate leading-tight flex items-center gap-1.5"
+            class="font-fell text-2xs text-muted-foreground italic truncate leading-tight flex items-center gap-1.5"
           >
             {{
               activeCampaign?.setting ??
@@ -37,7 +37,7 @@
             >
               <span class="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0" />
               <span
-                class="font-cinzel text-[9px] text-green-500 tracking-wider"
+                class="font-cinzel text-[0.5625rem] text-green-500 tracking-wider"
                 >{{ onlineCount }}</span
               >
             </span>
@@ -84,7 +84,7 @@
                   {{ c.name }}
                 </p>
                 <p
-                  class="font-fell text-[10px] text-muted-foreground italic truncate"
+                  class="font-fell text-2xs text-muted-foreground italic truncate"
                 >
                   {{ c.setting }} · {{ c.current_year }}
                   {{ calendarEpoch(c.calendar_id) }}
@@ -110,7 +110,7 @@
             @click="showArchived = !showArchived"
           >
             <IconArchive class="h-3 w-3 text-muted-foreground/60" />
-            <span class="font-cinzel text-[10px] text-muted-foreground/60 tracking-wider uppercase flex-1">
+            <span class="font-cinzel text-2xs text-muted-foreground/60 tracking-wider uppercase flex-1">
               Archived ({{ archivedCampaigns.length }})
             </span>
             <IconChevronDown
@@ -125,10 +125,10 @@
               class="flex items-center gap-2 px-3 py-1.5"
             >
               <span class="flex-1 min-w-0">
-                <p class="font-cinzel text-[10px] text-muted-foreground/60 truncate">{{ c.name }}</p>
+                <p class="font-cinzel text-2xs text-muted-foreground/60 truncate">{{ c.name }}</p>
               </span>
               <button
-                class="font-cinzel text-[9px] tracking-wider text-primary/70 hover:text-primary transition-colors disabled:opacity-40 shrink-0"
+                class="font-cinzel text-[0.5625rem] tracking-wider text-primary/70 hover:text-primary transition-colors disabled:opacity-40 shrink-0"
                 :disabled="!canCreateCampaign || isRestoring"
                 :title="canCreateCampaign ? 'Restore campaign' : 'Upgrade to restore'"
                 @click.stop="restore(c.id)"
