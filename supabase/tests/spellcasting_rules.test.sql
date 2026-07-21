@@ -22,6 +22,49 @@ insert into public.party_members (
   '{"metamagic_options":["Quickened Spell","Transmuted Spell","Empowered Spell"]}'::jsonb
 );
 
+-- Ensure the 2024 Sorcerer identity exists before pinning to it. In a fresh
+-- migrated database (CI `supabase start`, preview branches, local `db reset`)
+-- it does not: seed.sql predates the `ruleset` column so every seeded class
+-- defaults to '2014', and the migrations that derive the 2024 variants
+-- (20260720000020) run *before* seed.sql loads, against an empty table. Mirror
+-- that derivation here — at test time the seeded 2014 Sorcerer is present — so
+-- the pinned class_definition_id below resolves instead of violating
+-- character_classes_definition_pair_check. Kept idempotent for any environment
+-- where the derivation already succeeded.
+insert into public.system_classes (
+  class_name, hit_die, primary_ability, saving_throws, armor_proficiencies,
+  weapon_proficiencies, subclass_level, features, asi_levels, spell_slots,
+  spells_known, slot_recovery, steps, resources, caster_type, prepared_ability,
+  prepared_divisor, cantrips_known, ruleset, conceptual_key,
+  source_document_key, source_record_key, source_revision, source_license,
+  provenance
+)
+select
+  class_name, hit_die, primary_ability, saving_throws, armor_proficiencies,
+  weapon_proficiencies, 3, features, asi_levels, spell_slots,
+  spells_known, slot_recovery,
+  (select coalesce(jsonb_agg(step), '[]'::jsonb)
+    from jsonb_array_elements(coalesce(sc.steps, '[]'::jsonb)) step
+    where step ->> 'key' is distinct from 'metamagic_options')
+  || jsonb_build_array(
+    jsonb_build_object('level', 2, 'step_type', 'text_pick', 'type', 'append', 'key', 'metamagic_options',
+      'label', 'Metamagic', 'description', 'Choose 2 Metamagic options.', 'count', 2, 'options', sc.steps -> 0 -> 'options'),
+    jsonb_build_object('level', 10, 'step_type', 'text_pick', 'type', 'append', 'key', 'metamagic_options',
+      'label', 'Additional Metamagic', 'description', 'Choose 2 additional Metamagic options.', 'count', 2, 'options', sc.steps -> 0 -> 'options'),
+    jsonb_build_object('level', 17, 'step_type', 'text_pick', 'type', 'append', 'key', 'metamagic_options',
+      'label', 'Additional Metamagic', 'description', 'Choose 2 additional Metamagic options.', 'count', 2, 'options', sc.steps -> 0 -> 'options')
+  ),
+  '[
+    {"key":"sorcery_points","label":"Sorcery Points","rest":"long","scaling":"table","table_values":[0,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]},
+    {"key":"innate_sorcery","label":"Innate Sorcery","rest":"long","scaling":"fixed","amount":2}
+  ]'::jsonb,
+  'prepared', prepared_ability, prepared_divisor, cantrips_known,
+  '2024', 'sorcerer', 'dnd-free-rules-2024', '2024:sorcerer',
+  '2024-07', 'CC-BY-4.0', jsonb_build_object('edition', '2024')
+from public.system_classes sc
+where class_name = 'Sorcerer' and ruleset = '2014'
+on conflict (ruleset, class_name) do nothing;
+
 insert into public.character_classes
   (id, party_member_id, class_name, levels, is_primary, class_definition_id, class_definition_kind)
 values ('00000000-0000-4000-8000-000000000546', '00000000-0000-4000-8000-000000000544',
