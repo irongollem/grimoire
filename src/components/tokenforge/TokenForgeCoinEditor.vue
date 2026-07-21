@@ -9,7 +9,7 @@
           v-for="m in COIN_METALS"
           :key="m.id"
           type="button"
-          class="px-3 py-1.5 rounded-md font-cinzel text-[0.6875rem] font-semibold tracking-wider border transition-colors"
+          class="px-3 py-1.5 rounded-md text-label-lg font-semibold border transition-colors"
           :class="coin.metal === m.id
             ? 'bg-primary/15 text-primary border-primary/40'
             : 'text-muted-foreground border-border hover:border-foreground/30'"
@@ -80,7 +80,7 @@
           v-for="ps in COIN_PRINT_SIZES"
           :key="ps.id"
           type="button"
-          class="px-3 py-1.5 rounded-md font-cinzel text-[0.6875rem] font-semibold tracking-wider border transition-colors"
+          class="px-3 py-1.5 rounded-md text-label-lg font-semibold border transition-colors"
           :class="coin.printSize === ps.id
             ? 'bg-primary/15 text-primary border-primary/40'
             : 'text-muted-foreground border-border hover:border-foreground/30'"

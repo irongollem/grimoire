@@ -32,7 +32,7 @@
           <button
             type="button"
             :title="zoomMode === 'fit' ? 'Fit to width' : 'Click to fit to width'"
-            class="px-1.5 h-6.5 font-cinzel text-[0.5625rem] font-semibold tracking-wider border-x border-border transition-colors min-w-9.5 text-center"
+            class="px-1.5 h-6.5 text-label font-semibold border-x border-border transition-colors min-w-9.5 text-center"
             :class="zoomMode === 'fit' ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-muted'"
             @click="zoomFit"
           >

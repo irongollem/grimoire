@@ -95,7 +95,7 @@
             <div class="font-cinzel text-xs font-semibold text-foreground truncate">{{ event.name }}</div>
             <div class="text-caption text-muted-foreground mt-0.5 truncate">{{ eventSummary(event) }}</div>
           </div>
-          <span v-if="!event.fire_once" class="shrink-0 font-cinzel text-[0.5625rem] px-1 py-0.5 rounded bg-primary/10 text-primary" title="Repeating">∞</span>
+          <span v-if="!event.fire_once" class="shrink-0 font-cinzel text-2xs px-1 py-0.5 rounded bg-primary/10 text-primary" title="Repeating">∞</span>
           <button
             type="button"
             class="shrink-0 transition-colors"

@@ -61,7 +61,7 @@
           <!-- Slot pips for this level -->
           <template v-for="slot in slotsForLevel(group.level)" :key="spellSlotKey(slot)">
             <div class="flex items-center gap-0.5 ml-1" @click.stop>
-              <span v-if="slotPool(slot) !== 'spellcasting'" class="font-cinzel text-[0.5rem] text-violet-400">
+              <span v-if="slotPool(slot) !== 'spellcasting'" class="font-cinzel text-2xs text-violet-400">
                 {{ slotPool(slot) === 'pact' ? 'PACT' : slotPool(slot) === 'temporary' ? 'CREATED' : 'FEATURE' }}
               </span>
               <button

@@ -128,7 +128,7 @@
                   class="h-1.5 w-1.5 rounded-full"
                   :class="getMemberAvailability(p.id, member.user_id) === true ? 'bg-elven-green' : getMemberAvailability(p.id, member.user_id) === false ? 'bg-destructive' : 'bg-muted-foreground/40'"
                 />
-                <span class="font-fell text-[0.6875rem] text-muted-foreground">{{ member.display_name || "(unnamed)" }}</span>
+                <span class="text-caption text-muted-foreground">{{ member.display_name || "(unnamed)" }}</span>
               </div>
             </div>
           </div>

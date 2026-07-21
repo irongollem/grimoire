@@ -113,7 +113,7 @@
             <p v-else class="text-body text-foreground leading-tight truncate">{{ item.name }}</p>
             <span
               v-if="item.item_id && catalogItemMap.get(item.item_id)"
-              class="hidden sm:inline font-cinzel text-[0.5625rem] text-muted-foreground/60 shrink-0"
+              class="hidden sm:inline font-cinzel text-2xs text-muted-foreground/60 shrink-0"
             >{{ ITEM_TYPE_LABELS[catalogItemMap.get(item.item_id)!.item_type] }}</span>
           </div>
           <p v-if="item.notes" class="text-caption text-muted-foreground italic truncate">{{ item.notes }}</p>

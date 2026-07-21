@@ -10,7 +10,7 @@
             v-for="bs in TOKEN_BACK_STYLES"
             :key="bs.id"
             type="button"
-            class="px-3 py-1.5 font-cinzel text-[0.6875rem] font-semibold transition-colors"
+            class="px-3 py-1.5 font-cinzel text-xs font-semibold transition-colors"
             :class="backStyle === bs.id ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
             @click="emit('update:backStyle', bs.id)"
           >{{ bs.label }}</button>
@@ -22,7 +22,7 @@
             v-for="ts in TOKEN_PRINT_SIZES"
             :key="ts.id"
             type="button"
-            class="px-3 py-1.5 font-cinzel text-[0.6875rem] font-semibold transition-colors"
+            class="px-3 py-1.5 font-cinzel text-xs font-semibold transition-colors"
             :class="printSize === ts.id ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
             @click="emit('update:printSize', ts.id)"
           >{{ ts.label }}</button>
@@ -47,13 +47,13 @@
         class="flex items-center gap-1.5 rounded-full border border-border bg-muted pl-1 pr-2 py-0.5"
       >
         <div
-          class="h-6 w-6 rounded-full shrink-0 overflow-hidden border border-border flex items-center justify-center text-[0.5625rem] font-cinzel font-bold"
+          class="h-6 w-6 rounded-full shrink-0 overflow-hidden border border-border flex items-center justify-center text-2xs font-cinzel font-bold"
           :style="{ background: `linear-gradient(135deg, ${qe.entity.bgGradient[0]}, ${qe.entity.bgGradient[1]})` }"
         >
           <FocalImage v-if="qe.entity.imageUrl" :src="qe.entity.imageUrl" format="token" />
           <span v-else class="text-white/60">{{ qe.entity.name.charAt(0) }}</span>
         </div>
-        <span class="font-cinzel text-[0.6875rem] text-foreground">{{ qe.entity.name }}</span>
+        <span class="font-cinzel text-xs text-foreground">{{ qe.entity.name }}</span>
         <button type="button" class="text-muted-foreground hover:text-destructive transition-colors text-xs leading-none" @click="emit('remove', qi)">✕</button>
       </div>
     </div>

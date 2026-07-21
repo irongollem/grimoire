@@ -20,7 +20,7 @@
             @click="activeGenerator.openPanel()"
           >
             <IconLoading class="h-3 w-3 text-primary animate-spin" />
-            <span class="font-cinzel text-[0.5625rem] text-primary tracking-wider">AI</span>
+            <span class="text-label text-primary">AI</span>
           </button>
           <!-- Live encounter indicator -->
           <RouterLink
@@ -30,7 +30,7 @@
             title="Encounter in progress"
           >
             <span class="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
-            <span class="font-cinzel text-[0.5625rem] text-green-400 tracking-wider">Live</span>
+            <span class="text-label text-green-400">Live</span>
           </RouterLink>
         </div>
       </div>
@@ -44,7 +44,7 @@
         :title="ui.dmMode === 'play'
           ? 'Play mode — visibility changes broadcast to chat. Click to stop broadcasting.'
           : 'Prep mode — visibility changes are silent. Click to start broadcasting.'"
-        class="w-full flex items-center rounded border overflow-hidden font-cinzel text-[0.5625rem] tracking-widest font-bold transition-colors"
+        class="w-full flex items-center rounded border overflow-hidden font-cinzel text-2xs tracking-widest font-bold transition-colors"
         :class="ui.dmMode === 'play' ? 'border-primary/50' : 'border-border'"
         @click="ui.toggleDmMode()"
       >
@@ -145,7 +145,7 @@
           >
             <IconBilling class="h-3.5 w-3.5 shrink-0" />
             <span class="font-fell">Billing</span>
-            <span v-if="isPro" class="ml-auto font-cinzel text-[0.5625rem] font-semibold tracking-wider text-amber-400 uppercase">Pro</span>
+            <span v-if="isPro" class="ml-auto text-eyebrow font-semibold text-amber-400">Pro</span>
           </RouterLink>
 
           <div class="border-t border-border my-1" />

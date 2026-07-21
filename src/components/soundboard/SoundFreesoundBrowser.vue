@@ -62,7 +62,7 @@
               {{ hit.license === "cc0" ? "CC0" : "CC-BY" }}
             </span>
           </div>
-          <p class="font-fell text-[0.6875rem] text-muted-foreground truncate">
+          <p class="text-caption text-muted-foreground truncate">
             by {{ hit.username }} · {{ formatDuration(hit.duration) }}
             <span v-if="hit.tags.length > 0" class="opacity-60">· {{ hit.tags.slice(0, 3).join(", ") }}</span>
           </p>
@@ -71,7 +71,7 @@
         <!-- Add button -->
         <button
           type="button"
-          class="shrink-0 px-2 py-1 rounded-md border bg-gold-500/15 border-gold-500/40 text-gold-300 hover:bg-gold-500/25 font-cinzel text-[0.6875rem] tracking-wide transition-colors disabled:opacity-50"
+          class="shrink-0 px-2 py-1 rounded-md border bg-gold-500/15 border-gold-500/40 text-gold-300 hover:bg-gold-500/25 font-cinzel text-xs tracking-wide transition-colors disabled:opacity-50"
           :disabled="addingId === hit.id"
           @click="addHit(hit)"
         >

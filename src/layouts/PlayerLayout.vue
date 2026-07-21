@@ -246,10 +246,10 @@
                 :class="c.id === campaign.activeCampaignId ? 'bg-primary' : 'bg-muted-foreground/30'" />
               <div class="flex-1 min-w-0">
                 <p class="font-cinzel text-xs font-semibold truncate">{{ c.name }}</p>
-                <p class="font-fell text-[0.6875rem] text-muted-foreground italic truncate">{{ c.setting }}</p>
+                <p class="text-caption text-muted-foreground italic truncate">{{ c.setting }}</p>
               </div>
               <span
-                class="font-cinzel text-[0.5625rem] tracking-wider px-1.5 py-0.5 rounded shrink-0"
+                class="text-label px-1.5 py-0.5 rounded shrink-0"
                 :class="campaignRoleMap.get(c.id) === 'dm'
                   ? 'bg-amber-500/15 text-amber-400'
                   : 'bg-primary/15 text-primary'"

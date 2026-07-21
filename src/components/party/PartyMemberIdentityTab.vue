@@ -165,14 +165,14 @@
       />
       <div v-else class="field-input bg-muted/30 text-muted-foreground flex items-center">
         {{ hasMulticlassData ? multiclassTotal : form.level }}
-        <span class="ml-2 text-[0.6875rem] italic font-fell">total</span>
+        <span class="ml-2 text-caption italic">total</span>
       </div>
     </label>
     <div>
       <label class="field-label">Proficiency Bonus</label>
       <div class="field-input bg-muted/30 text-muted-foreground flex items-center">
         +{{ profBonus }}
-        <span class="ml-2 text-[0.6875rem]">(from level {{ form.level }})</span>
+        <span class="ml-2 text-xs">(from level {{ form.level }})</span>
       </div>
     </div>
   </div>
@@ -292,9 +292,9 @@ function clearDisguise() {
 <style scoped>
 @reference "@/assets/main.css";
 .field-label {
-  @apply block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1;
+  @apply block text-label-lg font-semibold text-muted-foreground mb-1;
 }
 .field-input {
-  @apply bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
+  @apply bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
 }
 </style>

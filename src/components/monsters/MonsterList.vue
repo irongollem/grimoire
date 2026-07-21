@@ -79,7 +79,7 @@
         >
           <IconLock class="h-4 w-4 text-muted-foreground" />
           <p class="text-label font-semibold text-muted-foreground">Locked</p>
-          <RouterLink to="/billing" class="font-cinzel text-[0.5625rem] tracking-wider text-primary/80 hover:text-primary transition-colors">
+          <RouterLink to="/billing" class="text-label text-primary/80 hover:text-primary transition-colors">
             Upgrade to access
           </RouterLink>
         </div>
@@ -112,7 +112,7 @@
               <span
                 v-if="monster.is_srd"
                 :title="monster.source_title ?? monster.source ?? 'SRD'"
-                class="max-w-22 truncate px-1 py-0.5 rounded font-cinzel text-[0.5625rem] font-bold tracking-wider bg-muted text-muted-foreground border border-border"
+                class="max-w-22 truncate px-1 py-0.5 rounded text-label font-bold bg-muted text-muted-foreground border border-border"
               >
                 {{ monster.source_title ?? monster.source ?? "SRD" }}
               </span>
@@ -131,7 +131,7 @@
           </p>
 
           <!-- Stats row -->
-          <div class="flex gap-3 font-cinzel text-[0.6875rem] text-muted-foreground">
+          <div class="flex gap-3 font-cinzel text-xs text-muted-foreground">
             <span><span class="text-foreground font-bold">AC</span> {{ monster.stat_block.armor_class }}</span>
             <span><span class="text-foreground font-bold">HP</span> {{ formatHitPoints(monster.stat_block.hit_points) }}</span>
           </div>

@@ -84,7 +84,7 @@ const traitSections = computed(() => {
 }
 
 .detail-meta {
-  @apply font-fell text-xs text-muted-foreground italic capitalize;
+  @apply text-caption text-muted-foreground italic capitalize;
 }
 
 .detail-divider {
@@ -100,7 +100,7 @@ const traitSections = computed(() => {
 }
 
 .detail-stat span {
-  @apply font-cinzel text-[0.5625rem] tracking-wider text-muted-foreground uppercase;
+  @apply text-eyebrow text-muted-foreground;
 }
 
 .detail-stat strong {

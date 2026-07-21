@@ -9,8 +9,8 @@
     <span class="text-caption flex-1 min-w-0 truncate" :class="item ? 'text-foreground' : 'text-muted-foreground/50'">
       {{ item ? item.name : label }}
     </span>
-    <span v-if="item" class="font-cinzel text-[0.5625rem] text-primary/60 shrink-0">✓</span>
-    <span v-else class="font-cinzel text-[0.5625rem] text-muted-foreground/30 shrink-0">+</span>
+    <span v-if="item" class="font-cinzel text-2xs text-primary/60 shrink-0">✓</span>
+    <span v-else class="font-cinzel text-2xs text-muted-foreground/30 shrink-0">+</span>
   </button>
 </template>
 

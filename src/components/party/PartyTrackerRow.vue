@@ -41,7 +41,7 @@
               <IconScrollText class="h-3.5 w-3.5" />
               <span
                 v-if="unreadJournalCount > 0"
-                class="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-destructive text-[0.5rem] font-bold text-white flex items-center justify-center leading-none"
+                class="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-destructive text-2xs font-bold text-white flex items-center justify-center leading-none"
               />
             </button>
           </div>
@@ -57,7 +57,7 @@
             class="inline-flex items-center gap-1 text-label text-amber-500/80"
             title="Currently in disguise"
           >◈ disguised</span>
-          <p v-if="member.player_name" class="font-fell text-[0.6875rem] text-muted-foreground">
+          <p v-if="member.player_name" class="text-caption text-muted-foreground">
             {{ member.player_name }}
           </p>
           <RouterLink

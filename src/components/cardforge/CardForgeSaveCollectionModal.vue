@@ -71,13 +71,13 @@ function save() {
   @apply font-cinzel text-lg font-bold text-foreground;
 }
 .modal-scope {
-  @apply font-fell text-xs font-normal italic text-muted-foreground/60 ml-1;
+  @apply text-caption font-normal italic text-muted-foreground/60 ml-1;
 }
 .modal-label {
   @apply block font-cinzel text-xs font-semibold text-muted-foreground mb-1;
 }
 .modal-input {
-  @apply w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring;
+  @apply w-full bg-muted border border-border rounded-md px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring;
 }
 .modal-actions {
   @apply flex gap-2 justify-end;

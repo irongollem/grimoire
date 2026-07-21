@@ -97,7 +97,7 @@ const traitSections = computed(() => {
 }
 
 .detail-meta {
-  @apply font-fell text-xs text-muted-foreground italic capitalize;
+  @apply text-caption text-muted-foreground italic capitalize;
 }
 
 .detail-divider {
@@ -113,7 +113,7 @@ const traitSections = computed(() => {
 }
 
 .detail-stat span {
-  @apply font-cinzel text-[0.5625rem] tracking-wider text-muted-foreground uppercase;
+  @apply text-eyebrow text-muted-foreground;
 }
 
 .detail-stat strong {
@@ -121,10 +121,10 @@ const traitSections = computed(() => {
 }
 
 .detail-line {
-  @apply font-fell text-xs text-foreground;
+  @apply text-caption text-foreground;
 }
 
 .detail-line span {
-  @apply font-cinzel text-[0.5625rem] font-bold tracking-wider text-muted-foreground uppercase mr-1;
+  @apply text-eyebrow font-bold text-muted-foreground mr-1;
 }
 </style>

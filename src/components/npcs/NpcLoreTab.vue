@@ -71,6 +71,6 @@ const emit = defineEmits<{
 <style scoped>
 @reference "@/assets/main.css";
 .field-label {
-  @apply block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1;
+  @apply block text-label-lg font-semibold text-muted-foreground mb-1;
 }
 </style>

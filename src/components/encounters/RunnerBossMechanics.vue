@@ -14,7 +14,7 @@
         @click="showSurprise = !showSurprise"
       >{{ showSurprise ? 'Hide' : 'Mark surprised' }}</button>
     </div>
-    <p v-if="!showSurprise && surprisedCount === 0" class="font-fell text-[0.6875rem] text-muted-foreground italic mt-0.5">
+    <p v-if="!showSurprise && surprisedCount === 0" class="text-caption text-muted-foreground italic mt-0.5">
       Mark creatures that are surprised — they'll skip their first turn.
     </p>
     <div v-else-if="showSurprise" class="mt-2 flex flex-wrap gap-1.5">
@@ -29,7 +29,7 @@
         @click="store.toggleSurprised(c.instance_id)"
       >{{ c.name }}{{ c.surprised ? ' ✦' : '' }}</button>
     </div>
-    <p v-if="!showSurprise && surprisedCount > 0" class="font-fell text-[0.6875rem] text-amber-400 mt-0.5">
+    <p v-if="!showSurprise && surprisedCount > 0" class="text-caption text-amber-400 mt-0.5">
       {{ surprisedCount }} surprised creature{{ surprisedCount > 1 ? 's' : '' }}.
     </p>
   </div>
@@ -44,7 +44,7 @@
       <span class="text-label-lg font-semibold"
         :class="store.lairCanFireThisRound ? 'text-violet-400' : 'text-muted-foreground'"
       >✦ INIT 20 — LAIR ACTION</span>
-      <span class="font-fell text-[0.6875rem] text-muted-foreground flex-1">
+      <span class="text-caption text-muted-foreground flex-1">
         <template v-if="!store.lairCanFireThisRound">Fired this round. Resets on round rollover.</template>
         <template v-else-if="lairActions.length === 0">Owner's stat block has no Lair Actions — check the monster entry.</template>
         <template v-else>Click an action to fire it for this round.</template>

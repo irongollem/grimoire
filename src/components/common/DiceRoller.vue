@@ -334,7 +334,7 @@ function clearAll() {
   @apply h-5 w-5 text-foreground;
 }
 .die-label {
-  @apply font-cinzel text-[0.5625rem] font-bold tracking-wider text-muted-foreground;
+  @apply text-label font-bold text-muted-foreground;
 }
 
 .die-count-row {
@@ -362,7 +362,7 @@ function clearAll() {
   @apply flex rounded-lg overflow-hidden border border-border;
 }
 .adv-btn {
-  @apply flex-1 py-1.5 font-cinzel text-2xs font-bold tracking-wider text-muted-foreground hover:text-foreground transition-colors;
+  @apply flex-1 py-1.5 text-label font-bold text-muted-foreground hover:text-foreground transition-colors;
 }
 .adv-active {
   @apply text-foreground;
@@ -378,7 +378,7 @@ function clearAll() {
 }
 
 .roll-btn {
-  @apply w-full py-2 font-cinzel text-xs font-bold tracking-wider bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity disabled:opacity-40;
+  @apply w-full py-2 text-label-lg font-bold bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity disabled:opacity-40;
 }
 
 .result-panel {
@@ -407,7 +407,7 @@ function clearAll() {
 }
 
 .clear-btn {
-  @apply w-full py-1 font-cinzel text-2xs tracking-wider text-muted-foreground hover:text-foreground transition-colors;
+  @apply w-full py-1 text-label text-muted-foreground hover:text-foreground transition-colors;
 }
 
 /* Transitions */

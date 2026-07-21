@@ -17,7 +17,7 @@
                 : 'text-muted-foreground/40 cursor-default'"
             :disabled="idx > wizardStep"
             @click="idx < wizardStep && (wizardStep = idx)">
-            <span class="w-4 h-4 rounded-full text-[0.5625rem] flex items-center justify-center shrink-0"
+            <span class="w-4 h-4 rounded-full text-2xs flex items-center justify-center shrink-0"
               :class="wizardStep === idx ? 'bg-white/20' : idx < wizardStep ? 'bg-primary/20' : 'bg-muted'">
               {{ idx + 1 }}
             </span>

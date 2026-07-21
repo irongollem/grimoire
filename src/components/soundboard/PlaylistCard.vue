@@ -34,7 +34,7 @@
     <!-- Music: current track name when active -->
     <p
       v-if="isActive && playlist.playlist_type === 'music' && currentTrackName"
-      class="font-fell text-[0.6875rem] text-gold-300 truncate px-1 -mt-1"
+      class="text-caption text-gold-300 truncate px-1 -mt-1"
     >
       ♪ {{ currentTrackName }}
       <span v-if="tracks && tracks.length > 1" class="text-muted-foreground ml-1">

@@ -104,7 +104,7 @@
           placeholder="e.g. 8d6 · 2d6 fire + 1d6 force · 3d8 + 5"
           class="bg-muted border border-border rounded px-2 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring w-full"
         />
-        <span v-if="adv.damageDice" class="font-fell text-[0.6875rem] text-muted-foreground">
+        <span v-if="adv.damageDice" class="text-caption text-muted-foreground">
           Avg: {{ Math.round(parseDiceAvg(adv.damageDice)) }}
         </span>
       </label>
@@ -229,7 +229,7 @@
         </template>
         <button
           type="button"
-          class="mt-1 inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 font-cinzel text-[0.6875rem] font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+          class="mt-1 inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
           @click="emit('apply')"
         >
           Apply to Spell (Level

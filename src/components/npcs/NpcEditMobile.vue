@@ -377,9 +377,9 @@ function runAction(action: "generate" | "scriptorium" | "delete") {
 <style scoped>
 @reference "@/assets/main.css";
 .field-input {
-  @apply w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
+  @apply w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
 }
 .field-label {
-  @apply block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1;
+  @apply block text-label-lg font-semibold text-muted-foreground mb-1;
 }
 </style>

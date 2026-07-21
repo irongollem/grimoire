@@ -1,6 +1,6 @@
 <template>
   <div class="flex flex-col gap-2">
-    <span class="font-cinzel text-[0.6875rem] text-muted-foreground tracking-wider uppercase"
+    <span class="text-label-lg text-muted-foreground uppercase"
       >Components</span
     >
     <div class="flex items-center gap-4">

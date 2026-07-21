@@ -8,7 +8,7 @@
           the encounter and seeded into the runner when combat starts.
         </p>
       </div>
-      <span v-if="!isReady" class="font-fell text-[0.6875rem] text-amber-500/80 italic">
+      <span v-if="!isReady" class="text-caption text-amber-500/80 italic">
         {{ readinessHint }}
       </span>
     </summary>

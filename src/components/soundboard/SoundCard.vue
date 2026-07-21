@@ -168,7 +168,7 @@
       <IconMusicNote class="h-3.5 w-3.5 text-green-400/70 shrink-0" />
       <p class="text-caption text-muted-foreground italic flex-1">Connect Spotify to play</p>
       <button
-        class="font-fell text-[0.6875rem] text-green-400 hover:text-green-300 transition-colors shrink-0"
+        class="text-caption text-green-400 hover:text-green-300 transition-colors shrink-0"
         @click="spotifyStore.connect()"
       >
         Connect →

@@ -87,7 +87,7 @@
         >
           <IconLock class="h-4 w-4 text-muted-foreground" />
           <p class="text-label font-semibold text-muted-foreground">Locked</p>
-          <RouterLink to="/billing" class="font-cinzel text-[0.5625rem] tracking-wider text-primary/80 hover:text-primary transition-colors">
+          <RouterLink to="/billing" class="text-label text-primary/80 hover:text-primary transition-colors">
             Upgrade to access
           </RouterLink>
         </div>
@@ -241,7 +241,7 @@
 
         <!-- Field reveal — what the chosen players actually see -->
         <div v-if="isShared(popoverNpc)" class="border-t border-border pt-2 space-y-1">
-          <p class="font-cinzel text-[0.5625rem] tracking-widest text-muted-foreground px-1">REVEALED FIELDS</p>
+          <p class="font-cinzel text-2xs tracking-widest text-muted-foreground px-1">REVEALED FIELDS</p>
           <label
             v-for="f in NPC_PLAYER_FIELDS"
             :key="f.key"

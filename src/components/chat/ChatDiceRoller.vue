@@ -40,7 +40,7 @@
           v-for="m in MODES"
           :key="m.value"
           type="button"
-          class="px-2 py-0.5 font-cinzel text-[0.5625rem] font-bold tracking-wider transition-colors"
+          class="px-2 py-0.5 text-label font-bold transition-colors"
           :class="
             mode === m.value
               ? 'bg-primary text-primary-foreground'

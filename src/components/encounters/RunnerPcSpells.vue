@@ -27,7 +27,7 @@
         class="trait-roll-btn trait-dmg-btn"
         @click.stop="entry.spell.effects?.length ? openEffectResolution(entry) : emit('roll-spell', spellForLastCast(entry))"
       >🎲 {{ entry.spell.effects?.length ? "Resolve" : entry.spell.damage_rolls[0].dice }}</button>
-      <span v-if="entry.spell.mechanics_reviewed === false" class="text-[0.5625rem] text-amber-500">Manual</span>
+      <span v-if="entry.spell.mechanics_reviewed === false" class="text-2xs text-amber-500">Manual</span>
       <button
         v-if="entry.spell.attack_type === 'save' && saveDcFor(entry)"
         type="button"
@@ -189,7 +189,7 @@ const emit = defineEmits<{
 }
 
 .detail-section-label {
-  @apply font-cinzel text-2xs font-bold tracking-wider text-muted-foreground uppercase mt-1;
+  @apply text-eyebrow font-bold text-muted-foreground mt-1;
 }
 
 .detail-spell {
@@ -201,11 +201,11 @@ const emit = defineEmits<{
 }
 
 .spell-name {
-  @apply font-fell text-xs text-foreground truncate;
+  @apply text-caption text-foreground truncate;
 }
 
 .spell-level-badge {
-  @apply font-cinzel text-[0.5625rem] font-bold text-muted-foreground bg-muted rounded px-1 shrink-0;
+  @apply font-cinzel text-2xs font-bold text-muted-foreground bg-muted rounded px-1 shrink-0;
 }
 
 .spell-rolls {
@@ -213,7 +213,7 @@ const emit = defineEmits<{
 }
 
 .trait-roll-btn {
-  @apply inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded font-cinzel text-[0.5625rem] font-semibold tracking-wider cursor-pointer transition-colors whitespace-nowrap;
+  @apply inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-label font-semibold cursor-pointer transition-colors whitespace-nowrap;
 }
 
 .trait-dmg-btn {

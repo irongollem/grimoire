@@ -24,7 +24,7 @@
           <template #option="{ opt }">
             <span class="flex-1 min-w-0">
               <span class="text-body text-foreground">{{ opt.email }}</span>
-              <span v-if="opt.display_name" class="font-fell text-[0.6875rem] text-muted-foreground italic ml-1">· {{ opt.display_name }}</span>
+              <span v-if="opt.display_name" class="text-caption text-muted-foreground italic ml-1">· {{ opt.display_name }}</span>
             </span>
           </template>
         </EntityCombobox>
@@ -85,15 +85,15 @@
         <div class="grid grid-cols-3 gap-2">
           <div class="rounded-md bg-muted/30 border border-border px-3 py-2 text-center">
             <p class="font-cinzel text-sm font-bold text-foreground">{{ ledger.generationCount.value }}</p>
-            <p class="font-fell text-[0.6875rem] text-muted-foreground italic">Generations</p>
+            <p class="text-caption text-muted-foreground italic">Generations</p>
           </div>
           <div class="rounded-md bg-muted/30 border border-border px-3 py-2 text-center">
             <p class="font-cinzel text-sm font-bold text-foreground">${{ ledger.estimatedCostUsd.value.toFixed(2) }}</p>
-            <p class="font-fell text-[0.6875rem] text-muted-foreground italic">Est. cost (USD)</p>
+            <p class="text-caption text-muted-foreground italic">Est. cost (USD)</p>
           </div>
           <div class="rounded-md bg-muted/30 border border-border px-3 py-2 text-center">
             <p class="font-cinzel text-sm font-bold text-foreground">+{{ ledger.granted.value }} / −{{ ledger.spent.value }}</p>
-            <p class="font-fell text-[0.6875rem] text-muted-foreground italic">Granted / Spent</p>
+            <p class="text-caption text-muted-foreground italic">Granted / Spent</p>
           </div>
         </div>
 
@@ -113,10 +113,10 @@
             :key="row.id"
             class="flex items-center gap-2 rounded-md bg-muted/20 px-2.5 py-1.5"
           >
-            <span class="font-fell text-[0.6875rem] text-muted-foreground shrink-0 w-28">{{ formatWhen(row.created_at) }}</span>
+            <span class="text-caption text-muted-foreground shrink-0 w-28">{{ formatWhen(row.created_at) }}</span>
             <div class="flex-1 min-w-0">
               <span class="font-cinzel text-xs font-semibold text-foreground">{{ row.reason }}</span>
-              <span v-if="row.model" class="font-fell text-[0.6875rem] text-muted-foreground italic ml-1">
+              <span v-if="row.model" class="text-caption text-muted-foreground italic ml-1">
                 · {{ row.model }}<template v-if="row.is_byok"> · BYOK</template>
               </span>
             </div>

@@ -112,7 +112,7 @@
             </span>
             <span
               v-if="day === todayDayInView"
-              class="absolute top-0.5 right-1 font-cinzel text-[0.5rem] font-bold text-primary tracking-widest uppercase leading-none"
+              class="absolute top-0.5 right-1 font-cinzel text-2xs font-bold text-primary tracking-widest uppercase leading-none"
             >today</span>
             <!-- Event dots -->
             <div v-if="day !== null" class="flex flex-wrap gap-0.5 mt-auto pt-1">

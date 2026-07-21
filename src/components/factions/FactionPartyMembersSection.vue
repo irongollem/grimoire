@@ -22,7 +22,7 @@
           </span>
         </template>
         <template #subtitle>
-          <p v-if="speciesNameMap.get(m.party_member.species_id ?? '') || memberClassLabel(m.party_member.id, m.party_member.class)" class="font-fell text-[0.6875rem] text-muted-foreground italic truncate">
+          <p v-if="speciesNameMap.get(m.party_member.species_id ?? '') || memberClassLabel(m.party_member.id, m.party_member.class)" class="text-caption text-muted-foreground italic truncate">
             {{ [speciesNameMap.get(m.party_member.species_id ?? ''), memberClassLabel(m.party_member.id, m.party_member.class), memberLevelDisplay(m.party_member.id, m.party_member.level) ? `Lv${memberLevelDisplay(m.party_member.id, m.party_member.level)}` : ''].filter(Boolean).join(' · ') }}
           </p>
         </template>
@@ -58,7 +58,7 @@
             <span class="font-cinzel text-xs font-semibold text-foreground truncate block">{{ m.party_member.name }}</span>
           </template>
           <template #subtitle>
-            <p v-if="speciesNameMap.get(m.party_member.species_id ?? '') || m.party_member.class" class="font-fell text-[0.6875rem] text-muted-foreground italic truncate">
+            <p v-if="speciesNameMap.get(m.party_member.species_id ?? '') || m.party_member.class" class="text-caption text-muted-foreground italic truncate">
               {{ [speciesNameMap.get(m.party_member.species_id ?? ''), m.party_member.class].filter(Boolean).join(' · ') }}
             </p>
           </template>

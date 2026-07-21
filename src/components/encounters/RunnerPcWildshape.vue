@@ -49,7 +49,7 @@
       <p class="detail-section-label">Wildshape</p>
       <div class="flex items-center gap-1.5">
         <span class="text-caption-sm text-muted-foreground">Max CR {{ wildshapeCrDisplay }}</span>
-        <span v-if="isCircleOfMoon" class="font-cinzel text-[0.5625rem] tracking-wider px-1 py-0.5 rounded border border-primary/40 text-primary bg-primary/10">MOON</span>
+        <span v-if="isCircleOfMoon" class="text-label px-1 py-0.5 rounded border border-primary/40 text-primary bg-primary/10">MOON</span>
         <button
           ref="triggerRef"
           type="button"
@@ -284,7 +284,7 @@ const wildshapeTraitSections = computed(() => {
 }
 
 .detail-meta {
-  @apply font-fell text-xs text-muted-foreground italic capitalize;
+  @apply text-caption text-muted-foreground italic capitalize;
 }
 
 .detail-stats {
@@ -296,7 +296,7 @@ const wildshapeTraitSections = computed(() => {
 }
 
 .detail-stat span {
-  @apply font-cinzel text-[0.5625rem] tracking-wider text-muted-foreground uppercase;
+  @apply text-eyebrow text-muted-foreground;
 }
 
 .detail-stat strong {
@@ -304,7 +304,7 @@ const wildshapeTraitSections = computed(() => {
 }
 
 .detail-section-label {
-  @apply font-cinzel text-2xs font-bold tracking-wider text-muted-foreground uppercase mt-1;
+  @apply text-eyebrow font-bold text-muted-foreground mt-1;
 }
 
 .wildshape-banner {
@@ -341,7 +341,7 @@ const wildshapeTraitSections = computed(() => {
 }
 
 .pick-name {
-  @apply font-fell text-xs text-foreground flex-1 truncate;
+  @apply text-caption text-foreground flex-1 truncate;
 }
 
 .pick-cr {
@@ -353,6 +353,6 @@ const wildshapeTraitSections = computed(() => {
 }
 
 .pick-speed {
-  @apply font-fell text-2xs text-muted-foreground shrink-0 truncate max-w-24 hidden sm:block;
+  @apply text-caption-sm text-muted-foreground shrink-0 truncate max-w-24 hidden sm:block;
 }
 </style>

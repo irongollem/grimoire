@@ -86,7 +86,7 @@
       <div
         v-for="entry in props.enemyEntries"
         :key="entry.id"
-        class="flex items-center justify-between font-cinzel text-[0.6875rem]"
+        class="flex items-center justify-between font-cinzel text-xs"
       >
         <span class="text-foreground line-clamp-1 flex-1">
           {{ entry.name }}{{ entry.count > 1 ? ` ×${entry.count}` : "" }}

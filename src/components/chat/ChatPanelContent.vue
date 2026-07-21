@@ -194,14 +194,14 @@
               @click="vendorItemQuery = it.name; vendorItemId = it.id; vendorShowItems = false"
             >
               <span class="truncate">{{ it.name }}</span>
-              <span class="font-cinzel text-[0.5625rem] text-muted-foreground shrink-0 capitalize">{{ it.item_type }}</span>
+              <span class="font-cinzel text-2xs text-muted-foreground shrink-0 capitalize">{{ it.item_type }}</span>
             </button>
           </div>
           <div v-if="vendorShowItems" class="fixed inset-0 z-10" @click="vendorShowItems = false" />
         </div>
         <div class="grid grid-cols-5 gap-1">
           <div v-for="coin in COINS" :key="coin.key" class="flex flex-col items-center gap-0.5">
-            <span class="font-cinzel text-[0.5625rem] font-bold" :class="coin.color">{{ coin.symbol }}</span>
+            <span class="font-cinzel text-2xs font-bold" :class="coin.color">{{ coin.symbol }}</span>
             <input
               v-model.number="vendorPrice[coin.key]"
               type="number" min="0"

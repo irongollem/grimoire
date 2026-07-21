@@ -62,7 +62,7 @@
               min="0"
               class="w-32 bg-background border border-border rounded px-2.5 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
-            <p class="font-fell text-[0.6875rem] text-muted-foreground italic">
+            <p class="text-caption text-muted-foreground italic">
               {{ creditsHelper(draftMonthlyCredits[plan.id]) }}
             </p>
           </div>

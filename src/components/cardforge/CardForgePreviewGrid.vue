@@ -128,7 +128,7 @@ function tiltStyle(key: string): Record<string, string> {
 .preview-empty {
   @apply flex flex-col items-center justify-center h-full gap-2 text-center;
   p {
-    @apply font-fell text-muted-foreground text-sm;
+    @apply text-body text-muted-foreground;
   }
 }
 .preview-hint {

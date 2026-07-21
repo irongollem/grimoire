@@ -138,7 +138,7 @@
               <p class="font-fell text-foreground">
                 {{ gen.label }}
                 <span
-                  class="ml-1 rounded px-1 py-0.5 font-cinzel text-[0.5625rem] tracking-wider align-middle"
+                  class="ml-1 rounded px-1 py-0.5 text-label align-middle"
                   :class="CATEGORY_CLASS[categoryOf(gen.generation_type)]"
                 >{{ categoryOf(gen.generation_type) }}</span>
               </p>

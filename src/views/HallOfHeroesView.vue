@@ -88,7 +88,7 @@
 
             <span
               v-if="campaignSetting && hero.setting === campaignSetting"
-              class="absolute top-2 right-2 rounded-full bg-primary/80 px-1.5 py-0.5 font-cinzel text-[0.5625rem] font-semibold tracking-wider text-primary-foreground uppercase backdrop-blur-sm"
+              class="absolute top-2 right-2 rounded-full bg-primary/80 px-1.5 py-0.5 text-eyebrow font-semibold text-primary-foreground backdrop-blur-sm"
               title="Matches your campaign's setting"
             >
               ✦
@@ -116,7 +116,7 @@
             type="button"
             :disabled="!hasCampaign || isImporting === hero.id"
             :title="hasCampaign ? 'Add to current campaign' : 'No active campaign'"
-            class="flex-1 rounded-md bg-primary/10 px-2 py-1.5 font-cinzel text-[0.6875rem] font-semibold text-primary hover:bg-primary/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            class="flex-1 rounded-md bg-primary/10 px-2 py-1.5 font-cinzel text-xs font-semibold text-primary hover:bg-primary/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             @click="handleImport(hero)"
           >
             {{ isImporting === hero.id ? 'Adding…' : 'Add to Campaign' }}

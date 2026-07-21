@@ -5,21 +5,21 @@
       <div class="flex items-center gap-1.5">
         <button
           type="button"
-          class="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1.5 font-cinzel text-[0.6875rem] font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+          class="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
           @click="emit('add', 'item')"
         >
           <IconAdd class="size-3" />Item
         </button>
         <button
           type="button"
-          class="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1.5 font-cinzel text-[0.6875rem] font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+          class="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
           @click="emit('add', 'currency')"
         >
           <IconAdd class="size-3" />Currency
         </button>
         <button
           type="button"
-          class="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1.5 font-cinzel text-[0.6875rem] font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+          class="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
           @click="emit('add', 'random')"
         >
           <IconAdd class="size-3" />Random
@@ -93,7 +93,7 @@
           <!-- Coin amounts -->
           <div class="grid grid-cols-5 gap-1.5">
             <div v-for="coin in COINS" :key="coin.key" class="flex flex-col gap-0.5">
-              <span class="font-cinzel text-[0.5625rem] font-semibold tracking-wider text-muted-foreground uppercase text-center">{{ coin.symbol }}</span>
+              <span class="text-eyebrow font-semibold text-muted-foreground text-center">{{ coin.symbol }}</span>
               <input
                 :value="getCoinVal(entry, coin.key)"
                 type="number" min="0"

@@ -44,7 +44,7 @@
         >
           <IconLock class="h-4 w-4 text-muted-foreground" />
           <p class="text-label font-semibold text-muted-foreground">Locked</p>
-          <RouterLink to="/billing" class="font-cinzel text-[0.5625rem] tracking-wider text-primary/80 hover:text-primary transition-colors">
+          <RouterLink to="/billing" class="text-label text-primary/80 hover:text-primary transition-colors">
             Upgrade to access
           </RouterLink>
         </div>
@@ -98,7 +98,7 @@
 
           <!-- Stats row -->
           <div
-            class="flex gap-4 mt-auto font-cinzel text-[0.6875rem] text-muted-foreground"
+            class="flex gap-4 mt-auto font-cinzel text-xs text-muted-foreground"
           >
             <span class="flex items-center gap-1">
               <IconMonster class="h-3 w-3" />

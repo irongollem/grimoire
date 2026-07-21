@@ -161,7 +161,7 @@ function resolvedFocalPoint() {
         />
         <template v-else>
           <button
-            class="flex items-center gap-1 px-2 py-1 rounded text-[0.6875rem] font-cinzel tracking-wide border transition-colors"
+            class="flex items-center gap-1 px-2 py-1 rounded text-xs font-cinzel tracking-wide border transition-colors"
             :class="
               status === 'error'
                 ? 'border-destructive text-destructive hover:bg-destructive/10'

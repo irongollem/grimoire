@@ -42,14 +42,14 @@
               @click="f[stat.key]++">+</button>
           </div>
           <span v-if="asiMode === 'bonus' && racialBonusMap[stat.key]"
-            class="font-cinzel text-[0.5625rem] font-bold text-primary leading-none">
+            class="font-cinzel text-2xs font-bold text-primary leading-none">
             +{{ racialBonusMap[stat.key] }} racial
           </span>
           <span class="font-cinzel text-xs font-bold"
             :class="totalMod(stat.key) >= 0 ? 'text-green-500' : 'text-destructive'">
             {{ totalMod(stat.key) >= 0 ? '+' : '' }}{{ totalMod(stat.key) }}
           </span>
-          <span class="font-cinzel text-[0.5625rem] text-muted-foreground">{{ POINT_BUY_COSTS[f[stat.key]] ?? 0 }} pts</span>
+          <span class="font-cinzel text-2xs text-muted-foreground">{{ POINT_BUY_COSTS[f[stat.key]] ?? 0 }} pts</span>
         </div>
       </div>
     </div>
@@ -85,7 +85,7 @@
             <option v-for="opt in availableForAbility(stat.key)" :key="opt.idx" :value="opt.idx">{{ opt.val }}</option>
           </select>
           <span v-if="asiMode === 'bonus' && racialBonusMap[stat.key]"
-            class="font-cinzel text-[0.5625rem] font-bold text-primary leading-none">
+            class="font-cinzel text-2xs font-bold text-primary leading-none">
             +{{ racialBonusMap[stat.key] }} racial
           </span>
           <span class="font-cinzel text-xs font-bold"
@@ -105,7 +105,7 @@
           <input v-model.number="f[stat.key]" type="number" min="1" max="30"
             class="field-input w-full text-center px-1" />
           <span v-if="asiMode === 'bonus' && racialBonusMap[stat.key]"
-            class="font-cinzel text-[0.5625rem] font-bold text-primary leading-none">
+            class="font-cinzel text-2xs font-bold text-primary leading-none">
             +{{ racialBonusMap[stat.key] }} racial
           </span>
           <span class="font-cinzel text-xs font-bold"
@@ -125,7 +125,7 @@
         <p class="text-label-lg font-semibold text-primary">
           {{ selectedSpecies.name.toUpperCase() }} BONUSES
         </p>
-        <div class="flex rounded overflow-hidden border border-primary/30 text-[0.6875rem] font-cinzel font-semibold">
+        <div class="flex rounded overflow-hidden border border-primary/30 text-xs font-cinzel font-semibold">
           <button v-if="asiIsStructured" type="button"
             class="px-2.5 py-1 transition-colors"
             :class="asiMode === 'bonus' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
@@ -311,6 +311,6 @@ function onScoreModeChange(mode: typeof SCORE_MODES[number]["id"]) {
 <style scoped>
 @reference "@/assets/main.css";
 .field-input {
-  @apply bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
+  @apply bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
 }
 </style>

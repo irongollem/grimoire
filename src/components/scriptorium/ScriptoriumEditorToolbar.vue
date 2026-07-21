@@ -10,7 +10,7 @@
         :class="tbCls(editor.isActive('bold'))"
         @click="editor.chain().focus().toggleBold().run()"
       >
-        <strong class="text-[0.6875rem] leading-none">B</strong>
+        <strong class="text-xs leading-none">B</strong>
       </button>
       <button
         type="button"
@@ -18,7 +18,7 @@
         :class="tbCls(editor.isActive('italic'))"
         @click="editor.chain().focus().toggleItalic().run()"
       >
-        <em class="text-[0.6875rem] leading-none">I</em>
+        <em class="text-xs leading-none">I</em>
       </button>
       <button
         type="button"
@@ -147,7 +147,7 @@
 
       <!-- Image controls (shown when an image is selected) -->
       <template v-if="editor.isActive('image')">
-        <span class="font-cinzel text-[0.5625rem] text-muted-foreground tracking-wider px-1 self-center">IMG</span>
+        <span class="text-label text-muted-foreground px-1 self-center">IMG</span>
         <button
           v-for="size in IMAGE_SIZES"
           :key="size.w"
@@ -156,7 +156,7 @@
           :class="tbCls(editor.getAttributes('image').width === String(size.w))"
           @click="editor.chain().focus().updateAttributes('image', { width: String(size.w) }).run()"
         >
-          <span class="font-cinzel text-[0.5625rem] font-bold leading-none">{{ size.label }}</span>
+          <span class="font-cinzel text-2xs font-bold leading-none">{{ size.label }}</span>
         </button>
         <div class="w-px h-5 bg-border mx-0.5" />
         <button
@@ -185,7 +185,7 @@
         </button>
         <div class="w-px h-5 bg-border mx-0.5" />
         <!-- Layout mode controls -->
-        <span class="font-cinzel text-[0.5625rem] text-muted-foreground tracking-wider px-1 self-center">LAYOUT</span>
+        <span class="text-label text-muted-foreground px-1 self-center">LAYOUT</span>
         <button
           type="button"
           title="Wrap left — text flows around right edge"
@@ -220,14 +220,14 @@
             :class="tbCls(editor.getAttributes('image').gutterBleed === true)"
             @click="editor.chain().focus().updateAttributes('image', { gutterBleed: !editor.getAttributes('image').gutterBleed }).run()"
           >
-            <span class="font-cinzel text-[0.5625rem] font-bold leading-none">⇔</span>
+            <span class="font-cinzel text-2xs font-bold leading-none">⇔</span>
           </button>
         </template>
         <!-- Absolute position inputs (absolute mode only) -->
         <template v-if="editor.getAttributes('image').layoutMode === 'absolute'">
           <div class="w-px h-5 bg-border mx-0.5" />
           <label class="flex items-center gap-0.5">
-            <span class="font-cinzel text-[0.5625rem] text-muted-foreground">T</span>
+            <span class="font-cinzel text-2xs text-muted-foreground">T</span>
             <input
               type="number"
               :value="editor.getAttributes('image').posTop ?? ''"
@@ -239,7 +239,7 @@
             />
           </label>
           <label class="flex items-center gap-0.5">
-            <span class="font-cinzel text-[0.5625rem] text-muted-foreground">L</span>
+            <span class="font-cinzel text-2xs text-muted-foreground">L</span>
             <input
               type="number"
               :value="editor.getAttributes('image').posLeft ?? ''"
@@ -251,7 +251,7 @@
             />
           </label>
           <label class="flex items-center gap-0.5">
-            <span class="font-cinzel text-[0.5625rem] text-muted-foreground">R</span>
+            <span class="font-cinzel text-2xs text-muted-foreground">R</span>
             <input
               type="number"
               :value="editor.getAttributes('image').posRight ?? ''"
@@ -263,7 +263,7 @@
             />
           </label>
           <label class="flex items-center gap-0.5">
-            <span class="font-cinzel text-[0.5625rem] text-muted-foreground">B</span>
+            <span class="font-cinzel text-2xs text-muted-foreground">B</span>
             <input
               type="number"
               :value="editor.getAttributes('image').posBottom ?? ''"
@@ -292,7 +292,7 @@
       <!-- Cover page controls (shown when a cover page is selected) -->
       <template v-if="editor.isActive('coverPage')">
         <div class="w-px h-5 bg-border mx-0.5" />
-        <span class="font-cinzel text-[0.5625rem] text-muted-foreground tracking-wider px-1 self-center">COVER</span>
+        <span class="text-label text-muted-foreground px-1 self-center">COVER</span>
         <button
           type="button"
           title="Edit cover page text"
@@ -348,7 +348,7 @@
           role="radio"
           :aria-checked="theme === 'onednd2024'"
           title="OneDnD 2024 theme"
-          class="px-2 h-6.5 font-cinzel text-[0.5625rem] font-semibold tracking-wider uppercase transition-colors"
+          class="px-2 h-6.5 text-eyebrow font-semibold transition-colors"
           :class="theme === 'onednd2024' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'"
           @click="$emit('update:theme', 'onednd2024')"
         >
@@ -359,7 +359,7 @@
           role="radio"
           :aria-checked="theme === 'phb2014'"
           title="Classic PHB (2014) theme"
-          class="px-2 h-6.5 font-cinzel text-[0.5625rem] font-semibold tracking-wider uppercase transition-colors border-l border-border"
+          class="px-2 h-6.5 text-eyebrow font-semibold transition-colors border-l border-border"
           :class="theme === 'phb2014' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'"
           @click="$emit('update:theme', 'phb2014')"
         >
@@ -382,7 +382,7 @@
           role="radio"
           :aria-checked="pageSize === sz"
           :title="`Page size: ${sz}`"
-          class="px-2 h-6.5 font-cinzel text-[0.5625rem] font-semibold tracking-wider uppercase transition-colors"
+          class="px-2 h-6.5 text-eyebrow font-semibold transition-colors"
           :class="[
             idx > 0 ? 'border-l border-border' : '',
             pageSize === sz ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted',

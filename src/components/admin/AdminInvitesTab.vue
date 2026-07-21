@@ -23,7 +23,7 @@
           v-for="opt in planOptions"
           :key="opt.value"
           type="button"
-          class="px-3 py-1 rounded-md font-cinzel text-[0.6875rem] font-semibold tracking-wider border transition-colors"
+          class="px-3 py-1 rounded-md text-label-lg font-semibold border transition-colors"
           :class="newGrantedPlan === opt.value
             ? opt.activeClass
             : 'border-border text-muted-foreground hover:text-foreground'"
@@ -91,7 +91,7 @@
           </button>
         </div>
         <div class="flex items-center gap-2 rounded bg-background px-2 py-1.5">
-          <code class="flex-1 text-[0.6875rem] text-muted-foreground truncate font-mono">
+          <code class="flex-1 text-xs text-muted-foreground truncate font-mono">
             {{ signupUrl(invite.token) }}
           </code>
           <button

@@ -46,7 +46,7 @@
           />
           <!-- Rarity badge — top right -->
           <span
-            class="absolute top-1.5 right-1.5 font-cinzel text-[0.5625rem] tracking-wider px-1.5 py-0.5 rounded leading-none"
+            class="absolute top-1.5 right-1.5 text-label px-1.5 py-0.5 rounded leading-none"
             :style="{
               backgroundColor: rarityColor(item.rarity) + 'cc',
               color: '#fff',

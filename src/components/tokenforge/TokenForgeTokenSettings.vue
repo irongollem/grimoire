@@ -44,7 +44,7 @@
           v-for="w in RING_WIDTHS"
           :key="w.label"
           type="button"
-          class="px-3 py-1.5 rounded-md font-cinzel text-[0.6875rem] font-semibold tracking-wider border transition-colors"
+          class="px-3 py-1.5 rounded-md text-label-lg font-semibold border transition-colors"
           :class="ringWidth === w.value
             ? 'bg-primary/15 text-primary border-primary/40'
             : 'text-muted-foreground border-border hover:border-foreground/30'"
@@ -83,7 +83,7 @@
           v-for="s in EXPORT_SIZES"
           :key="s.value"
           type="button"
-          class="px-3 py-1.5 rounded-md font-cinzel text-[0.6875rem] font-semibold tracking-wider border transition-colors"
+          class="px-3 py-1.5 rounded-md text-label-lg font-semibold border transition-colors"
           :class="exportSize === s.value
             ? 'bg-primary/15 text-primary border-primary/40'
             : 'text-muted-foreground border-border hover:border-foreground/30'"

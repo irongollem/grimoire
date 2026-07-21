@@ -9,7 +9,7 @@
             <button
               v-for="tab in (['identified', 'mundane'] as const)"
               :key="tab"
-              class="px-3 py-1.5 font-cinzel text-[0.6875rem] font-semibold tracking-wider border-b-2 transition-colors capitalize"
+              class="px-3 py-1.5 text-label-lg font-semibold border-b-2 transition-colors capitalize"
               :class="sheetArtTab === tab
                 ? 'border-primary text-primary'
                 : 'border-transparent text-muted-foreground hover:text-foreground'"
@@ -42,7 +42,7 @@
         </div>
         <!-- Rarity badge -->
         <div
-          class="rounded-lg border bg-card p-3 flex flex-col gap-1.5 font-stat text-[0.9375rem]"
+          class="rounded-lg border bg-card p-3 flex flex-col gap-1.5 font-stat text-base"
           :style="{ borderColor: rarityColor + '66' }"
         >
           <div class="flex justify-between">
@@ -89,14 +89,14 @@
       <!-- Right: details -->
       <div class="flex flex-col gap-4">
         <!-- Arcane focus -->
-        <div v-if="item.is_arcane_focus" class="font-stat text-[0.9375rem] text-muted-foreground italic">
+        <div v-if="item.is_arcane_focus" class="font-stat text-base text-muted-foreground italic">
           Can be used as an arcane focus
         </div>
 
         <!-- Attunement -->
         <div
           v-if="item.requires_attunement"
-          class="font-stat text-[0.9375rem] text-primary italic"
+          class="font-stat text-base text-primary italic"
         >
           Requires attunement
           <span v-if="item.attunement_requirements"
@@ -114,7 +114,7 @@
           >
             Weapon
           </h3>
-          <p v-if="item.damage_rolls?.length" class="font-stat text-[0.9375rem]">
+          <p v-if="item.damage_rolls?.length" class="font-stat text-base">
             {{ item.damage_rolls.map((r) => `${r.dice} ${r.type}`).join(" + ")
             }}<span v-if="item.versatile_damage" class="text-muted-foreground">
               ({{ item.versatile_damage }} two-handed)</span
@@ -128,7 +128,7 @@
           </p>
           <p
             v-if="item.properties?.length"
-            class="font-stat text-[0.8125rem] text-muted-foreground capitalize"
+            class="font-stat text-sm text-muted-foreground capitalize"
           >
             {{ item.properties.join(", ") }}
           </p>
@@ -144,7 +144,7 @@
           >
             Armor Class
           </h3>
-          <p class="font-stat text-[0.9375rem]">{{ item.armor_class }}</p>
+          <p class="font-stat text-base">{{ item.armor_class }}</p>
         </div>
 
         <!-- Charges / Quantity -->
@@ -157,7 +157,7 @@
           >
             {{ item.item_type === "ammunition" ? "Quantity" : "Charges" }}
           </h3>
-          <p class="font-stat text-[0.9375rem]">
+          <p class="font-stat text-base">
             {{ item.charges
             }}<span v-if="item.item_type !== 'ammunition'"> charges</span
             ><span v-if="item.recharge"> · {{ item.recharge }}</span>
@@ -207,7 +207,7 @@
 
         <div
           v-if="item.source"
-          class="font-stat text-[0.8125rem] text-muted-foreground italic"
+          class="font-stat text-sm text-muted-foreground italic"
         >
           <a
             v-if="item.source_url"

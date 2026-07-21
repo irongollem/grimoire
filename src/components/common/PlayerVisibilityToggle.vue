@@ -45,7 +45,7 @@
 
       <!-- Individual members -->
       <div v-if="party.length" class="px-3 pb-2 flex flex-col gap-0.5">
-        <p class="font-cinzel text-[0.5625rem] text-muted-foreground tracking-widest mt-1 mb-1">OR SPECIFIC</p>
+        <p class="font-cinzel text-2xs text-muted-foreground tracking-widest mt-1 mb-1">OR SPECIFIC</p>
         <button
           v-for="member in party"
           :key="member.id"

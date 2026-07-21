@@ -30,7 +30,7 @@
       class="px-4 pb-4 flex flex-col gap-3 transition-opacity"
       :class="enabled ? 'opacity-100' : 'opacity-35'"
     >
-      <p v-if="enabled && hasImage" class="font-fell text-[0.6875rem] text-muted-foreground italic">
+      <p v-if="enabled && hasImage" class="text-caption text-muted-foreground italic">
         Click the image to set the focal point
       </p>
 

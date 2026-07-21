@@ -86,7 +86,7 @@
         <div class="grid grid-cols-5 gap-1.5">
           <div v-for="coin in COIN_TYPES" :key="coin.key" class="flex flex-col gap-0.5">
             <label
-              class="font-cinzel text-[0.5625rem] font-semibold tracking-wider text-center"
+              class="text-label font-semibold text-center"
               :style="{ color: coin.color }"
             >{{ coin.label }}</label>
             <input

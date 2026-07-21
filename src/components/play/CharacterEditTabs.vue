@@ -39,7 +39,7 @@
         <div>
           <span class="field-label">Species</span>
           <p v-if="!!f.species_id" class="text-body text-foreground inline">
-            {{ currentSpeciesName }}&ensp;<RouterLink to="/play/species" class="font-cinzel text-[0.6875rem] text-primary hover:underline">Change</RouterLink>
+            {{ currentSpeciesName }}&ensp;<RouterLink to="/play/species" class="font-cinzel text-xs text-primary hover:underline">Change</RouterLink>
           </p>
           <RouterLink v-else to="/play/species" class="font-cinzel text-xs font-semibold text-primary hover:underline">
             Browse &amp; Pick a Species
@@ -58,7 +58,7 @@
         <div>
           <span class="field-label">Background</span>
           <p v-if="currentBgName" class="text-body text-foreground inline">
-            {{ currentBgName }}&ensp;<RouterLink to="/play/background" class="font-cinzel text-[0.6875rem] text-primary hover:underline">Change</RouterLink>
+            {{ currentBgName }}&ensp;<RouterLink to="/play/background" class="font-cinzel text-xs text-primary hover:underline">Change</RouterLink>
           </p>
           <RouterLink v-else to="/play/background" class="font-cinzel text-xs font-semibold text-primary hover:underline">
             Browse &amp; Pick a Background
@@ -252,9 +252,9 @@ const acFormulaLabel = computed(() => {
 <style scoped>
 @reference "@/assets/main.css";
 .field-label {
-  @apply block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1;
+  @apply block text-label-lg font-semibold text-muted-foreground mb-1;
 }
 .field-input {
-  @apply bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
+  @apply bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
 }
 </style>

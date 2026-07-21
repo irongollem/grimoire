@@ -473,7 +473,7 @@ async function discardStaged(item: StagingItem) {
         <button
           v-for="src in sources"
           :key="src"
-          class="px-2.5 py-1 rounded font-cinzel text-[0.6875rem] tracking-wide border transition-colors"
+          class="px-2.5 py-1 rounded font-cinzel text-xs tracking-wide border transition-colors"
           :class="
             selectedSource === src
               ? 'bg-primary text-primary-foreground border-primary'

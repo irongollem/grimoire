@@ -50,11 +50,11 @@
               </div>
               <div class="min-w-0 flex-1">
                 <p class="font-cinzel text-sm font-semibold text-foreground truncate leading-tight">{{ member.name }}</p>
-                <p class="font-fell text-[0.6875rem] text-muted-foreground italic truncate leading-tight">{{ memberSubtitle(member) }}</p>
+                <p class="text-caption text-muted-foreground italic truncate leading-tight">{{ memberSubtitle(member) }}</p>
               </div>
               <div class="text-right shrink-0">
                 <span class="font-cinzel text-sm font-bold" :class="hpColor(member.current_hp, member.max_hp)">{{ member.current_hp }}</span>
-                <span class="font-fell text-[0.6875rem] text-muted-foreground">/{{ member.max_hp }}</span>
+                <span class="text-caption text-muted-foreground">/{{ member.max_hp }}</span>
               </div>
             </div>
             <!-- HP bar -->
@@ -115,7 +115,7 @@
               <div class="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0" />
               <div class="min-w-0 flex-1">
                 <p class="font-cinzel text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">{{ quest.title || "Untitled Quest" }}</p>
-                <p v-if="giverName(quest)" class="font-fell text-[0.6875rem] text-muted-foreground italic">Given by {{ giverName(quest) }}</p>
+                <p v-if="giverName(quest)" class="text-caption text-muted-foreground italic">Given by {{ giverName(quest) }}</p>
               </div>
             </RouterLink>
             <div v-if="activeQuests.length > 6" class="px-4 py-2 text-center">
@@ -273,7 +273,7 @@
             <div class="h-12 w-12 rounded-full overflow-hidden bg-secondary ring-2 ring-transparent group-hover:ring-primary/40 transition-all">
               <FocalImage :src="npc.portrait_url" :focal-point="npc.portrait_focal_point ?? null" format="token" :alt="npc.name" placeholder="/assets/placeholders/npc.webp" />
             </div>
-            <p class="font-fell text-[0.6875rem] text-center text-muted-foreground group-hover:text-foreground transition-colors line-clamp-2 leading-tight w-full">{{ npc.name }}</p>
+            <p class="text-caption text-center text-muted-foreground group-hover:text-foreground transition-colors line-clamp-2 leading-tight w-full">{{ npc.name }}</p>
           </RouterLink>
         </div>
       </div>
@@ -295,7 +295,7 @@
               <IconPin class="h-3 w-3 text-gold-500 mt-0.5 shrink-0" />
               <p class="font-cinzel text-sm font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-1">{{ note.title || "Untitled" }}</p>
             </div>
-            <p v-if="note.category" class="font-fell text-[0.6875rem] text-muted-foreground italic capitalize">{{ note.category.replace(/_/g, " ") }}</p>
+            <p v-if="note.category" class="text-caption text-muted-foreground italic capitalize">{{ note.category.replace(/_/g, " ") }}</p>
             <p v-if="notePreview(note)" class="text-caption text-muted-foreground line-clamp-2">{{ notePreview(note) }}</p>
           </RouterLink>
         </div>

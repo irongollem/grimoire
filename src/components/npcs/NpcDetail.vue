@@ -40,7 +40,7 @@
       </div>
       <div class="pt-1">
         <p class="font-cinzel text-2xs font-semibold tracking-widest text-muted-foreground mb-2">PC CONNECTION NOTES</p>
-        <p class="font-fell text-[0.6875rem] text-muted-foreground/60 italic mb-2">Per-player notes visible only to the relevant PC.</p>
+        <p class="text-caption text-muted-foreground/60 italic mb-2">Per-player notes visible only to the relevant PC.</p>
         <NpcPcNotesSection :npc-id="npc.id" />
       </div>
     </RevealedFieldsPanel>
@@ -144,7 +144,7 @@
                   placeholder="Search monsters…"
                   @update:model-value="onMonsterLinked($event || null)"
                 />
-                <p v-if="form.linked_monster_id" class="font-fell text-[0.6875rem] text-muted-foreground italic">
+                <p v-if="form.linked_monster_id" class="text-caption text-muted-foreground italic">
                   Monster data imported. Edit fields to override.
                 </p>
                 <div class="flex items-center gap-2">
@@ -629,10 +629,10 @@ defineExpose({
 <style scoped>
 @reference "@/assets/main.css";
 .field-input {
-  @apply w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
+  @apply w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
 }
 .field-label {
-  @apply block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1;
+  @apply block text-label-lg font-semibold text-muted-foreground mb-1;
 }
 .speed-input { -moz-appearance: textfield; }
 .speed-input::-webkit-outer-spin-button,

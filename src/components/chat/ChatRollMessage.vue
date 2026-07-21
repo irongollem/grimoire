@@ -7,7 +7,7 @@
     <!-- DM-only badge -->
     <div class="flex items-center gap-1 mb-1.5">
       <IconHide class="h-3 w-3 text-purple-500 dark:text-purple-400 shrink-0" />
-      <span class="font-cinzel text-[0.5625rem] text-purple-500 dark:text-purple-400 tracking-widest">HIDDEN ROLL</span>
+      <span class="font-cinzel text-2xs text-purple-500 dark:text-purple-400 tracking-widest">HIDDEN ROLL</span>
     </div>
     <!-- Sender row -->
     <p class="text-label text-foreground/60 mb-1">
@@ -49,8 +49,8 @@
                 : 'text-purple-800 dark:text-purple-100'
           "
         >{{ roll.total ?? "?" }}</span>
-        <span v-if="roll.isCrit" class="font-cinzel text-[0.5rem] text-amber-400 tracking-widest mt-0.5">CRIT</span>
-        <span v-else-if="roll.isFumble" class="font-cinzel text-[0.5rem] text-destructive tracking-widest mt-0.5">FAIL</span>
+        <span v-if="roll.isCrit" class="font-cinzel text-2xs text-amber-400 tracking-widest mt-0.5">CRIT</span>
+        <span v-else-if="roll.isFumble" class="font-cinzel text-2xs text-destructive tracking-widest mt-0.5">FAIL</span>
       </div>
       <div class="flex-1 min-w-0">
         <div v-if="roll.breakdown?.length" class="flex flex-wrap gap-1 mb-1">
@@ -113,11 +113,11 @@
         >{{ roll.total ?? "?" }}</span>
         <span
           v-if="roll.isCrit"
-          class="font-cinzel text-[0.5rem] text-amber-400 tracking-widest mt-0.5"
+          class="font-cinzel text-2xs text-amber-400 tracking-widest mt-0.5"
         >CRIT</span>
         <span
           v-else-if="roll.isFumble"
-          class="font-cinzel text-[0.5rem] text-destructive tracking-widest mt-0.5"
+          class="font-cinzel text-2xs text-destructive tracking-widest mt-0.5"
         >FAIL</span>
       </div>
       <!-- Breakdown + meta -->

@@ -35,7 +35,7 @@
       <!-- HP -->
       <div class="text-right shrink-0">
         <span class="font-cinzel text-sm font-bold" :class="hpTextColor">{{ companion.current_hp }}</span>
-        <span class="font-fell text-[0.6875rem] text-muted-foreground">/{{ companion.max_hp }}</span>
+        <span class="text-caption text-muted-foreground">/{{ companion.max_hp }}</span>
       </div>
 
       <!-- Edit / delete -->

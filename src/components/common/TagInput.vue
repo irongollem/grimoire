@@ -7,7 +7,7 @@
       <span
         v-for="tag in model"
         :key="tag"
-        class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-muted font-cinzel text-[0.6875rem] text-muted-foreground tracking-wider"
+        class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-muted text-label-lg text-muted-foreground"
       >
         {{ tag }}
         <button

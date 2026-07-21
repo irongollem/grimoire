@@ -48,10 +48,10 @@
             </div>
             <div class="flex flex-col items-end gap-1 shrink-0">
               <span v-if="sp.size"
-                class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[0.5625rem] text-muted-foreground capitalize">
+                class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground capitalize">
                 {{ sp.size }}
               </span>
-              <span v-if="sp.subraces?.length" class="font-cinzel text-[0.5625rem] text-muted-foreground/60">
+              <span v-if="sp.subraces?.length" class="font-cinzel text-2xs text-muted-foreground/60">
                 {{ sp.subraces.length }} variant{{ sp.subraces.length > 1 ? 's' : '' }}
               </span>
             </div>
@@ -95,9 +95,9 @@ const { f, auth, portraitUrl, focalPoint, allSpecies, selectedSpecies, subraceOp
 <style scoped>
 @reference "@/assets/main.css";
 .field-label {
-  @apply block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1;
+  @apply block text-label-lg font-semibold text-muted-foreground mb-1;
 }
 .field-input {
-  @apply bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
+  @apply bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
 }
 </style>

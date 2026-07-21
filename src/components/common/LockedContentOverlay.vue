@@ -13,7 +13,7 @@
       </p>
       <RouterLink
         to="/billing"
-        class="font-cinzel text-[0.5625rem] tracking-wider text-primary/80 hover:text-primary transition-colors"
+        class="text-label text-primary/80 hover:text-primary transition-colors"
       >
         Upgrade to access
       </RouterLink>

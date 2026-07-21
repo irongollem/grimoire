@@ -91,7 +91,7 @@
           <!-- Coordinates -->
           <p
             v-if="placeholderFocalPoints[entity.type]"
-            class="font-cinzel text-[0.5625rem] text-muted-foreground/60 tracking-wider text-center"
+            class="text-label text-muted-foreground/60 text-center"
           >
             {{ placeholderFocalPoints[entity.type].x }}%, {{ placeholderFocalPoints[entity.type].y }}%
           </p>

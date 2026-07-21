@@ -64,7 +64,7 @@
             :class="featId === f.id ? 'bg-primary/10 text-primary' : 'bg-card text-foreground hover:bg-muted/40'"
             @click="emit('update:featId', featId === f.id ? '' : f.id)">
             <p class="font-cinzel text-xs font-semibold">{{ f.name }}</p>
-            <p v-if="f.description" class="font-fell text-[0.6875rem] text-muted-foreground line-clamp-1 mt-0.5">{{ f.description }}</p>
+            <p v-if="f.description" class="text-caption text-muted-foreground line-clamp-1 mt-0.5">{{ f.description }}</p>
           </button>
         </div>
         <p v-else-if="featSearch" class="text-body text-muted-foreground italic">No matching features found.</p>

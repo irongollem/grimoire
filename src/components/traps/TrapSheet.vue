@@ -116,13 +116,13 @@
         <div class="flex flex-wrap gap-2">
           <span
             v-if="trap.attack_bonus != null"
-            class="font-cinzel text-[0.6875rem] font-semibold tracking-wider bg-primary/10 text-primary rounded px-2.5 py-1"
+            class="text-label-lg font-semibold bg-primary/10 text-primary rounded px-2.5 py-1"
           >
             ATK +{{ trap.attack_bonus }}
           </span>
           <span
             v-if="trap.save_type && trap.save_dc"
-            class="font-cinzel text-[0.6875rem] font-semibold tracking-wider bg-amber-500/10 text-amber-400 rounded px-2.5 py-1"
+            class="text-label-lg font-semibold bg-amber-500/10 text-amber-400 rounded px-2.5 py-1"
           >
             {{ trap.save_type }} Save DC {{ trap.save_dc }}
           </span>
@@ -131,7 +131,7 @@
           <span
             v-for="(entry, i) in trap.damage_entries"
             :key="i"
-            class="font-cinzel text-[0.6875rem] font-semibold tracking-wider bg-destructive/10 text-destructive rounded px-2.5 py-1 capitalize"
+            class="text-label-lg font-semibold bg-destructive/10 text-destructive rounded px-2.5 py-1 capitalize"
           >
             {{ entry.dice }}{{ entry.type ? ` ${entry.type}` : "" }}
           </span>

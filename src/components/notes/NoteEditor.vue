@@ -561,7 +561,7 @@ async function remove() {
 @reference "@/assets/main.css";
 
 .note-editor :deep(.ProseMirror) {
-  @apply font-fell text-sm text-foreground outline-none min-h-96;
+  @apply text-body text-foreground outline-none min-h-96;
 }
 .note-editor :deep(.ProseMirror p) {
   @apply mb-3 leading-relaxed;

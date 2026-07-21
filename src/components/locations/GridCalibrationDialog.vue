@@ -143,7 +143,7 @@
                 step="0.05"
                 class="w-48"
               />
-              <span class="font-fell text-[0.6875rem] text-muted-foreground/70 italic">
+              <span class="text-caption text-muted-foreground/70 italic">
                 Lower if the map already has its own gridlines.
               </span>
             </label>

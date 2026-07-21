@@ -44,7 +44,7 @@
               <span v-else class="font-cinzel text-2xs tracking-widest text-muted-foreground/60 uppercase">Not configured</span>
               <button
                 v-if="isKeySet(row.provider as KeyProvider)"
-                class="px-2 py-0.5 font-cinzel text-[0.5625rem] font-semibold tracking-wider text-destructive border border-destructive/40 rounded hover:bg-destructive/10 disabled:opacity-50 transition-colors"
+                class="px-2 py-0.5 text-label font-semibold text-destructive border border-destructive/40 rounded hover:bg-destructive/10 disabled:opacity-50 transition-colors"
                 :disabled="keyClearing[row.provider as KeyProvider]"
                 @click="doClrKey(row.provider as KeyProvider)"
               >
@@ -176,7 +176,7 @@
                     @click="draftProviders[row.provider].image_quality = opt.value"
                   >{{ opt.label }}</button>
                 </div>
-                <p class="font-fell text-[0.5625rem] text-muted-foreground/60 italic">Higher = more output tokens = higher real cost.</p>
+                <p class="text-caption-sm text-muted-foreground/60 italic">Higher = more output tokens = higher real cost.</p>
               </div>
               <div class="space-y-1">
                 <label class="block text-label text-muted-foreground">Multiplier</label>
@@ -261,7 +261,7 @@
               <!-- Model name + type badge -->
               <span class="font-mono text-xs text-foreground truncate w-36 shrink-0">{{ m.model }}</span>
               <span
-                class="font-cinzel text-[0.5625rem] tracking-wider px-1.5 py-0.5 rounded shrink-0"
+                class="text-label px-1.5 py-0.5 rounded shrink-0"
                 :class="{
                   'text-sky-400 bg-sky-400/10':    m.model_type === 'text',
                   'text-violet-400 bg-violet-400/10': m.model_type === 'image',
@@ -272,62 +272,62 @@
               <!-- Cost fields -->
               <template v-if="m.model_type === 'text'">
                 <div class="flex items-center gap-1 shrink-0">
-                  <span class="font-cinzel text-[0.5625rem] text-muted-foreground">TXT-IN $</span>
+                  <span class="font-cinzel text-2xs text-muted-foreground">TXT-IN $</span>
                   <input
                     type="text" inputmode="decimal"
                     :value="draftModelPricing[m.model].input_cost_per_million_tokens ?? ''"
                     @blur="(e) => setDecimal(draftModelPricing[m.model], 'input_cost_per_million_tokens', e)"
                     class="w-16 bg-background border border-border rounded px-1.5 py-0.5 font-mono text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
                   />
-                  <span class="font-cinzel text-[0.5625rem] text-muted-foreground">/M</span>
+                  <span class="font-cinzel text-2xs text-muted-foreground">/M</span>
                 </div>
                 <div class="flex items-center gap-1 shrink-0">
-                  <span class="font-cinzel text-[0.5625rem] text-muted-foreground">OUT $</span>
+                  <span class="font-cinzel text-2xs text-muted-foreground">OUT $</span>
                   <input
                     type="text" inputmode="decimal"
                     :value="draftModelPricing[m.model].output_cost_per_million_tokens ?? ''"
                     @blur="(e) => setDecimal(draftModelPricing[m.model], 'output_cost_per_million_tokens', e)"
                     class="w-16 bg-background border border-border rounded px-1.5 py-0.5 font-mono text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
                   />
-                  <span class="font-cinzel text-[0.5625rem] text-muted-foreground">/M</span>
+                  <span class="font-cinzel text-2xs text-muted-foreground">/M</span>
                 </div>
               </template>
               <template v-else-if="m.model_type === 'image'">
                 <div class="flex items-center gap-1 shrink-0">
-                  <span class="font-cinzel text-[0.5625rem] text-muted-foreground">TXT-IN $</span>
+                  <span class="font-cinzel text-2xs text-muted-foreground">TXT-IN $</span>
                   <input
                     type="text" inputmode="decimal"
                     :value="draftModelPricing[m.model].input_cost_per_million_tokens ?? ''"
                     @blur="(e) => setDecimal(draftModelPricing[m.model], 'input_cost_per_million_tokens', e)"
                     class="w-14 bg-background border border-border rounded px-1.5 py-0.5 font-mono text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
                   />
-                  <span class="font-cinzel text-[0.5625rem] text-muted-foreground">/M</span>
+                  <span class="font-cinzel text-2xs text-muted-foreground">/M</span>
                 </div>
                 <div class="flex items-center gap-1 shrink-0">
-                  <span class="font-cinzel text-[0.5625rem] text-muted-foreground">IMG-IN $</span>
+                  <span class="font-cinzel text-2xs text-muted-foreground">IMG-IN $</span>
                   <input
                     type="text" inputmode="decimal"
                     :value="draftModelPricing[m.model].image_input_cost_per_million_tokens ?? ''"
                     @blur="(e) => setDecimal(draftModelPricing[m.model], 'image_input_cost_per_million_tokens', e)"
                     class="w-14 bg-background border border-border rounded px-1.5 py-0.5 font-mono text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
                   />
-                  <span class="font-cinzel text-[0.5625rem] text-muted-foreground">/M</span>
+                  <span class="font-cinzel text-2xs text-muted-foreground">/M</span>
                 </div>
                 <div class="flex items-center gap-1 shrink-0">
-                  <span class="font-cinzel text-[0.5625rem] text-muted-foreground">IMG-OUT $</span>
+                  <span class="font-cinzel text-2xs text-muted-foreground">IMG-OUT $</span>
                   <input
                     type="text" inputmode="decimal"
                     :value="draftModelPricing[m.model].image_output_cost_per_million_tokens ?? ''"
                     @blur="(e) => setDecimal(draftModelPricing[m.model], 'image_output_cost_per_million_tokens', e)"
                     class="w-14 bg-background border border-border rounded px-1.5 py-0.5 font-mono text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
                   />
-                  <span class="font-cinzel text-[0.5625rem] text-muted-foreground">/M</span>
+                  <span class="font-cinzel text-2xs text-muted-foreground">/M</span>
                 </div>
               </template>
               <template v-else>
                 <!-- audio: flat per-generation cost -->
                 <div class="flex items-center gap-1 shrink-0">
-                  <span class="font-cinzel text-[0.5625rem] text-muted-foreground">PER GEN $</span>
+                  <span class="font-cinzel text-2xs text-muted-foreground">PER GEN $</span>
                   <input
                     type="text" inputmode="decimal"
                     :value="draftModelPricing[m.model].cost_per_image_usd ?? ''"
@@ -335,7 +335,7 @@
                     class="w-20 bg-background border border-border rounded px-1.5 py-0.5 font-mono text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
                   />
                 </div>
-                <span class="font-cinzel text-[0.5625rem] text-amber-400/60 shrink-0">est.</span>
+                <span class="font-cinzel text-2xs text-amber-400/60 shrink-0">est.</span>
               </template>
 
               <!-- Usage (all-time) -->
@@ -347,13 +347,13 @@
               </span>
 
               <!-- Last verified -->
-              <span class="font-cinzel text-[0.5625rem] text-muted-foreground/40 shrink-0 text-right w-16">
+              <span class="font-cinzel text-2xs text-muted-foreground/40 shrink-0 text-right w-16">
                 {{ draftModelPricing[m.model]?.last_verified_at ? new Date(draftModelPricing[m.model].last_verified_at!).toLocaleDateString() : 'never' }}
               </span>
 
               <!-- Save (marks verified) -->
               <button
-                class="px-2 py-0.5 font-cinzel text-[0.5625rem] font-semibold tracking-wider bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50 transition-opacity shrink-0"
+                class="px-2 py-0.5 text-label font-semibold bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50 transition-opacity shrink-0"
                 :disabled="modelPricingSaving[m.model]"
                 @click="saveModelPricing(m.model, row.provider, m.model_type)"
               >

@@ -22,7 +22,7 @@
           </RouterLink>
         </template>
         <template #subtitle>
-          <p v-if="m.npc.occupation || m.npc.race" class="font-fell text-[0.6875rem] text-muted-foreground italic truncate">
+          <p v-if="m.npc.occupation || m.npc.race" class="text-caption text-muted-foreground italic truncate">
             {{ [m.npc.race, m.npc.occupation].filter(Boolean).join(" · ") }}
           </p>
         </template>
@@ -60,7 +60,7 @@
             </RouterLink>
           </template>
           <template #subtitle>
-            <p v-if="m.npc.occupation || m.npc.race" class="font-fell text-[0.6875rem] text-muted-foreground italic truncate">
+            <p v-if="m.npc.occupation || m.npc.race" class="text-caption text-muted-foreground italic truncate">
               {{ [m.npc.race, m.npc.occupation].filter(Boolean).join(" · ") }}
             </p>
           </template>

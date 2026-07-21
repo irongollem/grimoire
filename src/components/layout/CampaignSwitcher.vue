@@ -37,7 +37,7 @@
             >
               <span class="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0" />
               <span
-                class="font-cinzel text-[0.5625rem] text-green-500 tracking-wider"
+                class="text-label text-green-500"
                 >{{ onlineCount }}</span
               >
             </span>
@@ -128,7 +128,7 @@
                 <p class="font-cinzel text-2xs text-muted-foreground/60 truncate">{{ c.name }}</p>
               </span>
               <button
-                class="font-cinzel text-[0.5625rem] tracking-wider text-primary/70 hover:text-primary transition-colors disabled:opacity-40 shrink-0"
+                class="text-label text-primary/70 hover:text-primary transition-colors disabled:opacity-40 shrink-0"
                 :disabled="!canCreateCampaign || isRestoring"
                 :title="canCreateCampaign ? 'Restore campaign' : 'Upgrade to restore'"
                 @click.stop="restore(c.id)"

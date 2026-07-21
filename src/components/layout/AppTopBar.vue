@@ -19,7 +19,7 @@
       v-if="isDm"
       type="button"
       :title="ui.dmMode === 'play' ? 'Play mode — click to stop broadcasting' : 'Prep mode — click to broadcast'"
-      class="rounded border px-2 py-0.5 font-cinzel text-[0.5625rem] tracking-widest font-bold transition-colors shrink-0"
+      class="rounded border px-2 py-0.5 font-cinzel text-2xs tracking-widest font-bold transition-colors shrink-0"
       :class="ui.dmMode === 'play'
         ? 'border-primary/60 bg-primary/15 text-primary'
         : 'border-border text-muted-foreground'"

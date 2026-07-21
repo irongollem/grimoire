@@ -69,7 +69,7 @@
       <template v-else>
         <div class="max-h-64 overflow-y-auto">
           <div v-for="group in groups" :key="group.name" class="p-2 pb-1">
-            <p class="mb-1.5 px-0.5 font-cinzel text-[0.5625rem] font-semibold uppercase tracking-wider text-muted-foreground">
+            <p class="mb-1.5 px-0.5 text-eyebrow font-semibold text-muted-foreground">
               {{ group.name }}
             </p>
             <div class="flex flex-wrap gap-1">

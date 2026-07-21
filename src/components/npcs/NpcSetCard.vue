@@ -97,7 +97,7 @@ function onImgError(e: Event) {
   @apply font-cinzel text-base font-bold text-foreground truncate;
 }
 .set-meta {
-  @apply font-fell text-xs text-muted-foreground;
+  @apply text-caption text-muted-foreground;
 }
 .set-missing {
   @apply text-destructive/80;
@@ -112,7 +112,7 @@ function onImgError(e: Event) {
   @apply hover:text-destructive;
 }
 .set-desc {
-  @apply font-fell text-sm text-muted-foreground line-clamp-2;
+  @apply text-body text-muted-foreground line-clamp-2;
 }
 .set-thumbs {
   @apply flex flex-wrap items-center gap-1.5;
@@ -124,9 +124,9 @@ function onImgError(e: Event) {
   @apply flex size-9 items-center justify-center rounded-md border border-border bg-muted font-cinzel text-xs font-semibold text-muted-foreground;
 }
 .set-empty {
-  @apply font-fell text-sm text-muted-foreground italic;
+  @apply text-body text-muted-foreground italic;
 }
 .export-btn {
-  @apply mt-auto inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold tracking-wider text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed;
+  @apply mt-auto inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed;
 }
 </style>

@@ -200,7 +200,7 @@ function close() {
   @apply font-fell font-normal italic text-muted-foreground/60;
 }
 .modal-input {
-  @apply w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
+  @apply w-full bg-muted border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
 }
 .picker {
   @apply flex flex-col gap-2 min-h-0 flex-1;
@@ -215,7 +215,7 @@ function close() {
   @apply flex-1 overflow-y-auto flex flex-col gap-0.5 min-h-0 rounded-md border border-border p-1;
 }
 .picker-empty {
-  @apply flex items-center justify-center py-8 font-fell text-sm text-muted-foreground italic;
+  @apply flex items-center justify-center py-8 text-body text-muted-foreground italic;
 }
 .picker-row {
   @apply flex items-center gap-2.5 px-2 py-1.5 rounded cursor-pointer hover:bg-muted/60 transition-colors;
@@ -233,7 +233,7 @@ function close() {
   @apply font-cinzel text-xs font-semibold text-foreground truncate;
 }
 .picker-sub {
-  @apply font-fell text-xs text-muted-foreground truncate capitalize;
+  @apply text-caption text-muted-foreground truncate capitalize;
 }
 .modal-actions {
   @apply flex gap-2 justify-end;

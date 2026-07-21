@@ -89,7 +89,7 @@ defineExpose({ close });
 }
 
 .picker-chip {
-  @apply font-cinzel text-[0.5625rem] font-semibold px-1.5 py-1 rounded border transition-colors text-center cursor-pointer;
+  @apply font-cinzel text-2xs font-semibold px-1.5 py-1 rounded border transition-colors text-center cursor-pointer;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

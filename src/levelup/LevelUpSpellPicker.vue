@@ -41,7 +41,7 @@
       >
         <div class="flex-1 min-w-0">
           <p class="font-cinzel text-xs font-semibold">{{ spell.name }}</p>
-          <p class="font-fell text-[0.6875rem] text-muted-foreground">
+          <p class="text-caption text-muted-foreground">
             {{ isCantrip ? 'Cantrip' : `Level ${spell.level}` }} · {{ spell.school }}
           </p>
         </div>

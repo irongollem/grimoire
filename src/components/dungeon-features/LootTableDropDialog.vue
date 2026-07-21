@@ -66,7 +66,7 @@
 
           <button
             type="button"
-            class="self-start font-fell text-[0.6875rem] text-muted-foreground hover:text-foreground italic"
+            class="self-start text-caption text-muted-foreground hover:text-foreground italic"
             @click="emit('reroll')"
           >
             ↻ re-roll preview

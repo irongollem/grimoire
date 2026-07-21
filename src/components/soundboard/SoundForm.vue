@@ -71,7 +71,7 @@
           @click="isPro ? onUploadTabClick() : undefined"
         >
           Upload
-          <span v-if="!isPro" class="absolute -top-1.5 -right-1.5 px-1 rounded text-[0.5625rem] font-cinzel bg-amber-500 text-black leading-4">PRO</span>
+          <span v-if="!isPro" class="absolute -top-1.5 -right-1.5 px-1 rounded text-2xs font-cinzel bg-amber-500 text-black leading-4">PRO</span>
         </button>
         <button
           v-if="spotifyStore.isEnabled"
@@ -101,7 +101,7 @@
           @click="isPro ? (activeSourceTab = 'generate') : undefined"
         >
           Generate
-          <span v-if="!isPro" class="absolute -top-1.5 -right-1.5 px-1 rounded text-[0.5625rem] font-cinzel bg-amber-500 text-black leading-4">PRO</span>
+          <span v-if="!isPro" class="absolute -top-1.5 -right-1.5 px-1 rounded text-2xs font-cinzel bg-amber-500 text-black leading-4">PRO</span>
         </button>
         <button
           type="button"

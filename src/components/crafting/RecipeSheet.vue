@@ -90,7 +90,7 @@
         <div v-if="ingredients?.length" class="space-y-1.5">
           <div v-for="(ing, idx) in ingredients" :key="ing.id" class="flex items-center justify-between gap-2">
             <div class="flex items-center gap-2 min-w-0">
-              <span v-if="idx === 0" class="font-cinzel text-[0.5625rem] text-primary tracking-wider shrink-0">PRIMARY</span>
+              <span v-if="idx === 0" class="text-label text-primary shrink-0">PRIMARY</span>
               <span class="text-body text-foreground truncate">
                 <template v-if="ing.item_id">{{ itemById(ing.item_id)?.name ?? "Unknown item" }}</template>
                 <span v-else class="italic text-muted-foreground">

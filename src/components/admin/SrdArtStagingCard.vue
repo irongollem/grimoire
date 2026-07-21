@@ -106,7 +106,7 @@ function filteredOptions(): EntityOption[] {
             @click.stop="emit('preview-entity', opt.id)"
           >{{ opt.name }}</button>
           <span
-            class="ml-auto shrink-0 font-cinzel text-[0.5625rem] text-muted-foreground tracking-wide"
+            class="ml-auto shrink-0 font-cinzel text-2xs text-muted-foreground tracking-wide"
             >{{ opt.source }}</span
           >
         </label>
@@ -128,7 +128,7 @@ function filteredOptions(): EntityOption[] {
       <div class="flex gap-1.5">
         <!-- Assign selected -->
         <button
-          class="flex-1 flex items-center justify-center gap-1 py-1 rounded font-cinzel text-[0.6875rem] tracking-wide border transition-colors"
+          class="flex-1 flex items-center justify-center gap-1 py-1 rounded font-cinzel text-xs tracking-wide border transition-colors"
           :disabled="!selected.length || assignStatus === 'assigning'"
           :class="
             assignStatus === 'error'
@@ -157,7 +157,7 @@ function filteredOptions(): EntityOption[] {
 
         <!-- Discard without assigning -->
         <button
-          class="flex items-center gap-1 px-2 py-1 rounded border border-border font-cinzel text-[0.6875rem] tracking-wide text-muted-foreground hover:text-destructive hover:border-destructive/50 transition-colors"
+          class="flex items-center gap-1 px-2 py-1 rounded border border-border font-cinzel text-xs tracking-wide text-muted-foreground hover:text-destructive hover:border-destructive/50 transition-colors"
           title="Discard"
           @click="emit('discard')"
         >

@@ -1,6 +1,6 @@
 <template>
   <div class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-3">
-    <h3 class="font-cinzel text-[0.6875rem] font-bold tracking-wider text-muted-foreground uppercase">
+    <h3 class="text-label-lg font-bold text-muted-foreground uppercase">
       Weapon
     </h3>
     <div class="flex flex-col gap-1">

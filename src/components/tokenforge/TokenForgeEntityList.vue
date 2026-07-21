@@ -10,7 +10,7 @@
           class="w-full bg-transparent border-b border-border px-1 py-1 font-cinzel text-sm font-bold text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors"
           @input="emit('update:customName', ($event.target as HTMLInputElement).value)"
         />
-        <label class="inline-flex items-center gap-2 cursor-pointer font-cinzel text-[0.6875rem] tracking-wider text-muted-foreground hover:text-foreground transition-colors">
+        <label class="inline-flex items-center gap-2 cursor-pointer text-label-lg text-muted-foreground hover:text-foreground transition-colors">
           <IconUpload class="h-3 w-3 shrink-0" />
           {{ customImageUrl ? 'Change image' : 'Upload image (optional)' }}
           <input type="file" accept="image/*" class="sr-only" @change="emit('custom-image-pick', $event)" />
@@ -47,7 +47,7 @@
         <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ e.name }}</p>
         <p class="text-caption text-muted-foreground truncate">{{ e.subtitle }}</p>
       </div>
-      <span v-if="!e.imageUrl" class="font-cinzel text-[0.5625rem] text-muted-foreground/40 tracking-wider shrink-0">No art</span>
+      <span v-if="!e.imageUrl" class="text-label text-muted-foreground/40 shrink-0">No art</span>
     </button>
 
     <p v-if="entities.length === 0 && sourceTab !== 'custom'" class="text-body text-muted-foreground italic px-2 py-4">

@@ -58,14 +58,14 @@
           v-for="cond in availableConditions"
           :key="cond"
           type="button"
-          class="w-full text-left px-2 py-1 rounded font-cinzel text-[0.6875rem] text-foreground hover:bg-muted transition-colors"
+          class="w-full text-left px-2 py-1 rounded font-cinzel text-xs text-foreground hover:bg-muted transition-colors"
           :title="getConditionDescription(cond)"
           @click="addCondition(cond)"
         >{{ cond }}</button>
         <div class="border-t border-border mt-1 pt-1">
           <button
             type="button"
-            class="w-full text-left px-2 py-1 rounded font-cinzel text-[0.6875rem] text-violet-400 hover:bg-muted transition-colors"
+            class="w-full text-left px-2 py-1 rounded font-cinzel text-xs text-violet-400 hover:bg-muted transition-colors"
             @click="openCurseInput"
           >Cursed…</button>
         </div>

@@ -30,7 +30,7 @@
           <span class="flex-1 truncate">{{ p.name }}</span>
           <span
             v-if="loadedPackIds.has(p.pack_id)"
-            class="font-cinzel text-[0.5625rem] tracking-wider shrink-0"
+            class="text-label shrink-0"
             :class="currentPackId === p.pack_id ? 'text-muted-foreground' : 'text-muted-foreground/50'"
           >v{{ p.pack_version }}</span>
           <svg v-else class="h-3 w-3 shrink-0 animate-spin text-muted-foreground/50" viewBox="0 0 24 24" fill="none">
@@ -68,30 +68,30 @@
         >{{ cat.replace('object', '') }}</button>
       </div>
       <div class="flex flex-wrap items-center gap-1">
-        <span class="font-cinzel text-[0.5625rem] tracking-wider text-muted-foreground uppercase w-full">Rotate</span>
+        <span class="text-eyebrow text-muted-foreground w-full">Rotate</span>
         <button
           type="button"
           title="–1° ([)"
-          class="rounded px-1.5 py-0.5 font-cinzel text-[0.5625rem] bg-muted hover:bg-muted/80 text-foreground"
+          class="rounded px-1.5 py-0.5 font-cinzel text-2xs bg-muted hover:bg-muted/80 text-foreground"
           @click="$emit('update:stampRotation', (stampRotation + 359) % 360)"
         >–1°</button>
         <button
           type="button"
           title="Rotate CCW 90° (Q)"
-          class="rounded px-1.5 py-0.5 font-cinzel text-[0.5625rem] bg-muted hover:bg-muted/80 text-foreground"
+          class="rounded px-1.5 py-0.5 font-cinzel text-2xs bg-muted hover:bg-muted/80 text-foreground"
           @click="$emit('update:stampRotation', (stampRotation + 270) % 360)"
         >↺ Q</button>
         <span class="text-caption text-foreground w-9 text-center">{{ stampRotation }}°</span>
         <button
           type="button"
           title="Rotate CW 90° (E)"
-          class="rounded px-1.5 py-0.5 font-cinzel text-[0.5625rem] bg-muted hover:bg-muted/80 text-foreground"
+          class="rounded px-1.5 py-0.5 font-cinzel text-2xs bg-muted hover:bg-muted/80 text-foreground"
           @click="$emit('update:stampRotation', (stampRotation + 90) % 360)"
         >↻ E</button>
         <button
           type="button"
           title="+1° (])"
-          class="rounded px-1.5 py-0.5 font-cinzel text-[0.5625rem] bg-muted hover:bg-muted/80 text-foreground"
+          class="rounded px-1.5 py-0.5 font-cinzel text-2xs bg-muted hover:bg-muted/80 text-foreground"
           @click="$emit('update:stampRotation', (stampRotation + 1) % 360)"
         >+1°</button>
       </div>
@@ -124,7 +124,7 @@
       </label>
       <div class="space-y-2">
         <div>
-          <span class="block font-cinzel text-[0.5625rem] tracking-wider text-muted-foreground mb-0.5">Note</span>
+          <span class="block text-label text-muted-foreground mb-0.5">Note</span>
           <EntityCombobox
             :model-value="linkedNoteId"
             :options="noteOptions"
@@ -133,7 +133,7 @@
           />
         </div>
         <div>
-          <span class="block font-cinzel text-[0.5625rem] tracking-wider text-muted-foreground mb-0.5">Encounter</span>
+          <span class="block text-label text-muted-foreground mb-0.5">Encounter</span>
           <EntityCombobox
             :model-value="linkedEncounterId"
             :options="encounterOptions"
@@ -164,7 +164,7 @@
           @click="$emit('update:activeTemplateShape', shape.id)"
         >
           <span class="text-base leading-none">{{ shape.icon }}</span>
-          <span class="font-cinzel text-[0.5625rem] tracking-wide">{{ shape.label }}</span>
+          <span class="font-cinzel text-2xs tracking-wide">{{ shape.label }}</span>
         </button>
       </div>
       <p class="text-caption-sm text-muted-foreground">Click center, drag to size. Walls auto-added.</p>

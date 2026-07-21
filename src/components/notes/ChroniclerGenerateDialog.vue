@@ -77,7 +77,7 @@
             <p class="text-caption text-muted-foreground leading-snug">{{ currentLoadingQuote }}</p>
             <span class="ml-auto text-caption tabular-nums text-muted-foreground/60 shrink-0">{{ elapsedLabel }}</span>
           </div>
-          <p class="font-fell text-[0.6875rem] leading-snug pl-5.5" :class="reassurance.tone">{{ reassurance.text }}</p>
+          <p class="text-caption leading-snug pl-5.5" :class="reassurance.tone">{{ reassurance.text }}</p>
         </div>
 
         <!-- Error -->

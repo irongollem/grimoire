@@ -10,7 +10,7 @@
       <button class="flex items-center gap-1.5 flex-1 text-left" @click="open = !open">
         <IconChevronRight class="h-3 w-3 text-muted-foreground transition-transform" :class="open ? 'rotate-90' : ''" />
         <span class="text-label-lg font-semibold text-foreground">{{ label }}</span>
-        <span class="font-cinzel text-[0.5625rem] text-muted-foreground/60 ml-1">
+        <span class="font-cinzel text-2xs text-muted-foreground/60 ml-1">
           ({{ items.length }}<template v-if="weight != null"> · {{ formatWeightLb(weight) }}</template>)
         </span>
       </button>

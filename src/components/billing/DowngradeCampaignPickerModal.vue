@@ -43,7 +43,7 @@
               <p class="font-cinzel text-sm font-semibold text-foreground truncate">
                 {{ c.name }}
               </p>
-              <p class="font-fell text-[0.6875rem] text-muted-foreground italic truncate">
+              <p class="text-caption text-muted-foreground italic truncate">
                 {{ c.setting }} · last updated {{ formatDate(c.updated_at) }}
               </p>
             </div>

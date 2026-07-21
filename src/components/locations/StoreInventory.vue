@@ -74,7 +74,7 @@
 
         <!-- Inline offer form -->
         <div v-if="offeringId === si.id" class="border-t border-border/60 bg-muted/20 px-3 py-2 space-y-2">
-          <p class="font-cinzel text-[0.5625rem] text-emerald-400/80 tracking-widest uppercase">Vendor Offer</p>
+          <p class="font-cinzel text-2xs text-emerald-400/80 tracking-widest uppercase">Vendor Offer</p>
           <input
             v-model="offerDesc"
             type="text"
@@ -84,7 +84,7 @@
           <!-- Coin price inputs -->
           <div class="grid grid-cols-5 gap-1">
             <div v-for="coin in COINS" :key="coin.key" class="flex flex-col items-center gap-0.5">
-              <span class="font-cinzel text-[0.5625rem] font-bold" :class="coin.color">{{ coin.symbol }}</span>
+              <span class="font-cinzel text-2xs font-bold" :class="coin.color">{{ coin.symbol }}</span>
               <input
                 v-model.number="offerPrice[coin.key]"
                 type="number" min="0"
@@ -170,7 +170,7 @@
       <button
         type="button"
         :disabled="fillPoolSize === 0 || isFilling"
-        class="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 font-cinzel text-[0.6875rem] font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-40"
+        class="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 font-cinzel text-xs font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-40"
         @click="quickFill"
       >
         <IconShuffle class="size-3" />

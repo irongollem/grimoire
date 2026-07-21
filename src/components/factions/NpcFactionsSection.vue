@@ -23,7 +23,7 @@
         <!-- Status badge — shown when not Active -->
         <span
           v-if="e.status && e.status !== 'Active'"
-          class="font-cinzel text-[0.5625rem] font-semibold italic"
+          class="font-cinzel text-2xs font-semibold italic"
           :style="{ color: NPC_FACTION_STATUS_COLORS[e.status as NpcFactionStatus] }"
         >{{ e.status }}</span>
         <button type="button" class="text-muted-foreground hover:text-destructive transition-colors text-sm leading-none shrink-0" @click="remove(e)">×</button>

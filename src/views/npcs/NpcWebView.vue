@@ -34,7 +34,7 @@
       <transition name="fade">
         <div
           v-if="linkFromKey && !linkToKey"
-          class="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-primary/90 text-primary-foreground font-cinzel text-[0.6875rem] font-semibold tracking-wider shadow-lg pointer-events-none"
+          class="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-primary/90 text-primary-foreground text-label-lg font-semibold shadow-lg pointer-events-none"
         >
           Shift+click another node to link
         </div>

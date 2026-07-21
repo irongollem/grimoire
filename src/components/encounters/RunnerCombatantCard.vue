@@ -219,7 +219,7 @@ function toggleDetail() {
 }
 
 .avatar-initials {
-  @apply w-full h-full flex items-center justify-center font-cinzel text-[0.6875rem] font-bold;
+  @apply w-full h-full flex items-center justify-center font-cinzel text-xs font-bold;
 }
 
 .reveal-btn {
@@ -238,7 +238,7 @@ function toggleDetail() {
 }
 
 .type-badge {
-  @apply font-cinzel text-[0.5625rem] font-bold px-1.5 py-0.5 rounded uppercase;
+  @apply font-cinzel text-2xs font-bold px-1.5 py-0.5 rounded uppercase;
 }
 .type-badge.player  { @apply bg-primary/20 text-primary; }
 .type-badge.monster { @apply bg-muted text-muted-foreground; }
@@ -246,25 +246,25 @@ function toggleDetail() {
 .dead-badge { @apply text-destructive text-xs; }
 
 .wildshape-row-badge {
-  @apply font-fell text-2xs text-amber-400 italic ml-1;
+  @apply text-caption-sm text-amber-400 italic ml-1;
 }
 
 .surprised-badge {
-  @apply font-cinzel text-[0.5625rem] text-amber-500 tracking-wider px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 ml-1;
+  @apply text-label text-amber-500 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 ml-1;
 }
 .surprised-toggle { cursor: pointer; }
 .surprised-toggle:hover { @apply bg-amber-500/20 border-amber-500/60; }
 
 .surprised-set-btn {
-  @apply font-cinzel text-[0.5625rem] text-muted-foreground/50 tracking-wider px-1 py-0.5 rounded border border-dashed border-muted-foreground/20 hover:text-amber-500 hover:border-amber-500/40 transition-colors;
+  @apply text-label text-muted-foreground/50 px-1 py-0.5 rounded border border-dashed border-muted-foreground/20 hover:text-amber-500 hover:border-amber-500/40 transition-colors;
 }
 
 .cond-badge {
-  @apply inline-flex items-center px-1.5 py-0.5 rounded font-cinzel text-[0.5625rem] font-semibold bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/30 cursor-pointer hover:bg-destructive/20 hover:text-destructive transition-colors;
+  @apply inline-flex items-center px-1.5 py-0.5 rounded font-cinzel text-2xs font-semibold bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/30 cursor-pointer hover:bg-destructive/20 hover:text-destructive transition-colors;
 }
 
 .reaction-chip {
-  @apply inline-flex items-center px-1.5 py-0.5 rounded font-cinzel text-[0.5625rem] font-semibold border transition-colors cursor-pointer;
+  @apply inline-flex items-center px-1.5 py-0.5 rounded font-cinzel text-2xs font-semibold border transition-colors cursor-pointer;
 }
 .reaction-ready { @apply bg-sky-500/10 text-sky-400 border-sky-500/30 hover:bg-sky-500/20; }
 .reaction-used  { @apply bg-muted text-muted-foreground/40 border-border line-through hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/30; }
@@ -414,7 +414,7 @@ function toggleDetail() {
   gap: 0.375rem;
 }
 
-.mc-stat-label { @apply font-cinzel text-2xs tracking-wider text-muted-foreground; }
+.mc-stat-label { @apply text-label text-muted-foreground; }
 .mc-stat-value { @apply font-cinzel text-sm font-bold text-foreground; }
 .mc-stat-sep   { @apply text-muted-foreground font-normal mx-0.5; }
 .mc-stat-temp  { @apply font-cinzel text-2xs font-bold text-sky-400; }

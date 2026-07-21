@@ -96,7 +96,7 @@
 
             <!-- Progress bar + repeat/shuffle on same row -->
             <div class="flex items-center gap-1.5 px-2">
-              <span class="font-fell text-[0.5625rem] text-muted-foreground tabular-nums">
+              <span class="text-caption-sm text-muted-foreground tabular-nums">
                 {{ formatSpotifyTime(spotifyStore.positionMs) }}
               </span>
               <div class="flex-1 h-1 bg-border/50 rounded-full">
@@ -105,7 +105,7 @@
                   :style="{ width: spotifyProgress + '%' }"
                 />
               </div>
-              <span class="font-fell text-[0.5625rem] text-muted-foreground tabular-nums">
+              <span class="text-caption-sm text-muted-foreground tabular-nums">
                 {{ formatSpotifyTime(spotifyStore.durationMs) }}
               </span>
               <!-- IconRepeat -->
@@ -265,7 +265,7 @@
             <p class="text-caption text-muted-foreground italic">No sounds playing</p>
             <RouterLink
               to="/soundboard"
-              class="font-fell text-[0.6875rem] text-gold-400 hover:text-gold-300 transition-colors"
+              class="text-caption text-gold-400 hover:text-gold-300 transition-colors"
               @click="store.widgetOpen = false"
             >
               Open Soundboard →

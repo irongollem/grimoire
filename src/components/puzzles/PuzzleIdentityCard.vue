@@ -30,7 +30,7 @@
           <span
             v-for="tag in puzzle.tags"
             :key="tag"
-            class="font-cinzel text-[0.5625rem] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground tracking-wider"
+            class="text-label px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground"
           >{{ tag }}</span>
         </div>
 
@@ -39,7 +39,7 @@
           <span
             v-for="sc in puzzle.skill_checks"
             :key="sc.skill"
-            class="font-fell text-[0.6875rem] text-muted-foreground"
+            class="text-caption text-muted-foreground"
           >
             {{ sc.skill }} DC {{ sc.dc }}
           </span>

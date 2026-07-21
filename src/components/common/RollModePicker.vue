@@ -76,7 +76,7 @@ onUnmounted(() => window.removeEventListener("keydown", onKey));
   @apply fixed w-42 rounded-lg border border-border bg-card shadow-2xl p-1 flex flex-col gap-0.5;
 }
 .menu-title {
-  @apply font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider px-2 pt-1 pb-0.5;
+  @apply text-label font-semibold text-muted-foreground px-2 pt-1 pb-0.5;
 }
 .menu-item {
   @apply text-left font-cinzel text-sm font-bold tracking-wider rounded-md px-3 py-2 text-foreground transition-colors;

@@ -113,7 +113,7 @@ function onContentClick(e: MouseEvent) {
 @reference "@/assets/main.css";
 
 .rte-content :deep(.ProseMirror) {
-  @apply font-fell text-sm text-foreground outline-none;
+  @apply text-body text-foreground outline-none;
 }
 .rte-content :deep(.ProseMirror p) {
   @apply mb-3 leading-relaxed last:mb-0;
@@ -145,7 +145,7 @@ function onContentClick(e: MouseEvent) {
   @apply border border-border px-3 py-1.5 text-left align-top;
 }
 .rte-content :deep(.ProseMirror th) {
-  @apply font-cinzel text-xs font-semibold tracking-wider bg-muted/50 text-foreground;
+  @apply text-label-lg font-semibold bg-muted/50 text-foreground;
 }
 .rte-content :deep(.ProseMirror img) {
   @apply max-w-full rounded-md my-2 cursor-zoom-in;

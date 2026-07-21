@@ -51,7 +51,7 @@
         <!-- Type + Subtype + Rarity -->
         <div class="grid gap-3" :class="isArtObject ? 'grid-cols-1' : 'grid-cols-3'">
           <label class="flex flex-col gap-1">
-            <span class="font-cinzel text-[0.6875rem] text-muted-foreground tracking-wider uppercase">Type</span>
+            <span class="text-label-lg text-muted-foreground uppercase">Type</span>
             <select
               v-model="itemType"
               class="bg-card border border-border rounded-md px-3 py-2 font-cinzel text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -61,7 +61,7 @@
           </label>
           <template v-if="!isArtObject">
             <label class="flex flex-col gap-1">
-              <span class="font-cinzel text-[0.6875rem] text-muted-foreground tracking-wider uppercase">Subtype</span>
+              <span class="text-label-lg text-muted-foreground uppercase">Subtype</span>
               <input
                 v-model="subtype"
                 placeholder="e.g. longsword, chain mail…"
@@ -69,7 +69,7 @@
               />
             </label>
             <label class="flex flex-col gap-1">
-              <span class="font-cinzel text-[0.6875rem] text-muted-foreground tracking-wider uppercase">Rarity</span>
+              <span class="text-label-lg text-muted-foreground uppercase">Rarity</span>
               <select
                 v-model="rarity"
                 class="bg-card border border-border rounded-md px-3 py-2 font-cinzel text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -84,17 +84,17 @@
         <!-- Physical: Weight + Cost -->
         <div class="grid grid-cols-2 gap-3">
           <label class="flex flex-col gap-1">
-            <span class="font-cinzel text-[0.6875rem] text-muted-foreground tracking-wider uppercase">Weight</span>
+            <span class="text-label-lg text-muted-foreground uppercase">Weight</span>
             <WeightInput v-model="weight" />
           </label>
           <label class="flex flex-col gap-1">
-            <span class="font-cinzel text-[0.6875rem] text-muted-foreground tracking-wider uppercase">Cost</span>
+            <span class="text-label-lg text-muted-foreground uppercase">Cost</span>
             <input
               v-model="cost"
               placeholder="e.g. 50 gp"
               class="bg-card border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
-            <span v-if="rarityPriceHint" class="font-fell text-[0.6875rem] text-muted-foreground/60 italic">{{ rarityPriceHint }}</span>
+            <span v-if="rarityPriceHint" class="text-caption text-muted-foreground/60 italic">{{ rarityPriceHint }}</span>
           </label>
         </div>
 
@@ -123,7 +123,7 @@
           v-if="isMagic && !isArtObject"
           class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-2"
         >
-          <h3 class="font-cinzel text-[0.6875rem] font-bold tracking-wider text-muted-foreground uppercase">
+          <h3 class="text-label-lg font-bold text-muted-foreground uppercase">
             Magic Properties
           </h3>
           <label class="flex items-center gap-2 cursor-pointer">
@@ -140,7 +140,7 @@
 
         <!-- Charges / Quantity (independent of spells — any item can have charges) -->
         <div v-if="!isArtObject" class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-3">
-          <h3 class="font-cinzel text-[0.6875rem] font-bold tracking-wider text-muted-foreground uppercase">
+          <h3 class="text-label-lg font-bold text-muted-foreground uppercase">
             {{ itemType === "ammunition" ? "Quantity" : "Charges" }}
             <span class="normal-case font-fell font-normal text-muted-foreground/60"> — optional</span>
           </h3>
@@ -181,7 +181,7 @@
 
         <!-- Bundle contents (packs only) -->
         <div v-if="isPack" class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-3">
-          <h3 class="font-cinzel text-[0.6875rem] font-bold tracking-wider text-muted-foreground uppercase">
+          <h3 class="text-label-lg font-bold text-muted-foreground uppercase">
             Bundle Contents
             <span class="normal-case font-fell font-normal text-muted-foreground/60"> — items added when this pack is opened</span>
           </h3>
@@ -222,7 +222,7 @@
         <!-- Spell references (optional, links to Spellbook entries) -->
         <div v-if="isMagic && !isArtObject" class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-2">
           <div class="flex items-center justify-between">
-            <h3 class="font-cinzel text-[0.6875rem] font-bold tracking-wider text-muted-foreground uppercase">
+            <h3 class="text-label-lg font-bold text-muted-foreground uppercase">
               Linked Spells
               <span class="normal-case font-fell font-normal text-muted-foreground/60"> — optional</span>
             </h3>
@@ -253,7 +253,7 @@
 
         <!-- Mundane description (pre-identification) -->
         <div v-if="isMagic && !isArtObject" class="flex flex-col gap-1">
-          <span class="font-cinzel text-[0.6875rem] text-muted-foreground tracking-wider uppercase">
+          <span class="text-label-lg text-muted-foreground uppercase">
             Mundane Description
             <span class="normal-case font-fell font-normal text-muted-foreground/60"> — shown before identification</span>
           </span>
@@ -266,7 +266,7 @@
 
         <!-- Description -->
         <div class="flex flex-col gap-1">
-          <span class="font-cinzel text-[0.6875rem] text-muted-foreground tracking-wider uppercase">Description</span>
+          <span class="text-label-lg text-muted-foreground uppercase">Description</span>
           <RichTextEditor
             v-model="description"
             placeholder="Describe this item's properties, lore, and any special effects…"
@@ -276,7 +276,7 @@
 
         <!-- DM notes — never shown to players -->
         <div class="rounded-lg border border-amber-700/40 bg-amber-950/10 p-4 flex flex-col gap-2">
-          <h3 class="font-cinzel text-[0.6875rem] font-bold tracking-wider text-amber-300/80 uppercase">
+          <h3 class="text-label-lg font-bold text-amber-300/80 uppercase">
             DM Notes
             <span class="normal-case font-fell font-normal text-muted-foreground/70"> — never shown to players</span>
           </h3>
@@ -290,7 +290,7 @@
         <!-- Curse -->
         <div v-if="isMagic && !isArtObject" class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-3">
           <div class="flex items-center justify-between gap-2">
-            <h3 class="font-cinzel text-[0.6875rem] font-bold tracking-wider text-muted-foreground uppercase">
+            <h3 class="text-label-lg font-bold text-muted-foreground uppercase">
               Curse
               <span class="normal-case font-fell font-normal text-muted-foreground/60"> — optional</span>
             </h3>
@@ -313,7 +313,7 @@
 
         <!-- Scope -->
         <div class="flex flex-col gap-2">
-          <span class="font-cinzel text-[0.6875rem] text-muted-foreground tracking-wider uppercase">Scope</span>
+          <span class="text-label-lg text-muted-foreground uppercase">Scope</span>
           <div class="flex gap-2">
             <button
               type="button"
@@ -337,7 +337,7 @@
 
         <!-- Source -->
         <div class="flex flex-col gap-1">
-          <span class="font-cinzel text-[0.6875rem] text-muted-foreground tracking-wider uppercase">Source</span>
+          <span class="text-label-lg text-muted-foreground uppercase">Source</span>
           <!-- Imported items: read-only with optional link -->
           <div
             v-if="props.item?.source_url || props.item?.source_title"

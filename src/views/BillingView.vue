@@ -92,7 +92,7 @@
               {{ item.label }}: {{ item.current }} → limit {{ item.limit }} ({{ item.excess }} will be locked)
             </li>
           </ul>
-          <p class="font-fell text-[0.6875rem] text-muted-foreground italic">
+          <p class="text-caption text-muted-foreground italic">
             Content over your free limits will be locked, not deleted. Upgrade to restore access.
           </p>
         </div>
@@ -122,7 +122,7 @@
 
       <div>
         <p
-          class="font-cinzel text-[0.6875rem] font-semibold tracking-[0.2em] text-amber-400 uppercase mb-1"
+          class="font-cinzel text-xs font-semibold tracking-[0.2em] text-amber-400 uppercase mb-1"
         >
           Upgrade to Pro
         </p>
@@ -146,7 +146,7 @@
               class="flex items-start gap-2"
             >
               <span
-                class="h-3.5 w-3.5 rounded-full bg-muted flex items-center justify-center shrink-0 mt-0.5 text-[0.5rem] text-muted-foreground font-bold"
+                class="h-3.5 w-3.5 rounded-full bg-muted flex items-center justify-center shrink-0 mt-0.5 text-2xs text-muted-foreground font-bold"
                 >✓</span
               >
               <span
@@ -169,7 +169,7 @@
               class="flex items-start gap-2"
             >
               <span
-                class="h-3.5 w-3.5 rounded-full bg-amber-500/15 flex items-center justify-center shrink-0 mt-0.5 text-[0.5rem] text-amber-400 font-bold"
+                class="h-3.5 w-3.5 rounded-full bg-amber-500/15 flex items-center justify-center shrink-0 mt-0.5 text-2xs text-amber-400 font-bold"
                 >✓</span
               >
               <span
@@ -344,11 +344,11 @@
             @click="purchasePack(pack.pack_id, packConsent)"
           >
             <span class="font-cinzel text-xs font-bold text-foreground">{{ pack.credits }} credits</span>
-            <span class="font-fell text-[0.6875rem] italic text-muted-foreground">{{ formatPackPrice(pack) }}</span>
-            <span class="font-cinzel text-[0.5625rem] tracking-wider text-muted-foreground/70 uppercase">{{ pack.label }}</span>
+            <span class="text-caption italic text-muted-foreground">{{ formatPackPrice(pack) }}</span>
+            <span class="text-eyebrow text-muted-foreground/70">{{ pack.label }}</span>
           </button>
         </div>
-        <p class="font-fell text-[0.6875rem] text-muted-foreground/60 italic">
+        <p class="text-caption text-muted-foreground/60 italic">
           Taxes calculated at checkout based on your location.
         </p>
         <p v-if="purchaseError" class="text-caption text-red-400 italic">

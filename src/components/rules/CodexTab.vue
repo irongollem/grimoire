@@ -77,7 +77,7 @@
                     <div v-if="selectedSpecies.ability_score_increases && Object.keys(selectedSpecies.ability_score_increases).length">
                       <p class="text-eyebrow font-semibold text-muted-foreground mb-1.5">ABILITY SCORE INCREASES</p>
                       <div class="flex flex-wrap gap-1.5">
-                        <span v-for="(val, key) in selectedSpecies.ability_score_increases" :key="key" class="px-2 py-0.5 rounded bg-primary/10 border border-primary/20 font-cinzel text-[0.6875rem] text-primary uppercase">{{ typeof val === "number" ? `${key} +${val}` : val }}</span>
+                        <span v-for="(val, key) in selectedSpecies.ability_score_increases" :key="key" class="px-2 py-0.5 rounded bg-primary/10 border border-primary/20 font-cinzel text-xs text-primary uppercase">{{ typeof val === "number" ? `${key} +${val}` : val }}</span>
                       </div>
                     </div>
                     <div v-if="selectedSpecies.traits?.length">
@@ -200,7 +200,7 @@
                       class="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 space-y-1">
                       <div class="flex items-center gap-2">
                         <p class="text-eyebrow font-semibold text-amber-600 dark:text-amber-400">FEAT GRANT</p>
-                        <span class="font-cinzel text-[0.5625rem] text-amber-600/60 dark:text-amber-400/60 tracking-wider">2024 PHB</span>
+                        <span class="text-label text-amber-600/60 dark:text-amber-400/60">2024 PHB</span>
                       </div>
                       <p class="font-cinzel text-sm font-bold text-foreground">{{ selectedBackground.feat_grant_name }}</p>
                       <RichTextViewer v-if="selectedBackground.feat_grant_description" :content="selectedBackground.feat_grant_description" />
@@ -208,7 +208,7 @@
                     <div v-if="selectedBackground.skill_proficiencies?.length">
                       <p class="text-eyebrow font-semibold text-muted-foreground mb-1.5">SKILL PROFICIENCIES</p>
                       <div class="flex flex-wrap gap-1.5">
-                        <span v-for="s in selectedBackground.skill_proficiencies" :key="s" class="px-2 py-0.5 rounded bg-primary/10 border border-primary/20 font-cinzel text-[0.6875rem] text-primary">{{ s }}</span>
+                        <span v-for="s in selectedBackground.skill_proficiencies" :key="s" class="px-2 py-0.5 rounded bg-primary/10 border border-primary/20 font-cinzel text-xs text-primary">{{ s }}</span>
                       </div>
                     </div>
                     <div v-if="selectedBackground.tool_proficiencies?.length">
@@ -418,7 +418,7 @@
                     <div v-if="selectedDeity.domains?.length">
                       <p class="text-eyebrow font-semibold text-muted-foreground mb-1.5">DOMAINS</p>
                       <div class="flex flex-wrap gap-1">
-                        <span v-for="domain in selectedDeity.domains" :key="domain" class="px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 font-cinzel text-[0.5625rem] text-primary tracking-wider">{{ domain }}</span>
+                        <span v-for="domain in selectedDeity.domains" :key="domain" class="px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 text-label text-primary">{{ domain }}</span>
                       </div>
                     </div>
                     <div v-if="selectedDeity.alternate_names?.length">

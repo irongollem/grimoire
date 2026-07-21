@@ -119,7 +119,7 @@
             <span
               v-for="tag in form.tags"
               :key="tag"
-              class="inline-flex items-center px-2 py-0.5 rounded bg-muted font-cinzel text-[0.6875rem] text-muted-foreground tracking-wider"
+              class="inline-flex items-center px-2 py-0.5 rounded bg-muted text-label-lg text-muted-foreground"
               >{{ tag }}</span
             >
           </div>
@@ -550,13 +550,13 @@ async function remove() {
 @reference "@/assets/main.css";
 
 .field-label {
-  @apply block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1;
+  @apply block text-label-lg font-semibold text-muted-foreground mb-1;
 }
 .field-input {
-  @apply bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
+  @apply bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
 }
 .section-heading {
-  @apply font-cinzel text-xs font-semibold tracking-wider text-muted-foreground uppercase mb-3;
+  @apply text-label-lg font-semibold text-muted-foreground uppercase mb-3;
 }
 .gold-divider {
   @apply border-t border-primary/30;

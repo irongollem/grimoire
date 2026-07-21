@@ -70,7 +70,7 @@
             />
             <!-- Type badge -->
             <span
-              class="absolute top-2 left-2 font-cinzel text-[0.5625rem] px-1.5 py-0.5 rounded tracking-wider text-white font-bold"
+              class="absolute top-2 left-2 text-label px-1.5 py-0.5 rounded text-white font-bold"
               :style="{ backgroundColor: DUNGEON_FEATURE_TYPE_COLORS[feature.feature_type] + 'DD' }"
             >{{ feature.feature_type }}</span>
           </div>

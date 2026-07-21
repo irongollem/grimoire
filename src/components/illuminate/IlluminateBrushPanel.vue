@@ -74,7 +74,7 @@
           @click="emit('clear')"
         >Clear mask</button>
       </div>
-      <p class="font-fell text-[0.6875rem] text-muted-foreground italic">
+      <p class="text-caption text-muted-foreground italic">
         Left-drag erases · Right-drag restores · Ctrl+Z undo
       </p>
     </div>

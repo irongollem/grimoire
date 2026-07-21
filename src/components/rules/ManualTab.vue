@@ -160,7 +160,7 @@ function selectPage(id: string) {
   @apply border border-border px-3 py-1.5 text-left align-top;
 }
 .manual-content :deep(th) {
-  @apply font-cinzel text-xs font-semibold tracking-wider bg-muted/50 text-foreground;
+  @apply text-label-lg font-semibold bg-muted/50 text-foreground;
 }
 .manual-content :deep(code) {
   @apply font-mono text-xs bg-muted px-1.5 py-0.5 rounded text-primary;

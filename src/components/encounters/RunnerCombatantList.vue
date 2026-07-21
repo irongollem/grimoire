@@ -54,7 +54,7 @@ const store = useEncounterRunStore();
   display: grid;
   grid-template-columns: 2.5rem 3.5rem 1fr 10rem 3rem 1fr;
   gap: 0.5rem;
-  @apply pr-3 py-1.5 font-cinzel text-2xs tracking-wider text-muted-foreground border-b border-border bg-muted/30 items-center;
+  @apply pr-3 py-1.5 text-label text-muted-foreground border-b border-border bg-muted/30 items-center;
 }
 
 .combatant-header span:nth-child(2),
@@ -64,6 +64,6 @@ const store = useEncounterRunStore();
 }
 
 .empty-runner {
-  @apply text-center font-fell text-sm text-muted-foreground italic py-16;
+  @apply text-center text-body text-muted-foreground italic py-16;
 }
 </style>

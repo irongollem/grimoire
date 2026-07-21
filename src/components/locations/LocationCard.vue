@@ -37,7 +37,7 @@
               {{ LOCATION_TYPE_LABELS[loc.location_type] }}
             </span>
           </div>
-          <span v-if="parentName" class="font-fell text-[0.6875rem] text-muted-foreground italic">
+          <span v-if="parentName" class="text-caption text-muted-foreground italic">
             in {{ parentName }}
           </span>
         </div>

@@ -32,7 +32,7 @@
             </div>
             <!-- Feat badge -->
             <div v-if="bg.feat_grant_name"
-              class="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/60 font-cinzel text-[0.5625rem] text-amber-300 tracking-wider leading-none">
+              class="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/60 text-label text-amber-300 leading-none">
               ✦ {{ bg.feat_grant_name }}
             </div>
           </div>
@@ -42,22 +42,22 @@
             <!-- Proficiencies summary -->
             <div class="mt-1.5 flex flex-wrap gap-1">
               <span v-for="sk in bg.skill_proficiencies" :key="sk"
-                class="px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 font-cinzel text-[0.5625rem] text-primary">
+                class="px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 font-cinzel text-2xs text-primary">
                 {{ sk }}
               </span>
               <span v-for="t in bg.tool_proficiencies" :key="t"
-                class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[0.5625rem] text-muted-foreground">
+                class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground">
                 {{ t }}
               </span>
               <span v-if="bg.languages?.length"
-                class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-[0.5625rem] text-muted-foreground">
+                class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground">
                 {{ bg.languages.length === 1 ? bg.languages[0] : `${bg.languages.length} languages` }}
               </span>
             </div>
             <p v-if="bg.feature_name" class="text-caption text-muted-foreground mt-1.5 italic line-clamp-1">
               {{ bg.feature_name }}
             </p>
-            <p v-if="bg.source_title" class="font-cinzel text-[0.5625rem] text-muted-foreground/50 mt-1">
+            <p v-if="bg.source_title" class="font-cinzel text-2xs text-muted-foreground/50 mt-1">
               {{ bg.source_title }}
             </p>
           </div>
@@ -250,9 +250,9 @@ const ALIGNMENT_OPTIONS = [
 <style scoped>
 @reference "@/assets/main.css";
 .field-label {
-  @apply block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1;
+  @apply block text-label-lg font-semibold text-muted-foreground mb-1;
 }
 .field-input {
-  @apply bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
+  @apply bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
 }
 </style>

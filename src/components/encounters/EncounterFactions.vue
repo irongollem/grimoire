@@ -76,7 +76,7 @@
           >
             {{ other.name }}
           </button>
-          <span v-if="faction.hostile_to.length === 0" class="font-fell text-[0.6875rem] text-muted-foreground italic">
+          <span v-if="faction.hostile_to.length === 0" class="text-caption text-muted-foreground italic">
             None
           </span>
         </div>

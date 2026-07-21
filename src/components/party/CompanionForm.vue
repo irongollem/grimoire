@@ -186,7 +186,7 @@
           <p class="text-eyebrow font-semibold text-muted-foreground mb-1.5">ABILITY SCORES</p>
           <div class="grid grid-cols-6 gap-1">
             <div v-for="ab in ABILITIES" :key="ab.key" class="text-center">
-              <p class="font-cinzel text-[0.5625rem] font-bold tracking-wider text-muted-foreground mb-0.5">{{ ab.label }}</p>
+              <p class="text-label font-bold text-muted-foreground mb-0.5">{{ ab.label }}</p>
               <input
                 v-model.number="(sb as Record<string, unknown>)[ab.key]"
                 type="number" min="1" max="30"
@@ -482,6 +482,6 @@ async function save() {
 <style scoped>
 @reference "@/assets/main.css";
 .sb-input {
-  @apply w-full bg-card border border-border rounded px-2 py-1 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
+  @apply w-full bg-card border border-border rounded px-2 py-1 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
 }
 </style>

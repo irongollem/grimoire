@@ -8,9 +8,9 @@
         type="button"
         class="text-body text-foreground truncate text-left hover:text-primary transition-colors w-full"
         @click="$emit('open-detail', item)"
-      >{{ item.name }}<span v-if="item.is_attuned" class="ml-1 font-cinzel text-[0.5625rem] text-primary/70" title="Attuned">✦</span></button>
+      >{{ item.name }}<span v-if="item.is_attuned" class="ml-1 font-cinzel text-2xs text-primary/70" title="Attuned">✦</span></button>
       <p v-if="item.notes" class="text-caption text-muted-foreground italic truncate">{{ item.notes }}</p>
-      <p v-if="showCarrier && item.carried_by" class="font-cinzel text-[0.5625rem] text-muted-foreground/60 tracking-wider">
+      <p v-if="showCarrier && item.carried_by" class="text-label text-muted-foreground/60">
         {{ carrierName(item.carried_by) }}
       </p>
     </div>

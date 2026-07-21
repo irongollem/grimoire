@@ -90,10 +90,10 @@
         <table class="w-full text-center border-collapse">
           <thead>
             <tr>
-              <th class="font-cinzel text-[0.5625rem] tracking-widest text-muted-foreground pb-1.5 pr-2 text-left w-8">LVL</th>
-              <th v-for="sl in 9" :key="sl" class="font-cinzel text-[0.5625rem] tracking-widest text-muted-foreground pb-1.5 w-10">{{ sl }}</th>
-              <th v-if="spellsKnown !== null" class="font-cinzel text-[0.5625rem] tracking-widest text-muted-foreground pb-1.5 w-12 pl-2">KNOWN</th>
-              <th v-if="cantripsKnown !== null" class="font-cinzel text-[0.5625rem] tracking-widest text-muted-foreground pb-1.5 w-12 pl-2">CANTRIPS</th>
+              <th class="font-cinzel text-2xs tracking-widest text-muted-foreground pb-1.5 pr-2 text-left w-8">LVL</th>
+              <th v-for="sl in 9" :key="sl" class="font-cinzel text-2xs tracking-widest text-muted-foreground pb-1.5 w-10">{{ sl }}</th>
+              <th v-if="spellsKnown !== null" class="font-cinzel text-2xs tracking-widest text-muted-foreground pb-1.5 w-12 pl-2">KNOWN</th>
+              <th v-if="cantripsKnown !== null" class="font-cinzel text-2xs tracking-widest text-muted-foreground pb-1.5 w-12 pl-2">CANTRIPS</th>
             </tr>
           </thead>
           <tbody>

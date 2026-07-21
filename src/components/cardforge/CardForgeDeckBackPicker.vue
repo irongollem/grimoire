@@ -71,7 +71,7 @@ function select(id: string) {
   @apply font-cinzel text-lg font-bold text-foreground;
 }
 .picker-sub {
-  @apply font-fell text-sm text-muted-foreground;
+  @apply text-body text-muted-foreground;
 }
 .picker-grid {
   @apply grid gap-3;
@@ -95,7 +95,7 @@ function select(id: string) {
   @apply font-cinzel text-xs font-semibold text-foreground;
 }
 .picker-blurb {
-  @apply font-fell text-xs text-muted-foreground italic line-clamp-2;
+  @apply text-caption text-muted-foreground italic line-clamp-2;
 }
 .picker-actions {
   @apply flex justify-end pt-1;

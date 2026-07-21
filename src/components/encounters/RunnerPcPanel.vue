@@ -281,7 +281,7 @@ function handleWildshape(monster: Monster) {
 }
 
 .detail-meta {
-  @apply font-fell text-xs text-muted-foreground italic capitalize;
+  @apply text-caption text-muted-foreground italic capitalize;
 }
 
 .detail-divider {
@@ -297,7 +297,7 @@ function handleWildshape(monster: Monster) {
 }
 
 .detail-stat span {
-  @apply font-cinzel text-[0.5625rem] tracking-wider text-muted-foreground uppercase;
+  @apply text-eyebrow text-muted-foreground;
 }
 
 .detail-stat strong {
@@ -313,7 +313,7 @@ function handleWildshape(monster: Monster) {
 }
 
 .detail-check-btn span {
-  @apply font-cinzel text-[0.5625rem] tracking-wider text-muted-foreground uppercase truncate;
+  @apply text-eyebrow text-muted-foreground truncate;
 }
 
 .detail-check-btn em {
@@ -329,10 +329,10 @@ function handleWildshape(monster: Monster) {
 }
 
 .detail-section-label {
-  @apply font-cinzel text-2xs font-bold tracking-wider text-muted-foreground uppercase mt-1;
+  @apply text-eyebrow font-bold text-muted-foreground mt-1;
 }
 
 .detail-notes {
-  @apply font-fell text-xs text-muted-foreground italic;
+  @apply text-caption text-muted-foreground italic;
 }
 </style>

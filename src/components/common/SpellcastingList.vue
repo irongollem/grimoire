@@ -12,10 +12,10 @@
       open
       class="group"
     >
-      <summary class="flex items-center gap-1 cursor-pointer list-none text-[0.9375rem] text-primary font-semibold select-none py-0.5">
+      <summary class="flex items-center gap-1 cursor-pointer list-none text-base text-primary font-semibold select-none py-0.5">
         <IconChevronRight class="h-3.5 w-3.5 transition-transform group-open:rotate-90 shrink-0" />
         {{ levelGroupLabel(level) }}
-        <span class="ml-1 font-normal text-muted-foreground text-[0.8125rem]">({{ items.length }})</span>
+        <span class="ml-1 font-normal text-muted-foreground text-sm">({{ items.length }})</span>
       </summary>
 
       <div class="flex flex-col gap-0.5 pl-4 pt-1">

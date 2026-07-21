@@ -85,7 +85,7 @@
                 v-for="opt in planOptions"
                 :key="opt.value"
                 type="button"
-                class="px-3 py-1 rounded-md font-cinzel text-[0.6875rem] font-semibold tracking-wider border transition-colors"
+                class="px-3 py-1 rounded-md text-label-lg font-semibold border transition-colors"
                 :class="newGrantedPlan === opt.value
                   ? opt.activeClass
                   : 'border-border text-muted-foreground hover:text-foreground'"
@@ -155,7 +155,7 @@
                 </button>
               </div>
               <div class="flex items-center gap-2 rounded bg-background px-2 py-1.5">
-                <code class="flex-1 text-[0.6875rem] text-muted-foreground truncate font-mono">
+                <code class="flex-1 text-xs text-muted-foreground truncate font-mono">
                   {{ signupUrl(invite.token) }}
                 </code>
                 <button
@@ -193,15 +193,15 @@
               <div class="grid grid-cols-3 gap-2">
                 <div class="rounded-md bg-muted/30 border border-border px-3 py-2 text-center">
                   <p class="font-cinzel text-base font-bold text-foreground">{{ usageStats.totalGenerations.value }}</p>
-                  <p class="font-fell text-[0.6875rem] text-muted-foreground italic">Total gens</p>
+                  <p class="text-caption text-muted-foreground italic">Total gens</p>
                 </div>
                 <div class="rounded-md bg-muted/30 border border-border px-3 py-2 text-center">
                   <p class="font-cinzel text-base font-bold text-foreground">${{ usageStats.totalEstimatedCostUsd.value.toFixed(2) }}</p>
-                  <p class="font-fell text-[0.6875rem] text-muted-foreground italic">Est. cost (USD)</p>
+                  <p class="text-caption text-muted-foreground italic">Est. cost (USD)</p>
                 </div>
                 <div class="rounded-md bg-muted/30 border border-border px-3 py-2 text-center">
                   <p class="font-cinzel text-base font-bold text-foreground">{{ usageStats.byokCount.value }}</p>
-                  <p class="font-fell text-[0.6875rem] text-muted-foreground italic">BYOK gens</p>
+                  <p class="text-caption text-muted-foreground italic">BYOK gens</p>
                 </div>
               </div>
 
@@ -213,7 +213,7 @@
                 >
                   <div class="flex-1 min-w-0">
                     <span class="font-cinzel text-xs font-semibold text-foreground">{{ stat.model }}</span>
-                    <span class="font-fell text-[0.6875rem] text-muted-foreground italic ml-1">· {{ stat.provider }}</span>
+                    <span class="text-caption text-muted-foreground italic ml-1">· {{ stat.provider }}</span>
                   </div>
                   <span class="text-caption text-muted-foreground shrink-0">{{ stat.count }}×</span>
                   <span class="font-cinzel text-xs text-foreground shrink-0 w-16 text-right">

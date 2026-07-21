@@ -37,7 +37,7 @@
       >
         + Add damage
       </button>
-      <span v-if="totalAvg > 0" class="font-fell text-[0.6875rem] text-muted-foreground">
+      <span v-if="totalAvg > 0" class="text-caption text-muted-foreground">
         Avg: {{ Math.round(totalAvg) }}
       </span>
     </div>

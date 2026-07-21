@@ -12,10 +12,10 @@
     >
       <thead>
         <tr class="border-b border-border/40">
-          <th class="py-1 px-1.5 text-[0.5625rem] font-cinzel tracking-wider text-muted-foreground/70 text-left font-normal"></th>
-          <th class="py-1 text-[0.5625rem] font-cinzel tracking-wider text-muted-foreground/70 text-center font-normal">#</th>
-          <th class="py-1 text-[0.5625rem] font-cinzel tracking-wider text-muted-foreground/70 text-center font-normal">MOD</th>
-          <th class="py-1 px-1.5 text-[0.5625rem] font-cinzel tracking-wider text-muted-foreground/70 text-center font-normal">SAVE</th>
+          <th class="py-1 px-1.5 text-label text-muted-foreground/70 text-left font-normal"></th>
+          <th class="py-1 text-label text-muted-foreground/70 text-center font-normal">#</th>
+          <th class="py-1 text-label text-muted-foreground/70 text-center font-normal">MOD</th>
+          <th class="py-1 px-1.5 text-label text-muted-foreground/70 text-center font-normal">SAVE</th>
         </tr>
       </thead>
       <tbody class="divide-y divide-border/30">
@@ -79,10 +79,10 @@
   >
     <thead>
       <tr class="border-b border-border/40">
-        <th class="py-1 px-3 text-[0.5625rem] font-cinzel tracking-wider text-muted-foreground/70 text-left font-normal"></th>
-        <th class="py-1 text-[0.5625rem] font-cinzel tracking-wider text-muted-foreground/70 text-center font-normal">#</th>
-        <th class="py-1 text-[0.5625rem] font-cinzel tracking-wider text-muted-foreground/70 text-center font-normal">MOD</th>
-        <th class="py-1 px-3 text-[0.5625rem] font-cinzel tracking-wider text-muted-foreground/70 text-center font-normal">SAVE</th>
+        <th class="py-1 px-3 text-label text-muted-foreground/70 text-left font-normal"></th>
+        <th class="py-1 text-label text-muted-foreground/70 text-center font-normal">#</th>
+        <th class="py-1 text-label text-muted-foreground/70 text-center font-normal">MOD</th>
+        <th class="py-1 px-3 text-label text-muted-foreground/70 text-center font-normal">SAVE</th>
       </tr>
     </thead>
     <tbody class="divide-y divide-border/30">

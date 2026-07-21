@@ -131,7 +131,7 @@
       <div class="space-y-1.5">
         <label class="text-eyebrow font-semibold text-muted-foreground">Alternate Names</label>
         <TagInput v-model="alternateNames" placeholder="Add name…" />
-        <p class="font-fell text-[0.6875rem] italic text-muted-foreground">Known by different names in different cultures or regions.</p>
+        <p class="text-caption italic text-muted-foreground">Known by different names in different cultures or regions.</p>
       </div>
 
       <!-- Cleric domains -->

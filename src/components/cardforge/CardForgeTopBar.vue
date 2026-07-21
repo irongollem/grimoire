@@ -158,7 +158,7 @@ const CARD_STYLES = [
   @apply font-cinzel text-2xl font-bold text-foreground;
 }
 .forge-sub {
-  @apply font-fell text-sm text-muted-foreground;
+  @apply text-body text-muted-foreground;
 }
 .topbar-actions {
   @apply flex items-center gap-2 flex-wrap;
@@ -176,9 +176,9 @@ const CARD_STYLES = [
   @apply font-cinzel text-xs font-semibold px-3 py-1.5 rounded-md border border-border bg-card text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:hover:text-muted-foreground disabled:cursor-not-allowed;
 }
 .print-btn {
-  @apply inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-40;
+  @apply inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-40;
 }
 .duplex-hint {
-  @apply font-fell text-xs text-muted-foreground italic w-full mt-0.5;
+  @apply text-caption text-muted-foreground italic w-full mt-0.5;
 }
 </style>

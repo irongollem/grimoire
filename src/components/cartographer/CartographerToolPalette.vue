@@ -23,7 +23,7 @@
       <span class="hidden lg:inline flex-1">{{ t.label }}</span>
       <kbd
         v-if="toolBadge(t)"
-        class="hidden lg:inline font-cinzel text-[0.5625rem] tracking-wider text-muted-foreground bg-muted/60 border border-border rounded px-1 py-0.5"
+        class="hidden lg:inline text-label text-muted-foreground bg-muted/60 border border-border rounded px-1 py-0.5"
       >{{ toolBadge(t) }}</kbd>
     </button>
 

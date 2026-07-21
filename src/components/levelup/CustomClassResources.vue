@@ -66,7 +66,7 @@
         <label class="block text-eyebrow text-muted-foreground mb-1.5">VALUES PER LEVEL (1–20)</label>
         <div class="grid grid-cols-5 gap-1.5">
           <div v-for="n in 20" :key="n" class="space-y-0.5">
-            <span class="block font-cinzel text-[0.5625rem] text-muted-foreground text-center">{{ n }}</span>
+            <span class="block font-cinzel text-2xs text-muted-foreground text-center">{{ n }}</span>
             <input :value="(res.table_values ?? [])[n - 1] ?? ''" type="number" min="0"
               class="w-full bg-muted/40 border border-border rounded px-1.5 py-1 text-caption text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
               @input="setTableValue(i, n - 1, ($event.target as HTMLInputElement).valueAsNumber)" />

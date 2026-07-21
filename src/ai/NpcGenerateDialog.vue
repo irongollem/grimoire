@@ -41,12 +41,12 @@
       <div class="rounded-md border border-border bg-muted/30 px-3 py-2.5 flex flex-col gap-1.5">
         <label class="flex items-center gap-2.5 cursor-pointer">
           <input type="checkbox" v-model="generateAlterEgo" :disabled="isGenerating || !generateImage" class="rounded accent-primary" />
-          <span class="font-cinzel text-[0.6875rem] font-semibold tracking-wider text-foreground">Generate Alter Ego</span>
+          <span class="text-label-lg font-semibold text-foreground">Generate Alter Ego</span>
         </label>
-        <p v-if="generateAlterEgo" class="font-fell text-[0.6875rem] text-amber-500 italic">
+        <p v-if="generateAlterEgo" class="text-caption text-amber-500 italic">
           ⚠ Uses 2× generation credits — a true-form portrait is generated first, then used as seed for the disguise portrait.
         </p>
-        <p v-else class="font-fell text-[0.6875rem] text-muted-foreground italic">
+        <p v-else class="text-caption text-muted-foreground italic">
           Also generate a disguised identity (name + portrait) for this NPC.
         </p>
       </div>

@@ -241,7 +241,7 @@
             <p class="font-cinzel text-2xs text-amber-400/80 tracking-widest uppercase">List for Sale</p>
             <div class="grid grid-cols-5 gap-1">
               <div v-for="coin in COINS" :key="coin.key" class="flex flex-col items-center gap-0.5">
-                <span class="font-cinzel text-[0.5625rem] font-bold" :class="coin.color">{{ coin.symbol }}</span>
+                <span class="font-cinzel text-2xs font-bold" :class="coin.color">{{ coin.symbol }}</span>
                 <input
                   v-model.number="sellPrice[coin.key]"
                   type="number" min="0"

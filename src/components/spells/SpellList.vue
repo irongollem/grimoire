@@ -75,13 +75,13 @@
             </p>
 
             <!-- Cast time + range -->
-            <div class="flex gap-3 font-cinzel text-[0.6875rem] text-muted-foreground">
+            <div class="flex gap-3 font-cinzel text-xs text-muted-foreground">
               <span><span class="text-foreground font-bold">Cast</span> {{ spell.casting_time }}</span>
               <span><span class="text-foreground font-bold">Range</span> {{ spell.range }}</span>
             </div>
 
             <!-- Components -->
-            <p class="font-cinzel text-[0.6875rem] text-muted-foreground">
+            <p class="font-cinzel text-xs text-muted-foreground">
               <span class="text-foreground font-bold">Components</span>
               {{ spell.components.join(", ") || "—" }}
               <span v-if="spell.concentration"> · <em class="text-primary">Conc.</em></span>
@@ -90,7 +90,7 @@
             <!-- Classes -->
             <p
               v-if="spell.classes.length"
-              class="font-fell text-[0.6875rem] text-muted-foreground truncate"
+              class="text-caption text-muted-foreground truncate"
             >
               {{ spell.classes.join(", ") }}
             </p>
@@ -112,14 +112,14 @@
               :href="spell.source_url"
               target="_blank"
               rel="noopener noreferrer"
-              class="relative z-10 mt-auto font-cinzel text-[0.5625rem] text-muted-foreground/60 hover:text-muted-foreground truncate transition-colors"
+              class="relative z-10 mt-auto font-cinzel text-2xs text-muted-foreground/60 hover:text-muted-foreground truncate transition-colors"
               @click.stop
             >
               {{ spell.source_title ?? spell.source ?? "SRD" }}
             </a>
             <span
               v-else-if="spell.source_title || spell.source"
-              class="mt-auto font-cinzel text-[0.5625rem] text-muted-foreground/60 truncate"
+              class="mt-auto font-cinzel text-2xs text-muted-foreground/60 truncate"
             >
               {{ spell.source_title ?? spell.source }}
             </span>

@@ -1,5 +1,5 @@
 <template>
-  <div class="rounded-lg border border-primary/30 bg-card overflow-hidden font-stat text-[0.9375rem]">
+  <div class="rounded-lg border border-primary/30 bg-card overflow-hidden font-stat text-base">
 
     <!-- AC · HP · Speed -->
     <div class="flex flex-wrap gap-x-5 gap-y-1 px-4 py-2 border-b border-primary/20 font-medium">

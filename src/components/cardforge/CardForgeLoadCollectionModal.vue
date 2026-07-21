@@ -74,7 +74,7 @@ function formatDate(iso: string) {
   @apply font-cinzel text-lg font-bold text-foreground;
 }
 .modal-scope {
-  @apply font-fell text-xs font-normal italic text-muted-foreground/60 ml-1;
+  @apply text-caption font-normal italic text-muted-foreground/60 ml-1;
 }
 .modal-actions {
   @apply flex gap-2 justify-end;
@@ -95,7 +95,7 @@ function formatDate(iso: string) {
   @apply font-cinzel text-sm font-semibold text-foreground;
 }
 .library-meta {
-  @apply font-fell text-xs text-muted-foreground;
+  @apply text-caption text-muted-foreground;
 }
 .library-btns {
   @apply flex gap-1;

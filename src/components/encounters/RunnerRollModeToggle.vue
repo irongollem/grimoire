@@ -55,7 +55,7 @@ const emit = defineEmits<{
   @apply flex border-b border-border shrink-0;
 }
 .roll-mode-btn {
-  @apply flex-1 py-1.5 font-cinzel text-2xs font-bold tracking-wider text-muted-foreground hover:text-foreground transition-colors;
+  @apply flex-1 py-1.5 text-label font-bold text-muted-foreground hover:text-foreground transition-colors;
 }
 .roll-mode-active { @apply text-foreground; }
 .mode-dis.roll-mode-active    { @apply bg-destructive/10 text-destructive; }
@@ -66,7 +66,7 @@ const emit = defineEmits<{
   @apply flex border-b border-border shrink-0;
 }
 .chat-mode-btn {
-  @apply flex-1 py-1 font-cinzel text-[0.5625rem] font-bold tracking-wider text-muted-foreground hover:text-foreground transition-colors;
+  @apply flex-1 py-1 text-label font-bold text-muted-foreground hover:text-foreground transition-colors;
 }
 .chat-mode-active { @apply text-foreground; }
 .cmode-public.chat-mode-active { @apply bg-primary/10 text-primary; }

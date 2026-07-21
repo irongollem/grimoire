@@ -119,7 +119,7 @@
           <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">SPEED (ft)</label>
           <div class="grid grid-cols-3 sm:grid-cols-5 gap-2">
             <div v-for="type in SPEED_TYPES" :key="type">
-              <label class="block font-fell text-[0.6875rem] text-muted-foreground mb-0.5 capitalize">{{ type }}</label>
+              <label class="block text-caption text-muted-foreground mb-0.5 capitalize">{{ type }}</label>
               <input
                 :value="form.speed[type] ?? ''"
                 type="number"

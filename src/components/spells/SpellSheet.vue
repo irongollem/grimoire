@@ -12,7 +12,7 @@
           class="w-full rounded-lg overflow-hidden flex-1 min-h-0 max-h-[80vh]"
         />
         <div
-          class="rounded-lg border border-border bg-card p-3 flex flex-col gap-1.5 font-stat text-[0.9375rem]"
+          class="rounded-lg border border-border bg-card p-3 flex flex-col gap-1.5 font-stat text-base"
         >
           <div class="flex justify-between">
             <span class="text-muted-foreground">Level</span>
@@ -59,7 +59,7 @@
             >
               Casting Time
             </p>
-            <p class="font-stat text-[0.9375rem] font-semibold">
+            <p class="font-stat text-base font-semibold">
               {{ spell.casting_time_custom || spell.casting_time }}
             </p>
           </div>
@@ -69,7 +69,7 @@
             >
               Range
             </p>
-            <p class="font-stat text-[0.9375rem] font-semibold">
+            <p class="font-stat text-base font-semibold">
               {{ spell.range_custom || spell.range }}
             </p>
           </div>
@@ -79,21 +79,21 @@
             >
               Duration
             </p>
-            <p class="font-stat text-[0.9375rem] font-semibold">
+            <p class="font-stat text-base font-semibold">
               {{ spell.duration_custom || spell.duration }}
             </p>
           </div>
         </div>
 
         <!-- Components + material -->
-        <div class="font-stat text-[0.9375rem]">
+        <div class="font-stat text-base">
           <span class="font-semibold">Components: </span>
           <span>{{ spell.components.join(", ") }}</span>
           <span v-if="spell.material"> ({{ spell.material }})</span>
         </div>
 
         <!-- Mechanics row -->
-        <div v-if="hasMechanics" class="flex flex-wrap gap-3 font-stat text-[0.9375rem]">
+        <div v-if="hasMechanics" class="flex flex-wrap gap-3 font-stat text-base">
           <span v-if="spell.attack_type"
             ><strong>Attack:</strong> {{ attackTypeLabel }}</span
           >
@@ -135,14 +135,14 @@
         <!-- Classes + source -->
         <div
           v-if="spell.classes?.length"
-          class="font-stat text-[0.8125rem] text-muted-foreground"
+          class="font-stat text-sm text-muted-foreground"
         >
           <strong class="font-cinzel tracking-wider">Classes:</strong>
           {{ spell.classes.join(", ") }}
         </div>
         <div
           v-if="spell.source"
-          class="font-stat text-[0.8125rem] text-muted-foreground italic"
+          class="font-stat text-sm text-muted-foreground italic"
         >
           <a
             v-if="spell.source_url"

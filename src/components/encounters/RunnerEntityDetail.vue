@@ -468,7 +468,7 @@ function renderTraitDesc(desc: string): string {
 }
 
 .detail-meta {
-  @apply font-fell text-xs text-muted-foreground italic capitalize;
+  @apply text-caption text-muted-foreground italic capitalize;
 }
 
 .detail-divider {
@@ -484,7 +484,7 @@ function renderTraitDesc(desc: string): string {
 }
 
 .detail-stat span {
-  @apply font-cinzel text-[0.5625rem] tracking-wider text-muted-foreground uppercase;
+  @apply text-eyebrow text-muted-foreground;
 }
 
 .detail-stat strong {
@@ -500,7 +500,7 @@ function renderTraitDesc(desc: string): string {
 }
 
 .detail-check-btn span {
-  @apply font-cinzel text-[0.5625rem] tracking-wider text-muted-foreground uppercase truncate;
+  @apply text-eyebrow text-muted-foreground truncate;
 }
 
 .detail-check-btn em {
@@ -508,11 +508,11 @@ function renderTraitDesc(desc: string): string {
 }
 
 .detail-section-label {
-  @apply font-cinzel text-2xs font-bold tracking-wider text-muted-foreground uppercase mt-1;
+  @apply text-eyebrow font-bold text-muted-foreground mt-1;
 }
 
 .trait-roll-btn {
-  @apply inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded font-cinzel text-[0.5625rem] font-semibold tracking-wider cursor-pointer transition-colors whitespace-nowrap;
+  @apply inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-label font-semibold cursor-pointer transition-colors whitespace-nowrap;
 }
 
 .trait-atk-btn {
@@ -524,15 +524,15 @@ function renderTraitDesc(desc: string): string {
 }
 
 .detail-trait-desc {
-  @apply font-fell text-xs text-muted-foreground leading-relaxed;
+  @apply text-caption text-muted-foreground leading-relaxed;
 }
 
 .detail-notes {
-  @apply font-fell text-xs text-muted-foreground italic;
+  @apply text-caption text-muted-foreground italic;
 }
 
 .detail-empty {
-  @apply font-fell text-sm text-muted-foreground italic text-center py-8;
+  @apply text-body text-muted-foreground italic text-center py-8;
 }
 
 /* Trap type label in detail panel */

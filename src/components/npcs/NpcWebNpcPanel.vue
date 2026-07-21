@@ -30,7 +30,7 @@
     <!-- Shift-click hint -->
     <div class="flex items-start gap-1.5 px-2.5 py-2 rounded-md bg-muted/60 text-muted-foreground">
       <IconInfo class="h-3 w-3 shrink-0 mt-0.5" />
-      <p class="font-fell text-[0.6875rem] leading-snug">Shift+click another node to define a relationship directly from this panel.</p>
+      <p class="text-caption leading-snug">Shift+click another node to define a relationship directly from this panel.</p>
     </div>
 
     <RouterLink
@@ -79,7 +79,7 @@
           @click="$emit('startEditRel', conn)"
         >
           <span
-            class="shrink-0 px-1.5 py-0.5 rounded font-cinzel text-[0.5625rem] font-bold"
+            class="shrink-0 px-1.5 py-0.5 rounded font-cinzel text-2xs font-bold"
             :style="{ backgroundColor: conn.color + '22', color: conn.color }"
           >{{ conn.typeLabel }}</span>
           <span class="font-fell text-foreground truncate flex-1 text-left">{{ conn.name }}</span>
@@ -155,6 +155,6 @@ function relColor(rel: string): string {
 <style scoped>
 @reference "@/assets/main.css";
 .field-input {
-  @apply w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
+  @apply w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
 }
 </style>

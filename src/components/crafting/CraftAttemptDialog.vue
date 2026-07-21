@@ -40,7 +40,7 @@
                   <p class="font-cinzel text-xs font-semibold text-foreground truncate" :class="{ italic: !ing.item_id }">{{ ing.itemName }}</p>
                   <p class="text-caption-sm text-muted-foreground">Need {{ ing.needed }}×<span v-if="ing.matched"> · Have {{ ing.available }}×</span></p>
                 </div>
-                <span v-if="idx === 0" class="font-cinzel text-[0.5625rem] text-primary tracking-wider shrink-0">PRIMARY</span>
+                <span v-if="idx === 0" class="text-label text-primary shrink-0">PRIMARY</span>
               </div>
             </div>
           </div>

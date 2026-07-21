@@ -96,7 +96,7 @@
                   <RouterLink
                     v-if="entry.encounter_id"
                     :to="`/encounters/${entry.encounter_id}`"
-                    class="inline-flex items-center gap-1 font-cinzel text-[0.6875rem] font-semibold text-primary hover:underline self-start"
+                    class="inline-flex items-center gap-1 font-cinzel text-xs font-semibold text-primary hover:underline self-start"
                   >
                     Open encounter →
                   </RouterLink>
@@ -159,7 +159,7 @@
               <h2 class="font-cinzel text-sm font-bold text-foreground">Entries ({{ form.entries.length }})</h2>
               <button
                 type="button"
-                class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 font-cinzel text-[0.6875rem] font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+                class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
                 @click="addEntry"
               >
                 <IconAdd class="size-3.5" />
@@ -278,7 +278,7 @@
               <RouterLink
                 v-if="lastRoll.entry.encounter_id"
                 :to="`/encounters/${lastRoll.entry.encounter_id}`"
-                class="inline-flex items-center gap-1 font-cinzel text-[0.6875rem] font-semibold text-primary hover:underline"
+                class="inline-flex items-center gap-1 font-cinzel text-xs font-semibold text-primary hover:underline"
               >
                 Open encounter →
               </RouterLink>

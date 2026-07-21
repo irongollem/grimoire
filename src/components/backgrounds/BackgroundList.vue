@@ -85,7 +85,7 @@
           -->
           <p
             v-if="profsSummary(b)"
-            class="font-fell text-[0.6875rem] text-foreground/70 line-clamp-2"
+            class="text-caption text-foreground/70 line-clamp-2"
           >
             {{ profsSummary(b) }}
           </p>
@@ -100,7 +100,7 @@
             </span>
             <span
               v-if="b.open5e_import"
-              class="ml-auto shrink-0 font-cinzel text-[0.5625rem] tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
+              class="ml-auto shrink-0 text-label px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
               title="Imported from Open5e"
             >
               OPEN5E

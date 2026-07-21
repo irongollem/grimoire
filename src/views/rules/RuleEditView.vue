@@ -71,14 +71,14 @@
         <div class="flex items-center justify-between px-4 py-3">
           <div>
             <span class="text-label-lg font-semibold text-muted-foreground">TRACKER</span>
-            <p class="font-fell text-[0.6875rem] text-muted-foreground italic mt-0.5">
+            <p class="text-caption text-muted-foreground italic mt-0.5">
               Attach a per-player track (like Corruption, Hunger, Sanity) with named levels and DM controls.
             </p>
           </div>
           <button
             v-if="!tracker"
             type="button"
-            class="inline-flex items-center gap-1 rounded-md border border-dashed border-border px-2.5 py-1 font-cinzel text-[0.6875rem] text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+            class="inline-flex items-center gap-1 rounded-md border border-dashed border-border px-2.5 py-1 font-cinzel text-xs text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
             @click="addTracker"
           >
             <IconAdd class="size-3" /> Add Tracker
@@ -168,7 +168,7 @@
               <!-- Level header row: value, label, color, delete -->
               <div class="flex items-center gap-2">
                 <div class="flex flex-col items-center gap-0.5 shrink-0">
-                  <span class="font-cinzel text-[0.5625rem] text-muted-foreground">VAL</span>
+                  <span class="font-cinzel text-2xs text-muted-foreground">VAL</span>
                   <input
                     :value="lvl.value"
                     type="text"
@@ -250,7 +250,7 @@
                       <option value="">Ability</option>
                       <option v-for="ab in SAVE_ABILITIES" :key="ab.value" :value="ab.value">{{ ab.label }}</option>
                     </select>
-                    <span class="font-cinzel text-[0.5625rem] text-muted-foreground shrink-0">DC</span>
+                    <span class="font-cinzel text-2xs text-muted-foreground shrink-0">DC</span>
                     <input
                       v-model.number="fx.dcBase"
                       type="number"
@@ -261,7 +261,7 @@
                     />
                     <label class="flex items-center gap-1 shrink-0 cursor-pointer" title="Add current tracker value to DC">
                       <input type="checkbox" v-model="fx.dcAddTracker" class="rounded" />
-                      <span class="font-cinzel text-[0.5625rem] text-muted-foreground">+VAL</span>
+                      <span class="font-cinzel text-2xs text-muted-foreground">+VAL</span>
                     </label>
                   </template>
                   <input
@@ -302,7 +302,7 @@
                 <IconAdd class="size-3" /> Add Button
               </button>
             </div>
-            <p class="font-fell text-[0.6875rem] text-muted-foreground italic">
+            <p class="text-caption text-muted-foreground italic">
               Controls shown in the party panel. "Δ change by" adjusts the current value; "= set to" snaps to an exact value. Toggle "Players" to also show the button in the player portal.
             </p>
 
@@ -366,7 +366,7 @@
                 title="Also show this button to players in their portal"
               >
                 <input type="checkbox" v-model="btn.playerVisible" class="rounded" />
-                <span class="font-cinzel text-[0.5625rem] text-muted-foreground">Players</span>
+                <span class="font-cinzel text-2xs text-muted-foreground">Players</span>
               </label>
               <button
                 type="button"

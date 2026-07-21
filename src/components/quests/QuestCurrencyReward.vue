@@ -21,7 +21,7 @@
         class="flex flex-col gap-0.5"
       >
         <label
-          class="font-cinzel text-[0.5625rem] font-semibold tracking-wider text-center"
+          class="text-label font-semibold text-center"
           :style="{ color: coin.color }"
         >
           {{ coin.label }}

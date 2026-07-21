@@ -13,7 +13,7 @@
       >
         <span
           v-if="idx === 0"
-          class="font-cinzel text-[0.5625rem] text-primary tracking-wider shrink-0 w-10"
+          class="text-label text-primary shrink-0 w-10"
           >PRIMARY</span
         >
         <span v-else class="w-10 shrink-0" />

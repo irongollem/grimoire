@@ -120,7 +120,7 @@ function selectAll() {
   @apply font-cinzel text-xs font-semibold text-muted-foreground;
 }
 .search-input {
-  @apply w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
+  @apply w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
 }
 .selection-header {
   @apply flex items-center gap-2 shrink-0;
@@ -147,9 +147,9 @@ function selectAll() {
   @apply font-cinzel text-xs font-semibold text-foreground truncate;
 }
 .entity-sub {
-  @apply font-fell text-xs text-muted-foreground truncate capitalize;
+  @apply text-caption text-muted-foreground truncate capitalize;
 }
 .empty-list {
-  @apply font-fell text-sm text-muted-foreground text-center py-8 italic;
+  @apply text-body text-muted-foreground text-center py-8 italic;
 }
 </style>

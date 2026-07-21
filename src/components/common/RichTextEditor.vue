@@ -16,7 +16,7 @@
           :class="tbCls(editor.isActive('bold'))"
           @click="editor.chain().focus().toggleBold().run()"
         >
-          <strong class="text-[0.6875rem] leading-none">B</strong>
+          <strong class="text-xs leading-none">B</strong>
         </button>
         <button
           type="button"
@@ -24,7 +24,7 @@
           :class="tbCls(editor.isActive('italic'))"
           @click="editor.chain().focus().toggleItalic().run()"
         >
-          <em class="text-[0.6875rem] leading-none">I</em>
+          <em class="text-xs leading-none">I</em>
         </button>
         <button
           type="button"
@@ -181,7 +181,7 @@
             @click="editor.chain().focus().deleteColumn().run()"
           >
             <span
-              class="text-[0.5625rem] font-cinzel font-bold leading-none text-destructive"
+              class="text-2xs font-cinzel font-bold leading-none text-destructive"
               >−C</span
             >
           </button>
@@ -192,7 +192,7 @@
             @click="editor.chain().focus().deleteRow().run()"
           >
             <span
-              class="text-[0.5625rem] font-cinzel font-bold leading-none text-destructive"
+              class="text-2xs font-cinzel font-bold leading-none text-destructive"
               >−R</span
             >
           </button>
@@ -229,7 +229,7 @@
             :class="tbCls(editor.getAttributes('image').width === preset.value)"
             @click="editor.chain().focus().updateAttributes('image', { width: preset.value }).run()"
           >
-            <span class="text-[0.5625rem] font-cinzel font-bold leading-none">{{ preset.label }}</span>
+            <span class="text-2xs font-cinzel font-bold leading-none">{{ preset.label }}</span>
           </button>
         </template>
         <div class="w-px h-5 bg-border mx-0.5" />
@@ -303,7 +303,7 @@
         <button
           type="button"
           :disabled="isEnhancing"
-          class="flex items-center gap-1.5 px-2.5 py-1.5 font-cinzel text-[0.6875rem] font-semibold tracking-wide text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+          class="flex items-center gap-1.5 px-2.5 py-1.5 font-cinzel text-xs font-semibold tracking-wide text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
           @click="onEnhance"
         >
           <IconLoadingAlt v-if="isEnhancing" class="h-3 w-3 animate-spin" />
@@ -848,7 +848,7 @@ function tbCls(active: boolean) {
 }
 
 .rte-content :deep(.ProseMirror) {
-  @apply font-fell text-sm text-foreground outline-none;
+  @apply text-body text-foreground outline-none;
 }
 .rte-content :deep(.ProseMirror p) {
   @apply mb-3 leading-relaxed last:mb-0;
@@ -886,7 +886,7 @@ function tbCls(active: boolean) {
   @apply border border-border px-3 py-1.5 text-left align-top;
 }
 .rte-content :deep(.ProseMirror th) {
-  @apply font-cinzel text-xs font-semibold tracking-wider bg-muted/50 text-foreground;
+  @apply text-label-lg font-semibold bg-muted/50 text-foreground;
 }
 .rte-content :deep(.ProseMirror td) {
   @apply font-fell text-foreground;

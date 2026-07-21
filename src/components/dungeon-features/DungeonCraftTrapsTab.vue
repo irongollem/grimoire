@@ -38,7 +38,7 @@
             class="group-hover:scale-105 transition-transform duration-300"
           />
           <span
-            class="absolute top-2 left-2 font-cinzel text-[0.5625rem] px-1.5 py-0.5 rounded tracking-wider text-white font-bold"
+            class="absolute top-2 left-2 text-label px-1.5 py-0.5 rounded text-white font-bold"
             :style="{ backgroundColor: TRAP_TYPE_COLORS[trap.trap_type] + 'DD' }"
           >{{ trap.trap_type }}</span>
         </div>

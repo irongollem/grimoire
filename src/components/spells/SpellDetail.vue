@@ -45,7 +45,7 @@
           @update:focal-point="onImageFocalUpdate($event)"
         />
         <div class="flex flex-col gap-1">
-          <span class="font-cinzel text-[0.6875rem] text-muted-foreground tracking-wider uppercase">Source</span>
+          <span class="text-label-lg text-muted-foreground uppercase">Source</span>
           <div
             v-if="props.spell?.open5e_import"
             class="bg-muted/30 border border-border rounded-md px-3 py-2 text-body text-muted-foreground italic"
@@ -103,7 +103,7 @@
         <!-- Level + School row -->
         <div class="grid grid-cols-2 gap-3">
           <label class="flex flex-col gap-1">
-            <span class="font-cinzel text-[0.6875rem] text-muted-foreground tracking-wider uppercase">Level</span>
+            <span class="text-label-lg text-muted-foreground uppercase">Level</span>
             <select
               v-model.number="level"
               class="bg-card border border-border rounded-md px-3 py-2 font-cinzel text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -113,7 +113,7 @@
             </select>
           </label>
           <label class="flex flex-col gap-1">
-            <span class="font-cinzel text-[0.6875rem] text-muted-foreground tracking-wider uppercase">School</span>
+            <span class="text-label-lg text-muted-foreground uppercase">School</span>
             <select
               v-model="school"
               class="bg-card border border-border rounded-md px-3 py-2 font-cinzel text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring capitalize"
@@ -176,7 +176,7 @@
 
         <!-- Description -->
         <div class="flex flex-col gap-1">
-          <span class="font-cinzel text-[0.6875rem] text-muted-foreground tracking-wider uppercase">Description</span>
+          <span class="text-label-lg text-muted-foreground uppercase">Description</span>
           <RichTextEditor
             v-model="description"
             placeholder="Describe the spell's effects…"
@@ -186,7 +186,7 @@
 
         <!-- At Higher Levels -->
         <div class="flex flex-col gap-1">
-          <span class="font-cinzel text-[0.6875rem] text-muted-foreground tracking-wider uppercase">At Higher Levels <span class="normal-case font-fell font-normal text-muted-foreground">(optional)</span></span>
+          <span class="text-label-lg text-muted-foreground uppercase">At Higher Levels <span class="normal-case font-fell font-normal text-muted-foreground">(optional)</span></span>
           <textarea
             v-model="higherLevels"
             rows="2"
@@ -197,7 +197,7 @@
 
         <!-- Tags -->
         <div class="flex flex-col gap-1">
-          <span class="font-cinzel text-[0.6875rem] text-muted-foreground tracking-wider uppercase">Tags</span>
+          <span class="text-label-lg text-muted-foreground uppercase">Tags</span>
           <TagInput v-model="tags" />
         </div>
       </div>

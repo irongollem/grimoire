@@ -24,13 +24,13 @@
         v-for="(item, idx) in filteredItems"
         :key="item.id"
         type="button"
-        class="flex items-center gap-2 px-3 py-[0.45rem] font-fell text-[0.8rem] text-foreground text-left w-full bg-transparent border-none cursor-pointer transition-colors hover:bg-muted"
+        class="flex items-center gap-2 px-3 py-[0.45rem] text-caption text-foreground text-left w-full bg-transparent border-none cursor-pointer transition-colors hover:bg-muted"
         :class="idx === selectedIndex ? 'bg-muted' : ''"
         @mousedown.prevent="selectItem(item)"
         @mouseenter="selectedIndex = idx"
       >
         <span
-          class="font-cinzel text-[0.55rem] font-bold tracking-[0.05em] px-[0.35rem] py-[0.1rem] rounded-full border shrink-0"
+          class="text-label font-bold px-[0.35rem] py-[0.1rem] rounded-full border shrink-0"
           :class="BADGE_CLASSES[item.entityType]"
         >
           {{ ENTITY_LABELS[item.entityType] }}

@@ -6,7 +6,7 @@
     <template v-else-if="item">
       <!-- Stat block -->
       <div
-        class="rounded border bg-muted/20 p-2 mb-2 flex flex-col gap-1 text-[0.6875rem]"
+        class="rounded border bg-muted/20 p-2 mb-2 flex flex-col gap-1 text-xs"
         :style="{ borderColor: rarityColor + '55' }"
       >
         <div class="flex justify-between gap-2">
@@ -67,12 +67,12 @@
         </div>
       </div>
       <!-- Description -->
-      <div v-if="item.description" class="text-[0.6875rem] leading-snug">
+      <div v-if="item.description" class="text-xs leading-snug">
         <RichTextViewer :content="item.description" />
       </div>
     </template>
     <!-- item is null when the player can't yet read it (RLS-blocked until claimed) -->
-    <p v-else class="text-[0.6875rem] italic text-muted-foreground py-1">
+    <p v-else class="text-xs italic text-muted-foreground py-1">
       You don't know anything about this item yet — claim it to reveal its details.
     </p>
   </div>
