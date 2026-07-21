@@ -119,7 +119,7 @@
             v-for="s in STATUS_OPTIONS"
             :key="s.value"
             type="button"
-            class="rounded-md border py-2 font-cinzel text-xs font-semibold tracking-wider transition-colors"
+            class="rounded-md border py-2 text-label-lg font-semibold transition-colors"
             :style="form.status === s.value
               ? { borderColor: s.color, backgroundColor: s.color + '22', color: s.color }
               : {}"

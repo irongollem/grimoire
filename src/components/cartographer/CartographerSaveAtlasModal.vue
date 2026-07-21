@@ -31,13 +31,13 @@
           <div class="flex justify-end gap-2 px-5 pb-5 pt-2">
             <button
               type="button"
-              class="px-4 py-1.5 rounded-md border border-border font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors tracking-wider"
+              class="px-4 py-1.5 rounded-md border border-border text-label-lg font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
               @click="$emit('update:modelValue', false)"
             >Cancel</button>
             <button
               type="button"
               :disabled="!locationId || baking"
-              class="px-4 py-1.5 rounded-md font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+              class="px-4 py-1.5 rounded-md text-label-lg font-semibold bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
               @click="$emit('save', locationId)"
             >{{ baking ? "Baking…" : "Save to Atlas" }}</button>
           </div>

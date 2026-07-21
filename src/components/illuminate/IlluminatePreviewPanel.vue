@@ -58,7 +58,7 @@
       <div class="flex items-center gap-2 shrink-0">
         <button
           type="button"
-          class="font-cinzel text-xs tracking-wider text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
+          class="text-label-lg text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
           @click="emit('replace')"
         >Replace image</button>
         <span class="text-muted-foreground/40 text-xs">·</span>

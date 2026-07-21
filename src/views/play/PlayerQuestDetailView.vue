@@ -3,7 +3,7 @@
     <!-- Back -->
     <RouterLink
       to="/play/quests"
-      class="inline-flex items-center gap-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors tracking-wider"
+      class="inline-flex items-center gap-1.5 text-label-lg font-semibold text-muted-foreground hover:text-foreground transition-colors"
     >
       <IconChevronLeft class="h-3.5 w-3.5" />
       Quest Log
@@ -88,7 +88,7 @@
           class="px-3 py-2 border-b border-border bg-muted/20 flex items-center justify-between"
         >
           <span
-            class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
+            class="text-label-lg font-semibold text-muted-foreground"
             >Objectives</span
           >
           <span class="font-fell text-xs text-muted-foreground"
@@ -136,7 +136,7 @@
           class="px-3 py-2 border-b border-border bg-muted/20 flex items-center justify-between"
         >
           <span
-            class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
+            class="text-label-lg font-semibold text-muted-foreground"
             >Rewards</span
           >
         </div>
@@ -165,7 +165,7 @@
       >
         <div class="px-3 py-2 border-b border-border bg-muted/20">
           <span
-            class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
+            class="text-label-lg font-semibold text-muted-foreground"
             >Key NPCs</span
           >
         </div>
@@ -192,7 +192,7 @@
       >
         <div class="px-3 py-2 border-b border-border bg-muted/20">
           <span
-            class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
+            class="text-label-lg font-semibold text-muted-foreground"
             >Key Locations</span
           >
         </div>
@@ -229,7 +229,7 @@
       >
         <div class="px-3 py-2 border-b border-border bg-muted/20">
           <span
-            class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
+            class="text-label-lg font-semibold text-muted-foreground"
             >Creatures</span
           >
         </div>

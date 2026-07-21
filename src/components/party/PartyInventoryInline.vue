@@ -1,7 +1,7 @@
 <template>
   <div class="mt-6 rounded-lg border border-border bg-card">
     <div class="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/20">
-      <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase flex items-center gap-1.5">
+      <span class="text-label-lg font-semibold text-muted-foreground uppercase flex items-center gap-1.5">
         <IconInventory class="h-3.5 w-3.5" /> Party Inventory
       </span>
       <button

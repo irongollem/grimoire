@@ -35,7 +35,7 @@
         v-if="showPreparedCounter"
         class="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-2 mb-2"
       >
-        <span class="font-cinzel text-xs text-muted-foreground tracking-wider">Spells Prepared</span>
+        <span class="text-label-lg text-muted-foreground">Spells Prepared</span>
         <span class="font-cinzel text-sm font-bold tracking-wider" :class="preparedCounterClass">
           {{ preparedNonCantrips }} / {{ maxPrepared }}
         </span>
@@ -54,7 +54,7 @@
           />
 
           <!-- Label -->
-          <span class="font-cinzel text-xs font-bold tracking-wider text-foreground">
+          <span class="text-label-lg font-bold text-foreground">
             {{ group.level === 0 ? "Cantrips" : SLOT_LEVEL_LABELS[group.level - 1] + " Level" }}
           </span>
 

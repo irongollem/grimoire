@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col gap-2">
     <div class="flex items-center justify-between gap-2">
-      <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">{{ label }}</p>
+      <p class="text-label-lg font-semibold text-muted-foreground">{{ label }}</p>
       <span v-if="selected.length" class="font-fell text-xs text-muted-foreground/70 italic">{{ selected.length }}</span>
     </div>
 

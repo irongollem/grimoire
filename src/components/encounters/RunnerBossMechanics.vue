@@ -5,7 +5,7 @@
     class="rounded-lg border border-dashed border-amber-500/40 bg-amber-500/5 px-3 py-2 mb-2"
   >
     <div class="flex items-center justify-between gap-2">
-      <span class="font-cinzel text-xs font-semibold text-amber-500 tracking-wider">
+      <span class="text-label-lg font-semibold text-amber-500">
         SURPRISE — Optional
       </span>
       <button
@@ -41,7 +41,7 @@
     :class="store.lairCanFireThisRound ? 'border-violet-500/60 bg-violet-500/5' : 'border-border opacity-70'"
   >
     <div class="flex items-center gap-2 flex-wrap">
-      <span class="font-cinzel text-xs font-semibold tracking-wider"
+      <span class="text-label-lg font-semibold"
         :class="store.lairCanFireThisRound ? 'text-violet-400' : 'text-muted-foreground'"
       >✦ INIT 20 — LAIR ACTION</span>
       <span class="font-fell text-[0.6875rem] text-muted-foreground flex-1">
@@ -70,7 +70,7 @@
     class="rounded-lg border border-rose-500/40 bg-rose-500/5 px-3 py-2 mb-2"
   >
     <div class="flex items-center gap-2 flex-wrap">
-      <span class="font-cinzel text-xs font-semibold text-rose-400 tracking-wider">
+      <span class="text-label-lg font-semibold text-rose-400">
         ⚔ {{ legendary.name.toUpperCase() }} — LEGENDARY ACTIONS
       </span>
       <span class="font-cinzel text-2xs text-muted-foreground">

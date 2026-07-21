@@ -13,12 +13,12 @@
       <div class="ml-auto flex flex-wrap items-center gap-2">
         <span
           v-if="thisIsLive"
-          class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-green-500/15 border border-green-500/30 font-cinzel text-xs font-semibold text-green-500 tracking-wider animate-pulse"
+          class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-green-500/15 border border-green-500/30 text-label-lg font-semibold text-green-500 animate-pulse"
         >● In Progress</span>
 
         <!-- Difficulty badge -->
         <span
-          class="inline-flex items-center px-2.5 py-1.5 rounded-md font-cinzel text-xs font-semibold tracking-wider text-white"
+          class="inline-flex items-center px-2.5 py-1.5 rounded-md text-label-lg font-semibold text-white"
           :style="{ backgroundColor: difficultyColor }"
         >{{ difficulty.label }}</span>
 
@@ -46,7 +46,7 @@
 
         <button
           type="button"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
           @click="router.push({ query: { ...route.query, edit: 'true' } })"
         >
           <IconEdit class="h-3.5 w-3.5" />
@@ -73,7 +73,7 @@
           </button>
           <button
             type="button"
-            class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+            class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
             @click="handleRunEncounter"
           >
             <IconPlay class="h-3.5 w-3.5" />
@@ -84,7 +84,7 @@
         <button
           v-else
           type="button"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
           @click="handleRunEncounter"
         >
           <IconPlay class="h-3.5 w-3.5" />

@@ -16,12 +16,12 @@
       <div v-if="npc" class="flex flex-wrap gap-2 mt-1">
         <span
           v-if="npc.player_visible_fields.includes('relationship')"
-          class="px-2 py-0.5 rounded text-xs font-cinzel font-bold tracking-wider uppercase text-white"
+          class="px-2 py-0.5 rounded text-label-lg font-bold uppercase text-white"
           :style="{ backgroundColor: relColor(npc.relationship) + 'CC' }"
         >{{ npc.relationship }}</span>
         <span
           v-if="npc.player_visible_fields.includes('status')"
-          class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-muted font-cinzel text-xs tracking-wider"
+          class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-muted text-label-lg"
         >
           <span class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: statusColor(npc.status) }" />
           {{ npc.status }}

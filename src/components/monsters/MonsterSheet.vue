@@ -80,13 +80,13 @@
 
     <!-- Description / Notes (below) -->
     <div v-if="monster.description" class="flex flex-col gap-1">
-      <h3 class="font-cinzel text-xs font-bold tracking-wider text-muted-foreground uppercase">
+      <h3 class="text-label-lg font-bold text-muted-foreground uppercase">
         Description
       </h3>
       <RichTextViewer :content="monster.description" />
     </div>
     <div v-if="monster.notes" class="flex flex-col gap-1">
-      <h3 class="font-cinzel text-xs font-bold tracking-wider text-muted-foreground uppercase">
+      <h3 class="text-label-lg font-bold text-muted-foreground uppercase">
         DM Notes
       </h3>
       <RichTextViewer :content="monster.notes" />
@@ -94,7 +94,7 @@
 
     <!-- Featured in encounters -->
     <div v-if="featuredIn.length" class="flex flex-col gap-2">
-      <h3 class="font-cinzel text-xs font-bold tracking-wider text-muted-foreground uppercase">
+      <h3 class="text-label-lg font-bold text-muted-foreground uppercase">
         Featured In
       </h3>
       <div class="flex flex-wrap gap-1.5">
@@ -112,7 +112,7 @@
 
     <!-- Loot tables -->
     <div v-if="lootTables.length" class="flex flex-col gap-2">
-      <h3 class="font-cinzel text-xs font-bold tracking-wider text-muted-foreground uppercase">
+      <h3 class="text-label-lg font-bold text-muted-foreground uppercase">
         Loot Tables
       </h3>
       <div class="flex flex-wrap gap-1.5">

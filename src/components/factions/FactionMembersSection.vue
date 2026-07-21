@@ -1,6 +1,6 @@
 <template>
   <div class="flex flex-col gap-3">
-    <h2 class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground uppercase">Members</h2>
+    <h2 class="text-label-lg font-semibold text-muted-foreground uppercase">Members</h2>
 
     <!-- Active members -->
     <div v-if="activeMembers.length" class="flex flex-col gap-1.5">

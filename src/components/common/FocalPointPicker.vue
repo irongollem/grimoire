@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-2">
     <p
-      class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground"
+      class="text-label-lg font-semibold text-muted-foreground"
     >
       FOCAL POINT
       <span
@@ -52,7 +52,7 @@
     <button
       v-if="focalPoint"
       type="button"
-      class="text-xs font-cinzel tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+      class="text-label-lg text-muted-foreground hover:text-foreground transition-colors"
       @click="focalPoint = null"
     >
       ✕ Clear (use smartcrop)

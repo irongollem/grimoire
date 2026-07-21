@@ -1,6 +1,6 @@
 <template>
   <!-- Saving throws -->
-  <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase">
+  <p class="text-label-lg font-semibold text-muted-foreground uppercase">
     Saving Throw Proficiencies
   </p>
   <div class="grid grid-cols-3 gap-2">
@@ -21,7 +21,7 @@
   </div>
 
   <!-- Skills -->
-  <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase mt-2">
+  <p class="text-label-lg font-semibold text-muted-foreground uppercase mt-2">
     Skills
   </p>
   <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
@@ -50,7 +50,7 @@
   </div>
 
   <!-- Tool Proficiencies -->
-  <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase mt-4">
+  <p class="text-label-lg font-semibold text-muted-foreground uppercase mt-4">
     Tool Proficiencies
   </p>
   <TagPickerInput
@@ -62,7 +62,7 @@
   />
 
   <!-- Languages -->
-  <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase mt-3">
+  <p class="text-label-lg font-semibold text-muted-foreground uppercase mt-3">
     Languages
   </p>
   <TagPickerInput

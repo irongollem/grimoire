@@ -7,7 +7,7 @@
     >
       <div class="bg-card rounded-lg border border-border p-4 w-72 flex flex-col gap-3">
         <div class="flex items-center justify-between">
-          <span class="font-cinzel text-xs font-bold tracking-wider">Scene Library</span>
+          <span class="text-label-lg font-bold">Scene Library</span>
           <button
             type="button"
             class="text-muted-foreground hover:text-foreground transition-colors"

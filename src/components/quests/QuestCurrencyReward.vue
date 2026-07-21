@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col gap-1.5 sm:col-span-2">
     <div class="flex items-center justify-between">
-      <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">
+      <label class="text-label-lg font-semibold text-muted-foreground">
         Reward Currency
       </label>
       <button

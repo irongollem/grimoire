@@ -27,7 +27,7 @@
             v-for="tab in tabsWithCount"
             :key="tab.key"
             type="button"
-            class="px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider rounded-t transition-colors"
+            class="px-3 py-1.5 text-label-lg font-semibold rounded-t transition-colors"
             :class="
               activeTab === tab.key
                 ? 'border-b-2 border-primary text-foreground'

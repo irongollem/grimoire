@@ -32,22 +32,22 @@
 
         <!-- Proficiency chips -->
         <label class="flex flex-col gap-1">
-          <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Skill proficiencies</span>
+          <span class="text-label-lg font-semibold text-muted-foreground">Skill proficiencies</span>
           <TagInput v-model="form.skill_proficiencies" placeholder="Add a skill…" />
         </label>
 
         <label class="flex flex-col gap-1">
-          <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Tool proficiencies</span>
+          <span class="text-label-lg font-semibold text-muted-foreground">Tool proficiencies</span>
           <TagPickerInput v-model="form.tool_proficiencies" :groups="TOOL_PROFICIENCY_GROUPS" placeholder="Search tools…" />
         </label>
 
         <label class="flex flex-col gap-1">
-          <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Languages</span>
+          <span class="text-label-lg font-semibold text-muted-foreground">Languages</span>
           <TagPickerInput v-model="form.languages" :groups="LANGUAGE_GROUPS" placeholder="Search languages…" />
         </label>
 
         <label class="flex flex-col gap-1">
-          <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Tags</span>
+          <span class="text-label-lg font-semibold text-muted-foreground">Tags</span>
           <TagInput v-model="form.tags" placeholder="Add a tag…" />
         </label>
       </div>
@@ -57,7 +57,7 @@
 
     <!-- Description -->
     <div class="flex flex-col gap-1">
-      <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Description</span>
+      <span class="text-label-lg font-semibold text-muted-foreground">Description</span>
       <RichTextEditor
         v-model="form.description"
         placeholder="Describe the background's narrative hook…"
@@ -67,7 +67,7 @@
 
     <!-- Equipment -->
     <div class="flex flex-col gap-1">
-      <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Starting equipment</span>
+      <span class="text-label-lg font-semibold text-muted-foreground">Starting equipment</span>
       <RichTextEditor
         v-model="form.equipment"
         placeholder="Items provided by the background, with any starting coin."
@@ -77,7 +77,7 @@
 
     <!-- Feature -->
     <div class="flex flex-col gap-2 rounded-lg border border-border bg-card/50 px-4 py-3">
-      <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Background feature</span>
+      <span class="text-label-lg font-semibold text-muted-foreground">Background feature</span>
       <input
         v-model="form.feature_name"
         placeholder="Feature name (e.g. Shelter of the Faithful)"
@@ -92,7 +92,7 @@
 
     <!-- Feat grant (2024 PHB) -->
     <div class="flex flex-col gap-2 rounded-lg border border-border bg-card/50 px-4 py-3">
-      <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Feat grant <span class="font-normal text-muted-foreground/60">(2024 PHB — optional)</span></span>
+      <span class="text-label-lg font-semibold text-muted-foreground">Feat grant <span class="font-normal text-muted-foreground/60">(2024 PHB — optional)</span></span>
       <input
         v-model="form.feat_grant_name"
         placeholder="Feat name, e.g. Magic Initiate (Wizard)"
@@ -107,7 +107,7 @@
 
     <!-- Suggested characteristics -->
     <div class="flex flex-col gap-1">
-      <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Suggested characteristics</span>
+      <span class="text-label-lg font-semibold text-muted-foreground">Suggested characteristics</span>
       <RichTextEditor
         v-model="form.suggested_characteristics"
         placeholder="Personality traits, ideals, bonds, and flaws to inspire players."

@@ -23,11 +23,11 @@
 
     <!-- Zoom selector -->
     <div class="flex items-center gap-1">
-      <span class="font-cinzel text-xs text-muted-foreground tracking-wider mr-1">ZOOM</span>
+      <span class="text-label-lg text-muted-foreground mr-1">ZOOM</span>
       <button
         v-for="z in zoomPresets"
         :key="z.value"
-        class="rounded border px-2 py-0.5 font-cinzel text-xs font-semibold tracking-wider transition-colors"
+        class="rounded border px-2 py-0.5 text-label-lg font-semibold transition-colors"
         :class="
           zoomYears === z.value
             ? 'border-primary bg-primary/10 text-primary'

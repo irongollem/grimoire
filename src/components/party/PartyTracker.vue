@@ -45,7 +45,7 @@
     <!-- Unowned companions section -->
     <div v-if="unownedCompanions.length" class="mt-4 rounded-lg border border-border bg-card overflow-hidden">
       <div class="flex items-center justify-between px-4 py-2 border-b border-border bg-muted/20">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Unassigned Companions</span>
+        <span class="text-label-lg font-semibold text-muted-foreground">Unassigned Companions</span>
         <button
           type="button"
           class="font-cinzel text-2xs text-primary hover:opacity-80 transition-opacity"

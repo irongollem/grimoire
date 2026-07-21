@@ -34,12 +34,12 @@
           <div class="flex items-center gap-2">
             <span
               v-if="plan.id !== 'free'"
-              class="font-cinzel text-xs font-semibold tracking-wider text-amber-400 border border-amber-400/40 px-2 py-0.5 rounded"
+              class="text-label-lg font-semibold text-amber-400 border border-amber-400/40 px-2 py-0.5 rounded"
             >
               Unlimited
             </span>
             <button
-              class="px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+              class="px-3 py-1.5 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
               :disabled="planSaving[plan.id]"
               @click="savePlan(plan)"
             >

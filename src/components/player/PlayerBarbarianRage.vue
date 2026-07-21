@@ -7,7 +7,7 @@
       class="px-4 py-2.5 border-b flex items-center justify-between"
       :class="localActive ? 'border-red-500/30' : 'border-border'"
     >
-      <p class="font-cinzel text-xs font-semibold tracking-wider" :class="localActive ? 'text-red-600' : 'text-muted-foreground'">
+      <p class="text-label-lg font-semibold" :class="localActive ? 'text-red-600' : 'text-muted-foreground'">
         Rage
       </p>
       <span class="text-label" :class="localActive ? 'text-red-600' : 'text-muted-foreground'">

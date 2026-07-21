@@ -17,7 +17,7 @@
         />
         <span class="font-fell text-sm text-foreground flex-1">{{ event.title }}</span>
         <span class="font-fell text-xs text-muted-foreground italic">{{ formatEventDate(event) }}</span>
-        <span class="font-cinzel text-xs text-muted-foreground/40 uppercase tracking-wider">{{ event.event_type }}</span>
+        <span class="text-label-lg text-muted-foreground/40 uppercase">{{ event.event_type }}</span>
       </div>
     </div>
   </div>

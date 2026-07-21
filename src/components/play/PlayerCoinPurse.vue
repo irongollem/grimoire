@@ -1,6 +1,6 @@
 <template>
   <div class="rounded-lg border border-border bg-card p-4">
-    <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-3">
+    <p class="text-label-lg font-semibold text-muted-foreground mb-3">
       Coin Purse
     </p>
     <div v-if="!hasMember" class="text-center py-4">
@@ -51,7 +51,7 @@
         </div>
         <div class="flex gap-2">
           <button
-            class="flex-1 py-1 bg-primary text-primary-foreground rounded font-cinzel text-xs tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
+            class="flex-1 py-1 bg-primary text-primary-foreground rounded text-label-lg hover:opacity-90 transition-opacity disabled:opacity-50"
             :disabled="!coinDropHasValue || coinDropOverLimit"
             @click="$emit('submit-drop')"
           >

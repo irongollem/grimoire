@@ -49,7 +49,7 @@
         >
           <div class="flex flex-col gap-0.5">
             <span
-              class="font-cinzel text-xs font-semibold tracking-wider uppercase"
+              class="text-label-lg font-semibold uppercase"
               :class="localIdentified ? 'text-muted-foreground' : 'text-amber-500/80'"
             >{{ localIdentified ? 'Identified' : 'Unidentified' }}</span>
             <span class="font-fell text-xs text-muted-foreground italic">
@@ -70,7 +70,7 @@
 
         <!-- Quantity (always shown) -->
         <div class="rounded-lg border border-border bg-card/50 p-3 flex items-center justify-between gap-3">
-          <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase">Quantity</span>
+          <span class="text-label-lg font-semibold text-muted-foreground uppercase">Quantity</span>
           <div class="flex items-center gap-2">
             <button
               class="h-7 w-7 rounded-md border border-border flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-40"
@@ -88,7 +88,7 @@
         <!-- Charges (only shown when vault item has charges AND item is identified) -->
         <div v-if="vaultItem?.charges && localIdentified" class="rounded-lg border border-border bg-card/50 p-3 flex flex-col gap-3">
           <div class="flex items-center justify-between">
-            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase">Charges</span>
+            <span class="text-label-lg font-semibold text-muted-foreground uppercase">Charges</span>
             <span class="font-cinzel text-sm font-bold text-foreground">
               {{ currentCharges }} / {{ vaultItem.charges }}
             </span>
@@ -158,7 +158,7 @@
         <!-- Attunement (hidden until identified) -->
         <div v-if="vaultItem?.requires_attunement && localIdentified" class="rounded-lg border border-border bg-card/50 p-3 flex items-center justify-between gap-3">
           <div class="flex flex-col gap-0.5">
-            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase">Attunement</span>
+            <span class="text-label-lg font-semibold text-muted-foreground uppercase">Attunement</span>
             <span v-if="vaultItem.attunement_requirements" class="font-fell text-xs text-muted-foreground italic">{{ vaultItem.attunement_requirements }}</span>
           </div>
           <button
@@ -198,7 +198,7 @@
 
         <!-- Description: mundane when unidentified, full when identified -->
         <div v-if="displayDescription" class="flex flex-col gap-1">
-          <p class="font-cinzel text-xs font-semibold text-primary tracking-wider uppercase">Description</p>
+          <p class="text-label-lg font-semibold text-primary uppercase">Description</p>
           <RichTextViewer :content="displayDescription" />
         </div>
 
@@ -208,7 +208,7 @@
           class="rounded-lg border border-destructive/30 bg-destructive/5 p-3 flex flex-col gap-2"
         >
           <div class="flex items-center justify-between gap-2">
-            <p class="font-cinzel text-xs font-semibold text-destructive tracking-wider uppercase">Curse</p>
+            <p class="text-label-lg font-semibold text-destructive uppercase">Curse</p>
             <button
               v-if="canIdentify && inv"
               type="button"

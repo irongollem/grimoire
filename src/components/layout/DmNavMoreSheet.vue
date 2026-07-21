@@ -78,7 +78,7 @@
     <button
       v-if="updateAvailable"
       type="button"
-      class="mt-4 flex w-full items-center justify-center gap-2 rounded-md border border-primary/40 bg-primary/10 px-3 py-3 font-cinzel text-xs font-bold tracking-wider text-primary transition-colors hover:bg-primary/20"
+      class="mt-4 flex w-full items-center justify-center gap-2 rounded-md border border-primary/40 bg-primary/10 px-3 py-3 text-label-lg font-bold text-primary transition-colors hover:bg-primary/20"
       @click="reloadApp"
     >
       <IconRefresh class="h-4 w-4 shrink-0" />
@@ -87,7 +87,7 @@
 
     <button
       type="button"
-      class="mt-2 flex w-full items-center justify-center gap-2 rounded-md border border-border px-3 py-2.5 font-cinzel text-xs tracking-wider text-muted-foreground transition-colors hover:text-foreground"
+      class="mt-2 flex w-full items-center justify-center gap-2 rounded-md border border-border px-3 py-2.5 text-label-lg text-muted-foreground transition-colors hover:text-foreground"
       @click="emit('update:open', false); bugReportOpen = true"
     >
       <IconBug class="h-4 w-4 shrink-0" />

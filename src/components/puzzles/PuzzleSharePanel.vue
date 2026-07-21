@@ -3,7 +3,7 @@
     <div class="px-4 py-3 border-b border-border bg-muted/20 flex items-center justify-between gap-3">
       <div class="flex items-center gap-2">
         <IconShare class="size-3.5 text-muted-foreground shrink-0" />
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Player Share</span>
+        <span class="text-label-lg font-semibold text-muted-foreground">Player Share</span>
       </div>
       <!-- Share toggle -->
       <button
@@ -29,7 +29,7 @@
 
         <!-- Read aloud -->
         <div>
-          <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1.5">
+          <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">
             Read-Aloud Text
             <span class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1">(players will see this)</span>
           </label>

@@ -4,7 +4,7 @@
     <div v-if="confirmed.length > 0">
       <div class="flex items-center justify-between mb-3">
         <h3
-          class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground uppercase"
+          class="text-label-lg font-semibold text-muted-foreground uppercase"
         >
           Upcoming Sessions
         </h3>
@@ -58,7 +58,7 @@
     <!-- ── Proposed dates ───────────────────────────────────────────────── -->
     <div>
       <h3
-        class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground uppercase mb-3"
+        class="text-label-lg font-semibold text-muted-foreground uppercase mb-3"
       >
         Proposed Dates
       </h3>
@@ -139,7 +139,7 @@
     <!-- ── Add proposed date ────────────────────────────────────────────── -->
     <div class="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
       <h3
-        class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground uppercase"
+        class="text-label-lg font-semibold text-muted-foreground uppercase"
       >
         Add Proposed Date
       </h3>
@@ -209,7 +209,7 @@
       <div class="flex justify-end">
         <button
           :disabled="!form.proposed_datetime || isCreating"
-          class="inline-flex items-center gap-1.5 px-4 py-2 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-40 transition-opacity"
+          class="inline-flex items-center gap-1.5 px-4 py-2 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-40 transition-opacity"
           @click="addProposal"
         >
           <IconAdd class="h-3.5 w-3.5" />
@@ -221,7 +221,7 @@
     <!-- ── Past / cancelled ─────────────────────────────────────────────── -->
     <div v-if="cancelled.length > 0">
       <h3
-        class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground uppercase mb-2"
+        class="text-label-lg font-semibold text-muted-foreground uppercase mb-2"
       >
         Cancelled
       </h3>
@@ -257,7 +257,7 @@
       class="rounded-lg border border-border bg-muted/30 p-4 space-y-3"
     >
       <h3
-        class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground uppercase"
+        class="text-label-lg font-semibold text-muted-foreground uppercase"
       >
         Calendar Subscription
       </h3>

@@ -14,7 +14,7 @@
       <button
         v-if="isNew"
         type="button"
-        class="mb-3 inline-flex items-center gap-1.5 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground hover:text-primary transition-colors"
+        class="mb-3 inline-flex items-center gap-1.5 text-label-lg font-semibold text-muted-foreground hover:text-primary transition-colors"
         @click="chosen = null"
       >
         ← Choose a different template

@@ -53,7 +53,7 @@
         <button
           v-if="!showConfirmation"
           type="button"
-          class="font-cinzel text-xs tracking-wider text-muted-foreground hover:text-destructive transition-colors"
+          class="text-label-lg text-muted-foreground hover:text-destructive transition-colors"
           @click="showConfirmation = true"
         >
           ← Back to level {{ member.level - 1 }}
@@ -61,14 +61,14 @@
         <div v-else class="flex items-center gap-3">
           <button
             type="button"
-            class="font-cinzel text-xs tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+            class="text-label-lg text-muted-foreground hover:text-foreground transition-colors"
             @click="showConfirmation = false"
           >
             × cancel
           </button>
           <button
             type="button"
-            class="rounded-md bg-destructive px-3 py-1.5 font-cinzel text-xs font-semibold text-destructive-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
+            class="rounded-md bg-destructive px-3 py-1.5 text-label-lg font-semibold text-destructive-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
             :disabled="isPending"
             @click="confirmDeLevel"
           >

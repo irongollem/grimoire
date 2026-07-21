@@ -15,7 +15,7 @@
 
     <!-- Connector URL -->
     <div class="space-y-2 max-w-xl">
-      <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase">
+      <p class="text-label-lg font-semibold text-muted-foreground uppercase">
         Connector URL
       </p>
       <div class="flex items-stretch gap-2">
@@ -38,7 +38,7 @@
 
     <!-- Connected apps -->
     <div class="space-y-3 max-w-xl">
-      <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase">
+      <p class="text-label-lg font-semibold text-muted-foreground uppercase">
         Connected AI apps
       </p>
 

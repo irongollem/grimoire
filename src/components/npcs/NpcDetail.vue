@@ -124,7 +124,7 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <!-- From template -->
               <div class="border border-border rounded-lg p-3 space-y-2">
-                <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">FROM TEMPLATE</p>
+                <p class="text-label-lg font-semibold text-muted-foreground">FROM TEMPLATE</p>
                 <select class="field-input" @change="applyTemplate(($event.target as HTMLSelectElement).value)">
                   <option value="">— Custom / blank —</option>
                   <optgroup v-for="cat in templateCategories" :key="cat" :label="cat">
@@ -137,7 +137,7 @@
 
               <!-- From Bestiary (monster link) -->
               <div class="border border-border rounded-lg p-3 space-y-2">
-                <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">FROM BESTIARY</p>
+                <p class="text-label-lg font-semibold text-muted-foreground">FROM BESTIARY</p>
                 <EntityCombobox
                   :model-value="form.linked_monster_id ?? ''"
                   :options="allMonsters ?? []"
@@ -152,7 +152,7 @@
                     v-if="npc?.id && !form.linked_monster_id"
                     type="button"
                     :disabled="isPromoting"
-                    class="flex-1 py-1.5 font-cinzel text-xs font-semibold tracking-wider border border-border rounded-md hover:bg-muted transition-colors disabled:opacity-50"
+                    class="flex-1 py-1.5 text-label-lg font-semibold border border-border rounded-md hover:bg-muted transition-colors disabled:opacity-50"
                     @click="promoteToMonster"
                   >
                     {{ isPromoting ? 'Promoting…' : 'Promote to Monster' }}

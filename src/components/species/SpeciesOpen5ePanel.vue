@@ -25,7 +25,7 @@
         <button
           type="button"
           :disabled="seeding || importing"
-          class="w-full inline-flex items-center justify-center gap-2 rounded-md border border-border bg-muted px-3 py-2 font-cinzel text-xs font-semibold text-foreground tracking-wider hover:bg-accent disabled:opacity-50 transition-colors"
+          class="w-full inline-flex items-center justify-center gap-2 rounded-md border border-border bg-muted px-3 py-2 text-label-lg font-semibold text-foreground hover:bg-accent disabled:opacity-50 transition-colors"
           @click="seedCoreRaces"
         >
           <IconScriptorium class="h-3.5 w-3.5 shrink-0" />

@@ -168,7 +168,7 @@
         </button>
         <button
           type="button"
-          class="font-cinzel text-xs font-semibold tracking-wider text-primary"
+          class="text-label-lg font-semibold text-primary"
           @click="clearFilters"
         >
           Clear all
@@ -194,15 +194,15 @@
     <MobileSheet v-model:open="filtersOpen" title="Filter NPCs">
       <div class="flex flex-col gap-4 py-1">
         <div>
-          <p class="mb-1.5 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">Status</p>
+          <p class="mb-1.5 text-label-lg font-semibold text-muted-foreground">Status</p>
           <ListFilterGroup v-model="statusFilter" :options="STATUS_OPTIONS" aria-label="Status filter" />
         </div>
         <div>
-          <p class="mb-1.5 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">Relationship</p>
+          <p class="mb-1.5 text-label-lg font-semibold text-muted-foreground">Relationship</p>
           <NpcRelationshipFilter v-model="relFilter" />
         </div>
         <div>
-          <p class="mb-1.5 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">Location</p>
+          <p class="mb-1.5 text-label-lg font-semibold text-muted-foreground">Location</p>
           <EntityCombobox
             :model-value="locationFilter"
             :options="locationOptions"
@@ -216,7 +216,7 @@
           </EntityCombobox>
         </div>
         <div>
-          <p class="mb-1.5 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">Connected to</p>
+          <p class="mb-1.5 text-label-lg font-semibold text-muted-foreground">Connected to</p>
           <EntityCombobox
             :model-value="partyMemberFilter"
             :options="partyOptions"
@@ -226,7 +226,7 @@
           />
         </div>
         <div>
-          <p class="mb-1.5 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">Sort by</p>
+          <p class="mb-1.5 text-label-lg font-semibold text-muted-foreground">Sort by</p>
           <ListFilterGroup v-model="sortBy" :options="SORT_OPTIONS" aria-label="Sort by" />
         </div>
       </div>

@@ -5,7 +5,7 @@
   >
     <span
       v-if="label"
-      class="font-cinzel text-xs tracking-wider shrink-0"
+      class="text-label-lg shrink-0"
       :class="labelClasses"
     >{{ label }}</span>
     <span class="font-fell text-sm text-foreground"><slot /></span>

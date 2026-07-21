@@ -120,7 +120,7 @@
 
           <div class="flex flex-wrap items-end gap-4">
             <label class="flex flex-col gap-1">
-              <span class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">
+              <span class="text-label-lg font-semibold text-muted-foreground">
                 5-FT SQUARES BETWEEN HANDLES
               </span>
               <input
@@ -132,7 +132,7 @@
               />
             </label>
             <label class="flex flex-col gap-1 min-w-48">
-              <span class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">
+              <span class="text-label-lg font-semibold text-muted-foreground">
                 GRID OPACITY · {{ Math.round(gridOpacity * 100) }}%
               </span>
               <input
@@ -160,7 +160,7 @@
         <div class="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
           <button
             type="button"
-            class="px-4 py-2 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
+            class="px-4 py-2 text-label-lg font-semibold text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
             @click="cancel"
           >
             Cancel
@@ -168,7 +168,7 @@
           <button
             type="button"
             :disabled="!preview || saving"
-            class="px-4 py-2 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+            class="px-4 py-2 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
             @click="save"
           >
             {{ saving ? "Saving…" : "Save Calibration" }}

@@ -1,6 +1,6 @@
 <template>
   <div>
-    <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">
+    <label class="block text-label-lg font-semibold text-muted-foreground mb-1">
       TYPE
     </label>
     <div class="flex items-center gap-2">

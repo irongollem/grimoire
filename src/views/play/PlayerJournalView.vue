@@ -7,7 +7,7 @@
         <button
           v-if="ui.journalHasActiveFilters && (activeTab === 'mine' || activeTab === 'party')"
           type="button"
-          class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground tracking-wider hover:text-foreground transition-colors"
+          class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-label-lg font-semibold text-muted-foreground hover:text-foreground transition-colors"
           @click="ui.resetJournalFilters()"
         >
           Clear
@@ -21,7 +21,7 @@
         <button
           v-if="activeTab !== 'dm-notes' && activeTab !== 'quest-log' && activeTab !== 'puzzles'"
           type="button"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
           @click="openNew"
         >
           <IconAdd class="h-3.5 w-3.5" />
@@ -87,7 +87,7 @@
           <div class="flex items-center gap-2 flex-wrap">
             <button
               type="button"
-              class="inline-flex items-center gap-1.5 font-cinzel text-xs font-semibold tracking-wider transition-colors px-2 py-1 rounded border"
+              class="inline-flex items-center gap-1.5 text-label-lg font-semibold transition-colors px-2 py-1 rounded border"
               :class="formIsPrivate
                 ? 'text-muted-foreground border-border hover:border-foreground/30'
                 : 'text-elven-green border-elven-green/30 bg-elven-green/10'"
@@ -99,19 +99,19 @@
             </button>
             <label v-if="formIsPrivate" class="inline-flex items-center gap-1.5 cursor-pointer select-none">
               <input v-model="formSharedWithDm" type="checkbox" class="rounded border-border accent-amber-500 h-3 w-3" />
-              <span class="font-cinzel text-xs tracking-wider text-amber-600/80 dark:text-amber-400/80">Share with DM</span>
+              <span class="text-label-lg text-amber-600/80 dark:text-amber-400/80">Share with DM</span>
             </label>
           </div>
           <div class="flex items-center gap-2">
             <button
               type="button"
-              class="font-cinzel text-xs text-muted-foreground hover:text-foreground tracking-wider transition-colors"
+              class="text-label-lg text-muted-foreground hover:text-foreground transition-colors"
               @click="cancelForm"
             >Cancel</button>
             <button
               type="button"
               :disabled="isRteEmpty(formContent) || saving"
-              class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 disabled:opacity-50 transition-opacity"
+              class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-label-lg font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
               @click="submitNew"
             >
               <IconLoading v-if="saving" class="h-3.5 w-3.5 animate-spin" />

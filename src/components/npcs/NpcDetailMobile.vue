@@ -157,19 +157,19 @@
       <NpcAccordionSection v-model:open="openSections.lore" title="Lore">
         <div class="flex flex-col gap-4">
           <div v-if="npc.appearance" class="flex flex-col gap-1">
-            <h3 class="font-cinzel text-xs font-bold uppercase tracking-wider text-primary">Appearance</h3>
+            <h3 class="text-label-lg font-bold uppercase text-primary">Appearance</h3>
             <RichTextViewer :content="npc.appearance" />
           </div>
           <div v-if="npc.personality" class="flex flex-col gap-1">
-            <h3 class="font-cinzel text-xs font-bold uppercase tracking-wider text-primary">Personality</h3>
+            <h3 class="text-label-lg font-bold uppercase text-primary">Personality</h3>
             <RichTextViewer :content="npc.personality" />
           </div>
           <div v-if="npc.backstory" class="flex flex-col gap-1">
-            <h3 class="font-cinzel text-xs font-bold uppercase tracking-wider text-primary">Backstory</h3>
+            <h3 class="text-label-lg font-bold uppercase text-primary">Backstory</h3>
             <RichTextViewer :content="npc.backstory" />
           </div>
           <div v-if="npc.notes" class="flex flex-col gap-1">
-            <h3 class="font-cinzel text-xs font-bold uppercase tracking-wider text-muted-foreground">DM Notes</h3>
+            <h3 class="text-label-lg font-bold uppercase text-muted-foreground">DM Notes</h3>
             <RichTextViewer :content="npc.notes" />
           </div>
           <p

@@ -1,12 +1,12 @@
 <template>
   <div>
-    <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-2">
+    <label class="block text-label-lg font-semibold text-muted-foreground mb-2">
       DATE
     </label>
     <div class="flex rounded-md border border-border overflow-hidden mb-3">
       <button
         type="button"
-        class="flex-1 py-1.5 font-cinzel text-xs font-semibold tracking-wider transition-colors"
+        class="flex-1 py-1.5 text-label-lg font-semibold transition-colors"
         :class="dateType === 'regular' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'"
         @click="emit('update:dateType', 'regular')"
       >
@@ -14,7 +14,7 @@
       </button>
       <button
         type="button"
-        class="flex-1 py-1.5 font-cinzel text-xs font-semibold tracking-wider transition-colors"
+        class="flex-1 py-1.5 text-label-lg font-semibold transition-colors"
         :class="dateType === 'festival' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'"
         @click="emit('update:dateType', 'festival')"
       >

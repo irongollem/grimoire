@@ -7,7 +7,7 @@
       </div>
       <div class="flex items-center gap-2">
         <span class="font-fell text-xs text-muted-foreground w-16">Role</span>
-        <span class="font-cinzel text-xs tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary">
+        <span class="text-label-lg px-1.5 py-0.5 rounded bg-primary/15 text-primary">
           {{ auth.currentRole ?? '—' }}
         </span>
       </div>

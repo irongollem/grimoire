@@ -22,7 +22,7 @@
 
             <!-- Spell search -->
             <div class="space-y-1">
-              <label class="font-cinzel text-xs text-muted-foreground tracking-wider">SPELL</label>
+              <label class="text-label-lg text-muted-foreground">SPELL</label>
               <div class="relative">
                 <IconSearch class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                 <input
@@ -64,8 +64,8 @@
 
             <!-- Source type -->
             <div class="space-y-1">
-              <label class="font-cinzel text-xs text-muted-foreground tracking-wider">SOURCE</label>
-              <div class="flex rounded-md border border-border overflow-hidden text-xs font-cinzel font-semibold tracking-wider">
+              <label class="text-label-lg text-muted-foreground">SOURCE</label>
+              <div class="flex rounded-md border border-border overflow-hidden text-label-lg font-semibold">
                 <button
                   v-for="opt in SOURCE_TYPES"
                   :key="opt.value"
@@ -79,7 +79,7 @@
 
             <!-- Source label -->
             <div class="space-y-1">
-              <label class="font-cinzel text-xs text-muted-foreground tracking-wider">SOURCE LABEL <span class="text-muted-foreground/60 normal-case font-fell">(required; e.g. Tiefling, Magic Initiate)</span></label>
+              <label class="text-label-lg text-muted-foreground">SOURCE LABEL <span class="text-muted-foreground/60 normal-case font-fell">(required; e.g. Tiefling, Magic Initiate)</span></label>
               <input
                 v-model="sourceLabel"
                 type="text"
@@ -90,11 +90,11 @@
 
             <!-- Uses per day -->
             <div class="space-y-1">
-              <label class="font-cinzel text-xs text-muted-foreground tracking-wider">USES</label>
+              <label class="text-label-lg text-muted-foreground">USES</label>
               <div class="flex items-center gap-2">
                 <button
                   type="button"
-                  class="flex-1 py-1.5 rounded-md border font-cinzel text-xs font-semibold tracking-wider transition-colors"
+                  class="flex-1 py-1.5 rounded-md border text-label-lg font-semibold transition-colors"
                   :class="usesPerDay === null ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400' : 'bg-card border-border text-muted-foreground hover:text-foreground'"
                   @click="setAtWill"
                 >At will</button>
@@ -123,8 +123,8 @@
 
             <!-- Resets on (only if limited) -->
             <div v-if="usesPerDay !== null" class="space-y-1">
-              <label class="font-cinzel text-xs text-muted-foreground tracking-wider">RESETS ON</label>
-              <div class="flex rounded-md border border-border overflow-hidden text-xs font-cinzel font-semibold tracking-wider">
+              <label class="text-label-lg text-muted-foreground">RESETS ON</label>
+              <div class="flex rounded-md border border-border overflow-hidden text-label-lg font-semibold">
                 <button
                   type="button"
                   class="flex-1 px-3 py-1.5 transition-colors"
@@ -141,7 +141,7 @@
             </div>
 
             <div class="space-y-1">
-              <label class="font-cinzel text-xs text-muted-foreground tracking-wider">CASTING ABILITY</label>
+              <label class="text-label-lg text-muted-foreground">CASTING ABILITY</label>
               <select v-model="castingAbility" class="w-full rounded-md border border-border bg-muted/30 px-3 py-1.5 font-fell text-sm text-foreground">
                 <option :value="null">Use class/default ability</option>
                 <option value="int">Intelligence</option>
@@ -155,12 +155,12 @@
           <div class="flex justify-end gap-2 px-5 pb-5">
             <button
               type="button"
-              class="cursor-pointer px-4 py-1.5 rounded-md border border-border font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors tracking-wider"
+              class="cursor-pointer px-4 py-1.5 rounded-md border border-border text-label-lg font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
               @click="$emit('close')"
             >Cancel</button>
             <button
               type="button"
-              class="cursor-pointer px-4 py-1.5 rounded-md bg-primary text-primary-foreground font-cinzel text-xs font-semibold tracking-wider hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+              class="cursor-pointer px-4 py-1.5 rounded-md bg-primary text-primary-foreground text-label-lg font-semibold hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
               :disabled="!selectedSpell || !sourceLabel.trim() || isPending"
               @click="submit"
             >Add Spell</button>

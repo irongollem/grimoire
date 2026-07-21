@@ -21,7 +21,7 @@
           <IconDrag class="h-4 w-4 shrink-0" />
         </span>
         <component :is="item.icon" class="h-4 w-4 shrink-0 text-muted-foreground" />
-        <span class="font-cinzel text-xs tracking-wider flex-1">{{ item.label }}</span>
+        <span class="text-label-lg flex-1">{{ item.label }}</span>
         <span
           v-if="i < MOBILE_NAV_SLOTS"
           class="text-label md:text-sm px-1.5 py-0.5 rounded bg-primary/15 text-primary shrink-0"
@@ -43,7 +43,7 @@
       >
         <IconDrag class="h-4 w-4 shrink-0 text-muted-foreground" />
         <component :is="ghostItem.icon" class="h-4 w-4 shrink-0 text-muted-foreground" />
-        <span class="font-cinzel text-xs tracking-wider flex-1">{{ ghostItem.label }}</span>
+        <span class="text-label-lg flex-1">{{ ghostItem.label }}</span>
       </div>
     </Teleport>
   </SettingsSection>

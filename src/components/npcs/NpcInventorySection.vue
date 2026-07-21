@@ -53,7 +53,7 @@
       <button
         type="button"
         :disabled="!selectedVaultId || adding"
-        class="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 disabled:opacity-40 transition-opacity shrink-0"
+        class="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-label-lg font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40 transition-opacity shrink-0"
         @click="addFromVault"
       >
         <IconAdd class="h-3 w-3" />

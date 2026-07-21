@@ -52,7 +52,7 @@
 
       <div class="flex items-center justify-between pt-2">
         <button
-          class="flex items-center gap-2 px-4 py-2 font-cinzel text-xs font-semibold tracking-wider border border-border text-foreground rounded-md hover:bg-muted transition-colors"
+          class="flex items-center gap-2 px-4 py-2 text-label-lg font-semibold border border-border text-foreground rounded-md hover:bg-muted transition-colors"
           @click="importOpen = true"
         >
           <IconUpload class="h-3.5 w-3.5" />
@@ -60,7 +60,7 @@
         </button>
         <button
           :disabled="selectedCategories.size === 0"
-          class="flex items-center gap-2 px-4 py-2 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+          class="flex items-center gap-2 px-4 py-2 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
           @click="goToFirstPick"
         >
           Continue
@@ -163,13 +163,13 @@
       <!-- Navigation -->
       <div class="flex justify-end gap-2 pt-2">
         <button
-          class="px-4 py-2 font-cinzel text-xs font-semibold tracking-wider border border-border text-muted-foreground hover:text-foreground rounded-md transition-colors"
+          class="px-4 py-2 text-label-lg font-semibold border border-border text-muted-foreground hover:text-foreground rounded-md transition-colors"
           @click="goBack"
         >
           Back
         </button>
         <button
-          class="flex items-center gap-2 px-4 py-2 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity"
+          class="flex items-center gap-2 px-4 py-2 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity"
           @click="goNext"
         >
           {{ isLastPick ? "Continue to Details" : "Next" }}
@@ -245,13 +245,13 @@
 
       <div class="flex justify-end gap-2 pt-2">
         <button
-          class="px-4 py-2 font-cinzel text-xs font-semibold tracking-wider border border-border text-muted-foreground hover:text-foreground rounded-md transition-colors"
+          class="px-4 py-2 text-label-lg font-semibold border border-border text-muted-foreground hover:text-foreground rounded-md transition-colors"
           @click="goBack"
         >
           Back
         </button>
         <label
-          class="flex items-center gap-2 px-4 py-2 font-cinzel text-xs font-semibold tracking-wider border border-border text-foreground rounded-md hover:bg-muted transition-colors cursor-pointer"
+          class="flex items-center gap-2 px-4 py-2 text-label-lg font-semibold border border-border text-foreground rounded-md hover:bg-muted transition-colors cursor-pointer"
           :class="{ 'opacity-50 pointer-events-none': isAttaching || !bundleName.trim() || totalSelected === 0 }"
           title="Embed the selected campaign data into a PDF you exported from Scriptorium, so importing that PDF populates a campaign"
         >
@@ -267,7 +267,7 @@
         </label>
         <button
           :disabled="isExporting || !bundleName.trim() || totalSelected === 0"
-          class="flex items-center gap-2 px-4 py-2 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+          class="flex items-center gap-2 px-4 py-2 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
           @click="doExport"
         >
           <IconDownload class="h-3.5 w-3.5" />

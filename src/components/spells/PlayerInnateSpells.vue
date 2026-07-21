@@ -25,7 +25,7 @@
             class="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform"
             :class="ui.playerInnateOpenSources.includes(group.label) ? 'rotate-90' : ''"
           />
-          <span class="font-cinzel text-xs font-bold tracking-wider text-foreground">
+          <span class="text-label-lg font-bold text-foreground">
             {{ group.label }}
           </span>
           <span class="font-cinzel text-2xs px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-400 border border-violet-500/20">

@@ -1,7 +1,7 @@
 <template>
   <div class="rounded-lg border border-border bg-card overflow-hidden">
     <div class="px-3 py-2 border-b border-border bg-muted/20 flex items-center justify-between">
-      <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Hints</span>
+      <span class="text-label-lg font-semibold text-muted-foreground">Hints</span>
       <button
         type="button"
         class="text-label font-semibold text-primary hover:opacity-80 transition-opacity"

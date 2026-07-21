@@ -2,7 +2,7 @@
   <form class="space-y-6 max-w-lg" @submit.prevent="submitForm">
     <!-- Name -->
     <div>
-      <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">NAME</label>
+      <label class="block text-label-lg font-semibold text-muted-foreground mb-1">NAME</label>
       <input
         v-model="form.name"
         required
@@ -14,7 +14,7 @@
 
     <!-- World -->
     <div>
-      <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">WORLD</label>
+      <label class="block text-label-lg font-semibold text-muted-foreground mb-1">WORLD</label>
       <input
         v-model="form.setting"
         list="campaign-settings-list"
@@ -39,7 +39,7 @@
     <!-- Calendar + Year -->
     <div class="grid grid-cols-2 gap-3">
       <div>
-        <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">CALENDAR</label>
+        <label class="block text-label-lg font-semibold text-muted-foreground mb-1">CALENDAR</label>
         <select
           v-model="form.calendar_id"
           class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -50,7 +50,7 @@
         </select>
       </div>
       <div>
-        <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">CURRENT YEAR</label>
+        <label class="block text-label-lg font-semibold text-muted-foreground mb-1">CURRENT YEAR</label>
         <input
           v-model.number="form.current_year"
           type="number"
@@ -72,7 +72,7 @@
     >
       <div class="flex items-center justify-between gap-2">
         <div class="min-w-0">
-          <p class="font-cinzel text-xs font-semibold tracking-wider text-foreground">
+          <p class="text-label-lg font-semibold text-foreground">
             POPULATE FROM {{ populateSetting.label.toUpperCase() }}
           </p>
           <p class="font-fell text-xs text-muted-foreground mt-0.5">
@@ -82,7 +82,7 @@
         <button
           type="button"
           :disabled="isPopulating"
-          class="shrink-0 flex items-center gap-1.5 px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+          class="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
           @click="doPopulate"
         >
           <IconGenerate class="h-3 w-3" />
@@ -99,7 +99,7 @@
 
     <!-- Theme -->
     <div>
-      <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-2">THEME</label>
+      <label class="block text-label-lg font-semibold text-muted-foreground mb-2">THEME</label>
       <div class="flex flex-col gap-1.5">
         <button
           v-for="theme in themes"
@@ -122,7 +122,7 @@
 
     <!-- Health Visibility -->
     <div>
-      <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-2">HEALTH VISIBILITY</label>
+      <label class="block text-label-lg font-semibold text-muted-foreground mb-2">HEALTH VISIBILITY</label>
       <div class="flex flex-col gap-1.5">
         <button
           v-for="opt in HEALTH_VIS_OPTIONS"
@@ -192,7 +192,7 @@
       <button
         type="submit"
         :disabled="isSaving"
-        class="px-5 py-2 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+        class="px-5 py-2 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
       >
         {{ isSaving ? "Saving…" : "Save Changes" }}
       </button>

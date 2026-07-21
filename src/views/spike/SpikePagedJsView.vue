@@ -23,7 +23,7 @@
       <button
         type="button"
         :disabled="isRendering"
-        class="rounded border border-border px-3 py-1 font-cinzel text-xs font-semibold tracking-wider uppercase hover:bg-muted disabled:opacity-50"
+        class="rounded border border-border px-3 py-1 text-label-lg font-semibold uppercase hover:bg-muted disabled:opacity-50"
         @click="renderNow"
       >
         {{ isRendering ? "Rendering…" : "Render" }}
@@ -32,7 +32,7 @@
       <button
         type="button"
         :disabled="isRendering || pageCount === 0"
-        class="rounded border border-border px-3 py-1 font-cinzel text-xs font-semibold tracking-wider uppercase hover:bg-muted disabled:opacity-50"
+        class="rounded border border-border px-3 py-1 text-label-lg font-semibold uppercase hover:bg-muted disabled:opacity-50"
         @click="printSpike"
       >
         Print

@@ -1,6 +1,6 @@
 <template>
   <div>
-    <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-2">SPELL GRANTS</p>
+    <p class="text-label-lg font-semibold text-muted-foreground mb-2">SPELL GRANTS</p>
 
     <!-- Existing grants -->
     <div v-if="grants.length" class="space-y-2 mb-3">
@@ -100,7 +100,7 @@
       <div class="flex gap-3 items-end">
         <div class="flex-1">
           <label class="text-eyebrow font-semibold text-muted-foreground">USES</label>
-          <div class="mt-1 flex rounded-md border border-border overflow-hidden text-xs font-cinzel font-semibold tracking-wider">
+          <div class="mt-1 flex rounded-md border border-border overflow-hidden text-label-lg font-semibold">
             <button type="button" class="flex-1 px-2 py-1.5 transition-colors" :class="grantForm.usesPerDay === null ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'" @click="grantForm.usesPerDay = null">At will</button>
             <button type="button" class="flex-1 px-2 py-1.5 transition-colors" :class="grantForm.usesPerDay !== null ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'" @click="grantForm.usesPerDay = grantForm.usesCount">{{ grantForm.usesPerDay !== null ? `${grantForm.usesCount}/day` : 'N/day' }}</button>
           </div>
@@ -112,7 +112,7 @@
         </div>
         <div v-if="grantForm.usesPerDay !== null" class="flex-1">
           <label class="text-label font-semibold text-muted-foreground">RESETS ON</label>
-          <div class="mt-1 flex rounded-md border border-border overflow-hidden text-xs font-cinzel font-semibold tracking-wider">
+          <div class="mt-1 flex rounded-md border border-border overflow-hidden text-label-lg font-semibold">
             <button type="button" class="flex-1 px-2 py-1.5 transition-colors" :class="grantForm.resetsOn === 'long_rest' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'" @click="grantForm.resetsOn = 'long_rest'">Long</button>
             <button type="button" class="flex-1 px-2 py-1.5 transition-colors" :class="grantForm.resetsOn === 'short_rest' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'" @click="grantForm.resetsOn = 'short_rest'">Short</button>
           </div>

@@ -28,7 +28,7 @@
     <div class="mt-6 rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-3 border-b border-border bg-muted/20 flex items-center justify-between">
         <div>
-          <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Group Portrait</span>
+          <span class="text-label-lg font-semibold text-muted-foreground">Group Portrait</span>
           <p class="font-fell text-xs text-muted-foreground italic mt-0.5">
             Use <span class="font-cinzel text-2xs font-bold">@Party</span> in Chronicler scenes to reference this shot instead of individual portraits — saves tokens and effort.
           </p>
@@ -38,7 +38,7 @@
           <button
             type="button"
             :disabled="generating"
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider rounded-md border border-border bg-background text-muted-foreground hover:text-foreground hover:border-primary/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-label-lg font-semibold rounded-md border border-border bg-background text-muted-foreground hover:text-foreground hover:border-primary/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             title="Upload your own art"
             @click="uploadInput?.click()"
           >
@@ -48,7 +48,7 @@
           <button
             type="button"
             :disabled="generating || !hasPartyMembers"
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider rounded-md border border-border bg-background text-muted-foreground hover:text-foreground hover:border-primary/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-label-lg font-semibold rounded-md border border-border bg-background text-muted-foreground hover:text-foreground hover:border-primary/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             :title="!hasPartyMembers ? 'Add party members first' : groupPortraitUrl ? 'Regenerate group portrait' : 'Generate group portrait'"
             @click="generateGroupPortrait"
           >

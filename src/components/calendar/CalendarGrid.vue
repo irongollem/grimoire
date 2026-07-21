@@ -76,7 +76,7 @@
         <div
           v-for="label in calendar.adapter.dayLabels"
           :key="label"
-          class="text-center font-cinzel text-xs font-semibold tracking-wider text-muted-foreground py-1"
+          class="text-center text-label-lg font-semibold text-muted-foreground py-1"
         >
           {{ label.slice(0, 3) }}
         </div>
@@ -188,7 +188,7 @@
             <span class="font-fell text-xs text-muted-foreground italic shrink-0">
               {{ formatEventDate(event) }}
             </span>
-            <span class="hidden md:inline font-cinzel text-xs text-muted-foreground/40 uppercase tracking-wider shrink-0">
+            <span class="hidden md:inline text-label-lg text-muted-foreground/40 uppercase shrink-0">
               {{ event.event_type }}
             </span>
           </component>

@@ -6,14 +6,14 @@
         <button
           type="button"
           :disabled="baking"
-          class="px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground border border-border rounded-md hover:bg-muted transition-colors disabled:opacity-50"
+          class="px-3 py-1.5 text-label-lg font-semibold text-muted-foreground border border-border rounded-md hover:bg-muted transition-colors disabled:opacity-50"
           title="Download map as PNG"
           @click="onDownloadPng"
         >{{ baking ? "Baking…" : "↓ PNG" }}</button>
         <button
           type="button"
           :disabled="baking || styleGenerating"
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider border border-primary/40 text-primary rounded-md hover:bg-primary/10 transition-colors disabled:opacity-50"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 text-label-lg font-semibold border border-primary/40 text-primary rounded-md hover:bg-primary/10 transition-colors disabled:opacity-50"
           title="Re-render this map in an artistic style using AI"
           @click="showStylePicker = true"
         >
@@ -23,7 +23,7 @@
         <button
           type="button"
           :disabled="baking"
-          class="px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider border border-primary/40 text-primary rounded-md hover:bg-primary/10 transition-colors disabled:opacity-50"
+          class="px-3 py-1.5 text-label-lg font-semibold border border-primary/40 text-primary rounded-md hover:bg-primary/10 transition-colors disabled:opacity-50"
           @click="showAtlasModal = true"
         >{{ baking ? "Baking…" : "Save to Atlas" }}</button>
         <ListActionButton label="Edit" @click="onEdit" />
@@ -35,7 +35,7 @@
           v-if="!isNew"
           type="button"
           :disabled="deleting"
-          class="px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider text-destructive border border-destructive/40 rounded-md hover:bg-destructive/10 transition-colors disabled:opacity-50"
+          class="px-3 py-1.5 text-label-lg font-semibold text-destructive border border-destructive/40 rounded-md hover:bg-destructive/10 transition-colors disabled:opacity-50"
           @click="onDelete"
         >{{ deleting ? "Deleting…" : "Delete" }}</button>
         <ListActionButton label="Cancel" @click="onCancel" />

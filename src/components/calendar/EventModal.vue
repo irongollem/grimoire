@@ -51,13 +51,13 @@
           <p v-else class="font-fell text-sm text-muted-foreground italic">Note not found.</p>
           <!-- Footer -->
           <div class="flex items-center justify-between pt-2 border-t border-border">
-            <button type="button" class="px-4 py-2 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors" @click="close">
+            <button type="button" class="px-4 py-2 text-label-lg font-semibold text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors" @click="close">
               Close
             </button>
             <RouterLink
               v-if="linkedNote"
               :to="`/notes/${linkedNote.id}`"
-              class="px-4 py-2 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity"
+              class="px-4 py-2 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity"
               @click="close"
             >
               Open in Notes →
@@ -70,7 +70,7 @@
           <!-- Title -->
           <div>
             <label
-              class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1"
+              class="block text-label-lg font-semibold text-muted-foreground mb-1"
             >
               TITLE
             </label>
@@ -117,7 +117,7 @@
 
           <!-- Description -->
           <div>
-            <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">
+            <label class="block text-label-lg font-semibold text-muted-foreground mb-1">
               DESCRIPTION
               <span class="text-muted-foreground font-fell normal-case tracking-normal">(optional)</span>
             </label>
@@ -171,7 +171,7 @@
               v-if="editEvent"
               type="button"
               :disabled="isPending || isDeleting"
-              class="px-4 py-2 font-cinzel text-xs font-semibold tracking-wider text-destructive hover:opacity-80 border border-destructive/40 rounded-md transition-opacity disabled:opacity-50"
+              class="px-4 py-2 text-label-lg font-semibold text-destructive hover:opacity-80 border border-destructive/40 rounded-md transition-opacity disabled:opacity-50"
               @click="deleteAndClose"
             >
               {{ isDeleting ? "Deleting…" : "Delete" }}
@@ -180,7 +180,7 @@
             <div class="flex gap-2">
               <button
                 type="button"
-                class="px-4 py-2 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
+                class="px-4 py-2 text-label-lg font-semibold text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
                 @click="close"
               >
                 Cancel
@@ -188,7 +188,7 @@
               <button
                 type="submit"
                 :disabled="isPending"
-                class="px-4 py-2 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+                class="px-4 py-2 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
               >
                 {{
                   isPending

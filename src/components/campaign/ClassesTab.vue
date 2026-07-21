@@ -7,7 +7,7 @@
 
     <div v-if="systemClasses" class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-3 border-b border-border bg-muted/20">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">SRD Classes</span>
+        <span class="text-label-lg font-semibold text-muted-foreground">SRD Classes</span>
       </div>
       <div class="divide-y divide-border">
         <label

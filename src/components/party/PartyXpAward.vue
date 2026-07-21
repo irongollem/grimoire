@@ -1,7 +1,7 @@
 <template>
   <div class="rounded-lg border border-border bg-card overflow-hidden">
     <div class="flex items-center justify-between px-4 py-2 border-b border-border bg-muted/20">
-      <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Award Experience</span>
+      <span class="text-label-lg font-semibold text-muted-foreground">Award Experience</span>
     </div>
 
     <div class="p-3 flex flex-wrap items-end gap-2">
@@ -27,7 +27,7 @@
       <button
         type="button"
         :disabled="!canAward || saving"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-1.5 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-40"
+        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-1.5 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-40"
         @click="award"
       >
         {{ saving ? "Awarding…" : "Award" }}

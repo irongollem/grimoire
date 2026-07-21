@@ -96,12 +96,12 @@
         <div class="flex items-center gap-3 px-4 py-2 border-t border-border bg-muted/20">
           <button
             type="button"
-            class="font-cinzel text-xs text-primary tracking-wider hover:opacity-80 transition-opacity"
+            class="text-label-lg text-primary hover:opacity-80 transition-opacity"
             @click="$emit('startEdit', entry)"
           >Edit</button>
           <button
             type="button"
-            class="font-cinzel text-xs text-muted-foreground/60 tracking-wider hover:text-destructive transition-colors"
+            class="text-label-lg text-muted-foreground/60 hover:text-destructive transition-colors"
             @click="$emit('removeEntry', entry)"
           >Delete</button>
         </div>
@@ -160,7 +160,7 @@
           <div class="flex items-center gap-2 flex-wrap">
             <button
               type="button"
-              class="inline-flex items-center gap-1.5 font-cinzel text-xs font-semibold tracking-wider transition-colors px-2 py-1 rounded border"
+              class="inline-flex items-center gap-1.5 text-label-lg font-semibold transition-colors px-2 py-1 rounded border"
               :class="editForm.is_private
                 ? 'text-muted-foreground border-border'
                 : 'text-elven-green border-elven-green/30 bg-elven-green/10'"
@@ -177,19 +177,19 @@
                 class="rounded border-border accent-amber-500 h-3 w-3"
                 @change="$emit('editFormChange', { shared_with_dm: ($event.target as HTMLInputElement).checked })"
               />
-              <span class="font-cinzel text-xs tracking-wider text-amber-600/80 dark:text-amber-400/80">Share with DM</span>
+              <span class="text-label-lg text-amber-600/80 dark:text-amber-400/80">Share with DM</span>
             </label>
           </div>
           <div class="flex items-center gap-2">
             <button
               type="button"
-              class="font-cinzel text-xs text-muted-foreground hover:text-foreground tracking-wider"
+              class="text-label-lg text-muted-foreground hover:text-foreground"
               @click="$emit('cancelEdit')"
             >Cancel</button>
             <button
               type="button"
               :disabled="isRteEmpty(editForm.content) || saving"
-              class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 disabled:opacity-50"
+              class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-label-lg font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
               @click="$emit('submitEdit')"
             >
               <IconLoading v-if="saving" class="h-3.5 w-3.5 animate-spin" />

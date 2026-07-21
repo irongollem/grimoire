@@ -4,7 +4,7 @@
       v-for="tab in tabs"
       :key="String(tab.id)"
       type="button"
-      class="px-4 py-2 font-cinzel text-xs font-semibold tracking-wider border-b-2 -mb-px transition-colors"
+      class="px-4 py-2 text-label-lg font-semibold border-b-2 -mb-px transition-colors"
       :class="modelValue === tab.id
         ? 'border-primary text-primary'
         : 'border-transparent text-muted-foreground hover:text-foreground'"

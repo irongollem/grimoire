@@ -9,7 +9,7 @@
       </div>
       <RouterLink
         :to="{ name: 'play-character-create' }"
-        class="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground font-cinzel text-xs font-semibold tracking-wider hover:opacity-90 transition-opacity"
+        class="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-label-lg font-semibold hover:opacity-90 transition-opacity"
       >
         <IconAdd class="h-3.5 w-3.5" />
         New Character
@@ -30,7 +30,7 @@
       </div>
       <RouterLink
         :to="{ name: 'play-character-create' }"
-        class="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-primary text-primary-foreground font-cinzel text-xs font-semibold tracking-wider hover:opacity-90 transition-opacity"
+        class="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-primary text-primary-foreground text-label-lg font-semibold hover:opacity-90 transition-opacity"
       >
         <IconAdd class="h-3.5 w-3.5" />
         Create Character
@@ -81,21 +81,21 @@
                   v-if="!isActive(char)"
                   type="button"
                   :disabled="settingActive === char.id"
-                  class="font-cinzel text-xs tracking-wider px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors disabled:opacity-50"
+                  class="text-label-lg px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors disabled:opacity-50"
                   @click="setActive(char.id)"
                 >
                   {{ settingActive === char.id ? 'Switching…' : 'Set Active' }}
                 </button>
                 <RouterLink
                   :to="{ name: 'play-character-edit', query: { memberId: char.id } }"
-                  class="font-cinzel text-xs tracking-wider px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors"
+                  class="text-label-lg px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors"
                 >
                   Edit
                 </RouterLink>
                 <RouterLink
                   v-if="isActive(char) && char.level > 0"
                   :to="{ name: 'play-character-levelup', query: { memberId: char.id } }"
-                  class="font-cinzel text-xs tracking-wider px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors"
+                  class="text-label-lg px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors"
                 >
                   Level Up
                 </RouterLink>
@@ -144,7 +144,7 @@
                 <button
                   type="button"
                   :disabled="assuming === char.id"
-                  class="font-cinzel text-xs tracking-wider px-3 py-1 rounded bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+                  class="text-label-lg px-3 py-1 rounded bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
                   @click="assume(char.id)"
                 >
                   {{ assuming === char.id ? 'Assuming…' : 'Assume this character' }}

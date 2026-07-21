@@ -94,7 +94,7 @@
 
         <div class="flex items-start gap-2">
           <span
-            class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider shrink-0 w-16 flex items-center gap-1 pt-1.5"
+            class="text-label-lg font-semibold text-muted-foreground shrink-0 w-16 flex items-center gap-1 pt-1.5"
           >
             <IconTag class="h-3.5 w-3.5" />Tags
           </span>
@@ -114,7 +114,7 @@
     <!-- Description editor -->
     <div class="flex flex-col gap-1">
       <span
-        class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
+        class="text-label-lg font-semibold text-muted-foreground"
         >Description</span
       >
       <RichTextEditor

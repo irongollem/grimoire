@@ -2,7 +2,7 @@
   <!-- Parent picker -->
   <div class="flex items-center gap-2">
     <span
-      class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider shrink-0 w-16 flex items-center gap-1"
+      class="text-label-lg font-semibold text-muted-foreground shrink-0 w-16 flex items-center gap-1"
     >
       <IconChevronUp class="h-3.5 w-3.5" />Parent
     </span>
@@ -31,7 +31,7 @@
   <!-- Compact sub-locations -->
   <div v-if="!isNew" class="flex items-start gap-2">
     <span
-      class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider shrink-0 w-16 flex items-center gap-1 pt-1.5"
+      class="text-label-lg font-semibold text-muted-foreground shrink-0 w-16 flex items-center gap-1 pt-1.5"
     >
       <IconLocation class="h-3.5 w-3.5" />Child
     </span>
@@ -122,7 +122,7 @@
   <!-- Related locations (non-hierarchical links) -->
   <div v-if="!isNew" class="flex items-start gap-2">
     <span
-      class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider shrink-0 w-16 flex items-center gap-1 pt-1.5"
+      class="text-label-lg font-semibold text-muted-foreground shrink-0 w-16 flex items-center gap-1 pt-1.5"
     >
       <IconLink class="h-3.5 w-3.5" />Related
     </span>

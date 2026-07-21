@@ -70,7 +70,7 @@
               development team will look into it.
             </p>
             <button
-              class="mt-2 px-4 py-1.5 rounded-md border border-border font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors tracking-wider"
+              class="mt-2 px-4 py-1.5 rounded-md border border-border text-label-lg font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
               @click="close"
             >
               Close
@@ -281,7 +281,7 @@
               <div v-else class="flex-1" />
               <button
                 type="button"
-                class="px-4 py-1.5 rounded-md border border-border font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors tracking-wider"
+                class="px-4 py-1.5 rounded-md border border-border text-label-lg font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
                 @click="close"
               >
                 Cancel
@@ -289,7 +289,7 @@
               <button
                 type="submit"
                 :disabled="submitting"
-                class="flex items-center gap-2 px-4 py-1.5 rounded-md bg-primary text-primary-foreground font-cinzel text-xs font-semibold tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
+                class="flex items-center gap-2 px-4 py-1.5 rounded-md bg-primary text-primary-foreground text-label-lg font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
               >
                 <IconLoading v-if="submitting" class="h-3 w-3 animate-spin" />
                 <span>{{

@@ -139,11 +139,11 @@
       <!-- Confirm / Cancel -->
       <div class="flex gap-3">
         <RouterLink :to="backRoute ?? '/play'"
-          class="flex-1 rounded-md border border-border px-4 py-2 font-cinzel text-xs text-muted-foreground text-center tracking-wider hover:text-foreground hover:border-primary/40 transition-colors">
+          class="flex-1 rounded-md border border-border px-4 py-2 text-label-lg text-muted-foreground text-center hover:text-foreground hover:border-primary/40 transition-colors">
           Cancel
         </RouterLink>
         <button
-          class="flex-1 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
+          class="flex-1 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
           :disabled="isPending || !canConfirm"
           @click="confirm">
           {{ isPending ? "Applying…" : `Confirm Level ${nextLevel}` }}

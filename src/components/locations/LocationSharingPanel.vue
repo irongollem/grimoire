@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col gap-3 rounded-lg border border-border bg-card/50 px-4 py-3">
     <span
-      class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
+      class="text-label-lg font-semibold text-muted-foreground"
       >Player Sharing</span
     >
 

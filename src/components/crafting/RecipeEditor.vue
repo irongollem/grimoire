@@ -56,7 +56,7 @@
       <!-- Discipline -->
       <div>
         <label
-          class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1"
+          class="block text-label-lg font-semibold text-muted-foreground mb-1"
           >DISCIPLINE</label
         >
         <div class="relative">
@@ -78,7 +78,7 @@
       <!-- DC -->
       <div>
         <label
-          class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1"
+          class="block text-label-lg font-semibold text-muted-foreground mb-1"
           >CRAFTING DC</label
         >
         <input
@@ -93,7 +93,7 @@
       <!-- Time -->
       <div>
         <label
-          class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1"
+          class="block text-label-lg font-semibold text-muted-foreground mb-1"
           >CRAFTING TIME</label
         >
         <div class="flex gap-2">
@@ -118,7 +118,7 @@
     <!-- Description -->
     <div>
       <label
-        class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1"
+        class="block text-label-lg font-semibold text-muted-foreground mb-1"
         >DESCRIPTION</label
       >
       <RichTextEditor
@@ -159,7 +159,7 @@
         class="px-4 py-2.5 border-b border-border bg-muted/20 flex items-center justify-between"
       >
         <span
-          class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
+          class="text-label-lg font-semibold text-muted-foreground"
           >CONDITIONAL MODIFIERS</span
         >
         <span class="font-fell text-xs text-muted-foreground italic">

@@ -13,7 +13,7 @@
         type="button"
         :disabled="!hasCampaign || isImporting"
         :title="hasCampaign ? 'Add to current campaign' : 'No active campaign'"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 font-cinzel text-xs font-semibold tracking-wider text-primary-foreground hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
         @click="handleImport"
       >
         <IconAdd class="h-3.5 w-3.5" />
@@ -119,7 +119,7 @@
         <div class="space-y-6">
           <section v-if="hero.appearance">
             <h3
-              class="mb-2 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground uppercase"
+              class="mb-2 text-label-lg font-semibold text-muted-foreground uppercase"
             >
               Appearance
             </h3>
@@ -128,7 +128,7 @@
 
           <section v-if="hero.personality">
             <h3
-              class="mb-2 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground uppercase"
+              class="mb-2 text-label-lg font-semibold text-muted-foreground uppercase"
             >
               Personality
             </h3>
@@ -137,7 +137,7 @@
 
           <section v-if="hero.backstory">
             <h3
-              class="mb-2 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground uppercase"
+              class="mb-2 text-label-lg font-semibold text-muted-foreground uppercase"
             >
               Backstory
             </h3>
@@ -146,7 +146,7 @@
 
           <section v-if="hero.notes && isAppAdmin">
             <h3
-              class="mb-2 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground uppercase"
+              class="mb-2 text-label-lg font-semibold text-muted-foreground uppercase"
             >
               DM Notes
             </h3>

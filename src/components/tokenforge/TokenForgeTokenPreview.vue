@@ -10,7 +10,7 @@
         class="rounded-full shadow-lg"
         style="width: 220px; height: 220px;"
       />
-      <p class="font-cinzel text-xs text-muted-foreground tracking-wider">{{ entityName }}</p>
+      <p class="text-label-lg text-muted-foreground">{{ entityName }}</p>
     </div>
 
     <!-- Settings panel -->
@@ -29,7 +29,7 @@
     <div class="flex gap-2">
       <button
         type="button"
-        class="flex-1 inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+        class="flex-1 inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
         @click="emit('download')"
       >
         <IconDownload class="h-3.5 w-3.5" />
@@ -38,7 +38,7 @@
       <button
         v-if="canCopy"
         type="button"
-        class="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2.5 font-cinzel text-xs font-semibold text-muted-foreground tracking-wider hover:text-foreground hover:border-foreground/30 transition-colors"
+        class="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2.5 text-label-lg font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
         @click="emit('copy')"
       >
         <IconCopy class="h-3.5 w-3.5" />
@@ -59,7 +59,7 @@
     <!-- Add to print queue -->
     <button
       type="button"
-      class="inline-flex items-center justify-center gap-2 rounded-md border border-border px-4 py-2 font-cinzel text-xs font-semibold text-muted-foreground tracking-wider hover:text-foreground hover:border-foreground/30 transition-colors"
+      class="inline-flex items-center justify-center gap-2 rounded-md border border-border px-4 py-2 text-label-lg font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
       @click="emit('add-to-queue')"
     >
       + Add to Print Sheet

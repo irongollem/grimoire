@@ -16,7 +16,7 @@
         <form class="px-5 py-4 space-y-4" @submit.prevent="submit">
           <!-- Title -->
           <div>
-            <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">TITLE</label>
+            <label class="block text-label-lg font-semibold text-muted-foreground mb-1">TITLE</label>
             <input
               v-model="form.title"
               required
@@ -28,7 +28,7 @@
 
           <!-- Event type -->
           <div>
-            <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">TYPE</label>
+            <label class="block text-label-lg font-semibold text-muted-foreground mb-1">TYPE</label>
             <div class="flex items-center gap-2">
               <div class="w-3 h-3 rounded-full shrink-0" :style="{ backgroundColor: form.color }" />
               <select
@@ -54,19 +54,19 @@
 
           <!-- Date -->
           <div>
-            <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-2">DATE</label>
+            <label class="block text-label-lg font-semibold text-muted-foreground mb-2">DATE</label>
 
             <!-- Toggle regular / festival -->
             <div class="flex rounded-md border border-border overflow-hidden mb-3">
               <button
                 type="button"
-                class="flex-1 py-1.5 font-cinzel text-xs font-semibold tracking-wider transition-colors"
+                class="flex-1 py-1.5 text-label-lg font-semibold transition-colors"
                 :class="dateType === 'regular' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'"
                 @click="dateType = 'regular'"
               >Regular Day</button>
               <button
                 type="button"
-                class="flex-1 py-1.5 font-cinzel text-xs font-semibold tracking-wider transition-colors"
+                class="flex-1 py-1.5 text-label-lg font-semibold transition-colors"
                 :class="dateType === 'festival' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'"
                 @click="dateType = 'festival'"
               >Festival Day</button>
@@ -117,13 +117,13 @@
           <div class="flex justify-end gap-2 pt-1">
             <button
               type="button"
-              class="px-4 py-2 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
+              class="px-4 py-2 text-label-lg font-semibold text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
               @click="close"
             >Cancel</button>
             <button
               type="submit"
               :disabled="isPending || !form.title.trim()"
-              class="px-4 py-2 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+              class="px-4 py-2 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
             >{{ isPending ? 'Creating…' : 'Insert Event' }}</button>
           </div>
         </form>

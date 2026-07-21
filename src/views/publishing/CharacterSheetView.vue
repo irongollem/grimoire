@@ -36,7 +36,7 @@
         <button
           type="button"
           :disabled="isGenerating"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
+          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
           @click="doExport"
         >
           {{ isGenerating ? "Generating PDF…" : "Export PDF" }}

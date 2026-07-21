@@ -4,7 +4,7 @@
     <!-- About -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-3 border-b border-border bg-muted/20">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Spotify Integration</span>
+        <span class="text-label-lg font-semibold text-muted-foreground">Spotify Integration</span>
       </div>
       <div class="p-4 flex flex-col gap-3">
         <p class="font-fell text-xs text-muted-foreground italic leading-relaxed">
@@ -43,7 +43,7 @@
     <!-- Client ID -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-3 border-b border-border bg-muted/20">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Client ID</span>
+        <span class="text-label-lg font-semibold text-muted-foreground">Client ID</span>
       </div>
       <div class="p-4 flex flex-col gap-3">
         <p class="font-fell text-xs text-muted-foreground italic">
@@ -92,7 +92,7 @@
       <button
         v-if="campaign.activeCampaign?.spotify_client_id"
         type="button"
-        class="px-4 py-1.5 font-cinzel text-xs font-semibold tracking-wider border border-destructive/40 text-destructive rounded-md hover:bg-destructive/10 transition-colors"
+        class="px-4 py-1.5 text-label-lg font-semibold border border-destructive/40 text-destructive rounded-md hover:bg-destructive/10 transition-colors"
         :disabled="isSaving"
         @click="remove"
       >
@@ -101,7 +101,7 @@
       <button
         type="submit"
         :disabled="isSaving || !clientId.trim()"
-        class="px-4 py-1.5 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+        class="px-4 py-1.5 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
       >
         {{ isSaving ? "Saving…" : "Save" }}
       </button>

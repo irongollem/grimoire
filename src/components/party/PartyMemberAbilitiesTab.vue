@@ -1,6 +1,6 @@
 <template>
   <!-- Ability scores -->
-  <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase">
+  <p class="text-label-lg font-semibold text-muted-foreground uppercase">
     Ability Scores
   </p>
   <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
@@ -28,7 +28,7 @@
   </div>
 
   <!-- Combat stats -->
-  <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase mt-2">
+  <p class="text-label-lg font-semibold text-muted-foreground uppercase mt-2">
     Combat
   </p>
   <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -123,7 +123,7 @@
 
   <!-- Spell slots -->
   <div class="flex items-center justify-between mt-2">
-    <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase">
+    <p class="text-label-lg font-semibold text-muted-foreground uppercase">
       Spell Slots (Max per Level)
     </p>
     <button

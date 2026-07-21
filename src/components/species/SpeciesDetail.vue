@@ -30,7 +30,7 @@
 
         <!-- Tags -->
         <div>
-          <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">
+          <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">
             TAGS
           </label>
           <TagInput v-model="form.tags" placeholder="humanoid, fey, undead…" />
@@ -59,7 +59,7 @@
         <!-- Size + Source row -->
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">SIZE</label>
+            <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">SIZE</label>
             <select
               v-model="form.size"
               class="w-full bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -69,7 +69,7 @@
             </select>
           </div>
           <div>
-            <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">SOURCE</label>
+            <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">SOURCE</label>
             <input
               v-model="form.source"
               placeholder="PHB 2024, Homebrew…"
@@ -81,7 +81,7 @@
         <!-- Avg Height + Weight row -->
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">AVG. HEIGHT</label>
+            <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">AVG. HEIGHT</label>
             <input
               v-model="form.avg_height"
               placeholder="e.g. 5 ft 9 in (175 cm)…"
@@ -89,7 +89,7 @@
             />
           </div>
           <div>
-            <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">AVG. WEIGHT</label>
+            <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">AVG. WEIGHT</label>
             <input
               v-model="form.avg_weight"
               placeholder="e.g. 165 lbs (75 kg)…"
@@ -100,7 +100,7 @@
 
         <!-- Natural Armor AC -->
         <div>
-          <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">NATURAL ARMOR AC</label>
+          <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">NATURAL ARMOR AC</label>
           <div class="flex items-center gap-2">
             <input
               v-model.number="form.natural_armor_ac"
@@ -116,7 +116,7 @@
 
         <!-- Speed -->
         <div>
-          <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">SPEED (ft)</label>
+          <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">SPEED (ft)</label>
           <div class="grid grid-cols-3 sm:grid-cols-5 gap-2">
             <div v-for="type in SPEED_TYPES" :key="type">
               <label class="block font-fell text-[0.6875rem] text-muted-foreground mb-0.5 capitalize">{{ type }}</label>
@@ -135,7 +135,7 @@
 
         <!-- Ability Score Increases -->
         <div>
-          <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">ABILITY SCORE INCREASES</label>
+          <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">ABILITY SCORE INCREASES</label>
           <input
             v-model="form.asiDescription"
             placeholder="e.g. +2 STR, +1 to any ability score of your choice…"
@@ -145,13 +145,13 @@
 
         <!-- Languages -->
         <div>
-          <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">LANGUAGES</label>
+          <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">LANGUAGES</label>
           <TagInput v-model="form.languages" placeholder="Common, Elvish…" />
         </div>
 
         <!-- Description -->
         <div>
-          <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">DESCRIPTION</label>
+          <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">DESCRIPTION</label>
           <RichTextEditor v-model="form.description" placeholder="Describe this species…" />
         </div>
 
@@ -160,7 +160,7 @@
 
         <!-- Subraces -->
         <div>
-          <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-2">SUBRACES / LINEAGES</p>
+          <p class="text-label-lg font-semibold text-muted-foreground mb-2">SUBRACES / LINEAGES</p>
           <div
             v-for="(sub, i) in form.subraces"
             :key="i"
@@ -210,7 +210,7 @@
 
         <!-- DM Notes -->
         <div>
-          <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">DM NOTES</label>
+          <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">DM NOTES</label>
           <RichTextEditor v-model="form.notes" placeholder="Private DM notes…" />
         </div>
       </fieldset>

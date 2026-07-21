@@ -77,7 +77,7 @@
           <div class="flex items-center gap-3 px-5 pb-5">
             <button
               type="button"
-              class="flex-1 px-4 py-2 rounded-md bg-amber-500 text-black font-cinzel text-xs font-semibold tracking-wider hover:bg-amber-400 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              class="flex-1 px-4 py-2 rounded-md bg-amber-500 text-black text-label-lg font-semibold hover:bg-amber-400 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               :disabled="stripeLoading"
               @click="upgrade"
             >
@@ -86,7 +86,7 @@
             </button>
             <button
               type="button"
-              class="px-4 py-2 rounded-md border border-border font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors tracking-wider"
+              class="px-4 py-2 rounded-md border border-border text-label-lg font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
               @click="close"
             >
               Maybe later

@@ -48,7 +48,7 @@
         <!-- Results state -->
         <template v-else-if="result">
           <div class="flex items-center justify-between">
-            <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">
+            <p class="text-label-lg font-semibold text-muted-foreground">
               GENERATED TABLE
             </p>
             <button
@@ -99,7 +99,7 @@
         <template v-else>
           <!-- Concept -->
           <div>
-            <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">
+            <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">
               CONCEPT
               <span class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1">(AI will use this)</span>
             </label>
@@ -122,7 +122,7 @@
 
           <!-- Die -->
           <div>
-            <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">
+            <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">
               DIE
               <span class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1">(entries cover 1–{{ dieMax }})</span>
             </label>
@@ -131,7 +131,7 @@
                 v-for="d in DIE_OPTIONS"
                 :key="d"
                 type="button"
-                class="py-1.5 font-cinzel text-xs font-semibold tracking-wider rounded-md border transition-colors"
+                class="py-1.5 text-label-lg font-semibold rounded-md border transition-colors"
                 :class="die === d ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted border-border text-muted-foreground hover:text-foreground'"
                 @click="die = d"
               >{{ d }}</button>
@@ -148,7 +148,7 @@
             v-if="!createdTableId"
             type="button"
             :disabled="creating"
-            class="w-full inline-flex items-center justify-center gap-1.5 py-2 font-cinzel text-xs font-semibold tracking-wider rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
+            class="w-full inline-flex items-center justify-center gap-1.5 py-2 text-label-lg font-semibold rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
             @click="createTable"
           >
             <IconAdd class="h-3.5 w-3.5" />
@@ -157,7 +157,7 @@
           <button
             v-else
             type="button"
-            class="w-full inline-flex items-center justify-center gap-1.5 py-2 font-cinzel text-xs font-semibold tracking-wider rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+            class="w-full inline-flex items-center justify-center gap-1.5 py-2 text-label-lg font-semibold rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
             @click="viewCreated"
           >
             <IconCheckCircle class="h-3.5 w-3.5" />
@@ -178,7 +178,7 @@
             type="button"
             :disabled="isAnyAiGenerating || !concept.trim() || !affordable(textCreditCost, textIsByok)"
             :title="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
-            class="w-full inline-flex items-center justify-center gap-1.5 py-2 font-cinzel text-xs font-semibold tracking-wider rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
+            class="w-full inline-flex items-center justify-center gap-1.5 py-2 text-label-lg font-semibold rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
             @click="runGenerate"
           >
             <IconGenerate class="h-3.5 w-3.5" />
@@ -187,7 +187,7 @@
           <button
             v-else-if="!isPro"
             type="button"
-            class="w-full inline-flex items-center justify-center gap-1.5 py-2 font-cinzel text-xs font-semibold tracking-wider rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+            class="w-full inline-flex items-center justify-center gap-1.5 py-2 text-label-lg font-semibold rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
             @click="showPaywall = true"
           >
             <IconGenerate class="h-3.5 w-3.5" />

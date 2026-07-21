@@ -99,13 +99,13 @@
           <div class="p-4 overflow-y-auto space-y-4">
             <!-- Description -->
             <div v-if="selected.description">
-              <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-2">ABOUT</p>
+              <p class="text-label-lg font-semibold text-muted-foreground mb-2">ABOUT</p>
               <RichTextViewer :content="selected.description" />
             </div>
 
             <!-- Fellow faction members (only visible if the player is also in this faction) -->
             <div v-if="playerMembership && (factionPcMembers?.length || factionNpcs?.length)">
-              <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-2">
+              <p class="text-label-lg font-semibold text-muted-foreground mb-2">
                 KNOWN MEMBERS
                 <span class="font-fell font-normal normal-case italic ml-1">({{ playerMembership.role ?? 'Member' }})</span>
               </p>

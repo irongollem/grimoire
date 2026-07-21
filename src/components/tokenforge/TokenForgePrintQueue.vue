@@ -31,7 +31,7 @@
         <button
           type="button"
           :disabled="rendering"
-          class="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 disabled:opacity-50 transition-opacity"
+          class="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
           @click="emit('print')"
         >
           {{ rendering ? 'Rendering…' : 'Print Sheet' }}

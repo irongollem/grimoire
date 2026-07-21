@@ -25,7 +25,7 @@
       <RouterLink
         v-if="anyRunning"
         :to="{ name: 'player-encounter' }"
-        class="md:hidden flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-green-500/15 border border-green-500/40 text-green-400 hover:bg-green-500/25 transition-colors font-cinzel text-xs font-semibold tracking-wider"
+        class="md:hidden flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-green-500/15 border border-green-500/40 text-green-400 hover:bg-green-500/25 transition-colors text-label-lg font-semibold"
       >
         <span class="relative flex h-2 w-2 shrink-0">
           <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
@@ -38,7 +38,7 @@
       <button
         v-if="anyRunning"
         type="button"
-        class="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md border transition-colors font-cinzel text-xs font-semibold tracking-wider"
+        class="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md border transition-colors text-label-lg font-semibold"
         :class="showEncounterPanel
           ? 'bg-green-500/25 border-green-400/60 text-green-300'
           : 'bg-green-500/15 border-green-500/40 text-green-400 hover:bg-green-500/25'"
@@ -80,7 +80,7 @@
       class="bg-amber-500 px-4 py-2 flex items-center gap-3 shrink-0"
     >
       <IconReveal class="h-3.5 w-3.5 text-black/70 shrink-0" />
-      <span class="font-cinzel text-xs text-black font-semibold tracking-wider shrink-0">DM Preview — viewing as:</span>
+      <span class="text-label-lg text-black font-semibold shrink-0">DM Preview — viewing as:</span>
       <select
         :value="ui.dmPreviewPartyMemberId ?? ''"
         class="flex-1 min-w-0 max-w-48 bg-black/10 border border-black/20 rounded px-2 py-0.5 font-fell text-xs text-black focus:outline-none focus:ring-1 focus:ring-black/30"
@@ -111,7 +111,7 @@
         >
           <IconEncounter class="h-4 w-4 text-green-400 shrink-0 mt-0.5" />
           <div class="flex-1 min-w-0">
-            <p class="font-cinzel text-xs font-semibold text-green-400 tracking-wider">Encounter Started!</p>
+            <p class="text-label-lg font-semibold text-green-400">Encounter Started!</p>
             <p class="font-fell text-sm text-foreground mt-0.5">Your DM has started a live encounter. Tap to join.</p>
           </div>
           <button class="text-muted-foreground hover:text-foreground transition-colors shrink-0" @click.prevent="encounterLiveToast = false">
@@ -124,7 +124,7 @@
         >
           <IconEncounter class="h-4 w-4 text-green-400 shrink-0 mt-0.5" />
           <div class="flex-1 min-w-0">
-            <p class="font-cinzel text-xs font-semibold text-green-400 tracking-wider">Encounter Started!</p>
+            <p class="text-label-lg font-semibold text-green-400">Encounter Started!</p>
             <p class="font-fell text-sm text-foreground mt-0.5">Live encounter panel opened on the left.</p>
           </div>
           <button class="text-muted-foreground hover:text-foreground transition-colors shrink-0" @click="encounterLiveToast = false">
@@ -229,7 +229,7 @@
         <div class="relative bg-card border-t border-border rounded-t-2xl px-5 pt-4 pb-[calc(2rem+env(safe-area-inset-bottom))] shadow-xl">
           <div class="w-10 h-1 rounded-full bg-muted-foreground/30 mx-auto mb-4" />
 
-          <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-3">CAMPAIGNS</p>
+          <p class="text-label-lg font-semibold text-muted-foreground mb-3">CAMPAIGNS</p>
 
           <div class="space-y-1 mb-3">
             <button

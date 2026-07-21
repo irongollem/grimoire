@@ -23,7 +23,7 @@
       <div class="flex flex-wrap gap-2">
         <RouterLink
           to="/play/character/create"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
         >
           <IconUser class="h-3.5 w-3.5" />
           Create character
@@ -65,7 +65,7 @@
         <button
           type="button"
           :disabled="!claimTarget || claimingChar"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 disabled:opacity-40 transition-opacity"
+          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-label-lg font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40 transition-opacity"
           @click="claimCharacter"
         >
           <IconCheck class="h-3.5 w-3.5" />

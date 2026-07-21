@@ -128,7 +128,7 @@
           @keydown.enter="sendChat"
         />
         <button
-          class="px-3 py-1.5 bg-primary text-primary-foreground rounded-md font-cinzel text-xs tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
+          class="px-3 py-1.5 bg-primary text-primary-foreground rounded-md text-label-lg hover:opacity-90 transition-opacity disabled:opacity-50"
           :disabled="!chatInput.trim()"
           @click="sendChat"
         >

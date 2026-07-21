@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col gap-3">
     <div class="flex items-center justify-between">
-      <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Inventory</span>
+      <span class="text-label-lg font-semibold text-muted-foreground">Inventory</span>
     </div>
 
     <!-- Item list -->

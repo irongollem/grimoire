@@ -32,7 +32,7 @@
         <!-- Concept -->
         <div>
           <label
-            class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5"
+            class="block text-label-lg font-semibold text-muted-foreground mb-1.5"
           >
             CONCEPT
             <span
@@ -60,7 +60,7 @@
         <!-- Constraints -->
         <div class="space-y-3">
           <p
-            class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground"
+            class="text-label-lg font-semibold text-muted-foreground"
           >
             CONSTRAINTS
             <span
@@ -175,7 +175,7 @@
           type="button"
           :disabled="isAnyAiGenerating || !concept.trim() || !affordable(textCreditCost, textIsByok)"
           :title="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
-          class="w-full inline-flex items-center justify-center gap-1.5 py-2 font-cinzel text-xs font-semibold tracking-wider rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
+          class="w-full inline-flex items-center justify-center gap-1.5 py-2 text-label-lg font-semibold rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
           @click="generateAndCreate"
         >
           <IconGenerate class="h-3.5 w-3.5" />
@@ -184,7 +184,7 @@
         <button
           v-else-if="!isPro"
           type="button"
-          class="w-full inline-flex items-center justify-center gap-1.5 py-2 font-cinzel text-xs font-semibold tracking-wider rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+          class="w-full inline-flex items-center justify-center gap-1.5 py-2 text-label-lg font-semibold rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
           @click="showPaywall = true"
         >
           <IconGenerate class="h-3.5 w-3.5" />
@@ -193,7 +193,7 @@
         <RouterLink
           to="/vault/new"
           :class="isPro && !aiApiKey ? 'bg-primary text-primary-foreground' : 'border border-border bg-card text-foreground hover:bg-muted'"
-          class="w-full inline-flex items-center justify-center py-2 font-cinzel text-xs font-semibold tracking-wider rounded-md hover:opacity-90 transition-opacity"
+          class="w-full inline-flex items-center justify-center py-2 text-label-lg font-semibold rounded-md hover:opacity-90 transition-opacity"
           @click="ui.itemGeneratorOpen = false"
         >
           New Blank Item

@@ -55,7 +55,7 @@
         <div v-else-if="activeTab === 'members'" class="space-y-6 max-w-2xl">
           <MembersTab />
           <div>
-            <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase mb-3">Invite Links</p>
+            <p class="text-label-lg font-semibold text-muted-foreground uppercase mb-3">Invite Links</p>
             <InvitesTab />
           </div>
         </div>

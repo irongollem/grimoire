@@ -148,7 +148,7 @@
       <RouterLink
         v-if="lairLocation"
         :to="`/locations/${lairLocation.id}`"
-        class="flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-3 font-cinzel text-xs tracking-wider text-muted-foreground"
+        class="flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-3 text-label-lg text-muted-foreground"
       >
         <IconLocation class="size-4 shrink-0 text-primary/70" />
         Lair: {{ lairLocation.name }}
@@ -169,11 +169,11 @@
       <NpcAccordionSection v-model:open="openSections.lore" title="Lore">
         <div class="flex flex-col gap-4">
           <div v-if="monster.description" class="flex flex-col gap-1">
-            <h3 class="font-cinzel text-xs font-bold uppercase tracking-wider text-primary">Description</h3>
+            <h3 class="text-label-lg font-bold uppercase text-primary">Description</h3>
             <RichTextViewer :content="monster.description" />
           </div>
           <div v-if="monster.notes" class="flex flex-col gap-1">
-            <h3 class="font-cinzel text-xs font-bold uppercase tracking-wider text-muted-foreground">DM Notes</h3>
+            <h3 class="text-label-lg font-bold uppercase text-muted-foreground">DM Notes</h3>
             <RichTextViewer :content="monster.notes" />
           </div>
           <p

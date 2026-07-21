@@ -10,7 +10,7 @@
         v-for="tab in tabs"
         :key="tab.id"
         type="button"
-        class="flex items-center gap-1.5 px-3 py-2 font-cinzel text-xs font-semibold tracking-wider transition-colors border-b-2 -mb-px shrink-0"
+        class="flex items-center gap-1.5 px-3 py-2 text-label-lg font-semibold transition-colors border-b-2 -mb-px shrink-0"
         :class="activeTab === tab.id
           ? 'border-primary text-primary'
           : 'border-transparent text-muted-foreground hover:text-foreground'"

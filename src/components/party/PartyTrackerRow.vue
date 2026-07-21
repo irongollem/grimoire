@@ -83,7 +83,7 @@
         <!-- HP section -->
         <div class="flex flex-col gap-2">
           <div class="flex items-center gap-2">
-            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider flex-1">
+            <span class="text-label-lg font-semibold text-muted-foreground flex-1">
               HP
               <span class="ml-2 text-sm font-bold" :class="hpColor(member.current_hp, member.max_hp)">{{ member.current_hp }}</span>
               <span class="text-muted-foreground font-normal"> / {{ member.max_hp }}</span>

@@ -3,7 +3,7 @@
 
     <!-- Metal -->
     <div>
-      <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-2">Metal</p>
+      <p class="text-label-lg font-semibold text-muted-foreground mb-2">Metal</p>
       <div class="flex flex-wrap gap-2">
         <button
           v-for="m in COIN_METALS"
@@ -20,7 +20,7 @@
 
     <!-- Value -->
     <div>
-      <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-2 block">Centre Value</label>
+      <label class="text-label-lg font-semibold text-muted-foreground mb-2 block">Centre Value</label>
       <input
         :value="coin.value"
         placeholder="e.g. 10"
@@ -31,7 +31,7 @@
 
     <!-- Emblem / motif -->
     <div>
-      <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-2">Emblem</p>
+      <p class="text-label-lg font-semibold text-muted-foreground mb-2">Emblem</p>
       <div class="flex flex-wrap gap-2">
         <button
           v-for="m in COIN_MOTIFS"
@@ -52,7 +52,7 @@
 
     <!-- Denomination -->
     <div>
-      <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-2 block">Denomination Label</label>
+      <label class="text-label-lg font-semibold text-muted-foreground mb-2 block">Denomination Label</label>
       <input
         :value="coin.denomination"
         placeholder="e.g. GP"
@@ -63,7 +63,7 @@
 
     <!-- Rim text -->
     <div>
-      <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-2 block">Rim Text</label>
+      <label class="text-label-lg font-semibold text-muted-foreground mb-2 block">Rim Text</label>
       <input
         :value="coin.rimText"
         placeholder="e.g. Kingdom of Arendor"
@@ -74,7 +74,7 @@
 
     <!-- Print size -->
     <div>
-      <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-2">Print Size</p>
+      <p class="text-label-lg font-semibold text-muted-foreground mb-2">Print Size</p>
       <div class="flex flex-wrap gap-2">
         <button
           v-for="ps in COIN_PRINT_SIZES"

@@ -11,12 +11,12 @@
           <button
             type="button"
             :disabled="isDeleting"
-            class="px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider text-destructive border border-destructive/40 rounded-md hover:bg-destructive/10 transition-colors disabled:opacity-50"
+            class="px-3 py-1.5 text-label-lg font-semibold text-destructive border border-destructive/40 rounded-md hover:bg-destructive/10 transition-colors disabled:opacity-50"
             @click="onDelete"
           >{{ isDeleting ? "Deleting…" : "Delete" }}</button>
           <button
             type="button"
-            class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+            class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
             @click="editMode = true"
           >
             <IconEdit class="size-3.5" />
@@ -36,7 +36,7 @@
             type="button"
             :disabled="saving || !form.name.trim() || rangeError !== null"
             :title="rangeError ?? undefined"
-            class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
+            class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
             @click="onSave"
           >
             {{ saving ? "Saving…" : "Save" }}
@@ -48,7 +48,7 @@
             type="button"
             :disabled="saving || !form.name.trim() || rangeError !== null"
             :title="rangeError ?? undefined"
-            class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
+            class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
             @click="onSave"
           >
             {{ saving ? "Saving…" : "Create" }}
@@ -261,7 +261,7 @@
             type="button"
             :disabled="!rollableEntries.length || rangeError !== null"
             :title="rangeError ?? undefined"
-            class="inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
+            class="inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
             @click="onRoll"
           >
             <IconDiceRoll class="size-3.5" />

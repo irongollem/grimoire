@@ -22,7 +22,7 @@
       <button
         type="button"
         :disabled="saving || !form.name.trim()"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
+        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
         @click="save"
       >
         <IconSave class="h-3.5 w-3.5" />
@@ -34,7 +34,7 @@
       <!-- Identity -->
       <div class="rounded-lg border border-border bg-card overflow-hidden">
         <div class="px-3 py-2 border-b border-border bg-muted/20">
-          <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Identity</span>
+          <span class="text-label-lg font-semibold text-muted-foreground">Identity</span>
         </div>
         <div class="p-4 flex gap-4">
           <div class="shrink-0 w-28">
@@ -50,7 +50,7 @@
           </div>
           <div class="flex-1 grid grid-cols-2 gap-3">
             <div class="col-span-2">
-              <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">Name</label>
+              <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Name</label>
               <input
                 v-model="form.name"
                 placeholder="Feature name…"
@@ -58,7 +58,7 @@
               />
             </div>
             <div class="col-span-2">
-              <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">Type</label>
+              <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Type</label>
               <select
                 v-model="form.feature_type"
                 class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -67,7 +67,7 @@
               </select>
             </div>
             <div class="col-span-2">
-              <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">Tags</label>
+              <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Tags</label>
               <TagInput v-model="form.tags" />
             </div>
           </div>
@@ -77,19 +77,19 @@
       <!-- Discovery -->
       <div class="rounded-lg border border-border bg-card overflow-hidden">
         <div class="px-3 py-2 border-b border-border bg-muted/20">
-          <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Discovery</span>
+          <span class="text-label-lg font-semibold text-muted-foreground">Discovery</span>
         </div>
         <div class="p-4 grid grid-cols-3 gap-3">
           <div>
-            <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">Perception DC</label>
+            <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Perception DC</label>
             <input v-model.number="form.perception_dc" type="number" min="1" max="30" placeholder="15" class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
           </div>
           <div>
-            <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">Investigation DC</label>
+            <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Investigation DC</label>
             <input v-model.number="form.investigation_dc" type="number" min="1" max="30" placeholder="15" class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
           </div>
           <div>
-            <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">Arcana DC</label>
+            <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Arcana DC</label>
             <input v-model.number="form.arcana_dc" type="number" min="1" max="30" placeholder="—" class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
           </div>
         </div>
@@ -98,11 +98,11 @@
       <!-- Trigger / Mechanism -->
       <div class="rounded-lg border border-border bg-card overflow-hidden">
         <div class="px-3 py-2 border-b border-border bg-muted/20">
-          <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Trigger / Mechanism</span>
+          <span class="text-label-lg font-semibold text-muted-foreground">Trigger / Mechanism</span>
         </div>
         <div class="p-4 flex flex-col gap-3">
           <div>
-            <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">Trigger Type</label>
+            <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Trigger Type</label>
             <select
               v-model="form.trigger_type"
               class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -112,7 +112,7 @@
             </select>
           </div>
           <div>
-            <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">Trigger Description</label>
+            <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Trigger Description</label>
             <input
               v-model="form.trigger_description"
               placeholder="A worn bookshelf that swings open when the red tome is removed…"
@@ -125,7 +125,7 @@
       <!-- Contents -->
       <div class="rounded-lg border border-border bg-card overflow-hidden">
         <div class="px-3 py-2 border-b border-border bg-muted/20">
-          <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Contents / What's Inside</span>
+          <span class="text-label-lg font-semibold text-muted-foreground">Contents / What's Inside</span>
         </div>
         <div class="p-4">
           <RichTextEditor v-model="form.contents_description" placeholder="Gold, a forgotten relic, a hidden stairway leading to the lower vaults…" min-height="100px" />
@@ -135,7 +135,7 @@
       <!-- Description -->
       <div class="rounded-lg border border-border bg-card overflow-hidden">
         <div class="px-3 py-2 border-b border-border bg-muted/20">
-          <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Description</span>
+          <span class="text-label-lg font-semibold text-muted-foreground">Description</span>
         </div>
         <div class="p-3">
           <RichTextEditor v-model="form.description" placeholder="Flavor text, appearance, atmosphere…" min-height="120px" />
@@ -145,7 +145,7 @@
       <!-- DM Notes -->
       <div class="rounded-lg border border-border bg-card overflow-hidden">
         <div class="px-3 py-2 border-b border-border bg-muted/20">
-          <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">DM Notes</span>
+          <span class="text-label-lg font-semibold text-muted-foreground">DM Notes</span>
         </div>
         <div class="p-3">
           <RichTextEditor v-model="form.notes" placeholder="Private notes, encounter hooks, related quests…" min-height="100px" />

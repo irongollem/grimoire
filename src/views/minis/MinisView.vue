@@ -28,7 +28,7 @@
         <button
           v-if="hasActiveFilters"
           type="button"
-          class="px-2.5 py-1.5 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
+          class="px-2.5 py-1.5 text-label-lg font-semibold text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
           @click="ui.resetMinisFilters()"
         >Clear</button>
       </div>
@@ -47,7 +47,7 @@
       <template v-if="minis.length === 0 && isTeaser" #action>
         <RouterLink
           to="/minis/forge"
-          class="font-cinzel text-xs font-semibold tracking-wider text-primary hover:underline"
+          class="text-label-lg font-semibold text-primary hover:underline"
         >Read the lore →</RouterLink>
       </template>
     </EmptyState>

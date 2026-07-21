@@ -23,13 +23,13 @@
 
         <!-- Tags -->
         <div class="rounded-lg border border-border bg-card p-4 flex flex-col gap-3">
-          <h3 class="font-cinzel text-xs font-bold tracking-wider text-muted-foreground uppercase">Tags</h3>
+          <h3 class="text-label-lg font-bold text-muted-foreground uppercase">Tags</h3>
           <TagInput v-model="tags" />
         </div>
 
         <!-- Linked spells summary (when spells selected) -->
         <div v-if="selectedSpells.length" class="rounded-lg border border-border bg-card p-4 flex flex-col gap-2">
-          <h3 class="font-cinzel text-xs font-bold tracking-wider text-muted-foreground uppercase">Linked Spells</h3>
+          <h3 class="text-label-lg font-bold text-muted-foreground uppercase">Linked Spells</h3>
           <div class="flex flex-col gap-1">
             <div v-for="spell in selectedSpells" :key="spell.id" class="flex items-center justify-between gap-2">
               <span class="font-fell text-xs text-foreground">{{ spell.name }}</span>
@@ -128,7 +128,7 @@
           </h3>
           <label class="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" v-model="requiresAttunement" class="rounded" />
-            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">REQUIRES ATTUNEMENT</span>
+            <span class="text-label-lg font-semibold text-muted-foreground">REQUIRES ATTUNEMENT</span>
           </label>
           <input
             v-if="requiresAttunement"
@@ -171,11 +171,11 @@
           </div>
           <label class="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" v-model="isArcaneFocus" class="rounded" />
-            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">ARCANE FOCUS</span>
+            <span class="text-label-lg font-semibold text-muted-foreground">ARCANE FOCUS</span>
           </label>
           <label class="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" v-model="isContainer" class="rounded" />
-            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">CONTAINER</span>
+            <span class="text-label-lg font-semibold text-muted-foreground">CONTAINER</span>
           </label>
         </div>
 
@@ -296,7 +296,7 @@
             </h3>
             <label class="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" v-model="isCursed" class="rounded" />
-              <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">CURSED</span>
+              <span class="text-label-lg font-semibold text-muted-foreground">CURSED</span>
             </label>
           </div>
           <template v-if="isCursed">

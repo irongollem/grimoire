@@ -2,7 +2,7 @@
   <!-- ── Compact inline mode ─────────────────────────────────────────────── -->
   <div v-if="compact" class="flex flex-col gap-2">
     <div class="flex items-start gap-2">
-      <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider flex items-center gap-1 shrink-0 w-16 pt-1.5">
+      <span class="text-label-lg font-semibold text-muted-foreground flex items-center gap-1 shrink-0 w-16 pt-1.5">
         <IconCalendarDays class="h-3.5 w-3.5" />Pins
       </span>
       <div class="flex-1 flex flex-wrap items-center gap-1.5 border border-border rounded-md px-3 py-1.5 min-h-8.5 bg-background">
@@ -35,10 +35,10 @@
     <!-- Expandable form -->
     <div v-if="showForm && entityId" class="rounded-md border border-border bg-muted p-3 flex flex-col gap-3">
       <div class="flex rounded-md border border-border overflow-hidden">
-        <button type="button" class="flex-1 py-1 font-cinzel text-xs font-semibold tracking-wider transition-colors"
+        <button type="button" class="flex-1 py-1 text-label-lg font-semibold transition-colors"
           :class="dateType === 'regular' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'"
           @click="dateType = 'regular'">Regular Day</button>
-        <button type="button" class="flex-1 py-1 font-cinzel text-xs font-semibold tracking-wider transition-colors"
+        <button type="button" class="flex-1 py-1 text-label-lg font-semibold transition-colors"
           :class="dateType === 'festival' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'"
           @click="dateType = 'festival'">Festival Day</button>
       </div>
@@ -105,10 +105,10 @@
       <!-- Inline add form -->
       <div v-if="showForm" class="rounded-md border border-border bg-muted p-3 flex flex-col gap-3">
         <div class="flex rounded-md border border-border overflow-hidden">
-          <button type="button" class="flex-1 py-1 font-cinzel text-xs font-semibold tracking-wider transition-colors"
+          <button type="button" class="flex-1 py-1 text-label-lg font-semibold transition-colors"
             :class="dateType === 'regular' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'"
             @click="dateType = 'regular'">Regular Day</button>
-          <button type="button" class="flex-1 py-1 font-cinzel text-xs font-semibold tracking-wider transition-colors"
+          <button type="button" class="flex-1 py-1 text-label-lg font-semibold transition-colors"
             :class="dateType === 'festival' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'"
             @click="dateType = 'festival'">Festival Day</button>
         </div>

@@ -115,7 +115,7 @@
         <!-- Description -->
         <div class="flex flex-col gap-1">
           <h3
-            class="font-cinzel text-xs font-bold tracking-wider text-primary uppercase"
+            class="text-label-lg font-bold text-primary uppercase"
           >
             Description
           </h3>
@@ -125,7 +125,7 @@
         <!-- Higher levels -->
         <div v-if="spell.higher_levels" class="flex flex-col gap-1">
           <h3
-            class="font-cinzel text-xs font-bold tracking-wider text-primary uppercase"
+            class="text-label-lg font-bold text-primary uppercase"
           >
             At Higher Levels
           </h3>
@@ -156,7 +156,7 @@
 
         <!-- Known by party members -->
         <div v-if="knowers?.length" class="flex flex-col gap-2">
-          <h3 class="font-cinzel text-xs font-bold tracking-wider text-muted-foreground uppercase">
+          <h3 class="text-label-lg font-bold text-muted-foreground uppercase">
             Known By
           </h3>
           <div class="flex flex-wrap gap-1.5">
@@ -174,7 +174,7 @@
 
         <!-- Cast by NPCs — reverse lookup on stat_block spellcasting -->
         <div v-if="npcCasters?.length" class="flex flex-col gap-2">
-          <h3 class="font-cinzel text-xs font-bold tracking-wider text-muted-foreground uppercase">
+          <h3 class="text-label-lg font-bold text-muted-foreground uppercase">
             Cast By
           </h3>
           <div class="flex flex-wrap gap-1.5">

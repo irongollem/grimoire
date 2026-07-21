@@ -150,7 +150,7 @@
                   <button
                     v-for="cond in filteredConditions"
                     :key="cond"
-                    class="w-full text-left px-3 py-1.5 font-cinzel text-xs tracking-wider transition-colors"
+                    class="w-full text-left px-3 py-1.5 text-label-lg transition-colors"
                     :class="hasCondition(cond)
                       ? 'text-destructive/40 cursor-default'
                       : 'text-foreground hover:bg-amber-500/10 hover:text-amber-500'"

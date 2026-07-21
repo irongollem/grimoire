@@ -83,7 +83,7 @@
           class="rounded"
           @change="$emit('update:concentration', ($event.target as HTMLInputElement).checked)"
         />
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
+        <span class="text-label-lg font-semibold text-muted-foreground"
           >CONCENTRATION</span
         >
       </label>
@@ -94,7 +94,7 @@
           class="rounded"
           @change="$emit('update:ritual', ($event.target as HTMLInputElement).checked)"
         />
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
+        <span class="text-label-lg font-semibold text-muted-foreground"
           >RITUAL</span
         >
       </label>

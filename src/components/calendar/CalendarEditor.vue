@@ -2,7 +2,7 @@
   <div class="space-y-5 rounded-md border border-border bg-muted/30 p-4">
     <!-- Seed from preset -->
     <div class="flex flex-wrap items-center gap-2">
-      <span class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">SEED FROM</span>
+      <span class="text-label-lg font-semibold text-muted-foreground">SEED FROM</span>
       <select
         :value="''"
         class="bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -25,7 +25,7 @@
     <!-- Name / epoch -->
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
       <div class="sm:col-span-2">
-        <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">CALENDAR NAME</label>
+        <label class="block text-label-lg font-semibold text-muted-foreground mb-1">CALENDAR NAME</label>
         <input
           v-model="def.name"
           type="text"
@@ -34,7 +34,7 @@
         />
       </div>
       <div>
-        <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">EPOCH</label>
+        <label class="block text-label-lg font-semibold text-muted-foreground mb-1">EPOCH</label>
         <input
           v-model="def.epochName"
           type="text"
@@ -48,7 +48,7 @@
     <!-- Default year & days per week -->
     <div class="grid grid-cols-2 gap-3">
       <div>
-        <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">DEFAULT YEAR</label>
+        <label class="block text-label-lg font-semibold text-muted-foreground mb-1">DEFAULT YEAR</label>
         <input
           v-model.number="def.defaultYear"
           type="number"
@@ -57,7 +57,7 @@
         />
       </div>
       <div>
-        <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">DAYS PER WEEK</label>
+        <label class="block text-label-lg font-semibold text-muted-foreground mb-1">DAYS PER WEEK</label>
         <input
           :value="daysPerWeek"
           type="number"
@@ -71,7 +71,7 @@
 
     <!-- Day labels -->
     <div>
-      <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">DAY NAMES</label>
+      <label class="block text-label-lg font-semibold text-muted-foreground mb-1">DAY NAMES</label>
       <div class="flex flex-wrap gap-1.5">
         <input
           v-for="i in daysPerWeek"
@@ -112,7 +112,7 @@
     <!-- Months -->
     <div>
       <div class="flex items-center justify-between mb-2">
-        <label class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">
+        <label class="text-label-lg font-semibold text-muted-foreground">
           MONTHS ({{ def.months.length }} · {{ totalDays }} days/year)
         </label>
         <button
@@ -167,7 +167,7 @@
     <!-- Festival days -->
     <div>
       <div class="flex items-center justify-between mb-2">
-        <label class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">
+        <label class="text-label-lg font-semibold text-muted-foreground">
           FESTIVAL DAYS ({{ def.intercalaryDays.length }})
         </label>
         <button

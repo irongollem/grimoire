@@ -29,7 +29,7 @@
         <div class="px-5 py-4 space-y-5 max-h-[70vh] overflow-y-auto">
           <!-- SRD Art Defaults -->
           <div class="space-y-2">
-            <h3 class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+            <h3 class="text-label-lg font-semibold text-muted-foreground uppercase">
               SRD Art Defaults
             </h3>
             <p class="font-fell text-xs text-muted-foreground italic">
@@ -61,7 +61,7 @@
 
           <!-- Generate new invite -->
           <div class="space-y-3">
-            <h3 class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+            <h3 class="text-label-lg font-semibold text-muted-foreground uppercase">
               New Invite Link
             </h3>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -113,7 +113,7 @@
 
           <!-- Existing invites -->
           <div class="space-y-2">
-            <h3 class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+            <h3 class="text-label-lg font-semibold text-muted-foreground uppercase">
               Active Links
             </h3>
 
@@ -181,7 +181,7 @@
 
           <!-- AI Usage Stats -->
           <div class="space-y-3">
-            <h3 class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+            <h3 class="text-label-lg font-semibold text-muted-foreground uppercase">
               AI Usage Stats
             </h3>
 

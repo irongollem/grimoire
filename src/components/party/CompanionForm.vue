@@ -13,7 +13,7 @@
       </div>
 
       <!-- Source type tabs -->
-      <div class="flex rounded-md border border-border overflow-hidden text-xs font-cinzel font-semibold tracking-wider">
+      <div class="flex rounded-md border border-border overflow-hidden text-label-lg font-semibold">
         <button
           v-for="src in SOURCE_TABS"
           :key="src.value"
@@ -29,7 +29,7 @@
 
       <!-- Monster source picker -->
       <div v-if="sourceType === 'monster'" class="flex flex-col gap-1.5">
-        <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Monster</label>
+        <label class="text-label-lg font-semibold text-muted-foreground">Monster</label>
         <EntityCombobox
           :model-value="selectedMonsterId"
           :options="monsters ?? []"
@@ -40,7 +40,7 @@
 
       <!-- NPC source picker -->
       <div v-if="sourceType === 'npc'" class="flex flex-col gap-1.5">
-        <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">NPC</label>
+        <label class="text-label-lg font-semibold text-muted-foreground">NPC</label>
         <EntityCombobox
           :model-value="selectedNpcId"
           :options="npcs ?? []"
@@ -91,7 +91,7 @@
       <!-- Stats form -->
       <div class="grid grid-cols-2 gap-3">
         <div class="col-span-2 flex flex-col gap-1.5">
-          <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Name</label>
+          <label class="text-label-lg font-semibold text-muted-foreground">Name</label>
           <input
             v-model="name"
             placeholder="Companion name…"
@@ -100,7 +100,7 @@
         </div>
 
         <div class="flex flex-col gap-1.5">
-          <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Type</label>
+          <label class="text-label-lg font-semibold text-muted-foreground">Type</label>
           <select
             v-model="companionType"
             class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -110,7 +110,7 @@
         </div>
 
         <div class="flex flex-col gap-1.5">
-          <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Owner (optional)</label>
+          <label class="text-label-lg font-semibold text-muted-foreground">Owner (optional)</label>
           <select
             v-model="ownerMemberId"
             class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -121,22 +121,22 @@
         </div>
 
         <div class="flex flex-col gap-1.5">
-          <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Max HP</label>
+          <label class="text-label-lg font-semibold text-muted-foreground">Max HP</label>
           <input v-model.number="maxHp" type="number" min="1" class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
         </div>
 
         <div class="flex flex-col gap-1.5">
-          <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Current HP</label>
+          <label class="text-label-lg font-semibold text-muted-foreground">Current HP</label>
           <input v-model.number="currentHp" type="number" min="0" class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
         </div>
 
         <div class="flex flex-col gap-1.5">
-          <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">AC</label>
+          <label class="text-label-lg font-semibold text-muted-foreground">AC</label>
           <input v-model.number="ac" type="number" min="0" class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
         </div>
 
         <div class="flex flex-col gap-1.5">
-          <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Speed (ft)</label>
+          <label class="text-label-lg font-semibold text-muted-foreground">Speed (ft)</label>
           <input v-model.number="speed" type="number" min="0" class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
         </div>
       </div>
@@ -145,14 +145,14 @@
       <div class="border-t border-border pt-3">
         <label class="flex items-center gap-2 cursor-pointer">
           <input v-model="hasStatBlock" type="checkbox" class="w-4 h-4 rounded border-border accent-primary" />
-          <span class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">INCLUDE STAT BLOCK</span>
+          <span class="text-label-lg font-semibold text-muted-foreground">INCLUDE STAT BLOCK</span>
         </label>
       </div>
 
       <template v-if="hasStatBlock">
         <!-- Load from bestiary -->
         <div class="flex flex-col gap-1">
-          <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Load from bestiary</label>
+          <label class="text-label-lg font-semibold text-muted-foreground">Load from bestiary</label>
           <EntityCombobox
             model-value=""
             :options="monsters ?? []"
@@ -164,11 +164,11 @@
         <!-- Core combat stats -->
         <div class="grid grid-cols-3 gap-2">
           <div class="flex flex-col gap-1">
-            <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">CR</label>
+            <label class="text-label-lg font-semibold text-muted-foreground">CR</label>
             <input v-model="sb.challenge_rating" placeholder="1/4" class="sb-input" />
           </div>
           <div class="flex flex-col gap-1">
-            <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">HP</label>
+            <label class="text-label-lg font-semibold text-muted-foreground">HP</label>
             <DiceExprInput
               :model-value="extractDice(sb.hit_points) || null"
               placeholder="2d8+2"
@@ -176,7 +176,7 @@
             />
           </div>
           <div class="flex flex-col gap-1">
-            <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Speed</label>
+            <label class="text-label-lg font-semibold text-muted-foreground">Speed</label>
             <input v-model="sb.speed" placeholder="30 ft." class="sb-input" />
           </div>
         </div>
@@ -200,19 +200,19 @@
         <!-- Extras -->
         <div class="grid grid-cols-2 gap-2">
           <div class="flex flex-col gap-1">
-            <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Skills</label>
+            <label class="text-label-lg font-semibold text-muted-foreground">Skills</label>
             <input v-model="sb.skills" placeholder="Perception +3" class="sb-input" />
           </div>
           <div class="flex flex-col gap-1">
-            <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Senses</label>
+            <label class="text-label-lg font-semibold text-muted-foreground">Senses</label>
             <input v-model="sb.senses" placeholder="Darkvision 60 ft." class="sb-input" />
           </div>
           <div class="flex flex-col gap-1">
-            <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Languages</label>
+            <label class="text-label-lg font-semibold text-muted-foreground">Languages</label>
             <input v-model="sb.languages" placeholder="Common" class="sb-input" />
           </div>
           <div class="flex flex-col gap-1">
-            <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Damage Resistances</label>
+            <label class="text-label-lg font-semibold text-muted-foreground">Damage Resistances</label>
             <input v-model="sb.damage_resistances" class="sb-input" />
           </div>
         </div>
@@ -238,7 +238,7 @@
         <button
           type="button"
           :disabled="!name.trim() || saving"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
+          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
           @click="save"
         >
           {{ saving ? "Saving…" : isEdit ? "Save" : "Add Companion" }}

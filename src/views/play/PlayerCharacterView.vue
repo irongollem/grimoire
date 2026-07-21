@@ -12,7 +12,7 @@
         </p>
         <RouterLink
           to="/play/character/create"
-          class="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+          class="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
         >
           Create Character
         </RouterLink>
@@ -73,7 +73,7 @@
 
       <!-- ── Tabs + Export Sheet ──────────────────────────── -->
       <div class="flex items-center gap-3 flex-wrap">
-        <div class="flex flex-wrap rounded-md border border-border overflow-hidden w-fit text-xs font-cinzel font-semibold tracking-wider">
+        <div class="flex flex-wrap rounded-md border border-border overflow-hidden w-fit text-label-lg font-semibold">
           <button
             v-for="tab in visibleTabs"
             :key="tab.id"

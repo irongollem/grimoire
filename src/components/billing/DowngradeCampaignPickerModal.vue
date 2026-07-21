@@ -53,14 +53,14 @@
         <!-- Footer -->
         <div class="px-6 py-4 border-t border-border flex flex-col gap-2">
           <button
-            class="w-full py-2.5 rounded-md bg-primary text-primary-foreground font-cinzel text-xs font-semibold tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
+            class="w-full py-2.5 rounded-md bg-primary text-primary-foreground text-label-lg font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
             :disabled="!selected || isArchiving"
             @click="confirm"
           >
             {{ isArchiving ? "Archiving…" : `Keep "${selectedCampaign?.name ?? ''}" — archive the rest` }}
           </button>
           <button
-            class="w-full py-2 rounded-md border border-amber-500/40 text-amber-400 font-cinzel text-xs font-semibold tracking-wider hover:bg-amber-500/10 transition-colors"
+            class="w-full py-2 rounded-md border border-amber-500/40 text-amber-400 text-label-lg font-semibold hover:bg-amber-500/10 transition-colors"
             @click="goUpgrade"
           >
             Upgrade to Pro instead

@@ -1,7 +1,7 @@
 <template>
   <div v-if="steps.length > 0" class="rounded-lg border border-border bg-card overflow-hidden">
     <div class="px-4 py-2.5 border-b border-border">
-      <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Spell Choices</p>
+      <p class="text-label-lg font-semibold text-muted-foreground">Spell Choices</p>
     </div>
     <div class="divide-y divide-border">
       <div v-for="step in steps" :key="step.key" class="px-4 py-3 space-y-2">

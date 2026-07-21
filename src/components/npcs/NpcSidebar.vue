@@ -32,7 +32,7 @@
 
     <!-- Party Stance — 5e reaction wheel -->
     <div>
-      <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">PARTY STANCE</p>
+      <p class="text-label-lg font-semibold text-muted-foreground mb-1.5">PARTY STANCE</p>
       <RelationshipWheel
         :model-value="relationship"
         @update:model-value="emit('update:relationship', $event)"
@@ -41,13 +41,13 @@
 
     <!-- Status -->
     <div>
-      <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">STATUS</p>
+      <p class="text-label-lg font-semibold text-muted-foreground mb-1.5">STATUS</p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-1">
         <button
           v-for="s in STATUS_OPTIONS"
           :key="s.value"
           type="button"
-          class="py-1.5 rounded border font-cinzel text-xs font-semibold tracking-wider transition-colors"
+          class="py-1.5 rounded border text-label-lg font-semibold transition-colors"
           :style="status === s.value ? { borderColor: s.color, backgroundColor: s.color + '22', color: s.color } : {}"
           :class="status !== s.value ? 'border-border text-muted-foreground hover:border-primary/40' : ''"
           @click="emit('update:status', s.value)"
@@ -57,7 +57,7 @@
 
     <!-- Tags -->
     <div>
-      <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5">TAGS</p>
+      <p class="text-label-lg font-semibold text-muted-foreground mb-1.5">TAGS</p>
       <TagInput :model-value="tags" @update:model-value="emit('update:tags', $event)" />
     </div>
   </div>

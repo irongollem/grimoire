@@ -210,7 +210,7 @@
       </div>
 
       <div v-else-if="unplacedChildren.length" class="flex flex-wrap items-center gap-1.5">
-        <span class="font-cinzel text-xs text-muted-foreground tracking-wider shrink-0">Unplaced:</span>
+        <span class="text-label-lg text-muted-foreground shrink-0">Unplaced:</span>
         <button
           v-for="child in unplacedChildren"
           :key="child.id"

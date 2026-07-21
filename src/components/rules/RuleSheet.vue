@@ -11,7 +11,7 @@
       </button>
       <button
         type="button"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
         @click="router.push({ query: { ...route.query, edit: 'true' } })"
       >
         <IconEdit class="h-3.5 w-3.5" />Edit
@@ -20,10 +20,10 @@
 
     <!-- Metadata row -->
     <div class="flex flex-wrap items-center gap-2">
-      <span v-if="rule.category" class="font-cinzel text-xs font-semibold tracking-wider px-2 py-0.5 rounded bg-muted text-muted-foreground">
+      <span v-if="rule.category" class="text-label-lg font-semibold px-2 py-0.5 rounded bg-muted text-muted-foreground">
         {{ rule.category }}
       </span>
-      <span v-if="rule.is_player_visible" class="font-cinzel text-xs font-semibold tracking-wider px-2 py-0.5 rounded bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20">
+      <span v-if="rule.is_player_visible" class="text-label-lg font-semibold px-2 py-0.5 rounded bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20">
         Visible to players
       </span>
       <span
@@ -45,7 +45,7 @@
     <div v-if="rule.tracker" class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-3 border-b border-border bg-muted/30 flex items-center justify-between">
         <div>
-          <span class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">TRACKER</span>
+          <span class="text-label-lg font-semibold text-muted-foreground">TRACKER</span>
           <span v-if="rule.tracker.label" class="ml-2 font-cinzel text-xs font-semibold text-foreground">{{ rule.tracker.label }}</span>
         </div>
         <span class="font-cinzel text-2xs text-muted-foreground capitalize px-2 py-0.5 rounded bg-muted">

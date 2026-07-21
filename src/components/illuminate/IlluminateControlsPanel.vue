@@ -106,7 +106,7 @@
         v-if="returnDocId"
         type="button"
         :disabled="!hasImage || isExporting"
-        class="flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold tracking-wider text-primary-foreground transition-opacity disabled:opacity-40"
+        class="flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground transition-opacity disabled:opacity-40"
         @click="emit('save-scriptorium')"
       >
         <IconLoadingAlt v-if="isSavingBack" class="h-3.5 w-3.5 shrink-0 animate-spin" />
@@ -117,7 +117,7 @@
       <button
         type="button"
         :disabled="!hasImage || isExporting"
-        class="flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold tracking-wider text-primary-foreground transition-opacity disabled:opacity-40"
+        class="flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground transition-opacity disabled:opacity-40"
         @click="emit('download')"
       >
         <IconDownload class="h-3.5 w-3.5 shrink-0" />
@@ -127,7 +127,7 @@
       <button
         type="button"
         :disabled="!hasImage || isExporting || !clipboardSupported"
-        class="flex items-center justify-center gap-2 rounded-md border border-border px-4 py-2 font-cinzel text-xs font-semibold tracking-wider text-foreground transition-colors hover:bg-muted disabled:opacity-40"
+        class="flex items-center justify-center gap-2 rounded-md border border-border px-4 py-2 text-label-lg font-semibold text-foreground transition-colors hover:bg-muted disabled:opacity-40"
         @click="emit('copy')"
       >
         <component :is="copySuccess ? IconCheck : IconClipboard" class="h-3.5 w-3.5 shrink-0" />

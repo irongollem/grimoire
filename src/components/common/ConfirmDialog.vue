@@ -49,14 +49,14 @@
             <button
               v-if="dialog.type === 'confirm'"
               type="button"
-              class="px-4 py-1.5 rounded-md border border-border font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors tracking-wider"
+              class="px-4 py-1.5 rounded-md border border-border text-label-lg font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
               @click="cancel"
             >
               Cancel
             </button>
             <button
               type="button"
-              class="px-4 py-1.5 rounded-md font-cinzel text-xs font-semibold tracking-wider transition-colors"
+              class="px-4 py-1.5 rounded-md text-label-lg font-semibold transition-colors"
               :class="
                 dialog.danger
                   ? 'bg-destructive text-destructive-foreground hover:opacity-90'

@@ -29,7 +29,7 @@
           v-if="showTodayEditor"
           class="absolute right-0 top-full mt-1 z-30 rounded-lg border border-border bg-card shadow-lg p-3 flex flex-col gap-2 min-w-52"
         >
-          <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Set In-Game Today</p>
+          <p class="text-label-lg font-semibold text-muted-foreground">Set In-Game Today</p>
           <div class="grid grid-cols-3 gap-1.5">
             <div class="flex flex-col gap-0.5">
               <label class="text-label text-muted-foreground">Month</label>
@@ -87,7 +87,7 @@
       <!-- View toggle -->
       <div class="flex rounded-md border border-border overflow-hidden shrink-0">
         <button
-          class="px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider transition-colors"
+          class="px-3 py-1.5 text-label-lg font-semibold transition-colors"
           :class="
             view === 'month'
               ? 'bg-primary text-primary-foreground'
@@ -98,7 +98,7 @@
           Month
         </button>
         <button
-          class="px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider transition-colors"
+          class="px-3 py-1.5 text-label-lg font-semibold transition-colors"
           :class="
             view === 'timeline'
               ? 'bg-primary text-primary-foreground'
@@ -123,7 +123,7 @@
 
       <!-- Add event -->
       <button
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity shrink-0"
+        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity shrink-0"
         @click="openCreateModal"
       >
         <IconAdd class="h-3.5 w-3.5" />

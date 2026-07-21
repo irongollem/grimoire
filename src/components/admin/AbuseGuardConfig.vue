@@ -37,7 +37,7 @@
 
       <div class="flex items-center gap-2">
         <button
-          class="px-4 py-1.5 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+          class="px-4 py-1.5 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
           :disabled="update.isPending.value"
           @click="save"
         >

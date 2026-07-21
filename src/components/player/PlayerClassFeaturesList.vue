@@ -1,7 +1,7 @@
 <template>
   <div class="rounded-lg border border-border bg-card overflow-hidden">
     <div class="px-4 py-2.5 border-b border-border">
-      <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">
+      <p class="text-label-lg font-semibold text-muted-foreground">
         {{ group.class_name || 'Class' }} Features
         <span v-if="group.subclass_name" class="normal-case font-fell font-normal tracking-normal ml-1 text-muted-foreground/70">({{ group.subclass_name }})</span>
       </p>

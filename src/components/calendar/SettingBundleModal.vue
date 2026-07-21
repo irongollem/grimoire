@@ -93,7 +93,7 @@
         <div v-if="bundle" class="flex justify-end gap-2 px-5 py-4 border-t border-border shrink-0">
           <button
             type="button"
-            class="px-4 py-2 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
+            class="px-4 py-2 text-label-lg font-semibold text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
             @click="close"
           >
             {{ result === 'success' ? 'Close' : 'Cancel' }}
@@ -102,7 +102,7 @@
             v-if="result !== 'success'"
             type="button"
             :disabled="importing"
-            class="px-4 py-2 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+            class="px-4 py-2 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
             @click="importAll"
           >
             {{ importing ? 'Importing…' : `Import All ${bundle.events.length} Events` }}

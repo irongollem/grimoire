@@ -4,7 +4,7 @@
     :title="title ?? label"
     :disabled="disabled"
     :class="[
-      'inline-flex min-w-0 items-center justify-center gap-1.5 rounded-md border font-cinzel text-xs font-semibold tracking-wider transition-colors disabled:opacity-50',
+      'inline-flex min-w-0 items-center justify-center gap-1.5 rounded-md border text-label-lg font-semibold transition-colors disabled:opacity-50',
       compact ? 'px-2.5 py-2 lg:px-3 lg:py-1.5' : 'px-3 py-2',
       variantClasses,
     ]"

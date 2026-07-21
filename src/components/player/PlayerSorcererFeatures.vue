@@ -1,7 +1,7 @@
 <template>
   <div class="rounded-lg border border-violet-500/30 bg-violet-500/5 overflow-hidden">
     <div class="px-4 py-2.5 border-b border-violet-500/20 bg-violet-500/10">
-      <p class="font-cinzel text-xs font-semibold tracking-wider text-violet-500">2024 Sorcerer</p>
+      <p class="text-label-lg font-semibold text-violet-500">2024 Sorcerer</p>
     </div>
     <div class="p-4 space-y-3 font-fell text-sm">
       <div class="flex items-center gap-3">

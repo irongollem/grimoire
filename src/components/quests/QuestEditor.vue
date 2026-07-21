@@ -48,7 +48,7 @@
         <!-- Summary -->
         <div class="flex flex-col gap-1.5">
           <label
-            class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
+            class="text-label-lg font-semibold text-muted-foreground"
             >Summary</label
           >
           <input
@@ -87,7 +87,7 @@
         <!-- Description -->
         <div class="flex flex-col gap-1">
           <span
-            class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
+            class="text-label-lg font-semibold text-muted-foreground"
             >Description</span
           >
           <RichTextEditor
@@ -100,7 +100,7 @@
         <!-- Notes -->
         <div class="flex flex-col gap-1">
           <span
-            class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
+            class="text-label-lg font-semibold text-muted-foreground"
             >DM Notes</span
           >
           <RichTextEditor

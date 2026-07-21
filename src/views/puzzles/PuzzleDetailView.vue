@@ -81,7 +81,7 @@
         <!-- Setup description -->
         <div v-if="puzzle.description" class="rounded-lg border border-border bg-card overflow-hidden">
           <div class="px-3 py-2 border-b border-border bg-muted/20">
-            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Setup</span>
+            <span class="text-label-lg font-semibold text-muted-foreground">Setup</span>
           </div>
           <div class="p-4">
             <RichTextViewer :content="puzzle.description" />
@@ -91,7 +91,7 @@
         <!-- Hints -->
         <div v-if="puzzle.hints.length" class="rounded-lg border border-border bg-card overflow-hidden">
           <div class="px-3 py-2 border-b border-border bg-muted/20">
-            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Hints</span>
+            <span class="text-label-lg font-semibold text-muted-foreground">Hints</span>
           </div>
           <div class="divide-y divide-border">
             <div
@@ -128,7 +128,7 @@
             class="w-full flex items-center justify-between px-3 py-2 border-b border-border bg-muted/20 hover:bg-muted/40 transition-colors"
             @click="solutionOpen = !solutionOpen"
           >
-            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Solution</span>
+            <span class="text-label-lg font-semibold text-muted-foreground">Solution</span>
             <span class="text-label text-muted-foreground">{{ solutionOpen ? 'Hide' : 'Reveal' }}</span>
           </button>
           <div v-if="solutionOpen" class="p-4">
@@ -139,7 +139,7 @@
         <!-- Outcomes -->
         <div v-if="puzzle.success_outcome || puzzle.failure_consequence" class="rounded-lg border border-border bg-card overflow-hidden">
           <div class="px-3 py-2 border-b border-border bg-muted/20">
-            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Outcomes</span>
+            <span class="text-label-lg font-semibold text-muted-foreground">Outcomes</span>
           </div>
           <div class="divide-y divide-border">
             <div v-if="puzzle.success_outcome" class="p-4">
@@ -156,7 +156,7 @@
         <!-- DM Notes -->
         <div v-if="puzzle.notes" class="rounded-lg border border-border bg-card overflow-hidden">
           <div class="px-3 py-2 border-b border-border bg-muted/20">
-            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">DM Notes</span>
+            <span class="text-label-lg font-semibold text-muted-foreground">DM Notes</span>
           </div>
           <div class="p-4">
             <RichTextViewer :content="puzzle.notes" />
@@ -173,7 +173,7 @@
         <!-- Identity -->
         <div class="rounded-lg border border-border bg-card overflow-hidden">
           <div class="px-3 py-2 border-b border-border bg-muted/20">
-            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Identity</span>
+            <span class="text-label-lg font-semibold text-muted-foreground">Identity</span>
           </div>
           <div class="p-4 flex gap-4">
             <!-- Image -->
@@ -194,7 +194,7 @@
             <!-- Fields -->
             <div class="flex-1 grid grid-cols-2 gap-3">
               <div class="col-span-2">
-                <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">Name</label>
+                <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Name</label>
                 <input
                   v-model="form.name"
                   placeholder="Puzzle name…"
@@ -202,7 +202,7 @@
                 />
               </div>
               <div>
-                <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">Type</label>
+                <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Type</label>
                 <select
                   v-model="form.puzzle_type"
                   class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -211,7 +211,7 @@
                 </select>
               </div>
               <div>
-                <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">Difficulty</label>
+                <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Difficulty</label>
                 <select
                   v-model="form.difficulty"
                   class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -220,7 +220,7 @@
                 </select>
               </div>
               <div>
-                <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">Location</label>
+                <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Location</label>
                 <EntityCombobox
                   :model-value="form.location_id ?? ''"
                   :options="locationOptions"
@@ -233,7 +233,7 @@
                 </EntityCombobox>
               </div>
               <div>
-                <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">Dungeon Feature</label>
+                <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Dungeon Feature</label>
                 <EntityCombobox
                   :model-value="form.dungeon_feature_id ?? ''"
                   :options="dungeonFeatures ?? []"
@@ -242,7 +242,7 @@
                 />
               </div>
               <div class="col-span-2">
-                <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">Tags</label>
+                <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Tags</label>
                 <TagInput v-model="form.tags" />
               </div>
             </div>
@@ -252,10 +252,10 @@
         <!-- Setup -->
         <div class="rounded-lg border border-border bg-card overflow-hidden">
           <div class="px-3 py-2 border-b border-border bg-muted/20">
-            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Setup</span>
+            <span class="text-label-lg font-semibold text-muted-foreground">Setup</span>
           </div>
           <div class="p-4">
-            <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-2">
+            <label class="block text-label-lg font-semibold text-muted-foreground mb-2">
               What the players see / experience
             </label>
             <RichTextEditor
@@ -286,10 +286,10 @@
         <!-- Solution -->
         <div class="rounded-lg border border-border bg-card overflow-hidden">
           <div class="px-3 py-2 border-b border-border bg-muted/20">
-            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Solution</span>
+            <span class="text-label-lg font-semibold text-muted-foreground">Solution</span>
           </div>
           <div class="p-4">
-            <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-2">
+            <label class="block text-label-lg font-semibold text-muted-foreground mb-2">
               The answer / mechanism (DM eyes only)
             </label>
             <RichTextEditor
@@ -304,11 +304,11 @@
         <!-- Outcomes -->
         <div class="rounded-lg border border-border bg-card overflow-hidden">
           <div class="px-3 py-2 border-b border-border bg-muted/20">
-            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Outcomes</span>
+            <span class="text-label-lg font-semibold text-muted-foreground">Outcomes</span>
           </div>
           <div class="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-2">Success</label>
+              <label class="block text-label-lg font-semibold text-muted-foreground mb-2">Success</label>
               <RichTextEditor
                 :model-value="form.success_outcome"
                 placeholder="What happens when the puzzle is solved…"
@@ -317,7 +317,7 @@
               />
             </div>
             <div>
-              <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-2">Failure / Consequence</label>
+              <label class="block text-label-lg font-semibold text-muted-foreground mb-2">Failure / Consequence</label>
               <RichTextEditor
                 :model-value="form.failure_consequence"
                 placeholder="What happens on a wrong answer or giving up…"
@@ -331,7 +331,7 @@
         <!-- DM Notes -->
         <div class="rounded-lg border border-border bg-card overflow-hidden">
           <div class="px-3 py-2 border-b border-border bg-muted/20">
-            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">DM Notes</span>
+            <span class="text-label-lg font-semibold text-muted-foreground">DM Notes</span>
           </div>
           <div class="p-4">
             <RichTextEditor

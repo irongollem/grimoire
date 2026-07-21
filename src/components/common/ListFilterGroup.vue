@@ -15,7 +15,7 @@
     original `overflow-hidden` joined-edge look unchanged.
   -->
   <div
-    class="flex rounded-md border border-border md:overflow-hidden max-md:overflow-x-auto text-xs font-cinzel font-semibold tracking-wider shrink-0 filter-group-scroll"
+    class="flex rounded-md border border-border md:overflow-hidden max-md:overflow-x-auto text-label-lg font-semibold shrink-0 filter-group-scroll"
     :aria-label="ariaLabel"
     role="radiogroup"
   >

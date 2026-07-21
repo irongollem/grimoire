@@ -10,7 +10,7 @@
     <div class="flex items-center gap-3">
       <RouterLink
         to="/party"
-        class="font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors tracking-wider"
+        class="text-label-lg text-muted-foreground hover:text-foreground transition-colors"
       >← Party</RouterLink>
       <template v-if="member">
         <RouterLink
@@ -21,7 +21,7 @@
         </RouterLink>
         <button
           type="button"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
           @click="editOpen = true"
         >
           <IconEdit class="h-3.5 w-3.5" />

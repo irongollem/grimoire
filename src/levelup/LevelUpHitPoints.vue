@@ -1,14 +1,14 @@
 <template>
   <WizardStepCard>
     <template #header>
-      <h3 class="font-cinzel text-xs tracking-wider text-muted-foreground uppercase">Hit Points</h3>
+      <h3 class="text-label-lg text-muted-foreground uppercase">Hit Points</h3>
       <span class="text-label text-muted-foreground">
         d{{ hitDie }} · CON {{ conMod >= 0 ? '+' : '' }}{{ conMod }}
       </span>
     </template>
 
     <!-- Mode picker -->
-    <div class="flex rounded-md border border-border overflow-hidden w-fit font-cinzel text-xs tracking-wider">
+    <div class="flex rounded-md border border-border overflow-hidden w-fit text-label-lg">
       <button
         class="px-3 py-1.5 transition-colors"
         :class="hpMode === 'average' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"

@@ -7,7 +7,7 @@
       <div class="flex items-center gap-2">
         <IconMessage class="h-4 w-4 text-primary" />
         <span
-          class="font-cinzel text-xs font-semibold text-foreground tracking-wider"
+          class="text-label-lg font-semibold text-foreground"
           >Campaign Chat</span
         >
         <ManualHelpLink page="campaign-chat" />
@@ -212,7 +212,7 @@
         <button
           type="button"
           :disabled="!vendorDesc.trim() || !vendorHasPrice"
-          class="w-full py-1.5 font-cinzel text-xs font-bold tracking-wider bg-emerald-600 text-white rounded-md hover:opacity-90 transition-opacity disabled:opacity-40"
+          class="w-full py-1.5 text-label-lg font-bold bg-emerald-600 text-white rounded-md hover:opacity-90 transition-opacity disabled:opacity-40"
           @click="postVendorOffer"
         >Post Offer</button>
       </div>

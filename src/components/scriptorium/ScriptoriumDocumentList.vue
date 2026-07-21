@@ -18,7 +18,7 @@
         <button
           v-for="t in TYPE_OPTIONS"
           :key="t.value"
-          class="px-2.5 py-1.5 rounded border border-border font-cinzel text-xs font-semibold tracking-wider transition-colors"
+          class="px-2.5 py-1.5 rounded border border-border text-label-lg font-semibold transition-colors"
           :class="
             typeFilter === t.value
               ? 'bg-primary text-primary-foreground border-primary'

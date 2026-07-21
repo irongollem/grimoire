@@ -16,7 +16,7 @@
     <!-- Point Buy -->
     <div v-if="scoreMode === 'pointbuy'" class="space-y-3">
       <div class="flex items-center justify-between">
-        <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">ASSIGN SCORES</p>
+        <p class="text-label-lg font-semibold text-muted-foreground">ASSIGN SCORES</p>
         <div class="flex items-center gap-2">
           <span class="font-cinzel text-xs text-muted-foreground">Points remaining:</span>
           <span class="font-cinzel text-sm font-bold"
@@ -62,7 +62,7 @@
           <template v-else>4d6 drop lowest — reroll until happy, then assign.</template>
         </p>
         <button v-if="scoreMode === 'roll'" type="button"
-          class="px-3 py-1.5 rounded-md bg-primary text-primary-foreground font-cinzel text-xs font-semibold tracking-wider hover:opacity-90 transition-opacity"
+          class="px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-label-lg font-semibold hover:opacity-90 transition-opacity"
           @click="rollAbilityScores">Reroll Pool</button>
       </div>
       <div class="flex items-center gap-1.5 flex-wrap rounded-md border border-border bg-card px-3 py-2">
@@ -122,7 +122,7 @@
 
       <!-- Header + mode switch -->
       <div class="flex items-center justify-between flex-wrap gap-2">
-        <p class="font-cinzel text-xs font-semibold text-primary tracking-wider">
+        <p class="text-label-lg font-semibold text-primary">
           {{ selectedSpecies.name.toUpperCase() }} BONUSES
         </p>
         <div class="flex rounded overflow-hidden border border-primary/30 text-[0.6875rem] font-cinzel font-semibold">

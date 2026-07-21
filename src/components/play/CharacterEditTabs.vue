@@ -9,7 +9,7 @@
 
     <div class="flex border-b border-border">
       <button v-for="tab in EDIT_TABS" :key="tab.id" type="button"
-        class="px-4 py-2 font-cinzel text-xs font-semibold tracking-wider transition-colors"
+        class="px-4 py-2 text-label-lg font-semibold transition-colors"
         :class="activeTab === tab.id ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground hover:text-foreground'"
         @click="activeTab = tab.id">
         {{ tab.label }}
@@ -74,7 +74,7 @@
 
     <!-- Stats -->
     <div v-if="activeTab === 'stats'" class="space-y-4">
-      <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase">Ability Scores</p>
+      <p class="text-label-lg font-semibold text-muted-foreground uppercase">Ability Scores</p>
       <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
         <label v-for="stat in ABILITY_STATS" :key="stat.key" class="flex flex-col items-center gap-1">
           <span class="text-label font-semibold text-muted-foreground">{{ stat.label }}</span>
@@ -85,7 +85,7 @@
         </label>
       </div>
 
-      <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase mt-2">Combat</p>
+      <p class="text-label-lg font-semibold text-muted-foreground uppercase mt-2">Combat</p>
       <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <label class="block"><span class="field-label">Max HP</span><input v-model.number="f.max_hp" type="number" min="1" class="field-input w-full" /></label>
         <label class="block"><span class="field-label">Current HP</span><input v-model.number="f.current_hp" type="number" class="field-input w-full" /></label>
@@ -124,7 +124,7 @@
       </div>
 
       <div class="flex items-center justify-between mt-2">
-        <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase">Spell Slots (Max per Level)</p>
+        <p class="text-label-lg font-semibold text-muted-foreground uppercase">Spell Slots (Max per Level)</p>
         <button type="button" class="text-label text-primary/70 hover:text-primary transition-colors" @click="resetSlotsToDefault">Reset to class defaults</button>
       </div>
       <div class="grid grid-cols-3 gap-2">
@@ -137,7 +137,7 @@
 
     <!-- Proficiencies -->
     <div v-if="activeTab === 'profs'" class="space-y-4">
-      <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase">Saving Throw Proficiencies</p>
+      <p class="text-label-lg font-semibold text-muted-foreground uppercase">Saving Throw Proficiencies</p>
       <div class="grid grid-cols-3 gap-2">
         <label v-for="save in SAVE_STATS" :key="save.key" class="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" :checked="f.saving_throw_proficiencies.includes(save.key)" class="rounded" @change="toggleSave(save.key)" />
@@ -145,7 +145,7 @@
           <span class="font-cinzel text-2xs text-muted-foreground">{{ saveBonus(save.key) }}</span>
         </label>
       </div>
-      <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase mt-2">Skills</p>
+      <p class="text-label-lg font-semibold text-muted-foreground uppercase mt-2">Skills</p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
         <div v-for="skill in SKILLS" :key="skill.key" class="flex items-center gap-2">
           <div class="flex rounded overflow-hidden border border-border text-2xs font-cinzel font-semibold shrink-0">
@@ -158,9 +158,9 @@
           <span class="font-cinzel text-2xs text-muted-foreground shrink-0">{{ skillBonus(skill.key, skill.ability) }}</span>
         </div>
       </div>
-      <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase mt-4">Tool Proficiencies</p>
+      <p class="text-label-lg font-semibold text-muted-foreground uppercase mt-4">Tool Proficiencies</p>
       <TagPickerInput :model-value="f.tool_proficiencies" :groups="TOOL_PROFICIENCY_GROUPS" placeholder="Search tools…" @update:model-value="f.tool_proficiencies = $event" />
-      <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase mt-3">Languages</p>
+      <p class="text-label-lg font-semibold text-muted-foreground uppercase mt-3">Languages</p>
       <TagPickerInput :model-value="f.languages" :groups="LANGUAGE_GROUPS" placeholder="Search languages…" @update:model-value="f.languages = $event" />
     </div>
 

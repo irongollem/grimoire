@@ -11,7 +11,7 @@
       </button>
       <button
         type="button"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
         @click="router.push({ query: { ...route.query, edit: 'true' } })"
       >
         <IconEdit class="h-3.5 w-3.5" />Edit
@@ -56,7 +56,7 @@
       class="rounded-lg border border-border bg-card overflow-hidden"
     >
       <div class="px-3 py-2 border-b border-border bg-muted/20">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Proficiencies</span>
+        <span class="text-label-lg font-semibold text-muted-foreground">Proficiencies</span>
       </div>
       <div class="p-4 flex flex-col gap-3">
         <div v-if="background.skill_proficiencies.length">
@@ -95,7 +95,7 @@
     <!-- Feat grant card (2024 PHB) -->
     <div v-if="background.feat_grant_name" class="rounded-lg border border-primary/30 bg-primary/5 overflow-hidden">
       <div class="px-3 py-2 border-b border-primary/20 bg-primary/10 flex items-center gap-2">
-        <span class="font-cinzel text-xs font-semibold text-primary tracking-wider">Feat Grant</span>
+        <span class="text-label-lg font-semibold text-primary">Feat Grant</span>
         <span class="text-eyebrow text-primary/60">2024 PHB</span>
       </div>
       <div class="p-4 flex flex-col gap-2">
@@ -107,7 +107,7 @@
     <!-- Tags card -->
     <div v-if="background.tags.length" class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-3 py-2 border-b border-border bg-muted/20">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Tags</span>
+        <span class="text-label-lg font-semibold text-muted-foreground">Tags</span>
       </div>
       <div class="p-4 flex flex-wrap gap-1">
         <span
@@ -121,7 +121,7 @@
     <!-- Description card -->
     <div v-if="hasDescription" class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-3 py-2 border-b border-border bg-muted/20">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Description</span>
+        <span class="text-label-lg font-semibold text-muted-foreground">Description</span>
       </div>
       <div class="p-4">
         <RichTextViewer :content="background.description" />
@@ -131,7 +131,7 @@
     <!-- Equipment card -->
     <div v-if="hasEquipment" class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-3 py-2 border-b border-border bg-muted/20 flex items-center justify-between">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Starting Equipment</span>
+        <span class="text-label-lg font-semibold text-muted-foreground">Starting Equipment</span>
         <div class="flex items-center gap-2">
           <span
             v-if="grantDone"
@@ -218,7 +218,7 @@
     <!-- Background feature card -->
     <div v-if="background.feature_name" class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-3 py-2 border-b border-border bg-muted/20">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Feature</span>
+        <span class="text-label-lg font-semibold text-muted-foreground">Feature</span>
       </div>
       <div class="p-4 flex flex-col gap-2">
         <p class="font-cinzel text-sm font-bold text-foreground">{{ background.feature_name }}</p>
@@ -229,7 +229,7 @@
     <!-- Suggested characteristics card -->
     <div v-if="hasSuggestedCharacteristics" class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-3 py-2 border-b border-border bg-muted/20">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Suggested Characteristics</span>
+        <span class="text-label-lg font-semibold text-muted-foreground">Suggested Characteristics</span>
       </div>
       <div class="p-4">
         <RichTextViewer :content="background.suggested_characteristics" />

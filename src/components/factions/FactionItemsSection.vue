@@ -1,6 +1,6 @@
 <template>
   <div class="flex flex-col gap-3">
-    <h2 class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground uppercase">Associated Items</h2>
+    <h2 class="text-label-lg font-semibold text-muted-foreground uppercase">Associated Items</h2>
 
     <div v-if="entries?.length" class="flex flex-col gap-1.5">
       <div

@@ -35,7 +35,7 @@
               class="flex items-center gap-2"
             >
               <span
-                class="w-14 shrink-0 font-cinzel text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                class="w-14 shrink-0 text-label-lg font-semibold uppercase text-muted-foreground"
               >
                 d{{ row.sides }}
               </span>
@@ -74,14 +74,14 @@
           <div class="flex justify-end gap-2 px-5 pb-5 pt-2">
             <button
               type="button"
-              class="px-4 py-1.5 rounded-md border border-border font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors tracking-wider"
+              class="px-4 py-1.5 rounded-md border border-border text-label-lg font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
               @click="cancel"
             >
               Cancel
             </button>
             <button
               type="button"
-              class="px-4 py-1.5 rounded-md font-cinzel text-xs font-semibold tracking-wider transition-colors bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+              class="px-4 py-1.5 rounded-md text-label-lg font-semibold transition-colors bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
               :disabled="!allFilled"
               @click="submit"
             >

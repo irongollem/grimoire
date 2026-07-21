@@ -8,7 +8,7 @@
           <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
         </span>
         <IconEncounter v-else class="h-3.5 w-3.5 text-muted-foreground/40" />
-        <span class="font-cinzel text-xs font-bold text-foreground tracking-wider">ENCOUNTER</span>
+        <span class="text-label-lg font-bold text-foreground">ENCOUNTER</span>
       </div>
       <button
         class="p-1 rounded text-muted-foreground hover:text-foreground transition-colors"
@@ -38,7 +38,7 @@
             class="battle-map-cta hidden md:flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 hover:bg-primary/10 transition-colors"
           >
             <IconMap class="h-4 w-4 text-primary shrink-0" />
-            <span class="font-cinzel text-xs font-semibold text-primary tracking-wider">View battle map</span>
+            <span class="text-label-lg font-semibold text-primary">View battle map</span>
           </RouterLink>
 
           <!-- Your Turn! banner -->
@@ -64,10 +64,10 @@
           <!-- Round + active turn header (full / compact variants, CSS picks which) -->
           <template v-else>
             <div class="round-header-full flex items-center justify-center flex-wrap gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
-              <div class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">ROUND</div>
+              <div class="text-label-lg font-semibold text-muted-foreground">ROUND</div>
               <div class="font-cinzel text-2xl font-bold text-primary">{{ liveState.current_round }}</div>
               <div v-if="activeCombatant" class="ml-4 flex items-center gap-2 min-w-0">
-                <span class="font-cinzel text-xs text-muted-foreground tracking-wider shrink-0">ACTIVE:</span>
+                <span class="text-label-lg text-muted-foreground shrink-0">ACTIVE:</span>
                 <span class="font-cinzel text-sm font-bold text-foreground wrap-break-word min-w-0">
                   {{
                     activeCombatant.type === "monster" &&
@@ -98,7 +98,7 @@
             v-if="myPlayer && showMyInitiative"
             class="flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-card px-4 py-3"
           >
-            <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">
+            <span class="text-label-lg font-semibold text-muted-foreground">
               YOUR INITIATIVE
             </span>
             <button

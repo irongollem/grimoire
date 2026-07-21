@@ -5,7 +5,7 @@
       <div class="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/20">
         <IconLock class="h-3 w-3 text-muted-foreground shrink-0" />
         <div class="flex-1">
-          <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">My Private Notes</span>
+          <span class="text-label-lg font-semibold text-muted-foreground">My Private Notes</span>
           <span class="font-fell text-2xs text-muted-foreground/50 italic ml-2">
             {{ sharedWithDm ? 'Shared with your DM' : 'Only you can see this' }}
           </span>
@@ -49,7 +49,7 @@
       <div class="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/20">
         <IconFaction class="h-3 w-3 text-elven-green shrink-0" />
         <div>
-          <span class="font-cinzel text-xs font-semibold tracking-wider" style="color: var(--color-elven-green)">My Party Notes</span>
+          <span class="text-label-lg font-semibold" style="color: var(--color-elven-green)">My Party Notes</span>
           <span class="font-fell text-2xs text-muted-foreground/50 italic ml-2">Visible to everyone in the campaign</span>
         </div>
       </div>
@@ -80,7 +80,7 @@
     <!-- Other party members' shared notes -->
     <div v-if="othersNotes.length" class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-3 py-2 border-b border-border bg-muted/20">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">
+        <span class="text-label-lg font-semibold text-muted-foreground">
           From the Party
           <span class="font-fell font-normal text-muted-foreground/60"> · {{ othersNotes.length }}</span>
         </span>
@@ -102,7 +102,7 @@
     <div v-if="dmSharedNotes.length" class="rounded-lg border border-amber-500/30 bg-amber-500/5 overflow-hidden">
       <div class="flex items-center gap-2 px-3 py-2 border-b border-amber-500/20 bg-amber-500/10">
         <IconLock class="h-3 w-3 text-amber-500/70 shrink-0" />
-        <span class="font-cinzel text-xs font-semibold text-amber-600/80 dark:text-amber-400/80 tracking-wider">
+        <span class="text-label-lg font-semibold text-amber-600/80 dark:text-amber-400/80">
           Player Insights
           <span class="font-fell font-normal text-amber-500/60"> · {{ dmSharedNotes.length }}</span>
         </span>

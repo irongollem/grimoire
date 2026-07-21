@@ -2,7 +2,7 @@
   <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
     <div class="flex flex-col gap-1.5">
       <label
-        class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
+        class="text-label-lg font-semibold text-muted-foreground"
         >Quest Giver</label
       >
       <EntityCombobox
@@ -15,7 +15,7 @@
 
     <div class="flex flex-col gap-1.5">
       <label
-        class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
+        class="text-label-lg font-semibold text-muted-foreground"
         >Location</label
       >
       <EntityCombobox
@@ -28,7 +28,7 @@
 
     <div class="flex flex-col gap-1.5">
       <label
-        class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
+        class="text-label-lg font-semibold text-muted-foreground"
         >Part of Quest</label
       >
       <EntityCombobox
@@ -41,7 +41,7 @@
 
     <div class="flex flex-col gap-1.5">
       <label
-        class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
+        class="text-label-lg font-semibold text-muted-foreground"
         >Reward Notes</label
       >
       <input

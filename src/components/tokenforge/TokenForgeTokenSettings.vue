@@ -4,7 +4,7 @@
 
     <!-- Ring color -->
     <div>
-      <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-2">Ring Colour</p>
+      <p class="text-label-lg font-semibold text-muted-foreground mb-2">Ring Colour</p>
       <div class="flex flex-wrap items-center gap-2">
         <button
           v-for="preset in RING_PRESETS"
@@ -38,7 +38,7 @@
 
     <!-- Ring width -->
     <div>
-      <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-2">Ring Width</p>
+      <p class="text-label-lg font-semibold text-muted-foreground mb-2">Ring Width</p>
       <div class="flex flex-wrap gap-2">
         <button
           v-for="w in RING_WIDTHS"
@@ -55,10 +55,10 @@
 
     <!-- Name label toggle -->
     <div class="flex items-center justify-between">
-      <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Name Label</p>
+      <p class="text-label-lg font-semibold text-muted-foreground">Name Label</p>
       <button
         type="button"
-        class="inline-flex items-center gap-2 font-cinzel text-xs tracking-wider transition-colors"
+        class="inline-flex items-center gap-2 text-label-lg transition-colors"
         :class="showName ? 'text-primary' : 'text-muted-foreground'"
         @click="emit('update:showName', !showName)"
       >
@@ -77,7 +77,7 @@
 
     <!-- Export size -->
     <div>
-      <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-2">Export Size</p>
+      <p class="text-label-lg font-semibold text-muted-foreground mb-2">Export Size</p>
       <div class="flex flex-wrap gap-2">
         <button
           v-for="s in EXPORT_SIZES"

@@ -1,7 +1,7 @@
 <template>
   <WizardStepCard>
     <template #header>
-      <h3 class="font-cinzel text-xs tracking-wider text-muted-foreground uppercase">{{ title }}</h3>
+      <h3 class="text-label-lg text-muted-foreground uppercase">{{ title }}</h3>
       <span class="font-cinzel text-xs font-bold"
         :class="selectedIds.size === needed ? 'text-green-500' : 'text-primary'">
         {{ selectedIds.size }} / {{ needed }}

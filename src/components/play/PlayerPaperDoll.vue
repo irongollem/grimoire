@@ -1,6 +1,6 @@
 <template>
   <div class="rounded-lg border border-border bg-card p-4">
-    <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-3">
+    <p class="text-label-lg font-semibold text-muted-foreground mb-3">
       Equipped
     </p>
     <div class="flex gap-4">

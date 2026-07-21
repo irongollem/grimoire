@@ -30,7 +30,7 @@
       >Keep current versions</button>
     </div>
     <div v-if="legacySpells.length" class="rounded-lg border border-amber-500/35 bg-amber-500/10 p-4 space-y-2">
-      <p class="font-cinzel text-xs font-bold tracking-wider text-amber-500">Review legacy spell sources</p>
+      <p class="text-label-lg font-bold text-amber-500">Review legacy spell sources</p>
       <p class="font-fell text-sm text-muted-foreground">These spells predate multiclass source tracking. Assign each one before changing its preparation.</p>
       <div v-for="entry in legacySpells" :key="entry.id" class="flex items-center gap-3">
         <span class="font-fell text-sm flex-1">{{ entry.spell.name }}</span>
@@ -45,7 +45,7 @@
       </div>
     </div>
     <!-- Tab switcher -->
-    <div class="flex rounded-md border border-border overflow-hidden w-fit text-xs font-cinzel font-semibold tracking-wider">
+    <div class="flex rounded-md border border-border overflow-hidden w-fit text-label-lg font-semibold">
       <button
         v-for="tab in tabs"
         :key="tab.id"
@@ -103,7 +103,7 @@
       <div class="flex justify-end mb-2">
         <button
           type="button"
-          class="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-violet-500/15 border border-violet-500/30 text-violet-400 font-cinzel text-xs font-semibold tracking-wider hover:bg-violet-500/25 transition-colors"
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-violet-500/15 border border-violet-500/30 text-violet-400 text-label-lg font-semibold hover:bg-violet-500/25 transition-colors"
           @click="addInnateOpen = true"
         >
           <IconGenerate class="h-3.5 w-3.5" />
@@ -137,7 +137,7 @@
           />
         </div>
         <!-- Level -->
-        <div class="flex rounded-md border border-border overflow-hidden text-xs font-cinzel font-semibold tracking-wider">
+        <div class="flex rounded-md border border-border overflow-hidden text-label-lg font-semibold">
           <button
             v-for="lvl in LEVEL_FILTERS"
             :key="lvl.value"

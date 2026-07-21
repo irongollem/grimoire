@@ -1,7 +1,7 @@
 <template>
   <div class="rounded-lg border border-border bg-card px-4 py-3 space-y-2">
     <div class="flex items-center justify-between">
-      <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">LOADOUT</span>
+      <span class="text-label-lg font-semibold text-muted-foreground">LOADOUT</span>
       <RouterLink
         to="/play/inventory"
         class="flex items-center gap-1 text-label md:text-sm text-primary hover:opacity-80 transition-opacity"

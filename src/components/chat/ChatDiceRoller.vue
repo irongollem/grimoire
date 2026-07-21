@@ -55,7 +55,7 @@
     <button
       type="button"
       :disabled="totalDice === 0"
-      class="w-full py-1.5 font-cinzel text-xs font-bold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-40"
+      class="w-full py-1.5 text-label-lg font-bold bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-40"
       @click="onRoll"
     >
       🎲 Roll &amp; Post

@@ -40,14 +40,14 @@
       </button>
     </div>
 
-    <p v-if="f.class" class="font-cinzel text-xs text-primary/70 tracking-wider text-center">
+    <p v-if="f.class" class="text-label-lg text-primary/70 text-center">
       ✓ {{ f.class }} selected — subclass unlocked through levelling
     </p>
 
     <!-- Proficiencies (collapsible) -->
     <div class="rounded-lg border border-border bg-card">
       <button type="button"
-        class="w-full flex items-center justify-between px-3 py-2 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+        class="w-full flex items-center justify-between px-3 py-2 text-label-lg font-semibold text-muted-foreground hover:text-foreground transition-colors"
         @click="showProfs = !showProfs">
         <span>PROFICIENCIES — SKILLS · SAVES · TOOLS · LANGUAGES</span>
         <span class="text-base transition-transform" :class="showProfs ? '' : '-rotate-90'">▾</span>
@@ -57,7 +57,7 @@
         <!-- ── Saving throws ─────────────────────────────────────────────── -->
         <div>
           <div class="flex items-baseline justify-between mb-2">
-            <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">SAVING THROWS</p>
+            <p class="text-label-lg font-semibold text-muted-foreground">SAVING THROWS</p>
             <p v-if="f.class" class="font-fell text-2xs text-muted-foreground/70 italic">fixed by class</p>
           </div>
 
@@ -89,7 +89,7 @@
         <!-- ── Skills ────────────────────────────────────────────────────── -->
         <div>
           <div class="flex items-baseline justify-between mb-2">
-            <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">SKILLS</p>
+            <p class="text-label-lg font-semibold text-muted-foreground">SKILLS</p>
             <!-- Budget indicator -->
             <p v-if="classSkillData" class="font-cinzel text-2xs"
               :class="picksRemaining === 0 ? 'text-primary' : picksRemaining < 0 ? 'text-destructive' : 'text-muted-foreground'">
@@ -172,7 +172,7 @@
 
         <!-- ── Tool proficiencies ─────────────────────────────────────────── -->
         <div>
-          <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-2">TOOL PROFICIENCIES</p>
+          <p class="text-label-lg font-semibold text-muted-foreground mb-2">TOOL PROFICIENCIES</p>
           <TagPickerInput :model-value="f.tool_proficiencies" :groups="TOOL_PROFICIENCY_GROUPS"
             placeholder="Search tools…" variant="primary"
             @update:model-value="f.tool_proficiencies = $event" />
@@ -180,7 +180,7 @@
 
         <!-- ── Languages ─────────────────────────────────────────────────── -->
         <div>
-          <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-2">LANGUAGES</p>
+          <p class="text-label-lg font-semibold text-muted-foreground mb-2">LANGUAGES</p>
           <TagPickerInput :model-value="f.languages" :groups="LANGUAGE_GROUPS"
             placeholder="Search languages…"
             @update:model-value="f.languages = $event" />

@@ -188,7 +188,7 @@
           <div class="flex justify-end gap-2">
             <button
               type="button"
-              class="px-4 py-1.5 rounded-md font-cinzel text-xs font-semibold tracking-wider text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              class="px-4 py-1.5 rounded-md text-label-lg font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               @click="$emit('close')"
             >
               Cancel
@@ -196,7 +196,7 @@
             <button
               type="button"
               :disabled="!isActiveCoverPage"
-              class="px-4 py-1.5 rounded-md bg-primary font-cinzel text-xs font-semibold tracking-wider text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+              class="px-4 py-1.5 rounded-md bg-primary text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
               @click="apply"
             >
               Apply

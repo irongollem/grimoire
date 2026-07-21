@@ -2,7 +2,7 @@
   <div class="flex flex-col gap-2">
     <div class="flex items-center justify-between">
       <span
-        class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
+        class="text-label-lg font-semibold text-muted-foreground"
         >Map</span
       >
       <label
@@ -10,7 +10,7 @@
         class="inline-flex items-center gap-2 cursor-pointer"
         title="Share map with players"
       >
-        <span class="font-cinzel text-xs text-muted-foreground tracking-wider"
+        <span class="text-label-lg text-muted-foreground"
           >Share with players</span
         >
         <button

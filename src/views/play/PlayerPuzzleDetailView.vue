@@ -3,7 +3,7 @@
     <!-- Back -->
     <RouterLink
       to="/play/puzzles"
-      class="inline-flex items-center gap-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors tracking-wider"
+      class="inline-flex items-center gap-1.5 text-label-lg font-semibold text-muted-foreground hover:text-foreground transition-colors"
     >
       <IconChevronLeft class="h-3.5 w-3.5" />
       Puzzles
@@ -67,7 +67,7 @@
       <!-- Setup description -->
       <div v-if="puzzle.description" class="rounded-lg border border-border bg-card overflow-hidden">
         <div class="px-3 py-2 border-b border-border bg-muted/20">
-          <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">The Room</span>
+          <span class="text-label-lg font-semibold text-muted-foreground">The Room</span>
         </div>
         <div class="p-4">
           <RichTextViewer :content="puzzle.description" />
@@ -77,7 +77,7 @@
       <!-- Revealed hints -->
       <div v-if="revealedHints.length" class="rounded-lg border border-border bg-card overflow-hidden">
         <div class="px-3 py-2 border-b border-border bg-muted/20">
-          <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">
+          <span class="text-label-lg font-semibold text-muted-foreground">
             Hints
             <span class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1">(revealed by the DM)</span>
           </span>

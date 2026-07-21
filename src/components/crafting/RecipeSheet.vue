@@ -11,7 +11,7 @@
       </button>
       <button
         type="button"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
         @click="router.push({ query: { ...route.query, edit: 'true' } })"
       >
         <IconEdit class="h-3.5 w-3.5" />Edit
@@ -54,7 +54,7 @@
 
     <!-- Player visibility -->
     <div v-if="recipe.player_visible_to?.length" class="flex items-center gap-1.5">
-      <span class="font-cinzel text-xs font-semibold tracking-wider px-2 py-0.5 rounded bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20">
+      <span class="text-label-lg font-semibold px-2 py-0.5 rounded bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20">
         Shared with players
       </span>
     </div>
@@ -68,7 +68,7 @@
     <!-- Outputs -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-2.5 border-b border-border bg-muted/20">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">OUTPUTS</span>
+        <span class="text-label-lg font-semibold text-muted-foreground">OUTPUTS</span>
       </div>
       <div class="p-4">
         <div v-if="outputs?.length" class="space-y-1.5">
@@ -84,7 +84,7 @@
     <!-- Ingredients -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-2.5 border-b border-border bg-muted/20">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">INGREDIENTS</span>
+        <span class="text-label-lg font-semibold text-muted-foreground">INGREDIENTS</span>
       </div>
       <div class="p-4">
         <div v-if="ingredients?.length" class="space-y-1.5">
@@ -109,7 +109,7 @@
     <!-- Modifiers -->
     <div v-if="modifiers?.length" class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-2.5 border-b border-border bg-muted/20">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">CONDITIONAL MODIFIERS</span>
+        <span class="text-label-lg font-semibold text-muted-foreground">CONDITIONAL MODIFIERS</span>
       </div>
       <div class="p-4 space-y-1.5">
         <div v-for="mod in modifiers" :key="mod.id" class="flex items-center justify-between gap-2">

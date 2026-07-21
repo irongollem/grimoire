@@ -176,7 +176,7 @@
         <!-- Description -->
         <div class="flex flex-col gap-1">
           <h3
-            class="font-cinzel text-xs font-bold tracking-wider text-primary uppercase"
+            class="text-label-lg font-bold text-primary uppercase"
           >
             Description
           </h3>
@@ -188,7 +188,7 @@
           v-if="item.curse_description && !playerView"
           class="rounded-lg border border-destructive/30 bg-destructive/5 p-4 flex flex-col gap-3"
         >
-          <h3 class="font-cinzel text-xs font-bold tracking-wider text-destructive uppercase">
+          <h3 class="text-label-lg font-bold text-destructive uppercase">
             Curse
           </h3>
           <RichTextViewer :content="item.curse_description" />
@@ -199,7 +199,7 @@
           v-if="item.dm_notes && !playerView"
           class="rounded-lg border border-amber-700/40 bg-amber-950/10 p-4 flex flex-col gap-2"
         >
-          <h3 class="font-cinzel text-xs font-bold tracking-wider text-amber-300/80 uppercase">
+          <h3 class="text-label-lg font-bold text-amber-300/80 uppercase">
             DM Notes
           </h3>
           <RichTextViewer :content="item.dm_notes" />
@@ -226,7 +226,7 @@
 
     <!-- Held by NPCs / party / shops (DM only) -->
     <div v-if="!playerView && holders?.length" class="flex flex-col gap-2">
-      <h3 class="font-cinzel text-xs font-bold tracking-wider text-muted-foreground uppercase">
+      <h3 class="text-label-lg font-bold text-muted-foreground uppercase">
         Held By
       </h3>
       <div class="flex flex-wrap gap-1.5">
@@ -246,7 +246,7 @@
 
     <!-- Contained in loot tables (DM only) -->
     <div v-if="!playerView && containedIn.length" class="flex flex-col gap-2">
-      <h3 class="font-cinzel text-xs font-bold tracking-wider text-muted-foreground uppercase">
+      <h3 class="text-label-lg font-bold text-muted-foreground uppercase">
         Contained In
       </h3>
       <div class="flex flex-wrap gap-1.5">

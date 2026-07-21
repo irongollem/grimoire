@@ -365,7 +365,9 @@
 @utility text-eyebrow {
   font-family: var(--font-cinzel);
   font-size: 0.625rem;
-  line-height: 1;
+  /* mirrors how the built-in text-* utilities resolve leading, so an explicit
+     leading-* class still wins regardless of rule order */
+  line-height: var(--tw-leading, 1);
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
@@ -377,7 +379,18 @@
 @utility text-label {
   font-family: var(--font-cinzel);
   font-size: 0.625rem;
-  line-height: 1;
+  line-height: var(--tw-leading, 1);
+  letter-spacing: 0.05em;
+}
+
+/* text-label-lg — the 12px step of the label family: section and field headings
+   ("Description", "DM Notes", "Proficiencies"). Uppercase is the minority at
+   this size (89 of 822 sites), so it is NOT bundled — keep `uppercase` explicit
+   where wanted. Equivalent to `font-cinzel text-xs tracking-wider`. */
+@utility text-label-lg {
+  font-family: var(--font-cinzel);
+  font-size: 0.75rem;
+  line-height: var(--tw-leading, calc(1 / 0.75));
   letter-spacing: 0.05em;
 }
 

@@ -27,7 +27,7 @@
         <!-- Header -->
         <div class="dice-panel-header">
           <span
-            class="font-cinzel text-xs font-bold tracking-wider text-foreground"
+            class="text-label-lg font-bold text-foreground"
             >Dice Roller</span
           >
           <button

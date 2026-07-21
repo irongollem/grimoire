@@ -18,7 +18,7 @@
         <button
           type="button"
           :disabled="!customName.trim()"
-          class="font-cinzel text-xs text-primary tracking-wider hover:opacity-80 disabled:opacity-40 transition-opacity text-left"
+          class="text-label-lg text-primary hover:opacity-80 disabled:opacity-40 transition-opacity text-left"
           @click="emit('apply-custom')"
         >Use → Token Preview</button>
       </div>

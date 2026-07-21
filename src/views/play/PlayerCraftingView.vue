@@ -150,7 +150,7 @@
             <button
               :disabled="!canCraft(recipe)"
               :title="recipe.requires_proficiency && !hasProficiency(getDiscipline(recipe.discipline).tools) ? `Requires ${getDiscipline(recipe.discipline).tools[0]} proficiency` : undefined"
-              class="w-full inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 disabled:opacity-40 transition-opacity"
+              class="w-full inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40 transition-opacity"
               @click="openAttempt(recipe)"
             >
               <IconDiceRoll class="h-3.5 w-3.5" />

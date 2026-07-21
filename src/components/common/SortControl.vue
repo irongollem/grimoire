@@ -5,7 +5,7 @@
     </div>
     <select
       v-model="sortBy"
-      class="bg-card py-1.5 pr-1 font-cinzel text-xs font-semibold tracking-wider text-foreground focus:outline-none cursor-pointer"
+      class="bg-card py-1.5 pr-1 text-label-lg font-semibold text-foreground focus:outline-none cursor-pointer"
       aria-label="Sort by"
     >
       <option v-for="opt in options" :key="opt.value" :value="opt.value">

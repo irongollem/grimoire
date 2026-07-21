@@ -1,7 +1,7 @@
 <template>
   <div class="rounded-lg border border-border bg-card overflow-hidden">
     <div class="px-4 py-2.5 border-b border-border flex items-center justify-between">
-      <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Battle Master Maneuvers</p>
+      <p class="text-label-lg font-semibold text-muted-foreground">Battle Master Maneuvers</p>
       <div class="flex items-center gap-2">
         <span class="text-label rounded px-1.5 py-0.5 bg-muted/50 text-muted-foreground border border-border">{{ superiorityDiceSize }}</span>
       </div>

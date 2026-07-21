@@ -184,7 +184,7 @@
       <!-- Billing toggle -->
       <div class="flex items-center gap-3">
         <button
-          class="font-cinzel text-xs font-semibold tracking-wider transition-colors"
+          class="text-label-lg font-semibold transition-colors"
           :class="
             !annual
               ? 'text-foreground'
@@ -207,7 +207,7 @@
           />
         </button>
         <button
-          class="font-cinzel text-xs font-semibold tracking-wider transition-colors"
+          class="text-label-lg font-semibold transition-colors"
           :class="
             annual
               ? 'text-foreground'
@@ -250,7 +250,7 @@
       <WithdrawalConsent v-model="subConsent" kind="subscription" class="mb-1" />
 
       <button
-        class="w-full py-2.5 rounded-md bg-amber-500 text-black font-cinzel text-xs font-semibold tracking-wider hover:bg-amber-400 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+        class="w-full py-2.5 rounded-md bg-amber-500 text-black text-label-lg font-semibold hover:bg-amber-400 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
         :disabled="stripeLoading || !activeProPrice || !subConsent"
         @click="createCheckoutSession(annual ? 'year' : 'month', subConsent)"
       >

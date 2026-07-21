@@ -46,7 +46,7 @@
       <RouterLink
         v-if="isAppAdmin"
         to="/hall-of-heroes/new"
-        class="mt-4 inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold tracking-wider text-primary-foreground hover:opacity-90 transition-opacity"
+        class="mt-4 inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
       >
         <IconAdd class="h-3.5 w-3.5" />
         Add Hero

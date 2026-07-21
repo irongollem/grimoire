@@ -80,7 +80,7 @@
       class="rounded-lg border border-border bg-card overflow-hidden"
     >
       <div class="px-4 py-2.5 border-b border-border">
-        <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Proficiencies & Languages</p>
+        <p class="text-label-lg font-semibold text-muted-foreground">Proficiencies & Languages</p>
       </div>
       <div class="divide-y divide-border">
         <div v-if="member.languages?.length" class="flex gap-3 px-4 py-2.5">
@@ -117,7 +117,7 @@
     <!-- ── Background feat (2024 PHB) ──────────────────────────────────────── -->
     <div v-if="backgroundFeat" class="rounded-lg border border-amber-500/30 bg-amber-500/5 overflow-hidden">
       <div class="px-4 py-2.5 border-b border-amber-500/20 bg-amber-500/10 flex items-center gap-2">
-        <p class="font-cinzel text-xs font-semibold text-amber-600 dark:text-amber-400 tracking-wider">Background Feat</p>
+        <p class="text-label-lg font-semibold text-amber-600 dark:text-amber-400">Background Feat</p>
         <span class="text-eyebrow text-amber-600/60 dark:text-amber-400/60">2024 PHB</span>
       </div>
       <div class="px-4 py-3">
@@ -127,7 +127,7 @@
 
     <div v-if="choiceEntries.length > 0" class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-2.5 border-b border-border">
-        <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Choices</p>
+        <p class="text-label-lg font-semibold text-muted-foreground">Choices</p>
       </div>
       <div class="divide-y divide-border">
         <div
@@ -166,7 +166,7 @@
     <!-- ── Divine Smite (Paladin) ───────────────────────────────────────────── -->
     <div v-if="isPaladin" class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-2.5 border-b border-border">
-        <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Divine Smite</p>
+        <p class="text-label-lg font-semibold text-muted-foreground">Divine Smite</p>
       </div>
       <div class="divide-y divide-border">
         <div v-for="row in DIVINE_SMITE_TABLE" :key="row.slotLevel" class="flex items-center gap-3 px-4 py-2">

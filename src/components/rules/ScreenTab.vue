@@ -5,7 +5,7 @@
       <button
         v-for="section in sections"
         :key="section.id"
-        class="px-3 py-1.5 rounded-md font-cinzel text-xs font-semibold tracking-wider transition-colors"
+        class="px-3 py-1.5 rounded-md text-label-lg font-semibold transition-colors"
         :class="activeSection === section.id
           ? 'bg-primary text-primary-foreground'
           : 'bg-card border border-border text-muted-foreground hover:text-foreground hover:border-primary/50'"
@@ -33,7 +33,7 @@
                   <th
                     v-for="col in table.columns"
                     :key="col"
-                    class="px-4 py-2 text-left font-cinzel text-xs font-semibold text-muted-foreground tracking-wider whitespace-nowrap"
+                    class="px-4 py-2 text-left text-label-lg font-semibold text-muted-foreground whitespace-nowrap"
                   >
                     {{ col }}
                   </th>

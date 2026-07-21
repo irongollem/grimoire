@@ -12,7 +12,7 @@
       </button>
       <button
         type="button"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
         @click="router.push({ query: { ...route.query, edit: 'true' } })"
       >
         <IconEdit class="h-3.5 w-3.5" />
@@ -61,7 +61,7 @@
     <!-- Mechanics -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-3 py-2 border-b border-border bg-muted/20">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Mechanics</span>
+        <span class="text-label-lg font-semibold text-muted-foreground">Mechanics</span>
       </div>
       <div class="p-4 flex flex-col gap-3">
         <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2">
@@ -109,7 +109,7 @@
       class="rounded-lg border border-border bg-card overflow-hidden"
     >
       <div class="px-3 py-2 border-b border-border bg-muted/20">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Effect</span>
+        <span class="text-label-lg font-semibold text-muted-foreground">Effect</span>
       </div>
       <div class="p-4 flex flex-col gap-3">
         <p v-if="trap.effect_description" class="font-fell text-sm text-foreground">{{ trap.effect_description }}</p>
@@ -142,7 +142,7 @@
     <!-- Description -->
     <div v-if="hasDescription" class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-3 py-2 border-b border-border bg-muted/20">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Description</span>
+        <span class="text-label-lg font-semibold text-muted-foreground">Description</span>
       </div>
       <div class="p-4">
         <RichTextViewer :content="trap.description" />
@@ -152,7 +152,7 @@
     <!-- DM Notes -->
     <div v-if="hasNotes" class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-3 py-2 border-b border-border bg-muted/20">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">DM Notes</span>
+        <span class="text-label-lg font-semibold text-muted-foreground">DM Notes</span>
       </div>
       <div class="p-4">
         <RichTextViewer :content="trap.notes" />

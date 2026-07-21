@@ -31,7 +31,7 @@
               :class="{ 'opacity-50 cursor-not-allowed': isPending }"
             >
               <IconUpload class="h-8 w-8 text-muted-foreground" />
-              <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">
+              <span class="text-label-lg font-semibold text-muted-foreground">
                 Click to select backup file
               </span>
               <span class="font-fell text-xs text-muted-foreground italic">
@@ -82,7 +82,7 @@
 
             <!-- New name -->
             <div>
-              <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">
+              <label class="block text-label-lg font-semibold text-muted-foreground mb-1">
                 IMPORT AS
               </label>
               <input
@@ -112,7 +112,7 @@
           <button
             v-if="preview"
             type="button"
-            class="px-4 py-2 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
+            class="px-4 py-2 text-label-lg font-semibold text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
             :disabled="isPending"
             @click="resetPreview"
           >
@@ -120,7 +120,7 @@
           </button>
           <button
             type="button"
-            class="px-4 py-2 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
+            class="px-4 py-2 text-label-lg font-semibold text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
             :disabled="isPending"
             @click="close"
           >
@@ -130,7 +130,7 @@
             v-if="preview"
             type="button"
             :disabled="isPending || !newName.trim()"
-            class="px-4 py-2 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+            class="px-4 py-2 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
             @click="doImport"
           >
             {{ isPending ? "Importing…" : "Import Campaign" }}

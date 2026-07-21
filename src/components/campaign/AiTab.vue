@@ -35,7 +35,7 @@
     <!-- Local Mode Toggle -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-3 border-b border-border bg-muted/20">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Key Storage Mode</span>
+        <span class="text-label-lg font-semibold text-muted-foreground">Key Storage Mode</span>
       </div>
       <div class="p-4 flex flex-col gap-3">
         <label class="flex items-center gap-2 cursor-pointer">
@@ -60,7 +60,7 @@
     <!-- Provider Keys -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-3 border-b border-border bg-muted/20">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">API Keys · BYOK</span>
+        <span class="text-label-lg font-semibold text-muted-foreground">API Keys · BYOK</span>
       </div>
       <div class="p-4 flex flex-col gap-4">
         <p class="font-fell text-xs text-muted-foreground italic">
@@ -116,7 +116,7 @@
     <!-- Provider Selection -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-3 border-b border-border bg-muted/20">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Active Providers</span>
+        <span class="text-label-lg font-semibold text-muted-foreground">Active Providers</span>
       </div>
       <div class="p-4 flex flex-col gap-4">
 
@@ -180,7 +180,7 @@
     <!-- Setting prompt -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-3 border-b border-border bg-muted/20 flex items-center justify-between">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Campaign Setting Prompt</span>
+        <span class="text-label-lg font-semibold text-muted-foreground">Campaign Setting Prompt</span>
         <button
           v-if="settingDefaultPrompt"
           type="button"
@@ -214,7 +214,7 @@
     <!-- Promotional consent -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-3 border-b border-border bg-muted/20">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Chronicler Promotion</span>
+        <span class="text-label-lg font-semibold text-muted-foreground">Chronicler Promotion</span>
       </div>
       <div class="p-4 flex flex-col gap-3">
         <label class="flex items-start gap-2 cursor-pointer">
@@ -237,7 +237,7 @@
       <button
         type="submit"
         :disabled="isSaving"
-        class="px-4 py-1.5 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+        class="px-4 py-1.5 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
       >
         {{ isSaving ? "Saving…" : "Save" }}
       </button>

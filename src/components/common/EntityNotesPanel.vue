@@ -1,6 +1,6 @@
 <template>
   <div class="flex flex-col gap-3">
-    <h2 class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground uppercase">Notes</h2>
+    <h2 class="text-label-lg font-semibold text-muted-foreground uppercase">Notes</h2>
 
     <!-- Existing notes -->
     <div v-if="notes?.length" class="flex flex-col gap-2">

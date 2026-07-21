@@ -24,7 +24,7 @@
 
     <!-- Species picker -->
     <div class="space-y-3">
-      <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">SPECIES</p>
+      <p class="text-label-lg font-semibold text-muted-foreground">SPECIES</p>
       <div v-if="!allSpecies?.length" class="rounded-lg border border-border bg-card p-6 text-center">
         <p class="font-fell text-sm text-muted-foreground italic">No species in the campaign yet — skip for now.</p>
       </div>
@@ -62,7 +62,7 @@
       <!-- Subrace picker -->
       <div v-if="subraceOptions.length > 0"
         class="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
-        <p class="font-cinzel text-xs font-semibold text-primary tracking-wider">CHOOSE A VARIANT</p>
+        <p class="text-label-lg font-semibold text-primary">CHOOSE A VARIANT</p>
         <div class="flex flex-wrap gap-2">
           <button v-for="sr in subraceOptions" :key="sr" type="button"
             class="px-3 py-1.5 rounded-md font-cinzel text-xs font-semibold transition-colors"
@@ -75,7 +75,7 @@
         </div>
       </div>
 
-      <p v-if="f.species_id" class="font-cinzel text-xs text-primary/70 tracking-wider text-center">
+      <p v-if="f.species_id" class="text-label-lg text-primary/70 text-center">
         ✓ {{ selectedSpecies?.name }} selected{{ f.subrace ? ` — ${f.subrace}` : '' }}
       </p>
     </div>

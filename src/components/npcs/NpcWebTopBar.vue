@@ -27,7 +27,7 @@
       <!-- Show PCs toggle -->
       <button
         type="button"
-        class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border font-cinzel text-xs font-semibold tracking-wider transition-colors"
+        class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-label-lg font-semibold transition-colors"
         :class="showPcs
           ? 'bg-amber-500/20 border-amber-500/50 text-amber-400'
           : 'border-border text-muted-foreground hover:text-foreground'"

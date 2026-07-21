@@ -14,7 +14,7 @@
       >
         <IconTip class="h-3.5 w-3.5 text-primary shrink-0" />
         <h3
-          class="font-cinzel text-xs font-bold tracking-wider text-muted-foreground uppercase"
+          class="text-label-lg font-bold text-muted-foreground uppercase"
         >
           Spell Level Advisor
         </h3>

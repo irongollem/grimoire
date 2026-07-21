@@ -12,7 +12,7 @@
       </button>
       <button
         type="button"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
         @click="router.push({ query: { ...route.query, edit: 'true' } })"
       >
         <IconEdit class="h-3.5 w-3.5" />
@@ -56,7 +56,7 @@
       class="rounded-lg border border-border bg-card overflow-hidden"
     >
       <div class="px-3 py-2 border-b border-border bg-muted/20">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Discovery</span>
+        <span class="text-label-lg font-semibold text-muted-foreground">Discovery</span>
       </div>
       <div class="p-4 grid grid-cols-3 gap-x-6">
         <div v-if="feature.perception_dc">
@@ -80,7 +80,7 @@
       class="rounded-lg border border-border bg-card overflow-hidden"
     >
       <div class="px-3 py-2 border-b border-border bg-muted/20">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Trigger</span>
+        <span class="text-label-lg font-semibold text-muted-foreground">Trigger</span>
       </div>
       <div class="p-4 flex flex-col gap-2">
         <span
@@ -96,7 +96,7 @@
     <!-- Contents -->
     <div v-if="hasContents" class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-3 py-2 border-b border-border bg-muted/20">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Contents / What's Inside</span>
+        <span class="text-label-lg font-semibold text-muted-foreground">Contents / What's Inside</span>
       </div>
       <div class="p-4">
         <RichTextViewer :content="feature.contents_description" />
@@ -106,7 +106,7 @@
     <!-- Description -->
     <div v-if="hasDescription" class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-3 py-2 border-b border-border bg-muted/20">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Description</span>
+        <span class="text-label-lg font-semibold text-muted-foreground">Description</span>
       </div>
       <div class="p-4">
         <RichTextViewer :content="feature.description" />
@@ -116,7 +116,7 @@
     <!-- DM Notes -->
     <div v-if="hasNotes" class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-3 py-2 border-b border-border bg-muted/20">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">DM Notes</span>
+        <span class="text-label-lg font-semibold text-muted-foreground">DM Notes</span>
       </div>
       <div class="p-4">
         <RichTextViewer :content="feature.notes" />

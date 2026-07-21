@@ -176,7 +176,7 @@
         </button>
         <button
           type="button"
-          class="font-cinzel text-xs font-semibold tracking-wider text-primary"
+          class="text-label-lg font-semibold text-primary"
           @click="ui.resetMonstersFilters()"
         >
           Clear all
@@ -195,7 +195,7 @@
     <MobileSheet v-model:open="filtersOpen" title="Filter Monsters">
       <div class="flex flex-col gap-4 py-1">
         <div>
-          <p class="mb-1.5 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">Source</p>
+          <p class="mb-1.5 text-label-lg font-semibold text-muted-foreground">Source</p>
           <ListFilterSelect v-model="ui.monstersFilterSource" aria-label="Source filter" class="w-full">
             <option value="all">All sources</option>
             <option value="custom">Custom</option>
@@ -207,7 +207,7 @@
           </ListFilterSelect>
         </div>
         <div>
-          <p class="mb-1.5 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">Type</p>
+          <p class="mb-1.5 text-label-lg font-semibold text-muted-foreground">Type</p>
           <ListFilterSelect v-model="ui.monstersFilterType" aria-label="Monster type filter" class="w-full">
             <option v-for="opt in TYPE_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
           </ListFilterSelect>

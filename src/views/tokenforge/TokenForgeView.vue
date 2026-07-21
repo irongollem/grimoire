@@ -109,7 +109,7 @@
           </p>
           <button
             type="button"
-            class="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2.5 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+            class="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
             @click="printCoins"
           >
             Print Sheet

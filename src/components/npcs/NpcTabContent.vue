@@ -17,7 +17,7 @@
         v-for="tab in TABS"
         :key="tab.key"
         type="button"
-        class="px-4 py-2 font-cinzel text-xs font-semibold tracking-wider border-b-2 transition-colors -mb-px"
+        class="px-4 py-2 text-label-lg font-semibold border-b-2 transition-colors -mb-px"
         :class="activeTab === tab.key
           ? 'border-primary text-foreground'
           : 'border-transparent text-muted-foreground hover:text-foreground'"
@@ -28,19 +28,19 @@
     <!-- Lore tab -->
     <div v-if="activeTab === 'lore'" class="space-y-4">
       <div v-if="npc.appearance" class="flex flex-col gap-1">
-        <h3 class="font-cinzel text-xs font-bold tracking-wider text-primary uppercase">Appearance</h3>
+        <h3 class="text-label-lg font-bold text-primary uppercase">Appearance</h3>
         <RichTextViewer :content="npc.appearance" />
       </div>
       <div v-if="npc.personality" class="flex flex-col gap-1">
-        <h3 class="font-cinzel text-xs font-bold tracking-wider text-primary uppercase">Personality</h3>
+        <h3 class="text-label-lg font-bold text-primary uppercase">Personality</h3>
         <RichTextViewer :content="npc.personality" />
       </div>
       <div v-if="npc.backstory" class="flex flex-col gap-1">
-        <h3 class="font-cinzel text-xs font-bold tracking-wider text-primary uppercase">Backstory</h3>
+        <h3 class="text-label-lg font-bold text-primary uppercase">Backstory</h3>
         <RichTextViewer :content="npc.backstory" />
       </div>
       <div v-if="npc.notes" class="flex flex-col gap-1">
-        <h3 class="font-cinzel text-xs font-bold tracking-wider text-muted-foreground uppercase">DM Notes</h3>
+        <h3 class="text-label-lg font-bold text-muted-foreground uppercase">DM Notes</h3>
         <RichTextViewer :content="npc.notes" />
       </div>
       <p v-if="!npc.appearance && !npc.personality && !npc.backstory && !npc.notes"

@@ -13,7 +13,7 @@
         title="Drag to move"
         @pointerdown="onHeaderDown"
       >
-        <h2 class="font-cinzel text-xs font-bold tracking-wider uppercase text-foreground pointer-events-none">{{ kindLabel }}</h2>
+        <h2 class="text-label-lg font-bold uppercase text-foreground pointer-events-none">{{ kindLabel }}</h2>
         <button type="button" class="text-muted-foreground hover:text-foreground transition-colors" title="Close" @click="$emit('close')" @pointerdown.stop>
           <IconClose class="h-4 w-4" />
         </button>

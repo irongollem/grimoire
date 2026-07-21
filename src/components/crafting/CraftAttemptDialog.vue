@@ -27,7 +27,7 @@
 
           <!-- Ingredient slots -->
           <div>
-            <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-2">INGREDIENTS</p>
+            <p class="text-label-lg font-semibold text-muted-foreground mb-2">INGREDIENTS</p>
             <div class="flex flex-col gap-1.5">
               <div
                 v-for="(ing, idx) in ingredientSlots"
@@ -71,7 +71,7 @@
 
           <!-- Modifiers: default + recipe-specific -->
           <div v-if="modifiers.length > 0 || workspaceBonus > 0">
-            <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-2">AVAILABLE MODIFIERS</p>
+            <p class="text-label-lg font-semibold text-muted-foreground mb-2">AVAILABLE MODIFIERS</p>
             <div class="flex flex-col gap-1.5">
               <!-- Standard workspace bonus -->
               <label
@@ -157,7 +157,7 @@
         <div class="flex justify-end gap-2 px-5 py-4 border-t border-border">
           <button
             v-if="!result"
-            class="px-4 py-2 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
+            class="px-4 py-2 text-label-lg font-semibold text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
             @click="$emit('close')"
           >
             Cancel
@@ -165,7 +165,7 @@
           <button
             v-if="!result"
             :disabled="!canAttempt || attempting"
-            class="inline-flex items-center gap-1.5 px-4 py-2 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+            class="inline-flex items-center gap-1.5 px-4 py-2 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
             @click="attempt"
           >
             <IconDiceRoll class="h-3.5 w-3.5" />
@@ -173,7 +173,7 @@
           </button>
           <button
             v-if="result"
-            class="px-4 py-2 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity"
+            class="px-4 py-2 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity"
             @click="$emit('done', result)"
           >
             Done

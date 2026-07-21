@@ -6,7 +6,7 @@
       </div>
       <button
         type="button"
-        class="inline-flex items-center gap-1 px-2.5 py-1 font-cinzel text-xs font-semibold tracking-wider border border-border rounded-md hover:bg-muted transition-colors"
+        class="inline-flex items-center gap-1 px-2.5 py-1 text-label-lg font-semibold border border-border rounded-md hover:bg-muted transition-colors"
         @click="showForm = true"
       >
         <IconAdd class="h-3 w-3" />

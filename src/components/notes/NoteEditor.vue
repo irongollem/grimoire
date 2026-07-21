@@ -23,7 +23,7 @@
 
       <!-- Session # — only relevant for session notes -->
       <label v-if="category === 'session'" class="flex items-center gap-1.5">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">#</span>
+        <span class="text-label-lg font-semibold text-muted-foreground">#</span>
         <input
           v-model.number="sessionNum"
           type="number"
@@ -53,7 +53,7 @@
       <button
         type="button"
         :disabled="saving || !title.trim()"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
+        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
         @click="save"
       >
         <IconSave class="h-3.5 w-3.5" />
@@ -78,7 +78,7 @@
     <!-- ── Session date fields ──────────────────────────────────────────────── -->
     <template v-if="category === 'session'">
       <div class="rounded-lg border border-border bg-muted/20 p-4 space-y-3">
-        <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">SESSION DATES</p>
+        <p class="text-label-lg font-semibold text-muted-foreground">SESSION DATES</p>
 
         <!-- Start date -->
         <div class="space-y-1.5">

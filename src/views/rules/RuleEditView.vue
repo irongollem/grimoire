@@ -23,7 +23,7 @@
     <form v-else class="max-w-3xl space-y-5" @submit.prevent="handleSave">
       <!-- Title -->
       <div class="space-y-1.5">
-        <label class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">TITLE</label>
+        <label class="text-label-lg font-semibold text-muted-foreground">TITLE</label>
         <input
           v-model="form.title"
           type="text"
@@ -36,7 +36,7 @@
       <!-- Category + Tags row -->
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="space-y-1.5">
-          <label class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">CATEGORY</label>
+          <label class="text-label-lg font-semibold text-muted-foreground">CATEGORY</label>
           <select
             v-model="form.category"
             class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -47,7 +47,7 @@
         </div>
 
         <div class="space-y-1.5">
-          <label class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">TAGS</label>
+          <label class="text-label-lg font-semibold text-muted-foreground">TAGS</label>
           <TagInput v-model="tags" />
         </div>
       </div>
@@ -55,13 +55,13 @@
       <!-- Player visibility -->
       <label class="flex items-center gap-2 cursor-pointer select-none">
         <input type="checkbox" v-model="form.isPlayerVisible" class="rounded" />
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">VISIBLE TO PLAYERS</span>
+        <span class="text-label-lg font-semibold text-muted-foreground">VISIBLE TO PLAYERS</span>
         <span class="font-fell text-xs text-muted-foreground italic">— players can read this rule in their portal</span>
       </label>
 
       <!-- Rich text content -->
       <div class="space-y-1.5">
-        <label class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">CONTENT</label>
+        <label class="text-label-lg font-semibold text-muted-foreground">CONTENT</label>
         <RichTextEditor v-model="form.content" placeholder="Write your rule, table, or system here…" />
       </div>
 
@@ -70,7 +70,7 @@
         <!-- Header row -->
         <div class="flex items-center justify-between px-4 py-3">
           <div>
-            <span class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">TRACKER</span>
+            <span class="text-label-lg font-semibold text-muted-foreground">TRACKER</span>
             <p class="font-fell text-[0.6875rem] text-muted-foreground italic mt-0.5">
               Attach a per-player track (like Corruption, Hunger, Sanity) with named levels and DM controls.
             </p>
@@ -386,7 +386,7 @@
         <button
           type="submit"
           :disabled="saving"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
+          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
         >
           {{ saving ? "Saving…" : "Save Rule" }}
         </button>

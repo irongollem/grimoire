@@ -111,7 +111,7 @@
         <div class="px-5 py-4 border-t border-border flex items-center justify-end gap-2">
           <button
             type="button"
-            class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+            class="text-label-lg font-semibold text-muted-foreground hover:text-foreground transition-colors"
             @click="emit('close')"
           >
             Cancel
@@ -119,7 +119,7 @@
           <button
             type="button"
             :disabled="dropping || !atoms.length || effectiveCap === null || effectiveCap <= 0"
-            class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
+            class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
             @click="emit('drop')"
           >
             <IconPackageOpen class="size-3.5" />

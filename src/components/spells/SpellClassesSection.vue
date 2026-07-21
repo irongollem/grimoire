@@ -1,7 +1,7 @@
 <template>
   <div class="rounded-lg border border-border bg-card p-4">
     <h3
-      class="font-cinzel text-xs font-bold tracking-wider text-muted-foreground uppercase mb-3"
+      class="text-label-lg font-bold text-muted-foreground uppercase mb-3"
     >
       Spell Lists
     </h3>

@@ -21,7 +21,7 @@
 
         <form class="px-5 py-4 space-y-4 max-h-[70vh] overflow-y-auto" @submit.prevent="submit">
           <div>
-            <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">NAME</label>
+            <label class="block text-label-lg font-semibold text-muted-foreground mb-1">NAME</label>
             <input
               v-model="form.name"
               required
@@ -32,7 +32,7 @@
           </div>
 
           <div>
-            <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">WORLD</label>
+            <label class="block text-label-lg font-semibold text-muted-foreground mb-1">WORLD</label>
             <input
               v-model="form.setting"
               list="new-campaign-settings-list"
@@ -55,7 +55,7 @@
           </div>
 
           <div>
-            <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">RULESET</label>
+            <label class="block text-label-lg font-semibold text-muted-foreground mb-1">RULESET</label>
             <select
               v-model="form.ruleset"
               class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -71,7 +71,7 @@
 
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">CALENDAR</label>
+              <label class="block text-label-lg font-semibold text-muted-foreground mb-1">CALENDAR</label>
               <select
                 v-model="form.calendar_id"
                 class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -82,7 +82,7 @@
               </select>
             </div>
             <div>
-              <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">CURRENT YEAR</label>
+              <label class="block text-label-lg font-semibold text-muted-foreground mb-1">CURRENT YEAR</label>
               <input
                 v-model.number="form.current_year"
                 type="number"
@@ -119,7 +119,7 @@
           <div class="flex justify-end gap-2 pt-1">
             <button
               type="button"
-              class="px-4 py-2 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
+              class="px-4 py-2 text-label-lg font-semibold text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
               @click="close"
             >
               Cancel
@@ -127,7 +127,7 @@
             <button
               type="submit"
               :disabled="isSaving"
-              class="px-4 py-2 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+              class="px-4 py-2 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
             >
               {{ isSaving ? "Saving…" : "Create Campaign" }}
             </button>

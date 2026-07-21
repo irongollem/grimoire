@@ -25,7 +25,7 @@
             </h2>
             <button
               type="button"
-              class="font-cinzel text-xs text-muted-foreground hover:text-foreground tracking-wider transition-colors"
+              class="text-label-lg text-muted-foreground hover:text-foreground transition-colors"
               @click="emit('skip')"
             >
               Skip →
@@ -279,14 +279,14 @@
           >
             <button
               type="button"
-              class="font-cinzel text-xs text-muted-foreground hover:text-foreground tracking-wider transition-colors"
+              class="text-label-lg text-muted-foreground hover:text-foreground transition-colors"
               @click="emit('skip')"
             >
               Skip, I'll fill it in manually
             </button>
             <button
               type="button"
-              class="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
+              class="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
               @click="emit('apply')"
             >
               Apply to Spell (Level

@@ -7,7 +7,7 @@
       class="rounded-lg border border-border bg-card overflow-hidden"
     >
       <div class="px-4 py-2.5 border-b border-border">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase">About</span>
+        <span class="text-label-lg font-semibold text-muted-foreground uppercase">About</span>
       </div>
       <div class="p-3">
         <RichTextEditor
@@ -27,7 +27,7 @@
     <!-- Identity -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-2.5 border-b border-border">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase">Identity</span>
+        <span class="text-label-lg font-semibold text-muted-foreground uppercase">Identity</span>
       </div>
       <div v-if="isOwner" class="p-4 space-y-3">
         <div class="grid grid-cols-3 gap-3">
@@ -74,7 +74,7 @@
     <!-- Personality -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-2.5 border-b border-border">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase">Personality</span>
+        <span class="text-label-lg font-semibold text-muted-foreground uppercase">Personality</span>
       </div>
       <div v-if="isOwner" class="p-4 space-y-3">
         <div class="grid grid-cols-2 gap-3">
@@ -179,14 +179,14 @@
 
     <!-- Notes (plain DM/creation notes — read-only always) -->
     <div v-if="member.notes" class="rounded-lg border border-border bg-card p-4">
-      <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase mb-2">Notes</p>
+      <p class="text-label-lg font-semibold text-muted-foreground uppercase mb-2">Notes</p>
       <RichTextViewer :content="member.notes" class="font-fell text-sm text-foreground" />
     </div>
 
     <!-- Background -->
     <div v-if="background" class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-2.5 border-b border-border">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase">Background</span>
+        <span class="text-label-lg font-semibold text-muted-foreground uppercase">Background</span>
       </div>
       <div class="p-4 space-y-3">
         <!-- Name + image -->

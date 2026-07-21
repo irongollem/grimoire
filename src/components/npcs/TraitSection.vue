@@ -1,6 +1,6 @@
 <template>
   <div>
-    <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-2">
+    <p class="text-label-lg font-semibold text-muted-foreground mb-2">
       {{ label.toUpperCase() }}
     </p>
     <div v-for="(entry, i) in model" :key="keys[i]" class="flex gap-2 mb-2 items-start">

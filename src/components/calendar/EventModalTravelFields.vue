@@ -1,6 +1,6 @@
 <template>
   <div>
-    <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">
+    <label class="block text-label-lg font-semibold text-muted-foreground mb-1">
       DESTINATION
     </label>
     <EntityCombobox
@@ -17,7 +17,7 @@
   </div>
 
   <div v-if="party.length">
-    <label class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1">
+    <label class="block text-label-lg font-semibold text-muted-foreground mb-1">
       TRAVELERS
       <span class="font-fell normal-case tracking-normal text-muted-foreground">(updates their current location)</span>
     </label>

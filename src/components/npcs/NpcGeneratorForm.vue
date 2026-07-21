@@ -2,7 +2,7 @@
   <!-- Concept -->
   <div>
     <label
-      class="block font-cinzel text-xs font-semibold tracking-wider text-muted-foreground mb-1.5"
+      class="block text-label-lg font-semibold text-muted-foreground mb-1.5"
     >
       CONCEPT
       <span
@@ -24,7 +24,7 @@
   <!-- Quick options -->
   <div class="space-y-3">
     <p
-      class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground"
+      class="text-label-lg font-semibold text-muted-foreground"
     >
       QUICK OPTIONS
     </p>

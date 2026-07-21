@@ -2,7 +2,7 @@
   <!-- ═══ CONTAINERS ═══ -->
   <div>
     <div class="flex items-center justify-between mb-2">
-      <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">
+      <p class="text-label-lg font-semibold text-muted-foreground">
         Containers
       </p>
       <button
@@ -126,7 +126,7 @@
 
   <!-- ═══ STORED (owned but not on person) ═══ -->
   <div>
-    <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-2">
+    <p class="text-label-lg font-semibold text-muted-foreground mb-2">
       Stored Elsewhere
     </p>
     <div class="rounded-lg border border-border bg-card overflow-hidden min-h-10">
@@ -160,7 +160,7 @@
 
   <!-- ═══ PARTY STASH ═══ -->
   <div>
-    <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-2">
+    <p class="text-label-lg font-semibold text-muted-foreground mb-2">
       Party Stash
     </p>
     <div class="rounded-lg border border-border bg-card overflow-hidden min-h-10">

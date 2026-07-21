@@ -28,7 +28,7 @@
         class="rounded"
         @change="$emit('update:isPublished', ($event.target as HTMLInputElement).checked)"
       />
-      <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">PUBLISHED</span>
+      <span class="text-label-lg font-semibold text-muted-foreground">PUBLISHED</span>
     </label>
     <label class="flex items-center gap-2 cursor-pointer select-none">
       <input
@@ -37,7 +37,7 @@
         class="rounded"
         @change="$emit('update:showPageNumbers', ($event.target as HTMLInputElement).checked)"
       />
-      <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">PAGE #S</span>
+      <span class="text-label-lg font-semibold text-muted-foreground">PAGE #S</span>
     </label>
     <template v-if="showPageNumbers">
       <input
@@ -60,7 +60,7 @@
     <button
       type="button"
       :disabled="isSaving || !title.trim()"
-      class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
+      class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
       @click="$emit('save')"
     >
       <IconSave class="h-3.5 w-3.5" />

@@ -60,7 +60,7 @@
               ? 'Another generation is already in progress'
               : undefined
           "
-          class="w-full inline-flex items-center justify-center gap-1.5 py-2 font-cinzel text-xs font-semibold tracking-wider rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
+          class="w-full inline-flex items-center justify-center gap-1.5 py-2 text-label-lg font-semibold rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
           @click="generateAndCreate"
         >
           <IconGenerate class="h-3.5 w-3.5" />
@@ -69,7 +69,7 @@
         <button
           v-else-if="!isPro"
           type="button"
-          class="w-full inline-flex items-center justify-center gap-1.5 py-2 font-cinzel text-xs font-semibold tracking-wider rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+          class="w-full inline-flex items-center justify-center gap-1.5 py-2 text-label-lg font-semibold rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
           @click="showPaywall = true"
         >
           <IconGenerate class="h-3.5 w-3.5" />
@@ -78,7 +78,7 @@
         <button
           type="button"
           :disabled="isCreating"
-          class="w-full py-2 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+          class="w-full py-2 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
           @click="quickCreate"
         >
           {{ isCreating ? "Creating…" : "Quick Create NPC" }}

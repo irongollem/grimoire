@@ -37,7 +37,7 @@
             :style="{ borderColor: col.color }"
           >
             <span class="h-2 w-2 rounded-full shrink-0" :style="{ backgroundColor: col.color }" />
-            <span class="font-cinzel text-xs font-bold tracking-wider text-foreground">{{ col.label }}</span>
+            <span class="text-label-lg font-bold text-foreground">{{ col.label }}</span>
             <span class="ml-auto font-fell text-xs text-muted-foreground">{{ col.quests.length }}</span>
           </div>
 

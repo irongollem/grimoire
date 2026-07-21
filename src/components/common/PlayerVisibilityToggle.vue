@@ -3,7 +3,7 @@
     <button
       type="button"
       :title="label"
-      class="inline-flex items-center gap-1.5 rounded-md border px-3 py-2 font-cinzel text-xs font-semibold tracking-wider transition-colors focus:outline-none"
+      class="inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-label-lg font-semibold transition-colors focus:outline-none"
       :class="isShared
         ? 'bg-primary/10 border-primary/40 text-primary hover:bg-primary/20'
         : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground'"
@@ -28,7 +28,7 @@
         <!-- All players toggle -->
         <button
           type="button"
-          class="w-full flex items-center gap-2 rounded-md px-2.5 py-1.5 mb-1 font-cinzel text-xs font-semibold tracking-wider transition-colors border"
+          class="w-full flex items-center gap-2 rounded-md px-2.5 py-1.5 mb-1 text-label-lg font-semibold transition-colors border"
           :class="allSelected
             ? 'bg-primary/15 border-primary/40 text-primary'
             : 'border-border text-muted-foreground hover:border-primary/30 hover:text-foreground'"

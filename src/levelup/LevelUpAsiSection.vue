@@ -2,7 +2,7 @@
   <WizardStepCard title="Ability Score Improvement or Feat">
     <p class="font-fell text-sm text-muted-foreground">Choose how to apply your improvement.</p>
 
-    <div class="flex rounded-md border border-border overflow-hidden w-fit font-cinzel text-xs tracking-wider">
+    <div class="flex rounded-md border border-border overflow-hidden w-fit text-label-lg">
       <button class="px-3 py-1.5 transition-colors"
         :class="asiMode === 'plus2' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
         @click="emit('update:asiMode', 'plus2')">+2 to one</button>
@@ -68,7 +68,7 @@
           </button>
         </div>
         <p v-else-if="featSearch" class="font-fell text-sm text-muted-foreground italic">No matching features found.</p>
-        <p v-if="featId" class="font-cinzel text-xs text-primary tracking-wider">✓ {{ selectedFeatName }}</p>
+        <p v-if="featId" class="text-label-lg text-primary">✓ {{ selectedFeatName }}</p>
       </div>
     </template>
   </WizardStepCard>

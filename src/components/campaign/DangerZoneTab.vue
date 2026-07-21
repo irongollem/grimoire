@@ -1,7 +1,7 @@
 <template>
   <div class="max-w-lg">
     <div class="border border-destructive/40 rounded-lg p-5 space-y-4">
-      <p class="font-cinzel text-xs font-semibold tracking-wider text-destructive">DELETE CAMPAIGN</p>
+      <p class="text-label-lg font-semibold text-destructive">DELETE CAMPAIGN</p>
       <p class="font-fell text-sm text-muted-foreground">
         This permanently deletes
         <span class="text-foreground font-semibold">{{ campaign?.name }}</span>.
@@ -20,7 +20,7 @@
       <button
         type="button"
         :disabled="deleteConfirmInput !== campaign?.name || isDeleting"
-        class="w-full px-4 py-2 font-cinzel text-xs font-semibold tracking-wider bg-destructive text-destructive-foreground rounded-md hover:opacity-90 disabled:opacity-30 transition-opacity"
+        class="w-full px-4 py-2 text-label-lg font-semibold bg-destructive text-destructive-foreground rounded-md hover:opacity-90 disabled:opacity-30 transition-opacity"
         @click="doDelete"
       >
         {{ isDeleting ? "Deleting…" : "Delete Campaign" }}

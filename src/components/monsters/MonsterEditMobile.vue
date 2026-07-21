@@ -66,7 +66,7 @@
         <button
           type="button"
           :disabled="isCloning"
-          class="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold tracking-wider text-primary-foreground active:opacity-90 disabled:opacity-50"
+          class="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground active:opacity-90 disabled:opacity-50"
           @click="emit('customize')"
         >
           <IconCopy class="size-3.5" />

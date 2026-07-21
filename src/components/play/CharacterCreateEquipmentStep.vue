@@ -7,7 +7,7 @@
 
     <!-- Class equipment choice -->
     <div v-if="classEquipmentPack" class="space-y-3">
-      <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">
+      <p class="text-label-lg font-semibold text-muted-foreground">
         {{ f.class?.toUpperCase() }} STARTING EQUIPMENT
       </p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -48,7 +48,7 @@
 
     <!-- Background equipment summary -->
     <div v-if="selectedBg?.equipment" class="rounded-lg border border-border bg-card p-3 space-y-2">
-      <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">BACKGROUND EQUIPMENT</p>
+      <p class="text-label-lg font-semibold text-muted-foreground">BACKGROUND EQUIPMENT</p>
       <p class="font-fell text-sm text-foreground whitespace-pre-wrap">{{ selectedBg.equipment }}</p>
       <label class="flex items-start gap-2 cursor-pointer pt-0.5">
         <input type="checkbox" v-model="importBackgroundEquipment" class="mt-0.5 h-4 w-4 rounded border-border bg-muted" />

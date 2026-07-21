@@ -9,7 +9,7 @@
 
     <div v-if="populatedLevels.length > 0" class="space-y-3">
       <div v-for="lvl in populatedLevels" :key="lvl" class="flex items-start gap-3">
-        <span class="font-cinzel text-xs text-primary tracking-wider w-8 pt-2 shrink-0">{{ lvl }}</span>
+        <span class="text-label-lg text-primary w-8 pt-2 shrink-0">{{ lvl }}</span>
         <div class="flex-1 min-w-0 space-y-2">
           <div v-if="(features[lvl.toString()] ?? []).length > 0" class="flex flex-wrap gap-1.5">
             <span

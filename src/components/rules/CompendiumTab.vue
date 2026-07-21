@@ -47,7 +47,7 @@
         <template v-else>
           <div v-for="root in rootRules" :key="root.id">
             <button
-              class="w-full text-left px-2.5 py-1.5 rounded-md font-cinzel text-xs font-semibold tracking-wider transition-colors"
+              class="w-full text-left px-2.5 py-1.5 rounded-md text-label-lg font-semibold transition-colors"
               :class="selected?.id === root.id
                 ? 'bg-primary/10 text-primary'
                 : 'text-foreground hover:bg-muted/60'"

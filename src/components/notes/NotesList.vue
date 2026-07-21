@@ -12,7 +12,7 @@
         />
       </div>
       <SortControl v-model:sort-by="sortBy" v-model:sort-dir="sortDir" :options="SORT_OPTIONS" />
-      <div class="flex rounded-md border border-border overflow-hidden text-xs font-cinzel font-semibold tracking-wider">
+      <div class="flex rounded-md border border-border overflow-hidden text-label-lg font-semibold">
         <button
           v-for="cat in CATEGORY_OPTIONS"
           :key="cat.value"

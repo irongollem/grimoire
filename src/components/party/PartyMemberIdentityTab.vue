@@ -69,7 +69,7 @@
     <!-- Disguise species (shapeshifter only) -->
     <div v-if="form.species_id && isShapeshifter" class="col-span-2 rounded-md border border-border/60 bg-muted/20 p-3 flex flex-col gap-3">
       <div class="flex items-center justify-between">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase">Disguise</span>
+        <span class="text-label-lg font-semibold text-muted-foreground uppercase">Disguise</span>
         <button
           v-if="form.disguise_species_id"
           type="button"

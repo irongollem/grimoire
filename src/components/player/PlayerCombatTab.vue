@@ -6,7 +6,7 @@
       <template v-for="section in beastActionSections" :key="section.label">
         <div v-if="section.entries.length" class="rounded-lg border border-primary/30 bg-card overflow-hidden">
           <div class="px-4 py-2.5 border-b border-border">
-            <p class="font-cinzel text-xs font-semibold text-primary/80 tracking-wider">{{ section.label }}</p>
+            <p class="text-label-lg font-semibold text-primary/80">{{ section.label }}</p>
           </div>
           <div class="divide-y divide-border">
             <div v-for="action in section.entries" :key="action.name" class="px-4 py-3">

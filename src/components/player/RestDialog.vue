@@ -34,7 +34,7 @@
             <div class="space-y-1">
               <div class="flex items-baseline justify-between">
                 <span
-                  class="font-cinzel text-xs text-muted-foreground tracking-wider"
+                  class="text-label-lg text-muted-foreground"
                   >HP</span
                 >
                 <span class="font-cinzel text-sm font-bold" :class="hpColor">
@@ -60,7 +60,7 @@
             >
               <div class="flex items-center justify-between">
                 <span
-                  class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
+                  class="text-label-lg font-semibold text-muted-foreground"
                   >HIT DICE</span
                 >
                 <span class="font-cinzel text-xs text-foreground">
@@ -143,14 +143,14 @@
           <div class="flex justify-end gap-2 px-5 pb-5">
             <button
               type="button"
-              class="cursor-pointer px-4 py-1.5 rounded-md border border-border font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors tracking-wider"
+              class="cursor-pointer px-4 py-1.5 rounded-md border border-border text-label-lg font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
               @click="$emit('close')"
             >
               Cancel
             </button>
             <button
               type="button"
-              class="cursor-pointer px-4 py-1.5 rounded-md bg-primary text-primary-foreground font-cinzel text-xs font-semibold tracking-wider hover:opacity-90 transition-opacity"
+              class="cursor-pointer px-4 py-1.5 rounded-md bg-primary text-primary-foreground text-label-lg font-semibold hover:opacity-90 transition-opacity"
               @click="confirm"
             >
               {{ mode === "short" ? "Finish Rest" : "Sleep" }}

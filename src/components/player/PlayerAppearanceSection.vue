@@ -28,7 +28,7 @@ function onAppearanceSelected(id: string) {
 <template>
   <div class="rounded-lg border border-border bg-card p-4 flex flex-col gap-3">
     <div class="flex items-center justify-between">
-      <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase">
+      <span class="text-label-lg font-semibold text-muted-foreground uppercase">
         Current Appearance
       </span>
       <button

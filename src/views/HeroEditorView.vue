@@ -29,7 +29,7 @@
           <button
             v-if="!isNew"
             type="button"
-            class="px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider text-destructive border border-destructive/40 rounded-md hover:bg-destructive/10 transition-colors"
+            class="px-3 py-1.5 text-label-lg font-semibold text-destructive border border-destructive/40 rounded-md hover:bg-destructive/10 transition-colors"
             @click="handleDelete"
           >
             Delete
@@ -37,7 +37,7 @@
           <button
             type="submit"
             :disabled="isSaving"
-            class="px-4 py-1.5 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+            class="px-4 py-1.5 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
           >
             {{ isSaving ? "Saving…" : isNew ? "Create Hero" : "Save Changes" }}
           </button>
@@ -59,7 +59,7 @@
           <!-- Setting -->
           <div class="space-y-1">
             <label
-              class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground"
+              class="text-label-lg font-semibold text-muted-foreground"
               >Setting</label
             >
             <select
@@ -75,7 +75,7 @@
           <!-- Name -->
           <div class="space-y-1">
             <label
-              class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground"
+              class="text-label-lg font-semibold text-muted-foreground"
               >Name *</label
             >
             <input
@@ -89,7 +89,7 @@
           <!-- Species -->
           <div class="space-y-1">
             <label
-              class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground"
+              class="text-label-lg font-semibold text-muted-foreground"
               >Species
             </label>
             <input
@@ -102,7 +102,7 @@
           <!-- Alignment -->
           <div class="space-y-1">
             <label
-              class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground"
+              class="text-label-lg font-semibold text-muted-foreground"
               >Alignment</label
             >
             <select
@@ -119,7 +119,7 @@
           <!-- Occupation -->
           <div class="space-y-1">
             <label
-              class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground"
+              class="text-label-lg font-semibold text-muted-foreground"
               >Occupation</label
             >
             <input
@@ -132,7 +132,7 @@
           <!-- Age -->
           <div class="space-y-1">
             <label
-              class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground"
+              class="text-label-lg font-semibold text-muted-foreground"
               >Age</label
             >
             <input
@@ -145,7 +145,7 @@
           <!-- Status -->
           <div class="space-y-1">
             <label
-              class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground"
+              class="text-label-lg font-semibold text-muted-foreground"
               >Status</label
             >
             <select
@@ -162,7 +162,7 @@
           <!-- Tags -->
           <div class="space-y-1">
             <label
-              class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground"
+              class="text-label-lg font-semibold text-muted-foreground"
               >Tags</label
             >
             <TagInput v-model="form.tags" />
@@ -173,7 +173,7 @@
         <div class="space-y-6">
           <div class="space-y-1">
             <label
-              class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground"
+              class="text-label-lg font-semibold text-muted-foreground"
               >Appearance</label
             >
             <RichTextEditor
@@ -185,7 +185,7 @@
 
           <div class="space-y-1">
             <label
-              class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground"
+              class="text-label-lg font-semibold text-muted-foreground"
               >Personality</label
             >
             <RichTextEditor
@@ -197,7 +197,7 @@
 
           <div class="space-y-1">
             <label
-              class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground"
+              class="text-label-lg font-semibold text-muted-foreground"
               >Backstory</label
             >
             <RichTextEditor
@@ -209,7 +209,7 @@
 
           <div class="space-y-1">
             <label
-              class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground"
+              class="text-label-lg font-semibold text-muted-foreground"
               >DM Notes</label
             >
             <RichTextEditor

@@ -8,7 +8,7 @@
     <!-- Campaign-only species (informational) -->
     <div v-if="campaignSpecies.length > 0" class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-3 border-b border-border bg-muted/20 flex items-center gap-2">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">CAMPAIGN-ONLY SPECIES</span>
+        <span class="text-label-lg font-semibold text-muted-foreground">CAMPAIGN-ONLY SPECIES</span>
         <span class="text-label text-primary/70">exclusive to this campaign</span>
       </div>
       <div class="divide-y divide-border">
@@ -29,7 +29,7 @@
     <!-- Universal species with enable/disable toggles -->
     <div v-if="universalSpecies.length > 0" class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-3 border-b border-border bg-muted/20">
-        <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">UNIVERSAL SPECIES</span>
+        <span class="text-label-lg font-semibold text-muted-foreground">UNIVERSAL SPECIES</span>
       </div>
       <div class="divide-y divide-border">
         <label

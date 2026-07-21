@@ -9,7 +9,7 @@
     </p>
     <button
       type="button"
-      class="self-start px-4 py-2 rounded-md bg-amber-500 text-black font-cinzel text-xs font-semibold tracking-wider hover:bg-amber-400 transition-colors disabled:opacity-60"
+      class="self-start px-4 py-2 rounded-md bg-amber-500 text-black text-label-lg font-semibold hover:bg-amber-400 transition-colors disabled:opacity-60"
       :disabled="stripeLoading"
       @click="upgrade"
     >

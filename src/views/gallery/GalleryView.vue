@@ -20,7 +20,7 @@
           <button
             v-if="hasActiveFilters"
             type="button"
-            class="px-2.5 py-1.5 font-cinzel text-xs font-semibold tracking-wider text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
+            class="px-2.5 py-1.5 text-label-lg font-semibold text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
             @click="resetGalleryFilters"
           >Clear</button>
         </div>

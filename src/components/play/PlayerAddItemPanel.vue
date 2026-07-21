@@ -3,7 +3,7 @@
     class="rounded-lg border border-border bg-card p-4"
     @submit.prevent="submit"
   >
-    <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-3">
+    <p class="text-label-lg font-semibold text-muted-foreground mb-3">
       Add Item to Backpack
     </p>
     <div class="flex items-center gap-2">
@@ -53,7 +53,7 @@
       />
       <button
         type="submit"
-        class="px-3 py-1.5 bg-primary text-primary-foreground rounded-md font-cinzel text-xs tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
+        class="px-3 py-1.5 bg-primary text-primary-foreground rounded-md text-label-lg hover:opacity-90 transition-opacity disabled:opacity-50"
         :disabled="!newItemSelectedId"
       >
         Add

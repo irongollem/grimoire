@@ -1,7 +1,7 @@
 <template>
   <div class="p-4 space-y-4">
     <div class="flex items-center justify-between gap-2">
-      <h2 class="font-cinzel text-xs font-bold tracking-wider text-primary uppercase">New Connection</h2>
+      <h2 class="text-label-lg font-bold text-primary uppercase">New Connection</h2>
       <button type="button" class="text-muted-foreground hover:text-foreground transition-colors" @click="$emit('cancel')">
         <IconClose class="h-4 w-4" />
       </button>

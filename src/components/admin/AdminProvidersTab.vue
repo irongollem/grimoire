@@ -25,7 +25,7 @@
             {{ PROVIDER_LABELS[row.provider] ?? row.provider }}
           </h3>
           <button
-            class="px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+            class="px-3 py-1.5 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
             :disabled="providerSaving[row.provider]"
             @click="saveProvider(row.provider)"
           >
@@ -70,7 +70,7 @@
               </button>
             </div>
             <button
-              class="shrink-0 px-3 py-1.5 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+              class="shrink-0 px-3 py-1.5 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
               :disabled="keySaving[row.provider as KeyProvider] || !keyDrafts[row.provider as KeyProvider]?.trim()"
               @click="saveKey(row.provider as KeyProvider)"
             >

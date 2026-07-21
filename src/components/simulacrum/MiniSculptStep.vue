@@ -19,7 +19,7 @@
         <button
           type="button"
           :disabled="isFirstSculpt ? !affordable(sculptCost) : resculptsLeft <= 0"
-          class="inline-flex items-center justify-center gap-1.5 px-4 py-2 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+          class="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
           @click="isFirstSculpt ? runSculpt() : runResculpt()"
         >
           {{ isFirstSculpt ? "Sculpt" : `Sculpt new image (free, ${resculptsLeft} left)` }}

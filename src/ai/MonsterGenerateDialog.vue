@@ -20,7 +20,7 @@
 
       <!-- Concept prompt -->
       <div class="flex flex-col gap-2">
-        <label class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">CONCEPT</label>
+        <label class="text-label-lg font-semibold text-muted-foreground">CONCEPT</label>
         <textarea
           v-model="prompt"
           :disabled="isGenerating"
@@ -39,7 +39,7 @@
 
       <!-- Optional constraints -->
       <div class="flex flex-col gap-3">
-        <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">
+        <p class="text-label-lg font-semibold text-muted-foreground">
           CONSTRAINTS <span class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1">(optional — AI fills blanks)</span>
         </p>
         <div class="grid grid-cols-3 gap-3">
@@ -101,7 +101,7 @@
         <button
           type="button"
           @click="emit('close')"
-          class="px-4 py-1.5 font-cinzel text-xs font-semibold tracking-wider border border-border rounded-md hover:bg-muted transition-colors"
+          class="px-4 py-1.5 text-label-lg font-semibold border border-border rounded-md hover:bg-muted transition-colors"
         >
           Cancel
         </button>
@@ -109,7 +109,7 @@
           type="button"
           :disabled="!prompt.trim()"
           @click="run"
-          class="inline-flex items-center gap-1.5 px-4 py-1.5 font-cinzel text-xs font-semibold tracking-wider bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+          class="inline-flex items-center gap-1.5 px-4 py-1.5 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
         >
           <IconGenerate class="h-3.5 w-3.5" />
           Generate

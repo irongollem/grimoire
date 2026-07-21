@@ -33,7 +33,7 @@
         <div v-else-if="!party?.length" class="px-4 py-6 text-center">
           <IconNavParty class="h-6 w-6 mx-auto mb-2 text-muted-foreground/30" />
           <p class="font-fell text-sm text-muted-foreground italic">No party members yet.</p>
-          <RouterLink to="/party" class="mt-2 inline-block font-cinzel text-xs text-primary tracking-wider hover:opacity-80">+ Add Members</RouterLink>
+          <RouterLink to="/party" class="mt-2 inline-block text-label-lg text-primary hover:opacity-80">+ Add Members</RouterLink>
         </div>
         <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-px bg-border">
           <div v-for="member in party" :key="member.id" class="bg-card px-3 py-2.5 flex flex-col gap-1.5">
@@ -103,7 +103,7 @@
           <div v-if="questsLoading" class="flex justify-center py-6"><LoadingSpinner /></div>
           <div v-else-if="!activeQuests.length" class="px-4 py-6 text-center">
             <p class="font-fell text-sm text-muted-foreground italic">No active quests.</p>
-            <RouterLink to="/quests/new" class="mt-1 inline-block font-cinzel text-xs text-primary tracking-wider">+ New Quest</RouterLink>
+            <RouterLink to="/quests/new" class="mt-1 inline-block text-label-lg text-primary">+ New Quest</RouterLink>
           </div>
           <div v-else class="divide-y divide-border">
             <RouterLink

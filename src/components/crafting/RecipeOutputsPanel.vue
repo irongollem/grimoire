@@ -1,7 +1,7 @@
 <template>
   <div class="rounded-lg border border-border bg-card overflow-hidden">
     <div class="px-4 py-2.5 border-b border-border bg-muted/20 flex items-center justify-between">
-      <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">OUTPUTS</span>
+      <span class="text-label-lg font-semibold text-muted-foreground">OUTPUTS</span>
       <span class="font-fell text-xs text-muted-foreground italic">At least one required</span>
     </div>
     <div class="p-4 flex flex-col gap-2">

@@ -8,7 +8,7 @@
       class="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/20"
     >
       <span
-        class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
+        class="text-label-lg font-semibold text-muted-foreground"
       >
         Sub-quests
         <span v-if="subQuests?.length" class="font-fell font-normal"
@@ -57,7 +57,7 @@
   >
     <div class="px-3 py-2 border-b border-border bg-muted/20">
       <span
-        class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider"
+        class="text-label-lg font-semibold text-muted-foreground"
       >
         Party Notes
         <span class="font-fell font-normal"

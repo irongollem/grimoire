@@ -5,7 +5,7 @@
     </h2>
     <div class="flex flex-col gap-3">
       <div>
-        <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">
+        <label class="block text-label-lg font-semibold text-muted-foreground mb-1">
           ENCOUNTER NAME
         </label>
         <input
@@ -17,7 +17,7 @@
         />
       </div>
       <div>
-        <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">
+        <label class="block text-label-lg font-semibold text-muted-foreground mb-1">
           DESCRIPTION
         </label>
         <RichTextEditor
@@ -28,7 +28,7 @@
         />
       </div>
       <div>
-        <label class="block font-cinzel text-xs font-semibold text-muted-foreground tracking-wider mb-1">
+        <label class="block text-label-lg font-semibold text-muted-foreground mb-1">
           LOCATION
         </label>
         <EntityCombobox

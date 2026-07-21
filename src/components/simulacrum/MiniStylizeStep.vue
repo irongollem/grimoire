@@ -45,7 +45,7 @@
         <button
           type="button"
           :disabled="isStylizing || !sourcePortraitUrl || !affordable(stylizeCost)"
-          class="inline-flex items-center justify-center gap-1.5 px-4 py-2 font-cinzel text-xs font-semibold tracking-wider rounded-md disabled:opacity-50 transition-opacity"
+          class="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-label-lg font-semibold rounded-md disabled:opacity-50 transition-opacity"
           :class="stylizedUrl
             ? 'border border-border hover:bg-muted text-foreground'
             : 'bg-primary text-primary-foreground hover:opacity-90'"

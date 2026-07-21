@@ -11,7 +11,7 @@
 
     <template v-else>
       <div class="flex items-center justify-between mb-3">
-        <p class="font-cinzel text-xs font-semibold tracking-wider text-muted-foreground">SPELLCASTING</p>
+        <p class="text-label-lg font-semibold text-muted-foreground">SPELLCASTING</p>
         <button
           type="button"
           class="font-cinzel text-2xs text-destructive hover:opacity-80 transition-opacity"

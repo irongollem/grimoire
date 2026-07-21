@@ -9,7 +9,7 @@
   <template v-else>
     <div v-for="[label, group] in questGroups" :key="label">
       <div v-if="group.length" class="space-y-2 mb-4">
-        <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">{{ label }}</p>
+        <p class="text-label-lg font-semibold text-muted-foreground">{{ label }}</p>
         <RouterLink
           v-for="q in group"
           :key="q.id"

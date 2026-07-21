@@ -14,7 +14,7 @@
       <button
         type="submit"
         :disabled="savingName || !displayName.trim() || displayName.trim() === currentName"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 disabled:opacity-40 transition-opacity"
+        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40 transition-opacity"
       >
         <IconCheck v-if="nameSaved" class="h-3.5 w-3.5" />
         <IconSave v-else class="h-3.5 w-3.5" />
