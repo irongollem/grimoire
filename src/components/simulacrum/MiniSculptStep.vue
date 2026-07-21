@@ -88,7 +88,7 @@
               v-for="scale in SCALE_OPTIONS"
               :key="scale"
               type="button"
-              class="px-2 py-1 rounded font-cinzel text-2xs tracking-wider border transition-colors disabled:opacity-50"
+              class="px-2 py-1 rounded text-label border transition-colors disabled:opacity-50"
               :class="mini.scale_mm === scale
                 ? 'bg-primary text-primary-foreground border-primary'
                 : 'border-border text-muted-foreground hover:text-foreground'"

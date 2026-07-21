@@ -2,7 +2,7 @@
   <div class="rounded-lg border border-border bg-card overflow-hidden">
     <div class="px-4 py-2.5 border-b border-border flex items-center justify-between">
       <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Infusions</p>
-      <span class="font-cinzel text-2xs tracking-wider text-muted-foreground">
+      <span class="text-label text-muted-foreground">
         {{ activeCount }} / {{ slotsMax }} active
       </span>
     </div>
@@ -27,11 +27,11 @@
             >{{ activeItemName(inf.name) }}</span>
             <span
               v-if="inf.min_level > 2"
-              class="font-cinzel text-2xs tracking-wider rounded px-1.5 py-0.5 shrink-0 bg-muted/50 text-muted-foreground border border-border"
+              class="text-label rounded px-1.5 py-0.5 shrink-0 bg-muted/50 text-muted-foreground border border-border"
             >Lv {{ inf.min_level }}+</span>
             <span
               v-if="isActive(inf.name)"
-              class="font-cinzel text-2xs tracking-wider rounded px-1.5 py-0.5 shrink-0 bg-primary/10 text-primary border border-primary/20"
+              class="text-label rounded px-1.5 py-0.5 shrink-0 bg-primary/10 text-primary border border-primary/20"
             >Active</span>
             <IconChevronDown
               class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
@@ -40,12 +40,12 @@
           </button>
           <button
             v-if="isActive(inf.name)"
-            class="font-cinzel text-2xs tracking-wider text-muted-foreground hover:text-destructive transition-colors shrink-0"
+            class="text-label text-muted-foreground hover:text-destructive transition-colors shrink-0"
             @click="emit('remove', inf.name)"
           >Remove</button>
           <button
             v-else-if="!isActive(inf.name) && activeCount < slotsMax"
-            class="font-cinzel text-2xs tracking-wider text-primary hover:opacity-80 transition-opacity shrink-0"
+            class="text-label text-primary hover:opacity-80 transition-opacity shrink-0"
             @click="openApplyForm(inf.name)"
           >Apply</button>
         </div>
@@ -63,11 +63,11 @@
           </select>
           <div class="flex gap-2">
             <button
-              class="font-cinzel text-2xs tracking-wider px-3 py-1 rounded bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+              class="text-label px-3 py-1 rounded bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
               @click="confirmApply"
             >Confirm</button>
             <button
-              class="font-cinzel text-2xs tracking-wider px-3 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors"
+              class="text-label px-3 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors"
               @click="cancelApplyForm"
             >Cancel</button>
           </div>
@@ -87,7 +87,7 @@
     <div v-if="availableToLearn.length > 0" class="px-4 py-2.5 border-t border-border">
       <div v-if="!showLearnForm" class="flex justify-start">
         <button
-          class="font-cinzel text-2xs tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+          class="text-label text-muted-foreground hover:text-foreground transition-colors"
           @click="showLearnForm = true"
         >+ Learn Infusion</button>
       </div>
@@ -104,11 +104,11 @@
         <div class="flex gap-2">
           <button
             :disabled="!pendingLearnName"
-            class="font-cinzel text-2xs tracking-wider px-3 py-1 rounded bg-primary text-primary-foreground disabled:opacity-40 hover:opacity-90 transition-opacity"
+            class="text-label px-3 py-1 rounded bg-primary text-primary-foreground disabled:opacity-40 hover:opacity-90 transition-opacity"
             @click="confirmLearn"
           >Learn</button>
           <button
-            class="font-cinzel text-2xs tracking-wider px-3 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors"
+            class="text-label px-3 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors"
             @click="showLearnForm = false; pendingLearnName = ''"
           >Cancel</button>
         </div>

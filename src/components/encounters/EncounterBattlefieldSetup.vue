@@ -24,7 +24,7 @@
           <span class="text-muted-foreground/40">·</span>
           <button
             type="button"
-            class="font-cinzel text-2xs tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+            class="text-label text-muted-foreground hover:text-foreground transition-colors"
             @click="clearPositions"
           >
             Clear all placements

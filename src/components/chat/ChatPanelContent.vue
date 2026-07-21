@@ -231,7 +231,7 @@
       v-if="auth.isDM"
       class="shrink-0 px-2 pt-1.5 flex items-center gap-2"
     >
-      <span class="font-cinzel text-2xs text-muted-foreground tracking-wider shrink-0">As:</span>
+      <span class="text-label text-muted-foreground shrink-0">As:</span>
       <EntityCombobox
         :model-value="ui.dmTalkAsNpcId"
         :options="props.npcs"
@@ -246,7 +246,7 @@
       class="pb-2 shrink-0 px-2 pt-1.5 flex items-center gap-2"
     >
       <span
-        class="font-cinzel text-2xs text-muted-foreground tracking-wider shrink-0"
+        class="text-label text-muted-foreground shrink-0"
         >To:</span
       >
       <select

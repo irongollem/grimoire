@@ -124,7 +124,7 @@
         type="button"
         title="Insert asset as new page (NPC, Monster…)"
         :class="tbCls(false)"
-        class="gap-1 px-2 font-cinzel text-2xs font-semibold tracking-wider"
+        class="gap-1 px-2 text-label font-semibold"
         @click="$emit('openAssetPanel')"
       >
         <IconAddItem class="h-3.5 w-3.5" />
@@ -136,7 +136,7 @@
         type="button"
         title="Insert block…"
         :class="tbCls(showBlockPicker)"
-        class="gap-1 px-2 font-cinzel text-2xs font-semibold tracking-wider"
+        class="gap-1 px-2 text-label font-semibold"
         @click="$emit('openBlockPicker')"
       >
         <IconGridView class="h-3.5 w-3.5" />
@@ -297,7 +297,7 @@
           type="button"
           title="Edit cover page text"
           :class="tbCls(showCoverInspector)"
-          class="gap-1 px-2 font-cinzel text-2xs font-semibold tracking-wider"
+          class="gap-1 px-2 text-label font-semibold"
           @click="$emit('openCoverInspector')"
         >
           <IconPencilLine class="h-3.5 w-3.5" />
@@ -398,7 +398,7 @@
         type="button"
         title="Ink-friendly export (strips backgrounds & decorations)"
         :class="tbCls(inkFriendly)"
-        class="gap-1 px-2 font-cinzel text-2xs font-semibold tracking-wider"
+        class="gap-1 px-2 text-label font-semibold"
         @click="$emit('update:inkFriendly', !inkFriendly)"
       >
         <IconPrint class="h-3.5 w-3.5" />

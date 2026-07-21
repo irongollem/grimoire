@@ -38,7 +38,7 @@
         <!-- 3-way toggle -->
         <div class="flex items-center gap-1 shrink-0">
           <button
-            class="inline-flex items-center gap-1 px-2 py-1 rounded font-cinzel text-2xs md:text-sm tracking-wider border transition-colors"
+            class="inline-flex items-center gap-1 px-2 py-1 rounded text-label md:text-sm border transition-colors"
             :class="myAvailability(s.id) === true
               ? 'border-elven-green/50 bg-elven-green/15 text-elven-green'
               : 'border-border text-muted-foreground hover:border-elven-green/30 hover:text-elven-green'"
@@ -48,7 +48,7 @@
             Yes
           </button>
           <button
-            class="inline-flex items-center gap-1 px-2 py-1 rounded font-cinzel text-2xs md:text-sm tracking-wider border transition-colors"
+            class="inline-flex items-center gap-1 px-2 py-1 rounded text-label md:text-sm border transition-colors"
             :class="myAvailability(s.id) === false
               ? 'border-destructive/50 bg-destructive/10 text-destructive'
               : 'border-border text-muted-foreground hover:border-destructive/30 hover:text-destructive'"

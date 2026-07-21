@@ -13,7 +13,7 @@
     <select
       :value="typeFilter"
       aria-label="Location type filter"
-      class="rounded-md border border-border bg-muted/40 px-2 py-1.5 font-cinzel text-2xs md:text-sm tracking-wider text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+      class="rounded-md border border-border bg-muted/40 px-2 py-1.5 text-label md:text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
       @change="$emit('update:typeFilter', ($event.target as HTMLSelectElement).value)"
     >
       <option value="all">All types</option>
@@ -22,7 +22,7 @@
     <button
       v-if="hasActiveFilters"
       type="button"
-      class="font-cinzel text-2xs md:text-sm tracking-wider text-muted-foreground hover:text-foreground transition-colors shrink-0"
+      class="text-label md:text-sm text-muted-foreground hover:text-foreground transition-colors shrink-0"
       @click="$emit('clear')"
     >Clear</button>
   </div>

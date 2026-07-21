@@ -3,7 +3,7 @@
     <div class="flex items-center justify-between">
       <h2 class="font-cinzel text-xs tracking-widest uppercase text-muted-foreground">Resource Pools</h2>
       <button type="button"
-        class="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 font-cinzel text-2xs tracking-wider text-foreground hover:bg-muted/40 transition-colors"
+        class="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-label text-foreground hover:bg-muted/40 transition-colors"
         @click="addResource">
         <IconAdd class="h-3 w-3" />
         Add resource

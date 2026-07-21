@@ -37,13 +37,13 @@
         <div class="flex-1 flex flex-col gap-2">
           <h1 class="font-cinzel text-xl font-bold text-foreground leading-tight">{{ trap.name }}</h1>
           <div class="flex flex-wrap gap-1.5">
-            <span class="font-cinzel text-2xs font-semibold tracking-wider bg-muted/60 text-muted-foreground rounded px-2 py-0.5">
+            <span class="text-label font-semibold bg-muted/60 text-muted-foreground rounded px-2 py-0.5">
               {{ trap.trap_type }}
             </span>
-            <span v-if="trap.cr" class="font-cinzel text-2xs font-semibold tracking-wider bg-primary/10 text-primary rounded px-2 py-0.5">
+            <span v-if="trap.cr" class="text-label font-semibold bg-primary/10 text-primary rounded px-2 py-0.5">
               CR {{ trap.cr }}
             </span>
-            <span v-if="crXp" class="font-cinzel text-2xs tracking-wider text-muted-foreground rounded px-2 py-0.5">
+            <span v-if="crXp" class="text-label text-muted-foreground rounded px-2 py-0.5">
               {{ crXp }} XP
             </span>
           </div>
@@ -51,7 +51,7 @@
             <span
               v-for="tag in trap.tags"
               :key="tag"
-              class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
+              class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
             >{{ tag }}</span>
           </div>
         </div>
@@ -96,7 +96,7 @@
             <span
               v-for="imm in trap.damage_immunities"
               :key="imm"
-              class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5 capitalize"
+              class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5 capitalize"
             >{{ imm }}</span>
           </div>
         </div>

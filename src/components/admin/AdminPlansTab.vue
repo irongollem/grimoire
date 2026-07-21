@@ -154,7 +154,7 @@
               {{ plan.name }}
             </h3>
             <button
-              class="px-2.5 py-1 font-cinzel text-2xs font-semibold tracking-wider bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50 transition-opacity"
+              class="px-2.5 py-1 text-label font-semibold bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50 transition-opacity"
               :disabled="planPriceSyncing[plan.id]"
               @click="syncPlanPrices(plan.id)"
             >

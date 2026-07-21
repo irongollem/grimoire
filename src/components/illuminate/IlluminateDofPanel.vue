@@ -41,7 +41,7 @@
           v-for="curve in (['linear', 'quadratic', 'cubic'] as FalloffCurve[])"
           :key="curve"
           type="button"
-          class="font-cinzel text-2xs tracking-wider px-2 py-0.5 rounded border transition-colors"
+          class="text-label px-2 py-0.5 rounded border transition-colors"
           :class="dof.falloff === curve
             ? 'border-primary text-primary'
             : 'border-border hover:border-primary/60 hover:text-foreground text-muted-foreground'"

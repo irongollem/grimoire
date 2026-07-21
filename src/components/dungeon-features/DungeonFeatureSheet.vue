@@ -36,14 +36,14 @@
         </div>
         <div class="flex-1 flex flex-col gap-2">
           <h1 class="font-cinzel text-xl font-bold text-foreground leading-tight">{{ feature.name }}</h1>
-          <span class="font-cinzel text-2xs font-semibold tracking-wider bg-muted/60 text-muted-foreground rounded px-2 py-0.5 self-start">
+          <span class="text-label font-semibold bg-muted/60 text-muted-foreground rounded px-2 py-0.5 self-start">
             {{ feature.feature_type }}
           </span>
           <div v-if="feature.tags.length" class="flex flex-wrap gap-1">
             <span
               v-for="tag in feature.tags"
               :key="tag"
-              class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
+              class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
             >{{ tag }}</span>
           </div>
         </div>
@@ -85,7 +85,7 @@
       <div class="p-4 flex flex-col gap-2">
         <span
           v-if="feature.trigger_type"
-          class="font-cinzel text-2xs font-semibold tracking-wider bg-amber-500/10 text-amber-400 rounded px-2.5 py-1 self-start"
+          class="text-label font-semibold bg-amber-500/10 text-amber-400 rounded px-2.5 py-1 self-start"
         >{{ feature.trigger_type }}</span>
         <p v-if="feature.trigger_description" class="font-fell text-sm text-foreground italic">
           {{ feature.trigger_description }}

@@ -14,7 +14,7 @@
         :class="isActive(item.to) ? 'text-primary' : 'text-muted-foreground'"
       >
         <component :is="item.icon" class="h-5 w-5 shrink-0" />
-        <span class="font-cinzel text-2xs md:text-xs tracking-wider">{{ item.label }}</span>
+        <span class="text-label md:text-xs">{{ item.label }}</span>
       </RouterLink>
 
       <!-- Tablet+ (sm+): 7 pinned items -->
@@ -26,7 +26,7 @@
         :class="isActive(item.to) ? 'text-primary' : 'text-muted-foreground'"
       >
         <component :is="item.icon" class="h-5 w-5 shrink-0" />
-        <span class="font-cinzel text-2xs md:text-xs tracking-wider">{{ item.label }}</span>
+        <span class="text-label md:text-xs">{{ item.label }}</span>
       </RouterLink>
 
       <!-- More button (always) -->
@@ -37,7 +37,7 @@
         @click="emit('open-more')"
       >
         <IconGridView class="h-5 w-5 shrink-0" />
-        <span class="font-cinzel text-2xs md:text-xs tracking-wider">More</span>
+        <span class="text-label md:text-xs">More</span>
       </button>
 
     </div>

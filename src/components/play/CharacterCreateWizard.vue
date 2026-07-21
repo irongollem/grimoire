@@ -9,7 +9,7 @@
       <div class="mt-3 flex items-center gap-1 overflow-x-auto pb-1">
         <template v-for="(step, idx) in activeSteps" :key="step.id">
           <button type="button"
-            class="shrink-0 flex items-center gap-1.5 px-2 py-1 rounded font-cinzel text-2xs font-semibold tracking-wider transition-colors"
+            class="shrink-0 flex items-center gap-1.5 px-2 py-1 rounded text-label font-semibold transition-colors"
             :class="wizardStep === idx
               ? 'bg-primary text-primary-foreground'
               : idx < wizardStep

@@ -60,7 +60,7 @@
                 <span
                   v-for="tag in faction.tags.slice(0, 3)"
                   :key="tag"
-                  class="inline-block bg-muted rounded px-1.5 py-0.5 font-cinzel text-2xs md:text-sm tracking-wider text-muted-foreground"
+                  class="inline-block bg-muted rounded px-1.5 py-0.5 text-label md:text-sm text-muted-foreground"
                 >{{ tag }}</span>
               </div>
             </div>
@@ -124,7 +124,7 @@
                     <span v-if="speciesNameMap.get(entry.party_member.species_id ?? '') || entry.party_member.class" class="font-fell text-xs text-muted-foreground italic ml-2">
                       {{ [speciesNameMap.get(entry.party_member.species_id ?? ''), entry.party_member.class].filter(Boolean).join(' · ') }}
                     </span>
-                    <span v-if="entry.party_member.id === myMemberId" class="font-cinzel text-2xs md:text-sm text-emerald-400 ml-2 tracking-wider">(You)</span>
+                    <span v-if="entry.party_member.id === myMemberId" class="text-label md:text-sm text-emerald-400 ml-2">(You)</span>
                   </div>
                   <span class="font-cinzel text-2xs md:text-sm text-muted-foreground shrink-0">{{ entry.role ?? 'Member' }}</span>
                 </div>

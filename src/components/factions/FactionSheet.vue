@@ -28,7 +28,7 @@
             <span
               v-for="tag in faction.tags"
               :key="tag"
-              class="font-cinzel text-2xs tracking-wider bg-muted/60 text-muted-foreground rounded px-2 py-0.5"
+              class="text-label bg-muted/60 text-muted-foreground rounded px-2 py-0.5"
             >{{ tag }}</span>
           </div>
         </div>

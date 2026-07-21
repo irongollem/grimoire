@@ -106,7 +106,7 @@
               <!-- Reveal toggle -->
               <button
                 type="button"
-                class="shrink-0 inline-flex items-center gap-1 font-cinzel text-2xs font-semibold tracking-wider px-2 py-1 rounded transition-colors"
+                class="shrink-0 inline-flex items-center gap-1 text-label font-semibold px-2 py-1 rounded transition-colors"
                 :class="shareState.shared_hints.includes(hint.order)
                   ? 'bg-primary/15 text-primary hover:bg-primary/25'
                   : 'bg-muted text-muted-foreground hover:text-foreground'"
@@ -129,7 +129,7 @@
             @click="solutionOpen = !solutionOpen"
           >
             <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Solution</span>
-            <span class="font-cinzel text-2xs text-muted-foreground tracking-wider">{{ solutionOpen ? 'Hide' : 'Reveal' }}</span>
+            <span class="text-label text-muted-foreground">{{ solutionOpen ? 'Hide' : 'Reveal' }}</span>
           </button>
           <div v-if="solutionOpen" class="p-4">
             <RichTextViewer :content="puzzle.solution" />
@@ -147,7 +147,7 @@
               <RichTextViewer :content="puzzle.success_outcome" />
             </div>
             <div v-if="puzzle.failure_consequence" class="p-4">
-              <p class="font-cinzel text-2xs font-semibold text-destructive tracking-wider mb-1.5">FAILURE</p>
+              <p class="text-label font-semibold text-destructive mb-1.5">FAILURE</p>
               <RichTextViewer :content="puzzle.failure_consequence" />
             </div>
           </div>

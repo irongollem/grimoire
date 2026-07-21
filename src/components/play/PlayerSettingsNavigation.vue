@@ -24,7 +24,7 @@
         <span class="font-cinzel text-xs tracking-wider flex-1">{{ item.label }}</span>
         <span
           v-if="i < MOBILE_NAV_SLOTS"
-          class="font-cinzel text-2xs md:text-sm tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary shrink-0"
+          class="text-label md:text-sm px-1.5 py-0.5 rounded bg-primary/15 text-primary shrink-0"
         >bar</span>
       </li>
     </ol>

@@ -137,7 +137,7 @@
         <!-- Usage pips -->
         <div class="rounded-lg border border-border bg-card px-4 py-3 flex items-center gap-4">
           <div class="flex items-center gap-1.5">
-            <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">Uses</span>
+            <span class="text-label md:text-sm text-muted-foreground">Uses</span>
             <div class="flex gap-1">
               <span
                 v-for="i in wildshapeMaxUses"
@@ -174,11 +174,11 @@
               <p class="font-cinzel text-sm font-bold">{{ activeWildshape.beast_hp }}/{{ activeWildshape.beast_max_hp }}</p>
             </div>
             <div class="text-center">
-              <p class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">AC</p>
+              <p class="text-label md:text-sm text-muted-foreground">AC</p>
               <p class="font-cinzel text-sm font-bold">{{ activeWildshape.beast_ac }}</p>
             </div>
             <div v-if="beastMonster?.stat_block?.speed" class="text-center">
-              <p class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">SPEED</p>
+              <p class="text-label md:text-sm text-muted-foreground">SPEED</p>
               <p class="font-cinzel text-sm font-bold">{{ beastMonster.stat_block.speed }}</p>
             </div>
           </div>

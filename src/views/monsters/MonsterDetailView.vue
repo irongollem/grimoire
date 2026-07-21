@@ -64,7 +64,7 @@
         :style="visPopoverStyle"
         @mousedown.stop
       >
-        <p class="font-cinzel text-2xs text-muted-foreground tracking-wider truncate">
+        <p class="text-label text-muted-foreground truncate">
           {{ resolvedMonster?.name }}
         </p>
 

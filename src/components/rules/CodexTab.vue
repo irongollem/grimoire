@@ -178,7 +178,7 @@
               <div class="flex items-start gap-3 px-5 py-4 border-b border-border shrink-0">
                 <div class="flex-1 min-w-0">
                   <h2 class="font-cinzel text-lg font-bold text-foreground">{{ selectedBackground.name }}</h2>
-                  <span v-if="selectedBackground.source_title" class="font-cinzel text-2xs text-muted-foreground tracking-wider">{{ selectedBackground.source_title }}</span>
+                  <span v-if="selectedBackground.source_title" class="text-label text-muted-foreground">{{ selectedBackground.source_title }}</span>
                 </div>
                 <button type="button" class="shrink-0 rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" @click="selectedBackground = null">
                   <IconClose class="h-4 w-4" />
@@ -317,7 +317,7 @@
                           <div v-if="open.has(`sub:${selectedClass.class_name}:${sub.subclass_name}`)" class="px-3 pb-3 border-t border-border pt-2">
                             <div v-if="Object.keys(sub.features ?? {}).length" class="flex flex-col gap-1">
                               <div v-for="lvl in sortedLevels(sub.features)" :key="lvl" class="flex gap-3 py-1">
-                                <span class="font-cinzel text-2xs text-muted-foreground tracking-wider w-10 shrink-0 pt-0.5">Lv {{ lvl }}</span>
+                                <span class="text-label text-muted-foreground w-10 shrink-0 pt-0.5">Lv {{ lvl }}</span>
                                 <div class="flex flex-wrap gap-1">
                                   <span v-for="name in resolveFeatures(sub.features[String(lvl)])" :key="name" class="inline-flex items-center rounded border bg-muted/50 border-border/60 px-1.5 py-0.5 font-fell text-xs text-foreground">{{ name }}</span>
                                 </div>
@@ -335,7 +335,7 @@
                       <p class="text-eyebrow font-semibold text-muted-foreground mb-1.5">CLASS FEATURES</p>
                       <div class="flex flex-col gap-1">
                         <div v-for="lvl in sortedLevels(selectedClass.features)" :key="lvl" class="flex gap-3 px-2 py-1.5 rounded bg-muted/30">
-                          <span class="font-cinzel text-2xs text-muted-foreground tracking-wider w-10 shrink-0 pt-0.5">Lv {{ lvl }}</span>
+                          <span class="text-label text-muted-foreground w-10 shrink-0 pt-0.5">Lv {{ lvl }}</span>
                           <div class="flex flex-wrap gap-1">
                             <span v-for="name in resolveFeatures(selectedClass.features[String(lvl)])" :key="name" class="inline-flex items-center rounded border bg-card border-border px-1.5 py-0.5 font-fell text-xs text-foreground">{{ name }}</span>
                           </div>
@@ -398,7 +398,7 @@
                   <h2 class="font-cinzel text-lg font-bold text-foreground">{{ selectedDeity.name }}</h2>
                   <div class="flex flex-wrap items-center gap-2 mt-1">
                     <span v-if="selectedDeity.titles" class="font-fell text-xs text-muted-foreground italic">{{ selectedDeity.titles }}</span>
-                    <span v-if="selectedDeity.pantheon?.name" class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground tracking-wider">{{ selectedDeity.pantheon.name }}</span>
+                    <span v-if="selectedDeity.pantheon?.name" class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground">{{ selectedDeity.pantheon.name }}</span>
                   </div>
                 </div>
                 <button type="button" class="shrink-0 rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" @click="selectedDeity = null">

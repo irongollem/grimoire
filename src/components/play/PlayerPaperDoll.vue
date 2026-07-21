@@ -128,7 +128,7 @@
 
     <!-- Attunement slots -->
     <div v-if="hasMember" class="mt-2 flex items-center justify-between gap-2">
-      <span class="font-cinzel text-2xs md:text-sm text-muted-foreground/50 tracking-wider">ATTUNEMENT</span>
+      <span class="text-label md:text-sm text-muted-foreground/50">ATTUNEMENT</span>
       <div class="flex items-center gap-1.5">
         <div
           v-for="n in 3"
@@ -148,7 +148,7 @@
     <!-- Equipped weight -->
     <p
       v-if="hasMember && equippedWeight > 0"
-      class="font-cinzel text-2xs md:text-sm text-muted-foreground/50 tracking-wider text-right"
+      class="text-label md:text-sm text-muted-foreground/50 text-right"
     >
       Equipped: {{ formatWeightLb(equippedWeight) }}
     </p>

@@ -32,7 +32,7 @@
     <div class="flex items-center gap-3 flex-wrap">
       <button
         type="button"
-        class="font-cinzel text-2xs text-muted-foreground hover:text-foreground tracking-wider transition-colors"
+        class="text-label text-muted-foreground hover:text-foreground transition-colors"
         @click="addRow"
       >
         + Add damage
@@ -52,7 +52,7 @@
       />
       <button
         type="button"
-        class="font-cinzel text-2xs text-primary hover:opacity-80 tracking-wider transition-opacity shrink-0"
+        class="text-label text-primary hover:opacity-80 transition-opacity shrink-0"
         @click="parseAndApply"
       >
         Parse →

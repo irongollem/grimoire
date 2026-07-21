@@ -24,7 +24,7 @@
           <span class="font-fell text-sm text-foreground flex-1">{{ cls.class_name }}</span>
           <span
             v-if="disabled.has(cls.class_name)"
-            class="font-cinzel text-2xs tracking-wider text-muted-foreground/60 shrink-0"
+            class="text-label text-muted-foreground/60 shrink-0"
           >hidden</span>
         </label>
       </div>
@@ -36,7 +36,7 @@
       </p>
       <button
         type="button"
-        class="font-cinzel text-2xs tracking-wider text-primary/70 hover:text-primary transition-colors"
+        class="text-label text-primary/70 hover:text-primary transition-colors"
         @click="enableAll"
       >
         Enable all

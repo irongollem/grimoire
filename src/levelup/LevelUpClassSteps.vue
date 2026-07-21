@@ -4,7 +4,7 @@
 
     <template v-if="(step.count ?? 1) > 1">
       <div v-for="pickIdx in (step.count ?? 1)" :key="pickIdx" class="space-y-1">
-        <label class="font-cinzel text-2xs text-muted-foreground tracking-wider">Choice {{ pickIdx }}</label>
+        <label class="text-label text-muted-foreground">Choice {{ pickIdx }}</label>
         <select
           :value="(multiValues[step.key] ?? [])[pickIdx - 1] ?? ''"
           class="w-full rounded border border-border bg-muted/40 px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"

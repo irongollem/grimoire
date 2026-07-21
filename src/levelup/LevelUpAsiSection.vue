@@ -18,7 +18,7 @@
     <template v-if="asiMode !== 'feat'">
       <div class="flex flex-wrap gap-3">
         <div class="space-y-1">
-          <label class="font-cinzel text-2xs text-muted-foreground tracking-wider">
+          <label class="text-label text-muted-foreground">
             {{ asiMode === 'plus2' ? '+2 Ability' : '+1 First Ability' }}
           </label>
           <select
@@ -31,7 +31,7 @@
           </select>
         </div>
         <div v-if="asiMode === 'plus1plus1'" class="space-y-1">
-          <label class="font-cinzel text-2xs text-muted-foreground tracking-wider">+1 Second Ability</label>
+          <label class="text-label text-muted-foreground">+1 Second Ability</label>
           <select
             :value="asiSecondary"
             class="rounded border border-border bg-muted/40 px-2 py-1.5 font-cinzel text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"

@@ -2,13 +2,13 @@
   <div class="space-y-3">
     <!-- Passives -->
     <div class="rounded-lg border border-border bg-card px-4 py-2.5 flex flex-wrap gap-x-6 gap-y-1">
-      <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">
+      <span class="text-label md:text-sm text-muted-foreground">
         Passive Perception <span class="text-foreground font-bold">{{ passivePerception }}</span>
       </span>
-      <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">
+      <span class="text-label md:text-sm text-muted-foreground">
         Passive Insight <span class="text-foreground font-bold">{{ passiveInsight }}</span>
       </span>
-      <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">
+      <span class="text-label md:text-sm text-muted-foreground">
         Passive Investigation <span class="text-foreground font-bold">{{ passiveInvestigation }}</span>
       </span>
     </div>

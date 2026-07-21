@@ -32,7 +32,7 @@
             @input="emit('update:ringColor', ($event.target as HTMLInputElement).value)"
           />
         </label>
-        <span class="font-cinzel text-2xs text-muted-foreground tracking-wider ml-1">{{ ringColor.toUpperCase() }}</span>
+        <span class="text-label text-muted-foreground ml-1">{{ ringColor.toUpperCase() }}</span>
       </div>
     </div>
 

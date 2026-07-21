@@ -9,10 +9,10 @@
   >
     <div class="px-3 py-2 border-b border-border/50 flex items-center gap-2">
       <IconPackageOpen class="h-3.5 w-3.5 text-amber-400 shrink-0" />
-      <span class="font-cinzel text-2xs text-muted-foreground tracking-wider flex-1 truncate">
+      <span class="text-label text-muted-foreground flex-1 truncate">
         {{ senderName }} dropped {{ meta.loot_table_name }}
       </span>
-      <span class="font-cinzel text-2xs text-muted-foreground tracking-wider shrink-0">
+      <span class="text-label text-muted-foreground shrink-0">
         {{ meta.claims?.length ?? 0 }} / {{ meta.claims_total ?? 0 }}
       </span>
     </div>

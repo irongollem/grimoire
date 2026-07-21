@@ -1,7 +1,7 @@
 <template>
   <div class="grid grid-cols-5 gap-2">
     <div v-for="sp in SPEED_TYPES" :key="sp.key" class="flex flex-col items-center gap-1">
-      <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground">{{ sp.label }}</span>
+      <span class="text-label font-semibold text-muted-foreground">{{ sp.label }}</span>
 
       <!-- Fly: hover toggle embedded on the left edge -->
       <div

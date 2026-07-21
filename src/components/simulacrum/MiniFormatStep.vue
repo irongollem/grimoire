@@ -20,7 +20,7 @@
           <span class="font-cinzel text-sm font-semibold tracking-wide text-foreground">{{ opt.label }}</span>
           <span
             v-if="modelValue === opt.value"
-            class="rounded-full bg-primary px-1.5 py-0.5 font-cinzel text-2xs font-semibold tracking-wider text-primary-foreground"
+            class="rounded-full bg-primary px-1.5 py-0.5 text-label font-semibold text-primary-foreground"
           >Selected</span>
         </div>
         <p class="font-fell text-xs text-muted-foreground">{{ opt.tagline }}</p>

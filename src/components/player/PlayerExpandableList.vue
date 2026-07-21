@@ -13,7 +13,7 @@
           <span
             v-for="badge in item.badges ?? []"
             :key="badge.label"
-            class="font-cinzel text-2xs tracking-wider rounded px-1.5 py-0.5 shrink-0 border"
+            class="text-label rounded px-1.5 py-0.5 shrink-0 border"
             :class="badge.variant === 'primary'
               ? 'bg-primary/10 text-primary border-primary/20'
               : 'bg-muted/50 text-muted-foreground border-border'"

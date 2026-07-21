@@ -66,7 +66,7 @@
         </div>
       </div>
       <button
-        class="ml-auto h-7 px-3 rounded border border-destructive/40 bg-destructive/10 font-cinzel text-2xs md:text-sm text-destructive hover:bg-destructive/20 transition-colors tracking-wider"
+        class="ml-auto h-7 px-3 rounded border border-destructive/40 bg-destructive/10 text-label md:text-sm text-destructive hover:bg-destructive/20 transition-colors"
         @click="rollDeathSave"
       >Roll d20</button>
     </div>

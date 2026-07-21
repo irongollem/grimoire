@@ -91,7 +91,7 @@
               <div class="flex items-center gap-2 shrink-0">
                 <span
                   v-if="item.badge"
-                  class="px-2 py-0.5 rounded font-cinzel text-2xs font-bold tracking-wider capitalize"
+                  class="px-2 py-0.5 rounded text-label font-bold capitalize"
                   :style="{
                     backgroundColor: item.badgeColor + '22',
                     color: item.badgeColor,
@@ -101,7 +101,7 @@
                   {{ item.badge }}
                 </span>
                 <span
-                  class="font-cinzel text-2xs text-muted-foreground group-hover:text-primary transition-colors tracking-wider"
+                  class="text-label text-muted-foreground group-hover:text-primary transition-colors"
                 >
                   Insert →
                 </span>

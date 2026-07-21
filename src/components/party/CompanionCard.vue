@@ -70,10 +70,10 @@
 
     <!-- Quick stats + HP controls -->
     <div class="flex items-center gap-2 flex-wrap">
-      <span class="font-cinzel text-2xs text-muted-foreground tracking-wider px-1.5 py-0.5 rounded bg-muted" title="Armour Class">
+      <span class="text-label text-muted-foreground px-1.5 py-0.5 rounded bg-muted" title="Armour Class">
         AC {{ companion.ac }}
       </span>
-      <span class="font-cinzel text-2xs text-muted-foreground tracking-wider px-1.5 py-0.5 rounded bg-muted" title="Speed">
+      <span class="text-label text-muted-foreground px-1.5 py-0.5 rounded bg-muted" title="Speed">
         {{ companion.speed }} ft
       </span>
 
@@ -115,7 +115,7 @@
       <span
         v-for="cond in companion.conditions.filter((c) => !isExhaustion(c))"
         :key="cond"
-        class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-destructive/10 border border-destructive/20 font-cinzel text-2xs text-destructive tracking-wider"
+        class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-destructive/10 border border-destructive/20 text-label text-destructive"
         :title="getConditionDescription(cond)"
       >
         {{ cond }}

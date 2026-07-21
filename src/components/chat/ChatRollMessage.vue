@@ -10,7 +10,7 @@
       <span class="font-cinzel text-[0.5625rem] text-purple-500 dark:text-purple-400 tracking-widest">HIDDEN ROLL</span>
     </div>
     <!-- Sender row -->
-    <p class="font-cinzel text-2xs text-foreground/60 tracking-wider mb-1">
+    <p class="text-label text-foreground/60 mb-1">
       <span class="font-semibold text-purple-600 dark:text-purple-300">{{ senderName }}</span>
       {{ " " }}rolled <span class="text-purple-600/70 dark:text-purple-400">{{ roll.label }}</span>
     </p>
@@ -21,7 +21,7 @@
     >
       <span
         v-if="flavorSkillLabel"
-        class="font-cinzel text-2xs font-semibold text-purple-600 dark:text-purple-400 not-italic tracking-wider"
+        class="text-label font-semibold text-purple-600 dark:text-purple-400 not-italic"
       >
         {{ flavorSkillLabel }}:
       </span>
@@ -81,7 +81,7 @@
     "
   >
     <!-- Sender row -->
-    <p class="font-cinzel text-2xs text-muted-foreground tracking-wider mb-1.5">
+    <p class="text-label text-muted-foreground mb-1.5">
       <span class="font-semibold text-primary">{{ senderName }}</span>
       <span v-if="isWhisper" class="text-amber-400"> whispers</span>
       {{ " " }}rolled <span class="text-primary/70">{{ roll.label }}</span>

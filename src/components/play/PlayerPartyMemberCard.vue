@@ -16,7 +16,7 @@
         />
         <span
           v-if="isOwn"
-          class="absolute top-2 left-2 font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded bg-primary text-primary-foreground tracking-wider"
+          class="absolute top-2 left-2 text-label md:text-sm px-1.5 py-0.5 rounded bg-primary text-primary-foreground"
         >You</span>
       </MiniPortraitOverlay>
     </div>
@@ -31,7 +31,7 @@
       <div>
         <template v-if="showNumericHp">
           <div class="flex items-center justify-between mb-0.5">
-            <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">HP</span>
+            <span class="text-label md:text-sm text-muted-foreground">HP</span>
             <span class="font-cinzel text-2xs md:text-sm" :class="hpColor">{{ member.current_hp }} / {{ member.max_hp }}</span>
           </div>
           <div class="h-1.5 rounded-full bg-muted overflow-hidden">
@@ -55,7 +55,7 @@
         <span
           v-for="cond in (member.conditions ?? []).slice(0, 2)"
           :key="cond"
-          class="font-cinzel text-2xs md:text-sm px-1 py-0.5 rounded bg-destructive/10 text-destructive tracking-wider"
+          class="text-label md:text-sm px-1 py-0.5 rounded bg-destructive/10 text-destructive"
         >{{ cond }}</span>
         <span v-if="(member.conditions?.length ?? 0) > 2" class="font-fell text-2xs md:text-sm text-muted-foreground italic">
           +{{ (member.conditions?.length ?? 0) - 2 }}

@@ -80,7 +80,7 @@
           <span
             v-for="tag in item.tags"
             :key="tag"
-            class="font-cinzel text-2xs tracking-wider bg-muted text-muted-foreground rounded px-2 py-0.5"
+            class="text-label bg-muted text-muted-foreground rounded px-2 py-0.5"
             >{{ tag }}</span
           >
         </div>

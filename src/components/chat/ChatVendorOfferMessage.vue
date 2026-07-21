@@ -9,7 +9,7 @@
   >
     <div class="px-3 py-2 border-b border-border/50 flex items-center gap-2">
       <IconShop class="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-      <span class="font-cinzel text-2xs text-muted-foreground tracking-wider">
+      <span class="text-label text-muted-foreground">
         {{ senderName }} offers
       </span>
     </div>
@@ -35,7 +35,7 @@
       <template v-else-if="linkedPartyMemberId">
         <button
           type="button"
-          class="mt-1 px-2.5 py-1 rounded border font-cinzel text-2xs tracking-wider transition-colors"
+          class="mt-1 px-2.5 py-1 rounded border text-label transition-colors"
           :class="canAfford
             ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/30'
             : 'border-border text-muted-foreground/40 cursor-not-allowed'"

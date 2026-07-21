@@ -45,7 +45,7 @@
           @click="emit('update:coin', { ...coin, motif: m.id })"
         >
           <span v-if="m.symbol" class="text-base leading-none">{{ m.symbol }}</span>
-          <span v-else class="font-cinzel text-2xs tracking-wider">None</span>
+          <span v-else class="text-label">None</span>
         </button>
       </div>
     </div>

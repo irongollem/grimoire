@@ -74,7 +74,7 @@
                 <p class="font-cinzel text-sm font-bold text-foreground truncate">{{ recipe.name }}</p>
                 <span
                   v-if="!activeDiscipline"
-                  class="shrink-0 font-cinzel text-2xs md:text-sm tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
+                  class="shrink-0 text-label md:text-sm px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
                 >{{ getDiscipline(recipe.discipline).label }}</span>
               </div>
               <p class="font-fell text-xs text-muted-foreground">
@@ -122,7 +122,7 @@
 
           <!-- Ingredients -->
           <div class="px-4 py-3 flex-1">
-            <p class="font-cinzel text-2xs md:text-sm font-semibold tracking-wider text-muted-foreground mb-2">INGREDIENTS</p>
+            <p class="text-label md:text-sm font-semibold text-muted-foreground mb-2">INGREDIENTS</p>
             <div
               v-for="ing in ingredientsFor(recipe.id)"
               :key="ing.id"

@@ -1,6 +1,6 @@
 <template>
   <div class="flex items-center gap-3 p-2 rounded bg-destructive/10 border border-destructive/20">
-    <span class="font-cinzel text-2xs font-bold text-destructive tracking-wider">DEATH SAVES</span>
+    <span class="text-label font-bold text-destructive">DEATH SAVES</span>
     <div class="flex items-center gap-1">
       <span class="font-cinzel text-2xs text-green-500">✓</span>
       <div class="flex gap-1">

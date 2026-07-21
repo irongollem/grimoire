@@ -9,7 +9,7 @@
       :key="stat.key"
       class="flex flex-col items-center gap-1"
     >
-      <span class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider">{{ stat.label }}</span>
+      <span class="text-label font-semibold text-muted-foreground">{{ stat.label }}</span>
       <input
         :value="form[stat.key]"
         type="number"
@@ -128,7 +128,7 @@
     </p>
     <button
       type="button"
-      class="font-cinzel text-2xs tracking-wider text-primary/70 hover:text-primary transition-colors"
+      class="text-label text-primary/70 hover:text-primary transition-colors"
       @click="emit('resetSlots')"
     >
       Reset to class defaults
@@ -140,7 +140,7 @@
       :key="lvl"
       class="flex flex-col items-center gap-1"
     >
-      <span class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider">
+      <span class="text-label font-semibold text-muted-foreground">
         {{ SLOT_LEVEL_LABELS[lvl - 1] }}
       </span>
       <input

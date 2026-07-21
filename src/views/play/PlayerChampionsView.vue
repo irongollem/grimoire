@@ -67,7 +67,7 @@
                   <h2 class="font-cinzel text-sm font-bold text-foreground truncate">{{ char.name }}</h2>
                   <span
                     v-if="isActive(char)"
-                    class="shrink-0 font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded bg-primary text-primary-foreground tracking-wider"
+                    class="shrink-0 text-label md:text-sm px-1.5 py-0.5 rounded bg-primary text-primary-foreground"
                   >Active</span>
                 </div>
                 <p class="font-fell text-xs text-muted-foreground italic mt-0.5 truncate">
@@ -112,7 +112,7 @@
       <div v-if="!ui.dmPreviewMode && offeredCharacters?.length" class="space-y-3">
         <div class="flex items-center gap-2">
           <h2 class="font-cinzel text-sm font-semibold text-foreground">Available from your DM</h2>
-          <span class="font-cinzel text-2xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground tracking-wider">{{ offeredCharacters.length }}</span>
+          <span class="text-label px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{{ offeredCharacters.length }}</span>
         </div>
         <div
           v-for="char in offeredCharacters"

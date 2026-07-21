@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col items-center gap-1">
     <!-- Symbol -->
-    <span class="font-cinzel text-2xs font-bold tracking-wider" :class="color" :title="label">{{ symbol }}</span>
+    <span class="text-label font-bold" :class="color" :title="label">{{ symbol }}</span>
 
     <!-- Input -->
     <input

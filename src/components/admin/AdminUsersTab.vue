@@ -28,13 +28,13 @@
           </p>
         </div>
         <div class="flex items-center gap-2 shrink-0 flex-wrap justify-end">
-          <span v-if="user.banned" class="font-cinzel text-2xs font-semibold tracking-wider px-2 py-0.5 rounded border border-destructive/50 text-destructive">
+          <span v-if="user.banned" class="text-label font-semibold px-2 py-0.5 rounded border border-destructive/50 text-destructive">
             Locked
           </span>
-          <span v-else-if="user.suspended_at" class="font-cinzel text-2xs font-semibold tracking-wider px-2 py-0.5 rounded border border-amber-500/50 text-amber-400">
+          <span v-else-if="user.suspended_at" class="text-label font-semibold px-2 py-0.5 rounded border border-amber-500/50 text-amber-400">
             Frozen
           </span>
-          <span class="font-cinzel text-2xs font-semibold tracking-wider px-2 py-0.5 rounded border"
+          <span class="text-label font-semibold px-2 py-0.5 rounded border"
             :class="planBadgeClass(user.plan_id)">
             {{ user.plan_id }}
           </span>
@@ -43,7 +43,7 @@
             <button
               v-for="pid in PLAN_IDS"
               :key="pid"
-              class="px-2 py-0.5 font-cinzel text-2xs font-semibold tracking-wider border rounded transition-colors"
+              class="px-2 py-0.5 text-label font-semibold border rounded transition-colors"
               :class="
                 user.plan_id === pid
                   ? 'border-primary/40 text-primary bg-primary/10 cursor-default'
@@ -58,7 +58,7 @@
 
           <!-- Soft freeze (paid actions) -->
           <button
-            class="px-2 py-0.5 font-cinzel text-2xs font-semibold tracking-wider border rounded transition-colors"
+            class="px-2 py-0.5 text-label font-semibold border rounded transition-colors"
             :class="user.suspended_at
               ? 'border-amber-500/40 text-amber-400 hover:bg-amber-500/10'
               : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'"
@@ -70,7 +70,7 @@
 
           <!-- Hard lock-out (login ban) -->
           <button
-            class="px-2 py-0.5 font-cinzel text-2xs font-semibold tracking-wider border rounded transition-colors"
+            class="px-2 py-0.5 text-label font-semibold border rounded transition-colors"
             :class="user.banned
               ? 'border-elven-green/40 text-elven-green hover:bg-elven-green/10'
               : 'border-destructive/40 text-destructive hover:bg-destructive/10'"

@@ -59,7 +59,7 @@
             </h3>
             <span
               v-if="m.default_pack_id"
-              class="font-cinzel text-2xs px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold tracking-wider shrink-0"
+              class="text-label px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold shrink-0"
             >
               {{ m.default_pack_id }}
             </span>

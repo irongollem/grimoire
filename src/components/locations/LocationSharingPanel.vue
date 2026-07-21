@@ -8,7 +8,7 @@
     <!-- Player summary (always shown to players who can see this location) -->
     <div class="flex flex-col gap-1">
       <label
-        class="font-cinzel text-2xs text-muted-foreground tracking-wider"
+        class="text-label text-muted-foreground"
         >Summary (always visible)</label
       >
       <input

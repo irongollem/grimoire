@@ -94,7 +94,7 @@
             <p v-if="deity.titles" class="font-fell text-xs text-muted-foreground italic truncate">{{ deity.titles }}</p>
 
             <!-- Pantheon -->
-            <p v-if="deity.pantheon?.name" class="font-cinzel text-2xs text-muted-foreground tracking-wider">
+            <p v-if="deity.pantheon?.name" class="text-label text-muted-foreground">
               {{ deity.pantheon.name }}
             </p>
 

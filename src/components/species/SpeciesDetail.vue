@@ -181,7 +181,7 @@
               </button>
             </div>
             <label class="block">
-              <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground">ABILITY BONUS</span>
+              <span class="text-label font-semibold text-muted-foreground">ABILITY BONUS</span>
               <input
                 v-model="sub.asiText"
                 placeholder="e.g. CHA +1 or +1 Charisma"

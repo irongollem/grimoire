@@ -370,6 +370,17 @@
   text-transform: uppercase;
 }
 
+/* text-label — the mixed-case sibling of text-eyebrow: the same tiny wide-
+   tracked Cinzel recipe WITHOUT forced uppercase, for action/field labels
+   ("Save", "Resume →", "Detection DC"). Equivalent to
+   `font-cinzel text-2xs tracking-wider`. */
+@utility text-label {
+  font-family: var(--font-cinzel);
+  font-size: 0.625rem;
+  line-height: 1;
+  letter-spacing: 0.05em;
+}
+
 /* Hide the native scrollbar while keeping the element scrollable (used by the
    soundboard page tabs, which cue overflow with edge fades + chevrons). */
 @utility scrollbar-none {

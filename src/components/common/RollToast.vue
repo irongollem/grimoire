@@ -5,7 +5,7 @@
         v-if="visible"
         class="fixed bottom-6 right-6 z-50 rounded-lg border border-primary/40 bg-card shadow-lg px-4 py-3 min-w-56 max-w-72"
       >
-        <p class="font-cinzel text-2xs text-muted-foreground tracking-wider mb-0.5">{{ current!.label }}</p>
+        <p class="text-label text-muted-foreground mb-0.5">{{ current!.label }}</p>
         <div class="flex items-baseline gap-2">
           <span class="font-cinzel text-3xl font-bold text-foreground">{{ current!.masked ? "?" : current!.total }}</span>
           <span class="font-fell text-sm text-muted-foreground">

@@ -147,7 +147,7 @@
         <span
           v-for="tag in npc.tags"
           :key="tag"
-          class="rounded-full bg-muted px-2.5 py-1 font-cinzel text-2xs tracking-wider text-muted-foreground"
+          class="rounded-full bg-muted px-2.5 py-1 text-label text-muted-foreground"
         >
           {{ tag }}
         </span>

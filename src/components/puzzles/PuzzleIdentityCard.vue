@@ -18,11 +18,11 @@
         <h2 class="font-cinzel text-xl font-bold text-foreground leading-tight">{{ puzzle.name }}</h2>
         <div class="flex flex-wrap gap-2">
           <span
-            class="font-cinzel text-2xs px-2 py-0.5 rounded tracking-wider text-white font-bold"
+            class="text-label px-2 py-0.5 rounded text-white font-bold"
             :style="{ backgroundColor: PUZZLE_TYPE_COLORS[puzzle.puzzle_type] + 'DD' }"
           >{{ puzzle.puzzle_type }}</span>
           <span
-            class="font-cinzel text-2xs px-2 py-0.5 rounded tracking-wider text-white font-bold"
+            class="text-label px-2 py-0.5 rounded text-white font-bold"
             :style="{ backgroundColor: PUZZLE_DIFFICULTY_COLORS[puzzle.difficulty] + 'DD' }"
           >{{ puzzle.difficulty }}</span>
         </div>

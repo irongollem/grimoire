@@ -30,8 +30,8 @@
               <input v-model.number="editDuration" type="number" min="0.5" step="0.5" placeholder="hours" class="w-full bg-background border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
             </div>
             <div class="flex justify-end gap-2">
-              <button class="px-3 py-1.5 font-cinzel text-2xs tracking-wider text-muted-foreground border border-border rounded hover:text-foreground transition-colors" @click="editingId = null">Cancel</button>
-              <button class="px-3 py-1.5 font-cinzel text-2xs tracking-wider bg-primary text-primary-foreground rounded hover:opacity-90 transition-opacity" :disabled="isUpdating" @click="saveEdit(p.id)">Save</button>
+              <button class="px-3 py-1.5 text-label text-muted-foreground border border-border rounded hover:text-foreground transition-colors" @click="editingId = null">Cancel</button>
+              <button class="px-3 py-1.5 text-label bg-primary text-primary-foreground rounded hover:opacity-90 transition-opacity" :disabled="isUpdating" @click="saveEdit(p.id)">Save</button>
             </div>
           </div>
           <!-- Normal display -->
@@ -41,7 +41,7 @@
               <p class="font-cinzel text-sm font-semibold text-foreground">{{ p.title }}</p>
               <p class="font-fell text-xs text-muted-foreground">{{ formatDate(p.proposed_date, p.proposed_time) }}</p>
             </div>
-            <span class="font-cinzel text-2xs tracking-wider px-1.5 py-0.5 rounded bg-elven-green/15 text-elven-green">
+            <span class="text-label px-1.5 py-0.5 rounded bg-elven-green/15 text-elven-green">
               {{ availabilityCount(p.id) }}/{{ playerCount }} available
             </span>
             <button class="text-muted-foreground hover:text-foreground transition-colors shrink-0" title="Edit session" @click="startEdit(p)">
@@ -84,8 +84,8 @@
               <input v-model.number="editDuration" type="number" min="0.5" step="0.5" placeholder="hours" class="w-full bg-background border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
             </div>
             <div class="flex justify-end gap-2">
-              <button class="px-3 py-1.5 font-cinzel text-2xs tracking-wider text-muted-foreground border border-border rounded hover:text-foreground transition-colors" @click="editingId = null">Cancel</button>
-              <button class="px-3 py-1.5 font-cinzel text-2xs tracking-wider bg-primary text-primary-foreground rounded hover:opacity-90 transition-opacity" :disabled="isUpdating" @click="saveEdit(p.id)">Save</button>
+              <button class="px-3 py-1.5 text-label text-muted-foreground border border-border rounded hover:text-foreground transition-colors" @click="editingId = null">Cancel</button>
+              <button class="px-3 py-1.5 text-label bg-primary text-primary-foreground rounded hover:opacity-90 transition-opacity" :disabled="isUpdating" @click="saveEdit(p.id)">Save</button>
             </div>
           </div>
           <!-- Normal display -->
@@ -98,7 +98,7 @@
               </div>
               <!-- Availability summary -->
               <span
-                class="font-cinzel text-2xs tracking-wider px-1.5 py-0.5 rounded"
+                class="text-label px-1.5 py-0.5 rounded"
                 :class="availabilityCount(p.id) >= p.min_attendance ? 'bg-elven-green/15 text-elven-green' : 'bg-muted text-muted-foreground'"
               >
                 {{ availabilityCount(p.id) }}/{{ playerCount }}
@@ -106,7 +106,7 @@
               <!-- Actions -->
               <div class="flex items-center gap-1 shrink-0">
                 <button
-                  class="inline-flex items-center gap-1 font-cinzel text-2xs tracking-wider px-2 py-1 rounded bg-elven-green/15 text-elven-green hover:bg-elven-green/25 transition-colors"
+                  class="inline-flex items-center gap-1 text-label px-2 py-1 rounded bg-elven-green/15 text-elven-green hover:bg-elven-green/25 transition-colors"
                   :disabled="isUpdating"
                   @click="confirmSession(p)"
                 >
@@ -146,7 +146,7 @@
 
       <div>
         <label
-          class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1"
+          class="block text-label text-muted-foreground mb-1"
           >DATE &amp; TIME</label
         >
         <VueDatePicker
@@ -176,7 +176,7 @@
 
       <div class="grid grid-cols-3 gap-3">
         <div>
-          <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1">NOTES (optional)</label>
+          <label class="block text-label text-muted-foreground mb-1">NOTES (optional)</label>
           <input
             v-model="form.notes"
             type="text"
@@ -185,7 +185,7 @@
           />
         </div>
         <div>
-          <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1">DURATION (hours)</label>
+          <label class="block text-label text-muted-foreground mb-1">DURATION (hours)</label>
           <input
             v-model.number="form.duration_hours"
             type="number"
@@ -275,7 +275,7 @@
           @click="($event.target as HTMLInputElement).select()"
         />
         <button
-          class="shrink-0 inline-flex items-center gap-1 font-cinzel text-2xs tracking-wider px-2.5 py-1.5 rounded border border-border hover:bg-muted transition-colors"
+          class="shrink-0 inline-flex items-center gap-1 text-label px-2.5 py-1.5 rounded border border-border hover:bg-muted transition-colors"
           :title="copied ? 'Copied!' : 'Copy URL'"
           @click="copyUrl"
         >
@@ -289,7 +289,7 @@
       <div class="flex items-center gap-2 flex-wrap">
         <a
           :href="webcalUrl"
-          class="inline-flex items-center gap-1.5 font-cinzel text-2xs tracking-wider px-3 py-1.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+          class="inline-flex items-center gap-1.5 text-label px-3 py-1.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
         >
           <IconAddEvent class="h-3 w-3" />
           Subscribe in IconCalendar App
@@ -297,7 +297,7 @@
 
         <button
           v-if="isDM"
-          class="inline-flex items-center gap-1.5 font-cinzel text-2xs tracking-wider px-3 py-1.5 rounded border border-border text-muted-foreground hover:text-destructive hover:border-destructive transition-colors"
+          class="inline-flex items-center gap-1.5 text-label px-3 py-1.5 rounded border border-border text-muted-foreground hover:text-destructive hover:border-destructive transition-colors"
           :disabled="isRegenerating"
           title="Generate a new URL — existing subscriptions will stop updating"
           @click="regenerateToken"

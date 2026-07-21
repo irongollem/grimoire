@@ -23,11 +23,11 @@
           class="group-hover:scale-105 transition-transform duration-300"
         />
         <span
-          class="absolute top-2 left-2 font-cinzel text-2xs px-1.5 py-0.5 rounded tracking-wider text-white font-bold"
+          class="absolute top-2 left-2 text-label px-1.5 py-0.5 rounded text-white font-bold"
           :style="{ backgroundColor: PUZZLE_TYPE_COLORS[puzzle.puzzle_type] + 'DD' }"
         >{{ puzzle.puzzle_type }}</span>
         <span
-          class="absolute bottom-2 right-2 font-cinzel text-2xs px-1.5 py-0.5 rounded tracking-wider text-white font-bold"
+          class="absolute bottom-2 right-2 text-label px-1.5 py-0.5 rounded text-white font-bold"
           :style="{ backgroundColor: PUZZLE_DIFFICULTY_COLORS[puzzle.difficulty] + 'DD' }"
         >{{ puzzle.difficulty }}</span>
       </div>

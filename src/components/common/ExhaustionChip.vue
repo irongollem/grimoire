@@ -9,7 +9,7 @@
     long-press gives the DM what each level does.
   -->
   <span :class="wrapperClass" :title="isTouch ? undefined : tooltip">
-    <span class="font-cinzel text-2xs font-semibold tracking-wider">Exhaustion</span>
+    <span class="text-label font-semibold">Exhaustion</span>
 
     <span class="flex items-center gap-0.5">
       <button

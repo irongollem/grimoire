@@ -9,7 +9,7 @@
   >
     <div class="px-3 py-2 border-b border-border/50 flex items-center gap-2">
       <IconCoins class="h-3.5 w-3.5 text-amber-400 shrink-0" />
-      <span class="font-cinzel text-2xs text-muted-foreground tracking-wider">
+      <span class="text-label text-muted-foreground">
         {{ senderName }} dropped currency
       </span>
     </div>
@@ -54,7 +54,7 @@
       <button
         v-else-if="canClaim"
         type="button"
-        class="mt-2 px-2.5 py-1 rounded bg-amber-500/20 border border-amber-500/40 font-cinzel text-2xs text-amber-400 hover:bg-amber-500/30 transition-colors tracking-wider"
+        class="mt-2 px-2.5 py-1 rounded bg-amber-500/20 border border-amber-500/40 text-label text-amber-400 hover:bg-amber-500/30 transition-colors"
         @click="emit('claim-currency', { messageId })"
       >
         Add to Purse

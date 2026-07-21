@@ -41,7 +41,7 @@
               </span>
               <span
                 v-if="isLocked(type.key)"
-                class="font-cinzel text-2xs tracking-wider text-primary/60"
+                class="text-label text-primary/60"
               >
                 required by Characters
               </span>
@@ -118,14 +118,14 @@
         </span>
         <div class="flex gap-2">
           <button
-            class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+            class="text-label font-semibold text-muted-foreground hover:text-foreground transition-colors"
             @click="selectAll"
           >
             All
           </button>
           <span class="text-border">·</span>
           <button
-            class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+            class="text-label font-semibold text-muted-foreground hover:text-foreground transition-colors"
             @click="selectNone"
           >
             None

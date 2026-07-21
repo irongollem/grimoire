@@ -8,7 +8,7 @@
       class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-1.5 rounded-lg bg-background/80 backdrop-blur-sm"
     >
       <IconLock class="h-4 w-4 text-muted-foreground" />
-      <p class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground text-center px-2">
+      <p class="text-label font-semibold text-muted-foreground text-center px-2">
         Locked
       </p>
       <RouterLink

@@ -11,11 +11,11 @@
         class="w-full rounded-lg overflow-hidden max-h-80 lg:max-h-none lg:flex-1 lg:min-h-0"
       />
       <div class="flex flex-wrap gap-1">
-        <span class="font-cinzel text-2xs tracking-wider bg-muted text-muted-foreground rounded px-2 py-0.5 capitalize">{{ npc.status }}</span>
-        <span class="font-cinzel text-2xs tracking-wider bg-muted text-muted-foreground rounded px-2 py-0.5 capitalize">{{ npc.relationship }}</span>
+        <span class="text-label bg-muted text-muted-foreground rounded px-2 py-0.5 capitalize">{{ npc.status }}</span>
+        <span class="text-label bg-muted text-muted-foreground rounded px-2 py-0.5 capitalize">{{ npc.relationship }}</span>
       </div>
       <div v-if="npc.tags?.length" class="flex flex-wrap gap-1">
-        <span v-for="tag in npc.tags" :key="tag" class="font-cinzel text-2xs tracking-wider bg-muted/60 text-muted-foreground rounded px-2 py-0.5">{{ tag }}</span>
+        <span v-for="tag in npc.tags" :key="tag" class="text-label bg-muted/60 text-muted-foreground rounded px-2 py-0.5">{{ tag }}</span>
       </div>
 
       <!-- Factions -->
@@ -43,7 +43,7 @@
           <button
             type="button"
             :disabled="isToggling"
-            class="w-full py-1 font-cinzel text-2xs font-semibold tracking-wider rounded border transition-colors disabled:opacity-50"
+            class="w-full py-1 text-label font-semibold rounded border transition-colors disabled:opacity-50"
             :class="npc.is_revealed
               ? 'border-border text-muted-foreground hover:border-foreground/40'
               : 'border-amber-500/50 text-amber-500 bg-amber-500/10 hover:bg-amber-500/20'"

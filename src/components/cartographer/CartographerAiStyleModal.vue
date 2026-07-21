@@ -34,7 +34,7 @@
                 @click="$emit('update:selectedPresetId', preset.id)"
               >
                 <span class="text-lg leading-none">{{ preset.icon }}</span>
-                <span class="font-cinzel text-2xs font-semibold tracking-wider leading-tight">{{ preset.label }}</span>
+                <span class="text-label font-semibold leading-tight">{{ preset.label }}</span>
                 <span class="font-fell text-[0.5625rem] leading-tight opacity-70">{{ preset.description }}</span>
               </button>
             </div>

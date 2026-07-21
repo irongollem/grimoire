@@ -80,7 +80,7 @@
 
     <!-- Enemy breakdown -->
     <div v-if="props.enemyEntries.length" class="flex flex-col gap-1 border-t border-border pt-3">
-      <div class="font-cinzel text-2xs text-muted-foreground tracking-wider mb-1">
+      <div class="text-label text-muted-foreground mb-1">
         ENEMY BREAKDOWN
       </div>
       <div

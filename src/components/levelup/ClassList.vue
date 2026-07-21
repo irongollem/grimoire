@@ -102,7 +102,7 @@
           <button
             type="button"
             :disabled="duplicating === cls.id"
-            class="inline-flex items-center gap-1 rounded border border-border px-2.5 py-1 font-cinzel text-2xs tracking-wider text-foreground hover:bg-muted/40 transition-colors disabled:opacity-50 shrink-0"
+            class="inline-flex items-center gap-1 rounded border border-border px-2.5 py-1 text-label text-foreground hover:bg-muted/40 transition-colors disabled:opacity-50 shrink-0"
             @click="duplicate(cls)"
           >
             <IconCopy class="h-3 w-3" />

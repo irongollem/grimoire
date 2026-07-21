@@ -105,7 +105,7 @@
             </div>
             <template v-if="draftProviders[row.provider]?.text_model !== null">
               <div class="space-y-1">
-                <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground">Model</label>
+                <label class="block text-label text-muted-foreground">Model</label>
                 <input
                   v-model="draftProviders[row.provider].text_model"
                   :list="`text-models-${row.provider}`"
@@ -118,7 +118,7 @@
                 </datalist>
               </div>
               <div class="space-y-1">
-                <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground">Multiplier</label>
+                <label class="block text-label text-muted-foreground">Multiplier</label>
                 <input
                   v-model.number="draftProviders[row.provider].text_multiplier"
                   type="number" step="0.1" min="0.1"
@@ -150,7 +150,7 @@
             </div>
             <template v-if="draftProviders[row.provider]?.image_model !== null">
               <div class="space-y-1">
-                <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground">Model</label>
+                <label class="block text-label text-muted-foreground">Model</label>
                 <input
                   v-model="draftProviders[row.provider].image_model"
                   :list="`image-models-${row.provider}`"
@@ -163,13 +163,13 @@
                 </datalist>
               </div>
               <div v-if="IMAGE_QUALITY_OPTIONS[row.provider]" class="space-y-1">
-                <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground">Quality</label>
+                <label class="block text-label text-muted-foreground">Quality</label>
                 <div class="flex gap-1">
                   <button
                     v-for="opt in IMAGE_QUALITY_OPTIONS[row.provider]"
                     :key="opt.value"
                     type="button"
-                    class="flex-1 px-1.5 py-1 font-cinzel text-2xs font-semibold tracking-wider rounded border transition-colors"
+                    class="flex-1 px-1.5 py-1 text-label font-semibold rounded border transition-colors"
                     :class="draftProviders[row.provider]?.image_quality === opt.value
                       ? 'bg-primary text-primary-foreground border-primary'
                       : 'bg-background text-muted-foreground border-border hover:text-foreground'"
@@ -179,7 +179,7 @@
                 <p class="font-fell text-[0.5625rem] text-muted-foreground/60 italic">Higher = more output tokens = higher real cost.</p>
               </div>
               <div class="space-y-1">
-                <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground">Multiplier</label>
+                <label class="block text-label text-muted-foreground">Multiplier</label>
                 <input
                   v-model.number="draftProviders[row.provider].image_multiplier"
                   type="number" step="0.1" min="0.1"
@@ -211,7 +211,7 @@
             </div>
             <template v-if="draftProviders[row.provider]?.audio_model !== null && draftProviders[row.provider]?.audio_model !== undefined">
               <div class="space-y-1">
-                <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground">Models</label>
+                <label class="block text-label text-muted-foreground">Models</label>
                 <!-- Multiple known models: show as static list; user selects in the app UI -->
                 <template v-if="(KNOWN_AUDIO_MODELS[row.provider] ?? []).length > 1">
                   <div class="space-y-0.5">
@@ -237,7 +237,7 @@
                 </template>
               </div>
               <div class="space-y-1">
-                <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground">Multiplier</label>
+                <label class="block text-label text-muted-foreground">Multiplier</label>
                 <input
                   v-model.number="draftProviders[row.provider].audio_multiplier"
                   type="number" step="0.1" min="0.1"

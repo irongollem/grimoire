@@ -23,7 +23,7 @@
         <template v-if="msg.type === 'roll' && msg.metadata">
           <div class="flex items-baseline gap-2">
             <span
-              class="font-cinzel text-2xs text-muted-foreground tracking-wider"
+              class="text-label text-muted-foreground"
             >
               {{ msg.sender_name ?? "Unknown" }}
             </span>
@@ -81,7 +81,7 @@
         <!-- Chat message -->
         <template v-else>
           <div class="flex items-baseline gap-2">
-            <span class="font-cinzel text-2xs text-primary tracking-wider">
+            <span class="text-label text-primary">
               {{ msg.sender_name ?? "Unknown" }}
             </span>
             <span class="font-cinzel text-2xs text-muted-foreground">
@@ -105,7 +105,7 @@
     <div class="border-t border-border px-3 py-3 shrink-0 space-y-2">
       <div v-if="otherMembers.length" class="flex items-center gap-2">
         <span
-          class="font-cinzel text-2xs text-muted-foreground tracking-wider shrink-0"
+          class="text-label text-muted-foreground shrink-0"
           >To:</span
         >
         <select

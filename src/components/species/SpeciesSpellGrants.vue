@@ -27,12 +27,12 @@
       <!-- Free pick toggle -->
       <label class="flex items-center gap-2 cursor-pointer">
         <input type="checkbox" v-model="grantForm.isFreePick" class="rounded" />
-        <span class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider">PLAYER CHOOSES SPELL (e.g. High Elf cantrip)</span>
+        <span class="text-label font-semibold text-muted-foreground">PLAYER CHOOSES SPELL (e.g. High Elf cantrip)</span>
       </label>
 
       <!-- Spell search (hidden for free pick) -->
       <div v-if="!grantForm.isFreePick" class="space-y-1">
-        <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground">SPELL</label>
+        <label class="text-label font-semibold text-muted-foreground">SPELL</label>
         <div v-if="grantForm.spell" class="flex items-center gap-2 px-2 py-1.5 rounded bg-violet-500/10 border border-violet-500/30">
           <div class="h-2 w-2 rounded-full bg-violet-400 shrink-0" />
           <span class="font-fell text-sm flex-1 truncate">{{ grantForm.spell.name }}</span>
@@ -111,14 +111,14 @@
           </div>
         </div>
         <div v-if="grantForm.usesPerDay !== null" class="flex-1">
-          <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground">RESETS ON</label>
+          <label class="text-label font-semibold text-muted-foreground">RESETS ON</label>
           <div class="mt-1 flex rounded-md border border-border overflow-hidden text-xs font-cinzel font-semibold tracking-wider">
             <button type="button" class="flex-1 px-2 py-1.5 transition-colors" :class="grantForm.resetsOn === 'long_rest' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'" @click="grantForm.resetsOn = 'long_rest'">Long</button>
             <button type="button" class="flex-1 px-2 py-1.5 transition-colors" :class="grantForm.resetsOn === 'short_rest' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'" @click="grantForm.resetsOn = 'short_rest'">Short</button>
           </div>
         </div>
         <div class="w-20">
-          <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground">MIN LEVEL</label>
+          <label class="text-label font-semibold text-muted-foreground">MIN LEVEL</label>
           <input
             v-model.number="grantForm.minLevel"
             type="number" min="1" max="20"

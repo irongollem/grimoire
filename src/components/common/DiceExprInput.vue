@@ -24,19 +24,19 @@
         <span
           v-if="rollResult !== null"
           key="result"
-          class="font-cinzel text-2xs font-bold text-primary tracking-wider"
+          class="text-label font-bold text-primary"
           >= {{ rollResult }}</span
         >
         <span
           v-else-if="parsed"
           key="avg"
-          class="font-cinzel text-2xs text-muted-foreground/60 tracking-wider"
+          class="text-label text-muted-foreground/60"
           >avg {{ average }}</span
         >
         <span
           v-else-if="model && !parsed"
           key="invalid"
-          class="font-cinzel text-2xs text-destructive/70 tracking-wider"
+          class="text-label text-destructive/70"
           >invalid</span
         >
       </Transition>

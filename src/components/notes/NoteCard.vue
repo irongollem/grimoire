@@ -20,7 +20,7 @@
       class="absolute inset-0 z-20 flex flex-col items-center justify-center gap-1.5 bg-background/80 backdrop-blur-sm"
     >
       <IconLock class="h-4 w-4 text-muted-foreground" />
-      <p class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground">Locked</p>
+      <p class="text-label font-semibold text-muted-foreground">Locked</p>
       <RouterLink to="/billing" class="font-cinzel text-[0.5625rem] tracking-wider text-primary/80 hover:text-primary transition-colors">
         Upgrade to access
       </RouterLink>
@@ -42,7 +42,7 @@
       <!-- Category + session -->
       <div class="flex items-center gap-2">
         <span
-          class="px-1.5 py-0.5 rounded font-cinzel text-2xs font-bold tracking-wider capitalize"
+          class="px-1.5 py-0.5 rounded text-label font-bold capitalize"
           :style="{ backgroundColor: categoryColor(note.category) + '22', color: categoryColor(note.category) }"
         >
           {{ note.category }}
@@ -64,7 +64,7 @@
           <span
             v-for="tag in note.tags.slice(0, 2)"
             :key="tag"
-            class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground tracking-wider"
+            class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground"
           >
             {{ tag }}
           </span>

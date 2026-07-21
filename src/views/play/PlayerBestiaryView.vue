@@ -88,7 +88,7 @@
         <button
           type="button"
           :disabled="sharingBeasts"
-          class="inline-flex items-center gap-1.5 rounded px-2.5 py-1 font-cinzel text-2xs md:text-sm font-semibold tracking-wider text-primary border border-primary/40 hover:bg-primary/10 transition-colors disabled:opacity-50"
+          class="inline-flex items-center gap-1.5 rounded px-2.5 py-1 text-label md:text-sm font-semibold text-primary border border-primary/40 hover:bg-primary/10 transition-colors disabled:opacity-50"
           @click="shareAllEligibleBeasts"
         >
           {{ sharingBeasts ? 'Sharing…' : 'Share all eligible beasts' }}
@@ -209,7 +209,7 @@
               <AbilityScoreTable :scores="lightboxScores" :rounded="false" />
               <template v-for="section in lightboxTraitSections" :key="section.label">
                 <div class="border-t border-border pt-3">
-                  <p class="font-cinzel text-2xs md:text-sm tracking-wider text-muted-foreground mb-2">{{ section.label.toUpperCase() }}</p>
+                  <p class="text-label md:text-sm text-muted-foreground mb-2">{{ section.label.toUpperCase() }}</p>
                   <div v-for="t in section.traits" :key="t.name" class="mb-3 last:mb-0">
                     <div class="flex items-start gap-2 flex-wrap">
                       <p class="font-cinzel text-xs font-semibold text-foreground shrink-0">{{ t.name }}.</p>

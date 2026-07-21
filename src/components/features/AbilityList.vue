@@ -42,7 +42,7 @@
           <span
             v-for="tag in feat.tags.slice(0, 4)"
             :key="tag"
-            class="rounded bg-muted px-1.5 py-0.5 font-cinzel text-2xs text-muted-foreground tracking-wider"
+            class="rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
           >{{ tag }}</span>
         </div>
       </div>

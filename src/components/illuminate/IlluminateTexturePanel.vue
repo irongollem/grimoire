@@ -44,7 +44,7 @@
         <span class="font-fell text-xs text-muted-foreground truncate flex-1">{{ filename }}</span>
         <button
           type="button"
-          class="font-cinzel text-2xs tracking-wider text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          class="text-label text-muted-foreground hover:text-foreground transition-colors shrink-0"
           @click="emit('clear')"
         >Remove</button>
       </div>
@@ -56,7 +56,7 @@
           v-for="mode in BLEND_MODES"
           :key="mode"
           type="button"
-          class="font-cinzel text-2xs tracking-wider px-2 py-0.5 rounded border transition-colors"
+          class="text-label px-2 py-0.5 rounded border transition-colors"
           :class="texture.blendMode === mode
             ? 'border-primary text-primary'
             : 'border-border hover:border-primary/60 hover:text-foreground text-muted-foreground'"

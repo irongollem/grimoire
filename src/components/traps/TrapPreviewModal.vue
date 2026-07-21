@@ -11,7 +11,7 @@
         <!-- Header -->
         <div class="flex items-center gap-3 px-5 py-4 border-b border-border shrink-0">
           <span
-            class="font-cinzel text-2xs font-bold px-2 py-0.5 rounded tracking-wider text-white shrink-0"
+            class="text-label font-bold px-2 py-0.5 rounded text-white shrink-0"
             :style="{ backgroundColor: TRAP_TYPE_COLORS[trap.trap_type] + 'DD' }"
           >{{ trap.trap_type }}</span>
           <h2 class="font-cinzel text-sm font-bold text-foreground flex-1 truncate">{{ trap.name }}</h2>
@@ -41,15 +41,15 @@
                 <span
                   v-for="tag in trap.tags"
                   :key="tag"
-                  class="font-cinzel text-2xs px-2 py-0.5 rounded bg-muted text-muted-foreground tracking-wider"
+                  class="text-label px-2 py-0.5 rounded bg-muted text-muted-foreground"
                 >{{ tag }}</span>
               </div>
               <div v-if="trap.damage_immunities?.length" class="flex flex-wrap gap-1">
-                <span class="font-cinzel text-2xs text-muted-foreground tracking-wider mr-1">Immune:</span>
+                <span class="text-label text-muted-foreground mr-1">Immune:</span>
                 <span
                   v-for="dmg in trap.damage_immunities"
                   :key="dmg"
-                  class="font-cinzel text-2xs px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 tracking-wider capitalize"
+                  class="text-label px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 capitalize"
                 >{{ dmg }}</span>
               </div>
             </div>
@@ -57,22 +57,22 @@
 
           <!-- Mechanics -->
           <div class="px-5 pt-4">
-            <div class="font-cinzel text-2xs text-muted-foreground tracking-wider mb-2">MECHANICS</div>
+            <div class="text-label text-muted-foreground mb-2">MECHANICS</div>
             <div class="grid grid-cols-3 gap-x-4 gap-y-2">
               <div v-if="trap.trigger_type">
-                <div class="font-cinzel text-2xs text-muted-foreground tracking-wider">Trigger</div>
+                <div class="text-label text-muted-foreground">Trigger</div>
                 <div class="font-fell text-sm text-foreground">{{ trap.trigger_type }}</div>
               </div>
               <div v-if="trap.detection_dc">
-                <div class="font-cinzel text-2xs text-muted-foreground tracking-wider">Detection DC</div>
+                <div class="text-label text-muted-foreground">Detection DC</div>
                 <div class="font-cinzel text-sm font-bold text-foreground">{{ trap.detection_dc }}</div>
               </div>
               <div v-if="trap.disarm_dc">
-                <div class="font-cinzel text-2xs text-muted-foreground tracking-wider">Disarm DC</div>
+                <div class="text-label text-muted-foreground">Disarm DC</div>
                 <div class="font-cinzel text-sm font-bold text-foreground">{{ trap.disarm_dc }}</div>
               </div>
               <div>
-                <div class="font-cinzel text-2xs text-muted-foreground tracking-wider">Reset</div>
+                <div class="text-label text-muted-foreground">Reset</div>
                 <div class="font-fell text-sm text-foreground">{{ trap.reset_type }}</div>
               </div>
               <div v-if="trap.trap_hp">
@@ -91,25 +91,25 @@
             v-if="trap.effect_description || trap.attack_bonus != null || trap.save_type || trap.damage_entries?.length"
             class="px-5 pt-4"
           >
-            <div class="font-cinzel text-2xs text-muted-foreground tracking-wider mb-2">EFFECT</div>
+            <div class="text-label text-muted-foreground mb-2">EFFECT</div>
             <p v-if="trap.effect_description" class="font-fell text-sm text-foreground mb-2">
               {{ trap.effect_description }}
             </p>
             <div class="flex flex-wrap gap-4">
               <div v-if="trap.attack_bonus != null">
-                <div class="font-cinzel text-2xs text-muted-foreground tracking-wider">Attack</div>
+                <div class="text-label text-muted-foreground">Attack</div>
                 <div class="font-cinzel text-sm font-bold text-foreground">
                   {{ trap.attack_bonus >= 0 ? "+" : "" }}{{ trap.attack_bonus }}
                 </div>
               </div>
               <div v-if="trap.save_type">
-                <div class="font-cinzel text-2xs text-muted-foreground tracking-wider">Save</div>
+                <div class="text-label text-muted-foreground">Save</div>
                 <div class="font-cinzel text-sm font-bold text-foreground">
                   {{ trap.save_type }} DC {{ trap.save_dc ?? "—" }}
                 </div>
               </div>
               <div v-if="trap.damage_entries?.length">
-                <div class="font-cinzel text-2xs text-muted-foreground tracking-wider">Damage</div>
+                <div class="text-label text-muted-foreground">Damage</div>
                 <div class="font-cinzel text-sm font-bold text-foreground capitalize">
                   <span v-for="(entry, i) in trap.damage_entries" :key="i">
                     <span v-if="i > 0" class="text-muted-foreground font-normal"> + </span>
@@ -122,13 +122,13 @@
 
           <!-- Description -->
           <div v-if="descriptionHtml" class="px-5 pt-4">
-            <div class="font-cinzel text-2xs text-muted-foreground tracking-wider mb-2">DESCRIPTION</div>
+            <div class="text-label text-muted-foreground mb-2">DESCRIPTION</div>
             <div class="prose prose-sm prose-invert max-w-none font-fell text-sm text-foreground" v-html="descriptionHtml" />
           </div>
 
           <!-- DM Notes -->
           <div v-if="notesHtml" class="px-5 pt-4 pb-2">
-            <div class="font-cinzel text-2xs text-muted-foreground tracking-wider mb-2">DM NOTES</div>
+            <div class="text-label text-muted-foreground mb-2">DM NOTES</div>
             <div class="prose prose-sm prose-invert max-w-none font-fell text-sm text-foreground" v-html="notesHtml" />
           </div>
 

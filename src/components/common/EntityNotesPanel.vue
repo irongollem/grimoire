@@ -13,19 +13,19 @@
         <div class="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-muted/30">
           <IconLock v-if="note.is_private" class="h-3 w-3 text-muted-foreground shrink-0" />
           <IconFaction v-else class="h-3 w-3 text-primary/70 shrink-0" />
-          <span class="font-cinzel text-2xs tracking-wider text-muted-foreground flex-1">
+          <span class="text-label text-muted-foreground flex-1">
             {{ note.is_private ? "Private" : "Party" }} note
             <span v-if="note.user_id !== myUserId" class="italic"> · from DM/party</span>
           </span>
           <template v-if="note.user_id === myUserId">
             <button
               type="button"
-              class="font-cinzel text-2xs tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+              class="text-label text-muted-foreground hover:text-foreground transition-colors"
               @click="startEdit(note)"
             >Edit</button>
             <button
               type="button"
-              class="font-cinzel text-2xs tracking-wider text-destructive hover:opacity-70 transition-opacity"
+              class="text-label text-destructive hover:opacity-70 transition-opacity"
               @click="deleteNote(note)"
             >Delete</button>
           </template>
@@ -37,7 +37,7 @@
           <div class="flex items-center gap-2">
             <label class="flex items-center gap-1.5 cursor-pointer select-none">
               <input type="checkbox" v-model="editPrivate" class="rounded" />
-              <span class="font-cinzel text-2xs tracking-wider text-muted-foreground">Private</span>
+              <span class="text-label text-muted-foreground">Private</span>
             </label>
             <button type="button" class="ml-auto font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors" @click="cancelEdit">Cancel</button>
             <button type="button" :disabled="saving" class="font-cinzel text-xs text-primary hover:opacity-80 transition-opacity disabled:opacity-50" @click="saveEdit(note)">Save</button>
@@ -52,7 +52,7 @@
 
     <!-- Compose new note -->
     <div v-if="composing" class="rounded-md border border-border bg-card overflow-hidden">
-      <div class="px-3 py-1.5 border-b border-border bg-muted/30 font-cinzel text-2xs tracking-wider text-muted-foreground">
+      <div class="px-3 py-1.5 border-b border-border bg-muted/30 text-label text-muted-foreground">
         New note
       </div>
       <div class="p-3 flex flex-col gap-2">
@@ -60,7 +60,7 @@
         <div class="flex items-center gap-2">
           <label class="flex items-center gap-1.5 cursor-pointer select-none">
             <input type="checkbox" v-model="newPrivate" class="rounded" />
-            <span class="font-cinzel text-2xs tracking-wider text-muted-foreground">Private (only you)</span>
+            <span class="text-label text-muted-foreground">Private (only you)</span>
           </label>
           <button type="button" class="ml-auto font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors" @click="composing = false">Cancel</button>
           <button type="button" :disabled="saving" class="font-cinzel text-xs text-primary hover:opacity-80 transition-opacity disabled:opacity-50" @click="create">Save</button>

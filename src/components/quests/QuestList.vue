@@ -72,7 +72,7 @@
                 <span
                   v-for="tag in quest.tags.slice(0, 2)"
                   :key="tag"
-                  class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground tracking-wider"
+                  class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground"
                 >{{ tag }}</span>
               </div>
               <span class="font-fell text-2xs text-muted-foreground italic ml-auto">
@@ -113,7 +113,7 @@
             </div>
 
             <span
-              class="self-start px-1.5 py-0.5 rounded font-cinzel text-2xs font-bold tracking-wider"
+              class="self-start px-1.5 py-0.5 rounded text-label font-bold"
               :style="{
                 backgroundColor: QUEST_STATUS_COLORS[quest.status] + '22',
                 color: QUEST_STATUS_COLORS[quest.status],
@@ -132,7 +132,7 @@
                 <span
                   v-for="tag in quest.tags.slice(0, 2)"
                   :key="tag"
-                  class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground tracking-wider"
+                  class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground"
                 >{{ tag }}</span>
               </div>
               <span class="font-fell text-2xs text-muted-foreground italic shrink-0 ml-auto">

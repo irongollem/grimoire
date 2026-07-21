@@ -55,10 +55,10 @@
 
           <!-- CR tier chip -->
           <div class="flex items-center gap-2">
-            <span class="font-cinzel text-2xs font-semibold tracking-wider bg-muted/60 text-muted-foreground rounded px-2 py-0.5">
+            <span class="text-label font-semibold bg-muted/60 text-muted-foreground rounded px-2 py-0.5">
               {{ LOOT_CR_TIER_LABELS[table.cr_tier] }}
             </span>
-            <span class="font-cinzel text-2xs text-muted-foreground tracking-wider">{{ table.entries.length }} entries · {{ summaryDropPercent }}% expected hit rate</span>
+            <span class="text-label text-muted-foreground">{{ table.entries.length }} entries · {{ summaryDropPercent }}% expected hit rate</span>
           </div>
 
           <!-- Read-only entry list -->
@@ -74,7 +74,7 @@
                 class="rounded-md border border-border bg-card px-3 py-2 flex items-center gap-3"
               >
                 <!-- drop % badge -->
-                <span class="shrink-0 font-cinzel text-2xs font-semibold tracking-wider bg-primary/10 text-primary rounded px-2 py-0.5">{{ entry.drop_chance ?? 100 }}%</span>
+                <span class="shrink-0 text-label font-semibold bg-primary/10 text-primary rounded px-2 py-0.5">{{ entry.drop_chance ?? 100 }}%</span>
                 <template v-if="(entry.type ?? 'item') === 'item'">
                   <span class="font-fell text-sm text-foreground flex-1 truncate">
                     {{ itemsById.get(entry.item_id ?? '')?.name ?? entry.item_id ?? '—' }}
@@ -108,7 +108,7 @@
             <span
               v-for="tag in table.tags"
               :key="tag"
-              class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
+              class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
             >{{ tag }}</span>
           </div>
 

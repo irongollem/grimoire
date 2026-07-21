@@ -10,7 +10,7 @@
       <p class="font-cinzel text-xs font-semibold tracking-wider" :class="localActive ? 'text-red-600' : 'text-muted-foreground'">
         Rage
       </p>
-      <span class="font-cinzel text-2xs tracking-wider" :class="localActive ? 'text-red-600' : 'text-muted-foreground'">
+      <span class="text-label" :class="localActive ? 'text-red-600' : 'text-muted-foreground'">
         {{ rageUsesCurrent }} / {{ rageUsesMax }} uses
       </span>
     </div>
@@ -24,7 +24,7 @@
         <p class="font-fell text-sm text-muted-foreground">Advantage on STR checks and saving throws</p>
       </div>
       <button
-        class="font-cinzel text-2xs tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+        class="text-label text-muted-foreground hover:text-foreground transition-colors"
         @click="endRage"
       >End Rage</button>
     </div>
@@ -32,7 +32,7 @@
     <!-- Not raging -->
     <div v-else class="px-4 py-2.5">
       <button
-        class="font-cinzel text-2xs tracking-wider px-3 py-1 rounded bg-red-500/15 border border-red-500/30 text-red-600 hover:bg-red-500/25 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        class="text-label px-3 py-1 rounded bg-red-500/15 border border-red-500/30 text-red-600 hover:bg-red-500/25 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         :disabled="rageUsesCurrent <= 0"
         @click="enterRage"
       >Enter Rage</button>

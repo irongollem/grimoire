@@ -18,7 +18,7 @@
       </label>
     </div>
     <div v-if="lairEnabled" class="flex flex-col gap-2">
-      <label class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider">LAIR OWNER</label>
+      <label class="text-label font-semibold text-muted-foreground">LAIR OWNER</label>
       <EntityCombobox
         :model-value="lairOwnerDefId ?? ''"
         :options="lairOwnerOptions"

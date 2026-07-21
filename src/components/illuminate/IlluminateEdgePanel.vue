@@ -13,7 +13,7 @@
       </span>
       <span
         v-if="EDGE_KEYS.some(e => opts[e].enabled)"
-        class="font-cinzel text-2xs tracking-wider text-primary mr-2"
+        class="text-label text-primary mr-2"
       >{{ EDGE_KEYS.filter(e => opts[e].enabled).length }} active</span>
     </div>
 

@@ -9,7 +9,7 @@
   >
     <div class="px-3 py-2 border-b border-border/50 flex items-center gap-2">
       <IconLoot class="h-3.5 w-3.5 text-amber-400 shrink-0" />
-      <span class="font-cinzel text-2xs text-muted-foreground tracking-wider">
+      <span class="text-label text-muted-foreground">
         {{ senderName }} dropped loot
       </span>
     </div>
@@ -49,7 +49,7 @@
       <button
         v-if="meta.item_id"
         type="button"
-        class="flex items-center gap-1 font-cinzel text-2xs text-muted-foreground hover:text-foreground transition-colors tracking-wider mb-1"
+        class="flex items-center gap-1 text-label text-muted-foreground hover:text-foreground transition-colors mb-1"
         @click="emit('toggle-details', messageId)"
       >
         <IconChevronDown
@@ -82,21 +82,21 @@
               <button
                 v-if="meta.quantity! > 1"
                 type="button"
-                class="px-2.5 py-1 rounded bg-amber-500/20 border border-amber-500/40 font-cinzel text-2xs text-amber-400 hover:bg-amber-500/30 transition-colors tracking-wider"
+                class="px-2.5 py-1 rounded bg-amber-500/20 border border-amber-500/40 text-label text-amber-400 hover:bg-amber-500/30 transition-colors"
                 @click="emit('grab', { messageId, qty: 1, intoStash: false })"
               >
                 Grab 1
               </button>
               <button
                 type="button"
-                class="px-2.5 py-1 rounded bg-amber-500/20 border border-amber-500/40 font-cinzel text-2xs text-amber-400 hover:bg-amber-500/30 transition-colors tracking-wider"
+                class="px-2.5 py-1 rounded bg-amber-500/20 border border-amber-500/40 text-label text-amber-400 hover:bg-amber-500/30 transition-colors"
                 @click="emit('grab', { messageId, qty: -1, intoStash: false })"
               >
                 {{ meta.quantity! > 1 ? 'Grab All' : 'Grab' }}
               </button>
               <button
                 type="button"
-                class="px-2.5 py-1 rounded border border-border font-cinzel text-2xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors tracking-wider"
+                class="px-2.5 py-1 rounded border border-border text-label text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
                 @click="emit('grab', { messageId, qty: -1, intoStash: true })"
               >
                 To Stash
@@ -129,14 +129,14 @@
           <template v-if="linkedPartyMemberId">
             <button
               type="button"
-              class="px-2.5 py-1 rounded bg-amber-500/20 border border-amber-500/40 font-cinzel text-2xs text-amber-400 hover:bg-amber-500/30 transition-colors tracking-wider"
+              class="px-2.5 py-1 rounded bg-amber-500/20 border border-amber-500/40 text-label text-amber-400 hover:bg-amber-500/30 transition-colors"
               @click="emit('claim', { messageId, intoStash: false })"
             >
               Claim
             </button>
             <button
               type="button"
-              class="px-2.5 py-1 rounded border border-border font-cinzel text-2xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors tracking-wider"
+              class="px-2.5 py-1 rounded border border-border text-label text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
               @click="emit('claim', { messageId, intoStash: true })"
             >
               To Stash

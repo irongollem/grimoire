@@ -23,7 +23,7 @@
             </div>
             <div class="flex items-center gap-1.5 shrink-0">
               <span
-                class="font-cinzel text-2xs px-2 py-0.5 rounded-full tracking-wider"
+                class="text-label px-2 py-0.5 rounded-full"
                 :style="{ color: QUEST_STATUS_COLORS[q.status], borderColor: QUEST_STATUS_COLORS[q.status] + '50' }"
                 style="border-width: 1px"
               >{{ QUEST_STATUS_LABELS[q.status] }}</span>

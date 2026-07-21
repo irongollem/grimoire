@@ -96,7 +96,7 @@
             <button
               type="button"
               :disabled="!offerDesc.trim() || !offerHasPrice"
-              class="flex-1 py-1 bg-emerald-600 text-white rounded font-cinzel text-2xs tracking-wider hover:opacity-90 transition-opacity disabled:opacity-40"
+              class="flex-1 py-1 bg-emerald-600 text-white rounded text-label hover:opacity-90 transition-opacity disabled:opacity-40"
               @click="postOffer(si)"
             >Post to Chat</button>
             <button

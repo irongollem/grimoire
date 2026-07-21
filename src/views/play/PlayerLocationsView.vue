@@ -66,7 +66,7 @@
       <div class="flex justify-end">
         <button
           type="button"
-          class="font-cinzel text-2xs md:text-sm tracking-wider transition-colors"
+          class="text-label md:text-sm transition-colors"
           :class="detailOpen.size > 0 || childrenOpen.size > 0
             ? 'text-muted-foreground hover:text-foreground'
             : 'invisible pointer-events-none'"
@@ -147,7 +147,7 @@
           <h2 class="font-cinzel text-sm font-semibold text-foreground flex-1 truncate">
             {{ watchingLocation.name }}
           </h2>
-          <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider shrink-0">
+          <span class="text-label md:text-sm text-muted-foreground shrink-0">
             {{ LOCATION_TYPE_LABELS[watchingLocation.location_type] }}
           </span>
           <button

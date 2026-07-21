@@ -48,7 +48,7 @@
             <span v-if="feature.trigger_type" class="font-fell text-2xs text-muted-foreground italic truncate">
               {{ feature.trigger_type }}
             </span>
-            <span v-if="feature.perception_dc" class="font-cinzel text-2xs text-muted-foreground tracking-wider">
+            <span v-if="feature.perception_dc" class="text-label text-muted-foreground">
               Perc {{ feature.perception_dc }}
             </span>
           </div>

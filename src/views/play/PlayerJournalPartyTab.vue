@@ -3,7 +3,7 @@
   <div class="flex flex-wrap gap-1.5">
     <button
       type="button"
-      class="px-2.5 py-1 rounded-full font-cinzel text-2xs md:text-sm font-semibold tracking-wider transition-colors border"
+      class="px-2.5 py-1 rounded-full text-label md:text-sm font-semibold transition-colors border"
       :class="filterCategory === null
         ? 'bg-primary/15 text-primary border-primary/30'
         : 'text-muted-foreground border-border hover:border-foreground/30'"
@@ -13,7 +13,7 @@
       v-for="[key, cat] in JOURNAL_CATEGORY_LIST"
       :key="key"
       type="button"
-      class="px-2.5 py-1 rounded-full font-cinzel text-2xs md:text-sm font-semibold tracking-wider transition-colors border"
+      class="px-2.5 py-1 rounded-full text-label md:text-sm font-semibold transition-colors border"
       :class="filterCategory === key
         ? 'border-current'
         : 'text-muted-foreground border-border hover:border-foreground/20'"
@@ -57,7 +57,7 @@
           <span
             v-for="tag in entry.tags"
             :key="tag"
-            class="font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded bg-muted text-muted-foreground tracking-wider"
+            class="text-label md:text-sm px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
           >{{ tag }}</span>
         </div>
       </div>

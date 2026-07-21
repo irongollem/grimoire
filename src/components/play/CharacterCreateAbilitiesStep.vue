@@ -29,7 +29,7 @@
         <div v-for="stat in ABILITY_STATS" :key="stat.key"
           class="rounded-lg border bg-card p-3 flex flex-col items-center gap-1.5 transition-colors"
           :class="asiMode === 'bonus' && racialBonusMap[stat.key] ? 'border-primary/40 bg-primary/2' : 'border-border'">
-          <span class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider">{{ stat.label }}</span>
+          <span class="text-label font-semibold text-muted-foreground">{{ stat.label }}</span>
           <div class="flex items-center gap-2">
             <button type="button"
               class="w-6 h-6 rounded-full border border-border font-cinzel text-sm font-bold transition-colors hover:border-primary hover:text-primary disabled:opacity-30"
@@ -66,7 +66,7 @@
           @click="rollAbilityScores">Reroll Pool</button>
       </div>
       <div class="flex items-center gap-1.5 flex-wrap rounded-md border border-border bg-card px-3 py-2">
-        <span class="font-cinzel text-2xs text-muted-foreground tracking-wider mr-1">POOL</span>
+        <span class="text-label text-muted-foreground mr-1">POOL</span>
         <span v-for="(val, idx) in scorePool" :key="idx"
           class="w-9 h-9 rounded-md border font-cinzel text-sm font-bold flex items-center justify-center transition-colors"
           :class="Object.values(scoreAssignment).includes(idx)
@@ -78,7 +78,7 @@
         <div v-for="stat in ABILITY_STATS" :key="stat.key"
           class="rounded-lg border bg-card p-3 flex flex-col items-center gap-1.5 transition-colors"
           :class="asiMode === 'bonus' && racialBonusMap[stat.key] ? 'border-primary/40 bg-primary/2' : 'border-border'">
-          <span class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider">{{ stat.label }}</span>
+          <span class="text-label font-semibold text-muted-foreground">{{ stat.label }}</span>
           <select :value="scoreAssignment[stat.key] ?? ''" class="field-input w-full text-center"
             @change="onPoolPick(stat.key, ($event.target as HTMLSelectElement).value)">
             <option value="">—</option>
@@ -101,7 +101,7 @@
       <p class="font-fell text-sm text-muted-foreground italic">Enter your scores directly.</p>
       <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
         <label v-for="stat in ABILITY_STATS" :key="stat.key" class="flex flex-col items-center gap-1">
-          <span class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider">{{ stat.label }}</span>
+          <span class="text-label font-semibold text-muted-foreground">{{ stat.label }}</span>
           <input v-model.number="f[stat.key]" type="number" min="1" max="30"
             class="field-input w-full text-center px-1" />
           <span v-if="asiMode === 'bonus' && racialBonusMap[stat.key]"
@@ -165,7 +165,7 @@
         </p>
         <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
           <div v-for="stat in ABILITY_STATS" :key="stat.key" class="flex flex-col items-center gap-1">
-            <span class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider">{{ stat.label }}</span>
+            <span class="text-label font-semibold text-muted-foreground">{{ stat.label }}</span>
             <div class="flex items-center gap-1">
               <button type="button"
                 class="w-5 h-5 rounded border border-border font-cinzel text-xs font-bold transition-colors hover:border-primary hover:text-primary disabled:opacity-30"

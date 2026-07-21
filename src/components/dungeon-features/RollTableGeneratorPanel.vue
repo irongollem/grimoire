@@ -63,7 +63,7 @@
           <div class="rounded-md border border-border bg-muted/30 p-4 space-y-3">
             <div class="flex items-start justify-between gap-2">
               <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight">{{ result.name }}</h3>
-              <span class="font-cinzel text-2xs px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold tracking-wider shrink-0">{{ die }}</span>
+              <span class="text-label px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold shrink-0">{{ die }}</span>
             </div>
             <p v-if="result.description" class="font-fell text-xs text-muted-foreground italic">{{ result.description }}</p>
 
@@ -73,7 +73,7 @@
                 :key="i"
                 class="flex items-start gap-2 font-fell text-xs text-foreground"
               >
-                <span class="font-cinzel text-2xs text-primary font-semibold tracking-wider shrink-0 mt-0.5 w-8 text-right">
+                <span class="text-label text-primary font-semibold shrink-0 mt-0.5 w-8 text-right">
                   {{ entry.min === entry.max ? entry.min : `${entry.min}–${entry.max}` }}
                 </span>
                 <span>

@@ -143,7 +143,7 @@
             :key="domain"
             type="button"
             :class="[
-              'px-2 py-1 rounded font-cinzel text-2xs tracking-wider border transition-colors',
+              'px-2 py-1 rounded text-label border transition-colors',
               selectedDomains.includes(domain)
                 ? 'bg-primary text-primary-foreground border-primary'
                 : 'bg-muted text-muted-foreground border-border hover:border-muted-foreground/50',

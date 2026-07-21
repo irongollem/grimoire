@@ -8,7 +8,7 @@
         v-for="m in (['auto', 'brush'] as IlluminatorMode[])"
         :key="m"
         type="button"
-        class="font-cinzel text-2xs tracking-wider px-3 py-1 rounded-full border transition-colors"
+        class="text-label px-3 py-1 rounded-full border transition-colors"
         :class="mode === m
           ? 'border-primary text-primary bg-primary/10'
           : 'border-border text-muted-foreground hover:border-primary/60 hover:text-foreground'"
@@ -97,7 +97,7 @@
     <div class="border-t border-border p-4 flex flex-col gap-2">
       <button
         type="button"
-        class="font-cinzel text-2xs tracking-wider text-muted-foreground hover:text-foreground transition-colors text-right mb-1"
+        class="text-label text-muted-foreground hover:text-foreground transition-colors text-right mb-1"
         @click="emit('reset')"
       >Reset all to defaults</button>
 

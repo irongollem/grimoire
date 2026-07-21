@@ -13,7 +13,7 @@
         @click="($event.target as HTMLInputElement).select()"
       />
       <button
-        class="shrink-0 inline-flex items-center gap-1 font-cinzel text-2xs md:text-sm tracking-wider px-2.5 py-1.5 rounded border border-border hover:bg-muted transition-colors"
+        class="shrink-0 inline-flex items-center gap-1 text-label md:text-sm px-2.5 py-1.5 rounded border border-border hover:bg-muted transition-colors"
         :title="calCopied ? 'Copied!' : 'Copy URL'"
         @click="copyFeedUrl"
       >
@@ -27,7 +27,7 @@
     <div class="mt-3">
       <a
         :href="webcalUrl"
-        class="inline-flex items-center gap-1.5 font-cinzel text-2xs md:text-sm tracking-wider px-3 py-1.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+        class="inline-flex items-center gap-1.5 text-label md:text-sm px-3 py-1.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
       >
         <IconAddEvent class="h-3 w-3" />
         Subscribe in Calendar App

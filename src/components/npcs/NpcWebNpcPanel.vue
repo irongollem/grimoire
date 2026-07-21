@@ -21,10 +21,10 @@
     <div v-if="npc.race" class="font-fell text-xs text-foreground">{{ npc.race }}</div>
     <div class="flex gap-1.5 flex-wrap">
       <span
-        class="px-1.5 py-0.5 rounded font-cinzel text-2xs font-bold tracking-wider"
+        class="px-1.5 py-0.5 rounded text-label font-bold"
         :style="{ backgroundColor: relColor(npc.relationship) + '22', color: relColor(npc.relationship) }"
       >{{ npc.relationship }}</span>
-      <span class="px-1.5 py-0.5 rounded font-cinzel text-2xs font-bold tracking-wider bg-muted text-muted-foreground">{{ npc.status }}</span>
+      <span class="px-1.5 py-0.5 rounded text-label font-bold bg-muted text-muted-foreground">{{ npc.status }}</span>
     </div>
 
     <!-- Shift-click hint -->
@@ -43,7 +43,7 @@
 
   <!-- Connected to this NPC -->
   <div v-if="connections.length" class="px-4 pb-4">
-    <div class="font-cinzel text-2xs font-bold tracking-wider text-muted-foreground mb-2">CONNECTIONS</div>
+    <div class="text-label font-bold text-muted-foreground mb-2">CONNECTIONS</div>
     <div class="space-y-1.5">
       <template v-for="conn in connections" :key="conn.id">
         <!-- Inline edit form -->

@@ -11,7 +11,7 @@
         <IconLive class="h-4 w-4 text-green-400 animate-pulse shrink-0" />
         <span class="font-cinzel text-sm font-semibold text-green-400 tracking-wide">Encounter in progress</span>
         <span class="font-fell text-xs text-green-300/70 italic flex-1">Round {{ firstRunning.current_round }}</span>
-        <span class="font-cinzel text-2xs text-green-400 tracking-wider">Resume →</span>
+        <span class="text-label text-green-400">Resume →</span>
       </RouterLink>
 
       <!-- ── Party — full width, 1/2/3 col responsive ──────────────────── -->
@@ -19,10 +19,10 @@
         <div class="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/20">
           <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">Party</h2>
           <div class="flex items-center gap-3">
-            <RouterLink to="/downtime" class="font-cinzel text-2xs font-semibold text-primary tracking-wider hover:opacity-80 transition-opacity">
+            <RouterLink to="/downtime" class="text-label font-semibold text-primary hover:opacity-80 transition-opacity">
               Grant downtime →
             </RouterLink>
-            <RouterLink to="/party" class="font-cinzel text-2xs font-semibold text-primary tracking-wider hover:opacity-80 transition-opacity">
+            <RouterLink to="/party" class="text-label font-semibold text-primary hover:opacity-80 transition-opacity">
               Full tracker →
             </RouterLink>
           </div>
@@ -67,19 +67,19 @@
             </div>
             <!-- Quick stats -->
             <div class="flex items-center gap-1 flex-wrap">
-              <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground tracking-wider" title="Armour Class">AC {{ member.ac }}</span>
-              <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground tracking-wider" title="Passive Perception">
+              <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground" title="Armour Class">AC {{ member.ac }}</span>
+              <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground" title="Passive Perception">
                 <IconReveal class="h-2.5 w-2.5" />{{ passivePerception(member) }}
               </span>
-              <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground tracking-wider" title="Passive Insight">
+              <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground" title="Passive Insight">
                 <IconMind class="h-2.5 w-2.5" />{{ passiveInsight(member) }}
               </span>
-              <span v-if="member.inspiration" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-gold-500/20 border border-gold-500/40 font-cinzel text-2xs text-gold-500 tracking-wider">★ Insp.</span>
+              <span v-if="member.inspiration" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-gold-500/20 border border-gold-500/40 text-label text-gold-500">★ Insp.</span>
             </div>
             <!-- Conditions + Curses -->
             <div v-if="member.conditions?.length || member.curses?.length" class="flex flex-wrap gap-1">
-              <span v-for="cond in member.conditions" :key="cond" class="px-1.5 py-0.5 rounded bg-destructive/10 border border-destructive/20 font-cinzel text-2xs text-destructive tracking-wider">{{ cond }}</span>
-              <span v-for="curse in member.curses" :key="curse" class="px-1.5 py-0.5 rounded bg-violet-500/10 border border-violet-500/30 font-cinzel text-2xs text-violet-400 tracking-wider">Cursed: {{ curse }}</span>
+              <span v-for="cond in member.conditions" :key="cond" class="px-1.5 py-0.5 rounded bg-destructive/10 border border-destructive/20 text-label text-destructive">{{ cond }}</span>
+              <span v-for="curse in member.curses" :key="curse" class="px-1.5 py-0.5 rounded bg-violet-500/10 border border-violet-500/30 text-label text-violet-400">Cursed: {{ curse }}</span>
             </div>
             <!-- DM tracker buttons -->
             <DmTrackerButtons
@@ -98,7 +98,7 @@
         <div class="rounded-lg border border-border bg-card overflow-hidden">
           <div class="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/20">
             <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">Active Quests</h2>
-            <RouterLink to="/quests" class="font-cinzel text-2xs font-semibold text-primary tracking-wider hover:opacity-80">View all →</RouterLink>
+            <RouterLink to="/quests" class="text-label font-semibold text-primary hover:opacity-80">View all →</RouterLink>
           </div>
           <div v-if="questsLoading" class="flex justify-center py-6"><LoadingSpinner /></div>
           <div v-else-if="!activeQuests.length" class="px-4 py-6 text-center">
@@ -119,7 +119,7 @@
               </div>
             </RouterLink>
             <div v-if="activeQuests.length > 6" class="px-4 py-2 text-center">
-              <RouterLink to="/quests" class="font-cinzel text-2xs text-muted-foreground hover:text-primary transition-colors tracking-wider">
+              <RouterLink to="/quests" class="text-label text-muted-foreground hover:text-primary transition-colors">
                 + {{ activeQuests.length - 6 }} more →
               </RouterLink>
             </div>
@@ -176,7 +176,7 @@
                 </div>
                 <div class="flex gap-1.5">
                   <button
-                    class="flex-1 rounded border border-primary/50 bg-primary/10 px-2 py-1 font-cinzel text-2xs text-primary tracking-wider hover:bg-primary/20 transition-colors disabled:opacity-40"
+                    class="flex-1 rounded border border-primary/50 bg-primary/10 px-2 py-1 text-label text-primary hover:bg-primary/20 transition-colors disabled:opacity-40"
                     :disabled="setToday.isPending.value"
                     @click="saveDate"
                   >Save</button>
@@ -200,7 +200,7 @@
               />
               <button
                 v-if="authStore.isDM && currentLocationId"
-                class="self-start font-cinzel text-2xs text-muted-foreground hover:text-primary transition-colors disabled:opacity-40 tracking-wider"
+                class="self-start text-label text-muted-foreground hover:text-primary transition-colors disabled:opacity-40"
                 :disabled="syncLocation.isPending.value"
                 @click="syncLocationToParty"
               >{{ syncLocation.isPending.value ? 'Syncing…' : 'Sync to party →' }}</button>
@@ -223,7 +223,7 @@
                   <p class="font-fell text-xs text-muted-foreground italic">{{ entry.carrier ?? "Party stash" }}</p>
                 </div>
                 <button
-                  class="shrink-0 px-2.5 py-1 rounded font-cinzel text-2xs tracking-wider border border-amber-500/50 text-amber-500 hover:bg-amber-500/10 transition-colors cursor-pointer"
+                  class="shrink-0 px-2.5 py-1 rounded text-label border border-amber-500/50 text-amber-500 hover:bg-amber-500/10 transition-colors cursor-pointer"
                   @click="identifyItem(entry.inv.id)"
                 >Identify</button>
               </div>
@@ -235,7 +235,7 @@
               <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">
                 Rumors <span class="font-fell font-normal text-xs text-muted-foreground">({{ onHoldQuests.length }})</span>
               </h2>
-              <RouterLink to="/quests" class="font-cinzel text-2xs font-semibold text-primary tracking-wider hover:opacity-80">Quest log →</RouterLink>
+              <RouterLink to="/quests" class="text-label font-semibold text-primary hover:opacity-80">Quest log →</RouterLink>
             </div>
             <div class="flex flex-wrap gap-2 px-4 py-3">
               <RouterLink
@@ -261,7 +261,7 @@
       <div v-if="recentNpcs.length" class="rounded-lg border border-border bg-card overflow-hidden">
         <div class="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/20">
           <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">Recent NPCs</h2>
-          <RouterLink to="/npcs" class="font-cinzel text-2xs font-semibold text-primary tracking-wider hover:opacity-80">All NPCs →</RouterLink>
+          <RouterLink to="/npcs" class="text-label font-semibold text-primary hover:opacity-80">All NPCs →</RouterLink>
         </div>
         <div class="flex gap-4 overflow-x-auto px-4 py-3" style="scrollbar-width: none">
           <RouterLink
@@ -282,7 +282,7 @@
       <div v-if="pinnedNotes.length" class="rounded-lg border border-border bg-card overflow-hidden">
         <div class="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/20">
           <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">Pinned Notes</h2>
-          <RouterLink to="/notes" class="font-cinzel text-2xs font-semibold text-primary tracking-wider hover:opacity-80">All notes →</RouterLink>
+          <RouterLink to="/notes" class="text-label font-semibold text-primary hover:opacity-80">All notes →</RouterLink>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-border">
           <RouterLink

@@ -74,7 +74,7 @@
           <div class="space-y-2">
             <div class="flex items-center justify-between">
               <h3 class="font-cinzel text-sm font-bold text-foreground">Entries ({{ table.entries.length }})</h3>
-              <span class="font-cinzel text-2xs text-muted-foreground tracking-wider">{{ table.dice }}</span>
+              <span class="text-label text-muted-foreground">{{ table.dice }}</span>
             </div>
 
             <div v-if="!table.entries.length" class="rounded-md border border-dashed border-border px-4 py-8 text-center font-fell text-sm text-muted-foreground italic">
@@ -111,7 +111,7 @@
             <span
               v-for="tag in table.tags"
               :key="tag"
-              class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
+              class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
             >{{ tag }}</span>
           </div>
 

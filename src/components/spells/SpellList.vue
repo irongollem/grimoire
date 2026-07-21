@@ -61,7 +61,7 @@
                 {{ spell.name }}
               </h3>
               <span
-                class="shrink-0 px-1.5 py-0.5 rounded font-cinzel text-2xs font-bold tracking-wider text-white whitespace-nowrap"
+                class="shrink-0 px-1.5 py-0.5 rounded text-label font-bold text-white whitespace-nowrap"
                 :style="{ backgroundColor: SCHOOL_COLORS[spell.school] }"
               >
                 {{ spell.level === 0 ? "C" : spell.level }}
@@ -100,7 +100,7 @@
               <span
                 v-for="tag in spell.tags.slice(0, 3)"
                 :key="tag"
-                class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground tracking-wider"
+                class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground"
               >
                 {{ tag }}
               </span>
@@ -129,7 +129,7 @@
           <RouterLink
             v-if="!props.playerMemberId && !isSharedContent(spell)"
             :to="`/spells/${spell.id}?edit=true`"
-            class="absolute top-2 left-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 font-cinzel text-2xs font-semibold tracking-wider text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
+            class="absolute top-2 left-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 text-label font-semibold text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
             title="Edit spell"
           >
             <IconEdit class="max-md:h-4 max-md:w-4 h-3 w-3" />
@@ -140,7 +140,7 @@
           <template v-if="showLearnButton">
             <button
               v-if="!isKnown(spell.id)"
-              class="absolute bottom-2 right-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 font-cinzel text-2xs font-semibold tracking-wider text-white bg-primary/80 hover:bg-primary [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-40 cursor-pointer"
+              class="absolute bottom-2 right-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 text-label font-semibold text-white bg-primary/80 hover:bg-primary [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-40 cursor-pointer"
               :disabled="isAdding || isChanging"
               @click.prevent.stop="handleLearn(spell)"
             >
@@ -149,7 +149,7 @@
             </button>
             <button
               v-else
-              class="absolute bottom-2 right-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 font-cinzel text-2xs font-semibold tracking-wider bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-40 cursor-pointer"
+              class="absolute bottom-2 right-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 text-label font-semibold bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-40 cursor-pointer"
               :class="isRemoving ? 'text-muted-foreground' : 'text-emerald-400 hover:text-red-400'"
               :disabled="isRemoving"
               :title="props.casterType === 'prepared' ? 'Unprepare' : 'Remove from spellbook'"

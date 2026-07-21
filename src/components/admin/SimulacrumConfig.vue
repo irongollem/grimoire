@@ -40,7 +40,7 @@
           <button
             type="button"
             :disabled="!keyDraft.trim() || setKey.isPending.value"
-            class="px-3 py-1.5 font-cinzel text-2xs font-semibold tracking-wider bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50 transition-opacity"
+            class="px-3 py-1.5 text-label font-semibold bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50 transition-opacity"
             @click="saveKey"
           >
             {{ setKey.isPending.value ? 'Saving…' : 'Save key' }}

@@ -75,7 +75,7 @@
 
       <!-- DM Buttons -->
       <div v-if="rule.tracker.dmButtons?.length" class="px-4 py-3 border-t border-border flex flex-wrap gap-2">
-        <span class="w-full font-cinzel text-2xs text-muted-foreground tracking-wider mb-0.5">DM BUTTONS</span>
+        <span class="w-full text-label text-muted-foreground mb-0.5">DM BUTTONS</span>
         <span
           v-for="btn in rule.tracker.dmButtons"
           :key="btn.label"

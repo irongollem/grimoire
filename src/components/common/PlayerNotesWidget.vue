@@ -17,26 +17,26 @@
             :checked="sharedWithDm"
             @change="toggleSharedWithDm"
           />
-          <span class="font-cinzel text-2xs tracking-wider text-muted-foreground">Share with DM</span>
+          <span class="text-label text-muted-foreground">Share with DM</span>
         </label>
       </div>
       <RichTextEditor v-model="privateContent" :placeholder="placeholder" min-height="80px" :sticky-toolbar="false">
         <template #toolbar-end>
           <div class="ml-auto flex items-center gap-2 pl-1">
             <div class="w-px h-5 bg-border" />
-            <span class="font-cinzel text-2xs tracking-wider text-muted-foreground/40">
+            <span class="text-label text-muted-foreground/40">
               {{ privateSaved ? '' : 'Unsaved' }}
             </span>
             <button
               v-if="myPrivateNote"
               type="button"
-              class="px-2 h-6.5 font-cinzel text-2xs tracking-wider rounded text-muted-foreground hover:text-destructive hover:bg-muted transition-colors"
+              class="px-2 h-6.5 text-label rounded text-muted-foreground hover:text-destructive hover:bg-muted transition-colors"
               @click="clearPrivate"
             >Clear</button>
             <button
               type="button"
               :disabled="privateSaving || privateSaved"
-              class="px-2 h-6.5 font-cinzel text-2xs font-semibold tracking-wider rounded bg-primary/20 text-primary hover:bg-primary/30 disabled:opacity-40 transition-colors"
+              class="px-2 h-6.5 text-label font-semibold rounded bg-primary/20 text-primary hover:bg-primary/30 disabled:opacity-40 transition-colors"
               @click="savePrivate"
             >{{ privateSaving ? '…' : 'Save' }}</button>
           </div>
@@ -57,19 +57,19 @@
         <template #toolbar-end>
           <div class="ml-auto flex items-center gap-2 pl-1">
             <div class="w-px h-5 bg-border" />
-            <span class="font-cinzel text-2xs tracking-wider text-muted-foreground/40">
+            <span class="text-label text-muted-foreground/40">
               {{ sharedSaved ? '' : 'Unsaved' }}
             </span>
             <button
               v-if="mySharedNote"
               type="button"
-              class="px-2 h-6.5 font-cinzel text-2xs tracking-wider rounded text-muted-foreground hover:text-destructive hover:bg-muted transition-colors"
+              class="px-2 h-6.5 text-label rounded text-muted-foreground hover:text-destructive hover:bg-muted transition-colors"
               @click="clearShared"
             >Clear</button>
             <button
               type="button"
               :disabled="sharedSaving || sharedSaved"
-              class="px-2 h-6.5 font-cinzel text-2xs font-semibold tracking-wider rounded bg-primary/20 text-primary hover:bg-primary/30 disabled:opacity-40 transition-colors"
+              class="px-2 h-6.5 text-label font-semibold rounded bg-primary/20 text-primary hover:bg-primary/30 disabled:opacity-40 transition-colors"
               @click="saveShared"
             >{{ sharedSaving ? '…' : 'Save' }}</button>
           </div>
@@ -87,11 +87,11 @@
       </div>
       <div class="divide-y divide-border">
         <div v-for="note in othersNotes" :key="note.id" class="px-3 py-2.5 space-y-1">
-          <p class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider">
+          <p class="text-label font-semibold text-muted-foreground">
             {{ authorName(note.user_id) }}
           </p>
           <RichTextViewer :content="note.content" />
-          <p class="font-cinzel text-2xs text-muted-foreground/40 tracking-wider">
+          <p class="text-label text-muted-foreground/40">
             {{ note.updated_at?.slice(0, 10) }}
           </p>
         </div>
@@ -110,11 +110,11 @@
       </div>
       <div class="divide-y divide-amber-500/20">
         <div v-for="note in dmSharedNotes" :key="note.id" class="px-3 py-2.5 space-y-1">
-          <p class="font-cinzel text-2xs font-semibold text-amber-600/70 dark:text-amber-400/70 tracking-wider">
+          <p class="text-label font-semibold text-amber-600/70 dark:text-amber-400/70">
             {{ authorName(note.user_id) }}
           </p>
           <RichTextViewer :content="note.content" />
-          <p class="font-cinzel text-2xs text-muted-foreground/40 tracking-wider">
+          <p class="text-label text-muted-foreground/40">
             {{ note.updated_at?.slice(0, 10) }}
           </p>
         </div>

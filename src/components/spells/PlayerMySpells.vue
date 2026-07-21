@@ -81,7 +81,7 @@
           </template>
 
           <!-- Spell count badge -->
-          <span class="ml-auto font-cinzel text-2xs text-muted-foreground tracking-wider">
+          <span class="ml-auto text-label text-muted-foreground">
             {{ group.entries.length }}
           </span>
         </button>
@@ -123,7 +123,7 @@
             <!-- Subclass-granted (always prepared, doesn't count toward limit) -->
             <span
               v-if="entry.always_prepared"
-              class="shrink-0 font-cinzel text-2xs tracking-wider text-emerald-500/80 border border-emerald-500/30 rounded px-2 py-0.5"
+              class="shrink-0 text-label text-emerald-500/80 border border-emerald-500/30 rounded px-2 py-0.5"
               title="Granted by your subclass — always prepared, doesn't count toward your prepared limit"
             >Granted</span>
 
@@ -207,7 +207,7 @@
             <!-- Cast button (castable spells) -->
             <button
               v-if="isCastable(entry)"
-              class="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded font-cinzel text-2xs font-semibold tracking-wider transition-colors border"
+              class="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded text-label font-semibold transition-colors border"
               :class="castButtonClass(entry)"
               :disabled="isCasting"
               :title="castButtonTitle(entry)"
@@ -219,7 +219,7 @@
 
             <button
               v-if="isRitualCastable(entry)"
-              class="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded font-cinzel text-2xs font-semibold tracking-wider transition-colors border border-violet-500/30 bg-violet-500/10 text-violet-400 hover:bg-violet-500/20"
+              class="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded text-label font-semibold transition-colors border border-violet-500/30 bg-violet-500/10 text-violet-400 hover:bg-violet-500/20"
               :disabled="isCasting"
               title="Cast as a ritual — takes 10 minutes longer and spends no spell slot"
               @click="castRitual(entry)"
@@ -230,7 +230,7 @@
             <!-- Prepare toggle (Wizard spellbook tab). Granted spells are locked. -->
             <button
               v-if="showPrepareToggle && entry.spell.level > 0 && !entry.always_prepared"
-              class="shrink-0 flex items-center gap-1 rounded px-2 py-0.5 font-cinzel text-2xs font-semibold tracking-wider transition-colors cursor-pointer border"
+              class="shrink-0 flex items-center gap-1 rounded px-2 py-0.5 text-label font-semibold transition-colors cursor-pointer border"
               :class="entry.is_prepared
                 ? 'bg-primary/15 text-primary border-primary/30 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30'
                 : 'bg-muted text-muted-foreground border-border hover:bg-primary/10 hover:text-primary hover:border-primary/30'"
@@ -246,7 +246,7 @@
             <!-- Cantrip always-prepared badge (Wizard spellbook only) -->
             <span
               v-else-if="showPrepareToggle && entry.spell.level === 0"
-              class="shrink-0 font-cinzel text-2xs tracking-wider text-emerald-500/70 border border-emerald-500/20 rounded px-2 py-0.5"
+              class="shrink-0 text-label text-emerald-500/70 border border-emerald-500/20 rounded px-2 py-0.5"
             >Always</span>
 
             <!-- Remove button — hidden for subclass-granted spells (locked) -->

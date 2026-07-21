@@ -74,7 +74,7 @@
         />
 
         <!-- Kind badge -->
-        <span class="absolute top-1.5 left-1.5 rounded px-1.5 py-0.5 font-cinzel text-2xs tracking-wider bg-black/60 text-white pointer-events-none">
+        <span class="absolute top-1.5 left-1.5 rounded px-1.5 py-0.5 text-label bg-black/60 text-white pointer-events-none">
           {{ kindLabel(img.kind) }}
         </span>
 

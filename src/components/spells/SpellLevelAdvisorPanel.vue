@@ -26,7 +26,7 @@
       <button
         v-if="open"
         type="button"
-        class="font-cinzel text-2xs text-muted-foreground hover:text-foreground tracking-wider transition-colors shrink-0"
+        class="text-label text-muted-foreground hover:text-foreground transition-colors shrink-0"
         @click="emit('toggle')"
       >
         Skip →
@@ -267,7 +267,7 @@
       <!-- Reference table toggle -->
       <button
         type="button"
-        class="font-cinzel text-2xs text-muted-foreground tracking-wider hover:text-foreground transition-colors text-left"
+        class="text-label text-muted-foreground hover:text-foreground transition-colors text-left"
         @click="emit('toggle-table')"
       >
         {{ showTable ? "▲ Hide" : "▼ Show" }} damage benchmark table

@@ -70,7 +70,7 @@
       <div v-if="isShared" class="border-t border-border px-3 py-2">
         <button
           type="button"
-          class="w-full font-cinzel text-2xs tracking-wider text-destructive hover:opacity-80 transition-opacity text-left"
+          class="w-full text-label text-destructive hover:opacity-80 transition-opacity text-left"
           @click="hide"
         >
           Hide from all players

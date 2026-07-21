@@ -4,7 +4,7 @@
       <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Hints</span>
       <button
         type="button"
-        class="font-cinzel text-2xs font-semibold text-primary hover:opacity-80 transition-opacity tracking-wider"
+        class="text-label font-semibold text-primary hover:opacity-80 transition-opacity"
         @click="emit('add-hint')"
       >
         + Add Hint

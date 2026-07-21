@@ -84,7 +84,7 @@
       </div>
       <div class="divide-y divide-border">
         <div v-if="member.languages?.length" class="flex gap-3 px-4 py-2.5">
-          <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider w-32 shrink-0 pt-0.5">Languages</span>
+          <span class="text-label md:text-sm text-muted-foreground w-32 shrink-0 pt-0.5">Languages</span>
           <div class="flex flex-wrap gap-1.5">
             <template v-for="lang in member.languages" :key="lang">
               <RouterLink
@@ -101,7 +101,7 @@
           </div>
         </div>
         <div v-if="member.tool_proficiencies?.length" class="flex gap-3 px-4 py-2.5">
-          <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider w-32 shrink-0 pt-0.5">Tools</span>
+          <span class="text-label md:text-sm text-muted-foreground w-32 shrink-0 pt-0.5">Tools</span>
           <div class="flex flex-wrap gap-1.5">
             <span
               v-for="tool in member.tool_proficiencies"
@@ -135,7 +135,7 @@
           :key="entry.key"
           class="flex gap-3 px-4 py-2.5"
         >
-          <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider w-32 shrink-0 pt-0.5">
+          <span class="text-label md:text-sm text-muted-foreground w-32 shrink-0 pt-0.5">
             {{ entry.label }}
           </span>
           <div class="flex flex-wrap gap-1.5">
@@ -170,7 +170,7 @@
       </div>
       <div class="divide-y divide-border">
         <div v-for="row in DIVINE_SMITE_TABLE" :key="row.slotLevel" class="flex items-center gap-3 px-4 py-2">
-          <span class="font-cinzel text-2xs text-muted-foreground tracking-wider w-14 shrink-0">Slot {{ row.slotLevel }}</span>
+          <span class="text-label text-muted-foreground w-14 shrink-0">Slot {{ row.slotLevel }}</span>
           <span class="font-cinzel text-sm font-bold text-foreground flex-1">{{ row.damage }} radiant</span>
           <span class="font-fell text-xs text-muted-foreground italic shrink-0">{{ row.special }} vs undead/fiends</span>
         </div>

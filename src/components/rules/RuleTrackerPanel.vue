@@ -7,7 +7,7 @@
       </span>
       <span
         v-if="tracker.type === 'level' && currentLevel"
-        class="font-cinzel text-2xs font-semibold tracking-wider px-1.5 py-0.5 rounded"
+        class="text-label font-semibold px-1.5 py-0.5 rounded"
         :class="levelColorClass(currentLevel.color)"
       >
         {{ currentLevel.label }}

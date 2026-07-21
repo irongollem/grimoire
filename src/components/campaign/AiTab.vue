@@ -184,7 +184,7 @@
         <button
           v-if="settingDefaultPrompt"
           type="button"
-          class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-colors"
+          class="text-label font-semibold text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-colors"
           @click="form.ai_setting_prompt = settingDefaultPrompt"
         >
           Load {{ settingLabel }} Defaults

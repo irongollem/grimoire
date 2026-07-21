@@ -22,14 +22,14 @@
           :href="glbUrl"
           :download="`${mini.label ?? 'mini'}.glb`"
           title="Download GLB"
-          class="inline-flex items-center gap-1 rounded border border-white/20 px-1.5 py-1 font-cinzel text-2xs tracking-wider text-white/80 hover:text-white hover:border-white/40 transition-colors"
+          class="inline-flex items-center gap-1 rounded border border-white/20 px-1.5 py-1 text-label text-white/80 hover:text-white hover:border-white/40 transition-colors"
         ><IconDownload class="h-3 w-3" />GLB</a>
         <a
           v-if="stlUrl"
           :href="stlUrl"
           :download="`${mini.label ?? 'mini'}.stl`"
           title="Download STL"
-          class="inline-flex items-center gap-1 rounded border border-white/20 px-1.5 py-1 font-cinzel text-2xs tracking-wider text-white/80 hover:text-white hover:border-white/40 transition-colors"
+          class="inline-flex items-center gap-1 rounded border border-white/20 px-1.5 py-1 text-label text-white/80 hover:text-white hover:border-white/40 transition-colors"
         ><IconDownload class="h-3 w-3" />STL</a>
       </div>
       <button

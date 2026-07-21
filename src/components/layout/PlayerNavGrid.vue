@@ -14,7 +14,7 @@
         @click="$emit('close')"
       >
         <component :is="item.icon" class="h-5 w-5 shrink-0" />
-        <span class="font-cinzel text-2xs md:text-xs tracking-wider text-center leading-tight">{{ item.label }}</span>
+        <span class="text-label md:text-xs text-center leading-tight">{{ item.label }}</span>
       </RouterLink>
     </div>
 

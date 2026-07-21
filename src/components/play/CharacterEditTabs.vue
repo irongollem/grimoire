@@ -77,7 +77,7 @@
       <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase">Ability Scores</p>
       <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
         <label v-for="stat in ABILITY_STATS" :key="stat.key" class="flex flex-col items-center gap-1">
-          <span class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider">{{ stat.label }}</span>
+          <span class="text-label font-semibold text-muted-foreground">{{ stat.label }}</span>
           <input v-model.number="f[stat.key]" type="number" min="1" max="30" class="field-input w-full text-center px-1" />
           <span class="font-cinzel text-xs font-bold" :class="mod(f[stat.key]) >= 0 ? 'text-green-500' : 'text-destructive'">
             {{ mod(f[stat.key]) >= 0 ? "+" : "" }}{{ mod(f[stat.key]) }}
@@ -125,11 +125,11 @@
 
       <div class="flex items-center justify-between mt-2">
         <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider uppercase">Spell Slots (Max per Level)</p>
-        <button type="button" class="font-cinzel text-2xs tracking-wider text-primary/70 hover:text-primary transition-colors" @click="resetSlotsToDefault">Reset to class defaults</button>
+        <button type="button" class="text-label text-primary/70 hover:text-primary transition-colors" @click="resetSlotsToDefault">Reset to class defaults</button>
       </div>
       <div class="grid grid-cols-3 gap-2">
         <label v-for="lvl in 9" :key="lvl" class="flex flex-col items-center gap-1">
-          <span class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider">{{ SLOT_LEVEL_LABELS[lvl - 1] }}</span>
+          <span class="text-label font-semibold text-muted-foreground">{{ SLOT_LEVEL_LABELS[lvl - 1] }}</span>
           <input v-model.number="spellSlotMaxes[lvl - 1]" type="number" min="0" max="9" class="field-input w-full text-center px-1" />
         </label>
       </div>

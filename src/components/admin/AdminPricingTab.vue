@@ -101,7 +101,7 @@
             </td>
             <td class="py-2 pl-2 text-right">
               <button
-                class="px-2.5 py-1 font-cinzel text-2xs font-semibold tracking-wider bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50 transition-opacity"
+                class="px-2.5 py-1 text-label font-semibold bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50 transition-opacity"
                 :disabled="packSaving[pack.pack_id]"
                 @click="savePack(pack)"
               >
@@ -142,7 +142,7 @@
                   :class="CATEGORY_CLASS[categoryOf(gen.generation_type)]"
                 >{{ categoryOf(gen.generation_type) }}</span>
               </p>
-              <p class="font-cinzel text-2xs text-muted-foreground tracking-wider">{{ gen.generation_type }}</p>
+              <p class="text-label text-muted-foreground">{{ gen.generation_type }}</p>
             </td>
             <td class="py-2 text-right">
               <input
@@ -186,7 +186,7 @@
             </td>
             <td class="py-2 pl-2 text-right">
               <button
-                class="px-2.5 py-1 font-cinzel text-2xs font-semibold tracking-wider bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50 transition-opacity"
+                class="px-2.5 py-1 text-label font-semibold bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50 transition-opacity"
                 :disabled="genCostSaving[gen.generation_type]"
                 @click="saveGenCost(gen)"
               >

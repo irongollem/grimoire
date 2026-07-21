@@ -22,7 +22,7 @@
         v-for="c in store.combatants"
         :key="c.instance_id"
         type="button"
-        class="px-2 py-0.5 rounded font-cinzel text-2xs tracking-wider border transition-colors"
+        class="px-2 py-0.5 rounded text-label border transition-colors"
         :class="c.surprised
           ? 'bg-amber-500/20 border-amber-500/60 text-amber-400'
           : 'bg-card border-border text-muted-foreground hover:border-amber-500/40'"
@@ -55,7 +55,7 @@
         v-for="(action, idx) in lairActions"
         :key="idx"
         type="button"
-        class="px-2 py-1 rounded-md border border-violet-500/30 bg-violet-500/10 text-violet-300 font-cinzel text-2xs tracking-wider hover:bg-violet-500/20 hover:border-violet-500/60 transition-colors"
+        class="px-2 py-1 rounded-md border border-violet-500/30 bg-violet-500/10 text-violet-300 text-label hover:bg-violet-500/20 hover:border-violet-500/60 transition-colors"
         :title="action.description"
         @click="fireLairAction(action)"
       >{{ action.name }}</button>
@@ -82,7 +82,7 @@
         v-for="(action, idx) in getLegendaryActions(legendary.monster_id)"
         :key="idx"
         type="button"
-        class="px-2 py-1 rounded-md border border-rose-500/30 bg-rose-500/10 text-rose-300 font-cinzel text-2xs tracking-wider hover:bg-rose-500/20 hover:border-rose-500/60 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        class="px-2 py-1 rounded-md border border-rose-500/30 bg-rose-500/10 text-rose-300 text-label hover:bg-rose-500/20 hover:border-rose-500/60 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         :title="action.description"
         :disabled="actionCost(action.name) > (legendary.legendary_actions_remaining ?? 0)"
         @click="fireLegendaryAction(legendary.instance_id, legendary.name, action)"

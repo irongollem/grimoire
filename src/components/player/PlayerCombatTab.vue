@@ -42,8 +42,8 @@
         <div v-for="{ inv, item } in equippedWeapons" :key="inv.id" class="px-4 py-3">
           <div class="flex items-center justify-between mb-2">
             <span class="font-fell text-sm text-foreground font-semibold">{{ inv.name }}</span>
-            <span v-if="item?.subtype" class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">{{ item.subtype }}</span>
-            <span v-else-if="!item" class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">Custom</span>
+            <span v-if="item?.subtype" class="text-label md:text-sm text-muted-foreground">{{ item.subtype }}</span>
+            <span v-else-if="!item" class="text-label md:text-sm text-muted-foreground">Custom</span>
           </div>
           <div class="flex flex-wrap gap-2">
             <button
@@ -55,7 +55,7 @@
               <span class="font-cinzel text-xs" :class="weaponAttackMod(item) >= 0 ? 'text-elven-green' : 'text-destructive'">
                 {{ signedNum(weaponAttackMod(item)) }}
               </span>
-              <span v-if="attackDisadvantage" class="font-cinzel text-2xs md:text-sm text-amber-500 tracking-wider">Dis</span>
+              <span v-if="attackDisadvantage" class="text-label md:text-sm text-amber-500">Dis</span>
             </button>
             <button
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:border-amber-500/50 hover:bg-muted/30 transition-colors group"
@@ -74,7 +74,7 @@
         <div class="px-4 py-3">
           <div class="flex items-center justify-between mb-2">
             <span class="font-fell text-sm text-foreground font-semibold">Unarmed Strike</span>
-            <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">Proficient</span>
+            <span class="text-label md:text-sm text-muted-foreground">Proficient</span>
           </div>
           <div class="flex flex-wrap gap-2 items-center">
             <button
@@ -86,7 +86,7 @@
               <span class="font-cinzel text-xs" :class="unarmedAttackMod >= 0 ? 'text-elven-green' : 'text-destructive'">
                 {{ signedNum(unarmedAttackMod) }}
               </span>
-              <span v-if="attackDisadvantage" class="font-cinzel text-2xs md:text-sm text-amber-500 tracking-wider">Dis</span>
+              <span v-if="attackDisadvantage" class="text-label md:text-sm text-amber-500">Dis</span>
             </button>
             <span class="font-cinzel text-xs text-muted-foreground">{{ unarmedDamage }} bludgeoning</span>
           </div>
@@ -94,7 +94,7 @@
         <div class="px-4 py-3">
           <div class="flex items-center justify-between mb-2">
             <span class="font-fell text-sm text-foreground font-semibold">Improvised Weapon</span>
-            <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">No proficiency</span>
+            <span class="text-label md:text-sm text-muted-foreground">No proficiency</span>
           </div>
           <div class="flex flex-wrap gap-2">
             <button
@@ -106,7 +106,7 @@
               <span class="font-cinzel text-xs" :class="improvisedAttackMod >= 0 ? 'text-elven-green' : 'text-destructive'">
                 {{ signedNum(improvisedAttackMod) }}
               </span>
-              <span v-if="attackDisadvantage" class="font-cinzel text-2xs md:text-sm text-amber-500 tracking-wider">Dis</span>
+              <span v-if="attackDisadvantage" class="text-label md:text-sm text-amber-500">Dis</span>
             </button>
             <button
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:border-amber-500/50 hover:bg-muted/30 transition-colors group"

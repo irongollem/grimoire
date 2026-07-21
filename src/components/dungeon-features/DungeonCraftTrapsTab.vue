@@ -45,7 +45,7 @@
         <div class="p-2.5 flex flex-col gap-0.5">
           <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight truncate">{{ trap.name }}</h3>
           <div class="flex items-center gap-2">
-            <span v-if="trap.cr" class="font-cinzel text-2xs text-muted-foreground tracking-wider">CR {{ trap.cr }}</span>
+            <span v-if="trap.cr" class="text-label text-muted-foreground">CR {{ trap.cr }}</span>
             <span v-if="trap.trigger_type" class="font-fell text-2xs text-muted-foreground italic truncate">{{ trap.trigger_type }}</span>
           </div>
         </div>

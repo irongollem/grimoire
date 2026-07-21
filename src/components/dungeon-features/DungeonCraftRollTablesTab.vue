@@ -41,7 +41,7 @@
         >
           <div class="flex items-start justify-between gap-2 mb-1">
             <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight">{{ t.name }}</h3>
-            <span class="font-cinzel text-2xs px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold tracking-wider shrink-0">{{ t.dice }}</span>
+            <span class="text-label px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold shrink-0">{{ t.dice }}</span>
           </div>
           <p v-if="t.description" class="font-fell text-xs text-muted-foreground italic line-clamp-2">{{ t.description }}</p>
           <p class="font-fell text-2xs text-muted-foreground mt-2">{{ t.entries.length }} {{ t.entries.length === 1 ? "entry" : "entries" }}</p>

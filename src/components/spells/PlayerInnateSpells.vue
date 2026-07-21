@@ -31,7 +31,7 @@
           <span class="font-cinzel text-2xs px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-400 border border-violet-500/20">
             {{ SOURCE_TYPE_LABELS[group.entries[0].source_type] ?? group.entries[0].source_type }}
           </span>
-          <span class="ml-auto font-cinzel text-2xs text-muted-foreground tracking-wider">
+          <span class="ml-auto text-label text-muted-foreground">
             {{ group.entries.length }}
           </span>
         </button>
@@ -112,12 +112,12 @@
             </template>
             <span
               v-else
-              class="shrink-0 font-cinzel text-2xs tracking-wider text-emerald-500/70 border border-emerald-500/20 rounded px-1.5 py-0.5"
+              class="shrink-0 text-label text-emerald-500/70 border border-emerald-500/20 rounded px-1.5 py-0.5"
             >At will</span>
 
             <!-- Cast button -->
             <button
-              class="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded font-cinzel text-2xs font-semibold tracking-wider transition-colors border"
+              class="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded text-label font-semibold transition-colors border"
               :class="castButtonClass(entry)"
               :disabled="isCasting || (entry.uses_per_day !== null && !entry.uses_remaining)"
               :title="castButtonTitle(entry)"

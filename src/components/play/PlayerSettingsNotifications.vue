@@ -50,7 +50,7 @@
         <p class="font-cinzel text-xs text-foreground tracking-wide">Dice source</p>
         <p class="font-fell text-xs text-muted-foreground italic">Physical mode prompts you to enter the result of dice you rolled yourself.</p>
       </div>
-      <div class="flex rounded-md border border-border overflow-hidden text-2xs md:text-sm font-cinzel tracking-wider shrink-0 ml-3">
+      <div class="flex rounded-md border border-border overflow-hidden text-label md:text-sm shrink-0 ml-3">
         <button
           type="button"
           class="px-3 py-1 transition-colors"

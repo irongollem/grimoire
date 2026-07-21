@@ -82,7 +82,7 @@
       <div v-if="selectedBg?.equipment" class="rounded-lg border border-primary/20 bg-primary/3 p-3 space-y-1">
         <p class="font-cinzel text-xs font-semibold text-primary/80 tracking-wider">STARTING EQUIPMENT</p>
         <p class="font-fell text-sm text-foreground/80 whitespace-pre-wrap">{{ selectedBg.equipment }}</p>
-        <p class="font-cinzel text-2xs text-muted-foreground tracking-wider">
+        <p class="text-label text-muted-foreground">
           Manage inventory import on the Equipment step →
         </p>
       </div>

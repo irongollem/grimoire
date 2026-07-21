@@ -150,7 +150,7 @@
             <span
               v-for="tag in form.tags"
               :key="tag"
-              class="inline-flex items-center rounded bg-muted px-2 py-0.5 font-cinzel text-2xs tracking-wider text-muted-foreground"
+              class="inline-flex items-center rounded bg-muted px-2 py-0.5 text-label text-muted-foreground"
             >{{ tag }}</span>
           </div>
         </section>

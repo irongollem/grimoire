@@ -6,19 +6,19 @@
   >
     <p
       v-if="senderName"
-      class="font-cinzel text-2xs font-semibold text-primary not-italic tracking-wider mb-0.5"
+      class="text-label font-semibold text-primary not-italic mb-0.5"
     >{{ senderName }}</p>
     <p class="font-fell text-sm text-foreground/80 leading-snug">
       <span
         v-if="skillLabel"
-        class="font-cinzel text-2xs font-semibold text-primary/70 not-italic tracking-wider"
+        class="text-label font-semibold text-primary/70 not-italic"
       >{{ skillLabel }}:</span>
       {{ message }}
     </p>
     <div class="flex items-center justify-between mt-0.5">
       <button
         v-if="targetRoute"
-        class="font-cinzel text-2xs font-semibold tracking-wider text-primary/70 hover:text-primary not-italic transition-colors"
+        class="text-label font-semibold text-primary/70 hover:text-primary not-italic transition-colors"
         @click="router.push(targetRoute)"
       >View →</button>
       <span v-else class="grow" />
@@ -40,7 +40,7 @@
       v-if="senderName || recipientName"
       class="flex items-center gap-1 mb-0.5"
     >
-      <p class="font-cinzel text-2xs font-semibold tracking-wider text-primary">
+      <p class="text-label font-semibold text-primary">
         {{ senderName }}
       </p>
       <span

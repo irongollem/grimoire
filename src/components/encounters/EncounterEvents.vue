@@ -22,7 +22,7 @@
         <div v-if="editingEventId === event.id" class="flex flex-col gap-2 rounded-md border border-primary/30 bg-primary/5 p-3">
           <input v-model="editEventData.name" type="text" placeholder="Event name…" class="w-full bg-card border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
           <div class="flex flex-col gap-1">
-            <label class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider">TRIGGER</label>
+            <label class="text-label font-semibold text-muted-foreground">TRIGGER</label>
             <select v-model="editEventData.triggerType" class="w-full bg-card border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
               <option value="round_start">Round Start</option>
               <option value="combatant_hp_pct">HP Threshold</option>
@@ -44,7 +44,7 @@
             </template>
           </div>
           <div class="flex flex-col gap-1">
-            <label class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider">ACTION</label>
+            <label class="text-label font-semibold text-muted-foreground">ACTION</label>
             <select v-model="editEventData.actionType" class="w-full bg-card border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
               <option value="spawn_combatants">Spawn Combatants</option>
               <option value="broadcast_message">Broadcast Message</option>
@@ -124,7 +124,7 @@
       <div v-if="showEventForm" class="flex flex-col gap-2 rounded-md border border-primary/30 bg-primary/5 p-3">
         <input v-model="newEvent.name" type="text" placeholder="Event name…" class="w-full bg-card border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
         <div class="flex flex-col gap-1">
-          <label class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider">TRIGGER</label>
+          <label class="text-label font-semibold text-muted-foreground">TRIGGER</label>
           <select v-model="newEvent.triggerType" class="w-full bg-card border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
             <option value="round_start">Round Start</option>
             <option value="combatant_hp_pct">HP Threshold</option>
@@ -146,7 +146,7 @@
           </template>
         </div>
         <div class="flex flex-col gap-1">
-          <label class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider">ACTION</label>
+          <label class="text-label font-semibold text-muted-foreground">ACTION</label>
           <select v-model="newEvent.actionType" class="w-full bg-card border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
             <option value="spawn_combatants">Spawn Combatants</option>
             <option value="broadcast_message">Broadcast Message</option>

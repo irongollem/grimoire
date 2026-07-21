@@ -190,11 +190,11 @@
           <span class="flex-1 font-fell text-sm text-foreground truncate">{{ c.name }}</span>
           <span
             v-if="c.factionName"
-            class="font-cinzel text-2xs tracking-wider text-muted-foreground"
+            class="text-label text-muted-foreground"
           >{{ c.factionName }}</span>
           <span
             v-if="c.cr"
-            class="font-cinzel text-2xs tracking-wider rounded px-1.5 py-0.5 bg-muted text-muted-foreground"
+            class="text-label rounded px-1.5 py-0.5 bg-muted text-muted-foreground"
           >CR {{ c.cr }}</span>
         </RouterLink>
       </div>

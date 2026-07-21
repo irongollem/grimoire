@@ -9,7 +9,7 @@
   >
     <div class="px-3 py-2 border-b border-border/50 flex items-center gap-2">
       <IconTag class="h-3.5 w-3.5 text-sky-400 shrink-0" />
-      <span class="font-cinzel text-2xs text-muted-foreground tracking-wider">
+      <span class="text-label text-muted-foreground">
         {{ senderName }} offers for sale
       </span>
     </div>
@@ -35,7 +35,7 @@
       <template v-else-if="canBuy">
         <button
           type="button"
-          class="mt-1 px-2.5 py-1 rounded border font-cinzel text-2xs tracking-wider transition-colors"
+          class="mt-1 px-2.5 py-1 rounded border text-label transition-colors"
           :class="isDM || canAfford
             ? 'bg-sky-500/20 border-sky-500/40 text-sky-400 hover:bg-sky-500/30'
             : 'border-border text-muted-foreground/40 cursor-not-allowed'"

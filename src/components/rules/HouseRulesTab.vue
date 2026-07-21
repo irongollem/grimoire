@@ -53,7 +53,7 @@
                 :class="openBuiltIns.has(def.key) ? 'rotate-90' : ''"
               />
               <span class="font-cinzel text-sm font-bold text-foreground flex-1">{{ def.name }}</span>
-              <span class="shrink-0 px-1.5 py-0.5 rounded bg-emerald-500/10 font-cinzel text-2xs text-emerald-400 tracking-wider">active</span>
+              <span class="shrink-0 px-1.5 py-0.5 rounded bg-emerald-500/10 text-label text-emerald-400">active</span>
             </button>
             <div v-if="openBuiltIns.has(def.key)" class="px-4 pb-4 border-t border-border">
               <p class="font-fell text-xs text-muted-foreground italic mt-3 mb-2">{{ def.summary }}</p>
@@ -87,7 +87,7 @@
               <span class="font-cinzel text-sm font-bold text-foreground flex-1">{{ rule.title }}</span>
               <span
                 v-if="rule.category"
-                class="shrink-0 px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground tracking-wider"
+                class="shrink-0 px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground"
               >
                 {{ rule.category }}
               </span>
@@ -95,7 +95,7 @@
                 <span
                   v-for="tag in rule.tags"
                   :key="tag"
-                  class="px-1.5 py-0.5 rounded bg-primary/10 font-cinzel text-2xs text-primary tracking-wider"
+                  class="px-1.5 py-0.5 rounded bg-primary/10 text-label text-primary"
                 >
                   {{ tag }}
                 </span>
@@ -107,7 +107,7 @@
                 <span
                   v-for="tag in rule.tags"
                   :key="tag"
-                  class="px-1.5 py-0.5 rounded bg-primary/10 font-cinzel text-2xs text-primary tracking-wider"
+                  class="px-1.5 py-0.5 rounded bg-primary/10 text-label text-primary"
                 >
                   {{ tag }}
                 </span>

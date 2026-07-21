@@ -7,7 +7,7 @@
       <button
         v-if="!isNew && hasAny"
         type="button"
-        class="inline-flex items-center gap-1 font-cinzel text-2xs font-semibold text-amber-400 hover:opacity-80 transition-opacity tracking-wider"
+        class="inline-flex items-center gap-1 text-label font-semibold text-amber-400 hover:opacity-80 transition-opacity"
         @click="$emit('drop-to-chat')"
       >
         <IconCoins class="h-3 w-3" />

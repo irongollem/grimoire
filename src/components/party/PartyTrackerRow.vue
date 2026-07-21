@@ -54,7 +54,7 @@
           </p>
           <span
             v-if="isInDisguise(member)"
-            class="inline-flex items-center gap-1 font-cinzel text-2xs text-amber-500/80 tracking-wider"
+            class="inline-flex items-center gap-1 text-label text-amber-500/80"
             title="Currently in disguise"
           >◈ disguised</span>
           <p v-if="member.player_name" class="font-fell text-[0.6875rem] text-muted-foreground">

@@ -24,7 +24,7 @@
             type="button"
             :disabled="!hasCoins(pool)"
             :title="'Drop \'' + (pool.label || 'Pool') + '\' to chat'"
-            class="shrink-0 inline-flex items-center gap-1 font-cinzel text-2xs font-semibold text-amber-400 hover:opacity-80 transition-opacity disabled:opacity-30 tracking-wider"
+            class="shrink-0 inline-flex items-center gap-1 text-label font-semibold text-amber-400 hover:opacity-80 transition-opacity disabled:opacity-30"
             @click="drop(pool)"
           >
             <IconCoins class="h-3 w-3" />
@@ -55,7 +55,7 @@
       </div>
       <button
         type="button"
-        class="flex items-center gap-1.5 font-cinzel text-2xs font-semibold text-muted-foreground hover:text-primary transition-colors tracking-wider px-1 pt-1"
+        class="flex items-center gap-1.5 text-label font-semibold text-muted-foreground hover:text-primary transition-colors px-1 pt-1"
         @click="addPool"
       >
         <IconAdd class="h-3.5 w-3.5" />
@@ -83,7 +83,7 @@
           type="button"
           :disabled="!hasCoins(pool)"
           :title="'Drop \'' + (pool.label || 'Pool') + '\' to chat'"
-          class="shrink-0 inline-flex items-center gap-1 font-cinzel text-2xs font-semibold text-amber-400 hover:opacity-80 transition-opacity disabled:opacity-30 tracking-wider"
+          class="shrink-0 inline-flex items-center gap-1 text-label font-semibold text-amber-400 hover:opacity-80 transition-opacity disabled:opacity-30"
           @click="drop(pool)"
         >
           <IconCoins class="h-3 w-3" />
@@ -114,7 +114,7 @@
     </div>
     <button
       type="button"
-      class="flex items-center gap-1.5 font-cinzel text-2xs font-semibold text-muted-foreground hover:text-primary transition-colors tracking-wider px-1 pt-1"
+      class="flex items-center gap-1.5 text-label font-semibold text-muted-foreground hover:text-primary transition-colors px-1 pt-1"
       @click="addPool"
     >
       <IconAdd class="h-3.5 w-3.5" />

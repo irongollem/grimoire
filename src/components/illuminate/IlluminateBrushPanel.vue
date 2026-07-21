@@ -9,7 +9,7 @@
         :class="open ? 'rotate-90' : ''"
       />
       <span class="flex-1 font-cinzel text-xs font-bold tracking-widest uppercase text-foreground">Brush</span>
-      <span v-if="hasStrokes" class="font-cinzel text-2xs tracking-wider text-primary mr-2">strokes</span>
+      <span v-if="hasStrokes" class="text-label text-primary mr-2">strokes</span>
     </div>
 
     <div v-show="open" class="px-4 pb-4 flex flex-col gap-3">
@@ -20,7 +20,7 @@
           v-for="bt in (['round', 'splatter', 'rough', 'chalk'] as BrushType[])"
           :key="bt"
           type="button"
-          class="font-cinzel text-2xs tracking-wider px-2 py-0.5 rounded border transition-colors capitalize"
+          class="text-label px-2 py-0.5 rounded border transition-colors capitalize"
           :class="brush.brushType === bt
             ? 'border-primary text-primary'
             : 'border-border hover:border-primary/60 hover:text-foreground text-muted-foreground'"
@@ -35,7 +35,7 @@
           v-for="pt in (['size', 'opacity'] as PressureTarget[])"
           :key="pt"
           type="button"
-          class="font-cinzel text-2xs tracking-wider px-2 py-0.5 rounded border transition-colors"
+          class="text-label px-2 py-0.5 rounded border transition-colors"
           :class="brush.pressureTarget === pt
             ? 'border-primary text-primary'
             : 'border-border hover:border-primary/60 hover:text-foreground text-muted-foreground'"
@@ -64,13 +64,13 @@
       <div class="flex items-center gap-2 pt-1">
         <button
           type="button"
-          class="font-cinzel text-2xs tracking-wider px-3 py-1.5 rounded border border-border hover:border-primary/60 hover:text-foreground text-muted-foreground transition-colors"
+          class="text-label px-3 py-1.5 rounded border border-border hover:border-primary/60 hover:text-foreground text-muted-foreground transition-colors"
           @click="emit('undo')"
         >Undo (Ctrl+Z)</button>
         <button
           type="button"
           :disabled="!hasStrokes"
-          class="font-cinzel text-2xs tracking-wider px-3 py-1.5 rounded border border-border hover:border-destructive/60 hover:text-destructive text-muted-foreground transition-colors disabled:opacity-40"
+          class="text-label px-3 py-1.5 rounded border border-border hover:border-destructive/60 hover:text-destructive text-muted-foreground transition-colors disabled:opacity-40"
           @click="emit('clear')"
         >Clear mask</button>
       </div>

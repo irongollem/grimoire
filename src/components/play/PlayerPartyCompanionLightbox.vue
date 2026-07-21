@@ -9,7 +9,7 @@
     <template #portrait-overlay>
       <span
         v-if="companion"
-        class="absolute top-2 left-2 font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded tracking-wider text-white"
+        class="absolute top-2 left-2 text-label md:text-sm px-1.5 py-0.5 rounded text-white"
         :style="{ backgroundColor: COMPANION_TYPE_COLORS[companion.companion_type] + 'CC' }"
       >{{ COMPANION_TYPE_LABELS[companion.companion_type] }}</span>
     </template>
@@ -23,7 +23,7 @@
     <div v-if="companion" class="grid grid-cols-2 gap-3">
       <div class="rounded-md bg-muted p-2.5">
         <div class="flex items-center justify-between mb-1">
-          <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">HP</span>
+          <span class="text-label md:text-sm text-muted-foreground">HP</span>
           <span class="font-cinzel text-sm font-bold" :class="hpColor">
             {{ companion.current_hp }} / {{ companion.max_hp }}
           </span>
@@ -48,7 +48,7 @@
       <span
         v-for="cond in companion.conditions"
         :key="cond"
-        class="font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded bg-destructive/10 text-destructive tracking-wider"
+        class="text-label md:text-sm px-1.5 py-0.5 rounded bg-destructive/10 text-destructive"
       >{{ cond }}</span>
     </div>
     <PlayerNotesWidget v-if="companion" entity-type="companion" :entity-id="companion.id" placeholder="Your thoughts on this companion…" />

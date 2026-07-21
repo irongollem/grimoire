@@ -62,7 +62,7 @@
           </div>
           <div v-if="showSuggestions" class="fixed inset-0 z-10" @click="showSuggestions = false" />
         </div>
-        <button type="submit" class="px-2 py-1 bg-primary text-primary-foreground rounded font-cinzel text-2xs tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50" :disabled="!addSelectedId">
+        <button type="submit" class="px-2 py-1 bg-primary text-primary-foreground rounded text-label hover:opacity-90 transition-opacity disabled:opacity-50" :disabled="!addSelectedId">
           Add
         </button>
         <button type="button" class="font-cinzel text-2xs text-muted-foreground hover:text-foreground" @click="showAdd = false">✕</button>

@@ -13,7 +13,7 @@
       </select>
       <button
         type="button"
-        class="px-2.5 py-1 font-cinzel text-2xs font-semibold tracking-wider border border-border rounded-md hover:bg-muted/60 transition-colors"
+        class="px-2.5 py-1 text-label font-semibold border border-border rounded-md hover:bg-muted/60 transition-colors"
         @click="resetToDefault"
       >
         Reset
@@ -117,7 +117,7 @@
         </label>
         <button
           type="button"
-          class="px-2.5 py-1 font-cinzel text-2xs font-semibold tracking-wider border border-border rounded-md hover:bg-muted/60 transition-colors"
+          class="px-2.5 py-1 text-label font-semibold border border-border rounded-md hover:bg-muted/60 transition-colors"
           @click="addMonth"
         >
           + Add month
@@ -172,7 +172,7 @@
         </label>
         <button
           type="button"
-          class="px-2.5 py-1 font-cinzel text-2xs font-semibold tracking-wider border border-border rounded-md hover:bg-muted/60 transition-colors"
+          class="px-2.5 py-1 text-label font-semibold border border-border rounded-md hover:bg-muted/60 transition-colors"
           :disabled="def.months.length === 0"
           @click="addIntercalary"
         >
@@ -196,7 +196,7 @@
               class="col-span-5 bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
             <div class="col-span-4 flex items-center gap-1.5">
-              <span class="font-cinzel text-2xs text-muted-foreground tracking-wider">AFTER</span>
+              <span class="text-label text-muted-foreground">AFTER</span>
               <select
                 v-model.number="d.afterMonth"
                 class="flex-1 min-w-0 bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"

@@ -19,14 +19,14 @@
 
       <!-- Format badge -->
       <span
-        class="absolute top-1.5 left-1.5 rounded px-1.5 py-0.5 font-cinzel text-2xs tracking-wider pointer-events-none"
+        class="absolute top-1.5 left-1.5 rounded px-1.5 py-0.5 text-label pointer-events-none"
         :class="FORMAT_BADGE_CLASSES[mini.format]"
       >{{ MINI_FORMAT_LABELS[mini.format] }}</span>
 
       <!-- Status badge (non-ready only) -->
       <span
         v-if="mini.status !== 'ready'"
-        class="absolute top-1.5 right-1.5 rounded px-1.5 py-0.5 font-cinzel text-2xs tracking-wider bg-black/60 text-white pointer-events-none"
+        class="absolute top-1.5 right-1.5 rounded px-1.5 py-0.5 text-label bg-black/60 text-white pointer-events-none"
       >{{ MINI_STATUS_LABELS[mini.status] }}</span>
     </button>
 
@@ -57,7 +57,7 @@
           :href="stlUrl"
           download
           title="Download STL"
-          class="inline-flex items-center gap-1 px-1.5 py-1 rounded border border-border text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors font-cinzel text-2xs tracking-wider"
+          class="inline-flex items-center gap-1 px-1.5 py-1 rounded border border-border text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors text-label"
         ><IconDownload class="h-3.5 w-3.5" />STL</a>
 
         <RouterLink

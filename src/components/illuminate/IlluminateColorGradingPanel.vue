@@ -37,12 +37,12 @@
           v-for="preset in GRADING_PRESETS"
           :key="preset.label"
           type="button"
-          class="font-cinzel text-2xs tracking-wider px-2 py-0.5 rounded border border-border hover:border-primary hover:text-primary transition-colors"
+          class="text-label px-2 py-0.5 rounded border border-border hover:border-primary hover:text-primary transition-colors"
           @click="emit('apply-preset', preset.values)"
         >{{ preset.label }}</button>
         <button
           type="button"
-          class="font-cinzel text-2xs tracking-wider text-muted-foreground hover:text-foreground transition-colors ml-auto"
+          class="text-label text-muted-foreground hover:text-foreground transition-colors ml-auto"
           @click="emit('reset')"
         >Reset</button>
       </div>

@@ -106,7 +106,7 @@
             <span
               v-for="tag in item.tags.slice(0, 4)"
               :key="tag"
-              class="font-cinzel text-2xs tracking-wider text-muted-foreground bg-muted px-1 py-1 rounded"
+              class="text-label text-muted-foreground bg-muted px-1 py-1 rounded"
             >
               {{ tag }}
             </span>
@@ -116,7 +116,7 @@
         <!-- Edit button (floats top-left on hover) -->
         <RouterLink
           :to="`/vault/${item.id}?edit=true`"
-          class="absolute top-2 left-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 font-cinzel text-2xs font-semibold tracking-wider text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
+          class="absolute top-2 left-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 text-label font-semibold text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
           title="Edit item"
         >
           <IconEdit class="max-md:h-4 max-md:w-4 h-3 w-3" />

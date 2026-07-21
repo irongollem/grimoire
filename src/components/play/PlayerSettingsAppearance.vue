@@ -3,7 +3,7 @@
   <SettingsSection title="Appearance" description="Your DM sets the campaign theme. Override it here if you prefer a different look.">
     <div class="flex items-center justify-between">
       <p class="font-cinzel text-xs text-foreground tracking-wide">Theme</p>
-      <div class="flex rounded-md border border-border overflow-hidden text-2xs md:text-sm font-cinzel tracking-wider shrink-0">
+      <div class="flex rounded-md border border-border overflow-hidden text-label md:text-sm shrink-0">
         <button
           v-for="opt in THEME_OVERRIDE_OPTIONS"
           :key="opt.value"
@@ -54,7 +54,7 @@
           :class="wakeLockEnabled ? 'translate-x-5' : 'translate-x-0'"
         />
       </button>
-      <span v-else class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider px-2 py-1 rounded border border-border">
+      <span v-else class="text-label md:text-sm text-muted-foreground px-2 py-1 rounded border border-border">
         Unavailable
       </span>
     </div>

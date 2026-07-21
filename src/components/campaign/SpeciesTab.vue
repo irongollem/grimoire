@@ -9,7 +9,7 @@
     <div v-if="campaignSpecies.length > 0" class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-3 border-b border-border bg-muted/20 flex items-center gap-2">
         <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">CAMPAIGN-ONLY SPECIES</span>
-        <span class="font-cinzel text-2xs text-primary/70 tracking-wider">exclusive to this campaign</span>
+        <span class="text-label text-primary/70">exclusive to this campaign</span>
       </div>
       <div class="divide-y divide-border">
         <div
@@ -21,7 +21,7 @@
             <div class="h-2 w-2 rounded-full bg-primary/60" />
           </div>
           <span class="font-fell text-sm text-foreground flex-1">{{ sp.name }}</span>
-          <span class="font-cinzel text-2xs tracking-wider text-primary/60 shrink-0">campaign-only</span>
+          <span class="text-label text-primary/60 shrink-0">campaign-only</span>
         </div>
       </div>
     </div>
@@ -46,7 +46,7 @@
           <span class="font-fell text-sm text-foreground flex-1">{{ sp.name }}</span>
           <span
             v-if="disabled.has(sp.id)"
-            class="font-cinzel text-2xs tracking-wider text-muted-foreground/60 shrink-0"
+            class="text-label text-muted-foreground/60 shrink-0"
           >hidden</span>
         </label>
       </div>
@@ -58,7 +58,7 @@
       </p>
       <button
         type="button"
-        class="font-cinzel text-2xs tracking-wider text-primary/70 hover:text-primary transition-colors"
+        class="text-label text-primary/70 hover:text-primary transition-colors"
         @click="enableAll"
       >
         Enable all

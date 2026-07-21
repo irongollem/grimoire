@@ -37,7 +37,7 @@
           <div class="flex flex-wrap gap-1.5">
             <span
               v-if="background.source_title || background.source"
-              class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
+              class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
             >{{ background.source_title ?? background.source }}</span>
           </div>
           <p
@@ -65,7 +65,7 @@
             <span
               v-for="s in background.skill_proficiencies"
               :key="s"
-              class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
+              class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
             >{{ s }}</span>
           </div>
         </div>
@@ -75,7 +75,7 @@
             <span
               v-for="t in background.tool_proficiencies"
               :key="t"
-              class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
+              class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
             >{{ t }}</span>
           </div>
         </div>
@@ -85,7 +85,7 @@
             <span
               v-for="l in background.languages"
               :key="l"
-              class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
+              class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
             >{{ l }}</span>
           </div>
         </div>
@@ -113,7 +113,7 @@
         <span
           v-for="tag in background.tags"
           :key="tag"
-          class="font-cinzel text-2xs tracking-wider bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
+          class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
         >{{ tag }}</span>
       </div>
     </div>
@@ -135,12 +135,12 @@
         <div class="flex items-center gap-2">
           <span
             v-if="grantDone"
-            class="font-cinzel text-2xs tracking-wider text-emerald-500"
+            class="text-label text-emerald-500"
           >Added!</span>
           <button
             v-if="hasCampaign"
             type="button"
-            class="inline-flex items-center gap-1 font-cinzel text-2xs tracking-wider text-primary hover:text-primary/80 transition-colors"
+            class="inline-flex items-center gap-1 text-label text-primary hover:text-primary/80 transition-colors"
             @click="openLootbox"
           >
             <IconAddItem class="h-3.5 w-3.5" />

@@ -22,7 +22,7 @@
     <div class="rounded-lg border border-border bg-card p-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
       <!-- Discipline -->
       <div class="flex flex-col gap-1">
-        <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground">DISCIPLINE</span>
+        <span class="text-label font-semibold text-muted-foreground">DISCIPLINE</span>
         <div class="flex items-center gap-1.5">
           <component :is="discipline.icon" class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           <span class="font-fell text-sm text-foreground">{{ discipline.label }}</span>
@@ -31,19 +31,19 @@
 
       <!-- DC -->
       <div class="flex flex-col gap-1">
-        <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground">CRAFTING DC</span>
+        <span class="text-label font-semibold text-muted-foreground">CRAFTING DC</span>
         <span class="font-cinzel text-lg font-bold text-foreground">{{ recipe.dc }}</span>
       </div>
 
       <!-- Time -->
       <div class="flex flex-col gap-1">
-        <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground">TIME</span>
+        <span class="text-label font-semibold text-muted-foreground">TIME</span>
         <span class="font-fell text-sm text-foreground">{{ recipe.crafting_time }} {{ recipe.crafting_time_unit }}</span>
       </div>
 
       <!-- Requirements -->
       <div class="flex flex-col gap-1">
-        <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground">REQUIRES</span>
+        <span class="text-label font-semibold text-muted-foreground">REQUIRES</span>
         <div class="flex flex-wrap gap-1">
           <span v-if="recipe.requires_proficiency" class="font-cinzel text-2xs px-1.5 py-0.5 rounded bg-destructive/10 text-destructive border border-destructive/20">Proficiency</span>
           <span v-if="recipe.requires_tools" class="font-cinzel text-2xs px-1.5 py-0.5 rounded bg-destructive/10 text-destructive border border-destructive/20">Tools</span>
@@ -61,7 +61,7 @@
 
     <!-- Description -->
     <div v-if="recipe.description" class="rounded-lg border border-border bg-card p-4">
-      <span class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground block mb-2">DESCRIPTION</span>
+      <span class="text-label font-semibold text-muted-foreground block mb-2">DESCRIPTION</span>
       <RichTextViewer :content="recipe.description" />
     </div>
 

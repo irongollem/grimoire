@@ -78,7 +78,7 @@
           class="absolute inset-0 z-20 flex flex-col items-center justify-center gap-1.5 bg-background/80 backdrop-blur-sm"
         >
           <IconLock class="h-4 w-4 text-muted-foreground" />
-          <p class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground">Locked</p>
+          <p class="text-label font-semibold text-muted-foreground">Locked</p>
           <RouterLink to="/billing" class="font-cinzel text-[0.5625rem] tracking-wider text-primary/80 hover:text-primary transition-colors">
             Upgrade to access
           </RouterLink>
@@ -117,7 +117,7 @@
                 {{ monster.source_title ?? monster.source ?? "SRD" }}
               </span>
               <span
-                class="min-w-8 text-center px-1.5 py-0.5 rounded font-cinzel text-2xs font-bold tracking-wider text-white"
+                class="min-w-8 text-center px-1.5 py-0.5 rounded text-label font-bold text-white"
                 :style="{ backgroundColor: crColor(monster.stat_block.challenge_rating) }"
               >
                 CR {{ monster.stat_block.challenge_rating }}
@@ -141,7 +141,7 @@
             <span
               v-for="tag in monster.tags.slice(0, 3)"
               :key="tag"
-              class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground tracking-wider"
+              class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground"
             >
               {{ tag }}
             </span>
@@ -152,7 +152,7 @@
         <RouterLink
           v-if="!monster.is_srd"
           :to="`/monsters/${monster.id}?edit=true`"
-          class="absolute top-2 left-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 font-cinzel text-2xs font-semibold tracking-wider text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
+          class="absolute top-2 left-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 text-label font-semibold text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
           title="Edit monster"
         >
           <IconEdit class="max-md:h-4 max-md:w-4 h-3 w-3" />
@@ -161,7 +161,7 @@
         <!-- Player visibility button (floats top-right, opens share popover) -->
         <button
           type="button"
-          class="absolute top-2 right-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:min-w-11 max-md:px-3 max-md:py-2 px-2 py-1 font-cinzel text-2xs font-semibold tracking-wider transition-opacity cursor-pointer"
+          class="absolute top-2 right-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:min-w-11 max-md:px-3 max-md:py-2 px-2 py-1 text-label font-semibold transition-opacity cursor-pointer"
           :class="isDiscovered(monster)
             ? 'text-primary bg-black/60 opacity-100'
             : 'text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100'"
@@ -196,7 +196,7 @@
         :style="popover.style"
         @mousedown.stop
       >
-        <p class="font-cinzel text-2xs text-muted-foreground tracking-wider truncate">{{ popover.monster.name }}</p>
+        <p class="text-label text-muted-foreground truncate">{{ popover.monster.name }}</p>
 
         <!-- Whole party -->
         <button

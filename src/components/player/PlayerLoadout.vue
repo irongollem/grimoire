@@ -4,7 +4,7 @@
       <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">LOADOUT</span>
       <RouterLink
         to="/play/inventory"
-        class="flex items-center gap-1 font-cinzel text-2xs md:text-sm text-primary tracking-wider hover:opacity-80 transition-opacity"
+        class="flex items-center gap-1 text-label md:text-sm text-primary hover:opacity-80 transition-opacity"
       >
         <IconInventory class="h-3 w-3" />
         Manage

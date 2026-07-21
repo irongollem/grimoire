@@ -108,7 +108,7 @@
               />
             </div>
             <div class="space-y-1.5">
-              <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground">TYPE</label>
+              <label class="text-label font-semibold text-muted-foreground">TYPE</label>
               <select
                 v-model="tracker.type"
                 class="w-full bg-background border border-border rounded px-2.5 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -131,7 +131,7 @@
               />
             </div>
             <div class="space-y-1.5">
-              <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground">MAX VALUE</label>
+              <label class="text-label font-semibold text-muted-foreground">MAX VALUE</label>
               <input
                 v-model.number="tracker.max"
                 type="number"

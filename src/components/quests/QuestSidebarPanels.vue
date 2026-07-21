@@ -17,7 +17,7 @@
       </span>
       <RouterLink
         :to="`/quests/new?parent=${questId}`"
-        class="inline-flex items-center gap-1 font-cinzel text-2xs font-semibold text-primary tracking-wider hover:opacity-80 transition-opacity"
+        class="inline-flex items-center gap-1 text-label font-semibold text-primary hover:opacity-80 transition-opacity"
       >
         <IconAdd class="h-3 w-3" />
         Add
@@ -69,7 +69,7 @@
       <div v-for="note in sharedNotes" :key="note.id" class="px-3 py-2.5">
         <RichTextViewer :content="note.content ?? ''" />
         <p
-          class="font-cinzel text-2xs text-muted-foreground/50 tracking-wider mt-1"
+          class="text-label text-muted-foreground/50 mt-1"
         >
           {{ note.updated_at.slice(0, 10) }}
         </p>

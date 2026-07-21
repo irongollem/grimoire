@@ -90,7 +90,7 @@
         <option v-for="m in partyMembers" :key="m.id" :value="m.id">{{ m.name }}</option>
       </select>
       <button
-        class="font-cinzel text-2xs md:text-xs tracking-wider text-black font-semibold border border-black/30 hover:bg-black/10 px-2 py-0.5 rounded transition-colors shrink-0"
+        class="text-label md:text-xs text-black font-semibold border border-black/30 hover:bg-black/10 px-2 py-0.5 rounded transition-colors shrink-0"
         @click="exitPreview"
       >
         Exit Preview

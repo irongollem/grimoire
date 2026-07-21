@@ -43,7 +43,7 @@
           class="absolute inset-0 z-20 flex flex-col items-center justify-center gap-1.5 bg-background/80 backdrop-blur-sm"
         >
           <IconLock class="h-4 w-4 text-muted-foreground" />
-          <p class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground">Locked</p>
+          <p class="text-label font-semibold text-muted-foreground">Locked</p>
           <RouterLink to="/billing" class="font-cinzel text-[0.5625rem] tracking-wider text-primary/80 hover:text-primary transition-colors">
             Upgrade to access
           </RouterLink>
@@ -65,14 +65,14 @@
             </h3>
             <span
               v-if="encounter.is_finished"
-              class="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded font-cinzel text-2xs font-bold tracking-wider text-muted-foreground bg-muted/60 border border-border"
+              class="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded text-label font-bold text-muted-foreground bg-muted/60 border border-border"
             >
               <IconCheckDouble class="h-3 w-3" />
               Done
             </span>
             <span
               v-else-if="isEncounterRunning(encounter.id)"
-              class="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded font-cinzel text-2xs font-bold tracking-wider text-green-400 bg-green-500/15 border border-green-500/30"
+              class="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded text-label font-bold text-green-400 bg-green-500/15 border border-green-500/30"
             >
               <span
                 class="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse"
@@ -81,7 +81,7 @@
             </span>
             <span
               v-else
-              class="shrink-0 px-2 py-0.5 rounded font-cinzel text-2xs font-bold tracking-wider text-white"
+              class="shrink-0 px-2 py-0.5 rounded text-label font-bold text-white"
               :style="{ backgroundColor: encounterDifficultyColor(encounter) }"
             >
               {{ encounterDifficultyLabel(encounter) }}

@@ -50,7 +50,7 @@
       </button>
     </div>
 
-    <p v-if="selectedIds.size < needed" class="font-cinzel text-2xs text-muted-foreground tracking-wider">
+    <p v-if="selectedIds.size < needed" class="text-label text-muted-foreground">
       You can also add {{ isCantrip ? 'cantrips' : 'spells' }} later from your Spellbook tab.
     </p>
   </WizardStepCard>

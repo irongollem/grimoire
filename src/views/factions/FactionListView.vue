@@ -69,14 +69,14 @@
               <p class="font-cinzel text-sm font-bold text-foreground truncate flex-1">{{ faction.name }}</p>
               <IconReveal v-if="faction.player_visible_to?.length" class="h-3 w-3 shrink-0 text-elven-green" />
             </div>
-            <p v-if="faction.faction_type" class="font-cinzel text-2xs text-muted-foreground tracking-wider mt-0.5">
+            <p v-if="faction.faction_type" class="text-label text-muted-foreground mt-0.5">
               {{ faction.faction_type }}
             </p>
             <div v-if="faction.tags.length" class="flex flex-wrap gap-1 mt-1.5">
               <span
                 v-for="tag in faction.tags.slice(0, 3)"
                 :key="tag"
-                class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground tracking-wider"
+                class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground"
               >{{ tag }}</span>
             </div>
           </div>

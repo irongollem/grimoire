@@ -13,7 +13,7 @@
         class="group-hover:scale-105 transition-transform duration-300"
       />
       <span
-        class="absolute top-2 right-2 font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded tracking-wider text-white"
+        class="absolute top-2 right-2 text-label md:text-sm px-1.5 py-0.5 rounded text-white"
         :style="{ backgroundColor: COMPANION_TYPE_COLORS[companion.companion_type] + 'CC' }"
       >{{ COMPANION_TYPE_LABELS[companion.companion_type] }}</span>
     </div>
@@ -25,7 +25,7 @@
       <div>
         <template v-if="showNumericHp">
           <div class="flex items-center justify-between mb-0.5">
-            <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">HP</span>
+            <span class="text-label md:text-sm text-muted-foreground">HP</span>
             <span class="font-cinzel text-2xs md:text-sm" :class="hpColor">{{ companion.current_hp }} / {{ companion.max_hp }}</span>
           </div>
           <div class="h-1.5 rounded-full bg-muted overflow-hidden">
@@ -49,7 +49,7 @@
         <span
           v-for="cond in (companion.conditions ?? []).slice(0, 2)"
           :key="cond"
-          class="font-cinzel text-2xs md:text-sm px-1 py-0.5 rounded bg-destructive/10 text-destructive tracking-wider"
+          class="text-label md:text-sm px-1 py-0.5 rounded bg-destructive/10 text-destructive"
         >{{ cond }}</span>
       </div>
     </div>

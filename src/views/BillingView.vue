@@ -222,7 +222,7 @@
           <button
             v-for="c in pricingCurrencies"
             :key="c"
-            class="px-1.5 py-px font-cinzel text-2xs tracking-wider rounded border transition-colors"
+            class="px-1.5 py-px text-label rounded border transition-colors"
             :class="currency === c ? 'border-primary/60 text-foreground bg-primary/10' : 'border-border text-muted-foreground hover:text-foreground'"
             @click="currency = c"
           >{{ c }}</button>
@@ -328,7 +328,7 @@
             <button
               v-for="c in pricingCurrencies"
               :key="c"
-              class="px-1.5 py-px font-cinzel text-2xs tracking-wider rounded border transition-colors"
+              class="px-1.5 py-px text-label rounded border transition-colors"
               :class="currency === c ? 'border-primary/60 text-foreground bg-primary/10' : 'border-border text-muted-foreground hover:text-foreground'"
               @click="currency = c"
             >{{ c }}</button>

@@ -74,7 +74,7 @@
         <!-- Modifier -->
         <div class="modifier-row">
           <span
-            class="font-cinzel text-2xs text-muted-foreground tracking-wider"
+            class="text-label text-muted-foreground"
             >MODIFIER</span
           >
           <div class="modifier-input-wrap">
@@ -132,7 +132,7 @@
               />
             </div>
             <div
-              class="result-label font-cinzel text-2xs text-muted-foreground tracking-wider text-center"
+              class="result-label text-label text-muted-foreground text-center"
             >
               {{ result.label }}
             </div>

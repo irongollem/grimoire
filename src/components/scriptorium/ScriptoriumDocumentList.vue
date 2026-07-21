@@ -77,7 +77,7 @@
           class="absolute inset-0 z-20 flex flex-col items-center justify-center gap-1.5 bg-background/80 backdrop-blur-sm"
         >
           <IconLock class="h-4 w-4 text-muted-foreground" />
-          <p class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground">Locked</p>
+          <p class="text-label font-semibold text-muted-foreground">Locked</p>
           <RouterLink to="/billing" class="font-cinzel text-[0.5625rem] tracking-wider text-primary/80 hover:text-primary transition-colors">
             Upgrade to access
           </RouterLink>
@@ -113,7 +113,7 @@
             <span
               v-for="tag in doc.tags.slice(0, 3)"
               :key="tag"
-              class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground tracking-wider"
+              class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground"
             >
               {{ tag }}
             </span>
@@ -139,7 +139,7 @@
           <div v-if="doc.is_published" class="flex items-center gap-1">
             <IconFaction class="h-3 w-3 text-green-500" />
             <span
-              class="font-cinzel text-2xs text-green-500 font-semibold tracking-wider"
+              class="text-label text-green-500 font-semibold"
               >Published</span
             >
           </div>

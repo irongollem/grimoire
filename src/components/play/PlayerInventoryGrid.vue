@@ -6,7 +6,7 @@
         Containers
       </p>
       <button
-        class="flex items-center gap-1 font-cinzel text-2xs md:text-sm tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+        class="flex items-center gap-1 text-label md:text-sm text-muted-foreground hover:text-foreground transition-colors"
         @click="$emit('toggle-container-picker')"
       >
         <IconAdd class="h-3 w-3" />Add container
@@ -18,7 +18,7 @@
       v-if="showContainerPicker"
       class="mb-2 rounded-lg border border-border bg-card p-3 flex flex-col gap-2"
     >
-      <p class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">
+      <p class="text-label md:text-sm text-muted-foreground">
         Pick an item from your inventory:
       </p>
       <input

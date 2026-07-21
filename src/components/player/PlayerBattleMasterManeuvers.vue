@@ -3,7 +3,7 @@
     <div class="px-4 py-2.5 border-b border-border flex items-center justify-between">
       <p class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Battle Master Maneuvers</p>
       <div class="flex items-center gap-2">
-        <span class="font-cinzel text-2xs tracking-wider rounded px-1.5 py-0.5 bg-muted/50 text-muted-foreground border border-border">{{ superiorityDiceSize }}</span>
+        <span class="text-label rounded px-1.5 py-0.5 bg-muted/50 text-muted-foreground border border-border">{{ superiorityDiceSize }}</span>
       </div>
     </div>
     <!-- Superiority dice track -->
@@ -52,7 +52,7 @@
     <div v-if="availableToLearn.length > 0" class="px-4 py-2.5 border-t border-border">
       <div v-if="!showLearnForm" class="flex justify-start">
         <button
-          class="font-cinzel text-2xs tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+          class="text-label text-muted-foreground hover:text-foreground transition-colors"
           @click="showLearnForm = true"
         >+ Learn Maneuver</button>
       </div>
@@ -67,11 +67,11 @@
         <div class="flex gap-2">
           <button
             :disabled="!pendingLearn"
-            class="font-cinzel text-2xs tracking-wider px-3 py-1 rounded bg-primary text-primary-foreground disabled:opacity-40 hover:opacity-90 transition-opacity"
+            class="text-label px-3 py-1 rounded bg-primary text-primary-foreground disabled:opacity-40 hover:opacity-90 transition-opacity"
             @click="confirmLearn"
           >Learn</button>
           <button
-            class="font-cinzel text-2xs tracking-wider px-3 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors"
+            class="text-label px-3 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors"
             @click="showLearnForm = false; pendingLearn = ''"
           >Cancel</button>
         </div>

@@ -247,7 +247,7 @@
           <span class="flex-1 font-fell text-xs text-foreground truncate">{{ selectedFile.name }}</span>
           <button
             type="button"
-            class="shrink-0 font-cinzel text-2xs tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+            class="shrink-0 text-label text-muted-foreground hover:text-foreground transition-colors"
             @click="fileInputRef?.click()"
           >Change</button>
         </div>

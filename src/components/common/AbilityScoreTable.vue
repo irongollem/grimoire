@@ -26,7 +26,7 @@
         >
           <td class="py-0 px-0">
             <button
-              class="w-full py-1.5 px-1.5 font-cinzel text-2xs font-bold tracking-wider text-left transition-opacity hover:opacity-60 cursor-pointer"
+              class="w-full py-1.5 px-1.5 text-label font-bold text-left transition-opacity hover:opacity-60 cursor-pointer"
               :style="{ color: ab.color }"
               :title="`Roll ${ab.label} check`"
               v-roll-mode="{ enabled: rollModePicker, on: (m: RollMode | null) => emit('roll-ability', ab.key, ab.label, mod(ab.key), m) }"
@@ -93,7 +93,7 @@
       >
         <td class="py-0 px-0">
           <button
-            class="w-full py-1.5 px-3 font-cinzel text-2xs font-bold tracking-wider text-left transition-opacity hover:opacity-60 cursor-pointer"
+            class="w-full py-1.5 px-3 text-label font-bold text-left transition-opacity hover:opacity-60 cursor-pointer"
             :style="{ color: ab.color }"
             :title="`Roll ${ab.label} check`"
             v-roll-mode="{ enabled: rollModePicker, on: (m: RollMode | null) => emit('roll-ability', ab.key, ab.label, mod(ab.key), m) }"

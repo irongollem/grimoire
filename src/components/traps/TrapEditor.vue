@@ -76,10 +76,10 @@
                   <option :value="null">—</option>
                   <option v-for="cr in CR_LIST" :key="cr" :value="cr">{{ cr }}</option>
                 </select>
-                <span v-if="crXp" class="font-cinzel text-2xs text-muted-foreground tracking-wider whitespace-nowrap">{{ crXp }} XP</span>
+                <span v-if="crXp" class="text-label text-muted-foreground whitespace-nowrap">{{ crXp }} XP</span>
                 <button
                   type="button"
-                  class="shrink-0 inline-flex items-center gap-1 font-cinzel text-2xs font-semibold text-primary hover:opacity-80 transition-opacity tracking-wider whitespace-nowrap"
+                  class="shrink-0 inline-flex items-center gap-1 text-label font-semibold text-primary hover:opacity-80 transition-opacity whitespace-nowrap"
                   title="Open CR advisor"
                   @click="showAdvisor = true"
                 >
@@ -178,7 +178,7 @@
           <div>
             <div class="flex items-center justify-between mb-1">
               <label class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">Damage</label>
-              <button type="button" class="font-cinzel text-2xs font-semibold text-primary hover:opacity-80 transition-opacity tracking-wider" @click="addDamageEntry">+ Add</button>
+              <button type="button" class="text-label font-semibold text-primary hover:opacity-80 transition-opacity" @click="addDamageEntry">+ Add</button>
             </div>
             <div class="flex flex-col gap-2">
               <div v-for="(entry, i) in form.damage_entries" :key="i" class="flex items-center gap-2">
@@ -241,7 +241,7 @@
                   v-for="cat in EFFECT_CATEGORIES"
                   :key="cat.value"
                   type="button"
-                  class="rounded-md border px-2 py-1.5 font-cinzel text-2xs font-semibold tracking-wider transition-colors text-center"
+                  class="rounded-md border px-2 py-1.5 text-label font-semibold transition-colors text-center"
                   :class="advisorInputs.effectCategory === cat.value ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:border-primary/50'"
                   @click="advisorInputs.effectCategory = cat.value"
                 >{{ cat.label }}</button>
@@ -258,7 +258,7 @@
                   v-for="opt in TARGETING_OPTIONS"
                   :key="opt.value"
                   type="button"
-                  class="rounded-md border px-2 py-1.5 font-cinzel text-2xs font-semibold tracking-wider transition-colors text-center"
+                  class="rounded-md border px-2 py-1.5 text-label font-semibold transition-colors text-center"
                   :class="advisorInputs.targeting === opt.value ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:border-primary/50'"
                   @click="advisorInputs.targeting = opt.value"
                 >{{ opt.label }}</button>
@@ -271,7 +271,7 @@
                   v-for="opt in DC_TIER_OPTIONS"
                   :key="opt.value"
                   type="button"
-                  class="rounded-md border px-2 py-1.5 font-cinzel text-2xs font-semibold tracking-wider transition-colors text-center"
+                  class="rounded-md border px-2 py-1.5 text-label font-semibold transition-colors text-center"
                   :class="advisorInputs.dcTier === opt.value ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:border-primary/50'"
                   @click="advisorInputs.dcTier = opt.value"
                 >{{ opt.label }}</button>
@@ -284,7 +284,7 @@
                   v-for="opt in SECONDARY_OPTIONS"
                   :key="opt.value"
                   type="button"
-                  class="rounded-md border px-2 py-1.5 font-cinzel text-2xs font-semibold tracking-wider transition-colors text-center"
+                  class="rounded-md border px-2 py-1.5 text-label font-semibold transition-colors text-center"
                   :class="advisorInputs.secondaryEffect === opt.value ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:border-primary/50'"
                   @click="advisorInputs.secondaryEffect = opt.value"
                 >{{ opt.label }}</button>
@@ -309,7 +309,7 @@
                 <span class="font-cinzel text-xs font-semibold text-muted-foreground tracking-wider">SUGGESTED CR</span>
                 <span class="font-cinzel text-2xl font-bold text-primary">{{ advisorResult.suggestedCr }}</span>
               </div>
-              <div class="font-cinzel text-2xs text-muted-foreground tracking-wider">
+              <div class="text-label text-muted-foreground">
                 Range: CR {{ advisorResult.suggestedMin }} – {{ advisorResult.suggestedMax }}
                 <span v-if="CR_XP[advisorResult.suggestedCr]" class="ml-2">({{ CR_XP[advisorResult.suggestedCr] }} XP)</span>
               </div>
@@ -319,7 +319,7 @@
                 </li>
               </ul>
               <div class="border-t border-border pt-3">
-                <div class="font-cinzel text-2xs text-muted-foreground tracking-wider mb-2">REFERENCE BENCHMARKS</div>
+                <div class="text-label text-muted-foreground mb-2">REFERENCE BENCHMARKS</div>
                 <div class="flex flex-col gap-1">
                   <div
                     v-for="bench in CR_TRAP_BENCHMARKS.slice(0, 5)"

@@ -39,11 +39,11 @@
             <h2 class="font-cinzel text-lg font-bold text-foreground leading-tight">{{ puzzle.name }}</h2>
             <div class="flex flex-wrap gap-2">
               <span
-                class="font-cinzel text-2xs md:text-sm px-2 py-0.5 rounded tracking-wider text-white font-bold"
+                class="text-label md:text-sm px-2 py-0.5 rounded text-white font-bold"
                 :style="{ backgroundColor: PUZZLE_TYPE_COLORS[puzzle.puzzle_type] + 'DD' }"
               >{{ puzzle.puzzle_type }}</span>
               <span
-                class="font-cinzel text-2xs md:text-sm px-2 py-0.5 rounded tracking-wider text-white font-bold"
+                class="text-label md:text-sm px-2 py-0.5 rounded text-white font-bold"
                 :style="{ backgroundColor: PUZZLE_DIFFICULTY_COLORS[puzzle.difficulty] + 'DD' }"
               >{{ puzzle.difficulty }}</span>
             </div>
@@ -60,7 +60,7 @@
 
       <!-- Read-aloud -->
       <div v-if="puzzle.read_aloud" class="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
-        <p class="font-cinzel text-2xs md:text-sm font-semibold text-primary tracking-wider mb-2">READ ALOUD</p>
+        <p class="text-label md:text-sm font-semibold text-primary mb-2">READ ALOUD</p>
         <p class="font-fell text-sm text-foreground leading-relaxed italic">{{ puzzle.read_aloud }}</p>
       </div>
 

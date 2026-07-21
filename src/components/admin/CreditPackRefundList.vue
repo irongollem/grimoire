@@ -36,7 +36,7 @@
 
           <button
             v-if="!lot.alreadyRefunded && confirmingPi !== lot.paymentIntentId"
-            class="px-3 py-1 font-cinzel text-2xs font-semibold tracking-wider rounded-md shrink-0 transition-opacity hover:opacity-90 disabled:opacity-50"
+            class="px-3 py-1 text-label font-semibold rounded-md shrink-0 transition-opacity hover:opacity-90 disabled:opacity-50"
             :class="lot.eligible ? 'bg-primary text-primary-foreground' : 'bg-amber-600/80 text-white'"
             :disabled="refundPack.isPending.value"
             @click="startConfirm(lot)"
@@ -60,14 +60,14 @@
           <p v-if="errorMsg" class="font-fell text-2xs text-destructive">{{ errorMsg }}</p>
           <div class="flex items-center gap-2">
             <button
-              class="px-3 py-1 font-cinzel text-2xs font-semibold tracking-wider bg-destructive text-white rounded-md hover:opacity-90 disabled:opacity-50"
+              class="px-3 py-1 text-label font-semibold bg-destructive text-white rounded-md hover:opacity-90 disabled:opacity-50"
               :disabled="refundPack.isPending.value || (!lot.eligible && !reason.trim())"
               @click="doRefund(lot)"
             >
               {{ refundPack.isPending.value ? 'Refunding…' : `Confirm refund (−${clawbackPreview(lot)} credits)` }}
             </button>
             <button
-              class="px-3 py-1 font-cinzel text-2xs tracking-wider text-muted-foreground hover:text-foreground"
+              class="px-3 py-1 text-label text-muted-foreground hover:text-foreground"
               :disabled="refundPack.isPending.value"
               @click="cancel"
             >

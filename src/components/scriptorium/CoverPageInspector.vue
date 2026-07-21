@@ -55,7 +55,7 @@
                 <label class="block font-cinzel text-[0.6875rem] font-semibold tracking-wider text-muted-foreground uppercase">Background Art</label>
                 <button
                   type="button"
-                  class="inline-flex items-center gap-1 font-cinzel text-2xs tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+                  class="inline-flex items-center gap-1 text-label text-muted-foreground hover:text-foreground transition-colors"
                   @click="showArtPicker = true"
                 >
                   <IconLibrary class="h-3 w-3" />
@@ -164,7 +164,7 @@
                 <label class="block font-cinzel text-[0.6875rem] font-semibold tracking-wider text-muted-foreground uppercase">Background Art</label>
                 <button
                   type="button"
-                  class="inline-flex items-center gap-1 font-cinzel text-2xs tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+                  class="inline-flex items-center gap-1 text-label text-muted-foreground hover:text-foreground transition-colors"
                   @click="showArtPicker = true"
                 >
                   <IconLibrary class="h-3 w-3" />

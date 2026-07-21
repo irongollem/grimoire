@@ -2,7 +2,7 @@
   <WizardStepCard>
     <template #header>
       <h3 class="font-cinzel text-xs tracking-wider text-muted-foreground uppercase">Hit Points</h3>
-      <span class="font-cinzel text-2xs text-muted-foreground tracking-wider">
+      <span class="text-label text-muted-foreground">
         d{{ hitDie }} · CON {{ conMod >= 0 ? '+' : '' }}{{ conMod }}
       </span>
     </template>

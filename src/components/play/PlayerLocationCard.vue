@@ -18,7 +18,7 @@
         />
         <EntityNewDot :is-new="isNew" title="New" />
         <span class="flex-1 font-cinzel text-sm font-semibold text-foreground truncate">{{ loc.name }}</span>
-        <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider shrink-0">
+        <span class="text-label md:text-sm text-muted-foreground shrink-0">
           {{ locLabel }}
         </span>
         <IconChevronDown
@@ -48,7 +48,7 @@
         @click="$emit('toggle-detail', loc.id)"
       >
         <IconReveal class="h-3.5 w-3.5 shrink-0" />
-        <span class="hidden sm:inline font-cinzel text-2xs md:text-sm tracking-wider">Details</span>
+        <span class="hidden sm:inline text-label md:text-sm">Details</span>
       </button>
     </div>
 

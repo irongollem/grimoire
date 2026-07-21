@@ -12,12 +12,12 @@
         <div class="flex items-center gap-3">
           <button
             type="button"
-            class="font-cinzel text-2xs text-muted-foreground hover:text-foreground tracking-wider transition-colors"
+            class="text-label text-muted-foreground hover:text-foreground transition-colors"
             @click="startEdit(note)"
           >Edit</button>
           <button
             type="button"
-            class="font-cinzel text-2xs text-muted-foreground hover:text-destructive tracking-wider transition-colors"
+            class="text-label text-muted-foreground hover:text-destructive transition-colors"
             @click="remove(note.id)"
           >Delete</button>
         </div>
@@ -34,22 +34,22 @@
               <div class="w-px h-5 bg-border" />
               <select
                 v-model="editRelType"
-                class="h-6.5 px-1.5 rounded font-cinzel text-2xs font-semibold tracking-wider bg-muted text-muted-foreground hover:text-foreground border border-border focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
+                class="h-6.5 px-1.5 rounded text-label font-semibold bg-muted text-muted-foreground hover:text-foreground border border-border focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
               >
                 <option v-for="[k, label] in typeOptions" :key="k" :value="k">{{ label }}</option>
               </select>
-              <span class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider">
+              <span class="text-label font-semibold text-muted-foreground">
                 {{ memberName(note.party_member_id) }}
               </span>
               <button
                 type="button"
                 :disabled="isSaving"
-                class="px-2 h-6.5 font-cinzel text-2xs font-semibold tracking-wider rounded bg-primary/20 text-primary hover:bg-primary/30 disabled:opacity-40 transition-colors"
+                class="px-2 h-6.5 text-label font-semibold rounded bg-primary/20 text-primary hover:bg-primary/30 disabled:opacity-40 transition-colors"
                 @click="saveEdit(note)"
               >{{ isSaving ? '…' : 'Save' }}</button>
               <button
                 type="button"
-                class="px-2 h-6.5 font-cinzel text-2xs tracking-wider rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                class="px-2 h-6.5 text-label rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                 @click="cancelEdit"
               >Cancel</button>
             </div>
@@ -66,13 +66,13 @@
             <div class="w-px h-5 bg-border" />
             <select
               v-model="newRelType"
-              class="h-6.5 px-1.5 rounded font-cinzel text-2xs font-semibold tracking-wider bg-muted text-muted-foreground hover:text-foreground border border-border focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
+              class="h-6.5 px-1.5 rounded text-label font-semibold bg-muted text-muted-foreground hover:text-foreground border border-border focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
             >
               <option v-for="[k, label] in typeOptions" :key="k" :value="k">{{ label }}</option>
             </select>
             <select
               v-model="newMemberId"
-              class="h-6.5 px-1.5 rounded font-cinzel text-2xs font-semibold tracking-wider bg-muted text-muted-foreground hover:text-foreground border border-border focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
+              class="h-6.5 px-1.5 rounded text-label font-semibold bg-muted text-muted-foreground hover:text-foreground border border-border focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
             >
               <option value="" disabled>PC…</option>
               <option v-for="m in availableMembers" :key="m.id" :value="m.id">{{ m.name }}</option>
@@ -80,12 +80,12 @@
             <button
               type="button"
               :disabled="!newMemberId || !newText || isSaving"
-              class="px-2 h-6.5 font-cinzel text-2xs font-semibold tracking-wider rounded bg-primary/20 text-primary hover:bg-primary/30 disabled:opacity-40 transition-colors"
+              class="px-2 h-6.5 text-label font-semibold rounded bg-primary/20 text-primary hover:bg-primary/30 disabled:opacity-40 transition-colors"
               @click="addNote"
             >{{ isSaving ? '…' : 'Save' }}</button>
             <button
               type="button"
-              class="px-2 h-6.5 font-cinzel text-2xs tracking-wider rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              class="px-2 h-6.5 text-label rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               @click="cancelAdd"
             >Cancel</button>
           </div>
@@ -96,7 +96,7 @@
     <button
       v-if="!showForm && availableMembers.length > 0"
       type="button"
-      class="inline-flex items-center gap-1 px-2 py-1 font-cinzel text-2xs font-semibold tracking-wider border border-border rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+      class="inline-flex items-center gap-1 px-2 py-1 text-label font-semibold border border-border rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
       @click="showForm = true"
     >
       + Add

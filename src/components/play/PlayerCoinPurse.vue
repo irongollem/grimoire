@@ -67,7 +67,7 @@
       </div>
       <button
         v-else
-        class="mt-2 w-full flex items-center justify-center gap-1.5 py-1 border border-dashed border-border rounded font-cinzel text-2xs md:text-sm tracking-wider text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
+        class="mt-2 w-full flex items-center justify-center gap-1.5 py-1 border border-dashed border-border rounded text-label md:text-sm text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
         @click="$emit('open-drop')"
       >
         <IconMessage class="h-3 w-3" />

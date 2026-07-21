@@ -17,7 +17,7 @@
       <div class="flex items-center justify-between mb-1 gap-2">
         <!-- Burden label -->
         <span
-          class="font-cinzel text-2xs md:text-sm font-semibold tracking-wider transition-colors"
+          class="text-label md:text-sm font-semibold transition-colors"
           :class="BURDEN_META[burdenLevel].color"
         >
           {{ BURDEN_META[burdenLevel].label }}

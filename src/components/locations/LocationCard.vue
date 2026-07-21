@@ -28,7 +28,7 @@
               {{ loc.name || "Unnamed Location" }}
             </h3>
             <span
-              class="shrink-0 px-1.5 py-0.5 rounded font-cinzel text-2xs font-bold tracking-wider capitalize"
+              class="shrink-0 px-1.5 py-0.5 rounded text-label font-bold capitalize"
               :style="{
                 backgroundColor: LOCATION_TYPE_COLORS[loc.location_type] + '22',
                 color: LOCATION_TYPE_COLORS[loc.location_type],
@@ -54,7 +54,7 @@
         <span
           v-for="tag in loc.tags.slice(0, 3)"
           :key="tag"
-          class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground tracking-wider"
+          class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground"
         >
           {{ tag }}
         </span>

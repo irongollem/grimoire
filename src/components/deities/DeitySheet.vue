@@ -85,7 +85,7 @@
             <span
               v-for="domain in deity.domains"
               :key="domain"
-              class="font-cinzel text-2xs tracking-wider bg-primary/10 text-primary rounded px-2 py-0.5 border border-primary/20"
+              class="text-label bg-primary/10 text-primary rounded px-2 py-0.5 border border-primary/20"
               >{{ domain }}</span
             >
           </div>
@@ -101,7 +101,7 @@
             <span
               v-for="alt in deity.alternate_names"
               :key="alt"
-              class="font-cinzel text-2xs tracking-wider bg-muted/60 text-muted-foreground rounded px-2 py-0.5"
+              class="text-label bg-muted/60 text-muted-foreground rounded px-2 py-0.5"
               >{{ alt }}</span
             >
           </div>
@@ -117,7 +117,7 @@
             <span
               v-for="tag in deity.tags"
               :key="tag"
-              class="font-cinzel text-2xs tracking-wider bg-muted/60 text-muted-foreground rounded px-2 py-0.5"
+              class="text-label bg-muted/60 text-muted-foreground rounded px-2 py-0.5"
               >{{ tag }}</span
             >
           </div>
