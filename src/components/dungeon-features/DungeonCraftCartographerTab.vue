@@ -16,8 +16,8 @@
             {{ m.default_pack_id }}
           </span>
         </div>
-        <p v-if="m.description" class="font-fell text-xs text-muted-foreground italic line-clamp-2">{{ m.description }}</p>
-        <p class="font-fell text-2xs text-muted-foreground mt-2">
+        <p v-if="m.description" class="text-caption text-muted-foreground italic line-clamp-2">{{ m.description }}</p>
+        <p class="text-caption-sm text-muted-foreground mt-2">
           {{ cellCount(m) }} {{ cellCount(m) === 1 ? "cell" : "cells" }} painted
         </p>
       </RouterLink>

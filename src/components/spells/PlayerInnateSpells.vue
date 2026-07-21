@@ -7,7 +7,7 @@
     >
       <IconGenerate class="h-8 w-8 mx-auto text-muted-foreground/60" />
       <p class="font-cinzel text-sm font-semibold text-foreground">No innate spells</p>
-      <p class="font-fell text-sm text-muted-foreground max-w-sm mx-auto">
+      <p class="text-body text-muted-foreground max-w-sm mx-auto">
         Add racial traits, feats, or item-granted spells using the button above.
       </p>
     </div>
@@ -54,7 +54,7 @@
 
             <!-- Spell name -->
             <button
-              class="flex-1 font-fell text-sm text-foreground hover:text-primary transition-colors min-w-0 truncate text-left"
+              class="flex-1 text-body text-foreground hover:text-primary transition-colors min-w-0 truncate text-left"
               @click.stop="selectedSpell = entry.spell"
             >
               {{ entry.spell.name }}

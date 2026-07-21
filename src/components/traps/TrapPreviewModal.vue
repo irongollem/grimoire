@@ -61,7 +61,7 @@
             <div class="grid grid-cols-3 gap-x-4 gap-y-2">
               <div v-if="trap.trigger_type">
                 <div class="text-label text-muted-foreground">Trigger</div>
-                <div class="font-fell text-sm text-foreground">{{ trap.trigger_type }}</div>
+                <div class="text-body text-foreground">{{ trap.trigger_type }}</div>
               </div>
               <div v-if="trap.detection_dc">
                 <div class="text-label text-muted-foreground">Detection DC</div>
@@ -73,7 +73,7 @@
               </div>
               <div>
                 <div class="text-label text-muted-foreground">Reset</div>
-                <div class="font-fell text-sm text-foreground">{{ trap.reset_type }}</div>
+                <div class="text-body text-foreground">{{ trap.reset_type }}</div>
               </div>
               <div v-if="trap.trap_hp">
                 <div class="text-eyebrow text-muted-foreground">HP</div>
@@ -92,7 +92,7 @@
             class="px-5 pt-4"
           >
             <div class="text-label text-muted-foreground mb-2">EFFECT</div>
-            <p v-if="trap.effect_description" class="font-fell text-sm text-foreground mb-2">
+            <p v-if="trap.effect_description" class="text-body text-foreground mb-2">
               {{ trap.effect_description }}
             </p>
             <div class="flex flex-wrap gap-4">
@@ -123,13 +123,13 @@
           <!-- Description -->
           <div v-if="descriptionHtml" class="px-5 pt-4">
             <div class="text-label text-muted-foreground mb-2">DESCRIPTION</div>
-            <div class="prose prose-sm prose-invert max-w-none font-fell text-sm text-foreground" v-html="descriptionHtml" />
+            <div class="prose prose-sm prose-invert max-w-none text-body text-foreground" v-html="descriptionHtml" />
           </div>
 
           <!-- DM Notes -->
           <div v-if="notesHtml" class="px-5 pt-4 pb-2">
             <div class="text-label text-muted-foreground mb-2">DM NOTES</div>
-            <div class="prose prose-sm prose-invert max-w-none font-fell text-sm text-foreground" v-html="notesHtml" />
+            <div class="prose prose-sm prose-invert max-w-none text-body text-foreground" v-html="notesHtml" />
           </div>
 
           <div class="h-4" />

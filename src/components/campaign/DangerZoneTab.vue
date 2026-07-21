@@ -2,7 +2,7 @@
   <div class="max-w-lg">
     <div class="border border-destructive/40 rounded-lg p-5 space-y-4">
       <p class="text-label-lg font-semibold text-destructive">DELETE CAMPAIGN</p>
-      <p class="font-fell text-sm text-muted-foreground">
+      <p class="text-body text-muted-foreground">
         This permanently deletes
         <span class="text-foreground font-semibold">{{ campaign?.name }}</span>.
         Your notes, NPCs, party members, calendar events, and encounters will have their campaign link removed but will not be deleted.

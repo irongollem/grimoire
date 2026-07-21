@@ -9,7 +9,7 @@
       <div class="flex items-start justify-between gap-4">
         <div>
           <h2 class="font-cinzel font-bold text-base tracking-wide text-foreground">Generate Spell with AI</h2>
-          <p class="font-fell text-xs text-muted-foreground mt-0.5 italic">
+          <p class="text-caption text-muted-foreground mt-0.5 italic">
             Describe the spell concept. Lock the level or school to constrain the result.
           </p>
         </div>
@@ -31,7 +31,7 @@
         />
         <div class="flex justify-end">
           <span
-            class="font-fell text-xs"
+            class="text-caption"
             :class="prompt.length >= PROMPT_LIMIT * 0.9 ? 'text-destructive' : 'text-muted-foreground/50'"
           >{{ prompt.length }} / {{ PROMPT_LIMIT }}</span>
         </div>
@@ -44,7 +44,7 @@
         </p>
         <div class="grid grid-cols-2 gap-3">
           <label class="flex flex-col gap-1">
-            <span class="font-fell text-xs text-muted-foreground">Level</span>
+            <span class="text-caption text-muted-foreground">Level</span>
             <select v-model="levelChoice" :disabled="isGenerating" class="field-input disabled:opacity-50">
               <option value="">Any</option>
               <option value="0">Cantrip</option>
@@ -52,7 +52,7 @@
             </select>
           </label>
           <label class="flex flex-col gap-1">
-            <span class="font-fell text-xs text-muted-foreground">School</span>
+            <span class="text-caption text-muted-foreground">School</span>
             <select v-model="schoolChoice" :disabled="isGenerating" class="field-input disabled:opacity-50 capitalize">
               <option value="">Any</option>
               <option v-for="s in SPELL_SCHOOLS" :key="s" :value="s" class="capitalize">{{ s }}</option>
@@ -63,7 +63,7 @@
 
       <!-- Image toggle -->
       <div class="flex items-center justify-between">
-        <span class="font-fell text-xs text-muted-foreground">Generate spell-effect art</span>
+        <span class="text-caption text-muted-foreground">Generate spell-effect art</span>
         <button
           type="button"
           class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none"
@@ -79,13 +79,13 @@
 
       <!-- Error -->
       <div v-if="error" class="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2">
-        <p class="font-fell text-xs text-destructive">{{ error }}</p>
+        <p class="text-caption text-destructive">{{ error }}</p>
       </div>
 
       <!-- Generating state -->
       <div v-if="isGenerating" class="flex flex-col items-center gap-3 py-6">
         <IconGenerate class="h-8 w-8 text-primary animate-pulse" />
-        <p class="font-fell text-sm text-muted-foreground italic">{{ currentLoadingQuote }}</p>
+        <p class="text-body text-muted-foreground italic">{{ currentLoadingQuote }}</p>
       </div>
 
       <!-- Actions -->

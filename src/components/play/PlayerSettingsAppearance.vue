@@ -24,7 +24,7 @@
         :options="LOCALE_OPTIONS"
         placeholder="Browser default"
       />
-      <p class="font-fell text-xs text-muted-foreground">
+      <p class="text-caption text-muted-foreground">
         Preview: <span class="text-foreground">{{ localePreview }}</span>
       </p>
     </div>
@@ -35,7 +35,7 @@
     <div class="flex items-center justify-between">
       <div>
         <p class="font-cinzel text-xs text-foreground tracking-wide">Keep screen awake</p>
-        <p class="font-fell text-xs text-muted-foreground italic">
+        <p class="text-caption text-muted-foreground italic">
           <template v-if="wakeLockSupported">Prevents your device from sleeping while this page is open.</template>
           <template v-else>Not supported on this browser. Try Chrome or Safari 16.4+.</template>
         </p>

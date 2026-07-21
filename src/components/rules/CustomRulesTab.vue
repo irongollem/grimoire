@@ -8,7 +8,7 @@
           v-model="search"
           type="text"
           placeholder="Search custom rules…"
-          class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
 
@@ -52,7 +52,7 @@
             <span class="shrink-0 px-1.5 py-0.5 rounded bg-emerald-500/10 text-label text-emerald-400">active</span>
           </button>
           <div v-if="openBuiltIns.has(def.key)" class="px-4 pb-4 border-t border-border">
-            <p class="font-fell text-xs text-muted-foreground italic mt-3 mb-2">{{ def.summary }}</p>
+            <p class="text-caption text-muted-foreground italic mt-3 mb-2">{{ def.summary }}</p>
             <!-- eslint-disable-next-line vue/no-v-html -->
             <div class="prose-grimoire" v-html="renderMarkdown(def.description)" />
           </div>
@@ -81,7 +81,7 @@
 
     <p
       v-else-if="!filtered.length"
-      class="text-center font-fell text-sm text-muted-foreground italic py-12"
+      class="text-center text-body text-muted-foreground italic py-12"
     >
       No rules match your filters.
     </p>
@@ -115,17 +115,17 @@
           >
             {{ tag }}
           </span>
-          <span v-if="rule.tags.length > 4" class="font-fell text-2xs text-muted-foreground italic self-center">
+          <span v-if="rule.tags.length > 4" class="text-caption-sm text-muted-foreground italic self-center">
             +{{ rule.tags.length - 4 }}
           </span>
         </div>
-        <p class="font-fell text-xs text-muted-foreground mt-auto">
+        <p class="text-caption text-muted-foreground mt-auto">
           {{ formatDate(rule.updated_at) }}
         </p>
       </RouterLink>
     </div>
 
-    <p v-if="filtered.length" class="mt-4 font-fell text-xs text-muted-foreground italic text-right">
+    <p v-if="filtered.length" class="mt-4 text-caption text-muted-foreground italic text-right">
       {{ filtered.length }} of {{ rules?.length ?? 0 }} rules
     </p>
   </div>

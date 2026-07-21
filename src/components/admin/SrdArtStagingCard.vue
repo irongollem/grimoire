@@ -75,7 +75,7 @@ function filteredOptions(): EntityOption[] {
         :value="search"
         type="text"
         placeholder="Search monsters…"
-        class="w-full rounded border border-border bg-background px-2 py-1 font-fell text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
+        class="w-full rounded border border-border bg-background px-2 py-1 text-caption text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
         @input="emit('update:search', ($event.target as HTMLInputElement).value)"
       />
 
@@ -87,7 +87,7 @@ function filteredOptions(): EntityOption[] {
         <label
           v-for="opt in filteredOptions()"
           :key="opt.id"
-          class="flex items-center gap-1.5 px-1.5 py-1 rounded cursor-pointer hover:bg-muted/60 font-fell text-xs"
+          class="flex items-center gap-1.5 px-1.5 py-1 rounded cursor-pointer hover:bg-muted/60 text-caption"
           :class="
             selected.includes(opt.id)
               ? 'bg-primary/10 text-primary'
@@ -113,14 +113,14 @@ function filteredOptions(): EntityOption[] {
       </div>
       <p
         v-else-if="search.length >= 2"
-        class="font-fell text-2xs text-muted-foreground italic"
+        class="text-caption-sm text-muted-foreground italic"
       >
         No matches
       </p>
 
       <div
         v-if="error"
-        class="font-fell text-2xs text-destructive"
+        class="text-caption-sm text-destructive"
       >
         {{ error }}
       </div>

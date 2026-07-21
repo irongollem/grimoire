@@ -10,7 +10,7 @@
       <!-- Empty state -->
       <p
         v-if="!linkedGroups.length"
-        class="font-fell text-xs text-muted-foreground italic px-2 py-1"
+        class="text-caption text-muted-foreground italic px-2 py-1"
       >
         No traps linked. Add hazards to include them in the difficulty calculation.
       </p>
@@ -24,7 +24,7 @@
         <IconTrap class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
         <button
           type="button"
-          class="font-fell text-sm text-foreground flex-1 truncate text-left hover:text-primary transition-colors"
+          class="text-body text-foreground flex-1 truncate text-left hover:text-primary transition-colors"
           @click="previewTrap = trap"
         >{{ trap.name }}</button>
         <span v-if="trap.cr" class="font-cinzel text-2xs text-muted-foreground shrink-0">

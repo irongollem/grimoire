@@ -17,7 +17,7 @@
           </button>
         </div>
 
-        <p v-if="!images?.length" class="font-fell text-xs text-muted-foreground italic text-center py-4">
+        <p v-if="!images?.length" class="text-caption text-muted-foreground italic text-center py-4">
           No scene illustrations yet. Generate one from a note.
         </p>
 

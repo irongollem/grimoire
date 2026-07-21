@@ -78,7 +78,7 @@ function onDrop(event: DragEvent) {
       <p class="font-cinzel text-sm text-primary tracking-wide">
         Converting {{ progressDone }}&thinsp;/&thinsp;{{ progressTotal }}…
       </p>
-      <p class="font-fell text-xs text-muted-foreground italic">
+      <p class="text-caption text-muted-foreground italic">
         Converting to WebP and uploading
       </p>
     </template>
@@ -87,7 +87,7 @@ function onDrop(event: DragEvent) {
       <p class="font-cinzel text-sm text-foreground tracking-wide">
         Drop images here or tap to pick
       </p>
-      <p class="font-fell text-xs text-muted-foreground italic text-center">
+      <p class="text-caption text-muted-foreground italic text-center">
         Select as many as you like. Each is converted to WebP and held in
         staging until you assign it on desktop.
       </p>

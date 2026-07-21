@@ -34,7 +34,7 @@
               <LoadingSpinner />
             </div>
 
-            <p v-else-if="!loc" class="font-fell text-sm text-muted-foreground italic px-4 py-10 text-center">
+            <p v-else-if="!loc" class="text-body text-muted-foreground italic px-4 py-10 text-center">
               This place hasn't been shared with you yet.
             </p>
 

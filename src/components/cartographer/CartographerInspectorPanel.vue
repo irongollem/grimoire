@@ -7,7 +7,7 @@
       <input
         :value="name"
         type="text"
-        class="w-full bg-background border border-border rounded-md px-2 py-1 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        class="w-full bg-background border border-border rounded-md px-2 py-1 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         @input="$emit('update:name', ($event.target as HTMLInputElement).value)"
       />
     </div>
@@ -21,7 +21,7 @@
           v-for="p in bundledPacks"
           :key="p.pack_id"
           type="button"
-          class="w-full flex items-center gap-2 rounded-md px-2 py-1.5 font-fell text-xs text-left transition-colors"
+          class="w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-caption text-left transition-colors"
           :class="currentPackId === p.pack_id
             ? 'bg-primary/15 text-foreground ring-1 ring-inset ring-primary/40'
             : 'hover:bg-muted text-muted-foreground'"
@@ -40,13 +40,13 @@
       </div>
       <p
         v-if="packValidationMissing > 0"
-        class="font-fell text-2xs text-amber-500 mt-1.5"
+        class="text-caption-sm text-amber-500 mt-1.5"
       >
         {{ packValidationMissing }} slot(s) missing — using placeholders.
       </p>
     </div>
 
-    <p class="font-fell text-2xs text-muted-foreground italic leading-relaxed">
+    <p class="text-caption-sm text-muted-foreground italic leading-relaxed">
       Switching packs changes future strokes only — existing cells keep their stored pack.
     </p>
 
@@ -60,7 +60,7 @@
           v-for="cat in objectCategories"
           :key="cat"
           type="button"
-          class="flex flex-col items-center gap-0.5 rounded-md py-1.5 px-1 font-fell text-2xs transition-colors capitalize"
+          class="flex flex-col items-center gap-0.5 rounded-md py-1.5 px-1 text-caption-sm transition-colors capitalize"
           :class="activeObjectCategory === cat
             ? 'bg-primary/15 text-foreground ring-1 ring-inset ring-primary/40'
             : 'hover:bg-muted text-muted-foreground'"
@@ -81,7 +81,7 @@
           class="rounded px-1.5 py-0.5 font-cinzel text-[0.5625rem] bg-muted hover:bg-muted/80 text-foreground"
           @click="$emit('update:stampRotation', (stampRotation + 270) % 360)"
         >↺ Q</button>
-        <span class="font-fell text-xs text-foreground w-9 text-center">{{ stampRotation }}°</span>
+        <span class="text-caption text-foreground w-9 text-center">{{ stampRotation }}°</span>
         <button
           type="button"
           title="Rotate CW 90° (E)"
@@ -108,13 +108,13 @@
         type="text"
         placeholder="Enter label…"
         maxlength="32"
-        class="w-full bg-background border border-border rounded-md px-2 py-1 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        class="w-full bg-background border border-border rounded-md px-2 py-1 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         @input="$emit('update:annotationText', ($event.target as HTMLInputElement).value)"
       />
-      <p class="font-fell text-2xs text-muted-foreground mt-1">Click a cell to select it.</p>
+      <p class="text-caption-sm text-muted-foreground mt-1">Click a cell to select it.</p>
     </div>
     <div v-else-if="activeTool === 'annotate'">
-      <p class="font-fell text-2xs text-muted-foreground italic">Click a cell to add a label.</p>
+      <p class="text-caption-sm text-muted-foreground italic">Click a cell to add a label.</p>
     </div>
 
     <!-- Entity link inspector -->
@@ -144,7 +144,7 @@
       </div>
     </div>
     <div v-else-if="activeTool === 'link'">
-      <p class="font-fell text-2xs text-muted-foreground italic">Click a cell to attach entities.</p>
+      <p class="text-caption-sm text-muted-foreground italic">Click a cell to attach entities.</p>
     </div>
 
     <!-- Room template shape picker -->
@@ -157,7 +157,7 @@
           v-for="shape in templateShapes"
           :key="shape.id"
           type="button"
-          class="flex flex-col items-center gap-0.5 rounded-md py-1.5 px-1 font-fell text-xs transition-colors"
+          class="flex flex-col items-center gap-0.5 rounded-md py-1.5 px-1 text-caption transition-colors"
           :class="activeTemplateShape === shape.id
             ? 'bg-primary/15 text-foreground ring-1 ring-inset ring-primary/40'
             : 'hover:bg-muted text-muted-foreground'"
@@ -167,7 +167,7 @@
           <span class="font-cinzel text-[0.5625rem] tracking-wide">{{ shape.label }}</span>
         </button>
       </div>
-      <p class="font-fell text-2xs text-muted-foreground">Click center, drag to size. Walls auto-added.</p>
+      <p class="text-caption-sm text-muted-foreground">Click center, drag to size. Walls auto-added.</p>
     </div>
 
     <!-- Cave brush radius picker -->
@@ -187,7 +187,7 @@
           @click="$emit('update:caveRadius', size)"
         >{{ size }}</button>
       </div>
-      <p class="font-fell text-2xs text-muted-foreground">Each stroke uses a different noise seed — repaint to vary the organic shape.</p>
+      <p class="text-caption-sm text-muted-foreground">Each stroke uses a different noise seed — repaint to vary the organic shape.</p>
     </div>
   </aside>
 </template>

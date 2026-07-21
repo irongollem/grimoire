@@ -16,7 +16,7 @@
       <!-- Whole party -->
       <button
         type="button"
-        class="flex w-full items-center gap-2.5 rounded-lg px-3 py-3 text-left font-fell text-sm transition-colors"
+        class="flex w-full items-center gap-2.5 rounded-lg px-3 py-3 text-left text-body transition-colors"
         :class="wholePartyShared
           ? 'bg-primary/15 text-primary'
           : 'text-foreground active:bg-muted/50'"
@@ -31,7 +31,7 @@
         v-for="member in party"
         :key="member.id"
         type="button"
-        class="flex w-full items-center gap-2.5 rounded-lg px-3 py-3 text-left font-fell text-sm transition-colors"
+        class="flex w-full items-center gap-2.5 rounded-lg px-3 py-3 text-left text-body transition-colors"
         :class="isMemberVisible(member.id)
           ? 'bg-primary/15 text-primary'
           : 'text-muted-foreground active:bg-muted/50'"
@@ -44,7 +44,7 @@
         {{ member.name }}
       </button>
 
-      <p v-if="!party?.length" class="px-3 py-3 font-fell text-sm italic text-muted-foreground">
+      <p v-if="!party?.length" class="px-3 py-3 text-body italic text-muted-foreground">
         No party members to share with yet.
       </p>
 
@@ -55,7 +55,7 @@
         </p>
         <button
           type="button"
-          class="flex w-full items-center gap-2.5 rounded-lg border px-3 py-3 text-left font-fell text-sm transition-colors"
+          class="flex w-full items-center gap-2.5 rounded-lg border px-3 py-3 text-left text-body transition-colors"
           :class="[
             currentDiscovery?.reveal_stats ? 'border-primary/50 bg-primary/10 text-primary' : 'border-border text-foreground',
             !currentDiscovery && 'pointer-events-none opacity-40',
@@ -65,7 +65,7 @@
           <IconChart class="size-4 shrink-0" />
           {{ currentDiscovery?.reveal_stats ? "Full stat block" : "Name, art & CR only" }}
         </button>
-        <p v-if="!currentDiscovery" class="px-1 pt-2 font-fell text-xs italic text-muted-foreground">
+        <p v-if="!currentDiscovery" class="px-1 pt-2 text-caption italic text-muted-foreground">
           Select at least one player to choose what they see.
         </p>
       </div>

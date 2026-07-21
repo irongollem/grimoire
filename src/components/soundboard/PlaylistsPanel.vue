@@ -2,7 +2,7 @@
   <div class="space-y-3">
     <!-- Panel header -->
     <div class="flex items-center justify-between">
-      <p class="font-fell text-xs text-muted-foreground italic">
+      <p class="text-caption text-muted-foreground italic">
         <template v-if="pageId">Playlists on this page.</template>
         <template v-else>All playlists in this campaign.</template>
       </p>
@@ -13,7 +13,7 @@
       >
         <IconAdd class="h-3.5 w-3.5" />
         New Playlist
-        <span v-if="playlistQuota && !playlistQuota.unlimited" class="font-fell text-2xs tabular-nums opacity-60">{{ playlistQuota.current }}/{{ playlistQuota.limit }}</span>
+        <span v-if="playlistQuota && !playlistQuota.unlimited" class="text-caption-sm tabular-nums opacity-60">{{ playlistQuota.current }}/{{ playlistQuota.limit }}</span>
         <span v-if="!canCreatePlaylist" class="absolute -top-1.5 -right-1.5 px-1 rounded text-[0.5625rem] font-cinzel bg-amber-500 text-black leading-4">PRO</span>
       </button>
     </div>
@@ -28,7 +28,7 @@
     >
       <IconListOrdered class="h-8 w-8 text-muted-foreground/30 mx-auto" />
       <p class="font-cinzel text-sm text-muted-foreground">No playlists yet</p>
-      <p class="font-fell text-xs text-muted-foreground/70 italic">
+      <p class="text-caption text-muted-foreground/70 italic">
         Create a music playlist to chain tracks, or an ambient playlist to layer a soundscape.
       </p>
       <button

@@ -2,7 +2,7 @@
   <!-- Disabled: requires a campaign but none is active -->
   <div
     v-if="disabled"
-    class="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-fell text-muted-foreground/40 cursor-not-allowed select-none"
+    class="flex items-center gap-3 rounded-md px-3 py-2.5 text-body text-muted-foreground/40 cursor-not-allowed select-none"
     :title="`Select a campaign to access ${item.label}`"
   >
     <component :is="item.icon" class="h-5 w-5 shrink-0" />
@@ -14,7 +14,7 @@
   <RouterLink
     v-else
     :to="item.to"
-    class="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-fell transition-colors duration-150"
+    class="flex items-center gap-3 rounded-md px-3 py-2.5 text-body transition-colors duration-150"
     :class="
       isActive ? 'nav-link-active' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
     "

@@ -64,7 +64,7 @@
                 {{ option.label }}
               </option>
             </select>
-            <p class="font-fell text-xs text-muted-foreground mt-1">
+            <p class="text-caption text-muted-foreground mt-1">
               Applies to character options, spells, creatures, items, rests, and encounter rules.
             </p>
           </div>
@@ -108,8 +108,8 @@
                 class="mt-0.5 w-4 h-4 rounded border-border accent-primary shrink-0"
               />
               <div>
-                <span class="font-fell text-sm text-foreground">Import existing data</span>
-                <p class="font-fell text-xs text-muted-foreground italic mt-0.5">
+                <span class="text-body text-foreground">Import existing data</span>
+                <p class="text-caption text-muted-foreground italic mt-0.5">
                   Assign your existing notes, NPCs, party members, calendar events, and encounters to this campaign.
                 </p>
               </div>

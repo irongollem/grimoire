@@ -23,7 +23,7 @@
           <CastButton />
           <button
             v-if="store.playingCount > 0 || spotifyStore.isPlaying"
-            class="font-fell text-2xs text-muted-foreground hover:text-destructive transition-colors px-1.5 py-0.5 rounded border border-border hover:border-destructive/40"
+            class="text-caption-sm text-muted-foreground hover:text-destructive transition-colors px-1.5 py-0.5 rounded border border-border hover:border-destructive/40"
             title="Stop all sounds"
             @click="stopAll"
           >
@@ -55,7 +55,7 @@
                 <p class="font-cinzel text-xs font-medium text-foreground truncate">
                   {{ spotifyStore.trackName }}
                 </p>
-                <p class="font-fell text-2xs text-muted-foreground truncate">
+                <p class="text-caption-sm text-muted-foreground truncate">
                   {{ spotifyStore.artistName }}
                 </p>
               </div>
@@ -135,7 +135,7 @@
             v-if="spotifyStore.playError"
             class="flex items-start gap-2 px-2 py-1.5 rounded-md bg-destructive/10 border border-destructive/30"
           >
-            <p class="font-fell text-2xs text-destructive flex-1 leading-snug">
+            <p class="text-caption-sm text-destructive flex-1 leading-snug">
               {{ spotifyStore.playError }}
               <span v-if="spotifyStore.playError.includes('Not allowed')" class="block mt-0.5 text-muted-foreground">
                 Close the Spotify desktop app and try again.
@@ -157,7 +157,7 @@
                 <p class="font-cinzel text-xs font-medium text-foreground truncate">
                   {{ store.activeMusicPlaylist.playlistName }}
                 </p>
-                <p v-if="activeMusicTrackName" class="font-fell text-2xs text-muted-foreground truncate">
+                <p v-if="activeMusicTrackName" class="text-caption-sm text-muted-foreground truncate">
                   ♪ {{ activeMusicTrackName }}
                   <span class="ml-1 opacity-60">
                     {{ store.activeMusicPlaylist.currentIndex + 1 }} / {{ store.activeMusicPlaylist.trackSoundIds.length }}
@@ -207,7 +207,7 @@
                 <p class="font-cinzel text-xs font-medium text-foreground truncate">
                   {{ store.activeAmbientPlaylist.playlistName }}
                 </p>
-                <p class="font-fell text-2xs text-muted-foreground">
+                <p class="text-caption-sm text-muted-foreground">
                   {{ store.activeAmbientPlaylist.soundIds.length }} layered tracks
                 </p>
               </div>
@@ -262,7 +262,7 @@
             class="py-6 text-center"
           >
             <IconMute class="h-6 w-6 text-muted-foreground/40 mx-auto mb-1.5" />
-            <p class="font-fell text-xs text-muted-foreground italic">No sounds playing</p>
+            <p class="text-caption text-muted-foreground italic">No sounds playing</p>
             <RouterLink
               to="/soundboard"
               class="font-fell text-[0.6875rem] text-gold-400 hover:text-gold-300 transition-colors"

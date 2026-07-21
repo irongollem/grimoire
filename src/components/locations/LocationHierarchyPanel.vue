@@ -40,7 +40,7 @@
     >
       <span
         v-if="childrenLoading"
-        class="font-fell text-xs text-muted-foreground italic"
+        class="text-caption text-muted-foreground italic"
         >Loading…</span
       >
       <RouterLink
@@ -96,7 +96,7 @@
               >{{ opt.name }}</span
             >
             <span
-              class="font-fell text-2xs text-muted-foreground shrink-0"
+              class="text-caption-sm text-muted-foreground shrink-0"
               >{{ LOCATION_TYPE_LABELS[opt.location_type] }}</span
             >
           </button>
@@ -174,7 +174,7 @@
               :style="{ backgroundColor: LOCATION_TYPE_COLORS[opt.location_type] }"
             />
             <span class="font-cinzel text-xs text-foreground truncate flex-1">{{ opt.name }}</span>
-            <span class="font-fell text-2xs text-muted-foreground shrink-0">{{ LOCATION_TYPE_LABELS[opt.location_type] }}</span>
+            <span class="text-caption-sm text-muted-foreground shrink-0">{{ LOCATION_TYPE_LABELS[opt.location_type] }}</span>
           </button>
         </div>
       </div>

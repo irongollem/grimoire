@@ -29,7 +29,7 @@
           type="text"
           placeholder="e.g. Corruption Track, Icy Weather Rules…"
           required
-          class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full bg-card border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
 
@@ -39,7 +39,7 @@
           <label class="text-label-lg font-semibold text-muted-foreground">CATEGORY</label>
           <select
             v-model="form.category"
-            class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="w-full bg-card border border-border rounded-md px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           >
             <option value="">None</option>
             <option v-for="cat in RULE_CATEGORIES" :key="cat" :value="cat">{{ cat }}</option>
@@ -56,7 +56,7 @@
       <label class="flex items-center gap-2 cursor-pointer select-none">
         <input type="checkbox" v-model="form.isPlayerVisible" class="rounded" />
         <span class="text-label-lg font-semibold text-muted-foreground">VISIBLE TO PLAYERS</span>
-        <span class="font-fell text-xs text-muted-foreground italic">— players can read this rule in their portal</span>
+        <span class="text-caption text-muted-foreground italic">— players can read this rule in their portal</span>
       </label>
 
       <!-- Rich text content -->
@@ -86,7 +86,7 @@
           <button
             v-else
             type="button"
-            class="font-fell text-xs text-muted-foreground hover:text-destructive transition-colors"
+            class="text-caption text-muted-foreground hover:text-destructive transition-colors"
             @click="removeTracker"
           >
             Remove
@@ -104,14 +104,14 @@
                 v-model="tracker.label"
                 type="text"
                 placeholder="Corruption, Hunger, Sanity…"
-                class="w-full bg-background border border-border rounded px-2.5 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="w-full bg-background border border-border rounded px-2.5 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
             <div class="space-y-1.5">
               <label class="text-label font-semibold text-muted-foreground">TYPE</label>
               <select
                 v-model="tracker.type"
-                class="w-full bg-background border border-border rounded px-2.5 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="w-full bg-background border border-border rounded px-2.5 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 @change="onTypeChange"
               >
                 <option value="level">Level — named states (Chilled → Frozen → Hypothermic)</option>
@@ -127,7 +127,7 @@
               <input
                 v-model.number="tracker.min"
                 type="number"
-                class="w-full bg-background border border-border rounded px-2.5 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="w-full bg-background border border-border rounded px-2.5 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
             <div class="space-y-1.5">
@@ -135,7 +135,7 @@
               <input
                 v-model.number="tracker.max"
                 type="number"
-                class="w-full bg-background border border-border rounded px-2.5 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="w-full bg-background border border-border rounded px-2.5 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
           </div>
@@ -155,7 +155,7 @@
 
             <div
               v-if="!tracker.levels?.length"
-              class="font-fell text-xs text-muted-foreground italic"
+              class="text-caption text-muted-foreground italic"
             >
               No levels yet — add one for each named state (e.g. Unaffected, Chilled, Frozen).
             </div>
@@ -182,11 +182,11 @@
                   v-model="lvl.label"
                   type="text"
                   placeholder="Level name"
-                  class="flex-1 bg-muted border border-border rounded px-2.5 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                  class="flex-1 bg-muted border border-border rounded px-2.5 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 />
                 <select
                   v-model="lvl.color"
-                  class="w-24 bg-muted border border-border rounded px-2 py-1.5 font-fell text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                  class="w-24 bg-muted border border-border rounded px-2 py-1.5 text-caption text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 >
                   <option value="">no color</option>
                   <option v-for="c in LEVEL_COLORS" :key="c.value" :value="c.value">{{ c.label }}</option>
@@ -209,7 +209,7 @@
                 >
                   <select
                     v-model="fx.type"
-                    class="bg-muted border border-border rounded px-1.5 py-0.5 font-fell text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                    class="bg-muted border border-border rounded px-1.5 py-0.5 text-caption text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                   >
                     <option value="note">Note</option>
                     <option value="speed">Speed penalty</option>
@@ -223,7 +223,7 @@
                     v-model.number="fx.value"
                     type="number"
                     placeholder="−10"
-                    class="w-16 bg-muted border border-border rounded px-1.5 py-0.5 font-fell text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
+                    class="w-16 bg-muted border border-border rounded px-1.5 py-0.5 text-caption text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
                   />
                   <input
                     v-if="fx.type === 'exhaustion'"
@@ -232,20 +232,20 @@
                     min="1"
                     max="6"
                     placeholder="1"
-                    class="w-14 bg-muted border border-border rounded px-1.5 py-0.5 font-fell text-xs text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+                    class="w-14 bg-muted border border-border rounded px-1.5 py-0.5 text-caption text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
                   />
                   <input
                     v-if="fx.type === 'disadvantage_checks' || fx.type === 'disadvantage_saves'"
                     v-model="fx.scope"
                     type="text"
                     placeholder="STR,DEX (blank = all)"
-                    class="w-36 bg-muted border border-border rounded px-1.5 py-0.5 font-fell text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                    class="w-36 bg-muted border border-border rounded px-1.5 py-0.5 text-caption text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                   />
                   <!-- Save type: ability + DC formula -->
                   <template v-if="fx.type === 'save'">
                     <select
                       v-model="fx.ability"
-                      class="w-16 bg-muted border border-border rounded px-1.5 py-0.5 font-fell text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                      class="w-16 bg-muted border border-border rounded px-1.5 py-0.5 text-caption text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                     >
                       <option value="">Ability</option>
                       <option v-for="ab in SAVE_ABILITIES" :key="ab.value" :value="ab.value">{{ ab.label }}</option>
@@ -257,7 +257,7 @@
                       min="1"
                       placeholder="10"
                       title="Base DC value"
-                      class="w-14 bg-muted border border-border rounded px-1.5 py-0.5 font-fell text-xs text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+                      class="w-14 bg-muted border border-border rounded px-1.5 py-0.5 text-caption text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
                     />
                     <label class="flex items-center gap-1 shrink-0 cursor-pointer" title="Add current tracker value to DC">
                       <input type="checkbox" v-model="fx.dcAddTracker" class="rounded" />
@@ -269,7 +269,7 @@
                     v-model="fx.label"
                     type="text"
                     placeholder="Shown on player sheet"
-                    class="flex-1 bg-muted border border-border rounded px-1.5 py-0.5 font-fell text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                    class="flex-1 bg-muted border border-border rounded px-1.5 py-0.5 text-caption text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                   />
                   <button
                     type="button"
@@ -281,7 +281,7 @@
                 </div>
                 <button
                   type="button"
-                  class="font-fell text-2xs text-muted-foreground hover:text-foreground italic transition-colors"
+                  class="text-caption-sm text-muted-foreground hover:text-foreground italic transition-colors"
                   @click="addEffect(lvl)"
                 >
                   + add effect
@@ -308,7 +308,7 @@
 
             <div
               v-if="!tracker.dmButtons?.length"
-              class="font-fell text-xs text-muted-foreground italic"
+              class="text-caption text-muted-foreground italic"
             >
               No buttons yet.
             </div>
@@ -322,7 +322,7 @@
                 v-model="btn.label"
                 type="text"
                 placeholder="Add Corruption"
-                class="flex-1 min-w-0 bg-background border border-border rounded px-2.5 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="flex-1 min-w-0 bg-background border border-border rounded px-2.5 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
               <!-- Mode toggle: Δ change by / = set to -->
               <div class="flex rounded border border-border overflow-hidden shrink-0">
@@ -351,14 +351,14 @@
                 v-model.number="btn.delta"
                 type="number"
                 placeholder="+1"
-                class="w-16 shrink-0 bg-background border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
+                class="w-16 shrink-0 bg-background border border-border rounded px-2 py-1.5 text-body text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
               />
               <input
                 v-else
                 v-model.number="btn.setValue"
                 type="number"
                 placeholder="0"
-                class="w-16 shrink-0 bg-background border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
+                class="w-16 shrink-0 bg-background border border-border rounded px-2 py-1.5 text-body text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
               />
               <!-- Player visibility toggle -->
               <label
@@ -392,14 +392,14 @@
         </button>
         <RouterLink
           to="/rules"
-          class="font-fell text-sm text-muted-foreground hover:text-foreground transition-colors"
+          class="text-body text-muted-foreground hover:text-foreground transition-colors"
         >
           Cancel
         </RouterLink>
         <button
           v-if="!isNew"
           type="button"
-          class="ml-auto font-fell text-sm text-destructive hover:opacity-80 transition-opacity"
+          class="ml-auto text-body text-destructive hover:opacity-80 transition-opacity"
           @click="handleDelete"
         >
           Delete

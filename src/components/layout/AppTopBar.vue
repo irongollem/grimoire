@@ -45,7 +45,7 @@
               v-model="mobileQuery"
               type="text"
               placeholder="Search anything…"
-              class="w-full pl-8 pr-8 py-2 rounded-md bg-background border border-border text-sm font-fell text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500"
+              class="w-full pl-8 pr-8 py-2 rounded-md bg-background border border-border text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500"
               @keydown.escape="searchOpen = false"
             />
             <button
@@ -59,14 +59,14 @@
 
         <!-- Results -->
         <div class="flex-1 overflow-y-auto bg-card">
-          <div v-if="mobileQuery.trim().length < 2" class="px-4 py-8 text-center text-sm text-muted-foreground font-fell">
+          <div v-if="mobileQuery.trim().length < 2" class="px-4 py-8 text-center text-body text-muted-foreground">
             Type at least 2 characters to search
           </div>
-          <div v-else-if="isFetching" class="px-4 py-4 flex items-center gap-2 text-sm text-muted-foreground font-fell">
+          <div v-else-if="isFetching" class="px-4 py-4 flex items-center gap-2 text-body text-muted-foreground">
             <IconLoading class="h-4 w-4 animate-spin" />
             Searching…
           </div>
-          <div v-else-if="mobileGroups.length === 0" class="px-4 py-8 text-center text-sm text-muted-foreground font-fell">
+          <div v-else-if="mobileGroups.length === 0" class="px-4 py-8 text-center text-body text-muted-foreground">
             No results for "{{ mobileQuery.trim() }}"
           </div>
           <template v-else>
@@ -78,7 +78,7 @@
                 v-for="item in group.items"
                 :key="item.id"
                 :to="item.route"
-                class="flex items-center px-4 py-3 text-sm font-fell text-foreground hover:bg-secondary/60 border-b border-border/30 transition-colors"
+                class="flex items-center px-4 py-3 text-body text-foreground hover:bg-secondary/60 border-b border-border/30 transition-colors"
                 @click="searchOpen = false"
               >
                 {{ item.name }}

@@ -9,13 +9,13 @@
       title="Click to remove"
       @click="emit('remove-curse', curse)"
     >{{ curse }} ×</span>
-    <span v-if="!curses.length" class="font-fell text-xs text-muted-foreground italic">None</span>
+    <span v-if="!curses.length" class="text-caption text-muted-foreground italic">None</span>
   </div>
   <div class="flex items-center gap-1">
     <input
       v-model="curseInput"
       placeholder="Add curse…"
-      class="flex-1 bg-transparent border-b border-border px-1 py-0.5 font-fell text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors"
+      class="flex-1 bg-transparent border-b border-border px-1 py-0.5 text-caption text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors"
       @keydown.enter.prevent="addCurse"
     />
     <button

@@ -6,7 +6,7 @@
     <div v-if="partyLoading" class="flex justify-center py-4">
       <LoadingSpinner />
     </div>
-    <p v-else-if="!party?.length" class="font-fell text-sm text-muted-foreground italic">
+    <p v-else-if="!party?.length" class="text-body text-muted-foreground italic">
       No party members found. Add heroes in the Party Tracker first.
     </p>
     <div v-else class="flex flex-col gap-2">
@@ -24,7 +24,7 @@
         />
         <div class="flex-1 min-w-0">
           <span class="font-cinzel text-sm font-semibold text-foreground">{{ member.name }}</span>
-          <span class="ml-2 font-fell text-xs text-muted-foreground italic">
+          <span class="ml-2 text-caption text-muted-foreground italic">
             {{
               [
                 speciesNameMap.get(member.species_id ?? '') ?? null,
@@ -75,7 +75,7 @@
           />
           <div class="flex-1 min-w-0">
             <span class="font-cinzel text-sm font-semibold text-foreground">{{ comp.name }}</span>
-            <span class="ml-2 font-fell text-xs text-muted-foreground italic capitalize">
+            <span class="ml-2 text-caption text-muted-foreground italic capitalize">
               {{ comp.companion_type.replace('_', ' ') }}
             </span>
           </div>

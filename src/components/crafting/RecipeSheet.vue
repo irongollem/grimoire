@@ -25,7 +25,7 @@
         <span class="text-label font-semibold text-muted-foreground">DISCIPLINE</span>
         <div class="flex items-center gap-1.5">
           <component :is="discipline.icon" class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-          <span class="font-fell text-sm text-foreground">{{ discipline.label }}</span>
+          <span class="text-body text-foreground">{{ discipline.label }}</span>
         </div>
       </div>
 
@@ -38,7 +38,7 @@
       <!-- Time -->
       <div class="flex flex-col gap-1">
         <span class="text-label font-semibold text-muted-foreground">TIME</span>
-        <span class="font-fell text-sm text-foreground">{{ recipe.crafting_time }} {{ recipe.crafting_time_unit }}</span>
+        <span class="text-body text-foreground">{{ recipe.crafting_time }} {{ recipe.crafting_time_unit }}</span>
       </div>
 
       <!-- Requirements -->
@@ -47,7 +47,7 @@
         <div class="flex flex-wrap gap-1">
           <span v-if="recipe.requires_proficiency" class="font-cinzel text-2xs px-1.5 py-0.5 rounded bg-destructive/10 text-destructive border border-destructive/20">Proficiency</span>
           <span v-if="recipe.requires_tools" class="font-cinzel text-2xs px-1.5 py-0.5 rounded bg-destructive/10 text-destructive border border-destructive/20">Tools</span>
-          <span v-if="!recipe.requires_proficiency && !recipe.requires_tools" class="font-fell text-xs text-muted-foreground italic">None</span>
+          <span v-if="!recipe.requires_proficiency && !recipe.requires_tools" class="text-caption text-muted-foreground italic">None</span>
         </div>
       </div>
     </div>
@@ -73,11 +73,11 @@
       <div class="p-4">
         <div v-if="outputs?.length" class="space-y-1.5">
           <div v-for="out in outputs" :key="out.id" class="flex items-center justify-between gap-2">
-            <span class="font-fell text-sm text-foreground">{{ itemById(out.item_id)?.name ?? "Unknown item" }}</span>
+            <span class="text-body text-foreground">{{ itemById(out.item_id)?.name ?? "Unknown item" }}</span>
             <span class="font-cinzel text-xs text-muted-foreground shrink-0">× {{ out.quantity }}</span>
           </div>
         </div>
-        <p v-else class="font-fell text-sm text-muted-foreground italic">No outputs defined.</p>
+        <p v-else class="text-body text-muted-foreground italic">No outputs defined.</p>
       </div>
     </div>
 
@@ -91,7 +91,7 @@
           <div v-for="(ing, idx) in ingredients" :key="ing.id" class="flex items-center justify-between gap-2">
             <div class="flex items-center gap-2 min-w-0">
               <span v-if="idx === 0" class="font-cinzel text-[0.5625rem] text-primary tracking-wider shrink-0">PRIMARY</span>
-              <span class="font-fell text-sm text-foreground truncate">
+              <span class="text-body text-foreground truncate">
                 <template v-if="ing.item_id">{{ itemById(ing.item_id)?.name ?? "Unknown item" }}</template>
                 <span v-else class="italic text-muted-foreground">
                   any <template v-if="ing.tags?.length === 1">"{{ ing.tags[0] }}"</template>
@@ -102,7 +102,7 @@
             <span class="font-cinzel text-xs text-muted-foreground shrink-0">× {{ ing.quantity }}</span>
           </div>
         </div>
-        <p v-else class="font-fell text-sm text-muted-foreground italic">No ingredients required.</p>
+        <p v-else class="text-body text-muted-foreground italic">No ingredients required.</p>
       </div>
     </div>
 
@@ -113,7 +113,7 @@
       </div>
       <div class="p-4 space-y-1.5">
         <div v-for="mod in modifiers" :key="mod.id" class="flex items-center justify-between gap-2">
-          <span class="font-fell text-sm text-foreground">{{ mod.description }}</span>
+          <span class="text-body text-foreground">{{ mod.description }}</span>
           <span class="font-cinzel text-xs font-bold text-green-600 dark:text-green-400 shrink-0">+{{ mod.bonus }}</span>
         </div>
       </div>

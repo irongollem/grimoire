@@ -14,7 +14,7 @@
       </span>
     </div>
     <div class="px-3 py-2.5">
-      <p class="font-fell text-sm text-foreground leading-snug mb-1.5">
+      <p class="text-body text-foreground leading-snug mb-1.5">
         {{ meta.description }}
       </p>
       <!-- Price -->
@@ -22,13 +22,13 @@
         <template v-for="coin in COINS" :key="coin.key">
           <span
             v-if="meta[coin.key]"
-            class="font-fell text-sm font-semibold"
+            class="text-body font-semibold"
             :style="{ color: coin.hexColor }"
           >{{ meta[coin.key] }} {{ coin.symbol }}</span>
         </template>
       </div>
       <!-- Paid state -->
-      <div v-if="meta.paid_by_user_id" class="font-fell text-xs text-muted-foreground italic">
+      <div v-if="meta.paid_by_user_id" class="text-caption text-muted-foreground italic">
         Paid by {{ meta.paid_by_name }}
       </div>
       <!-- Pay button (players with a linked character only) -->
@@ -43,9 +43,9 @@
           :title="canAfford ? 'Pay' : 'Insufficient funds'"
           @click="emit('pay-vendor-offer', { messageId })"
         >Pay</button>
-        <span v-if="!canAfford" class="ml-2 font-fell text-2xs text-destructive/70">Insufficient funds</span>
+        <span v-if="!canAfford" class="ml-2 text-caption-sm text-destructive/70">Insufficient funds</span>
       </template>
-      <p class="font-fell text-2xs text-muted-foreground/50 mt-1.5">
+      <p class="text-caption-sm text-muted-foreground/50 mt-1.5">
         {{ timeLabel }}
       </p>
     </div>

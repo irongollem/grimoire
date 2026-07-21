@@ -21,7 +21,7 @@
           v-for="(s, i) in suggestions"
           :key="s"
           type="button"
-          class="w-full px-3 py-1.5 text-left font-fell text-sm capitalize transition-colors"
+          class="w-full px-3 py-1.5 text-left text-body capitalize transition-colors"
           :class="
             i === activeIdx
               ? 'bg-primary/20 text-foreground'

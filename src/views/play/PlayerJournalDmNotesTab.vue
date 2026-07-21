@@ -21,8 +21,8 @@
       <template #meta>
         <EntityNewDot :is-new="isNoteNew(note.id, note.updated_at)" title="New" />
         <IconPin v-if="note.is_pinned" class="h-2.5 w-2.5 text-primary shrink-0" />
-        <span v-if="note.category === 'session' && note.session_num != null" class="font-fell text-xs text-muted-foreground/70 italic">Session {{ note.session_num }}</span>
-        <span class="font-fell text-xs text-muted-foreground/70 italic">by DM</span>
+        <span v-if="note.category === 'session' && note.session_num != null" class="text-caption text-muted-foreground/70 italic">Session {{ note.session_num }}</span>
+        <span class="text-caption text-muted-foreground/70 italic">by DM</span>
       </template>
       <div class="px-4 py-4">
         <RichTextViewer :content="note.content ?? ''" />

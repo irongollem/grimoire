@@ -90,12 +90,12 @@
               <RouterLink
                 v-if="isOwner && isChoicePlaceholder(lang)"
                 to="/play/character/edit?tab=profs"
-                class="inline-flex items-center rounded-md bg-primary/8 border border-primary/30 border-dashed px-2 py-0.5 font-fell text-sm text-primary/70 hover:text-primary hover:bg-primary/15 transition-colors"
+                class="inline-flex items-center rounded-md bg-primary/8 border border-primary/30 border-dashed px-2 py-0.5 text-body text-primary/70 hover:text-primary hover:bg-primary/15 transition-colors"
                 :title="'Tap to choose a language'"
               >{{ lang }}</RouterLink>
               <span
                 v-else
-                class="inline-flex items-center rounded-md bg-muted/50 border border-border px-2 py-0.5 font-fell text-sm text-foreground"
+                class="inline-flex items-center rounded-md bg-muted/50 border border-border px-2 py-0.5 text-body text-foreground"
               >{{ lang }}</span>
             </template>
           </div>
@@ -106,7 +106,7 @@
             <span
               v-for="tool in member.tool_proficiencies"
               :key="tool"
-              class="inline-flex items-center rounded-md bg-muted/50 border border-border px-2 py-0.5 font-fell text-sm text-foreground"
+              class="inline-flex items-center rounded-md bg-muted/50 border border-border px-2 py-0.5 text-body text-foreground"
             >{{ tool }}</span>
           </div>
         </div>
@@ -142,7 +142,7 @@
             <span
               v-for="val in entry.values"
               :key="val"
-              class="inline-flex items-center rounded-md bg-primary/10 border border-primary/20 px-2 py-0.5 font-fell text-sm text-foreground"
+              class="inline-flex items-center rounded-md bg-primary/10 border border-primary/20 px-2 py-0.5 text-body text-foreground"
             >{{ val }}</span>
           </div>
         </div>
@@ -172,11 +172,11 @@
         <div v-for="row in DIVINE_SMITE_TABLE" :key="row.slotLevel" class="flex items-center gap-3 px-4 py-2">
           <span class="text-label text-muted-foreground w-14 shrink-0">Slot {{ row.slotLevel }}</span>
           <span class="font-cinzel text-sm font-bold text-foreground flex-1">{{ row.damage }} radiant</span>
-          <span class="font-fell text-xs text-muted-foreground italic shrink-0">{{ row.special }} vs undead/fiends</span>
+          <span class="text-caption text-muted-foreground italic shrink-0">{{ row.special }} vs undead/fiends</span>
         </div>
       </div>
       <div class="px-4 py-2 border-t border-border">
-        <p class="font-fell text-xs text-muted-foreground italic">Expend a spell slot after a melee hit. Max 5d8 (+ 1d8 vs undead/fiends).</p>
+        <p class="text-caption text-muted-foreground italic">Expend a spell slot after a melee hit. Max 5d8 (+ 1d8 vs undead/fiends).</p>
       </div>
     </div>
 

@@ -21,7 +21,7 @@
           <!-- How it works -->
           <div class="rounded-md border border-border bg-muted/30 px-3 py-2.5 flex flex-col gap-1">
             <span class="text-eyebrow font-semibold text-muted-foreground">How it works</span>
-            <ol class="font-fell text-xs text-muted-foreground list-decimal list-inside space-y-0.5 leading-relaxed">
+            <ol class="text-caption text-muted-foreground list-decimal list-inside space-y-0.5 leading-relaxed">
               <li>The table is rolled now — the <strong class="text-foreground">preview</strong> below shows what drops.</li>
               <li><strong class="text-foreground">Claims</strong> sets how many times players can take an item before the chest closes.</li>
               <li>Players click items in the chat chest one at a time; each claim removes one slot.</li>
@@ -34,10 +34,10 @@
             <input
               :value="claimsDice"
               placeholder="1d4, 2, 1d6+1…"
-              class="w-full bg-muted border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-full bg-muted border border-border rounded px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               @input="emit('update:claimsDice', ($event.target as HTMLInputElement).value)"
             />
-            <p class="font-fell text-2xs text-muted-foreground italic">
+            <p class="text-caption-sm text-muted-foreground italic">
               Fixed number or dice expression. Capped at the number of items that actually rolled.
             </p>
           </div>
@@ -58,10 +58,10 @@
               v-else
               type="file"
               accept="image/*"
-              class="font-fell text-xs text-muted-foreground"
+              class="text-caption text-muted-foreground"
               @change="onChestFileChange"
             />
-            <p v-if="uploadingChestImg" class="font-fell text-2xs text-muted-foreground italic">Uploading…</p>
+            <p v-if="uploadingChestImg" class="text-caption-sm text-muted-foreground italic">Uploading…</p>
           </div>
 
           <button
@@ -77,7 +77,7 @@
               Preview ({{ atoms.length }} {{ atoms.length === 1 ? "item" : "items" }})
             </span>
             <ul v-if="atoms.length" class="flex flex-col gap-0.5">
-              <li v-for="atom in atoms" :key="atom.atom_id" class="font-fell text-sm text-foreground truncate">
+              <li v-for="atom in atoms" :key="atom.atom_id" class="text-body text-foreground truncate">
                 <template v-if="(atom.type ?? 'item') === 'item'">· {{ atom.item_name }}</template>
                 <template v-else-if="atom.type === 'currency'">
                   💰 {{ atom.currency_label ? atom.currency_label + ': ' : '' }}{{ formatCoinParts(atom.pp ?? 0, atom.gp ?? 0, atom.ep ?? 0, atom.sp ?? 0, atom.cp ?? 0).join(', ') || '0 GP' }}
@@ -85,7 +85,7 @@
                 <template v-else>· {{ atom.item_name }}</template>
               </li>
             </ul>
-            <p v-else class="font-fell text-xs text-muted-foreground italic">Nothing rolled — chest will be empty.</p>
+            <p v-else class="text-caption text-muted-foreground italic">Nothing rolled — chest will be empty.</p>
           </div>
 
           <!-- Under-delivery warning: entries that hit but produced no loot -->
@@ -98,11 +98,11 @@
               Under-delivered ({{ unresolved.length }})
             </span>
             <ul class="flex flex-col gap-0.5">
-              <li v-for="u in unresolved" :key="u.entry_id" class="font-fell text-xs text-muted-foreground">
+              <li v-for="u in unresolved" :key="u.entry_id" class="text-caption text-muted-foreground">
                 {{ u.wanted }} — {{ unresolvedReasonLabel(u.reason) }}
               </li>
             </ul>
-            <p class="font-fell text-2xs text-muted-foreground italic">
+            <p class="text-caption-sm text-muted-foreground italic">
               These entries hit but had nothing to give. The chest will drop without them.
             </p>
           </div>

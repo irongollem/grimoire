@@ -18,12 +18,12 @@
           class="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground"
         >
           <IconShield class="h-10 w-10" />
-          <span class="font-fell text-sm italic">Upload emblem</span>
+          <span class="text-body italic">Upload emblem</span>
         </div>
         <div
           class="absolute inset-0 bg-black/50 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
         >
-          <span class="font-fell text-white text-sm italic">{{
+          <span class="text-body text-white italic">{{
             form.emblem_url ? "Change" : "Upload"
           }}</span>
         </div>

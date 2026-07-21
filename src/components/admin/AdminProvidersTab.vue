@@ -2,7 +2,7 @@
   <div class="space-y-6">
     <div class="rounded-lg border border-border bg-card p-4 space-y-1">
       <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">AI Providers</h2>
-      <p class="font-fell text-xs text-muted-foreground italic">
+      <p class="text-caption text-muted-foreground italic">
         Platform key, model selection, credit multipliers, and API cost rates — all per provider.
         Keys are encrypted at rest. Multipliers are relative to the OpenAI 1× baseline.
         Save model costs to mark them verified; compare estimated totals to provider invoices monthly.
@@ -11,8 +11,8 @@
 
     <SimulacrumConfig />
 
-    <div v-if="providersQuery.isPending.value" class="text-muted-foreground font-fell text-sm">Loading…</div>
-    <div v-else-if="providersQuery.isError.value" class="text-destructive font-fell text-sm">Failed to load provider config.</div>
+    <div v-if="providersQuery.isPending.value" class="text-muted-foreground text-body">Loading…</div>
+    <div v-else-if="providersQuery.isError.value" class="text-destructive text-body">Failed to load provider config.</div>
     <div v-else class="space-y-4">
       <div
         v-for="row in providersQuery.data.value"
@@ -339,7 +339,7 @@
               </template>
 
               <!-- Usage (all-time) -->
-              <span class="flex-1 text-right font-fell text-2xs text-muted-foreground/50 whitespace-nowrap min-w-24">
+              <span class="flex-1 text-right text-caption-sm text-muted-foreground/50 whitespace-nowrap min-w-24">
                 <template v-if="modelStatsByModel[m.model]">
                   {{ modelStatsByModel[m.model].count }} gen · ~${{ modelStatsByModel[m.model].estimated_cost_usd.toFixed(2) }}
                 </template>

@@ -2,12 +2,12 @@
   <div class="space-y-8">
     <!-- Intro -->
     <div class="space-y-2">
-      <p class="font-fell text-sm text-foreground">
+      <p class="text-body text-foreground">
         Connect your own AI assistant (Claude Desktop, claude.ai, or Claude Code) to
         <strong>read</strong> your Grimoire by conversation — ask it for an NPC's backstory, a
         monster's stat block, or a recap of an active quest, instead of clicking through pages.
       </p>
-      <p class="font-fell text-sm text-muted-foreground italic">
+      <p class="text-body text-muted-foreground italic">
         It is read-only: your AI can look things up, but cannot create, edit, or delete anything.
         Whatever you ask is sent to your AI provider, so connect one you trust.
       </p>
@@ -29,7 +29,7 @@
           {{ copied ? "Copied!" : "Copy" }}
         </button>
       </div>
-      <p class="font-fell text-xs text-muted-foreground">
+      <p class="text-caption text-muted-foreground">
         In claude.ai or Claude Desktop, go to <strong>Settings → Connectors → Add custom
         connector</strong>, paste this URL, and click <strong>Connect</strong>. You'll be sent
         here to sign in and approve. No tokens to copy.
@@ -42,13 +42,13 @@
         Connected AI apps
       </p>
 
-      <p v-if="grantsLoading" class="font-fell text-sm text-muted-foreground italic">
+      <p v-if="grantsLoading" class="text-body text-muted-foreground italic">
         Loading…
       </p>
-      <p v-else-if="grantsError" class="font-fell text-sm text-destructive">
+      <p v-else-if="grantsError" class="text-body text-destructive">
         {{ grantsError }}
       </p>
-      <p v-else-if="!grants.length" class="font-fell text-sm text-muted-foreground italic">
+      <p v-else-if="!grants.length" class="text-body text-muted-foreground italic">
         No AI apps are connected yet.
       </p>
 
@@ -60,7 +60,7 @@
         >
           <div class="min-w-0">
             <p class="font-cinzel text-sm text-foreground truncate">{{ grant.client.name || "AI client" }}</p>
-            <p class="font-fell text-xs text-muted-foreground">
+            <p class="text-caption text-muted-foreground">
               Connected {{ formatDate(grant.granted_at) }}
             </p>
           </div>

@@ -12,7 +12,7 @@
       <div class="flex items-center justify-between gap-4">
         <div>
           <p class="font-cinzel text-xs font-semibold tracking-wide text-foreground">AI Assistant</p>
-          <p class="font-fell text-xs text-muted-foreground italic mt-0.5">
+          <p class="text-caption text-muted-foreground italic mt-0.5">
             When disabled, all AI generation buttons are hidden across the campaign. Players who prefer a fully hand-crafted experience won't see any AI UI.
           </p>
         </div>
@@ -46,7 +46,7 @@
           />
           <span class="text-sm">Store keys locally on this device only</span>
         </label>
-        <p class="font-fell text-xs text-muted-foreground italic">
+        <p class="text-caption text-muted-foreground italic">
           <span v-if="localModeEnabled" class="block text-yellow-600 dark:text-yellow-500 font-semibold mb-1">
             ⚠️ Local storage only: Your keys are not saved to your account. Using Grimoire on a different browser or device will require re-entering them.
           </span>
@@ -63,7 +63,7 @@
         <span class="text-label-lg font-semibold text-muted-foreground">API Keys · BYOK</span>
       </div>
       <div class="p-4 flex flex-col gap-4">
-        <p class="font-fell text-xs text-muted-foreground italic">
+        <p class="text-caption text-muted-foreground italic">
           Bring your own key (BYOK): store keys for any providers you want to use, and your own provider bills you directly instead of spending credits. Choose which provider is active for text and image generation below.
         </p>
 
@@ -71,23 +71,23 @@
           <div class="flex items-center justify-between">
             <label class="font-cinzel text-xs text-muted-foreground tracking-wide">
               {{ p.label }}
-              <span v-if="clearedKeys[p.id]" class="ml-1.5 font-fell text-2xs normal-case tracking-normal text-yellow-600 dark:text-yellow-500">— will be removed on save</span>
-              <span v-else-if="providerHasKey(p.id) && !form.keys[p.id].trim()" class="ml-1.5 font-fell text-2xs normal-case tracking-normal text-primary/80">— key on file (leave blank to keep)</span>
+              <span v-if="clearedKeys[p.id]" class="ml-1.5 text-caption-sm normal-case tracking-normal text-yellow-600 dark:text-yellow-500">— will be removed on save</span>
+              <span v-else-if="providerHasKey(p.id) && !form.keys[p.id].trim()" class="ml-1.5 text-caption-sm normal-case tracking-normal text-primary/80">— key on file (leave blank to keep)</span>
             </label>
             <div class="flex items-center gap-3">
               <button
                 v-if="clearedKeys[p.id]"
                 type="button"
-                class="font-fell text-xs text-muted-foreground hover:underline"
+                class="text-caption text-muted-foreground hover:underline"
                 @click="undoClearKey(p.id)"
               >Undo</button>
               <button
                 v-else-if="providerHasKeyStored(p.id)"
                 type="button"
-                class="font-fell text-xs text-destructive hover:underline"
+                class="text-caption text-destructive hover:underline"
                 @click="clearKey(p.id)"
               >Clear</button>
-              <a :href="p.link" target="_blank" rel="noopener noreferrer" class="font-fell text-xs text-primary hover:underline">Get key →</a>
+              <a :href="p.link" target="_blank" rel="noopener noreferrer" class="text-caption text-primary hover:underline">Get key →</a>
             </div>
           </div>
           <div class="relative">
@@ -123,7 +123,7 @@
         <!-- Text generation -->
         <div class="flex flex-col gap-1">
           <label class="font-cinzel text-xs text-muted-foreground tracking-wide">Text generation</label>
-          <p class="font-fell text-xs text-muted-foreground italic">Used for NPCs, monsters, items, spells, and puzzles.</p>
+          <p class="text-caption text-muted-foreground italic">Used for NPCs, monsters, items, spells, and puzzles.</p>
           <!-- BYOK: picker based on entered keys -->
           <select
             v-if="hasByokTextKey && availableTextProviders.length > 0"
@@ -139,13 +139,13 @@
           <div v-else class="field-input text-sm opacity-50 cursor-not-allowed select-none text-muted-foreground">
             No provider selected
           </div>
-          <p v-if="hasByokTextKey && availableTextProviders.length === 0" class="font-fell text-xs text-yellow-600 dark:text-yellow-500 font-semibold">
+          <p v-if="hasByokTextKey && availableTextProviders.length === 0" class="text-caption text-yellow-600 dark:text-yellow-500 font-semibold">
             ⚠ Enter an API key above to enable text generation.
           </p>
-          <p v-else-if="hasByokTextKey" class="font-fell text-xs text-muted-foreground">
+          <p v-else-if="hasByokTextKey" class="text-caption text-muted-foreground">
             Your key · no credits charged
           </p>
-          <p v-else-if="enabledTextProviders.length > 1" class="font-fell text-xs text-muted-foreground">
+          <p v-else-if="enabledTextProviders.length > 1" class="text-caption text-muted-foreground">
             Quality tier available — add an API key above to choose provider.
           </p>
         </div>
@@ -153,7 +153,7 @@
         <!-- Image generation -->
         <div class="flex flex-col gap-1">
           <label class="font-cinzel text-xs text-muted-foreground tracking-wide">Image generation</label>
-          <p class="font-fell text-xs text-muted-foreground italic">
+          <p class="text-caption text-muted-foreground italic">
             Used for portrait and artwork generation.
           </p>
           <select
@@ -167,7 +167,7 @@
             No provider available
           </div>
           <!-- Cost + speed for the chosen provider, so the trade-off is clear -->
-          <p class="font-fell text-xs text-muted-foreground">
+          <p class="text-caption text-muted-foreground">
             <template v-if="!hasByokImageKey">≈ {{ selectedImageCredits }} credits / image</template>
             <template v-else>Your key · no credits charged</template>
             · {{ imageSpeed(selectedImageProvider) }} per image<span v-if="selectedImageProvider === 'gemini'"> — much faster than gpt-image</span>
@@ -191,7 +191,7 @@
         </button>
       </div>
       <div class="p-4 flex flex-col gap-3">
-        <p class="font-fell text-xs text-muted-foreground italic">
+        <p class="text-caption text-muted-foreground italic">
           Describe your world's tone, aesthetic, and feel. This is included in every AI generation request to keep all content consistent with your campaign.
         </p>
         <textarea
@@ -225,7 +225,7 @@
           />
           <span class="text-sm">Allow Grimoire to use my campaign's Chronicler scene illustrations for promotional purposes</span>
         </label>
-        <p class="font-fell text-xs text-muted-foreground italic">
+        <p class="text-caption text-muted-foreground italic">
           Opt-in only. If enabled, AI-generated scene images from your notes may be featured in Grimoire's gallery or marketing materials. Your campaign name, notes, and player data are never shared.
         </p>
       </div>

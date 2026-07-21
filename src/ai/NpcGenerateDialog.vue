@@ -9,7 +9,7 @@
       <div class="flex items-start justify-between gap-4">
         <div>
           <h2 class="font-cinzel font-bold text-base tracking-wide text-foreground">Generate NPC with AI</h2>
-          <p class="font-fell text-xs text-muted-foreground mt-0.5 italic">
+          <p class="text-caption text-muted-foreground mt-0.5 italic">
             Describe the NPC you need. The more detail, the better the result.
           </p>
         </div>
@@ -31,7 +31,7 @@
         />
         <div class="flex justify-end">
           <span
-            class="font-fell text-xs"
+            class="text-caption"
             :class="prompt.length >= PROMPT_LIMIT * 0.9 ? 'text-destructive' : 'text-muted-foreground/50'"
           >{{ prompt.length }} / {{ PROMPT_LIMIT }}</span>
         </div>
@@ -53,7 +53,7 @@
 
       <!-- Image toggle -->
       <div class="flex items-center justify-between">
-        <span class="font-fell text-xs text-muted-foreground">Generate portrait art</span>
+        <span class="text-caption text-muted-foreground">Generate portrait art</span>
         <button
           type="button"
           class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none"
@@ -69,13 +69,13 @@
 
       <!-- Error -->
       <div v-if="error" class="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2">
-        <p class="font-fell text-xs text-destructive">{{ error }}</p>
+        <p class="text-caption text-destructive">{{ error }}</p>
       </div>
 
       <!-- Generating state -->
       <div v-if="isGenerating" class="flex flex-col items-center gap-3 py-6">
         <IconGenerate class="h-8 w-8 text-primary animate-pulse" />
-        <p class="font-fell text-sm text-muted-foreground italic">{{ currentLoadingQuote }}</p>
+        <p class="text-body text-muted-foreground italic">{{ currentLoadingQuote }}</p>
       </div>
 
       <!-- Actions -->

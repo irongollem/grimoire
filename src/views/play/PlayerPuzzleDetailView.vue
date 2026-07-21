@@ -51,7 +51,7 @@
               <span
                 v-for="sc in puzzle.skill_checks"
                 :key="sc.skill"
-                class="font-fell text-xs text-muted-foreground"
+                class="text-caption text-muted-foreground"
               >{{ sc.skill }} DC {{ sc.dc }}</span>
             </div>
           </div>
@@ -61,7 +61,7 @@
       <!-- Read-aloud -->
       <div v-if="puzzle.read_aloud" class="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
         <p class="text-label md:text-sm font-semibold text-primary mb-2">READ ALOUD</p>
-        <p class="font-fell text-sm text-foreground leading-relaxed italic">{{ puzzle.read_aloud }}</p>
+        <p class="text-body text-foreground leading-relaxed italic">{{ puzzle.read_aloud }}</p>
       </div>
 
       <!-- Setup description -->
@@ -97,7 +97,7 @@
       </div>
 
       <div v-else class="rounded-lg border border-border bg-muted/20 px-4 py-3 text-center">
-        <p class="font-fell text-xs text-muted-foreground italic">No hints revealed yet.</p>
+        <p class="text-caption text-muted-foreground italic">No hints revealed yet.</p>
       </div>
     </template>
   </div>

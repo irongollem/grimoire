@@ -21,33 +21,33 @@
       <div class="flex flex-wrap gap-2 mb-1">
         <span
           v-if="meta.pp"
-          class="font-fell text-sm font-semibold"
+          class="text-body font-semibold"
           style="color: #a855f7"
         >{{ meta.pp }} PP</span>
         <span
           v-if="meta.gp"
-          class="font-fell text-sm font-semibold"
+          class="text-body font-semibold"
           style="color: #f59e0b"
         >{{ meta.gp }} GP</span>
         <span
           v-if="meta.ep"
-          class="font-fell text-sm font-semibold"
+          class="text-body font-semibold"
           style="color: #60a5fa"
         >{{ meta.ep }} EP</span>
         <span
           v-if="meta.sp"
-          class="font-fell text-sm font-semibold"
+          class="text-body font-semibold"
           style="color: #9ca3af"
         >{{ meta.sp }} SP</span>
         <span
           v-if="meta.cp"
-          class="font-fell text-sm font-semibold"
+          class="text-body font-semibold"
           style="color: #b45309"
         >{{ meta.cp }} CP</span>
       </div>
       <div
         v-if="meta.claimed_by_user_id"
-        class="font-fell text-xs text-muted-foreground italic"
+        class="text-caption text-muted-foreground italic"
       >
         Added to purse by {{ meta.claimed_by_name }}
       </div>
@@ -59,7 +59,7 @@
       >
         Add to Purse
       </button>
-      <p class="font-fell text-2xs text-muted-foreground/50 mt-1.5">
+      <p class="text-caption-sm text-muted-foreground/50 mt-1.5">
         {{ timeLabel }}
       </p>
     </div>

@@ -128,7 +128,7 @@
           {{ monster.name }}
         </h2>
 
-        <p class="font-fell text-sm italic capitalize text-white/85 drop-shadow-sm">
+        <p class="text-body italic capitalize text-white/85 drop-shadow-sm">
           {{ subtitle }}
         </p>
       </div>
@@ -178,7 +178,7 @@
           </div>
           <p
             v-if="!monster.description && !monster.notes"
-            class="font-fell text-sm italic text-muted-foreground"
+            class="text-body italic text-muted-foreground"
           >
             No lore recorded for this monster.
           </p>
@@ -249,14 +249,14 @@
       <RouterLink
         v-if="!monster.is_srd"
         :to="`/monsters/${monster.id}?edit=true`"
-        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left font-fell text-sm text-foreground active:bg-muted/50"
+        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-body text-foreground active:bg-muted/50"
         @click="showMenu = false"
       >
         <IconCopy class="size-4 shrink-0" /> Duplicate
       </RouterLink>
       <RouterLink
         :to="`/monsters/${monster.id}?edit=true`"
-        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left font-fell text-sm text-foreground active:bg-muted/50"
+        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-body text-foreground active:bg-muted/50"
         @click="showMenu = false"
       >
         <IconScrollText class="size-4 shrink-0" /> Send to Scriptorium
@@ -264,7 +264,7 @@
       <button
         v-if="!monster.is_srd"
         type="button"
-        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left font-fell text-sm text-destructive active:bg-destructive/10"
+        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-body text-destructive active:bg-destructive/10"
         @click="onDelete"
       >
         <IconDelete class="size-4 shrink-0" /> Delete monster

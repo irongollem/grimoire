@@ -10,7 +10,7 @@
           <input
             :value="entry.name"
             placeholder="Name"
-            class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             @input="update(i, 'name', ($event.target as HTMLInputElement).value)"
           />
         </label>

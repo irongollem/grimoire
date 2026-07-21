@@ -10,7 +10,7 @@
       />
     </label>
 
-    <p v-if="saveError" class="font-fell text-sm text-destructive">{{ saveError }}</p>
+    <p v-if="saveError" class="text-body text-destructive">{{ saveError }}</p>
 
     <!-- Identity fields -->
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -18,7 +18,7 @@
         <label class="block text-eyebrow text-muted-foreground mb-1.5">TYPE</label>
         <select
           v-model="form.feature_type"
-          class="w-full bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         >
           <option v-for="t in FEATURE_TYPES" :key="t" :value="t">{{ FEATURE_TYPE_LABELS[t] }}</option>
         </select>
@@ -29,7 +29,7 @@
         <input
           v-model="form.source"
           placeholder="PHB, XGtE, Homebrew…"
-          class="w-full bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
 
@@ -37,7 +37,7 @@
         <label class="block text-eyebrow text-muted-foreground mb-1.5">CAMPAIGN SCOPE</label>
         <select
           v-model="campaignScope"
-          class="w-full bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         >
           <option value="all">All my campaigns</option>
           <option v-for="c in campaigns" :key="c.id" :value="c.id">{{ c.name }}</option>
@@ -51,7 +51,7 @@
       <input
         v-model="form.prerequisite"
         placeholder="e.g. Dexterity 13 or higher, Proficiency with a martial weapon…"
-        class="w-full bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        class="w-full bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
       />
     </div>
 

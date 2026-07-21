@@ -19,7 +19,7 @@
           <IconEncounter class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           <RouterLink
             :to="`/encounters/${ref.ref_id}`"
-            class="font-fell text-sm text-foreground flex-1 truncate hover:text-primary transition-colors"
+            class="text-body text-foreground flex-1 truncate hover:text-primary transition-colors"
           >
             {{ encounterName(ref.ref_id) }}
           </RouterLink>
@@ -58,12 +58,12 @@
             <IconAdd class="h-4 w-4" />
           </button>
         </div>
-        <p v-else-if="isNew" class="font-fell text-xs text-muted-foreground italic px-2 py-1">
+        <p v-else-if="isNew" class="text-caption text-muted-foreground italic px-2 py-1">
           Save the quest first, then link encounters.
         </p>
         <p
           v-else-if="!availableEncounters.length && !linkedEncounters.length"
-          class="font-fell text-xs text-muted-foreground italic px-2 py-1"
+          class="text-caption text-muted-foreground italic px-2 py-1"
         >
           No encounters yet.
         </p>
@@ -89,7 +89,7 @@
           <IconUser class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           <RouterLink
             :to="`/npcs/${ref.ref_id}`"
-            class="font-fell text-sm text-foreground flex-1 truncate hover:text-primary transition-colors"
+            class="text-body text-foreground flex-1 truncate hover:text-primary transition-colors"
           >
             {{ npcName(ref.ref_id) }}
           </RouterLink>
@@ -128,12 +128,12 @@
             <IconAdd class="h-4 w-4" />
           </button>
         </div>
-        <p v-else-if="isNew" class="font-fell text-xs text-muted-foreground italic px-2 py-1">
+        <p v-else-if="isNew" class="text-caption text-muted-foreground italic px-2 py-1">
           Save the quest first, then link NPCs.
         </p>
         <p
           v-else-if="!availableNpcs.length && !linkedNpcRefs.length"
-          class="font-fell text-xs text-muted-foreground italic px-2 py-1"
+          class="text-caption text-muted-foreground italic px-2 py-1"
         >
           No NPCs yet.
         </p>
@@ -159,7 +159,7 @@
           <IconLocation class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           <RouterLink
             :to="`/atlas/${ref.ref_id}`"
-            class="font-fell text-sm text-foreground flex-1 truncate hover:text-primary transition-colors"
+            class="text-body text-foreground flex-1 truncate hover:text-primary transition-colors"
           >
             {{ locationName(ref.ref_id) }}
           </RouterLink>
@@ -198,12 +198,12 @@
             <IconAdd class="h-4 w-4" />
           </button>
         </div>
-        <p v-else-if="isNew" class="font-fell text-xs text-muted-foreground italic px-2 py-1">
+        <p v-else-if="isNew" class="text-caption text-muted-foreground italic px-2 py-1">
           Save the quest first, then link locations.
         </p>
         <p
           v-else-if="!availableLocations.length && !linkedLocationRefs.length"
-          class="font-fell text-xs text-muted-foreground italic px-2 py-1"
+          class="text-caption text-muted-foreground italic px-2 py-1"
         >
           No locations yet.
         </p>
@@ -229,7 +229,7 @@
           <IconMonster class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           <RouterLink
             :to="`/bestiary/${ref.ref_id}`"
-            class="font-fell text-sm text-foreground flex-1 truncate hover:text-primary transition-colors"
+            class="text-body text-foreground flex-1 truncate hover:text-primary transition-colors"
           >
             {{ monsterName(ref.ref_id) }}
           </RouterLink>
@@ -268,12 +268,12 @@
             <IconAdd class="h-4 w-4" />
           </button>
         </div>
-        <p v-else-if="isNew" class="font-fell text-xs text-muted-foreground italic px-2 py-1">
+        <p v-else-if="isNew" class="text-caption text-muted-foreground italic px-2 py-1">
           Save the quest first, then link creatures.
         </p>
         <p
           v-else-if="!availableMonsters.length && !linkedMonsterRefs.length"
-          class="font-fell text-xs text-muted-foreground italic px-2 py-1"
+          class="text-caption text-muted-foreground italic px-2 py-1"
         >
           No monsters in the bestiary yet.
         </p>

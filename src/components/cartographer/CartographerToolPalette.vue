@@ -7,7 +7,7 @@
       v-for="t in tools"
       :key="t.id"
       type="button"
-      class="flex items-center gap-2 rounded-md px-2 py-1.5 font-fell text-xs transition-colors text-left"
+      class="flex items-center gap-2 rounded-md px-2 py-1.5 text-caption transition-colors text-left"
       :class="
         activeTool === t.id
           ? 'bg-primary/15 text-foreground'
@@ -27,7 +27,7 @@
       >{{ toolBadge(t) }}</kbd>
     </button>
 
-    <div class="hidden lg:block mt-3 border-t border-border pt-2 text-2xs font-fell text-muted-foreground italic space-y-1">
+    <div class="hidden lg:block mt-3 border-t border-border pt-2 text-caption-sm text-muted-foreground italic space-y-1">
       <p>RMB or shift-drag pans. Shift+click with Wall wraps all 4 edges. Rect: shift-drag adds perimeter walls.</p>
       <p>Ctrl+Z undo · Ctrl+Shift+Z redo.</p>
     </div>

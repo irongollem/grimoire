@@ -33,7 +33,7 @@
             {{ item.spell.name }}
           </button>
           <span v-else class="font-stat text-sm text-muted-foreground italic">Unknown Spell</span>
-          <span v-if="item.frequency" class="font-fell text-xs text-muted-foreground italic shrink-0">{{ item.frequency }}</span>
+          <span v-if="item.frequency" class="text-caption text-muted-foreground italic shrink-0">{{ item.frequency }}</span>
         </div>
       </div>
     </details>

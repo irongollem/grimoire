@@ -22,7 +22,7 @@ const emit = defineEmits<{ toggle: [] }>();
       <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">
         {{ title }}
       </h2>
-      <p class="font-fell text-xs text-muted-foreground italic mt-0.5">
+      <p class="text-caption text-muted-foreground italic mt-0.5">
         Manage canonical SRD art. Dump images from your phone, assign on desktop.
       </p>
     </div>

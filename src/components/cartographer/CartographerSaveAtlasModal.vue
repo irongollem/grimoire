@@ -14,7 +14,7 @@
         >
           <div class="px-5 pt-5 pb-3">
             <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide mb-1">Save to Atlas</h2>
-            <p class="font-fell text-sm text-muted-foreground mb-4">
+            <p class="text-body text-muted-foreground mb-4">
               Bake this map and attach it to a location in your Atlas.
             </p>
             <label class="block text-eyebrow text-muted-foreground mb-1">
@@ -25,8 +25,8 @@
               :options="locationOptions"
               placeholder="Search locations…"
             />
-            <p v-if="targetHasMap" class="mt-2 font-fell text-xs text-amber-500">This location already has a map — saving will replace it.</p>
-            <p v-if="error" class="mt-2 font-fell text-xs text-destructive">{{ error }}</p>
+            <p v-if="targetHasMap" class="mt-2 text-caption text-amber-500">This location already has a map — saving will replace it.</p>
+            <p v-if="error" class="mt-2 text-caption text-destructive">{{ error }}</p>
           </div>
           <div class="flex justify-end gap-2 px-5 pb-5 pt-2">
             <button

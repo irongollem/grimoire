@@ -15,7 +15,7 @@
     <template #filters>
       <select
         v-model="featuresTypeFilter"
-        class="bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        class="bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
       >
         <option value="">All Types</option>
         <option v-for="t in DUNGEON_FEATURE_TYPES" :key="t" :value="t">{{ t }}</option>
@@ -45,7 +45,7 @@
         <div class="p-2.5 flex flex-col gap-0.5">
           <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight truncate">{{ feature.name }}</h3>
           <div class="flex items-center gap-2">
-            <span v-if="feature.trigger_type" class="font-fell text-2xs text-muted-foreground italic truncate">
+            <span v-if="feature.trigger_type" class="text-caption-sm text-muted-foreground italic truncate">
               {{ feature.trigger_type }}
             </span>
             <span v-if="feature.perception_dc" class="text-label text-muted-foreground">

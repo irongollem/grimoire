@@ -58,7 +58,7 @@
       </div>
     </div>
 
-    <p class="font-fell text-xs text-muted-foreground italic">
+    <p class="text-caption text-muted-foreground italic">
       Fronts then backs. Flip on the long edge for duplex alignment.
       Back: <strong>{{ TOKEN_BACK_STYLES.find(b => b.id === backStyle)?.desc }}</strong>
     </p>

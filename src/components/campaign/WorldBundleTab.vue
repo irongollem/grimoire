@@ -5,7 +5,7 @@
     <template v-if="phase === 'categories'">
       <div>
         <h3 class="font-cinzel text-sm font-semibold text-foreground">Create World Bundle</h3>
-        <p class="font-fell text-sm text-muted-foreground italic mt-1">
+        <p class="text-body text-muted-foreground italic mt-1">
           Select which entity types to include. You'll choose specific entities from each category
           in the next steps.
         </p>
@@ -34,7 +34,7 @@
                 @change="toggleCategory(type.key)"
               />
               <span
-                class="font-fell text-sm transition-colors"
+                class="text-body transition-colors"
                 :class="isLocked(type.key) ? 'text-muted-foreground' : 'text-foreground group-hover:text-primary'"
               >
                 {{ type.label }}
@@ -104,13 +104,13 @@
           v-model="search"
           type="text"
           placeholder="Search…"
-          class="w-full bg-muted border border-border rounded-md pl-8 pr-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full bg-muted border border-border rounded-md pl-8 pr-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
 
       <!-- Controls -->
       <div class="flex items-center justify-between">
-        <span class="font-fell text-xs text-muted-foreground">
+        <span class="text-caption text-muted-foreground">
           <template v-if="pickerLoading">Loading…</template>
           <template v-else>
             {{ currentSelection.size }} of {{ pickerItems?.length ?? 0 }} selected
@@ -136,10 +136,10 @@
       <!-- Entity list -->
       <div class="rounded-md border border-border overflow-hidden">
         <div v-if="pickerLoading" class="px-4 py-6 text-center">
-          <p class="font-fell text-sm text-muted-foreground italic">Loading…</p>
+          <p class="text-body text-muted-foreground italic">Loading…</p>
         </div>
         <div v-else-if="!filteredItems.length" class="px-4 py-6 text-center">
-          <p class="font-fell text-sm text-muted-foreground italic">
+          <p class="text-body text-muted-foreground italic">
             {{ search ? "No results for your search." : "No entities found in this category." }}
           </p>
         </div>
@@ -155,7 +155,7 @@
               class="h-3.5 w-3.5 rounded border-border text-primary focus:ring-ring shrink-0"
               @change="toggleEntity(item.id)"
             />
-            <span class="font-fell text-sm text-foreground truncate">{{ item.label }}</span>
+            <span class="text-body text-foreground truncate">{{ item.label }}</span>
           </label>
         </div>
       </div>
@@ -204,7 +204,7 @@
             v-model="bundleName"
             type="text"
             placeholder="e.g. The Sunken Duchy"
-            class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="w-full bg-muted border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
 
@@ -216,7 +216,7 @@
             v-model="bundleDescription"
             rows="2"
             placeholder="A brief description for whoever imports this bundle…"
-            class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+            class="w-full bg-muted border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
           />
         </div>
       </div>
@@ -228,7 +228,7 @@
         </p>
         <div class="grid grid-cols-2 gap-x-6 gap-y-0.5">
           <template v-for="type in orderedCategories" :key="type">
-            <span class="font-fell text-xs text-muted-foreground">
+            <span class="text-caption text-muted-foreground">
               {{ typeDef(type)?.label }}
             </span>
             <span class="font-cinzel text-xs font-semibold text-foreground text-right">
@@ -236,12 +236,12 @@
             </span>
           </template>
         </div>
-        <p class="font-fell text-xs text-muted-foreground italic pt-1">
+        <p class="text-caption text-muted-foreground italic pt-1">
           Player visibility flags and party-member links are cleared on import.
         </p>
       </div>
 
-      <p v-if="exportError" class="font-fell text-xs text-destructive">{{ exportError }}</p>
+      <p v-if="exportError" class="text-caption text-destructive">{{ exportError }}</p>
 
       <div class="flex justify-end gap-2 pt-2">
         <button

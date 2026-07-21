@@ -10,7 +10,7 @@
     <div class="rounded-lg border border-border bg-card p-4 space-y-4">
       <div>
         <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">User Lookup</h2>
-        <p class="font-fell text-xs text-muted-foreground italic mt-0.5">
+        <p class="text-caption text-muted-foreground italic mt-0.5">
           Search a user to see their name, credit balance, and ledger. Other users stay hidden.
         </p>
       </div>
@@ -23,22 +23,22 @@
         >
           <template #option="{ opt }">
             <span class="flex-1 min-w-0">
-              <span class="font-fell text-sm text-foreground">{{ opt.email }}</span>
+              <span class="text-body text-foreground">{{ opt.email }}</span>
               <span v-if="opt.display_name" class="font-fell text-[0.6875rem] text-muted-foreground italic ml-1">· {{ opt.display_name }}</span>
             </span>
           </template>
         </EntityCombobox>
       </div>
 
-      <p v-if="usersQuery.isPending.value" class="font-fell text-sm text-muted-foreground">Loading users…</p>
+      <p v-if="usersQuery.isPending.value" class="text-body text-muted-foreground">Loading users…</p>
 
       <!-- Selected user detail -->
       <div v-else-if="selectedUser" class="space-y-4 border-t border-border pt-4">
         <!-- Name + balance -->
         <div class="flex items-center gap-3">
           <div class="flex-1 min-w-0">
-            <p class="font-fell text-sm text-foreground truncate">{{ selectedUser.email }}</p>
-            <p class="font-fell text-xs text-muted-foreground">
+            <p class="text-body text-foreground truncate">{{ selectedUser.email }}</p>
+            <p class="text-caption text-muted-foreground">
               {{ selectedUser.display_name ?? '—' }} · {{ selectedUser.plan_id }}
             </p>
           </div>
@@ -58,7 +58,7 @@
               v-model.number="grantAmount"
               type="number"
               min="1"
-              class="w-28 bg-muted border border-border rounded px-2.5 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-28 bg-muted border border-border rounded px-2.5 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               placeholder="e.g. 10"
             />
           </div>
@@ -67,7 +67,7 @@
             <input
               v-model="grantReason"
               type="text"
-              class="w-full bg-muted border border-border rounded px-2.5 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-full bg-muted border border-border rounded px-2.5 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               placeholder="admin_grant"
             />
           </div>
@@ -78,7 +78,7 @@
           >
             {{ usersQuery.grantCredits.isPending.value ? 'Granting…' : 'Grant' }}
           </button>
-          <p v-if="grantSuccess" class="font-fell text-xs text-green-500 self-center">Granted.</p>
+          <p v-if="grantSuccess" class="text-caption text-green-500 self-center">Granted.</p>
         </div>
 
         <!-- Ledger summary -->
@@ -129,13 +129,13 @@
             <span class="font-cinzel text-xs text-foreground shrink-0 w-16 text-right">{{ row.running_balance }}</span>
           </div>
         </div>
-        <p v-else class="font-fell text-xs text-muted-foreground italic">No ledger activity yet.</p>
+        <p v-else class="text-caption text-muted-foreground italic">No ledger activity yet.</p>
 
         <!-- Per-pack refund eligibility + execution -->
         <CreditPackRefundList :user-id="selectedUserId" />
       </div>
 
-      <p v-else class="font-fell text-xs text-muted-foreground italic">No user selected.</p>
+      <p v-else class="text-caption text-muted-foreground italic">No user selected.</p>
     </div>
   </div>
 </template>

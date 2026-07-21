@@ -48,7 +48,7 @@
             <!-- Content -->
             <RichTextViewer :content="linkedNote.content" />
           </template>
-          <p v-else class="font-fell text-sm text-muted-foreground italic">Note not found.</p>
+          <p v-else class="text-body text-muted-foreground italic">Note not found.</p>
           <!-- Footer -->
           <div class="flex items-center justify-between pt-2 border-t border-border">
             <button type="button" class="px-4 py-2 text-label-lg font-semibold text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors" @click="close">
@@ -143,7 +143,7 @@
           <!-- Entity link (read-only when editing a non-travel pinned event) -->
           <div v-if="entityRoute && form.event_type !== 'travel'" class="flex items-center gap-2 rounded-md border border-border bg-muted/50 px-3 py-2">
             <component :is="entityIconComponent" class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <span class="font-fell text-sm text-muted-foreground flex-1 capitalize">
+            <span class="text-body text-muted-foreground flex-1 capitalize">
               Pinned {{ editEvent?.event_type }}
             </span>
             <RouterLink
@@ -162,7 +162,7 @@
               type="checkbox"
               class="rounded border-border w-4 h-4 accent-primary"
             />
-            <span class="font-fell text-sm text-foreground">Visible to players</span>
+            <span class="text-body text-foreground">Visible to players</span>
           </label>
 
           <!-- Actions -->

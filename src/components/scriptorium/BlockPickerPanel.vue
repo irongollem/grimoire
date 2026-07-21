@@ -67,7 +67,7 @@
                     {{ entry.label }}
                   </p>
                   <p
-                    class="font-fell text-xs text-muted-foreground italic leading-snug mt-0.5"
+                    class="text-caption text-muted-foreground italic leading-snug mt-0.5"
                   >
                     {{ entry.description }}
                   </p>
@@ -101,7 +101,7 @@
                     From URL…
                   </p>
                   <p
-                    class="font-fell text-xs text-muted-foreground italic leading-snug mt-0.5"
+                    class="text-caption text-muted-foreground italic leading-snug mt-0.5"
                   >
                     Insert an image by pasting its web address
                   </p>
@@ -125,7 +125,7 @@
                     From library…
                   </p>
                   <p
-                    class="font-fell text-xs text-muted-foreground italic leading-snug mt-0.5"
+                    class="text-caption text-muted-foreground italic leading-snug mt-0.5"
                   >
                     Browse and insert saved NPCs, monsters, spells, or locations
                   </p>
@@ -149,7 +149,7 @@
                     Browse photos…
                   </p>
                   <p
-                    class="font-fell text-xs text-muted-foreground italic leading-snug mt-0.5"
+                    class="text-caption text-muted-foreground italic leading-snug mt-0.5"
                   >
                     Pick from your uploaded NPC, monster, location, or document art
                   </p>
@@ -161,7 +161,7 @@
 
         <!-- Footer -->
         <div class="px-4 py-2.5 border-t border-border shrink-0 bg-muted/30">
-          <p class="font-fell text-xs text-muted-foreground italic">
+          <p class="text-caption text-muted-foreground italic">
             More block types arrive with each Homebrewery-parity update.
           </p>
         </div>

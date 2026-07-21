@@ -58,7 +58,7 @@
     <!-- Recipes for active discipline -->
     <div class="flex flex-col gap-4">
 
-      <div v-if="isLoading" class="font-fell text-sm text-muted-foreground italic">Loading recipes…</div>
+      <div v-if="isLoading" class="text-body text-muted-foreground italic">Loading recipes…</div>
 
       <div v-else-if="disciplineRecipes.length === 0" class="rounded-lg border border-border border-dashed px-6 py-10 text-center">
         <component
@@ -68,7 +68,7 @@
         <p class="font-cinzel text-sm font-semibold text-muted-foreground">
           {{ activeDiscipline ? `No ${activeDiscipline.label} recipes yet` : 'No recipes yet' }}
         </p>
-        <p class="font-fell text-xs text-muted-foreground/60 italic mt-1">
+        <p class="text-caption text-muted-foreground/60 italic mt-1">
           {{ activeDiscipline
             ? `Create a recipe to let players craft ${activeDiscipline.label.toLowerCase()} items.`
             : 'Create a recipe to get started.' }}
@@ -126,7 +126,7 @@
               </span>
             </div>
 
-            <p class="font-fell text-xs text-muted-foreground mt-1">
+            <p class="text-caption text-muted-foreground mt-1">
               DC {{ recipe.dc }} · {{ recipe.crafting_time }} {{ recipe.crafting_time !== 1 ? recipe.crafting_time_unit : recipe.crafting_time_unit.replace(/s$/, '') }}
             </p>
           </div>

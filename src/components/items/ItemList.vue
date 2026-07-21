@@ -78,7 +78,7 @@
           >
             <span
               v-if="item.damage_rolls?.length"
-              class="font-fell text-xs text-muted-foreground"
+              class="text-caption text-muted-foreground"
             >
               ⚔
               {{
@@ -89,13 +89,13 @@
             </span>
             <span
               v-if="item.armor_class"
-              class="font-fell text-xs text-muted-foreground"
+              class="text-caption text-muted-foreground"
             >
               🛡 AC {{ item.armor_class }}
             </span>
             <span
               v-if="item.charges"
-              class="font-fell text-xs text-muted-foreground"
+              class="text-caption text-muted-foreground"
             >
               ✦ {{ item.charges }} charges
             </span>

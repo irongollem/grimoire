@@ -22,7 +22,7 @@
         class="w-full rounded mb-2 object-cover max-h-40"
       />
       <div class="flex items-baseline gap-2 mb-1">
-        <span class="font-fell text-sm font-semibold text-foreground">
+        <span class="text-body font-semibold text-foreground">
           {{ meta.quantity > 1 ? `${meta.quantity}× ` : "" }}{{ meta.item_name }}
           <span
             v-if="
@@ -43,7 +43,7 @@
       <!-- Optional description -->
       <p
         v-if="meta.description"
-        class="font-fell text-xs text-muted-foreground/80 italic mb-1.5 leading-snug"
+        class="text-caption text-muted-foreground/80 italic mb-1.5 leading-snug"
       >{{ meta.description }}</p>
       <!-- Expand details toggle (vault items only) -->
       <button
@@ -65,7 +65,7 @@
         <!-- All claimed -->
         <div
           v-if="meta.quantity_remaining === 0"
-          class="font-fell text-xs text-muted-foreground italic mt-1"
+          class="text-caption text-muted-foreground italic mt-1"
         >
           All claimed
           <span v-if="meta.claims?.length">
@@ -118,7 +118,7 @@
       <template v-else>
         <div
           v-if="meta.claimed_by_user_id"
-          class="font-fell text-xs text-muted-foreground italic"
+          class="text-caption text-muted-foreground italic"
         >
           Claimed by {{ meta.claimed_by_name }}
           <span
@@ -152,7 +152,7 @@
           </div>
         </div>
       </template>
-      <p class="font-fell text-2xs text-muted-foreground/50 mt-1.5">
+      <p class="text-caption-sm text-muted-foreground/50 mt-1.5">
         {{ timeLabel }}
       </p>
     </div>

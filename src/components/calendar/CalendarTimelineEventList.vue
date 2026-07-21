@@ -15,14 +15,14 @@
           :style="{ backgroundColor: eventColor(event) }"
           class="w-2.5 h-2.5 rounded-full shrink-0"
         />
-        <span class="font-fell text-sm text-foreground flex-1">{{ event.title }}</span>
-        <span class="font-fell text-xs text-muted-foreground italic">{{ formatEventDate(event) }}</span>
+        <span class="text-body text-foreground flex-1">{{ event.title }}</span>
+        <span class="text-caption text-muted-foreground italic">{{ formatEventDate(event) }}</span>
         <span class="text-label-lg text-muted-foreground/40 uppercase">{{ event.event_type }}</span>
       </div>
     </div>
   </div>
   <div v-else-if="!isLoading" class="mt-6">
-    <p class="font-fell text-sm text-muted-foreground italic text-center">
+    <p class="text-body text-muted-foreground italic text-center">
       No events in this period.
     </p>
   </div>

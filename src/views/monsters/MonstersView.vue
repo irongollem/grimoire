@@ -23,7 +23,7 @@
         >
           <div class="p-3 border-b border-border">
             <p class="font-cinzel text-xs font-semibold text-foreground">Monster Sources</p>
-            <p class="font-fell text-xs text-muted-foreground mt-0.5 italic">
+            <p class="text-caption text-muted-foreground mt-0.5 italic">
               Enabled sources appear in your Bestiary instantly — no download needed.
             </p>
           </div>
@@ -31,7 +31,7 @@
             <IconLoading class="size-4 animate-spin text-muted-foreground" />
           </div>
           <div v-else-if="availableSources.length === 0" class="p-4">
-            <p class="font-fell text-xs text-muted-foreground italic">No sources available yet. Ask your admin to seed the srd_monsters table.</p>
+            <p class="text-caption text-muted-foreground italic">No sources available yet. Ask your admin to seed the srd_monsters table.</p>
           </div>
           <div v-else class="p-2 flex flex-col gap-0.5 max-h-72 overflow-y-auto">
             <label
@@ -46,7 +46,7 @@
                 class="accent-primary shrink-0"
                 @change="toggleSource(src)"
               />
-              <span class="font-fell text-sm text-foreground flex-1 min-w-0 truncate">
+              <span class="text-body text-foreground flex-1 min-w-0 truncate">
                 {{ src.source_title ?? src.source }}
               </span>
               <span class="font-cinzel text-2xs text-muted-foreground shrink-0">{{ src.count.toLocaleString() }}</span>
@@ -119,7 +119,7 @@
             type="search"
             inputmode="search"
             placeholder="Search monsters…"
-            class="h-11 w-full rounded-full border border-border bg-card pl-9 pr-9 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="h-11 w-full rounded-full border border-border bg-card pl-9 pr-9 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
           <button
             v-if="ui.monstersSearch"
@@ -168,7 +168,7 @@
           v-for="chip in activeChips"
           :key="chip.key"
           type="button"
-          class="inline-flex items-center gap-1 rounded-full border border-border bg-card py-1 pl-2.5 pr-1.5 font-fell text-xs text-foreground"
+          class="inline-flex items-center gap-1 rounded-full border border-border bg-card py-1 pl-2.5 pr-1.5 text-caption text-foreground"
           @click="chip.clear()"
         >
           {{ chip.label }}
@@ -239,14 +239,14 @@
       <div class="flex flex-col gap-1 py-1">
         <button
           type="button"
-          class="flex items-center gap-3 rounded-lg px-2 py-3 text-left font-fell text-sm text-foreground hover:bg-muted/50"
+          class="flex items-center gap-3 rounded-lg px-2 py-3 text-left text-body text-foreground hover:bg-muted/50"
           @click="overflowOpen = false; sourcesOpen = true"
         >
           <IconLibrary class="size-5 shrink-0 text-muted-foreground" /> Monster Sources
         </button>
         <button
           type="button"
-          class="flex items-center gap-3 rounded-lg px-2 py-3 text-left font-fell text-sm text-foreground hover:bg-muted/50"
+          class="flex items-center gap-3 rounded-lg px-2 py-3 text-left text-body text-foreground hover:bg-muted/50"
           @click="overflowOpen = false; ui.monsterGeneratorOpen = true"
         >
           <IconGenerate class="size-5 shrink-0 text-muted-foreground" /> Generate
@@ -256,13 +256,13 @@
 
     <!-- Sources picker sheet -->
     <MobileSheet v-model:open="sourcesOpen" title="Monster Sources">
-      <p class="mb-3 font-fell text-xs italic text-muted-foreground">
+      <p class="mb-3 text-caption italic text-muted-foreground">
         Enabled sources appear in your Bestiary instantly — no download needed.
       </p>
       <div v-if="sourcesLoading" class="flex items-center justify-center py-6">
         <IconLoading class="size-5 animate-spin text-muted-foreground" />
       </div>
-      <p v-else-if="availableSources.length === 0" class="py-4 font-fell text-sm italic text-muted-foreground">
+      <p v-else-if="availableSources.length === 0" class="py-4 text-body italic text-muted-foreground">
         No sources available yet. Ask your admin to seed the srd_monsters table.
       </p>
       <div v-else class="flex flex-col gap-0.5">
@@ -278,7 +278,7 @@
             class="size-4 shrink-0 accent-primary"
             @change="toggleSource(src)"
           />
-          <span class="min-w-0 flex-1 truncate font-fell text-sm text-foreground">
+          <span class="min-w-0 flex-1 truncate text-body text-foreground">
             {{ src.source_title ?? src.source }}
           </span>
           <span class="shrink-0 font-cinzel text-2xs text-muted-foreground">{{ src.count.toLocaleString() }}</span>

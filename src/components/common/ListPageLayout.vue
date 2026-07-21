@@ -59,7 +59,7 @@
           </h1>
           <p
             v-if="description"
-            class="font-fell text-muted-foreground mt-0.5 md:mt-1 italic text-sm md:text-base line-clamp-2"
+            class="text-body text-muted-foreground mt-0.5 md:mt-1 italic md:text-base line-clamp-2"
           >
             {{ description }}
           </p>

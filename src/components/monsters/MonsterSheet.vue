@@ -20,17 +20,17 @@
             >{{ tag }}</span
           >
         </div>
-        <p v-if="monster.habitat" class="font-fell text-xs text-muted-foreground italic">
+        <p v-if="monster.habitat" class="text-caption text-muted-foreground italic">
           Habitat: {{ monster.habitat }}
         </p>
         <RouterLink
           v-if="lairLocation"
           :to="`/locations/${lairLocation.id}`"
-          class="font-fell text-xs text-muted-foreground italic hover:text-foreground hover:underline transition-colors"
+          class="text-caption text-muted-foreground italic hover:text-foreground hover:underline transition-colors"
         >
           Lair: {{ lairLocation.name }}
         </RouterLink>
-        <p v-if="monster.source" class="font-fell text-xs text-muted-foreground italic">
+        <p v-if="monster.source" class="text-caption text-muted-foreground italic">
           Source: {{ monster.source }}
         </p>
       </div>
@@ -39,7 +39,7 @@
       <div class="flex flex-col gap-4">
         <!-- Identity header -->
         <div class="border-b border-primary/30 pb-2">
-          <p class="font-fell text-sm italic text-muted-foreground capitalize">
+          <p class="text-body italic text-muted-foreground capitalize">
             {{ monster.size }} {{ monster.monster_type }}, {{ monster.alignment }}
           </p>
         </div>

@@ -1,6 +1,6 @@
 <template>
   <span
-    class="inline-flex items-center gap-1 font-fell text-xs"
+    class="inline-flex items-center gap-1 text-caption"
     :class="byok ? 'text-muted-foreground/70' : (affordable ? 'text-muted-foreground' : 'text-destructive')"
     :title="title"
   >

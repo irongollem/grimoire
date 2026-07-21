@@ -25,12 +25,12 @@
         <!-- Generating state -->
         <div v-if="isGenerating" class="flex flex-col items-center gap-3 py-4">
           <IconGenerate class="h-7 w-7 text-primary animate-pulse" />
-          <p class="font-fell text-sm text-muted-foreground italic text-center">
+          <p class="text-body text-muted-foreground italic text-center">
             {{ currentLoadingQuote }}
           </p>
           <button
             type="button"
-            class="mt-1 font-fell text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+            class="mt-1 text-caption text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
             @click="dismissToBackground"
           >
             Continue in background
@@ -42,7 +42,7 @@
           v-else-if="genError"
           class="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2"
         >
-          <p class="font-fell text-xs text-destructive">{{ genError }}</p>
+          <p class="text-caption text-destructive">{{ genError }}</p>
         </div>
 
         <!-- Results state -->
@@ -53,7 +53,7 @@
             </p>
             <button
               type="button"
-              class="font-fell text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+              class="text-caption text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
               @click="clearHooks"
             >
               Regenerate
@@ -66,7 +66,7 @@
             class="rounded-md border border-border bg-muted/30 p-4 space-y-3"
           >
             <h3 class="font-cinzel text-sm font-semibold text-foreground">{{ hook.title }}</h3>
-            <p class="font-fell text-xs text-muted-foreground/70 italic">
+            <p class="text-caption text-muted-foreground/70 italic">
               <span class="text-label not-italic text-muted-foreground/50 mr-1">PLAYER LOG</span>{{ hook.summary }}
             </p>
 
@@ -74,7 +74,7 @@
               <li
                 v-for="obj in hook.objectives"
                 :key="obj"
-                class="flex items-start gap-2 font-fell text-xs text-muted-foreground"
+                class="flex items-start gap-2 text-caption text-muted-foreground"
               >
                 <span class="text-primary mt-0.5 shrink-0">•</span>
                 <span>{{ obj }}</span>
@@ -85,7 +85,7 @@
               <span
                 v-for="tag in hook.tags"
                 :key="tag"
-                class="rounded-full bg-muted border border-border px-2 py-0.5 font-fell text-2xs text-muted-foreground"
+                class="rounded-full bg-muted border border-border px-2 py-0.5 text-caption-sm text-muted-foreground"
               >
                 {{ tag }}
               </span>
@@ -109,7 +109,7 @@
                 </span>
                 <button
                   type="button"
-                  class="font-fell text-xs text-primary hover:underline underline-offset-2 transition-colors"
+                  class="text-caption text-primary hover:underline underline-offset-2 transition-colors"
                   @click="viewCreated(i)"
                 >
                   View Quest →
@@ -126,7 +126,7 @@
             <span class="text-label-lg font-semibold text-muted-foreground">
               PARTY LEVEL
             </span>
-            <span class="font-fell text-sm text-foreground font-semibold">
+            <span class="text-body text-foreground font-semibold">
               {{ partyLevelDisplay }}
             </span>
           </div>
@@ -172,11 +172,11 @@
               rows="3"
               :maxlength="THEME_LIMIT"
               placeholder="A dragon cult terrorising trade routes along the northern pass…"
-              class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+              class="w-full bg-muted border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
             />
             <div class="flex justify-end mt-1">
               <span
-                class="font-fell text-xs"
+                class="text-caption"
                 :class="theme.length >= THEME_LIMIT * 0.9 ? 'text-destructive' : 'text-muted-foreground/50'"
               >{{ theme.length }} / {{ THEME_LIMIT }}</span>
             </div>

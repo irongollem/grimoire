@@ -21,7 +21,7 @@
         <option value="npc_death">🗡 NPC Death</option>
         <option value="travel">🗺 Travel</option>
       </select>
-      <p class="font-fell text-xs text-muted-foreground italic mt-1">
+      <p class="text-caption text-muted-foreground italic mt-1">
         Session events are created automatically from
         <RouterLink to="/notes" class="text-primary hover:underline" @click="emit('close')">session notes</RouterLink>.
       </p>

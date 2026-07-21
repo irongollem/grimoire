@@ -11,7 +11,7 @@
           :to="`/deities/${e.deity.id}`"
           class="font-cinzel text-2xs font-semibold text-foreground hover:text-primary transition-colors"
         >{{ e.deity.name }}</RouterLink>
-        <span v-if="e.deity.titles" class="font-fell text-2xs text-muted-foreground italic">{{ e.deity.titles }}</span>
+        <span v-if="e.deity.titles" class="text-caption-sm text-muted-foreground italic">{{ e.deity.titles }}</span>
         <button
           type="button"
           class="text-muted-foreground hover:text-destructive transition-colors text-sm leading-none shrink-0"
@@ -19,7 +19,7 @@
         >×</button>
       </div>
     </div>
-    <p v-else class="font-fell text-xs text-muted-foreground italic">No patron deities linked.</p>
+    <p v-else class="text-caption text-muted-foreground italic">No patron deities linked.</p>
 
     <div class="flex items-center gap-2 mt-1">
       <EntityCombobox v-model="newDeityId" :options="availableDeities" placeholder="Add deity…" />

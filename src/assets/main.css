@@ -394,6 +394,32 @@
   letter-spacing: 0.05em;
 }
 
+/* ── Body tiers (Crimson Pro / "fell") ────────────────────────────────────
+   The reading family. No letter-spacing at any tier (body text carries none in
+   this app), and `italic` stays a separate class — it varies per call site
+   (~40% of captions, ~20% of body) and is emphasis, not part of the role. */
+
+/* text-body — default reading text. = `font-fell text-sm` */
+@utility text-body {
+  font-family: var(--font-fell);
+  font-size: 0.875rem;
+  line-height: var(--tw-leading, calc(1.25 / 0.875));
+}
+
+/* text-caption — fine print / secondary copy. = `font-fell text-xs` */
+@utility text-caption {
+  font-family: var(--font-fell);
+  font-size: 0.75rem;
+  line-height: var(--tw-leading, calc(1 / 0.75));
+}
+
+/* text-caption-sm — the densest body tier. = `font-fell text-2xs` */
+@utility text-caption-sm {
+  font-family: var(--font-fell);
+  font-size: 0.625rem;
+  line-height: var(--tw-leading, 1);
+}
+
 /* Hide the native scrollbar while keeping the element scrollable (used by the
    soundboard page tabs, which cue overflow with edge fades + chevrons). */
 @utility scrollbar-none {

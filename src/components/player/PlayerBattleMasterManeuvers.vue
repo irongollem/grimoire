@@ -8,7 +8,7 @@
     </div>
     <!-- Superiority dice track -->
     <div class="flex items-center gap-2 px-4 py-2 border-b border-border">
-      <span class="font-fell text-sm text-muted-foreground flex-1">Superiority Dice</span>
+      <span class="text-body text-muted-foreground flex-1">Superiority Dice</span>
       <button
         class="h-6 w-6 rounded border border-border font-cinzel text-sm text-muted-foreground hover:text-foreground hover:border-primary/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         :disabled="superiorityDiceCurrent <= 0"
@@ -26,14 +26,14 @@
     <!-- Known maneuvers -->
     <div class="divide-y divide-border">
       <div v-if="knownManeuvers.length === 0" class="px-4 py-3">
-        <p class="font-fell text-sm text-muted-foreground italic">No maneuvers learned yet.</p>
+        <p class="text-body text-muted-foreground italic">No maneuvers learned yet.</p>
       </div>
       <div v-for="maneuver in knownManeuvers" :key="maneuver.name" class="px-4 py-2.5">
         <button
           class="w-full text-left flex items-center gap-2 cursor-pointer"
           @click="toggleExpanded(`maneuver-${maneuver.name}`)"
         >
-          <span class="font-fell text-sm text-foreground flex-1">{{ maneuver.name }}</span>
+          <span class="text-body text-foreground flex-1">{{ maneuver.name }}</span>
           <IconChevronDown
             class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
             :class="expanded.has(`maneuver-${maneuver.name}`) ? 'rotate-180' : ''"
@@ -41,9 +41,9 @@
         </button>
         <div
           v-if="expanded.has(`maneuver-${maneuver.name}`)"
-          class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2 font-fell text-sm text-muted-foreground leading-relaxed"
+          class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2 text-body text-muted-foreground leading-relaxed"
         >
-          <p class="font-fell text-xs text-primary/70 mb-1 italic">{{ maneuver.timing }}</p>
+          <p class="text-caption text-primary/70 mb-1 italic">{{ maneuver.timing }}</p>
           {{ maneuver.description }}
         </div>
       </div>
@@ -59,7 +59,7 @@
       <div v-else class="space-y-2">
         <select
           v-model="pendingLearn"
-          class="w-full rounded border border-border bg-muted/40 px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full rounded border border-border bg-muted/40 px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         >
           <option value="" disabled>Select maneuver to learn…</option>
           <option v-for="m in availableToLearn" :key="m.name" :value="m.name">{{ m.name }}</option>

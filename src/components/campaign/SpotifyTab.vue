@@ -7,7 +7,7 @@
         <span class="text-label-lg font-semibold text-muted-foreground">Spotify Integration</span>
       </div>
       <div class="p-4 flex flex-col gap-3">
-        <p class="font-fell text-xs text-muted-foreground italic leading-relaxed">
+        <p class="text-caption text-muted-foreground italic leading-relaxed">
           Play Spotify tracks and playlists directly from the Soundboard. Requires a free
           <a
             href="https://developer.spotify.com/dashboard"
@@ -17,7 +17,7 @@
           >Spotify Developer App</a>
           and a Spotify Premium account. Only you (the DM) need to connect — players are not affected.
         </p>
-        <ol class="font-fell text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+        <ol class="text-caption text-muted-foreground space-y-1 list-decimal list-inside">
           <li>Create a free app at <span class="font-semibold text-foreground">developer.spotify.com/dashboard</span></li>
           <li>In your app settings, add this Redirect URI:</li>
         </ol>
@@ -34,7 +34,7 @@
             <IconCopy v-else class="h-3.5 w-3.5" />
           </button>
         </div>
-        <p class="font-fell text-xs text-muted-foreground italic">
+        <p class="text-caption text-muted-foreground italic">
           3. Copy your Client ID below and save.
         </p>
       </div>
@@ -46,7 +46,7 @@
         <span class="text-label-lg font-semibold text-muted-foreground">Client ID</span>
       </div>
       <div class="p-4 flex flex-col gap-3">
-        <p class="font-fell text-xs text-muted-foreground italic">
+        <p class="text-caption text-muted-foreground italic">
           Found on your Spotify Developer App dashboard. This is not a secret — it is safe to store in your campaign.
         </p>
         <div class="relative">
@@ -72,7 +72,7 @@
         <div v-if="campaign.activeCampaign?.spotify_client_id" class="flex flex-col gap-1.5">
           <div v-if="spotifyStore.spotifyUser" class="flex items-start gap-1.5 px-2.5 py-2 rounded-md bg-green-500/10 border border-green-500/20">
             <span class="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0 mt-1" />
-            <div class="font-fell text-xs leading-snug">
+            <div class="text-caption leading-snug">
               <p class="text-green-400 font-semibold">{{ spotifyStore.spotifyUser.display_name }}</p>
               <p class="text-muted-foreground">{{ spotifyStore.spotifyUser.email }}</p>
               <p class="text-muted-foreground capitalize">
@@ -82,7 +82,7 @@
           </div>
           <div v-else class="flex items-center gap-1.5">
             <span class="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0" />
-            <span class="font-fell text-xs text-green-500">Client ID saved — connect your account from the Soundboard.</span>
+            <span class="text-caption text-green-500">Client ID saved — connect your account from the Soundboard.</span>
           </div>
         </div>
       </div>

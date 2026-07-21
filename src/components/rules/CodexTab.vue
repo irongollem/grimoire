@@ -20,7 +20,7 @@
 
     <!-- ── Species ── -->
     <div v-if="codexSection === 'species'">
-      <p v-if="!allSpecies?.length" class="text-center font-fell text-sm text-muted-foreground italic py-12">
+      <p v-if="!allSpecies?.length" class="text-center text-body text-muted-foreground italic py-12">
         No species in the campaign yet.
       </p>
       <div v-else class="grid grid-cols-2 md:grid-cols-3 gap-2">
@@ -64,8 +64,8 @@
                       <FocalImage :src="selectedSpecies.image_url" :alt="selectedSpecies.name" format="landscape" :focal-point="selectedSpecies.focal_point ?? null" lightbox />
                     </div>
                     <RichTextViewer v-if="isRichText(selectedSpecies.description)" :content="selectedSpecies.description!" />
-                    <p v-else-if="selectedSpecies.description" class="font-fell text-sm text-muted-foreground">{{ selectedSpecies.description }}</p>
-                    <p v-else class="font-fell text-sm text-muted-foreground italic">No description.</p>
+                    <p v-else-if="selectedSpecies.description" class="text-body text-muted-foreground">{{ selectedSpecies.description }}</p>
+                    <p v-else class="text-body text-muted-foreground italic">No description.</p>
                   </div>
                   <div class="flex flex-col gap-4 p-5 border-t border-border md:border-t-0">
                     <div v-if="selectedSpecies.speed">
@@ -91,11 +91,11 @@
                             @click="trait.description && toggle(`sp:${selectedSpecies!.id}:t:${trait.name}`)"
                           >
                             <IconChevronRight v-if="trait.description" class="h-3 w-3 shrink-0 text-muted-foreground/60 transition-transform" :class="open.has(`sp:${selectedSpecies.id}:t:${trait.name}`) ? 'rotate-90' : ''" />
-                            <span class="font-fell text-sm text-foreground">{{ trait.name }}</span>
+                            <span class="text-body text-foreground">{{ trait.name }}</span>
                           </button>
                           <div v-if="trait.description && open.has(`sp:${selectedSpecies.id}:t:${trait.name}`)" class="px-3 pb-3 border-t border-border">
                             <RichTextViewer v-if="isRichText(trait.description)" :content="trait.description" class="mt-2" />
-                            <p v-else class="font-fell text-sm text-muted-foreground mt-2">{{ trait.description }}</p>
+                            <p v-else class="text-body text-muted-foreground mt-2">{{ trait.description }}</p>
                           </div>
                         </div>
                       </div>
@@ -103,7 +103,7 @@
                     <div v-if="selectedSpecies.languages?.length">
                       <p class="text-eyebrow font-semibold text-muted-foreground mb-1.5">LANGUAGES</p>
                       <div class="flex flex-wrap gap-1.5">
-                        <span v-for="lang in selectedSpecies.languages" :key="lang" class="px-2 py-0.5 rounded bg-muted font-fell text-xs text-muted-foreground">{{ lang }}</span>
+                        <span v-for="lang in selectedSpecies.languages" :key="lang" class="px-2 py-0.5 rounded bg-muted text-caption text-muted-foreground">{{ lang }}</span>
                       </div>
                     </div>
                     <div v-if="selectedSpecies.subraces?.length">
@@ -115,7 +115,7 @@
                             <span class="font-cinzel text-xs font-semibold text-foreground">{{ sub.name }}</span>
                           </button>
                           <div v-if="open.has(`sp:${selectedSpecies.id}:sr:${sub.name}`)" class="px-3 pb-3 border-t border-border flex flex-col gap-2 pt-2">
-                            <div v-if="sub.description" class="font-fell text-sm text-muted-foreground">
+                            <div v-if="sub.description" class="text-body text-muted-foreground">
                               <RichTextViewer v-if="isRichText(sub.description)" :content="sub.description" />
                               <p v-else class="italic">{{ sub.description }}</p>
                             </div>
@@ -128,11 +128,11 @@
                                   @click="trait.description && toggle(`sp:${selectedSpecies!.id}:sr:${sub.name}:t:${trait.name}`)"
                                 >
                                   <IconChevronRight v-if="trait.description" class="h-2.5 w-2.5 shrink-0 text-muted-foreground/60 transition-transform" :class="open.has(`sp:${selectedSpecies.id}:sr:${sub.name}:t:${trait.name}`) ? 'rotate-90' : ''" />
-                                  <span class="font-fell text-sm text-foreground">{{ trait.name }}</span>
+                                  <span class="text-body text-foreground">{{ trait.name }}</span>
                                 </button>
                                 <div v-if="trait.description && open.has(`sp:${selectedSpecies.id}:sr:${sub.name}:t:${trait.name}`)" class="px-2.5 pb-2.5 border-t border-border/60">
                                   <RichTextViewer v-if="isRichText(trait.description)" :content="trait.description" class="mt-2" />
-                                  <p v-else class="font-fell text-sm text-muted-foreground mt-2">{{ trait.description }}</p>
+                                  <p v-else class="text-body text-muted-foreground mt-2">{{ trait.description }}</p>
                                 </div>
                               </div>
                             </div>
@@ -151,7 +151,7 @@
 
     <!-- ── Backgrounds ── -->
     <div v-else-if="codexSection === 'backgrounds'">
-      <p v-if="!allBackgrounds?.length" class="text-center font-fell text-sm text-muted-foreground italic py-12">
+      <p v-if="!allBackgrounds?.length" class="text-center text-body text-muted-foreground italic py-12">
         No backgrounds in the campaign yet.
       </p>
       <div v-else class="grid grid-cols-2 md:grid-cols-3 gap-2">
@@ -191,8 +191,8 @@
                       <FocalImage :src="selectedBackground.image_url" :alt="selectedBackground.name" format="landscape" :focal-point="selectedBackground.focal_point ?? null" lightbox />
                     </div>
                     <RichTextViewer v-if="isRichText(selectedBackground.description)" :content="selectedBackground.description!" />
-                    <p v-else-if="selectedBackground.description" class="font-fell text-sm text-muted-foreground">{{ selectedBackground.description }}</p>
-                    <p v-else class="font-fell text-sm text-muted-foreground italic">No description.</p>
+                    <p v-else-if="selectedBackground.description" class="text-body text-muted-foreground">{{ selectedBackground.description }}</p>
+                    <p v-else class="text-body text-muted-foreground italic">No description.</p>
                   </div>
                   <div class="flex flex-col gap-4 p-5 border-t border-border md:border-t-0">
                     <!-- Feat grant (2024 PHB) -->
@@ -214,23 +214,23 @@
                     <div v-if="selectedBackground.tool_proficiencies?.length">
                       <p class="text-eyebrow font-semibold text-muted-foreground mb-1.5">TOOL PROFICIENCIES</p>
                       <div class="flex flex-wrap gap-1.5">
-                        <span v-for="t in selectedBackground.tool_proficiencies" :key="t" class="px-2 py-0.5 rounded bg-muted font-fell text-xs text-muted-foreground">{{ t }}</span>
+                        <span v-for="t in selectedBackground.tool_proficiencies" :key="t" class="px-2 py-0.5 rounded bg-muted text-caption text-muted-foreground">{{ t }}</span>
                       </div>
                     </div>
                     <div v-if="selectedBackground.languages?.length">
                       <p class="text-eyebrow font-semibold text-muted-foreground mb-1.5">LANGUAGES</p>
                       <div class="flex flex-wrap gap-1.5">
-                        <span v-for="l in selectedBackground.languages" :key="l" class="px-2 py-0.5 rounded bg-muted font-fell text-xs text-muted-foreground">{{ l }}</span>
+                        <span v-for="l in selectedBackground.languages" :key="l" class="px-2 py-0.5 rounded bg-muted text-caption text-muted-foreground">{{ l }}</span>
                       </div>
                     </div>
                     <div v-if="selectedBackground.equipment">
                       <p class="text-eyebrow font-semibold text-muted-foreground mb-1.5">EQUIPMENT</p>
-                      <p class="font-fell text-sm text-muted-foreground">{{ selectedBackground.equipment }}</p>
+                      <p class="text-body text-muted-foreground">{{ selectedBackground.equipment }}</p>
                     </div>
                     <div v-if="selectedBackground.feature_name">
                       <p class="text-eyebrow font-semibold text-muted-foreground mb-1.5">FEATURE</p>
                       <p class="font-cinzel text-xs font-semibold text-foreground mb-1">{{ selectedBackground.feature_name }}</p>
-                      <p v-if="selectedBackground.feature_description" class="font-fell text-sm text-muted-foreground">{{ selectedBackground.feature_description }}</p>
+                      <p v-if="selectedBackground.feature_description" class="text-body text-muted-foreground">{{ selectedBackground.feature_description }}</p>
                     </div>
                   </div>
                 </div>
@@ -243,7 +243,7 @@
 
     <!-- ── Classes ── -->
     <div v-else-if="codexSection === 'classes'">
-      <p v-if="!mergedClasses.length" class="text-center font-fell text-sm text-muted-foreground italic py-12">
+      <p v-if="!mergedClasses.length" class="text-center text-body text-muted-foreground italic py-12">
         No classes in the campaign yet.
       </p>
       <div v-else class="grid grid-cols-2 md:grid-cols-3 gap-2">
@@ -287,23 +287,23 @@
                     <div class="grid grid-cols-2 gap-3">
                       <div v-if="selectedClass.primary_ability">
                         <p class="text-eyebrow text-muted-foreground mb-0.5">PRIMARY</p>
-                        <p class="font-fell text-sm text-foreground">{{ selectedClass.primary_ability }}</p>
+                        <p class="text-body text-foreground">{{ selectedClass.primary_ability }}</p>
                       </div>
                       <div v-if="selectedClass.saving_throws?.length">
                         <p class="text-eyebrow text-muted-foreground mb-0.5">SAVING THROWS</p>
-                        <p class="font-fell text-sm text-foreground">{{ selectedClass.saving_throws.join(", ") }}</p>
+                        <p class="text-body text-foreground">{{ selectedClass.saving_throws.join(", ") }}</p>
                       </div>
                       <div v-if="selectedClass.armor_proficiencies?.length">
                         <p class="text-eyebrow text-muted-foreground mb-0.5">ARMOR</p>
-                        <p class="font-fell text-sm text-foreground">{{ selectedClass.armor_proficiencies.join(", ") }}</p>
+                        <p class="text-body text-foreground">{{ selectedClass.armor_proficiencies.join(", ") }}</p>
                       </div>
                       <div v-if="selectedClass.weapon_proficiencies?.length">
                         <p class="text-eyebrow text-muted-foreground mb-0.5">WEAPONS</p>
-                        <p class="font-fell text-sm text-foreground">{{ selectedClass.weapon_proficiencies.join(", ") }}</p>
+                        <p class="text-body text-foreground">{{ selectedClass.weapon_proficiencies.join(", ") }}</p>
                       </div>
                       <div>
                         <p class="text-eyebrow text-muted-foreground mb-0.5">SUBCLASS AT</p>
-                        <p class="font-fell text-sm text-foreground">Level {{ selectedClass.subclass_level }}</p>
+                        <p class="text-body text-foreground">Level {{ selectedClass.subclass_level }}</p>
                       </div>
                     </div>
                     <div v-if="subclassesFor(selectedClass.class_name).length">
@@ -319,11 +319,11 @@
                               <div v-for="lvl in sortedLevels(sub.features)" :key="lvl" class="flex gap-3 py-1">
                                 <span class="text-label text-muted-foreground w-10 shrink-0 pt-0.5">Lv {{ lvl }}</span>
                                 <div class="flex flex-wrap gap-1">
-                                  <span v-for="name in resolveFeatures(sub.features[String(lvl)])" :key="name" class="inline-flex items-center rounded border bg-muted/50 border-border/60 px-1.5 py-0.5 font-fell text-xs text-foreground">{{ name }}</span>
+                                  <span v-for="name in resolveFeatures(sub.features[String(lvl)])" :key="name" class="inline-flex items-center rounded border bg-muted/50 border-border/60 px-1.5 py-0.5 text-caption text-foreground">{{ name }}</span>
                                 </div>
                               </div>
                             </div>
-                            <p v-else class="font-fell text-xs text-muted-foreground italic">No features defined.</p>
+                            <p v-else class="text-caption text-muted-foreground italic">No features defined.</p>
                           </div>
                         </div>
                       </div>
@@ -337,12 +337,12 @@
                         <div v-for="lvl in sortedLevels(selectedClass.features)" :key="lvl" class="flex gap-3 px-2 py-1.5 rounded bg-muted/30">
                           <span class="text-label text-muted-foreground w-10 shrink-0 pt-0.5">Lv {{ lvl }}</span>
                           <div class="flex flex-wrap gap-1">
-                            <span v-for="name in resolveFeatures(selectedClass.features[String(lvl)])" :key="name" class="inline-flex items-center rounded border bg-card border-border px-1.5 py-0.5 font-fell text-xs text-foreground">{{ name }}</span>
+                            <span v-for="name in resolveFeatures(selectedClass.features[String(lvl)])" :key="name" class="inline-flex items-center rounded border bg-card border-border px-1.5 py-0.5 text-caption text-foreground">{{ name }}</span>
                           </div>
                         </div>
                       </div>
                     </div>
-                    <p v-else class="font-fell text-sm text-muted-foreground italic">No class features defined.</p>
+                    <p v-else class="text-body text-muted-foreground italic">No class features defined.</p>
                   </div>
                 </div>
               </div>
@@ -357,7 +357,7 @@
       <div v-if="deitiesLoading" class="flex justify-center py-16">
         <LoadingSpinner />
       </div>
-      <p v-else-if="!visibleDeities.length" class="text-center font-fell text-sm text-muted-foreground italic py-12">
+      <p v-else-if="!visibleDeities.length" class="text-center text-body text-muted-foreground italic py-12">
         No deities have been revealed to you yet.
       </p>
       <template v-else>
@@ -365,9 +365,9 @@
           v-model="deitySearch"
           type="search"
           placeholder="Filter deities…"
-          class="w-full bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring mb-3"
+          class="w-full bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring mb-3"
         />
-        <p v-if="!filteredDeities.length" class="font-fell text-sm text-muted-foreground italic text-center py-6">
+        <p v-if="!filteredDeities.length" class="text-body text-muted-foreground italic text-center py-6">
           No deities match your filter.
         </p>
         <div v-else class="grid grid-cols-2 md:grid-cols-3 gap-2">
@@ -397,7 +397,7 @@
                 <div class="flex-1 min-w-0">
                   <h2 class="font-cinzel text-lg font-bold text-foreground">{{ selectedDeity.name }}</h2>
                   <div class="flex flex-wrap items-center gap-2 mt-1">
-                    <span v-if="selectedDeity.titles" class="font-fell text-xs text-muted-foreground italic">{{ selectedDeity.titles }}</span>
+                    <span v-if="selectedDeity.titles" class="text-caption text-muted-foreground italic">{{ selectedDeity.titles }}</span>
                     <span v-if="selectedDeity.pantheon?.name" class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground">{{ selectedDeity.pantheon.name }}</span>
                   </div>
                 </div>
@@ -423,7 +423,7 @@
                     </div>
                     <div v-if="selectedDeity.alternate_names?.length">
                       <p class="text-eyebrow font-semibold text-muted-foreground mb-1">ALSO KNOWN AS</p>
-                      <p class="font-fell text-sm text-muted-foreground">{{ selectedDeity.alternate_names.join(", ") }}</p>
+                      <p class="text-body text-muted-foreground">{{ selectedDeity.alternate_names.join(", ") }}</p>
                     </div>
                   </div>
                   <!-- Right: meta + description -->
@@ -431,19 +431,19 @@
                     <div class="flex flex-col gap-3">
                       <div v-if="selectedDeity.alignment">
                         <p class="text-eyebrow text-muted-foreground mb-0.5">ALIGNMENT</p>
-                        <p class="font-fell text-sm text-foreground">{{ selectedDeity.alignment }}</p>
+                        <p class="text-body text-foreground">{{ selectedDeity.alignment }}</p>
                       </div>
                       <div v-if="selectedDeity.symbol">
                         <p class="text-eyebrow text-muted-foreground mb-0.5">SYMBOL</p>
-                        <p class="font-fell text-sm text-foreground">{{ selectedDeity.symbol }}</p>
+                        <p class="text-body text-foreground">{{ selectedDeity.symbol }}</p>
                       </div>
                       <div v-if="selectedDeity.portfolio">
                         <p class="text-eyebrow text-muted-foreground mb-0.5">PORTFOLIO</p>
-                        <p class="font-fell text-sm text-foreground">{{ selectedDeity.portfolio }}</p>
+                        <p class="text-body text-foreground">{{ selectedDeity.portfolio }}</p>
                       </div>
                     </div>
                     <RichTextViewer v-if="isRichText(selectedDeity.description)" :content="selectedDeity.description!" />
-                    <p v-else-if="selectedDeity.description" class="font-fell text-sm text-muted-foreground">{{ selectedDeity.description }}</p>
+                    <p v-else-if="selectedDeity.description" class="text-body text-muted-foreground">{{ selectedDeity.description }}</p>
                   </div>
                 </div>
               </div>

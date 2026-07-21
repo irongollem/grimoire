@@ -15,7 +15,7 @@
         </RouterLink>
         <select
           :value="e.role ?? 'Member'"
-          class="bg-transparent border-none font-fell text-2xs text-muted-foreground focus:outline-none cursor-pointer"
+          class="bg-transparent border-none text-caption-sm text-muted-foreground focus:outline-none cursor-pointer"
           @change="updateRole(e, ($event.target as HTMLSelectElement).value)"
         >
           <option v-for="r in NPC_FACTION_ROLES" :key="r" :value="r">{{ r }}</option>
@@ -29,7 +29,7 @@
         <button type="button" class="text-muted-foreground hover:text-destructive transition-colors text-sm leading-none shrink-0" @click="remove(e)">×</button>
       </div>
     </div>
-    <p v-else class="font-fell text-xs text-muted-foreground italic">No faction memberships yet.</p>
+    <p v-else class="text-caption text-muted-foreground italic">No faction memberships yet.</p>
 
     <div class="flex items-center gap-2 mt-1">
       <EntityCombobox v-model="newFactionId" :options="availableFactions" placeholder="Add faction…" />

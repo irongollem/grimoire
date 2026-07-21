@@ -85,7 +85,7 @@
       <div class="p-4 flex flex-col gap-2">
         <div v-for="step in sub.steps" :key="step.key" class="flex items-center gap-3">
           <span class="text-label-lg text-primary w-6 shrink-0">{{ step.level }}</span>
-          <span class="font-fell text-sm text-foreground flex-1">{{ step.label || step.key }}</span>
+          <span class="text-body text-foreground flex-1">{{ step.label || step.key }}</span>
           <span class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5 shrink-0">
             ×{{ step.count ?? 1 }}
           </span>
@@ -100,7 +100,7 @@
       </div>
       <div class="p-4 flex flex-col gap-2">
         <div v-for="res in sub.resources" :key="res.key" class="flex items-center gap-2">
-          <span class="font-fell text-sm text-foreground flex-1">{{ res.label || res.key }}</span>
+          <span class="text-body text-foreground flex-1">{{ res.label || res.key }}</span>
           <span class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
             {{ res.rest === 'short' ? 'Short rest' : 'Long rest' }}
           </span>

@@ -18,12 +18,12 @@
             @click="toggleExpanded(`infusion-${inf.name}`)"
           >
             <span
-              class="font-fell text-sm flex-1 min-w-0 truncate"
+              class="text-body flex-1 min-w-0 truncate"
               :class="isActive(inf.name) ? 'text-primary' : 'text-foreground'"
             >{{ inf.name }}</span>
             <span
               v-if="activeItemName(inf.name)"
-              class="font-fell text-xs text-muted-foreground italic shrink-0"
+              class="text-caption text-muted-foreground italic shrink-0"
             >{{ activeItemName(inf.name) }}</span>
             <span
               v-if="inf.min_level > 2"
@@ -54,7 +54,7 @@
         <div v-if="pendingApplyName === inf.name" class="mt-2 space-y-2">
           <select
             v-model="pendingItemId"
-            class="w-full rounded border border-border bg-muted/40 px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="w-full rounded border border-border bg-muted/40 px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           >
             <option value="">No specific item</option>
             <option v-for="item in inventoryItems" :key="item.id" :value="item.id">
@@ -76,7 +76,7 @@
         <!-- Description -->
         <div
           v-if="expanded.has(`infusion-${inf.name}`)"
-          class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2 font-fell text-sm text-muted-foreground leading-relaxed"
+          class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2 text-body text-muted-foreground leading-relaxed"
         >
           {{ inf.description }}
         </div>
@@ -94,7 +94,7 @@
       <div v-else class="space-y-2">
         <select
           v-model="pendingLearnName"
-          class="w-full rounded border border-border bg-muted/40 px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full rounded border border-border bg-muted/40 px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         >
           <option value="" disabled>Select infusion to learn…</option>
           <option v-for="inf in availableToLearn" :key="inf.name" :value="inf.name">

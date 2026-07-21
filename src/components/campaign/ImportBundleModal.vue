@@ -21,7 +21,7 @@
 
           <!-- Step 1: file picker -->
           <div v-if="!preview">
-            <p class="font-fell text-sm text-muted-foreground italic mb-3">
+            <p class="text-body text-muted-foreground italic mb-3">
               Select a <code class="font-mono text-xs bg-muted px-1 rounded">.grimoire</code> bundle, or a
               <code class="font-mono text-xs bg-muted px-1 rounded">.pdf</code> exported from Grimoire with
               campaign data embedded. Campaign backups
@@ -36,7 +36,7 @@
               <span class="text-label-lg font-semibold text-muted-foreground">
                 Click to select a bundle or PDF
               </span>
-              <span class="font-fell text-xs text-muted-foreground italic">.grimoire or .pdf</span>
+              <span class="text-caption text-muted-foreground italic">.grimoire or .pdf</span>
               <input
                 type="file"
                 accept=".grimoire,.pdf,application/pdf"
@@ -46,7 +46,7 @@
               />
             </label>
 
-            <p v-if="parseError" class="mt-3 font-fell text-xs text-destructive">{{ parseError }}</p>
+            <p v-if="parseError" class="mt-3 text-caption text-destructive">{{ parseError }}</p>
           </div>
 
           <!-- Step 2: preview & configure -->
@@ -55,10 +55,10 @@
             <div class="rounded-md border border-border bg-muted/30 px-4 py-3 space-y-1">
               <p class="text-eyebrow font-semibold text-muted-foreground">Bundle</p>
               <p class="font-cinzel text-sm font-bold text-foreground">{{ preview.name }}</p>
-              <p v-if="preview.description" class="font-fell text-xs text-muted-foreground">
+              <p v-if="preview.description" class="text-caption text-muted-foreground">
                 {{ preview.description }}
               </p>
-              <p class="font-fell text-xs text-muted-foreground italic">Exported {{ formattedDate }}</p>
+              <p class="text-caption text-muted-foreground italic">Exported {{ formattedDate }}</p>
             </div>
 
             <!-- Import mode -->
@@ -75,10 +75,10 @@
                     class="mt-0.5 h-3.5 w-3.5 border-border text-primary focus:ring-ring"
                   />
                   <div>
-                    <span class="font-fell text-sm text-foreground group-hover:text-primary transition-colors">
+                    <span class="text-body text-foreground group-hover:text-primary transition-colors">
                       Current campaign
                     </span>
-                    <p class="font-fell text-xs text-muted-foreground italic">
+                    <p class="text-caption text-muted-foreground italic">
                       Merge entities into <strong>{{ campaignStore.activeCampaign?.name }}</strong>.
                       Nothing is overwritten.
                     </p>
@@ -92,10 +92,10 @@
                     class="mt-0.5 h-3.5 w-3.5 border-border text-primary focus:ring-ring"
                   />
                   <div>
-                    <span class="font-fell text-sm text-foreground group-hover:text-primary transition-colors">
+                    <span class="text-body text-foreground group-hover:text-primary transition-colors">
                       New campaign
                     </span>
-                    <p class="font-fell text-xs text-muted-foreground italic">
+                    <p class="text-caption text-muted-foreground italic">
                       Create a fresh campaign seeded with this bundle's content.
                     </p>
                   </div>
@@ -111,7 +111,7 @@
                   v-model="newCampaignName"
                   type="text"
                   :placeholder="preview.name || 'Campaign name…'"
-                  class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                  class="w-full bg-muted border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 />
               </div>
             </div>
@@ -134,7 +134,7 @@
                       class="h-3.5 w-3.5 rounded border-border text-primary focus:ring-ring"
                       @change="toggleType(type.key)"
                     />
-                    <span class="font-fell text-sm text-foreground group-hover:text-primary transition-colors">
+                    <span class="text-body text-foreground group-hover:text-primary transition-colors">
                       {{ type.label }}
                     </span>
                   </div>
@@ -147,16 +147,16 @@
 
             <!-- Warning -->
             <div class="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 space-y-1">
-              <p class="font-fell text-xs text-amber-700 dark:text-amber-400">
+              <p class="text-caption text-amber-700 dark:text-amber-400">
                 Entities are added with fresh IDs — duplicates may appear if imported before.
                 Player visibility flags are cleared; party-member links are reset.
               </p>
-              <p class="font-fell text-xs text-amber-700 dark:text-amber-400">
+              <p class="text-caption text-amber-700 dark:text-amber-400">
                 Monster, item, and spell references from your library are preserved by original ID.
               </p>
             </div>
 
-            <p v-if="importError" class="font-fell text-xs text-destructive">{{ importError }}</p>
+            <p v-if="importError" class="text-caption text-destructive">{{ importError }}</p>
           </template>
         </div>
 

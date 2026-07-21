@@ -10,7 +10,7 @@
           v-model="search"
           type="text"
           placeholder="Search documents…"
-          class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
 
@@ -54,7 +54,7 @@
 
     <p
       v-else-if="!filtered.length"
-      class="text-center font-fell text-sm text-muted-foreground italic py-12"
+      class="text-center text-body text-muted-foreground italic py-12"
     >
       No documents match your filters.
     </p>
@@ -119,7 +119,7 @@
             </span>
             <span
               v-if="doc.tags.length > 3"
-              class="font-fell text-2xs text-muted-foreground italic self-center"
+              class="text-caption-sm text-muted-foreground italic self-center"
             >
               +{{ doc.tags.length - 3 }}
             </span>
@@ -158,7 +158,7 @@
 
     <p
       v-if="filtered.length"
-      class="mt-4 font-fell text-xs text-muted-foreground italic text-right"
+      class="mt-4 text-caption text-muted-foreground italic text-right"
     >
       {{ filtered.length }} of {{ docs?.length ?? 0 }} documents
     </p>

@@ -21,7 +21,7 @@
       v-model="model"
       type="text"
       :placeholder="placeholder"
-      class="w-full bg-card border border-border rounded-md pl-8 pr-3 min-h-11 py-1.5 md:min-h-0 md:py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+      class="w-full bg-card border border-border rounded-md pl-8 pr-3 min-h-11 py-1.5 md:min-h-0 md:py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
     />
   </div>
 </template>

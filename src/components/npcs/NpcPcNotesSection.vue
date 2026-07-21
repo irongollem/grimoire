@@ -102,7 +102,7 @@
       + Add
     </button>
 
-    <p v-if="notes?.length === 0 && !showForm" class="font-fell text-xs text-muted-foreground italic">
+    <p v-if="notes?.length === 0 && !showForm" class="text-caption text-muted-foreground italic">
       No per-PC notes yet.
     </p>
   </div>

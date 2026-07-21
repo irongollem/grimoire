@@ -22,7 +22,7 @@
 
       <div v-else-if="!resolved.length" class="text-center py-16 space-y-2">
         <p class="font-cinzel text-lg text-muted-foreground">No creatures discovered yet</p>
-        <p class="font-fell text-sm text-muted-foreground italic">Monsters you encounter will appear here.</p>
+        <p class="text-body text-muted-foreground italic">Monsters you encounter will appear here.</p>
       </div>
 
       <template v-else>
@@ -33,7 +33,7 @@
               v-model="ui.playerBestiarySearch"
               type="text"
               placeholder="Search bestiary…"
-              class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
           <button
@@ -74,7 +74,7 @@
           <p class="font-cinzel text-xs font-semibold text-foreground">
             {{ member?.['class'] }} · Level {{ member?.level }}
           </p>
-          <p v-if="isDruid" class="font-fell text-xs text-muted-foreground italic mt-0.5">
+          <p v-if="isDruid" class="text-caption text-muted-foreground italic mt-0.5">
             Max CR {{ maxWildshapeCrDisplay }}
             <template v-if="(member?.level ?? 0) < 8"> · no fly/swim speed</template>
           </p>
@@ -84,7 +84,7 @@
 
       <!-- DM: share all eligible beasts with this druid -->
       <div v-if="ui.dmPreviewMode && isDruid && unsharedEligibleBeasts.length > 0" class="flex items-center justify-between rounded-md border border-primary/20 bg-primary/5 px-3 py-2">
-        <p class="font-fell text-xs text-muted-foreground italic">{{ unsharedEligibleBeasts.length }} eligible beast{{ unsharedEligibleBeasts.length === 1 ? '' : 's' }} not yet shared</p>
+        <p class="text-caption text-muted-foreground italic">{{ unsharedEligibleBeasts.length }} eligible beast{{ unsharedEligibleBeasts.length === 1 ? '' : 's' }} not yet shared</p>
         <button
           type="button"
           :disabled="sharingBeasts"
@@ -97,7 +97,7 @@
 
       <div v-if="wildForms.length === 0" class="text-center py-16 space-y-2">
         <p class="font-cinzel text-lg text-muted-foreground">No available forms</p>
-        <p class="font-fell text-sm text-muted-foreground italic">
+        <p class="text-body text-muted-foreground italic">
           <template v-if="isDruid">Discover beasts to unlock wild shapes, or ask your DM to pin forms for you.</template>
           <template v-else>Your DM can pin forms for you here.</template>
         </p>
@@ -186,7 +186,7 @@
           <div class="p-4 space-y-4">
             <div>
               <h2 class="font-cinzel text-xl font-bold text-foreground">{{ lightbox.name }}</h2>
-              <p v-if="lightbox.monster" class="font-fell text-sm text-muted-foreground italic capitalize">
+              <p v-if="lightbox.monster" class="text-body text-muted-foreground italic capitalize">
                 {{ lightbox.monster.size }} {{ lightbox.monster.monster_type }}<span v-if="lightbox.monster.alignment && (lightbox.revealStats ?? activeTab === 'forms')"> · {{ lightbox.monster.alignment }}</span>
               </p>
             </div>
@@ -228,12 +228,12 @@
                         >🎲 {{ actionDiceLabel(t.description) }}</button>
                       </div>
                     </div>
-                    <p class="font-fell text-xs text-muted-foreground leading-relaxed mt-0.5">{{ t.description }}</p>
+                    <p class="text-caption text-muted-foreground leading-relaxed mt-0.5">{{ t.description }}</p>
                   </div>
                 </div>
               </template>
               <div v-if="lastRoll" class="border-t border-border pt-3 flex items-center justify-between">
-                <span class="font-fell text-xs text-muted-foreground italic">{{ lastRoll.label }}</span>
+                <span class="text-caption text-muted-foreground italic">{{ lastRoll.label }}</span>
                 <span class="font-cinzel text-lg font-bold text-foreground">{{ lastRoll.total }}</span>
               </div>
             </template>

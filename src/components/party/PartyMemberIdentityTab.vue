@@ -37,7 +37,7 @@
             {{ p.display_name || p.user_id.slice(0, 8) }}
           </option>
         </select>
-        <p v-if="!players.length" class="font-fell text-xs text-muted-foreground/60 italic mt-1">
+        <p v-if="!players.length" class="text-caption text-muted-foreground/60 italic mt-1">
           No players have joined yet — share an invite link first.
         </p>
       </label>
@@ -73,11 +73,11 @@
         <button
           v-if="form.disguise_species_id"
           type="button"
-          class="font-fell text-xs text-muted-foreground hover:text-destructive transition-colors italic"
+          class="text-caption text-muted-foreground hover:text-destructive transition-colors italic"
           @click="clearDisguise"
         >Clear disguise</button>
       </div>
-      <p class="font-fell text-xs text-muted-foreground/70 italic -mt-1">
+      <p class="text-caption text-muted-foreground/70 italic -mt-1">
         Other players will see this species' full entry instead of the true race.
       </p>
       <div class="grid grid-cols-2 gap-3">
@@ -109,13 +109,13 @@
       <div class="col-span-2 rounded-md border border-border/60 bg-muted/20 px-3 py-2 flex items-center justify-between">
         <div>
           <span class="field-label block mb-0.5">Class</span>
-          <span class="font-fell text-sm text-foreground">
+          <span class="text-body text-foreground">
             {{ hasMulticlassData ? multiclassLabel : (form.class + (form.subclass ? ' — ' + form.subclass : '')) }}
           </span>
         </div>
         <RouterLink
           :to="{ name: 'play-character-levelup', query: { memberId, targetLevel: (hasMulticlassData ? multiclassTotal : form.level) + 1 } }"
-          class="font-fell text-xs text-gold-400 hover:text-gold-300 underline italic transition-colors"
+          class="text-caption text-gold-400 hover:text-gold-300 underline italic transition-colors"
           @click="emit('close')"
         >Level Up →</RouterLink>
       </div>

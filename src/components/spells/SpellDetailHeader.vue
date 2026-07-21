@@ -47,7 +47,7 @@
           {{ isSaving ? "Saving…" : hasSpell ? "Save" : "Create" }}
         </button>
       </template>
-      <span v-else class="font-fell text-xs text-muted-foreground italic">SRD spell — art only</span>
+      <span v-else class="text-caption text-muted-foreground italic">SRD spell — art only</span>
     </div>
   </div>
 </template>

@@ -8,7 +8,7 @@
       <input
         :value="armorClass"
         placeholder="e.g. 13 + DEX modifier (max 2)"
-        class="bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        class="bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         @input="emit('update:armorClass', ($event.target as HTMLInputElement).value)"
       />
     </label>

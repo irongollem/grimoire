@@ -25,12 +25,12 @@
         <!-- Generating state -->
         <div v-if="isGenerating" class="flex flex-col items-center gap-3 py-4">
           <IconGenerate class="h-7 w-7 text-primary animate-pulse" />
-          <p class="font-fell text-sm text-muted-foreground italic text-center">
+          <p class="text-body text-muted-foreground italic text-center">
             {{ currentLoadingQuote }}
           </p>
           <button
             type="button"
-            class="mt-1 font-fell text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+            class="mt-1 text-caption text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
             @click="dismissToBackground"
           >
             Continue in background
@@ -42,7 +42,7 @@
           v-else-if="genError"
           class="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2"
         >
-          <p class="font-fell text-xs text-destructive">{{ genError }}</p>
+          <p class="text-caption text-destructive">{{ genError }}</p>
         </div>
 
         <!-- Results state -->
@@ -53,7 +53,7 @@
             </p>
             <button
               type="button"
-              class="font-fell text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+              class="text-caption text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
               @click="clearResult"
             >
               Regenerate
@@ -65,13 +65,13 @@
               <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight">{{ result.name }}</h3>
               <span class="text-label px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold shrink-0">{{ die }}</span>
             </div>
-            <p v-if="result.description" class="font-fell text-xs text-muted-foreground italic">{{ result.description }}</p>
+            <p v-if="result.description" class="text-caption text-muted-foreground italic">{{ result.description }}</p>
 
             <ul class="space-y-1.5">
               <li
                 v-for="(entry, i) in result.entries"
                 :key="i"
-                class="flex items-start gap-2 font-fell text-xs text-foreground"
+                class="flex items-start gap-2 text-caption text-foreground"
               >
                 <span class="text-label text-primary font-semibold shrink-0 mt-0.5 w-8 text-right">
                   {{ entry.min === entry.max ? entry.min : `${entry.min}–${entry.max}` }}
@@ -87,7 +87,7 @@
               <span
                 v-for="tag in result.tags"
                 :key="tag"
-                class="rounded-full bg-muted border border-border px-2 py-0.5 font-fell text-2xs text-muted-foreground"
+                class="rounded-full bg-muted border border-border px-2 py-0.5 text-caption-sm text-muted-foreground"
               >
                 {{ tag }}
               </span>
@@ -108,11 +108,11 @@
               rows="4"
               :maxlength="CONCEPT_LIMIT"
               placeholder="Forest road at night, bandits active in the region, levels 3–5…"
-              class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+              class="w-full bg-muted border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
             />
             <div class="flex justify-end mt-1">
               <span
-                class="font-fell text-xs"
+                class="text-caption"
                 :class="concept.length >= CONCEPT_LIMIT * 0.9 ? 'text-destructive' : 'text-muted-foreground/50'"
               >{{ concept.length }} / {{ CONCEPT_LIMIT }}</span>
             </div>

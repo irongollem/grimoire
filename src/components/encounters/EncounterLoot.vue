@@ -8,7 +8,7 @@
     </div>
     <div class="p-2 flex flex-col gap-1">
       <!-- Empty state -->
-      <p v-if="!totalCount" class="font-fell text-xs text-muted-foreground italic px-2 py-1">
+      <p v-if="!totalCount" class="text-caption text-muted-foreground italic px-2 py-1">
         No loot added yet.
       </p>
 
@@ -21,7 +21,7 @@
         <IconPackage class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
         <RouterLink
           :to="`/vault/${item.id}`"
-          class="font-fell text-sm text-foreground flex-1 truncate hover:text-primary transition-colors"
+          class="text-body text-foreground flex-1 truncate hover:text-primary transition-colors"
         >{{ item.name }}</RouterLink>
 
         <!-- Qty controls -->
@@ -64,7 +64,7 @@
             :value="pool.label"
             type="text"
             placeholder="Label (e.g. Iron Chest)…"
-            class="flex-1 bg-transparent border-b border-border px-1 py-0.5 font-fell text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary transition-colors"
+            class="flex-1 bg-transparent border-b border-border px-1 py-0.5 text-caption text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary transition-colors"
             @input="updatePool(pool.id, 'label', ($event.target as HTMLInputElement).value)"
           />
           <button
@@ -93,7 +93,7 @@
               :value="pool[coin.key as keyof typeof pool]"
               type="number"
               min="0"
-              class="w-full text-center bg-card border border-border rounded px-1 py-0.5 font-fell text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-full text-center bg-card border border-border rounded px-1 py-0.5 text-caption text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               @input="updatePool(pool.id, coin.key, Number(($event.target as HTMLInputElement).value) || 0)"
             />
           </div>
@@ -122,7 +122,7 @@
         <!-- Add currency pool -->
         <button
           type="button"
-          class="w-full flex items-center gap-2 rounded-md border border-border px-3 py-2 font-fell text-sm text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors"
+          class="w-full flex items-center gap-2 rounded-md border border-border px-3 py-2 text-body text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors"
           @click="addPool"
         >
           <IconAdd class="h-3.5 w-3.5 shrink-0" />

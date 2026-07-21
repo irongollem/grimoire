@@ -44,10 +44,10 @@
             <IconPackage v-else class="w-5 h-5 text-muted-foreground shrink-0" />
             <div class="flex-1 min-w-0">
               <div class="flex items-baseline gap-2">
-                <span class="font-fell text-sm font-semibold text-foreground truncate">{{ atom.item_name }}</span>
+                <span class="text-body font-semibold text-foreground truncate">{{ atom.item_name }}</span>
                 <span v-if="atom.item_rarity" class="font-cinzel text-[0.5625rem] uppercase tracking-wider text-muted-foreground shrink-0">{{ atom.item_rarity }}</span>
               </div>
-              <span v-if="atomClaim(atom.atom_id)" class="font-fell text-2xs text-muted-foreground italic">
+              <span v-if="atomClaim(atom.atom_id)" class="text-caption-sm text-muted-foreground italic">
                 claimed by {{ atomClaim(atom.atom_id)!.claimed_by_name }}
               </span>
             </div>
@@ -58,11 +58,11 @@
             <IconCoins class="w-5 h-5 text-amber-400 shrink-0" />
             <div class="flex-1 min-w-0">
               <div class="flex items-baseline gap-2">
-                <span class="font-fell text-sm font-semibold text-foreground truncate">
+                <span class="text-body font-semibold text-foreground truncate">
                   {{ atom.currency_label ? atom.currency_label + ': ' : '' }}{{ formatCoinParts(atom.pp ?? 0, atom.gp ?? 0, atom.ep ?? 0, atom.sp ?? 0, atom.cp ?? 0).join(', ') || '0 GP' }}
                 </span>
               </div>
-              <span v-if="atomClaim(atom.atom_id)" class="font-fell text-2xs text-muted-foreground italic">
+              <span v-if="atomClaim(atom.atom_id)" class="text-caption-sm text-muted-foreground italic">
                 claimed by {{ atomClaim(atom.atom_id)!.claimed_by_name }}
               </span>
             </div>
@@ -72,8 +72,8 @@
           <template v-else>
             <IconPackage class="w-5 h-5 text-muted-foreground shrink-0" />
             <div class="flex-1 min-w-0">
-              <span class="font-fell text-sm font-semibold text-foreground truncate">{{ atom.item_name }}</span>
-              <span v-if="atomClaim(atom.atom_id)" class="font-fell text-2xs text-muted-foreground italic block">
+              <span class="text-body font-semibold text-foreground truncate">{{ atom.item_name }}</span>
+              <span v-if="atomClaim(atom.atom_id)" class="text-caption-sm text-muted-foreground italic block">
                 claimed by {{ atomClaim(atom.atom_id)!.claimed_by_name }}
               </span>
             </div>

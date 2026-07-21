@@ -19,7 +19,7 @@
           placeholder="Search vault or enter custom name…"
           required
           autocomplete="off"
-          class="w-full bg-background border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full bg-background border border-border rounded px-2 py-1.5 text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
           @input="onItemSearchInput"
           @focus="onItemSearchInput"
           @keydown.escape="showItemDropdown = false"
@@ -34,7 +34,7 @@
             :key="item.id"
             :ref="(el) => { if (el) dropdownItemRefs[idx] = el as HTMLButtonElement }"
             type="button"
-            class="w-full text-left px-3 py-1.5 font-fell text-sm text-foreground hover:bg-muted transition-colors flex items-baseline gap-2"
+            class="w-full text-left px-3 py-1.5 text-body text-foreground hover:bg-muted transition-colors flex items-baseline gap-2"
             @click="selectCatalogItem(item)"
             @keydown.down.prevent="focusDropdownItem(idx + 1)"
             @keydown.up.prevent="idx === 0 ? undefined : focusDropdownItem(idx - 1)"
@@ -46,7 +46,7 @@
           <div v-if="newItem.name.trim()" class="border-t border-border">
             <button
               type="button"
-              class="w-full text-left px-3 py-1.5 font-fell text-sm text-primary hover:bg-muted transition-colors flex items-center gap-2"
+              class="w-full text-left px-3 py-1.5 text-body text-primary hover:bg-muted transition-colors flex items-center gap-2"
               @click="router.push({ path: '/vault/new', query: { name: newItem.name.trim(), redirect: '/party' } })"
             >
               <IconExternalLink class="h-3.5 w-3.5 shrink-0" />
@@ -61,11 +61,11 @@
         type="number"
         min="1"
         placeholder="Qty"
-        class="w-14 bg-background border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+        class="w-14 bg-background border border-border rounded px-2 py-1.5 text-body text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
       />
       <select
         v-model="newItem.carried_by"
-        class="bg-background border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        class="bg-background border border-border rounded px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
       >
         <option value="">— party</option>
         <option v-for="m in party" :key="m.id" :value="m.id">{{ m.name }}</option>
@@ -73,7 +73,7 @@
       <input
         v-model="newItem.notes"
         placeholder="Notes (optional)"
-        class="flex-1 min-w-32 bg-background border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
+        class="flex-1 min-w-32 bg-background border border-border rounded px-2 py-1.5 text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
       />
       <div class="flex gap-1.5 ml-auto">
         <button type="button" class="px-3 py-1.5 rounded border border-border font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors" @click="addItemOpen = false">Cancel</button>
@@ -108,15 +108,15 @@
             <RouterLink
               v-if="item.item_id"
               :to="`/vault/${item.item_id}`"
-              class="font-fell text-sm text-foreground leading-tight truncate hover:text-primary transition-colors"
+              class="text-body text-foreground leading-tight truncate hover:text-primary transition-colors"
             >{{ item.name }}</RouterLink>
-            <p v-else class="font-fell text-sm text-foreground leading-tight truncate">{{ item.name }}</p>
+            <p v-else class="text-body text-foreground leading-tight truncate">{{ item.name }}</p>
             <span
               v-if="item.item_id && catalogItemMap.get(item.item_id)"
               class="hidden sm:inline font-cinzel text-[0.5625rem] text-muted-foreground/60 shrink-0"
             >{{ ITEM_TYPE_LABELS[catalogItemMap.get(item.item_id)!.item_type] }}</span>
           </div>
-          <p v-if="item.notes" class="font-fell text-xs text-muted-foreground italic truncate">{{ item.notes }}</p>
+          <p v-if="item.notes" class="text-caption text-muted-foreground italic truncate">{{ item.notes }}</p>
         </div>
         <div class="flex items-center gap-1 shrink-0">
           <button type="button" class="count-btn-sm" @click="changeQty(item, -1)">−</button>
@@ -125,7 +125,7 @@
         </div>
         <select
           :value="item.carried_by ?? ''"
-          class="hidden sm:block bg-muted/40 border border-border rounded px-2 py-0.5 font-fell text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring shrink-0 max-w-28"
+          class="hidden sm:block bg-muted/40 border border-border rounded px-2 py-0.5 text-caption text-foreground focus:outline-none focus:ring-1 focus:ring-ring shrink-0 max-w-28"
           @change="updateCarrier(item, ($event.target as HTMLSelectElement).value)"
         >
           <option value="">— party</option>
@@ -158,7 +158,7 @@
       </div>
     </div>
     <div v-else-if="!addItemOpen" class="px-4 py-6 text-center">
-      <p class="font-fell text-xs text-muted-foreground italic">No items yet. Add loot, equipment, or quest items.</p>
+      <p class="text-caption text-muted-foreground italic">No items yet. Add loot, equipment, or quest items.</p>
     </div>
 
   </div>

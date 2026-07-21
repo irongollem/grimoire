@@ -5,7 +5,7 @@
     <div class="space-y-3">
       <p class="text-label-lg font-semibold text-muted-foreground">BACKGROUND</p>
       <div v-if="!allBackgrounds?.length" class="rounded-lg border border-border bg-card p-6 text-center">
-        <p class="font-fell text-sm text-muted-foreground italic">No backgrounds in the campaign yet — skip for now.</p>
+        <p class="text-body text-muted-foreground italic">No backgrounds in the campaign yet — skip for now.</p>
       </div>
       <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <button v-for="bg in allBackgrounds" :key="bg.id" type="button"
@@ -54,7 +54,7 @@
                 {{ bg.languages.length === 1 ? bg.languages[0] : `${bg.languages.length} languages` }}
               </span>
             </div>
-            <p v-if="bg.feature_name" class="font-fell text-xs text-muted-foreground mt-1.5 italic line-clamp-1">
+            <p v-if="bg.feature_name" class="text-caption text-muted-foreground mt-1.5 italic line-clamp-1">
               {{ bg.feature_name }}
             </p>
             <p v-if="bg.source_title" class="font-cinzel text-[0.5625rem] text-muted-foreground/50 mt-1">
@@ -73,7 +73,7 @@
         </div>
         <p class="font-cinzel text-sm font-bold text-foreground">{{ selectedBg.feat_grant_name }}</p>
         <p v-if="selectedBg.feat_grant_description && typeof selectedBg.feat_grant_description === 'string' && !selectedBg.feat_grant_description.startsWith('{')"
-          class="font-fell text-sm text-foreground/80">
+          class="text-body text-foreground/80">
           {{ selectedBg.feat_grant_description }}
         </p>
       </div>
@@ -81,7 +81,7 @@
       <!-- Starting equipment preview -->
       <div v-if="selectedBg?.equipment" class="rounded-lg border border-primary/20 bg-primary/3 p-3 space-y-1">
         <p class="text-label-lg font-semibold text-primary/80">STARTING EQUIPMENT</p>
-        <p class="font-fell text-sm text-foreground/80 whitespace-pre-wrap">{{ selectedBg.equipment }}</p>
+        <p class="text-body text-foreground/80 whitespace-pre-wrap">{{ selectedBg.equipment }}</p>
         <p class="text-label text-muted-foreground">
           Manage inventory import on the Equipment step →
         </p>
@@ -124,7 +124,7 @@
               <li
                 v-for="d in deityHints"
                 :key="d.id"
-                class="flex items-baseline gap-1.5 px-3 py-2 font-fell text-sm text-foreground hover:bg-muted cursor-pointer"
+                class="flex items-baseline gap-1.5 px-3 py-2 text-body text-foreground hover:bg-muted cursor-pointer"
                 @mousedown.prevent="selectDeity(d.id, d.name)"
               >
                 <span>{{ d.name }}</span>

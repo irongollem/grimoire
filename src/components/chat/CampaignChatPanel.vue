@@ -27,7 +27,7 @@
             >
               {{ msg.sender_name ?? "Unknown" }}
             </span>
-            <span class="font-fell text-xs text-muted-foreground italic flex-1">
+            <span class="text-caption text-muted-foreground italic flex-1">
               {{ (msg.metadata as RollMetadata).label }}
             </span>
             <span class="font-cinzel text-xs text-muted-foreground">
@@ -43,13 +43,13 @@
             </span>
             <!-- Damage roll: show individual die values -->
             <template v-if="(msg.metadata as RollMetadata).isDamage">
-              <span class="font-fell text-sm text-muted-foreground">
+              <span class="text-body text-muted-foreground">
                 [{{ (msg.metadata as RollMetadata).breakdown.filter(d => !d.dropped).map(d => d.val).join("+") }}]
               </span>
             </template>
             <!-- d20 check: show d20 value + modifier + crit/fumble -->
             <template v-else>
-              <span class="font-fell text-sm text-muted-foreground">
+              <span class="text-body text-muted-foreground">
                 <template v-if="getDice(msg.metadata as RollMetadata) !== null">
                   d20 ({{ getDice(msg.metadata as RollMetadata) }})
                 </template>
@@ -88,14 +88,14 @@
               {{ formatTime(msg.created_at) }}
             </span>
           </div>
-          <p class="font-fell text-sm text-foreground mt-0.5">
+          <p class="text-body text-foreground mt-0.5">
             {{ msg.message }}
           </p>
         </template>
       </div>
 
       <div v-if="!isLoading && !messages?.length" class="text-center py-8">
-        <p class="font-fell text-sm text-muted-foreground italic">
+        <p class="text-body text-muted-foreground italic">
           No messages yet. Roll a skill to get started!
         </p>
       </div>
@@ -110,7 +110,7 @@
         >
         <select
           v-model="whisperTarget"
-          class="flex-1 bg-muted/40 border border-border rounded px-2 py-0.5 font-fell text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="flex-1 bg-muted/40 border border-border rounded px-2 py-0.5 text-caption text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         >
           <option value="">Everyone</option>
           <option v-for="m in otherMembers" :key="m.id" :value="m.user_id">
@@ -124,7 +124,7 @@
           type="text"
           :placeholder="whisperTarget ? `Whisper…` : 'Say something…'"
           :class="whisperTarget ? 'border-amber-500/40 bg-amber-500/5' : ''"
-          class="flex-1 bg-muted/30 border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="flex-1 bg-muted/30 border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           @keydown.enter="sendChat"
         />
         <button

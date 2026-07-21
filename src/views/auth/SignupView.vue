@@ -10,7 +10,7 @@
     <!-- Token invalid / expired -->
     <template v-else-if="tokenState === 'invalid'">
       <h2 class="font-cinzel text-xl font-semibold text-destructive mb-1">Link Invalid</h2>
-      <p class="font-fell text-muted-foreground italic text-sm">
+      <p class="text-body text-muted-foreground italic">
         This invite link has expired or already been used. Ask your DM for a new one.
       </p>
     </template>
@@ -18,11 +18,11 @@
     <!-- Public signup or valid invite — show signup form -->
     <template v-else>
       <h2 class="font-cinzel text-xl font-semibold text-foreground mb-1">Begin your journey</h2>
-      <p class="font-fell text-muted-foreground italic text-sm mb-6">Create your Grimoire account</p>
+      <p class="text-body text-muted-foreground italic mb-6">Create your Grimoire account</p>
 
       <form class="space-y-4" @submit.prevent="handleSubmit">
         <div class="space-y-1.5">
-          <label class="font-fell text-sm text-foreground" for="display-name">Username</label>
+          <label class="text-body text-foreground" for="display-name">Username</label>
           <input
             id="display-name"
             v-model="displayName"
@@ -35,7 +35,7 @@
         </div>
 
         <div class="space-y-1.5">
-          <label class="font-fell text-sm text-foreground" for="email">Email</label>
+          <label class="text-body text-foreground" for="email">Email</label>
           <input
             id="email"
             v-model="email"
@@ -48,7 +48,7 @@
         </div>
 
         <div class="space-y-1.5">
-          <label class="font-fell text-sm text-foreground" for="password">Password</label>
+          <label class="text-body text-foreground" for="password">Password</label>
           <input
             id="password"
             v-model="password"
@@ -61,10 +61,10 @@
           />
         </div>
 
-        <p v-if="successMessage" class="text-sm text-elven-green font-fell">{{ successMessage }}</p>
-        <p v-if="errorMessage" class="text-sm text-destructive font-fell">{{ errorMessage }}</p>
+        <p v-if="successMessage" class="text-body text-elven-green">{{ successMessage }}</p>
+        <p v-if="errorMessage" class="text-body text-destructive">{{ errorMessage }}</p>
 
-        <label class="flex items-start gap-2 font-fell text-xs text-muted-foreground">
+        <label class="flex items-start gap-2 text-caption text-muted-foreground">
           <input
             v-model="agreedToTerms"
             type="checkbox"
@@ -88,7 +88,7 @@
         </button>
       </form>
 
-      <p class="mt-6 text-center font-fell text-sm text-muted-foreground">
+      <p class="mt-6 text-center text-body text-muted-foreground">
         Already have an account?
         <RouterLink to="/login" class="text-gold-400 hover:text-gold-300 underline">
           Enter the realm

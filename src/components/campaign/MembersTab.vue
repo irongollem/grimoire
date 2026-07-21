@@ -68,7 +68,7 @@
           class="flex items-center gap-2 shrink-0"
         >
           <label
-            class="font-fell text-xs text-muted-foreground italic whitespace-nowrap"
+            class="text-caption text-muted-foreground italic whitespace-nowrap"
           >
             Character:
           </label>
@@ -83,7 +83,7 @@
 
         <!-- DM label -->
         <div v-else class="shrink-0">
-          <p class="font-fell text-xs text-muted-foreground italic">
+          <p class="text-caption text-muted-foreground italic">
             Dungeon Master
           </p>
         </div>
@@ -106,7 +106,7 @@
         class="rounded-lg border border-dashed border-border p-8 text-center"
       >
         <IconParty class="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
-        <p class="font-fell text-muted-foreground italic text-sm">
+        <p class="text-body text-muted-foreground italic">
           No players have joined yet — generate an invite link below to get started.
         </p>
       </div>
@@ -116,7 +116,7 @@
         <h3 class="font-cinzel text-sm font-semibold text-foreground">
           Characters without a player
         </h3>
-        <p class="font-fell text-xs text-muted-foreground italic">
+        <p class="text-caption text-muted-foreground italic">
           These still show on the dashboard and party tracker but aren't attached
           to anyone. Assign one to a player above, or remove it.
         </p>
@@ -129,7 +129,7 @@
             <p class="font-cinzel text-sm font-semibold text-foreground truncate">
               {{ pm.name }}
             </p>
-            <p class="font-fell text-xs text-muted-foreground italic truncate">
+            <p class="text-caption text-muted-foreground italic truncate">
               {{ pm.class || "Adventurer" }}{{ pm.level ? ` · Level ${pm.level}` : "" }}
             </p>
           </div>
@@ -157,7 +157,7 @@
         <h3 class="font-cinzel text-lg font-semibold text-foreground">
           Remove Player?
         </h3>
-        <p class="font-fell text-sm text-muted-foreground italic">
+        <p class="text-body text-muted-foreground italic">
           Remove
           <strong class="text-foreground">{{
             memberToRemove.display_name || "this player"
@@ -173,7 +173,7 @@
             type="checkbox"
             class="mt-1 accent-destructive"
           />
-          <span class="font-fell text-sm text-muted-foreground italic">
+          <span class="text-body text-muted-foreground italic">
             Also delete their character<span v-if="removedPlayerCharacters.length > 1">s</span>
             <strong class="text-foreground">{{ removedCharacterNames }}</strong>
             from the party. If unchecked, the character stays on the dashboard and
@@ -182,13 +182,13 @@
         </label>
         <div class="flex gap-2 justify-end">
           <button
-            class="px-3 py-1.5 rounded-md border border-border text-sm font-fell text-muted-foreground hover:text-foreground transition-colors"
+            class="px-3 py-1.5 rounded-md border border-border text-body text-muted-foreground hover:text-foreground transition-colors"
             @click="memberToRemove = null"
           >
             Cancel
           </button>
           <button
-            class="px-3 py-1.5 rounded-md bg-destructive text-destructive-foreground text-sm font-fell hover:opacity-90 transition-opacity"
+            class="px-3 py-1.5 rounded-md bg-destructive text-destructive-foreground text-body hover:opacity-90 transition-opacity"
             :disabled="removeMember.isPending.value || deleteCharacter.isPending.value"
             @click="doRemove"
           >

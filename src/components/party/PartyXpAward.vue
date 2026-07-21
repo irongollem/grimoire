@@ -14,7 +14,7 @@
           min="0"
           step="10"
           placeholder="0"
-          class="w-24 bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          class="w-24 bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
       </label>
 

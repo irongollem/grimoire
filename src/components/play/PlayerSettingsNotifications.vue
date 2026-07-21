@@ -5,7 +5,7 @@
       <div class="flex items-center justify-between">
         <div>
           <p class="font-cinzel text-xs text-foreground tracking-wide">Turn audio cue</p>
-          <p class="font-fell text-xs text-muted-foreground italic">A short chime plays when your turn begins.</p>
+          <p class="text-caption text-muted-foreground italic">A short chime plays when your turn begins.</p>
         </div>
         <button
           type="button"
@@ -24,7 +24,7 @@
       <div class="flex items-center justify-between">
         <div>
           <p class="font-cinzel text-xs text-foreground tracking-wide">Dice roll sounds</p>
-          <p class="font-fell text-xs text-muted-foreground italic">A clack plays on every roll. Crits and fumbles have distinct sounds.</p>
+          <p class="text-caption text-muted-foreground italic">A clack plays on every roll. Crits and fumbles have distinct sounds.</p>
         </div>
         <button
           type="button"
@@ -48,7 +48,7 @@
     <div class="flex items-center justify-between">
       <div>
         <p class="font-cinzel text-xs text-foreground tracking-wide">Dice source</p>
-        <p class="font-fell text-xs text-muted-foreground italic">Physical mode prompts you to enter the result of dice you rolled yourself.</p>
+        <p class="text-caption text-muted-foreground italic">Physical mode prompts you to enter the result of dice you rolled yourself.</p>
       </div>
       <div class="flex rounded-md border border-border overflow-hidden text-label md:text-sm shrink-0 ml-3">
         <button

@@ -1,7 +1,7 @@
 <template>
   <div>
     <h1 class="font-cinzel text-xl font-bold text-foreground mb-1">Factions</h1>
-    <p class="font-fell text-sm text-muted-foreground italic mb-6">Organizations and powers at play in the world.</p>
+    <p class="text-body text-muted-foreground italic mb-6">Organizations and powers at play in the world.</p>
 
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
@@ -9,7 +9,7 @@
 
     <p
       v-else-if="!factions?.length"
-      class="text-center font-fell text-sm text-muted-foreground italic py-12"
+      class="text-center text-body text-muted-foreground italic py-12"
     >
       No factions have been revealed yet.
     </p>
@@ -21,7 +21,7 @@
           v-model="ui.playerFactionsSearch"
           type="search"
           placeholder="Filter factions…"
-          class="flex-1 min-w-40 bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="flex-1 min-w-40 bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
         <button
           v-if="ui.playerFactionsHasActiveFilters"
@@ -31,7 +31,7 @@
         >Clear</button>
       </div>
 
-      <p v-if="!filtered.length" class="font-fell text-sm text-muted-foreground italic text-center py-6">
+      <p v-if="!filtered.length" class="text-body text-muted-foreground italic text-center py-6">
         No factions match your filter.
       </p>
 
@@ -55,7 +55,7 @@
             </div>
             <div class="flex-1 min-w-0">
               <h3 class="font-cinzel text-sm font-bold text-foreground truncate">{{ faction.name }}</h3>
-              <p v-if="faction.faction_type" class="font-fell text-xs text-muted-foreground italic">{{ faction.faction_type }}</p>
+              <p v-if="faction.faction_type" class="text-caption text-muted-foreground italic">{{ faction.faction_type }}</p>
               <div v-if="faction.tags?.length" class="flex flex-wrap gap-1 mt-1">
                 <span
                   v-for="tag in faction.tags.slice(0, 3)"
@@ -87,7 +87,7 @@
             </div>
             <div class="flex-1 min-w-0">
               <h2 class="font-cinzel text-base font-bold text-foreground">{{ selected.name }}</h2>
-              <p v-if="selected.faction_type || selected.alignment" class="font-fell text-xs text-muted-foreground italic">
+              <p v-if="selected.faction_type || selected.alignment" class="text-caption text-muted-foreground italic">
                 {{ [selected.faction_type, selected.alignment].filter(Boolean).join(' · ') }}
               </p>
             </div>
@@ -121,7 +121,7 @@
                 >
                   <div class="flex-1 min-w-0">
                     <span class="font-cinzel text-xs font-semibold text-foreground">{{ entry.party_member.name }}</span>
-                    <span v-if="speciesNameMap.get(entry.party_member.species_id ?? '') || entry.party_member.class" class="font-fell text-xs text-muted-foreground italic ml-2">
+                    <span v-if="speciesNameMap.get(entry.party_member.species_id ?? '') || entry.party_member.class" class="text-caption text-muted-foreground italic ml-2">
                       {{ [speciesNameMap.get(entry.party_member.species_id ?? ''), entry.party_member.class].filter(Boolean).join(' · ') }}
                     </span>
                     <span v-if="entry.party_member.id === myMemberId" class="text-label md:text-sm text-emerald-400 ml-2">(You)</span>
@@ -136,7 +136,7 @@
                 >
                   <div class="flex-1 min-w-0">
                     <span class="font-cinzel text-xs font-semibold text-foreground">{{ getNpcDisplayName(entry.npc) ?? '???' }}</span>
-                    <span v-if="entry.npc.race || entry.npc.occupation" class="font-fell text-xs text-muted-foreground italic ml-2">
+                    <span v-if="entry.npc.race || entry.npc.occupation" class="text-caption text-muted-foreground italic ml-2">
                       {{ [entry.npc.race, entry.npc.occupation].filter(Boolean).join(' · ') }}
                     </span>
                   </div>

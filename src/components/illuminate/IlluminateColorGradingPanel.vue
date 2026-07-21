@@ -53,7 +53,7 @@
           <label class="text-eyebrow text-muted-foreground">
             {{ gs.label }}
           </label>
-          <span class="font-fell text-xs text-muted-foreground tabular-nums">
+          <span class="text-caption text-muted-foreground tabular-nums">
             {{ gradingDisplay(gs.key) }}
           </span>
         </div>

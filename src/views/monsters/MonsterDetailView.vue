@@ -71,7 +71,7 @@
         <!-- Whole party -->
         <button
           type="button"
-          class="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left font-fell text-xs transition-colors"
+          class="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left text-caption transition-colors"
           :class="currentDiscovery && allPartyIds.every(id => isMemberVisible(id))
             ? 'bg-primary/15 text-primary'
             : 'text-foreground hover:bg-muted/50'"
@@ -87,7 +87,7 @@
             v-for="member in party"
             :key="member.id"
             type="button"
-            class="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left font-fell text-xs transition-colors"
+            class="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left text-caption transition-colors"
             :class="isMemberVisible(member.id)
               ? 'bg-primary/15 text-primary'
               : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'"
@@ -102,7 +102,7 @@
         <div v-if="currentDiscovery" class="border-t border-border pt-1">
           <button
             type="button"
-            class="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left font-fell text-xs transition-colors"
+            class="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left text-caption transition-colors"
             :class="currentDiscovery.reveal_stats
               ? 'bg-primary/15 text-primary'
               : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'"
@@ -118,13 +118,13 @@
           <button
             v-if="currentDiscovery"
             type="button"
-            class="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left font-fell text-xs text-destructive hover:bg-destructive/10 transition-colors"
+            class="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left text-caption text-destructive hover:bg-destructive/10 transition-colors"
             @click="unshare"
           >
             <IconHide class="h-3 w-3 shrink-0" />
             Hide from all players
           </button>
-          <p v-else class="font-fell text-2xs text-muted-foreground italic px-2">
+          <p v-else class="text-caption-sm text-muted-foreground italic px-2">
             Select players above to share.
           </p>
         </div>

@@ -32,7 +32,7 @@
           </p>
           <p
             v-if="npc.occupation || npc.race"
-            class="font-fell text-xs text-muted-foreground italic truncate"
+            class="text-caption text-muted-foreground italic truncate"
           >
             {{ [npc.race, npc.occupation].filter(Boolean).join(" · ") }}
           </p>
@@ -109,7 +109,7 @@
       </RouterLink>
       <span
         v-if="m.class"
-        class="font-fell text-2xs text-muted-foreground italic"
+        class="text-caption-sm text-muted-foreground italic"
         >{{ m.class }}</span
       >
       <button
@@ -122,7 +122,7 @@
       </button>
     </div>
   </div>
-  <p v-else class="font-fell text-xs text-muted-foreground italic">
+  <p v-else class="text-caption text-muted-foreground italic">
     No party members currently here.
   </p>
 

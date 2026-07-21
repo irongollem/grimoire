@@ -40,7 +40,7 @@
                 <span class="font-cinzel text-sm font-bold" :class="hpColor">
                   {{ previewHp }}
                   <span
-                    class="font-fell text-xs text-muted-foreground font-normal"
+                    class="text-caption text-muted-foreground font-normal"
                     >/ {{ member.max_hp }}</span
                   >
                 </span>
@@ -102,7 +102,7 @@
 
               <!-- Long rest: show dice recovery -->
               <template v-else>
-                <p class="font-fell text-xs text-muted-foreground italic">
+                <p class="text-caption text-muted-foreground italic">
                   You regain {{ diceRecovered }} expended hit
                   {{ diceRecovered === 1 ? "die" : "dice" }} after sleeping.
                 </p>
@@ -112,7 +112,7 @@
             <!-- Long rest summary -->
             <div
               v-if="mode === 'long'"
-              class="space-y-1 text-xs font-fell text-muted-foreground"
+              class="space-y-1 text-caption text-muted-foreground"
             >
               <p class="flex items-center gap-1.5">
                 <span class="text-elven-green">✓</span> Full HP restored

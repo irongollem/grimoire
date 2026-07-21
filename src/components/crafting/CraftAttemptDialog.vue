@@ -9,7 +9,7 @@
         <div class="flex items-center justify-between px-5 py-4 border-b border-border">
           <div>
             <h2 class="font-cinzel text-base font-bold text-foreground">{{ recipe.name }}</h2>
-            <p class="font-fell text-xs text-muted-foreground italic">
+            <p class="text-caption text-muted-foreground italic">
               {{ discipline.label }} · DC {{ recipe.dc }} ·
               <span class="capitalize">{{ discipline.ability }} check</span>
               <span v-if="hasProficiency && profBonus > 0"> + proficiency</span>
@@ -38,7 +38,7 @@
                 <component :is="ing.matched ? IconCheckCircle : IconCloseCircle" class="h-4 w-4 shrink-0" :class="ing.matched ? 'text-elven-green' : 'text-destructive'" />
                 <div class="flex-1 min-w-0">
                   <p class="font-cinzel text-xs font-semibold text-foreground truncate" :class="{ italic: !ing.item_id }">{{ ing.itemName }}</p>
-                  <p class="font-fell text-2xs text-muted-foreground">Need {{ ing.needed }}×<span v-if="ing.matched"> · Have {{ ing.available }}×</span></p>
+                  <p class="text-caption-sm text-muted-foreground">Need {{ ing.needed }}×<span v-if="ing.matched"> · Have {{ ing.available }}×</span></p>
                 </div>
                 <span v-if="idx === 0" class="font-cinzel text-[0.5625rem] text-primary tracking-wider shrink-0">PRIMARY</span>
               </div>
@@ -51,7 +51,7 @@
             class="flex items-start gap-2 rounded-md border border-gold-500/40 bg-gold-500/10 px-3 py-2.5"
           >
             <IconWarning class="h-4 w-4 text-gold-400 shrink-0 mt-0.5" />
-            <p class="font-fell text-xs text-gold-400">
+            <p class="text-caption text-gold-400">
               You don't have <span class="font-semibold">{{ discipline.tools.join(' or ') }}</span> proficiency.
               No proficiency bonus is added to this roll.
             </p>
@@ -63,7 +63,7 @@
             class="flex items-start gap-2 rounded-md border border-gold-500/40 bg-gold-500/10 px-3 py-2.5"
           >
             <IconWarning class="h-4 w-4 text-gold-400 shrink-0 mt-0.5" />
-            <p class="font-fell text-xs text-gold-400">
+            <p class="text-caption text-gold-400">
               You don't have <span class="font-semibold">{{ discipline.tools.join(' or ') }}</span> in your inventory.
               This roll is made at <span class="font-semibold">disadvantage</span> (roll twice, take lower).
             </p>
@@ -80,7 +80,7 @@
                 :class="workspaceEnabled ? 'border-primary/40 bg-primary/5' : ''"
               >
                 <input type="checkbox" class="accent-primary" v-model="workspaceEnabled" />
-                <span class="flex-1 font-fell text-sm text-foreground">{{ workspaceLabel }}</span>
+                <span class="flex-1 text-body text-foreground">{{ workspaceLabel }}</span>
                 <span class="font-cinzel text-xs text-primary font-semibold shrink-0">+{{ workspaceBonus }}</span>
               </label>
 
@@ -90,7 +90,7 @@
                 :class="poorIngredientsEnabled ? 'border-destructive/40 bg-destructive/5' : ''"
               >
                 <input type="checkbox" class="accent-primary" v-model="poorIngredientsEnabled" />
-                <span class="flex-1 font-fell text-sm text-foreground">Poor quality ingredients</span>
+                <span class="flex-1 text-body text-foreground">Poor quality ingredients</span>
                 <span class="font-cinzel text-xs text-destructive font-semibold shrink-0">{{ POOR_INGREDIENTS_PENALTY }}</span>
               </label>
 
@@ -107,7 +107,7 @@
                   :checked="selectedModifiers.has(idx)"
                   @change="toggleModifier(idx)"
                 />
-                <span class="flex-1 font-fell text-sm text-foreground">{{ mod.description }}</span>
+                <span class="flex-1 text-body text-foreground">{{ mod.description }}</span>
                 <span class="font-cinzel text-xs text-primary font-semibold shrink-0">+{{ mod.bonus }}</span>
               </label>
             </div>
@@ -116,7 +116,7 @@
           <!-- Error notice -->
           <div v-if="attemptError" class="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2.5">
             <IconWarning class="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-            <p class="font-fell text-xs text-destructive">{{ attemptError }}</p>
+            <p class="text-caption text-destructive">{{ attemptError }}</p>
           </div>
 
           <!-- Roll result -->
@@ -134,11 +134,11 @@
                 'text-destructive': result.outcome === 'ruin',
               }">{{ result.total }}</span>
               <div class="text-left">
-                <p class="font-fell text-xs text-muted-foreground">
+                <p class="text-caption text-muted-foreground">
                   d20: {{ result.roll }}
                   <span v-if="result.hasDisadvantage && result.roll2 !== undefined"> (rolled {{ Math.max(result.roll, result.roll2) }}, took {{ result.roll }})</span>
                 </p>
-                <p class="font-fell text-xs text-muted-foreground">vs DC {{ recipe.dc }}</p>
+                <p class="text-caption text-muted-foreground">vs DC {{ recipe.dc }}</p>
               </div>
             </div>
             <p class="font-cinzel text-sm font-bold tracking-wide"
@@ -150,7 +150,7 @@
             >
               {{ outcomeLabel }}
             </p>
-            <p class="font-fell text-xs text-muted-foreground italic mt-1">{{ outcomeDetail }}</p>
+            <p class="text-caption text-muted-foreground italic mt-1">{{ outcomeDetail }}</p>
           </div>
         </div>
 

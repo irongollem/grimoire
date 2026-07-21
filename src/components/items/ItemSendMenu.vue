@@ -43,7 +43,7 @@
         </button>
 
         <div v-if="showPlayerPicker" class="border-t border-border/50 bg-muted/40">
-          <p v-if="!party?.length" class="px-4 py-2 font-fell text-xs text-muted-foreground italic">
+          <p v-if="!party?.length" class="px-4 py-2 text-caption text-muted-foreground italic">
             No party members yet.
           </p>
           <button
@@ -51,7 +51,7 @@
             :key="member.id"
             type="button"
             :disabled="assigningTo === member.id"
-            class="w-full text-left px-4 py-1.5 font-fell text-sm text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+            class="w-full text-left px-4 py-1.5 text-body text-foreground hover:bg-muted transition-colors disabled:opacity-50"
             @click="assignToPlayer(member)"
           >
             {{ assigningTo === member.id ? "Adding…" : member.name }}
@@ -75,7 +75,7 @@
 
     <!-- Brief confirmation -->
     <Transition name="fade">
-      <span v-if="confirmation" class="absolute right-0 -bottom-6 whitespace-nowrap font-fell text-xs text-primary">
+      <span v-if="confirmation" class="absolute right-0 -bottom-6 whitespace-nowrap text-caption text-primary">
         {{ confirmation }}
       </span>
     </Transition>

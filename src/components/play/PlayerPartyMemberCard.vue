@@ -23,7 +23,7 @@
     <div class="p-2.5 flex flex-col gap-1.5">
       <div>
         <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight truncate">{{ member.name }}</h3>
-        <p class="font-fell text-xs text-muted-foreground italic truncate">
+        <p class="text-caption text-muted-foreground italic truncate">
           {{ subtitle }}
           <span v-if="member.level" class="font-cinzel not-italic text-primary ml-1">Lv{{ member.level }}</span>
         </p>
@@ -44,7 +44,7 @@
         </template>
         <template v-else>
           <span class="text-eyebrow md:text-sm text-muted-foreground">HP</span>
-          <p class="font-fell text-xs italic" :class="hpColor">{{ immersiveHpLabel }}</p>
+          <p class="text-caption italic" :class="hpColor">{{ immersiveHpLabel }}</p>
         </template>
       </div>
       <div class="flex items-center gap-2 flex-wrap">
@@ -57,7 +57,7 @@
           :key="cond"
           class="text-label md:text-sm px-1 py-0.5 rounded bg-destructive/10 text-destructive"
         >{{ cond }}</span>
-        <span v-if="(member.conditions?.length ?? 0) > 2" class="font-fell text-2xs md:text-sm text-muted-foreground italic">
+        <span v-if="(member.conditions?.length ?? 0) > 2" class="text-caption-sm md:text-sm text-muted-foreground italic">
           +{{ (member.conditions?.length ?? 0) - 2 }}
         </span>
       </div>

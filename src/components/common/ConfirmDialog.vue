@@ -37,7 +37,7 @@
                 {{ dialog.title }}
               </h2>
               <p
-                class="mt-1 font-fell text-sm text-muted-foreground leading-snug"
+                class="mt-1 text-body text-muted-foreground leading-snug"
               >
                 {{ dialog.message }}
               </p>

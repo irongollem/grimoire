@@ -44,7 +44,7 @@
       </div>
 
       <!-- Description preview -->
-      <p v-if="description" class="font-fell text-xs text-muted-foreground italic line-clamp-2 flex-1">
+      <p v-if="description" class="text-caption text-muted-foreground italic line-clamp-2 flex-1">
         {{ description }}
       </p>
       <div v-else class="flex-1" />

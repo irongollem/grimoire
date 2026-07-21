@@ -16,7 +16,7 @@
           :checked="modelValue.includes(f.key)"
           @change="toggleField(f.key)"
         />
-        <span class="font-fell text-xs text-foreground">{{ f.label }}</span>
+        <span class="text-caption text-foreground">{{ f.label }}</span>
       </label>
     </div>
     <slot />

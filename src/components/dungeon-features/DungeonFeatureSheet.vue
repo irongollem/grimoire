@@ -87,7 +87,7 @@
           v-if="feature.trigger_type"
           class="text-label font-semibold bg-amber-500/10 text-amber-400 rounded px-2.5 py-1 self-start"
         >{{ feature.trigger_type }}</span>
-        <p v-if="feature.trigger_description" class="font-fell text-sm text-foreground italic">
+        <p v-if="feature.trigger_description" class="text-body text-foreground italic">
           {{ feature.trigger_description }}
         </p>
       </div>

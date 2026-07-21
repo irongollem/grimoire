@@ -9,7 +9,7 @@
           class="w-full text-left flex items-center gap-2 cursor-pointer"
           @click="toggleExpanded(item.name)"
         >
-          <span class="font-fell text-sm text-foreground flex-1">{{ item.name }}</span>
+          <span class="text-body text-foreground flex-1">{{ item.name }}</span>
           <span
             v-for="badge in item.badges ?? []"
             :key="badge.label"
@@ -25,9 +25,9 @@
         </button>
         <div
           v-if="expanded.has(item.name)"
-          class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2 font-fell text-sm text-muted-foreground leading-relaxed"
+          class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2 text-body text-muted-foreground leading-relaxed"
         >
-          <p v-if="item.subtext" class="font-fell text-xs text-primary/70 mb-1 italic">{{ item.subtext }}</p>
+          <p v-if="item.subtext" class="text-caption text-primary/70 mb-1 italic">{{ item.subtext }}</p>
           {{ item.description }}
         </div>
       </div>

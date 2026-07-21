@@ -4,7 +4,7 @@
          when switching between view and edit modes. -->
     <div
       v-if="ancestors.length"
-      class="flex flex-wrap items-center gap-1 text-xs font-fell text-muted-foreground"
+      class="flex flex-wrap items-center gap-1 text-caption text-muted-foreground"
     >
       <RouterLink to="/locations" class="hover:text-foreground transition-colors">Locations</RouterLink>
       <template v-for="anc in ancestors" :key="anc.id">
@@ -57,7 +57,7 @@
       <div class="flex-1 flex flex-col gap-3 min-w-0">
         <div class="flex flex-col gap-1">
           <h1 class="font-cinzel text-2xl font-bold text-foreground leading-tight">{{ location.name }}</h1>
-          <p v-if="location.location_type" class="font-fell text-sm text-muted-foreground italic">
+          <p v-if="location.location_type" class="text-body text-muted-foreground italic">
             {{ LOCATION_TYPE_LABELS[location.location_type] }}
           </p>
         </div>
@@ -169,7 +169,7 @@
             <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ npc.name }}</p>
             <p
               v-if="npc.occupation || npc.race"
-              class="font-fell text-xs text-muted-foreground italic truncate"
+              class="text-caption text-muted-foreground italic truncate"
             >{{ [npc.race, npc.occupation].filter(Boolean).join(" · ") }}</p>
             <p
               v-if="npc.location_id && npc.location_id !== location.id"
@@ -221,7 +221,7 @@
           <span class="font-cinzel text-xs font-semibold text-foreground">{{ m.name }}</span>
           <span
             v-if="m.class"
-            class="font-fell text-2xs text-muted-foreground italic"
+            class="text-caption-sm text-muted-foreground italic"
           >{{ m.class }}</span>
         </RouterLink>
       </div>

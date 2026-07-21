@@ -11,7 +11,7 @@
           aria-live="polite"
         >
           <component :is="icon(t.type)" class="mt-0.5 h-4 w-4 shrink-0" :class="iconClass(t.type)" />
-          <p class="flex-1 font-fell text-sm leading-snug text-foreground">{{ t.message }}</p>
+          <p class="flex-1 text-body leading-snug text-foreground">{{ t.message }}</p>
           <button
             type="button"
             class="shrink-0 text-muted-foreground transition-colors hover:text-foreground"

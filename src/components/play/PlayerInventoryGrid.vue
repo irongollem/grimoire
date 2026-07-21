@@ -25,7 +25,7 @@
         :value="containerPickerSearch"
         type="text"
         placeholder="Filter items…"
-        class="w-full bg-muted/30 border border-border rounded px-2 py-1 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        class="w-full bg-muted/30 border border-border rounded px-2 py-1 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         @input="$emit('update-container-search', ($event.target as HTMLInputElement).value)"
       />
       <div v-if="containerCandidates.length" class="rounded border border-border overflow-hidden">
@@ -33,13 +33,13 @@
           v-for="item in containerCandidates"
           :key="item.id"
           type="button"
-          class="w-full text-left px-3 py-1.5 font-fell text-sm text-foreground hover:bg-muted transition-colors border-b border-border last:border-0"
+          class="w-full text-left px-3 py-1.5 text-body text-foreground hover:bg-muted transition-colors border-b border-border last:border-0"
           @click="$emit('promote-container', item)"
         >
           {{ item.name }}
         </button>
       </div>
-      <p v-else class="font-fell text-xs text-muted-foreground/50 italic">
+      <p v-else class="text-caption text-muted-foreground/50 italic">
         No items in inventory.
       </p>
       <button
@@ -152,7 +152,7 @@
           @sell-item="(item) => $emit('sell-item', item)"
         />
       </VueDraggable>
-      <p v-if="!localStoredItems.length" class="px-4 py-3 font-fell text-sm text-muted-foreground italic">
+      <p v-if="!localStoredItems.length" class="px-4 py-3 text-body text-muted-foreground italic">
         Nothing stored away.
       </p>
     </div>
@@ -186,7 +186,7 @@
           @open-detail="(item) => $emit('open-detail', item)"
         />
       </VueDraggable>
-      <p v-if="!localStashItems.length" class="px-4 py-3 font-fell text-sm text-muted-foreground italic">
+      <p v-if="!localStashItems.length" class="px-4 py-3 text-body text-muted-foreground italic">
         The party stash is empty.
       </p>
     </div>

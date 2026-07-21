@@ -26,7 +26,7 @@
     <div class="space-y-3">
       <p class="text-label-lg font-semibold text-muted-foreground">SPECIES</p>
       <div v-if="!allSpecies?.length" class="rounded-lg border border-border bg-card p-6 text-center">
-        <p class="font-fell text-sm text-muted-foreground italic">No species in the campaign yet — skip for now.</p>
+        <p class="text-body text-muted-foreground italic">No species in the campaign yet — skip for now.</p>
       </div>
       <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <button v-for="sp in allSpecies" :key="sp.id" type="button"
@@ -42,7 +42,7 @@
           <div class="px-3 py-2 flex items-start gap-2">
             <div class="flex-1 min-w-0">
               <p class="font-cinzel text-sm font-bold text-foreground">{{ sp.name }}</p>
-              <p v-if="sp.traits?.length" class="font-fell text-xs text-muted-foreground mt-0.5 line-clamp-1">
+              <p v-if="sp.traits?.length" class="text-caption text-muted-foreground mt-0.5 line-clamp-1">
                 {{ sp.traits.slice(0, 3).map((t) => t.name).join(' · ') }}
               </p>
             </div>

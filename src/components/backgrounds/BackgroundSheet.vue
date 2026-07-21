@@ -42,7 +42,7 @@
           </div>
           <p
             v-if="background.open5e_import"
-            class="font-fell text-xs text-muted-foreground italic"
+            class="text-caption text-muted-foreground italic"
           >
             Imported from Open5e
           </p>
@@ -173,12 +173,12 @@
                 v-model.number="lootboxItems[i].quantity"
                 type="number"
                 min="1"
-                class="w-14 shrink-0 bg-card border border-border rounded px-2 py-1 font-fell text-sm text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
+                class="w-14 shrink-0 bg-card border border-border rounded px-2 py-1 text-body text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
               />
               <input
                 v-model="lootboxItems[i].name"
                 type="text"
-                class="flex-1 min-w-0 bg-card border border-border rounded px-2 py-1 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="flex-1 min-w-0 bg-card border border-border rounded px-2 py-1 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
               <button
                 type="button"
@@ -188,7 +188,7 @@
                 <IconClose class="h-3.5 w-3.5" />
               </button>
             </div>
-            <p v-if="lootboxItems.length === 0" class="font-fell text-xs text-muted-foreground italic">
+            <p v-if="lootboxItems.length === 0" class="text-caption text-muted-foreground italic">
               No items parsed — equipment may be stored as rich text. Edit the background to re-save in the new format.
             </p>
           </div>

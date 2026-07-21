@@ -33,7 +33,7 @@
           <li
             v-for="d in deityHints"
             :key="d.id"
-            class="flex items-baseline gap-1.5 px-3 py-2 font-fell text-sm text-foreground hover:bg-muted cursor-pointer"
+            class="flex items-baseline gap-1.5 px-3 py-2 text-body text-foreground hover:bg-muted cursor-pointer"
             @mousedown.prevent="selectDeity(d.id, d.name)"
           >
             <span>{{ d.name }}</span>

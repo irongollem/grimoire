@@ -75,7 +75,7 @@
     <!-- List -->
     <div
       v-if="relations.length === 0 && !showForm"
-      class="font-fell text-sm text-muted-foreground italic"
+      class="text-body text-muted-foreground italic"
     >
       No relationships recorded yet.
     </div>
@@ -106,7 +106,7 @@
           </RouterLink>
           <p
             v-if="rel.notes"
-            class="font-fell text-xs text-muted-foreground mt-0.5 wrap-break-word whitespace-normal"
+            class="text-caption text-muted-foreground mt-0.5 wrap-break-word whitespace-normal"
           >
             {{ rel.notes }}
           </p>

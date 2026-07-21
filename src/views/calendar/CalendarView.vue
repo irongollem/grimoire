@@ -38,7 +38,7 @@
                 type="number"
                 min="1"
                 max="12"
-                class="w-full bg-background border border-border rounded px-2 py-1 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="w-full bg-background border border-border rounded px-2 py-1 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
             <div class="flex flex-col gap-0.5">
@@ -48,7 +48,7 @@
                 type="number"
                 min="1"
                 max="30"
-                class="w-full bg-background border border-border rounded px-2 py-1 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="w-full bg-background border border-border rounded px-2 py-1 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
             <div class="flex flex-col gap-0.5">
@@ -56,7 +56,7 @@
               <input
                 v-model.number="todayForm.year"
                 type="number"
-                class="w-full bg-background border border-border rounded px-2 py-1 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="w-full bg-background border border-border rounded px-2 py-1 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
           </div>
@@ -79,7 +79,7 @@
           </div>
           <p
             v-if="triggersFireMessage"
-            class="font-fell text-xs text-primary italic"
+            class="text-caption text-primary italic"
           >{{ triggersFireMessage }}</p>
         </div>
       </div>

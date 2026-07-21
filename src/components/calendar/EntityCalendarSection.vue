@@ -13,7 +13,7 @@
             class="inline-flex items-center gap-1 rounded border border-border bg-muted/50 px-2 py-0.5"
           >
             <span :style="{ backgroundColor: pin.color }" class="w-1.5 h-1.5 rounded-full shrink-0" />
-            <RouterLink :to="calendarRoute(pin)" class="font-fell text-xs text-foreground hover:text-primary transition-colors">
+            <RouterLink :to="calendarRoute(pin)" class="text-caption text-foreground hover:text-primary transition-colors">
               {{ formatPin(pin) }}
             </RouterLink>
             <button type="button" class="text-muted-foreground hover:text-destructive transition-colors ml-0.5" @click="removePin(pin.id)">
@@ -21,7 +21,7 @@
             </button>
           </div>
         </template>
-        <span v-else-if="!entityId || (!pins?.length && !showForm)" class="font-fell text-xs text-muted-foreground italic">None</span>
+        <span v-else-if="!entityId || (!pins?.length && !showForm)" class="text-caption text-muted-foreground italic">None</span>
         <button
           v-if="entityId"
           type="button"
@@ -44,28 +44,28 @@
       </div>
       <div v-if="dateType === 'regular'" class="grid grid-cols-3 gap-2">
         <div>
-          <label class="block font-fell text-xs text-muted-foreground mb-1">Year</label>
-          <input v-model.number="form.year" type="number" min="1" class="w-full bg-card border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+          <label class="block text-caption text-muted-foreground mb-1">Year</label>
+          <input v-model.number="form.year" type="number" min="1" class="w-full bg-card border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
         </div>
         <div>
-          <label class="block font-fell text-xs text-muted-foreground mb-1">Month</label>
-          <select v-model.number="form.month" class="w-full bg-card border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+          <label class="block text-caption text-muted-foreground mb-1">Month</label>
+          <select v-model.number="form.month" class="w-full bg-card border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
             <option v-for="m in adapter.months" :key="m.num" :value="m.num">{{ m.name }}</option>
           </select>
         </div>
         <div>
-          <label class="block font-fell text-xs text-muted-foreground mb-1">Day</label>
-          <input v-model.number="form.day" type="number" min="1" max="30" class="w-full bg-card border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+          <label class="block text-caption text-muted-foreground mb-1">Day</label>
+          <input v-model.number="form.day" type="number" min="1" max="30" class="w-full bg-card border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
         </div>
       </div>
       <div v-else class="grid grid-cols-2 gap-2">
         <div>
-          <label class="block font-fell text-xs text-muted-foreground mb-1">Year</label>
-          <input v-model.number="form.year" type="number" min="1" class="w-full bg-card border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+          <label class="block text-caption text-muted-foreground mb-1">Year</label>
+          <input v-model.number="form.year" type="number" min="1" class="w-full bg-card border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
         </div>
         <div>
-          <label class="block font-fell text-xs text-muted-foreground mb-1">Festival</label>
-          <select v-model="form.festival" class="w-full bg-card border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+          <label class="block text-caption text-muted-foreground mb-1">Festival</label>
+          <select v-model="form.festival" class="w-full bg-card border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
             <option v-for="f in adapter.intercalaryDays" :key="f.name" :value="f.name">{{ f.name }}</option>
           </select>
         </div>
@@ -97,7 +97,7 @@
       </button>
     </div>
 
-    <p v-if="!entityId" class="font-fell text-sm text-muted-foreground italic">
+    <p v-if="!entityId" class="text-body text-muted-foreground italic">
       Save this {{ entityTypeLabel }} first to pin calendar dates.
     </p>
 
@@ -114,28 +114,28 @@
         </div>
         <div v-if="dateType === 'regular'" class="grid grid-cols-3 gap-2">
           <div>
-            <label class="block font-fell text-xs text-muted-foreground mb-1">Year</label>
-            <input v-model.number="form.year" type="number" min="1" class="w-full bg-card border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+            <label class="block text-caption text-muted-foreground mb-1">Year</label>
+            <input v-model.number="form.year" type="number" min="1" class="w-full bg-card border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
           </div>
           <div>
-            <label class="block font-fell text-xs text-muted-foreground mb-1">Month</label>
-            <select v-model.number="form.month" class="w-full bg-card border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+            <label class="block text-caption text-muted-foreground mb-1">Month</label>
+            <select v-model.number="form.month" class="w-full bg-card border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
               <option v-for="m in adapter.months" :key="m.num" :value="m.num">{{ m.name }}</option>
             </select>
           </div>
           <div>
-            <label class="block font-fell text-xs text-muted-foreground mb-1">Day</label>
-            <input v-model.number="form.day" type="number" min="1" max="30" class="w-full bg-card border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+            <label class="block text-caption text-muted-foreground mb-1">Day</label>
+            <input v-model.number="form.day" type="number" min="1" max="30" class="w-full bg-card border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
           </div>
         </div>
         <div v-else class="grid grid-cols-2 gap-2">
           <div>
-            <label class="block font-fell text-xs text-muted-foreground mb-1">Year</label>
-            <input v-model.number="form.year" type="number" min="1" class="w-full bg-card border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+            <label class="block text-caption text-muted-foreground mb-1">Year</label>
+            <input v-model.number="form.year" type="number" min="1" class="w-full bg-card border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
           </div>
           <div>
-            <label class="block font-fell text-xs text-muted-foreground mb-1">Festival</label>
-            <select v-model="form.festival" class="w-full bg-card border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+            <label class="block text-caption text-muted-foreground mb-1">Festival</label>
+            <select v-model="form.festival" class="w-full bg-card border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
               <option v-for="f in adapter.intercalaryDays" :key="f.name" :value="f.name">{{ f.name }}</option>
             </select>
           </div>
@@ -152,14 +152,14 @@
       <div v-if="pins?.length" class="flex flex-col gap-1.5">
         <div v-for="pin in pins" :key="pin.id" class="flex items-center gap-2 rounded-md border border-border bg-muted/50 px-3 py-2">
           <span :style="{ backgroundColor: pin.color }" class="w-2 h-2 rounded-full shrink-0" />
-          <span class="font-fell text-sm text-foreground flex-1">{{ formatPin(pin) }}</span>
+          <span class="text-body text-foreground flex-1">{{ formatPin(pin) }}</span>
           <RouterLink :to="calendarRoute(pin)" class="font-cinzel text-2xs text-primary hover:opacity-80 transition-opacity shrink-0">View</RouterLink>
           <button type="button" class="text-muted-foreground hover:text-destructive transition-colors" @click="removePin(pin.id)">
             <IconClose class="h-3.5 w-3.5" />
           </button>
         </div>
       </div>
-      <p v-else-if="!showForm" class="font-fell text-sm text-muted-foreground italic">
+      <p v-else-if="!showForm" class="text-body text-muted-foreground italic">
         No dates pinned yet.
       </p>
     </template>

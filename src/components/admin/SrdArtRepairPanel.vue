@@ -487,7 +487,7 @@ async function discardStaged(item: StagingItem) {
 
       <div
         v-if="libraryPending"
-        class="font-fell text-xs text-muted-foreground italic"
+        class="text-caption text-muted-foreground italic"
       >
         Loading…
       </div>
@@ -520,7 +520,7 @@ async function discardStaged(item: StagingItem) {
 
       <p
         v-else-if="!libraryPending"
-        class="font-fell text-xs text-muted-foreground italic"
+        class="text-caption text-muted-foreground italic"
       >
         No SRD monsters found.
       </p>
@@ -541,7 +541,7 @@ async function discardStaged(item: StagingItem) {
       <!-- staged queue -->
       <div
         v-if="stagingPending"
-        class="font-fell text-xs text-muted-foreground italic"
+        class="text-caption text-muted-foreground italic"
       >
         Loading…
       </div>
@@ -575,7 +575,7 @@ async function discardStaged(item: StagingItem) {
 
       <p
         v-else-if="!stagingPending && !stagingUploading"
-        class="font-fell text-xs text-muted-foreground italic"
+        class="text-caption text-muted-foreground italic"
       >
         No images in staging. Dump some from your phone to get started.
       </p>

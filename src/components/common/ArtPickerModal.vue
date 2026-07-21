@@ -53,7 +53,7 @@
               class="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground"
             >
               <IconLibrary class="h-8 w-8 opacity-30" />
-              <p class="font-fell text-sm italic">Pick a category on the left.</p>
+              <p class="text-body italic">Pick a category on the left.</p>
             </div>
 
             <!-- Loading skeleton -->
@@ -68,7 +68,7 @@
             <!-- Error -->
             <div
               v-else-if="loadError"
-              class="flex items-center justify-center h-full text-destructive font-fell text-sm italic"
+              class="flex items-center justify-center h-full text-destructive text-body italic"
             >
               {{ loadError }}
             </div>
@@ -79,7 +79,7 @@
               class="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground"
             >
               <component :is="activeCategory.icon" class="h-8 w-8 opacity-30" />
-              <p class="font-fell text-sm italic">No images uploaded here yet.</p>
+              <p class="text-body italic">No images uploaded here yet.</p>
             </div>
 
             <!-- Thumbnail grid -->

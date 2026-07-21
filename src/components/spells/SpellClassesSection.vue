@@ -5,7 +5,7 @@
     >
       Spell Lists
     </h3>
-    <p class="font-fell text-xs text-muted-foreground italic mb-3">
+    <p class="text-caption text-muted-foreground italic mb-3">
       Which classes have access to this spell?
     </p>
     <div class="flex flex-col gap-2">
@@ -21,7 +21,7 @@
           class="rounded"
           @change="toggleClass(cls)"
         />
-        <span class="font-fell text-sm text-foreground">{{ cls }}</span>
+        <span class="text-body text-foreground">{{ cls }}</span>
       </label>
     </div>
   </div>

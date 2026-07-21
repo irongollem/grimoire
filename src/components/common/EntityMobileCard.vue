@@ -35,7 +35,7 @@
           </h3>
         </div>
 
-        <p v-if="subtitle" class="truncate font-fell text-xs italic text-muted-foreground">
+        <p v-if="subtitle" class="truncate text-caption italic text-muted-foreground">
           {{ subtitle }}
         </p>
 
@@ -112,7 +112,7 @@
             {{ title }}
           </h3>
         </div>
-        <p v-if="subtitle" class="truncate font-fell text-xs italic text-muted-foreground">
+        <p v-if="subtitle" class="truncate text-caption italic text-muted-foreground">
           {{ subtitle }}
         </p>
       </div>

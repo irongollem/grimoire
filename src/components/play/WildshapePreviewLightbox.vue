@@ -9,7 +9,7 @@
   >
     <div>
       <h2 class="font-cinzel text-lg font-bold text-foreground">{{ beast?.name }}</h2>
-      <p class="font-fell text-xs text-muted-foreground italic">
+      <p class="text-caption text-muted-foreground italic">
         {{ beast?.size }} {{ beast?.monster_type }}
         · CR {{ beast?.stat_block?.challenge_rating }}
       </p>
@@ -22,7 +22,7 @@
       <div
         v-for="trait in beast.stat_block.special_abilities"
         :key="trait.name"
-        class="font-fell text-sm leading-snug"
+        class="text-body leading-snug"
       >
         <span class="font-semibold not-italic">{{ trait.name }}.</span>
         {{ trait.description }}
@@ -35,7 +35,7 @@
       <div
         v-for="action in beast.stat_block.actions"
         :key="action.name"
-        class="font-fell text-sm leading-snug"
+        class="text-body leading-snug"
       >
         <span class="font-semibold not-italic">{{ action.name }}.</span>
         {{ action.description }}
@@ -48,7 +48,7 @@
       <div
         v-for="action in beast.stat_block.bonus_actions"
         :key="action.name"
-        class="font-fell text-sm leading-snug"
+        class="text-body leading-snug"
       >
         <span class="font-semibold not-italic">{{ action.name }}.</span>
         {{ action.description }}
@@ -61,7 +61,7 @@
       <div
         v-for="action in beast.stat_block.reactions"
         :key="action.name"
-        class="font-fell text-sm leading-snug"
+        class="text-body leading-snug"
       >
         <span class="font-semibold not-italic">{{ action.name }}.</span>
         {{ action.description }}

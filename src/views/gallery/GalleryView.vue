@@ -14,7 +14,7 @@
               v-model="search"
               type="text"
               placeholder="Search prompts…"
-              class="w-full rounded-md border border-border bg-background pl-7 pr-2 py-1.5 font-fell text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-full rounded-md border border-border bg-background pl-7 pr-2 py-1.5 text-body focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
           <button
@@ -38,7 +38,7 @@
             @click="activeKind = tab.key"
           >
             {{ tab.label }}
-            <span class="font-fell text-2xs opacity-60">{{ tab.count }}</span>
+            <span class="text-caption-sm opacity-60">{{ tab.count }}</span>
           </button>
         </div>
       </div>
@@ -97,8 +97,8 @@
 
         <!-- Prompt + date -->
         <div class="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/80 to-transparent px-2 pt-6 pb-1.5 pointer-events-none">
-          <p class="font-fell text-2xs text-white/90 line-clamp-2 leading-tight">{{ img.prompt || '—' }}</p>
-          <p class="font-fell text-2xs text-white/50">{{ timeAgo(img.created_at) }}</p>
+          <p class="text-caption-sm text-white/90 line-clamp-2 leading-tight">{{ img.prompt || '—' }}</p>
+          <p class="text-caption-sm text-white/50">{{ timeAgo(img.created_at) }}</p>
         </div>
       </div>
     </div>

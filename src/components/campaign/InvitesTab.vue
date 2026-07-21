@@ -9,7 +9,7 @@
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <!-- Label -->
         <div class="space-y-1">
-          <label class="font-fell text-xs text-muted-foreground italic">Label (optional)</label>
+          <label class="text-caption text-muted-foreground italic">Label (optional)</label>
           <input
             v-model="newLabel"
             type="text"
@@ -20,7 +20,7 @@
 
         <!-- Expiry -->
         <div class="space-y-1">
-          <label class="font-fell text-xs text-muted-foreground italic">Expires (optional)</label>
+          <label class="text-caption text-muted-foreground italic">Expires (optional)</label>
           <input
             v-model="newExpiry"
             type="datetime-local"
@@ -30,7 +30,7 @@
 
         <!-- Max uses -->
         <div class="space-y-1">
-          <label class="font-fell text-xs text-muted-foreground italic">Max uses (optional)</label>
+          <label class="text-caption text-muted-foreground italic">Max uses (optional)</label>
           <input
             v-model.number="newMaxUses"
             type="number"
@@ -67,7 +67,7 @@
             <p v-if="invite.label" class="font-cinzel text-sm font-semibold text-foreground">
               {{ invite.label }}
             </p>
-            <p class="font-fell text-xs text-muted-foreground italic space-x-3">
+            <p class="text-caption text-muted-foreground italic space-x-3">
               <span>{{ invite.use_count }}{{ invite.max_uses ? `/${invite.max_uses}` : '' }} uses</span>
               <span v-if="invite.expires_at">· Expires {{ formatDate(invite.expires_at) }}</span>
               <span v-if="isExpired(invite)" class="text-destructive">· Expired</span>
@@ -107,7 +107,7 @@
         class="rounded-lg border border-dashed border-border p-8 text-center"
       >
         <IconLink class="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
-        <p class="font-fell text-muted-foreground italic text-sm">
+        <p class="text-body text-muted-foreground italic">
           No invite links yet. Generate one above to share with your players.
         </p>
       </div>

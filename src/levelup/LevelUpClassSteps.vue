@@ -1,13 +1,13 @@
 <template>
   <WizardStepCard v-for="step in steps" :key="step.key" :title="step.label">
-    <p v-if="step.description" class="font-fell text-sm text-muted-foreground">{{ step.description }}</p>
+    <p v-if="step.description" class="text-body text-muted-foreground">{{ step.description }}</p>
 
     <template v-if="(step.count ?? 1) > 1">
       <div v-for="pickIdx in (step.count ?? 1)" :key="pickIdx" class="space-y-1">
         <label class="text-label text-muted-foreground">Choice {{ pickIdx }}</label>
         <select
           :value="(multiValues[step.key] ?? [])[pickIdx - 1] ?? ''"
-          class="w-full rounded border border-border bg-muted/40 px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full rounded border border-border bg-muted/40 px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           @change="onMultiChange(step, pickIdx - 1, ($event.target as HTMLSelectElement).value)">
           <option value="" disabled>Select…</option>
           <option v-for="opt in step.options" :key="opt" :value="opt"
@@ -17,7 +17,7 @@
     </template>
 
     <select v-else :value="singleValues[step.key] ?? ''"
-      class="w-full rounded border border-border bg-muted/40 px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+      class="w-full rounded border border-border bg-muted/40 px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
       @change="onSingleChange(step, ($event.target as HTMLSelectElement).value)">
       <option value="" disabled>Select…</option>
       <option v-for="opt in step.options" :key="opt" :value="opt"

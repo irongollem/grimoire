@@ -109,7 +109,7 @@
             <span
               v-for="tag in hero.tags"
               :key="tag"
-              class="rounded-full bg-muted px-2 py-0.5 font-fell text-xs text-muted-foreground"
+              class="rounded-full bg-muted px-2 py-0.5 text-caption text-muted-foreground"
               >{{ tag }}</span
             >
           </div>

@@ -4,13 +4,13 @@
       v-model="userSearch"
       type="search"
       placeholder="Search by email or name…"
-      class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+      class="w-full bg-muted border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
     />
 
-    <div v-if="usersQuery.isPending.value" class="text-muted-foreground font-fell text-sm">
+    <div v-if="usersQuery.isPending.value" class="text-muted-foreground text-body">
       Loading users…
     </div>
-    <div v-else-if="usersQuery.isError.value" class="text-destructive font-fell text-sm">
+    <div v-else-if="usersQuery.isError.value" class="text-destructive text-body">
       Failed to load users.
     </div>
     <div v-else class="space-y-2">
@@ -20,8 +20,8 @@
         class="rounded-lg border border-border bg-card px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3"
       >
         <div class="flex-1 min-w-0">
-          <p class="font-fell text-sm text-foreground truncate">{{ user.email }}</p>
-          <p class="font-fell text-xs text-muted-foreground">
+          <p class="text-body text-foreground truncate">{{ user.email }}</p>
+          <p class="text-caption text-muted-foreground">
             {{ user.display_name ?? '—' }}
             <span class="mx-1 opacity-40">·</span>
             Joined {{ formatDate(user.created_at) }}
@@ -38,7 +38,7 @@
             :class="planBadgeClass(user.plan_id)">
             {{ user.plan_id }}
           </span>
-          <span class="font-fell text-xs text-muted-foreground">{{ user.ai_credits }} cr</span>
+          <span class="text-caption text-muted-foreground">{{ user.ai_credits }} cr</span>
           <div class="flex gap-1">
             <button
               v-for="pid in PLAN_IDS"
@@ -81,7 +81,7 @@
           </button>
         </div>
       </div>
-      <p v-if="filteredUsers.length === 0" class="font-fell text-sm text-muted-foreground text-center py-8">
+      <p v-if="filteredUsers.length === 0" class="text-body text-muted-foreground text-center py-8">
         No users match your search.
       </p>
     </div>

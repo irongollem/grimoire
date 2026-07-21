@@ -116,7 +116,7 @@
 
     <div
       v-else-if="filtered.length === 0"
-      class="py-10 text-center font-fell text-sm text-muted-foreground italic"
+      class="py-10 text-center text-body text-muted-foreground italic"
     >
       No sounds match your filters.
     </div>
@@ -126,7 +126,7 @@
       <!-- Drag hint when filters are active -->
       <p
         v-if="ui.soundboardHasActiveFilters"
-        class="mb-2 font-fell text-xs text-muted-foreground italic"
+        class="mb-2 text-caption text-muted-foreground italic"
       >
         Clear filters to reorder cards.
       </p>

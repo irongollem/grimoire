@@ -75,7 +75,7 @@
           <p class="text-label-lg font-semibold text-foreground">
             POPULATE FROM {{ populateSetting.label.toUpperCase() }}
           </p>
-          <p class="font-fell text-xs text-muted-foreground mt-0.5">
+          <p class="text-caption text-muted-foreground mt-0.5">
             Seeds locations, notable NPCs, and factions. Skips existing entries.
           </p>
         </div>
@@ -89,8 +89,8 @@
           {{ isPopulating ? "Populating…" : "Populate" }}
         </button>
       </div>
-      <p v-if="populateError" class="font-fell text-xs text-destructive">{{ populateError }}</p>
-      <p v-else-if="populateResult" class="font-fell text-xs text-muted-foreground">
+      <p v-if="populateError" class="text-caption text-destructive">{{ populateError }}</p>
+      <p v-else-if="populateResult" class="text-caption text-muted-foreground">
         Added {{ populateResult.locations }} location<span v-if="populateResult.locations !== 1">s</span>,
         {{ populateResult.npcs }} NPC<span v-if="populateResult.npcs !== 1">s</span>,
         {{ populateResult.factions }} faction<span v-if="populateResult.factions !== 1">s</span>.
@@ -134,7 +134,7 @@
         >
           <div class="flex-1 min-w-0">
             <span class="font-cinzel text-xs font-semibold text-foreground tracking-wide">{{ opt.label }}</span>
-            <p class="font-fell text-xs text-muted-foreground mt-0.5">{{ opt.desc }}</p>
+            <p class="text-caption text-muted-foreground mt-0.5">{{ opt.desc }}</p>
           </div>
           <IconCheck v-if="form.health_visibility === opt.value" class="h-3.5 w-3.5 text-primary shrink-0" />
         </button>
@@ -157,7 +157,7 @@
         </div>
         <div class="flex-1 min-w-0">
           <span class="font-cinzel text-xs font-semibold text-foreground tracking-wide">Immersive Rolls</span>
-          <p class="font-fell text-xs text-muted-foreground mt-0.5">
+          <p class="text-caption text-muted-foreground mt-0.5">
             Stealth, knowledge and insight checks show only flavor text in chat. Full result whispered to DM only — player does not see their dice outcome.
           </p>
         </div>
@@ -180,7 +180,7 @@
         </div>
         <div class="flex-1 min-w-0">
           <span class="font-cinzel text-xs font-semibold text-foreground tracking-wide">Show VTT tokens to players</span>
-          <p class="font-fell text-xs text-muted-foreground mt-0.5">
+          <p class="text-caption text-muted-foreground mt-0.5">
             When off, the player battle map shows only the map and fog of war — no character or monster tokens. Use for in-person sessions where combat happens with physical minis or theater of the mind. The DM's view is unaffected.
           </p>
         </div>

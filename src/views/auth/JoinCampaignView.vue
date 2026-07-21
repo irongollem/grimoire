@@ -5,7 +5,7 @@
       <h2 class="font-cinzel text-xl font-semibold text-foreground mb-1">
         You've been invited!
       </h2>
-      <p class="font-fell text-muted-foreground italic text-sm mb-6">
+      <p class="text-body text-muted-foreground italic mb-6">
         Create an account or sign in to join the campaign.
       </p>
 
@@ -26,7 +26,7 @@
 
       <form class="space-y-4" @submit.prevent="handleAuth">
         <div v-if="activeTab === 'signup'" class="space-y-1.5">
-          <label class="font-fell text-sm text-foreground" for="join-display-name">Username</label>
+          <label class="text-body text-foreground" for="join-display-name">Username</label>
           <input
             id="join-display-name"
             v-model="displayName"
@@ -39,7 +39,7 @@
         </div>
 
         <div class="space-y-1.5">
-          <label class="font-fell text-sm text-foreground" for="join-email">Email</label>
+          <label class="text-body text-foreground" for="join-email">Email</label>
           <input
             id="join-email"
             v-model="email"
@@ -52,7 +52,7 @@
         </div>
 
         <div class="space-y-1.5">
-          <label class="font-fell text-sm text-foreground" for="join-password">Password</label>
+          <label class="text-body text-foreground" for="join-password">Password</label>
           <input
             id="join-password"
             v-model="password"
@@ -65,8 +65,8 @@
           />
         </div>
 
-        <p v-if="authMessage" class="text-sm text-elven-green font-fell">{{ authMessage }}</p>
-        <p v-if="errorMessage" class="text-sm text-destructive font-fell">{{ errorMessage }}</p>
+        <p v-if="authMessage" class="text-body text-elven-green">{{ authMessage }}</p>
+        <p v-if="errorMessage" class="text-body text-destructive">{{ errorMessage }}</p>
 
         <button
           type="submit"
@@ -87,15 +87,15 @@
           <div class="flex justify-center">
             <div class="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
           </div>
-          <p class="font-fell text-muted-foreground italic text-sm">Joining the campaign…</p>
+          <p class="text-body text-muted-foreground italic">Joining the campaign…</p>
         </div>
 
         <div v-else-if="joinError" class="space-y-4">
           <p class="font-cinzel text-xl font-semibold text-destructive">Invalid Invite</p>
-          <p class="font-fell text-muted-foreground italic text-sm">{{ joinError }}</p>
+          <p class="text-body text-muted-foreground italic">{{ joinError }}</p>
           <RouterLink
             to="/dashboard"
-            class="inline-block mt-2 text-sm font-fell text-gold-400 hover:text-gold-300 underline"
+            class="inline-block mt-2 text-body text-gold-400 hover:text-gold-300 underline"
           >
             Go to your dashboard
           </RouterLink>

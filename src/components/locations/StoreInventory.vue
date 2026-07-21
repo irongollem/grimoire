@@ -31,7 +31,7 @@
             @click="selected = si"
           >
             <span class="font-cinzel text-xs font-semibold text-foreground truncate block">{{ si.item.name }}</span>
-            <span class="font-fell text-2xs text-muted-foreground italic">
+            <span class="text-caption-sm text-muted-foreground italic">
               {{ ITEM_TYPE_LABELS[si.item.item_type] }}
               <span v-if="!si.visible" class="text-amber-500/70"> · under the counter</span>
             </span>
@@ -44,7 +44,7 @@
               type="text"
               placeholder="Price…"
               :title="rarityPriceHint(si.item.rarity)"
-              class="w-20 bg-background border border-border rounded px-2 py-0.5 font-fell text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring text-right"
+              class="w-20 bg-background border border-border rounded px-2 py-0.5 text-caption text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring text-right"
               @blur="onPriceBlur(si, $event)"
               @keydown.enter="($event.target as HTMLInputElement).blur()"
             />
@@ -79,7 +79,7 @@
             v-model="offerDesc"
             type="text"
             placeholder="Description shown in chat…"
-            class="w-full bg-muted/30 border border-border rounded px-2 py-1 font-fell text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
+            class="w-full bg-muted/30 border border-border rounded px-2 py-1 text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
           />
           <!-- Coin price inputs -->
           <div class="grid grid-cols-5 gap-1">
@@ -109,7 +109,7 @@
       </div>
     </div>
 
-    <p v-else class="font-fell text-xs text-muted-foreground italic">No items yet.</p>
+    <p v-else class="text-caption text-muted-foreground italic">No items yet.</p>
 
     <!-- Manual add (search) -->
     <div class="relative">
@@ -119,7 +119,7 @@
           v-model="search"
           type="text"
           placeholder="Add item to inventory…"
-          class="flex-1 bg-transparent font-fell text-xs text-foreground placeholder:text-muted-foreground focus:outline-none"
+          class="flex-1 bg-transparent text-caption text-foreground placeholder:text-muted-foreground focus:outline-none"
           @focus="dropdownOpen = true"
           @input="dropdownOpen = true"
           @blur="onSearchBlur"
@@ -138,8 +138,8 @@
           @mousedown.prevent="addItem(item)"
         >
           <span class="font-cinzel text-xs font-semibold text-foreground truncate flex-1">{{ item.name }}</span>
-          <span class="font-fell text-2xs text-muted-foreground shrink-0">{{ ITEM_TYPE_LABELS[item.item_type] }}</span>
-          <span v-if="item.cost" class="font-fell text-2xs text-muted-foreground/70 shrink-0">{{ item.cost }}</span>
+          <span class="text-caption-sm text-muted-foreground shrink-0">{{ ITEM_TYPE_LABELS[item.item_type] }}</span>
+          <span v-if="item.cost" class="text-caption-sm text-muted-foreground/70 shrink-0">{{ item.cost }}</span>
         </button>
       </div>
     </div>
@@ -151,18 +151,18 @@
         type="number"
         min="1"
         max="20"
-        class="w-10 bg-muted border border-border rounded px-1.5 py-1 font-fell text-xs text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+        class="w-10 bg-muted border border-border rounded px-1.5 py-1 text-caption text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
       />
-      <span class="font-fell text-xs text-muted-foreground">×</span>
+      <span class="text-caption text-muted-foreground">×</span>
       <select
         v-model="fillRarity"
-        class="bg-muted border border-border rounded px-2 py-1 font-fell text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        class="bg-muted border border-border rounded px-2 py-1 text-caption text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
       >
         <option v-for="r in ITEM_RARITIES" :key="r" :value="r">{{ ITEM_RARITY_LABELS[r] }}</option>
       </select>
       <select
         v-model="fillType"
-        class="bg-muted border border-border rounded px-2 py-1 font-fell text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        class="bg-muted border border-border rounded px-2 py-1 text-caption text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
       >
         <option value="">any type</option>
         <option v-for="t in ITEM_TYPES" :key="t" :value="t">{{ ITEM_TYPE_LABELS[t] }}</option>
@@ -176,7 +176,7 @@
         <IconShuffle class="size-3" />
         {{ isFilling ? "Filling…" : "Fill" }}
       </button>
-      <span class="font-fell text-2xs text-muted-foreground italic">
+      <span class="text-caption-sm text-muted-foreground italic">
         {{ fillPoolSize }} available
       </span>
     </div>
@@ -195,7 +195,7 @@
           <h2 class="font-cinzel text-sm font-semibold text-foreground flex-1 truncate">
             {{ selected.item.name }}
           </h2>
-          <span class="font-fell text-xs text-muted-foreground shrink-0">
+          <span class="text-caption text-muted-foreground shrink-0">
             {{ selected.price_override ?? selected.item.cost ?? '—' }}
           </span>
           <button

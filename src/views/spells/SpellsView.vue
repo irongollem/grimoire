@@ -22,7 +22,7 @@
         >
           <div class="p-3 border-b border-border">
             <p class="font-cinzel text-xs font-semibold text-foreground">Spell Sources</p>
-            <p class="font-fell text-xs text-muted-foreground mt-0.5 italic">
+            <p class="text-caption text-muted-foreground mt-0.5 italic">
               Enabled sources appear in your Spellbook instantly — no download needed.
             </p>
           </div>
@@ -30,7 +30,7 @@
             <IconLoading class="size-4 animate-spin text-muted-foreground" />
           </div>
           <div v-else-if="availableSources.length === 0" class="p-4">
-            <p class="font-fell text-xs text-muted-foreground italic">No sources available yet. Ask your admin to seed the srd_spells table.</p>
+            <p class="text-caption text-muted-foreground italic">No sources available yet. Ask your admin to seed the srd_spells table.</p>
           </div>
           <div v-else class="p-2 flex flex-col gap-0.5 max-h-72 overflow-y-auto">
             <label
@@ -45,7 +45,7 @@
                 class="accent-primary shrink-0"
                 @change="toggleSource(src)"
               />
-              <span class="font-fell text-sm text-foreground flex-1 min-w-0 truncate">
+              <span class="text-body text-foreground flex-1 min-w-0 truncate">
                 {{ src.source_title ?? src.source }}
               </span>
               <span class="font-cinzel text-2xs text-muted-foreground shrink-0">{{ src.count.toLocaleString() }}</span>

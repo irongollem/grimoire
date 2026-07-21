@@ -21,7 +21,7 @@
         <p class="font-cinzel text-xs font-semibold text-foreground leading-snug truncate">
           {{ playlist.name }}
         </p>
-        <p class="font-fell text-2xs text-muted-foreground mt-0.5">
+        <p class="text-caption-sm text-muted-foreground mt-0.5">
           {{ trackCount }} {{ trackCount === 1 ? "track" : "tracks" }}
           <template v-if="playlist.playlist_type === 'music'">
             <span v-if="playlist.shuffle" class="ml-1 opacity-60">· shuffle</span>

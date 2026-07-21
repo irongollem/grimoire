@@ -9,7 +9,7 @@
       <div class="flex items-start justify-between gap-4">
         <div>
           <h2 class="font-cinzel font-bold text-base tracking-wide text-foreground">Generate Monster with AI</h2>
-          <p class="font-fell text-xs text-muted-foreground mt-0.5 italic">
+          <p class="text-caption text-muted-foreground mt-0.5 italic">
             Describe the monster concept. Set constraints to lock specific values.
           </p>
         </div>
@@ -31,7 +31,7 @@
         />
         <div class="flex justify-end">
           <span
-            class="font-fell text-xs"
+            class="text-caption"
             :class="prompt.length >= PROMPT_LIMIT * 0.9 ? 'text-destructive' : 'text-muted-foreground/50'"
           >{{ prompt.length }} / {{ PROMPT_LIMIT }}</span>
         </div>
@@ -44,7 +44,7 @@
         </p>
         <div class="grid grid-cols-3 gap-3">
           <label class="flex flex-col gap-1">
-            <span class="font-fell text-xs text-muted-foreground">Challenge Rating</span>
+            <span class="text-caption text-muted-foreground">Challenge Rating</span>
             <input
               v-model="options.challenge_rating"
               :disabled="isGenerating"
@@ -53,14 +53,14 @@
             />
           </label>
           <label class="flex flex-col gap-1">
-            <span class="font-fell text-xs text-muted-foreground">Type</span>
+            <span class="text-caption text-muted-foreground">Type</span>
             <select v-model="options.monster_type" :disabled="isGenerating" class="field-input disabled:opacity-50">
               <option value="">Any</option>
               <option v-for="t in MONSTER_TYPES" :key="t" :value="t" class="capitalize">{{ t }}</option>
             </select>
           </label>
           <label class="flex flex-col gap-1">
-            <span class="font-fell text-xs text-muted-foreground">Size</span>
+            <span class="text-caption text-muted-foreground">Size</span>
             <select v-model="options.size" :disabled="isGenerating" class="field-input disabled:opacity-50">
               <option value="">Any</option>
               <option v-for="s in SIZES" :key="s" :value="s" class="capitalize">{{ s }}</option>
@@ -71,7 +71,7 @@
 
       <!-- Image toggle -->
       <div class="flex items-center justify-between">
-        <span class="font-fell text-xs text-muted-foreground">Generate portrait art</span>
+        <span class="text-caption text-muted-foreground">Generate portrait art</span>
         <button
           type="button"
           class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none"
@@ -87,13 +87,13 @@
 
       <!-- Error -->
       <div v-if="error" class="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2">
-        <p class="font-fell text-xs text-destructive">{{ error }}</p>
+        <p class="text-caption text-destructive">{{ error }}</p>
       </div>
 
       <!-- Generating state -->
       <div v-if="isGenerating" class="flex flex-col items-center gap-3 py-6">
         <IconGenerate class="h-8 w-8 text-primary animate-pulse" />
-        <p class="font-fell text-sm text-muted-foreground italic">{{ currentLoadingQuote }}</p>
+        <p class="text-body text-muted-foreground italic">{{ currentLoadingQuote }}</p>
       </div>
 
       <!-- Actions -->

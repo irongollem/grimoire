@@ -1,6 +1,6 @@
 <template>
   <div class="flex flex-col gap-4">
-    <p class="font-fell text-sm text-muted-foreground italic">
+    <p class="text-body text-muted-foreground italic">
       Start from a finished-looking book, or begin blank — every template is fully editable.
     </p>
 
@@ -39,7 +39,7 @@
           <span class="font-cinzel text-sm font-bold text-foreground group-hover:text-primary transition-colors">
             {{ t.name }}
           </span>
-          <span class="font-fell text-xs text-muted-foreground leading-snug">
+          <span class="text-caption text-muted-foreground leading-snug">
             {{ t.description }}
           </span>
         </div>
@@ -58,7 +58,7 @@
           <span class="font-cinzel text-sm font-bold text-foreground group-hover:text-primary transition-colors">
             Import Markdown
           </span>
-          <span class="font-fell text-xs text-muted-foreground leading-snug">
+          <span class="text-caption text-muted-foreground leading-snug">
             Bring an existing .md document — chapters, notes, or a Homebrewery brew — into a styled book.
           </span>
         </div>

@@ -12,7 +12,7 @@
             <ManualHelpLink v-if="manualPage" :page="manualPage" />
           </h1>
           <p
-            class="font-fell text-sm md:text-base text-muted-foreground italic mt-0.5"
+            class="text-body md:text-base text-muted-foreground italic mt-0.5"
           >
             DM screen, SRD compendium &amp; custom rule systems
           </p>

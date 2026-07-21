@@ -9,7 +9,7 @@
         :key="res.key"
         class="flex items-center gap-2 px-4 py-2.5 flex-wrap"
       >
-        <span class="font-fell text-sm text-foreground flex-1">{{ res.label }}</span>
+        <span class="text-body text-foreground flex-1">{{ res.label }}</span>
         <span
           class="text-label md:text-sm rounded px-1.5 py-0.5 shrink-0"
           :class="res.rest === 'short'
@@ -28,7 +28,7 @@
               :max="res.current"
               class="w-14 rounded border border-border bg-muted/40 px-2 py-0.5 font-cinzel text-xs text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
             />
-            <span class="font-fell text-xs text-muted-foreground shrink-0">HP</span>
+            <span class="text-caption text-muted-foreground shrink-0">HP</span>
             <button
               class="h-6 px-2 rounded border border-border font-cinzel text-xs text-primary hover:border-primary/40 disabled:opacity-30 transition-colors"
               :disabled="pendingSpendAmount < 1 || pendingSpendAmount > res.current"

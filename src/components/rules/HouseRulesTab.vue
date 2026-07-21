@@ -17,7 +17,7 @@
           v-model="ruleSearch"
           type="search"
           placeholder="Filter rules…"
-          class="flex-1 min-w-40 bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="flex-1 min-w-40 bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
         <select
           v-model="ruleCategory"
@@ -28,7 +28,7 @@
         </select>
       </div>
 
-      <p v-if="!filteredBuiltIns.length && !filteredCustom.length" class="font-fell text-sm text-muted-foreground italic text-center py-6">
+      <p v-if="!filteredBuiltIns.length && !filteredCustom.length" class="text-body text-muted-foreground italic text-center py-6">
         No rules match your filter.
       </p>
 
@@ -56,7 +56,7 @@
               <span class="shrink-0 px-1.5 py-0.5 rounded bg-emerald-500/10 text-label text-emerald-400">active</span>
             </button>
             <div v-if="openBuiltIns.has(def.key)" class="px-4 pb-4 border-t border-border">
-              <p class="font-fell text-xs text-muted-foreground italic mt-3 mb-2">{{ def.summary }}</p>
+              <p class="text-caption text-muted-foreground italic mt-3 mb-2">{{ def.summary }}</p>
               <!-- eslint-disable-next-line vue/no-v-html -->
               <div class="prose-grimoire" v-html="renderMarkdown(def.description)" />
             </div>
@@ -113,7 +113,7 @@
                 </span>
               </div>
               <RichTextViewer v-if="rule.content" :content="rule.content" class="mt-3" />
-              <p v-else class="font-fell text-sm text-muted-foreground italic mt-3">No content.</p>
+              <p v-else class="text-body text-muted-foreground italic mt-3">No content.</p>
             </div>
           </div>
         </div>

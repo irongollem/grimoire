@@ -35,7 +35,7 @@
               >
                 {{ isBug ? "Report a Bug" : "Request a Feature" }}
               </h2>
-              <p class="font-fell text-xs text-muted-foreground mt-0.5">
+              <p class="text-caption text-muted-foreground mt-0.5">
                 Your report opens a GitHub issue for the development team.
               </p>
             </div>
@@ -64,7 +64,7 @@
               {{ isBug ? "Bug Reported!" : "Feature Requested!" }}
             </h3>
             <p
-              class="font-fell text-sm text-muted-foreground max-w-xs leading-relaxed"
+              class="text-body text-muted-foreground max-w-xs leading-relaxed"
             >
               Thank you — issue #{{ issueNumber }} has been filed and the
               development team will look into it.
@@ -114,7 +114,7 @@
                     <span>{{ opt.label }}</span>
                   </button>
                 </div>
-                <p class="font-fell text-2xs text-muted-foreground">
+                <p class="text-caption-sm text-muted-foreground">
                   {{
                     isBug
                       ? "Something is broken or not working as it should."
@@ -140,7 +140,7 @@
                   type="text"
                   :required="isBug"
                   placeholder="e.g. Encounter tracker, NPC detail page…"
-                  class="w-full px-3 py-2 rounded-md bg-background border border-border text-sm font-fell text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500"
+                  class="w-full px-3 py-2 rounded-md bg-background border border-border text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500"
                 />
               </div>
 
@@ -157,7 +157,7 @@
                     required
                     rows="2"
                     placeholder="Describe the steps that led to the bug…"
-                    class="w-full px-3 py-2 rounded-md bg-background border border-border text-sm font-fell text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500 resize-none"
+                    class="w-full px-3 py-2 rounded-md bg-background border border-border text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500 resize-none"
                   />
                 </div>
 
@@ -172,7 +172,7 @@
                     required
                     rows="2"
                     placeholder="What should have happened…"
-                    class="w-full px-3 py-2 rounded-md bg-background border border-border text-sm font-fell text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500 resize-none"
+                    class="w-full px-3 py-2 rounded-md bg-background border border-border text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500 resize-none"
                   />
                 </div>
 
@@ -187,7 +187,7 @@
                     required
                     rows="2"
                     placeholder="Describe what went wrong…"
-                    class="w-full px-3 py-2 rounded-md bg-background border border-border text-sm font-fell text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500 resize-none"
+                    class="w-full px-3 py-2 rounded-md bg-background border border-border text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500 resize-none"
                   />
                 </div>
               </template>
@@ -205,7 +205,7 @@
                     required
                     rows="2"
                     placeholder="Describe the feature or improvement…"
-                    class="w-full px-3 py-2 rounded-md bg-background border border-border text-sm font-fell text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500 resize-none"
+                    class="w-full px-3 py-2 rounded-md bg-background border border-border text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500 resize-none"
                   />
                 </div>
 
@@ -220,7 +220,7 @@
                     required
                     rows="2"
                     placeholder="Why is this useful? What does it make easier…"
-                    class="w-full px-3 py-2 rounded-md bg-background border border-border text-sm font-fell text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500 resize-none"
+                    class="w-full px-3 py-2 rounded-md bg-background border border-border text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500 resize-none"
                   />
                 </div>
               </template>
@@ -256,7 +256,7 @@
                 </div>
                 <label
                   v-else
-                  class="flex items-center gap-2 px-3 py-2 rounded-md border border-dashed border-border text-xs font-fell text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors cursor-pointer"
+                  class="flex items-center gap-2 px-3 py-2 rounded-md border border-dashed border-border text-caption text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors cursor-pointer"
                 >
                   <IconAddImage class="h-4 w-4 shrink-0" />
                   <span>Add screenshot</span>
@@ -275,7 +275,7 @@
             <div
               class="flex items-center gap-3 px-5 py-4 border-t border-border shrink-0"
             >
-              <p v-if="error" class="flex-1 font-fell text-xs text-destructive">
+              <p v-if="error" class="flex-1 text-caption text-destructive">
                 {{ error }}
               </p>
               <div v-else class="flex-1" />

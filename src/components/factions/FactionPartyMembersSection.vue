@@ -66,7 +66,7 @@
       </div>
     </div>
 
-    <p v-if="!activeMembers.length && !formerMembers.length" class="font-fell text-xs text-muted-foreground italic">No player members yet.</p>
+    <p v-if="!activeMembers.length && !formerMembers.length" class="text-caption text-muted-foreground italic">No player members yet.</p>
 
     <!-- Add member -->
     <div class="flex items-center gap-2">

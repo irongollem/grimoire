@@ -17,7 +17,7 @@
       v-if="components.includes('M')"
       :value="material"
       placeholder="Material component (e.g. a pinch of sulfur and powdered iron)…"
-      class="bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+      class="bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
       @input="$emit('update:material', ($event.target as HTMLInputElement).value)"
     />
   </div>

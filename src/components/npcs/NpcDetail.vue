@@ -115,7 +115,7 @@
           <!-- Inventory tab -->
           <div v-else-if="activeTab === 'inventory'">
             <NpcInventorySection v-if="npc?.id" :npc-id="npc.id" :npc-name="npc.name" />
-            <p v-else class="font-fell text-sm text-muted-foreground italic">Save the NPC first to manage inventory.</p>
+            <p v-else class="text-body text-muted-foreground italic">Save the NPC first to manage inventory.</p>
           </div>
 
           <!-- Combat tab -->
@@ -160,7 +160,7 @@
                   <RouterLink
                     v-if="form.linked_monster_id"
                     :to="`/monsters/${form.linked_monster_id}`"
-                    class="font-fell text-xs text-primary hover:underline"
+                    class="text-caption text-primary hover:underline"
                   >
                     View in Bestiary →
                   </RouterLink>
@@ -173,7 +173,7 @@
               <p class="font-cinzel text-sm font-bold text-foreground">Stat Block</p>
               <label class="flex items-center gap-2 cursor-pointer">
                 <input v-model="hasStatBlock" type="checkbox" class="w-4 h-4 rounded border-border accent-primary" />
-                <span class="font-fell text-sm text-foreground">Include stat block</span>
+                <span class="text-body text-foreground">Include stat block</span>
               </label>
             </div>
             <div class="gold-divider" />

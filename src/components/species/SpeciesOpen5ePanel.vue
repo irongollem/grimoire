@@ -42,7 +42,7 @@
             v-model="query"
             type="text"
             placeholder="Search races…"
-            class="w-full bg-muted border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="w-full bg-muted border border-border rounded-md pl-8 pr-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             @input="onSearch"
           />
         </div>
@@ -54,15 +54,15 @@
           <LoadingSpinner />
         </div>
 
-        <p v-else-if="error" class="px-5 py-4 font-fell text-sm text-destructive italic">
+        <p v-else-if="error" class="px-5 py-4 text-body text-destructive italic">
           {{ error }}
         </p>
 
-        <p v-else-if="results.length === 0 && query.trim()" class="px-5 py-4 font-fell text-sm text-muted-foreground italic">
+        <p v-else-if="results.length === 0 && query.trim()" class="px-5 py-4 text-body text-muted-foreground italic">
           No results for "{{ query }}".
         </p>
 
-        <p v-else-if="results.length === 0" class="px-5 py-4 font-fell text-sm text-muted-foreground italic">
+        <p v-else-if="results.length === 0" class="px-5 py-4 text-body text-muted-foreground italic">
           Type to search Open5e races.
         </p>
 
@@ -75,7 +75,7 @@
           >
             <div class="min-w-0">
               <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ race.name }}</p>
-              <p class="font-fell text-xs text-muted-foreground italic">{{ race.document.display_name ?? race.document.name }}</p>
+              <p class="text-caption text-muted-foreground italic">{{ race.document.display_name ?? race.document.name }}</p>
             </div>
             <IconDownload class="h-4 w-4 text-muted-foreground shrink-0" />
           </li>
@@ -88,7 +88,7 @@
         class="px-5 py-3 border-t border-border flex items-center gap-2 shrink-0"
       >
         <LoadingSpinner class="h-4 w-4" />
-        <span class="font-fell text-sm text-muted-foreground italic">Importing…</span>
+        <span class="text-body text-muted-foreground italic">Importing…</span>
       </div>
     </aside>
   </Transition>

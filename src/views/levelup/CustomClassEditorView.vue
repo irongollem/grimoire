@@ -35,7 +35,7 @@
     <CustomClassSheet v-if="!isNew && !isEditing && existing" :cls="existing" />
 
     <div v-else class="max-w-2xl mx-auto space-y-6">
-      <p v-if="saveError" class="font-fell text-sm text-destructive">{{ saveError }}</p>
+      <p v-if="saveError" class="text-body text-destructive">{{ saveError }}</p>
 
       <!-- ── Section 1: Identity ────────────────────────────────────────────── -->
       <section class="rounded-lg border border-border bg-card p-4 space-y-4">
@@ -46,7 +46,7 @@
             <label class="block text-eyebrow text-muted-foreground mb-1.5">HIT DIE</label>
             <select
               v-model.number="form.hit_die"
-              class="w-full bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-full bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             >
               <option :value="6">d6</option>
               <option :value="8">d8</option>
@@ -60,7 +60,7 @@
             <input
               v-model="form.primary_ability"
               placeholder="e.g. Strength or Dexterity"
-              class="w-full bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-full bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
 
@@ -71,7 +71,7 @@
               type="number"
               min="1"
               max="20"
-              class="w-full bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-full bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
 
@@ -79,7 +79,7 @@
             <label class="block text-eyebrow text-muted-foreground mb-1.5">CAMPAIGN SCOPE</label>
             <select
               v-model="campaignScope"
-              class="w-full bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-full bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             >
               <option value="all">All my campaigns</option>
               <option v-for="c in campaigns" :key="c.id" :value="c.id">{{ c.name }}</option>
@@ -108,7 +108,7 @@
       <!-- ── Section 4: ASI levels ──────────────────────────────────────────── -->
       <section class="rounded-lg border border-border bg-card p-4 space-y-4">
         <h2 class="font-cinzel text-xs tracking-widest uppercase text-muted-foreground">Ability Score Increase Levels</h2>
-        <p class="font-fell text-sm text-muted-foreground">Levels at which this class gains an Ability Score Improvement.</p>
+        <p class="text-body text-muted-foreground">Levels at which this class gains an Ability Score Improvement.</p>
 
         <div class="flex flex-wrap gap-1.5">
           <span

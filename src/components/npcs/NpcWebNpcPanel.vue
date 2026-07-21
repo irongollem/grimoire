@@ -17,8 +17,8 @@
         <IconClose class="h-4 w-4" />
       </button>
     </div>
-    <div v-if="npc.occupation" class="font-fell text-xs text-muted-foreground">{{ npc.occupation }}</div>
-    <div v-if="npc.race" class="font-fell text-xs text-foreground">{{ npc.race }}</div>
+    <div v-if="npc.occupation" class="text-caption text-muted-foreground">{{ npc.occupation }}</div>
+    <div v-if="npc.race" class="text-caption text-foreground">{{ npc.race }}</div>
     <div class="flex gap-1.5 flex-wrap">
       <span
         class="px-1.5 py-0.5 rounded text-label font-bold"

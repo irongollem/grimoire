@@ -36,7 +36,7 @@
           <span class="shrink-0 rounded px-1.5 py-0.5 text-eyebrow bg-muted text-muted-foreground">
             {{ FEATURE_TYPE_LABELS[feat.feature_type] }}
           </span>
-          <span v-if="feat.source" class="font-fell text-xs text-muted-foreground">{{ feat.source }}</span>
+          <span v-if="feat.source" class="text-caption text-muted-foreground">{{ feat.source }}</span>
         </div>
         <div v-if="feat.tags.length" class="flex flex-wrap gap-1 mt-1">
           <span

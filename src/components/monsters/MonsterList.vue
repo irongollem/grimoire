@@ -23,7 +23,7 @@
 
     <p
       v-else-if="!filtered.length"
-      class="text-center font-fell text-sm text-muted-foreground italic py-12"
+      class="text-center text-body text-muted-foreground italic py-12"
     >
       No monsters match your filters.
     </p>
@@ -126,7 +126,7 @@
           </div>
 
           <!-- Type + Size -->
-          <p class="font-fell text-xs text-muted-foreground italic capitalize">
+          <p class="text-caption text-muted-foreground italic capitalize">
             {{ monster.size }} {{ monster.monster_type }}
           </p>
 
@@ -178,7 +178,7 @@
 
     <p
       v-if="filtered.length && !isMobile"
-      class="mt-4 font-fell text-xs text-muted-foreground italic text-right"
+      class="mt-4 text-caption text-muted-foreground italic text-right"
     >
       {{ filtered.length }} of {{ allMonsters?.length ?? 0 }} monsters
     </p>
@@ -201,7 +201,7 @@
         <!-- Whole party -->
         <button
           type="button"
-          class="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left font-fell text-xs transition-colors"
+          class="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left text-caption transition-colors"
           :class="popoverCurrentDiscovery && allPartyIds.every(id => isMemberVisible(id))
             ? 'bg-primary/15 text-primary'
             : 'text-foreground hover:bg-muted/50'"
@@ -217,7 +217,7 @@
             v-for="member in party"
             :key="member.id"
             type="button"
-            class="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left font-fell text-xs transition-colors"
+            class="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left text-caption transition-colors"
             :class="isMemberVisible(member.id)
               ? 'bg-primary/15 text-primary'
               : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'"
@@ -235,7 +235,7 @@
         <div v-if="popoverCurrentDiscovery" class="border-t border-border pt-1">
           <button
             type="button"
-            class="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left font-fell text-xs transition-colors"
+            class="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left text-caption transition-colors"
             :class="popoverCurrentDiscovery.reveal_stats
               ? 'bg-primary/15 text-primary'
               : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'"
@@ -251,13 +251,13 @@
           <button
             v-if="popoverCurrentDiscovery"
             type="button"
-            class="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left font-fell text-xs text-destructive hover:bg-destructive/10 transition-colors"
+            class="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left text-caption text-destructive hover:bg-destructive/10 transition-colors"
             @click="unshare"
           >
             <IconHide class="h-3 w-3 shrink-0" />
             Hide from all players
           </button>
-          <p v-else class="font-fell text-2xs text-muted-foreground italic px-2">
+          <p v-else class="text-caption-sm text-muted-foreground italic px-2">
             Select players above to share.
           </p>
         </div>

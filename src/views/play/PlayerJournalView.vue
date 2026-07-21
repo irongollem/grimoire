@@ -75,7 +75,7 @@
           <select
             v-if="formRefType"
             v-model="formRefId"
-            class="flex-1 min-w-32 bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="flex-1 min-w-32 bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           >
             <option value="">— Select —</option>
             <option v-for="opt in refOptions" :key="opt.id" :value="opt.id">{{ opt.name }}</option>

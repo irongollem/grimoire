@@ -2,12 +2,12 @@
   <div>
     <!-- No character selected -->
     <div v-if="!partyMemberId" class="rounded-lg border border-border bg-card px-5 py-8 text-center">
-      <p class="font-fell text-sm text-muted-foreground italic">No character selected.</p>
+      <p class="text-body text-muted-foreground italic">No character selected.</p>
     </div>
 
     <!-- Non-caster -->
     <div v-else-if="casterType === 'none'" class="rounded-lg border border-border bg-card px-5 py-8 text-center">
-      <p class="font-fell text-sm text-muted-foreground italic">
+      <p class="text-body text-muted-foreground italic">
         Your character class doesn't have a spell list.
       </p>
     </div>
@@ -21,12 +21,12 @@
     >
       <component :is="emptyIcon" class="h-8 w-8 mx-auto text-muted-foreground/60" />
       <p class="font-cinzel text-sm font-semibold text-foreground">{{ emptyTitle }}</p>
-      <p class="font-fell text-sm text-muted-foreground max-w-sm mx-auto">{{ emptyBody }}</p>
+      <p class="text-body text-muted-foreground max-w-sm mx-auto">{{ emptyBody }}</p>
     </div>
 
     <!-- Grouped spell list -->
     <template v-else>
-      <div v-if="replacementCandidate" class="rounded-lg border border-violet-500/30 bg-violet-500/10 px-4 py-2 mb-2 font-fell text-sm">
+      <div v-if="replacementCandidate" class="rounded-lg border border-violet-500/30 bg-violet-500/10 px-4 py-2 mb-2 text-body">
         Replacing <strong>{{ replacementCandidate.spell.name }}</strong>. Choose its replacement in All Spells.
         <button class="ml-2 text-violet-400 underline" type="button" @click="clearReplacement">Cancel</button>
       </div>
@@ -104,7 +104,7 @@
 
             <!-- Spell name -->
             <button
-              class="flex-1 font-fell text-sm text-foreground hover:text-primary transition-colors min-w-0 truncate text-left"
+              class="flex-1 text-body text-foreground hover:text-primary transition-colors min-w-0 truncate text-left"
               @click.stop="selectedSpell = entry.spell"
             >
               {{ entry.spell.name }}
@@ -263,7 +263,7 @@
         </div>
       </div>
 
-      <p class="font-fell text-xs text-muted-foreground italic text-center mt-2">
+      <p class="text-caption text-muted-foreground italic text-center mt-2">
         {{ footerText }}
       </p>
     </template>

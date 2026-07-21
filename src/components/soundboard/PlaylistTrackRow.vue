@@ -13,7 +13,7 @@
 
     <!-- Category chip -->
     <span
-      class="shrink-0 font-fell text-2xs px-1.5 py-0.5 rounded border"
+      class="shrink-0 text-caption-sm px-1.5 py-0.5 rounded border"
       :class="categoryChipClass"
     >
       {{ sound.category }}

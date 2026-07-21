@@ -36,18 +36,18 @@
           :disabled="rolledHp !== null"
           @click="emit('roll')"
         >Roll d{{ hitDie }}</button>
-        <span v-if="rolledHp !== null" class="font-fell text-sm text-foreground">
+        <span v-if="rolledHp !== null" class="text-body text-foreground">
           Rolled <strong class="font-cinzel">{{ rolledHp }}</strong>
           <span class="text-muted-foreground"> + CON {{ conMod >= 0 ? '+' : '' }}{{ conMod }} = </span>
           <strong class="font-cinzel text-primary">{{ Math.max(1, rolledHp + conMod) }}</strong> HP
         </span>
-        <span v-else class="font-fell text-xs text-muted-foreground italic">
+        <span v-else class="text-caption text-muted-foreground italic">
           Roll once. Minimum 1 HP per level.
         </span>
       </div>
     </template>
 
-    <p v-else class="font-fell text-sm text-muted-foreground">
+    <p v-else class="text-body text-muted-foreground">
       <template v-if="hpMode === 'average'">
         Take the average: <strong class="font-cinzel text-foreground">{{ hpAverageValue }}</strong>
         (½ hit die rounded up, +1) + CON {{ conMod >= 0 ? '+' : '' }}{{ conMod }}

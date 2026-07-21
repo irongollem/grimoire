@@ -23,7 +23,7 @@
 
     <p
       v-else-if="!filtered.length"
-      class="text-center font-fell text-sm text-muted-foreground italic py-12"
+      class="text-center text-body text-muted-foreground italic py-12"
     >
       No encounters match your search.
     </p>
@@ -91,7 +91,7 @@
           <!-- Description -->
           <p
             v-if="descriptionText(encounter.description)"
-            class="font-fell text-xs text-muted-foreground italic line-clamp-2"
+            class="text-caption text-muted-foreground italic line-clamp-2"
           >
             {{ descriptionText(encounter.description) }}
           </p>
@@ -119,7 +119,7 @@
 
     <p
       v-if="filtered.length"
-      class="mt-4 font-fell text-xs text-muted-foreground italic text-right"
+      class="mt-4 text-caption text-muted-foreground italic text-right"
     >
       {{ filtered.length }} of {{ encounters?.length ?? 0 }} encounters
     </p>

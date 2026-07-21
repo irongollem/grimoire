@@ -2,13 +2,13 @@
   <div class="space-y-6">
     <div
       v-if="plansQuery.isPending.value"
-      class="text-muted-foreground font-fell text-sm"
+      class="text-muted-foreground text-body"
     >
       Loading plans…
     </div>
     <div
       v-else-if="plansQuery.isError.value"
-      class="text-destructive font-fell text-sm"
+      class="text-destructive text-body"
     >
       Failed to load plans.
     </div>
@@ -60,13 +60,13 @@
               v-model.number="draftMonthlyCredits[plan.id]"
               type="number"
               min="0"
-              class="w-32 bg-background border border-border rounded px-2.5 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-32 bg-background border border-border rounded px-2.5 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
             <p class="font-fell text-[0.6875rem] text-muted-foreground italic">
               {{ creditsHelper(draftMonthlyCredits[plan.id]) }}
             </p>
           </div>
-          <p class="font-fell text-2xs text-muted-foreground/60 italic">
+          <p class="text-caption-sm text-muted-foreground/60 italic">
             Use-it-or-lose-it allowance granted each billing period. Resets
             monthly; purchased packs are separate and permanent.
           </p>
@@ -91,7 +91,7 @@
               v-model.number="draftQuotas[plan.id][resource]"
               type="number"
               min="0"
-              class="w-full bg-muted border border-border rounded px-2.5 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-full bg-muted border border-border rounded px-2.5 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
         </div>
@@ -108,7 +108,7 @@
             >
               {{ LABELS[resource] }}
             </p>
-            <p class="font-fell text-sm text-foreground">∞</p>
+            <p class="text-body text-foreground">∞</p>
           </div>
         </div>
       </div>
@@ -122,20 +122,20 @@
         >
           Subscription Prices
         </h2>
-        <p class="font-fell text-xs text-muted-foreground italic mt-0.5">
+        <p class="text-caption text-muted-foreground italic mt-0.5">
           Enter Stripe Price IDs for each paid plan and click Sync — amounts are
           fetched from Stripe and cached.
         </p>
       </div>
       <div
         v-if="plansQuery.isPending.value"
-        class="text-muted-foreground font-fell text-sm"
+        class="text-muted-foreground text-body"
       >
         Loading…
       </div>
       <div
         v-else-if="plansQuery.isError.value"
-        class="text-destructive font-fell text-sm"
+        class="text-destructive text-body"
       >
         Failed to load plans.
       </div>
@@ -181,7 +181,7 @@
                 />
                 <span
                   v-if="plan.stripe_monthly_unit_amount && plan.stripe_currency"
-                  class="font-fell text-xs text-muted-foreground whitespace-nowrap"
+                  class="text-caption text-muted-foreground whitespace-nowrap"
                 >
                   {{
                     new Intl.NumberFormat(undefined, {
@@ -211,7 +211,7 @@
                 />
                 <span
                   v-if="plan.stripe_annual_unit_amount && plan.stripe_currency"
-                  class="font-fell text-xs text-muted-foreground whitespace-nowrap"
+                  class="text-caption text-muted-foreground whitespace-nowrap"
                 >
                   {{
                     new Intl.NumberFormat(undefined, {

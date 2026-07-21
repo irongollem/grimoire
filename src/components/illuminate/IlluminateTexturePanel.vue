@@ -38,10 +38,10 @@
         @dragover.prevent
         @drop.prevent="(e: DragEvent) => emit('drop-file', e)"
       >
-        <span class="font-fell text-xs text-muted-foreground">Drop texture or click to upload</span>
+        <span class="text-caption text-muted-foreground">Drop texture or click to upload</span>
       </div>
       <div v-else class="flex items-center gap-2">
-        <span class="font-fell text-xs text-muted-foreground truncate flex-1">{{ filename }}</span>
+        <span class="text-caption text-muted-foreground truncate flex-1">{{ filename }}</span>
         <button
           type="button"
           class="text-label text-muted-foreground hover:text-foreground transition-colors shrink-0"
@@ -68,7 +68,7 @@
       <div>
         <div class="flex items-center justify-between mb-1">
           <label class="text-eyebrow text-muted-foreground">Opacity</label>
-          <span class="font-fell text-xs text-muted-foreground tabular-nums">{{ Math.round(texture.opacity * 100) }}</span>
+          <span class="text-caption text-muted-foreground tabular-nums">{{ Math.round(texture.opacity * 100) }}</span>
         </div>
         <input
           type="range" min="0" max="1" step="0.01"
@@ -82,7 +82,7 @@
       <div>
         <div class="flex items-center justify-between mb-1">
           <label class="text-eyebrow text-muted-foreground">Tile scale</label>
-          <span class="font-fell text-xs text-muted-foreground tabular-nums">×{{ texture.scale.toFixed(2) }}</span>
+          <span class="text-caption text-muted-foreground tabular-nums">×{{ texture.scale.toFixed(2) }}</span>
         </div>
         <input
           type="range" min="0.1" max="3" step="0.05"

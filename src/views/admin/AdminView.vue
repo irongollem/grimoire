@@ -5,7 +5,7 @@
       <h1 class="font-cinzel text-xl md:text-3xl font-bold text-foreground tracking-wide">
         Admin Panel
       </h1>
-      <p class="font-fell text-sm md:text-base text-muted-foreground italic mt-0.5">
+      <p class="text-body md:text-base text-muted-foreground italic mt-0.5">
         Plans, subscriptions, invites &amp; AI management
       </p>
       <div class="gold-divider mt-3" />

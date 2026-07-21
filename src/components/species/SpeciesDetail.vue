@@ -10,7 +10,7 @@
       />
     </label>
 
-    <p v-if="saveError" class="text-destructive font-fell text-sm">{{ saveError }}</p>
+    <p v-if="saveError" class="text-destructive text-body">{{ saveError }}</p>
 
     <!-- Two-column: portrait sidebar + details -->
     <div class="grid grid-cols-1 lg:grid-cols-[13.75rem_1fr] gap-6">
@@ -39,16 +39,16 @@
         <!-- Shapeshifter flag -->
         <label class="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" v-model="form.is_shapeshifter" class="rounded" />
-          <span class="font-fell text-sm text-muted-foreground italic">Shapeshifter (player can polymorph)</span>
+          <span class="text-body text-muted-foreground italic">Shapeshifter (player can polymorph)</span>
         </label>
 
         <!-- Campaign-specific flag -->
         <div v-if="campaignStore.activeCampaignId" class="rounded-md border border-border/60 bg-muted/20 p-3 space-y-1">
           <label class="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" :checked="form.campaign_id === campaignStore.activeCampaignId" class="rounded" @change="toggleCampaignSpecific" />
-            <span class="font-fell text-sm text-foreground">Campaign-only</span>
+            <span class="text-body text-foreground">Campaign-only</span>
           </label>
-          <p class="font-fell text-xs text-muted-foreground italic pl-6">
+          <p class="text-caption text-muted-foreground italic pl-6">
             Restrict this species to <strong>{{ campaignStore.activeCampaign?.name }}</strong>. It won't appear in other campaigns.
           </p>
         </div>
@@ -62,7 +62,7 @@
             <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">SIZE</label>
             <select
               v-model="form.size"
-              class="w-full bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-full bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             >
               <option value="">— none —</option>
               <option v-for="sz in SIZES" :key="sz" :value="sz" class="capitalize">{{ sz }}</option>
@@ -73,7 +73,7 @@
             <input
               v-model="form.source"
               placeholder="PHB 2024, Homebrew…"
-              class="w-full bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-full bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
         </div>
@@ -85,7 +85,7 @@
             <input
               v-model="form.avg_height"
               placeholder="e.g. 5 ft 9 in (175 cm)…"
-              class="w-full bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-full bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
           <div>
@@ -93,7 +93,7 @@
             <input
               v-model="form.avg_weight"
               placeholder="e.g. 165 lbs (75 kg)…"
-              class="w-full bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-full bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
         </div>
@@ -108,9 +108,9 @@
               min="1"
               max="30"
               placeholder="—"
-              class="w-24 bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-24 bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
-            <span class="font-fell text-xs text-muted-foreground italic">Leave blank if the species has no natural armor trait</span>
+            <span class="text-caption text-muted-foreground italic">Leave blank if the species has no natural armor trait</span>
           </div>
         </div>
 
@@ -126,7 +126,7 @@
                 min="0"
                 step="5"
                 :placeholder="type === 'walk' ? '30' : '—'"
-                class="w-full bg-card border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="w-full bg-card border border-border rounded-md px-2 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 @input="setSpeed(type, ($event.target as HTMLInputElement).value)"
               />
             </div>
@@ -139,7 +139,7 @@
           <input
             v-model="form.asiDescription"
             placeholder="e.g. +2 STR, +1 to any ability score of your choice…"
-            class="w-full bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="w-full bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
 
@@ -185,7 +185,7 @@
               <input
                 v-model="sub.asiText"
                 placeholder="e.g. CHA +1 or +1 Charisma"
-                class="mt-1 w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="mt-1 w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </label>
             <RichTextEditor v-model="sub.description" placeholder="Subrace description…" />

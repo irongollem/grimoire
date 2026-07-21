@@ -57,7 +57,7 @@
       </button>
     </div>
 
-    <p v-if="error" class="text-destructive font-fell text-sm">{{ error }}</p>
+    <p v-if="error" class="text-destructive text-body">{{ error }}</p>
   </div>
 </template>
 

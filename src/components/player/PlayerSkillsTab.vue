@@ -29,7 +29,7 @@
             >
               <span v-if="isExpertise(skill.key)" class="h-1.5 w-1.5 rounded-full bg-current" />
             </span>
-            <span class="font-fell text-sm flex-1 text-foreground">{{ skill.label }}</span>
+            <span class="text-body flex-1 text-foreground">{{ skill.label }}</span>
             <span class="font-cinzel text-2xs md:text-sm text-muted-foreground/50 mr-1">{{ skill.ability.toUpperCase() }}</span>
             <span class="font-cinzel text-sm font-bold" :class="skillBonusValue(skill) >= 0 ? 'text-foreground' : 'text-destructive'">
               {{ signedNum(skillBonusValue(skill)) }}
@@ -50,7 +50,7 @@
             >
               <span v-if="isExpertise(skill.key)" class="h-1.5 w-1.5 rounded-full bg-current" />
             </span>
-            <span class="font-fell text-sm flex-1 text-foreground">{{ skill.label }}</span>
+            <span class="text-body flex-1 text-foreground">{{ skill.label }}</span>
             <span class="font-cinzel text-2xs md:text-sm text-muted-foreground/50 mr-1">{{ skill.ability.toUpperCase() }}</span>
             <span class="font-cinzel text-sm font-bold" :class="skillBonusValue(skill) >= 0 ? 'text-foreground' : 'text-destructive'">
               {{ signedNum(skillBonusValue(skill)) }}

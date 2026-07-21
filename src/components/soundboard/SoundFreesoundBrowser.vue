@@ -2,29 +2,29 @@
   <div class="space-y-3">
     <!-- Search input -->
     <div class="space-y-1">
-      <label class="font-fell text-xs text-muted-foreground">Search Freesound — royalty-free SFX</label>
+      <label class="text-caption text-muted-foreground">Search Freesound — royalty-free SFX</label>
       <input
         v-model="query"
         type="search"
         placeholder="e.g. tavern crowd, dragon roar, sword clash"
-        class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm font-fell text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-gold-500"
+        class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-gold-500"
       />
     </div>
 
     <!-- Status -->
-    <p v-if="isLoading" class="font-fell text-xs text-muted-foreground text-center">Searching…</p>
-    <p v-else-if="isError" class="font-fell text-xs text-destructive">
+    <p v-if="isLoading" class="text-caption text-muted-foreground text-center">Searching…</p>
+    <p v-else-if="isError" class="text-caption text-destructive">
       Search failed. {{ errorMessage }}
     </p>
     <p
       v-else-if="searchData && searchData.results.length === 0 && debouncedQuery.length >= 2"
-      class="font-fell text-xs text-muted-foreground text-center"
+      class="text-caption text-muted-foreground text-center"
     >
       No free-to-use matches for "{{ debouncedQuery }}".
     </p>
     <p
       v-else-if="!debouncedQuery || debouncedQuery.length < 2"
-      class="font-fell text-xs text-muted-foreground/60 text-center"
+      class="text-caption text-muted-foreground/60 text-center"
     >
       Type at least 2 characters to search hundreds of thousands of free sound effects.
     </p>
@@ -52,7 +52,7 @@
           <div class="flex items-center gap-1.5">
             <p class="font-cinzel text-xs text-foreground truncate">{{ hit.name }}</p>
             <span
-              class="shrink-0 px-1 py-0.5 rounded font-fell text-2xs tracking-wide"
+              class="shrink-0 px-1 py-0.5 rounded text-caption-sm tracking-wide"
               :class="
                 hit.license === 'cc0'
                   ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
@@ -87,16 +87,16 @@
     >
       <button
         type="button"
-        class="px-2 py-1 rounded-md border border-border font-fell text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-30"
+        class="px-2 py-1 rounded-md border border-border text-caption text-muted-foreground hover:text-foreground transition-colors disabled:opacity-30"
         :disabled="searchData.page <= 1"
         @click="page = Math.max(1, page - 1)"
       >
         ← Prev
       </button>
-      <span class="font-fell text-xs text-muted-foreground">Page {{ searchData.page }}</span>
+      <span class="text-caption text-muted-foreground">Page {{ searchData.page }}</span>
       <button
         type="button"
-        class="px-2 py-1 rounded-md border border-border font-fell text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-30"
+        class="px-2 py-1 rounded-md border border-border text-caption text-muted-foreground hover:text-foreground transition-colors disabled:opacity-30"
         :disabled="!searchData.has_next"
         @click="page = page + 1"
       >

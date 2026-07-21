@@ -67,7 +67,7 @@
         <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2">
           <div v-if="trap.trigger_type">
             <span class="text-eyebrow font-semibold text-muted-foreground">Trigger</span>
-            <p class="font-fell text-sm text-foreground">{{ trap.trigger_type }}</p>
+            <p class="text-body text-foreground">{{ trap.trigger_type }}</p>
           </div>
           <div v-if="trap.detection_dc">
             <span class="text-eyebrow font-semibold text-muted-foreground">Detection DC</span>
@@ -79,7 +79,7 @@
           </div>
           <div>
             <span class="text-eyebrow font-semibold text-muted-foreground">Reset</span>
-            <p class="font-fell text-sm text-foreground">{{ trap.reset_type }}</p>
+            <p class="text-body text-foreground">{{ trap.reset_type }}</p>
           </div>
           <div v-if="trap.trap_hp">
             <span class="text-eyebrow font-semibold text-muted-foreground">HP</span>
@@ -112,7 +112,7 @@
         <span class="text-label-lg font-semibold text-muted-foreground">Effect</span>
       </div>
       <div class="p-4 flex flex-col gap-3">
-        <p v-if="trap.effect_description" class="font-fell text-sm text-foreground">{{ trap.effect_description }}</p>
+        <p v-if="trap.effect_description" class="text-body text-foreground">{{ trap.effect_description }}</p>
         <div class="flex flex-wrap gap-2">
           <span
             v-if="trap.attack_bonus != null"

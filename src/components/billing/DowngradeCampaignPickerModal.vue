@@ -13,7 +13,7 @@
               Choose your active campaign
             </h2>
           </div>
-          <p class="font-fell text-sm text-muted-foreground italic leading-relaxed">
+          <p class="text-body text-muted-foreground italic leading-relaxed">
             You're now on the free plan ({{ campaignLimit }} active campaign).
             Select which campaign to keep — the rest will be archived and can be
             restored by upgrading.

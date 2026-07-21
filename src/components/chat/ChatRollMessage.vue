@@ -17,7 +17,7 @@
     <!-- Flavor line -->
     <p
       v-if="flavorSkillLabel || flavorText"
-      class="font-fell text-sm text-foreground/85 italic leading-snug mb-2"
+      class="text-body text-foreground/85 italic leading-snug mb-2"
     >
       <span
         v-if="flavorSkillLabel"
@@ -65,7 +65,7 @@
             class="font-cinzel text-2xs text-purple-600 dark:text-purple-400 px-1"
           >{{ roll.modifier > 0 ? `+${roll.modifier}` : roll.modifier }}</span>
         </div>
-        <p class="font-fell text-2xs text-muted-foreground/50">{{ timeLabel }}</p>
+        <p class="text-caption-sm text-muted-foreground/50">{{ timeLabel }}</p>
       </div>
     </div>
   </div>
@@ -147,7 +147,7 @@
             }}
           </span>
         </div>
-        <p class="font-fell text-2xs text-muted-foreground/50">
+        <p class="text-caption-sm text-muted-foreground/50">
           {{ timeLabel }}
         </p>
       </div>

@@ -5,7 +5,7 @@
     <div class="flex items-center justify-between">
       <div>
         <h1 class="font-cinzel text-xl font-bold text-foreground">Champions</h1>
-        <p class="font-fell text-sm text-muted-foreground italic mt-0.5">Your characters in this campaign</p>
+        <p class="text-body text-muted-foreground italic mt-0.5">Your characters in this campaign</p>
       </div>
       <RouterLink
         :to="{ name: 'play-character-create' }"
@@ -26,7 +26,7 @@
       <IconDM class="h-8 w-8 text-muted-foreground/40 mx-auto" />
       <div>
         <p class="font-cinzel text-sm font-semibold text-foreground">No characters yet</p>
-        <p class="font-fell text-sm text-muted-foreground italic mt-1">Create your first champion to begin your adventure.</p>
+        <p class="text-body text-muted-foreground italic mt-1">Create your first champion to begin your adventure.</p>
       </div>
       <RouterLink
         :to="{ name: 'play-character-create' }"
@@ -70,7 +70,7 @@
                     class="shrink-0 text-label md:text-sm px-1.5 py-0.5 rounded bg-primary text-primary-foreground"
                   >Active</span>
                 </div>
-                <p class="font-fell text-xs text-muted-foreground italic mt-0.5 truncate">
+                <p class="text-caption text-muted-foreground italic mt-0.5 truncate">
                   {{ charSummary(char) }}
                 </p>
               </div>
@@ -136,7 +136,7 @@
             <div class="flex-1 min-w-0 flex flex-col justify-between py-0.5">
               <div>
                 <h2 class="font-cinzel text-sm font-bold text-foreground truncate">{{ char.name }}</h2>
-                <p class="font-fell text-xs text-muted-foreground italic mt-0.5 truncate">
+                <p class="text-caption text-muted-foreground italic mt-0.5 truncate">
                   {{ charSummary(char) }}
                 </p>
               </div>
@@ -157,7 +157,7 @@
     </template>
 
     <!-- Error -->
-    <p v-if="setActiveError || assumeError" class="font-fell text-xs text-destructive text-center">
+    <p v-if="setActiveError || assumeError" class="text-caption text-destructive text-center">
       {{ setActiveError || assumeError }}
     </p>
 

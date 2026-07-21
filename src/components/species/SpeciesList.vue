@@ -21,7 +21,7 @@
 
     <p
       v-else-if="!filtered.length"
-      class="text-center font-fell text-sm text-muted-foreground italic py-12"
+      class="text-center text-body text-muted-foreground italic py-12"
     >
       No species match your filters.
     </p>
@@ -76,7 +76,7 @@
             {{ s.name }}
           </h3>
 
-          <p class="font-fell text-xs text-muted-foreground italic capitalize">
+          <p class="text-caption text-muted-foreground italic capitalize">
             {{ s.size ?? "—" }}
             <span v-if="s.speed?.walk"> · {{ s.speed.walk }} ft</span>
           </p>
@@ -124,7 +124,7 @@
 
     <p
       v-if="filtered.length"
-      class="mt-4 font-fell text-xs text-muted-foreground italic text-right"
+      class="mt-4 text-caption text-muted-foreground italic text-right"
     >
       {{ filtered.length }} species
     </p>

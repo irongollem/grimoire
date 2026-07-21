@@ -14,7 +14,7 @@
           :to="`/factions/${e.faction.id}`"
           class="font-cinzel text-2xs font-semibold text-foreground hover:text-primary transition-colors"
         >{{ e.faction.name }}</RouterLink>
-        <span v-if="e.faction.faction_type" class="font-fell text-2xs text-muted-foreground italic">{{ e.faction.faction_type }}</span>
+        <span v-if="e.faction.faction_type" class="text-caption-sm text-muted-foreground italic">{{ e.faction.faction_type }}</span>
         <button
           type="button"
           class="text-muted-foreground hover:text-destructive transition-colors text-sm leading-none shrink-0"
@@ -22,7 +22,7 @@
         >×</button>
       </div>
     </div>
-    <p v-else class="font-fell text-xs text-muted-foreground italic">No factions worship this deity.</p>
+    <p v-else class="text-caption text-muted-foreground italic">No factions worship this deity.</p>
 
     <div class="flex items-center gap-2 mt-1">
       <EntityCombobox v-model="newFactionId" :options="availableFactions" placeholder="Add faction…" />

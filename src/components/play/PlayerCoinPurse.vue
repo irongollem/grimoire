@@ -4,7 +4,7 @@
       Coin Purse
     </p>
     <div v-if="!hasMember" class="text-center py-4">
-      <p class="font-fell text-sm text-muted-foreground italic">No character selected.</p>
+      <p class="text-body text-muted-foreground italic">No character selected.</p>
     </div>
     <template v-else>
       <!-- Compact 5-coin grid -->

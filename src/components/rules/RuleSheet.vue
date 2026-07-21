@@ -29,7 +29,7 @@
       <span
         v-for="tag in rule.tags"
         :key="tag"
-        class="px-2 py-0.5 rounded-full bg-muted font-fell text-xs text-muted-foreground"
+        class="px-2 py-0.5 rounded-full bg-muted text-caption text-muted-foreground"
       >
         {{ tag }}
       </span>
@@ -39,7 +39,7 @@
     <div v-if="hasContent(rule.content)" class="rounded-lg border border-border bg-card p-4">
       <RichTextViewer :content="JSON.stringify(rule.content)" />
     </div>
-    <p v-else class="font-fell text-sm text-muted-foreground italic">No content yet.</p>
+    <p v-else class="text-body text-muted-foreground italic">No content yet.</p>
 
     <!-- Tracker summary -->
     <div v-if="rule.tracker" class="rounded-lg border border-border bg-card overflow-hidden">
@@ -66,8 +66,8 @@
           >
             {{ lvl.value }}
           </span>
-          <span class="font-fell text-sm text-foreground">{{ lvl.label }}</span>
-          <span v-if="lvl.effects?.length" class="font-fell text-xs text-muted-foreground italic ml-1">
+          <span class="text-body text-foreground">{{ lvl.label }}</span>
+          <span v-if="lvl.effects?.length" class="text-caption text-muted-foreground italic ml-1">
             ({{ lvl.effects.length }} effect{{ lvl.effects.length === 1 ? '' : 's' }})
           </span>
         </div>
@@ -79,7 +79,7 @@
         <span
           v-for="btn in rule.tracker.dmButtons"
           :key="btn.label"
-          class="inline-flex items-center gap-1 px-2 py-1 rounded border border-border bg-muted font-fell text-xs text-foreground"
+          class="inline-flex items-center gap-1 px-2 py-1 rounded border border-border bg-muted text-caption text-foreground"
         >
           {{ btn.label }}
           <span class="font-cinzel text-2xs text-muted-foreground">{{ btn.delta > 0 ? `+${btn.delta}` : btn.delta }}</span>

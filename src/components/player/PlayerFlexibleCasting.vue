@@ -36,7 +36,7 @@
         >Convert slot</button>
       </div>
     </div>
-    <p class="px-3 pb-3 font-fell text-xs text-muted-foreground italic">
+    <p class="px-3 pb-3 text-caption text-muted-foreground italic">
       Created slots vanish when you finish a Long Rest. Sorcery Points can’t exceed {{ sorceryPoints.max }}.
     </p>
   </div>

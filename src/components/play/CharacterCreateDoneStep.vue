@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-4">
-    <p class="font-fell text-sm text-muted-foreground italic">
+    <p class="text-body text-muted-foreground italic">
       {{ isEditMode
         ? 'Review your changes before saving.'
         : 'All set! Stats are derived from your choices — no magic numbers.' }}
@@ -16,7 +16,7 @@
         </div>
         <div>
           <p class="font-cinzel text-base font-bold text-foreground">{{ f.name || '—' }}</p>
-          <p class="font-fell text-xs text-muted-foreground">
+          <p class="text-caption text-muted-foreground">
             Level {{ isEditMode ? f.level : 1 }}
             {{ [selectedSpecies?.name, f.class].filter(Boolean).join(' ') }}
             {{ f.subrace ? `(${f.subrace})` : '' }}
@@ -67,11 +67,11 @@
       <div v-if="selectedBg || f.alignment" class="px-4 pb-3 flex flex-wrap gap-x-4 gap-y-1">
         <div v-if="selectedBg" class="flex items-center gap-1">
           <span class="font-cinzel text-[0.5625rem] text-muted-foreground tracking-wider">BG</span>
-          <span class="font-fell text-xs text-foreground">{{ selectedBg.name }}</span>
+          <span class="text-caption text-foreground">{{ selectedBg.name }}</span>
         </div>
         <div v-if="f.alignment" class="flex items-center gap-1">
           <span class="font-cinzel text-[0.5625rem] text-muted-foreground tracking-wider">ALIGN</span>
-          <span class="font-fell text-xs text-foreground">{{ f.alignment }}</span>
+          <span class="text-caption text-foreground">{{ f.alignment }}</span>
         </div>
       </div>
 
@@ -90,7 +90,7 @@
     <!-- Warning: no class selected -->
     <div v-if="!f.class" class="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 flex items-start gap-2">
       <span class="text-amber-500 shrink-0 mt-0.5">⚡</span>
-      <p class="font-fell text-sm text-amber-700 dark:text-amber-400">
+      <p class="text-body text-amber-700 dark:text-amber-400">
         No class selected — HP will default to 8. You can set your class later via the Edit screen.
       </p>
     </div>

@@ -8,7 +8,7 @@
       <div class="flex items-start justify-between gap-2">
         <RouterLink to="/dashboard" class="block min-w-0">
           <h1 class="font-cinzel text-xl font-bold text-gold-500 tracking-widest leading-none">Grimoire</h1>
-          <p class="font-fell text-xs text-muted-foreground italic mt-1">Campaign Companion</p>
+          <p class="text-caption text-muted-foreground italic mt-1">Campaign Companion</p>
         </RouterLink>
         <div class="flex items-center gap-1 shrink-0 pt-0.5">
           <DiceRoller />
@@ -86,7 +86,7 @@
         </p>
         <RouterLink
           to="/admin"
-          class="flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-fell transition-colors"
+          class="flex items-center gap-2.5 px-3 py-2 rounded-md text-caption transition-colors"
           :class="$route.path.startsWith('/admin') ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'"
         >
           <IconShieldCheck class="h-4 w-4 shrink-0" />
@@ -115,7 +115,7 @@
           <div v-if="editingName" class="flex items-center gap-1.5 px-3 py-2">
             <input
               v-model="nameInput"
-              class="flex-1 min-w-0 bg-background border border-border rounded px-1.5 py-0.5 font-fell text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-gold-500"
+              class="flex-1 min-w-0 bg-background border border-border rounded px-1.5 py-0.5 text-caption text-foreground focus:outline-none focus:ring-1 focus:ring-gold-500"
               placeholder="Your name"
               @keydown.enter="saveName"
               @keydown.esc="editingName = false"
@@ -196,7 +196,7 @@
         <div class="h-7 w-7 rounded-full bg-secondary flex items-center justify-center shrink-0">
           <span class="font-cinzel text-xs text-foreground font-semibold">{{ userInitial }}</span>
         </div>
-        <span class="flex-1 truncate font-fell text-xs text-muted-foreground text-left">{{ shownName }}</span>
+        <span class="flex-1 truncate text-caption text-muted-foreground text-left">{{ shownName }}</span>
         <IconSort class="h-3 w-3 text-muted-foreground/60 shrink-0" />
       </button>
 

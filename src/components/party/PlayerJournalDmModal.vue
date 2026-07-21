@@ -11,7 +11,7 @@
           <IconScrollText class="h-4 w-4 text-amber-500/80 shrink-0" />
           <div class="flex-1 min-w-0">
             <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ playerName }}</p>
-            <p class="font-fell text-xs text-muted-foreground italic">Shared with you privately</p>
+            <p class="text-caption text-muted-foreground italic">Shared with you privately</p>
           </div>
           <button
             type="button"
@@ -26,7 +26,7 @@
         <div class="flex-1 overflow-y-auto">
           <div v-if="!entries.length" class="flex flex-col items-center justify-center py-16 gap-2">
             <IconScrollText class="h-8 w-8 text-muted-foreground/30" />
-            <p class="font-fell text-sm text-muted-foreground italic">No entries shared yet.</p>
+            <p class="text-body text-muted-foreground italic">No entries shared yet.</p>
           </div>
 
           <div v-else class="flex flex-col gap-2 p-3">

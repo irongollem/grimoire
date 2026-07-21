@@ -24,7 +24,7 @@
         <p class="font-cinzel text-sm font-semibold text-foreground truncate leading-tight">
           {{ companion.name || "Unnamed" }}
         </p>
-        <p class="font-fell text-2xs text-muted-foreground italic leading-tight">
+        <p class="text-caption-sm text-muted-foreground italic leading-tight">
           {{ COMPANION_TYPE_LABELS[companion.companion_type] }}
           <template v-if="sourceName">
             · <RouterLink :to="sourceLink ?? '#'" class="hover:text-primary transition-colors">{{ sourceName }}</RouterLink>
@@ -84,7 +84,7 @@
           type="number"
           min="1"
           placeholder="HP"
-          class="w-12 bg-muted border border-border rounded px-1.5 py-0.5 font-fell text-xs text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-12 bg-muted border border-border rounded px-1.5 py-0.5 text-caption text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
         />
         <button
           type="button"
@@ -135,7 +135,7 @@
     <div v-if="addingCondition" class="flex items-center gap-1">
       <select
         v-model="newCondition"
-        class="flex-1 bg-card border border-border rounded px-2 py-1 font-fell text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        class="flex-1 bg-card border border-border rounded px-2 py-1 text-caption text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
       >
         <option value="">Pick condition…</option>
         <option v-for="c in availableConditions" :key="c" :value="c">{{ c }}</option>

@@ -8,7 +8,7 @@
       class="text-label-lg shrink-0"
       :class="labelClasses"
     >{{ label }}</span>
-    <span class="font-fell text-sm text-foreground"><slot /></span>
+    <span class="text-body text-foreground"><slot /></span>
   </div>
 </template>
 

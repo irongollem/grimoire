@@ -38,10 +38,10 @@
         Print
       </button>
 
-      <span v-if="pageCount" class="font-fell text-xs text-muted-foreground">
+      <span v-if="pageCount" class="text-caption text-muted-foreground">
         {{ pageCount }} pages · layout {{ layoutMs }} ms
       </span>
-      <span v-if="error" class="font-fell text-xs text-destructive">{{ error }}</span>
+      <span v-if="error" class="text-caption text-destructive">{{ error }}</span>
     </div>
 
     <div class="flex-1 min-h-0 overflow-auto rounded-lg border border-border" style="background: #a09a90">

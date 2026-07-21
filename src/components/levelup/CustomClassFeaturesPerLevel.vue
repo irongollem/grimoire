@@ -1,7 +1,7 @@
 <template>
   <section class="rounded-lg border border-border bg-card p-4 space-y-4">
     <h2 class="font-cinzel text-xs tracking-widest uppercase text-muted-foreground">Features per Level</h2>
-    <p class="font-fell text-sm text-muted-foreground">
+    <p class="text-body text-muted-foreground">
       Select features from the
       <RouterLink to="/features" class="text-primary hover:underline">Abilities compendium</RouterLink>
       to grant at each level. Create custom features there first if needed.
@@ -15,7 +15,7 @@
             <span
               v-for="fid in features[lvl.toString()]"
               :key="fid"
-              class="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 font-fell text-xs text-primary"
+              class="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 text-caption text-primary"
             >
               {{ featureNameById(fid) }}
               <button

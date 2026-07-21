@@ -4,7 +4,7 @@
     <header class="h-14 border-b border-border bg-card flex items-center px-4 gap-3 shrink-0">
       <div class="flex items-center gap-2 shrink-0">
         <span class="font-cinzel text-base font-bold text-gold-500 tracking-widest">Grimoire</span>
-        <span class="font-fell text-xs md:text-sm text-muted-foreground italic hidden sm:inline">
+        <span class="text-caption md:text-sm text-muted-foreground italic hidden sm:inline">
           · {{ campaignName }}
         </span>
       </div>
@@ -12,7 +12,7 @@
       <div class="flex-1" />
 
       <!-- In-game today date -->
-      <span class="hidden md:inline-flex items-center gap-1 font-fell text-sm text-muted-foreground italic shrink-0">
+      <span class="hidden md:inline-flex items-center gap-1 text-body text-muted-foreground italic shrink-0">
         <IconCalendarDays class="h-3 w-3 text-primary shrink-0" />
         {{ todayLabel }}
       </span>
@@ -83,7 +83,7 @@
       <span class="text-label-lg text-black font-semibold shrink-0">DM Preview — viewing as:</span>
       <select
         :value="ui.dmPreviewPartyMemberId ?? ''"
-        class="flex-1 min-w-0 max-w-48 bg-black/10 border border-black/20 rounded px-2 py-0.5 font-fell text-xs text-black focus:outline-none focus:ring-1 focus:ring-black/30"
+        class="flex-1 min-w-0 max-w-48 bg-black/10 border border-black/20 rounded px-2 py-0.5 text-caption text-black focus:outline-none focus:ring-1 focus:ring-black/30"
         @change="ui.dmPreviewPartyMemberId = ($event.target as HTMLSelectElement).value || null"
       >
         <option value="">— pick a character —</option>
@@ -112,7 +112,7 @@
           <IconEncounter class="h-4 w-4 text-green-400 shrink-0 mt-0.5" />
           <div class="flex-1 min-w-0">
             <p class="text-label-lg font-semibold text-green-400">Encounter Started!</p>
-            <p class="font-fell text-sm text-foreground mt-0.5">Your DM has started a live encounter. Tap to join.</p>
+            <p class="text-body text-foreground mt-0.5">Your DM has started a live encounter. Tap to join.</p>
           </div>
           <button class="text-muted-foreground hover:text-foreground transition-colors shrink-0" @click.prevent="encounterLiveToast = false">
             <IconClose class="h-3.5 w-3.5" />
@@ -125,7 +125,7 @@
           <IconEncounter class="h-4 w-4 text-green-400 shrink-0 mt-0.5" />
           <div class="flex-1 min-w-0">
             <p class="text-label-lg font-semibold text-green-400">Encounter Started!</p>
-            <p class="font-fell text-sm text-foreground mt-0.5">Live encounter panel opened on the left.</p>
+            <p class="text-body text-foreground mt-0.5">Live encounter panel opened on the left.</p>
           </div>
           <button class="text-muted-foreground hover:text-foreground transition-colors shrink-0" @click="encounterLiveToast = false">
             <IconClose class="h-3.5 w-3.5" />
@@ -258,7 +258,7 @@
               </span>
             </button>
 
-            <p v-if="campaigns.length === 0" class="font-fell text-sm text-muted-foreground italic px-3 py-2">
+            <p v-if="campaigns.length === 0" class="text-body text-muted-foreground italic px-3 py-2">
               No campaigns found.
             </p>
           </div>

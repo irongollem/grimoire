@@ -33,7 +33,7 @@
           </div>
 
           <div class="overflow-y-auto px-6 py-4 flex flex-col gap-4">
-            <p class="font-fell text-sm text-muted-foreground italic">
+            <p class="text-body text-muted-foreground italic">
               Answer a few questions to pre-fill your spell's mechanics and suggest a balanced
               level.
             </p>
@@ -45,7 +45,7 @@
               >
               <select
                 :value="school"
-                class="bg-muted border border-border rounded px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring capitalize"
+                class="bg-muted border border-border rounded px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring capitalize"
                 @change="emit('update:school', ($event.target as HTMLSelectElement).value)"
               >
                 <option v-for="s in SPELL_SCHOOLS" :key="s" :value="s" class="capitalize">
@@ -66,7 +66,7 @@
                 <li
                   v-for="(tip, i) in schoolTip.tips"
                   :key="i"
-                  class="font-fell text-xs text-muted-foreground flex gap-1.5"
+                  class="text-caption text-muted-foreground flex gap-1.5"
                 >
                   <span class="text-primary/60 shrink-0">·</span>{{ tip }}
                 </li>
@@ -80,7 +80,7 @@
               >
               <select
                 v-model="adv.effectType"
-                class="bg-muted border border-border rounded px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="bg-muted border border-border rounded px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 <option value="damage">Damage</option>
                 <option value="healing">Healing / Restoration</option>
@@ -100,7 +100,7 @@
               >
               <select
                 v-model="adv.effectIntensity"
-                class="bg-muted border border-border rounded px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="bg-muted border border-border rounded px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 <template v-if="adv.effectType === 'control'">
                   <option value="weak">Weak — disadvantage, minor debuff (e.g. Bane)</option>
@@ -148,7 +148,7 @@
               <DiceInput
                 v-model="adv.damageDice"
                 placeholder="e.g. 8d6 · 2d6 fire + 1d6 force · 3d8 + 5"
-                class="bg-muted border border-border rounded px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring w-full"
+                class="bg-muted border border-border rounded px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring w-full"
               />
               <span v-if="adv.damageDice" class="font-fell text-[0.6875rem] text-muted-foreground">
                 Avg: {{ Math.round(parseDiceAvg(adv.damageDice)) }}
@@ -162,7 +162,7 @@
               >
               <select
                 v-model="adv.targetingMode"
-                class="bg-muted border border-border rounded px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="bg-muted border border-border rounded px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 <option value="self">Self only</option>
                 <option value="single">Single target</option>
@@ -182,7 +182,7 @@
               >
               <select
                 v-model="adv.saveType"
-                class="bg-muted border border-border rounded px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="bg-muted border border-border rounded px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 <option value="save_for_half">Saving throw — half on save</option>
                 <option value="save_negates">Saving throw — negates on save</option>
@@ -198,7 +198,7 @@
               >
               <select
                 v-model="adv.durationTier"
-                class="bg-muted border border-border rounded px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="bg-muted border border-border rounded px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 <option value="instantaneous">Instantaneous</option>
                 <option value="conc_1min">Concentration, ≤1 minute</option>
@@ -213,17 +213,17 @@
             <div class="flex flex-col gap-2">
               <label class="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" v-model="adv.requiresConcentration" class="rounded" />
-                <span class="font-fell text-sm text-foreground">Requires Concentration</span>
+                <span class="text-body text-foreground">Requires Concentration</span>
               </label>
               <label class="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" v-model="adv.hasSecondaryEffect" class="rounded" />
-                <span class="font-fell text-sm text-foreground"
+                <span class="text-body text-foreground"
                   >Secondary condition / rider effect</span
                 >
               </label>
               <label class="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" v-model="adv.isRitual" class="rounded" />
-                <span class="font-fell text-sm text-foreground">Can be cast as Ritual</span>
+                <span class="text-body text-foreground">Can be cast as Ritual</span>
               </label>
             </div>
 
@@ -236,7 +236,7 @@
                 <li
                   v-for="(f, i) in advResult.factors"
                   :key="i"
-                  class="font-fell text-xs text-muted-foreground flex gap-1.5"
+                  class="text-caption text-muted-foreground flex gap-1.5"
                 >
                   <span class="text-primary shrink-0">·</span>{{ f }}
                 </li>
@@ -252,19 +252,19 @@
                   >
                   <p
                     v-if="refSpells.control && adv.effectType === 'control'"
-                    class="font-fell text-xs text-muted-foreground"
+                    class="text-caption text-muted-foreground"
                   >
                     Control: {{ refSpells.control }}
                   </p>
                   <p
                     v-if="refSpells.buff && adv.effectType === 'buff'"
-                    class="font-fell text-xs text-muted-foreground"
+                    class="text-caption text-muted-foreground"
                   >
                     Buff: {{ refSpells.buff }}
                   </p>
                   <p
                     v-if="refSpells.utility && adv.effectType === 'utility'"
-                    class="font-fell text-xs text-muted-foreground"
+                    class="text-caption text-muted-foreground"
                   >
                     Utility: {{ refSpells.utility }}
                   </p>

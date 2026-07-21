@@ -15,14 +15,14 @@
     <template #filters>
       <select
         v-model="puzzlesTypeFilter"
-        class="bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        class="bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
       >
         <option value="">All Types</option>
         <option v-for="t in PUZZLE_TYPES" :key="t" :value="t">{{ t }}</option>
       </select>
       <select
         v-model="puzzlesDifficultyFilter"
-        class="bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        class="bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
       >
         <option value="">All Difficulties</option>
         <option v-for="d in PUZZLE_DIFFICULTIES" :key="d" :value="d">{{ d }}</option>
@@ -56,10 +56,10 @@
         <div class="p-2.5 flex flex-col gap-0.5">
           <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight truncate">{{ puzzle.name }}</h3>
           <div class="flex items-center gap-2">
-            <span class="font-fell text-2xs text-muted-foreground italic">
+            <span class="text-caption-sm text-muted-foreground italic">
               {{ puzzle.hints.length }} hint{{ puzzle.hints.length === 1 ? '' : 's' }}
             </span>
-            <span v-if="puzzle.skill_checks.length" class="font-fell text-2xs text-muted-foreground italic truncate">
+            <span v-if="puzzle.skill_checks.length" class="text-caption-sm text-muted-foreground italic truncate">
               · {{ puzzle.skill_checks.map((s) => s.skill).join(', ') }}
             </span>
           </div>

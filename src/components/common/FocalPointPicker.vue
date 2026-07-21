@@ -42,7 +42,7 @@
         v-else
         class="absolute inset-0 flex items-center justify-center bg-black/20"
       >
-        <span class="font-fell text-xs text-white/70 italic"
+        <span class="text-caption text-white/70 italic"
           >Click to set focus</span
         >
       </div>

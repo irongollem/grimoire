@@ -34,7 +34,7 @@
             {{ feature.campaign_id ? 'Campaign-scoped' : 'All campaigns' }}
           </span>
         </div>
-        <p v-if="feature.prerequisite" class="font-fell text-sm text-muted-foreground italic">
+        <p v-if="feature.prerequisite" class="text-body text-muted-foreground italic">
           Prerequisite: {{ feature.prerequisite }}
         </p>
         <div v-if="feature.tags.length" class="flex flex-wrap gap-1">

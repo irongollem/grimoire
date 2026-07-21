@@ -19,11 +19,11 @@
       </button>
     </div>
     <div class="p-4 space-y-3">
-      <p v-if="!shareState.is_shared" class="font-fell text-xs text-muted-foreground italic">
+      <p v-if="!shareState.is_shared" class="text-caption text-muted-foreground italic">
         Toggle sharing to make this puzzle visible to players in your campaign.
       </p>
       <template v-else>
-        <p class="font-fell text-xs text-muted-foreground">
+        <p class="text-caption text-muted-foreground">
           Shared with players in your campaign. Revealed hints: {{ shareState.shared_hints.length }} / {{ totalHints }}
         </p>
 
@@ -37,7 +37,7 @@
             v-model="shareState.read_aloud"
             rows="3"
             placeholder="Read this aloud as the party enters the room…"
-            class="w-full bg-background border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+            class="w-full bg-background border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
             @blur="emit('save-share-state')"
           />
         </div>

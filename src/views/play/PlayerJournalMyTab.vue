@@ -31,7 +31,7 @@
   <div v-else-if="visibleEntries.length === 0" class="text-center py-16 space-y-3">
     <IconPopulate class="h-10 w-10 text-muted-foreground/30 mx-auto" />
     <p class="font-cinzel text-sm text-muted-foreground">Your journal is empty.</p>
-    <p class="font-fell text-xs text-muted-foreground italic">Record your adventures, clues, and discoveries.</p>
+    <p class="text-caption text-muted-foreground italic">Record your adventures, clues, and discoveries.</p>
   </div>
 
   <!-- Entry feed (draggable in manual sort, static otherwise) -->
@@ -66,7 +66,7 @@
         @toggle="$emit('toggle', entry.id)"
       >
       <template #meta>
-        <span v-if="entry.ref_label" class="font-fell text-xs text-muted-foreground/70 italic truncate max-w-32">{{ entry.ref_label }}</span>
+        <span v-if="entry.ref_label" class="text-caption text-muted-foreground/70 italic truncate max-w-32">{{ entry.ref_label }}</span>
         <span
           class="inline-flex items-center gap-1 text-label md:text-sm"
           :class="entry.is_private ? 'text-muted-foreground/50' : 'text-elven-green'"
@@ -149,7 +149,7 @@
           <select
             v-if="editForm.ref_type"
             :value="editForm.ref_id"
-            class="flex-1 min-w-32 bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="flex-1 min-w-32 bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             @change="$emit('editFormChange', { ref_id: ($event.target as HTMLSelectElement).value })"
           >
             <option value="">— Select —</option>

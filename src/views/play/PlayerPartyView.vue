@@ -62,12 +62,12 @@
               v-model="ui.playerPeopleSearch"
               type="text"
               placeholder="Search people…"
-              class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
           <select
             v-model="ui.playerPeopleFilterRelationship"
-            class="bg-card border border-border rounded-md px-2.5 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="bg-card border border-border rounded-md px-2.5 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           >
             <option value="all">All relations</option>
             <option v-for="(label, value) in NPC_RELATIONSHIP_LABELS" :key="value" :value="value">
@@ -76,7 +76,7 @@
           </select>
           <select
             v-model="ui.playerPeopleFilterStatus"
-            class="bg-card border border-border rounded-md px-2.5 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="bg-card border border-border rounded-md px-2.5 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           >
             <option value="all">All statuses</option>
             <option value="alive">Alive</option>
@@ -87,7 +87,7 @@
           <select
             v-if="availableLocations.length"
             v-model="ui.playerPeopleFilterLocation"
-            class="bg-card border border-border rounded-md px-2.5 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="bg-card border border-border rounded-md px-2.5 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           >
             <option value="">All locations</option>
             <option v-for="loc in availableLocations" :key="loc.id" :value="loc.id">{{ loc.name }}</option>
@@ -102,7 +102,7 @@
 
         <p
           v-if="!filteredNpcs.length"
-          class="font-fell text-sm text-muted-foreground italic"
+          class="text-body text-muted-foreground italic"
         >No people match your filters.</p>
         <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(11.25rem,1fr))] gap-4">
           <PlayerNpcCard

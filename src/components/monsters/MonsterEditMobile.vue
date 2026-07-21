@@ -28,7 +28,7 @@
     >
       <button
         type="button"
-        class="shrink-0 rounded-md px-2 py-2 font-fell text-sm text-muted-foreground active:text-foreground"
+        class="shrink-0 rounded-md px-2 py-2 text-body text-muted-foreground active:text-foreground"
         @click="emit('cancel')"
       >
         Cancel
@@ -60,7 +60,7 @@
         v-if="isSrd"
         class="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/50 px-4 py-3"
       >
-        <p class="font-fell text-sm italic text-muted-foreground">
+        <p class="text-body italic text-muted-foreground">
           Read-only SRD reference.
         </p>
         <button
@@ -212,14 +212,14 @@
       <button
         v-if="isAiEnabled"
         type="button"
-        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left font-fell text-sm text-foreground active:bg-muted/50"
+        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-body text-foreground active:bg-muted/50"
         @click="runAction('generate')"
       >
         <IconGenerate class="size-4 shrink-0 text-primary" /> Generate with AI
       </button>
       <button
         type="button"
-        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left font-fell text-sm text-foreground active:bg-muted/50 disabled:opacity-50"
+        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-body text-foreground active:bg-muted/50 disabled:opacity-50"
         :disabled="isSendingToScriptorium"
         @click="runAction('scriptorium')"
       >
@@ -228,7 +228,7 @@
       </button>
       <button
         type="button"
-        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left font-fell text-sm text-foreground active:bg-muted/50 disabled:opacity-50"
+        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-body text-foreground active:bg-muted/50 disabled:opacity-50"
         :disabled="isDuplicating"
         @click="runAction('duplicate')"
       >
@@ -237,7 +237,7 @@
       </button>
       <button
         type="button"
-        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left font-fell text-sm text-destructive active:bg-destructive/10"
+        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-body text-destructive active:bg-destructive/10"
         @click="runAction('delete')"
       >
         <IconDelete class="size-4 shrink-0" /> Delete monster

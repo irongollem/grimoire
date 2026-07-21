@@ -34,17 +34,17 @@ function onAppearanceSelected(id: string) {
       <button
         v-if="member.disguise_species_id"
         type="button"
-        class="font-fell text-xs text-muted-foreground hover:text-destructive transition-colors italic"
+        class="text-caption text-muted-foreground hover:text-destructive transition-colors italic"
         :disabled="clearing"
         @click="clearAppearance(member.id)"
       >
         {{ clearing ? 'Reverting…' : 'Revert to true form' }}
       </button>
     </div>
-    <p v-if="!member.disguise_species_id" class="font-fell text-sm text-muted-foreground/60 italic">
+    <p v-if="!member.disguise_species_id" class="text-body text-muted-foreground/60 italic">
       Showing true form — pick a species below to take on a disguise.
     </p>
-    <p v-else class="font-fell text-sm text-muted-foreground italic">
+    <p v-else class="text-body text-muted-foreground italic">
       Appearing as
       <span class="text-foreground not-italic font-semibold">{{ member.disguise_race }}</span>
       <span v-if="setting" class="text-muted-foreground/60"> (saving…)</span>

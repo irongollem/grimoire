@@ -1,15 +1,15 @@
 <template>
   <div>
     <h2 class="font-cinzel text-xl font-semibold text-foreground mb-1">Authorize AI connection</h2>
-    <p class="font-fell text-muted-foreground italic text-sm mb-6">
+    <p class="text-body text-muted-foreground italic mb-6">
       An AI assistant wants to read your Grimoire
     </p>
 
-    <p v-if="loading" class="font-fell text-sm text-muted-foreground italic">
+    <p v-if="loading" class="text-body text-muted-foreground italic">
       Consulting the wards…
     </p>
 
-    <p v-else-if="errorMessage" class="text-sm text-destructive font-fell">
+    <p v-else-if="errorMessage" class="text-body text-destructive">
       {{ errorMessage }}
     </p>
 
@@ -18,12 +18,12 @@
         <p class="font-cinzel text-sm font-semibold text-foreground">
           {{ details.client.name || "An AI client" }}
         </p>
-        <p v-if="details.client.uri" class="font-fell text-xs text-muted-foreground break-all">
+        <p v-if="details.client.uri" class="text-caption text-muted-foreground break-all">
           {{ details.client.uri }}
         </p>
       </div>
 
-      <div class="space-y-2 font-fell text-sm text-foreground">
+      <div class="space-y-2 text-body text-foreground">
         <p>This will let it, acting as <strong>{{ details.user.email }}</strong>:</p>
         <ul class="list-disc pl-5 space-y-1 text-muted-foreground">
           <li><strong class="text-foreground">Read</strong> your campaigns and their content — NPCs, monsters, spells, items, locations, quests, notes and more.</li>
@@ -34,7 +34,7 @@
         </p>
       </div>
 
-      <p v-if="decisionError" class="text-sm text-destructive font-fell">
+      <p v-if="decisionError" class="text-body text-destructive">
         {{ decisionError }}
       </p>
 

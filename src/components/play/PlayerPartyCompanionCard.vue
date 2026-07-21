@@ -20,7 +20,7 @@
     <div class="p-2.5 flex flex-col gap-1.5">
       <div>
         <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight truncate">{{ companion.name }}</h3>
-        <p class="font-fell text-xs text-muted-foreground italic truncate">{{ ownerName || "Party companion" }}</p>
+        <p class="text-caption text-muted-foreground italic truncate">{{ ownerName || "Party companion" }}</p>
       </div>
       <div>
         <template v-if="showNumericHp">
@@ -38,7 +38,7 @@
         </template>
         <template v-else>
           <span class="text-eyebrow md:text-sm text-muted-foreground">HP</span>
-          <p class="font-fell text-xs italic" :class="hpColor">{{ immersiveHpLabel }}</p>
+          <p class="text-caption italic" :class="hpColor">{{ immersiveHpLabel }}</p>
         </template>
       </div>
       <div class="flex items-center gap-2 flex-wrap">

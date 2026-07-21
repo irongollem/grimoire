@@ -8,7 +8,7 @@
     <span class="font-cinzel text-2xs font-bold uppercase tracking-widest text-muted-foreground">
       {{ label }}
     </span>
-    <span class="font-fell text-sm leading-snug text-foreground">
+    <span class="text-body leading-snug text-foreground">
       {{ value }}
     </span>
   </div>

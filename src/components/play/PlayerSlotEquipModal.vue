@@ -15,7 +15,7 @@
           v-if="slotItem"
           class="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 flex items-center justify-between gap-2"
         >
-          <span class="font-fell text-sm text-foreground flex-1 min-w-0 truncate">{{ slotItem.name }}</span>
+          <span class="text-body text-foreground flex-1 min-w-0 truncate">{{ slotItem.name }}</span>
           <button
             class="shrink-0 font-cinzel text-2xs md:text-sm text-destructive hover:opacity-70"
             @click="emit('unequip')"
@@ -23,7 +23,7 @@
             Remove
           </button>
         </div>
-        <p v-else class="font-fell text-xs text-muted-foreground italic">
+        <p v-else class="text-caption text-muted-foreground italic">
           Nothing equipped here.
         </p>
 
@@ -35,13 +35,13 @@
           <button
             v-for="item in candidates"
             :key="item.id"
-            class="w-full text-left px-3 py-1.5 rounded-md hover:bg-muted/40 font-fell text-sm text-foreground transition-colors"
+            class="w-full text-left px-3 py-1.5 rounded-md hover:bg-muted/40 text-body text-foreground transition-colors"
             @click="emit('equip', item)"
           >
             {{ item.name }}
           </button>
         </div>
-        <p v-else class="font-fell text-xs text-muted-foreground italic">
+        <p v-else class="text-caption text-muted-foreground italic">
           No items available to equip here.
         </p>
 

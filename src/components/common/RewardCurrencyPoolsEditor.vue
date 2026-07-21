@@ -17,7 +17,7 @@
             :value="pool.label"
             type="text"
             placeholder="Label (e.g. Iron Chest)…"
-            class="flex-1 bg-transparent border-b border-border px-1 py-0.5 font-fell text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary transition-colors"
+            class="flex-1 bg-transparent border-b border-border px-1 py-0.5 text-caption text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary transition-colors"
             @input="updatePool(pool.id, 'label', ($event.target as HTMLInputElement).value)"
           />
           <button
@@ -47,7 +47,7 @@
               :value="pool[coin.key as keyof typeof pool]"
               type="number"
               min="0"
-              class="w-full text-center bg-card border border-border rounded px-1 py-0.5 font-fell text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-full text-center bg-card border border-border rounded px-1 py-0.5 text-caption text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               @input="updatePool(pool.id, coin.key, Number(($event.target as HTMLInputElement).value) || 0)"
             />
           </div>
@@ -76,7 +76,7 @@
           :value="pool.label"
           type="text"
           placeholder="Label (e.g. Iron Chest)…"
-          class="flex-1 bg-transparent border-b border-border px-1 py-0.5 font-fell text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary transition-colors"
+          class="flex-1 bg-transparent border-b border-border px-1 py-0.5 text-caption text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary transition-colors"
           @input="updatePool(pool.id, 'label', ($event.target as HTMLInputElement).value)"
         />
         <button
@@ -106,7 +106,7 @@
             :value="pool[coin.key as keyof typeof pool]"
             type="number"
             min="0"
-            class="w-full text-center bg-card border border-border rounded px-1 py-0.5 font-fell text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="w-full text-center bg-card border border-border rounded px-1 py-0.5 text-caption text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             @input="updatePool(pool.id, coin.key, Number(($event.target as HTMLInputElement).value) || 0)"
           />
         </div>

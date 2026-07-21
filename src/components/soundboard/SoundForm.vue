@@ -16,23 +16,23 @@
   >
     <!-- Name -->
     <div v-if="activeSourceTab !== 'browse'" class="space-y-1">
-      <label class="font-fell text-xs text-muted-foreground">Name</label>
+      <label class="text-caption text-muted-foreground">Name</label>
       <input
         ref="nameInputRef"
         v-model="form.name"
         type="text"
         required
         placeholder="Tavern Ambience"
-        class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm font-fell text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-gold-500"
+        class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-gold-500"
       />
     </div>
 
     <!-- Category -->
     <div v-if="activeSourceTab !== 'browse'" class="space-y-1">
-      <label class="font-fell text-xs text-muted-foreground">Category</label>
+      <label class="text-caption text-muted-foreground">Category</label>
       <select
         v-model="form.category"
-        class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm font-fell text-foreground focus:outline-none focus:ring-1 focus:ring-gold-500"
+        class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-gold-500"
       >
         <option value="ambient">Ambient</option>
         <option value="music">Music</option>
@@ -43,7 +43,7 @@
 
     <!-- Source type toggle -->
     <div class="space-y-2">
-      <label class="font-fell text-xs text-muted-foreground">Audio Source</label>
+      <label class="text-caption text-muted-foreground">Audio Source</label>
       <div class="flex gap-2 flex-wrap">
         <button
           type="button"
@@ -124,7 +124,7 @@
           type="url"
           required
           placeholder="https://example.com/sound.mp3"
-          class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm font-fell text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-gold-500"
+          class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-gold-500"
         />
       </div>
 
@@ -135,12 +135,12 @@
           type="url"
           required
           placeholder="https://open.spotify.com/track/… or /playlist/…"
-          class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm font-fell text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-gold-500"
+          class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-gold-500"
         />
-        <p v-if="form.external_url && !isValidSpotifyUrl" class="font-fell text-xs text-destructive">
+        <p v-if="form.external_url && !isValidSpotifyUrl" class="text-caption text-destructive">
           Paste a Spotify track, playlist, album, or episode URL.
         </p>
-        <p v-else class="font-fell text-xs text-muted-foreground">
+        <p v-else class="text-caption text-muted-foreground">
           Paste a track, playlist, album, or episode link from Spotify.
         </p>
       </div>
@@ -149,23 +149,23 @@
       <div v-else-if="activeSourceTab === 'generate'" class="space-y-3">
         <!-- Style -->
         <div class="space-y-1">
-          <label class="font-fell text-xs text-muted-foreground">Musical style</label>
+          <label class="text-caption text-muted-foreground">Musical style</label>
           <textarea
             v-model="generatePrompt"
             rows="2"
             placeholder="e.g. epic fantasy ballad, orchestral strings, soaring female vocals, heroic"
-            class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm font-fell text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-violet-500 resize-none"
+            class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-violet-500 resize-none"
           />
         </div>
 
         <!-- Lyrics -->
         <div class="space-y-1">
           <div class="flex items-center justify-between">
-            <label class="font-fell text-xs text-muted-foreground">
+            <label class="text-caption text-muted-foreground">
               Lyrics <span class="opacity-60">(optional)</span>
             </label>
             <span
-              class="font-fell text-2xs tabular-nums transition-colors"
+              class="text-caption-sm tabular-nums transition-colors"
               :class="lyricsCharsLeft < 200 ? (lyricsCharsLeft < 0 ? 'text-destructive' : 'text-amber-400') : 'text-muted-foreground'"
             >{{ generateLyrics.length }} / {{ LYRICS_MAX_CHARS }}</span>
           </div>
@@ -174,16 +174,16 @@
             rows="5"
             :maxlength="LYRICS_MAX_CHARS"
             placeholder="[Verse 1]&#10;In the depths of shadow and stone…&#10;&#10;[Chorus]&#10;Rise, brave adventurer, rise…"
-            class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm font-fell text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-violet-500 resize-none"
+            class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-violet-500 resize-none"
           />
-          <p class="font-fell text-2xs text-muted-foreground/60">
+          <p class="text-caption-sm text-muted-foreground/60">
             Best paired with Full Song. Use [Verse], [Chorus], [Bridge] markers.
           </p>
         </div>
 
         <!-- Model selector -->
         <div class="space-y-1">
-          <label class="font-fell text-xs text-muted-foreground">Length</label>
+          <label class="text-caption text-muted-foreground">Length</label>
           <div class="flex gap-2">
             <button
               v-for="m in LYRIA_MODELS"
@@ -198,7 +198,7 @@
               @click="generateModel = m.id"
             >
               <span>{{ m.label }}</span>
-              <span class="font-fell text-2xs opacity-70 normal-case tracking-normal">
+              <span class="text-caption-sm opacity-70 normal-case tracking-normal">
                 {{ geminiApiKey ? 'BYOK' : `${costOf(m.generationType)} cr` }} · {{ m.hint }}
               </span>
             </button>
@@ -207,23 +207,23 @@
 
         <!-- Structured prompt preview -->
         <details v-if="structuredPrompt" class="group">
-          <summary class="font-fell text-2xs text-muted-foreground/60 cursor-pointer hover:text-muted-foreground transition-colors select-none">
+          <summary class="text-caption-sm text-muted-foreground/60 cursor-pointer hover:text-muted-foreground transition-colors select-none">
             Expanded prompt ▸
           </summary>
-          <p class="mt-1 font-fell text-2xs text-muted-foreground/80 whitespace-pre-wrap leading-relaxed">{{ structuredPrompt }}</p>
+          <p class="mt-1 text-caption-sm text-muted-foreground/80 whitespace-pre-wrap leading-relaxed">{{ structuredPrompt }}</p>
         </details>
 
         <!-- Status / error -->
-        <p v-if="isStructuring" class="font-fell text-xs text-muted-foreground text-center">
+        <p v-if="isStructuring" class="text-caption text-muted-foreground text-center">
           Expanding prompt…
         </p>
-        <p v-else-if="isGenerating" class="font-fell text-xs text-muted-foreground text-center">
+        <p v-else-if="isGenerating" class="text-caption text-muted-foreground text-center">
           Generating… this can take up to 30 s
         </p>
-        <p v-if="isBusy && !isGenerating" class="font-fell text-xs text-muted-foreground text-center">
+        <p v-if="isBusy && !isGenerating" class="text-caption text-muted-foreground text-center">
           {{ statusText }}
         </p>
-        <p v-if="generateError" class="font-fell text-xs text-destructive">{{ generateError }}</p>
+        <p v-if="generateError" class="text-caption text-destructive">{{ generateError }}</p>
       </div>
 
       <!-- Browse Freesound -->
@@ -244,18 +244,18 @@
           v-if="selectedFile"
           class="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2"
         >
-          <span class="flex-1 font-fell text-xs text-foreground truncate">{{ selectedFile.name }}</span>
+          <span class="flex-1 text-caption text-foreground truncate">{{ selectedFile.name }}</span>
           <button
             type="button"
             class="shrink-0 text-label text-muted-foreground hover:text-foreground transition-colors"
             @click="fileInputRef?.click()"
           >Change</button>
         </div>
-        <p v-else class="font-fell text-xs text-muted-foreground italic text-center">
+        <p v-else class="text-caption text-muted-foreground italic text-center">
           Drop a file anywhere, or <button type="button" class="underline hover:text-foreground transition-colors" @click="fileInputRef?.click()">choose one</button>.
         </p>
-        <p v-if="isBusy" class="font-fell text-xs text-muted-foreground text-center">{{ statusText }}</p>
-        <p v-if="uploadError" class="font-fell text-xs text-destructive">{{ uploadError }}</p>
+        <p v-if="isBusy" class="text-caption text-muted-foreground text-center">{{ statusText }}</p>
+        <p v-if="uploadError" class="text-caption text-destructive">{{ uploadError }}</p>
       </div>
     </div>
 

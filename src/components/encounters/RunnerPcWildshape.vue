@@ -48,7 +48,7 @@
     <div class="flex items-center justify-between">
       <p class="detail-section-label">Wildshape</p>
       <div class="flex items-center gap-1.5">
-        <span class="font-fell text-2xs text-muted-foreground">Max CR {{ wildshapeCrDisplay }}</span>
+        <span class="text-caption-sm text-muted-foreground">Max CR {{ wildshapeCrDisplay }}</span>
         <span v-if="isCircleOfMoon" class="font-cinzel text-[0.5625rem] tracking-wider px-1 py-0.5 rounded border border-primary/40 text-primary bg-primary/10">MOON</span>
         <button
           ref="triggerRef"
@@ -85,10 +85,10 @@
       </div>
 
       <!-- Empty states -->
-      <p v-else-if="pinnableForms.length" class="font-fell text-xs text-muted-foreground italic px-1 py-2">
+      <p v-else-if="pinnableForms.length" class="text-caption text-muted-foreground italic px-1 py-2">
         No forms unlocked yet — pin an eligible beast below to make it available.
       </p>
-      <p v-else class="font-fell text-xs text-muted-foreground italic px-1 py-2">
+      <p v-else class="text-caption text-muted-foreground italic px-1 py-2">
         No eligible beast forms at this level.
       </p>
 

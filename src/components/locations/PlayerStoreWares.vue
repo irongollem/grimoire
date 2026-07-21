@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div v-if="isLoading" class="font-fell text-xs text-muted-foreground italic">Loading…</div>
+    <div v-if="isLoading" class="text-caption text-muted-foreground italic">Loading…</div>
     <div v-else-if="items?.length" class="flex flex-col gap-1">
       <button
         v-for="si in items"
@@ -11,15 +11,15 @@
       >
         <div class="flex-1 min-w-0">
           <p class="font-cinzel text-xs font-semibold text-foreground truncate">{{ si.item.name }}</p>
-          <p class="font-fell text-2xs text-muted-foreground italic">{{ ITEM_TYPE_LABELS[si.item.item_type] }}</p>
+          <p class="text-caption-sm text-muted-foreground italic">{{ ITEM_TYPE_LABELS[si.item.item_type] }}</p>
         </div>
-        <span class="font-fell text-xs text-muted-foreground shrink-0">
+        <span class="text-caption text-muted-foreground shrink-0">
           {{ si.price_override ?? si.item.cost ?? '—' }}
         </span>
         <IconChevronRight class="h-3 w-3 text-muted-foreground shrink-0" />
       </button>
     </div>
-    <p v-else class="font-fell text-xs text-muted-foreground italic">Nothing for sale yet.</p>
+    <p v-else class="text-caption text-muted-foreground italic">Nothing for sale yet.</p>
   </div>
 
   <!-- Item detail modal -->
@@ -36,7 +36,7 @@
           <h2 class="font-cinzel text-sm font-semibold text-foreground flex-1 truncate">
             {{ selected.item.name }}
           </h2>
-          <span class="font-fell text-xs text-muted-foreground shrink-0">
+          <span class="text-caption text-muted-foreground shrink-0">
             {{ selected.price_override ?? selected.item.cost ?? '—' }}
           </span>
           <button

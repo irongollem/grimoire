@@ -14,7 +14,7 @@
       <IconImage class="h-10 w-10 text-muted-foreground/40" />
       <div class="text-center">
         <p class="font-cinzel text-sm font-semibold text-foreground">Drop an image here</p>
-        <p class="font-fell text-sm text-muted-foreground mt-0.5">or click to browse — PNG, JPG, WebP</p>
+        <p class="text-body text-muted-foreground mt-0.5">or click to browse — PNG, JPG, WebP</p>
       </div>
     </div>
 
@@ -62,7 +62,7 @@
           @click="emit('replace')"
         >Replace image</button>
         <span class="text-muted-foreground/40 text-xs">·</span>
-        <span class="font-fell text-xs text-muted-foreground">
+        <span class="text-caption text-muted-foreground">
           {{ filename }} · {{ imageWidth }}×{{ imageHeight }}
         </span>
       </div>

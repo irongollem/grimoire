@@ -16,11 +16,11 @@
       <div class="flex flex-col gap-1.5">
         <div v-if="faction.faction_type">
           <span class="text-eyebrow font-semibold text-muted-foreground">Type</span>
-          <p class="font-fell text-sm text-foreground">{{ faction.faction_type }}</p>
+          <p class="text-body text-foreground">{{ faction.faction_type }}</p>
         </div>
         <div v-if="faction.alignment" class="mt-2">
           <span class="text-eyebrow font-semibold text-muted-foreground">Alignment</span>
-          <p class="font-fell text-sm text-foreground">{{ faction.alignment }}</p>
+          <p class="text-body text-foreground">{{ faction.alignment }}</p>
         </div>
         <div v-if="faction.tags?.length" class="mt-2">
           <span class="text-eyebrow font-semibold text-muted-foreground">Tags</span>
@@ -62,7 +62,7 @@
       <div v-if="hasDescription">
         <RichTextViewer :content="faction.description" />
       </div>
-      <p v-else class="font-fell text-sm text-muted-foreground italic">
+      <p v-else class="text-body text-muted-foreground italic">
         No description recorded for this faction.
       </p>
 

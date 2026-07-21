@@ -61,7 +61,7 @@
               <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Type</label>
               <select
                 v-model="form.trap_type"
-                class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 <option v-for="t in TRAP_TYPES" :key="t" :value="t">{{ t }}</option>
               </select>
@@ -71,7 +71,7 @@
               <div class="flex items-center gap-2">
                 <select
                   v-model="form.cr"
-                  class="flex-1 bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                  class="flex-1 bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 >
                   <option :value="null">—</option>
                   <option v-for="cr in CR_LIST" :key="cr" :value="cr">{{ cr }}</option>
@@ -106,7 +106,7 @@
             <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Trigger</label>
             <select
               v-model="form.trigger_type"
-              class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             >
               <option :value="null">—</option>
               <option v-for="t in TRAP_TRIGGERS" :key="t" :value="t">{{ t }}</option>
@@ -114,28 +114,28 @@
           </div>
           <div>
             <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Detection DC</label>
-            <input v-model.number="form.detection_dc" type="number" min="1" max="30" placeholder="15" class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+            <input v-model.number="form.detection_dc" type="number" min="1" max="30" placeholder="15" class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
           </div>
           <div>
             <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Disarm DC</label>
-            <input v-model.number="form.disarm_dc" type="number" min="1" max="30" placeholder="15" class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+            <input v-model.number="form.disarm_dc" type="number" min="1" max="30" placeholder="15" class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
           </div>
           <div>
             <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Reset</label>
             <select
               v-model="form.reset_type"
-              class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             >
               <option v-for="r in TRAP_RESET_TYPES" :key="r" :value="r">{{ r }}</option>
             </select>
           </div>
           <div>
             <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Trap HP</label>
-            <input v-model.number="form.trap_hp" type="number" min="1" placeholder="—" class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+            <input v-model.number="form.trap_hp" type="number" min="1" placeholder="—" class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
           </div>
           <div>
             <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Trap AC</label>
-            <input v-model.number="form.trap_ac" type="number" min="1" max="30" placeholder="—" class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+            <input v-model.number="form.trap_ac" type="number" min="1" max="30" placeholder="—" class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
           </div>
           <div class="col-span-2 sm:col-span-3">
             <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Damage Immunities</label>
@@ -155,24 +155,24 @@
             <input
               v-model="form.effect_description"
               placeholder="The trap fires a poisoned dart at the nearest creature…"
-              class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
           <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div>
               <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Attack Bonus</label>
-              <input v-model.number="form.attack_bonus" type="number" placeholder="+5" class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+              <input v-model.number="form.attack_bonus" type="number" placeholder="+5" class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
             </div>
             <div>
               <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Save Type</label>
-              <select v-model="form.save_type" class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+              <select v-model="form.save_type" class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
                 <option :value="null">—</option>
                 <option v-for="s in TRAP_SAVE_TYPES" :key="s" :value="s">{{ s }}</option>
               </select>
             </div>
             <div>
               <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Save DC</label>
-              <input v-model.number="form.save_dc" type="number" min="1" max="30" placeholder="15" class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+              <input v-model.number="form.save_dc" type="number" min="1" max="30" placeholder="15" class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
             </div>
           </div>
           <div>
@@ -183,7 +183,7 @@
             <div class="flex flex-col gap-2">
               <div v-for="(entry, i) in form.damage_entries" :key="i" class="flex items-center gap-2">
                 <DiceExprInput v-model="entry.dice" placeholder="1d6" compact class="w-28 shrink-0" />
-                <select v-model="entry.type" class="flex-1 bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring capitalize">
+                <select v-model="entry.type" class="flex-1 bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring capitalize">
                   <option value="">—</option>
                   <option v-for="d in DAMAGE_TYPES" :key="d" :value="d" class="capitalize">{{ d }}</option>
                 </select>
@@ -191,7 +191,7 @@
                   <IconClose class="h-3.5 w-3.5" />
                 </button>
               </div>
-              <p v-if="!form.damage_entries.length" class="font-fell text-xs text-muted-foreground italic">No damage — add a component above.</p>
+              <p v-if="!form.damage_entries.length" class="text-caption text-muted-foreground italic">No damage — add a component above.</p>
             </div>
           </div>
         </div>
@@ -293,14 +293,14 @@
             <div class="grid grid-cols-2 gap-3">
               <div>
                 <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Reset</label>
-                <select v-model="advisorInputs.resetType" class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+                <select v-model="advisorInputs.resetType" class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
                   <option v-for="r in TRAP_RESET_TYPES" :key="r" :value="r">{{ r }}</option>
                 </select>
               </div>
               <div class="flex items-end pb-1">
                 <label class="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" v-model="advisorInputs.isInstantDeath" class="accent-primary" />
-                  <span class="font-fell text-sm text-foreground">Save-or-die mechanic</span>
+                  <span class="text-body text-foreground">Save-or-die mechanic</span>
                 </label>
               </div>
             </div>
@@ -314,7 +314,7 @@
                 <span v-if="CR_XP[advisorResult.suggestedCr]" class="ml-2">({{ CR_XP[advisorResult.suggestedCr] }} XP)</span>
               </div>
               <ul class="flex flex-col gap-1">
-                <li v-for="(factor, i) in advisorResult.factors" :key="i" class="font-fell text-xs text-muted-foreground flex items-start gap-1.5">
+                <li v-for="(factor, i) in advisorResult.factors" :key="i" class="text-caption text-muted-foreground flex items-start gap-1.5">
                   <span class="text-primary mt-0.5">·</span>{{ factor }}
                 </li>
               </ul>
@@ -324,7 +324,7 @@
                   <div
                     v-for="bench in CR_TRAP_BENCHMARKS.slice(0, 5)"
                     :key="bench.cr"
-                    class="flex items-start gap-2 font-fell text-xs"
+                    class="flex items-start gap-2 text-caption"
                     :class="bench.cr === advisorResult.suggestedCr ? 'text-primary font-semibold' : 'text-muted-foreground'"
                   >
                     <span class="font-cinzel shrink-0 w-6">{{ bench.cr }}</span>

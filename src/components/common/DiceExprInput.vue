@@ -5,7 +5,7 @@
         :value="model ?? ''"
         type="text"
         :placeholder="placeholder"
-        class="flex-1 min-w-0 bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        class="flex-1 min-w-0 bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         @input="onInput"
         @keydown.enter.prevent="tryRoll"
       />

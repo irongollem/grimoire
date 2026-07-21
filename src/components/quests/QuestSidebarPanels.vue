@@ -26,7 +26,7 @@
     <div class="p-2 flex flex-col gap-1">
       <p
         v-if="!subQuests?.length"
-        class="font-fell text-xs text-muted-foreground italic px-2 py-2"
+        class="text-caption text-muted-foreground italic px-2 py-2"
       >
         No sub-quests yet.
       </p>
@@ -40,7 +40,7 @@
           class="h-2 w-2 rounded-full shrink-0"
           :style="{ backgroundColor: QUEST_STATUS_COLORS[sub.status] }"
         />
-        <span class="font-fell text-sm text-foreground flex-1 truncate">{{
+        <span class="text-body text-foreground flex-1 truncate">{{
           sub.title || "Untitled"
         }}</span>
         <IconChevronRight

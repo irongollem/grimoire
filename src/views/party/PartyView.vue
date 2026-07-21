@@ -29,7 +29,7 @@
       <div class="px-4 py-3 border-b border-border bg-muted/20 flex items-center justify-between">
         <div>
           <span class="text-label-lg font-semibold text-muted-foreground">Group Portrait</span>
-          <p class="font-fell text-xs text-muted-foreground italic mt-0.5">
+          <p class="text-caption text-muted-foreground italic mt-0.5">
             Use <span class="font-cinzel text-2xs font-bold">@Party</span> in Chronicler scenes to reference this shot instead of individual portraits — saves tokens and effort.
           </p>
         </div>
@@ -59,7 +59,7 @@
       </div>
 
       <div v-if="error" class="px-4 py-2">
-        <p class="font-fell text-xs text-destructive">{{ error }}</p>
+        <p class="text-caption text-destructive">{{ error }}</p>
       </div>
 
       <div v-if="groupPortraitUrl" class="p-4 flex justify-center">
@@ -70,10 +70,10 @@
         />
       </div>
       <div v-else-if="!generating" class="px-4 py-6 text-center">
-        <p class="font-fell text-sm text-muted-foreground italic">No group portrait yet.</p>
+        <p class="text-body text-muted-foreground italic">No group portrait yet.</p>
       </div>
       <div v-else class="px-4 py-6 text-center">
-        <p class="font-fell text-sm text-muted-foreground italic animate-pulse">Generating group portrait…</p>
+        <p class="text-body text-muted-foreground italic animate-pulse">Generating group portrait…</p>
       </div>
     </div>
   </PageHeader>

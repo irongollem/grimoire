@@ -91,7 +91,7 @@
             <span
               v-for="spellId in entry.spell_ids"
               :key="spellId"
-              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 border border-primary/30 font-fell text-xs text-foreground"
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 border border-primary/30 text-caption text-foreground"
             >
               {{ spellName(spellId) }}
               <button
@@ -126,7 +126,7 @@
                 <li
                   v-for="spell in filteredSpells(i)"
                   :key="spell.id"
-                  class="px-3 py-1.5 font-fell text-sm text-foreground hover:bg-muted/60 transition-colors cursor-pointer flex items-center gap-2"
+                  class="px-3 py-1.5 text-body text-foreground hover:bg-muted/60 transition-colors cursor-pointer flex items-center gap-2"
                   @mousedown.prevent="addSpell(i, spell.id)"
                 >
                   <span class="font-cinzel text-2xs text-muted-foreground w-16 shrink-0">{{ levelLabel(spell.level) }}</span>
@@ -138,7 +138,7 @@
                 :style="dropdownStyle[i]"
                 class="fixed z-9999 rounded-md border border-border bg-card shadow-lg px-3 py-2"
               >
-                <span class="font-fell text-xs text-muted-foreground italic">No spells found</span>
+                <span class="text-caption text-muted-foreground italic">No spells found</span>
               </div>
             </Teleport>
           </div>

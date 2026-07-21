@@ -6,7 +6,7 @@
         <IconLock class="h-3 w-3 text-muted-foreground shrink-0" />
         <div class="flex-1">
           <span class="text-label-lg font-semibold text-muted-foreground">My Private Notes</span>
-          <span class="font-fell text-2xs text-muted-foreground/50 italic ml-2">
+          <span class="text-caption-sm text-muted-foreground/50 italic ml-2">
             {{ sharedWithDm ? 'Shared with your DM' : 'Only you can see this' }}
           </span>
         </div>
@@ -50,7 +50,7 @@
         <IconFaction class="h-3 w-3 text-elven-green shrink-0" />
         <div>
           <span class="text-label-lg font-semibold" style="color: var(--color-elven-green)">My Party Notes</span>
-          <span class="font-fell text-2xs text-muted-foreground/50 italic ml-2">Visible to everyone in the campaign</span>
+          <span class="text-caption-sm text-muted-foreground/50 italic ml-2">Visible to everyone in the campaign</span>
         </div>
       </div>
       <RichTextEditor v-model="sharedContent" :placeholder="placeholder" min-height="80px" :sticky-toolbar="false">
@@ -106,7 +106,7 @@
           Player Insights
           <span class="font-fell font-normal text-amber-500/60"> · {{ dmSharedNotes.length }}</span>
         </span>
-        <span class="font-fell text-2xs text-amber-500/50 italic">Shared with you privately</span>
+        <span class="text-caption-sm text-amber-500/50 italic">Shared with you privately</span>
       </div>
       <div class="divide-y divide-amber-500/20">
         <div v-for="note in dmSharedNotes" :key="note.id" class="px-3 py-2.5 space-y-1">

@@ -31,7 +31,7 @@
       v-if="isSrd"
       class="flex items-center justify-between gap-3 rounded-md border border-border bg-muted/50 px-4 py-2.5"
     >
-      <p class="font-fell text-sm text-muted-foreground italic">
+      <p class="text-body text-muted-foreground italic">
         Read-only SRD reference. Customize to create your own editable copy.
       </p>
       <button

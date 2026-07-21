@@ -18,14 +18,14 @@
         v-if="castingTime === 'Special'"
         :value="castingTimeCustom"
         placeholder="Describe casting time…"
-        class="mt-1 bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        class="mt-1 bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         @input="$emit('update:castingTimeCustom', ($event.target as HTMLInputElement).value)"
       />
       <input
         v-if="castingTime === 'Reaction'"
         :value="castingTimeCustom"
         placeholder="Reaction to what? (optional)"
-        class="mt-1 bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        class="mt-1 bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         @input="$emit('update:castingTimeCustom', ($event.target as HTMLInputElement).value)"
       />
     </div>
@@ -46,7 +46,7 @@
         v-if="range === 'Special'"
         :value="rangeCustom"
         placeholder="Describe range…"
-        class="mt-1 bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        class="mt-1 bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         @input="$emit('update:rangeCustom', ($event.target as HTMLInputElement).value)"
       />
     </div>
@@ -71,7 +71,7 @@
         v-if="duration === 'Special'"
         :value="durationCustom"
         placeholder="Describe duration…"
-        class="mt-1 bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        class="mt-1 bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         @input="$emit('update:durationCustom', ($event.target as HTMLInputElement).value)"
       />
     </div>

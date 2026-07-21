@@ -39,7 +39,7 @@ const emit = defineEmits<{ close: [] }>();
           <div class="flex-1 overflow-y-auto p-5">
             <MonsterSheet v-if="monster" :monster="monster" />
             <SpellSheet v-else-if="spell" :spell="spell" />
-            <p v-else class="font-fell text-xs text-muted-foreground italic">Loading…</p>
+            <p v-else class="text-caption text-muted-foreground italic">Loading…</p>
           </div>
         </div>
       </div>

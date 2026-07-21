@@ -1,7 +1,7 @@
 <template>
   <div class="pb-8 space-y-6">
     <div v-if="!member" class="text-center py-16">
-      <p class="font-fell text-sm text-muted-foreground italic">No character linked.</p>
+      <p class="text-body text-muted-foreground italic">No character linked.</p>
     </div>
     <template v-else>
       <LevelUpWizard

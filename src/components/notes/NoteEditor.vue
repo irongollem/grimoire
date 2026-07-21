@@ -82,18 +82,18 @@
 
         <!-- Start date -->
         <div class="space-y-1.5">
-          <p class="font-fell text-xs text-muted-foreground">Start date (in-game)</p>
+          <p class="text-caption text-muted-foreground">Start date (in-game)</p>
           <div class="flex gap-2 flex-wrap">
             <input
               v-model.number="sessionStartYear"
               type="number"
               min="1"
               placeholder="Year"
-              class="w-24 bg-card border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-24 bg-card border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
             <select
               v-model.number="sessionStartMonth"
-              class="bg-card border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="bg-card border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             >
               <option :value="null">— Month —</option>
               <option v-for="m in calendarAdapter.months" :key="m.num" :value="m.num">{{ m.name }}</option>
@@ -104,25 +104,25 @@
               min="1"
               max="30"
               placeholder="Day"
-              class="w-20 bg-card border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-20 bg-card border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
         </div>
 
         <!-- End date -->
         <div class="space-y-1.5">
-          <p class="font-fell text-xs text-muted-foreground">End date (in-game, optional)</p>
+          <p class="text-caption text-muted-foreground">End date (in-game, optional)</p>
           <div class="flex gap-2 flex-wrap">
             <input
               v-model.number="sessionEndYear"
               type="number"
               min="1"
               placeholder="Year"
-              class="w-24 bg-card border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-24 bg-card border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
             <select
               v-model.number="sessionEndMonth"
-              class="bg-card border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="bg-card border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             >
               <option :value="null">— Month —</option>
               <option v-for="m in calendarAdapter.months" :key="m.num" :value="m.num">{{ m.name }}</option>
@@ -133,14 +133,14 @@
               min="1"
               max="30"
               placeholder="Day"
-              class="w-20 bg-card border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-20 bg-card border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
         </div>
 
         <!-- Real-world date -->
         <div class="space-y-1.5">
-          <p class="font-fell text-xs text-muted-foreground">Real-world date (optional)</p>
+          <p class="text-caption text-muted-foreground">Real-world date (optional)</p>
           <VueDatePicker
             v-model="sessionRealDate"
             :dark="true"
@@ -161,7 +161,7 @@
       </div>
     </template>
 
-    <p v-if="saveError" class="text-destructive font-fell text-sm">
+    <p v-if="saveError" class="text-destructive text-body">
       {{ saveError }}
     </p>
 

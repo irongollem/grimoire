@@ -65,7 +65,7 @@
           <div class="text-center">
             <IconUserCircle class="h-12 w-12 text-muted-foreground/20 mx-auto mb-3" />
             <p class="font-cinzel text-sm text-muted-foreground">Select an entity to forge a token.</p>
-            <p class="font-fell text-xs text-muted-foreground/60 italic mt-1">
+            <p class="text-caption text-muted-foreground/60 italic mt-1">
               Entities with a portrait will use it; others get an initial placeholder.
             </p>
           </div>
@@ -104,7 +104,7 @@
               <CoinFace :coin="coin" :size="COIN_SVG_SIZE" />
             </svg>
           </div>
-          <p class="font-fell text-xs text-muted-foreground text-center">
+          <p class="text-caption text-muted-foreground text-center">
             Live preview · {{ currentPrintSize.mm }}mm · ~{{ currentPrintSize.perSheet }} per sheet
           </p>
           <button
@@ -114,7 +114,7 @@
           >
             Print Sheet
           </button>
-          <p class="font-fell text-xs text-muted-foreground italic text-center">
+          <p class="text-caption text-muted-foreground italic text-center">
             Prints fronts then backs. Flip on the long (left) edge for duplex — backs are column-reversed to align.
           </p>
         </div>

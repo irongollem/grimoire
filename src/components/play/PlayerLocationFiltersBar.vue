@@ -6,7 +6,7 @@
         :value="search"
         type="text"
         placeholder="Search locations…"
-        class="w-full rounded-md border border-border bg-muted/40 pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        class="w-full rounded-md border border-border bg-muted/40 pl-8 pr-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         @input="$emit('update:search', ($event.target as HTMLInputElement).value)"
       />
     </div>

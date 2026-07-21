@@ -2,7 +2,7 @@
   <div class="rounded-lg border border-border bg-card overflow-hidden">
     <div class="px-4 py-2.5 border-b border-border bg-muted/20 flex items-center justify-between">
       <span class="text-label-lg font-semibold text-muted-foreground">OUTPUTS</span>
-      <span class="font-fell text-xs text-muted-foreground italic">At least one required</span>
+      <span class="text-caption text-muted-foreground italic">At least one required</span>
     </div>
     <div class="p-4 flex flex-col gap-2">
       <!-- Existing outputs -->
@@ -11,16 +11,16 @@
         :key="idx"
         class="flex items-center gap-2"
       >
-        <span class="flex-1 font-fell text-sm text-foreground truncate">
+        <span class="flex-1 text-body text-foreground truncate">
           {{ itemById(out.item_id)?.name ?? "Unknown item" }}
         </span>
         <input
           v-model.number="out.quantity"
           type="number"
           min="1"
-          class="w-16 bg-muted border border-border rounded px-2 py-1 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring text-center"
+          class="w-16 bg-muted border border-border rounded px-2 py-1 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring text-center"
         />
-        <span class="font-fell text-xs text-muted-foreground">×</span>
+        <span class="text-caption text-muted-foreground">×</span>
         <button
           type="button"
           class="text-muted-foreground hover:text-destructive transition-colors"
@@ -38,7 +38,7 @@
         <input
           :value="search"
           placeholder="Add output item…"
-          class="w-full bg-muted border border-border rounded-md pl-9 pr-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full bg-muted border border-border rounded-md pl-9 pr-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           @input="emit('update:search', ($event.target as HTMLInputElement).value)"
         />
       </div>
@@ -54,9 +54,9 @@
           @click="emit('add', item.id)"
         >
           <span class="font-cinzel text-xs font-semibold text-foreground flex-1 truncate">{{ item.name }}</span>
-          <span class="font-fell text-2xs text-muted-foreground capitalize shrink-0">{{ item.item_type.replace(/_/g, " ") }}</span>
+          <span class="text-caption-sm text-muted-foreground capitalize shrink-0">{{ item.item_type.replace(/_/g, " ") }}</span>
         </button>
-        <p v-if="filteredItems.length === 0" class="px-3 py-2 font-fell text-xs text-muted-foreground italic">
+        <p v-if="filteredItems.length === 0" class="px-3 py-2 text-caption text-muted-foreground italic">
           No items found.
         </p>
       </div>

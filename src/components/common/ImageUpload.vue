@@ -18,7 +18,7 @@
       @drop.prevent="onDrop"
     >
       <IconAddImage class="h-7 w-7" />
-      <span class="font-fell text-xs italic text-center px-2">
+      <span class="text-caption italic text-center px-2">
         {{ isUploading ? "Uploading…" : placeholder }}
       </span>
     </label>
@@ -76,10 +76,10 @@
           :for="inputId"
           class="absolute inset-0 cursor-pointer bg-black/50 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
         >
-          <span class="font-fell text-white text-xs italic">Change</span>
+          <span class="text-caption text-white italic">Change</span>
         </label>
         <div v-else class="absolute inset-0 bg-black/50 flex items-center justify-center">
-          <span class="font-fell text-white text-xs italic">Uploading…</span>
+          <span class="text-caption text-white italic">Uploading…</span>
         </div>
       </div>
       <button
@@ -91,7 +91,7 @@
       </button>
     </template>
 
-    <p v-if="uploadError" class="text-destructive font-fell text-xs mt-1">{{ uploadError }}</p>
+    <p v-if="uploadError" class="text-destructive text-caption mt-1">{{ uploadError }}</p>
 
     <input
       :id="inputId"

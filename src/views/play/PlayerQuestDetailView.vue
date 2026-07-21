@@ -41,7 +41,7 @@
 
       <!-- Meta row -->
       <div
-        class="flex flex-wrap gap-x-4 gap-y-1.5 text-sm font-fell text-muted-foreground"
+        class="flex flex-wrap gap-x-4 gap-y-1.5 text-body text-muted-foreground"
       >
         <button
           v-if="giverName"
@@ -91,7 +91,7 @@
             class="text-label-lg font-semibold text-muted-foreground"
             >Objectives</span
           >
-          <span class="font-fell text-xs text-muted-foreground"
+          <span class="text-caption text-muted-foreground"
             >{{ doneCount }}/{{ visibleObjectives.length }}</span
           >
         </div>
@@ -112,7 +112,7 @@
               <IconCheck v-if="obj.is_done" class="h-2.5 w-2.5" />
             </span>
             <span
-              class="font-fell text-sm leading-snug"
+              class="text-body leading-snug"
               :class="
                 obj.is_done
                   ? 'text-muted-foreground line-through'
@@ -141,17 +141,17 @@
           >
         </div>
         <div class="p-3 flex flex-col gap-2">
-          <p v-if="quest.rewards" class="font-fell text-sm text-foreground">
+          <p v-if="quest.rewards" class="text-body text-foreground">
             {{ quest.rewards }}
           </p>
-          <p v-if="hasCurrencyReward" class="font-fell text-sm text-foreground">
+          <p v-if="hasCurrencyReward" class="text-body text-foreground">
             {{ currencyParts.join(", ") }}
           </p>
           <div v-if="quest.reward_item_ids?.length" class="flex flex-wrap gap-1.5">
             <span
               v-for="itemId in quest.reward_item_ids"
               :key="itemId"
-              class="font-fell text-sm text-foreground bg-muted/40 rounded px-2 py-0.5"
+              class="text-body text-foreground bg-muted/40 rounded px-2 py-0.5"
               >{{ itemName(itemId) }}</span
             >
           </div>
@@ -178,7 +178,7 @@
             @click="openNpc(ref.ref_id)"
           >
             <IconUser class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <span class="font-fell text-sm text-foreground hover:text-primary transition-colors">{{
+            <span class="text-body text-foreground hover:text-primary transition-colors">{{
               npcName(ref.ref_id)
             }}</span>
           </button>
@@ -205,7 +205,7 @@
               @click="openLocation(ref.ref_id)"
             >
               <IconLocation class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-              <span class="font-fell text-sm text-foreground hover:text-primary transition-colors">{{
+              <span class="text-body text-foreground hover:text-primary transition-colors">{{
                 locationName2(ref.ref_id)
               }}</span>
             </button>
@@ -214,7 +214,7 @@
               class="flex items-center gap-2 px-2 py-1.5"
             >
               <IconLocation class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-              <span class="font-fell text-sm text-foreground">{{
+              <span class="text-body text-foreground">{{
                 locationName2(ref.ref_id)
               }}</span>
             </div>
@@ -240,7 +240,7 @@
             class="flex items-center gap-2 px-2 py-1.5"
           >
             <IconMonster class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <span class="font-fell text-sm text-foreground">{{
+            <span class="text-body text-foreground">{{
               monsterName(ref.ref_id)
             }}</span>
           </div>
@@ -288,9 +288,9 @@
               {{ selectedNpc.player_visible_fields?.includes('name') ? getNpcDisplayName(selectedNpc) : '???' }}
             </h2>
             <p v-if="selectedNpc.player_visible_fields?.includes('race') && selectedNpc.race"
-              class="mt-1 font-fell text-sm text-muted-foreground italic">{{ selectedNpc.race }}</p>
+              class="mt-1 text-body text-muted-foreground italic">{{ selectedNpc.race }}</p>
             <p v-if="selectedNpc.player_visible_fields?.includes('occupation') && selectedNpc.occupation"
-              class="font-fell text-sm text-muted-foreground">{{ selectedNpc.occupation }}</p>
+              class="text-body text-muted-foreground">{{ selectedNpc.occupation }}</p>
           </div>
           <PlayerNotesWidget entity-type="npc" :entity-id="selectedNpc.id" placeholder="Your observations about this character…" />
         </div>

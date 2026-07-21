@@ -16,7 +16,7 @@
 
     <div>
       <h2 class="font-cinzel text-lg font-bold text-foreground">{{ companion?.name }}</h2>
-      <p v-if="ownerName" class="font-fell text-sm text-muted-foreground italic">
+      <p v-if="ownerName" class="text-body text-muted-foreground italic">
         {{ ownerName }}'s companion
       </p>
     </div>

@@ -4,7 +4,7 @@
       <IconDM class="h-5 w-5 text-amber-400 shrink-0" />
       <span class="font-cinzel text-sm font-bold text-foreground tracking-wide">Pro feature</span>
     </div>
-    <p class="font-fell text-sm text-muted-foreground leading-relaxed">
+    <p class="text-body text-muted-foreground leading-relaxed">
       {{ message }}
     </p>
     <button

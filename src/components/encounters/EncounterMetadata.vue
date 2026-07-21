@@ -12,7 +12,7 @@
           :value="name"
           type="text"
           placeholder="Name your encounter…"
-          class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full bg-muted border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           @input="$emit('update:name', ($event.target as HTMLInputElement).value)"
         />
       </div>

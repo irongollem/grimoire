@@ -9,7 +9,7 @@
         :key="item.id"
         class="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2"
       >
-        <span class="flex-1 font-fell text-sm text-foreground truncate">
+        <span class="flex-1 text-body text-foreground truncate">
           {{ item.quantity > 1 ? `${item.quantity}× ` : "" }}{{ item.name }}
         </span>
         <RouterLink
@@ -18,7 +18,7 @@
           class="font-cinzel text-2xs text-primary hover:opacity-80 transition-opacity shrink-0"
           title="View in vault"
         >Vault</RouterLink>
-        <span v-if="item.notes" class="font-fell text-xs text-muted-foreground italic truncate max-w-32">
+        <span v-if="item.notes" class="text-caption text-muted-foreground italic truncate max-w-32">
           {{ item.notes }}
         </span>
         <button
@@ -40,7 +40,7 @@
       </div>
     </div>
 
-    <p v-else class="font-fell text-xs text-muted-foreground italic">No items on this NPC.</p>
+    <p v-else class="text-caption text-muted-foreground italic">No items on this NPC.</p>
 
     <!-- Add from vault -->
     <div class="flex items-center gap-2">

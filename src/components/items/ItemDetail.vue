@@ -1,6 +1,6 @@
 <template>
   <div class="flex flex-col gap-6">
-    <p v-if="saveError" class="text-destructive font-fell text-sm">{{ saveError }}</p>
+    <p v-if="saveError" class="text-destructive text-body">{{ saveError }}</p>
 
     <div class="grid grid-cols-1 lg:grid-cols-[13.75rem_1fr] gap-6">
       <!-- Left: Portrait + Tags -->
@@ -32,7 +32,7 @@
           <h3 class="text-label-lg font-bold text-muted-foreground uppercase">Linked Spells</h3>
           <div class="flex flex-col gap-1">
             <div v-for="spell in selectedSpells" :key="spell.id" class="flex items-center justify-between gap-2">
-              <span class="font-fell text-xs text-foreground">{{ spell.name }}</span>
+              <span class="text-caption text-foreground">{{ spell.name }}</span>
               <span class="font-cinzel text-2xs text-muted-foreground">{{ spell.level === 0 ? 'Cantrip' : `L${spell.level}` }}</span>
             </div>
           </div>
@@ -65,7 +65,7 @@
               <input
                 v-model="subtype"
                 placeholder="e.g. longsword, chain mail…"
-                class="bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="bg-card border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </label>
             <label class="flex flex-col gap-1">
@@ -92,7 +92,7 @@
             <input
               v-model="cost"
               placeholder="e.g. 50 gp"
-              class="bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="bg-card border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
             <span v-if="rarityPriceHint" class="font-fell text-[0.6875rem] text-muted-foreground/60 italic">{{ rarityPriceHint }}</span>
           </label>
@@ -134,7 +134,7 @@
             v-if="requiresAttunement"
             v-model="attunementRequirements"
             placeholder="by whom? (optional, e.g. by a spellcaster)"
-            class="bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
 
@@ -152,7 +152,7 @@
                 type="number"
                 min="0"
                 placeholder="e.g. 20"
-                class="bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </label>
             <div v-if="isMagic && itemType !== 'ammunition'" class="flex flex-col gap-1">
@@ -165,7 +165,7 @@
               <input
                 v-model="rechargeWhen"
                 placeholder="dawn / short rest / long rest"
-                class="bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
           </div>
@@ -196,7 +196,7 @@
                 type="number" min="1"
                 class="w-14 bg-muted border border-border rounded-md px-2 py-1.5 font-cinzel text-xs text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
               />
-              <span class="font-fell text-sm text-foreground flex-1">{{ entry.name }}</span>
+              <span class="text-body text-foreground flex-1">{{ entry.name }}</span>
               <button
                 type="button"
                 class="text-muted-foreground hover:text-destructive transition-colors"
@@ -208,7 +208,7 @@
             <input
               v-model="bundleItemInput"
               placeholder="Item name…"
-              class="flex-1 bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="flex-1 bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               @keydown.enter.prevent="addBundleItem"
             />
             <button
@@ -226,15 +226,15 @@
               Linked Spells
               <span class="normal-case font-fell font-normal text-muted-foreground/60"> — optional</span>
             </h3>
-            <span v-if="selectedSpells.length" class="font-fell text-2xs text-muted-foreground italic">{{ selectedSpells.length }} linked</span>
+            <span v-if="selectedSpells.length" class="text-caption-sm text-muted-foreground italic">{{ selectedSpells.length }} linked</span>
           </div>
           <input
             v-model="spellSearch"
             placeholder="Search your Spellbook…"
-            class="bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="bg-muted border border-border rounded-md px-3 py-1.5 text-caption text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
           <div class="max-h-40 overflow-y-auto flex flex-col gap-1 rounded border border-border/50 bg-muted/30 p-2">
-            <p v-if="!filteredSpells.length" class="font-fell text-xs text-muted-foreground italic px-1">
+            <p v-if="!filteredSpells.length" class="text-caption text-muted-foreground italic px-1">
               {{ spellsLoading ? 'Loading spells…' : 'No spells found. Add spells in the Spellbook.' }}
             </p>
             <label
@@ -243,7 +243,7 @@
               class="flex items-center gap-2 cursor-pointer py-0.5 px-1 rounded hover:bg-muted"
             >
               <input type="checkbox" :value="spell.id" v-model="spellIds" class="rounded shrink-0" />
-              <span class="font-fell text-xs text-foreground">{{ spell.name }}</span>
+              <span class="text-caption text-foreground">{{ spell.name }}</span>
               <span class="font-cinzel text-2xs text-muted-foreground ml-auto shrink-0">
                 {{ spell.level === 0 ? 'Cantrip' : `L${spell.level}` }} · {{ spell.school }}
               </span>
@@ -305,7 +305,7 @@
               placeholder="Describe the curse effect, trigger, and how it can be removed…"
               min-height="120px"
             />
-            <p class="font-fell text-xs text-muted-foreground italic">
+            <p class="text-caption text-muted-foreground italic">
               Reveal the curse to players via the party inventory panel once a player attunes or triggers it.
             </p>
           </template>
@@ -341,7 +341,7 @@
           <!-- Imported items: read-only with optional link -->
           <div
             v-if="props.item?.source_url || props.item?.source_title"
-            class="bg-muted/30 border border-border rounded-md px-3 py-2 font-fell text-sm text-muted-foreground italic"
+            class="bg-muted/30 border border-border rounded-md px-3 py-2 text-body text-muted-foreground italic"
           >
             <a
               v-if="props.item.source_url"
@@ -357,7 +357,7 @@
             v-else
             v-model="source"
             placeholder="e.g. Homebrew, DMG, XGtE…"
-            class="bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="bg-card border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
       </div>

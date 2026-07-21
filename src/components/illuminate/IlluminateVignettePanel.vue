@@ -54,14 +54,14 @@
           class="h-6 w-10 cursor-pointer rounded border border-border bg-transparent p-0.5"
           @input="(e) => emit('set-colour', (e.target as HTMLInputElement).value)"
         />
-        <span class="font-fell text-xs text-muted-foreground">{{ vignette.colour }}</span>
+        <span class="text-caption text-muted-foreground">{{ vignette.colour }}</span>
       </div>
 
       <!-- Strength slider -->
       <div>
         <div class="flex items-center justify-between mb-1">
           <label class="text-eyebrow text-muted-foreground">Strength</label>
-          <span class="font-fell text-xs text-muted-foreground tabular-nums">{{ Math.round(vignette.strength * 100) }}</span>
+          <span class="text-caption text-muted-foreground tabular-nums">{{ Math.round(vignette.strength * 100) }}</span>
         </div>
         <input
           type="range" min="0" max="1" step="0.01"
@@ -75,7 +75,7 @@
       <div>
         <div class="flex items-center justify-between mb-1">
           <label class="text-eyebrow text-muted-foreground">Softness</label>
-          <span class="font-fell text-xs text-muted-foreground tabular-nums">{{ Math.round(vignette.softness * 100) }}</span>
+          <span class="text-caption text-muted-foreground tabular-nums">{{ Math.round(vignette.softness * 100) }}</span>
         </div>
         <input
           type="range" min="0" max="1" step="0.01"

@@ -1,12 +1,12 @@
 <template>
   <div class="space-y-4">
-    <p class="font-fell text-sm text-muted-foreground italic">
+    <p class="text-body text-muted-foreground italic">
       Choose your class. Saving throws are fixed by class and applied automatically.
     </p>
 
     <!-- Class picker -->
     <div v-if="!mergedClasses.length" class="rounded-lg border border-border bg-card p-6 text-center">
-      <p class="font-fell text-sm text-muted-foreground italic">No classes available — skip for now.</p>
+      <p class="text-body text-muted-foreground italic">No classes available — skip for now.</p>
     </div>
     <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-2">
       <button v-for="cls in mergedClasses" :key="cls.choice_key" type="button"
@@ -22,7 +22,7 @@
               {{ cls.definition_kind === 'system' ? 'Official' : (cls.source_document_key ? 'Imported' : 'Custom') }}
               <template v-if="cls.source_revision"> · {{ cls.source_revision }}</template>
             </p>
-            <p v-if="cls.primary_ability" class="font-fell text-xs text-muted-foreground mt-0.5">{{ cls.primary_ability }}</p>
+            <p v-if="cls.primary_ability" class="text-caption text-muted-foreground mt-0.5">{{ cls.primary_ability }}</p>
           </div>
           <span class="shrink-0 px-2 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground">
             d{{ cls.hit_die }}
@@ -58,7 +58,7 @@
         <div>
           <div class="flex items-baseline justify-between mb-2">
             <p class="text-label-lg font-semibold text-muted-foreground">SAVING THROWS</p>
-            <p v-if="f.class" class="font-fell text-2xs text-muted-foreground/70 italic">fixed by class</p>
+            <p v-if="f.class" class="text-caption-sm text-muted-foreground/70 italic">fixed by class</p>
           </div>
 
           <!-- Class selected: read-only coloured chips -->
@@ -146,7 +146,7 @@
               </div>
 
               <!-- Skill name -->
-              <span class="font-fell text-xs flex-1"
+              <span class="text-caption flex-1"
                 :class="f.class && isInClassList(skill.key) ? 'text-foreground font-medium' : 'text-foreground'">
                 {{ skill.label }}
               </span>

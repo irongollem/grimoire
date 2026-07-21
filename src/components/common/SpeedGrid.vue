@@ -30,7 +30,7 @@
           step="5"
           min="0"
           placeholder="—"
-          class="speed-input w-full bg-transparent pl-6 pr-8 py-1.5 font-fell text-sm text-foreground text-center placeholder:text-muted-foreground/40 focus:outline-none"
+          class="speed-input w-full bg-transparent pl-6 pr-8 py-1.5 text-body text-foreground text-center placeholder:text-muted-foreground/40 focus:outline-none"
           @focus="($event.target as HTMLInputElement).select()"
           @input="setSpeed('fly', ($event.target as HTMLInputElement).value)"
         />

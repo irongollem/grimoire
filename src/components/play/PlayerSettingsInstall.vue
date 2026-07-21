@@ -2,7 +2,7 @@
   <section v-if="canInstall" class="rounded-lg border border-primary/30 bg-primary/5 overflow-hidden">
     <header class="px-4 py-3 border-b border-primary/20">
       <h3 class="font-cinzel text-sm font-bold text-foreground tracking-wide">Install App</h3>
-      <p class="font-fell text-xs text-muted-foreground italic mt-0.5">
+      <p class="text-caption text-muted-foreground italic mt-0.5">
         Add Grimoire to your home screen for quick access between sessions.
       </p>
     </header>
@@ -20,10 +20,10 @@
       <!-- Fallback: manual instructions -->
       <div v-else class="space-y-1.5">
         <p class="font-cinzel text-xs text-muted-foreground tracking-wide">To install manually:</p>
-        <p class="font-fell text-sm text-foreground">
+        <p class="text-body text-foreground">
           Android Chrome — tap the <span class="font-cinzel text-xs">⋮</span> menu → <em>Add to Home screen</em>
         </p>
-        <p class="font-fell text-sm text-foreground">
+        <p class="text-body text-foreground">
           iOS Safari — tap <span class="font-cinzel text-xs">⎋</span> Share → <em>Add to Home Screen</em>
         </p>
       </div>

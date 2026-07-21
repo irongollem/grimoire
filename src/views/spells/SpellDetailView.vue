@@ -20,7 +20,7 @@
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
     </div>
-    <p v-else-if="error" class="text-destructive font-fell text-sm">Failed to load spell.</p>
+    <p v-else-if="error" class="text-destructive text-body">Failed to load spell.</p>
     <template v-else>
       <SpellSheet v-if="!isEditing && spell" :spell="spell" />
       <SpellDetail v-else :spell="spell ?? null" :is-srd="isSrdId" />

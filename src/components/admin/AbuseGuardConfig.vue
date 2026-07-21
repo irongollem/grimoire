@@ -2,20 +2,20 @@
   <div class="rounded-lg border border-border bg-card p-4 space-y-3">
     <div>
       <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">Abuse Velocity Guard</h2>
-      <p class="font-fell text-xs text-muted-foreground italic mt-0.5">
+      <p class="text-caption text-muted-foreground italic mt-0.5">
         Caps how fast a new account can burn purchased credits (friendly-fraud blast radius).
         Leave off until you have real usage data — enabling with low limits can throttle legit power users.
       </p>
     </div>
 
-    <p v-if="query.isPending.value" class="font-fell text-sm text-muted-foreground">Loading…</p>
+    <p v-if="query.isPending.value" class="text-body text-muted-foreground">Loading…</p>
 
     <template v-else-if="local">
-      <label class="flex items-center gap-2 font-fell text-sm text-foreground">
+      <label class="flex items-center gap-2 text-body text-foreground">
         <input v-model="local.enabled" type="checkbox" class="accent-primary" />
         Enabled
       </label>
-      <label class="flex items-center gap-2 font-fell text-sm" :class="local.enabled ? 'text-foreground' : 'text-muted-foreground'">
+      <label class="flex items-center gap-2 text-body" :class="local.enabled ? 'text-foreground' : 'text-muted-foreground'">
         <input v-model="local.enforce" type="checkbox" :disabled="!local.enabled" class="accent-primary" />
         Enforce (block over-limit spends) — off = log-only
       </label>
@@ -23,15 +23,15 @@
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <label class="space-y-1">
           <span class="block text-eyebrow font-semibold text-muted-foreground">New-account age (days)</span>
-          <input v-model.number="local.young_account_days" type="number" min="0" class="w-full bg-muted border border-border rounded px-2.5 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+          <input v-model.number="local.young_account_days" type="number" min="0" class="w-full bg-muted border border-border rounded px-2.5 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
         </label>
         <label class="space-y-1">
           <span class="block text-eyebrow font-semibold text-muted-foreground">Window (hours)</span>
-          <input v-model.number="local.window_hours" type="number" min="1" class="w-full bg-muted border border-border rounded px-2.5 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+          <input v-model.number="local.window_hours" type="number" min="1" class="w-full bg-muted border border-border rounded px-2.5 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
         </label>
         <label class="space-y-1">
           <span class="block text-eyebrow font-semibold text-muted-foreground">Max purchased / window</span>
-          <input v-model.number="local.max_purchased_spend_window" type="number" min="0" class="w-full bg-muted border border-border rounded px-2.5 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+          <input v-model.number="local.max_purchased_spend_window" type="number" min="0" class="w-full bg-muted border border-border rounded px-2.5 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
         </label>
       </div>
 
@@ -43,7 +43,7 @@
         >
           {{ update.isPending.value ? 'Saving…' : 'Save' }}
         </button>
-        <span v-if="saved" class="font-fell text-xs text-green-500 self-center">Saved.</span>
+        <span v-if="saved" class="text-caption text-green-500 self-center">Saved.</span>
       </div>
     </template>
   </div>

@@ -154,7 +154,7 @@
               class="flex items-center gap-2"
             >
               <span class="font-cinzel text-sm font-bold text-foreground">{{ entry.dice }}</span>
-              <span v-if="entry.type" class="font-fell text-xs text-muted-foreground italic capitalize">{{ entry.type }}</span>
+              <span v-if="entry.type" class="text-caption text-muted-foreground italic capitalize">{{ entry.type }}</span>
               <button
                 v-if="hasRollableDice(entry.dice)"
                 type="button"
@@ -169,7 +169,7 @@
         <template v-if="selectedTrap.effect_description">
           <div class="detail-divider" />
           <p class="detail-section-label">Effect</p>
-          <p class="detail-trait-desc font-fell text-xs text-muted-foreground leading-relaxed">
+          <p class="detail-trait-desc text-caption text-muted-foreground leading-relaxed">
             <span v-html="renderTraitDesc(selectedTrap.effect_description)"></span>
           </p>
         </template>

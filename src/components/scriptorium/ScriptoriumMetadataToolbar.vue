@@ -43,7 +43,7 @@
       <input
         :value="footerText"
         placeholder="Footer text…"
-        class="w-40 bg-card border border-border rounded-md px-2 py-1.5 font-fell text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        class="w-40 bg-card border border-border rounded-md px-2 py-1.5 text-caption text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         @input="$emit('update:footerText', ($event.target as HTMLInputElement).value)"
       />
       <label class="flex items-center gap-1.5">

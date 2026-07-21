@@ -100,7 +100,7 @@
         <IconLocation class="h-3.5 w-3.5 text-muted-foreground" />
         <RouterLink
           :to="`/locations/${encounterLocation.id}`"
-          class="font-fell text-sm text-muted-foreground hover:text-foreground transition-colors"
+          class="text-body text-muted-foreground hover:text-foreground transition-colors"
         >{{ encounterLocation.name }}</RouterLink>
       </div>
       <div v-if="hasDescription" class="mt-2">
@@ -122,7 +122,7 @@
           class="inline-flex items-center gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 hover:border-primary/50 transition-colors"
         >
           <IconScrollText class="h-3.5 w-3.5 text-muted-foreground" />
-          <span class="font-fell text-xs text-foreground truncate max-w-64">{{ q.title }}</span>
+          <span class="text-caption text-foreground truncate max-w-64">{{ q.title }}</span>
         </RouterLink>
       </div>
     </section>
@@ -143,7 +143,7 @@
             class="h-2 w-2 rounded-full shrink-0"
             :style="{ backgroundColor: f.color ?? '#64748b' }"
           />
-          <span class="font-fell text-xs text-foreground">{{ f.name }}</span>
+          <span class="text-caption text-foreground">{{ f.name }}</span>
         </span>
       </div>
     </section>
@@ -164,7 +164,7 @@
           <IconUserRound class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           <div class="flex-1 min-w-0">
             <p class="font-cinzel text-xs font-semibold text-foreground truncate">{{ m.name }}</p>
-            <p v-if="m.factionName" class="font-fell text-2xs text-muted-foreground italic truncate">
+            <p v-if="m.factionName" class="text-caption-sm text-muted-foreground italic truncate">
               {{ m.factionName }}
             </p>
           </div>
@@ -187,7 +187,7 @@
         >
           <IconMonster class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           <span class="font-cinzel text-sm font-bold text-primary shrink-0 w-8 text-right">{{ c.count }}×</span>
-          <span class="flex-1 font-fell text-sm text-foreground truncate">{{ c.name }}</span>
+          <span class="flex-1 text-body text-foreground truncate">{{ c.name }}</span>
           <span
             v-if="c.factionName"
             class="text-label text-muted-foreground"
@@ -210,7 +210,7 @@
     <!-- Loot -->
     <section v-if="hasLoot" class="flex flex-col gap-2">
       <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Loot</h2>
-      <div v-if="coinSummary" class="font-fell text-sm text-foreground">{{ coinSummary }}</div>
+      <div v-if="coinSummary" class="text-body text-foreground">{{ coinSummary }}</div>
       <div v-if="lootItems.length" class="flex flex-wrap gap-2">
         <RouterLink
           v-for="it in lootItems"
@@ -219,7 +219,7 @@
           class="inline-flex items-center gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 hover:border-primary/50 transition-colors"
         >
           <IconPackage class="h-3.5 w-3.5 text-muted-foreground" />
-          <span class="font-fell text-xs text-foreground">{{ it.name }}</span>
+          <span class="text-caption text-foreground">{{ it.name }}</span>
         </RouterLink>
       </div>
     </section>
@@ -238,7 +238,7 @@
           class="inline-flex items-center gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 hover:border-primary/50 transition-colors"
         >
           <IconTrap class="h-3.5 w-3.5 text-muted-foreground" />
-          <span class="font-fell text-xs text-foreground">{{ t.name }}</span>
+          <span class="text-caption text-foreground">{{ t.name }}</span>
         </RouterLink>
       </div>
     </section>

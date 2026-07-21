@@ -16,10 +16,10 @@
           class="w-full text-left flex items-center gap-2 cursor-pointer"
           @click="toggleExpanded(`beast-${trait.name}`)"
         >
-          <span class="font-fell text-sm text-foreground flex-1">{{ trait.name }}</span>
+          <span class="text-body text-foreground flex-1">{{ trait.name }}</span>
           <IconChevronDown class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0" :class="expanded.has(`beast-${trait.name}`) ? 'rotate-180' : ''" />
         </button>
-        <div v-if="expanded.has(`beast-${trait.name}`)" class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2 font-fell text-sm text-muted-foreground leading-relaxed">
+        <div v-if="expanded.has(`beast-${trait.name}`)" class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2 text-body text-muted-foreground leading-relaxed">
           {{ trait.description }}
         </div>
       </div>

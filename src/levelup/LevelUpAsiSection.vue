@@ -1,6 +1,6 @@
 <template>
   <WizardStepCard title="Ability Score Improvement or Feat">
-    <p class="font-fell text-sm text-muted-foreground">Choose how to apply your improvement.</p>
+    <p class="text-body text-muted-foreground">Choose how to apply your improvement.</p>
 
     <div class="flex rounded-md border border-border overflow-hidden w-fit text-label-lg">
       <button class="px-3 py-1.5 transition-colors"
@@ -42,7 +42,7 @@
           </select>
         </div>
       </div>
-      <div v-if="asiPreview.length > 0" class="font-fell text-sm text-muted-foreground">
+      <div v-if="asiPreview.length > 0" class="text-body text-muted-foreground">
         <span v-for="(line, i) in asiPreview" :key="i" class="mr-3">{{ line }}</span>
       </div>
     </template>
@@ -54,7 +54,7 @@
           :value="featSearch"
           type="text"
           placeholder="Search feats…"
-          class="w-full rounded border border-border bg-muted/40 px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full rounded border border-border bg-muted/40 px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           @input="emit('update:featSearch', ($event.target as HTMLInputElement).value)"
         />
         <div v-if="filteredFeats.length > 0"
@@ -67,7 +67,7 @@
             <p v-if="f.description" class="font-fell text-[0.6875rem] text-muted-foreground line-clamp-1 mt-0.5">{{ f.description }}</p>
           </button>
         </div>
-        <p v-else-if="featSearch" class="font-fell text-sm text-muted-foreground italic">No matching features found.</p>
+        <p v-else-if="featSearch" class="text-body text-muted-foreground italic">No matching features found.</p>
         <p v-if="featId" class="text-label-lg text-primary">✓ {{ selectedFeatName }}</p>
       </div>
     </template>

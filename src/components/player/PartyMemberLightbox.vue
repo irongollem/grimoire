@@ -38,7 +38,7 @@
                       class="text-label md:text-sm px-1.5 py-0.5 rounded bg-primary text-primary-foreground mb-1 inline-block"
                     >You</span>
                     <h2 class="font-cinzel text-base font-bold text-foreground leading-tight">{{ member.name }}</h2>
-                    <p class="font-fell text-sm text-muted-foreground italic">
+                    <p class="text-body text-muted-foreground italic">
                       {{ [getDisplayRace(member, speciesNameMap.get(member.species_id ?? '') ?? null, viewerMemberId, viewerIsDm), member.class].filter(Boolean).join(' ') }}
                       <span v-if="member.level" class="font-cinzel not-italic text-primary ml-1">Lv{{ member.level }}</span>
                     </p>
@@ -61,7 +61,7 @@
                     <template v-else>
                       <div class="flex items-center justify-between">
                         <span class="text-label md:text-sm text-muted-foreground">HP</span>
-                        <span class="font-fell text-sm italic" :class="hpColor">{{ hpLabel }}</span>
+                        <span class="text-body italic" :class="hpColor">{{ hpLabel }}</span>
                       </div>
                     </template>
                   </div>
@@ -144,7 +144,7 @@
                 <div v-if="speedPills.length" class="flex flex-wrap gap-1">
                   <span v-for="pill in speedPills" :key="pill" class="px-2 py-0.5 rounded bg-muted text-muted-foreground text-label md:text-sm">{{ pill }}</span>
                 </div>
-                <p v-if="asiText" class="font-fell text-sm text-muted-foreground">{{ asiText }}</p>
+                <p v-if="asiText" class="text-body text-muted-foreground">{{ asiText }}</p>
                 <div v-if="displaySpecies.languages?.length" class="flex flex-wrap gap-1 items-center">
                   <span class="text-label md:text-sm text-muted-foreground">Lang:</span>
                   <span v-for="lang in displaySpecies.languages" :key="lang" class="px-2 py-0.5 rounded bg-muted text-muted-foreground text-label md:text-sm">{{ lang }}</span>

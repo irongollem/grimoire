@@ -23,7 +23,7 @@
         ref="inputRef"
         v-model="inputVal"
         :placeholder="model.length ? '' : placeholder"
-        class="bg-transparent border-none outline-none font-fell text-sm text-foreground placeholder:text-muted-foreground/60 min-w-24 flex-1"
+        class="bg-transparent border-none outline-none text-body text-foreground placeholder:text-muted-foreground/60 min-w-24 flex-1"
         @keydown.enter.prevent="addFromInput"
         @keydown.comma.prevent="addFromInput"
         @paste.prevent="handlePaste"
@@ -43,7 +43,7 @@
           v-for="s in filteredSuggestions"
           :key="s"
           type="button"
-          class="w-full text-left px-3 py-1.5 font-fell text-sm text-foreground hover:bg-muted/60 transition-colors capitalize"
+          class="w-full text-left px-3 py-1.5 text-body text-foreground hover:bg-muted/60 transition-colors capitalize"
           @mousedown.prevent="addTag(s)"
         >
           {{ s }}

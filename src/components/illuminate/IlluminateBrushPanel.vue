@@ -47,7 +47,7 @@
       <div v-for="bs in activeBrushSliders" :key="bs.key">
         <div class="flex items-center justify-between mb-1">
           <label class="text-eyebrow text-muted-foreground">{{ bs.label }}</label>
-          <span class="font-fell text-xs text-muted-foreground tabular-nums">{{ brushDisplay(bs.key) }}</span>
+          <span class="text-caption text-muted-foreground tabular-nums">{{ brushDisplay(bs.key) }}</span>
         </div>
         <input
           type="range"

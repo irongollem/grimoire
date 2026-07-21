@@ -8,7 +8,7 @@
         v-model="query"
         type="text"
         placeholder="Search…"
-        class="w-full pl-7 pr-7 py-1.5 rounded-md bg-background border border-border text-sm font-fell text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500 transition-colors"
+        class="w-full pl-7 pr-7 py-1.5 rounded-md bg-background border border-border text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500 transition-colors"
         @focus="open = true"
         @keydown.escape="close"
         @keydown.down.prevent="moveFocus(1)"
@@ -31,7 +31,7 @@
       class="absolute left-0 right-0 top-full mt-1 z-50 bg-card border border-border rounded-md shadow-lg overflow-hidden max-h-80 overflow-y-auto"
     >
       <!-- Loading -->
-      <div v-if="isFetching" class="px-3 py-2 text-xs text-muted-foreground font-fell flex items-center gap-2">
+      <div v-if="isFetching" class="px-3 py-2 text-caption text-muted-foreground flex items-center gap-2">
         <IconLoading class="h-3.5 w-3.5 animate-spin" />
         Searching…
       </div>
@@ -39,7 +39,7 @@
       <!-- No results -->
       <div
         v-else-if="!isFetching && groups.length === 0"
-        class="px-3 py-3 text-xs text-muted-foreground font-fell text-center"
+        class="px-3 py-3 text-caption text-muted-foreground text-center"
       >
         No results for "{{ query.trim() }}"
       </div>
@@ -56,7 +56,7 @@
             v-for="(item, i) in group.items"
             :key="item.id"
             :to="item.route"
-            class="flex items-center gap-2 px-3 py-2 text-sm font-fell text-foreground hover:bg-secondary/60 transition-colors cursor-pointer"
+            class="flex items-center gap-2 px-3 py-2 text-body text-foreground hover:bg-secondary/60 transition-colors cursor-pointer"
             :class="{ 'bg-secondary/60': flatIndex(group, i) === focusedIndex }"
             @click="close"
             @mouseenter="focusedIndex = flatIndex(group, i)"

@@ -36,7 +36,7 @@
           type="text"
           placeholder="Search NPCs with a combat profile…"
           autofocus
-          class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
       <div v-if="filteredNpcs.length" class="max-h-48 overflow-y-auto flex flex-col gap-1">
@@ -47,16 +47,16 @@
           class="flex items-center justify-between px-3 py-2 rounded-md hover:bg-card transition-colors text-left"
           @click="addNpcToCombatants(npc)"
         >
-          <span class="font-fell text-sm text-foreground">{{ npc.name }}</span>
+          <span class="text-body text-foreground">{{ npc.name }}</span>
           <span class="font-cinzel text-2xs text-muted-foreground">
             CR {{ npc.stat_block?.challenge_rating ?? "—" }}
           </span>
         </button>
       </div>
-      <p v-else-if="npcSearch" class="font-fell text-xs text-muted-foreground italic text-center py-2">
+      <p v-else-if="npcSearch" class="text-caption text-muted-foreground italic text-center py-2">
         No NPCs match.
       </p>
-      <p v-else class="font-fell text-xs text-muted-foreground italic text-center py-2">
+      <p v-else class="text-caption text-muted-foreground italic text-center py-2">
         Only NPCs with stat blocks are listed.
       </p>
     </div>
@@ -73,7 +73,7 @@
           type="text"
           placeholder="Search monsters…"
           autofocus
-          class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
       <div v-if="filteredMonsters.length" class="max-h-48 overflow-y-auto flex flex-col gap-1">
@@ -87,7 +87,7 @@
             class="flex-1 flex items-center justify-between px-3 py-2 text-left"
             @click="addMonsterToCombatants(monster)"
           >
-            <span class="font-fell text-sm text-foreground">{{ monster.name }}</span>
+            <span class="text-body text-foreground">{{ monster.name }}</span>
             <span class="font-cinzel text-2xs text-muted-foreground">
               CR {{ monster.stat_block.challenge_rating }} · AC {{ monster.stat_block.armor_class }} · {{ monster.stat_block.speed }}
             </span>
@@ -102,7 +102,7 @@
           </button>
         </div>
       </div>
-      <p v-else-if="monsterSearch" class="font-fell text-xs text-muted-foreground italic text-center py-2">
+      <p v-else-if="monsterSearch" class="text-caption text-muted-foreground italic text-center py-2">
         No monsters match.
       </p>
     </div>
@@ -143,7 +143,7 @@
           v-model="entry.custom_name"
           type="text"
           placeholder="Custom name (optional)"
-          class="w-36 bg-card border border-border rounded px-2 py-1 font-fell text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-36 bg-card border border-border rounded px-2 py-1 text-caption text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           @change="emitCombatants"
         />
 
@@ -186,7 +186,7 @@
       </div>
     </div>
 
-    <p v-else class="font-fell text-sm text-muted-foreground italic text-center py-4">
+    <p v-else class="text-body text-muted-foreground italic text-center py-4">
       No combatants added yet.
     </p>
   </div>

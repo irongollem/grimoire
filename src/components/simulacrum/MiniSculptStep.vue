@@ -11,7 +11,7 @@
           alt="Stylized render"
           class="h-full w-full object-cover"
         />
-        <div v-else class="flex h-full w-full items-center justify-center font-fell text-xs text-muted-foreground italic">
+        <div v-else class="flex h-full w-full items-center justify-center text-caption text-muted-foreground italic">
           Stylized render missing — go back and re-roll.
         </div>
       </div>
@@ -25,10 +25,10 @@
           {{ isFirstSculpt ? "Sculpt" : `Sculpt new image (free, ${resculptsLeft} left)` }}
         </button>
         <GenerationCostBadge v-if="isFirstSculpt" :credits="sculptCost" />
-        <p v-if="isFirstSculpt && !affordable(sculptCost)" class="font-fell text-xs text-destructive">
+        <p v-if="isFirstSculpt && !affordable(sculptCost)" class="text-caption text-destructive">
           Not enough credits — buy a pack or wait for the monthly refresh.
         </p>
-        <p v-if="isFirstSculpt" class="font-fell text-2xs text-muted-foreground/70 italic text-center max-w-xs">
+        <p v-if="isFirstSculpt" class="text-caption-sm text-muted-foreground/70 italic text-center max-w-xs">
           Includes up to {{ MAX_SCULPTS - 1 }} free re-sculpts if the first pass doesn't land.
         </p>
       </div>
@@ -47,7 +47,7 @@
     <template v-else-if="phase === 'progress'">
       <div class="flex flex-col items-center gap-3 py-8">
         <IconLoading class="h-8 w-8 animate-spin text-primary" />
-        <p class="font-fell text-sm text-muted-foreground italic text-center">
+        <p class="text-body text-muted-foreground italic text-center">
           The simulacrum takes shape…
         </p>
         <p class="text-eyebrow text-muted-foreground/70">
@@ -63,7 +63,7 @@
         :src="glbUrl"
         :poster="mini.thumbnail_url ?? mini.stylized_image_url ?? undefined"
       />
-      <p v-else class="font-fell text-xs text-destructive text-center">
+      <p v-else class="text-caption text-destructive text-center">
         The model file is missing — try a re-sculpt.
       </p>
 
@@ -132,7 +132,7 @@
     <template v-else>
       <div class="flex flex-col items-center gap-3 py-6 text-center">
         <IconWarning class="h-6 w-6 text-destructive" />
-        <p class="font-fell text-sm text-destructive">{{ mini.error ?? 'The sculpt failed.' }}</p>
+        <p class="text-body text-destructive">{{ mini.error ?? 'The sculpt failed.' }}</p>
         <button
           type="button"
           class="px-4 py-2 font-cinzel text-xs font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity"
@@ -143,7 +143,7 @@
       </div>
     </template>
 
-    <p v-if="error" class="font-fell text-xs text-destructive text-center">{{ error }}</p>
+    <p v-if="error" class="text-caption text-destructive text-center">{{ error }}</p>
   </div>
 </template>
 

@@ -27,7 +27,7 @@
         <div v-if="!liveState" class="text-center py-12 space-y-3">
           <IconEncounter class="h-8 w-8 text-muted-foreground/30 mx-auto" />
           <p class="font-cinzel text-sm text-muted-foreground">No encounter in progress.</p>
-          <p class="font-fell text-xs text-muted-foreground italic">Your DM will start a live encounter when combat begins.</p>
+          <p class="text-caption text-muted-foreground italic">Your DM will start a live encounter when combat begins.</p>
         </div>
 
         <template v-else>
@@ -58,7 +58,7 @@
           >
             <IconEncounter class="h-4 w-4 text-amber-500/60 shrink-0" />
             <span class="font-cinzel text-sm font-semibold text-amber-500/80 tracking-wider">Gathering Party…</span>
-            <span class="font-fell text-xs text-muted-foreground italic ml-auto">DM is preparing</span>
+            <span class="text-caption text-muted-foreground italic ml-auto">DM is preparing</span>
           </div>
 
           <!-- Round + active turn header (full / compact variants, CSS picks which) -->
@@ -123,7 +123,7 @@
             >
               <IconScrollText class="h-3.5 w-3.5 text-amber-500/60 shrink-0 mt-0.5" />
               <div class="min-w-0">
-                <p v-if="getEventMessage(event)" class="font-fell text-sm text-foreground/90 italic leading-snug">
+                <p v-if="getEventMessage(event)" class="text-body text-foreground/90 italic leading-snug">
                   {{ getEventMessage(event) }}
                 </p>
                 <p

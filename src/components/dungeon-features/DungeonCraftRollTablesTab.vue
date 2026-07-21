@@ -18,17 +18,17 @@
           v-model="rollTablesSearch"
           type="search"
           placeholder="Search roll tables…"
-          class="flex-1 min-w-40 bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="flex-1 min-w-40 bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
         <select
           v-model="rollTablesDieFilter"
-          class="bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         >
           <option value="">All Dice</option>
           <option v-for="d in ROLL_TABLE_DICE" :key="d" :value="d">{{ d }}</option>
         </select>
       </div>
-      <p v-if="!filteredRollTables.length" class="text-center font-fell text-sm text-muted-foreground italic py-8">
+      <p v-if="!filteredRollTables.length" class="text-center text-body text-muted-foreground italic py-8">
         No roll tables match your filter.
       </p>
       <div v-else class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -43,8 +43,8 @@
             <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight">{{ t.name }}</h3>
             <span class="text-label px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold shrink-0">{{ t.dice }}</span>
           </div>
-          <p v-if="t.description" class="font-fell text-xs text-muted-foreground italic line-clamp-2">{{ t.description }}</p>
-          <p class="font-fell text-2xs text-muted-foreground mt-2">{{ t.entries.length }} {{ t.entries.length === 1 ? "entry" : "entries" }}</p>
+          <p v-if="t.description" class="text-caption text-muted-foreground italic line-clamp-2">{{ t.description }}</p>
+          <p class="text-caption-sm text-muted-foreground mt-2">{{ t.entries.length }} {{ t.entries.length === 1 ? "entry" : "entries" }}</p>
         </button>
       </div>
     </template>

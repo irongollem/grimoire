@@ -45,7 +45,7 @@
               />
             </button>
           </div>
-          <p class="font-fell text-xs text-muted-foreground italic">
+          <p class="text-caption text-muted-foreground italic">
             {{
               [speciesNameMap.get(member.species_id ?? '') ?? null, classLabel, levelDisplay ? `Lv${levelDisplay}` : ""]
                 .filter(Boolean)
@@ -118,7 +118,7 @@
               type="number"
               min="0"
               placeholder="Amt"
-              class="w-16 bg-muted border border-border rounded px-2 py-1 font-fell text-sm text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-16 bg-muted border border-border rounded px-2 py-1 text-body text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
             />
             <button
               type="button"
@@ -215,7 +215,7 @@
       />
     </div>
     <div v-else class="border-t border-border bg-muted/10 px-4 py-2 flex items-center justify-between">
-      <span class="font-fell text-xs text-muted-foreground italic">No companions</span>
+      <span class="text-caption text-muted-foreground italic">No companions</span>
       <button
         type="button"
         class="font-cinzel text-2xs text-muted-foreground hover:text-primary transition-colors"

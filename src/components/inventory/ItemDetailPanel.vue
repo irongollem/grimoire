@@ -52,7 +52,7 @@
               class="text-label-lg font-semibold uppercase"
               :class="localIdentified ? 'text-muted-foreground' : 'text-amber-500/80'"
             >{{ localIdentified ? 'Identified' : 'Unidentified' }}</span>
-            <span class="font-fell text-xs text-muted-foreground italic">
+            <span class="text-caption text-muted-foreground italic">
               {{ localIdentified ? 'Players see the full description' : 'Players see only the mundane description' }}
             </span>
           </div>
@@ -118,7 +118,7 @@
             >Recharge</button>
           </div>
 
-          <p v-if="vaultItem.recharge" class="font-fell text-xs text-muted-foreground italic">
+          <p v-if="vaultItem.recharge" class="text-caption text-muted-foreground italic">
             {{ vaultItem.recharge }}
           </p>
         </div>
@@ -136,7 +136,7 @@
               <div class="h-2 w-2 shrink-0 rounded-full" :style="{ backgroundColor: SCHOOL_COLORS[spell.school] }" />
               <!-- Name + level -->
               <div class="flex-1 min-w-0">
-                <span class="font-fell text-sm text-foreground">{{ spell.name }}</span>
+                <span class="text-body text-foreground">{{ spell.name }}</span>
                 <span class="font-cinzel text-2xs text-muted-foreground ml-1.5">{{ spell.level === 0 ? 'Cantrip' : `Lvl ${spell.level}` }}</span>
               </div>
               <!-- Cast button -->
@@ -159,7 +159,7 @@
         <div v-if="vaultItem?.requires_attunement && localIdentified" class="rounded-lg border border-border bg-card/50 p-3 flex items-center justify-between gap-3">
           <div class="flex flex-col gap-0.5">
             <span class="text-label-lg font-semibold text-muted-foreground uppercase">Attunement</span>
-            <span v-if="vaultItem.attunement_requirements" class="font-fell text-xs text-muted-foreground italic">{{ vaultItem.attunement_requirements }}</span>
+            <span v-if="vaultItem.attunement_requirements" class="text-caption text-muted-foreground italic">{{ vaultItem.attunement_requirements }}</span>
           </div>
           <button
             class="shrink-0 px-3 py-1 rounded-md text-label transition-colors cursor-pointer disabled:cursor-not-allowed"
@@ -182,7 +182,7 @@
             <li
               v-for="(entry, i) in vaultItem.bundle_items"
               :key="i"
-              class="font-fell text-sm text-foreground flex items-baseline gap-1.5"
+              class="text-body text-foreground flex items-baseline gap-1.5"
             >
               <span class="text-muted-foreground text-xs shrink-0">×{{ entry.quantity ?? 1 }}</span>
               {{ entry.name }}
@@ -193,7 +193,7 @@
         <!-- Notes -->
         <div v-if="inv.notes" class="rounded-lg border border-border bg-card/50 p-3">
           <p class="text-eyebrow font-semibold text-muted-foreground mb-1">Notes</p>
-          <p class="font-fell text-sm text-foreground">{{ inv.notes }}</p>
+          <p class="text-body text-foreground">{{ inv.notes }}</p>
         </div>
 
         <!-- Description: mundane when unidentified, full when identified -->

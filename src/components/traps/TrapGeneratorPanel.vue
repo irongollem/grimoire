@@ -33,11 +33,11 @@
             rows="4"
             :maxlength="CONCEPT_LIMIT"
             placeholder="A pressure plate in a dungeon corridor that triggers a volley of poisoned darts from hidden alcoves in the walls…"
-            class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+            class="w-full bg-muted border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
           />
           <div class="flex justify-end mt-1">
             <span
-              class="font-fell text-xs"
+              class="text-caption"
               :class="concept.length >= CONCEPT_LIMIT * 0.9 ? 'text-destructive' : 'text-muted-foreground/50'"
             >{{ concept.length }} / {{ CONCEPT_LIMIT }}</span>
           </div>
@@ -54,20 +54,20 @@
 
           <div class="grid grid-cols-2 gap-2">
             <div>
-              <label class="block font-fell text-xs text-muted-foreground mb-1">Type</label>
+              <label class="block text-caption text-muted-foreground mb-1">Type</label>
               <select
                 v-model="constraints.trap_type"
-                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 <option value="">Any</option>
                 <option v-for="t in TRAP_TYPES" :key="t" :value="t">{{ t }}</option>
               </select>
             </div>
             <div>
-              <label class="block font-fell text-xs text-muted-foreground mb-1">CR</label>
+              <label class="block text-caption text-muted-foreground mb-1">CR</label>
               <select
                 v-model="constraints.cr"
-                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 <option value="">Any</option>
                 <option v-for="c in CR_LIST" :key="c" :value="c">{{ c }}</option>
@@ -78,7 +78,7 @@
 
         <!-- Image generation toggle -->
         <div v-if="isAiEnabled" class="flex items-center justify-between">
-          <span class="font-fell text-xs text-muted-foreground">Generate trap illustration</span>
+          <span class="text-caption text-muted-foreground">Generate trap illustration</span>
           <button
             type="button"
             class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none"
@@ -94,7 +94,7 @@
 
         <!-- Party portrait toggle — only when image generation is on, OpenAI key available, and group portrait exists -->
         <div v-if="isAiEnabled && generateImage && openAiKey && groupPortraitUrl" class="flex items-center justify-between">
-          <span class="font-fell text-xs text-muted-foreground">Add party to scene</span>
+          <span class="text-caption text-muted-foreground">Add party to scene</span>
           <button
             type="button"
             class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none"
@@ -112,10 +112,10 @@
         <!-- Generating state -->
         <div v-else-if="isGenerating" class="flex flex-col items-center gap-3 py-4">
           <IconGenerate class="h-7 w-7 text-primary animate-pulse" />
-          <p class="font-fell text-sm text-muted-foreground italic text-center">{{ currentLoadingQuote }}</p>
+          <p class="text-body text-muted-foreground italic text-center">{{ currentLoadingQuote }}</p>
           <button
             type="button"
-            class="mt-1 font-fell text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+            class="mt-1 text-caption text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
             @click="ui.trapGeneratorOpen = false"
           >
             Continue in background
@@ -127,7 +127,7 @@
           v-else-if="genError"
           class="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2"
         >
-          <p class="font-fell text-xs text-destructive">{{ genError }}</p>
+          <p class="text-caption text-destructive">{{ genError }}</p>
         </div>
       </div>
 
@@ -135,7 +135,7 @@
       <div class="px-5 py-4 border-t border-border flex flex-col gap-2 shrink-0">
         <p
           v-if="effectiveCreditCost > 0 && isPro && isAiEnabled"
-          class="font-fell text-xs text-center"
+          class="text-caption text-center"
           :class="canAfford ? 'text-muted-foreground' : 'text-destructive font-semibold'"
         >{{ creditLine }}</p>
         <button

@@ -28,11 +28,11 @@
       </div>
       <p
         v-if="npc?.player_visible_fields.includes('race') && npc.race"
-        class="mt-1 font-fell text-sm text-muted-foreground italic"
+        class="mt-1 text-body text-muted-foreground italic"
       >{{ npc.race }}</p>
       <p
         v-if="npc?.player_visible_fields.includes('occupation') && npc.occupation"
-        class="font-fell text-sm text-muted-foreground"
+        class="text-body text-muted-foreground"
       >{{ npc.occupation }}</p>
     </div>
     <!-- DM's per-PC relation note — show skeleton while loading so players

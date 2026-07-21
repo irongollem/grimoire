@@ -32,13 +32,13 @@
           v-model="ui.cartographerSearch"
           type="search"
           placeholder="Search maps…"
-          class="flex-1 min-w-40 bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="flex-1 min-w-40 bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
 
       <p
         v-if="!filteredMaps.length"
-        class="text-center font-fell text-sm text-muted-foreground italic py-8"
+        class="text-center text-body text-muted-foreground italic py-8"
       >
         No maps match your filter.
       </p>
@@ -66,11 +66,11 @@
           </div>
           <p
             v-if="m.description"
-            class="font-fell text-xs text-muted-foreground italic line-clamp-2"
+            class="text-caption text-muted-foreground italic line-clamp-2"
           >
             {{ m.description }}
           </p>
-          <p class="font-fell text-2xs text-muted-foreground mt-2">
+          <p class="text-caption-sm text-muted-foreground mt-2">
             {{ cellCount(m) }} {{ cellCount(m) === 1 ? "cell" : "cells" }} painted
           </p>
         </RouterLink>

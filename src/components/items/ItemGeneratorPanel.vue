@@ -45,11 +45,11 @@
             rows="4"
             :maxlength="CONCEPT_LIMIT"
             placeholder="A staff carved from petrified dragon bone, crackling with lightning and able to call storms when wielded by a chosen champion…"
-            class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+            class="w-full bg-muted border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
           />
           <div class="flex justify-end mt-1">
             <span
-              class="font-fell text-xs"
+              class="text-caption"
               :class="concept.length >= CONCEPT_LIMIT * 0.9 ? 'text-destructive' : 'text-muted-foreground/50'"
             >{{ concept.length }} / {{ CONCEPT_LIMIT }}</span>
           </div>
@@ -71,12 +71,12 @@
 
           <div class="grid grid-cols-2 gap-2">
             <div>
-              <label class="block font-fell text-xs text-muted-foreground mb-1"
+              <label class="block text-caption text-muted-foreground mb-1"
                 >Item Type</label
               >
               <select
                 v-model="constraints.item_type"
-                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 <option value="">Any</option>
                 <option v-for="t in ITEM_TYPES" :key="t" :value="t">
@@ -85,12 +85,12 @@
               </select>
             </div>
             <div>
-              <label class="block font-fell text-xs text-muted-foreground mb-1"
+              <label class="block text-caption text-muted-foreground mb-1"
                 >Rarity</label
               >
               <select
                 v-model="constraints.rarity"
-                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 <option value="">Any</option>
                 <option v-for="r in ITEM_RARITIES" :key="r" :value="r">
@@ -104,7 +104,7 @@
         <!-- Toggles -->
         <div v-if="isAiEnabled" class="space-y-2">
           <div class="flex items-center justify-between">
-            <span class="font-fell text-xs text-muted-foreground">Generate item art</span>
+            <span class="text-caption text-muted-foreground">Generate item art</span>
             <button
               type="button"
               class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none"
@@ -118,7 +118,7 @@
             </button>
           </div>
           <div class="flex items-center justify-between">
-            <span class="font-fell text-xs text-muted-foreground">Make it cursed <span class="text-muted-foreground/50">(AI chooses the curse)</span></span>
+            <span class="text-caption text-muted-foreground">Make it cursed <span class="text-muted-foreground/50">(AI chooses the curse)</span></span>
             <button
               type="button"
               class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none"
@@ -139,12 +139,12 @@
           class="flex flex-col items-center gap-3 py-4"
         >
           <IconGenerate class="h-7 w-7 text-primary animate-pulse" />
-          <p class="font-fell text-sm text-muted-foreground italic text-center">
+          <p class="text-body text-muted-foreground italic text-center">
             {{ currentLoadingQuote }}
           </p>
           <button
             type="button"
-            class="mt-1 font-fell text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+            class="mt-1 text-caption text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
             @click="ui.itemGeneratorOpen = false"
           >
             Continue in background
@@ -156,7 +156,7 @@
           v-else-if="genError"
           class="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2"
         >
-          <p class="font-fell text-xs text-destructive">{{ genError }}</p>
+          <p class="text-caption text-destructive">{{ genError }}</p>
         </div>
       </div>
 

@@ -14,7 +14,7 @@
         >
         <select
           :value="attackType"
-          class="bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           @change="$emit('update:attackType', ($event.target as HTMLSelectElement).value)"
         >
           <option value="">— none selected —</option>
@@ -32,7 +32,7 @@
           >
           <select
             :value="saveAttribute"
-            class="bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             @change="$emit('update:saveAttribute', ($event.target as HTMLSelectElement).value)"
           >
             <option value="">—</option>
@@ -45,7 +45,7 @@
           >
           <select
             :value="saveEffect"
-            class="bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             @change="$emit('update:saveEffect', ($event.target as HTMLSelectElement).value)"
           >
             <option value="">—</option>
@@ -74,7 +74,7 @@
       <input
         :value="healingDice"
         placeholder="e.g. 1d8, 2d6+mod"
-        class="bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        class="bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         @input="$emit('update:healingDice', ($event.target as HTMLInputElement).value)"
       />
     </label>
@@ -88,7 +88,7 @@
       <input
         :value="targetDescription"
         placeholder="e.g. one creature you can see within range, up to three willing creatures…"
-        class="bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        class="bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         @input="$emit('update:targetDescription', ($event.target as HTMLInputElement).value)"
       />
     </label>
@@ -102,7 +102,7 @@
         >
         <select
           :value="aoeShape"
-          class="bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring capitalize"
+          class="bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring capitalize"
           @change="$emit('update:aoeShape', ($event.target as HTMLSelectElement).value)"
         >
           <option value="">—</option>
@@ -118,7 +118,7 @@
         <input
           :value="aoeSize"
           placeholder="e.g. 20-foot radius"
-          class="bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           @input="$emit('update:aoeSize', ($event.target as HTMLInputElement).value)"
         />
       </label>
@@ -133,7 +133,7 @@
       <input
         :value="conditionInflicted"
         placeholder="e.g. blinded, stunned, frightened…"
-        class="bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        class="bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         @input="$emit('update:conditionInflicted', ($event.target as HTMLInputElement).value)"
       />
     </label>

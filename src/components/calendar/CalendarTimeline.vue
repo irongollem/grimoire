@@ -185,7 +185,7 @@
           >
             <span
               v-if="pe.barWidth >= 36"
-              class="font-fell text-2xs font-semibold whitespace-nowrap px-1 leading-none pointer-events-none truncate"
+              class="text-caption-sm font-semibold whitespace-nowrap px-1 leading-none pointer-events-none truncate"
               :style="{ color: eventColor(pe.event) }"
             >
               {{ pe.event.title }}
@@ -199,7 +199,7 @@
               top: SESSION_STRIP_Y - SESSION_STRIP_HEIGHT / 2 - 14 + 'px',
               color: eventColor(pe.event),
             }"
-            class="absolute font-fell text-2xs font-semibold pointer-events-none whitespace-nowrap"
+            class="absolute text-caption-sm font-semibold pointer-events-none whitespace-nowrap"
             style="transform: translateX(-50%)"
           >
             {{ pe.event.title }}
@@ -265,7 +265,7 @@
                 : axisY + pe.lane * LANE_HEIGHT + 18 + 'px',
               color: eventColor(pe.event),
             }"
-            class="absolute font-fell text-xs font-semibold w-32 truncate text-center"
+            class="absolute text-caption font-semibold w-32 truncate text-center"
             :class="!readOnly ? 'cursor-pointer hover:underline' : ''"
             style="transform: translateX(-50%)"
             :title="pe.event.title"
@@ -282,7 +282,7 @@
           "
           class="absolute inset-0 flex items-center justify-center pointer-events-none"
         >
-          <p class="font-fell text-sm text-muted-foreground italic">
+          <p class="text-body text-muted-foreground italic">
             No events in this period. Add one with the button above.
           </p>
         </div>
@@ -291,7 +291,7 @@
 
     <p
       v-if="positionedRegularEvents.length + positionedSessionEvents.length"
-      class="mt-2 font-fell text-xs text-muted-foreground italic text-right"
+      class="mt-2 text-caption text-muted-foreground italic text-right"
     >
       {{
         positionedRegularEvents.length + positionedSessionEvents.length

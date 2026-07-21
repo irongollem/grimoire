@@ -42,7 +42,7 @@
             type="text"
             placeholder="Search vault…"
             autocomplete="off"
-            class="w-full bg-muted/30 border border-border rounded px-2 py-1 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="w-full bg-muted/30 border border-border rounded px-2 py-1 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             :class="addName && !addSelectedId ? 'border-amber-500/50' : ''"
             @input="onInput"
             @focus="onInput"
@@ -56,7 +56,7 @@
               v-for="it in suggestions"
               :key="it.id"
               type="button"
-              class="w-full text-left px-2 py-1 font-fell text-xs text-foreground hover:bg-muted transition-colors"
+              class="w-full text-left px-2 py-1 text-caption text-foreground hover:bg-muted transition-colors"
               @click="selectSuggestion(it)"
             >{{ it.name }}</button>
           </div>
@@ -85,7 +85,7 @@
         />
       </VueDraggable>
       <div v-if="!items.length && !showAdd" class="px-4 py-3">
-        <p class="font-fell text-xs text-muted-foreground/50 italic">Empty.</p>
+        <p class="text-caption text-muted-foreground/50 italic">Empty.</p>
       </div>
     </div>
   </div>

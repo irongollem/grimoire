@@ -162,7 +162,7 @@
           class="text-label-lg font-semibold text-muted-foreground"
           >CONDITIONAL MODIFIERS</span
         >
-        <span class="font-fell text-xs text-muted-foreground italic">
+        <span class="text-caption text-muted-foreground italic">
           Workshop and ruined ingredients are already provided</span
         >
       </div>
@@ -175,7 +175,7 @@
           <input
             v-model="mod.description"
             placeholder="e.g. Full forge available"
-            class="flex-1 bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="flex-1 bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
           <span class="font-cinzel text-xs text-muted-foreground">+</span>
           <input
@@ -183,7 +183,7 @@
             type="number"
             min="1"
             max="20"
-            class="w-14 bg-muted border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring text-center"
+            class="w-14 bg-muted border border-border rounded px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring text-center"
           />
           <button
             type="button"

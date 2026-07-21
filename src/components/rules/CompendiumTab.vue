@@ -8,7 +8,7 @@
           v-model="search"
           type="text"
           placeholder="Search rules…"
-          class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
 
@@ -16,11 +16,11 @@
         <LoadingSpinner />
       </div>
 
-      <p v-else-if="error" class="font-fell text-xs text-destructive italic px-1">
+      <p v-else-if="error" class="text-caption text-destructive italic px-1">
         Failed to load rules. The database may need syncing — contact your DM.
       </p>
 
-      <p v-else-if="!srdRules?.length" class="font-fell text-xs text-muted-foreground italic px-1">
+      <p v-else-if="!srdRules?.length" class="text-caption text-muted-foreground italic px-1">
         No rules loaded yet. The sync edge function may not have run.
       </p>
 
@@ -30,7 +30,7 @@
           <button
             v-for="rule in searchResults"
             :key="rule.id"
-            class="text-left px-2.5 py-1.5 rounded-md font-fell text-sm transition-colors"
+            class="text-left px-2.5 py-1.5 rounded-md text-body transition-colors"
             :class="selected?.id === rule.id
               ? 'bg-primary/10 text-primary font-semibold'
               : 'text-foreground hover:bg-muted/60'"
@@ -38,7 +38,7 @@
           >
             {{ rule.name }}
           </button>
-          <p v-if="!searchResults.length" class="font-fell text-xs text-muted-foreground italic px-1">
+          <p v-if="!searchResults.length" class="text-caption text-muted-foreground italic px-1">
             No matches.
           </p>
         </template>
@@ -59,7 +59,7 @@
               <button
                 v-for="child in childrenOf(root.slug)"
                 :key="child.id"
-                class="w-full text-left px-2 py-1 rounded font-fell text-sm transition-colors"
+                class="w-full text-left px-2 py-1 rounded text-body transition-colors"
                 :class="selected?.id === child.id
                   ? 'bg-primary/10 text-primary font-semibold'
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'"
@@ -83,7 +83,7 @@
         />
       </div>
       <div v-else class="flex items-center justify-center h-full">
-        <p class="font-fell text-sm text-muted-foreground italic">Select a rule from the list.</p>
+        <p class="text-body text-muted-foreground italic">Select a rule from the list.</p>
       </div>
     </div>
   </div>

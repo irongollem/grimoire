@@ -31,9 +31,9 @@
     </div>
     <div v-if="legacySpells.length" class="rounded-lg border border-amber-500/35 bg-amber-500/10 p-4 space-y-2">
       <p class="text-label-lg font-bold text-amber-500">Review legacy spell sources</p>
-      <p class="font-fell text-sm text-muted-foreground">These spells predate multiclass source tracking. Assign each one before changing its preparation.</p>
+      <p class="text-body text-muted-foreground">These spells predate multiclass source tracking. Assign each one before changing its preparation.</p>
       <div v-for="entry in legacySpells" :key="entry.id" class="flex items-center gap-3">
-        <span class="font-fell text-sm flex-1">{{ entry.spell.name }}</span>
+        <span class="text-body flex-1">{{ entry.spell.name }}</span>
         <select
           class="bg-card border border-border rounded px-2 py-1 text-sm"
           :disabled="isAssigningSource"
@@ -133,7 +133,7 @@
             v-model="ui.playerSpellsSearch"
             type="text"
             placeholder="Search by name…"
-            class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
         <!-- Level -->

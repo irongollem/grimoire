@@ -6,13 +6,13 @@
       <input
         :value="row.dice"
         placeholder="2d6"
-        class="bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring w-24 shrink-0"
+        class="bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring w-24 shrink-0"
         @input="updateRow(i, 'dice', ($event.target as HTMLInputElement).value)"
       />
       <!-- Type -->
       <select
         :value="row.type"
-        class="bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring capitalize flex-1 min-w-0"
+        class="bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring capitalize flex-1 min-w-0"
         @change="updateRow(i, 'type', ($event.target as HTMLSelectElement).value)"
       >
         <option value="">— untyped —</option>
@@ -47,7 +47,7 @@
       <input
         v-model="parseInput"
         :placeholder="parsePlaceholder"
-        class="bg-muted/60 border border-border/60 rounded-md px-3 py-1.5 font-fell text-xs text-muted-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring flex-1"
+        class="bg-muted/60 border border-border/60 rounded-md px-3 py-1.5 text-caption text-muted-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring flex-1"
         @keydown.enter.prevent="parseAndApply"
       />
       <button

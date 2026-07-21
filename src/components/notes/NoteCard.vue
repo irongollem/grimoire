@@ -47,13 +47,13 @@
         >
           {{ note.category }}
         </span>
-        <span v-if="note.session_num" class="font-fell text-xs text-muted-foreground italic">
+        <span v-if="note.session_num" class="text-caption text-muted-foreground italic">
           Session {{ note.session_num }}
         </span>
       </div>
 
       <!-- Content preview -->
-      <p v-if="preview" class="font-fell text-xs text-muted-foreground italic line-clamp-3 flex-1">
+      <p v-if="preview" class="text-caption text-muted-foreground italic line-clamp-3 flex-1">
         {{ preview }}
       </p>
       <div v-else class="flex-1" />
@@ -69,7 +69,7 @@
             {{ tag }}
           </span>
         </div>
-        <span class="font-fell text-2xs text-muted-foreground italic shrink-0 ml-auto">
+        <span class="text-caption-sm text-muted-foreground italic shrink-0 ml-auto">
           {{ timeAgo(note.updated_at) }}
         </span>
       </div>

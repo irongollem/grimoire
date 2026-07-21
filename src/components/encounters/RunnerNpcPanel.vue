@@ -49,7 +49,7 @@
         <SpellcastingList :spellcasting="npc.stat_block.spellcasting" />
       </template>
     </template>
-    <p v-else class="font-fell text-xs text-muted-foreground italic px-1 pt-2">No stat block defined for this NPC.</p>
+    <p v-else class="text-caption text-muted-foreground italic px-1 pt-2">No stat block defined for this NPC.</p>
   </div>
 </template>
 

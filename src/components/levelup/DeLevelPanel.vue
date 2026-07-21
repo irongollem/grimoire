@@ -4,7 +4,7 @@
     <!-- No history warning (subtle) -->
     <div v-if="!lastChoice" class="flex items-center gap-2 pt-2">
       <span class="text-eyebrow text-amber-500/70">No level history</span>
-      <span class="font-fell text-xs text-muted-foreground">— ask your DM to seed <code class="font-mono">level_choices</code> before de-leveling</span>
+      <span class="text-caption text-muted-foreground">— ask your DM to seed <code class="font-mono">level_choices</code> before de-leveling</span>
     </div>
 
     <template v-else>
@@ -13,23 +13,23 @@
         <p class="text-eyebrow text-muted-foreground">Reversing level {{ member.level }} — {{ lastChoice.class_name }}</p>
 
         <div class="space-y-1">
-          <p class="font-fell text-xs text-foreground">
+          <p class="text-caption text-foreground">
             HP: <span class="text-destructive">−{{ lastChoice.hp_gained }}</span>
             <span class="text-muted-foreground ml-1">({{ member.max_hp }} → {{ Math.max(1, member.max_hp - lastChoice.hp_gained) }})</span>
           </p>
-          <p v-if="profWillDrop" class="font-fell text-xs text-foreground">
+          <p v-if="profWillDrop" class="text-caption text-foreground">
             Proficiency bonus: +{{ currentProfBonus }} → +{{ newProfBonus }}
           </p>
-          <p v-if="lastChoice.asi" class="font-fell text-xs text-foreground">
+          <p v-if="lastChoice.asi" class="text-caption text-foreground">
             {{ asiDescription }} reverted
           </p>
-          <p v-if="lastChoice.subclass" class="font-fell text-xs text-foreground">
+          <p v-if="lastChoice.subclass" class="text-caption text-foreground">
             Subclass "{{ lastChoice.subclass }}" cleared
           </p>
-          <p v-if="lastChoice.is_new_class" class="font-fell text-xs text-foreground">
+          <p v-if="lastChoice.is_new_class" class="text-caption text-foreground">
             {{ lastChoice.class_name }} class entry removed
           </p>
-          <p class="font-fell text-xs text-muted-foreground italic">
+          <p class="text-caption text-muted-foreground italic">
             Spell slots and class resources recalculated from class table.
           </p>
         </div>
@@ -40,11 +40,11 @@
         >
           <p class="text-eyebrow text-amber-400">REVIEW MANUALLY</p>
           <ul class="space-y-0.5">
-            <li v-for="item in manualReviewItems" :key="item" class="font-fell text-xs text-amber-400">• {{ item }}</li>
+            <li v-for="item in manualReviewItems" :key="item" class="text-caption text-amber-400">• {{ item }}</li>
           </ul>
         </div>
 
-        <p v-if="error" class="font-fell text-xs text-destructive">{{ error }}</p>
+        <p v-if="error" class="text-caption text-destructive">{{ error }}</p>
       </div>
 
       <!-- Action row -->

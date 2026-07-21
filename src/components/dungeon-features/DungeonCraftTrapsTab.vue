@@ -15,7 +15,7 @@
     <template #filters>
       <select
         v-model="trapsTypeFilter"
-        class="bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        class="bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
       >
         <option value="">All Types</option>
         <option v-for="t in TRAP_TYPES" :key="t" :value="t">{{ t }}</option>
@@ -46,7 +46,7 @@
           <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight truncate">{{ trap.name }}</h3>
           <div class="flex items-center gap-2">
             <span v-if="trap.cr" class="text-label text-muted-foreground">CR {{ trap.cr }}</span>
-            <span v-if="trap.trigger_type" class="font-fell text-2xs text-muted-foreground italic truncate">{{ trap.trigger_type }}</span>
+            <span v-if="trap.trigger_type" class="text-caption-sm text-muted-foreground italic truncate">{{ trap.trigger_type }}</span>
           </div>
         </div>
       </RouterLink>

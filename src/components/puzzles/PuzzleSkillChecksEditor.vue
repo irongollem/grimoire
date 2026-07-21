@@ -11,13 +11,13 @@
       </button>
     </div>
     <div class="p-4 space-y-2">
-      <p v-if="!checks.length" class="font-fell text-xs text-muted-foreground italic">
+      <p v-if="!checks.length" class="text-caption text-muted-foreground italic">
         No skill checks yet.
       </p>
       <div v-for="(check, i) in checks" :key="i" class="flex items-center gap-2">
         <select
           v-model="check.skill"
-          class="flex-1 bg-background border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="flex-1 bg-background border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         >
           <option v-for="s in PUZZLE_SKILLS" :key="s" :value="s">{{ s }}</option>
         </select>
@@ -27,7 +27,7 @@
           type="number"
           min="1"
           max="30"
-          class="w-16 bg-background border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring text-center"
+          class="w-16 bg-background border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring text-center"
         />
         <button
           type="button"

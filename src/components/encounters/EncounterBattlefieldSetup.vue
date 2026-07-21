@@ -3,7 +3,7 @@
     <summary class="cursor-pointer px-5 py-4 flex items-center justify-between gap-3">
       <div>
         <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wider uppercase">Battlefield Setup</h2>
-        <p class="font-fell text-xs text-muted-foreground mt-1">
+        <p class="text-caption text-muted-foreground mt-1">
           Place enemy tokens on the battle map ahead of time. Their starting cells are saved with
           the encounter and seeded into the runner when combat starts.
         </p>
@@ -14,12 +14,12 @@
     </summary>
 
     <div class="px-5 pb-5">
-      <p v-if="!isReady" class="font-fell text-sm text-muted-foreground italic">
+      <p v-if="!isReady" class="text-body text-muted-foreground italic">
         {{ readinessHint }}
       </p>
 
       <div v-else class="flex flex-col gap-2">
-        <div class="flex items-center gap-2 font-fell text-xs text-muted-foreground">
+        <div class="flex items-center gap-2 text-caption text-muted-foreground">
           <span>{{ tokenCount }} token{{ tokenCount === 1 ? "" : "s" }}</span>
           <span class="text-muted-foreground/40">·</span>
           <button

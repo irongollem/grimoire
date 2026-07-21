@@ -23,7 +23,7 @@
               <h2 id="paywall-title" class="font-cinzel text-sm font-bold text-foreground tracking-wide">
                 {{ props.message ? 'Pro feature' : 'You\'ve reached your free limit' }}
               </h2>
-              <p class="mt-1 font-fell text-sm text-muted-foreground leading-snug">
+              <p class="mt-1 text-body text-muted-foreground leading-snug">
                 <template v-if="props.message">{{ props.message }}</template>
                 <template v-else>
                   Free DMs can create up to
@@ -50,7 +50,7 @@
               <li
                 v-for="benefit in BENEFITS"
                 :key="benefit"
-                class="flex items-start gap-2 font-fell text-sm text-muted-foreground leading-snug"
+                class="flex items-start gap-2 text-body text-muted-foreground leading-snug"
               >
                 <span class="text-amber-400 shrink-0 mt-0.5">✦</span>
                 <span>{{ benefit }}</span>
@@ -63,7 +63,7 @@
             <div class="rounded-lg border border-amber-500/25 bg-amber-500/5 px-4 py-3 flex items-center justify-between gap-4">
               <div>
                 <p class="font-cinzel text-sm font-bold text-foreground tracking-wide">Pro DM</p>
-                <p v-if="yearlyLabel" class="font-fell text-xs text-muted-foreground mt-0.5">
+                <p v-if="yearlyLabel" class="text-caption text-muted-foreground mt-0.5">
                   or {{ yearlyLabel }} / year<span v-if="savedMonths > 0"> — save {{ savedMonths }} month{{ savedMonths > 1 ? 's' : '' }}</span>
                 </p>
               </div>

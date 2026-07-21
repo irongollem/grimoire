@@ -46,7 +46,7 @@
                 <option value="npc_death">🗡 NPC Death</option>
                 <option value="travel">🗺 Travel</option>
               </select>
-              <p class="font-fell text-xs text-muted-foreground italic mt-1">
+              <p class="text-caption text-muted-foreground italic mt-1">
                 Session events are created automatically from session notes.
               </p>
             </div>
@@ -74,29 +74,29 @@
 
             <div v-if="dateType === 'regular'" class="grid grid-cols-3 gap-2">
               <div>
-                <label class="block font-fell text-xs text-muted-foreground mb-1">Year</label>
-                <input v-model.number="form.harptos_year" type="number" min="1" class="w-full bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+                <label class="block text-caption text-muted-foreground mb-1">Year</label>
+                <input v-model.number="form.harptos_year" type="number" min="1" class="w-full bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
               </div>
               <div>
-                <label class="block font-fell text-xs text-muted-foreground mb-1">Month</label>
-                <select v-model.number="form.harptos_month" class="w-full bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+                <label class="block text-caption text-muted-foreground mb-1">Month</label>
+                <select v-model.number="form.harptos_month" class="w-full bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
                   <option v-for="m in adapter.months" :key="m.num" :value="m.num">{{ m.name }}</option>
                 </select>
               </div>
               <div>
-                <label class="block font-fell text-xs text-muted-foreground mb-1">Day</label>
-                <input v-model.number="form.harptos_day" type="number" min="1" max="30" class="w-full bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+                <label class="block text-caption text-muted-foreground mb-1">Day</label>
+                <input v-model.number="form.harptos_day" type="number" min="1" max="30" class="w-full bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
               </div>
             </div>
 
             <div v-else class="grid grid-cols-2 gap-2">
               <div>
-                <label class="block font-fell text-xs text-muted-foreground mb-1">Year</label>
-                <input v-model.number="form.harptos_year" type="number" min="1" class="w-full bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+                <label class="block text-caption text-muted-foreground mb-1">Year</label>
+                <input v-model.number="form.harptos_year" type="number" min="1" class="w-full bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
               </div>
               <div>
-                <label class="block font-fell text-xs text-muted-foreground mb-1">Festival</label>
-                <select v-model="form.festival_day" class="w-full bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+                <label class="block text-caption text-muted-foreground mb-1">Festival</label>
+                <select v-model="form.festival_day" class="w-full bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
                   <option v-for="f in availableFestivals" :key="f.name" :value="f.name">{{ f.name }}</option>
                 </select>
               </div>
@@ -110,7 +110,7 @@
               type="checkbox"
               class="rounded border-border w-4 h-4 accent-primary"
             />
-            <span class="font-fell text-sm text-foreground">Visible to players</span>
+            <span class="text-body text-foreground">Visible to players</span>
           </label>
 
           <!-- Actions -->

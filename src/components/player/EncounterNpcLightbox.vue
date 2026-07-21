@@ -27,8 +27,8 @@
           {{ npc.status }}
         </span>
       </div>
-      <p v-if="npc?.player_visible_fields.includes('race') && npc.race" class="mt-1 font-fell text-sm text-muted-foreground italic">{{ npc.race }}</p>
-      <p v-if="npc?.player_visible_fields.includes('occupation') && npc.occupation" class="font-fell text-sm text-muted-foreground">{{ npc.occupation }}</p>
+      <p v-if="npc?.player_visible_fields.includes('race') && npc.race" class="mt-1 text-body text-muted-foreground italic">{{ npc.race }}</p>
+      <p v-if="npc?.player_visible_fields.includes('occupation') && npc.occupation" class="text-body text-muted-foreground">{{ npc.occupation }}</p>
     </div>
     <div v-if="myNpcPcNote" class="rounded-lg border border-primary/20 bg-primary/5 overflow-hidden">
       <div class="px-3 py-2 border-b border-primary/20">

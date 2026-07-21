@@ -53,7 +53,7 @@
       <div>
         <div class="flex items-center justify-between mb-1">
           <label class="text-eyebrow text-muted-foreground">Focus radius</label>
-          <span class="font-fell text-xs text-muted-foreground tabular-nums">{{ Math.round(dof.focusRadius * 100) }}</span>
+          <span class="text-caption text-muted-foreground tabular-nums">{{ Math.round(dof.focusRadius * 100) }}</span>
         </div>
         <input
           type="range" min="0" max="1" step="0.01"
@@ -67,7 +67,7 @@
       <div>
         <div class="flex items-center justify-between mb-1">
           <label class="text-eyebrow text-muted-foreground">Blur</label>
-          <span class="font-fell text-xs text-muted-foreground tabular-nums">{{ Math.round(dof.blurStrength * 100) }}</span>
+          <span class="text-caption text-muted-foreground tabular-nums">{{ Math.round(dof.blurStrength * 100) }}</span>
         </div>
         <input
           type="range" min="0" max="1" step="0.01"
@@ -81,7 +81,7 @@
       <div>
         <div class="flex items-center justify-between mb-1">
           <label class="text-eyebrow text-muted-foreground">Desaturation</label>
-          <span class="font-fell text-xs text-muted-foreground tabular-nums">{{ Math.round(dof.desaturation * 100) }}</span>
+          <span class="text-caption text-muted-foreground tabular-nums">{{ Math.round(dof.desaturation * 100) }}</span>
         </div>
         <input
           type="range" min="0" max="1" step="0.01"

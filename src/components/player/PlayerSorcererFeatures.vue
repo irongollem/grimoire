@@ -3,7 +3,7 @@
     <div class="px-4 py-2.5 border-b border-violet-500/20 bg-violet-500/10">
       <p class="text-label-lg font-semibold text-violet-500">2024 Sorcerer</p>
     </div>
-    <div class="p-4 space-y-3 font-fell text-sm">
+    <div class="p-4 space-y-3 text-body">
       <div class="flex items-center gap-3">
         <div class="flex-1">
           <p class="font-cinzel text-xs font-semibold">Innate Sorcery</p>

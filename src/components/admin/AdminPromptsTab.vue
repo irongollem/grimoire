@@ -1,9 +1,9 @@
 <template>
   <div class="space-y-4">
-    <div v-if="promptsQuery.isPending.value" class="text-muted-foreground font-fell text-sm">
+    <div v-if="promptsQuery.isPending.value" class="text-muted-foreground text-body">
       Loading prompts…
     </div>
-    <div v-else-if="promptsQuery.isError.value" class="text-destructive font-fell text-sm">
+    <div v-else-if="promptsQuery.isError.value" class="text-destructive text-body">
       Failed to load prompts.
     </div>
     <div v-else class="space-y-4">

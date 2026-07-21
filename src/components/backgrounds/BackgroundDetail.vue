@@ -25,7 +25,7 @@
 
         <div
           v-if="background?.open5e_import"
-          class="text-xs font-fell text-muted-foreground italic"
+          class="text-caption text-muted-foreground italic"
         >
           Imported from Open5e — {{ background?.source_title ?? background?.source }}. Edits stay local and won't be overwritten by re-sync unless Open5e changes the base fields.
         </div>
@@ -53,7 +53,7 @@
       </div>
     </div>
 
-    <p v-if="saveError" class="text-destructive font-fell text-sm">{{ saveError }}</p>
+    <p v-if="saveError" class="text-destructive text-body">{{ saveError }}</p>
 
     <!-- Description -->
     <div class="flex flex-col gap-1">

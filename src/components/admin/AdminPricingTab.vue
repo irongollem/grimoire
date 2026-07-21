@@ -5,7 +5,7 @@
       <div class="flex items-center justify-between gap-4">
         <div>
           <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">Promotion Codes</h2>
-          <p class="font-fell text-xs text-muted-foreground italic mt-0.5">
+          <p class="text-caption text-muted-foreground italic mt-0.5">
             When enabled, a promo code field appears on the Stripe checkout page. Disable when no active promotion is running so users don't wonder if they're missing out.
           </p>
         </div>
@@ -32,7 +32,7 @@
       <div class="flex items-center justify-between gap-4">
         <div>
           <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">Pro Signup (marketing site)</h2>
-          <p class="font-fell text-xs text-muted-foreground italic mt-0.5">
+          <p class="text-caption text-muted-foreground italic mt-0.5">
             Off: the marketing site shows the Pro <em>waitlist</em> form instead of Go Pro buttons. On: real
             checkout CTAs return. Toggling automatically rebuilds the marketing site (takes a minute or two).
           </p>
@@ -59,12 +59,12 @@
     <div class="rounded-lg border border-border bg-card p-4 space-y-3">
       <div>
         <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">Credit Packs</h2>
-        <p class="font-fell text-xs text-muted-foreground italic mt-0.5">
+        <p class="text-caption text-muted-foreground italic mt-0.5">
           Enter the Stripe Price ID and click Save — price data is fetched from Stripe and cached. Credits field controls how many credits the buyer receives.
         </p>
       </div>
-      <div v-if="pricingQuery.packs.isPending.value" class="text-muted-foreground font-fell text-sm">Loading…</div>
-      <div v-else-if="pricingQuery.packs.isError.value" class="text-destructive font-fell text-sm">Failed to load packs.</div>
+      <div v-if="pricingQuery.packs.isPending.value" class="text-muted-foreground text-body">Loading…</div>
+      <div v-else-if="pricingQuery.packs.isError.value" class="text-destructive text-body">Failed to load packs.</div>
       <table v-else class="w-full text-sm">
         <thead>
           <tr class="border-b border-border">
@@ -82,10 +82,10 @@
               <input
                 v-model.number="draftPacks[pack.pack_id].credits"
                 type="number" min="1"
-                class="w-16 bg-muted border border-border rounded px-2 py-1 font-fell text-sm text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
+                class="w-16 bg-muted border border-border rounded px-2 py-1 text-body text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </td>
-            <td class="py-2 pl-3 text-right font-fell text-xs text-muted-foreground whitespace-nowrap">
+            <td class="py-2 pl-3 text-right text-caption text-muted-foreground whitespace-nowrap">
               {{ pack.stripe_unit_amount && pack.stripe_currency
                 ? new Intl.NumberFormat(undefined, { style: 'currency', currency: pack.stripe_currency.toUpperCase() }).format(pack.stripe_unit_amount / 100)
                 : '—' }}
@@ -117,12 +117,12 @@
     <div class="rounded-lg border border-border bg-card p-4 space-y-3">
       <div>
         <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">Generation Costs</h2>
-        <p class="font-fell text-xs text-muted-foreground italic mt-0.5">
+        <p class="text-caption text-muted-foreground italic mt-0.5">
           Credits deducted per generation when not using BYOK (server-side mode).
         </p>
       </div>
-      <div v-if="pricingQuery.generationCosts.isPending.value" class="text-muted-foreground font-fell text-sm">Loading…</div>
-      <div v-else-if="pricingQuery.generationCosts.isError.value" class="text-destructive font-fell text-sm">Failed to load costs.</div>
+      <div v-if="pricingQuery.generationCosts.isPending.value" class="text-muted-foreground text-body">Loading…</div>
+      <div v-else-if="pricingQuery.generationCosts.isError.value" class="text-destructive text-body">Failed to load costs.</div>
       <table v-else class="w-full text-sm">
         <thead>
           <tr class="border-b border-border">
@@ -148,17 +148,17 @@
               <input
                 v-model.number="draftGenCosts[gen.generation_type]"
                 type="number" min="0"
-                class="w-24 bg-muted border border-border rounded px-2 py-1 font-fell text-sm text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
+                class="w-24 bg-muted border border-border rounded px-2 py-1 text-body text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
               />
               <p
                 v-if="derivedNonSquare(gen.generation_type)"
-                class="font-fell text-2xs text-muted-foreground/60 mt-0.5 whitespace-nowrap"
+                class="text-caption-sm text-muted-foreground/60 mt-0.5 whitespace-nowrap"
                 title="Non-square renders are charged base × pixel-area (1.5× for 3:2 / 2:3). This is derived, not separately editable."
               >{{ derivedNonSquare(gen.generation_type)!.label }} ×1.5 = {{ derivedNonSquare(gen.generation_type)!.cost }}</p>
             </td>
             <td class="py-2 pl-4 text-right">
-              <span v-if="calibrationQuery.isPending.value" class="font-fell text-2xs text-muted-foreground/40">…</span>
-              <span v-else-if="!calibrationHints[gen.generation_type]" class="font-fell text-2xs text-muted-foreground/30">—</span>
+              <span v-if="calibrationQuery.isPending.value" class="text-caption-sm text-muted-foreground/40">…</span>
+              <span v-else-if="!calibrationHints[gen.generation_type]" class="text-caption-sm text-muted-foreground/30">—</span>
               <!-- No suggestion yet (< 20 samples) — show raw cost as informational -->
               <span
                 v-else-if="calibrationHints[gen.generation_type].suggested_cost === null"

@@ -7,7 +7,7 @@
         {{ member.name }}
         <span class="text-muted-foreground">→ Level {{ nextLevel }}</span>
       </h2>
-      <p v-if="member.class" class="font-fell text-sm text-muted-foreground italic">{{ member.class }}</p>
+      <p v-if="member.class" class="text-body text-muted-foreground italic">{{ member.class }}</p>
       <!-- Multi-level progress indicator -->
       <div v-if="targetLevel && targetLevel > nextLevel" class="flex items-center justify-center gap-1 mt-2 flex-wrap">
         <template v-for="lvl in (targetLevel - member.level)" :key="lvl">
@@ -134,7 +134,7 @@
       />
 
       <!-- Error -->
-      <p v-if="error" class="font-fell text-sm text-destructive">{{ error }}</p>
+      <p v-if="error" class="text-body text-destructive">{{ error }}</p>
 
       <!-- Confirm / Cancel -->
       <div class="flex gap-3">

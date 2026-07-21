@@ -3,7 +3,7 @@
     <div class="flex items-start justify-between gap-3">
       <div>
         <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wider uppercase">Boss Mechanics</h2>
-        <p class="font-fell text-xs text-muted-foreground mt-1">
+        <p class="text-caption text-muted-foreground mt-1">
           Lair actions fire at initiative 20 each round. Legendary actions auto-enable on any combatant whose stat block has them.
         </p>
       </div>

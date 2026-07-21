@@ -63,11 +63,11 @@
         <RichTextViewer
           v-if="member.physical_description"
           :content="member.physical_description"
-          class="font-fell text-sm text-foreground"
+          class="text-body text-foreground"
         />
       </div>
       <div v-else class="px-4 py-3">
-        <p class="font-fell text-sm text-muted-foreground italic">No identity details recorded.</p>
+        <p class="text-body text-muted-foreground italic">No identity details recorded.</p>
       </div>
     </div>
 
@@ -104,7 +104,7 @@
               <li
                 v-for="d in deityHints"
                 :key="d.id"
-                class="flex items-baseline gap-1.5 px-3 py-2 font-fell text-sm text-foreground hover:bg-muted cursor-pointer"
+                class="flex items-baseline gap-1.5 px-3 py-2 text-body text-foreground hover:bg-muted cursor-pointer"
                 @mousedown.prevent="selectDeity(d.id, d.name)"
               >
                 <span>{{ d.name }}</span>
@@ -157,30 +157,30 @@
         </div>
         <div v-if="member.personality_traits" class="space-y-0.5">
           <p class="text-label md:text-sm text-muted-foreground">TRAITS</p>
-          <RichTextViewer :content="member.personality_traits" class="font-fell text-sm text-foreground" />
+          <RichTextViewer :content="member.personality_traits" class="text-body text-foreground" />
         </div>
         <div v-if="member.ideals" class="space-y-0.5">
           <p class="text-label md:text-sm text-muted-foreground">IDEALS</p>
-          <RichTextViewer :content="member.ideals" class="font-fell text-sm text-foreground" />
+          <RichTextViewer :content="member.ideals" class="text-body text-foreground" />
         </div>
         <div v-if="member.bonds" class="space-y-0.5">
           <p class="text-label md:text-sm text-muted-foreground">BONDS</p>
-          <RichTextViewer :content="member.bonds" class="font-fell text-sm text-foreground" />
+          <RichTextViewer :content="member.bonds" class="text-body text-foreground" />
         </div>
         <div v-if="member.flaws" class="space-y-0.5">
           <p class="text-label md:text-sm text-muted-foreground">FLAWS</p>
-          <RichTextViewer :content="member.flaws" class="font-fell text-sm text-foreground" />
+          <RichTextViewer :content="member.flaws" class="text-body text-foreground" />
         </div>
       </div>
       <div v-else class="px-4 py-3">
-        <p class="font-fell text-sm text-muted-foreground italic">No personality details recorded.</p>
+        <p class="text-body text-muted-foreground italic">No personality details recorded.</p>
       </div>
     </div>
 
     <!-- Notes (plain DM/creation notes — read-only always) -->
     <div v-if="member.notes" class="rounded-lg border border-border bg-card p-4">
       <p class="text-label-lg font-semibold text-muted-foreground uppercase mb-2">Notes</p>
-      <RichTextViewer :content="member.notes" class="font-fell text-sm text-foreground" />
+      <RichTextViewer :content="member.notes" class="text-body text-foreground" />
     </div>
 
     <!-- Background -->
@@ -257,7 +257,7 @@
       v-if="!isOwner && !member.player_description && !hasIdentity && !hasPersonality && !member.notes && !background"
       class="rounded-lg border border-border bg-card p-6 text-center"
     >
-      <p class="font-fell text-sm text-muted-foreground italic">No lore recorded yet.</p>
+      <p class="text-body text-muted-foreground italic">No lore recorded yet.</p>
     </div>
 
   </div>

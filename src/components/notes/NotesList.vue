@@ -8,7 +8,7 @@
           v-model="search"
           type="text"
           placeholder="Search notes…"
-          class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
       <SortControl v-model:sort-by="sortBy" v-model:sort-dir="sortDir" :options="SORT_OPTIONS" />
@@ -48,7 +48,7 @@
       </template>
     </EmptyState>
 
-    <p v-else-if="!filtered.length" class="text-center font-fell text-sm text-muted-foreground italic py-12">
+    <p v-else-if="!filtered.length" class="text-center text-body text-muted-foreground italic py-12">
       No notes match your filters.
     </p>
 
@@ -81,7 +81,7 @@
       </div>
     </template>
 
-    <p v-if="filtered.length" class="mt-4 font-fell text-xs text-muted-foreground italic text-right">
+    <p v-if="filtered.length" class="mt-4 text-caption text-muted-foreground italic text-right">
       {{ filtered.length }} of {{ notes?.length ?? 0 }} notes
     </p>
   </div>

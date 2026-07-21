@@ -7,22 +7,22 @@
       <div v-for="step in steps" :key="step.key" class="px-4 py-3 space-y-2">
         <div class="flex items-baseline gap-3">
           <span class="text-label md:text-sm text-muted-foreground w-10 shrink-0">Lvl {{ step.level }}</span>
-          <span class="font-fell text-sm font-semibold text-foreground">{{ step.label }}</span>
+          <span class="text-body font-semibold text-foreground">{{ step.label }}</span>
         </div>
-        <p v-if="step.description" class="font-fell text-xs text-muted-foreground pl-13">{{ step.description }}</p>
+        <p v-if="step.description" class="text-caption text-muted-foreground pl-13">{{ step.description }}</p>
         <!-- Already picked -->
         <div v-if="choicesForStep(step.key).length" class="pl-13 flex flex-wrap gap-1.5">
           <span
             v-for="(name, i) in choicesForStep(step.key)"
             :key="i"
-            class="inline-flex items-center rounded-md bg-primary/10 border border-primary/20 px-2 py-0.5 font-fell text-sm text-foreground"
+            class="inline-flex items-center rounded-md bg-primary/10 border border-primary/20 px-2 py-0.5 text-body text-foreground"
           >{{ name }}</span>
         </div>
         <!-- Still picking — keep the picker open until `count` choices are made -->
         <div v-if="choicesForStep(step.key).length < (step.count ?? 1)" class="pl-13 flex items-center gap-2">
           <select
             v-model="pendingPicks[step.key]"
-            class="flex-1 bg-muted/40 border border-border rounded px-2 py-1 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="flex-1 bg-muted/40 border border-border rounded px-2 py-1 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           >
             <option value="" disabled>Choose a spell…</option>
             <option v-for="opt in remainingOptions(step)" :key="opt" :value="opt">{{ opt }}</option>

@@ -11,7 +11,7 @@
     >
       <div class="space-y-2">
         <p class="font-cinzel text-base font-semibold text-foreground">No custom classes yet</p>
-        <p class="font-fell text-sm text-muted-foreground max-w-sm">
+        <p class="text-body text-muted-foreground max-w-sm">
           Custom classes let you define entirely new primary classes — hit die, saving throws,
           feature progressions, and wizard steps — for use in the level-up wizard.
           Duplicate any SRD class below to use it as a starting point.
@@ -29,19 +29,19 @@
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2 w-full max-w-2xl text-left">
         <div class="rounded-lg border border-border bg-card p-3 space-y-1">
           <p class="font-cinzel text-2xs tracking-widest uppercase text-primary">Identity</p>
-          <p class="font-fell text-xs text-muted-foreground">
+          <p class="text-caption text-muted-foreground">
             Hit die, primary ability, saving throws, armor &amp; weapon proficiencies, and subclass-granting level.
           </p>
         </div>
         <div class="rounded-lg border border-border bg-card p-3 space-y-1">
           <p class="font-cinzel text-2xs tracking-widest uppercase text-primary">Feature Progression</p>
-          <p class="font-fell text-xs text-muted-foreground">
+          <p class="text-caption text-muted-foreground">
             Link abilities from the compendium to each level, define Ability Score Increase levels, and add wizard steps for player choices.
           </p>
         </div>
         <div class="rounded-lg border border-border bg-card p-3 space-y-1">
           <p class="font-cinzel text-2xs tracking-widest uppercase text-primary">Resource Pools</p>
-          <p class="font-fell text-xs text-muted-foreground">
+          <p class="text-caption text-muted-foreground">
             Tracked uses that appear on the character sheet — Grit Points, Ki, Superiority Dice, etc.
           </p>
         </div>
@@ -65,7 +65,7 @@
         >
           <div class="flex-1 min-w-0">
             <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ cls.class_name }}</p>
-            <p class="font-fell text-xs text-muted-foreground mt-0.5">
+            <p class="text-caption text-muted-foreground mt-0.5">
               d{{ cls.hit_die }}
               <span v-if="cls.saving_throws.length > 0"> · {{ cls.saving_throws.join(', ') }} saves</span>
               <span v-if="featureLevelCount(cls) > 0"> · {{ featureLevelCount(cls) }} feature level{{ featureLevelCount(cls) !== 1 ? 's' : '' }}</span>
@@ -92,7 +92,7 @@
         >
           <div class="flex-1 min-w-0">
             <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ cls.class_name }}</p>
-            <p class="font-fell text-xs text-muted-foreground mt-0.5">
+            <p class="text-caption text-muted-foreground mt-0.5">
               d{{ cls.hit_die }}
               <span v-if="cls.saving_throws.length > 0"> · {{ cls.saving_throws.join(', ') }} saves</span>
               <span v-if="cls.spell_slots"> · spellcaster</span>

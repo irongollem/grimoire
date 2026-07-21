@@ -24,7 +24,7 @@
         <div>
           <label class="block text-eyebrow text-muted-foreground mb-1.5">CASTER TYPE</label>
           <div class="flex flex-wrap gap-3">
-            <label v-for="opt in CASTER_TYPE_OPTIONS" :key="opt.value" class="flex items-center gap-1.5 cursor-pointer font-fell text-sm text-foreground">
+            <label v-for="opt in CASTER_TYPE_OPTIONS" :key="opt.value" class="flex items-center gap-1.5 cursor-pointer text-body text-foreground">
               <input type="radio" :checked="casterType === opt.value" :value="opt.value" class="accent-primary" @change="emit('update:casterType', opt.value)" /> {{ opt.label }}
             </label>
           </div>
@@ -34,10 +34,10 @@
         <div>
           <label class="block text-eyebrow text-muted-foreground mb-1.5">SLOT RECOVERY</label>
           <div class="flex gap-3">
-            <label class="flex items-center gap-1.5 cursor-pointer font-fell text-sm text-foreground">
+            <label class="flex items-center gap-1.5 cursor-pointer text-body text-foreground">
               <input type="radio" :checked="slotRecovery === 'long'" value="long" class="accent-primary" @change="emit('update:slotRecovery', 'long')" /> Long rest
             </label>
-            <label class="flex items-center gap-1.5 cursor-pointer font-fell text-sm text-foreground">
+            <label class="flex items-center gap-1.5 cursor-pointer text-body text-foreground">
               <input type="radio" :checked="slotRecovery === 'short'" value="short" class="accent-primary" @change="emit('update:slotRecovery', 'short')" /> Short rest
             </label>
           </div>
@@ -46,7 +46,7 @@
         <!-- Spells known toggle -->
         <div>
           <label class="block text-eyebrow text-muted-foreground mb-1.5">SPELLS KNOWN TABLE</label>
-          <label class="flex items-center gap-2 cursor-pointer font-fell text-sm text-foreground">
+          <label class="flex items-center gap-2 cursor-pointer text-body text-foreground">
             <input type="checkbox" :checked="spellsKnown !== null" class="accent-primary" @change="onToggleSpellsKnown" />
             Known caster (Bard, Ranger, Sorcerer, Warlock style)
           </label>
@@ -55,7 +55,7 @@
         <!-- Cantrips known toggle -->
         <div>
           <label class="block text-eyebrow text-muted-foreground mb-1.5">CANTRIPS KNOWN TABLE</label>
-          <label class="flex items-center gap-2 cursor-pointer font-fell text-sm text-foreground">
+          <label class="flex items-center gap-2 cursor-pointer text-body text-foreground">
             <input type="checkbox" :checked="cantripsKnown !== null" class="accent-primary" @change="onToggleCantripsKnown" />
             Track cantrips known per level
           </label>
@@ -66,7 +66,7 @@
           <div>
             <label class="block text-eyebrow text-muted-foreground mb-1.5">PREPARED SPELL ABILITY</label>
             <div class="flex gap-3">
-              <label v-for="ab in PREPARED_ABILITY_OPTIONS" :key="ab.value" class="flex items-center gap-1.5 cursor-pointer font-fell text-sm text-foreground">
+              <label v-for="ab in PREPARED_ABILITY_OPTIONS" :key="ab.value" class="flex items-center gap-1.5 cursor-pointer text-body text-foreground">
                 <input type="radio" :checked="preparedAbility === ab.value" :value="ab.value" class="accent-primary" @change="emit('update:preparedAbility', ab.value)" /> {{ ab.label }}
               </label>
             </div>
@@ -74,10 +74,10 @@
           <div>
             <label class="block text-eyebrow text-muted-foreground mb-1.5">PREPARED SPELL SCALING</label>
             <div class="flex gap-3">
-              <label class="flex items-center gap-1.5 cursor-pointer font-fell text-sm text-foreground">
+              <label class="flex items-center gap-1.5 cursor-pointer text-body text-foreground">
                 <input type="radio" :checked="preparedDivisor === 1" :value="1" class="accent-primary" @change="emit('update:preparedDivisor', 1)" /> Full level (Cleric, Druid, Wizard)
               </label>
-              <label class="flex items-center gap-1.5 cursor-pointer font-fell text-sm text-foreground">
+              <label class="flex items-center gap-1.5 cursor-pointer text-body text-foreground">
                 <input type="radio" :checked="preparedDivisor === 2" :value="2" class="accent-primary" @change="emit('update:preparedDivisor', 2)" /> Half level (Paladin, Artificer)
               </label>
             </div>
@@ -105,7 +105,7 @@
                   type="number"
                   min="0"
                   max="9"
-                  class="w-9 bg-muted/40 border border-border rounded px-1 py-0.5 font-fell text-xs text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+                  class="w-9 bg-muted/40 border border-border rounded px-1 py-0.5 text-caption text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
                   @input="onSetSlot(lvl - 1, sl - 1, ($event.target as HTMLInputElement).valueAsNumber)"
                 />
               </td>
@@ -114,7 +114,7 @@
                   :value="(spellsKnown ?? [])[lvl - 1] ?? 0"
                   type="number"
                   min="0"
-                  class="w-10 bg-muted/40 border border-border rounded px-1 py-0.5 font-fell text-xs text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+                  class="w-10 bg-muted/40 border border-border rounded px-1 py-0.5 text-caption text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
                   @input="onSetSpellsKnown(lvl - 1, ($event.target as HTMLInputElement).valueAsNumber)"
                 />
               </td>
@@ -123,7 +123,7 @@
                   :value="(cantripsKnown ?? [])[lvl - 1] ?? 0"
                   type="number"
                   min="0"
-                  class="w-10 bg-muted/40 border border-border rounded px-1 py-0.5 font-fell text-xs text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+                  class="w-10 bg-muted/40 border border-border rounded px-1 py-0.5 text-caption text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
                   @input="onSetCantripsKnown(lvl - 1, ($event.target as HTMLInputElement).valueAsNumber)"
                 />
               </td>
@@ -132,7 +132,7 @@
         </table>
       </div>
 
-      <p class="font-fell text-xs text-muted-foreground">
+      <p class="text-caption text-muted-foreground">
         Enter the number of spell slots per spell level (columns 1–9) at each class level (rows 1–20). Leave as 0 where none are granted.
       </p>
     </template>

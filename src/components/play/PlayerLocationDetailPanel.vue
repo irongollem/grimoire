@@ -15,7 +15,7 @@
           :focal-point="null"
         />
       </button>
-      <p v-if="loc.player_summary" class="font-fell text-sm text-foreground italic flex-1">
+      <p v-if="loc.player_summary" class="text-body text-foreground italic flex-1">
         {{ loc.player_summary }}
       </p>
     </div>
@@ -35,7 +35,7 @@
         @pin-watch="$emit('pin-watch', $event)"
       />
       <div class="flex items-center justify-between mt-1">
-        <p v-if="!playerPins.length" class="font-fell text-xs text-muted-foreground italic">
+        <p v-if="!playerPins.length" class="text-caption text-muted-foreground italic">
           No pins placed yet.
         </p>
         <span v-else />
@@ -74,13 +74,13 @@
         >
           <div class="flex-1 min-w-0">
             <p class="font-cinzel text-xs font-semibold text-foreground truncate">{{ getNpcDisplayName(npc) ?? "???" }}</p>
-            <p v-if="npc.occupation || npc.race" class="font-fell text-xs text-muted-foreground italic truncate">
+            <p v-if="npc.occupation || npc.race" class="text-caption text-muted-foreground italic truncate">
               {{ [npc.race, npc.occupation].filter(Boolean).join(" · ") }}
             </p>
           </div>
         </button>
       </div>
-      <p v-else class="font-fell text-xs text-muted-foreground italic">No one here yet.</p>
+      <p v-else class="text-caption text-muted-foreground italic">No one here yet.</p>
     </div>
 
     <PlayerNotesWidget

@@ -91,7 +91,7 @@
 
           <div class="p-3 flex flex-col gap-1.5 flex-1">
             <p class="font-cinzel text-sm font-bold text-foreground truncate">{{ deity.name }}</p>
-            <p v-if="deity.titles" class="font-fell text-xs text-muted-foreground italic truncate">{{ deity.titles }}</p>
+            <p v-if="deity.titles" class="text-caption text-muted-foreground italic truncate">{{ deity.titles }}</p>
 
             <!-- Pantheon -->
             <p v-if="deity.pantheon?.name" class="text-label text-muted-foreground">

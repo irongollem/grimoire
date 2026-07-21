@@ -21,7 +21,7 @@
         {{ nameSaved ? "Saved" : "Save" }}
       </button>
     </form>
-    <p v-if="nameError" class="font-fell text-xs text-destructive mt-2">{{ nameError }}</p>
+    <p v-if="nameError" class="text-caption text-destructive mt-2">{{ nameError }}</p>
   </SettingsSection>
 </template>
 

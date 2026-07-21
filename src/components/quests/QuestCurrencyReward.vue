@@ -30,7 +30,7 @@
           :value="coin.value"
           type="number"
           min="0"
-          class="w-full text-center bg-card border border-border rounded px-1 py-1 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full text-center bg-card border border-border rounded px-1 py-1 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           @input="coin.onInput($event)"
         />
       </div>

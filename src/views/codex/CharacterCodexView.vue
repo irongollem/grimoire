@@ -50,7 +50,7 @@
             >
               <div class="p-3 border-b border-border">
                 <p class="font-cinzel text-xs font-semibold text-foreground">Import Sources</p>
-                <p class="font-fell text-xs text-muted-foreground mt-0.5">Leave all unchecked to import everything.</p>
+                <p class="text-caption text-muted-foreground mt-0.5">Leave all unchecked to import everything.</p>
               </div>
               <div v-if="docsLoading" class="p-3 flex items-center justify-center">
                 <IconLoading class="size-4 animate-spin text-muted-foreground" />
@@ -62,8 +62,8 @@
                   class="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer hover:bg-accent transition-colors"
                 >
                   <input v-model="selectedSources" type="checkbox" :value="doc.slug" class="accent-primary" />
-                  <span class="font-fell text-sm text-foreground">{{ doc.title }}</span>
-                  <span class="font-fell text-xs text-muted-foreground ml-auto">{{ doc.slug }}</span>
+                  <span class="text-body text-foreground">{{ doc.title }}</span>
+                  <span class="text-caption text-muted-foreground ml-auto">{{ doc.slug }}</span>
                 </label>
               </div>
               <div v-if="selectedSources.length > 0" class="p-2 border-t border-border">

@@ -10,7 +10,7 @@
         <div class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <div>
             <h2 class="font-cinzel text-lg font-bold text-foreground">Setting Events</h2>
-            <p class="font-fell text-sm text-muted-foreground italic mt-0.5">
+            <p class="text-body text-muted-foreground italic mt-0.5">
               Import pre-authored historical events for your campaign setting.
             </p>
           </div>
@@ -39,14 +39,14 @@
                 <span class="font-cinzel text-sm font-bold text-foreground">{{ bundle.name }}</span>
                 <span class="font-cinzel text-xs text-muted-foreground">{{ bundle.events.length }} events</span>
               </div>
-              <p class="font-fell text-sm text-muted-foreground">{{ bundle.description }}</p>
+              <p class="text-body text-muted-foreground">{{ bundle.description }}</p>
             </div>
 
             <!-- Import progress / result -->
             <div v-if="importing || result" class="rounded-lg border border-border px-4 py-3">
               <div v-if="importing" class="flex items-center gap-3">
                 <div class="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin shrink-0" />
-                <span class="font-fell text-sm text-foreground">
+                <span class="text-body text-foreground">
                   Importing {{ imported }} / {{ bundle.events.length }} events…
                 </span>
               </div>
@@ -59,7 +59,7 @@
             </div>
 
             <!-- Duplicate warning -->
-            <p class="font-fell text-xs text-muted-foreground italic -mt-2">
+            <p class="text-caption text-muted-foreground italic -mt-2">
               Note: re-importing will create duplicate events. Delete existing setting events before re-importing if needed.
             </p>
 
@@ -80,7 +80,7 @@
                     <span class="font-cinzel text-xs font-semibold text-foreground">{{ event.title }}</span>
                     <span class="font-cinzel text-2xs text-muted-foreground">{{ event.harptos_year }} DR</span>
                   </div>
-                  <p class="font-fell text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                  <p class="text-caption text-muted-foreground mt-0.5 line-clamp-2">
                     {{ event.description }}
                   </p>
                 </div>

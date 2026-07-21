@@ -7,18 +7,18 @@
     <!-- SRD Art Defaults -->
     <div class="rounded-lg border border-border bg-card p-4 space-y-3">
       <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">SRD Art Defaults</h2>
-      <p class="font-fell text-xs text-muted-foreground italic">
+      <p class="text-caption text-muted-foreground italic">
         Publish your uploaded SRD art as community defaults. Other DMs will see your images
         for any SRD content they haven't personalised. Re-running is safe — it updates
         existing defaults with your latest images.
       </p>
-      <div v-if="statsQuery.data.value" class="font-fell text-xs text-foreground">
+      <div v-if="statsQuery.data.value" class="text-caption text-foreground">
         Currently published:
         <span class="font-semibold">{{ statsQuery.data.value.monsters }}</span> monsters ·
         <span class="font-semibold">{{ statsQuery.data.value.spells }}</span> spells ·
         <span class="font-semibold">{{ statsQuery.data.value.items }}</span> items
       </div>
-      <div v-if="publishResult" class="font-fell text-xs text-green-500">
+      <div v-if="publishResult" class="text-caption text-green-500">
         Done — {{ publishResult.monsters }} monsters · {{ publishResult.spells }} spells ·
         {{ publishResult.items }} items published.
       </div>
@@ -36,7 +36,7 @@
     <div class="rounded-lg border border-border bg-card p-4 space-y-4">
       <div>
         <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">Placeholder Art</h2>
-        <p class="font-fell text-xs text-muted-foreground italic mt-0.5">
+        <p class="text-caption text-muted-foreground italic mt-0.5">
           Click anywhere on a placeholder image to set where the focus point should be. This corrects
           cases where smartcrop picks the wrong area (e.g. torso instead of face).
           Changes take effect immediately for users whose smartcrop cache hasn't run yet,
@@ -44,7 +44,7 @@
         </p>
       </div>
 
-      <div v-if="placeholderFpQuery.isPending.value" class="text-muted-foreground font-fell text-sm">
+      <div v-if="placeholderFpQuery.isPending.value" class="text-muted-foreground text-body">
         Loading…
       </div>
       <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">

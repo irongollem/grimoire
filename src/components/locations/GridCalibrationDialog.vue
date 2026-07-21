@@ -20,7 +20,7 @@
         </div>
 
         <div class="px-5 py-4 space-y-4">
-          <p class="font-fell text-sm text-muted-foreground leading-relaxed">
+          <p class="text-body text-muted-foreground leading-relaxed">
             Drag the two handles to span a known distance on the map — usually one side of a single
             5-ft square, or end-to-end of a known-length hallway. Then enter how many 5-ft squares
             that line covers. The VTT will use this scale to overlay a grid and snap tokens.
@@ -147,11 +147,11 @@
                 Lower if the map already has its own gridlines.
               </span>
             </label>
-            <p v-if="preview" class="font-fell text-sm text-muted-foreground">
+            <p v-if="preview" class="text-body text-muted-foreground">
               ≈ <span class="text-foreground font-semibold">{{ preview.cells_per_image_width.toFixed(1) }}</span>
               squares across the image width.
             </p>
-            <p v-else-if="errorMessage" class="font-fell text-sm text-destructive">
+            <p v-else-if="errorMessage" class="text-body text-destructive">
               {{ errorMessage }}
             </p>
           </div>

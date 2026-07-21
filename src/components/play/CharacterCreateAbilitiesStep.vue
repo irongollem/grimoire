@@ -57,7 +57,7 @@
     <!-- Standard Array / 4d6 pool -->
     <div v-else-if="scoreMode === 'array' || scoreMode === 'roll'" class="space-y-3">
       <div class="flex items-center justify-between flex-wrap gap-2">
-        <p class="font-fell text-sm text-muted-foreground italic">
+        <p class="text-body text-muted-foreground italic">
           <template v-if="scoreMode === 'array'">Assign the standard array (15, 14, 13, 12, 10, 8) to your abilities.</template>
           <template v-else>4d6 drop lowest — reroll until happy, then assign.</template>
         </p>
@@ -72,7 +72,7 @@
           :class="Object.values(scoreAssignment).includes(idx)
             ? 'border-primary/30 bg-primary/10 text-primary/60 line-through'
             : 'border-border bg-muted/50 text-foreground'">{{ val }}</span>
-        <span v-if="scorePool.length === 0" class="font-fell text-xs text-muted-foreground italic">No pool loaded.</span>
+        <span v-if="scorePool.length === 0" class="text-caption text-muted-foreground italic">No pool loaded.</span>
       </div>
       <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <div v-for="stat in ABILITY_STATS" :key="stat.key"
@@ -98,7 +98,7 @@
 
     <!-- Manual entry -->
     <div v-else class="space-y-3">
-      <p class="font-fell text-sm text-muted-foreground italic">Enter your scores directly.</p>
+      <p class="text-body text-muted-foreground italic">Enter your scores directly.</p>
       <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
         <label v-for="stat in ABILITY_STATS" :key="stat.key" class="flex flex-col items-center gap-1">
           <span class="text-label font-semibold text-muted-foreground">{{ stat.label }}</span>
@@ -143,21 +143,21 @@
 
       <!-- Racial mode: structured — bonuses shown directly in score cards above -->
       <p v-if="asiMode === 'bonus' && asiIsStructured"
-        class="font-fell text-xs text-muted-foreground italic">
+        class="text-caption text-muted-foreground italic">
         Racial bonuses reflected in your scores above — applied automatically on save.
       </p>
 
       <!-- Racial mode: unstructured — show free-text description, player adjusts manually -->
       <div v-else-if="asiMode === 'bonus' && !asiIsStructured" class="space-y-1">
-        <p class="font-fell text-sm text-foreground">{{ asiDescriptionText }}</p>
-        <p class="font-fell text-xs text-muted-foreground italic">
+        <p class="text-body text-foreground">{{ asiDescriptionText }}</p>
+        <p class="text-caption text-muted-foreground italic">
           Free-text bonus — adjust your scores above to include it, then use Skip or Custom instead.
         </p>
       </div>
 
       <!-- Custom mode: distribute 3 free points (player picks which abilities) -->
       <div v-else-if="asiMode === 'custom'" class="space-y-2">
-        <p class="font-fell text-xs text-muted-foreground italic">
+        <p class="text-caption text-muted-foreground italic">
           Distribute 3 free points across any abilities (max +2 per ability).
           <span :class="customAsiTotal >= 3 ? 'text-green-500 font-bold not-italic' : 'text-primary'">
             {{ customAsiTotal < 3 ? `${3 - customAsiTotal} remaining` : 'All assigned' }}.
@@ -185,7 +185,7 @@
       </div>
 
       <!-- Skip mode -->
-      <p v-else class="font-fell text-xs text-muted-foreground italic">
+      <p v-else class="text-caption text-muted-foreground italic">
         Racial bonuses skipped — you handle your ability scores above.
       </p>
     </div>

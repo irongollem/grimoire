@@ -2,14 +2,14 @@
   <div class="rounded-lg border border-border bg-card p-4 space-y-3">
     <div>
       <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">Simulacrum</h2>
-      <p class="font-fell text-xs text-muted-foreground italic mt-0.5">
+      <p class="text-caption text-muted-foreground italic mt-0.5">
         Feature flag for the portrait → 3D mini pipeline. "Teaser" ships the entry point + demand
         gate before the Meshy subscription exists; "Live" is the real pipeline (requires the Meshy
         platform key).
       </p>
     </div>
 
-    <p v-if="query.isPending.value" class="font-fell text-sm text-muted-foreground">Loading…</p>
+    <p v-if="query.isPending.value" class="text-body text-muted-foreground">Loading…</p>
 
     <template v-else>
       <!-- Meshy platform key — managed here (not the generic provider rows):
@@ -78,12 +78,12 @@
           @click="localMode = opt.value"
         >
           <span class="font-cinzel text-xs font-semibold tracking-wide text-foreground">{{ opt.label }}</span>
-          <span class="font-fell text-2xs text-muted-foreground">
+          <span class="text-caption-sm text-muted-foreground">
             {{ opt.value === 'live' && !meshyKeySet ? 'Locked — add the Meshy platform key first.' : opt.description }}
           </span>
         </button>
       </div>
-      <p v-if="query.data.value?.mode === 'live' && !meshyKeySet" class="font-fell text-xs text-destructive">
+      <p v-if="query.data.value?.mode === 'live' && !meshyKeySet" class="text-caption text-destructive">
         Mode is Live but the Meshy key is missing — sculpts will fail until a key is added.
       </p>
 
@@ -95,17 +95,17 @@
         >
           {{ update.isPending.value ? 'Saving…' : 'Save' }}
         </button>
-        <span v-if="saved" class="font-fell text-xs text-green-500 self-center">Saved.</span>
+        <span v-if="saved" class="text-caption text-green-500 self-center">Saved.</span>
       </div>
 
       <!-- Buy-signal counter -->
       <div class="rounded-md bg-muted/40 border border-border p-3">
         <!-- "…" while loading — a not-yet-loaded count must never read as "zero interest". -->
-        <p class="font-fell text-sm text-foreground">
+        <p class="text-body text-foreground">
           <span class="font-cinzel font-semibold">{{ interestCount.data.value ?? "…" }}</span>
           adventurer{{ interestCount.data.value === 1 ? '' : 's' }} await the ritual
         </p>
-        <p class="font-fell text-2xs text-muted-foreground italic mt-0.5">
+        <p class="text-caption-sm text-muted-foreground italic mt-0.5">
           Users who clicked "Notify me" on the teaser — the signal for buying the Meshy subscription.
         </p>
       </div>

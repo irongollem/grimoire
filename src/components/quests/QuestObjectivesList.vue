@@ -27,7 +27,7 @@
           <IconCheck v-if="obj.is_done" class="h-2.5 w-2.5" />
         </button>
         <span
-          class="font-fell text-sm flex-1 leading-snug transition-colors"
+          class="text-body flex-1 leading-snug transition-colors"
           :class="
             obj.is_done
               ? 'text-muted-foreground line-through'
@@ -66,7 +66,7 @@
         <input
           v-model="newObjective"
           placeholder="Add objective…"
-          class="flex-1 bg-transparent border-b border-border px-1 py-1 font-fell text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors"
+          class="flex-1 bg-transparent border-b border-border px-1 py-1 text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors"
           @keydown.enter.prevent="submit"
         />
         <button
@@ -80,7 +80,7 @@
       </div>
       <p
         v-else
-        class="font-fell text-xs text-muted-foreground italic px-2 py-1"
+        class="text-caption text-muted-foreground italic px-2 py-1"
       >
         Save the quest first, then add objectives.
       </p>

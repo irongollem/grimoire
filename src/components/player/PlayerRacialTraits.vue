@@ -21,7 +21,7 @@
           :class="trait.description ? 'cursor-pointer' : 'cursor-default'"
           @click="trait.description && toggleExpanded(`${group.heading}-${trait.name}`)"
         >
-          <span class="font-fell text-sm text-foreground flex-1">{{ trait.name }}</span>
+          <span class="text-body text-foreground flex-1">{{ trait.name }}</span>
           <IconChevronDown
             v-if="trait.description"
             class="h-3 w-3 text-muted-foreground/60 transition-transform shrink-0"
@@ -30,7 +30,7 @@
         </button>
         <div
           v-if="trait.description && expanded.has(`${group.heading}-${trait.name}`)"
-          class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2 font-fell text-sm text-muted-foreground leading-relaxed"
+          class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2 text-body text-muted-foreground leading-relaxed"
         >
           <RichTextViewer :content="trait.description" />
         </div>

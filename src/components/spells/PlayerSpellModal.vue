@@ -28,7 +28,7 @@
                 {{ spell.name }}
               </h2>
               <p
-                class="font-fell text-xs text-muted-foreground italic capitalize"
+                class="text-caption text-muted-foreground italic capitalize"
               >
                 {{ spellSubtitle }}
               </p>

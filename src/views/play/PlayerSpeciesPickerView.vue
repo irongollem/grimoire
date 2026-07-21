@@ -4,7 +4,7 @@
     <div class="flex items-start justify-between gap-4">
       <div>
         <h1 class="font-cinzel text-xl font-bold text-foreground">Choose a Species</h1>
-        <p v-if="headerDescription" class="font-fell text-sm text-muted-foreground italic mt-1">
+        <p v-if="headerDescription" class="text-body text-muted-foreground italic mt-1">
           {{ headerDescription }}
         </p>
       </div>
@@ -44,7 +44,7 @@
         <div class="relative z-10 w-full max-w-md rounded-xl border border-border bg-background shadow-2xl p-6 space-y-4">
           <div>
             <h2 class="font-cinzel text-lg font-bold text-foreground">{{ pendingSpecies.name }}</h2>
-            <p class="font-fell text-sm italic text-muted-foreground mt-0.5">
+            <p class="text-body italic text-muted-foreground mt-0.5">
               {{ [pendingSpecies.size, pendingSpecies.speed?.walk ? `${pendingSpecies.speed.walk} ft` : null].filter(Boolean).join(" · ") || "—" }}
             </p>
           </div>
@@ -54,7 +54,7 @@
             <p class="text-eyebrow md:text-sm font-semibold text-muted-foreground mb-2">VARIANT</p>
             <select
               v-model="selectedSubrace"
-              class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             >
               <option value="">— None —</option>
               <option v-for="sr in pendingSpecies.subraces" :key="sr.name" :value="sr.name">
@@ -82,7 +82,7 @@
           <!-- Speed note -->
           <p
             v-if="pendingSpecies.speed?.walk && pendingSpecies.speed.walk !== me?.speed"
-            class="font-fell text-xs text-muted-foreground italic"
+            class="text-caption text-muted-foreground italic"
           >
             Walk speed will be updated to {{ pendingSpecies.speed.walk }} ft.
           </p>
@@ -99,13 +99,13 @@
                 class="flex items-center gap-2 px-2 py-1 rounded bg-amber-500/10 border border-amber-500/20"
               >
                 <div class="h-1.5 w-1.5 rounded-full bg-amber-400 shrink-0" />
-                <span class="font-fell text-sm text-foreground flex-1">{{ grant.spell_name }}</span>
+                <span class="text-body text-foreground flex-1">{{ grant.spell_name }}</span>
                 <span class="font-cinzel text-2xs md:text-sm text-amber-500">
                   {{ grant.uses_per_day === null ? "At will" : `${grant.uses_per_day}/day` }}
                 </span>
               </div>
             </div>
-            <p class="font-fell text-xs text-muted-foreground italic mt-1.5">
+            <p class="text-caption text-muted-foreground italic mt-1.5">
               You'll be taken to your Innate Spells to add these manually.
             </p>
           </div>

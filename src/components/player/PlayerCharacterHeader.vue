@@ -36,7 +36,7 @@
                 @click="toggleInspiration"
               ><IconStar class="h-3.5 w-3.5" :class="member.inspiration ? 'fill-gold-500' : ''" /></button>
             </div>
-            <p class="font-fell text-xs text-muted-foreground italic">
+            <p class="text-caption text-muted-foreground italic">
               <template v-if="wildshape">🐺 {{ member.name }}</template>
               <template v-else>{{ [speciesName, member.subrace, classLabel].filter(Boolean).join(" · ") }}</template>
               <span v-if="!wildshape && memberTotalLevel" class="font-cinzel text-2xs md:text-sm text-primary not-italic ml-1">Lv {{ memberTotalLevel }}</span>
@@ -83,7 +83,7 @@
         <!-- HP readout (current state — shown before controls) -->
         <div class="flex items-baseline gap-1.5 px-3 pt-1 flex-wrap">
           <span class="font-cinzel text-2xl font-bold" :class="hpColor">{{ displayHp }}</span>
-          <span class="font-fell text-sm text-muted-foreground">/ {{ displayMaxHp }}</span>
+          <span class="text-body text-muted-foreground">/ {{ displayMaxHp }}</span>
           <button
             v-if="!wildshape && member.temp_hp"
             class="font-cinzel text-2xs md:text-sm text-blue-400 ml-1 hover:text-blue-300 transition-colors inline-flex items-center gap-0.5"
@@ -142,7 +142,7 @@
                     v-model="conditionSearch"
                     type="text"
                     placeholder="Search conditions…"
-                    class="w-full rounded border border-border bg-muted/40 px-2 py-1 font-fell text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+                    class="w-full rounded border border-border bg-muted/40 px-2 py-1 text-caption focus:outline-none focus:ring-1 focus:ring-ring"
                     @keydown.escape="showConditionPicker = false"
                   />
                 </div>

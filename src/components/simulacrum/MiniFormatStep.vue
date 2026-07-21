@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-4">
-    <p class="font-fell text-sm text-muted-foreground italic">
+    <p class="text-body text-muted-foreground italic">
       Choose how this miniature will be made — the format decides the stylized render, the mesh
       parameters, and which files you'll be able to download.
     </p>
@@ -23,8 +23,8 @@
             class="rounded-full bg-primary px-1.5 py-0.5 text-label font-semibold text-primary-foreground"
           >Selected</span>
         </div>
-        <p class="font-fell text-xs text-muted-foreground">{{ opt.tagline }}</p>
-        <ul class="font-fell text-2xs text-muted-foreground/80 space-y-0.5 list-disc list-inside">
+        <p class="text-caption text-muted-foreground">{{ opt.tagline }}</p>
+        <ul class="text-caption-sm text-muted-foreground/80 space-y-0.5 list-disc list-inside">
           <li v-for="detail in opt.details" :key="detail">{{ detail }}</li>
         </ul>
       </button>

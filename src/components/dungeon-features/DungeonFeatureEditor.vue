@@ -61,7 +61,7 @@
               <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Type</label>
               <select
                 v-model="form.feature_type"
-                class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 <option v-for="t in DUNGEON_FEATURE_TYPES" :key="t" :value="t">{{ t }}</option>
               </select>
@@ -82,15 +82,15 @@
         <div class="p-4 grid grid-cols-3 gap-3">
           <div>
             <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Perception DC</label>
-            <input v-model.number="form.perception_dc" type="number" min="1" max="30" placeholder="15" class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+            <input v-model.number="form.perception_dc" type="number" min="1" max="30" placeholder="15" class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
           </div>
           <div>
             <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Investigation DC</label>
-            <input v-model.number="form.investigation_dc" type="number" min="1" max="30" placeholder="15" class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+            <input v-model.number="form.investigation_dc" type="number" min="1" max="30" placeholder="15" class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
           </div>
           <div>
             <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Arcana DC</label>
-            <input v-model.number="form.arcana_dc" type="number" min="1" max="30" placeholder="—" class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+            <input v-model.number="form.arcana_dc" type="number" min="1" max="30" placeholder="—" class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
           </div>
         </div>
       </div>
@@ -105,7 +105,7 @@
             <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Trigger Type</label>
             <select
               v-model="form.trigger_type"
-              class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             >
               <option :value="null">—</option>
               <option v-for="t in DUNGEON_FEATURE_TRIGGERS" :key="t" :value="t">{{ t }}</option>
@@ -116,7 +116,7 @@
             <input
               v-model="form.trigger_description"
               placeholder="A worn bookshelf that swings open when the red tome is removed…"
-              class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
         </div>

@@ -3,7 +3,7 @@
     <!-- Year/month navigation -->
     <div class="flex items-center gap-2">
       <button
-        class="rounded-md border border-border px-2.5 py-1 font-fell text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+        class="rounded-md border border-border px-2.5 py-1 text-body text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
         @click="emit('shift-back')"
       >
         ←
@@ -14,7 +14,7 @@
         </p>
       </div>
       <button
-        class="rounded-md border border-border px-2.5 py-1 font-fell text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+        class="rounded-md border border-border px-2.5 py-1 text-body text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
         @click="emit('shift-forward')"
       >
         →
@@ -45,7 +45,7 @@
         v-model.number="localJumpYear"
         type="number"
         placeholder="Jump to year…"
-        class="w-32 bg-muted border border-border rounded-md px-2 py-1 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        class="w-32 bg-muted border border-border rounded-md px-2 py-1 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
       />
       <button
         type="submit"

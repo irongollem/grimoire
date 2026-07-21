@@ -111,7 +111,7 @@
             type="search"
             inputmode="search"
             placeholder="Search NPCs…"
-            class="h-11 w-full rounded-full border border-border bg-card pl-9 pr-9 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="h-11 w-full rounded-full border border-border bg-card pl-9 pr-9 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
           <button
             v-if="search"
@@ -160,7 +160,7 @@
           v-for="chip in activeChips"
           :key="chip.key"
           type="button"
-          class="inline-flex items-center gap-1 rounded-full border border-border bg-card py-1 pl-2.5 pr-1.5 font-fell text-xs text-foreground"
+          class="inline-flex items-center gap-1 rounded-full border border-border bg-card py-1 pl-2.5 pr-1.5 text-caption text-foreground"
           @click="chip.clear()"
         >
           {{ chip.label }}
@@ -256,21 +256,21 @@
       <div class="flex flex-col gap-1 py-1">
         <RouterLink
           to="/npcs/sets"
-          class="flex items-center gap-3 rounded-lg px-2 py-3 font-fell text-sm text-foreground hover:bg-muted/50"
+          class="flex items-center gap-3 rounded-lg px-2 py-3 text-body text-foreground hover:bg-muted/50"
           @click="overflowOpen = false"
         >
           <IconLayers class="size-5 shrink-0 text-muted-foreground" /> Sets
         </RouterLink>
         <RouterLink
           to="/npcs/web"
-          class="flex items-center gap-3 rounded-lg px-2 py-3 font-fell text-sm text-foreground hover:bg-muted/50"
+          class="flex items-center gap-3 rounded-lg px-2 py-3 text-body text-foreground hover:bg-muted/50"
           @click="overflowOpen = false"
         >
           <IconNetwork class="size-5 shrink-0 text-muted-foreground" /> Web
         </RouterLink>
         <button
           type="button"
-          class="flex items-center gap-3 rounded-lg px-2 py-3 text-left font-fell text-sm text-foreground hover:bg-muted/50"
+          class="flex items-center gap-3 rounded-lg px-2 py-3 text-left text-body text-foreground hover:bg-muted/50"
           @click="overflowOpen = false; ui.npcGeneratorOpen = true"
         >
           <IconGenerate class="size-5 shrink-0 text-muted-foreground" /> Generate
@@ -279,7 +279,7 @@
           v-if="hasSetting"
           type="button"
           :disabled="populateMutation.isPending.value"
-          class="flex items-center gap-3 rounded-lg px-2 py-3 text-left font-fell text-sm text-foreground hover:bg-muted/50 disabled:opacity-50"
+          class="flex items-center gap-3 rounded-lg px-2 py-3 text-left text-body text-foreground hover:bg-muted/50 disabled:opacity-50"
           @click="overflowOpen = false; handlePopulate()"
         >
           <component :is="populateMutation.isPending.value ? IconLoading : IconPopulate" class="size-5 shrink-0 text-muted-foreground" />

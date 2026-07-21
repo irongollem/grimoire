@@ -1,7 +1,7 @@
 <template>
   <div>
     <h1 class="font-cinzel text-xl font-bold text-foreground mb-1">Atlas</h1>
-    <p class="font-fell text-sm text-muted-foreground italic mb-4">Maps shared by your DM.</p>
+    <p class="text-body text-muted-foreground italic mb-4">Maps shared by your DM.</p>
 
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
@@ -76,7 +76,7 @@
         </button>
       </div>
 
-      <p v-if="isFiltering && !visibleTree.length" class="text-center font-fell text-sm text-muted-foreground italic py-8">
+      <p v-if="isFiltering && !visibleTree.length" class="text-center text-body text-muted-foreground italic py-8">
         No locations match your search.
       </p>
 
@@ -168,10 +168,10 @@
             />
           </div>
           <div class="px-4 py-4 flex flex-col gap-4">
-            <p v-if="watchingLocation.player_summary" class="font-fell text-sm text-foreground italic">
+            <p v-if="watchingLocation.player_summary" class="text-body text-foreground italic">
               {{ watchingLocation.player_summary }}
             </p>
-            <p v-else class="font-fell text-xs text-muted-foreground italic">
+            <p v-else class="text-caption text-muted-foreground italic">
               No description shared yet.
             </p>
             <PlayerNotesWidget

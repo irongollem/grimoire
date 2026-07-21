@@ -7,7 +7,7 @@
         v-model="query"
         type="text"
         :placeholder="selectedLabel || placeholder"
-        class="w-full bg-card border border-border rounded-md px-3 py-1.5 pr-14 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        class="w-full bg-card border border-border rounded-md px-3 py-1.5 pr-14 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         :class="selectedLabel && !query ? 'placeholder:text-foreground' : ''"
         @focus="onFocus"
         @click="onFocus"
@@ -35,7 +35,7 @@
         <li
           v-for="opt in filtered"
           :key="opt.id"
-          class="px-3 py-1.5 font-fell text-sm text-foreground hover:bg-muted/60 transition-colors cursor-pointer flex items-center gap-2"
+          class="px-3 py-1.5 text-body text-foreground hover:bg-muted/60 transition-colors cursor-pointer flex items-center gap-2"
           @mousedown.prevent="select(opt)"
         >
           <slot name="option" :opt="opt">{{ opt.name }}</slot>
@@ -46,7 +46,7 @@
         :style="dropdownStyle"
         class="fixed z-9999 rounded-md border border-border bg-card shadow-lg px-3 py-2"
       >
-        <span class="font-fell text-xs text-muted-foreground italic">No matches</span>
+        <span class="text-caption text-muted-foreground italic">No matches</span>
       </div>
     </Teleport>
   </div>

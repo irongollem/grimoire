@@ -5,7 +5,7 @@
         <header class="flex items-center gap-3 border-b border-border px-4 py-3">
           <div class="flex-1 min-w-0">
             <p class="font-cinzel text-sm font-bold truncate">Resolve {{ spell.name }}</p>
-            <p class="font-fell text-xs text-muted-foreground">Choose each target's actual outcome before any effect is rolled.</p>
+            <p class="text-caption text-muted-foreground">Choose each target's actual outcome before any effect is rolled.</p>
           </div>
           <button type="button" class="rounded px-2 py-1 text-muted-foreground hover:text-foreground" aria-label="Close resolver" @click="emit('close')">×</button>
         </header>
@@ -13,7 +13,7 @@
         <div class="p-4 space-y-4">
           <div v-if="spell.mechanics_reviewed === false || !castEffects.length" class="rounded border border-amber-500/30 bg-amber-500/10 p-3">
             <p class="font-cinzel text-xs font-semibold text-amber-500">Manual resolution required</p>
-            <p class="font-fell text-sm text-muted-foreground">This imported spell has not been mechanically reviewed, so Grimoire will not present its partial data as authoritative automation.</p>
+            <p class="text-body text-muted-foreground">This imported spell has not been mechanically reviewed, so Grimoire will not present its partial data as authoritative automation.</p>
           </div>
 
           <template v-else>
@@ -24,8 +24,8 @@
 
             <div class="space-y-2">
               <div v-for="target in targets" :key="target.id" class="grid grid-cols-[1fr_auto] gap-2">
-                <input v-model="target.name" :aria-label="`Target ${target.id} name`" class="min-w-0 rounded border border-border bg-background px-2 py-1.5 font-fell text-sm" :placeholder="`Target ${target.id}`" />
-                <select v-if="outcomeOptions.length > 1" v-model="target.outcome" :aria-label="`Target ${target.id} outcome`" class="rounded border border-border bg-background px-2 py-1.5 font-fell text-sm">
+                <input v-model="target.name" :aria-label="`Target ${target.id} name`" class="min-w-0 rounded border border-border bg-background px-2 py-1.5 text-body" :placeholder="`Target ${target.id}`" />
+                <select v-if="outcomeOptions.length > 1" v-model="target.outcome" :aria-label="`Target ${target.id} outcome`" class="rounded border border-border bg-background px-2 py-1.5 text-body">
                   <option v-for="option in outcomeOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
                 </select>
               </div>
@@ -41,10 +41,10 @@
               >{{ phaseLabel(phase) }}</button>
             </div>
 
-            <div class="rounded border border-border bg-muted/20 p-3 font-fell text-sm text-muted-foreground">
+            <div class="rounded border border-border bg-muted/20 p-3 text-body text-muted-foreground">
               {{ phaseSummary }}
             </div>
-            <ul v-if="reminders.length" class="list-disc space-y-1 pl-5 font-fell text-sm text-violet-400">
+            <ul v-if="reminders.length" class="list-disc space-y-1 pl-5 text-body text-violet-400">
               <li v-for="reminder in reminders" :key="reminder">{{ reminder }}</li>
             </ul>
 

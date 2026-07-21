@@ -42,7 +42,7 @@
           {{ level.label }}
         </button>
       </div>
-      <span class="font-fell text-xs text-foreground flex-1">{{ skill.label }}</span>
+      <span class="text-caption text-foreground flex-1">{{ skill.label }}</span>
       <span class="font-cinzel text-2xs text-muted-foreground shrink-0">
         {{ skillBonus(skill.key, skill.ability) }}
       </span>

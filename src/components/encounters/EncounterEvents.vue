@@ -20,16 +20,16 @@
 
         <!-- Inline edit form -->
         <div v-if="editingEventId === event.id" class="flex flex-col gap-2 rounded-md border border-primary/30 bg-primary/5 p-3">
-          <input v-model="editEventData.name" type="text" placeholder="Event name…" class="w-full bg-card border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+          <input v-model="editEventData.name" type="text" placeholder="Event name…" class="w-full bg-card border border-border rounded px-2 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
           <div class="flex flex-col gap-1">
             <label class="text-label font-semibold text-muted-foreground">TRIGGER</label>
-            <select v-model="editEventData.triggerType" class="w-full bg-card border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+            <select v-model="editEventData.triggerType" class="w-full bg-card border border-border rounded px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
               <option value="round_start">Round Start</option>
               <option value="combatant_hp_pct">HP Threshold</option>
               <option value="combatant_dies">On Death</option>
               <option value="manual">Manual Only</option>
             </select>
-            <input v-if="editEventData.triggerType === 'round_start'" v-model.number="editEventData.round" type="number" min="1" placeholder="Round number" class="w-full bg-card border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+            <input v-if="editEventData.triggerType === 'round_start'" v-model.number="editEventData.round" type="number" min="1" placeholder="Round number" class="w-full bg-card border border-border rounded px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
             <template v-if="editEventData.triggerType === 'combatant_hp_pct' || editEventData.triggerType === 'combatant_dies'">
               <EntityCombobox
                 :model-value="editEventData.combatant_def_id"
@@ -38,14 +38,14 @@
                 @update:model-value="editEventData.combatant_def_id = $event"
               />
               <div v-if="editEventData.triggerType === 'combatant_hp_pct'" class="flex items-center gap-2">
-                <input v-model.number="editEventData.pct" type="number" min="1" max="99" class="w-20 bg-card border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+                <input v-model.number="editEventData.pct" type="number" min="1" max="99" class="w-20 bg-card border border-border rounded px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
                 <span class="font-cinzel text-xs text-muted-foreground">% HP or below</span>
               </div>
             </template>
           </div>
           <div class="flex flex-col gap-1">
             <label class="text-label font-semibold text-muted-foreground">ACTION</label>
-            <select v-model="editEventData.actionType" class="w-full bg-card border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+            <select v-model="editEventData.actionType" class="w-full bg-card border border-border rounded px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
               <option value="spawn_combatants">Spawn Combatants</option>
               <option value="broadcast_message">Broadcast Message</option>
             </select>
@@ -70,7 +70,7 @@
                 />
               </div>
             </template>
-            <input v-if="editEventData.actionType === 'broadcast_message'" v-model="editEventData.message" type="text" placeholder="Message to broadcast…" class="w-full bg-card border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+            <input v-if="editEventData.actionType === 'broadcast_message'" v-model="editEventData.message" type="text" placeholder="Message to broadcast…" class="w-full bg-card border border-border rounded px-2 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
           </div>
           <div class="flex items-center gap-3">
             <label class="flex items-center gap-1.5 cursor-pointer">
@@ -82,7 +82,7 @@
               <span class="font-cinzel text-xs text-muted-foreground">Show to players</span>
             </label>
           </div>
-          <p v-if="editEventError" class="font-fell text-xs text-destructive">{{ editEventError }}</p>
+          <p v-if="editEventError" class="text-caption text-destructive">{{ editEventError }}</p>
           <div class="flex gap-2 justify-end pt-1">
             <button type="button" class="font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5" @click="cancelEditEvent">Cancel</button>
             <button type="button" class="font-cinzel text-xs font-semibold text-primary-foreground bg-primary px-3 py-1.5 rounded hover:opacity-90 transition-opacity" @click="saveEditEvent">Save</button>
@@ -93,7 +93,7 @@
         <div v-else class="flex items-center gap-1.5 rounded-md border border-border bg-muted/30 px-2.5 py-2">
           <div class="flex-1 min-w-0">
             <div class="font-cinzel text-xs font-semibold text-foreground truncate">{{ event.name }}</div>
-            <div class="font-fell text-xs text-muted-foreground mt-0.5 truncate">{{ eventSummary(event) }}</div>
+            <div class="text-caption text-muted-foreground mt-0.5 truncate">{{ eventSummary(event) }}</div>
           </div>
           <span v-if="!event.fire_once" class="shrink-0 font-cinzel text-[0.5625rem] px-1 py-0.5 rounded bg-primary/10 text-primary" title="Repeating">∞</span>
           <button
@@ -116,22 +116,22 @@
 
       </template>
 
-      <p v-if="!localEvents.length && !showEventForm" class="font-fell text-xs text-muted-foreground italic px-1 py-0.5">
+      <p v-if="!localEvents.length && !showEventForm" class="text-caption text-muted-foreground italic px-1 py-0.5">
         No events configured.
       </p>
 
       <!-- Add event form -->
       <div v-if="showEventForm" class="flex flex-col gap-2 rounded-md border border-primary/30 bg-primary/5 p-3">
-        <input v-model="newEvent.name" type="text" placeholder="Event name…" class="w-full bg-card border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+        <input v-model="newEvent.name" type="text" placeholder="Event name…" class="w-full bg-card border border-border rounded px-2 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
         <div class="flex flex-col gap-1">
           <label class="text-label font-semibold text-muted-foreground">TRIGGER</label>
-          <select v-model="newEvent.triggerType" class="w-full bg-card border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+          <select v-model="newEvent.triggerType" class="w-full bg-card border border-border rounded px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
             <option value="round_start">Round Start</option>
             <option value="combatant_hp_pct">HP Threshold</option>
             <option value="combatant_dies">On Death</option>
             <option value="manual">Manual Only</option>
           </select>
-          <input v-if="newEvent.triggerType === 'round_start'" v-model.number="newEvent.round" type="number" min="1" placeholder="Round number" class="w-full bg-card border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+          <input v-if="newEvent.triggerType === 'round_start'" v-model.number="newEvent.round" type="number" min="1" placeholder="Round number" class="w-full bg-card border border-border rounded px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
           <template v-if="newEvent.triggerType === 'combatant_hp_pct' || newEvent.triggerType === 'combatant_dies'">
             <EntityCombobox
               :model-value="newEvent.combatant_def_id"
@@ -140,14 +140,14 @@
               @update:model-value="newEvent.combatant_def_id = $event"
             />
             <div v-if="newEvent.triggerType === 'combatant_hp_pct'" class="flex items-center gap-2">
-              <input v-model.number="newEvent.pct" type="number" min="1" max="99" class="w-20 bg-card border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+              <input v-model.number="newEvent.pct" type="number" min="1" max="99" class="w-20 bg-card border border-border rounded px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
               <span class="font-cinzel text-xs text-muted-foreground">% HP or below</span>
             </div>
           </template>
         </div>
         <div class="flex flex-col gap-1">
           <label class="text-label font-semibold text-muted-foreground">ACTION</label>
-          <select v-model="newEvent.actionType" class="w-full bg-card border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+          <select v-model="newEvent.actionType" class="w-full bg-card border border-border rounded px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
             <option value="spawn_combatants">Spawn Combatants</option>
             <option value="broadcast_message">Broadcast Message</option>
           </select>
@@ -172,7 +172,7 @@
               />
             </div>
           </template>
-          <input v-if="newEvent.actionType === 'broadcast_message'" v-model="newEvent.message" type="text" placeholder="Message to broadcast to players…" class="w-full bg-card border border-border rounded px-2 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+          <input v-if="newEvent.actionType === 'broadcast_message'" v-model="newEvent.message" type="text" placeholder="Message to broadcast to players…" class="w-full bg-card border border-border rounded px-2 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
         </div>
         <div class="flex items-center gap-3">
           <label class="flex items-center gap-1.5 cursor-pointer">
@@ -184,7 +184,7 @@
             <span class="font-cinzel text-xs text-muted-foreground">Show to players</span>
           </label>
         </div>
-        <p v-if="eventFormError" class="font-fell text-xs text-destructive">{{ eventFormError }}</p>
+        <p v-if="eventFormError" class="text-caption text-destructive">{{ eventFormError }}</p>
         <div class="flex gap-2 justify-end pt-1">
           <button type="button" class="font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5" @click="showEventForm = false; eventFormError = ''">Cancel</button>
           <button type="button" class="font-cinzel text-xs font-semibold text-primary-foreground bg-primary px-3 py-1.5 rounded hover:opacity-90 transition-opacity" @click="addEvent">Add Event</button>

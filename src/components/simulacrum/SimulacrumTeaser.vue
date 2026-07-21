@@ -5,7 +5,7 @@
   >
     <template #icon><VitruvianIcon class="text-6xl" label="Simulacrum" /></template>
     <template #action>
-      <p v-if="interestQuery.data.value" class="font-fell text-sm text-primary">
+      <p v-if="interestQuery.data.value" class="text-body text-primary">
         Your sigil is inscribed — you will be told when the ritual is ready.
       </p>
       <button

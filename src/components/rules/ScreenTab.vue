@@ -57,7 +57,7 @@
               </tbody>
             </table>
           </div>
-          <p v-if="table.note" class="px-4 py-2.5 font-fell text-xs text-muted-foreground italic border-t border-border/50">
+          <p v-if="table.note" class="px-4 py-2.5 text-caption text-muted-foreground italic border-t border-border/50">
             {{ table.note }}
           </p>
         </div>

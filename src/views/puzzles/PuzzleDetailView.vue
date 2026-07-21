@@ -205,7 +205,7 @@
                 <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Type</label>
                 <select
                   v-model="form.puzzle_type"
-                  class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                  class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 >
                   <option v-for="t in PUZZLE_TYPES" :key="t" :value="t">{{ t }}</option>
                 </select>
@@ -214,7 +214,7 @@
                 <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Difficulty</label>
                 <select
                   v-model="form.difficulty"
-                  class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                  class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 >
                   <option v-for="d in PUZZLE_DIFFICULTIES" :key="d" :value="d">{{ d }}</option>
                 </select>

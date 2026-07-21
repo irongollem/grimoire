@@ -4,7 +4,7 @@
       <ul class="space-y-1">
         <li v-for="feat in features" :key="featureName(feat)" class="space-y-1">
           <button
-            class="flex items-start gap-2 font-fell text-sm text-foreground w-full text-left"
+            class="flex items-start gap-2 text-body text-foreground w-full text-left"
             :class="featureDescription(feat) ? 'cursor-pointer' : 'cursor-default'"
             @click="featureDescription(feat) && emit('toggleFeature', featureName(feat))"
           >
@@ -26,12 +26,12 @@
       </ul>
     </template>
     <template v-else-if="hasClassData">
-      <p class="font-fell text-sm text-muted-foreground italic">
+      <p class="text-body text-muted-foreground italic">
         Class feature details coming soon — check the class description for level {{ nextLevel }} features.
       </p>
     </template>
     <template v-else>
-      <p class="font-fell text-sm text-muted-foreground italic">
+      <p class="text-body text-muted-foreground italic">
         No class-specific feature data available yet for {{ className }}.
       </p>
     </template>

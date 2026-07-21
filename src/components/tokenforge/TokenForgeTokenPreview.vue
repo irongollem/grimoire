@@ -49,7 +49,7 @@
     <!-- VTT hint -->
     <div class="rounded-md bg-muted/40 border border-border px-3 py-2.5 flex gap-2.5 items-start">
       <IconInfo class="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
-      <p class="font-fell text-xs text-muted-foreground leading-relaxed">
+      <p class="text-caption text-muted-foreground leading-relaxed">
         Upload the PNG to your VTT — <strong>Roll20</strong>: My Library → Upload,
         <strong>Foundry VTT</strong>: Filepicker → Upload, <strong>Owlbear Rodeo</strong>: Image drop.
         280px is standard 1×1 grid size; use 512px for large/huge creatures.

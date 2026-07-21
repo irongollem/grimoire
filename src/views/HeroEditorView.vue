@@ -21,7 +21,7 @@
       <div class="flex items-center justify-between gap-4">
         <RouterLink
           to="/hall-of-heroes"
-          class="font-fell text-sm text-muted-foreground hover:text-foreground transition-colors"
+          class="text-body text-muted-foreground hover:text-foreground transition-colors"
         >
           ← Hall of Heroes
         </RouterLink>

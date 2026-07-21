@@ -45,12 +45,12 @@
       </div>
       <div class="flex-1 min-w-0">
         <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ e.name }}</p>
-        <p class="font-fell text-xs text-muted-foreground truncate">{{ e.subtitle }}</p>
+        <p class="text-caption text-muted-foreground truncate">{{ e.subtitle }}</p>
       </div>
       <span v-if="!e.imageUrl" class="font-cinzel text-[0.5625rem] text-muted-foreground/40 tracking-wider shrink-0">No art</span>
     </button>
 
-    <p v-if="entities.length === 0 && sourceTab !== 'custom'" class="font-fell text-sm text-muted-foreground italic px-2 py-4">
+    <p v-if="entities.length === 0 && sourceTab !== 'custom'" class="text-body text-muted-foreground italic px-2 py-4">
       No {{ emptyLabel }} yet.
     </p>
   </div>

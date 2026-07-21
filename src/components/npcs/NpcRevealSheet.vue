@@ -14,7 +14,7 @@
       <!-- Whole party -->
       <button
         type="button"
-        class="flex w-full items-center gap-2.5 rounded-lg px-3 py-3 text-left font-fell text-sm transition-colors"
+        class="flex w-full items-center gap-2.5 rounded-lg px-3 py-3 text-left text-body transition-colors"
         :class="wholePartyShared
           ? 'bg-primary/15 text-primary'
           : 'text-foreground active:bg-muted/50'"
@@ -29,7 +29,7 @@
         v-for="member in party"
         :key="member.id"
         type="button"
-        class="flex w-full items-center gap-2.5 rounded-lg px-3 py-3 text-left font-fell text-sm transition-colors"
+        class="flex w-full items-center gap-2.5 rounded-lg px-3 py-3 text-left text-body transition-colors"
         :class="isMemberVisible(member.id)
           ? 'bg-primary/15 text-primary'
           : 'text-muted-foreground active:bg-muted/50'"
@@ -42,7 +42,7 @@
         {{ member.name }}
       </button>
 
-      <p v-if="!party?.length" class="px-3 py-3 font-fell text-sm italic text-muted-foreground">
+      <p v-if="!party?.length" class="px-3 py-3 text-body italic text-muted-foreground">
         No party members to share with yet.
       </p>
 
@@ -55,7 +55,7 @@
           <label
             v-for="f in NPC_PLAYER_FIELDS"
             :key="f.key"
-            class="flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 font-fell text-sm transition-colors"
+            class="flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-body transition-colors"
             :class="[
               isFieldVisible(f.key) ? 'border-primary/50 bg-primary/10 text-primary' : 'text-foreground',
               !shared && 'pointer-events-none opacity-40',
@@ -71,7 +71,7 @@
             {{ f.label }}
           </label>
         </div>
-        <p v-if="!shared" class="px-1 pt-2 font-fell text-xs italic text-muted-foreground">
+        <p v-if="!shared" class="px-1 pt-2 text-caption italic text-muted-foreground">
           Select at least one player to choose what they see.
         </p>
       </div>

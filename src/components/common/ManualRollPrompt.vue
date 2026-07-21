@@ -21,7 +21,7 @@
             >
               Enter your dice roll
             </h2>
-            <p class="mt-1 font-fell text-sm text-muted-foreground leading-snug">
+            <p class="mt-1 text-body text-muted-foreground leading-snug">
               {{ pending.label }} — roll your physical dice and enter the result{{
                 totalDice > 1 ? "s" : ""
               }}.
@@ -59,12 +59,12 @@
               </span>
             </div>
 
-            <div v-if="pending.modifier !== 0" class="pt-1 text-xs text-muted-foreground font-fell">
+            <div v-if="pending.modifier !== 0" class="pt-1 text-caption text-muted-foreground">
               Modifier: <span class="font-semibold text-foreground">{{
                 pending.modifier > 0 ? `+${pending.modifier}` : pending.modifier
               }}</span>
             </div>
-            <div class="text-xs text-muted-foreground font-fell">
+            <div class="text-caption text-muted-foreground">
               Running total:
               <span class="font-semibold text-foreground">{{ runningTotal }}</span>
               <span v-if="!allFilled" class="italic"> (incomplete)</span>

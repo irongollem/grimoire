@@ -5,13 +5,13 @@
       <div class="flex items-center gap-1 shrink-0">
         <button
           title="Previous year"
-          class="rounded-md border border-border px-2 py-1.5 font-fell text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+          class="rounded-md border border-border px-2 py-1.5 text-body text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
           @click="calendar.goToYear(calendar.currentYear - 1)"
         >
           ◀◀
         </button>
         <button
-          class="rounded-md border border-border px-2 py-1.5 font-fell text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+          class="rounded-md border border-border px-2 py-1.5 text-body text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
           @click="calendar.prevMonth()"
         >
           ← <span class="hidden sm:inline">Previous</span>
@@ -23,21 +23,21 @@
           {{ currentMonth.name }}
         </p>
         <div class="flex items-center justify-center gap-1 mt-0.5 flex-wrap">
-          <p v-if="currentMonth.alias" class="font-fell text-xs md:text-sm text-muted-foreground italic">
+          <p v-if="currentMonth.alias" class="text-caption md:text-sm text-muted-foreground italic">
             {{ currentMonth.alias }} ·
           </p>
           <input
             v-if="!readOnly"
             :value="calendar.currentYear"
             type="number"
-            class="w-16 md:w-20 bg-transparent border-b border-border text-center font-fell text-xs md:text-sm text-muted-foreground italic focus:outline-none focus:border-primary"
+            class="w-16 md:w-20 bg-transparent border-b border-border text-center text-caption md:text-sm text-muted-foreground italic focus:outline-none focus:border-primary"
             @change="onYearInput"
           />
           <span
             v-else
-            class="font-fell text-xs md:text-sm text-muted-foreground italic"
+            class="text-caption md:text-sm text-muted-foreground italic"
           >{{ calendar.currentYear }}</span>
-          <p class="font-fell text-xs md:text-sm text-muted-foreground italic">
+          <p class="text-caption md:text-sm text-muted-foreground italic">
             {{ calendar.adapter.epochName }}
           </p>
         </div>
@@ -45,14 +45,14 @@
 
       <div class="flex items-center gap-1 shrink-0">
         <button
-          class="rounded-md border border-border px-2 py-1.5 font-fell text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+          class="rounded-md border border-border px-2 py-1.5 text-body text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
           @click="calendar.nextMonth()"
         >
           <span class="hidden sm:inline">Next</span> →
         </button>
         <button
           title="Next year"
-          class="rounded-md border border-border px-2 py-1.5 font-fell text-sm text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+          class="rounded-md border border-border px-2 py-1.5 text-body text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
           @click="calendar.goToYear(calendar.currentYear + 1)"
         >
           ▶▶
@@ -139,11 +139,11 @@
           <span class="font-cinzel text-sm font-bold text-gold-400 tracking-wider">
             {{ festival.name }}
           </span>
-          <span v-if="festival.isLeapOnly" class="font-fell text-xs text-muted-foreground italic">
+          <span v-if="festival.isLeapOnly" class="text-caption text-muted-foreground italic">
             (leap year)
           </span>
         </div>
-        <p class="font-fell text-sm text-muted-foreground italic">
+        <p class="text-body text-muted-foreground italic">
           {{ festival.description }}
         </p>
         <!-- Festival events -->
@@ -152,7 +152,7 @@
             v-for="event in eventsForFestival(festival.name)"
             :key="event.id"
             :style="{ borderColor: eventColor(event), color: eventColor(event) }"
-            class="inline-flex items-center gap-1 border rounded px-1.5 py-0.5 font-fell text-xs"
+            class="inline-flex items-center gap-1 border rounded px-1.5 py-0.5 text-caption"
           >
             <span :style="{ backgroundColor: eventColor(event) }" class="w-1.5 h-1.5 rounded-full" />
             {{ event.title }}
@@ -184,8 +184,8 @@
               v-if="entityIcon(event)"
               class="h-3.5 w-3.5 text-muted-foreground shrink-0"
             />
-            <span class="font-fell text-sm text-foreground flex-1 truncate">{{ event.title }}</span>
-            <span class="font-fell text-xs text-muted-foreground italic shrink-0">
+            <span class="text-body text-foreground flex-1 truncate">{{ event.title }}</span>
+            <span class="text-caption text-muted-foreground italic shrink-0">
               {{ formatEventDate(event) }}
             </span>
             <span class="hidden md:inline text-label-lg text-muted-foreground/40 uppercase shrink-0">
@@ -196,7 +196,7 @@
       </div>
 
       <div v-else-if="!isLoading" class="mt-6">
-        <p class="font-fell text-sm text-muted-foreground italic text-center">
+        <p class="text-body text-muted-foreground italic text-center">
           No events recorded for {{ currentMonth.name }}, {{ calendar.currentYear }}
           {{ calendar.adapter.epochName }}.
         </p>

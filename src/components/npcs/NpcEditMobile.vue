@@ -21,7 +21,7 @@
     >
       <button
         type="button"
-        class="shrink-0 rounded-md px-2 py-2 font-fell text-sm text-muted-foreground active:text-foreground"
+        class="shrink-0 rounded-md px-2 py-2 text-body text-muted-foreground active:text-foreground"
         @click="emit('cancel')"
       >
         Cancel
@@ -171,7 +171,7 @@
               class="size-4 rounded border-border accent-primary"
               @change="emit('update:hasStatBlock', ($event.target as HTMLInputElement).checked)"
             />
-            <span class="font-fell text-sm text-foreground">Include</span>
+            <span class="text-body text-foreground">Include</span>
           </label>
         </div>
 
@@ -203,7 +203,7 @@
               <RouterLink
                 v-if="form.linked_monster_id"
                 :to="`/monsters/${form.linked_monster_id}`"
-                class="mt-1 inline-block font-fell text-xs text-primary hover:underline"
+                class="mt-1 inline-block text-caption text-primary hover:underline"
               >
                 View in Bestiary →
               </RouterLink>
@@ -245,14 +245,14 @@
       <button
         v-if="isAiEnabled"
         type="button"
-        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left font-fell text-sm text-foreground active:bg-muted/50"
+        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-body text-foreground active:bg-muted/50"
         @click="runAction('generate')"
       >
         <IconGenerate class="size-4 shrink-0 text-primary" /> Generate with AI
       </button>
       <button
         type="button"
-        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left font-fell text-sm text-foreground active:bg-muted/50 disabled:opacity-50"
+        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-body text-foreground active:bg-muted/50 disabled:opacity-50"
         :disabled="isSendingToScriptorium"
         @click="runAction('scriptorium')"
       >
@@ -261,7 +261,7 @@
       </button>
       <button
         type="button"
-        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left font-fell text-sm text-destructive active:bg-destructive/10"
+        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-body text-destructive active:bg-destructive/10"
         @click="runAction('delete')"
       >
         <IconDelete class="size-4 shrink-0" /> Delete NPC

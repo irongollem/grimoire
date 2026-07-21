@@ -8,7 +8,7 @@
           v-model="search"
           type="text"
           placeholder="Search manual…"
-          class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
 
@@ -16,11 +16,11 @@
         <button
           v-for="page in searchResults"
           :key="page.id"
-          class="text-left px-2.5 py-1.5 rounded-md font-fell text-sm transition-colors"
+          class="text-left px-2.5 py-1.5 rounded-md text-body transition-colors"
           :class="selectedId === page.id ? 'bg-primary/10 text-primary font-semibold' : 'text-foreground hover:bg-muted/60'"
           @click="selectPage(page.id)"
         >{{ page.title }}</button>
-        <p v-if="!searchResults.length" class="font-fell text-xs text-muted-foreground italic px-1">No matches.</p>
+        <p v-if="!searchResults.length" class="text-caption text-muted-foreground italic px-1">No matches.</p>
       </template>
 
       <template v-else>
@@ -31,7 +31,7 @@
           <button
             v-for="page in section.pages"
             :key="page.id"
-            class="w-full text-left px-2.5 py-1.5 rounded-md font-fell text-sm transition-colors"
+            class="w-full text-left px-2.5 py-1.5 rounded-md text-body transition-colors"
             :class="selectedId === page.id ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'"
             @click="selectPage(page.id)"
           >{{ page.title }}</button>
@@ -48,12 +48,12 @@
             {{ selectedSection?.title }}
           </p>
           <h2 class="font-cinzel text-xl font-bold text-foreground">{{ selectedPage.title }}</h2>
-          <p v-if="selectedPage.summary" class="font-fell text-sm text-muted-foreground italic mt-1">
+          <p v-if="selectedPage.summary" class="text-body text-muted-foreground italic mt-1">
             {{ selectedPage.summary }}
           </p>
         </div>
         <div
-          class="manual-content font-fell text-sm text-foreground leading-relaxed"
+          class="manual-content text-body text-foreground leading-relaxed"
           v-html="selectedPage.html"
         />
       </div>
@@ -64,7 +64,7 @@
           <IconBookMarked class="h-10 w-10 text-primary/60 mx-auto" />
           <div>
             <h3 class="font-cinzel text-base font-bold text-foreground">New to Grimoire?</h3>
-            <p class="font-fell text-sm text-muted-foreground mt-1">
+            <p class="text-body text-muted-foreground mt-1">
               The DM Manual walks you through every feature — from setting up your first campaign to running live combat.
             </p>
           </div>

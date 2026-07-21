@@ -1,6 +1,6 @@
 <template>
   <div class="flex flex-col gap-4">
-    <p class="font-fell text-sm text-muted-foreground">
+    <p class="text-body text-muted-foreground">
       Toggle which species are available when creating party members. Disabled species are hidden from the race picker.
       Campaign-only species (marked exclusively for this campaign) are always available here.
     </p>
@@ -20,7 +20,7 @@
           <div class="h-4 w-4 shrink-0 flex items-center justify-center">
             <div class="h-2 w-2 rounded-full bg-primary/60" />
           </div>
-          <span class="font-fell text-sm text-foreground flex-1">{{ sp.name }}</span>
+          <span class="text-body text-foreground flex-1">{{ sp.name }}</span>
           <span class="text-label text-primary/60 shrink-0">campaign-only</span>
         </div>
       </div>
@@ -43,7 +43,7 @@
             class="h-4 w-4 rounded border-border bg-background shrink-0"
             @change="toggle(sp.id)"
           />
-          <span class="font-fell text-sm text-foreground flex-1">{{ sp.name }}</span>
+          <span class="text-body text-foreground flex-1">{{ sp.name }}</span>
           <span
             v-if="disabled.has(sp.id)"
             class="text-label text-muted-foreground/60 shrink-0"
@@ -53,7 +53,7 @@
     </div>
 
     <div v-if="disabled.size > 0" class="flex items-center justify-between">
-      <p class="font-fell text-xs text-muted-foreground italic">
+      <p class="text-caption text-muted-foreground italic">
         {{ disabled.size }} species hidden from party member picker.
       </p>
       <button
@@ -65,7 +65,7 @@
       </button>
     </div>
 
-    <p v-if="universalSpecies.length === 0 && campaignSpecies.length === 0" class="font-fell text-sm text-muted-foreground italic">
+    <p v-if="universalSpecies.length === 0 && campaignSpecies.length === 0" class="text-body text-muted-foreground italic">
       No species found. Create some in the Species codex first.
     </p>
   </div>

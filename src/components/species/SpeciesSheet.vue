@@ -53,7 +53,7 @@
               class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5"
             >{{ pill }}</span>
           </div>
-          <p v-if="asiText" class="font-fell text-sm text-muted-foreground">{{ asiText }}</p>
+          <p v-if="asiText" class="text-body text-muted-foreground">{{ asiText }}</p>
           <div v-if="species.languages.length" class="flex flex-wrap gap-1 mt-0.5">
             <span class="text-label text-muted-foreground self-center">Lang:</span>
             <span
@@ -94,7 +94,7 @@
           <span class="inline-block text-label font-semibold bg-primary/10 text-primary rounded px-2 py-0.5 mb-1">
             {{ trait.name }}
           </span>
-          <RichTextViewer :content="trait.description" class="font-fell text-sm" />
+          <RichTextViewer :content="trait.description" class="text-body" />
         </div>
       </div>
     </div>
@@ -107,7 +107,7 @@
       <div class="p-4 flex flex-col gap-5">
         <div v-for="sub in species.subraces" :key="sub.name">
           <h3 class="font-cinzel text-sm font-bold text-foreground mb-1">{{ sub.name }}</h3>
-          <p v-if="asiToString(sub.ability_score_increases ?? null)" class="font-fell text-sm text-muted-foreground mb-2">
+          <p v-if="asiToString(sub.ability_score_increases ?? null)" class="text-body text-muted-foreground mb-2">
             {{ asiToString(sub.ability_score_increases ?? null) }}
           </p>
           <RichTextViewer v-if="sub.description" :content="sub.description" class="mb-2" />
@@ -116,7 +116,7 @@
               <span class="inline-block text-label font-semibold bg-muted/40 text-muted-foreground rounded px-2 py-0.5 mb-0.5">
                 {{ trait.name }}
               </span>
-              <RichTextViewer :content="trait.description" class="font-fell text-sm" />
+              <RichTextViewer :content="trait.description" class="text-body" />
             </div>
           </div>
         </div>

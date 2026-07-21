@@ -226,7 +226,7 @@
           <span class="font-cinzel text-xs text-foreground">{{ child.name }}</span>
           <span
             v-if="child.parent_chain?.length"
-            class="font-fell text-2xs text-muted-foreground italic"
+            class="text-caption-sm text-muted-foreground italic"
           >
             · {{ child.parent_chain.join(" › ") }}
           </span>

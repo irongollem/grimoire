@@ -2,13 +2,13 @@
   <div class="flex min-h-screen items-center justify-center bg-background">
     <div class="text-center space-y-3">
       <LoadingSpinner />
-      <p class="font-fell text-sm text-muted-foreground italic">
+      <p class="text-body text-muted-foreground italic">
         {{ error ? error : "Connecting to Spotify…" }}
       </p>
       <RouterLink
         v-if="error"
         to="/soundboard"
-        class="font-fell text-xs text-gold-400 hover:text-gold-300 transition-colors"
+        class="text-caption text-gold-400 hover:text-gold-300 transition-colors"
       >
         Back to Soundboard
       </RouterLink>

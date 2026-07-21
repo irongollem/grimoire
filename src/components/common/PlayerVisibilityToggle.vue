@@ -38,7 +38,7 @@
           All players
           <span
             v-if="allSelected"
-            class="ml-auto font-fell text-2xs font-normal normal-case text-primary/70"
+            class="ml-auto text-caption-sm font-normal normal-case text-primary/70"
           >on</span>
         </button>
       </div>
@@ -50,7 +50,7 @@
           v-for="member in party"
           :key="member.id"
           type="button"
-          class="w-full flex items-center gap-2 rounded px-2 py-1 text-left font-fell text-xs transition-colors"
+          class="w-full flex items-center gap-2 rounded px-2 py-1 text-left text-caption transition-colors"
           :class="isMemberSelected(member.id)
             ? 'bg-primary/10 text-primary'
             : 'text-foreground hover:bg-muted'"

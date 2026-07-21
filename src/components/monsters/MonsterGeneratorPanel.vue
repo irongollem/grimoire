@@ -32,7 +32,7 @@
             v-model="concept"
             rows="4"
             placeholder="A colossal spider deity that dwells in the Underdark, commanding its cultists through webs of illusion and dreams…"
-            class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+            class="w-full bg-muted border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
           />
         </div>
 
@@ -46,30 +46,30 @@
           </p>
 
           <div>
-            <label class="block font-fell text-xs text-muted-foreground mb-1">Challenge Rating</label>
+            <label class="block text-caption text-muted-foreground mb-1">Challenge Rating</label>
             <input
               v-model="constraints.challenge_rating"
               placeholder="e.g. 5, 1/2, 1/4"
-              class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
 
           <div class="grid grid-cols-2 gap-2">
             <div>
-              <label class="block font-fell text-xs text-muted-foreground mb-1">Monster Type</label>
+              <label class="block text-caption text-muted-foreground mb-1">Monster Type</label>
               <select
                 v-model="constraints.monster_type"
-                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 <option value="">Any</option>
                 <option v-for="t in MONSTER_TYPES" :key="t" :value="t" class="capitalize">{{ t }}</option>
               </select>
             </div>
             <div>
-              <label class="block font-fell text-xs text-muted-foreground mb-1">Size</label>
+              <label class="block text-caption text-muted-foreground mb-1">Size</label>
               <select
                 v-model="constraints.size"
-                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 <option value="">Any</option>
                 <option v-for="s in SIZES" :key="s" :value="s" class="capitalize">{{ s }}</option>
@@ -80,7 +80,7 @@
 
         <!-- Image generation toggle -->
         <div v-if="isAiEnabled" class="flex items-center justify-between">
-          <span class="font-fell text-xs text-muted-foreground">Generate portrait art</span>
+          <span class="text-caption text-muted-foreground">Generate portrait art</span>
           <button
             type="button"
             class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none"
@@ -98,10 +98,10 @@
         <!-- Generating state -->
         <div v-else-if="isGenerating" class="flex flex-col items-center gap-3 py-4">
           <IconGenerate class="h-7 w-7 text-primary animate-pulse" />
-          <p class="font-fell text-sm text-muted-foreground italic text-center">{{ currentLoadingQuote }}</p>
+          <p class="text-body text-muted-foreground italic text-center">{{ currentLoadingQuote }}</p>
           <button
             type="button"
-            class="mt-1 font-fell text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+            class="mt-1 text-caption text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
             @click="ui.monsterGeneratorOpen = false"
           >
             Continue in background
@@ -113,7 +113,7 @@
           v-else-if="genError"
           class="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2"
         >
-          <p class="font-fell text-xs text-destructive">{{ genError }}</p>
+          <p class="text-caption text-destructive">{{ genError }}</p>
         </div>
       </div>
 

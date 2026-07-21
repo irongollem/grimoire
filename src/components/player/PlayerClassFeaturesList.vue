@@ -11,7 +11,7 @@
       v-if="Object.keys(group.featuresByLevel).length === 0 && Object.keys(group.subclassFeaturesByLevel).length === 0"
       class="px-4 py-3"
     >
-      <p class="font-fell text-sm text-muted-foreground italic">No class features defined yet.</p>
+      <p class="text-body text-muted-foreground italic">No class features defined yet.</p>
     </div>
 
     <div v-else class="divide-y divide-border">
@@ -27,7 +27,7 @@
             @click="isSpellcasting(featureName(feat)) ? emit('navigate-spells') : featureDescription(feat) && toggleExpanded(`class-${group.class_name}-${lvl}-${featureName(feat)}`)"
           >
             <span class="text-label md:text-sm text-muted-foreground w-10 shrink-0">Lvl {{ lvl }}</span>
-            <span class="font-fell text-sm text-foreground flex-1">{{ featureName(feat) }}</span>
+            <span class="text-body text-foreground flex-1">{{ featureName(feat) }}</span>
             <IconGenerate v-if="isSpellcasting(featureName(feat))" class="h-3 w-3 text-primary/60 shrink-0" />
             <IconChevronDown
               v-else-if="featureDescription(feat)"
@@ -55,7 +55,7 @@
             @click="isSpellcasting(featureName(feat)) ? emit('navigate-spells') : featureDescription(feat) && toggleExpanded(`sub-${group.class_name}-${lvl}-${featureName(feat)}`)"
           >
             <span class="text-label md:text-sm text-muted-foreground w-10 shrink-0">Lvl {{ lvl }}</span>
-            <span class="font-fell text-sm text-foreground flex-1">{{ featureName(feat) }}</span>
+            <span class="text-body text-foreground flex-1">{{ featureName(feat) }}</span>
             <span class="text-label md:text-sm text-primary/60 shrink-0 mr-1">Subclass</span>
             <IconGenerate v-if="isSpellcasting(featureName(feat))" class="h-3 w-3 text-primary/60 shrink-0" />
             <IconChevronDown

@@ -2,7 +2,7 @@
   <div class="flex flex-col gap-4">
     <!-- Identity -->
     <div class="border-b border-primary/30 pb-2">
-      <p class="font-fell text-sm italic text-muted-foreground">
+      <p class="text-body italic text-muted-foreground">
         <span v-if="npc.race">{{ npc.race }}</span>
         <span v-if="npc.race && npc.occupation"> · </span>
         <span v-if="npc.occupation">{{ npc.occupation }}</span>
@@ -44,7 +44,7 @@
         <RichTextViewer :content="npc.notes" />
       </div>
       <p v-if="!npc.appearance && !npc.personality && !npc.backstory && !npc.notes"
-        class="font-fell text-sm text-muted-foreground italic">
+        class="text-body text-muted-foreground italic">
         No lore recorded for this NPC.
       </p>
     </div>
@@ -79,7 +79,7 @@
         <TraitList title="Legendary Actions" :traits="npc.stat_block.legendary_actions" />
         <TraitList title="Lair Actions" :traits="npc.stat_block.lair_actions" />
       </template>
-      <p v-else class="font-fell text-sm text-muted-foreground italic">No stat block defined for this NPC.</p>
+      <p v-else class="text-body text-muted-foreground italic">No stat block defined for this NPC.</p>
     </div>
   </div>
 </template>

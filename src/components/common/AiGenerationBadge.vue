@@ -3,7 +3,7 @@
     <div
       v-for="entry in activePills"
       :key="entry.label"
-      class="pointer-events-auto flex items-center gap-3 px-4 py-2.5 rounded-full shadow-lg border border-border bg-card text-sm font-fell max-w-sm w-max"
+      class="pointer-events-auto flex items-center gap-3 px-4 py-2.5 rounded-full shadow-lg border border-border bg-card text-body max-w-sm w-max"
     >
       <!-- Generating -->
       <template v-if="entry.isGenerating.value">

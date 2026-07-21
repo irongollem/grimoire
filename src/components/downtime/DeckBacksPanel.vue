@@ -132,7 +132,7 @@ async function addBack() {
         <select
           id="deck-back-archetype"
           v-model="activityKey"
-          class="w-full rounded-md border border-border bg-card px-3 py-1.5 font-fell text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full rounded-md border border-border bg-card px-3 py-1.5 text-body focus:outline-none focus:ring-1 focus:ring-ring"
         >
           <option v-for="a in DOWNTIME_ACTIVITIES" :key="a.key" :value="a.key">
             {{ a.title }}
@@ -145,7 +145,7 @@ async function addBack() {
         <select
           id="deck-back-type"
           v-model="rewardType"
-          class="w-full rounded-md border border-border bg-card px-3 py-1.5 font-fell text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full rounded-md border border-border bg-card px-3 py-1.5 text-body focus:outline-none focus:ring-1 focus:ring-ring"
           @change="onRewardTypeChange"
         >
           <option v-for="t in PREP_TYPES" :key="t.value" :value="t.value">

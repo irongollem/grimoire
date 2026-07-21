@@ -39,7 +39,7 @@
       <span
         v-for="tag in note.tags"
         :key="tag"
-        class="px-2 py-0.5 rounded-full bg-muted font-fell text-xs text-muted-foreground"
+        class="px-2 py-0.5 rounded-full bg-muted text-caption text-muted-foreground"
       >
         {{ tag }}
       </span>
@@ -49,7 +49,7 @@
     <div v-if="hasContent(note.content)" class="rounded-lg border border-border bg-card p-4">
       <RichTextViewer :content="note.content!" />
     </div>
-    <p v-else class="font-fell text-sm text-muted-foreground italic">No content yet.</p>
+    <p v-else class="text-body text-muted-foreground italic">No content yet.</p>
   </div>
 </template>
 

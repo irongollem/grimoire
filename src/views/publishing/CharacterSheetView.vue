@@ -44,7 +44,7 @@
 
         <RouterLink
           :to="backRoute"
-          class="font-fell text-sm text-muted-foreground hover:text-foreground transition-colors"
+          class="text-body text-muted-foreground hover:text-foreground transition-colors"
         >
           ← Back
         </RouterLink>

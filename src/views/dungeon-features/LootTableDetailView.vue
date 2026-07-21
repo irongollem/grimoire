@@ -51,7 +51,7 @@
         <!-- ── VIEW MODE ──────────────────────────────────────────────────── -->
         <template v-if="!isNew && !isEditing && table">
           <!-- Description -->
-          <p v-if="table.description" class="font-fell text-sm text-muted-foreground italic">{{ table.description }}</p>
+          <p v-if="table.description" class="text-body text-muted-foreground italic">{{ table.description }}</p>
 
           <!-- CR tier chip -->
           <div class="flex items-center gap-2">
@@ -64,7 +64,7 @@
           <!-- Read-only entry list -->
           <div class="space-y-1.5">
             <h3 class="font-cinzel text-sm font-bold text-foreground">Entries</h3>
-            <div v-if="!table.entries.length" class="rounded-md border border-dashed border-border px-4 py-6 text-center font-fell text-sm text-muted-foreground italic">
+            <div v-if="!table.entries.length" class="rounded-md border border-dashed border-border px-4 py-6 text-center text-body text-muted-foreground italic">
               No entries yet.
             </div>
             <div v-else class="flex flex-col gap-1.5">
@@ -76,7 +76,7 @@
                 <!-- drop % badge -->
                 <span class="shrink-0 text-label font-semibold bg-primary/10 text-primary rounded px-2 py-0.5">{{ entry.drop_chance ?? 100 }}%</span>
                 <template v-if="(entry.type ?? 'item') === 'item'">
-                  <span class="font-fell text-sm text-foreground flex-1 truncate">
+                  <span class="text-body text-foreground flex-1 truncate">
                     {{ itemsById.get(entry.item_id ?? '')?.name ?? entry.item_id ?? '—' }}
                   </span>
                   <span class="font-cinzel text-2xs text-muted-foreground shrink-0">
@@ -84,7 +84,7 @@
                   </span>
                 </template>
                 <template v-else-if="entry.type === 'currency'">
-                  <span class="font-fell text-sm text-foreground flex-1 truncate">
+                  <span class="text-body text-foreground flex-1 truncate">
                     {{ entry.currency_label || 'Currency' }}
                   </span>
                   <span class="font-cinzel text-2xs text-amber-400 shrink-0">
@@ -92,7 +92,7 @@
                   </span>
                 </template>
                 <template v-else>
-                  <span class="font-fell text-sm text-foreground flex-1 truncate">
+                  <span class="text-body text-foreground flex-1 truncate">
                     Random {{ entry.rarity ? ITEM_RARITY_LABELS[entry.rarity as keyof typeof ITEM_RARITY_LABELS] : '' }}{{ entry.item_type_filter ? ` ${ITEM_TYPE_LABELS[entry.item_type_filter as keyof typeof ITEM_TYPE_LABELS]}` : '' }}
                   </span>
                   <span class="font-cinzel text-2xs text-muted-foreground shrink-0">
@@ -128,7 +128,7 @@
           </div>
 
           <!-- DM notes -->
-          <p v-if="table.notes" class="font-fell text-sm text-muted-foreground italic border-t border-border pt-3">{{ table.notes }}</p>
+          <p v-if="table.notes" class="text-body text-muted-foreground italic border-t border-border pt-3">{{ table.notes }}</p>
         </template>
 
         <!-- ── EDIT MODE ───────────────────────────────────────────────── -->
@@ -147,7 +147,7 @@
             <label class="text-eyebrow font-semibold text-muted-foreground">CR Tier</label>
             <select
               v-model="form.cr_tier"
-              class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-full bg-card border border-border rounded-md px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             >
               <option v-for="t in LOOT_CR_TIERS" :key="t" :value="t">{{ LOOT_CR_TIER_LABELS[t] }}</option>
             </select>
@@ -160,7 +160,7 @@
             v-model="form.description"
             rows="2"
             placeholder="When + where this hoard appears"
-            class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+            class="w-full bg-card border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
           />
         </div>
 
@@ -207,7 +207,7 @@
             v-model="form.notes"
             rows="3"
             placeholder="When to roll, special rules"
-            class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+            class="w-full bg-card border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
           />
         </div>
         </template><!-- end edit mode -->
@@ -234,28 +234,28 @@
               <li v-for="r in lastRoll" :key="r.entry_id" class="flex items-center gap-2">
                 <template v-if="r.type === 'item'">
                   <span class="font-cinzel text-sm font-bold text-primary shrink-0 w-7 text-right">{{ r.qty }}×</span>
-                  <span class="font-fell text-sm text-foreground truncate">{{ r.item_name }}</span>
+                  <span class="text-body text-foreground truncate">{{ r.item_name }}</span>
                 </template>
                 <template v-else-if="r.type === 'currency'">
                   <span class="font-cinzel text-sm font-bold text-amber-400 shrink-0 w-7 text-right">💰</span>
-                  <span class="font-fell text-sm text-foreground truncate">
+                  <span class="text-body text-foreground truncate">
                     {{ r.currency_label ? r.currency_label + ': ' : '' }}{{ formatCoinParts(r.pp, r.gp, r.ep, r.sp, r.cp).join(', ') || '0 GP' }}
                   </span>
                 </template>
                 <template v-else-if="r.type === 'unresolved'">
                   <span class="font-cinzel text-sm font-bold text-amber-500 shrink-0 w-7 text-right" title="This entry hit but produced no loot">⚠</span>
-                  <span class="font-fell text-sm text-muted-foreground truncate italic">
+                  <span class="text-body text-muted-foreground truncate italic">
                     {{ r.wanted }} — {{ unresolvedReasonLabel(r.reason) }}
                   </span>
                 </template>
               </li>
             </ul>
-            <p v-else class="font-fell text-xs text-muted-foreground italic">
+            <p v-else class="text-caption text-muted-foreground italic">
               Empty — no entries hit. Better luck next room.
             </p>
           </div>
 
-          <p class="font-fell text-2xs text-muted-foreground italic">
+          <p class="text-caption-sm text-muted-foreground italic">
             {{ form.entries.length }} entries · {{ summaryDropPercent }}% expected hit rate
           </p>
 

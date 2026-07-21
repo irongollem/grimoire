@@ -3,7 +3,7 @@
     <!-- Breadcrumb: full ancestor chain -->
     <div
       v-if="ancestors.length || isNew"
-      class="flex flex-wrap items-center gap-1 text-xs font-fell text-muted-foreground"
+      class="flex flex-wrap items-center gap-1 text-caption text-muted-foreground"
     >
       <RouterLink
         to="/locations"

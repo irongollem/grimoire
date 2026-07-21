@@ -1,6 +1,6 @@
 <template>
   <div class="flex flex-col gap-4">
-    <p class="font-fell text-sm text-muted-foreground">
+    <p class="text-body text-muted-foreground">
       Toggle which classes are available when creating party members. Disabled classes are hidden from the class picker.
       Custom classes are always available.
     </p>
@@ -21,7 +21,7 @@
             class="h-4 w-4 rounded border-border bg-background shrink-0"
             @change="toggle(cls.class_name)"
           />
-          <span class="font-fell text-sm text-foreground flex-1">{{ cls.class_name }}</span>
+          <span class="text-body text-foreground flex-1">{{ cls.class_name }}</span>
           <span
             v-if="disabled.has(cls.class_name)"
             class="text-label text-muted-foreground/60 shrink-0"
@@ -31,7 +31,7 @@
     </div>
 
     <div v-if="disabled.size > 0" class="flex items-center justify-between">
-      <p class="font-fell text-xs text-muted-foreground italic">
+      <p class="text-caption text-muted-foreground italic">
         {{ disabled.size }} class{{ disabled.size === 1 ? '' : 'es' }} hidden from party member picker.
       </p>
       <button

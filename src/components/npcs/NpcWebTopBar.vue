@@ -19,7 +19,7 @@
           :value="searchQuery"
           type="text"
           placeholder="Filter nodes…"
-          class="pl-7 pr-3 py-1.5 rounded-md border border-border bg-card font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring w-36"
+          class="pl-7 pr-3 py-1.5 rounded-md border border-border bg-card text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring w-36"
           @input="$emit('update:searchQuery', ($event.target as HTMLInputElement).value)"
         />
       </div>

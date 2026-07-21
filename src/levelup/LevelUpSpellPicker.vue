@@ -8,7 +8,7 @@
       </span>
     </template>
 
-    <p class="font-fell text-sm text-muted-foreground">
+    <p class="text-body text-muted-foreground">
       Pick {{ needed }} new {{ isCantrip ? 'cantrip' : 'spell' }}{{ needed > 1 ? 's' : '' }} to learn.
     </p>
 
@@ -16,13 +16,13 @@
       :value="search"
       type="text"
       :placeholder="isCantrip ? 'Search cantrips…' : 'Search spells…'"
-      class="w-full rounded border border-border bg-muted/40 px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+      class="w-full rounded border border-border bg-muted/40 px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
       @input="emit('update:search', ($event.target as HTMLInputElement).value)"
     />
 
     <div class="max-h-64 overflow-y-auto rounded border border-border divide-y divide-border">
       <div v-if="!spells.length" class="px-3 py-4 text-center">
-        <p class="font-fell text-sm text-muted-foreground italic">
+        <p class="text-body text-muted-foreground italic">
           {{ search ? `No ${isCantrip ? 'cantrips' : 'spells'} match your search.` : `No ${isCantrip ? 'cantrips' : 'spells'} found for this class.` }}
         </p>
       </div>

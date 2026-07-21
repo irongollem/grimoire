@@ -3,7 +3,7 @@
     <div v-if="linkedCharacter" class="flex items-center gap-3">
       <div class="flex-1">
         <p class="font-cinzel text-sm font-semibold text-foreground">{{ linkedCharacter.name }}</p>
-        <p class="font-fell text-xs text-muted-foreground italic">
+        <p class="text-caption text-muted-foreground italic">
           {{ linkedCharacter.class }} {{ linkedCharacter.level > 0 ? `· Level ${linkedCharacter.level}` : '' }}
         </p>
       </div>
@@ -17,7 +17,7 @@
     </div>
 
     <div v-else>
-      <p class="font-fell text-sm text-muted-foreground italic mb-3">
+      <p class="text-body text-muted-foreground italic mb-3">
         Build your own character sheet, or claim an existing party member created by your DM.
       </p>
       <div class="flex flex-wrap gap-2">
@@ -41,7 +41,7 @@
     <!-- Claim picker -->
     <div v-if="showClaim" class="border border-border rounded-md p-3 space-y-3 bg-background mt-4">
       <p class="font-cinzel text-xs text-muted-foreground tracking-wide">Select your character:</p>
-      <div v-if="unclaimedMembers.length === 0" class="font-fell text-sm text-muted-foreground italic">
+      <div v-if="unclaimedMembers.length === 0" class="text-body text-muted-foreground italic">
         No unclaimed characters available. Ask your DM to add one.
       </div>
       <div v-else class="space-y-1.5">
@@ -56,7 +56,7 @@
           @click="claimTarget = m.id"
         >
           <span class="font-cinzel text-sm font-semibold">{{ m.name }}</span>
-          <span class="font-fell text-xs text-muted-foreground ml-2">
+          <span class="text-caption text-muted-foreground ml-2">
             {{ m.class }} {{ m.level > 0 ? `· Lv ${m.level}` : '' }}
           </span>
         </button>
@@ -79,7 +79,7 @@
           Cancel
         </button>
       </div>
-      <p v-if="claimError" class="font-fell text-xs text-destructive">{{ claimError }}</p>
+      <p v-if="claimError" class="text-caption text-destructive">{{ claimError }}</p>
     </div>
   </SettingsSection>
 </template>

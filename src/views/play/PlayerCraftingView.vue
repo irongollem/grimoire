@@ -1,7 +1,7 @@
 <template>
   <PageHeader title="Crafting" description="Your known recipes and craft attempts">
 
-    <div v-if="!member" class="font-fell text-sm text-muted-foreground italic">
+    <div v-if="!member" class="text-body text-muted-foreground italic">
       No linked character found.
     </div>
 
@@ -33,7 +33,7 @@
       </div>
 
       <!-- Discipline description (only when a specific discipline is selected) -->
-      <p v-if="activeDiscipline" class="font-fell text-sm text-muted-foreground italic mb-5">
+      <p v-if="activeDiscipline" class="text-body text-muted-foreground italic mb-5">
         {{ activeDiscipline.description }}
         <span class="not-italic ml-1">
           Uses <span class="font-semibold text-foreground">{{ activeDiscipline.ability.toUpperCase() }}</span>
@@ -54,7 +54,7 @@
           class="h-8 w-8 text-muted-foreground/40 mx-auto mb-3"
         />
         <p class="font-cinzel text-sm font-semibold text-muted-foreground">No recipes known</p>
-        <p class="font-fell text-xs text-muted-foreground/60 italic mt-1">
+        <p class="text-caption text-muted-foreground/60 italic mt-1">
           {{ activeDiscipline
             ? `Your DM can share ${activeDiscipline.label.toLowerCase()} recipes with you.`
             : 'Your DM can share recipes with you.' }}
@@ -77,17 +77,17 @@
                   class="shrink-0 text-label md:text-sm px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
                 >{{ getDiscipline(recipe.discipline).label }}</span>
               </div>
-              <p class="font-fell text-xs text-muted-foreground">
+              <p class="text-caption text-muted-foreground">
                 DC {{ recipe.dc }} · {{ recipe.crafting_time }} {{ recipe.crafting_time !== 1 ? recipe.crafting_time_unit : recipe.crafting_time_unit.replace(/s$/, '') }}
                 <span v-if="outputsFor(recipe.id).length"> · → {{ outputsFor(recipe.id).map(o => (o.quantity > 1 ? `${o.quantity}× ` : '') + (itemName(o.item_id))).join(', ') }}</span>
               </p>
               <p
                 v-if="recipe.requires_tools && !hasTools(getDiscipline(recipe.discipline).tools)"
-                class="font-fell text-xs text-destructive mt-0.5"
+                class="text-caption text-destructive mt-0.5"
               >Requires {{ getDiscipline(recipe.discipline).tools[0] }}</p>
               <p
                 v-else-if="!recipe.requires_tools && !hasTools(getDiscipline(recipe.discipline).tools)"
-                class="font-fell text-xs text-gold-400 mt-0.5"
+                class="text-caption text-gold-400 mt-0.5"
               >No {{ getDiscipline(recipe.discipline).tools[0] }} — disadvantage</p>
             </div>
             <span
@@ -116,7 +116,7 @@
           <!-- Description -->
           <div
             v-if="recipe.description"
-            class="px-4 pt-3 font-fell text-sm text-muted-foreground italic prose prose-sm prose-invert max-w-none"
+            class="px-4 pt-3 text-body text-muted-foreground italic prose prose-sm prose-invert max-w-none"
             v-html="renderDescription(recipe.description)"
           />
 
@@ -133,14 +133,14 @@
                 class="h-3.5 w-3.5 shrink-0"
                 :class="hasEnough(ing) ? 'text-elven-green' : 'text-destructive'"
               />
-              <span class="font-fell text-xs text-foreground flex-1 truncate" :class="{ italic: !ing.item_id }">
+              <span class="text-caption text-foreground flex-1 truncate" :class="{ italic: !ing.item_id }">
                 {{ ingredientLabel(ing) }}
               </span>
               <span class="font-cinzel text-2xs md:text-sm text-muted-foreground shrink-0">
                 {{ ownedCount(ing) }}/{{ ing.quantity }}
               </span>
             </div>
-            <p v-if="ingredientsFor(recipe.id).length === 0" class="font-fell text-xs text-muted-foreground italic">
+            <p v-if="ingredientsFor(recipe.id).length === 0" class="text-caption text-muted-foreground italic">
               No ingredients required.
             </p>
           </div>

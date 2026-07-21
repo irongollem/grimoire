@@ -27,7 +27,7 @@
             >
               <span>{{ SLOT_LEVEL_LABELS[slot.level - 1] }}</span>
               <span class="font-fell text-[0.5625rem] font-normal opacity-70">{{ poolLabel(slot) }}</span>
-              <span v-if="scaledDiceLabel(slot.level)" class="font-fell text-2xs font-normal mt-0.5 opacity-80">
+              <span v-if="scaledDiceLabel(slot.level)" class="text-caption-sm font-normal mt-0.5 opacity-80">
                 {{ scaledDiceLabel(slot.level) }}
               </span>
             </button>

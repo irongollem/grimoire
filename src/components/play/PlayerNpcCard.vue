@@ -38,17 +38,17 @@
         {{ npc.player_visible_fields.includes('name') ? displayName : '???' }}
       </h3>
       <!-- Status always shown — "unknown" is a valid soft-hidden state. -->
-      <p class="flex items-center gap-1 font-fell text-xs text-muted-foreground">
+      <p class="flex items-center gap-1 text-caption text-muted-foreground">
         <span class="w-1.5 h-1.5 rounded-full shrink-0" :style="{ backgroundColor: statusColor(npc.status) }" />
         {{ npc.status }}
       </p>
-      <p v-if="npc.player_visible_fields.includes('race') && npc.race" class="font-fell text-xs text-muted-foreground italic truncate">
+      <p v-if="npc.player_visible_fields.includes('race') && npc.race" class="text-caption text-muted-foreground italic truncate">
         {{ npc.race }}
       </p>
-      <p v-if="npc.player_visible_fields.includes('occupation') && npc.occupation" class="font-fell text-xs text-muted-foreground truncate">
+      <p v-if="npc.player_visible_fields.includes('occupation') && npc.occupation" class="text-caption text-muted-foreground truncate">
         {{ npc.occupation }}
       </p>
-      <p v-if="location" class="font-fell text-xs text-muted-foreground truncate">📍 {{ location }}</p>
+      <p v-if="location" class="text-caption text-muted-foreground truncate">📍 {{ location }}</p>
 
       <!-- Relevance stars — pinned to bottom -->
       <NpcRatingStars :npc-id="npc.id" class="pt-1 mt-auto" />

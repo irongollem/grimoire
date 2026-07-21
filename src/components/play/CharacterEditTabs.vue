@@ -4,7 +4,7 @@
       <h1 class="font-cinzel text-xl font-bold text-foreground">
         Edit {{ existingMember?.name ?? "Character" }}
       </h1>
-      <p class="font-fell text-sm text-muted-foreground italic mt-1">Update your hero's details below.</p>
+      <p class="text-body text-muted-foreground italic mt-1">Update your hero's details below.</p>
     </div>
 
     <div class="flex border-b border-border">
@@ -38,7 +38,7 @@
       <div class="grid grid-cols-2 gap-3">
         <div>
           <span class="field-label">Species</span>
-          <p v-if="!!f.species_id" class="font-fell text-sm text-foreground inline">
+          <p v-if="!!f.species_id" class="text-body text-foreground inline">
             {{ currentSpeciesName }}&ensp;<RouterLink to="/play/species" class="font-cinzel text-[0.6875rem] text-primary hover:underline">Change</RouterLink>
           </p>
           <RouterLink v-else to="/play/species" class="font-cinzel text-xs font-semibold text-primary hover:underline">
@@ -47,17 +47,17 @@
         </div>
         <div>
           <span class="field-label">Class</span>
-          <p class="font-fell text-sm text-foreground">
+          <p class="text-body text-foreground">
             {{ f.class ?? '—' }}<span v-if="f.subclass" class="text-muted-foreground"> · {{ f.subclass }}</span>
           </p>
         </div>
         <div>
           <span class="field-label">Level</span>
-          <p class="font-fell text-sm text-foreground">{{ f.level }}</p>
+          <p class="text-body text-foreground">{{ f.level }}</p>
         </div>
         <div>
           <span class="field-label">Background</span>
-          <p v-if="currentBgName" class="font-fell text-sm text-foreground inline">
+          <p v-if="currentBgName" class="text-body text-foreground inline">
             {{ currentBgName }}&ensp;<RouterLink to="/play/background" class="font-cinzel text-[0.6875rem] text-primary hover:underline">Change</RouterLink>
           </p>
           <RouterLink v-else to="/play/background" class="font-cinzel text-xs font-semibold text-primary hover:underline">
@@ -106,11 +106,11 @@
             <!-- Formula: computed read-only value + optional natural base input -->
             <template v-else>
               <span class="field-input w-16 text-center font-bold pointer-events-none select-none">{{ f.ac }}</span>
-              <span class="font-fell text-xs text-muted-foreground italic">{{ acFormulaLabel }}</span>
+              <span class="text-caption text-muted-foreground italic">{{ acFormulaLabel }}</span>
               <input v-if="acFormulaType === 'natural'" v-model.number="naturalBase" type="number" min="1" class="field-input w-20" placeholder="Base AC" />
             </template>
           </div>
-          <p class="font-fell text-xs text-muted-foreground italic mt-1">Without shield — an equipped shield adds its bonus automatically.</p>
+          <p class="text-caption text-muted-foreground italic mt-1">Without shield — an equipped shield adds its bonus automatically.</p>
         </div>
         <label class="block"><span class="field-label">Speed (ft)</span><input v-model.number="f.speed" type="number" min="0" step="5" class="field-input w-full" /></label>
         <label class="block"><span class="field-label">Initiative Bonus</span><input v-model.number="f.initiative_bonus" type="number" class="field-input w-full" placeholder="extra on top of DEX (e.g. Alert +5)" /></label>
@@ -154,7 +154,7 @@
               :class="(f.skill_proficiencies[skill.key] ?? 'none') === level.value ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
               @click="setSkillProf(skill.key, level.value)">{{ level.label }}</button>
           </div>
-          <span class="font-fell text-xs text-foreground flex-1">{{ skill.label }}</span>
+          <span class="text-caption text-foreground flex-1">{{ skill.label }}</span>
           <span class="font-cinzel text-2xs text-muted-foreground shrink-0">{{ skillBonus(skill.key, skill.ability) }}</span>
         </div>
       </div>

@@ -137,7 +137,7 @@ function rewardHref(rewardType: string | null, rewardId: string | null): string 
           <select
             id="downtime-filter-status"
             v-model="filterStatus"
-            class="rounded-md border border-border bg-card px-3 py-1.5 font-fell text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            class="rounded-md border border-border bg-card px-3 py-1.5 text-body focus:outline-none focus:ring-1 focus:ring-ring"
           >
             <option value="all">All</option>
             <option v-for="s in DOWNTIME_DRAW_STATUSES" :key="s" :value="s">
@@ -153,7 +153,7 @@ function rewardHref(rewardType: string | null, rewardId: string | null): string 
           <select
             id="downtime-filter-character"
             v-model="filterCharacter"
-            class="rounded-md border border-border bg-card px-3 py-1.5 font-fell text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            class="rounded-md border border-border bg-card px-3 py-1.5 text-body focus:outline-none focus:ring-1 focus:ring-ring"
           >
             <option value="">Everyone</option>
             <option v-for="m in party ?? []" :key="m.id" :value="m.id">{{ m.name }}</option>

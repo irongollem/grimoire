@@ -32,7 +32,7 @@
             v-model="concept"
             rows="4"
             placeholder="A storm of luminous moths that swarm a target, biting and dazzling them with flashes of bioluminescence…"
-            class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+            class="w-full bg-muted border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
           />
         </div>
 
@@ -47,10 +47,10 @@
 
           <div class="grid grid-cols-2 gap-2">
             <div>
-              <label class="block font-fell text-xs text-muted-foreground mb-1">Level</label>
+              <label class="block text-caption text-muted-foreground mb-1">Level</label>
               <select
                 v-model="constraints.level"
-                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 <option value="">Any</option>
                 <option value="0">Cantrip</option>
@@ -58,10 +58,10 @@
               </select>
             </div>
             <div>
-              <label class="block font-fell text-xs text-muted-foreground mb-1">School</label>
+              <label class="block text-caption text-muted-foreground mb-1">School</label>
               <select
                 v-model="constraints.school"
-                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring capitalize"
+                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring capitalize"
               >
                 <option value="">Any</option>
                 <option v-for="s in SPELL_SCHOOLS" :key="s" :value="s" class="capitalize">{{ s }}</option>
@@ -72,7 +72,7 @@
 
         <!-- Image generation toggle -->
         <div v-if="isAiEnabled" class="flex items-center justify-between">
-          <span class="font-fell text-xs text-muted-foreground">Generate spell-effect art</span>
+          <span class="text-caption text-muted-foreground">Generate spell-effect art</span>
           <button
             type="button"
             class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none"
@@ -90,10 +90,10 @@
         <!-- Generating state -->
         <div v-else-if="isGenerating" class="flex flex-col items-center gap-3 py-4">
           <IconGenerate class="h-7 w-7 text-primary animate-pulse" />
-          <p class="font-fell text-sm text-muted-foreground italic text-center">{{ currentLoadingQuote }}</p>
+          <p class="text-body text-muted-foreground italic text-center">{{ currentLoadingQuote }}</p>
           <button
             type="button"
-            class="mt-1 font-fell text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+            class="mt-1 text-caption text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
             @click="ui.spellGeneratorOpen = false"
           >
             Continue in background
@@ -105,7 +105,7 @@
           v-else-if="genError"
           class="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2"
         >
-          <p class="font-fell text-xs text-destructive">{{ genError }}</p>
+          <p class="text-caption text-destructive">{{ genError }}</p>
         </div>
       </div>
 

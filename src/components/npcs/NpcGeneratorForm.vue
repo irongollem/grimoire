@@ -14,7 +14,7 @@
       :value="concept"
       rows="3"
       placeholder="A mysterious tiefling bard who works as a city informant and hides a dark past…"
-      class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+      class="w-full bg-muted border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
       @input="emit('update:concept', ($event.target as HTMLTextAreaElement).value)"
     />
   </div>
@@ -30,24 +30,24 @@
     </p>
 
     <div>
-      <label class="block font-fell text-xs text-muted-foreground mb-1"
+      <label class="block text-caption text-muted-foreground mb-1"
         >Name</label
       >
       <input
         :value="quickForm.name"
         placeholder="Leave blank to auto-generate"
-        class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         @input="patchForm('name', ($event.target as HTMLInputElement).value)"
       />
     </div>
 
     <div>
-      <label class="block font-fell text-xs text-muted-foreground mb-1"
+      <label class="block text-caption text-muted-foreground mb-1"
         >Species</label
       >
       <select
         :value="quickForm.race"
-        class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         @change="patchForm('race', ($event.target as HTMLSelectElement).value)"
       >
         <option value="">Any</option>
@@ -57,12 +57,12 @@
 
     <div class="grid grid-cols-2 gap-2">
       <div>
-        <label class="block font-fell text-xs text-muted-foreground mb-1"
+        <label class="block text-caption text-muted-foreground mb-1"
           >Alignment</label
         >
         <select
           :value="quickForm.alignment"
-          class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           @change="patchForm('alignment', ($event.target as HTMLSelectElement).value)"
         >
           <option value="">Any</option>
@@ -72,12 +72,12 @@
         </select>
       </div>
       <div>
-        <label class="block font-fell text-xs text-muted-foreground mb-1"
+        <label class="block text-caption text-muted-foreground mb-1"
           >Relationship</label
         >
         <select
           :value="quickForm.relationship"
-          class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           @change="patchForm('relationship', ($event.target as HTMLSelectElement).value as NpcRelationship)"
         >
           <option value="unknown">Unknown</option>
@@ -91,12 +91,12 @@
     </div>
 
     <div>
-      <label class="block font-fell text-xs text-muted-foreground mb-1"
+      <label class="block text-caption text-muted-foreground mb-1"
         >Faction</label
       >
       <select
         :value="quickForm.faction_id ?? ''"
-        class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         @change="patchForm('faction_id', ($event.target as HTMLSelectElement).value || null)"
       >
         <option value="">None</option>
@@ -107,12 +107,12 @@
     </div>
 
     <div v-if="quickForm.faction_id">
-      <label class="block font-fell text-xs text-muted-foreground mb-1"
+      <label class="block text-caption text-muted-foreground mb-1"
         >Role in faction</label
       >
       <select
         :value="quickForm.faction_role"
-        class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         @change="patchForm('faction_role', ($event.target as HTMLSelectElement).value)"
       >
         <option v-for="r in NPC_FACTION_ROLES" :key="r" :value="r">
@@ -122,7 +122,7 @@
     </div>
 
     <div>
-      <label class="block font-fell text-xs text-muted-foreground mb-1"
+      <label class="block text-caption text-muted-foreground mb-1"
         >Location</label
       >
       <EntityCombobox
@@ -138,12 +138,12 @@
     </div>
 
     <div>
-      <label class="block font-fell text-xs text-muted-foreground mb-1"
+      <label class="block text-caption text-muted-foreground mb-1"
         >Stat block template</label
       >
       <select
         :value="quickForm.templateId"
-        class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         @change="patchForm('templateId', ($event.target as HTMLSelectElement).value)"
       >
         <option value="">None</option>
@@ -164,7 +164,7 @@
     </div>
 
     <div>
-      <label class="block font-fell text-xs text-muted-foreground mb-1"
+      <label class="block text-caption text-muted-foreground mb-1"
         >Known associate</label
       >
       <EntityCombobox
@@ -176,12 +176,12 @@
     </div>
 
     <div v-if="quickForm.related_npc_id">
-      <label class="block font-fell text-xs text-muted-foreground mb-1"
+      <label class="block text-caption text-muted-foreground mb-1"
         >Relationship type</label
       >
       <select
         :value="quickForm.related_npc_relationship"
-        class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         @change="patchForm('related_npc_relationship', ($event.target as HTMLSelectElement).value as NpcRelationshipType)"
       >
         <option
@@ -227,7 +227,7 @@
 
   <!-- Image toggle -->
   <div v-if="isAiEnabled" class="flex items-center justify-between">
-    <span class="font-fell text-xs text-muted-foreground"
+    <span class="text-caption text-muted-foreground"
       >Generate portrait art</span
     >
     <button
@@ -249,12 +249,12 @@
     class="flex flex-col items-center gap-3 py-4"
   >
     <IconGenerate class="h-7 w-7 text-primary animate-pulse" />
-    <p class="font-fell text-sm text-muted-foreground italic text-center">
+    <p class="text-body text-muted-foreground italic text-center">
       {{ currentLoadingQuote }}
     </p>
     <button
       type="button"
-      class="mt-1 font-fell text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+      class="mt-1 text-caption text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
       @click="emit('dismiss-to-background')"
     >
       Continue in background
@@ -266,7 +266,7 @@
     v-else-if="genError"
     class="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2"
   >
-    <p class="font-fell text-xs text-destructive">{{ genError }}</p>
+    <p class="text-caption text-destructive">{{ genError }}</p>
   </div>
 </template>
 

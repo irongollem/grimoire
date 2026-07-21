@@ -15,7 +15,7 @@
         >
           <div class="px-5 pt-5 pb-3">
             <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide mb-1">✦ AI Map Style</h2>
-            <p class="font-fell text-sm text-muted-foreground mb-4">
+            <p class="text-body text-muted-foreground mb-4">
               Re-render this map in an artistic style. The result is a new image — your tile map is unchanged.
             </p>
             <!-- Preset grid -->
@@ -47,10 +47,10 @@
               rows="2"
               maxlength="300"
               placeholder="e.g. 'flooded corridors, green bioluminescent fungus, caved-in east wing'"
-              class="w-full bg-background border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground/50 resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-full bg-background border border-border rounded-md px-2 py-1.5 text-body text-foreground placeholder:text-muted-foreground/50 resize-none focus:outline-none focus:ring-1 focus:ring-ring"
               @input="$emit('update:promptSuffix', ($event.target as HTMLTextAreaElement).value)"
             />
-            <p v-if="error" class="mt-2 font-fell text-xs text-destructive">{{ error }}</p>
+            <p v-if="error" class="mt-2 text-caption text-destructive">{{ error }}</p>
           </div>
           <div class="flex justify-end items-center gap-2 px-5 pb-5 pt-2">
             <GenerationCostBadge :credits="credits" :byok="byok" class="mr-auto" />
@@ -105,8 +105,8 @@
               :options="locationOptions"
               placeholder="Search locations…"
             />
-            <p v-if="atlasTargetHasMap" class="mt-2 font-fell text-xs text-amber-500">This location already has a map — saving will replace it.</p>
-            <p v-if="atlasError" class="mt-2 font-fell text-xs text-destructive">{{ atlasError }}</p>
+            <p v-if="atlasTargetHasMap" class="mt-2 text-caption text-amber-500">This location already has a map — saving will replace it.</p>
+            <p v-if="atlasError" class="mt-2 text-caption text-destructive">{{ atlasError }}</p>
           </div>
           <div class="flex flex-wrap justify-between gap-2 px-5 pb-5 pt-2">
             <div class="flex gap-2">

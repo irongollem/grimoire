@@ -20,7 +20,7 @@
           />
           <div class="flex justify-end">
             <span
-              class="font-fell text-xs"
+              class="text-caption"
               :class="scenePrompt.length >= SCENE_LIMIT * 0.9 ? 'text-destructive' : 'text-muted-foreground/50'"
             >{{ scenePrompt.length }} / {{ SCENE_LIMIT }}</span>
           </div>
@@ -33,7 +33,7 @@
             <span
               v-for="e in resolvedEntities"
               :key="e.label"
-              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-fell"
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-caption"
               :class="e.portraitUrl
                 ? 'border-primary/50 bg-primary/10 text-primary'
                 : 'border-border bg-muted/30 text-muted-foreground'"
@@ -42,7 +42,7 @@
               {{ e.label }}
             </span>
           </div>
-          <p v-else-if="hasMentions" class="font-fell text-xs text-muted-foreground italic">
+          <p v-else-if="hasMentions" class="text-caption text-muted-foreground italic">
             No @mentions matched known characters — generating from description only.
           </p>
         </div>
@@ -62,7 +62,7 @@
               @click="size = s.value"
             >
               <span class="font-cinzel text-xs">{{ s.label }}</span>
-              <span class="font-fell text-2xs opacity-60">{{ byok ? 'BYOK' : `${shapeCost(s.value)} cr` }}</span>
+              <span class="text-caption-sm opacity-60">{{ byok ? 'BYOK' : `${shapeCost(s.value)} cr` }}</span>
             </button>
           </div>
         </div>
@@ -74,14 +74,14 @@
         >
           <div class="flex items-center gap-2">
             <IconGenerate class="h-3.5 w-3.5 text-primary animate-pulse shrink-0" />
-            <p class="font-fell text-xs text-muted-foreground leading-snug">{{ currentLoadingQuote }}</p>
-            <span class="ml-auto font-fell text-xs tabular-nums text-muted-foreground/60 shrink-0">{{ elapsedLabel }}</span>
+            <p class="text-caption text-muted-foreground leading-snug">{{ currentLoadingQuote }}</p>
+            <span class="ml-auto text-caption tabular-nums text-muted-foreground/60 shrink-0">{{ elapsedLabel }}</span>
           </div>
           <p class="font-fell text-[0.6875rem] leading-snug pl-5.5" :class="reassurance.tone">{{ reassurance.text }}</p>
         </div>
 
         <!-- Error -->
-        <p v-if="error" class="font-fell text-xs text-destructive">{{ error }}</p>
+        <p v-if="error" class="text-caption text-destructive">{{ error }}</p>
 
         <!-- Actions -->
         <div class="flex gap-2 justify-end items-center">

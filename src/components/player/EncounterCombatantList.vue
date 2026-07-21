@@ -85,14 +85,14 @@
             <template v-if="healthVis === 'strategic'">
               <template v-if="combatant.type === 'player'">
                 <span class="font-cinzel text-sm font-bold" :class="hpColor(combatant)">{{ displayHp(combatant) }}</span>
-                <span class="font-fell text-xs text-muted-foreground">/{{ displayMaxHp(combatant) }}</span>
+                <span class="text-caption text-muted-foreground">/{{ displayMaxHp(combatant) }}</span>
               </template>
               <template v-else>
-                <span class="font-fell text-xs text-muted-foreground italic">{{ hpLabel(combatant) }}</span>
+                <span class="text-caption text-muted-foreground italic">{{ hpLabel(combatant) }}</span>
               </template>
             </template>
             <template v-else-if="healthVis === 'immersive' && combatant.type !== 'player'">
-              <span class="font-fell text-xs text-muted-foreground italic">{{ hpLabel(combatant) }}</span>
+              <span class="text-caption text-muted-foreground italic">{{ hpLabel(combatant) }}</span>
             </template>
           </div>
         </div>

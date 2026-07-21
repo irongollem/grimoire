@@ -39,7 +39,7 @@
               <input
                 v-model="localName"
                 type="text"
-                class="w-full rounded-md border border-border bg-input px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="w-full rounded-md border border-border bg-input px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 placeholder="Tavern Music, Battle Scene…"
                 maxlength="80"
               />
@@ -65,7 +65,7 @@
                   {{ opt.label }}
                 </button>
               </div>
-              <p class="font-fell text-xs text-muted-foreground italic">
+              <p class="text-caption text-muted-foreground italic">
                 <template v-if="localType === 'music'">Tracks play one after another. Auto-advances when a track ends.</template>
                 <template v-else>All tracks play simultaneously as a layered soundscape.</template>
               </p>
@@ -94,7 +94,7 @@
                 </label>
               </div>
 
-              <div v-if="trackList.length === 0" class="py-4 text-center font-fell text-xs text-muted-foreground italic">
+              <div v-if="trackList.length === 0" class="py-4 text-center text-caption text-muted-foreground italic">
                 No tracks yet — add sounds below.
               </div>
 

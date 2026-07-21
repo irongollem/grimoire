@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div v-if="candidate" class="rounded-lg border border-violet-500/30 bg-violet-500/10 px-4 py-2 mb-3 font-fell text-sm">
+    <div v-if="candidate" class="rounded-lg border border-violet-500/30 bg-violet-500/10 px-4 py-2 mb-3 text-body">
       Choose a replacement for <strong>{{ candidate.spell.name }}</strong>.
       <button type="button" class="ml-2 text-violet-400 underline" @click="clearReplacement">Cancel</button>
     </div>
@@ -26,7 +26,7 @@
 
     <p
       v-else-if="!filtered.length"
-      class="text-center font-fell text-sm text-muted-foreground italic py-12"
+      class="text-center text-body text-muted-foreground italic py-12"
     >
       No spells match your filters.
     </p>
@@ -69,7 +69,7 @@
             </div>
 
             <!-- School + type line -->
-            <p class="font-fell text-xs text-muted-foreground italic capitalize">
+            <p class="text-caption text-muted-foreground italic capitalize">
               {{ spellLevelLabel(spell.level) }} {{ spell.school }}
               <span v-if="spell.ritual"> · Ritual</span>
             </p>
@@ -167,7 +167,7 @@
 
       <p
         v-if="filtered.length"
-        class="mt-4 font-fell text-xs text-muted-foreground italic text-right"
+        class="mt-4 text-caption text-muted-foreground italic text-right"
       >
         {{ filtered.length }} spells
       </p>

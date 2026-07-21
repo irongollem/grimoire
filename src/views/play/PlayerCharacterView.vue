@@ -4,10 +4,10 @@
     <div v-if="!member" class="text-center py-16 space-y-4">
       <p class="font-cinzel text-lg text-muted-foreground">No character linked</p>
       <template v-if="ui.dmPreviewMode">
-        <p class="font-fell text-sm text-muted-foreground italic">Select a character above to preview their sheet.</p>
+        <p class="text-body text-muted-foreground italic">Select a character above to preview their sheet.</p>
       </template>
       <template v-else>
-        <p class="font-fell text-sm text-muted-foreground italic">
+        <p class="text-body text-muted-foreground italic">
           Build your own character sheet, or ask your DM to link you to an existing party member.
         </p>
         <RouterLink
@@ -148,7 +148,7 @@
             </div>
             <span class="font-cinzel text-2xs md:text-sm text-muted-foreground">{{ wildshapesUsed }}/{{ wildshapeMaxUses }}</span>
           </div>
-          <span class="font-fell text-2xs md:text-sm text-muted-foreground italic">Max CR {{ wildshapeCrDisplay }}<template v-if="isCircleOfMoon"> · Moon</template></span>
+          <span class="text-caption-sm md:text-sm text-muted-foreground italic">Max CR {{ wildshapeCrDisplay }}<template v-if="isCircleOfMoon"> · Moon</template></span>
         </div>
 
         <!-- Active form -->
@@ -198,7 +198,7 @@
             >{{ showWildshapePicker ? 'Cancel' : '🐺 Choose Form' }}</button>
           </div>
           <template v-if="showWildshapePicker || !activeWildshape">
-            <p v-if="!wildshapeForms.length" class="font-fell text-xs text-muted-foreground italic px-4 py-3">
+            <p v-if="!wildshapeForms.length" class="text-caption text-muted-foreground italic px-4 py-3">
               No eligible forms yet — discover beasts in the Bestiary or ask your DM to pin forms.
             </p>
             <div v-else class="divide-y divide-border">
@@ -210,8 +210,8 @@
                 @click="previewBeast = m"
               >
                 <span class="font-cinzel text-xs font-semibold flex-1 min-w-0 truncate">{{ m.name }}</span>
-                <span class="font-fell text-2xs md:text-sm text-muted-foreground shrink-0">CR {{ m.stat_block?.challenge_rating }}</span>
-                <span class="font-fell text-2xs md:text-sm text-muted-foreground shrink-0">AC {{ m.stat_block?.armor_class }}</span>
+                <span class="text-caption-sm md:text-sm text-muted-foreground shrink-0">CR {{ m.stat_block?.challenge_rating }}</span>
+                <span class="text-caption-sm md:text-sm text-muted-foreground shrink-0">AC {{ m.stat_block?.armor_class }}</span>
               </button>
             </div>
           </template>

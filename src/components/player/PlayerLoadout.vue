@@ -19,7 +19,7 @@
         :title="`${entry.inv.name} — ${SLOT_LABELS[entry.slot] ?? entry.slot}`"
       >
         <span class="text-eyebrow md:text-sm text-muted-foreground shrink-0">{{ SLOT_LABELS[entry.slot] ?? entry.slot }}</span>
-        <span class="font-fell text-xs text-foreground truncate">{{ entry.inv.name }}</span>
+        <span class="text-caption text-foreground truncate">{{ entry.inv.name }}</span>
         <span
           v-if="(entry.inv.quantity ?? 1) > 1"
           class="font-cinzel text-2xs md:text-sm text-muted-foreground shrink-0"
@@ -35,7 +35,7 @@
         </button>
       </span>
     </div>
-    <p v-else class="font-fell text-xs text-muted-foreground italic">
+    <p v-else class="text-caption text-muted-foreground italic">
       Nothing equipped. <RouterLink to="/play/inventory" class="text-primary hover:opacity-80">Equip items in inventory →</RouterLink>
     </p>
   </div>

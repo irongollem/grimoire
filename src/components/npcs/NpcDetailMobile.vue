@@ -119,11 +119,11 @@
           {{ displayName }}
         </h2>
 
-        <p v-if="subtitle" class="font-fell text-sm italic text-white/85 drop-shadow-sm">
+        <p v-if="subtitle" class="text-body italic text-white/85 drop-shadow-sm">
           {{ subtitle }}
         </p>
 
-        <p v-if="disguisedLine" class="font-fell text-xs italic text-primary/90 drop-shadow-sm">
+        <p v-if="disguisedLine" class="text-caption italic text-primary/90 drop-shadow-sm">
           {{ disguisedLine }}
         </p>
       </div>
@@ -174,7 +174,7 @@
           </div>
           <p
             v-if="!npc.appearance && !npc.personality && !npc.backstory && !npc.notes"
-            class="font-fell text-sm italic text-muted-foreground"
+            class="text-body italic text-muted-foreground"
           >
             No lore recorded for this NPC.
           </p>
@@ -200,7 +200,7 @@
           <TraitList title="Legendary Actions" :traits="npc.stat_block.legendary_actions" />
           <TraitList title="Lair Actions" :traits="npc.stat_block.lair_actions" />
         </div>
-        <p v-else class="font-fell text-sm italic text-muted-foreground">No stat block defined for this NPC.</p>
+        <p v-else class="text-body italic text-muted-foreground">No stat block defined for this NPC.</p>
       </NpcAccordionSection>
     </div>
 
@@ -240,28 +240,28 @@
     <div class="flex flex-col gap-1 pb-2">
       <RouterLink
         :to="`/npcs/${npc.id}?edit=true`"
-        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left font-fell text-sm text-foreground active:bg-muted/50"
+        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-body text-foreground active:bg-muted/50"
         @click="showMenu = false"
       >
         <IconGenerate class="size-4 shrink-0" /> Generate with AI
       </RouterLink>
       <RouterLink
         :to="`/npcs/${npc.id}?edit=true`"
-        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left font-fell text-sm text-foreground active:bg-muted/50"
+        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-body text-foreground active:bg-muted/50"
         @click="showMenu = false"
       >
         <IconScrollText class="size-4 shrink-0" /> Send to Scriptorium
       </RouterLink>
       <RouterLink
         :to="`/npcs/${npc.id}?edit=true`"
-        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left font-fell text-sm text-foreground active:bg-muted/50"
+        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-body text-foreground active:bg-muted/50"
         @click="showMenu = false"
       >
         <IconTag class="size-4 shrink-0" /> Edit tags
       </RouterLink>
       <button
         type="button"
-        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left font-fell text-sm text-destructive active:bg-destructive/10"
+        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-body text-destructive active:bg-destructive/10"
         @click="onDelete"
       >
         <IconDelete class="size-4 shrink-0" /> Delete NPC

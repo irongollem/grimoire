@@ -43,7 +43,7 @@
         class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 hover:border-primary/50 transition-colors"
       >
         <IconUserRound class="h-3.5 w-3.5 text-muted-foreground" />
-        <span class="font-fell text-xs text-foreground">{{ giverNpc.name }}</span>
+        <span class="text-caption text-foreground">{{ giverNpc.name }}</span>
       </RouterLink>
       <RouterLink
         v-if="questLocation"
@@ -51,7 +51,7 @@
         class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 hover:border-primary/50 transition-colors"
       >
         <IconLocation class="h-3.5 w-3.5 text-muted-foreground" />
-        <span class="font-fell text-xs text-foreground">{{ questLocation.name }}</span>
+        <span class="text-caption text-foreground">{{ questLocation.name }}</span>
       </RouterLink>
       <RouterLink
         v-if="parentQuest"
@@ -59,7 +59,7 @@
         class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 hover:border-primary/50 transition-colors"
       >
         <IconScrollText class="h-3.5 w-3.5 text-muted-foreground" />
-        <span class="font-fell text-xs text-foreground">Part of: {{ parentQuest.title }}</span>
+        <span class="text-caption text-foreground">Part of: {{ parentQuest.title }}</span>
       </RouterLink>
       <span
         v-for="tag in quest.tags"
@@ -107,7 +107,7 @@
               <IconCheck v-if="obj.is_done" class="h-2.5 w-2.5" />
             </button>
             <span
-              class="font-fell text-sm flex-1 leading-snug transition-colors"
+              class="text-body flex-1 leading-snug transition-colors"
               :class="obj.is_done ? 'text-muted-foreground line-through' : 'text-foreground'"
             >{{ obj.description }}</span>
             <button
@@ -132,7 +132,7 @@
 
       <p
         v-if="rewardCoinsText"
-        class="font-fell text-sm text-foreground"
+        class="text-body text-foreground"
       >{{ rewardCoinsText }}</p>
 
       <div v-if="rewardItems.length" class="flex flex-wrap gap-2">
@@ -143,13 +143,13 @@
           class="inline-flex items-center gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 hover:border-primary/50 transition-colors"
         >
           <IconPackage class="h-3.5 w-3.5 text-muted-foreground" />
-          <span class="font-fell text-xs text-foreground">{{ it.name }}</span>
+          <span class="text-caption text-foreground">{{ it.name }}</span>
         </RouterLink>
       </div>
 
       <p
         v-if="quest.rewards"
-        class="font-fell text-sm text-muted-foreground italic"
+        class="text-body text-muted-foreground italic"
       >{{ quest.rewards }}</p>
     </section>
 
@@ -191,7 +191,7 @@
             <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ npc.name }}</p>
             <p
               v-if="npc.occupation || npc.race"
-              class="font-fell text-xs text-muted-foreground italic truncate"
+              class="text-caption text-muted-foreground italic truncate"
             >{{ [npc.race, npc.occupation].filter(Boolean).join(" · ") }}</p>
           </div>
         </RouterLink>
@@ -211,7 +211,7 @@
           class="inline-flex items-center gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 hover:border-primary/50 transition-colors"
         >
           <IconLocation class="h-3.5 w-3.5 text-muted-foreground" />
-          <span class="font-fell text-xs text-foreground truncate max-w-48">{{ loc.name }}</span>
+          <span class="text-caption text-foreground truncate max-w-48">{{ loc.name }}</span>
         </RouterLink>
       </div>
     </section>
@@ -229,7 +229,7 @@
           class="inline-flex items-center gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 hover:border-primary/50 transition-colors"
         >
           <IconMonster class="h-3.5 w-3.5 text-muted-foreground" />
-          <span class="font-fell text-xs text-foreground truncate max-w-48">{{ m.name }}</span>
+          <span class="text-caption text-foreground truncate max-w-48">{{ m.name }}</span>
         </RouterLink>
       </div>
     </section>
@@ -248,7 +248,7 @@
             class="flex items-start gap-2 px-2 py-1.5"
           >
             <IconLightning class="h-3 w-3 text-primary shrink-0 mt-0.5" />
-            <p class="font-fell text-xs text-muted-foreground leading-snug">
+            <p class="text-caption text-muted-foreground leading-snug">
               <span class="font-semibold text-foreground">{{ trig.trigger_type === 'quest_complete' ? 'Quest complete' : 'Objective done' }}</span>
               {{ trig.offset_days > 0 ? ` + ${trig.offset_days} days` : '' }} →
               {{ triggerActionSummary(trig) }}

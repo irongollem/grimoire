@@ -28,7 +28,7 @@
       @save="save"
     />
 
-    <p v-if="saveError" class="text-destructive font-fell text-sm">{{ saveError }}</p>
+    <p v-if="saveError" class="text-destructive text-body">{{ saveError }}</p>
 
     <div class="grid grid-cols-1 xl:grid-cols-[13.75rem_1fr_16.25rem] gap-6">
       <!-- ── Portrait + Source ─────────────────────────────────────────── -->
@@ -48,7 +48,7 @@
           <span class="font-cinzel text-[0.6875rem] text-muted-foreground tracking-wider uppercase">Source</span>
           <div
             v-if="props.spell?.open5e_import"
-            class="bg-muted/30 border border-border rounded-md px-3 py-2 font-fell text-sm text-muted-foreground italic"
+            class="bg-muted/30 border border-border rounded-md px-3 py-2 text-body text-muted-foreground italic"
           >
             <a
               v-if="props.spell.source_url"
@@ -63,7 +63,7 @@
             v-else
             v-model="source"
             placeholder="e.g. Homebrew, PHB, XGtE…"
-            class="bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="bg-card border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
 
@@ -79,9 +79,9 @@
               class="rounded"
               @change="toggleCampaignSpecific"
             />
-            <span class="font-fell text-sm text-foreground">Campaign-only</span>
+            <span class="text-body text-foreground">Campaign-only</span>
           </label>
-          <p class="font-fell text-xs text-muted-foreground italic">
+          <p class="text-caption text-muted-foreground italic">
             Restrict this spell to <strong>{{ campaignStore.activeCampaign?.name }}</strong>.
             It won't appear in other campaigns.
           </p>
@@ -191,7 +191,7 @@
             v-model="higherLevels"
             rows="2"
             placeholder="e.g. When cast using a 3rd-level slot or higher, the damage increases by 1d6 for each slot level above 2nd. Or: you can target one additional creature for each slot level above 1st…"
-            class="bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+            class="bg-card border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
           />
         </div>
 

@@ -1,7 +1,7 @@
 <template>
   <div class="relative">
     <button
-      class="w-full flex items-center gap-2 px-2 py-1.5 rounded-md font-fell text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+      class="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-caption text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
       @click="open = !open"
     >
       <IconAnnounce class="h-3.5 w-3.5 shrink-0" />
@@ -20,13 +20,13 @@
         v-model="text"
         placeholder="e.g. Quest completed! You've earned 500 XP."
         rows="2"
-        class="w-full resize-none bg-background border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
+        class="w-full resize-none bg-background border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
         @keydown.enter.exact.prevent="send"
         @keydown.escape="open = false"
       />
       <div class="flex justify-end gap-2">
         <button
-          class="font-fell text-xs text-muted-foreground hover:text-foreground transition-colors"
+          class="text-caption text-muted-foreground hover:text-foreground transition-colors"
           @click="open = false"
         >Cancel</button>
         <button
@@ -38,7 +38,7 @@
           {{ sending ? "Sending…" : "Send" }}
         </button>
       </div>
-      <p v-if="sent" class="font-fell text-xs text-elven-green text-right">Sent!</p>
+      <p v-if="sent" class="text-caption text-elven-green text-right">Sent!</p>
     </div>
   </div>
 </template>

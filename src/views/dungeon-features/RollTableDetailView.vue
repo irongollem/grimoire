@@ -68,7 +68,7 @@
         <!-- ── VIEW MODE ──────────────────────────────────────────────────── -->
         <template v-if="!isNew && !editMode && table">
           <!-- Description -->
-          <p v-if="table.description" class="font-fell text-sm text-muted-foreground italic">{{ table.description }}</p>
+          <p v-if="table.description" class="text-body text-muted-foreground italic">{{ table.description }}</p>
 
           <!-- Entry list (read-only) -->
           <div class="space-y-2">
@@ -77,7 +77,7 @@
               <span class="text-label text-muted-foreground">{{ table.dice }}</span>
             </div>
 
-            <div v-if="!table.entries.length" class="rounded-md border border-dashed border-border px-4 py-8 text-center font-fell text-sm text-muted-foreground italic">
+            <div v-if="!table.entries.length" class="rounded-md border border-dashed border-border px-4 py-8 text-center text-body text-muted-foreground italic">
               No entries yet.
             </div>
 
@@ -92,7 +92,7 @@
                   {{ entry.min === entry.max ? entry.min : `${entry.min}–${entry.max}` }}
                 </span>
                 <div class="flex-1 min-w-0 flex flex-col gap-1">
-                  <span class="font-fell text-sm text-foreground">{{ entry.label || '—' }}</span>
+                  <span class="text-body text-foreground">{{ entry.label || '—' }}</span>
                   <RouterLink
                     v-if="entry.encounter_id"
                     :to="`/encounters/${entry.encounter_id}`"
@@ -100,7 +100,7 @@
                   >
                     Open encounter →
                   </RouterLink>
-                  <p v-if="entry.notes" class="font-fell text-xs text-muted-foreground italic">{{ entry.notes }}</p>
+                  <p v-if="entry.notes" class="text-caption text-muted-foreground italic">{{ entry.notes }}</p>
                 </div>
               </div>
             </div>
@@ -116,7 +116,7 @@
           </div>
 
           <!-- DM Notes -->
-          <p v-if="table.notes" class="font-fell text-sm text-muted-foreground italic border-t border-border pt-3">{{ table.notes }}</p>
+          <p v-if="table.notes" class="text-body text-muted-foreground italic border-t border-border pt-3">{{ table.notes }}</p>
         </template>
 
         <!-- ── EDIT MODE ───────────────────────────────────────────────── -->
@@ -135,7 +135,7 @@
               <label class="text-eyebrow font-semibold text-muted-foreground">Die</label>
               <select
                 v-model="form.dice"
-                class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="w-full bg-card border border-border rounded-md px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 @change="onDieChange"
               >
                 <option v-for="d in ROLL_TABLE_DICE" :key="d" :value="d">{{ d }}</option>
@@ -149,7 +149,7 @@
               v-model="form.description"
               rows="2"
               placeholder="When + where to use this table"
-              class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+              class="w-full bg-card border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
             />
           </div>
 
@@ -167,9 +167,9 @@
               </button>
             </div>
 
-            <p v-if="rangeError" class="font-fell text-xs text-destructive italic">{{ rangeError }}</p>
+            <p v-if="rangeError" class="text-caption text-destructive italic">{{ rangeError }}</p>
 
-            <div v-if="!form.entries.length" class="rounded-md border border-dashed border-border px-4 py-8 text-center font-fell text-sm text-muted-foreground italic">
+            <div v-if="!form.entries.length" class="rounded-md border border-dashed border-border px-4 py-8 text-center text-body text-muted-foreground italic">
               No entries yet. Add some rows then assign roll ranges.
             </div>
 
@@ -185,22 +185,22 @@
                     type="number"
                     :min="1"
                     :max="dieMax"
-                    class="w-9 bg-muted border border-border rounded px-1 py-1 font-fell text-xs text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+                    class="w-9 bg-muted border border-border rounded px-1 py-1 text-caption text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
                   />
-                  <span class="font-fell text-xs text-muted-foreground">–</span>
+                  <span class="text-caption text-muted-foreground">–</span>
                   <input
                     v-model.number="entry.max"
                     type="number"
                     :min="entry.min"
                     :max="dieMax"
-                    class="w-9 bg-muted border border-border rounded px-1 py-1 font-fell text-xs text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+                    class="w-9 bg-muted border border-border rounded px-1 py-1 text-caption text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
                   />
                 </div>
                 <div class="flex flex-col gap-1.5 min-w-0">
                   <input
                     v-model="entry.label"
                     placeholder="What happens?"
-                    class="w-full bg-muted border border-border rounded px-2 py-1 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                    class="w-full bg-muted border border-border rounded px-2 py-1 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                   />
                   <EntityCombobox
                     :model-value="entry.encounter_id ?? ''"
@@ -222,12 +222,12 @@
                   v-model="entry.notes"
                   rows="1"
                   placeholder="Notes (optional)"
-                  class="col-span-3 w-full bg-muted border border-border rounded px-2 py-1 font-fell text-xs text-muted-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+                  class="col-span-3 w-full bg-muted border border-border rounded px-2 py-1 text-caption text-muted-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
                 />
                 <button
                   v-else
                   type="button"
-                  class="col-span-3 text-left font-fell text-2xs text-muted-foreground hover:text-foreground italic"
+                  class="col-span-3 text-left text-caption-sm text-muted-foreground hover:text-foreground italic"
                   @click="entry.notes = ''"
                 >
                   + add note
@@ -247,7 +247,7 @@
               v-model="form.notes"
               rows="3"
               placeholder="When to roll, suggested cadence, special rules"
-              class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+              class="w-full bg-card border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
             />
           </div>
         </template>
@@ -282,12 +282,12 @@
               >
                 Open encounter →
               </RouterLink>
-              <p v-if="lastRoll.entry.notes" class="font-fell text-xs text-muted-foreground italic mt-1">{{ lastRoll.entry.notes }}</p>
+              <p v-if="lastRoll.entry.notes" class="text-caption text-muted-foreground italic mt-1">{{ lastRoll.entry.notes }}</p>
             </template>
-            <p v-else class="font-fell text-xs text-muted-foreground italic">No entry covers this result.</p>
+            <p v-else class="text-caption text-muted-foreground italic">No entry covers this result.</p>
           </div>
 
-          <p class="font-fell text-2xs text-muted-foreground italic">
+          <p class="text-caption-sm text-muted-foreground italic">
             {{ rollableEntries.length }} entries · die range 1–{{ dieMax }}
           </p>
         </div>

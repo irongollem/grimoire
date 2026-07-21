@@ -1,13 +1,13 @@
 <template>
   <div>
     <h2 class="font-cinzel text-xl font-semibold text-foreground mb-1">Welcome back</h2>
-    <p class="font-fell text-muted-foreground italic text-sm mb-6">
+    <p class="text-body text-muted-foreground italic mb-6">
       Sign in to continue your adventure
     </p>
 
     <form class="space-y-4" @submit.prevent="handleSubmit">
       <div class="space-y-1.5">
-        <label class="font-fell text-sm text-foreground" for="email">Email</label>
+        <label class="text-body text-foreground" for="email">Email</label>
         <input
           id="email"
           v-model="email"
@@ -20,7 +20,7 @@
       </div>
 
       <div class="space-y-1.5">
-        <label class="font-fell text-sm text-foreground" for="password">Password</label>
+        <label class="text-body text-foreground" for="password">Password</label>
         <input
           id="password"
           v-model="password"
@@ -32,7 +32,7 @@
         />
       </div>
 
-      <p v-if="errorMessage" class="text-sm text-destructive font-fell">
+      <p v-if="errorMessage" class="text-body text-destructive">
         {{ errorMessage }}
       </p>
 
@@ -45,7 +45,7 @@
       </button>
     </form>
 
-    <p class="mt-6 text-center font-fell text-sm text-muted-foreground">
+    <p class="mt-6 text-center text-body text-muted-foreground">
       New to Grimoire?
       <RouterLink to="/signup" class="text-gold-400 hover:text-gold-300 underline">
         Create an account

@@ -97,16 +97,16 @@
 
           <div class="flex flex-1 flex-col gap-1 p-3 min-h-18">
             <p class="font-cinzel text-sm font-semibold leading-tight line-clamp-1">{{ hero.name }}</p>
-            <p v-if="hero.race || hero.occupation" class="font-fell text-xs text-muted-foreground line-clamp-1">
+            <p v-if="hero.race || hero.occupation" class="text-caption text-muted-foreground line-clamp-1">
               {{ [hero.race, hero.occupation].filter(Boolean).join(' · ') }}
             </p>
             <div v-if="hero.tags.length" class="mt-1 flex flex-wrap gap-1">
               <span
                 v-for="tag in hero.tags.slice(0, 3)"
                 :key="tag"
-                class="rounded-full bg-muted px-2 py-0.5 font-fell text-2xs text-muted-foreground"
+                class="rounded-full bg-muted px-2 py-0.5 text-caption-sm text-muted-foreground"
               >{{ tag }}</span>
-              <span v-if="hero.tags.length > 3" class="font-fell text-2xs text-muted-foreground">+{{ hero.tags.length - 3 }}</span>
+              <span v-if="hero.tags.length > 3" class="text-caption-sm text-muted-foreground">+{{ hero.tags.length - 3 }}</span>
             </div>
           </div>
         </RouterLink>
@@ -145,7 +145,7 @@
     </div><!-- /listRef -->
 
     <template v-if="filtered.length" #footer>
-      <p class="text-center font-fell text-xs text-muted-foreground">
+      <p class="text-center text-caption text-muted-foreground">
         {{ filtered.length }} of {{ heroes?.length ?? 0 }} heroes
       </p>
     </template>

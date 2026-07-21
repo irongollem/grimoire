@@ -21,7 +21,7 @@
             />
             <div class="flex justify-end">
               <span
-                class="font-fell text-xs"
+                class="text-caption"
                 :class="rawText.length >= NOTES_LIMIT * 0.9 ? 'text-destructive' : 'text-muted-foreground/50'"
               >{{ rawText.length }} / {{ NOTES_LIMIT }}</span>
             </div>
@@ -47,7 +47,7 @@
           </div>
 
           <!-- Error -->
-          <p v-if="error" class="font-fell text-xs text-destructive shrink-0">{{ error }}</p>
+          <p v-if="error" class="text-caption text-destructive shrink-0">{{ error }}</p>
 
           <!-- Actions -->
           <div class="flex gap-2 justify-end items-center shrink-0">

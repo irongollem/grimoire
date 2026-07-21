@@ -30,7 +30,7 @@
               <IconChevronRight class="h-3.5 w-3.5 text-muted-foreground" />
             </div>
           </div>
-          <p v-if="q.summary" class="font-fell text-sm text-muted-foreground mt-1">{{ q.summary }}</p>
+          <p v-if="q.summary" class="text-body text-muted-foreground mt-1">{{ q.summary }}</p>
         </RouterLink>
       </div>
     </div>

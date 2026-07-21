@@ -4,7 +4,7 @@
     <div class="flex items-start justify-between gap-4">
       <div>
         <h1 class="font-cinzel text-xl font-bold text-foreground">Choose a Background</h1>
-        <p v-if="headerDescription" class="font-fell text-sm text-muted-foreground italic mt-1">
+        <p v-if="headerDescription" class="text-body text-muted-foreground italic mt-1">
           {{ headerDescription }}
         </p>
       </div>
@@ -39,7 +39,7 @@
         <div class="relative z-10 w-full max-w-md rounded-xl border border-border bg-background shadow-2xl p-6 space-y-4">
           <div>
             <h2 class="font-cinzel text-lg font-bold text-foreground">{{ pendingBg.name }}</h2>
-            <p v-if="pendingBg.feature_name" class="font-fell text-sm italic text-muted-foreground mt-0.5">
+            <p v-if="pendingBg.feature_name" class="text-body italic text-muted-foreground mt-0.5">
               {{ pendingBg.feature_name }}
             </p>
           </div>
@@ -71,7 +71,7 @@
               </span>
             </div>
           </div>
-          <p v-else class="font-fell text-sm text-muted-foreground italic">
+          <p v-else class="text-body text-muted-foreground italic">
             Your character already has all proficiencies from this background.
           </p>
 
@@ -83,7 +83,7 @@
             <p class="font-cinzel text-xs font-semibold text-amber-600 dark:text-amber-400">
               Remove {{ pendingRemovals.prevBgName }}'s proficiencies that don't carry over?
             </p>
-            <ul class="font-fell text-xs text-muted-foreground list-disc pl-4 space-y-0.5">
+            <ul class="text-caption text-muted-foreground list-disc pl-4 space-y-0.5">
               <li v-for="s in pendingRemovals.skillLabels" :key="s">{{ s }}</li>
               <li v-for="t in pendingRemovals.tools" :key="t">{{ t }}</li>
               <li v-for="l in pendingRemovals.languages" :key="l">{{ l }}</li>

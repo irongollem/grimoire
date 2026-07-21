@@ -2,7 +2,7 @@
   <div class="space-y-4">
     <ProFeatureGate v-if="!isPro" message="Simulacrum forging is available on the Pro plan." />
 
-    <p v-else-if="!campaign.isAiEnabled" class="font-fell text-sm text-muted-foreground italic">
+    <p v-else-if="!campaign.isAiEnabled" class="text-body text-muted-foreground italic">
       AI features are disabled for this campaign — ask your DM to enable them in campaign settings.
     </p>
 
@@ -21,7 +21,7 @@
           alt="Source portrait"
           class="h-full w-full object-cover"
         />
-        <div v-else class="flex h-full w-full items-center justify-center font-fell text-xs text-muted-foreground italic">
+        <div v-else class="flex h-full w-full items-center justify-center text-caption text-muted-foreground italic">
           No portrait
         </div>
       </div>
@@ -34,9 +34,9 @@
           v-model="instructions"
           type="text"
           placeholder="e.g. heroic action pose with sword raised, thicker staff, less clutter"
-          class="mt-1 w-full bg-background border border-border rounded px-2.5 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="mt-1 w-full bg-background border border-border rounded px-2.5 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
-        <p class="mt-1 font-fell text-2xs text-muted-foreground/70 italic">
+        <p class="mt-1 text-caption-sm text-muted-foreground/70 italic">
           Describe the pose or details the mini should have — it doesn't have to match the portrait.
         </p>
       </label>
@@ -67,7 +67,7 @@
         </button>
       </div>
 
-      <p v-if="error" class="font-fell text-xs text-destructive text-center">{{ error }}</p>
+      <p v-if="error" class="text-caption text-destructive text-center">{{ error }}</p>
     </template>
   </div>
 </template>

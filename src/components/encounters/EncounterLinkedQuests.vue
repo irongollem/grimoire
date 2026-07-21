@@ -17,7 +17,7 @@
         class="flex items-center gap-2 rounded px-2 py-1.5 hover:bg-muted/40 transition-colors group"
       >
         <IconScrollText class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-        <span class="font-fell text-sm text-foreground flex-1 truncate group-hover:text-primary transition-colors">
+        <span class="text-body text-foreground flex-1 truncate group-hover:text-primary transition-colors">
           {{ q.title || "Untitled Quest" }}
         </span>
       </RouterLink>

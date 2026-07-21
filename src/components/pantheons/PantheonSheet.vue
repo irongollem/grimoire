@@ -30,7 +30,7 @@
             v-for="d in memberDeities"
             :key="d.id"
             :to="`/deities/${d.id}`"
-            class="flex items-center gap-2 text-sm font-fell text-foreground hover:text-primary transition-colors"
+            class="flex items-center gap-2 text-body text-foreground hover:text-primary transition-colors"
           >
             <IconSun class="h-3 w-3 shrink-0 text-muted-foreground" />
             {{ d.name }}
@@ -60,7 +60,7 @@
       <div v-if="hasDescription">
         <RichTextViewer :content="pantheon.description" />
       </div>
-      <p v-else class="font-fell text-sm text-muted-foreground italic">
+      <p v-else class="text-body text-muted-foreground italic">
         No description recorded for this pantheon.
       </p>
     </div>

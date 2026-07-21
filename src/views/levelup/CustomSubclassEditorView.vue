@@ -35,7 +35,7 @@
     <CustomSubclassSheet v-if="!isNew && !isEditing && existing" :sub="existing" />
 
     <div v-else class="max-w-2xl mx-auto space-y-6">
-      <p v-if="saveError" class="font-fell text-sm text-destructive">{{ saveError }}</p>
+      <p v-if="saveError" class="text-body text-destructive">{{ saveError }}</p>
 
       <!-- ── Section 1: Identity ────────────────────────────────────────────── -->
       <section class="rounded-lg border border-border bg-card p-4 space-y-4">
@@ -55,7 +55,7 @@
             <label class="block text-eyebrow text-muted-foreground mb-1.5">BASE CLASS</label>
             <select
               v-model="form.class_name"
-              class="w-full bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-full bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             >
               <option value="" disabled>Select class…</option>
               <option v-for="cls in CLASS_NAMES" :key="cls" :value="cls">{{ cls }}</option>
@@ -66,7 +66,7 @@
             <label class="block text-eyebrow text-muted-foreground mb-1.5">CAMPAIGN SCOPE</label>
             <select
               v-model="campaignScope"
-              class="w-full bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-full bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             >
               <option value="all">All my campaigns</option>
               <option v-for="c in campaigns" :key="c.id" :value="c.id">{{ c.name }}</option>

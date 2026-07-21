@@ -42,7 +42,7 @@
     <p class="text-label-lg font-semibold text-destructive mb-3">Death Saving Throws</p>
     <div class="flex items-center gap-8">
       <div>
-        <p class="font-fell text-xs text-muted-foreground mb-1.5">Successes</p>
+        <p class="text-caption text-muted-foreground mb-1.5">Successes</p>
         <div class="flex gap-2">
           <button
             v-for="i in 3"
@@ -54,7 +54,7 @@
         </div>
       </div>
       <div>
-        <p class="font-fell text-xs text-muted-foreground mb-1.5">Failures</p>
+        <p class="text-caption text-muted-foreground mb-1.5">Failures</p>
         <div class="flex gap-2">
           <button
             v-for="i in 3"

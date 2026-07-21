@@ -8,17 +8,17 @@
             v-model="search"
             type="text"
             placeholder="Search minis…"
-            class="w-full rounded-md border border-border bg-background pl-7 pr-2 py-1.5 font-fell text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            class="w-full rounded-md border border-border bg-background pl-7 pr-2 py-1.5 text-body focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
 
-        <select v-model="filterFormat" class="rounded-md border border-border bg-background px-2 py-1.5 font-fell text-sm">
+        <select v-model="filterFormat" class="rounded-md border border-border bg-background px-2 py-1.5 text-body">
           <option value="all">All formats</option>
           <option value="print">Print</option>
           <option value="vtt">VTT</option>
         </select>
 
-        <select v-model="filterStatus" class="rounded-md border border-border bg-background px-2 py-1.5 font-fell text-sm">
+        <select v-model="filterStatus" class="rounded-md border border-border bg-background px-2 py-1.5 text-body">
           <option value="all">All statuses</option>
           <option value="ready">Ready</option>
           <option value="in-progress">In progress</option>

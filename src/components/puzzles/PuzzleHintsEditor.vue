@@ -11,7 +11,7 @@
       </button>
     </div>
     <div class="p-4 space-y-3">
-      <p v-if="!sortedHints.length" class="font-fell text-xs text-muted-foreground italic">
+      <p v-if="!sortedHints.length" class="text-caption text-muted-foreground italic">
         No hints yet. Add tiered hints from subtle to obvious.
       </p>
       <div v-for="(hint, i) in sortedHints" :key="hint.order" class="flex items-start gap-2">

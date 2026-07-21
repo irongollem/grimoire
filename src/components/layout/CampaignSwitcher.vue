@@ -25,7 +25,7 @@
             }}
           </p>
           <p
-            class="font-fell text-2xs text-muted-foreground italic truncate leading-tight flex items-center gap-1.5"
+            class="text-caption-sm text-muted-foreground italic truncate leading-tight flex items-center gap-1.5"
           >
             {{
               activeCampaign?.setting ??
@@ -84,7 +84,7 @@
                   {{ c.name }}
                 </p>
                 <p
-                  class="font-fell text-2xs text-muted-foreground italic truncate"
+                  class="text-caption-sm text-muted-foreground italic truncate"
                 >
                   {{ c.setting }} · {{ c.current_year }}
                   {{ calendarEpoch(c.calendar_id) }}
@@ -172,7 +172,7 @@
 
     <!-- No campaigns yet — only show after loading confirms there are truly none -->
     <div v-else-if="!campaignsLoading" class="px-2 py-1">
-      <p class="font-fell text-xs text-muted-foreground italic mb-2">
+      <p class="text-caption text-muted-foreground italic mb-2">
         No campaigns yet.
       </p>
       <button

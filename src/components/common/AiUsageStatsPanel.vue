@@ -2,7 +2,7 @@
   <div class="rounded-lg border border-border bg-card p-4 space-y-3">
     <div>
       <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">{{ title }}</h2>
-      <p v-if="subtitle" class="font-fell text-xs text-muted-foreground italic mt-0.5">{{ subtitle }}</p>
+      <p v-if="subtitle" class="text-caption text-muted-foreground italic mt-0.5">{{ subtitle }}</p>
     </div>
 
     <div v-if="stats.isPending.value" class="text-center py-4">
@@ -42,7 +42,7 @@
             <span class="font-cinzel text-xs font-semibold text-foreground">{{ stat.model }}</span>
             <span class="font-fell text-[0.6875rem] text-muted-foreground italic ml-1">· {{ stat.provider }}</span>
           </div>
-          <span class="font-fell text-xs text-muted-foreground shrink-0 w-10 text-right">{{ currency === 'credits' ? stat.charged_count : stat.count }}×</span>
+          <span class="text-caption text-muted-foreground shrink-0 w-10 text-right">{{ currency === 'credits' ? stat.charged_count : stat.count }}×</span>
           <template v-if="currency === 'credits'">
             <span class="font-cinzel text-xs text-foreground shrink-0 w-20 text-right">{{ Math.round(stat.credits) }} cr</span>
             <span class="font-cinzel text-xs text-muted-foreground shrink-0 w-20 text-right">{{ stat.avg_credits.toFixed(1) }} cr</span>
@@ -54,7 +54,7 @@
         </div>
       </div>
 
-      <p v-else class="font-fell text-xs text-muted-foreground italic">No generation data yet.</p>
+      <p v-else class="text-caption text-muted-foreground italic">No generation data yet.</p>
     </template>
   </div>
 </template>

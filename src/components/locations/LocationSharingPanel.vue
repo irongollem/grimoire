@@ -14,7 +14,7 @@
       <input
         :value="playerSummary"
         placeholder="A short description players always see when they discover this location…"
-        class="w-full bg-background border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        class="w-full bg-background border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         @input="$emit('update:playerSummary', ($event.target as HTMLInputElement).value)"
       />
     </div>

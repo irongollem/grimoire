@@ -11,7 +11,7 @@
           <div class="divide-y divide-border">
             <div v-for="action in section.entries" :key="action.name" class="px-4 py-3">
               <div class="flex items-start justify-between gap-2 mb-1.5">
-                <span class="font-fell text-sm text-foreground font-semibold">{{ action.name }}</span>
+                <span class="text-body text-foreground font-semibold">{{ action.name }}</span>
                 <button
                   v-if="parseBeastAttackBonus(action.description) !== null"
                   class="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border hover:border-primary/50 hover:bg-muted/30 transition-colors shrink-0"
@@ -25,7 +25,7 @@
                   <span v-if="attackDisadvantage" class="font-cinzel text-2xs md:text-sm text-amber-500">Dis</span>
                 </button>
               </div>
-              <p class="font-fell text-xs text-muted-foreground leading-relaxed">{{ action.description }}</p>
+              <p class="text-caption text-muted-foreground leading-relaxed">{{ action.description }}</p>
             </div>
           </div>
         </div>
@@ -41,7 +41,7 @@
       <div v-if="equippedWeapons.length" class="rounded-lg border border-border bg-card overflow-hidden divide-y divide-border">
         <div v-for="{ inv, item } in equippedWeapons" :key="inv.id" class="px-4 py-3">
           <div class="flex items-center justify-between mb-2">
-            <span class="font-fell text-sm text-foreground font-semibold">{{ inv.name }}</span>
+            <span class="text-body text-foreground font-semibold">{{ inv.name }}</span>
             <span v-if="item?.subtype" class="text-label md:text-sm text-muted-foreground">{{ item.subtype }}</span>
             <span v-else-if="!item" class="text-label md:text-sm text-muted-foreground">Custom</span>
           </div>
@@ -73,7 +73,7 @@
       <div class="rounded-lg border border-border bg-card overflow-hidden divide-y divide-border">
         <div class="px-4 py-3">
           <div class="flex items-center justify-between mb-2">
-            <span class="font-fell text-sm text-foreground font-semibold">Unarmed Strike</span>
+            <span class="text-body text-foreground font-semibold">Unarmed Strike</span>
             <span class="text-label md:text-sm text-muted-foreground">Proficient</span>
           </div>
           <div class="flex flex-wrap gap-2 items-center">
@@ -93,7 +93,7 @@
         </div>
         <div class="px-4 py-3">
           <div class="flex items-center justify-between mb-2">
-            <span class="font-fell text-sm text-foreground font-semibold">Improvised Weapon</span>
+            <span class="text-body text-foreground font-semibold">Improvised Weapon</span>
             <span class="text-label md:text-sm text-muted-foreground">No proficiency</span>
           </div>
           <div class="flex flex-wrap gap-2">

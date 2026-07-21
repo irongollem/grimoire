@@ -38,7 +38,7 @@
           >
             <span class="h-2 w-2 rounded-full shrink-0" :style="{ backgroundColor: col.color }" />
             <span class="text-label-lg font-bold text-foreground">{{ col.label }}</span>
-            <span class="ml-auto font-fell text-xs text-muted-foreground">{{ col.quests.length }}</span>
+            <span class="ml-auto text-caption text-muted-foreground">{{ col.quests.length }}</span>
           </div>
 
           <!-- Drop zone -->
@@ -46,7 +46,7 @@
             class="flex flex-col gap-2 min-h-16 rounded-md transition-colors"
             :class="dragOverCol === col.status && dragQuestId ? 'bg-primary/5 ring-1 ring-primary/30' : ''"
           >
-            <p v-if="!col.quests.length" class="font-fell text-xs text-muted-foreground italic text-center py-6">
+            <p v-if="!col.quests.length" class="text-caption text-muted-foreground italic text-center py-6">
               None
             </p>
 
@@ -65,7 +65,7 @@
               <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight line-clamp-2">
                 {{ quest.title || "Untitled Quest" }}
               </h3>
-              <p v-if="quest.summary" class="font-fell text-xs text-muted-foreground italic line-clamp-2">
+              <p v-if="quest.summary" class="text-caption text-muted-foreground italic line-clamp-2">
                 {{ quest.summary }}
               </p>
               <div v-if="quest.tags.length" class="flex flex-wrap gap-1">
@@ -75,7 +75,7 @@
                   class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground"
                 >{{ tag }}</span>
               </div>
-              <span class="font-fell text-2xs text-muted-foreground italic ml-auto">
+              <span class="text-caption-sm text-muted-foreground italic ml-auto">
                 {{ timeAgo(quest.updated_at) }}
               </span>
             </div>
@@ -86,7 +86,7 @@
 
     <!-- List view -->
     <template v-else>
-      <p v-if="!filtered.length" class="text-center font-fell text-sm text-muted-foreground italic py-12">
+      <p v-if="!filtered.length" class="text-center text-body text-muted-foreground italic py-12">
         No quests match your search.
       </p>
 
@@ -122,7 +122,7 @@
               {{ QUEST_STATUS_LABELS[quest.status] }}
             </span>
 
-            <p v-if="quest.summary" class="font-fell text-xs text-muted-foreground italic line-clamp-3 flex-1">
+            <p v-if="quest.summary" class="text-caption text-muted-foreground italic line-clamp-3 flex-1">
               {{ quest.summary }}
             </p>
             <div v-else class="flex-1" />
@@ -135,7 +135,7 @@
                   class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground"
                 >{{ tag }}</span>
               </div>
-              <span class="font-fell text-2xs text-muted-foreground italic shrink-0 ml-auto">
+              <span class="text-caption-sm text-muted-foreground italic shrink-0 ml-auto">
                 {{ timeAgo(quest.updated_at) }}
               </span>
             </div>
@@ -143,7 +143,7 @@
         </RouterLink>
       </div>
 
-      <p v-if="filtered.length" class="mt-4 font-fell text-xs text-muted-foreground italic text-right">
+      <p v-if="filtered.length" class="mt-4 text-caption text-muted-foreground italic text-right">
         {{ filtered.length }} of {{ allQuests?.length ?? 0 }} quests
       </p>
     </template>

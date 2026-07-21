@@ -38,7 +38,7 @@
       <span
         v-for="(effect, i) in activeEffects"
         :key="i"
-        class="font-fell text-2xs italic text-destructive/80"
+        class="text-caption-sm italic text-destructive/80"
       >
         {{ effectLabel(effect) }}
       </span>

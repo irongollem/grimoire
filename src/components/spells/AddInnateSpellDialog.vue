@@ -29,7 +29,7 @@
                   v-model="spellSearch"
                   type="text"
                   placeholder="Search by name…"
-                  class="w-full bg-muted/30 border border-border rounded-md pl-8 pr-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                  class="w-full bg-muted/30 border border-border rounded-md pl-8 pr-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                   @input="selectedSpell = null"
                 />
               </div>
@@ -37,7 +37,7 @@
               <!-- Selected spell display -->
               <div v-if="selectedSpell" class="flex items-center gap-2 px-3 py-1.5 rounded-md bg-violet-500/10 border border-violet-500/30">
                 <div class="h-2 w-2 rounded-full shrink-0" :style="{ backgroundColor: SCHOOL_COLORS[selectedSpell.school] }" />
-                <span class="font-fell text-sm text-foreground flex-1">{{ selectedSpell.name }}</span>
+                <span class="text-body text-foreground flex-1">{{ selectedSpell.name }}</span>
                 <span class="font-cinzel text-2xs text-muted-foreground">{{ selectedSpell.level === 0 ? 'Cantrip' : `Lvl ${selectedSpell.level}` }}</span>
                 <button type="button" class="text-muted-foreground hover:text-foreground" @click="clearSpell">×</button>
               </div>
@@ -55,11 +55,11 @@
                   @click="pickSpell(spell)"
                 >
                   <div class="h-2 w-2 rounded-full shrink-0" :style="{ backgroundColor: SCHOOL_COLORS[spell.school] }" />
-                  <span class="font-fell text-sm text-foreground flex-1 truncate">{{ spell.name }}</span>
+                  <span class="text-body text-foreground flex-1 truncate">{{ spell.name }}</span>
                   <span class="font-cinzel text-2xs text-muted-foreground shrink-0">{{ spell.level === 0 ? 'C' : spell.level }}</span>
                 </button>
               </div>
-              <p v-else-if="spellSearch.length >= 2 && !isSearching" class="font-fell text-xs text-muted-foreground italic px-1">No spells found</p>
+              <p v-else-if="spellSearch.length >= 2 && !isSearching" class="text-caption text-muted-foreground italic px-1">No spells found</p>
             </div>
 
             <!-- Source type -->
@@ -84,7 +84,7 @@
                 v-model="sourceLabel"
                 type="text"
                 placeholder="What grants this spell?"
-                class="w-full bg-muted/30 border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="w-full bg-muted/30 border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
 
@@ -142,7 +142,7 @@
 
             <div class="space-y-1">
               <label class="text-label-lg text-muted-foreground">CASTING ABILITY</label>
-              <select v-model="castingAbility" class="w-full rounded-md border border-border bg-muted/30 px-3 py-1.5 font-fell text-sm text-foreground">
+              <select v-model="castingAbility" class="w-full rounded-md border border-border bg-muted/30 px-3 py-1.5 text-body text-foreground">
                 <option :value="null">Use class/default ability</option>
                 <option value="int">Intelligence</option>
                 <option value="wis">Wisdom</option>

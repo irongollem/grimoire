@@ -40,10 +40,10 @@
           <RouterLink
             v-if="deity.pantheon_id"
             :to="`/pantheons/${deity.pantheon_id}`"
-            class="block font-fell text-sm text-primary hover:underline"
+            class="block text-body text-primary hover:underline"
             >{{ pantheonName }}</RouterLink
           >
-          <p v-else class="font-fell text-sm text-foreground">
+          <p v-else class="text-body text-foreground">
             {{ pantheonName }}
           </p>
         </div>
@@ -54,7 +54,7 @@
             class="text-eyebrow font-semibold text-muted-foreground"
             >Alignment</span
           >
-          <p class="font-fell text-sm text-foreground">{{ deity.alignment }}</p>
+          <p class="text-body text-foreground">{{ deity.alignment }}</p>
         </div>
 
         <!-- Holy symbol description -->
@@ -63,7 +63,7 @@
             class="text-eyebrow font-semibold text-muted-foreground"
             >Holy Symbol</span
           >
-          <p class="font-fell text-sm text-foreground">{{ deity.symbol }}</p>
+          <p class="text-body text-foreground">{{ deity.symbol }}</p>
         </div>
 
         <!-- Portfolio -->
@@ -72,7 +72,7 @@
             class="text-eyebrow font-semibold text-muted-foreground"
             >Portfolio</span
           >
-          <p class="font-fell text-sm text-foreground">{{ deity.portfolio }}</p>
+          <p class="text-body text-foreground">{{ deity.portfolio }}</p>
         </div>
 
         <!-- Domains -->
@@ -133,7 +133,7 @@
         </h1>
         <p
           v-if="deity.titles"
-          class="font-fell text-sm text-muted-foreground italic mt-0.5"
+          class="text-body text-muted-foreground italic mt-0.5"
         >
           {{ deity.titles }}
         </p>
@@ -142,7 +142,7 @@
       <div v-if="hasDescription">
         <RichTextViewer :content="deity.description" />
       </div>
-      <p v-else class="font-fell text-sm text-muted-foreground italic">
+      <p v-else class="text-body text-muted-foreground italic">
         No lore recorded for this deity.
       </p>
 

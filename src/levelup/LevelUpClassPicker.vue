@@ -2,7 +2,7 @@
   <WizardStepCard title="Leveling in">
     <select
       :value="modelValue"
-      class="w-full rounded border border-border bg-muted/40 px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+      class="w-full rounded border border-border bg-muted/40 px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
       @change="emit('update:modelValue', ($event.target as HTMLSelectElement).value)"
     >
       <option v-for="entry in existingClassOptions" :key="entry.id" :value="entry.id">
@@ -17,7 +17,7 @@
         <label class="text-label text-muted-foreground">New Class</label>
         <select
           :value="newClassName"
-          class="w-full rounded border border-border bg-muted/40 px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full rounded border border-border bg-muted/40 px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           @change="emit('update:newClassName', ($event.target as HTMLSelectElement).value)"
         >
           <option value="" disabled>Select…</option>
@@ -36,7 +36,7 @@
           : 'bg-destructive/10 border border-destructive/30 text-destructive'"
       >
         <span class="text-label shrink-0">{{ ignorePrereqs ? 'PREREQ IGNORED' : 'PREREQ' }}</span>
-        <span class="font-fell text-xs">
+        <span class="text-caption">
           {{ prereq.reason }}.
           <template v-if="ignorePrereqs">
             Multiclass prereqs are disabled for this campaign.

@@ -87,7 +87,7 @@
           @click="emit('update:coin', { ...coin, printSize: ps.id })"
         >
           {{ ps.label }}
-          <span class="ml-1 font-fell font-normal text-2xs opacity-60">~{{ ps.perSheet }}/sheet</span>
+          <span class="ml-1 text-caption-sm font-normal opacity-60">~{{ ps.perSheet }}/sheet</span>
         </button>
       </div>
     </div>

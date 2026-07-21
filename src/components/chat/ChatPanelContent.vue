@@ -40,7 +40,7 @@
         <LoadingSpinner />
       </div>
       <div v-else-if="!messages.length" class="text-center py-8">
-        <p class="font-fell text-xs text-muted-foreground italic">
+        <p class="text-caption text-muted-foreground italic">
           No messages yet. Say hello!
         </p>
       </div>
@@ -167,7 +167,7 @@
           v-model="vendorDesc"
           type="text"
           placeholder="What is being offered? (e.g. Healing Potion)"
-          class="w-full bg-muted/30 border border-border rounded px-2 py-1 font-fell text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full bg-muted/30 border border-border rounded px-2 py-1 text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
         />
         <!-- Item combobox -->
         <div class="relative">
@@ -176,7 +176,7 @@
             type="text"
             placeholder="Vault item to give on payment (optional)"
             autocomplete="off"
-            class="w-full bg-muted/30 border border-border rounded px-2 py-1 font-fell text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
+            class="w-full bg-muted/30 border border-border rounded px-2 py-1 text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
             :class="vendorItemQuery && !vendorItemId ? 'border-amber-500/50' : ''"
             @input="vendorItemId = ''"
             @focus="vendorShowItems = true"
@@ -190,7 +190,7 @@
               v-for="it in vendorItemSuggestions"
               :key="it.id"
               type="button"
-              class="w-full text-left px-2 py-1 font-fell text-xs text-foreground hover:bg-muted transition-colors flex items-baseline gap-2"
+              class="w-full text-left px-2 py-1 text-caption text-foreground hover:bg-muted transition-colors flex items-baseline gap-2"
               @click="vendorItemQuery = it.name; vendorItemId = it.id; vendorShowItems = false"
             >
               <span class="truncate">{{ it.name }}</span>
@@ -251,7 +251,7 @@
       >
       <select
         v-model="whisperTarget"
-        class="flex-1 bg-muted/40 border border-border rounded px-2 py-0.5 font-fell text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        class="flex-1 bg-muted/40 border border-border rounded px-2 py-0.5 text-caption text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
       >
         <option value="">Everyone</option>
         <option v-for="m in otherMembers" :key="m.id" :value="m.user_id">
@@ -296,7 +296,7 @@
         v-model="inputText"
         rows="1"
         :placeholder="whisperTarget ? 'Whisper…' : 'Type a message…'"
-        class="flex-1 resize-none bg-muted/40 border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring leading-snug overflow-hidden"
+        class="flex-1 resize-none bg-muted/40 border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring leading-snug overflow-hidden"
         :class="whisperTarget ? 'border-amber-500/40 bg-amber-500/5' : ''"
         style="max-height: 5rem; min-height: 2rem"
         @keydown.enter.exact.prevent="send"

@@ -2,7 +2,7 @@
   <div class="space-y-2 border-t border-border pt-4">
     <div>
       <h3 class="font-cinzel text-xs font-semibold tracking-wide text-foreground">Credit Pack Refunds</h3>
-      <p class="font-fell text-2xs text-muted-foreground italic mt-0.5">
+      <p class="text-caption-sm text-muted-foreground italic mt-0.5">
         Per-pack eligibility (FIFO). Refunding issues the Stripe refund and claws back the credits.
       </p>
     </div>
@@ -11,7 +11,7 @@
       <div class="h-5 w-5 rounded-full border-2 border-primary border-t-transparent animate-spin mx-auto" />
     </div>
 
-    <p v-else-if="!lots.length" class="font-fell text-xs text-muted-foreground italic">
+    <p v-else-if="!lots.length" class="text-caption text-muted-foreground italic">
       No credit-pack purchases.
     </p>
 
@@ -24,7 +24,7 @@
         <div class="flex items-center gap-3">
           <div class="flex-1 min-w-0">
             <p class="font-cinzel text-xs font-semibold text-foreground">{{ lot.credits }} credits</p>
-            <p class="font-fell text-2xs text-muted-foreground">
+            <p class="text-caption-sm text-muted-foreground">
               {{ formatDate(lot.purchasedAt) }} ·
               <span v-if="!lot.alreadyRefunded">{{ lot.remaining }}/{{ lot.credits }} unspent</span>
             </p>
@@ -47,7 +47,7 @@
 
         <!-- Inline confirm / override -->
         <div v-if="confirmingPi === lot.paymentIntentId" class="space-y-2 border-t border-border/60 pt-2">
-          <p v-if="!lot.eligible" class="font-fell text-2xs text-amber-400">
+          <p v-if="!lot.eligible" class="text-caption-sm text-amber-400">
             {{ ineligibleReason(lot) }} This will still issue a full Stripe refund; clawback is clamped to the available balance.
           </p>
           <input
@@ -55,9 +55,9 @@
             v-model="reason"
             type="text"
             placeholder="Override reason (required)…"
-            class="w-full bg-muted border border-border rounded px-2.5 py-1.5 font-fell text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="w-full bg-muted border border-border rounded px-2.5 py-1.5 text-caption text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
-          <p v-if="errorMsg" class="font-fell text-2xs text-destructive">{{ errorMsg }}</p>
+          <p v-if="errorMsg" class="text-caption-sm text-destructive">{{ errorMsg }}</p>
           <div class="flex items-center gap-2">
             <button
               class="px-3 py-1 text-label font-semibold bg-destructive text-white rounded-md hover:opacity-90 disabled:opacity-50"
@@ -78,7 +78,7 @@
       </div>
     </div>
 
-    <p v-if="successMsg" class="font-fell text-xs text-green-500">{{ successMsg }}</p>
+    <p v-if="successMsg" class="text-caption text-green-500">{{ successMsg }}</p>
   </div>
 </template>
 

@@ -2,7 +2,7 @@
   <div class="flex flex-col gap-2">
     <div class="flex items-center justify-between gap-2">
       <p class="text-label-lg font-semibold text-muted-foreground">{{ label }}</p>
-      <span v-if="selected.length" class="font-fell text-xs text-muted-foreground/70 italic">{{ selected.length }}</span>
+      <span v-if="selected.length" class="text-caption text-muted-foreground/70 italic">{{ selected.length }}</span>
     </div>
 
     <EntityCombobox
@@ -12,7 +12,7 @@
       @update:model-value="onAdd"
     />
 
-    <div v-if="selected.length === 0" class="font-fell text-xs text-muted-foreground/60 italic">
+    <div v-if="selected.length === 0" class="text-caption text-muted-foreground/60 italic">
       {{ emptyText ?? 'None linked.' }}
     </div>
 
@@ -25,7 +25,7 @@
         <component
           :is="entity.routeTo ? 'RouterLink' : 'span'"
           :to="entity.routeTo"
-          class="font-fell text-sm text-foreground truncate"
+          class="text-body text-foreground truncate"
           :class="entity.routeTo ? 'hover:text-primary transition-colors' : ''"
         >{{ entity.name }}</component>
         <button

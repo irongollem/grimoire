@@ -66,7 +66,7 @@
             <IconAddImage class="h-6 w-6" />
           </div>
           <div class="absolute inset-0 bg-black/50 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-full">
-            <span class="font-fell text-white text-xs italic">{{ portraitUrl ? 'Change' : 'Upload' }}</span>
+            <span class="text-caption text-white italic">{{ portraitUrl ? 'Change' : 'Upload' }}</span>
           </div>
           <div v-if="isUploading" class="absolute inset-0 bg-black/60 flex items-center justify-center rounded-full">
             <LoadingSpinner class="h-5 w-5" />
@@ -81,7 +81,7 @@
             :model-value="focalPoint"
             @update:model-value="focalPoint = $event"
           />
-          <p v-else class="font-fell text-xs text-muted-foreground italic mt-1">
+          <p v-else class="text-caption text-muted-foreground italic mt-1">
             Upload a portrait or select a source above to auto-fill artwork.
           </p>
         </div>
@@ -95,7 +95,7 @@
           <input
             v-model="name"
             placeholder="Companion name…"
-            class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="w-full bg-card border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
 
@@ -103,7 +103,7 @@
           <label class="text-label-lg font-semibold text-muted-foreground">Type</label>
           <select
             v-model="companionType"
-            class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="w-full bg-card border border-border rounded-md px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           >
             <option v-for="t in COMPANION_TYPES" :key="t" :value="t">{{ COMPANION_TYPE_LABELS[t] }}</option>
           </select>
@@ -113,7 +113,7 @@
           <label class="text-label-lg font-semibold text-muted-foreground">Owner (optional)</label>
           <select
             v-model="ownerMemberId"
-            class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="w-full bg-card border border-border rounded-md px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           >
             <option value="">— Party —</option>
             <option v-for="m in partyMembers" :key="m.id" :value="m.id">{{ m.name }}</option>
@@ -122,22 +122,22 @@
 
         <div class="flex flex-col gap-1.5">
           <label class="text-label-lg font-semibold text-muted-foreground">Max HP</label>
-          <input v-model.number="maxHp" type="number" min="1" class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+          <input v-model.number="maxHp" type="number" min="1" class="w-full bg-card border border-border rounded-md px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
         </div>
 
         <div class="flex flex-col gap-1.5">
           <label class="text-label-lg font-semibold text-muted-foreground">Current HP</label>
-          <input v-model.number="currentHp" type="number" min="0" class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+          <input v-model.number="currentHp" type="number" min="0" class="w-full bg-card border border-border rounded-md px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
         </div>
 
         <div class="flex flex-col gap-1.5">
           <label class="text-label-lg font-semibold text-muted-foreground">AC</label>
-          <input v-model.number="ac" type="number" min="0" class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+          <input v-model.number="ac" type="number" min="0" class="w-full bg-card border border-border rounded-md px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
         </div>
 
         <div class="flex flex-col gap-1.5">
           <label class="text-label-lg font-semibold text-muted-foreground">Speed (ft)</label>
-          <input v-model.number="speed" type="number" min="0" class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+          <input v-model.number="speed" type="number" min="0" class="w-full bg-card border border-border rounded-md px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
         </div>
       </div>
 
@@ -192,7 +192,7 @@
                 type="number" min="1" max="30"
                 class="sb-input text-center px-0.5 text-xs"
               />
-              <p class="font-fell text-2xs text-muted-foreground mt-0.5">{{ modifier((sb as Record<string, unknown>)[ab.key] as number) }}</p>
+              <p class="text-caption-sm text-muted-foreground mt-0.5">{{ modifier((sb as Record<string, unknown>)[ab.key] as number) }}</p>
             </div>
           </div>
         </div>
@@ -224,7 +224,7 @@
       </template>
 
       <!-- Error -->
-      <p v-if="saveError" class="text-destructive font-fell text-sm">{{ saveError }}</p>
+      <p v-if="saveError" class="text-destructive text-body">{{ saveError }}</p>
 
       <!-- Actions -->
       <div class="flex items-center justify-end gap-2 pt-1">

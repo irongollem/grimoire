@@ -12,7 +12,7 @@
       class="rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-3 flex items-center gap-3"
     >
       <IconGenerate class="h-4 w-4 text-green-400 shrink-0" />
-      <p class="font-fell text-sm text-green-400">
+      <p class="text-body text-green-400">
         Credits added to your account — thanks for your purchase!
       </p>
     </div>
@@ -28,7 +28,7 @@
         class="flex items-center gap-2 text-muted-foreground"
       >
         <IconLoading class="h-4 w-4 animate-spin" />
-        <span class="font-fell text-sm italic">Loading…</span>
+        <span class="text-body italic">Loading…</span>
       </div>
 
       <template v-else>
@@ -52,25 +52,25 @@
 
         <p
           v-if="isPendingCancellation && cancelDate"
-          class="font-fell text-sm text-amber-400 italic"
+          class="text-body text-amber-400 italic"
         >
           Cancels {{ cancelDate }} — Pro access until then.
         </p>
         <p
           v-else-if="isPro && renewalDate"
-          class="font-fell text-sm text-muted-foreground italic"
+          class="text-body text-muted-foreground italic"
         >
           Renews {{ renewalDate }}
         </p>
         <p
           v-else-if="subscription?.status === 'past_due'"
-          class="font-fell text-sm text-red-400 italic"
+          class="text-body text-red-400 italic"
         >
           Payment failed — update your payment method to restore access.
         </p>
         <p
           v-else-if="subscription?.status === 'cancelled'"
-          class="font-fell text-sm text-muted-foreground italic"
+          class="text-body text-muted-foreground italic"
         >
           Your Pro subscription has ended.
         </p>
@@ -87,7 +87,7 @@
             <li
               v-for="item in downgradeImpact"
               :key="item.label"
-              class="font-fell text-xs text-muted-foreground italic"
+              class="text-caption text-muted-foreground italic"
             >
               {{ item.label }}: {{ item.current }} → limit {{ item.limit }} ({{ item.excess }} will be locked)
             </li>
@@ -231,18 +231,18 @@
 
       <div class="flex items-end gap-2">
         <span class="font-cinzel text-3xl font-bold text-amber-400">{{ activeProPrice ?? "—" }}</span>
-        <span class="font-fell text-sm text-muted-foreground italic mb-1">{{
+        <span class="text-body text-muted-foreground italic mb-1">{{
           annual ? "/ year" : "/ month"
         }}</span>
         <span
           v-if="activeTaxNote"
-          class="font-fell text-xs text-muted-foreground/70 italic mb-1"
+          class="text-caption text-muted-foreground/70 italic mb-1"
         >{{ activeTaxNote }}</span>
       </div>
 
       <p
         v-if="proMonthlyCredits > 0"
-        class="font-fell text-xs text-amber-400/90 italic -mt-2"
+        class="text-caption text-amber-400/90 italic -mt-2"
       >
         Includes {{ proMonthlyCredits.toLocaleString() }} AI credits every month.
       </p>
@@ -269,7 +269,7 @@
         }}
       </button>
 
-      <p class="font-fell text-xs text-muted-foreground italic text-center">
+      <p class="text-caption text-muted-foreground italic text-center">
         Cancel anytime from the billing portal. No hidden fees. Taxes calculated at checkout.
       </p>
     </div>
@@ -307,7 +307,7 @@
         </span>
       </div>
 
-      <p class="font-fell text-xs text-muted-foreground italic leading-relaxed">
+      <p class="text-caption text-muted-foreground italic leading-relaxed">
         <template v-if="isPro && proMonthlyCredits > 0">
           Your Pro plan includes {{ proMonthlyCredits.toLocaleString() }} credits each billing period
           (use-it-or-lose-it). Purchased packs are permanent and top up whenever you need more.
@@ -351,7 +351,7 @@
         <p class="font-fell text-[0.6875rem] text-muted-foreground/60 italic">
           Taxes calculated at checkout based on your location.
         </p>
-        <p v-if="purchaseError" class="font-fell text-xs text-red-400 italic">
+        <p v-if="purchaseError" class="text-caption text-red-400 italic">
           {{ purchaseError }}
         </p>
       </div>

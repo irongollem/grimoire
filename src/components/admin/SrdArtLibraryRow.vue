@@ -143,12 +143,12 @@ function resolvedFocalPoint() {
           class="font-cinzel text-xs font-semibold text-foreground truncate block text-left hover:text-primary hover:underline transition-colors w-full"
           @click.stop="emit('preview')"
         >{{ entity.name }}</button>
-        <span class="font-fell text-2xs text-muted-foreground capitalize">{{ entity.subtitle }}</span>
+        <span class="text-caption-sm text-muted-foreground capitalize">{{ entity.subtitle }}</span>
       </div>
 
       <span
         v-if="errorMsg"
-        class="font-fell text-2xs text-destructive truncate max-w-30"
+        class="text-caption-sm text-destructive truncate max-w-30"
         :title="errorMsg"
       >
         {{ errorMsg }}

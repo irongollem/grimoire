@@ -38,7 +38,7 @@
                 v-model="local.title"
                 type="text"
                 placeholder="Document Title"
-                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
             <div class="space-y-1.5">
@@ -47,7 +47,7 @@
                 v-model="local.subtitle"
                 type="text"
                 placeholder="An Unofficial Homebrew Supplement"
-                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
             <div class="space-y-1.5">
@@ -76,7 +76,7 @@
               <input v-model="local.titleScrim" type="checkbox" class="mt-0.5 h-4 w-4 accent-primary shrink-0" />
               <span class="space-y-0.5">
                 <span class="block font-cinzel text-[0.6875rem] font-semibold tracking-wider text-muted-foreground uppercase">Darken behind title</span>
-                <span class="block font-fell text-xs text-muted-foreground italic">Adds a soft gradient under the title for legibility. Turn off if your art already leaves room for it.</span>
+                <span class="block text-caption text-muted-foreground italic">Adds a soft gradient under the title for legibility. Turn off if your art already leaves room for it.</span>
               </span>
             </label>
           </template>
@@ -89,7 +89,7 @@
                 v-model="local.partNumber"
                 type="text"
                 placeholder="I"
-                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
             <div class="space-y-1.5">
@@ -98,7 +98,7 @@
                 v-model="local.subtitle"
                 type="text"
                 placeholder="Chapter Title or Section Name"
-                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
           </template>
@@ -111,7 +111,7 @@
                 v-model="local.subtitle"
                 type="text"
                 placeholder="Document Title"
-                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
             <div class="space-y-1.5">
@@ -120,7 +120,7 @@
                 v-model="local.blurb1"
                 rows="3"
                 placeholder="Opening hook…"
-                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
               />
             </div>
             <div class="space-y-1.5">
@@ -129,7 +129,7 @@
                 v-model="local.blurb2"
                 rows="3"
                 placeholder="Stakes and world description…"
-                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
               />
             </div>
             <div class="space-y-1.5">
@@ -138,7 +138,7 @@
                 v-model="local.blurb3"
                 rows="2"
                 placeholder="Closing punchy line…"
-                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
               />
             </div>
             <div class="space-y-1.5">
@@ -147,7 +147,7 @@
                 v-model="local.tagline"
                 type="text"
                 placeholder="An unofficial Grimoire supplement"
-                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
             <div class="space-y-1.5">
@@ -156,7 +156,7 @@
                 v-model="local.productUrl"
                 type="text"
                 placeholder="grimoire.example.com"
-                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
             <div class="space-y-1.5">
@@ -183,8 +183,8 @@
 
         <!-- Footer -->
         <div class="flex flex-col gap-2 px-4 py-3 border-t border-border shrink-0">
-          <p v-if="applyError" class="font-fell text-xs text-destructive italic">{{ applyError }}</p>
-          <p v-else-if="!isActiveCoverPage" class="font-fell text-xs text-muted-foreground italic">Click inside a cover page in the editor to enable Apply.</p>
+          <p v-if="applyError" class="text-caption text-destructive italic">{{ applyError }}</p>
+          <p v-else-if="!isActiveCoverPage" class="text-caption text-muted-foreground italic">Click inside a cover page in the editor to enable Apply.</p>
           <div class="flex justify-end gap-2">
             <button
               type="button"

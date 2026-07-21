@@ -17,7 +17,7 @@
       >
         <IconLightning class="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
         <div class="flex-1 min-w-0">
-          <p class="font-fell text-xs text-foreground leading-snug">
+          <p class="text-caption text-foreground leading-snug">
             <span class="font-semibold">{{ trig.trigger_type === 'quest_complete' ? 'Quest complete' : `Objective done` }}</span>
             <span v-if="trig.objective_id" class="text-muted-foreground"> ({{ objectiveName(trig.objective_id) }})</span>
             <span class="text-muted-foreground"> + {{ trig.offset_days }}d →</span>
@@ -57,9 +57,9 @@
               v-model.number="newTrigger.offset_days"
               type="number"
               min="0"
-              class="w-16 bg-background border border-border rounded px-2 py-1 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-16 bg-background border border-border rounded px-2 py-1 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
-            <span class="font-fell text-xs text-muted-foreground">days later →</span>
+            <span class="text-caption text-muted-foreground">days later →</span>
           </div>
           <select
             v-model="newTrigger.action_type"
@@ -72,7 +72,7 @@
             <input
               v-model="newTriggerCalTitle"
               placeholder="Event title…"
-              class="bg-background border border-border rounded px-2 py-1 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring col-span-2"
+              class="bg-background border border-border rounded px-2 py-1 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring col-span-2"
             />
             <select
               v-model="newTriggerCalType"
@@ -85,7 +85,7 @@
             <input
               v-model="newTriggerMessage"
               placeholder="Broadcast message…"
-              class="bg-background border border-border rounded px-2 py-1 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring col-span-2"
+              class="bg-background border border-border rounded px-2 py-1 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring col-span-2"
             />
           </template>
         </div>

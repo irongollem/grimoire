@@ -21,7 +21,7 @@
       <IconShield class="h-3 w-3" />
       Party Member
     </div>
-    <div v-if="pc.class || speciesName" class="font-fell text-xs text-muted-foreground">
+    <div v-if="pc.class || speciesName" class="text-caption text-muted-foreground">
       {{ [pc.class, speciesName].filter(Boolean).join(' · ') }}
     </div>
     <div class="font-cinzel text-xs text-foreground">Level {{ pc.level }}</div>

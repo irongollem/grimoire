@@ -23,7 +23,7 @@
         ref="inputRef"
         v-model="query"
         :placeholder="placeholder"
-        class="w-full rounded-md border border-border bg-muted py-1.5 pl-8 pr-3 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        class="w-full rounded-md border border-border bg-muted py-1.5 pl-8 pr-3 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         @focus="open = true"
         @blur="onBlur"
         @keydown.enter.prevent="onEnter"
@@ -59,7 +59,7 @@
           >
             + Add "{{ query.trim() }}"
           </button>
-          <p v-if="filteredItems.length === 0 && !canAddCustom" class="px-1 py-1 font-fell text-xs italic text-muted-foreground">
+          <p v-if="filteredItems.length === 0 && !canAddCustom" class="px-1 py-1 text-caption italic text-muted-foreground">
             Already added.
           </p>
         </div>
@@ -90,7 +90,7 @@
           </div>
         </div>
         <div class="border-t border-border px-2 py-1.5">
-          <p class="font-fell text-2xs italic text-muted-foreground/60">
+          <p class="text-caption-sm italic text-muted-foreground/60">
             Type above to search or add a custom entry
           </p>
         </div>

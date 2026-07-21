@@ -5,7 +5,7 @@
       <span class="text-label-lg font-semibold text-muted-foreground">SEED FROM</span>
       <select
         :value="''"
-        class="bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        class="bg-muted border border-border rounded-md px-2 py-1.5 text-caption text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         @change="onSeed(($event.target as HTMLSelectElement).value)"
       >
         <option value="">(choose a preset to copy)</option>
@@ -80,7 +80,7 @@
           type="text"
           maxlength="12"
           :placeholder="`Day ${i}`"
-          class="w-20 bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-xs text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-20 bg-muted border border-border rounded-md px-2 py-1.5 text-caption text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
           @input="setDayLabel(i - 1, ($event.target as HTMLInputElement).value)"
         />
       </div>
@@ -102,7 +102,7 @@
         </div>
         <div class="flex-1 min-w-0">
           <span class="font-cinzel text-xs font-semibold text-foreground tracking-wide">Has a leap day</span>
-          <p class="font-fell text-xs text-muted-foreground mt-0.5">
+          <p class="text-caption text-muted-foreground mt-0.5">
             Every fourth year a festival day marked "Leap only" appears once more.
           </p>
         </div>
@@ -134,20 +134,20 @@
             v-model="m.name"
             type="text"
             placeholder="Month name"
-            class="col-span-5 bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="col-span-5 bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
           <input
             v-model="m.alias"
             type="text"
             placeholder="Alias (optional)"
-            class="col-span-3 bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="col-span-3 bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
           <input
             v-model.number="m.days"
             type="number"
             min="1"
             max="60"
-            class="col-span-2 bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+            class="col-span-2 bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
           />
           <button
             type="button"
@@ -158,7 +158,7 @@
             <IconDelete class="h-3.5 w-3.5" />
           </button>
         </div>
-        <p v-if="def.months.length === 0" class="font-fell text-xs text-muted-foreground italic">
+        <p v-if="def.months.length === 0" class="text-caption text-muted-foreground italic">
           No months yet. Add one to start.
         </p>
       </div>
@@ -179,7 +179,7 @@
           + Add festival day
         </button>
       </div>
-      <p class="font-fell text-xs text-muted-foreground italic mb-2">
+      <p class="text-caption text-muted-foreground italic mb-2">
         Days inserted between months (e.g. Midwinter after month 1). Mark a day "leap only" to make it appear every fourth year.
       </p>
       <div class="space-y-2">
@@ -193,13 +193,13 @@
               v-model="d.name"
               type="text"
               placeholder="Festival name"
-              class="col-span-5 bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="col-span-5 bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
             <div class="col-span-4 flex items-center gap-1.5">
               <span class="text-label text-muted-foreground">AFTER</span>
               <select
                 v-model.number="d.afterMonth"
-                class="flex-1 min-w-0 bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="flex-1 min-w-0 bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 <option v-for="(m, mi) in def.months" :key="mi" :value="mi + 1">{{ mi + 1 }}. {{ m.name }}</option>
               </select>
@@ -225,17 +225,17 @@
             v-model="d.description"
             type="text"
             placeholder="Short description"
-            class="w-full bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="w-full bg-muted border border-border rounded-md px-2 py-1.5 text-caption text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
-        <p v-if="def.intercalaryDays.length === 0" class="font-fell text-xs text-muted-foreground italic">
+        <p v-if="def.intercalaryDays.length === 0" class="text-caption text-muted-foreground italic">
           No festival days defined.
         </p>
       </div>
     </div>
 
     <!-- Validation hint -->
-    <p v-if="validationMessage" class="font-fell text-xs text-destructive">{{ validationMessage }}</p>
+    <p v-if="validationMessage" class="text-caption text-destructive">{{ validationMessage }}</p>
   </div>
 </template>
 

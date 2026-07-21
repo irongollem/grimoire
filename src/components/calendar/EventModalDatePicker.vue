@@ -25,33 +25,33 @@
     <!-- Regular date fields -->
     <div v-if="dateType === 'regular'" class="grid grid-cols-3 gap-2">
       <div>
-        <label class="block font-fell text-xs text-muted-foreground mb-1">Year</label>
+        <label class="block text-caption text-muted-foreground mb-1">Year</label>
         <input
           :value="harptosYear"
           type="number"
           min="1"
-          class="w-full bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           @input="emit('update:harptosYear', Number(($event.target as HTMLInputElement).value))"
         />
       </div>
       <div>
-        <label class="block font-fell text-xs text-muted-foreground mb-1">Month</label>
+        <label class="block text-caption text-muted-foreground mb-1">Month</label>
         <select
           :value="harptosMonth"
-          class="w-full bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           @change="emit('update:harptosMonth', Number(($event.target as HTMLSelectElement).value))"
         >
           <option v-for="m in months" :key="m.num" :value="m.num">{{ m.name }}</option>
         </select>
       </div>
       <div>
-        <label class="block font-fell text-xs text-muted-foreground mb-1">Day</label>
+        <label class="block text-caption text-muted-foreground mb-1">Day</label>
         <input
           :value="harptosDay"
           type="number"
           min="1"
           max="30"
-          class="w-full bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           @input="emit('update:harptosDay', Number(($event.target as HTMLInputElement).value))"
         />
       </div>
@@ -60,20 +60,20 @@
     <!-- Festival date fields -->
     <div v-else class="grid grid-cols-2 gap-2">
       <div>
-        <label class="block font-fell text-xs text-muted-foreground mb-1">Year</label>
+        <label class="block text-caption text-muted-foreground mb-1">Year</label>
         <input
           :value="harptosYear"
           type="number"
           min="1"
-          class="w-full bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           @input="emit('update:harptosYear', Number(($event.target as HTMLInputElement).value))"
         />
       </div>
       <div>
-        <label class="block font-fell text-xs text-muted-foreground mb-1">Festival</label>
+        <label class="block text-caption text-muted-foreground mb-1">Festival</label>
         <select
           :value="festivalDay"
-          class="w-full bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           @change="emit('update:festivalDay', ($event.target as HTMLSelectElement).value)"
         >
           <option v-for="f in availableFestivals" :key="f.name" :value="f.name">{{ f.name }}</option>
@@ -91,25 +91,25 @@
         class="w-4 h-4 rounded border-border accent-primary"
         @change="emit('update:isMultiDay', ($event.target as HTMLInputElement).checked)"
       />
-      <span class="font-fell text-sm text-foreground">Multi-day event</span>
+      <span class="text-body text-foreground">Multi-day event</span>
     </label>
 
     <div v-if="isMultiDay" class="mt-3 grid grid-cols-3 gap-2">
       <div>
-        <label class="block font-fell text-xs text-muted-foreground mb-1">End year</label>
+        <label class="block text-caption text-muted-foreground mb-1">End year</label>
         <input
           :value="endYear"
           type="number"
           min="1"
-          class="w-full bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           @input="emit('update:endYear', Number(($event.target as HTMLInputElement).value))"
         />
       </div>
       <div>
-        <label class="block font-fell text-xs text-muted-foreground mb-1">End month</label>
+        <label class="block text-caption text-muted-foreground mb-1">End month</label>
         <select
           :value="endMonth"
-          class="w-full bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           @change="emit('update:endMonth', ($event.target as HTMLSelectElement).value === '' ? null : Number(($event.target as HTMLSelectElement).value))"
         >
           <option :value="null">—</option>
@@ -117,13 +117,13 @@
         </select>
       </div>
       <div>
-        <label class="block font-fell text-xs text-muted-foreground mb-1">End day</label>
+        <label class="block text-caption text-muted-foreground mb-1">End day</label>
         <input
           :value="endDay"
           type="number"
           min="1"
           max="30"
-          class="w-full bg-muted border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           @input="emit('update:endDay', Number(($event.target as HTMLInputElement).value))"
         />
       </div>

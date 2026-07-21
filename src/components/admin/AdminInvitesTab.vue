@@ -76,7 +76,7 @@
                   : 'bg-amber-500/10 text-amber-400'"
               >{{ invite.granted_plan }}</span>
             </div>
-            <p class="font-fell text-xs text-muted-foreground italic">
+            <p class="text-caption text-muted-foreground italic">
               {{ invite.use_count }}{{ invite.max_uses ? `/${invite.max_uses}` : '' }} uses
               <span v-if="invite.expires_at"> · expires {{ formatDate(invite.expires_at) }}</span>
               <span v-if="isExpired(invite)" class="text-destructive"> · expired</span>
@@ -108,7 +108,7 @@
         </div>
       </div>
 
-      <p v-if="!invitesQuery.isPending.value && invites.length === 0" class="font-fell text-xs text-muted-foreground italic">
+      <p v-if="!invitesQuery.isPending.value && invites.length === 0" class="text-caption text-muted-foreground italic">
         No active invite links.
       </p>
     </div>

@@ -27,11 +27,11 @@
       </div>
     </div>
 
-    <p v-if="entriesError" class="font-fell text-xs text-destructive italic">
+    <p v-if="entriesError" class="text-caption text-destructive italic">
       {{ entriesError }}
     </p>
 
-    <div v-if="!entries.length" class="rounded-md border border-dashed border-border px-4 py-8 text-center font-fell text-sm text-muted-foreground italic">
+    <div v-if="!entries.length" class="rounded-md border border-dashed border-border px-4 py-8 text-center text-body text-muted-foreground italic">
       No entries yet. Add items, currency pools, or art objects — each gets its own drop chance.
     </div>
 
@@ -54,14 +54,14 @@
               <input
                 v-model.number="entry.drop_chance"
                 type="number" min="1" max="100"
-                class="w-14 bg-muted border border-border rounded px-1.5 py-1 font-fell text-sm text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
+                class="w-14 bg-muted border border-border rounded px-1.5 py-1 text-body text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
               />
-              <span class="font-fell text-xs text-muted-foreground">%</span>
+              <span class="text-caption text-muted-foreground">%</span>
             </div>
             <input
               :value="entry.dice ?? ''"
               placeholder="2d4 or 3"
-              class="w-full bg-muted border border-border rounded px-2 py-1 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-full bg-muted border border-border rounded px-2 py-1 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               @input="(e) => onQuantityInput(entry, (e.target as HTMLInputElement).value)"
             />
             <button type="button" class="text-muted-foreground hover:text-destructive transition-colors p-1" @click="emit('remove', idx)">
@@ -76,15 +76,15 @@
             <input
               v-model="entry.currency_label"
               placeholder="Label (e.g. Belt pouch)"
-              class="w-full bg-muted border border-border rounded px-2 py-1 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-full bg-muted border border-border rounded px-2 py-1 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
             <div class="flex items-center gap-1">
               <input
                 v-model.number="entry.drop_chance"
                 type="number" min="1" max="100"
-                class="w-14 bg-muted border border-border rounded px-1.5 py-1 font-fell text-sm text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
+                class="w-14 bg-muted border border-border rounded px-1.5 py-1 text-body text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
               />
-              <span class="font-fell text-xs text-muted-foreground">%</span>
+              <span class="text-caption text-muted-foreground">%</span>
             </div>
             <button type="button" class="text-muted-foreground hover:text-destructive transition-colors p-1" @click="emit('remove', idx)">
               <IconDelete class="size-3.5" />
@@ -97,7 +97,7 @@
               <input
                 :value="getCoinVal(entry, coin.key)"
                 type="number" min="0"
-                class="w-full bg-muted border border-border rounded px-1.5 py-1 font-fell text-sm text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
+                class="w-full bg-muted border border-border rounded px-1.5 py-1 text-body text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
                 placeholder="0"
                 @input="setCoinVal(entry, coin.key, ($event.target as HTMLInputElement).value)"
               />
@@ -112,14 +112,14 @@
             <div class="flex gap-1.5">
               <select
                 v-model="entry.rarity"
-                class="flex-1 min-w-0 bg-muted border border-border rounded px-2 py-1 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="flex-1 min-w-0 bg-muted border border-border rounded px-2 py-1 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 <option value="">— rarity —</option>
                 <option v-for="r in ITEM_RARITIES" :key="r" :value="r">{{ ITEM_RARITY_LABELS[r] }}</option>
               </select>
               <select
                 v-model="entry.item_type_filter"
-                class="flex-1 min-w-0 bg-muted border border-border rounded px-2 py-1 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="flex-1 min-w-0 bg-muted border border-border rounded px-2 py-1 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 <option :value="null">any type</option>
                 <option v-for="t in ITEM_TYPES" :key="t" :value="t">{{ ITEM_TYPE_LABELS[t] }}</option>
@@ -130,15 +130,15 @@
               <input
                 v-model.number="entry.drop_chance"
                 type="number" min="1" max="100"
-                class="w-14 bg-muted border border-border rounded px-1.5 py-1 font-fell text-sm text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
+                class="w-14 bg-muted border border-border rounded px-1.5 py-1 text-body text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
               />
-              <span class="font-fell text-xs text-muted-foreground">%</span>
+              <span class="text-caption text-muted-foreground">%</span>
             </div>
             <!-- Qty -->
             <input
               :value="entry.dice ?? ''"
               placeholder="2d4 or 1"
-              class="w-full bg-muted border border-border rounded px-2 py-1 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-full bg-muted border border-border rounded px-2 py-1 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               @input="(e) => onQuantityInput(entry, (e.target as HTMLInputElement).value)"
             />
             <button type="button" class="text-muted-foreground hover:text-destructive transition-colors p-1" @click="emit('remove', idx)">
@@ -147,7 +147,7 @@
           </div>
           <!-- Pool size hint — amber when empty, since the entry can only ever under-deliver -->
           <p
-            class="font-fell text-2xs italic"
+            class="text-caption-sm italic"
             :class="(randomPoolSizes.get(entry.id) ?? 0) === 0 ? 'text-amber-500' : 'text-muted-foreground'"
           >
             {{ randomPoolSizes.get(entry.id) ?? 0 }} matching item{{ randomPoolSizes.get(entry.id) === 1 ? '' : 's' }} in vault{{ (randomPoolSizes.get(entry.id) ?? 0) === 0 ? ' — this entry will drop nothing' : '' }}
@@ -160,12 +160,12 @@
           v-model="entry.notes"
           rows="1"
           placeholder="Notes (optional)"
-          class="w-full bg-muted border border-border rounded px-2 py-1 font-fell text-xs text-muted-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+          class="w-full bg-muted border border-border rounded px-2 py-1 text-caption text-muted-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
         />
         <button
           v-else
           type="button"
-          class="text-left font-fell text-2xs text-muted-foreground hover:text-foreground italic"
+          class="text-left text-caption-sm text-muted-foreground hover:text-foreground italic"
           @click="entry.notes = ''"
         >
           + add note

@@ -32,18 +32,18 @@
             <h3 class="text-label-lg font-semibold text-muted-foreground uppercase">
               SRD Art Defaults
             </h3>
-            <p class="font-fell text-xs text-muted-foreground italic">
+            <p class="text-caption text-muted-foreground italic">
               Publish your uploaded SRD art as community defaults. Other DMs will see your images
               for any SRD content they haven't personalised. Re-running is safe — it updates
               existing defaults with your latest images.
             </p>
-            <div v-if="statsQuery.data.value" class="font-fell text-xs text-foreground">
+            <div v-if="statsQuery.data.value" class="text-caption text-foreground">
               Currently published:
               <span class="font-semibold">{{ statsQuery.data.value.monsters }}</span> monsters ·
               <span class="font-semibold">{{ statsQuery.data.value.spells }}</span> spells ·
               <span class="font-semibold">{{ statsQuery.data.value.items }}</span> items
             </div>
-            <div v-if="publishResult" class="font-fell text-xs text-elven-green">
+            <div v-if="publishResult" class="text-caption text-elven-green">
               Done — {{ publishResult.monsters }} monsters · {{ publishResult.spells }} spells ·
               {{ publishResult.items }} items published.
             </div>
@@ -140,7 +140,7 @@
                         : 'bg-amber-500/10 text-amber-400'"
                     >{{ invite.granted_plan }}</span>
                   </div>
-                  <p class="font-fell text-xs text-muted-foreground italic">
+                  <p class="text-caption text-muted-foreground italic">
                     {{ invite.use_count }}{{ invite.max_uses ? `/${invite.max_uses}` : '' }} uses
                     <span v-if="invite.expires_at"> · expires {{ formatDate(invite.expires_at) }}</span>
                     <span v-if="isExpired(invite)" class="text-destructive"> · expired</span>
@@ -172,7 +172,7 @@
               </div>
             </div>
 
-            <p v-if="!invitesQuery.isPending.value && invites.length === 0" class="font-fell text-xs text-muted-foreground italic">
+            <p v-if="!invitesQuery.isPending.value && invites.length === 0" class="text-caption text-muted-foreground italic">
               No active invite links.
             </p>
           </div>
@@ -215,14 +215,14 @@
                     <span class="font-cinzel text-xs font-semibold text-foreground">{{ stat.model }}</span>
                     <span class="font-fell text-[0.6875rem] text-muted-foreground italic ml-1">· {{ stat.provider }}</span>
                   </div>
-                  <span class="font-fell text-xs text-muted-foreground shrink-0">{{ stat.count }}×</span>
+                  <span class="text-caption text-muted-foreground shrink-0">{{ stat.count }}×</span>
                   <span class="font-cinzel text-xs text-foreground shrink-0 w-16 text-right">
                     ${{ stat.estimated_cost_usd.toFixed(3) }}
                   </span>
                 </div>
               </div>
 
-              <p v-else class="font-fell text-xs text-muted-foreground italic">
+              <p v-else class="text-caption text-muted-foreground italic">
                 No generation data yet.
               </p>
             </template>

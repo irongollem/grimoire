@@ -26,8 +26,8 @@
           <div v-if="editingId === p.id" class="px-4 py-3 space-y-2">
             <VueDatePicker v-model="editDatetime" :dark="true" :enable-time-picker="true" :teleport="true" placeholder="Pick a date & time…" class="grimoire-datepicker" />
             <div class="grid grid-cols-2 gap-2">
-              <input v-model="editTitle" type="text" placeholder="Title" class="w-full bg-background border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
-              <input v-model.number="editDuration" type="number" min="0.5" step="0.5" placeholder="hours" class="w-full bg-background border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+              <input v-model="editTitle" type="text" placeholder="Title" class="w-full bg-background border border-border rounded-md px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+              <input v-model.number="editDuration" type="number" min="0.5" step="0.5" placeholder="hours" class="w-full bg-background border border-border rounded-md px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
             </div>
             <div class="flex justify-end gap-2">
               <button class="px-3 py-1.5 text-label text-muted-foreground border border-border rounded hover:text-foreground transition-colors" @click="editingId = null">Cancel</button>
@@ -39,7 +39,7 @@
             <IconCalendarCheck class="h-4 w-4 text-elven-green shrink-0" />
             <div class="flex-1 min-w-0">
               <p class="font-cinzel text-sm font-semibold text-foreground">{{ p.title }}</p>
-              <p class="font-fell text-xs text-muted-foreground">{{ formatDate(p.proposed_date, p.proposed_time) }}</p>
+              <p class="text-caption text-muted-foreground">{{ formatDate(p.proposed_date, p.proposed_time) }}</p>
             </div>
             <span class="text-label px-1.5 py-0.5 rounded bg-elven-green/15 text-elven-green">
               {{ availabilityCount(p.id) }}/{{ playerCount }} available
@@ -65,7 +65,7 @@
 
       <div
         v-if="proposed.length === 0"
-        class="font-fell text-sm text-muted-foreground italic py-2"
+        class="text-body text-muted-foreground italic py-2"
       >
         No proposed dates yet. Add one below.
       </div>
@@ -80,8 +80,8 @@
           <div v-if="editingId === p.id" class="px-4 py-3 space-y-2">
             <VueDatePicker v-model="editDatetime" :dark="true" :enable-time-picker="true" :teleport="true" placeholder="Pick a date & time…" class="grimoire-datepicker" />
             <div class="grid grid-cols-2 gap-2">
-              <input v-model="editTitle" type="text" placeholder="Title" class="w-full bg-background border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
-              <input v-model.number="editDuration" type="number" min="0.5" step="0.5" placeholder="hours" class="w-full bg-background border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+              <input v-model="editTitle" type="text" placeholder="Title" class="w-full bg-background border border-border rounded-md px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+              <input v-model.number="editDuration" type="number" min="0.5" step="0.5" placeholder="hours" class="w-full bg-background border border-border rounded-md px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
             </div>
             <div class="flex justify-end gap-2">
               <button class="px-3 py-1.5 text-label text-muted-foreground border border-border rounded hover:text-foreground transition-colors" @click="editingId = null">Cancel</button>
@@ -94,7 +94,7 @@
               <IconCalendar class="h-4 w-4 text-primary shrink-0" />
               <div class="flex-1 min-w-0">
                 <p class="font-cinzel text-sm font-semibold text-foreground">{{ p.title }}</p>
-                <p class="font-fell text-xs text-muted-foreground">{{ formatDate(p.proposed_date, p.proposed_time) }}</p>
+                <p class="text-caption text-muted-foreground">{{ formatDate(p.proposed_date, p.proposed_time) }}</p>
               </div>
               <!-- Availability summary -->
               <span
@@ -170,7 +170,7 @@
           v-model="form.title"
           type="text"
           placeholder="Session 12…"
-          class="w-full bg-background border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full bg-background border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
 
@@ -181,7 +181,7 @@
             v-model="form.notes"
             type="text"
             placeholder="Bring snacks…"
-            class="w-full bg-background border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="w-full bg-background border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
         <div>
@@ -191,7 +191,7 @@
             type="number"
             min="0.5"
             step="0.5"
-            class="w-full bg-background border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="w-full bg-background border border-border rounded-md px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
         <div>
@@ -201,7 +201,7 @@
             type="number"
             min="1"
             :max="playerCount || 10"
-            class="w-full bg-background border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="w-full bg-background border border-border rounded-md px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
       </div>
@@ -233,10 +233,10 @@
         >
           <IconRemoveEvent class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           <div class="flex-1 min-w-0">
-            <p class="font-fell text-sm text-muted-foreground line-through">
+            <p class="text-body text-muted-foreground line-through">
               {{ p.title }}
             </p>
-            <p class="font-fell text-xs text-muted-foreground">
+            <p class="text-caption text-muted-foreground">
               {{ formatDate(p.proposed_date, p.proposed_time) }}
             </p>
           </div>
@@ -261,7 +261,7 @@
       >
         Calendar Subscription
       </h3>
-      <p class="font-fell text-xs text-muted-foreground">
+      <p class="text-caption text-muted-foreground">
         Subscribe once and your calendar app will automatically receive future
         session updates.
       </p>

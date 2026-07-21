@@ -10,7 +10,7 @@
         class="flex items-center gap-2 rounded-md border border-border bg-muted/20 px-3 py-2"
       >
         <div class="h-2 w-2 rounded-full shrink-0" :class="grant.spell_id ? 'bg-violet-400' : 'bg-amber-400'" />
-        <span class="font-fell text-sm text-foreground flex-1 truncate">{{ grant.spell_name }}</span>
+        <span class="text-body text-foreground flex-1 truncate">{{ grant.spell_name }}</span>
         <span v-if="grant.subrace" class="font-cinzel text-2xs text-sky-400 shrink-0">{{ grant.subrace }}</span>
         <span v-if="!grant.spell_id" class="font-cinzel text-2xs text-amber-500 shrink-0">player picks</span>
         <span class="font-cinzel text-2xs text-muted-foreground shrink-0">
@@ -35,7 +35,7 @@
         <label class="text-label font-semibold text-muted-foreground">SPELL</label>
         <div v-if="grantForm.spell" class="flex items-center gap-2 px-2 py-1.5 rounded bg-violet-500/10 border border-violet-500/30">
           <div class="h-2 w-2 rounded-full bg-violet-400 shrink-0" />
-          <span class="font-fell text-sm flex-1 truncate">{{ grantForm.spell.name }}</span>
+          <span class="text-body flex-1 truncate">{{ grantForm.spell.name }}</span>
           <span class="font-cinzel text-2xs text-muted-foreground">{{ grantForm.spell.level === 0 ? 'Cantrip' : `Lvl ${grantForm.spell.level}` }}</span>
           <button type="button" class="text-muted-foreground hover:text-foreground text-xs" @click="grantForm.spell = null; grantForm.spellSearch = ''">×</button>
         </div>
@@ -44,7 +44,7 @@
             v-model="grantForm.spellSearch"
             type="text"
             placeholder="Search spell…"
-            class="w-full bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="w-full bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
           <div
             v-if="spellResults.length > 0 && grantForm.spellSearch.length >= 2"
@@ -57,7 +57,7 @@
               class="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-muted/50 transition-colors text-left"
               @click="grantForm.spell = spell; grantForm.spellSearch = ''"
             >
-              <span class="font-fell text-sm text-foreground flex-1 truncate">{{ spell.name }}</span>
+              <span class="text-body text-foreground flex-1 truncate">{{ spell.name }}</span>
               <span class="font-cinzel text-2xs text-muted-foreground shrink-0">{{ spell.level === 0 ? 'C' : spell.level }}</span>
             </button>
           </div>
@@ -71,7 +71,7 @@
           v-model="grantForm.sourceLabel"
           type="text"
           placeholder="e.g. Tiefling — Infernal Legacy"
-          class="mt-1 w-full bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="mt-1 w-full bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
 
@@ -122,14 +122,14 @@
           <input
             v-model.number="grantForm.minLevel"
             type="number" min="1" max="20"
-            class="mt-1 w-full bg-card border border-border rounded-md px-2 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="mt-1 w-full bg-card border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
       </div>
 
       <div>
         <label class="text-eyebrow font-semibold text-muted-foreground">CASTING ABILITY</label>
-        <select v-model="grantForm.castingAbility" class="mt-1 w-full rounded-md border border-border bg-card px-2 py-1.5 font-fell text-sm text-foreground">
+        <select v-model="grantForm.castingAbility" class="mt-1 w-full rounded-md border border-border bg-card px-2 py-1.5 text-body text-foreground">
           <option :value="null">Class/default</option>
           <option value="int">Intelligence</option>
           <option value="wis">Wisdom</option>

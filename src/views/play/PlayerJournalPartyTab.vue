@@ -48,8 +48,8 @@
       @toggle="$emit('toggle', entry.id)"
     >
       <template #meta>
-        <span v-if="entry.ref_label" class="font-fell text-xs text-muted-foreground/70 italic truncate max-w-32">{{ entry.ref_label }}</span>
-        <span v-if="authorName(entry)" class="font-fell text-xs text-muted-foreground/70 italic">by {{ authorName(entry) }}</span>
+        <span v-if="entry.ref_label" class="text-caption text-muted-foreground/70 italic truncate max-w-32">{{ entry.ref_label }}</span>
+        <span v-if="authorName(entry)" class="text-caption text-muted-foreground/70 italic">by {{ authorName(entry) }}</span>
       </template>
       <div class="px-4 py-4">
         <RichTextViewer :content="entry.content" />

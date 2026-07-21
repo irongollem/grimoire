@@ -20,7 +20,7 @@
       </template>
     </EmptyState>
 
-    <p v-else-if="!filtered.length" class="text-center font-fell text-sm text-muted-foreground italic py-12">
+    <p v-else-if="!filtered.length" class="text-center text-body text-muted-foreground italic py-12">
       No locations match your filters.
     </p>
 
@@ -34,7 +34,7 @@
       />
     </div>
 
-    <p v-if="filtered.length" class="mt-4 font-fell text-xs text-muted-foreground italic text-right">
+    <p v-if="filtered.length" class="mt-4 text-caption text-muted-foreground italic text-right">
       {{ filtered.length }} of {{ locations?.length ?? 0 }} locations
     </p>
   </div>

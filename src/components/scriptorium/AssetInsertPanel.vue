@@ -49,7 +49,7 @@
             v-model="search"
             type="search"
             placeholder="Filter by name…"
-            class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
 
@@ -57,14 +57,14 @@
         <div class="flex-1 overflow-y-auto px-4 pb-4">
           <div
             v-if="isLoading"
-            class="flex items-center justify-center py-12 text-muted-foreground font-fell text-sm italic"
+            class="flex items-center justify-center py-12 text-muted-foreground text-body italic"
           >
             Loading…
           </div>
 
           <div
             v-else-if="filteredItems.length === 0"
-            class="flex items-center justify-center py-12 text-muted-foreground font-fell text-sm italic"
+            class="flex items-center justify-center py-12 text-muted-foreground text-body italic"
           >
             {{ search ? "No matches found." : "No assets yet." }}
           </div>
@@ -83,7 +83,7 @@
                 </p>
                 <p
                   v-if="item.subtitle"
-                  class="font-fell text-xs text-muted-foreground italic truncate"
+                  class="text-caption text-muted-foreground italic truncate"
                 >
                   {{ item.subtitle }}
                 </p>
@@ -112,7 +112,7 @@
 
         <!-- Footer hint -->
         <div class="px-4 py-2.5 border-t border-border shrink-0 bg-muted/30">
-          <p class="font-fell text-xs text-muted-foreground italic">
+          <p class="text-caption text-muted-foreground italic">
             Assets are appended as a new page at the end of your document.
           </p>
         </div>

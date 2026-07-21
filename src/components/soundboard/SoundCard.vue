@@ -58,14 +58,14 @@
           v-model="artistDraft"
           type="text"
           placeholder="Artist name…"
-          class="w-full rounded border border-gold-500/50 bg-background px-1.5 py-0.5 font-fell text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-gold-500"
+          class="w-full rounded border border-gold-500/50 bg-background px-1.5 py-0.5 text-caption text-foreground focus:outline-none focus:ring-1 focus:ring-gold-500"
           @keydown.enter="saveArtist"
           @keydown.escape="cancelArtistEdit"
           @blur="saveArtist"
         />
         <p
           v-else
-          class="font-fell text-xs truncate cursor-pointer"
+          class="text-caption truncate cursor-pointer"
           :class="sound.artist ? 'text-muted-foreground italic' : 'text-muted-foreground/0 group-hover:text-muted-foreground/40 italic'"
           :title="sound.artist ? 'Edit artist' : 'Add artist'"
           @click="startArtistEdit"
@@ -76,7 +76,7 @@
           v-if="editingCategory"
           ref="categoryInput"
           :value="sound.category"
-          class="w-full rounded border border-gold-500/50 bg-background px-1 py-0.5 font-fell text-2xs text-foreground capitalize focus:outline-none focus:ring-1 focus:ring-gold-500"
+          class="w-full rounded border border-gold-500/50 bg-background px-1 py-0.5 text-caption-sm text-foreground capitalize focus:outline-none focus:ring-1 focus:ring-gold-500"
           @change="saveCategory(($event.target as HTMLSelectElement).value)"
           @blur="editingCategory = false"
         >
@@ -87,7 +87,7 @@
         </select>
         <p
           v-else
-          class="font-fell text-2xs text-muted-foreground/60 italic capitalize cursor-pointer hover:text-muted-foreground"
+          class="text-caption-sm text-muted-foreground/60 italic capitalize cursor-pointer hover:text-muted-foreground"
           title="Change category"
           @click="startCategoryEdit"
         >{{ sound.category }}</p>
@@ -157,7 +157,7 @@
       class="flex items-center gap-1.5 py-1 px-2 rounded-md bg-border/30"
     >
       <IconMusicNote class="h-3 w-3 text-muted-foreground/50 shrink-0" />
-      <p class="font-fell text-xs text-muted-foreground/60 italic">DM audio</p>
+      <p class="text-caption text-muted-foreground/60 italic">DM audio</p>
     </div>
 
     <!-- ── Spotify not-connected fallback ─────────────────────────────── -->
@@ -166,7 +166,7 @@
       class="flex items-center gap-2 py-1 px-2 rounded-md bg-green-500/5 border border-green-500/20"
     >
       <IconMusicNote class="h-3.5 w-3.5 text-green-400/70 shrink-0" />
-      <p class="font-fell text-xs text-muted-foreground italic flex-1">Connect Spotify to play</p>
+      <p class="text-caption text-muted-foreground italic flex-1">Connect Spotify to play</p>
       <button
         class="font-fell text-[0.6875rem] text-green-400 hover:text-green-300 transition-colors shrink-0"
         @click="spotifyStore.connect()"
@@ -189,8 +189,8 @@
           alt=""
         />
         <div class="min-w-0">
-          <p class="font-fell text-xs text-foreground truncate">{{ spotifyStore.trackName }}</p>
-          <p class="font-fell text-2xs text-muted-foreground truncate">{{ spotifyStore.artistName }}</p>
+          <p class="text-caption text-foreground truncate">{{ spotifyStore.trackName }}</p>
+          <p class="text-caption-sm text-muted-foreground truncate">{{ spotifyStore.artistName }}</p>
         </div>
       </div>
 
@@ -244,14 +244,14 @@
           :value="spotifyStore.volume"
           @input="spotifyStore.setVolume(+($event.target as HTMLInputElement).value)"
         />
-        <span class="font-fell text-xs text-muted-foreground w-6 text-right shrink-0">
+        <span class="text-caption text-muted-foreground w-6 text-right shrink-0">
           {{ Math.round(spotifyStore.volume * 100) }}
         </span>
       </div>
 
       <!-- Spotify progress bar (only when this card is active) -->
       <div v-if="isActive && spotifyStore.durationMs > 0" class="flex items-center gap-2">
-        <span class="font-fell text-2xs text-muted-foreground tabular-nums shrink-0">
+        <span class="text-caption-sm text-muted-foreground tabular-nums shrink-0">
           {{ formatTime(spotifyStore.positionMs) }}
         </span>
         <div
@@ -263,7 +263,7 @@
             :style="{ width: spotifyProgressPercent + '%' }"
           />
         </div>
-        <span class="font-fell text-2xs text-muted-foreground tabular-nums shrink-0">
+        <span class="text-caption-sm text-muted-foreground tabular-nums shrink-0">
           {{ formatTime(spotifyStore.durationMs) }}
         </span>
         <!-- IconRepeat -->
@@ -290,7 +290,7 @@
       <!-- Not-ready indicator -->
       <p
         v-if="!spotifyStore.isReady"
-        class="font-fell text-2xs text-muted-foreground italic text-center"
+        class="text-caption-sm text-muted-foreground italic text-center"
       >
         Connecting to Spotify device…
       </p>
@@ -305,7 +305,7 @@
     >
       <IconLayers class="h-3 w-3 text-muted-foreground/50 shrink-0" />
       <select
-        class="flex-1 rounded border border-border bg-background px-1.5 py-0.5 font-fell text-xs text-muted-foreground focus:outline-none focus:ring-1 focus:ring-gold-500 cursor-pointer"
+        class="flex-1 rounded border border-border bg-background px-1.5 py-0.5 text-caption text-muted-foreground focus:outline-none focus:ring-1 focus:ring-gold-500 cursor-pointer"
         :value="sound.page_id ?? ''"
         @change="moveSound({ id: sound.id, pageId: ($event.target as HTMLSelectElement).value || null })"
       >
@@ -361,14 +361,14 @@
           :value="audioState.volume"
           @input="soundboardStore.setVolume(sound.id, +($event.target as HTMLInputElement).value)"
         />
-        <span class="font-fell text-xs text-muted-foreground w-6 text-right shrink-0">
+        <span class="text-caption text-muted-foreground w-6 text-right shrink-0">
           {{ Math.round(audioState.volume * 100) }}
         </span>
       </div>
 
       <!-- Progress bar (finite tracks only) -->
       <div v-if="audioState.duration > 0" class="flex items-center gap-2">
-        <span class="font-fell text-2xs text-muted-foreground tabular-nums shrink-0">
+        <span class="text-caption-sm text-muted-foreground tabular-nums shrink-0">
           {{ formatTime(audioState.currentTime) }}
         </span>
         <div
@@ -380,7 +380,7 @@
             :style="{ width: audioProgressPercent + '%' }"
           />
         </div>
-        <span class="font-fell text-2xs text-muted-foreground tabular-nums shrink-0">
+        <span class="text-caption-sm text-muted-foreground tabular-nums shrink-0">
           {{ formatTime(audioState.duration) }}
         </span>
       </div>
@@ -392,7 +392,7 @@
       :href="sound.attribution_url ?? undefined"
       target="_blank"
       rel="noopener noreferrer"
-      class="font-fell text-2xs text-muted-foreground/70 hover:text-muted-foreground italic truncate"
+      class="text-caption-sm text-muted-foreground/70 hover:text-muted-foreground italic truncate"
       :title="sound.attribution"
     >
       {{ sound.attribution }}

@@ -10,7 +10,7 @@
       >
         <IconLive class="h-4 w-4 text-green-400 animate-pulse shrink-0" />
         <span class="font-cinzel text-sm font-semibold text-green-400 tracking-wide">Encounter in progress</span>
-        <span class="font-fell text-xs text-green-300/70 italic flex-1">Round {{ firstRunning.current_round }}</span>
+        <span class="text-caption text-green-300/70 italic flex-1">Round {{ firstRunning.current_round }}</span>
         <span class="text-label text-green-400">Resume →</span>
       </RouterLink>
 
@@ -32,7 +32,7 @@
         </div>
         <div v-else-if="!party?.length" class="px-4 py-6 text-center">
           <IconNavParty class="h-6 w-6 mx-auto mb-2 text-muted-foreground/30" />
-          <p class="font-fell text-sm text-muted-foreground italic">No party members yet.</p>
+          <p class="text-body text-muted-foreground italic">No party members yet.</p>
           <RouterLink to="/party" class="mt-2 inline-block text-label-lg text-primary hover:opacity-80">+ Add Members</RouterLink>
         </div>
         <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-px bg-border">
@@ -102,7 +102,7 @@
           </div>
           <div v-if="questsLoading" class="flex justify-center py-6"><LoadingSpinner /></div>
           <div v-else-if="!activeQuests.length" class="px-4 py-6 text-center">
-            <p class="font-fell text-sm text-muted-foreground italic">No active quests.</p>
+            <p class="text-body text-muted-foreground italic">No active quests.</p>
             <RouterLink to="/quests/new" class="mt-1 inline-block text-label-lg text-primary">+ New Quest</RouterLink>
           </div>
           <div v-else class="divide-y divide-border">
@@ -220,7 +220,7 @@
               <div v-for="entry in unidentifiedItems" :key="entry.inv.id" class="flex items-center gap-3 px-4 py-2.5">
                 <div class="min-w-0 flex-1">
                   <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ entry.inv.name }}</p>
-                  <p class="font-fell text-xs text-muted-foreground italic">{{ entry.carrier ?? "Party stash" }}</p>
+                  <p class="text-caption text-muted-foreground italic">{{ entry.carrier ?? "Party stash" }}</p>
                 </div>
                 <button
                   class="shrink-0 px-2.5 py-1 rounded text-label border border-amber-500/50 text-amber-500 hover:bg-amber-500/10 transition-colors cursor-pointer"
@@ -233,7 +233,7 @@
           <div v-if="onHoldQuests.length" class="rounded-lg border border-border bg-card overflow-hidden">
             <div class="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/20">
               <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">
-                Rumors <span class="font-fell font-normal text-xs text-muted-foreground">({{ onHoldQuests.length }})</span>
+                Rumors <span class="text-caption font-normal text-muted-foreground">({{ onHoldQuests.length }})</span>
               </h2>
               <RouterLink to="/quests" class="text-label font-semibold text-primary hover:opacity-80">Quest log →</RouterLink>
             </div>
@@ -242,7 +242,7 @@
                 v-for="quest in onHoldQuests"
                 :key="quest.id"
                 :to="`/quests/${quest.id}`"
-                class="inline-flex items-center gap-1.5 rounded border border-border bg-muted/30 px-2 py-1 font-fell text-xs text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+                class="inline-flex items-center gap-1.5 rounded border border-border bg-muted/30 px-2 py-1 text-caption text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
               >
                 <span class="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
                 {{ quest.title || "Untitled" }}
@@ -251,7 +251,7 @@
           </div>
 
           <div v-if="!unidentifiedItems.length && !onHoldQuests.length" class="rounded-lg border border-border bg-card/50 px-4 py-6 text-center">
-            <p class="font-fell text-sm text-muted-foreground/50 italic">No pending items.</p>
+            <p class="text-body text-muted-foreground/50 italic">No pending items.</p>
           </div>
         </div>
 
@@ -296,7 +296,7 @@
               <p class="font-cinzel text-sm font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-1">{{ note.title || "Untitled" }}</p>
             </div>
             <p v-if="note.category" class="font-fell text-[0.6875rem] text-muted-foreground italic capitalize">{{ note.category.replace(/_/g, " ") }}</p>
-            <p v-if="notePreview(note)" class="font-fell text-xs text-muted-foreground line-clamp-2">{{ notePreview(note) }}</p>
+            <p v-if="notePreview(note)" class="text-caption text-muted-foreground line-clamp-2">{{ notePreview(note) }}</p>
           </RouterLink>
         </div>
       </div>
@@ -310,7 +310,7 @@
           class="bg-card flex items-center gap-2.5 px-4 py-3 hover:bg-muted/20 transition-colors"
         >
           <component :is="stat.icon" class="h-4 w-4 text-muted-foreground/50 shrink-0" />
-          <span class="font-fell text-sm text-muted-foreground">{{ stat.label }}</span>
+          <span class="text-body text-muted-foreground">{{ stat.label }}</span>
           <span class="ml-auto font-cinzel text-sm font-bold text-foreground">{{ stat.value }}</span>
         </RouterLink>
       </div>

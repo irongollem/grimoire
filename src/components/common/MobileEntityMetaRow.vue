@@ -6,7 +6,7 @@
     The layout choice is bound to the persisted ui-store pref.
   -->
   <div class="flex items-center justify-between gap-3 py-2">
-    <p class="font-fell text-sm italic text-muted-foreground">
+    <p class="text-body italic text-muted-foreground">
       {{ shown }} of {{ total }} {{ plural }}
     </p>
 

@@ -18,7 +18,7 @@
         <div class="h-10 w-10 shrink-0 overflow-hidden rounded-md border border-border bg-muted">
           <img v-if="sourcePortraitUrl" :src="sourcePortraitUrl" alt="" class="h-full w-full object-cover" />
         </div>
-        <span class="font-fell text-sm text-muted-foreground">{{ sourceEntity.name }}</span>
+        <span class="text-body text-muted-foreground">{{ sourceEntity.name }}</span>
       </div>
 
       <WizardStepIndicator :steps="WIZARD_STEPS" :current-index="stepIndex" />

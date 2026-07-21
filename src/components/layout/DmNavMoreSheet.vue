@@ -71,7 +71,7 @@
       </div>
     </div>
 
-    <p class="mt-4 px-1 text-center text-2xs font-fell text-muted-foreground/60">
+    <p class="mt-4 px-1 text-center text-caption-sm text-muted-foreground/60">
       Dot = currently pinned to the {{ ui.dmMode }} bar.
     </p>
 

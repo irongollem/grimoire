@@ -33,12 +33,12 @@
             class="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground"
           >
             <IconSun class="h-8 w-8" />
-            <span class="font-fell text-xs italic">Upload symbol</span>
+            <span class="text-caption italic">Upload symbol</span>
           </div>
           <div
             class="absolute inset-0 bg-black/50 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
           >
-            <span class="font-fell text-white text-xs italic">{{
+            <span class="text-caption text-white italic">{{
               form.symbol_image_url ? "Change" : "Upload"
             }}</span>
           </div>
@@ -84,7 +84,7 @@
         <input
           v-model="form.symbol"
           placeholder="Describe the holy symbol…"
-          class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full bg-card border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
 
@@ -123,7 +123,7 @@
         <input
           v-model="form.titles"
           placeholder="e.g. The Morninglord, Lord of Dawn…"
-          class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full bg-card border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
 
@@ -161,7 +161,7 @@
         <input
           v-model="form.portfolio"
           placeholder="What does this deity govern? (war, harvest, death…)"
-          class="w-full bg-card border border-border rounded-md px-3 py-2 font-fell text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full bg-card border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
 

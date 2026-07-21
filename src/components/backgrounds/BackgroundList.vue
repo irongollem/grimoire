@@ -21,7 +21,7 @@
 
     <p
       v-else-if="!filtered.length"
-      class="text-center font-fell text-sm text-muted-foreground italic py-12"
+      class="text-center text-body text-muted-foreground italic py-12"
     >
       No backgrounds match your filters.
     </p>
@@ -72,7 +72,7 @@
 
           <p
             v-if="b.feature_name"
-            class="font-fell text-xs italic text-muted-foreground line-clamp-1"
+            class="text-caption italic text-muted-foreground line-clamp-1"
             :title="b.feature_name"
           >
             {{ b.feature_name }}
@@ -145,7 +145,7 @@
 
     <p
       v-if="filtered.length"
-      class="mt-4 font-fell text-xs text-muted-foreground italic text-right"
+      class="mt-4 text-caption text-muted-foreground italic text-right"
     >
       {{ filtered.length }} background{{ filtered.length === 1 ? "" : "s" }}
     </p>

@@ -48,7 +48,7 @@
       >
         <p
           v-if="effectiveCreditCost > 0 && isPro && isAiEnabled"
-          class="font-fell text-xs text-center"
+          class="text-caption text-center"
           :class="canAfford ? 'text-muted-foreground' : 'text-destructive font-semibold'"
         >{{ creditLine }}</p>
         <button

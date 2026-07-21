@@ -1,7 +1,7 @@
 <template>
   <!-- Upcoming sessions -->
   <SettingsSection title="Upcoming Sessions">
-    <div v-if="!confirmedSessions.length" class="font-fell text-sm text-muted-foreground italic">
+    <div v-if="!confirmedSessions.length" class="text-body text-muted-foreground italic">
       No confirmed sessions yet — check back when your DM books one.
     </div>
     <div v-else class="space-y-2">
@@ -13,7 +13,7 @@
         <IconCalendarCheck class="h-4 w-4 text-elven-green shrink-0" />
         <div class="flex-1 min-w-0">
           <p class="font-cinzel text-sm font-semibold text-foreground">{{ s.title }}</p>
-          <p class="font-fell text-xs text-muted-foreground">{{ formatSessionDate(s.proposed_date, s.proposed_time) }}</p>
+          <p class="text-caption text-muted-foreground">{{ formatSessionDate(s.proposed_date, s.proposed_time) }}</p>
         </div>
       </div>
     </div>
@@ -33,7 +33,7 @@
       >
         <div class="flex-1 min-w-0">
           <p class="font-cinzel text-sm font-semibold text-foreground">{{ s.title }}</p>
-          <p class="font-fell text-xs text-muted-foreground">{{ formatSessionDate(s.proposed_date, s.proposed_time) }}</p>
+          <p class="text-caption text-muted-foreground">{{ formatSessionDate(s.proposed_date, s.proposed_time) }}</p>
         </div>
         <!-- 3-way toggle -->
         <div class="flex items-center gap-1 shrink-0">
