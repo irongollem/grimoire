@@ -7,7 +7,7 @@
         <span class="text-foreground font-semibold">{{ campaign?.name }}</span>.
         Your notes, NPCs, party members, calendar events, and encounters will have their campaign link removed but will not be deleted.
       </p>
-      <p class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground">
+      <p class="text-eyebrow font-semibold text-muted-foreground">
         TYPE <span class="text-foreground">{{ campaign?.name }}</span> TO CONFIRM
       </p>
       <input

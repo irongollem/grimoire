@@ -223,19 +223,19 @@
           class="border-t border-border pt-3 flex flex-col gap-2"
         >
           <div v-if="background.skill_proficiencies.length">
-            <p class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider mb-1">SKILLS</p>
+            <p class="text-eyebrow md:text-sm text-muted-foreground mb-1">SKILLS</p>
             <div class="flex flex-wrap gap-1">
               <span v-for="s in background.skill_proficiencies" :key="s" class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-2xs md:text-sm text-foreground tracking-wider">{{ s }}</span>
             </div>
           </div>
           <div v-if="background.tool_proficiencies.length">
-            <p class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider mb-1">TOOLS</p>
+            <p class="text-eyebrow md:text-sm text-muted-foreground mb-1">TOOLS</p>
             <div class="flex flex-wrap gap-1">
               <span v-for="t in background.tool_proficiencies" :key="t" class="px-2 py-0.5 rounded bg-muted border border-border font-cinzel text-2xs md:text-sm text-foreground tracking-wider">{{ t }}</span>
             </div>
           </div>
           <div v-if="background.languages.length">
-            <p class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider mb-1">LANGUAGES</p>
+            <p class="text-eyebrow md:text-sm text-muted-foreground mb-1">LANGUAGES</p>
             <div class="flex flex-wrap gap-1">
               <template v-for="l in background.languages" :key="l">
                 <RouterLink

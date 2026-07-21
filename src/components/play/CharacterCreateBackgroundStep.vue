@@ -69,7 +69,7 @@
         class="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 space-y-1">
         <div class="flex items-center gap-2">
           <p class="font-cinzel text-xs font-semibold text-amber-600 dark:text-amber-400 tracking-wider">FEAT GRANT</p>
-          <span class="font-cinzel text-2xs text-amber-600/60 dark:text-amber-400/60 tracking-wider">2024 PHB</span>
+          <span class="text-eyebrow text-amber-600/60 dark:text-amber-400/60">2024 PHB</span>
         </div>
         <p class="font-cinzel text-sm font-bold text-foreground">{{ selectedBg.feat_grant_name }}</p>
         <p v-if="selectedBg.feat_grant_description && typeof selectedBg.feat_grant_description === 'string' && !selectedBg.feat_grant_description.startsWith('{')"

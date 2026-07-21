@@ -183,7 +183,7 @@
 
         <!-- Ability scores -->
         <div>
-          <p class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground mb-1.5">ABILITY SCORES</p>
+          <p class="text-eyebrow font-semibold text-muted-foreground mb-1.5">ABILITY SCORES</p>
           <div class="grid grid-cols-6 gap-1">
             <div v-for="ab in ABILITIES" :key="ab.key" class="text-center">
               <p class="font-cinzel text-[0.5625rem] font-bold tracking-wider text-muted-foreground mb-0.5">{{ ab.label }}</p>

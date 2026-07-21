@@ -14,7 +14,7 @@
 
         <!-- Slot level picker -->
         <div>
-          <p class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider mb-2">CAST AT LEVEL</p>
+          <p class="text-eyebrow font-semibold text-muted-foreground mb-2">CAST AT LEVEL</p>
           <div class="flex flex-wrap gap-2">
             <button
               v-for="slot in upcastSlots"

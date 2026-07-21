@@ -48,17 +48,17 @@
           <div v-if="pendingBg.feat_grant_name"
             class="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 space-y-1">
             <div class="flex items-center gap-2">
-              <p class="font-cinzel text-2xs md:text-sm font-semibold text-amber-600 dark:text-amber-400 tracking-wider">
+              <p class="text-eyebrow md:text-sm font-semibold text-amber-600 dark:text-amber-400">
                 FEAT GRANT
               </p>
-              <span class="font-cinzel text-2xs text-amber-600/60 dark:text-amber-400/60 tracking-wider">2024 PHB</span>
+              <span class="text-eyebrow text-amber-600/60 dark:text-amber-400/60">2024 PHB</span>
             </div>
             <p class="font-cinzel text-sm font-bold text-foreground">{{ pendingBg.feat_grant_name }}</p>
           </div>
 
           <!-- Proficiencies granted by the new background -->
           <div v-if="propsToApply.length > 0">
-            <p class="font-cinzel text-2xs md:text-sm font-semibold text-muted-foreground tracking-wider mb-2">
+            <p class="text-eyebrow md:text-sm font-semibold text-muted-foreground mb-2">
               PROFICIENCIES GRANTED
             </p>
             <div class="flex flex-wrap gap-1.5">

@@ -143,7 +143,7 @@
           </div>
           <div class="divide-y divide-border">
             <div v-if="puzzle.success_outcome" class="p-4">
-              <p class="font-cinzel text-2xs font-semibold text-primary tracking-wider mb-1.5">SUCCESS</p>
+              <p class="text-eyebrow font-semibold text-primary mb-1.5">SUCCESS</p>
               <RichTextViewer :content="puzzle.success_outcome" />
             </div>
             <div v-if="puzzle.failure_consequence" class="p-4">

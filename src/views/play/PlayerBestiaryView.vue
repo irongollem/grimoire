@@ -79,7 +79,7 @@
             <template v-if="(member?.level ?? 0) < 8"> · no fly/swim speed</template>
           </p>
         </div>
-        <span v-if="isDruid && isCircleOfMoon" class="font-cinzel text-2xs md:text-sm tracking-wider px-1.5 py-0.5 rounded border border-primary/40 text-primary bg-primary/10">MOON</span>
+        <span v-if="isDruid && isCircleOfMoon" class="text-eyebrow md:text-sm px-1.5 py-0.5 rounded border border-primary/40 text-primary bg-primary/10">MOON</span>
       </div>
 
       <!-- DM: share all eligible beasts with this druid -->
@@ -106,7 +106,7 @@
       <template v-else>
         <!-- Pinned section -->
         <template v-if="pinnedForms.length">
-          <p class="font-cinzel text-2xs md:text-sm tracking-wider text-muted-foreground">PINNED BY DM</p>
+          <p class="text-eyebrow md:text-sm text-muted-foreground">PINNED BY DM</p>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             <div
               v-for="entry in pinnedForms"
@@ -131,7 +131,7 @@
 
         <!-- Eligible section -->
         <template v-if="eligibleForms.length">
-          <p class="font-cinzel text-2xs md:text-sm tracking-wider text-muted-foreground mt-2">ELIGIBLE FORMS</p>
+          <p class="text-eyebrow md:text-sm text-muted-foreground mt-2">ELIGIBLE FORMS</p>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             <div
               v-for="entry in eligibleForms"

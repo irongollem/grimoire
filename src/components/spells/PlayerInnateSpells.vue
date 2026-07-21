@@ -63,11 +63,11 @@
             <!-- Concentration / ritual badges -->
             <span
               v-if="entry.spell.ritual"
-              class="shrink-0 font-cinzel text-2xs tracking-wider text-muted-foreground border border-border rounded px-1"
+              class="shrink-0 text-eyebrow text-muted-foreground border border-border rounded px-1"
             >R</span>
             <span
               v-if="entry.spell.concentration"
-              class="shrink-0 font-cinzel text-2xs tracking-wider text-primary/70 border border-primary/30 rounded px-1"
+              class="shrink-0 text-eyebrow text-primary/70 border border-primary/30 rounded px-1"
             >C</span>
 
             <!-- Attack / save info -->

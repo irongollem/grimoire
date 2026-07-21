@@ -39,7 +39,7 @@
       <div class="rounded-md bg-muted p-2.5 flex items-center gap-2">
         <IconShield class="h-4 w-4 text-muted-foreground shrink-0" />
         <div>
-          <p class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">AC</p>
+          <p class="text-eyebrow md:text-sm text-muted-foreground">AC</p>
           <p class="font-cinzel text-sm font-bold text-foreground">{{ companion.ac }}</p>
         </div>
       </div>

@@ -60,18 +60,18 @@
               </span>
               <span
                 v-if="(msg.metadata as RollMetadata).isCrit"
-                class="font-cinzel text-2xs text-gold-500 tracking-wider"
+                class="text-eyebrow text-gold-500"
                 >NAT 20!</span
               >
               <span
                 v-else-if="(msg.metadata as RollMetadata).isFumble"
-                class="font-cinzel text-2xs text-destructive tracking-wider"
+                class="text-eyebrow text-destructive"
                 >NAT 1</span
               >
             </template>
             <span
               v-if="(msg.metadata as RollMetadata).manual"
-              class="font-cinzel text-2xs text-muted-foreground tracking-wider"
+              class="text-eyebrow text-muted-foreground"
               title="Entered from physical dice"
               >MANUAL</span
             >

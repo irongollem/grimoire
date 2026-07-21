@@ -69,19 +69,19 @@
                   </div>
                   <div class="flex flex-col gap-4 p-5 border-t border-border md:border-t-0">
                     <div v-if="selectedSpecies.speed">
-                      <p class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider mb-1.5">SPEED</p>
+                      <p class="text-eyebrow font-semibold text-muted-foreground mb-1.5">SPEED</p>
                       <div class="flex flex-wrap gap-2">
                         <span v-for="(val, mode) in selectedSpecies.speed" :key="mode" class="px-2 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground capitalize">{{ mode }} {{ val }} ft</span>
                       </div>
                     </div>
                     <div v-if="selectedSpecies.ability_score_increases && Object.keys(selectedSpecies.ability_score_increases).length">
-                      <p class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider mb-1.5">ABILITY SCORE INCREASES</p>
+                      <p class="text-eyebrow font-semibold text-muted-foreground mb-1.5">ABILITY SCORE INCREASES</p>
                       <div class="flex flex-wrap gap-1.5">
                         <span v-for="(val, key) in selectedSpecies.ability_score_increases" :key="key" class="px-2 py-0.5 rounded bg-primary/10 border border-primary/20 font-cinzel text-[0.6875rem] text-primary uppercase">{{ typeof val === "number" ? `${key} +${val}` : val }}</span>
                       </div>
                     </div>
                     <div v-if="selectedSpecies.traits?.length">
-                      <p class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider mb-1.5">TRAITS</p>
+                      <p class="text-eyebrow font-semibold text-muted-foreground mb-1.5">TRAITS</p>
                       <div class="flex flex-col gap-1">
                         <div v-for="trait in selectedSpecies.traits" :key="trait.name" class="rounded-md border border-border overflow-hidden">
                           <button
@@ -101,13 +101,13 @@
                       </div>
                     </div>
                     <div v-if="selectedSpecies.languages?.length">
-                      <p class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider mb-1.5">LANGUAGES</p>
+                      <p class="text-eyebrow font-semibold text-muted-foreground mb-1.5">LANGUAGES</p>
                       <div class="flex flex-wrap gap-1.5">
                         <span v-for="lang in selectedSpecies.languages" :key="lang" class="px-2 py-0.5 rounded bg-muted font-fell text-xs text-muted-foreground">{{ lang }}</span>
                       </div>
                     </div>
                     <div v-if="selectedSpecies.subraces?.length">
-                      <p class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider mb-1.5">VARIANTS</p>
+                      <p class="text-eyebrow font-semibold text-muted-foreground mb-1.5">VARIANTS</p>
                       <div class="flex flex-col gap-1.5">
                         <div v-for="sub in selectedSpecies.subraces" :key="sub.name" class="rounded-md border border-border overflow-hidden">
                           <button type="button" class="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted/20 transition-colors" @click="toggle(`sp:${selectedSpecies!.id}:sr:${sub.name}`)">
@@ -199,36 +199,36 @@
                     <div v-if="selectedBackground.feat_grant_name"
                       class="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 space-y-1">
                       <div class="flex items-center gap-2">
-                        <p class="font-cinzel text-2xs font-semibold text-amber-600 dark:text-amber-400 tracking-wider">FEAT GRANT</p>
+                        <p class="text-eyebrow font-semibold text-amber-600 dark:text-amber-400">FEAT GRANT</p>
                         <span class="font-cinzel text-[0.5625rem] text-amber-600/60 dark:text-amber-400/60 tracking-wider">2024 PHB</span>
                       </div>
                       <p class="font-cinzel text-sm font-bold text-foreground">{{ selectedBackground.feat_grant_name }}</p>
                       <RichTextViewer v-if="selectedBackground.feat_grant_description" :content="selectedBackground.feat_grant_description" />
                     </div>
                     <div v-if="selectedBackground.skill_proficiencies?.length">
-                      <p class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider mb-1.5">SKILL PROFICIENCIES</p>
+                      <p class="text-eyebrow font-semibold text-muted-foreground mb-1.5">SKILL PROFICIENCIES</p>
                       <div class="flex flex-wrap gap-1.5">
                         <span v-for="s in selectedBackground.skill_proficiencies" :key="s" class="px-2 py-0.5 rounded bg-primary/10 border border-primary/20 font-cinzel text-[0.6875rem] text-primary">{{ s }}</span>
                       </div>
                     </div>
                     <div v-if="selectedBackground.tool_proficiencies?.length">
-                      <p class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider mb-1.5">TOOL PROFICIENCIES</p>
+                      <p class="text-eyebrow font-semibold text-muted-foreground mb-1.5">TOOL PROFICIENCIES</p>
                       <div class="flex flex-wrap gap-1.5">
                         <span v-for="t in selectedBackground.tool_proficiencies" :key="t" class="px-2 py-0.5 rounded bg-muted font-fell text-xs text-muted-foreground">{{ t }}</span>
                       </div>
                     </div>
                     <div v-if="selectedBackground.languages?.length">
-                      <p class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider mb-1.5">LANGUAGES</p>
+                      <p class="text-eyebrow font-semibold text-muted-foreground mb-1.5">LANGUAGES</p>
                       <div class="flex flex-wrap gap-1.5">
                         <span v-for="l in selectedBackground.languages" :key="l" class="px-2 py-0.5 rounded bg-muted font-fell text-xs text-muted-foreground">{{ l }}</span>
                       </div>
                     </div>
                     <div v-if="selectedBackground.equipment">
-                      <p class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider mb-1.5">EQUIPMENT</p>
+                      <p class="text-eyebrow font-semibold text-muted-foreground mb-1.5">EQUIPMENT</p>
                       <p class="font-fell text-sm text-muted-foreground">{{ selectedBackground.equipment }}</p>
                     </div>
                     <div v-if="selectedBackground.feature_name">
-                      <p class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider mb-1.5">FEATURE</p>
+                      <p class="text-eyebrow font-semibold text-muted-foreground mb-1.5">FEATURE</p>
                       <p class="font-cinzel text-xs font-semibold text-foreground mb-1">{{ selectedBackground.feature_name }}</p>
                       <p v-if="selectedBackground.feature_description" class="font-fell text-sm text-muted-foreground">{{ selectedBackground.feature_description }}</p>
                     </div>
@@ -286,28 +286,28 @@
                   <div class="flex flex-col gap-4 p-5">
                     <div class="grid grid-cols-2 gap-3">
                       <div v-if="selectedClass.primary_ability">
-                        <p class="font-cinzel text-2xs text-muted-foreground tracking-wider mb-0.5">PRIMARY</p>
+                        <p class="text-eyebrow text-muted-foreground mb-0.5">PRIMARY</p>
                         <p class="font-fell text-sm text-foreground">{{ selectedClass.primary_ability }}</p>
                       </div>
                       <div v-if="selectedClass.saving_throws?.length">
-                        <p class="font-cinzel text-2xs text-muted-foreground tracking-wider mb-0.5">SAVING THROWS</p>
+                        <p class="text-eyebrow text-muted-foreground mb-0.5">SAVING THROWS</p>
                         <p class="font-fell text-sm text-foreground">{{ selectedClass.saving_throws.join(", ") }}</p>
                       </div>
                       <div v-if="selectedClass.armor_proficiencies?.length">
-                        <p class="font-cinzel text-2xs text-muted-foreground tracking-wider mb-0.5">ARMOR</p>
+                        <p class="text-eyebrow text-muted-foreground mb-0.5">ARMOR</p>
                         <p class="font-fell text-sm text-foreground">{{ selectedClass.armor_proficiencies.join(", ") }}</p>
                       </div>
                       <div v-if="selectedClass.weapon_proficiencies?.length">
-                        <p class="font-cinzel text-2xs text-muted-foreground tracking-wider mb-0.5">WEAPONS</p>
+                        <p class="text-eyebrow text-muted-foreground mb-0.5">WEAPONS</p>
                         <p class="font-fell text-sm text-foreground">{{ selectedClass.weapon_proficiencies.join(", ") }}</p>
                       </div>
                       <div>
-                        <p class="font-cinzel text-2xs text-muted-foreground tracking-wider mb-0.5">SUBCLASS AT</p>
+                        <p class="text-eyebrow text-muted-foreground mb-0.5">SUBCLASS AT</p>
                         <p class="font-fell text-sm text-foreground">Level {{ selectedClass.subclass_level }}</p>
                       </div>
                     </div>
                     <div v-if="subclassesFor(selectedClass.class_name).length">
-                      <p class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider mb-1.5">SUBCLASSES</p>
+                      <p class="text-eyebrow font-semibold text-muted-foreground mb-1.5">SUBCLASSES</p>
                       <div class="flex flex-col gap-1.5">
                         <div v-for="sub in subclassesFor(selectedClass.class_name)" :key="sub.subclass_name" class="rounded-md border border-border overflow-hidden">
                           <button type="button" class="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted/20 transition-colors" @click="toggle(`sub:${selectedClass!.class_name}:${sub.subclass_name}`)">
@@ -332,7 +332,7 @@
                   <!-- Right: class features by level -->
                   <div class="flex flex-col gap-4 p-5 border-t border-border md:border-t-0">
                     <div v-if="Object.keys(selectedClass.features ?? {}).length">
-                      <p class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider mb-1.5">CLASS FEATURES</p>
+                      <p class="text-eyebrow font-semibold text-muted-foreground mb-1.5">CLASS FEATURES</p>
                       <div class="flex flex-col gap-1">
                         <div v-for="lvl in sortedLevels(selectedClass.features)" :key="lvl" class="flex gap-3 px-2 py-1.5 rounded bg-muted/30">
                           <span class="font-cinzel text-2xs text-muted-foreground tracking-wider w-10 shrink-0 pt-0.5">Lv {{ lvl }}</span>
@@ -416,13 +416,13 @@
                       <img :src="selectedDeity.symbol_image_url" :alt="selectedDeity.name + ' symbol'" class="h-16 w-16 object-contain" />
                     </div>
                     <div v-if="selectedDeity.domains?.length">
-                      <p class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider mb-1.5">DOMAINS</p>
+                      <p class="text-eyebrow font-semibold text-muted-foreground mb-1.5">DOMAINS</p>
                       <div class="flex flex-wrap gap-1">
                         <span v-for="domain in selectedDeity.domains" :key="domain" class="px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 font-cinzel text-[0.5625rem] text-primary tracking-wider">{{ domain }}</span>
                       </div>
                     </div>
                     <div v-if="selectedDeity.alternate_names?.length">
-                      <p class="font-cinzel text-2xs font-semibold text-muted-foreground tracking-wider mb-1">ALSO KNOWN AS</p>
+                      <p class="text-eyebrow font-semibold text-muted-foreground mb-1">ALSO KNOWN AS</p>
                       <p class="font-fell text-sm text-muted-foreground">{{ selectedDeity.alternate_names.join(", ") }}</p>
                     </div>
                   </div>
@@ -430,15 +430,15 @@
                   <div class="flex flex-col gap-4 p-5 border-t border-border md:border-t-0">
                     <div class="flex flex-col gap-3">
                       <div v-if="selectedDeity.alignment">
-                        <p class="font-cinzel text-2xs text-muted-foreground tracking-wider mb-0.5">ALIGNMENT</p>
+                        <p class="text-eyebrow text-muted-foreground mb-0.5">ALIGNMENT</p>
                         <p class="font-fell text-sm text-foreground">{{ selectedDeity.alignment }}</p>
                       </div>
                       <div v-if="selectedDeity.symbol">
-                        <p class="font-cinzel text-2xs text-muted-foreground tracking-wider mb-0.5">SYMBOL</p>
+                        <p class="text-eyebrow text-muted-foreground mb-0.5">SYMBOL</p>
                         <p class="font-fell text-sm text-foreground">{{ selectedDeity.symbol }}</p>
                       </div>
                       <div v-if="selectedDeity.portfolio">
-                        <p class="font-cinzel text-2xs text-muted-foreground tracking-wider mb-0.5">PORTFOLIO</p>
+                        <p class="text-eyebrow text-muted-foreground mb-0.5">PORTFOLIO</p>
                         <p class="font-fell text-sm text-foreground">{{ selectedDeity.portfolio }}</p>
                       </div>
                     </div>

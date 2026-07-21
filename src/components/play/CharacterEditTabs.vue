@@ -118,9 +118,9 @@
       </div>
 
       <div class="rounded-lg bg-muted/30 border border-border p-3 grid grid-cols-3 gap-2 text-center">
-        <div><p class="font-cinzel text-2xs text-muted-foreground tracking-wider">PASSIVE PERC.</p><p class="font-cinzel text-base font-bold">{{ passivePerception }}</p></div>
-        <div><p class="font-cinzel text-2xs text-muted-foreground tracking-wider">PASSIVE INS.</p><p class="font-cinzel text-base font-bold">{{ passiveInsight }}</p></div>
-        <div><p class="font-cinzel text-2xs text-muted-foreground tracking-wider">PASSIVE INV.</p><p class="font-cinzel text-base font-bold">{{ passiveInvestigation }}</p></div>
+        <div><p class="text-eyebrow text-muted-foreground">PASSIVE PERC.</p><p class="font-cinzel text-base font-bold">{{ passivePerception }}</p></div>
+        <div><p class="text-eyebrow text-muted-foreground">PASSIVE INS.</p><p class="font-cinzel text-base font-bold">{{ passiveInsight }}</p></div>
+        <div><p class="text-eyebrow text-muted-foreground">PASSIVE INV.</p><p class="font-cinzel text-base font-bold">{{ passiveInvestigation }}</p></div>
       </div>
 
       <div class="flex items-center justify-between mt-2">

@@ -37,7 +37,7 @@
           </div>
         </template>
         <template v-else>
-          <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">HP</span>
+          <span class="text-eyebrow md:text-sm text-muted-foreground">HP</span>
           <p class="font-fell text-xs italic" :class="hpColor">{{ immersiveHpLabel }}</p>
         </template>
       </div>

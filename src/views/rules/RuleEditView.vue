@@ -99,7 +99,7 @@
           <!-- Label + Type -->
           <div class="grid grid-cols-2 gap-3">
             <div class="space-y-1.5">
-              <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground">TRACK LABEL</label>
+              <label class="text-eyebrow font-semibold text-muted-foreground">TRACK LABEL</label>
               <input
                 v-model="tracker.label"
                 type="text"
@@ -123,7 +123,7 @@
           <!-- Min / Max -->
           <div class="grid grid-cols-2 gap-3">
             <div class="space-y-1.5">
-              <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground">MIN VALUE</label>
+              <label class="text-eyebrow font-semibold text-muted-foreground">MIN VALUE</label>
               <input
                 v-model.number="tracker.min"
                 type="number"
@@ -143,7 +143,7 @@
           <!-- ── Levels (type = "level") ──────────────────────────────────── -->
           <div v-if="tracker.type === 'level'" class="space-y-2">
             <div class="flex items-center justify-between">
-              <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground">LEVELS</label>
+              <label class="text-eyebrow font-semibold text-muted-foreground">LEVELS</label>
               <button
                 type="button"
                 class="inline-flex items-center gap-1 font-cinzel text-2xs text-muted-foreground hover:text-foreground transition-colors"
@@ -293,7 +293,7 @@
           <!-- ── DM Buttons ───────────────────────────────────────────────── -->
           <div class="space-y-2">
             <div class="flex items-center justify-between">
-              <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground">TRACKER BUTTONS</label>
+              <label class="text-eyebrow font-semibold text-muted-foreground">TRACKER BUTTONS</label>
               <button
                 type="button"
                 class="inline-flex items-center gap-1 font-cinzel text-2xs text-muted-foreground hover:text-foreground transition-colors"

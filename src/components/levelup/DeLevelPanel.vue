@@ -38,7 +38,7 @@
           v-if="manualReviewItems.length > 0"
           class="rounded-md bg-amber-500/10 border border-amber-500/30 px-3 py-2 space-y-1"
         >
-          <p class="font-cinzel text-2xs text-amber-400 tracking-wider">REVIEW MANUALLY</p>
+          <p class="text-eyebrow text-amber-400">REVIEW MANUALLY</p>
           <ul class="space-y-0.5">
             <li v-for="item in manualReviewItems" :key="item" class="font-fell text-xs text-amber-400">• {{ item }}</li>
           </ul>

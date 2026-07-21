@@ -15,7 +15,7 @@
     <!-- Identity fields -->
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
       <div>
-        <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1.5">TYPE</label>
+        <label class="block text-eyebrow text-muted-foreground mb-1.5">TYPE</label>
         <select
           v-model="form.feature_type"
           class="w-full bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -25,7 +25,7 @@
       </div>
 
       <div>
-        <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1.5">SOURCE</label>
+        <label class="block text-eyebrow text-muted-foreground mb-1.5">SOURCE</label>
         <input
           v-model="form.source"
           placeholder="PHB, XGtE, Homebrew…"
@@ -34,7 +34,7 @@
       </div>
 
       <div>
-        <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1.5">CAMPAIGN SCOPE</label>
+        <label class="block text-eyebrow text-muted-foreground mb-1.5">CAMPAIGN SCOPE</label>
         <select
           v-model="campaignScope"
           class="w-full bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -47,7 +47,7 @@
 
     <!-- Prerequisite -->
     <div>
-      <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1.5">PREREQUISITE</label>
+      <label class="block text-eyebrow text-muted-foreground mb-1.5">PREREQUISITE</label>
       <input
         v-model="form.prerequisite"
         placeholder="e.g. Dexterity 13 or higher, Proficiency with a martial weapon…"
@@ -57,13 +57,13 @@
 
     <!-- Tags -->
     <div>
-      <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1.5">TAGS</label>
+      <label class="block text-eyebrow text-muted-foreground mb-1.5">TAGS</label>
       <TagInput v-model="form.tags" placeholder="ranger, gloom-stalker, combat…" />
     </div>
 
     <!-- Description (rich text) -->
     <div>
-      <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1.5">DESCRIPTION</label>
+      <label class="block text-eyebrow text-muted-foreground mb-1.5">DESCRIPTION</label>
       <RichTextEditor
         v-model="form.description"
         placeholder="Full rules text — mechanics, damage rolls, saving throws, conditions…"

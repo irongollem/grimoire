@@ -28,7 +28,7 @@
         >
           <component :is="d.icon" class="h-3.5 w-3.5" />
           {{ d.label }}
-          <span v-if="!hasProficiency(d.tools)" class="font-cinzel text-2xs md:text-sm text-muted-foreground/60 tracking-wider">NO PROF</span>
+          <span v-if="!hasProficiency(d.tools)" class="text-eyebrow md:text-sm text-muted-foreground/60">NO PROF</span>
         </button>
       </div>
 
@@ -92,21 +92,21 @@
             </div>
             <span
               v-if="recipe.requires_proficiency && !hasProficiency(getDiscipline(recipe.discipline).tools)"
-              class="shrink-0 font-cinzel text-2xs md:text-sm tracking-wider px-1.5 py-0.5 rounded border border-destructive/40 text-destructive bg-destructive/10"
+              class="shrink-0 text-eyebrow md:text-sm px-1.5 py-0.5 rounded border border-destructive/40 text-destructive bg-destructive/10"
               :title="`Requires ${getDiscipline(recipe.discipline).tools[0]} proficiency`"
             >
               LOCKED
             </span>
             <span
               v-else-if="recipe.requires_tools && !hasTools(getDiscipline(recipe.discipline).tools)"
-              class="shrink-0 font-cinzel text-2xs md:text-sm tracking-wider px-1.5 py-0.5 rounded border border-destructive/40 text-destructive bg-destructive/10"
+              class="shrink-0 text-eyebrow md:text-sm px-1.5 py-0.5 rounded border border-destructive/40 text-destructive bg-destructive/10"
               :title="`Requires ${getDiscipline(recipe.discipline).tools[0]} in inventory`"
             >
               NO TOOLS
             </span>
             <span
               v-else-if="!hasTools(getDiscipline(recipe.discipline).tools)"
-              class="shrink-0 font-cinzel text-2xs md:text-sm tracking-wider px-1.5 py-0.5 rounded border border-gold-500/40 text-gold-400 bg-gold-500/10"
+              class="shrink-0 text-eyebrow md:text-sm px-1.5 py-0.5 rounded border border-gold-500/40 text-gold-400 bg-gold-500/10"
               :title="`Requires ${getDiscipline(recipe.discipline).tools[0]} in inventory — roll at disadvantage`"
             >
               DISADV

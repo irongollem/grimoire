@@ -210,7 +210,7 @@
                 type="checkbox"
                 class="w-3.5 h-3.5 rounded border-border accent-primary"
               />
-              <span class="font-cinzel text-2xs text-muted-foreground tracking-wider">LEAP</span>
+              <span class="text-eyebrow text-muted-foreground">LEAP</span>
             </label>
             <button
               type="button"

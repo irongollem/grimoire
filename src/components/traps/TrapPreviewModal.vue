@@ -76,11 +76,11 @@
                 <div class="font-fell text-sm text-foreground">{{ trap.reset_type }}</div>
               </div>
               <div v-if="trap.trap_hp">
-                <div class="font-cinzel text-2xs text-muted-foreground tracking-wider">HP</div>
+                <div class="text-eyebrow text-muted-foreground">HP</div>
                 <div class="font-cinzel text-sm font-bold text-foreground">{{ trap.trap_hp }}</div>
               </div>
               <div v-if="trap.trap_ac">
-                <div class="font-cinzel text-2xs text-muted-foreground tracking-wider">AC</div>
+                <div class="text-eyebrow text-muted-foreground">AC</div>
                 <div class="font-cinzel text-sm font-bold text-foreground">{{ trap.trap_ac }}</div>
               </div>
             </div>

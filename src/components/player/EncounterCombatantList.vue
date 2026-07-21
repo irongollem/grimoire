@@ -19,7 +19,7 @@
           <div class="flex-1 min-w-0 self-center">
             <div class="flex items-center gap-2 overflow-hidden">
               <span class="combatant-name font-cinzel text-sm font-semibold text-muted-foreground italic truncate">???</span>
-              <span class="pc-npc-badge shrink-0 font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded font-bold tracking-wider bg-muted text-muted-foreground">NPC</span>
+              <span class="pc-npc-badge shrink-0 text-eyebrow md:text-sm px-1.5 py-0.5 rounded font-bold bg-muted text-muted-foreground">NPC</span>
             </div>
           </div>
         </div>

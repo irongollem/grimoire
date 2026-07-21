@@ -163,7 +163,7 @@
 
       <div>
         <label
-          class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1"
+          class="block text-eyebrow text-muted-foreground mb-1"
           >TITLE</label
         >
         <input
@@ -195,7 +195,7 @@
           />
         </div>
         <div>
-          <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1">MIN ATTENDANCE</label>
+          <label class="block text-eyebrow text-muted-foreground mb-1">MIN ATTENDANCE</label>
           <input
             v-model.number="form.min_attendance"
             type="number"

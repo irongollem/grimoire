@@ -43,7 +43,7 @@
             </p>
             <!-- XP progress -->
             <div v-if="xpLevellingEnabled && !wildshape && ((member.experience_points ?? 0) > 0 || readyToLevelUp)" class="mt-1 flex items-center gap-1.5">
-              <span class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">XP</span>
+              <span class="text-eyebrow md:text-sm text-muted-foreground">XP</span>
               <div class="flex-1 max-w-32 h-1 rounded-full bg-muted overflow-hidden">
                 <div class="h-full transition-all"
                   :class="readyToLevelUp ? 'bg-primary' : 'bg-primary/50'"
@@ -114,7 +114,7 @@
             @keydown="blockInvalidChars"
             @focus="($event.target as HTMLInputElement).select()"
           />
-          <button class="h-6 px-1.5 rounded bg-destructive/15 border border-destructive/40 font-cinzel text-2xs md:text-sm text-destructive hover:bg-destructive/25 transition-colors tracking-wider" @click="applyDamage">DMG</button>
+          <button class="h-6 px-1.5 rounded bg-destructive/15 border border-destructive/40 text-eyebrow md:text-sm text-destructive hover:bg-destructive/25 transition-colors" @click="applyDamage">DMG</button>
           <button class="h-6 px-1.5 rounded bg-elven-green/10 border border-elven-green/40 font-cinzel text-2xs md:text-sm text-elven-green hover:bg-elven-green/20 transition-colors tracking-wider" @click="applyHeal">Heal</button>
           <button v-if="!wildshape" class="h-6 px-1.5 rounded bg-blue-500/10 border border-blue-500/30 font-cinzel text-2xs md:text-sm text-blue-400 hover:bg-blue-500/20 transition-colors tracking-wider" @click="applyTempHp">Tmp</button>
         </div>

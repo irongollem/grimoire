@@ -170,7 +170,7 @@
           </div>
           <div class="flex gap-6 px-4 py-2.5">
             <div class="text-center">
-              <p class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-wider">HP</p>
+              <p class="text-eyebrow md:text-sm text-muted-foreground">HP</p>
               <p class="font-cinzel text-sm font-bold">{{ activeWildshape.beast_hp }}/{{ activeWildshape.beast_max_hp }}</p>
             </div>
             <div class="text-center">

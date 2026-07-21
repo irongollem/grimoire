@@ -77,7 +77,7 @@
         </span>
         <span
           v-if="entry.is_private && entry.shared_with_dm"
-          class="font-cinzel text-2xs tracking-wider px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600/80 dark:text-amber-400/80 border border-amber-500/20"
+          class="text-eyebrow px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600/80 dark:text-amber-400/80 border border-amber-500/20"
         >DM</span>
       </template>
 

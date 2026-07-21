@@ -66,7 +66,7 @@
 
       <!-- Source label -->
       <div>
-        <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground">SOURCE LABEL</label>
+        <label class="text-eyebrow font-semibold text-muted-foreground">SOURCE LABEL</label>
         <input
           v-model="grantForm.sourceLabel"
           type="text"
@@ -77,7 +77,7 @@
 
       <!-- Subrace (only if species has subraces) -->
       <div v-if="subraceNames.length > 0">
-        <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground">APPLIES TO SUBRACE</label>
+        <label class="text-eyebrow font-semibold text-muted-foreground">APPLIES TO SUBRACE</label>
         <div class="mt-1 flex flex-wrap gap-1.5">
           <button
             type="button"
@@ -99,7 +99,7 @@
       <!-- Uses + min level row -->
       <div class="flex gap-3 items-end">
         <div class="flex-1">
-          <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground">USES</label>
+          <label class="text-eyebrow font-semibold text-muted-foreground">USES</label>
           <div class="mt-1 flex rounded-md border border-border overflow-hidden text-xs font-cinzel font-semibold tracking-wider">
             <button type="button" class="flex-1 px-2 py-1.5 transition-colors" :class="grantForm.usesPerDay === null ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'" @click="grantForm.usesPerDay = null">At will</button>
             <button type="button" class="flex-1 px-2 py-1.5 transition-colors" :class="grantForm.usesPerDay !== null ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'" @click="grantForm.usesPerDay = grantForm.usesCount">{{ grantForm.usesPerDay !== null ? `${grantForm.usesCount}/day` : 'N/day' }}</button>
@@ -128,7 +128,7 @@
       </div>
 
       <div>
-        <label class="font-cinzel text-2xs font-semibold tracking-wider text-muted-foreground">CASTING ABILITY</label>
+        <label class="text-eyebrow font-semibold text-muted-foreground">CASTING ABILITY</label>
         <select v-model="grantForm.castingAbility" class="mt-1 w-full rounded-md border border-border bg-card px-2 py-1.5 font-fell text-sm text-foreground">
           <option :value="null">Class/default</option>
           <option value="int">Intelligence</option>

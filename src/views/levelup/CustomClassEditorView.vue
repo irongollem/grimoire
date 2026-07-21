@@ -43,7 +43,7 @@
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1.5">HIT DIE</label>
+            <label class="block text-eyebrow text-muted-foreground mb-1.5">HIT DIE</label>
             <select
               v-model.number="form.hit_die"
               class="w-full bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -56,7 +56,7 @@
           </div>
 
           <div>
-            <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1.5">PRIMARY ABILITY</label>
+            <label class="block text-eyebrow text-muted-foreground mb-1.5">PRIMARY ABILITY</label>
             <input
               v-model="form.primary_ability"
               placeholder="e.g. Strength or Dexterity"
@@ -65,7 +65,7 @@
           </div>
 
           <div>
-            <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1.5">SUBCLASS-GRANTING LEVEL</label>
+            <label class="block text-eyebrow text-muted-foreground mb-1.5">SUBCLASS-GRANTING LEVEL</label>
             <input
               v-model.number="form.subclass_level"
               type="number"
@@ -76,7 +76,7 @@
           </div>
 
           <div>
-            <label class="block font-cinzel text-2xs tracking-wider text-muted-foreground mb-1.5">CAMPAIGN SCOPE</label>
+            <label class="block text-eyebrow text-muted-foreground mb-1.5">CAMPAIGN SCOPE</label>
             <select
               v-model="campaignScope"
               class="w-full bg-card border border-border rounded-md px-3 py-1.5 font-fell text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"

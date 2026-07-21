@@ -53,7 +53,7 @@
 
     <!-- Threshold bars -->
     <div v-if="props.difficulty.partyThresholds.deadly > 0" class="flex flex-col gap-2">
-      <div class="font-cinzel text-2xs text-muted-foreground tracking-wider mb-1">
+      <div class="text-eyebrow text-muted-foreground mb-1">
         PARTY THRESHOLDS
       </div>
       <div v-for="tier in props.thresholdTiers" :key="tier.label" class="flex items-center gap-2">
