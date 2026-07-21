@@ -3,7 +3,7 @@
     <!-- Header -->
     <div class="text-center space-y-1">
       <p class="font-cinzel text-xs text-primary tracking-widest uppercase">Level Up</p>
-      <h2 class="font-cinzel text-2xl font-bold text-foreground">
+      <h2 class="text-title font-bold text-foreground">
         {{ member.name }}
         <span class="text-muted-foreground">→ Level {{ nextLevel }}</span>
       </h2>

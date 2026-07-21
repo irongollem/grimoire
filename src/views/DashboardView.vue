@@ -137,7 +137,7 @@
             <div class="flex flex-col gap-1.5">
               <p class="font-cinzel text-2xs text-muted-foreground tracking-widest uppercase">Game Day</p>
               <template v-if="!editingDate">
-                <p class="font-cinzel text-base font-semibold text-foreground">{{ todayFormatted }}</p>
+                <p class="text-heading-sm font-semibold text-foreground">{{ todayFormatted }}</p>
                 <div class="flex items-center gap-1.5">
                   <button
                     class="px-2.5 py-1 rounded border border-border font-cinzel text-2xs text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors disabled:opacity-40"

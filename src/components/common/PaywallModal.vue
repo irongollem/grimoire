@@ -67,7 +67,7 @@
                   or {{ yearlyLabel }} / year<span v-if="savedMonths > 0"> — save {{ savedMonths }} month{{ savedMonths > 1 ? 's' : '' }}</span>
                 </p>
               </div>
-              <p v-if="monthlyLabel" class="font-cinzel text-lg font-bold text-amber-400 shrink-0">
+              <p v-if="monthlyLabel" class="text-heading font-bold text-amber-400 shrink-0">
                 {{ monthlyLabel }}<span class="text-xs text-muted-foreground font-normal">/mo</span>
               </p>
             </div>

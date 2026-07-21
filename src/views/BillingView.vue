@@ -36,7 +36,7 @@
           <IconDM v-if="isPro" class="h-5 w-5 text-amber-400 shrink-0" />
           <IconQuest v-else class="h-5 w-5 text-muted-foreground shrink-0" />
           <span
-            class="font-cinzel text-lg font-bold"
+            class="text-heading font-bold"
             :class="isPro ? 'text-amber-400' : 'text-foreground'"
           >
             {{ isPro ? "Pro DM" : "Free DM" }}
@@ -126,7 +126,7 @@
         >
           Upgrade to Pro
         </p>
-        <h2 class="font-cinzel text-xl font-bold text-amber-400">
+        <h2 class="text-heading-lg font-bold text-amber-400">
           Unlock your full legend
         </h2>
       </div>
@@ -230,7 +230,7 @@
       </div>
 
       <div class="flex items-end gap-2">
-        <span class="font-cinzel text-3xl font-bold text-amber-400">{{ activeProPrice ?? "—" }}</span>
+        <span class="text-display font-bold text-amber-400">{{ activeProPrice ?? "—" }}</span>
         <span class="text-body text-muted-foreground italic mb-1">{{
           annual ? "/ year" : "/ month"
         }}</span>
@@ -287,7 +287,7 @@
           <IconLoading class="h-3.5 w-3.5 animate-spin" />
           <span class="font-cinzel text-xs">Loading…</span>
         </div>
-        <span v-else class="font-cinzel text-lg font-bold text-primary">
+        <span v-else class="text-heading font-bold text-primary">
           {{ formattedBalance }}
         </span>
       </div>

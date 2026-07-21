@@ -8,7 +8,7 @@
       <div class="bg-card border border-border rounded-lg w-full max-w-md shadow-xl">
         <div class="flex items-center justify-between px-5 py-4 border-b border-border">
           <div>
-            <h2 class="font-cinzel text-base font-bold text-foreground">{{ recipe.name }}</h2>
+            <h2 class="text-heading-sm font-bold text-foreground">{{ recipe.name }}</h2>
             <p class="text-caption text-muted-foreground italic">
               {{ discipline.label }} · DC {{ recipe.dc }} ·
               <span class="capitalize">{{ discipline.ability }} check</span>

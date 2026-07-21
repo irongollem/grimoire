@@ -15,7 +15,7 @@
           <FocalImage :src="portraitUrl" :alt="f.name" format="portrait" :focal-point="focalPoint" />
         </div>
         <div>
-          <p class="font-cinzel text-base font-bold text-foreground">{{ f.name || '—' }}</p>
+          <p class="text-heading-sm font-bold text-foreground">{{ f.name || '—' }}</p>
           <p class="text-caption text-muted-foreground">
             Level {{ isEditMode ? f.level : 1 }}
             {{ [selectedSpecies?.name, f.class].filter(Boolean).join(' ') }}
@@ -40,23 +40,23 @@
       <div v-if="!isEditMode" class="px-4 pb-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div class="rounded-md bg-muted/40 p-2 text-center">
           <p class="text-label text-muted-foreground">MAX HP</p>
-          <p class="font-cinzel text-lg font-bold text-foreground">{{ derivedHp ?? '—' }}</p>
+          <p class="text-heading font-bold text-foreground">{{ derivedHp ?? '—' }}</p>
           <p v-if="selectedClass" class="font-cinzel text-2xs text-muted-foreground">d{{ selectedClass.hit_die }} + CON</p>
           <p v-else class="font-cinzel text-2xs text-muted-foreground">pick a class</p>
         </div>
         <div class="rounded-md bg-muted/40 p-2 text-center">
           <p class="text-label text-muted-foreground">ARMOR CLASS</p>
-          <p class="font-cinzel text-lg font-bold text-foreground">{{ derivedAc }}</p>
+          <p class="text-heading font-bold text-foreground">{{ derivedAc }}</p>
           <p class="font-cinzel text-2xs text-muted-foreground">10 + DEX</p>
         </div>
         <div class="rounded-md bg-muted/40 p-2 text-center">
           <p class="text-label text-muted-foreground">SPEED</p>
-          <p class="font-cinzel text-lg font-bold text-foreground">{{ derivedSpeed }} ft</p>
+          <p class="text-heading font-bold text-foreground">{{ derivedSpeed }} ft</p>
           <p class="font-cinzel text-2xs text-muted-foreground">{{ selectedSpecies?.name ?? 'base' }}</p>
         </div>
         <div class="rounded-md bg-muted/40 p-2 text-center">
           <p class="text-label text-muted-foreground">INITIATIVE</p>
-          <p class="font-cinzel text-lg font-bold text-foreground">
+          <p class="text-heading font-bold text-foreground">
             {{ derivedInitiative >= 0 ? '+' : '' }}{{ derivedInitiative }}
           </p>
           <p class="font-cinzel text-2xs text-muted-foreground">DEX mod</p>

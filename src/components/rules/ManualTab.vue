@@ -47,7 +47,7 @@
           <p class="font-cinzel text-2xs font-bold tracking-widest text-muted-foreground uppercase mb-1">
             {{ selectedSection?.title }}
           </p>
-          <h2 class="font-cinzel text-xl font-bold text-foreground">{{ selectedPage.title }}</h2>
+          <h2 class="text-heading-lg font-bold text-foreground">{{ selectedPage.title }}</h2>
           <p v-if="selectedPage.summary" class="text-body text-muted-foreground italic mt-1">
             {{ selectedPage.summary }}
           </p>
@@ -63,7 +63,7 @@
         <div class="max-w-sm text-center space-y-4 px-4">
           <IconBookMarked class="h-10 w-10 text-primary/60 mx-auto" />
           <div>
-            <h3 class="font-cinzel text-base font-bold text-foreground">New to Grimoire?</h3>
+            <h3 class="text-heading-sm font-bold text-foreground">New to Grimoire?</h3>
             <p class="text-body text-muted-foreground mt-1">
               The DM Manual walks you through every feature — from setting up your first campaign to running live combat.
             </p>
@@ -136,7 +136,7 @@ function selectPage(id: string) {
 @reference "@/assets/main.css";
 
 .manual-content :deep(h2) {
-  @apply font-cinzel text-base font-bold text-foreground mt-6 mb-2 first:mt-0 pb-1;
+  @apply text-heading-sm font-bold text-foreground mt-6 mb-2 first:mt-0 pb-1;
   border-bottom: 1px solid rgba(201, 146, 10, 0.25);
 }
 .manual-content :deep(h3) {

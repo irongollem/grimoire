@@ -95,7 +95,7 @@
 
     <!-- Header + description -->
     <div class="flex flex-col gap-2">
-      <h1 class="font-cinzel text-2xl font-bold text-foreground leading-tight">{{ encounter.name }}</h1>
+      <h1 class="text-title font-bold text-foreground leading-tight">{{ encounter.name }}</h1>
       <div v-if="encounterLocation" class="flex items-center gap-2">
         <IconLocation class="h-3.5 w-3.5 text-muted-foreground" />
         <RouterLink

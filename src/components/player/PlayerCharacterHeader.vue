@@ -14,7 +14,7 @@
           />
           <span
             v-else
-            class="absolute inset-0 flex items-center justify-center font-cinzel text-3xl font-bold text-muted-foreground"
+            class="absolute inset-0 flex items-center justify-center text-display font-bold text-muted-foreground"
           >{{ wildshape ? wildshape.beast_name.charAt(0) : member.name.charAt(0) }}</span>
         </MiniPortraitOverlay>
       </div>
@@ -25,7 +25,7 @@
         <div class="flex items-start gap-2 px-3 pt-3 pb-1">
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-1.5">
-              <h1 class="font-cinzel text-lg font-bold text-foreground leading-tight truncate">
+              <h1 class="text-heading font-bold text-foreground leading-tight truncate">
                 {{ wildshape ? wildshape.beast_name : member.name }}
               </h1>
               <button
@@ -82,7 +82,7 @@
 
         <!-- HP readout (current state — shown before controls) -->
         <div class="flex items-baseline gap-1.5 px-3 pt-1 flex-wrap">
-          <span class="font-cinzel text-2xl font-bold" :class="hpColor">{{ displayHp }}</span>
+          <span class="text-title font-bold" :class="hpColor">{{ displayHp }}</span>
           <span class="text-body text-muted-foreground">/ {{ displayMaxHp }}</span>
           <button
             v-if="!wildshape && member.temp_hp"

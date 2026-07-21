@@ -8,7 +8,7 @@
           :value="title"
           :placeholder="titlePlaceholder ?? 'Title…'"
           :disabled="disabled"
-          class="w-full bg-card border border-border rounded-md px-3 py-2 font-cinzel text-lg font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
+          class="w-full bg-card border border-border rounded-md px-3 py-2 text-heading font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
           @input="emit('update:title', ($event.target as HTMLInputElement).value)"
         />
       </label>

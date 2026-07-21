@@ -49,7 +49,7 @@ const rollResultClass = computed(() => {
   @apply flex items-center gap-3 px-3 py-2 border-b border-border bg-muted/30 shrink-0;
 }
 .roll-result-total {
-  @apply font-cinzel text-2xl font-bold text-foreground min-w-10 text-center;
+  @apply text-title font-bold text-foreground min-w-10 text-center;
 }
 .roll-crit .roll-result-total   { @apply text-amber-500; }
 .roll-fumble .roll-result-total { @apply text-destructive; }

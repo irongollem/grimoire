@@ -40,7 +40,7 @@
         "
       >
         <span
-          class="font-cinzel text-2xl font-bold leading-none"
+          class="text-title font-bold leading-none"
           :class="
             roll.isCrit
               ? 'text-amber-400'
@@ -102,7 +102,7 @@
         "
       >
         <span
-          class="font-cinzel text-2xl font-bold leading-none"
+          class="text-title font-bold leading-none"
           :class="
             roll.isCrit
               ? 'text-amber-400'

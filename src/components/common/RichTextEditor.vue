@@ -854,10 +854,10 @@ function tbCls(active: boolean) {
   @apply mb-3 leading-relaxed last:mb-0;
 }
 .rte-content :deep(.ProseMirror h1) {
-  @apply font-cinzel text-lg font-bold mb-3 mt-5 first:mt-0;
+  @apply text-heading font-bold mb-3 mt-5 first:mt-0;
 }
 .rte-content :deep(.ProseMirror h2) {
-  @apply font-cinzel text-base font-bold mb-2 mt-4 first:mt-0 pb-1.5;
+  @apply text-heading-sm font-bold mb-2 mt-4 first:mt-0 pb-1.5;
   border-bottom: 1px solid rgba(201, 146, 10, 0.35);
 }
 .rte-content :deep(.ProseMirror h3) {

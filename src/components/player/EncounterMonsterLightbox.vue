@@ -6,7 +6,7 @@
     :focal-point="combatant?.portrait_focal_point ?? null"
     @close="$emit('close')"
   >
-    <h2 class="font-cinzel text-lg font-bold text-foreground">{{ combatant?.name }}</h2>
+    <h2 class="text-heading font-bold text-foreground">{{ combatant?.name }}</h2>
     <PlayerNotesWidget
       v-if="combatant?.monster_id"
       entity-type="monster"

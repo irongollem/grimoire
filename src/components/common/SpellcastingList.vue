@@ -49,7 +49,7 @@
       >
         <div class="bg-card rounded-xl border border-border w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
           <div class="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
-            <h2 class="font-cinzel text-base font-bold text-foreground">{{ modalSpell.name }}</h2>
+            <h2 class="text-heading-sm font-bold text-foreground">{{ modalSpell.name }}</h2>
             <button
               type="button"
               class="text-muted-foreground hover:text-foreground transition-colors"

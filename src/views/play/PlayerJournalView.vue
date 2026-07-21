@@ -2,7 +2,7 @@
   <div class="space-y-4">
     <!-- Header -->
     <div class="flex items-center justify-between gap-2">
-      <h2 class="font-cinzel text-xl font-bold text-foreground">Adventure Journal</h2>
+      <h2 class="text-heading-lg font-bold text-foreground">Adventure Journal</h2>
       <div class="flex items-center gap-2">
         <button
           v-if="ui.journalHasActiveFilters && (activeTab === 'mine' || activeTab === 'party')"

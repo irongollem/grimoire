@@ -42,7 +42,7 @@
 
       <!-- Name fades in once scrolled past the hero -->
       <h1
-        class="min-w-0 flex-1 truncate text-center font-cinzel text-base font-bold text-foreground transition-opacity duration-200"
+        class="min-w-0 flex-1 truncate text-center text-heading-sm font-bold text-foreground transition-opacity duration-200"
         :class="scrolled ? 'opacity-100' : 'opacity-0'"
       >
         {{ displayName }}
@@ -115,7 +115,7 @@
           </span>
         </div>
 
-        <h2 class="font-cinzel text-3xl font-bold leading-tight text-white drop-shadow-sm">
+        <h2 class="text-display font-bold leading-tight text-white drop-shadow-sm">
           {{ displayName }}
         </h2>
 

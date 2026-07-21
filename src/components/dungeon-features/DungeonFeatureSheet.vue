@@ -35,7 +35,7 @@
           />
         </div>
         <div class="flex-1 flex flex-col gap-2">
-          <h1 class="font-cinzel text-xl font-bold text-foreground leading-tight">{{ feature.name }}</h1>
+          <h1 class="text-heading-lg font-bold text-foreground leading-tight">{{ feature.name }}</h1>
           <span class="text-label font-semibold bg-muted/60 text-muted-foreground rounded px-2 py-0.5 self-start">
             {{ feature.feature_type }}
           </span>
@@ -61,15 +61,15 @@
       <div class="p-4 grid grid-cols-3 gap-x-6">
         <div v-if="feature.perception_dc">
           <span class="text-eyebrow font-semibold text-muted-foreground">Perception DC</span>
-          <p class="font-cinzel text-2xl font-bold text-foreground">{{ feature.perception_dc }}</p>
+          <p class="text-title font-bold text-foreground">{{ feature.perception_dc }}</p>
         </div>
         <div v-if="feature.investigation_dc">
           <span class="text-eyebrow font-semibold text-muted-foreground">Investigation DC</span>
-          <p class="font-cinzel text-2xl font-bold text-foreground">{{ feature.investigation_dc }}</p>
+          <p class="text-title font-bold text-foreground">{{ feature.investigation_dc }}</p>
         </div>
         <div v-if="feature.arcana_dc">
           <span class="text-eyebrow font-semibold text-muted-foreground">Arcana DC</span>
-          <p class="font-cinzel text-2xl font-bold text-foreground">{{ feature.arcana_dc }}</p>
+          <p class="text-title font-bold text-foreground">{{ feature.arcana_dc }}</p>
         </div>
       </div>
     </div>

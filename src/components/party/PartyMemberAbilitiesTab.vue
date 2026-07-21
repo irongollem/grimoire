@@ -109,15 +109,15 @@
   <div class="rounded-lg bg-muted/30 border border-border p-3 grid grid-cols-3 gap-2 text-center">
     <div>
       <p class="text-eyebrow text-muted-foreground">PASSIVE PERC.</p>
-      <p class="font-cinzel text-base font-bold text-foreground">{{ passivePerception }}</p>
+      <p class="text-heading-sm font-bold text-foreground">{{ passivePerception }}</p>
     </div>
     <div>
       <p class="text-eyebrow text-muted-foreground">PASSIVE INS.</p>
-      <p class="font-cinzel text-base font-bold text-foreground">{{ passiveInsight }}</p>
+      <p class="text-heading-sm font-bold text-foreground">{{ passiveInsight }}</p>
     </div>
     <div>
       <p class="text-eyebrow text-muted-foreground">PASSIVE INV.</p>
-      <p class="font-cinzel text-base font-bold text-foreground">{{ passiveInvestigation }}</p>
+      <p class="text-heading-sm font-bold text-foreground">{{ passiveInvestigation }}</p>
     </div>
   </div>
 

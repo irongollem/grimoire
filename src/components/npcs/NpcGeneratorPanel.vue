@@ -16,7 +16,7 @@
       <div
         class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0"
       >
-        <h2 class="font-cinzel text-base font-semibold text-foreground">
+        <h2 class="text-heading-sm font-semibold text-foreground">
           NPC Generator
         </h2>
         <button

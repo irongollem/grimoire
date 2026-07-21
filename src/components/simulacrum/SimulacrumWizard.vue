@@ -3,7 +3,7 @@
     <!-- Header: source entity + step indicator -->
     <div class="space-y-3">
       <div class="flex items-center justify-between">
-        <h1 class="font-cinzel text-xl font-bold text-foreground">Forge a Simulacrum</h1>
+        <h1 class="text-heading-lg font-bold text-foreground">Forge a Simulacrum</h1>
         <button
           type="button"
           class="text-muted-foreground hover:text-foreground transition-colors"

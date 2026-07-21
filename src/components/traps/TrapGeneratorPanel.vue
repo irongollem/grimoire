@@ -14,7 +14,7 @@
     >
       <!-- Header -->
       <div class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
-        <h2 class="font-cinzel text-base font-semibold text-foreground">Trap Generator</h2>
+        <h2 class="text-heading-sm font-semibold text-foreground">Trap Generator</h2>
         <button class="text-muted-foreground hover:text-foreground" @click="ui.trapGeneratorOpen = false">
           <IconClose class="h-5 w-5" />
         </button>

@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-4">
-    <h2 class="font-cinzel text-lg font-bold text-foreground">Puzzles</h2>
+    <h2 class="text-heading font-bold text-foreground">Puzzles</h2>
 
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />

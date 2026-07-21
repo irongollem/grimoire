@@ -65,7 +65,7 @@
           />
           <div
             v-else
-            class="w-full h-full flex items-center justify-center text-3xl font-cinzel font-bold text-primary/30"
+            class="w-full h-full flex items-center justify-center text-display font-bold text-primary/30"
           >
             {{ s.name.charAt(0).toUpperCase() }}
           </div>

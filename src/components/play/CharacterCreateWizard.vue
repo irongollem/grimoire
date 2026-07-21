@@ -3,7 +3,7 @@
 
     <!-- Step indicator -->
     <div>
-      <h1 class="font-cinzel text-xl font-bold text-foreground">
+      <h1 class="text-heading-lg font-bold text-foreground">
         {{ isEditMode ? 'Edit Character' : 'Create Your Character' }}
       </h1>
       <div class="mt-3 flex items-center gap-1 overflow-x-auto pb-1">

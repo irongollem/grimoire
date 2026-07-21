@@ -1,6 +1,6 @@
 <template>
   <div class="flex flex-col h-full min-h-0">
-    <h2 class="font-cinzel text-xl font-bold text-foreground mb-4 shrink-0">Chat &amp; Rolls</h2>
+    <h2 class="text-heading-lg font-bold text-foreground mb-4 shrink-0">Chat &amp; Rolls</h2>
     <div class="flex-1 min-h-0 rounded-lg border border-border bg-card overflow-hidden">
       <CampaignChatPanel />
     </div>

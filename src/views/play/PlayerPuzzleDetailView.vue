@@ -36,7 +36,7 @@
             />
           </div>
           <div class="flex-1 p-4 flex flex-col gap-2 min-w-0">
-            <h2 class="font-cinzel text-lg font-bold text-foreground leading-tight">{{ puzzle.name }}</h2>
+            <h2 class="text-heading font-bold text-foreground leading-tight">{{ puzzle.name }}</h2>
             <div class="flex flex-wrap gap-2">
               <span
                 class="text-label md:text-sm px-2 py-0.5 rounded text-white font-bold"

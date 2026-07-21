@@ -7,7 +7,7 @@
         <input
           v-model="title"
           placeholder="Note title…"
-          class="w-full bg-card border border-border rounded-md px-3 py-2 font-cinzel text-lg font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-full bg-card border border-border rounded-md px-3 py-2 text-heading font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </label>
 
@@ -567,13 +567,13 @@ async function remove() {
   @apply mb-3 leading-relaxed;
 }
 .note-editor :deep(.ProseMirror h1) {
-  @apply font-cinzel text-2xl font-bold mb-3 mt-5 first:mt-0;
+  @apply text-title font-bold mb-3 mt-5 first:mt-0;
 }
 .note-editor :deep(.ProseMirror h2) {
-  @apply font-cinzel text-xl font-bold mb-2 mt-4 first:mt-0;
+  @apply text-heading-lg font-bold mb-2 mt-4 first:mt-0;
 }
 .note-editor :deep(.ProseMirror h3) {
-  @apply font-cinzel text-base font-bold mb-2 mt-3 first:mt-0;
+  @apply text-heading-sm font-bold mb-2 mt-3 first:mt-0;
 }
 .note-editor :deep(.ProseMirror ul) {
   @apply list-disc pl-5 mb-3 space-y-1;

@@ -23,7 +23,7 @@
           >
             <div class="min-w-0">
               <h2
-                class="font-cinzel text-base font-bold text-foreground truncate"
+                class="text-heading-sm font-bold text-foreground truncate"
               >
                 {{ spell.name }}
               </h2>

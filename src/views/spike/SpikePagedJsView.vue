@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col gap-3 p-4 h-full min-h-0">
     <div class="flex items-center gap-3 flex-wrap shrink-0">
-      <h1 class="font-cinzel text-lg font-bold">Paged.js Spike (#330)</h1>
+      <h1 class="text-heading font-bold">Paged.js Spike (#330)</h1>
 
       <select
         v-model="scenario"

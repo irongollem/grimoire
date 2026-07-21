@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col gap-4">
     <div class="flex items-center justify-between">
-      <h1 class="font-cinzel text-xl font-bold text-foreground">Reliquary</h1>
+      <h1 class="text-heading-lg font-bold text-foreground">Reliquary</h1>
     </div>
 
     <!-- Tab bar -->

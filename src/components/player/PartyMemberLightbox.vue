@@ -37,7 +37,7 @@
                       v-if="member.id === auth.linkedPartyMemberId"
                       class="text-label md:text-sm px-1.5 py-0.5 rounded bg-primary text-primary-foreground mb-1 inline-block"
                     >You</span>
-                    <h2 class="font-cinzel text-base font-bold text-foreground leading-tight">{{ member.name }}</h2>
+                    <h2 class="text-heading-sm font-bold text-foreground leading-tight">{{ member.name }}</h2>
                     <p class="text-body text-muted-foreground italic">
                       {{ [getDisplayRace(member, speciesNameMap.get(member.species_id ?? '') ?? null, viewerMemberId, viewerIsDm), member.class].filter(Boolean).join(' ') }}
                       <span v-if="member.level" class="font-cinzel not-italic text-primary ml-1">Lv{{ member.level }}</span>

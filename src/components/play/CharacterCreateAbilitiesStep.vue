@@ -35,7 +35,7 @@
               class="w-6 h-6 rounded-full border border-border font-cinzel text-sm font-bold transition-colors hover:border-primary hover:text-primary disabled:opacity-30"
               :disabled="f[stat.key] <= 8"
               @click="f[stat.key]--">−</button>
-            <span class="font-cinzel text-lg font-bold w-8 text-center">{{ displayScore(stat.key) }}</span>
+            <span class="text-heading font-bold w-8 text-center">{{ displayScore(stat.key) }}</span>
             <button type="button"
               class="w-6 h-6 rounded-full border border-border font-cinzel text-sm font-bold transition-colors hover:border-primary hover:text-primary disabled:opacity-30"
               :disabled="f[stat.key] >= 15 || pointsRemaining <= 0 || (pointsRemaining < (POINT_BUY_COSTS[f[stat.key] + 1] ?? 99) - POINT_BUY_COSTS[f[stat.key]])"

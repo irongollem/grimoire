@@ -394,6 +394,46 @@
   letter-spacing: 0.05em;
 }
 
+/* ── Heading tiers (Cinzel) ───────────────────────────────────────────────
+   Display type carries NO letter-spacing — tracking belongs to the small
+   uppercase label roles above, not to headings. Sizes map 1:1 onto the scale
+   these headings already used, so adopting them changes nothing visually. */
+
+/* = `font-cinzel text-base` */
+@utility text-heading-sm {
+  font-family: var(--font-cinzel);
+  font-size: 1rem;
+  line-height: var(--tw-leading, calc(1.5 / 1));
+}
+
+/* = `font-cinzel text-lg` */
+@utility text-heading {
+  font-family: var(--font-cinzel);
+  font-size: 1.125rem;
+  line-height: var(--tw-leading, calc(1.75 / 1.125));
+}
+
+/* = `font-cinzel text-xl` */
+@utility text-heading-lg {
+  font-family: var(--font-cinzel);
+  font-size: 1.25rem;
+  line-height: var(--tw-leading, calc(1.75 / 1.25));
+}
+
+/* = `font-cinzel text-2xl` */
+@utility text-title {
+  font-family: var(--font-cinzel);
+  font-size: 1.5rem;
+  line-height: var(--tw-leading, calc(2 / 1.5));
+}
+
+/* = `font-cinzel text-3xl` */
+@utility text-display {
+  font-family: var(--font-cinzel);
+  font-size: 1.875rem;
+  line-height: var(--tw-leading, calc(2.25 / 1.875));
+}
+
 /* ── Body tiers (Crimson Pro / "fell") ────────────────────────────────────
    The reading family. No letter-spacing at any tier (body text carries none in
    this app), and `italic` stays a separate class — it varies per call site

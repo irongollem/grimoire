@@ -64,7 +64,7 @@ function effectSummary(effect: DowntimeEffect): string {
         {{ activity.glyph }}
       </span>
       <div class="min-w-0 flex-1">
-        <h3 class="flex items-center gap-2 font-cinzel text-base font-semibold">
+        <h3 class="flex items-center gap-2 text-heading-sm font-semibold">
           {{ outcome.title }}
           <span
             v-if="isNew"

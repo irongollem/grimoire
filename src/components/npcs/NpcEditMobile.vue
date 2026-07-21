@@ -26,7 +26,7 @@
       >
         Cancel
       </button>
-      <h1 class="min-w-0 flex-1 truncate text-center font-cinzel text-base font-bold text-foreground">
+      <h1 class="min-w-0 flex-1 truncate text-center text-heading-sm font-bold text-foreground">
         {{ title }}
       </h1>
       <button
@@ -104,7 +104,7 @@
 
       <!-- Party Stance card (3-col colour-on-select chips via RelationshipWheel) -->
       <section class="space-y-2.5 rounded-xl border border-border bg-card p-4">
-        <h3 class="font-cinzel text-base font-bold text-foreground">Party Stance</h3>
+        <h3 class="text-heading-sm font-bold text-foreground">Party Stance</h3>
         <RelationshipWheel
           :model-value="form.relationship"
           @update:model-value="form.relationship = $event"
@@ -113,7 +113,7 @@
 
       <!-- Status card (4-col chip grid) -->
       <section class="space-y-2.5 rounded-xl border border-border bg-card p-4">
-        <h3 class="font-cinzel text-base font-bold text-foreground">Status</h3>
+        <h3 class="text-heading-sm font-bold text-foreground">Status</h3>
         <div class="grid grid-cols-4 gap-2">
           <button
             v-for="s in STATUS_OPTIONS"
@@ -133,7 +133,7 @@
 
       <!-- Tags card -->
       <section class="space-y-2.5 rounded-xl border border-border bg-card p-4">
-        <h3 class="font-cinzel text-base font-bold text-foreground">Tags</h3>
+        <h3 class="text-heading-sm font-bold text-foreground">Tags</h3>
         <TagInput
           :model-value="form.tags"
           @update:model-value="form.tags = $event"
@@ -163,7 +163,7 @@
       <!-- Stat Block card -->
       <section class="space-y-3 rounded-xl border border-border bg-card p-4">
         <div class="flex items-center justify-between gap-2">
-          <h3 class="font-cinzel text-base font-bold text-foreground">Stat Block</h3>
+          <h3 class="text-heading-sm font-bold text-foreground">Stat Block</h3>
           <label class="flex cursor-pointer items-center gap-2">
             <input
               :checked="hasStatBlock"

@@ -7,7 +7,7 @@
       <span class="text-body text-muted-foreground">{{ label }}</span>
       <component :is="icon" class="h-4 w-4 text-gold-600" />
     </div>
-    <span class="font-cinzel text-2xl font-bold text-foreground">{{ value }}</span>
+    <span class="text-title font-bold text-foreground">{{ value }}</span>
   </RouterLink>
 </template>
 

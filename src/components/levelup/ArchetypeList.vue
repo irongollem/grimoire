@@ -9,7 +9,7 @@
     class="flex flex-col items-center gap-6 py-12 px-4 text-center"
   >
     <div class="space-y-2">
-      <p class="font-cinzel text-base font-semibold text-foreground">No archetypes yet</p>
+      <p class="text-heading-sm font-semibold text-foreground">No archetypes yet</p>
       <p class="text-body text-muted-foreground max-w-sm">
         Archetypes let you define custom subclasses for any of the 13 SRD classes — add features
         per level, choices shown in the level-up wizard, and tracked resource pools.

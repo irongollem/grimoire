@@ -38,7 +38,7 @@
     <!-- Right: name + description + actions -->
     <div class="flex flex-col gap-4">
       <div class="flex items-start justify-between gap-3">
-        <h1 class="font-cinzel text-2xl font-bold text-foreground leading-tight flex-1">{{ faction.name }}</h1>
+        <h1 class="text-title font-bold text-foreground leading-tight flex-1">{{ faction.name }}</h1>
         <div class="flex items-center gap-2 shrink-0">
           <button
             type="button"

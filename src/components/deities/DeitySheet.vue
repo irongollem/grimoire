@@ -128,7 +128,7 @@
     <!-- Right: name + content -->
     <div class="flex flex-col gap-4">
       <div>
-        <h1 class="font-cinzel text-2xl font-bold text-foreground leading-tight">
+        <h1 class="text-title font-bold text-foreground leading-tight">
           {{ deity.name }}
         </h1>
         <p

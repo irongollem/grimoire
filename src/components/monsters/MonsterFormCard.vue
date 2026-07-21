@@ -13,7 +13,7 @@
         />
         <div
           v-else
-          class="w-full h-full flex items-center justify-center font-cinzel text-2xl font-bold"
+          class="w-full h-full flex items-center justify-center text-title font-bold"
           :style="{ color: crColor(monster?.stat_block?.challenge_rating ?? '0') }"
         >{{ name?.charAt(0) }}</div>
       </div>

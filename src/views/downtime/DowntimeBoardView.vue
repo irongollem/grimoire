@@ -91,7 +91,7 @@ function rewardHref(rewardType: string | null, rewardId: string | null): string 
 
     <!-- Grant credits -->
     <section class="mt-6 rounded-lg border border-border bg-card p-4">
-      <h2 class="font-cinzel text-base font-semibold">Grant downtime</h2>
+      <h2 class="text-heading-sm font-semibold">Grant downtime</h2>
       <p class="mt-1 text-2xs text-muted-foreground">
         A draw is a gift you give when the story says there is a lull. One credit, one turn of
         the deck.
@@ -119,7 +119,7 @@ function rewardHref(rewardType: string | null, rewardId: string | null): string 
          this list and nothing else, so floating them above the heading (and
          outside any card) left them reading as page furniture. -->
     <section class="mt-6 rounded-lg border border-border bg-card p-4">
-      <h2 class="font-cinzel text-base font-semibold">
+      <h2 class="text-heading-sm font-semibold">
         Awaiting you
         <span class="text-2xs font-normal text-muted-foreground">
           ({{ pendingDraws.length }})
@@ -191,7 +191,7 @@ function rewardHref(rewardType: string | null, rewardId: string | null): string 
 
     <!-- What has already happened -->
     <section v-if="resolvedFeed.length > 0" class="mt-8">
-      <h2 class="font-cinzel text-base font-semibold">Resolved</h2>
+      <h2 class="text-heading-sm font-semibold">Resolved</h2>
       <div class="mt-3 space-y-3">
         <DowntimeOutcomeVignette
           v-for="{ outcome, draw } in resolvedFeed"

@@ -14,7 +14,7 @@
         >
           <div class="flex items-center gap-2">
             <div class="w-2.5 h-2.5 rounded-full shrink-0" :style="{ backgroundColor: editEvent ? eventColor(editEvent) : EVENT_TYPE_COLORS['campaign'] }" />
-            <h2 class="font-cinzel text-lg font-bold text-foreground">
+            <h2 class="text-heading font-bold text-foreground">
               {{ isSessionNote ? (linkedNote?.title ?? 'Session Note') : (editEvent ? "Edit Event" : "New Event") }}
             </h2>
           </div>

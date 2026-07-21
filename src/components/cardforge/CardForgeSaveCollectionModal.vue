@@ -68,7 +68,7 @@ function save() {
   @apply bg-card border border-border rounded-xl p-6 w-full max-w-md flex flex-col gap-4;
 }
 .modal-title {
-  @apply font-cinzel text-lg font-bold text-foreground;
+  @apply text-heading font-bold text-foreground;
 }
 .modal-scope {
   @apply text-caption font-normal italic text-muted-foreground/60 ml-1;

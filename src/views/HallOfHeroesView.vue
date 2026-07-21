@@ -75,7 +75,7 @@
             />
             <div
               v-else
-              class="flex h-full w-full items-center justify-center text-2xl font-cinzel font-bold text-muted-foreground/40"
+              class="flex h-full w-full items-center justify-center text-title font-bold text-muted-foreground/40"
             >
               {{ hero.name.charAt(0) }}
             </div>

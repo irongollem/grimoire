@@ -1,6 +1,6 @@
 <template>
   <div>
-    <h1 class="font-cinzel text-xl font-bold text-foreground mb-1">Factions</h1>
+    <h1 class="text-heading-lg font-bold text-foreground mb-1">Factions</h1>
     <p class="text-body text-muted-foreground italic mb-6">Organizations and powers at play in the world.</p>
 
     <div v-if="isLoading" class="flex justify-center py-16">
@@ -86,7 +86,7 @@
               </div>
             </div>
             <div class="flex-1 min-w-0">
-              <h2 class="font-cinzel text-base font-bold text-foreground">{{ selected.name }}</h2>
+              <h2 class="text-heading-sm font-bold text-foreground">{{ selected.name }}</h2>
               <p v-if="selected.faction_type || selected.alignment" class="text-caption text-muted-foreground italic">
                 {{ [selected.faction_type, selected.alignment].filter(Boolean).join(' · ') }}
               </p>

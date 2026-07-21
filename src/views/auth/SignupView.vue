@@ -9,7 +9,7 @@
 
     <!-- Token invalid / expired -->
     <template v-else-if="tokenState === 'invalid'">
-      <h2 class="font-cinzel text-xl font-semibold text-destructive mb-1">Link Invalid</h2>
+      <h2 class="text-heading-lg font-semibold text-destructive mb-1">Link Invalid</h2>
       <p class="text-body text-muted-foreground italic">
         This invite link has expired or already been used. Ask your DM for a new one.
       </p>
@@ -17,7 +17,7 @@
 
     <!-- Public signup or valid invite — show signup form -->
     <template v-else>
-      <h2 class="font-cinzel text-xl font-semibold text-foreground mb-1">Begin your journey</h2>
+      <h2 class="text-heading-lg font-semibold text-foreground mb-1">Begin your journey</h2>
       <p class="text-body text-muted-foreground italic mb-6">Create your Grimoire account</p>
 
       <form class="space-y-4" @submit.prevent="handleSubmit">

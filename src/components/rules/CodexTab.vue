@@ -47,7 +47,7 @@
             <div class="relative bg-card border border-border rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
               <div class="flex items-start gap-3 px-5 py-4 border-b border-border shrink-0">
                 <div class="flex-1 min-w-0">
-                  <h2 class="font-cinzel text-lg font-bold text-foreground">{{ selectedSpecies.name }}</h2>
+                  <h2 class="text-heading font-bold text-foreground">{{ selectedSpecies.name }}</h2>
                   <div class="flex flex-wrap gap-1.5 mt-1">
                     <span v-if="selectedSpecies.size" class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground capitalize">{{ selectedSpecies.size }}</span>
                     <span v-if="selectedSpecies.subraces?.length" class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground/60">{{ selectedSpecies.subraces.length }} variant{{ selectedSpecies.subraces.length > 1 ? "s" : "" }}</span>
@@ -177,7 +177,7 @@
             <div class="relative bg-card border border-border rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
               <div class="flex items-start gap-3 px-5 py-4 border-b border-border shrink-0">
                 <div class="flex-1 min-w-0">
-                  <h2 class="font-cinzel text-lg font-bold text-foreground">{{ selectedBackground.name }}</h2>
+                  <h2 class="text-heading font-bold text-foreground">{{ selectedBackground.name }}</h2>
                   <span v-if="selectedBackground.source_title" class="text-label text-muted-foreground">{{ selectedBackground.source_title }}</span>
                 </div>
                 <button type="button" class="shrink-0 rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" @click="selectedBackground = null">
@@ -268,7 +268,7 @@
             <div class="relative bg-card border border-border rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
               <div class="flex items-start gap-3 px-5 py-4 border-b border-border shrink-0">
                 <div class="flex-1 min-w-0">
-                  <h2 class="font-cinzel text-lg font-bold text-foreground">{{ selectedClass.class_name }}</h2>
+                  <h2 class="text-heading font-bold text-foreground">{{ selectedClass.class_name }}</h2>
                   <div class="flex flex-wrap gap-1.5 mt-1">
                     <span class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground">d{{ selectedClass.hit_die }}</span>
                     <span v-if="subclassesFor(selectedClass.class_name).length" class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground/60">
@@ -395,7 +395,7 @@
             <div class="relative bg-card border border-border rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
               <div class="flex items-start gap-3 px-5 py-4 border-b border-border shrink-0">
                 <div class="flex-1 min-w-0">
-                  <h2 class="font-cinzel text-lg font-bold text-foreground">{{ selectedDeity.name }}</h2>
+                  <h2 class="text-heading font-bold text-foreground">{{ selectedDeity.name }}</h2>
                   <div class="flex flex-wrap items-center gap-2 mt-1">
                     <span v-if="selectedDeity.titles" class="text-caption text-muted-foreground italic">{{ selectedDeity.titles }}</span>
                     <span v-if="selectedDeity.pantheon?.name" class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground">{{ selectedDeity.pantheon.name }}</span>

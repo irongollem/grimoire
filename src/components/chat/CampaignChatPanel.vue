@@ -36,7 +36,7 @@
           </div>
           <div class="flex items-baseline gap-2 mt-0.5">
             <span
-              class="font-cinzel text-2xl font-bold"
+              class="text-title font-bold"
               :class="rollResultColor(msg.metadata as RollMetadata)"
             >
               {{ (msg.metadata as RollMetadata).total }}

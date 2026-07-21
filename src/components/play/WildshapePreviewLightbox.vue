@@ -8,7 +8,7 @@
     @close="emit('close')"
   >
     <div>
-      <h2 class="font-cinzel text-lg font-bold text-foreground">{{ beast?.name }}</h2>
+      <h2 class="text-heading font-bold text-foreground">{{ beast?.name }}</h2>
       <p class="text-caption text-muted-foreground italic">
         {{ beast?.size }} {{ beast?.monster_type }}
         · CR {{ beast?.stat_block?.challenge_rating }}

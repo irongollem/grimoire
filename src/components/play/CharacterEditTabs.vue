@@ -1,7 +1,7 @@
 <template>
   <div class="max-w-2xl mx-auto space-y-6 pb-8">
     <div>
-      <h1 class="font-cinzel text-xl font-bold text-foreground">
+      <h1 class="text-heading-lg font-bold text-foreground">
         Edit {{ existingMember?.name ?? "Character" }}
       </h1>
       <p class="text-body text-muted-foreground italic mt-1">Update your hero's details below.</p>
@@ -118,9 +118,9 @@
       </div>
 
       <div class="rounded-lg bg-muted/30 border border-border p-3 grid grid-cols-3 gap-2 text-center">
-        <div><p class="text-eyebrow text-muted-foreground">PASSIVE PERC.</p><p class="font-cinzel text-base font-bold">{{ passivePerception }}</p></div>
-        <div><p class="text-eyebrow text-muted-foreground">PASSIVE INS.</p><p class="font-cinzel text-base font-bold">{{ passiveInsight }}</p></div>
-        <div><p class="text-eyebrow text-muted-foreground">PASSIVE INV.</p><p class="font-cinzel text-base font-bold">{{ passiveInvestigation }}</p></div>
+        <div><p class="text-eyebrow text-muted-foreground">PASSIVE PERC.</p><p class="text-heading-sm font-bold">{{ passivePerception }}</p></div>
+        <div><p class="text-eyebrow text-muted-foreground">PASSIVE INS.</p><p class="text-heading-sm font-bold">{{ passiveInsight }}</p></div>
+        <div><p class="text-eyebrow text-muted-foreground">PASSIVE INV.</p><p class="text-heading-sm font-bold">{{ passiveInvestigation }}</p></div>
       </div>
 
       <div class="flex items-center justify-between mt-2">

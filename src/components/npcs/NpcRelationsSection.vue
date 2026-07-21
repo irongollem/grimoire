@@ -1,7 +1,7 @@
 <template>
   <section class="w-full">
     <div class="flex items-center justify-between mb-1 w-full">
-      <div class="font-cinzel text-base font-bold text-foreground">
+      <div class="text-heading-sm font-bold text-foreground">
         NPC Connections
       </div>
       <button

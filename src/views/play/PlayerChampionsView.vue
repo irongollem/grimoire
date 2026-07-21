@@ -4,7 +4,7 @@
     <!-- Header -->
     <div class="flex items-center justify-between">
       <div>
-        <h1 class="font-cinzel text-xl font-bold text-foreground">Champions</h1>
+        <h1 class="text-heading-lg font-bold text-foreground">Champions</h1>
         <p class="text-body text-muted-foreground italic mt-0.5">Your characters in this campaign</p>
       </div>
       <RouterLink

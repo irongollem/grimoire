@@ -1,6 +1,6 @@
 <template>
   <div>
-    <h2 class="font-cinzel text-xl font-semibold text-foreground mb-1">Welcome back</h2>
+    <h2 class="text-heading-lg font-semibold text-foreground mb-1">Welcome back</h2>
     <p class="text-body text-muted-foreground italic mb-6">
       Sign in to continue your adventure
     </p>

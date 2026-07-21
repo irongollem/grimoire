@@ -17,7 +17,7 @@
     >
       <div class="bg-card border border-border rounded-lg w-full max-w-xl shadow-xl">
         <div class="flex items-center justify-between px-5 py-4 border-b border-border">
-          <h2 class="font-cinzel text-base font-bold text-foreground">Grimoire Admin</h2>
+          <h2 class="text-heading-sm font-bold text-foreground">Grimoire Admin</h2>
           <button
             class="text-muted-foreground hover:text-foreground transition-colors text-xl leading-none"
             @click="open = false"
@@ -192,15 +192,15 @@
             <template v-else>
               <div class="grid grid-cols-3 gap-2">
                 <div class="rounded-md bg-muted/30 border border-border px-3 py-2 text-center">
-                  <p class="font-cinzel text-base font-bold text-foreground">{{ usageStats.totalGenerations.value }}</p>
+                  <p class="text-heading-sm font-bold text-foreground">{{ usageStats.totalGenerations.value }}</p>
                   <p class="text-caption text-muted-foreground italic">Total gens</p>
                 </div>
                 <div class="rounded-md bg-muted/30 border border-border px-3 py-2 text-center">
-                  <p class="font-cinzel text-base font-bold text-foreground">${{ usageStats.totalEstimatedCostUsd.value.toFixed(2) }}</p>
+                  <p class="text-heading-sm font-bold text-foreground">${{ usageStats.totalEstimatedCostUsd.value.toFixed(2) }}</p>
                   <p class="text-caption text-muted-foreground italic">Est. cost (USD)</p>
                 </div>
                 <div class="rounded-md bg-muted/30 border border-border px-3 py-2 text-center">
-                  <p class="font-cinzel text-base font-bold text-foreground">{{ usageStats.byokCount.value }}</p>
+                  <p class="text-heading-sm font-bold text-foreground">{{ usageStats.byokCount.value }}</p>
                   <p class="text-caption text-muted-foreground italic">BYOK gens</p>
                 </div>
               </div>

@@ -54,7 +54,7 @@
     <!-- Right: name + description -->
     <div class="flex flex-col gap-4">
       <div>
-        <h1 class="font-cinzel text-2xl font-bold text-foreground leading-tight">{{ pantheon.name }}</h1>
+        <h1 class="text-title font-bold text-foreground leading-tight">{{ pantheon.name }}</h1>
       </div>
 
       <div v-if="hasDescription">

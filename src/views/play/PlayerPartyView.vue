@@ -3,7 +3,7 @@
 
     <!-- ── The Party ───────────────────────────────────────────────────────── -->
     <section>
-      <h2 class="font-cinzel text-lg font-bold text-foreground mb-4">The Party</h2>
+      <h2 class="text-heading font-bold text-foreground mb-4">The Party</h2>
 
       <div v-if="partyLoading" class="flex justify-center py-8">
         <LoadingSpinner />
@@ -48,7 +48,7 @@
 
     <!-- ── People (shared NPCs) ────────────────────────────────────────────── -->
     <section v-if="npcs?.length || npcsLoading">
-      <h2 class="font-cinzel text-lg font-bold text-foreground mb-3">People</h2>
+      <h2 class="text-heading font-bold text-foreground mb-3">People</h2>
 
       <div v-if="npcsLoading" class="flex justify-center py-8">
         <LoadingSpinner />

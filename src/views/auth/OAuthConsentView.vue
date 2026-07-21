@@ -1,6 +1,6 @@
 <template>
   <div>
-    <h2 class="font-cinzel text-xl font-semibold text-foreground mb-1">Authorize AI connection</h2>
+    <h2 class="text-heading-lg font-semibold text-foreground mb-1">Authorize AI connection</h2>
     <p class="text-body text-muted-foreground italic mb-6">
       An AI assistant wants to read your Grimoire
     </p>

@@ -107,7 +107,7 @@ watch(myOutcomes, (list) => {
 
   <div v-else class="mx-auto max-w-3xl px-4 py-6">
     <header>
-      <h1 class="font-cinzel text-2xl font-semibold">The Interlude</h1>
+      <h1 class="text-title font-semibold">The Interlude</h1>
       <p class="mt-1 text-sm text-muted-foreground">
         What your character does between the dungeon and the next session.
       </p>
@@ -122,7 +122,7 @@ watch(myOutcomes, (list) => {
       <section class="mt-6 rounded-lg border border-border bg-card p-4">
         <p v-if="balance === null" class="text-sm text-muted-foreground">Counting your draws…</p>
         <template v-else>
-          <p class="font-cinzel text-lg">
+          <p class="text-heading">
             {{ balance }} {{ balance === 1 ? "draw" : "draws" }}
           </p>
           <p class="mt-1 text-2xs text-muted-foreground">
@@ -140,7 +140,7 @@ watch(myOutcomes, (list) => {
 
       <!-- The Activity Board -->
       <section class="mt-6">
-        <h2 class="font-cinzel text-base font-semibold">Activity board</h2>
+        <h2 class="text-heading-sm font-semibold">Activity board</h2>
         <div class="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3">
           <DowntimeActivityCard
             v-for="activity in DOWNTIME_ACTIVITIES"
@@ -154,7 +154,7 @@ watch(myOutcomes, (list) => {
 
       <!-- Pending -->
       <section v-if="pending.length > 0" class="mt-8">
-        <h2 class="font-cinzel text-base font-semibold">In your DM's hands</h2>
+        <h2 class="text-heading-sm font-semibold">In your DM's hands</h2>
         <ul class="mt-2 space-y-1">
           <li
             v-for="draw in pending"
@@ -168,7 +168,7 @@ watch(myOutcomes, (list) => {
 
       <!-- History -->
       <section v-if="myOutcomes.length > 0" class="mt-8">
-        <h2 class="font-cinzel text-base font-semibold">What happened</h2>
+        <h2 class="text-heading-sm font-semibold">What happened</h2>
         <div class="mt-3 space-y-3">
           <div
             v-for="entry in myOutcomes"

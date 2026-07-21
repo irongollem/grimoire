@@ -155,7 +155,7 @@ const CARD_STYLES = [
   @apply flex items-start justify-between gap-4 flex-wrap shrink-0;
 }
 .forge-title {
-  @apply font-cinzel text-2xl font-bold text-foreground;
+  @apply text-title font-bold text-foreground;
 }
 .forge-sub {
   @apply text-body text-muted-foreground;

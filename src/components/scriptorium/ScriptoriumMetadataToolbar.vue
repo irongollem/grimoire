@@ -5,7 +5,7 @@
       <input
         :value="title"
         placeholder="Document title…"
-        class="w-full bg-card border border-border rounded-md px-3 py-2 font-cinzel text-base font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        class="w-full bg-card border border-border rounded-md px-3 py-2 text-heading-sm font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         @input="$emit('update:title', ($event.target as HTMLInputElement).value)"
       />
     </label>

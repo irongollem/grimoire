@@ -7,7 +7,7 @@
     <!-- Difficulty badge -->
     <div class="flex items-center justify-center py-3">
       <span
-        class="px-6 py-2 rounded-lg font-cinzel text-xl font-bold text-white shadow"
+        class="px-6 py-2 rounded-lg text-heading-lg font-bold text-white shadow"
         :style="{ backgroundColor: DIFFICULTY_COLORS[props.difficulty.label] }"
       >
         {{ props.difficulty.label }}

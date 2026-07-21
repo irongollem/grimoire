@@ -10,7 +10,7 @@
       class="flex flex-col items-center gap-6 py-12 px-4 text-center"
     >
       <div class="space-y-2">
-        <p class="font-cinzel text-base font-semibold text-foreground">No custom classes yet</p>
+        <p class="text-heading-sm font-semibold text-foreground">No custom classes yet</p>
         <p class="text-body text-muted-foreground max-w-sm">
           Custom classes let you define entirely new primary classes — hit die, saving throws,
           feature progressions, and wizard steps — for use in the level-up wizard.

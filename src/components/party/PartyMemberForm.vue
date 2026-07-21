@@ -7,7 +7,7 @@
     >
       <!-- Header -->
       <div class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
-        <h2 class="font-cinzel text-base font-bold text-foreground">
+        <h2 class="text-heading-sm font-bold text-foreground">
           {{ props.member ? `Edit ${props.member.name}` : "Add Hero" }}
         </h2>
         <button

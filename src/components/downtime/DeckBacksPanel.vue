@@ -112,7 +112,7 @@ async function addBack() {
 <template>
   <section class="rounded-lg border border-border bg-card p-4">
     <header>
-      <h2 class="font-cinzel text-base font-semibold">Stack the deck</h2>
+      <h2 class="text-heading-sm font-semibold">Stack the deck</h2>
       <p class="mt-1 text-2xs text-muted-foreground">
         Slot a real NPC, item, or note onto the back of a card. Prepped backs are dealt first,
         in order; when the pile runs dry the deck falls back to a random system seed.

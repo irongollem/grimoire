@@ -154,7 +154,7 @@
       <div
         class="bg-card border border-border rounded-lg p-6 w-full max-w-sm space-y-4 shadow-gold-glow"
       >
-        <h3 class="font-cinzel text-lg font-semibold text-foreground">
+        <h3 class="text-heading font-semibold text-foreground">
           Remove Player?
         </h3>
         <p class="text-body text-muted-foreground italic">

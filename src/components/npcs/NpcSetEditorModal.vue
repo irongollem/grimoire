@@ -191,7 +191,7 @@ function close() {
   @apply bg-card border border-border rounded-xl p-6 w-full max-w-lg flex flex-col gap-4 max-h-[85vh];
 }
 .modal-title {
-  @apply font-cinzel text-lg font-bold text-foreground;
+  @apply text-heading font-bold text-foreground;
 }
 .modal-label {
   @apply block font-cinzel text-xs font-semibold text-muted-foreground mb-1;

@@ -7,7 +7,7 @@
         <p class="font-cinzel text-xs font-semibold tracking-widest text-muted-foreground uppercase mb-0.5">
           Current In-Game Date
         </p>
-        <p class="font-cinzel text-xl font-bold text-foreground">
+        <p class="text-heading-lg font-bold text-foreground">
           {{ currentDateLabel }}
         </p>
       </div>

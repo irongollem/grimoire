@@ -170,7 +170,7 @@ async function onCancel() {
 
       <div class="min-w-0 flex-1">
         <header>
-          <h3 class="font-cinzel text-base font-semibold">{{ memberName }}</h3>
+          <h3 class="text-heading-sm font-semibold">{{ memberName }}</h3>
           <p class="text-2xs text-muted-foreground">{{ sourceLabel }}</p>
         </header>
 

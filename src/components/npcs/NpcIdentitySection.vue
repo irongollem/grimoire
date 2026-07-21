@@ -1,6 +1,6 @@
 <template>
   <section>
-    <div class="font-cinzel text-base font-bold text-foreground mb-1">Identity</div>
+    <div class="text-heading-sm font-bold text-foreground mb-1">Identity</div>
     <div class="gold-divider mb-3" />
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
       <div class="sm:col-span-2">

@@ -8,7 +8,7 @@
       <div class="bg-card border border-border rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto shadow-xl">
         <!-- Header -->
         <div class="flex items-center justify-between px-5 py-4 border-b border-border">
-          <h2 class="font-cinzel text-base font-bold text-foreground">Add Calendar Event</h2>
+          <h2 class="text-heading-sm font-bold text-foreground">Add Calendar Event</h2>
           <button type="button" class="text-muted-foreground hover:text-foreground transition-colors text-xl leading-none" @click="close">✕</button>
         </div>
 

@@ -33,7 +33,7 @@
       >
         Cancel
       </button>
-      <h1 class="min-w-0 flex-1 truncate text-center font-cinzel text-base font-bold text-foreground">
+      <h1 class="min-w-0 flex-1 truncate text-center text-heading-sm font-bold text-foreground">
         {{ title }}
       </h1>
       <button
@@ -94,7 +94,7 @@
       <fieldset :disabled="isSrd" class="contents">
         <!-- Identity card (fixed enums → native selects per existing pattern) -->
         <section class="space-y-2.5 rounded-xl border border-border bg-card p-4">
-          <h3 class="font-cinzel text-base font-bold text-foreground">Identity</h3>
+          <h3 class="text-heading-sm font-bold text-foreground">Identity</h3>
           <label class="block">
             <span class="field-label">Name</span>
             <input v-model="form.name" class="field-input w-full" placeholder="Monster name…" />
@@ -144,7 +144,7 @@
 
         <!-- Tags card (TagInput when editable, read-only chips for SRD) -->
         <section class="space-y-2.5 rounded-xl border border-border bg-card p-4">
-          <h3 class="font-cinzel text-base font-bold text-foreground">Tags</h3>
+          <h3 class="text-heading-sm font-bold text-foreground">Tags</h3>
           <TagInput v-if="!isSrd" v-model="form.tags" />
           <div v-else class="flex flex-wrap gap-1">
             <span
@@ -157,13 +157,13 @@
 
         <!-- Stat Block card (monsters always have one — no include toggle) -->
         <section class="space-y-3 rounded-xl border border-border bg-card p-4">
-          <h3 class="font-cinzel text-base font-bold text-foreground">Stat Block</h3>
+          <h3 class="text-heading-sm font-bold text-foreground">Stat Block</h3>
           <StatBlockEditor :sb="sb" show-legendary show-lair />
         </section>
 
         <!-- Description card -->
         <section class="space-y-2.5 rounded-xl border border-border bg-card p-4">
-          <h3 class="font-cinzel text-base font-bold text-foreground">Description</h3>
+          <h3 class="text-heading-sm font-bold text-foreground">Description</h3>
           <RichTextEditor
             v-model="form.description"
             placeholder="Lore, habitat, behaviour, and flavour text…"
@@ -173,7 +173,7 @@
 
         <!-- DM Notes card -->
         <section class="space-y-2.5 rounded-xl border border-border bg-card p-4">
-          <h3 class="font-cinzel text-base font-bold text-foreground">DM Notes</h3>
+          <h3 class="text-heading-sm font-bold text-foreground">DM Notes</h3>
           <RichTextEditor
             v-model="form.notes"
             placeholder="Encounter notes, tactics, lair description…"

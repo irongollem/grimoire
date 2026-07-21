@@ -9,7 +9,7 @@
             class="h-2.5 w-2.5 shrink-0 rounded-full"
             :style="{ backgroundColor: SCHOOL_COLORS[entry.spell.school] }"
           />
-          <h2 class="font-cinzel text-base font-bold text-foreground">{{ entry.spell.name }}</h2>
+          <h2 class="text-heading-sm font-bold text-foreground">{{ entry.spell.name }}</h2>
         </div>
 
         <!-- Slot level picker -->

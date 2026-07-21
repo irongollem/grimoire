@@ -94,7 +94,7 @@ function onImgError(e: Event) {
   @apply min-w-0;
 }
 .set-name {
-  @apply font-cinzel text-base font-bold text-foreground truncate;
+  @apply text-heading-sm font-bold text-foreground truncate;
 }
 .set-meta {
   @apply text-caption text-muted-foreground;

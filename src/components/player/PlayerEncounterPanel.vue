@@ -65,7 +65,7 @@
           <template v-else>
             <div class="round-header-full flex items-center justify-center flex-wrap gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
               <div class="text-label-lg font-semibold text-muted-foreground">ROUND</div>
-              <div class="font-cinzel text-2xl font-bold text-primary">{{ liveState.current_round }}</div>
+              <div class="text-title font-bold text-primary">{{ liveState.current_round }}</div>
               <div v-if="activeCombatant" class="ml-4 flex items-center gap-2 min-w-0">
                 <span class="text-label-lg text-muted-foreground shrink-0">ACTIVE:</span>
                 <span class="font-cinzel text-sm font-bold text-foreground wrap-break-word min-w-0">
@@ -111,7 +111,7 @@
               <IconDice class="h-4 w-4" />
               {{ rollingInitiative ? "Rolling…" : `Roll d20 ${dexModLabel}` }}
             </button>
-            <span v-else class="font-cinzel text-2xl font-bold text-primary">{{ myInitiative }}</span>
+            <span v-else class="text-title font-bold text-primary">{{ myInitiative }}</span>
           </div>
 
           <!-- Player-visible narrative events — fired events with is_player_visible=true -->

@@ -7,7 +7,7 @@
       >
         <p class="text-label text-muted-foreground mb-0.5">{{ current!.label }}</p>
         <div class="flex items-baseline gap-2">
-          <span class="font-cinzel text-3xl font-bold text-foreground">{{ current!.masked ? "?" : current!.total }}</span>
+          <span class="text-display font-bold text-foreground">{{ current!.masked ? "?" : current!.total }}</span>
           <span class="text-body text-muted-foreground">
             <template v-if="current!.masked">result hidden — DM eyes only</template>
             <template v-else>

@@ -2,7 +2,7 @@
   <div>
     <!-- Pending: not yet authenticated -->
     <template v-if="!auth.isAuthenticated">
-      <h2 class="font-cinzel text-xl font-semibold text-foreground mb-1">
+      <h2 class="text-heading-lg font-semibold text-foreground mb-1">
         You've been invited!
       </h2>
       <p class="text-body text-muted-foreground italic mb-6">
@@ -91,7 +91,7 @@
         </div>
 
         <div v-else-if="joinError" class="space-y-4">
-          <p class="font-cinzel text-xl font-semibold text-destructive">Invalid Invite</p>
+          <p class="text-heading-lg font-semibold text-destructive">Invalid Invite</p>
           <p class="text-body text-muted-foreground italic">{{ joinError }}</p>
           <RouterLink
             to="/dashboard"

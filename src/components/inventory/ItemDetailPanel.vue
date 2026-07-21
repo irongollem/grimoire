@@ -9,7 +9,7 @@
         <div class="bg-card rounded-xl border border-border w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
           <!-- Header -->
           <div class="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
-            <h2 class="font-cinzel text-base font-semibold text-foreground truncate pr-2">{{ inv.name }}</h2>
+            <h2 class="text-heading-sm font-semibold text-foreground truncate pr-2">{{ inv.name }}</h2>
             <div class="flex items-center gap-2 shrink-0">
               <button
                 v-if="inv.location === 'equipped'"
@@ -77,7 +77,7 @@
               :disabled="inv.quantity <= 1"
               @click="adjustQty(-1)"
             ><IconMinus class="h-3.5 w-3.5" /></button>
-            <span class="font-cinzel text-base font-bold text-foreground min-w-8 text-center">{{ inv.quantity }}</span>
+            <span class="text-heading-sm font-bold text-foreground min-w-8 text-center">{{ inv.quantity }}</span>
             <button
               class="h-7 w-7 rounded-md border border-border flex items-center justify-center hover:bg-muted transition-colors"
               @click="adjustQty(1)"

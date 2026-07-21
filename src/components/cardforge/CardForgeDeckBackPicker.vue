@@ -68,7 +68,7 @@ function select(id: string) {
   @apply bg-card border border-border rounded-xl p-6 w-full max-w-3xl flex flex-col gap-3 max-h-[85vh] overflow-y-auto;
 }
 .picker-title {
-  @apply font-cinzel text-lg font-bold text-foreground;
+  @apply text-heading font-bold text-foreground;
 }
 .picker-sub {
   @apply text-body text-muted-foreground;

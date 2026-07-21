@@ -9,7 +9,7 @@
         <!-- Header -->
         <div class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <div>
-            <h2 class="font-cinzel text-lg font-bold text-foreground">Setting Events</h2>
+            <h2 class="text-heading font-bold text-foreground">Setting Events</h2>
             <p class="text-body text-muted-foreground italic mt-0.5">
               Import pre-authored historical events for your campaign setting.
             </p>

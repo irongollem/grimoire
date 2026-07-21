@@ -32,7 +32,7 @@
       <!-- DC -->
       <div class="flex flex-col gap-1">
         <span class="text-label font-semibold text-muted-foreground">CRAFTING DC</span>
-        <span class="font-cinzel text-lg font-bold text-foreground">{{ recipe.dc }}</span>
+        <span class="text-heading font-bold text-foreground">{{ recipe.dc }}</span>
       </div>
 
       <!-- Time -->

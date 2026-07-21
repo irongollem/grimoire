@@ -8,7 +8,7 @@
       <div class="bg-card border border-border rounded-lg w-full max-w-md shadow-xl flex flex-col max-h-[90vh]">
         <!-- Header -->
         <div class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
-          <h2 class="font-cinzel text-lg font-bold text-foreground">Import World Bundle</h2>
+          <h2 class="text-heading font-bold text-foreground">Import World Bundle</h2>
           <button
             class="text-muted-foreground hover:text-foreground transition-colors text-xl leading-none"
             @click="close"

@@ -76,7 +76,7 @@
     <!-- Main: rule content -->
     <div class="flex-1 overflow-y-auto px-4 pt-4 pb-4 md:px-6 md:pt-6">
       <div v-if="selected" class="max-w-3xl space-y-3">
-        <h2 class="font-cinzel text-xl font-bold text-foreground">{{ selected.name }}</h2>
+        <h2 class="text-heading-lg font-bold text-foreground">{{ selected.name }}</h2>
         <div
           class="font-fell text-base text-foreground leading-relaxed whitespace-pre-wrap prose-dm"
           v-html="renderedContent"

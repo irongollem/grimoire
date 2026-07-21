@@ -19,7 +19,7 @@
       </div>
 
       <div class="text-center min-w-0 flex-1">
-        <p class="font-cinzel text-lg md:text-xl font-semibold text-foreground truncate">
+        <p class="text-heading md:text-xl font-semibold text-foreground truncate">
           {{ currentMonth.name }}
         </p>
         <div class="flex items-center justify-center gap-1 mt-0.5 flex-wrap">

@@ -385,7 +385,7 @@ function clearAll() {
   @apply flex flex-col items-center gap-1 bg-muted/40 rounded-lg px-3 py-2;
 }
 .result-total {
-  @apply font-cinzel text-3xl font-bold text-foreground;
+  @apply text-display font-bold text-foreground;
 }
 .result-crit {
   @apply text-amber-500;

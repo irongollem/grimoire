@@ -307,7 +307,7 @@
             <div v-if="advisorResult" class="rounded-lg border border-border bg-muted/20 p-4 flex flex-col gap-3">
               <div class="flex items-center justify-between">
                 <span class="text-label-lg font-semibold text-muted-foreground">SUGGESTED CR</span>
-                <span class="font-cinzel text-2xl font-bold text-primary">{{ advisorResult.suggestedCr }}</span>
+                <span class="text-title font-bold text-primary">{{ advisorResult.suggestedCr }}</span>
               </div>
               <div class="text-label text-muted-foreground">
                 Range: CR {{ advisorResult.suggestedMin }} – {{ advisorResult.suggestedMax }}

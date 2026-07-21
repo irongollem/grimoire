@@ -56,7 +56,7 @@
       </div>
       <div class="flex-1 flex flex-col gap-3 min-w-0">
         <div class="flex flex-col gap-1">
-          <h1 class="font-cinzel text-2xl font-bold text-foreground leading-tight">{{ location.name }}</h1>
+          <h1 class="text-title font-bold text-foreground leading-tight">{{ location.name }}</h1>
           <p v-if="location.location_type" class="text-body text-muted-foreground italic">
             {{ LOCATION_TYPE_LABELS[location.location_type] }}
           </p>

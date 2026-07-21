@@ -35,7 +35,7 @@
           />
         </div>
         <div class="flex-1 flex flex-col gap-2">
-          <h1 class="font-cinzel text-xl font-bold text-foreground leading-tight">{{ trap.name }}</h1>
+          <h1 class="text-heading-lg font-bold text-foreground leading-tight">{{ trap.name }}</h1>
           <div class="flex flex-wrap gap-1.5">
             <span class="text-label font-semibold bg-muted/60 text-muted-foreground rounded px-2 py-0.5">
               {{ trap.trap_type }}
@@ -71,11 +71,11 @@
           </div>
           <div v-if="trap.detection_dc">
             <span class="text-eyebrow font-semibold text-muted-foreground">Detection DC</span>
-            <p class="font-cinzel text-lg font-bold text-foreground">{{ trap.detection_dc }}</p>
+            <p class="text-heading font-bold text-foreground">{{ trap.detection_dc }}</p>
           </div>
           <div v-if="trap.disarm_dc">
             <span class="text-eyebrow font-semibold text-muted-foreground">Disarm DC</span>
-            <p class="font-cinzel text-lg font-bold text-foreground">{{ trap.disarm_dc }}</p>
+            <p class="text-heading font-bold text-foreground">{{ trap.disarm_dc }}</p>
           </div>
           <div>
             <span class="text-eyebrow font-semibold text-muted-foreground">Reset</span>
@@ -83,11 +83,11 @@
           </div>
           <div v-if="trap.trap_hp">
             <span class="text-eyebrow font-semibold text-muted-foreground">HP</span>
-            <p class="font-cinzel text-lg font-bold text-foreground">{{ trap.trap_hp }}</p>
+            <p class="text-heading font-bold text-foreground">{{ trap.trap_hp }}</p>
           </div>
           <div v-if="trap.trap_ac">
             <span class="text-eyebrow font-semibold text-muted-foreground">AC</span>
-            <p class="font-cinzel text-lg font-bold text-foreground">{{ trap.trap_ac }}</p>
+            <p class="text-heading font-bold text-foreground">{{ trap.trap_ac }}</p>
           </div>
         </div>
         <div v-if="trap.damage_immunities.length">

@@ -24,7 +24,7 @@
     <template v-else>
       <!-- Header -->
       <div class="flex flex-wrap items-start justify-between gap-3">
-        <h2 class="font-cinzel text-xl font-bold text-foreground">
+        <h2 class="text-heading-lg font-bold text-foreground">
           {{ quest.title }}
         </h2>
         <span
@@ -284,7 +284,7 @@
         </div>
         <div class="p-4 overflow-y-auto space-y-4">
           <div>
-            <h2 class="font-cinzel text-lg font-bold text-foreground">
+            <h2 class="text-heading font-bold text-foreground">
               {{ selectedNpc.player_visible_fields?.includes('name') ? getNpcDisplayName(selectedNpc) : '???' }}
             </h2>
             <p v-if="selectedNpc.player_visible_fields?.includes('race') && selectedNpc.race"

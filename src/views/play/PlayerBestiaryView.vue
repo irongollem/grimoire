@@ -21,7 +21,7 @@
       </div>
 
       <div v-else-if="!resolved.length" class="text-center py-16 space-y-2">
-        <p class="font-cinzel text-lg text-muted-foreground">No creatures discovered yet</p>
+        <p class="text-heading text-muted-foreground">No creatures discovered yet</p>
         <p class="text-body text-muted-foreground italic">Monsters you encounter will appear here.</p>
       </div>
 
@@ -96,7 +96,7 @@
       </div>
 
       <div v-if="wildForms.length === 0" class="text-center py-16 space-y-2">
-        <p class="font-cinzel text-lg text-muted-foreground">No available forms</p>
+        <p class="text-heading text-muted-foreground">No available forms</p>
         <p class="text-body text-muted-foreground italic">
           <template v-if="isDruid">Discover beasts to unlock wild shapes, or ask your DM to pin forms for you.</template>
           <template v-else>Your DM can pin forms for you here.</template>
@@ -185,7 +185,7 @@
 
           <div class="p-4 space-y-4">
             <div>
-              <h2 class="font-cinzel text-xl font-bold text-foreground">{{ lightbox.name }}</h2>
+              <h2 class="text-heading-lg font-bold text-foreground">{{ lightbox.name }}</h2>
               <p v-if="lightbox.monster" class="text-body text-muted-foreground italic capitalize">
                 {{ lightbox.monster.size }} {{ lightbox.monster.monster_type }}<span v-if="lightbox.monster.alignment && (lightbox.revealStats ?? activeTab === 'forms')"> · {{ lightbox.monster.alignment }}</span>
               </p>
@@ -234,7 +234,7 @@
               </template>
               <div v-if="lastRoll" class="border-t border-border pt-3 flex items-center justify-between">
                 <span class="text-caption text-muted-foreground italic">{{ lastRoll.label }}</span>
-                <span class="font-cinzel text-lg font-bold text-foreground">{{ lastRoll.total }}</span>
+                <span class="text-heading font-bold text-foreground">{{ lastRoll.total }}</span>
               </div>
             </template>
 

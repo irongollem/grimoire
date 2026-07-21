@@ -2,7 +2,7 @@
   <div class="space-y-4 pb-8">
     <!-- No character linked -->
     <div v-if="!member" class="text-center py-16 space-y-4">
-      <p class="font-cinzel text-lg text-muted-foreground">No character linked</p>
+      <p class="text-heading text-muted-foreground">No character linked</p>
       <template v-if="ui.dmPreviewMode">
         <p class="text-body text-muted-foreground italic">Select a character above to preview their sheet.</p>
       </template>

@@ -2,7 +2,7 @@
   <div>
     <!-- Action bar -->
     <div class="flex items-center justify-between gap-2 mb-4">
-      <h2 class="font-cinzel text-lg font-bold text-foreground">
+      <h2 class="text-heading font-bold text-foreground">
         {{ isNew ? "New Roll Table" : table?.name || form.name || "Loading…" }}
       </h2>
       <div class="flex items-center gap-2">
@@ -128,7 +128,7 @@
                 v-model="form.name"
                 required
                 placeholder="Forest Road — Daytime"
-                class="w-full bg-card border border-border rounded-md px-3 py-2 font-cinzel text-lg font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="w-full bg-card border border-border rounded-md px-3 py-2 text-heading font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
             <div class="space-y-1.5">
@@ -271,7 +271,7 @@
           <div v-if="lastRoll" class="rounded-md border border-border bg-muted/40 p-3 flex flex-col gap-1.5">
             <div class="flex items-center justify-between">
               <span class="text-eyebrow font-semibold text-muted-foreground">Result</span>
-              <span class="font-cinzel text-2xl font-bold text-primary">{{ lastRoll.rolled }}</span>
+              <span class="text-title font-bold text-primary">{{ lastRoll.rolled }}</span>
             </div>
             <template v-if="lastRoll.entry">
               <div class="font-cinzel text-sm text-foreground font-bold">{{ lastRoll.entry.label }}</div>

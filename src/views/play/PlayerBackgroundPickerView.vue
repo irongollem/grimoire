@@ -3,7 +3,7 @@
     <!-- Header row -->
     <div class="flex items-start justify-between gap-4">
       <div>
-        <h1 class="font-cinzel text-xl font-bold text-foreground">Choose a Background</h1>
+        <h1 class="text-heading-lg font-bold text-foreground">Choose a Background</h1>
         <p v-if="headerDescription" class="text-body text-muted-foreground italic mt-1">
           {{ headerDescription }}
         </p>
@@ -38,7 +38,7 @@
         <div class="absolute inset-0 bg-black/60" @click="cancel" />
         <div class="relative z-10 w-full max-w-md rounded-xl border border-border bg-background shadow-2xl p-6 space-y-4">
           <div>
-            <h2 class="font-cinzel text-lg font-bold text-foreground">{{ pendingBg.name }}</h2>
+            <h2 class="text-heading font-bold text-foreground">{{ pendingBg.name }}</h2>
             <p v-if="pendingBg.feature_name" class="text-body italic text-muted-foreground mt-0.5">
               {{ pendingBg.feature_name }}
             </p>

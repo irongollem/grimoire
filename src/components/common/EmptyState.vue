@@ -7,7 +7,7 @@
       </slot>
     </div>
 
-    <h3 class="font-cinzel text-lg font-semibold text-foreground mb-2">
+    <h3 class="text-heading font-semibold text-foreground mb-2">
       {{ title }}
     </h3>
     <p class="font-fell text-muted-foreground italic max-w-sm mb-6">

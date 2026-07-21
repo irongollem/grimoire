@@ -25,7 +25,7 @@ const emit = defineEmits<{ close: [] }>();
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="emit('close')" />
         <div class="relative w-full max-w-2xl rounded-xl border border-border bg-background shadow-2xl flex flex-col max-h-[90dvh]">
           <div class="flex items-center justify-between px-5 py-3.5 border-b border-border shrink-0">
-            <h2 class="font-cinzel text-base font-bold text-foreground truncate">
+            <h2 class="text-heading-sm font-bold text-foreground truncate">
               {{ (monster ?? spell)?.name ?? "Loading…" }}
             </h2>
             <button

@@ -8,7 +8,7 @@
   >
     <div>
       <div class="flex items-start justify-between gap-3">
-        <h2 class="font-cinzel text-lg font-bold text-foreground">
+        <h2 class="text-heading font-bold text-foreground">
           {{ npc?.player_visible_fields.includes('name') ? display.name : '???' }}
         </h2>
         <NpcRatingStars v-if="npc" :npc-id="npc.id" size="lg" class="shrink-0 pt-1" />

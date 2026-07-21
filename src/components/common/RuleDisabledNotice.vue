@@ -16,7 +16,7 @@ const { moduleName, hint } = defineProps<{
 
 <template>
   <div class="mx-auto max-w-md px-4 py-16 text-center">
-    <p class="font-cinzel text-lg font-semibold">{{ moduleName }} is switched off</p>
+    <p class="text-heading font-semibold">{{ moduleName }} is switched off</p>
     <p class="mt-2 text-sm text-muted-foreground">
       Your DM hasn't enabled this module for this campaign.
     </p>
