@@ -433,6 +433,31 @@ The player can toggle their own disguise on/off using DB functions `set_shapeshi
 
 ---
 
+## Printable Character Sheet Export (PDF)
+
+Both the DM (`/party/:partyMemberId/sheet` → `views/publishing/CharacterSheetView.vue`) and players (`/play` → `views/play/PlayerCharacterSheetView.vue`, own character only) can export a printable PDF. Both views are thin wrappers around the shared **`CharacterSheetExportPanel.vue`** (toolbar + live preview + export), which persists the export-screen prefs per character in `localStorage` (`cs-mode-*`, `cs-theme-*`, `cs-illus-theme-*`).
+
+The pipeline is `composables/useCharacterSheetPdf.ts` → off-screen `createApp()` → `html2canvas` → `jsPDF`. It iterates every `.cs-page` element the renderer emits, so adding pages requires no pipeline changes.
+
+**Two export modes:**
+
+- **Clean** (`CharacterSheetRenderer.vue`, one page) — the original CSS-themed sheet. Themes: `default · horror · fairy · adventure · sumie` (`SHEET_THEMES`), applied as `theme-<id>` classes over `assets/character-sheet.css`.
+- **Illustrated** (`components/character-sheet/illustrated/`, **front + back**, two pages) — fully-illustrated baked-PNG "plates" with live data laid over them as absolutely-positioned, `overflow:hidden` value-only overlay fields (the labels are painted into the plate). Themes: `classic · adventure · gothic · fairy · sumie` (`ILLUSTRATED_THEMES`).
+
+**Illustrated module layout** (`components/character-sheet/illustrated/`):
+
+- `IllustratedSheet.vue` — renders one side; resolves its plate from `assets/sheets/{a4,letter}/` via `import.meta.glob`, lays out fields from the active config.
+- `IllustratedSheetDocument.vue` — stacks front + back (the two `.cs-page`s). Also the live preview component.
+- `sheetConfig.a4.ts` / `sheetConfig.letter.ts` — **independent** coordinate configs per page size; each `(theme, side)` owns its own `box: [left%, top%, width%, height%]` array, so nudging one never affects another. Letter is a seed copy of A4 pending per-theme calibration by eye.
+- `sheetData.ts` — maps `PartyMember` (+ inventory) to each section's values; ability/save/skill/spell/hit-die math mirrors `CharacterSheetRenderer`. Front maps cleanly; back narrative fields use existing columns where present (`physical_description`→appearance, `player_description`→backstory, `notes`→general notes, PIBF) and fall back to blank boxes otherwise (no migration).
+- `sheetTypes.ts` — config + section types + page-px + per-theme typography/ink tokens.
+
+**Calibration:** the panel's **Boxes** toggle (illustrated mode, preview only — never exported) outlines every overlay box (`.illustrated.dbg .fld`) so coordinates can be nudged by eye against the plate art.
+
+Fonts: the illustrated themes need EB Garamond + Shippori Mincho (added to the `main.css` Google Fonts `@import`); Cinzel + Cormorant Garamond were already loaded.
+
+---
+
 ## Key Capabilities / USPs
 
 - **Real-time sync:** `usePartyLive` subscribes to Supabase Postgres changes on `party_members` so DM HP edits instantly update player sheets and vice versa without page refresh.

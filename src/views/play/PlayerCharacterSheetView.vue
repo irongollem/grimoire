@@ -16,73 +16,34 @@
     </div>
 
     <template v-else>
-      <!-- Toolbar -->
-      <div class="flex flex-wrap items-center gap-3">
-        <RouterLink
-          to="/play"
-          class="text-label-lg text-muted-foreground hover:text-foreground transition-colors"
-        >← Back</RouterLink>
-
-        <select
-          v-model="pageSize"
-          class="ml-auto bg-card border border-border rounded px-2.5 py-1.5 font-cinzel text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        >
-          <option value="A4">A4</option>
-          <option value="Letter">Letter</option>
-        </select>
-
-        <select
-          v-model="theme"
-          class="bg-card border border-border rounded px-2.5 py-1.5 font-cinzel text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        >
-          <option v-for="t in SHEET_THEMES" :key="t.id" :value="t.id">{{ t.label }}</option>
-        </select>
-
-        <button
-          type="button"
-          :disabled="isGenerating"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
-          @click="doExport"
-        >
-          {{ isGenerating ? "Generating PDF…" : "Export PDF" }}
-        </button>
-      </div>
-
-      <!-- Preview (scaled-down rendition of the sheet) -->
-      <div class="cs-preview-wrapper">
-        <div class="cs-preview-scaler">
-          <CharacterSheetRenderer
-            :member="member"
-            :inventory="inventory"
-            :page-size="pageSize"
-            :theme="theme"
-            :species-name="speciesName"
-            :background-name="backgroundName"
-            :ac-bonus="acBonus"
-          />
-        </div>
-      </div>
+      <CharacterSheetExportPanel
+        :member="member"
+        :inventory="inventory"
+        :storage-key="linkedMemberId ?? ''"
+        :species-name="speciesName"
+        :background-name="backgroundName"
+      >
+        <template #back>
+          <RouterLink
+            to="/play"
+            class="text-label-lg text-muted-foreground hover:text-foreground transition-colors"
+          >← Back</RouterLink>
+        </template>
+      </CharacterSheetExportPanel>
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
+import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useParty } from "@/composables/useParty";
 import { usePartyInventory } from "@/composables/usePartyInventory";
-import {
-  useCharacterSheetPdf,
-  SHEET_THEMES,
-  type SheetPageSize,
-  type SheetTheme,
-} from "@/composables/useCharacterSheetPdf";
 import { useSpeciesNameMap } from "@/composables/useSpecies";
 import { useBackgroundNameMap } from "@/composables/useBackgrounds";
-import { useShieldAcBonus } from "@/composables/useShieldAc";
-import CharacterSheetRenderer from "@/components/character-sheet/CharacterSheetRenderer.vue";
+import CharacterSheetExportPanel from "@/components/character-sheet/CharacterSheetExportPanel.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 
 const auth = useAuthStore();
@@ -114,48 +75,4 @@ const speciesName = computed(() =>
 const backgroundName = computed(() =>
   member.value?.background_id ? (backgroundMap.value.get(member.value.background_id) ?? null) : null,
 );
-
-const { bonusFor: shieldAcBonusFor } = useShieldAcBonus();
-const acBonus = computed(() => shieldAcBonusFor(member.value?.id));
-
-const pageSize = ref<SheetPageSize>("A4");
-
-// Theme preference — persisted per character in localStorage
-function themeKey(id: string) { return `cs-theme-${id}`; }
-const theme = ref<SheetTheme>(
-  (linkedMemberId.value ? (localStorage.getItem(themeKey(linkedMemberId.value)) as SheetTheme | null) : null) ?? "default",
-);
-watch(theme, (v) => {
-  if (linkedMemberId.value) localStorage.setItem(themeKey(linkedMemberId.value), v);
-});
-
-const { isGenerating, exportPdf } = useCharacterSheetPdf();
-
-async function doExport() {
-  if (!member.value) return;
-  await exportPdf(member.value, inventory.value, {
-    pageSize: pageSize.value,
-    theme: theme.value,
-    speciesName: speciesName.value,
-    backgroundName: backgroundName.value,
-    acBonus: acBonus.value,
-  });
-}
 </script>
-
-<style scoped>
-/* Preview: zoom collapses the rendered element's layout size (unlike transform:scale).
-   The sheet is 794px wide; at 0.75 zoom it displays at ~596px — fits a phone viewport. */
-.cs-preview-wrapper {
-  display: inline-block;
-  border: 1px solid hsl(var(--border));
-  border-radius: 6px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.12);
-  overflow: hidden;
-}
-
-.cs-preview-scaler {
-  zoom: 0.75;
-  pointer-events: none;
-}
-</style>
