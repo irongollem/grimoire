@@ -19,7 +19,13 @@
 import type { Condition } from "@/types/condition.types";
 import type { RulesetKey } from "@/types/ruleset.types";
 
-/** Patch map for a single edition: condition id -> full/partial override. */
+/**
+ * Patch map for a single edition: condition id -> complete replacement
+ * `Condition` record. An entry here fully replaces the base condition —
+ * there is no field-level merge with `SRD_CONDITIONS_2014`/`2024` — so
+ * every field (name, description, effects) must be filled in, not just the
+ * ones that differ.
+ */
 export type ConditionPatchMap = Record<string, Condition>;
 
 export const CONDITION_PATCHES: Record<RulesetKey, ConditionPatchMap> = {

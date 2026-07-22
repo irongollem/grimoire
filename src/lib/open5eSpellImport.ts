@@ -1,7 +1,7 @@
 import type { SpellInsert, SpellSchool, HigherLevelDamage } from "@/types/spell.types";
 import { SPELL_SCHOOLS, SPELL_CLASSES } from "@/types/spell.types";
 import { ARTIFICER_SPELL_DELTA } from "@/data/artificerSpellDelta";
-import { fetchAll, fetchAllFromDocuments, rulesetForDocument } from "@/lib/open5eApi";
+import { fetchAll, fetchAllFromDocuments, rulesetForDocument, slugifyKey, stableSrdId } from "@/lib/open5eApi";
 import type { Open5eDocumentRef } from "@/lib/open5eApi";
 import type { RulesetKey } from "@/types/ruleset.types";
 import { buildStructuredSpellEffects } from "@/lib/spellEffects";
@@ -181,14 +181,6 @@ function parseHigherLevelHealing(prose: string | null): string | null {
   return prose.match(UPCAST_DICE_RE)?.[1] ?? null;
 }
 
-function stableAppId(sourceRecordKey: string): string {
-  return `srd_${sourceRecordKey.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "")}`;
-}
-
-function conceptualKey(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
-}
-
 function inferAttackType(spell: Open5eV2Spell): string | null {
   if (spell.attack_roll) return /melee spell attack/i.test(spell.desc) ? "melee_spell" : "ranged_spell";
   if (spell.saving_throw_ability) return "save";
@@ -230,8 +222,8 @@ export function mapOpen5eV2Spell(
   });
 
   return {
-    id: stableAppId(spell.key),
-    conceptual_key: conceptualKey(spell.name),
+    id: stableSrdId(spell.key),
+    conceptual_key: slugifyKey(spell.name),
     ruleset,
     source_document_key: spell.document.key,
     source_record_key: spell.key,
@@ -336,15 +328,14 @@ export async function fetchSrdSpells(sourceKeys?: string[]): Promise<ImportedSrd
   const selected = sourceKeys?.length
     ? documents.filter((document) => sourceKeys.includes(document.slug))
     : documents;
+  if (!selected.length) return [];
   const metadata = new Map(selected.map((document) => [document.slug, document]));
-  const batches = await Promise.all(
-    selected.map((document) =>
-      fetchAllFromDocuments<Open5eV2Spell>("https://api.open5e.com/v2/spells/", [document.slug]),
-    ),
+  const spells = await fetchAllFromDocuments<Open5eV2Spell>(
+    "https://api.open5e.com/v2/spells/",
+    selected.map((document) => document.slug),
   );
 
-  return batches
-    .flat()
+  return spells
     .map((spell) => mapOpen5eV2Spell(spell, metadata.get(spell.document.key)))
     .filter((spell): spell is ImportedSrdSpell => spell !== null);
 }

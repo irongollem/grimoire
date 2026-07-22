@@ -132,15 +132,8 @@
           >
             {{ item.properties.join(", ") }}
           </p>
-          <!-- Weapon mastery — 2024 campaigns only -->
-          <div v-if="item.mastery && is2024" class="mt-1 flex flex-col gap-0.5">
-            <p class="font-stat text-sm font-bold text-foreground">
-              Mastery: {{ WEAPON_MASTERY_DEFINITIONS[item.mastery].label }}
-            </p>
-            <p class="font-stat text-sm text-muted-foreground">
-              {{ WEAPON_MASTERY_DEFINITIONS[item.mastery].description }}
-            </p>
-          </div>
+          <!-- Weapon mastery — 2024 campaigns only (gate is internal to the badge) -->
+          <WeaponMasteryBadge :mastery="item.mastery" variant="block" />
         </div>
 
         <!-- Armor -->
@@ -278,10 +271,10 @@ import { IconPackage, IconParty, IconShop, IconUser } from '@/lib/icons';
 import { RouterLink } from "vue-router";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import WeaponMasteryBadge from "@/components/items/WeaponMasteryBadge.vue";
 import { useLootTablesByItem } from "@/composables/useLootTables";
 import { useItemHolders } from "@/composables/useItemHolders";
 import { useCampaigns } from "@/composables/useCampaigns";
-import { useRuleset } from "@/composables/useRuleset";
 import {
   ITEM_TYPE_LABELS,
   ITEM_RARITY_LABELS,
@@ -290,7 +283,6 @@ import {
   itemSourceLabel,
 } from "@/types/item.types";
 import type { Item } from "@/types/item.types";
-import { WEAPON_MASTERY_DEFINITIONS } from "@/data/weaponMastery";
 
 const props = defineProps<{
   item: Item;
@@ -301,7 +293,6 @@ const props = defineProps<{
 const containedIn = useLootTablesByItem(computed(() => props.item.id));
 const { data: holders } = useItemHolders(computed(() => props.item.id));
 const { data: allCampaigns } = useCampaigns();
-const { is2024 } = useRuleset();
 
 const sheetArtTab = ref<'identified' | 'mundane'>('identified');
 

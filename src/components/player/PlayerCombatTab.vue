@@ -214,7 +214,7 @@ watch(() => [props.member.id, props.member.weapon_masteries] as const, () => {
 }, { immediate: true });
 
 function hasMastery(item: Item | null): boolean {
-  return !!item && localMasteries.value.has(item.name);
+  return !!item && localMasteries.value.has(item.id);
 }
 
 const isTogglingMastery = ref(false);
@@ -223,8 +223,8 @@ async function toggleMastery(item: Item | null) {
   isTogglingMastery.value = true;
   try {
     const next = new Set(localMasteries.value);
-    if (next.has(item.name)) next.delete(item.name);
-    else next.add(item.name);
+    if (next.has(item.id)) next.delete(item.id);
+    else next.add(item.id);
     localMasteries.value = next; // optimistic
     await updateMember({ id: props.member.id, update: { weapon_masteries: [...next] } });
   } finally {

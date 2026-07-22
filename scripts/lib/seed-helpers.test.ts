@@ -1,5 +1,15 @@
-import { describe, expect, it } from "vitest";
-import { countByRuleset, parseSeedCliArgs, withOpen5eUserAgent } from "./seed-helpers";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  countByRuleset,
+  parseSeedCliArgs,
+  supabaseRequestPaginated,
+  withOpen5eUserAgent,
+} from "./seed-helpers";
+import type { SupabaseEnv } from "./seed-helpers";
+
+afterEach(() => vi.unstubAllGlobals());
+
+const env: SupabaseEnv = { supabaseUrl: "https://example.test", serviceKey: "service-key" };
 
 describe("withOpen5eUserAgent", () => {
   it("adds a descriptive User-Agent for api.open5e.com requests", () => {
@@ -59,5 +69,55 @@ describe("countByRuleset", () => {
   it("tallies rows per ruleset", () => {
     const rows = [{ ruleset: "2014" }, { ruleset: "2024" }, { ruleset: "2014" }, { ruleset: "2014" }];
     expect(countByRuleset(rows)).toEqual({ "2014": 3, "2024": 1 });
+  });
+});
+
+describe("supabaseRequestPaginated", () => {
+  it("stops after a single short page without a second request", async () => {
+    const fetchMock = vi.fn(async (_input: string | URL | Request) =>
+      new Response(JSON.stringify([{ id: "a" }, { id: "b" }])));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const rows = await supabaseRequestPaginated<{ id: string }>(env, "/srd_spells?select=id");
+
+    expect(rows).toEqual([{ id: "a" }, { id: "b" }]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0][0])).toContain("limit=1000&offset=0");
+  });
+
+  it("concatenates multiple full pages until a short page terminates the loop", async () => {
+    const fullPage = Array.from({ length: 1000 }, (_, i) => ({ id: `row-${i}` }));
+    const shortPage = [{ id: "last" }];
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      return new Response(JSON.stringify(url.includes("offset=1000") ? shortPage : fullPage));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const rows = await supabaseRequestPaginated<{ id: string }>(env, "/srd_spells?select=id");
+
+    expect(rows).toHaveLength(1001);
+    expect(rows[rows.length - 1]).toEqual({ id: "last" });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("appends the limit/offset params with '&' when the path already has a query string", async () => {
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      expect(String(input)).toContain("select=id&limit=1000&offset=0");
+      return new Response(JSON.stringify([]));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await supabaseRequestPaginated(env, "/srd_spells?select=id");
+  });
+
+  it("appends the limit/offset params with '?' when the path has no existing query string", async () => {
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      expect(String(input)).toContain("/srd_art_defaults?limit=1000&offset=0");
+      return new Response(JSON.stringify([]));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await supabaseRequestPaginated(env, "/srd_art_defaults");
   });
 });

@@ -147,6 +147,9 @@ export interface StatBlock {
   cha: number;
   challenge_rating: string; // e.g. "5" or "1/2"
   proficiency_bonus?: number; // e.g. 3 (overrides CR-derived default)
+  // 2024 stat blocks print a flat "Initiative +N" derived from DEX + proficiency
+  // (and sometimes more). Absent/null means "derive from DEX mod" (2014 behavior).
+  initiative_bonus?: number | null;
   saving_throws?: string; // e.g. "Con +5, Wis +3"
   skills?: Record<string, string>;
   damage_vulnerabilities?: string;

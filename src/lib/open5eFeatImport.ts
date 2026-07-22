@@ -1,5 +1,5 @@
 import type { ClassFeatureInsert, FeatureType } from "@/types/feature.types";
-import { fetchAllFromDocuments, fetchSupported5eDocumentKeys, rulesetForDocument } from "@/lib/open5eApi";
+import { fetchAllFromDocuments, fetchSupported5eDocumentKeys, rulesetForDocument, slugifyKey } from "@/lib/open5eApi";
 import type { Open5eDocumentRef } from "@/lib/open5eApi";
 
 interface Open5eV2Feat {
@@ -38,7 +38,7 @@ export function mapOpen5eV2Feat(feat: Open5eV2Feat): ClassFeatureInsert {
   const fullDescription = [feat.desc, ...benefitDescriptions].join("\n");
   return {
     ruleset: rulesetForDocument(feat.document),
-    conceptual_key: feat.name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, ""),
+    conceptual_key: slugifyKey(feat.name),
     source_document_key: feat.document.key,
     source_record_key: feat.key,
     source_revision: feat.document.name,

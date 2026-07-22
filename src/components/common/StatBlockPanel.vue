@@ -102,10 +102,10 @@ const savesObj = computed<Record<string, SaveEntry>>(() => {
 
 const skillsLine = computed(() => skillsToString(props.sb.skills));
 
-// 2024 stat blocks print a flat Initiative bonus; only MonsterStatBlock carries it
-// (NPCs keep DEX-derived initiative). Null/absent renders nothing.
+// 2024 stat blocks print a flat Initiative bonus; 2014 stat blocks (and NPCs
+// that never set one) keep DEX-derived initiative. Null/absent renders nothing.
 const initiativeBonus = computed(() => {
-  const value = (props.sb as MonsterStatBlock).initiative_bonus;
+  const value = props.sb.initiative_bonus;
   return typeof value === "number" ? value : null;
 });
 </script>

@@ -53,6 +53,16 @@ describe("sortCombatantsByInitiative", () => {
     expect(out.map((x) => x.instance_id)).toEqual(["high", "low"]);
   });
 
+  it("breaks a same-type tie on a declared initiative_bonus rather than raw dex_mod", () => {
+    // "bonus" has the lower dex_mod but a higher declared 2024 initiative_bonus,
+    // which is what actually determined the roll — the tie-break must agree.
+    const out = sortCombatantsByInitiative([
+      c({ instance_id: "highDex", initiative: 12, dex_mod: 5 }),
+      c({ instance_id: "bonus", initiative: 12, dex_mod: 1, initiative_bonus: 8 }),
+    ]);
+    expect(out.map((x) => x.instance_id)).toEqual(["bonus", "highDex"]);
+  });
+
   it("does not mutate the input array", () => {
     const input = [c({ instance_id: "a", initiative: 1 }), c({ instance_id: "b", initiative: 2 })];
     const before = input.map((x) => x.instance_id);

@@ -47,6 +47,9 @@
     <CharacterCreateDoneStep v-else-if="currentStepId === 'done'" :form="form" />
 
     <!-- Footer nav (not shown on Done step — actions are inline there) -->
+    <p v-if="blockedByAsiChoice" class="text-caption text-amber-600 dark:text-amber-400 italic text-right">
+      Finish the ability score choice above, or clear it, before continuing.
+    </p>
     <div class="flex items-center justify-between pt-2 border-t border-border">
       <!-- Back / Cancel -->
       <button v-if="wizardStep > 0" type="button"
@@ -63,12 +66,13 @@
       <!-- Next / Skip (hidden on Done step) -->
       <div v-if="wizardStep < activeSteps.length - 1" class="flex items-center gap-2">
         <button type="button"
-          class="px-4 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+          :disabled="blockedByAsiChoice"
+          class="px-4 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
           @click="wizardStep++">
           Skip
         </button>
         <button type="button"
-          :disabled="wizardStep === 0 && !f.name.trim()"
+          :disabled="(wizardStep === 0 && !f.name.trim()) || blockedByAsiChoice"
           class="px-4 py-2 font-cinzel text-xs font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
           @click="wizardStep++">
           Next →
@@ -92,8 +96,12 @@ import CharacterCreateEquipmentStep from "@/components/play/CharacterCreateEquip
 import CharacterCreateDoneStep from "@/components/play/CharacterCreateDoneStep.vue";
 
 const form = inject(CHARACTER_FORM_KEY)!;
-const { router, f, wizardStep, isEditMode, backRoute } = form;
+const { router, f, wizardStep, isEditMode, backRoute, backgroundAsiIncomplete } = form;
 
 const activeSteps = computed(() => isEditMode.value ? WIZARD_STEPS_EDIT : WIZARD_STEPS);
 const currentStepId = computed(() => activeSteps.value[wizardStep.value]?.id ?? "done");
+
+// A half-made 2024 background ASI choice blocks leaving the background step —
+// it must be finished or explicitly cleared (empty is a valid skip).
+const blockedByAsiChoice = computed(() => currentStepId.value === "background" && backgroundAsiIncomplete.value);
 </script>

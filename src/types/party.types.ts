@@ -146,7 +146,7 @@ export interface PartyMember {
   // Proficiencies & languages
   tool_proficiencies: string[];
   languages: string[];
-  /** 2024-only: weapon names (matching `Item.name`) this character has mastery with. Empty/unused under 2014. */
+  /** 2024-only: item ids (matching `Item.id`) of weapons this character has mastery with. Empty/unused under 2014. */
   weapon_masteries: string[];
   /**
    * Set by the campaigns_flag_background_ruleset_review trigger when a ruleset

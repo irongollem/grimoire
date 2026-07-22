@@ -122,6 +122,9 @@
           </div>
 
           <!-- Action buttons -->
+          <p v-if="asiChoiceIncomplete" class="text-caption text-amber-600 dark:text-amber-400 italic">
+            Finish the ability score choice above, or clear it, before confirming.
+          </p>
           <div class="flex gap-3 pt-2">
             <button
               type="button"
@@ -132,7 +135,7 @@
             </button>
             <button
               type="button"
-              :disabled="saving"
+              :disabled="saving || asiChoiceIncomplete"
               class="flex-1 px-4 py-2 font-cinzel text-xs font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
               @click="confirm"
             >
@@ -148,12 +151,14 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
+import { useQueryClient } from "@tanstack/vue-query";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
+import { useCampaignStore } from "@/stores/campaign";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
 import { useBackgrounds } from "@/composables/useBackgrounds";
-import { useAllFeatures } from "@/composables/useFeatures";
 import { useRuleset } from "@/composables/useRuleset";
+import { supabase } from "@/lib/supabase";
 import BackgroundList from "@/components/backgrounds/BackgroundList.vue";
 import BackgroundAsiPicker from "@/components/backgrounds/BackgroundAsiPicker.vue";
 import BackgroundOriginFeatBadge from "@/components/backgrounds/BackgroundOriginFeatBadge.vue";
@@ -167,11 +172,11 @@ import {
   type BgRemovalState,
 } from "@/lib/backgroundProficiencies";
 import {
-  abilityBonusesForChoice, parseBackgroundAsiChoice, resolveOriginFeat,
+  abilityBonusesForChoice, isValidAsiChoice, parseBackgroundAsiChoice,
   type BackgroundAsiChoice,
 } from "@/lib/backgroundAsi";
 import { SKILLS } from "@/types/party.types";
-import type { SaveKey } from "@/types/party.types";
+import type { PartyMember, SaveKey } from "@/types/party.types";
 import type { Background } from "@/types/background.types";
 
 const BG_SOURCE_OPTIONS = [
@@ -183,9 +188,10 @@ const BG_SOURCE_OPTIONS = [
 const router = useRouter();
 const auth = useAuthStore();
 const ui = useUiStore();
+const campaign = useCampaignStore();
+const queryClient = useQueryClient();
 const { data: party } = useParty();
 const { mutateAsync: update } = useUpdatePartyMember();
-const { data: allFeatures } = useAllFeatures();
 const { is2024 } = useRuleset();
 
 // Resolve the party member: real player uses linkedPartyMemberId; DM preview uses dmPreviewPartyMemberId
@@ -234,6 +240,17 @@ const propsToApply = computed(() => {
   return result;
 });
 
+/**
+ * True when the pending 2024 ASI choice has been started (a mode picked) but
+ * isn't yet a valid, complete choice — e.g. only a +2 ability picked so far.
+ * An untouched choice (null) is a deliberate "skip" and is never incomplete.
+ */
+const asiChoiceIncomplete = computed(() => {
+  if (!is2024.value || !pendingBg.value?.asi_ability_trio) return false;
+  return pendingAsiChoice.value !== null
+    && !isValidAsiChoice(pendingAsiChoice.value, pendingBg.value.asi_ability_trio);
+});
+
 function onSelect(bg: Background) {
   pendingBg.value = bg;
   removeOld.value = false;
@@ -253,7 +270,9 @@ function cancel() {
 }
 
 async function confirm() {
-  if (!me.value || !pendingBg.value) return;
+  if (!me.value || !pendingBg.value || asiChoiceIncomplete.value) return;
+  const memberId = me.value.id;
+  const hadReviewFlag = me.value.background_ruleset_review_required === true;
   saving.value = true;
   try {
     const form = {
@@ -267,17 +286,17 @@ async function confirm() {
     }
     // Update class_choices.background_feat / background_asi to reflect the newly
     // selected background. background_feat stays the raw display name (unchanged
-    // semantics); background_feat_id links it to an imported feat when resolvable.
+    // semantics) — the origin feat itself is resolved live at display time.
     const existingChoices = { ...me.value.class_choices } as Record<string, unknown>;
     if (pendingBg.value.feat_grant_name) {
-      const resolved = resolveOriginFeat(pendingBg.value.origin_feat, allFeatures.value ?? []);
       existingChoices.background_feat = pendingBg.value.feat_grant_name;
-      existingChoices.background_feat_id = resolved?.feature?.id ?? null;
     } else {
       delete existingChoices.background_feat;
-      delete existingChoices.background_feat_id;
     }
-    if (is2024.value && pendingBg.value.asi_ability_trio && pendingAsiChoice.value) {
+    // A half-made ASI choice never persists — the Confirm button is disabled
+    // for that state, so anything left here is either complete or empty (skip).
+    if (is2024.value && pendingBg.value.asi_ability_trio
+      && isValidAsiChoice(pendingAsiChoice.value, pendingBg.value.asi_ability_trio)) {
       existingChoices.background_asi = pendingAsiChoice.value;
     } else {
       delete existingChoices.background_asi;
@@ -306,7 +325,7 @@ async function confirm() {
     }
 
     await update({
-      id: me.value.id,
+      id: memberId,
       update: {
         background_id: pendingBg.value.id,
         skill_proficiencies: form.skill_proficiencies,
@@ -316,6 +335,23 @@ async function confirm() {
         ...scores,
       },
     });
+
+    // Picking a background (even the same ruleset's) satisfies the pending
+    // ruleset review — clear it so the banner doesn't linger after a save
+    // that already resolved it. Patch the cache directly so it disappears
+    // immediately rather than waiting on the mutation's background refetch.
+    if (hadReviewFlag) {
+      const { error } = await supabase.rpc("acknowledge_background_ruleset_review", {
+        p_party_member_id: memberId,
+      });
+      if (!error) {
+        queryClient.setQueryData<PartyMember[]>(
+          ["party", campaign.activeCampaignId],
+          (old) => old?.map((m) => (m.id === memberId ? { ...m, background_ruleset_review_required: false } : m)),
+        );
+      }
+    }
+
     router.push("/play");
   } finally {
     saving.value = false;

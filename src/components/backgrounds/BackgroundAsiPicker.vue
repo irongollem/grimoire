@@ -42,8 +42,8 @@
       </div>
     </div>
 
-    <p v-if="!complete" class="text-caption text-amber-600 dark:text-amber-400 italic">
-      Choice incomplete — pick {{ mode === "plus2plus1" ? "both a +2 and a +1 ability" : "a mode above" }}.
+    <p v-if="missingHint" class="text-caption text-amber-600 dark:text-amber-400 italic">
+      {{ missingHint }}
     </p>
   </div>
 </template>
@@ -68,6 +68,18 @@ const emit = defineEmits<{ "update:modelValue": [BackgroundAsiChoice | null] }>(
 
 const mode = computed<BackgroundAsiMode | null>(() => modelValue?.mode ?? null);
 const complete = computed(() => isValidAsiChoice(modelValue, trio));
+
+/**
+ * Inline hint for a half-made 2024 ASI choice: only shown once a +2/+1 mode
+ * is picked but the trio-specific abilities aren't fully chosen yet. An
+ * untouched choice (no mode picked at all) is a valid "skip" — no hint.
+ */
+const missingHint = computed(() => {
+  if (mode.value !== "plus2plus1" || complete.value) return "";
+  if (!modelValue?.primary) return "Pick an ability for +2, then a different one for +1.";
+  if (!modelValue?.secondary) return "Pick a different ability for +1.";
+  return "Choice incomplete — pick both a +2 and a +1 ability.";
+});
 
 function abilityToSaveKey(key: AbilityScoreKey): SaveKey {
   return ABILITY_TO_SAVE_KEY[key];

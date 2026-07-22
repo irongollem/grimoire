@@ -44,7 +44,7 @@
           <label class="block">
             <span class="field-label">Initiative</span>
             <input
-              v-model.number="(sb as unknown as Record<string, number>).initiative_bonus"
+              v-model.number="sb.initiative_bonus"
               type="number"
               class="field-input w-full"
               placeholder="Overrides DEX mod (2024)"

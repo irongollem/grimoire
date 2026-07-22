@@ -1,4 +1,4 @@
-import { fetchAllFromDocuments, fetchSupported5eDocumentKeys, rulesetForDocument } from "@/lib/open5eApi";
+import { fetchAllFromDocuments, fetchSupported5eDocumentKeys, rulesetForDocument, slugifyKey } from "@/lib/open5eApi";
 import type { Open5eDocumentRef } from "@/lib/open5eApi";
 import type { ItemInsert, ItemType, ItemRarity, WeaponProperty, WeaponMasteryProperty } from "@/types/item.types";
 import { WEAPON_PROPERTIES, WEAPON_MASTERY_PROPERTIES } from "@/types/item.types";
@@ -42,7 +42,7 @@ interface Open5eV2MagicItem {
 function metadata(record: { key: string; name: string; document: Open5eDocumentRef }) {
   return {
     ruleset: rulesetForDocument(record.document),
-    conceptual_key: record.name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, ""),
+    conceptual_key: slugifyKey(record.name),
     source_document_key: record.document.key,
     source_record_key: record.key,
     source_revision: record.document.name,

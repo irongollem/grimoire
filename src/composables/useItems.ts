@@ -303,6 +303,8 @@ export function useImportSrdItems() {
                 source_url: item.source_url ?? null,
                 weapon_range: item.weapon_range ?? null,
                 versatile_damage: item.versatile_damage ?? null,
+                properties: item.properties,
+                mastery: item.mastery,
                 tags: item.tags,
                 ruleset: item.ruleset,
                 conceptual_key: item.conceptual_key,

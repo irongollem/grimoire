@@ -31,6 +31,30 @@ export interface Open5eDocumentRef {
   licenses?: Array<{ name: string; key: string }>;
 }
 
+/**
+ * Canonical slugify: lowercases, collapses any run of non-alphanumeric
+ * characters to a single underscore, and trims leading/trailing underscores.
+ * The one shared implementation of a pattern every Open5e mapper (and the
+ * seed scripts) used to duplicate locally — conceptual keys, app-facing SRD
+ * ids, and legacy item slugs all derive from this.
+ */
+export function slugifyKey(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+}
+
+/**
+ * Derives a stable, app-facing id (e.g. `srd_srd_2024_owlbear`) from an
+ * Open5e v2 `source_record_key`. Open5e record keys are frequently already
+ * "srd"/"srd-2024"-prefixed themselves (e.g. "srd-2024_owlbear"), so
+ * prefixing again yields a double `srd_srd_…` id — this is INTENTIONAL and
+ * must not be "cleaned up": ids of this exact double-prefixed shape are live
+ * in production (srd_spells, srd_monsters) and changing the format would
+ * break every existing reference to them.
+ */
+export function stableSrdId(sourceRecordKey: string): string {
+  return `srd_${slugifyKey(sourceRecordKey)}`;
+}
+
 /** Maps an Open5e document's gamesystem to our ruleset key; null for non-5e gamesystems (e.g. a5e) or unset ones. */
 export function rulesetForDocument(document: Open5eDocumentRef | null | undefined): RulesetKey | null {
   const key = document?.gamesystem?.key?.toLowerCase();

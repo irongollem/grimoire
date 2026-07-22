@@ -28,11 +28,12 @@
 import { fetchOpen5eDocuments, fetchSrdMonsters } from "@/lib/open5eMonsterImport";
 import type { MonsterInsert } from "@/types/monster.types";
 import type { RulesetKey } from "@/types/ruleset.types";
-import { fetchSupported5eDocumentKeys } from "@/lib/open5eApi";
+import { fetchSupported5eDocumentKeys, stableSrdId } from "@/lib/open5eApi";
 import {
   requireEnv,
   installOpen5eUserAgent,
   supabaseRequest,
+  supabaseRequestPaginated,
   upsertBatch,
   parseSeedCliArgs,
   printAvailableDocuments,
@@ -45,13 +46,14 @@ import {
  * Derives the app-facing srd_monsters.id (stable slug, e.g. "srd_srd_2024_owlbear")
  * from the Open5e v2 source_record_key. MonsterInsert (from the shared mapper)
  * has no `id` — the table's `id text primary key` is a seed-only concern, unlike
- * srd_spells where ImportedSrdSpell already carries a stable `id`. Mirrors the
- * private stableAppId() convention in src/lib/open5eSpellImport.ts. Open5e v2
- * record keys are already document-prefixed (e.g. "srd-2024_owlbear" vs.
- * "srd_owlbear"), so this stays unique across editions without extra suffixing.
+ * srd_spells where ImportedSrdSpell already carries a stable `id` (also derived
+ * from `stableSrdId`, in src/lib/open5eSpellImport.ts). Thin wrapper kept as its
+ * own named export for the test suite and call-site clarity. Open5e v2 record
+ * keys are already document-prefixed (e.g. "srd-2024_owlbear" vs. "srd_owlbear"),
+ * so this stays unique across editions without extra suffixing.
  */
 export function srdMonsterId(sourceRecordKey: string): string {
-  return `srd_${sourceRecordKey.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "")}`;
+  return stableSrdId(sourceRecordKey);
 }
 
 /**
@@ -74,11 +76,11 @@ interface MonsterArtRow {
 }
 
 async function backfillArt(env: SupabaseEnv): Promise<void> {
-  const art = (await supabaseRequest(
+  const art = await supabaseRequestPaginated<MonsterArtRow>(
     env,
     "/srd_monster_art?is_canonical=eq.true&image_url=not.is.null&select=srd_id,image_url,portrait_focal_point",
     { method: "GET", headers: { Prefer: "" } },
-  )) as MonsterArtRow[];
+  );
   if (!art.length) {
     console.log("  No canonical art found — skipping art backfill.");
     return;

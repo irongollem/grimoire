@@ -601,7 +601,7 @@ const choiceEntries = computed(() => {
     .filter(([key, v]) =>
       key !== "metamagic_options" && key !== "infusions_known" &&
       key !== "eldritch_invocations" && key !== "battle_master_maneuvers" &&
-      key !== "background_feat" && key !== "background_feat_id" && key !== "background_asi" &&
+      key !== "background_feat" && key !== "background_asi" &&
       v !== null && v !== undefined && v !== "",
     )
     .map(([key, value]) => ({

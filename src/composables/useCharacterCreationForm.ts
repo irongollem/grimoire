@@ -10,7 +10,7 @@ import { useAllSystemClasses, useAllCustomClasses } from "@/composables/useCusto
 import { useAllCustomSubclasses } from "@/composables/useCustomSubclasses";
 import { useAllSpecies } from "@/composables/useSpecies";
 import { useBackgrounds } from "@/composables/useBackgrounds";
-import { useAllFeatures } from "@/composables/useFeatures";
+import { useRuleset } from "@/composables/useRuleset";
 import { getDefaultSpellSlots } from "@/types/spell.types";
 import { applySpeciesSpellGrants } from "@/composables/useCharacterSpells";
 import type { SpeciesSpellGrant } from "@/types/species.types";
@@ -21,7 +21,7 @@ import { useToast } from "@/composables/useToast";
 import { CLASS_EQUIPMENT } from "@/data/classEquipment";
 import type { BundleItemEntry } from "@/types/item.types";
 import {
-  abilityBonusesForChoice, parseBackgroundAsiChoice, resolveOriginFeat,
+  abilityBonusesForChoice, isValidAsiChoice, parseBackgroundAsiChoice,
   type BackgroundAsiChoice,
 } from "@/lib/backgroundAsi";
 
@@ -116,7 +116,7 @@ export function useCharacterCreationForm() {
 
   const { data: allSpecies }    = useAllSpecies();
   const { data: allBackgrounds } = useBackgrounds();
-  const { data: allFeatures }    = useAllFeatures();
+  const { is2024 } = useRuleset();
 
   const speciesOptions    = computed(() => (allSpecies.value    ?? []).map(s => ({ id: s.id, name: s.name })));
   const backgroundOptions = computed(() => (allBackgrounds.value ?? []).map(b => ({ id: b.id, name: b.name })));
@@ -503,20 +503,16 @@ export function useCharacterCreationForm() {
     }
     // 2024 PHB: record background feat grant in class_choices so it surfaces
     // in the character's features tab. background_feat stays the raw display
-    // name (unchanged semantics); background_feat_id links it to an imported
-    // class_features row when one matches by conceptual_key, so the feature's
-    // full text is reachable — never silently dropped when unresolved, the
-    // name still saves on its own.
+    // name — the origin feat itself is resolved live at display time (see
+    // PlayerFeaturesTab.vue's backgroundOriginFeat), so no id needs storing.
     if (bg.feat_grant_name) {
-      const resolved = resolveOriginFeat(bg.origin_feat, allFeatures.value ?? []);
       f.class_choices = {
         ...f.class_choices,
         background_feat: bg.feat_grant_name,
-        background_feat_id: resolved?.feature?.id ?? null,
       };
     } else {
-      const { background_feat: _removed, background_feat_id: _removedId, ...rest } = f.class_choices as Record<string, unknown>;
-      void _removed; void _removedId;
+      const { background_feat: _removed, ...rest } = f.class_choices as Record<string, unknown>;
+      void _removed;
       f.class_choices = rest;
     }
   }
@@ -537,6 +533,19 @@ export function useCharacterCreationForm() {
       void _asi;
       f.class_choices = rest;
     },
+  });
+
+  /**
+   * True when the background step's 2024 ASI choice has been started but
+   * isn't yet valid — a mode picked with the trio-specific abilities not
+   * fully chosen. Untouched (null) is a deliberate skip, not incomplete.
+   * Gates the wizard's Next/Create button so a half-made choice can't be
+   * carried forward and silently dropped.
+   */
+  const backgroundAsiIncomplete = computed(() => {
+    const trio = selectedBg.value?.asi_ability_trio;
+    if (!is2024.value || !trio) return false;
+    return backgroundAsiChoice.value !== null && !isValidAsiChoice(backgroundAsiChoice.value, trio);
   });
 
   /** Parsed "choose N of …" skill clauses for the selected background, if any. */
@@ -857,7 +866,7 @@ export function useCharacterCreationForm() {
     // background skill grants/choices
     bgSkillChoices, bgChosenSkills, bgChoiceLimit, bgFreeSkills,
     // background 2024 ASI choice
-    backgroundAsiChoice,
+    backgroundAsiChoice, backgroundAsiIncomplete,
     // methods
     mod, setSkillProf, skillBonus, toggleSave, saveBonus,
     resetSlotsToDefault, onSpeciesSelect, onClassSelect, onBackgroundSelect,

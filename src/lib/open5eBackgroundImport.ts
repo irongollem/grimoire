@@ -1,4 +1,4 @@
-import { fetchAll, fetchAllFromDocuments, fetchSupported5eDocumentKeys, rulesetForDocument } from "@/lib/open5eApi";
+import { fetchAll, fetchAllFromDocuments, rulesetForDocument, slugifyKey } from "@/lib/open5eApi";
 import type { Open5eDocumentRef } from "@/lib/open5eApi";
 import type { AbilityScoreKey, BackgroundInsert } from "@/types/background.types";
 import { ABILITY_SCORE_KEYS } from "@/types/background.types";
@@ -31,10 +31,6 @@ export interface Open5eDocument {
 
 const DOCUMENTS_URL = "https://api.open5e.com/v2/documents/";
 const BACKGROUNDS_URL = "https://api.open5e.com/v2/backgrounds/";
-
-function conceptualKey(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
-}
 
 function splitProficiencies(raw: string | null | undefined): string[] {
   if (!raw) return [];
@@ -103,7 +99,7 @@ function mapBackground(
     image_url: null,
     focal_point: null,
     ruleset: rulesetForDocument(document),
-    conceptual_key: conceptualKey(background.name),
+    conceptual_key: slugifyKey(background.name),
     source_document_key: document.key,
     source_record_key: background.key,
     source_revision: documentMetadata?.publication_date ?? document.name,
@@ -132,13 +128,21 @@ export async function fetchOpen5eDocuments(): Promise<Open5eDocument[]> {
     .sort((a, b) => a.title.localeCompare(b.title));
 }
 
-/** Fetch V2 records without collapsing equal names from different documents. */
+/**
+ * Fetch V2 records without collapsing equal names from different documents.
+ * Fetches `/v2/documents/` exactly once: previously this both called
+ * `fetchSupported5eDocumentKeys()` (its own internal `/v2/documents/` fetch,
+ * used only to derive the default document-key scope) and separately fetched
+ * the full document rows again for the id → metadata map used by
+ * `mapBackground`. Fetching once and deriving both from the same rows avoids
+ * the duplicate round trip.
+ */
 export async function fetchBackgrounds(sourceKeys?: string[]): Promise<BackgroundInsert[]> {
-  const documentKeys = sourceKeys?.length ? sourceKeys : await fetchSupported5eDocumentKeys();
-  const [raw, documentRows] = await Promise.all([
-    fetchAllFromDocuments<Open5eV2Background>(BACKGROUNDS_URL, documentKeys),
-    fetchAll<Open5eV2Document>(DOCUMENTS_URL),
-  ]);
+  const documentRows = await fetchAll<Open5eV2Document>(DOCUMENTS_URL);
+  const documentKeys = sourceKeys?.length
+    ? sourceKeys
+    : documentRows.filter(document => rulesetForDocument(document) !== null).map(document => document.key);
+  const raw = await fetchAllFromDocuments<Open5eV2Background>(BACKGROUNDS_URL, documentKeys);
   const documents = new Map(documentRows.map(document => [document.key, document]));
   return raw.map(background => mapBackground(background, documents));
 }

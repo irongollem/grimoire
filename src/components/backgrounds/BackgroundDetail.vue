@@ -123,8 +123,15 @@
           @click="toggleAsiTrioAbility(key)"
         >{{ key }}</button>
       </div>
-      <p class="text-caption text-muted-foreground italic">
-        {{ asiTrioSet.size === 0 ? "No trio set — this background grants no 2024 ASI." : asiTrioSet.size === 3 ? "Trio complete." : `${asiTrioSet.size} of 3 selected.` }}
+      <p
+        class="text-caption italic"
+        :class="isAsiTrioInvalid ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'"
+      >
+        {{ asiTrioSet.size === 0
+          ? "No trio set — this background grants no 2024 ASI."
+          : asiTrioSet.size === 3
+            ? "Trio complete."
+            : `${asiTrioSet.size} of 3 selected — pick exactly 3 abilities or none.` }}
       </p>
     </div>
 
@@ -213,6 +220,9 @@ const saveError = ref("");
 
 // ── Ability score trio (2024 PHB) ───────────────────────────────────────────
 const asiTrioSet = computed(() => new Set(form.value.asi_ability_trio ?? []));
+// The DB CHECK requires asi_ability_trio null or exactly 3 entries — 1 or 2
+// picked is a half-made state that would otherwise throw a raw Postgres error.
+const isAsiTrioInvalid = computed(() => asiTrioSet.value.size > 0 && asiTrioSet.value.size < 3);
 
 function toggleAsiTrioAbility(key: AbilityScoreKey) {
   const next = new Set(form.value.asi_ability_trio ?? []);
@@ -227,7 +237,7 @@ function toggleAsiTrioAbility(key: AbilityScoreKey) {
 const originFeatPreview = computed(() => parseOriginFeatText(form.value.feat_grant_name));
 
 async function save() {
-  if (!form.value.name.trim()) return;
+  if (!form.value.name.trim() || isAsiTrioInvalid.value) return;
   saving.value = true;
   saveError.value = "";
   try {
@@ -258,7 +268,7 @@ async function remove() {
 
 defineExpose({
   saving,
-  canSave: computed(() => !saving.value && !!form.value.name.trim()),
+  canSave: computed(() => !saving.value && !!form.value.name.trim() && !isAsiTrioInvalid.value),
   save,
   remove,
 })

@@ -1,4 +1,4 @@
-import { fetchAllFromDocuments, fetchSupported5eDocumentKeys, rulesetForDocument } from "@/lib/open5eApi";
+import { fetchAllFromDocuments, fetchSupported5eDocumentKeys, rulesetForDocument, slugifyKey } from "@/lib/open5eApi";
 import type { Open5eDocumentRef } from "@/lib/open5eApi";
 import type { CustomClassInsert, CustomSubclassInsert, HitDie } from "@/levelup/customTypes";
 import type { RulesetKey } from "@/types/ruleset.types";
@@ -56,10 +56,6 @@ function parseHitDie(hitDice: string | null): HitDie {
 const V2_BASE = "https://api.open5e.com/v2/classes/";
 
 type SupportedRuleset = RulesetKey;
-
-function conceptualKey(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
-}
 
 export interface Open5eClassFeaturePreview {
   key: string;
@@ -128,9 +124,29 @@ function featurePreview(feature: Open5eV2ClassFeature, document: Open5eDocumentR
   };
 }
 
+/**
+ * Shared fetch of the full Open5e v2 classes list (all supported documents'
+ * classes + subclasses), memoized per session. `fetchOpen5eBaseClasses`,
+ * `fetchOpen5eSubclasses`, and `fetchClassFeatureDescriptions` each used to
+ * independently re-fetch documents + classes — a single admin import
+ * session (base classes → subclasses → feature backfill) tripled the same
+ * request. A module-level in-flight cache is sufficient here: staleness
+ * across one admin import session is acceptable (see caller sites), and the
+ * cache lives only for the page/process lifetime.
+ */
+let classesRawCache: Promise<Open5eV2Class[]> | null = null;
+
+function fetchOpen5eClassesRaw(): Promise<Open5eV2Class[]> {
+  if (!classesRawCache) {
+    classesRawCache = fetchSupported5eDocumentKeys().then((documentKeys) =>
+      fetchAllFromDocuments<Open5eV2Class>(V2_BASE, documentKeys),
+    );
+  }
+  return classesRawCache;
+}
+
 export async function fetchOpen5eBaseClasses(): Promise<Open5eClassPreview[]> {
-  const documentKeys = await fetchSupported5eDocumentKeys();
-  const raw = await fetchAllFromDocuments<Open5eV2Class>(V2_BASE, documentKeys);
+  const raw = await fetchOpen5eClassesRaw();
 
   return raw
     .filter(c => c.hit_dice !== null && c.subclass_of === null)
@@ -165,8 +181,7 @@ export async function fetchOpen5eBaseClasses(): Promise<Open5eClassPreview[]> {
 }
 
 export async function fetchOpen5eSubclasses(): Promise<Open5eSubclassPreview[]> {
-  const documentKeys = await fetchSupported5eDocumentKeys();
-  const raw = await fetchAllFromDocuments<Open5eV2Class>(V2_BASE, documentKeys);
+  const raw = await fetchOpen5eClassesRaw();
   return raw
     .filter(c => c.subclass_of !== null)
     .map(c => {
@@ -207,7 +222,7 @@ export function baseClassToInsert(preview: Open5eClassPreview): CustomClassInser
     class_name: preview.name,
     source: preview.source || null,
     ruleset: preview.ruleset,
-    conceptual_key: conceptualKey(preview.name),
+    conceptual_key: slugifyKey(preview.name),
     source_document_key: preview.sourceDocumentKey,
     source_record_key: preview.sourceRecordKey,
     source_revision: preview.source,
@@ -240,7 +255,7 @@ export function subclassToInsert(preview: Open5eSubclassPreview): CustomSubclass
     subclass_name: preview.name,
     source: preview.source || null,
     ruleset: preview.ruleset,
-    conceptual_key: conceptualKey(`${preview.parentClassName}-${preview.name}`),
+    conceptual_key: slugifyKey(`${preview.parentClassName}-${preview.name}`),
     source_document_key: preview.sourceDocumentKey,
     source_record_key: preview.sourceRecordKey,
     source_revision: preview.source,
@@ -313,8 +328,7 @@ export function subclassImportUpdateFields(insert: CustomSubclassInsert): Partia
  * non-empty `desc` field. Used to backfill system (user_id = null) features.
  */
 export async function fetchClassFeatureDescriptions(): Promise<Map<string, string>> {
-  const documentKeys = await fetchSupported5eDocumentKeys();
-  const raw = await fetchAllFromDocuments<Open5eV2Class>(V2_BASE, documentKeys);
+  const raw = await fetchOpen5eClassesRaw();
   const map = new Map<string, string>();
   for (const cls of raw) {
     for (const feat of cls.features ?? []) {

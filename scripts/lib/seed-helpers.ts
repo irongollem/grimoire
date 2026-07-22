@@ -84,6 +84,37 @@ export async function supabaseRequest(env: SupabaseEnv, path: string, options: R
   return text ? JSON.parse(text) : [];
 }
 
+const READ_PAGE_SIZE = 1000;
+
+/**
+ * Paginated Supabase REST GET. PostgREST caps a plain (unpaginated) GET at
+ * its `max-rows` setting — observed as ~1000 on this project — so a table
+ * like srd_spells (~1400 rows) silently truncates under `supabaseRequest`
+ * alone. Loops via `?limit=&offset=` (appended after any existing query
+ * string) until a short page (fewer than `READ_PAGE_SIZE` rows) signals the
+ * end, concatenating every page's rows.
+ */
+export async function supabaseRequestPaginated<T>(
+  env: SupabaseEnv,
+  path: string,
+  options: RequestOptions = {},
+): Promise<T[]> {
+  const sep = path.includes("?") ? "&" : "?";
+  const all: T[] = [];
+  let offset = 0;
+  while (true) {
+    const page = (await supabaseRequest(
+      env,
+      `${path}${sep}limit=${READ_PAGE_SIZE}&offset=${offset}`,
+      options,
+    )) as T[];
+    all.push(...page);
+    if (page.length < READ_PAGE_SIZE) break;
+    offset += READ_PAGE_SIZE;
+  }
+  return all;
+}
+
 /**
  * Upserts rows keyed on `onConflict` — pass the table's source-identity
  * unique constraint columns (`source_document_key,source_record_key`), NOT

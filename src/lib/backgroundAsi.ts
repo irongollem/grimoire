@@ -10,6 +10,8 @@
 import type { SaveKey } from "@/types/party.types";
 import type { AbilityScoreKey, BackgroundOriginFeat } from "@/types/background.types";
 import type { ClassFeature } from "@/types/feature.types";
+import { ABILITY_KEYS } from "@/types/card.types";
+import { slugifyKey } from "@/lib/open5eApi";
 
 export type BackgroundAsiMode = "plus2plus1" | "plus1plus1plus1";
 
@@ -27,7 +29,9 @@ export const ABILITY_TO_SAVE_KEY: Record<AbilityScoreKey, SaveKey> = {
   intelligence: "int", wisdom: "wis", charisma: "cha",
 };
 
-const SAVE_KEYS: readonly SaveKey[] = ["str", "dex", "con", "int", "wis", "cha"];
+// Same six keys, same order as the local literal this replaced — ABILITY_KEYS
+// (src/types/card.types.ts) is the shared source of truth for the ability-key set.
+const SAVE_KEYS: readonly SaveKey[] = ABILITY_KEYS;
 
 function asSaveKey(value: unknown): SaveKey | undefined {
   return typeof value === "string" && (SAVE_KEYS as readonly string[]).includes(value)
@@ -101,10 +105,6 @@ export function parseOriginFeatText(text: string | null | undefined): Background
   return { name: trimmed, variant: null };
 }
 
-function toConceptualKey(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
-}
-
 export interface ResolvedOriginFeat {
   originFeat: BackgroundOriginFeat;
   /** The matching imported/system class_features row, or null if that feat hasn't been imported yet. */
@@ -124,7 +124,7 @@ export function resolveOriginFeat(
   features: readonly ClassFeature[],
 ): ResolvedOriginFeat | null {
   if (!originFeat) return null;
-  const key = toConceptualKey(originFeat.name);
+  const key = slugifyKey(originFeat.name);
   const feature = features.find(f => f.conceptual_key === key) ?? null;
   return { originFeat, feature };
 }
