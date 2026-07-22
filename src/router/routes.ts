@@ -861,6 +861,14 @@ export const routes: RouteRecordRaw[] = [
           component: () => import("@/views/spike/SpikePagedJsView.vue"),
           meta: { requiresAuth: false, title: "Paged.js Spike" },
         },
+        {
+          path: "/dev/sheet-calibration",
+          name: "sheet-calibration",
+          // No auth: lets a headless browser hit it directly with query params
+          // to drive theme/side/size/debug for screenshot-based calibration.
+          component: () => import("@/views/dev/SheetCalibrationView.vue"),
+          meta: { requiresAuth: false, title: "Sheet Calibration" },
+        },
       ]
     : []),
 

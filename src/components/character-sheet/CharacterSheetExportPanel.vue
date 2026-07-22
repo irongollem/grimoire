@@ -73,9 +73,11 @@
       </button>
     </div>
 
-    <!-- Preview (scaled-down rendition of the sheet) -->
-    <div class="cs-preview-wrapper">
-      <div class="cs-preview-scaler">
+    <!-- Preview (scaled-down rendition of the sheet).
+         zoom collapses the rendered element's layout size (unlike transform:scale) —
+         the sheet is 794px wide; at 0.75 zoom it displays at ~596px. -->
+    <div class="inline-block max-w-full overflow-hidden rounded-lg border border-border shadow-lg">
+      <div class="pointer-events-none zoom-[0.75]">
         <IllustratedSheetDocument
           v-if="mode === 'illustrated'"
           :member="member"
@@ -162,20 +164,3 @@ async function doExport() {
   });
 }
 </script>
-
-<style scoped>
-/* Preview: zoom collapses the rendered element's layout size (unlike transform:scale).
-   The sheet is 794px wide; at 0.75 zoom it displays at ~596px. */
-.cs-preview-wrapper {
-  display: inline-block;
-  border: 1px solid hsl(var(--border));
-  border-radius: 6px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
-  overflow: hidden;
-  max-width: 100%;
-}
-.cs-preview-scaler {
-  zoom: 0.75;
-  pointer-events: none;
-}
-</style>

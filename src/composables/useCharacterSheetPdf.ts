@@ -5,7 +5,7 @@ import type { PartyMember } from "@/types/party.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import CharacterSheetRenderer from "@/components/character-sheet/CharacterSheetRenderer.vue";
 import IllustratedSheetDocument from "@/components/character-sheet/illustrated/IllustratedSheetDocument.vue";
-import type { IllustratedTheme } from "@/components/character-sheet/illustrated/sheetTypes";
+import { PAGE_PX as ILLUSTRATED_PAGE_PX, type IllustratedTheme } from "@/components/character-sheet/illustrated/sheetTypes";
 
 export type SheetPageSize = "A4" | "Letter";
 
@@ -50,6 +50,9 @@ export interface SheetExportOptions {
   acBonus?: number;
 }
 
+// Clean-mode pixel dims — must match the `.cs-page` sizing in character-sheet/base.css.
+// Illustrated mode uses its own PAGE_PX (imported above) so the two modes can never
+// drift out of sync with each other.
 const PAGE_DIMS_PX: Record<SheetPageSize, { w: number; h: number }> = {
   A4:     { w: 794, h: 1123 },
   Letter: { w: 816, h: 1056 },
@@ -78,7 +81,7 @@ export function useCharacterSheetPdf() {
   ): Promise<void> {
     isGenerating.value = true;
 
-    const { w: pxW, h: pxH } = PAGE_DIMS_PX[pageSize];
+    const { w: pxW, h: pxH } = mode === "illustrated" ? ILLUSTRATED_PAGE_PX[pageSize] : PAGE_DIMS_PX[pageSize];
     const { w: mmW, h: mmH, format } = PAGE_DIMS_MM[pageSize];
 
     // Create an off-screen container at exact page dimensions
@@ -120,7 +123,7 @@ export function useCharacterSheetPdf() {
           windowHeight: pxH,
         });
         const imgData = canvas.toDataURL("image/jpeg", 0.92);
-        if (i > 0) pdf.addPage(format as string);
+        if (i > 0) pdf.addPage(format);
         pdf.addImage(imgData, "JPEG", 0, 0, mmW, mmH);
       }
 

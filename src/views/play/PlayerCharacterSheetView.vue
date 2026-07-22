@@ -16,10 +16,14 @@
     </div>
 
     <template v-else>
+      <!-- Keyed on the member so the panel reloads its per-character prefs when DM
+           preview mode switches to a different party member (PlayerLayout.vue's
+           preview-member picker changes this without a route navigation). -->
       <CharacterSheetExportPanel
+        :key="member.id"
         :member="member"
         :inventory="inventory"
-        :storage-key="linkedMemberId ?? ''"
+        :storage-key="member.id"
         :species-name="speciesName"
         :background-name="backgroundName"
       >

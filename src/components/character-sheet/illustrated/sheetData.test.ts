@@ -1,0 +1,257 @@
+// sheetData.test.ts — locks the illustrated-sheet math to CharacterSheetRenderer.vue's
+// numbers (ability mods, saves-derived skill bonuses, spell DC/attack, hit dice) and
+// covers the by-design blank-box fallbacks for narrative fields.
+
+import { describe, it, expect } from "vitest";
+import { toFront, toBack } from "./sheetData";
+import type { PartyMember } from "@/types/party.types";
+import type { PartyInventoryItem } from "@/types/inventory.types";
+
+function member(overrides: Partial<PartyMember> = {}): PartyMember {
+  return {
+    id: "pm-1",
+    user_id: "u1",
+    owner_user_id: null,
+    is_dm_managed: false,
+    campaign_id: "c1",
+    name: "Elowen Ashvale",
+    player_name: "Jamie",
+    class: "Wizard",
+    subclass: "Evocation",
+    level: 5,
+    subrace: "High Elf",
+    species_id: null,
+    disguise_species_id: null,
+    disguise_race: null,
+    disguise_subrace: null,
+    background_id: null,
+    max_hp: 32,
+    current_hp: 32,
+    temp_hp: 0,
+    ac: 12,
+    ac_formula: null,
+    speed: 30,
+    initiative_bonus: 0,
+    current_initiative: null,
+    str: 8,
+    dex: 14,
+    con: 12,
+    int: 18,
+    wis: 10,
+    cha: 13,
+    proficiency_bonus: 3,
+    skill_proficiencies: {},
+    saving_throw_proficiencies: [],
+    conditions: [],
+    curses: [],
+    inspiration: false,
+    death_save_successes: 0,
+    death_save_failures: 0,
+    portrait_url: null,
+    notes: null,
+    sort_order: 0,
+    cp: 0,
+    sp: 0,
+    ep: 0,
+    gp: 0,
+    pp: 0,
+    tool_proficiencies: [],
+    languages: [],
+    weapon_masteries: [],
+    spell_slots: [],
+    current_location_id: null,
+    carry_capacity_override: null,
+    class_resources: {},
+    class_choices: {},
+    active_infusions: [],
+    level_choices: {},
+    created_at: "",
+    updated_at: "",
+    ...overrides,
+  };
+}
+
+function inv(overrides: Partial<PartyInventoryItem> = {}): PartyInventoryItem {
+  return {
+    id: "inv-1",
+    campaign_id: "c1",
+    user_id: "u1",
+    item_id: "item-1",
+    name: "Dagger",
+    quantity: 1,
+    carried_by: "pm-1",
+    location: "equipped",
+    slot: "main_hand",
+    is_container: false,
+    container_id: null,
+    is_attuned: false,
+    is_equipped: true,
+    notes: null,
+    current_charges: null,
+    updated_at: "",
+    is_identified: true,
+    is_ruined: false,
+    sort_order: 0,
+    curse_revealed: false,
+    ...overrides,
+  };
+}
+
+describe("toFront — ability modifiers", () => {
+  it("formats positive, zero, and negative modifiers with an en dash", () => {
+    const m = member({ str: 8, dex: 10, con: 20 }); // mods: -1, 0, +5
+    const front = toFront(m, []);
+    const byKey = Object.fromEntries(front.abilities.map((a) => [a.key, a]));
+    expect(byKey.str.mod).toBe("−1"); // en dash U+2212, not a hyphen
+    expect(byKey.dex.mod).toBe("+0");
+    expect(byKey.con.mod).toBe("+5");
+    expect(byKey.str.score).toBe(8);
+  });
+
+  it("mirrors CharacterSheetRenderer's initiative and AC math", () => {
+    const m = member({ dex: 16, initiative_bonus: 1, ac: 15 });
+    const front = toFront(m, [], null, null, 2); // +2 shield acBonus
+    expect(front.init).toBe("+4"); // dex mod (+3) + initiative_bonus (1)
+    expect(front.ac).toBe("17"); // 15 + 2
+  });
+});
+
+describe("toFront — skill proficiency/expertise math", () => {
+  it("computes none/proficient/expertise identically to CharacterSheetRenderer", () => {
+    const m = member({
+      dex: 16, // +3 mod
+      proficiency_bonus: 3,
+      skill_proficiencies: { stealth: "proficient", acrobatics: "expertise" },
+    });
+    const front = toFront(m, []);
+    const byName = Object.fromEntries(front.skills.map((s) => [s.name, s]));
+    expect(byName.Stealth.level).toBe("proficient");
+    expect(byName.Stealth.mod).toBe("+6"); // 3 (dex) + 3 (pb)
+    expect(byName.Acrobatics.level).toBe("expertise");
+    expect(byName.Acrobatics.mod).toBe("+9"); // 3 (dex) + 2*3 (pb)
+    // Sleight of Hand also keys off dex but has no proficiency entry.
+    expect(byName["Sleight of Hand"].level).toBe("none");
+    expect(byName["Sleight of Hand"].mod).toBe("+3");
+  });
+
+  it("derives passive perception as 10 + the computed perception skill bonus", () => {
+    const m = member({
+      wis: 14, // +2 mod
+      proficiency_bonus: 2,
+      skill_proficiencies: { perception: "proficient" },
+    });
+    const front = toFront(m, []);
+    expect(front.passperc).toBe("14"); // 10 + 2 (wis) + 2 (pb)
+  });
+});
+
+describe("toFront — spell DC/attack", () => {
+  it("computes spell save DC and attack bonus for a casting class", () => {
+    const m = member({ class: "Wizard", int: 18, proficiency_bonus: 3 }); // int mod +4
+    const front = toFront(m, []);
+    expect(front.spell).not.toBeNull();
+    expect(front.spell?.ability).toBe("INT");
+    expect(front.spell?.atk).toBe("+7"); // pb 3 + mod 4
+    expect(front.spell?.dc).toBe("15"); // 8 + 3 + 4
+  });
+
+  it("is null for a non-casting class", () => {
+    const m = member({ class: "Fighter" });
+    const front = toFront(m, []);
+    expect(front.spell).toBeNull();
+  });
+});
+
+describe("toFront — hit dice", () => {
+  it("uses the per-class die and remaining count when present", () => {
+    const m = member({ class: "Barbarian", level: 6, hit_dice_remaining: 4 });
+    const front = toFront(m, []);
+    expect(front.hitdice).toBe("4d12");
+  });
+
+  it("falls back to the character level when hit_dice_remaining is absent", () => {
+    const m = member({ class: "Rogue", level: 3, hit_dice_remaining: null });
+    const front = toFront(m, []);
+    expect(front.hitdice).toBe("3d8");
+  });
+
+  it("defaults to d8 for an unmapped/absent class", () => {
+    const m = member({ class: null, level: 2, hit_dice_remaining: null });
+    const front = toFront(m, []);
+    expect(front.hitdice).toBe("2d8");
+  });
+});
+
+describe("toFront — attacks derived from inventory", () => {
+  it("includes equipped main_hand/off_hand weapons, vault-linked or custom", () => {
+    const vaultWeapon = inv({ id: "a", item_id: "item-longsword", name: "Longsword", slot: "main_hand" });
+    const customWeapon = inv({ id: "b", item_id: null, name: "Rusty Pipe", slot: "off_hand" });
+    const front = toFront(member(), [vaultWeapon, customWeapon]);
+    expect(front.attacks).toHaveLength(2);
+    expect(front.attacks.map((a) => a.name)).toEqual(["Longsword", "Rusty Pipe"]);
+    // Atk bonus/damage aren't modeled on inventory in CharacterSheetRenderer either —
+    // both print an em dash placeholder, vault-linked or custom alike.
+    for (const a of front.attacks) {
+      expect(a.bonus).toBe("—");
+      expect(a.damage).toBe("—");
+    }
+  });
+
+  it("excludes items not equipped in a weapon-hand slot", () => {
+    const armor = inv({ id: "c", slot: "body", name: "Breastplate" });
+    const stashed = inv({ id: "d", location: "backpack", slot: null, name: "Spare Dagger" });
+    const otherMember = inv({ id: "e", carried_by: "pm-2", name: "Not Mine" });
+    const front = toFront(member(), [armor, stashed, otherMember]);
+    expect(front.attacks).toHaveLength(0);
+  });
+});
+
+describe("toBack — narrative fields fall back to blank boxes by design", () => {
+  it("returns empty strings/arrays when no source columns are populated", () => {
+    const m = member({
+      physical_description: null,
+      player_description: null,
+      personality_traits: null,
+      ideals: null,
+      bonds: null,
+      flaws: null,
+      notes: null,
+    });
+    const back = toBack(m);
+    expect(back.appearance).toBe("");
+    expect(back.backstory).toBe("");
+    expect(back.personality).toEqual({ traits: "", ideals: "", bonds: "", flaws: "" });
+    expect(back.spellnotes).toBe("");
+    expect(back.generalnotes).toBe("");
+    expect(back.secrets).toBe("");
+    expect(back.travel).toBe("");
+    expect(back.allies).toEqual([]);
+    expect(back.treasure).toEqual([]);
+    expect(back.quests).toEqual([]);
+    // The crest is always derived from the name, never blank.
+    expect(back.crest).toBe("EA");
+    expect(back.crestCap).toBe("");
+  });
+
+  it("populates from existing columns when present", () => {
+    const m = member({
+      physical_description: "Tall, silver-haired.",
+      player_description: "Grew up in a lighthouse.",
+      personality_traits: "Curious",
+      notes: "Owes the thieves' guild a favor.",
+    });
+    const back = toBack(m);
+    expect(back.appearance).toBe("Tall, silver-haired.");
+    expect(back.backstory).toBe("Grew up in a lighthouse.");
+    expect(back.personality.traits).toBe("Curious");
+    expect(back.generalnotes).toBe("Owes the thieves' guild a favor.");
+  });
+});
+
+describe("toFront — notes fallback chain", () => {
+  it("prefers member.notes, then backgroundName, then blank", () => {
+    expect(toFront(member({ notes: "Handwritten note" }), []).notes).toBe("Handwritten note");
+    expect(toFront(member({ notes: null }), [], null, "Folk Hero").notes).toBe("Folk Hero");
+    expect(toFront(member({ notes: null }), [], null, null).notes).toBe("");
+  });
+});
