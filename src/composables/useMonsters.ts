@@ -334,7 +334,7 @@ export function useImportSrdMonsters() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (sourceSlugs: string[]): Promise<MonsterImportResult> => {
-      const { fetchSrdMonsters } = await import("@/lib/open5eMonsterImport");
+      const { fetchSrdMonsters, monsterImportUpdateFields } = await import("@/lib/open5eMonsterImport");
       const monsters = await fetchSrdMonsters(sourceSlugs.length > 0 ? sourceSlugs : undefined);
       const user = getCurrentUser();
       if (!user) throw new Error("Not authenticated");
@@ -382,7 +382,7 @@ export function useImportSrdMonsters() {
           toUpdate.slice(i, i + UPDATE_CONCURRENCY).map((m) =>
             supabase
               .from("monsters")
-              .update(m)
+              .update(monsterImportUpdateFields(m))
               .eq("id", existingFor(m)!.id),
           ),
         );

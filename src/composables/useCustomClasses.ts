@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { computed, type Ref } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { CustomClass, CustomClassInsert, CustomClassUpdate, SystemClass } from "@/levelup/customTypes";
-import { fetchOpen5eBaseClasses, baseClassToInsert } from "@/lib/open5eClassImport";
+import { fetchOpen5eBaseClasses, baseClassToInsert, classImportUpdateFields } from "@/lib/open5eClassImport";
 import { classFeatureIdentity, collectFeatures, ensureClassFeatures } from "@/lib/classFeatureSync";
 import { useRuleset } from "@/composables/useRuleset";
 import type { RulesetKey } from "@/types/ruleset.types";
@@ -176,11 +176,14 @@ export function useImportOpen5eClasses() {
         if (error) throw error;
       }
 
+      // Refresh only upstream identity/shell content — never the mechanical
+      // fields (spell slots, proficiencies, ASI levels, …) the DM fills in
+      // by hand after import. See classImportUpdateFields's doc comment.
       for (const p of toUpdate) {
         const id = existingMap.get(identity(p))!;
         const { error } = await supabase
           .from("custom_classes")
-          .update({ ...baseClassToInsert(p), features: resolveFeatures(p) })
+          .update({ ...classImportUpdateFields(baseClassToInsert(p)), features: resolveFeatures(p) })
           .eq("id", id);
         if (error) throw error;
       }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { effectsForCast } from "./spellEffects";
-import { mapOpen5eV2Spell } from "./open5eSpellImport";
+import { mapOpen5eV2Spell, planSrdSpellImport } from "./open5eSpellImport";
+import type { ExistingSrdSpellIdentity, ImportedSrdSpell } from "./open5eSpellImport";
 
 const document = {
   name: "System Reference Document 5.2",
@@ -139,5 +140,54 @@ describe("mapOpen5eV2Spell", () => {
       record({ document: { ...document, gamesystem: { name: "Advanced 5e", key: "a5e" } } }) as Parameters<typeof mapOpen5eV2Spell>[0],
     );
     expect(spell).toBeNull();
+  });
+});
+
+describe("planSrdSpellImport", () => {
+  const spell = mapOpen5eV2Spell(record() as Parameters<typeof mapOpen5eV2Spell>[0]) as ImportedSrdSpell;
+
+  function existingRow(overrides: Partial<ExistingSrdSpellIdentity> = {}): ExistingSrdSpellIdentity {
+    return {
+      id: spell.id,
+      source_document_key: spell.source_document_key,
+      source_record_key: spell.source_record_key,
+      image_url: null,
+      mechanics_reviewed: false,
+      ...overrides,
+    };
+  }
+
+  it("inserts a spell with no existing row unchanged", () => {
+    const plan = planSrdSpellImport([spell], []);
+    expect(plan.rows).toEqual([spell]);
+    expect(plan.skippedReviewed).toBe(0);
+  });
+
+  it("refreshes an existing unreviewed row, carrying over its id and admin-set image_url", () => {
+    const existing = existingRow({ id: "existing-uuid", image_url: "https://example.test/art.webp" });
+    const plan = planSrdSpellImport([spell], [existing]);
+
+    expect(plan.rows).toEqual([{ ...spell, id: "existing-uuid", image_url: "https://example.test/art.webp" }]);
+    expect(plan.skippedReviewed).toBe(0);
+  });
+
+  it("excludes a reviewed row entirely instead of resetting mechanics_reviewed to false", () => {
+    const existing = existingRow({ id: "reviewed-uuid", mechanics_reviewed: true });
+    const plan = planSrdSpellImport([spell], [existing]);
+
+    expect(plan.rows).toEqual([]);
+    expect(plan.skippedReviewed).toBe(1);
+  });
+
+  it("only skips the reviewed identity, not unrelated spells in the same batch", () => {
+    const other = mapOpen5eV2Spell(
+      record({ key: "srd-2024_fireball", name: "Fireball" }) as Parameters<typeof mapOpen5eV2Spell>[0],
+    ) as ImportedSrdSpell;
+    const existing = existingRow({ id: "reviewed-uuid", mechanics_reviewed: true });
+
+    const plan = planSrdSpellImport([spell, other], [existing]);
+
+    expect(plan.rows).toEqual([other]);
+    expect(plan.skippedReviewed).toBe(1);
   });
 });

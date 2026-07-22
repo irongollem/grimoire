@@ -6,7 +6,7 @@ import type {
   CustomSubclassInsert,
   CustomSubclassUpdate,
 } from "@/levelup/customTypes";
-import { fetchOpen5eSubclasses, subclassToInsert } from "@/lib/open5eClassImport";
+import { fetchOpen5eSubclasses, subclassToInsert, subclassImportUpdateFields } from "@/lib/open5eClassImport";
 import { classFeatureIdentity, collectFeatures, ensureClassFeatures } from "@/lib/classFeatureSync";
 import { useRuleset } from "@/composables/useRuleset";
 import type { RulesetKey } from "@/types/ruleset.types";
@@ -176,11 +176,14 @@ export function useImportOpen5eSubclasses() {
         if (error) throw error;
       }
 
+      // Refresh only upstream identity/shell content — never granted_spells,
+      // steps, resources, or hp_per_level, which the DM configures by hand
+      // after import. See subclassImportUpdateFields's doc comment.
       for (const p of toUpdate) {
         const id = existingMap.get(identity(p))!;
         const { error } = await supabase
           .from("custom_subclasses")
-          .update({ ...subclassToInsert(p), features: resolveFeatures(p) })
+          .update({ ...subclassImportUpdateFields(subclassToInsert(p)), features: resolveFeatures(p) })
           .eq("id", id);
         if (error) throw error;
       }

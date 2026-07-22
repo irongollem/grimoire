@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { baseClassToInsert, fetchOpen5eBaseClasses } from "./open5eClassImport";
+import {
+  baseClassToInsert,
+  classImportUpdateFields,
+  fetchOpen5eBaseClasses,
+  subclassImportUpdateFields,
+  subclassToInsert,
+} from "./open5eClassImport";
+import type { Open5eClassPreview, Open5eSubclassPreview } from "./open5eClassImport";
 
 const documents = {
   legacy: {
@@ -40,11 +47,19 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe("Open5e V2 class identity", () => {
   it("keeps same-named editions and their features distinct", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
-      count: 2,
-      next: null,
-      results: [caster("srd_sorcerer", documents.legacy), caster("srd-2024_sorcerer", documents.revised)],
-    }))));
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes("/documents/")) {
+        return new Response(JSON.stringify({
+          count: 2, next: null, results: [documents.legacy, documents.revised],
+        }));
+      }
+      return new Response(JSON.stringify({
+        count: 2,
+        next: null,
+        results: [caster("srd_sorcerer", documents.legacy), caster("srd-2024_sorcerer", documents.revised)],
+      }));
+    }));
 
     const previews = await fetchOpen5eBaseClasses();
     expect(previews).toHaveLength(2);
@@ -57,5 +72,96 @@ describe("Open5e V2 class identity", () => {
       { ruleset: "2014", source_document_key: "srd-2014", source_record_key: "srd_sorcerer" },
       { ruleset: "2024", source_document_key: "srd-2024", source_record_key: "srd-2024_sorcerer" },
     ]);
+  });
+});
+
+const classPreview: Open5eClassPreview = {
+  key: "srd-2024_wizard",
+  name: "Wizard",
+  source: "System Reference Document 5.2",
+  ruleset: "2024",
+  sourceDocumentKey: "srd-2024",
+  sourceRecordKey: "srd-2024_wizard",
+  sourceLicense: "cc-by-4.0",
+  provenance: { provider: "open5e-v2" },
+  hitDie: 6,
+  savingThrows: ["Intelligence", "Wisdom"],
+  featureNamesByLevel: {},
+  featureRecordsByLevel: {},
+};
+
+const subclassPreview: Open5eSubclassPreview = {
+  key: "srd-2024_evocation",
+  name: "School of Evocation",
+  desc: "Evokers focus on destructive spells.",
+  source: "System Reference Document 5.2",
+  ruleset: "2024",
+  sourceDocumentKey: "srd-2024",
+  sourceRecordKey: "srd-2024_evocation",
+  sourceLicense: "cc-by-4.0",
+  provenance: { provider: "open5e-v2" },
+  parentClassName: "Wizard",
+  featureNamesByLevel: {},
+  featureRecordsByLevel: {},
+};
+
+describe("classImportUpdateFields", () => {
+  it("never re-import-writes DM-configured mechanics, even though baseClassToInsert defaults them", () => {
+    const update = classImportUpdateFields(baseClassToInsert(classPreview));
+
+    expect(update).not.toHaveProperty("primary_ability");
+    expect(update).not.toHaveProperty("armor_proficiencies");
+    expect(update).not.toHaveProperty("weapon_proficiencies");
+    expect(update).not.toHaveProperty("subclass_level");
+    expect(update).not.toHaveProperty("asi_levels");
+    expect(update).not.toHaveProperty("spell_slots");
+    expect(update).not.toHaveProperty("spells_known");
+    expect(update).not.toHaveProperty("cantrips_known");
+    expect(update).not.toHaveProperty("slot_recovery");
+    expect(update).not.toHaveProperty("caster_type");
+    expect(update).not.toHaveProperty("prepared_ability");
+    expect(update).not.toHaveProperty("prepared_divisor");
+    expect(update).not.toHaveProperty("steps");
+    expect(update).not.toHaveProperty("resources");
+    expect(update).not.toHaveProperty("campaign_id");
+    expect(update).not.toHaveProperty("features");
+  });
+
+  it("refreshes upstream identity, source metadata, hit die, and saving throws", () => {
+    const update = classImportUpdateFields(baseClassToInsert(classPreview));
+
+    expect(update).toMatchObject({
+      class_name: "Wizard",
+      ruleset: "2024",
+      source_document_key: "srd-2024",
+      source_record_key: "srd-2024_wizard",
+      hit_die: 6,
+      saving_throws: ["Intelligence", "Wisdom"],
+    });
+  });
+});
+
+describe("subclassImportUpdateFields", () => {
+  it("never re-import-writes DM-configured mechanics, even though subclassToInsert defaults them", () => {
+    const update = subclassImportUpdateFields(subclassToInsert(subclassPreview));
+
+    expect(update).not.toHaveProperty("granted_spells");
+    expect(update).not.toHaveProperty("steps");
+    expect(update).not.toHaveProperty("resources");
+    expect(update).not.toHaveProperty("hp_per_level");
+    expect(update).not.toHaveProperty("campaign_id");
+    expect(update).not.toHaveProperty("features");
+  });
+
+  it("refreshes upstream identity, source metadata, and description", () => {
+    const update = subclassImportUpdateFields(subclassToInsert(subclassPreview));
+
+    expect(update).toMatchObject({
+      class_name: "Wizard",
+      subclass_name: "School of Evocation",
+      source_document_key: "srd-2024",
+      source_record_key: "srd-2024_evocation",
+      description: "Evokers focus on destructive spells.",
+    });
   });
 });

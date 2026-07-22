@@ -1,19 +1,12 @@
 import type { SpellInsert, SpellSchool, HigherLevelDamage } from "@/types/spell.types";
 import { SPELL_SCHOOLS, SPELL_CLASSES } from "@/types/spell.types";
 import { ARTIFICER_SPELL_DELTA } from "@/data/artificerSpellDelta";
-import { fetchAll } from "@/lib/open5eApi";
+import { fetchAll, fetchAllFromDocuments, rulesetForDocument } from "@/lib/open5eApi";
+import type { Open5eDocumentRef } from "@/lib/open5eApi";
+import type { RulesetKey } from "@/types/ruleset.types";
 import { buildStructuredSpellEffects } from "@/lib/spellEffects";
 
-type SupportedRuleset = "2014" | "2024";
-
-interface Open5eDocumentRef {
-  key: string;
-  name: string;
-  display_name: string;
-  permalink: string | null;
-  publisher?: { name: string; key: string };
-  gamesystem?: { name: string; key: string };
-}
+type SupportedRuleset = RulesetKey;
 
 interface Open5eCastingOption extends Record<string, unknown> {
   type: string;
@@ -66,10 +59,6 @@ export interface Open5eDocument {
   license: string | null;
 }
 
-interface Open5eV2Document extends Open5eDocumentRef {
-  licenses?: Array<{ name: string; key: string }>;
-}
-
 export interface ImportedSrdSpell extends SpellInsert {
   id: string;
   conceptual_key: string;
@@ -84,15 +73,8 @@ export interface ImportedSrdSpell extends SpellInsert {
   effect_schema_version: number;
 }
 
-function rulesetForDocument(document: Open5eDocumentRef): SupportedRuleset | null {
-  const key = document.gamesystem?.key?.toLowerCase();
-  if (key === "5e-2024") return "2024";
-  if (key === "5e-2014" || key === "5e") return "2014";
-  return null;
-}
-
 export async function fetchOpen5eDocuments(): Promise<Open5eDocument[]> {
-  const docs = await fetchAll<Open5eV2Document>("https://api.open5e.com/v2/documents/");
+  const docs = await fetchAll<Open5eDocumentRef>("https://api.open5e.com/v2/documents/");
   return docs
     .map((document): Open5eDocument | null => {
       const ruleset = rulesetForDocument(document);
@@ -302,6 +284,53 @@ export function mapOpen5eV2Spell(
   };
 }
 
+export interface ExistingSrdSpellIdentity {
+  id: string;
+  source_document_key: string;
+  source_record_key: string;
+  image_url: string | null;
+  mechanics_reviewed: boolean;
+}
+
+export interface SrdSpellImportPlan {
+  /** Rows to upsert — new spells plus refreshed existing (unreviewed) ones. */
+  rows: ImportedSrdSpell[];
+  /** Existing rows left untouched because an admin already reviewed their mechanics. */
+  skippedReviewed: number;
+}
+
+/**
+ * Reconciles freshly-fetched Open5e spells against existing `srd_spells` rows
+ * keyed by (source_document_key, source_record_key). `mapOpen5eV2Spell`
+ * always sets `mechanics_reviewed: false` on the mapped row — it has no way
+ * to know an admin already checked the structured effects against the
+ * source text — so a naive re-import would silently reset that review flag
+ * (and overwrite the reviewed content) every time upstream data changes
+ * (e.g. open5e-api#964). Rows already marked reviewed are excluded from the
+ * plan entirely; everything else refreshes normally, carrying over the
+ * existing row's id and any admin-set image_url.
+ */
+export function planSrdSpellImport(
+  spells: ReadonlyArray<ImportedSrdSpell>,
+  existing: ReadonlyArray<ExistingSrdSpellIdentity>,
+): SrdSpellImportPlan {
+  const byIdentity = new Map(existing.map((row) => [
+    `${row.source_document_key}::${row.source_record_key}`,
+    row,
+  ]));
+  const rows: ImportedSrdSpell[] = [];
+  let skippedReviewed = 0;
+  for (const spell of spells) {
+    const current = byIdentity.get(`${spell.source_document_key}::${spell.source_record_key}`);
+    if (current?.mechanics_reviewed) {
+      skippedReviewed++;
+      continue;
+    }
+    rows.push(current ? { ...spell, id: current.id, image_url: current.image_url } : spell);
+  }
+  return { rows, skippedReviewed };
+}
+
 export async function fetchSrdSpells(sourceKeys?: string[]): Promise<ImportedSrdSpell[]> {
   const documents = await fetchOpen5eDocuments();
   const selected = sourceKeys?.length
@@ -310,9 +339,7 @@ export async function fetchSrdSpells(sourceKeys?: string[]): Promise<ImportedSrd
   const metadata = new Map(selected.map((document) => [document.slug, document]));
   const batches = await Promise.all(
     selected.map((document) =>
-      fetchAll<Open5eV2Spell>(
-        `https://api.open5e.com/v2/spells/?document__key__in=${encodeURIComponent(document.slug)}`,
-      ),
+      fetchAllFromDocuments<Open5eV2Spell>("https://api.open5e.com/v2/spells/", [document.slug]),
     ),
   );
 

@@ -105,6 +105,8 @@ import { markdownToTiptapJson } from "@/lib/markdownToTiptap";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import type { SpeciesSize } from "@/types/species.types";
 import { useRuleset } from "@/composables/useRuleset";
+import { fetchAllFromDocuments, rulesetForDocument } from "@/lib/open5eApi";
+import type { Open5eDocumentRef } from "@/lib/open5eApi";
 
 interface Open5eTrait {
   name: string;
@@ -119,14 +121,7 @@ interface Open5eRace {
   is_subspecies: boolean;
   subspecies_of: { key: string; name: string } | null;
   traits: Open5eTrait[];
-  document: {
-    key: string;
-    name: string;
-    display_name?: string;
-    permalink?: string | null;
-    publisher?: { name: string; key: string };
-    gamesystem?: { name: string; key: string };
-  };
+  document: Open5eDocumentRef;
 }
 
 const CORE_RACE_NAMES = [
@@ -237,17 +232,20 @@ function parseAsi(raw: string | undefined): Record<string, number | string> | nu
   return Object.keys(entries).length ? entries : null;
 }
 
-function buildPayload(race: Open5eRace) {
+/**
+ * Content Open5e actually supplies — safe to refresh on every re-import,
+ * including on an existing row, so upstream fixes (e.g. open5e-api#964-style
+ * corrections) are picked up.
+ */
+function buildImportedFields(race: Open5eRace) {
   const trait = (name: string) => race.traits.find(entry => entry.name.toLowerCase() === name);
   const size = parseSize(trait("size")?.desc.match(/\b(tiny|small|medium|large)\b/i)?.[1] ?? "");
   const speciesTraits = race.traits
     .filter(entry => !["size", "speed", "languages", "ability score increase"].includes(entry.name.toLowerCase()))
     .map(entry => ({ name: entry.name, description: markdownToTiptapJson(entry.desc) }));
-  const gamesystem = race.document.gamesystem?.key;
   return {
     name: race.name,
     description: race.desc ? toTiptapJson(race.desc) : null,
-    notes: null,
     size,
     speed: parseSpeed(trait("speed")?.desc),
     ability_score_increases: parseAsi(trait("ability score increase")?.desc),
@@ -255,15 +253,7 @@ function buildPayload(race: Open5eRace) {
     languages: parseLanguages(trait("languages")?.desc),
     tags: parseTags(race, size),
     source: race.document.display_name || race.document.name,
-    subraces: null,
-    image_url: null,
-    focal_point: null,
-    is_shapeshifter: false,
-    avg_height: null,
-    avg_weight: null,
-    granted_spells: [],
-    ruleset: gamesystem === "5e-2024" ? "2024" as const
-      : gamesystem === "5e-2014" || gamesystem === "5e" ? "2014" as const : null,
+    ruleset: rulesetForDocument(race.document),
     conceptual_key: race.name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, ""),
     source_document_key: race.document.key,
     source_record_key: race.key,
@@ -281,17 +271,36 @@ function buildPayload(race: Open5eRace) {
   };
 }
 
+/**
+ * Fields Open5e has no data for — DM-owned from the moment the species is
+ * created. Only used to fill out a brand-new row; a re-import must never
+ * reset these back to null/empty on an existing species (that would wipe
+ * DM-added art, notes, subraces, and overrides).
+ */
+function buildCreateOnlyDefaults() {
+  return {
+    notes: null,
+    subraces: null,
+    image_url: null,
+    focal_point: null,
+    is_shapeshifter: false,
+    avg_height: null,
+    avg_weight: null,
+    granted_spells: [],
+  };
+}
+
 async function upsertRace(race: Open5eRace) {
-  const payload = buildPayload(race);
+  const imported = buildImportedFields(race);
   const existing = (existingSpecies.value ?? []).find(
     (species) => species.source_document_key === race.document.key
       && species.source_record_key === race.key,
   );
   if (existing) {
-    await updateSpecies({ id: existing.id, update: payload });
+    await updateSpecies({ id: existing.id, update: imported });
     return existing.id;
   }
-  const created = await createSpecies(payload);
+  const created = await createSpecies({ ...imported, ...buildCreateOnlyDefaults() });
   return created.id;
 }
 
@@ -301,10 +310,8 @@ async function seedCoreRaces() {
   let done = 0;
   const documentKey = ruleset.value === "2024" ? "srd-2024" : "srd-2014";
   try {
-    const res = await fetch(`https://api.open5e.com/v2/species/?document__key__in=${documentKey}&limit=500`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json() as { results: Open5eRace[] };
-    const core = json.results.filter(race => !race.is_subspecies && CORE_RACE_NAMES.includes(race.name.toLowerCase() as typeof CORE_RACE_NAMES[number]));
+    const results = await fetchAllFromDocuments<Open5eRace>("https://api.open5e.com/v2/species/", [documentKey]);
+    const core = results.filter(race => !race.is_subspecies && CORE_RACE_NAMES.includes(race.name.toLowerCase() as typeof CORE_RACE_NAMES[number]));
     for (const race of core) {
       seedProgress.value = `${done} / ${core.length}…`;
       await upsertRace(race);

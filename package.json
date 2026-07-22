@@ -23,7 +23,9 @@
     "import-chapter-npcs": "tsx --env-file=.env.local scripts/import-chapter-npcs.ts",
     "import-faiths": "tsx --env-file=.env.local scripts/import-faiths.ts",
     "migrate-plaintext-to-tiptap": "tsx --env-file=.env.local scripts/migrate-plaintext-to-tiptap.ts",
-    "ingest-mini-bases": "tsx --env-file=.env.local scripts/ingest-mini-bases.ts"
+    "ingest-mini-bases": "tsx --env-file=.env.local scripts/ingest-mini-bases.ts",
+    "seed-srd-spells": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/seed-srd-spells.ts",
+    "seed-srd-monsters": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/seed-srd-monsters.ts"
   },
   "dependencies": {
     "@google/model-viewer": "^4.3.1",

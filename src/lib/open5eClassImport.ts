@@ -1,5 +1,7 @@
-import { fetchAll } from "@/lib/open5eApi";
+import { fetchAllFromDocuments, fetchSupported5eDocumentKeys, rulesetForDocument } from "@/lib/open5eApi";
+import type { Open5eDocumentRef } from "@/lib/open5eApi";
 import type { CustomClassInsert, CustomSubclassInsert, HitDie } from "@/levelup/customTypes";
+import type { RulesetKey } from "@/types/ruleset.types";
 
 // ── Description helpers ───────────────────────────────────────────────────────
 
@@ -25,16 +27,6 @@ interface Open5eV2ClassFeature {
   feature_type: string;
   /** Levels at which this feature is gained — each entry is {level, detail} */
   gained_at: { level: number; detail: string | null }[];
-}
-
-interface Open5eDocumentRef {
-  key: string;
-  name: string;
-  display_name?: string;
-  permalink?: string | null;
-  publisher?: { name: string; key: string };
-  gamesystem?: { name: string; key: string };
-  licenses?: Array<{ name: string; key: string }>;
 }
 
 interface Open5eV2Class {
@@ -63,14 +55,7 @@ function parseHitDie(hitDice: string | null): HitDie {
 
 const V2_BASE = "https://api.open5e.com/v2/classes/";
 
-type SupportedRuleset = "2014" | "2024";
-
-function rulesetForDocument(document: Open5eDocumentRef): SupportedRuleset | null {
-  const key = document.gamesystem?.key?.toLowerCase();
-  if (key === "5e-2024") return "2024";
-  if (key === "5e-2014" || key === "5e") return "2014";
-  return null;
-}
+type SupportedRuleset = RulesetKey;
 
 function conceptualKey(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
@@ -144,7 +129,8 @@ function featurePreview(feature: Open5eV2ClassFeature, document: Open5eDocumentR
 }
 
 export async function fetchOpen5eBaseClasses(): Promise<Open5eClassPreview[]> {
-  const raw = await fetchAll<Open5eV2Class>(V2_BASE);
+  const documentKeys = await fetchSupported5eDocumentKeys();
+  const raw = await fetchAllFromDocuments<Open5eV2Class>(V2_BASE, documentKeys);
 
   return raw
     .filter(c => c.hit_dice !== null && c.subclass_of === null)
@@ -179,7 +165,8 @@ export async function fetchOpen5eBaseClasses(): Promise<Open5eClassPreview[]> {
 }
 
 export async function fetchOpen5eSubclasses(): Promise<Open5eSubclassPreview[]> {
-  const raw = await fetchAll<Open5eV2Class>(V2_BASE);
+  const documentKeys = await fetchSupported5eDocumentKeys();
+  const raw = await fetchAllFromDocuments<Open5eV2Class>(V2_BASE, documentKeys);
   return raw
     .filter(c => c.subclass_of !== null)
     .map(c => {
@@ -269,6 +256,55 @@ export function subclassToInsert(preview: Open5eSubclassPreview): CustomSubclass
   };
 }
 
+/**
+ * Narrows a freshly-built `custom_classes` insert down to the fields a
+ * re-import is allowed to refresh on an existing row: upstream identity and
+ * shell content (name, source metadata, hit die, saving throws). Open5e's
+ * class API exposes none of a class's mechanical progression, so
+ * `baseClassToInsert` always fills `primary_ability`, proficiencies,
+ * `subclass_level`, `asi_levels`, spellcasting fields, `steps`, `resources`
+ * and `campaign_id` with hardcoded defaults — a DM fills those in by hand
+ * after the initial import. Refreshing them on every re-run would silently
+ * discard that manual work, so they must never appear here.
+ */
+export function classImportUpdateFields(insert: CustomClassInsert): Partial<CustomClassInsert> {
+  return {
+    class_name: insert.class_name,
+    source: insert.source,
+    ruleset: insert.ruleset,
+    conceptual_key: insert.conceptual_key,
+    source_document_key: insert.source_document_key,
+    source_record_key: insert.source_record_key,
+    source_revision: insert.source_revision,
+    source_license: insert.source_license,
+    provenance: insert.provenance,
+    hit_die: insert.hit_die,
+    saving_throws: insert.saving_throws,
+  };
+}
+
+/**
+ * Subclass counterpart of {@link classImportUpdateFields}. `subclassToInsert`
+ * always defaults `granted_spells`, `steps`, `resources`, `hp_per_level` and
+ * `campaign_id` — all DM-configured after import — so a re-import must never
+ * refresh them either.
+ */
+export function subclassImportUpdateFields(insert: CustomSubclassInsert): Partial<CustomSubclassInsert> {
+  return {
+    class_name: insert.class_name,
+    subclass_name: insert.subclass_name,
+    source: insert.source,
+    ruleset: insert.ruleset,
+    conceptual_key: insert.conceptual_key,
+    source_document_key: insert.source_document_key,
+    source_record_key: insert.source_record_key,
+    source_revision: insert.source_revision,
+    source_license: insert.source_license,
+    provenance: insert.provenance,
+    description: insert.description,
+  };
+}
+
 // ── System feature description backfill ──────────────────────────────────────
 
 /**
@@ -277,7 +313,8 @@ export function subclassToInsert(preview: Open5eSubclassPreview): CustomSubclass
  * non-empty `desc` field. Used to backfill system (user_id = null) features.
  */
 export async function fetchClassFeatureDescriptions(): Promise<Map<string, string>> {
-  const raw = await fetchAll<Open5eV2Class>(V2_BASE);
+  const documentKeys = await fetchSupported5eDocumentKeys();
+  const raw = await fetchAllFromDocuments<Open5eV2Class>(V2_BASE, documentKeys);
   const map = new Map<string, string>();
   for (const cls of raw) {
     for (const feat of cls.features ?? []) {

@@ -309,13 +309,13 @@ export function useDeleteSpell() {
   });
 }
 
-export type ImportResult = { inserted: number; updated: number };
+export type ImportResult = { inserted: number; updated: number; skippedReviewed: number };
 
 export function useImportSrdSpells() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (sourceSlugs: string[]): Promise<ImportResult> => {
-      const { fetchSrdSpells } = await import("@/lib/open5eSpellImport");
+      const { fetchSrdSpells, planSrdSpellImport } = await import("@/lib/open5eSpellImport");
       const spells = await fetchSrdSpells(sourceSlugs.length > 0 ? sourceSlugs : undefined);
       const recordKeys = [...new Set(spells.map((spell) => spell.source_record_key))];
       type ExistingSrdIdentity = {
@@ -323,27 +323,24 @@ export function useImportSrdSpells() {
         source_document_key: string;
         source_record_key: string;
         image_url: string | null;
+        mechanics_reviewed: boolean;
       };
       const existing: ExistingSrdIdentity[] = [];
       const CHUNK = 200;
       for (let i = 0; i < recordKeys.length; i += CHUNK) {
         const { data, error } = await supabase
           .from("srd_spells")
-          .select("id, source_document_key, source_record_key, image_url")
+          .select("id, source_document_key, source_record_key, image_url, mechanics_reviewed")
           .in("source_record_key", recordKeys.slice(i, i + CHUNK));
         if (error) throw error;
         existing.push(...((data ?? []) as ExistingSrdIdentity[]));
       }
 
-      const bySourceRecord = new Map(existing.map(row => [
-        `${row.source_document_key}::${row.source_record_key}`,
-        row,
-      ]));
+      // Rows an admin already marked mechanics_reviewed are excluded from the
+      // plan entirely — a re-import must never silently reset that flag or
+      // clobber reviewed content (see planSrdSpellImport's doc comment).
+      const { rows, skippedReviewed } = planSrdSpellImport(spells, existing);
       const existingIds = new Set(existing.map((row) => row.id));
-      const rows = spells.map((spell) => {
-        const current = bySourceRecord.get(`${spell.source_document_key}::${spell.source_record_key}`);
-        return current ? { ...spell, id: current.id, image_url: current.image_url } : spell;
-      });
 
       const UPSERT_BATCH = 100;
       for (let i = 0; i < rows.length; i += UPSERT_BATCH) {
@@ -356,7 +353,7 @@ export function useImportSrdSpells() {
       }
 
       const updated = rows.filter((spell) => existingIds.has(spell.id)).length;
-      return { inserted: rows.length - updated, updated };
+      return { inserted: rows.length - updated, updated, skippedReviewed };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
