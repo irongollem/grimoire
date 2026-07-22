@@ -29,6 +29,7 @@ describe("Open5e V2 background identity", () => {
         benefits: [
           { type: "feat", name: "Feat", desc: "Magic Initiate (Cleric)" },
           { type: "skill_proficiency", name: "Skills", desc: "Insight and Religion" },
+          { type: "ability_score", name: "Ability Scores", desc: "Intelligence, Wisdom, Charisma" },
         ],
       },
     ];
@@ -53,6 +54,11 @@ describe("Open5e V2 background identity", () => {
       feat_grant_name: "Magic Initiate (Cleric)",
       skill_proficiencies: ["Insight", "Religion"],
       source_license: "cc-by-40",
+      origin_feat: { name: "Magic Initiate", variant: "Cleric" },
+      asi_ability_trio: ["intelligence", "wisdom", "charisma"],
     });
+    // The 2014 record has no ability_score/feat benefits — both new fields stay null
+    // rather than inheriting anything from the 2024 sibling.
+    expect(backgrounds[0]).toMatchObject({ origin_feat: null, asi_ability_trio: null });
   });
 });

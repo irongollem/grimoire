@@ -195,8 +195,26 @@
                     <p v-else class="text-body text-muted-foreground italic">No description.</p>
                   </div>
                   <div class="flex flex-col gap-4 p-5 border-t border-border md:border-t-0">
+                    <!-- Ability score trio (2024 PHB) -->
+                    <div v-if="selectedBackground.asi_ability_trio" class="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-1">
+                      <div class="flex items-center gap-2">
+                        <p class="text-eyebrow font-semibold text-primary">ABILITY SCORE INCREASE</p>
+                        <span class="text-label text-primary/60">2024 PHB</span>
+                      </div>
+                      <div class="flex flex-wrap gap-1.5">
+                        <span
+                          v-for="key in selectedBackground.asi_ability_trio"
+                          :key="key"
+                          class="px-2 py-0.5 rounded bg-primary/10 border border-primary/20 font-cinzel text-xs text-primary capitalize"
+                        >{{ key }}</span>
+                      </div>
+                    </div>
+
                     <!-- Feat grant (2024 PHB) -->
-                    <div v-if="selectedBackground.feat_grant_name"
+                    <BackgroundOriginFeatBadge v-if="selectedBackground.origin_feat" :origin-feat="selectedBackground.origin_feat">
+                      <RichTextViewer v-if="selectedBackground.feat_grant_description" :content="selectedBackground.feat_grant_description" />
+                    </BackgroundOriginFeatBadge>
+                    <div v-else-if="selectedBackground.feat_grant_name"
                       class="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 space-y-1">
                       <div class="flex items-center gap-2">
                         <p class="text-eyebrow font-semibold text-amber-600 dark:text-amber-400">FEAT GRANT</p>
@@ -463,6 +481,7 @@ import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import CodexCard from "./CodexCard.vue";
+import BackgroundOriginFeatBadge from "@/components/backgrounds/BackgroundOriginFeatBadge.vue";
 import { useAllSpecies } from "@/composables/useSpecies";
 import { useBackgrounds } from "@/composables/useBackgrounds";
 import { useAllSystemClasses, useAllCustomClasses } from "@/composables/useCustomClasses";

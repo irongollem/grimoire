@@ -1,3 +1,21 @@
+/** The six ability scores, spelled out — matches how Open5e ships its `ability_score` benefit text. */
+export const ABILITY_SCORE_KEYS = [
+  "strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma",
+] as const;
+export type AbilityScoreKey = (typeof ABILITY_SCORE_KEYS)[number];
+
+/**
+ * 2024 PHB: a background's Origin feat grant, parsed from Open5e's `feat` benefit
+ * (e.g. "Magic Initiate (Cleric)" → { name: "Magic Initiate", variant: "Cleric" }).
+ * The variant is the specific choice baked into the background (a class for Magic
+ * Initiate, etc.) — kept separate from `name` so `name` alone matches a feat's
+ * `conceptual_key` for lookup against imported `class_features` rows.
+ */
+export interface BackgroundOriginFeat {
+  name: string;
+  variant: string | null;
+}
+
 /**
  * Player character backgrounds (Acolyte, Outlander, Urchin …). Modelled on
  * the Open5e `/v1/backgrounds/` schema plus Grimoire-specific fields
@@ -23,6 +41,17 @@ export interface Background extends VersionedContentMetadata {
   feat_grant_name: string | null;
   /** Optional description / summary of what the feat does, for in-app display. */
   feat_grant_description: string | null;
+  /**
+   * 2024 PHB: the three abilities a player chooses among for the background's
+   * ability score increase (+2/+1 split or +1 to all three). Order follows the
+   * source text; null for 2014 backgrounds and homebrew that grant no ASI.
+   */
+  asi_ability_trio: AbilityScoreKey[] | null;
+  /**
+   * 2024 PHB: structured form of `feat_grant_name`, parsed for lookup against
+   * imported `class_features` rows. Null when the background grants no feat.
+   */
+  origin_feat: BackgroundOriginFeat | null;
   /** Block of personality traits / ideals / bonds / flaws suggestions. */
   suggested_characteristics: string | null;
   tags: string[];

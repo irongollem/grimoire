@@ -44,8 +44,21 @@
             </p>
           </div>
 
-          <!-- Feat grant (2024 PHB) -->
-          <div v-if="pendingBg.feat_grant_name"
+          <!-- Ability score increase (2024 PHB) -->
+          <BackgroundAsiPicker
+            v-if="is2024 && pendingBg.asi_ability_trio"
+            v-model="pendingAsiChoice"
+            :trio="pendingBg.asi_ability_trio"
+          />
+
+          <!-- Origin feat grant (2024 PHB) -->
+          <BackgroundOriginFeatBadge
+            v-if="is2024 && pendingBg.origin_feat"
+            :origin-feat="pendingBg.origin_feat"
+          />
+
+          <!-- Feat grant (legacy free-text display, kept for backgrounds without a structured origin_feat) -->
+          <div v-else-if="pendingBg.feat_grant_name"
             class="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 space-y-1">
             <div class="flex items-center gap-2">
               <p class="text-eyebrow md:text-sm font-semibold text-amber-600 dark:text-amber-400">
@@ -139,7 +152,11 @@ import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
 import { useBackgrounds } from "@/composables/useBackgrounds";
+import { useAllFeatures } from "@/composables/useFeatures";
+import { useRuleset } from "@/composables/useRuleset";
 import BackgroundList from "@/components/backgrounds/BackgroundList.vue";
+import BackgroundAsiPicker from "@/components/backgrounds/BackgroundAsiPicker.vue";
+import BackgroundOriginFeatBadge from "@/components/backgrounds/BackgroundOriginFeatBadge.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import ListFilterGroup from "@/components/common/ListFilterGroup.vue";
@@ -149,7 +166,12 @@ import {
   removeBackgroundProfs,
   type BgRemovalState,
 } from "@/lib/backgroundProficiencies";
+import {
+  abilityBonusesForChoice, parseBackgroundAsiChoice, resolveOriginFeat,
+  type BackgroundAsiChoice,
+} from "@/lib/backgroundAsi";
 import { SKILLS } from "@/types/party.types";
+import type { SaveKey } from "@/types/party.types";
 import type { Background } from "@/types/background.types";
 
 const BG_SOURCE_OPTIONS = [
@@ -163,6 +185,8 @@ const auth = useAuthStore();
 const ui = useUiStore();
 const { data: party } = useParty();
 const { mutateAsync: update } = useUpdatePartyMember();
+const { data: allFeatures } = useAllFeatures();
+const { is2024 } = useRuleset();
 
 // Resolve the party member: real player uses linkedPartyMemberId; DM preview uses dmPreviewPartyMemberId
 const resolvedMemberId = computed(() =>
@@ -188,6 +212,8 @@ const pendingBg = ref<Background | null>(null);
 const pendingRemovals = ref<BgRemovalState | null>(null);
 const removeOld = ref(false);
 const saving = ref(false);
+/** 2024 ASI choice for the pending background — reset whenever the selection changes. */
+const pendingAsiChoice = ref<BackgroundAsiChoice | null>(null);
 
 /** Proficiencies the new background will add (that the member doesn't already have). */
 const propsToApply = computed(() => {
@@ -211,6 +237,7 @@ const propsToApply = computed(() => {
 function onSelect(bg: Background) {
   pendingBg.value = bg;
   removeOld.value = false;
+  pendingAsiChoice.value = null;
   if (currentBg.value && me.value) {
     pendingRemovals.value = computeRemovals(me.value, currentBg.value, bg);
   } else {
@@ -222,6 +249,7 @@ function cancel() {
   pendingBg.value = null;
   pendingRemovals.value = null;
   removeOld.value = false;
+  pendingAsiChoice.value = null;
 }
 
 async function confirm() {
@@ -237,11 +265,45 @@ async function confirm() {
     if (removeOld.value && pendingRemovals.value) {
       removeBackgroundProfs(form, pendingRemovals.value);
     }
-    // Update class_choices.background_feat to reflect the newly selected background's feat grant
-    const existingChoices = me.value.class_choices ?? {};
-    const updatedChoices = pendingBg.value.feat_grant_name
-      ? { ...existingChoices, background_feat: pendingBg.value.feat_grant_name }
-      : (({ background_feat: _r, ...rest }) => (void _r, rest))(existingChoices as Record<string, unknown>);
+    // Update class_choices.background_feat / background_asi to reflect the newly
+    // selected background. background_feat stays the raw display name (unchanged
+    // semantics); background_feat_id links it to an imported feat when resolvable.
+    const existingChoices = { ...me.value.class_choices } as Record<string, unknown>;
+    if (pendingBg.value.feat_grant_name) {
+      const resolved = resolveOriginFeat(pendingBg.value.origin_feat, allFeatures.value ?? []);
+      existingChoices.background_feat = pendingBg.value.feat_grant_name;
+      existingChoices.background_feat_id = resolved?.feature?.id ?? null;
+    } else {
+      delete existingChoices.background_feat;
+      delete existingChoices.background_feat_id;
+    }
+    if (is2024.value && pendingBg.value.asi_ability_trio && pendingAsiChoice.value) {
+      existingChoices.background_asi = pendingAsiChoice.value;
+    } else {
+      delete existingChoices.background_asi;
+    }
+    const updatedChoices = existingChoices;
+
+    // 2024 ASI: undo the old background's applied bonus (if any), apply the new one.
+    // Additive on the member's stored scores, mirroring how species ASI bakes in at
+    // character creation — there's no separate "base score" to re-derive from.
+    const scores: Record<SaveKey, number> = {
+      str: me.value.str, dex: me.value.dex, con: me.value.con,
+      int: me.value.int, wis: me.value.wis, cha: me.value.cha,
+    };
+    if (currentBg.value?.asi_ability_trio) {
+      const oldChoice = parseBackgroundAsiChoice(me.value.class_choices?.background_asi);
+      const oldBonuses = abilityBonusesForChoice(oldChoice, currentBg.value.asi_ability_trio);
+      for (const [key, delta] of Object.entries(oldBonuses) as [SaveKey, number][]) {
+        scores[key] = Math.max(1, scores[key] - delta);
+      }
+    }
+    if (is2024.value && pendingBg.value.asi_ability_trio) {
+      const newBonuses = abilityBonusesForChoice(pendingAsiChoice.value, pendingBg.value.asi_ability_trio);
+      for (const [key, delta] of Object.entries(newBonuses) as [SaveKey, number][]) {
+        scores[key] = Math.min(20, scores[key] + delta);
+      }
+    }
 
     await update({
       id: me.value.id,
@@ -251,6 +313,7 @@ async function confirm() {
         tool_proficiencies: form.tool_proficiencies,
         languages: form.languages,
         class_choices: updatedChoices,
+        ...scores,
       },
     });
     router.push("/play");

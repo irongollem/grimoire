@@ -92,8 +92,31 @@
       </div>
     </div>
 
-    <!-- Feat grant card (2024 PHB) -->
-    <div v-if="background.feat_grant_name" class="rounded-lg border border-primary/30 bg-primary/5 overflow-hidden">
+    <!-- Ability score trio card (2024 PHB) -->
+    <div v-if="background.asi_ability_trio" class="rounded-lg border border-primary/30 bg-primary/5 overflow-hidden">
+      <div class="px-3 py-2 border-b border-primary/20 bg-primary/10 flex items-center gap-2">
+        <span class="text-label-lg font-semibold text-primary">Ability Score Increase</span>
+        <span class="text-eyebrow text-primary/60">2024 PHB</span>
+      </div>
+      <div class="p-4 flex flex-col gap-2">
+        <div class="flex flex-wrap gap-1.5">
+          <span
+            v-for="key in background.asi_ability_trio"
+            :key="key"
+            class="text-label bg-primary/10 border border-primary/20 text-primary rounded px-2 py-0.5 capitalize"
+          >{{ key }}</span>
+        </div>
+        <p class="text-caption text-muted-foreground italic">
+          A character with this background chooses +2 to one of these and +1 to another, or +1 to all three.
+        </p>
+      </div>
+    </div>
+
+    <!-- Feat grant card (2024 PHB) — resolved link when the feat is imported -->
+    <BackgroundOriginFeatBadge v-if="background.origin_feat" :origin-feat="background.origin_feat">
+      <RichTextViewer v-if="background.feat_grant_description" :content="background.feat_grant_description" />
+    </BackgroundOriginFeatBadge>
+    <div v-else-if="background.feat_grant_name" class="rounded-lg border border-primary/30 bg-primary/5 overflow-hidden">
       <div class="px-3 py-2 border-b border-primary/20 bg-primary/10 flex items-center gap-2">
         <span class="text-label-lg font-semibold text-primary">Feat Grant</span>
         <span class="text-eyebrow text-primary/60">2024 PHB</span>
@@ -252,6 +275,7 @@ import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import BackgroundOriginFeatBadge from "@/components/backgrounds/BackgroundOriginFeatBadge.vue";
 
 const props = defineProps<{ background: Background }>();
 const route = useRoute();

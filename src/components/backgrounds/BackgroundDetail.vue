@@ -103,6 +103,29 @@
         placeholder="Brief summary of what the feat grants — passive bonuses, spells, proficiencies…"
         min-height="80px"
       />
+      <p v-if="form.feat_grant_name" class="text-caption text-muted-foreground italic">
+        Linked to the Origin feat "{{ originFeatPreview?.name }}"<template v-if="originFeatPreview?.variant"> ({{ originFeatPreview.variant }})</template> — matched by name against imported feats when a character picks this background.
+      </p>
+    </div>
+
+    <!-- Ability score increase trio (2024 PHB) -->
+    <div class="flex flex-col gap-2 rounded-lg border border-border bg-card/50 px-4 py-3">
+      <span class="text-label-lg font-semibold text-muted-foreground">Ability score trio <span class="font-normal text-muted-foreground/60">(2024 PHB — optional, pick exactly 3)</span></span>
+      <div class="flex flex-wrap gap-2">
+        <button
+          v-for="key in ABILITY_SCORE_KEYS"
+          :key="key"
+          type="button"
+          class="px-3 py-1.5 rounded-md border font-cinzel text-xs font-semibold capitalize transition-colors"
+          :class="asiTrioSet.has(key)
+            ? 'border-primary bg-primary/10 text-primary'
+            : 'border-border text-muted-foreground hover:text-foreground'"
+          @click="toggleAsiTrioAbility(key)"
+        >{{ key }}</button>
+      </div>
+      <p class="text-caption text-muted-foreground italic">
+        {{ asiTrioSet.size === 0 ? "No trio set — this background grants no 2024 ASI." : asiTrioSet.size === 3 ? "Trio complete." : `${asiTrioSet.size} of 3 selected.` }}
+      </p>
     </div>
 
     <!-- Suggested characteristics -->
@@ -131,7 +154,9 @@ import {
   useUpdateBackground,
   useDeleteBackground,
 } from "@/composables/useBackgrounds";
-import type { Background, BackgroundInsert } from "@/types/background.types";
+import type { AbilityScoreKey, Background, BackgroundInsert } from "@/types/background.types";
+import { ABILITY_SCORE_KEYS } from "@/types/background.types";
+import { parseOriginFeatText } from "@/lib/backgroundAsi";
 
 const props = defineProps<{
   background: Background | null;
@@ -152,6 +177,8 @@ function blankForm(): BackgroundInsert {
     feature_description: null,
     feat_grant_name: null,
     feat_grant_description: null,
+    asi_ability_trio: null,
+    origin_feat: null,
     suggested_characteristics: null,
     tags: [],
     source: null,
@@ -184,11 +211,30 @@ const { mutateAsync: deleteBg } = useDeleteBackground();
 const saving = ref(false);
 const saveError = ref("");
 
+// ── Ability score trio (2024 PHB) ───────────────────────────────────────────
+const asiTrioSet = computed(() => new Set(form.value.asi_ability_trio ?? []));
+
+function toggleAsiTrioAbility(key: AbilityScoreKey) {
+  const next = new Set(form.value.asi_ability_trio ?? []);
+  if (next.has(key)) next.delete(key);
+  else if (next.size < 3) next.add(key);
+  else return; // already 3 picked — ignore until one is toggled off
+  form.value.asi_ability_trio = next.size > 0 ? [...next] : null;
+}
+
+// Preview of the structured Origin feat parsed live from feat_grant_name, so the
+// DM can see how "Magic Initiate (Cleric)" will be split before saving.
+const originFeatPreview = computed(() => parseOriginFeatText(form.value.feat_grant_name));
+
 async function save() {
   if (!form.value.name.trim()) return;
   saving.value = true;
   saveError.value = "";
   try {
+    // Keep the structured origin_feat in sync with the free-text feat_grant_name
+    // field on every save — the text field stays the single source of truth for
+    // custom/homebrew backgrounds, origin_feat is derived for feat lookup.
+    form.value.origin_feat = parseOriginFeatText(form.value.feat_grant_name);
     if (props.background) {
       await updateBg({ id: props.background.id, update: form.value });
     } else {

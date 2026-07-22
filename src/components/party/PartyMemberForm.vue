@@ -259,6 +259,7 @@ const form = reactive<
   cp: props.member?.cp ?? 0,
   tool_proficiencies: [...(props.member?.tool_proficiencies ?? [])],
   languages: [...(props.member?.languages ?? [])],
+  weapon_masteries: [...(props.member?.weapon_masteries ?? [])],
   current_location_id: props.member?.current_location_id ?? null,
   carry_capacity_override: props.member?.carry_capacity_override ?? null,
   class_resources: props.member?.class_resources ?? {},

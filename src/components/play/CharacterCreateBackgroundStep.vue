@@ -64,8 +64,21 @@
         </button>
       </div>
 
-      <!-- Feat grant preview -->
-      <div v-if="selectedBg?.feat_grant_name"
+      <!-- Ability score increase (2024 PHB) -->
+      <BackgroundAsiPicker
+        v-if="is2024 && selectedBg?.asi_ability_trio"
+        v-model="backgroundAsiChoice"
+        :trio="selectedBg.asi_ability_trio"
+      />
+
+      <!-- Origin feat grant (2024 PHB) -->
+      <BackgroundOriginFeatBadge
+        v-if="is2024 && selectedBg?.origin_feat"
+        :origin-feat="selectedBg.origin_feat"
+      />
+
+      <!-- Feat grant preview (legacy free-text display, kept for backgrounds without a structured origin_feat) -->
+      <div v-else-if="selectedBg?.feat_grant_name"
         class="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 space-y-1">
         <div class="flex items-center gap-2">
           <p class="text-label-lg font-semibold text-amber-600 dark:text-amber-400">FEAT GRANT</p>
@@ -199,13 +212,17 @@
 import { ref, computed } from "vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
+import BackgroundAsiPicker from "@/components/backgrounds/BackgroundAsiPicker.vue";
+import BackgroundOriginFeatBadge from "@/components/backgrounds/BackgroundOriginFeatBadge.vue";
 import { IconCheck } from "@/lib/icons";
 import { useAllDeities } from "@/composables/useDeities";
+import { useRuleset } from "@/composables/useRuleset";
 import type { CharacterCreationForm } from "@/composables/useCharacterCreationForm";
 
 const { form } = defineProps<{ form: CharacterCreationForm }>();
 
-const { f, allBackgrounds, selectedBg, onBackgroundSelect } = form;
+const { f, allBackgrounds, selectedBg, onBackgroundSelect, backgroundAsiChoice } = form;
+const { is2024 } = useRuleset();
 
 const showIdentity    = ref(false);
 const showPersonality = ref(false);

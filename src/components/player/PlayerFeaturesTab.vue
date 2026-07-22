@@ -1,6 +1,22 @@
 <template>
   <div class="space-y-4">
 
+    <!-- ── Background ruleset review (campaign edition changed) ─────────────── -->
+    <div
+      v-if="member.background_ruleset_review_required"
+      class="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300"
+      role="status"
+    >
+      The campaign rules changed. Review {{ member.name }}'s background ability scores and Origin feat.
+      <RouterLink class="ml-1 underline font-semibold" to="/play/background">Review background</RouterLink>
+      <button
+        type="button"
+        class="ml-2 underline font-semibold disabled:opacity-50"
+        :disabled="acknowledgingBackgroundReview"
+        @click="acknowledgeBackgroundReview"
+      >Keep current choices</button>
+    </div>
+
     <!-- ── Beast traits (only when wildshaped) ──────────────────────────────── -->
     <PlayerWildshapeTraits
       v-if="wildshapeMonster?.stat_block?.special_abilities?.length"
@@ -114,8 +130,24 @@
     </div>
 
     <!-- ── Class choices ───────────────────────────────────────────────────── -->
-    <!-- ── Background feat (2024 PHB) ──────────────────────────────────────── -->
-    <div v-if="backgroundFeat" class="rounded-lg border border-amber-500/30 bg-amber-500/5 overflow-hidden">
+    <!-- ── Background ASI (2024 PHB) ─────────────────────────────────────────── -->
+    <div v-if="backgroundAsiBonuses.length" class="rounded-lg border border-primary/30 bg-primary/5 overflow-hidden">
+      <div class="px-4 py-2.5 border-b border-primary/20 bg-primary/10 flex items-center gap-2">
+        <p class="text-label-lg font-semibold text-primary">Background Ability Increase</p>
+        <span class="text-eyebrow text-primary/60">2024 PHB</span>
+      </div>
+      <div class="px-4 py-3 flex flex-wrap gap-1.5">
+        <span
+          v-for="entry in backgroundAsiBonuses"
+          :key="entry.key"
+          class="inline-flex items-center rounded-md bg-primary/10 border border-primary/20 px-2 py-0.5 font-cinzel text-xs text-primary"
+        >{{ entry.label }} +{{ entry.delta }}</span>
+      </div>
+    </div>
+
+    <!-- ── Background feat (2024 PHB) — resolved link when the feat is imported ─ -->
+    <BackgroundOriginFeatBadge v-if="backgroundOriginFeat" :origin-feat="backgroundOriginFeat" />
+    <div v-else-if="backgroundFeat" class="rounded-lg border border-amber-500/30 bg-amber-500/5 overflow-hidden">
       <div class="px-4 py-2.5 border-b border-amber-500/20 bg-amber-500/10 flex items-center gap-2">
         <p class="text-label-lg font-semibold text-amber-600 dark:text-amber-400">Background Feat</p>
         <span class="text-eyebrow text-amber-600/60 dark:text-amber-400/60">2024 PHB</span>
@@ -230,6 +262,9 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { useRouter, RouterLink } from "vue-router";
+import { useQueryClient } from "@tanstack/vue-query";
+import { supabase } from "@/lib/supabase";
+import { useToast } from "@/composables/useToast";
 import PlayerWildshapeTraits from "./PlayerWildshapeTraits.vue";
 import PlayerResourcePools from "./PlayerResourcePools.vue";
 import PlayerFlexibleCasting from "./PlayerFlexibleCasting.vue";
@@ -259,17 +294,22 @@ import type { SystemClass, CustomClass, CustomSubclass } from "@/levelup/customT
 import { useTakeSpellcastingRest, useUpdatePartyMember } from "@/composables/useParty";
 import { useAllSpecies } from "@/composables/useSpecies";
 import { useConfirm } from "@/composables/useConfirm";
-import type { PartyMember, SpellSlotEntry } from "@/types/party.types";
+import type { PartyMember, SaveKey, SpellSlotEntry } from "@/types/party.types";
 import type { Monster } from "@/types/monster.types";
 import type { ClassFeatureGroup } from "./PlayerClassFeaturesList.vue";
 import type { ResourceRow } from "./PlayerResourcePools.vue";
 import { useRuleset } from "@/composables/useRuleset";
 import { deriveEffectiveSpellSlots } from "@/lib/spellSlots";
+import { useBackground } from "@/composables/useBackgrounds";
+import BackgroundOriginFeatBadge from "@/components/backgrounds/BackgroundOriginFeatBadge.vue";
+import { abilityBonusesForChoice, parseBackgroundAsiChoice } from "@/lib/backgroundAsi";
 
 const props = defineProps<{ member: PartyMember; showRestButtons?: boolean; wildshapeMonster?: Monster; isOwner?: boolean }>();
 
 const router = useRouter();
 const { ruleset } = useRuleset();
+const queryClient = useQueryClient();
+const toast = useToast();
 
 function isChoicePlaceholder(s: string): boolean {
   return s.toLowerCase().includes("choice");
@@ -280,6 +320,7 @@ const memberSubclassRef = computed(() => props.member.subclass ?? "");
 const classData = useClassByName(memberClassRef);
 const { data: allFeatures, isPending: featuresPending } = useAllFeatures();
 const { data: customSubclass } = useCustomSubclassByClassAndSubclass(memberClassRef, memberSubclassRef);
+const { data: linkedBackground } = useBackground(computed(() => props.member.background_id ?? ""));
 
 const { mutate: updateMember } = useUpdatePartyMember();
 const { mutateAsync: takeSpellcastingRest } = useTakeSpellcastingRest();
@@ -512,13 +553,55 @@ const backgroundFeat = computed(() => {
   return raw && typeof raw === "string" ? raw : null;
 });
 
+/**
+ * Structured Origin feat for the resolved-link display. Prefers the linked
+ * background's current origin_feat (picks up edits made after this member
+ * chose it); falls back to re-parsing the stored raw name so the badge still
+ * renders correctly for a member whose background was since deleted.
+ */
+const backgroundOriginFeat = computed(() => {
+  if (linkedBackground.value?.origin_feat) return linkedBackground.value.origin_feat;
+  return backgroundFeat.value ? { name: backgroundFeat.value, variant: null } : null;
+});
+
+/** Ability-score deltas from the member's stored 2024 background ASI choice, for display only. */
+const backgroundAsiBonuses = computed(() => {
+  const trio = linkedBackground.value?.asi_ability_trio;
+  if (!trio) return [];
+  const choice = parseBackgroundAsiChoice(props.member.class_choices?.background_asi);
+  const bonuses = abilityBonusesForChoice(choice, trio);
+  const LABELS: Record<SaveKey, string> = {
+    str: "Strength", dex: "Dexterity", con: "Constitution",
+    int: "Intelligence", wis: "Wisdom", cha: "Charisma",
+  };
+  return (Object.entries(bonuses) as [SaveKey, number][])
+    .map(([key, delta]) => ({ key, label: LABELS[key], delta }));
+});
+
+const acknowledgingBackgroundReview = ref(false);
+async function acknowledgeBackgroundReview() {
+  if (acknowledgingBackgroundReview.value) return;
+  acknowledgingBackgroundReview.value = true;
+  try {
+    const { error } = await supabase.rpc("acknowledge_background_ruleset_review", {
+      p_party_member_id: props.member.id,
+    });
+    if (error) throw error;
+    await queryClient.invalidateQueries({ queryKey: ["party"] });
+  } catch (e) {
+    toast.error(toast.fromError(e, "Couldn't acknowledge the rule change."));
+  } finally {
+    acknowledgingBackgroundReview.value = false;
+  }
+}
+
 const choiceEntries = computed(() => {
   const choices = props.member.class_choices ?? {};
   return Object.entries(choices)
     .filter(([key, v]) =>
       key !== "metamagic_options" && key !== "infusions_known" &&
       key !== "eldritch_invocations" && key !== "battle_master_maneuvers" &&
-      key !== "background_feat" &&           // shown in its own dedicated card
+      key !== "background_feat" && key !== "background_feat_id" && key !== "background_asi" &&
       v !== null && v !== undefined && v !== "",
     )
     .map(([key, value]) => ({

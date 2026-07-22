@@ -10,6 +10,7 @@ import { useAllSystemClasses, useAllCustomClasses } from "@/composables/useCusto
 import { useAllCustomSubclasses } from "@/composables/useCustomSubclasses";
 import { useAllSpecies } from "@/composables/useSpecies";
 import { useBackgrounds } from "@/composables/useBackgrounds";
+import { useAllFeatures } from "@/composables/useFeatures";
 import { getDefaultSpellSlots } from "@/types/spell.types";
 import { applySpeciesSpellGrants } from "@/composables/useCharacterSpells";
 import type { SpeciesSpellGrant } from "@/types/species.types";
@@ -19,6 +20,10 @@ import { supabase } from "@/lib/supabase";
 import { useToast } from "@/composables/useToast";
 import { CLASS_EQUIPMENT } from "@/data/classEquipment";
 import type { BundleItemEntry } from "@/types/item.types";
+import {
+  abilityBonusesForChoice, parseBackgroundAsiChoice, resolveOriginFeat,
+  type BackgroundAsiChoice,
+} from "@/lib/backgroundAsi";
 
 // ── Constants (exported for use in template components) ───────────────────────
 
@@ -111,6 +116,7 @@ export function useCharacterCreationForm() {
 
   const { data: allSpecies }    = useAllSpecies();
   const { data: allBackgrounds } = useBackgrounds();
+  const { data: allFeatures }    = useAllFeatures();
 
   const speciesOptions    = computed(() => (allSpecies.value    ?? []).map(s => ({ id: s.id, name: s.name })));
   const backgroundOptions = computed(() => (allBackgrounds.value ?? []).map(b => ({ id: b.id, name: b.name })));
@@ -244,6 +250,7 @@ export function useCharacterCreationForm() {
     cp: m?.cp ?? 0,
     tool_proficiencies:  [...(m?.tool_proficiencies ?? [])],
     languages:           [...(m?.languages ?? [])],
+    weapon_masteries:    [...(m?.weapon_masteries ?? [])],
     current_location_id: m?.current_location_id ?? null,
     carry_capacity_override: m?.carry_capacity_override ?? null,
     class_resources:  m?.class_resources ?? {},
@@ -459,6 +466,15 @@ export function useCharacterCreationForm() {
     bgGrantedLanguages.value = [];
     bgChosenSkills.value = [];
 
+    // Switching backgrounds invalidates any in-progress 2024 ASI choice — it was
+    // scoped to the previous background's ability trio and may not even apply
+    // to the new one's.
+    {
+      const { background_asi: _asi, ...rest } = f.class_choices as Record<string, unknown>;
+      void _asi;
+      f.class_choices = rest;
+    }
+
     f.background_id = id || null;
     if (!bg) return;
 
@@ -486,15 +502,42 @@ export function useCharacterCreationForm() {
       }
     }
     // 2024 PHB: record background feat grant in class_choices so it surfaces
-    // in the character's features tab.
+    // in the character's features tab. background_feat stays the raw display
+    // name (unchanged semantics); background_feat_id links it to an imported
+    // class_features row when one matches by conceptual_key, so the feature's
+    // full text is reachable — never silently dropped when unresolved, the
+    // name still saves on its own.
     if (bg.feat_grant_name) {
-      f.class_choices = { ...f.class_choices, background_feat: bg.feat_grant_name };
+      const resolved = resolveOriginFeat(bg.origin_feat, allFeatures.value ?? []);
+      f.class_choices = {
+        ...f.class_choices,
+        background_feat: bg.feat_grant_name,
+        background_feat_id: resolved?.feature?.id ?? null,
+      };
     } else {
-      const { background_feat: _removed, ...rest } = f.class_choices as Record<string, unknown>;
-      void _removed;
+      const { background_feat: _removed, background_feat_id: _removedId, ...rest } = f.class_choices as Record<string, unknown>;
+      void _removed; void _removedId;
       f.class_choices = rest;
     }
   }
+
+  /**
+   * The player's current 2024 background ASI choice, synced into
+   * `class_choices.background_asi` so it persists with the rest of the form
+   * and survives step navigation.
+   */
+  const backgroundAsiChoice = computed<BackgroundAsiChoice | null>({
+    get: () => parseBackgroundAsiChoice(f.class_choices?.background_asi),
+    set: (choice) => {
+      if (choice) {
+        f.class_choices = { ...f.class_choices, background_asi: choice };
+        return;
+      }
+      const { background_asi: _asi, ...rest } = f.class_choices as Record<string, unknown>;
+      void _asi;
+      f.class_choices = rest;
+    },
+  });
 
   /** Parsed "choose N of …" skill clauses for the selected background, if any. */
   const bgSkillChoices = computed(() =>
@@ -605,6 +648,16 @@ export function useCharacterCreationForm() {
         // Custom replaces ALL racial ASIs — player distributes freely
         for (const [key, val] of Object.entries(customAsi) as [AbilityKey, number][]) {
           if (val > 0) f[key] = Math.min(20, f[key] + val);
+        }
+      }
+
+      // ── 2024 PHB background ASI (new chars only) — additive on top of species ──
+      // Applied once, here, from the choice recorded in class_choices.background_asi.
+      // An incomplete/invalid choice grants nothing rather than guessing.
+      if (selectedBg.value?.asi_ability_trio) {
+        const bonuses = abilityBonusesForChoice(backgroundAsiChoice.value, selectedBg.value.asi_ability_trio);
+        for (const [key, delta] of Object.entries(bonuses) as [AbilityKey, number][]) {
+          f[key] = Math.min(20, f[key] + delta);
         }
       }
 
@@ -803,6 +856,8 @@ export function useCharacterCreationForm() {
     passivePerception, passiveInsight, passiveInvestigation,
     // background skill grants/choices
     bgSkillChoices, bgChosenSkills, bgChoiceLimit, bgFreeSkills,
+    // background 2024 ASI choice
+    backgroundAsiChoice,
     // methods
     mod, setSkillProf, skillBonus, toggleSave, saveBonus,
     resetSlotsToDefault, onSpeciesSelect, onClassSelect, onBackgroundSelect,

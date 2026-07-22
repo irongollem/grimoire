@@ -1,18 +1,11 @@
-import { fetchAll } from "@/lib/open5eApi";
-import type { BackgroundInsert } from "@/types/background.types";
+import { fetchAll, fetchAllFromDocuments, fetchSupported5eDocumentKeys, rulesetForDocument } from "@/lib/open5eApi";
+import type { Open5eDocumentRef } from "@/lib/open5eApi";
+import type { AbilityScoreKey, BackgroundInsert } from "@/types/background.types";
+import { ABILITY_SCORE_KEYS } from "@/types/background.types";
 import type { RulesetKey } from "@/types/ruleset.types";
-
-interface Open5eDocumentRef {
-  key: string;
-  name: string;
-  display_name?: string;
-  permalink?: string | null;
-  publisher?: { name: string; key: string };
-  gamesystem?: { name: string; key: string };
-}
+import { parseOriginFeatText } from "@/lib/backgroundAsi";
 
 interface Open5eV2Document extends Open5eDocumentRef {
-  licenses?: Array<{ name: string; key: string }>;
   publication_date?: string | null;
 }
 
@@ -39,13 +32,6 @@ export interface Open5eDocument {
 const DOCUMENTS_URL = "https://api.open5e.com/v2/documents/";
 const BACKGROUNDS_URL = "https://api.open5e.com/v2/backgrounds/";
 
-function rulesetForDocument(document: Open5eDocumentRef): RulesetKey | null {
-  const key = document.gamesystem?.key?.toLowerCase();
-  if (key === "5e-2024") return "2024";
-  if (key === "5e-2014" || key === "5e") return "2014";
-  return null;
-}
-
 function conceptualKey(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 }
@@ -62,6 +48,23 @@ function splitProficiencies(raw: string | null | undefined): string[] {
 
 function benefit(background: Open5eV2Background, type: string): Open5eBenefit | undefined {
   return background.benefits?.find(entry => entry.type === type);
+}
+
+const ABILITY_SCORE_KEY_SET: ReadonlySet<string> = new Set(ABILITY_SCORE_KEYS);
+
+/**
+ * Open5e 2024 backgrounds ship their ASI trio as a comma-separated list of full
+ * ability names in the `ability_score` benefit, e.g. "Intelligence, Wisdom, Charisma".
+ * Returns null unless all three parse cleanly — a partial/malformed trio can't
+ * drive the +2/+1 vs +1/+1/+1 picker, so we'd rather surface nothing than a lie.
+ */
+function parseAbilityTrio(desc: string | null | undefined): AbilityScoreKey[] | null {
+  if (!desc) return null;
+  const trio = desc
+    .split(",")
+    .map(part => part.trim().toLowerCase())
+    .filter((part): part is AbilityScoreKey => ABILITY_SCORE_KEY_SET.has(part));
+  return trio.length === 3 ? trio : null;
 }
 
 function mapBackground(
@@ -89,6 +92,8 @@ function mapBackground(
     feature_description: feature?.desc?.trim() || null,
     feat_grant_name: feat?.desc?.trim() || null,
     feat_grant_description: null,
+    asi_ability_trio: parseAbilityTrio(benefit(background, "ability_score")?.desc),
+    origin_feat: parseOriginFeatText(feat?.desc),
     suggested_characteristics: benefit(background, "suggested_characteristics")?.desc?.trim() || null,
     tags: [],
     source: document.key,
@@ -129,11 +134,9 @@ export async function fetchOpen5eDocuments(): Promise<Open5eDocument[]> {
 
 /** Fetch V2 records without collapsing equal names from different documents. */
 export async function fetchBackgrounds(sourceKeys?: string[]): Promise<BackgroundInsert[]> {
-  const query = sourceKeys?.length
-    ? `${BACKGROUNDS_URL}?document__key__in=${encodeURIComponent(sourceKeys.join(","))}`
-    : BACKGROUNDS_URL;
+  const documentKeys = sourceKeys?.length ? sourceKeys : await fetchSupported5eDocumentKeys();
   const [raw, documentRows] = await Promise.all([
-    fetchAll<Open5eV2Background>(query),
+    fetchAllFromDocuments<Open5eV2Background>(BACKGROUNDS_URL, documentKeys),
     fetchAll<Open5eV2Document>(DOCUMENTS_URL),
   ]);
   const documents = new Map(documentRows.map(document => [document.key, document]));
