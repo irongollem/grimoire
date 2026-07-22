@@ -154,11 +154,10 @@ import { useRouter } from "vue-router";
 import { useQueryClient } from "@tanstack/vue-query";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
-import { useCampaignStore } from "@/stores/campaign";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
 import { useBackgrounds } from "@/composables/useBackgrounds";
 import { useRuleset } from "@/composables/useRuleset";
-import { supabase } from "@/lib/supabase";
+import { useRulesetReviews, useAcknowledgeRulesetReviews } from "@/composables/useRulesetReviews";
 import BackgroundList from "@/components/backgrounds/BackgroundList.vue";
 import BackgroundAsiPicker from "@/components/backgrounds/BackgroundAsiPicker.vue";
 import BackgroundOriginFeatBadge from "@/components/backgrounds/BackgroundOriginFeatBadge.vue";
@@ -176,7 +175,7 @@ import {
   type BackgroundAsiChoice,
 } from "@/lib/backgroundAsi";
 import { SKILLS } from "@/types/party.types";
-import type { PartyMember, SaveKey } from "@/types/party.types";
+import type { SaveKey } from "@/types/party.types";
 import type { Background } from "@/types/background.types";
 
 const BG_SOURCE_OPTIONS = [
@@ -188,7 +187,6 @@ const BG_SOURCE_OPTIONS = [
 const router = useRouter();
 const auth = useAuthStore();
 const ui = useUiStore();
-const campaign = useCampaignStore();
 const queryClient = useQueryClient();
 const { data: party } = useParty();
 const { mutateAsync: update } = useUpdatePartyMember();
@@ -199,6 +197,8 @@ const resolvedMemberId = computed(() =>
   ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId,
 );
 const me = computed(() => party.value?.find((m) => m.id === resolvedMemberId.value) ?? null);
+const { data: rulesetReviews } = useRulesetReviews(resolvedMemberId);
+const { mutateAsync: acknowledgeRulesetReviews } = useAcknowledgeRulesetReviews();
 
 const currentBgId = computed(() => me.value?.background_id ?? "");
 const { data: allBackgrounds } = useBackgrounds();
@@ -272,7 +272,7 @@ function cancel() {
 async function confirm() {
   if (!me.value || !pendingBg.value || asiChoiceIncomplete.value) return;
   const memberId = me.value.id;
-  const hadReviewFlag = me.value.background_ruleset_review_required === true;
+  const hadReviewFlag = (rulesetReviews.value ?? []).some((r) => r.flag_type === "background");
   saving.value = true;
   try {
     const form = {
@@ -338,18 +338,10 @@ async function confirm() {
 
     // Picking a background (even the same ruleset's) satisfies the pending
     // ruleset review — clear it so the banner doesn't linger after a save
-    // that already resolved it. Patch the cache directly so it disappears
-    // immediately rather than waiting on the mutation's background refetch.
+    // that already resolved it.
     if (hadReviewFlag) {
-      const { error } = await supabase.rpc("acknowledge_background_ruleset_review", {
-        p_party_member_id: memberId,
-      });
-      if (!error) {
-        queryClient.setQueryData<PartyMember[]>(
-          ["party", campaign.activeCampaignId],
-          (old) => old?.map((m) => (m.id === memberId ? { ...m, background_ruleset_review_required: false } : m)),
-        );
-      }
+      await acknowledgeRulesetReviews({ partyMemberId: memberId, flagTypes: ["background"] });
+      await queryClient.invalidateQueries({ queryKey: ["ruleset_reviews"] });
     }
 
     router.push("/play");

@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { requireAdmin } from "../_shared/requireAdmin.ts";
 import {
   buildRuleRow,
   buildRulesetRow,
@@ -8,23 +9,6 @@ import {
   type Open5eV2Ruleset,
   type SrdRuleRow,
 } from "./rulesMapping.ts";
-
-// The gateway (verify_jwt, on by default) has already verified the bearer's
-// signature before the handler runs, so the payload's `role` claim can be
-// trusted without re-verification. Comparing the raw bearer to the injected
-// SUPABASE_SERVICE_ROLE_KEY env var is NOT reliable here: projects carrying
-// both legacy-JWT and new-format API keys can have a valid service-role JWT
-// that string-differs from the injected key.
-function verifiedJwtRole(bearer: string): string | null {
-  const payload = bearer.split(".")[1];
-  if (!payload) return null;
-  try {
-    const json = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
-    return typeof json.role === "string" ? json.role : null;
-  } catch {
-    return null;
-  }
-}
 
 // Open5e v2 `/v2/rulesets/` (sections/groupings, e.g. "Combat", "Exploration")
 // and `/v2/rules/` (glossary-style entries) for BOTH the 2014 (SRD 5.1) and
@@ -81,39 +65,12 @@ Deno.serve(async (req) => {
     // verifies the JWT (verify_jwt default), but any authenticated user would
     // otherwise reach this handler, so gate on the caller's verified admin
     // claim (app_metadata.role is server-controlled and signed), mirroring
-    // is_app_admin() in the DB.
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ ok: false, error: "Unauthorized" }),
-        { status: 401, headers: { "Content-Type": "application/json" } },
-      );
-    }
-    // Allow the trusted cron/service-role caller (it passes the service-role key
-    // as the bearer token); otherwise require a verified admin user. Either way,
-    // an ordinary authenticated user cannot trigger a canonical re-sync.
-    const bearer = authHeader.replace(/^Bearer\s+/i, "");
-    const isServiceRole = verifiedJwtRole(bearer) === "service_role";
-    if (!isServiceRole) {
-      const caller = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_ANON_KEY")!,
-        { global: { headers: { Authorization: authHeader } } },
-      );
-      const { data: { user }, error: authError } = await caller.auth.getUser();
-      if (authError || !user) {
-        return new Response(
-          JSON.stringify({ ok: false, error: "Unauthorized" }),
-          { status: 401, headers: { "Content-Type": "application/json" } },
-        );
-      }
-      if (user.app_metadata?.role !== "admin") {
-        return new Response(
-          JSON.stringify({ ok: false, error: "Forbidden" }),
-          { status: 403, headers: { "Content-Type": "application/json" } },
-        );
-      }
-    }
+    // is_app_admin() in the DB. The trusted cron caller passes the service-role
+    // key as the bearer token, which is also accepted — either way, an ordinary
+    // authenticated user cannot trigger a canonical re-sync. No CORS headers
+    // here (this function has none — it's not called from the browser).
+    const gate = await requireAdmin(req, {}, { allowServiceRole: true });
+    if (gate instanceof Response) return gate;
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,

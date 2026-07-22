@@ -85,9 +85,8 @@
 
 <script setup lang="ts">
 import { inject, computed } from "vue";
-import {
-  CHARACTER_FORM_KEY, WIZARD_STEPS, WIZARD_STEPS_EDIT,
-} from "@/composables/useCharacterCreationForm";
+import { CHARACTER_FORM_KEY } from "@/composables/useCharacterCreationForm";
+import { WIZARD_STEPS, WIZARD_STEPS_EDIT } from "@/lib/characterCreation";
 import CharacterCreateBasicsStep from "@/components/play/CharacterCreateBasicsStep.vue";
 import CharacterCreateAbilitiesStep from "@/components/play/CharacterCreateAbilitiesStep.vue";
 import CharacterCreateBackgroundStep from "@/components/play/CharacterCreateBackgroundStep.vue";

@@ -2,20 +2,16 @@
   <div class="space-y-4">
 
     <!-- ── Background ruleset review (campaign edition changed) ─────────────── -->
-    <div
-      v-if="member.background_ruleset_review_required"
-      class="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300"
-      role="status"
+    <RulesetReviewBanner
+      v-if="hasBackgroundRulesetReview"
+      link-to="/play/background"
+      link-label="Review background"
+      ack-label="Keep current choices"
+      :acknowledging="acknowledgingBackgroundReview"
+      @acknowledge="acknowledgeBackgroundReview"
     >
       The campaign rules changed. Review {{ member.name }}'s background ability scores and Origin feat.
-      <RouterLink class="ml-1 underline font-semibold" to="/play/background">Review background</RouterLink>
-      <button
-        type="button"
-        class="ml-2 underline font-semibold disabled:opacity-50"
-        :disabled="acknowledgingBackgroundReview"
-        @click="acknowledgeBackgroundReview"
-      >Keep current choices</button>
-    </div>
+    </RulesetReviewBanner>
 
     <!-- ── Beast traits (only when wildshaped) ──────────────────────────────── -->
     <PlayerWildshapeTraits
@@ -91,95 +87,20 @@
     <PlayerRacialTraits v-if="racialTraitGroups.length" :groups="racialTraitGroups" />
 
     <!-- ── Languages & Tool Proficiencies ───────────────────────────────────── -->
-    <div
+    <PlayerProficienciesCard
       v-if="member.languages?.length || member.tool_proficiencies?.length"
-      class="rounded-lg border border-border bg-card overflow-hidden"
-    >
-      <div class="px-4 py-2.5 border-b border-border">
-        <p class="text-label-lg font-semibold text-muted-foreground">Proficiencies & Languages</p>
-      </div>
-      <div class="divide-y divide-border">
-        <div v-if="member.languages?.length" class="flex gap-3 px-4 py-2.5">
-          <span class="text-label md:text-sm text-muted-foreground w-32 shrink-0 pt-0.5">Languages</span>
-          <div class="flex flex-wrap gap-1.5">
-            <template v-for="lang in member.languages" :key="lang">
-              <RouterLink
-                v-if="isOwner && isChoicePlaceholder(lang)"
-                to="/play/character/edit?tab=profs"
-                class="inline-flex items-center rounded-md bg-primary/8 border border-primary/30 border-dashed px-2 py-0.5 text-body text-primary/70 hover:text-primary hover:bg-primary/15 transition-colors"
-                :title="'Tap to choose a language'"
-              >{{ lang }}</RouterLink>
-              <span
-                v-else
-                class="inline-flex items-center rounded-md bg-muted/50 border border-border px-2 py-0.5 text-body text-foreground"
-              >{{ lang }}</span>
-            </template>
-          </div>
-        </div>
-        <div v-if="member.tool_proficiencies?.length" class="flex gap-3 px-4 py-2.5">
-          <span class="text-label md:text-sm text-muted-foreground w-32 shrink-0 pt-0.5">Tools</span>
-          <div class="flex flex-wrap gap-1.5">
-            <span
-              v-for="tool in member.tool_proficiencies"
-              :key="tool"
-              class="inline-flex items-center rounded-md bg-muted/50 border border-border px-2 py-0.5 text-body text-foreground"
-            >{{ tool }}</span>
-          </div>
-        </div>
-      </div>
-    </div>
+      :languages="member.languages"
+      :tool-proficiencies="member.tool_proficiencies"
+      :is-owner="isOwner"
+    />
 
-    <!-- ── Class choices ───────────────────────────────────────────────────── -->
-    <!-- ── Background ASI (2024 PHB) ─────────────────────────────────────────── -->
-    <div v-if="backgroundAsiBonuses.length" class="rounded-lg border border-primary/30 bg-primary/5 overflow-hidden">
-      <div class="px-4 py-2.5 border-b border-primary/20 bg-primary/10 flex items-center gap-2">
-        <p class="text-label-lg font-semibold text-primary">Background Ability Increase</p>
-        <span class="text-eyebrow text-primary/60">2024 PHB</span>
-      </div>
-      <div class="px-4 py-3 flex flex-wrap gap-1.5">
-        <span
-          v-for="entry in backgroundAsiBonuses"
-          :key="entry.key"
-          class="inline-flex items-center rounded-md bg-primary/10 border border-primary/20 px-2 py-0.5 font-cinzel text-xs text-primary"
-        >{{ entry.label }} +{{ entry.delta }}</span>
-      </div>
-    </div>
-
-    <!-- ── Background feat (2024 PHB) — resolved link when the feat is imported ─ -->
-    <BackgroundOriginFeatBadge v-if="backgroundOriginFeat" :origin-feat="backgroundOriginFeat" />
-    <div v-else-if="backgroundFeat" class="rounded-lg border border-amber-500/30 bg-amber-500/5 overflow-hidden">
-      <div class="px-4 py-2.5 border-b border-amber-500/20 bg-amber-500/10 flex items-center gap-2">
-        <p class="text-label-lg font-semibold text-amber-600 dark:text-amber-400">Background Feat</p>
-        <span class="text-eyebrow text-amber-600/60 dark:text-amber-400/60">2024 PHB</span>
-      </div>
-      <div class="px-4 py-3">
-        <p class="font-cinzel text-sm font-bold text-foreground">{{ backgroundFeat }}</p>
-      </div>
-    </div>
-
-    <div v-if="choiceEntries.length > 0" class="rounded-lg border border-border bg-card overflow-hidden">
-      <div class="px-4 py-2.5 border-b border-border">
-        <p class="text-label-lg font-semibold text-muted-foreground">Choices</p>
-      </div>
-      <div class="divide-y divide-border">
-        <div
-          v-for="entry in choiceEntries"
-          :key="entry.key"
-          class="flex gap-3 px-4 py-2.5"
-        >
-          <span class="text-label md:text-sm text-muted-foreground w-32 shrink-0 pt-0.5">
-            {{ entry.label }}
-          </span>
-          <div class="flex flex-wrap gap-1.5">
-            <span
-              v-for="val in entry.values"
-              :key="val"
-              class="inline-flex items-center rounded-md bg-primary/10 border border-primary/20 px-2 py-0.5 text-body text-foreground"
-            >{{ val }}</span>
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- ── Class choices, background ASI & background feat (2024 PHB) ───────── -->
+    <PlayerChoicesCard
+      :class-choices="member.class_choices"
+      :background-asi-bonuses="backgroundAsiBonuses"
+      :background-origin-feat="backgroundOriginFeat"
+      :background-feat="backgroundFeat"
+    />
 
     <!-- ── Metamagic ─────────────────────────────────────────────────────── -->
     <PlayerExpandableList
@@ -196,21 +117,7 @@
     />
 
     <!-- ── Divine Smite (Paladin) ───────────────────────────────────────────── -->
-    <div v-if="isPaladin" class="rounded-lg border border-border bg-card overflow-hidden">
-      <div class="px-4 py-2.5 border-b border-border">
-        <p class="text-label-lg font-semibold text-muted-foreground">Divine Smite</p>
-      </div>
-      <div class="divide-y divide-border">
-        <div v-for="row in DIVINE_SMITE_TABLE" :key="row.slotLevel" class="flex items-center gap-3 px-4 py-2">
-          <span class="text-label text-muted-foreground w-14 shrink-0">Slot {{ row.slotLevel }}</span>
-          <span class="font-cinzel text-sm font-bold text-foreground flex-1">{{ row.damage }} radiant</span>
-          <span class="text-caption text-muted-foreground italic shrink-0">{{ row.special }} vs undead/fiends</span>
-        </div>
-      </div>
-      <div class="px-4 py-2 border-t border-border">
-        <p class="text-caption text-muted-foreground italic">Expend a spell slot after a melee hit. Max 5d8 (+ 1d8 vs undead/fiends).</p>
-      </div>
-    </div>
+    <PlayerDivineSmiteCard v-if="isPaladin" />
 
     <!-- ── Rage (Barbarian) ──────────────────────────────────────────────────── -->
     <PlayerBarbarianRage
@@ -261,10 +168,9 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { useRouter, RouterLink } from "vue-router";
-import { useQueryClient } from "@tanstack/vue-query";
-import { supabase } from "@/lib/supabase";
+import { useRouter } from "vue-router";
 import { useToast } from "@/composables/useToast";
+import RulesetReviewBanner from "@/components/common/RulesetReviewBanner.vue";
 import PlayerWildshapeTraits from "./PlayerWildshapeTraits.vue";
 import PlayerResourcePools from "./PlayerResourcePools.vue";
 import PlayerFlexibleCasting from "./PlayerFlexibleCasting.vue";
@@ -278,47 +184,43 @@ import PlayerRacialTraits from "./PlayerRacialTraits.vue";
 import type { TraitGroup } from "./PlayerRacialTraits.vue";
 import PlayerExpandableList from "./PlayerExpandableList.vue";
 import type { ExpandableItem } from "./PlayerExpandableList.vue";
+import PlayerProficienciesCard from "./PlayerProficienciesCard.vue";
+import PlayerChoicesCard from "./PlayerChoicesCard.vue";
+import PlayerDivineSmiteCard from "./PlayerDivineSmiteCard.vue";
 import { useMetamagicOptions } from "@/composables/useMetamagic";
 import type { MetamagicOption } from "@/lib/metamagic";
 import { ELDRITCH_INVOCATIONS_MAP } from "@/data/eldritchInvocations";
 import { MONK_KI_ABILITIES } from "@/data/monkKiAbilities";
 import { BATTLE_MASTER_MANEUVERS, BATTLE_MASTER_MANEUVERS_MAP } from "@/data/battleMasterManeuvers";
 import { useArtificerState } from "@/composables/useArtificerState";
-import { mapFeatureIds, type FeatureEntry } from "@/levelup/types";
+import { useClassFeatureGroups } from "@/composables/useClassFeatureGroups";
 import type { CustomStep } from "@/levelup/customTypes";
-import { useAllFeatures } from "@/composables/useFeatures";
-import { useClassByName, useAllSystemClasses, useAllCustomClasses } from "@/composables/useCustomClasses";
-import { useCustomSubclassByClassAndSubclass, useAllCustomSubclasses } from "@/composables/useCustomSubclasses";
-import { useCharacterClasses } from "@/composables/useCharacterClasses";
-import type { SystemClass, CustomClass, CustomSubclass } from "@/levelup/customTypes";
+import { useClassByName } from "@/composables/useCustomClasses";
+import { useCustomSubclassByClassAndSubclass } from "@/composables/useCustomSubclasses";
 import { useTakeSpellcastingRest, useUpdatePartyMember } from "@/composables/useParty";
 import { useAllSpecies } from "@/composables/useSpecies";
 import { useConfirm } from "@/composables/useConfirm";
 import type { PartyMember, SaveKey, SpellSlotEntry } from "@/types/party.types";
 import type { Monster } from "@/types/monster.types";
-import type { ClassFeatureGroup } from "./PlayerClassFeaturesList.vue";
 import type { ResourceRow } from "./PlayerResourcePools.vue";
 import { useRuleset } from "@/composables/useRuleset";
 import { deriveEffectiveSpellSlots } from "@/lib/spellSlots";
 import { useBackground } from "@/composables/useBackgrounds";
-import BackgroundOriginFeatBadge from "@/components/backgrounds/BackgroundOriginFeatBadge.vue";
 import { abilityBonusesForChoice, parseBackgroundAsiChoice } from "@/lib/backgroundAsi";
+import { useRulesetReviews, useAcknowledgeRulesetReviews } from "@/composables/useRulesetReviews";
 
 const props = defineProps<{ member: PartyMember; showRestButtons?: boolean; wildshapeMonster?: Monster; isOwner?: boolean }>();
 
 const router = useRouter();
 const { ruleset } = useRuleset();
-const queryClient = useQueryClient();
 const toast = useToast();
 
-function isChoicePlaceholder(s: string): boolean {
-  return s.toLowerCase().includes("choice");
-}
+const memberRef = computed(() => props.member);
+const memberIdRef = computed(() => props.member.id);
 
 const memberClassRef    = computed(() => props.member.class ?? "");
 const memberSubclassRef = computed(() => props.member.subclass ?? "");
 const classData = useClassByName(memberClassRef);
-const { data: allFeatures, isPending: featuresPending } = useAllFeatures();
 const { data: customSubclass } = useCustomSubclassByClassAndSubclass(memberClassRef, memberSubclassRef);
 const { data: linkedBackground } = useBackground(computed(() => props.member.background_id ?? ""));
 
@@ -335,103 +237,14 @@ const linkedSubrace = computed(() =>
     : null,
 );
 
-const featureObjectMap = computed(() => new Map((allFeatures.value ?? []).map(f => [f.id, f])));
-
 // ── Multiclass feature grouping ───────────────────────────────────────────────
 
-const memberIdRef = computed(() => props.member.id);
-const { data: characterClasses, isPending: classesPending } = useCharacterClasses(memberIdRef);
-const { data: allSystemClasses } = useAllSystemClasses();
-const { data: allCustomClasses } = useAllCustomClasses();
-const { data: allCustomSubclassEntries } = useAllCustomSubclasses();
-
-const featureDataPending = computed(() => featuresPending.value || classesPending.value);
-
-/** Legacy name lookup only; pinned character rows resolve by exact id below. */
-const classDataMap = computed(() => {
-  const map = new Map<string, SystemClass | CustomClass>();
-  for (const c of allCustomClasses.value ?? []) map.set(c.class_name, c);
-  for (const c of allSystemClasses.value ?? []) map.set(c.class_name, c);
-  return map;
-});
-
-/** "ClassName::SubclassName" → subclass data. */
-const subclassDataMap = computed(() => {
-  const map = new Map<string, CustomSubclass>();
-  for (const s of allCustomSubclassEntries.value ?? []) {
-    map.set(`${s.class_name}::${s.subclass_name}`, s);
-  }
-  return map;
-});
-
-function classDefinitionFor(entry: NonNullable<typeof characterClasses.value>[number]) {
-  if (entry.class_definition_id) {
-    const definitions = entry.class_definition_kind === "custom"
-      ? (allCustomClasses.value ?? [])
-      : (allSystemClasses.value ?? []);
-    return definitions.find(definition => definition.id === entry.class_definition_id) ?? null;
-  }
-  return classDataMap.value.get(entry.class_name) ?? null;
-}
-
-function subclassDefinitionFor(entry: NonNullable<typeof characterClasses.value>[number]) {
-  if (!entry.subclass_name) return null;
-  if (entry.subclass_definition_id) {
-    return (allCustomSubclassEntries.value ?? []).find(
-      definition => definition.id === entry.subclass_definition_id,
-    ) ?? null;
-  }
-  return subclassDataMap.value.get(`${entry.class_name}::${entry.subclass_name}`) ?? null;
-}
-
-function buildFeaturesByLevel(
-  cls: { features: Record<string, string[]> } | null | undefined,
-  maxLevel: number,
-): Record<number, FeatureEntry[]> {
-  if (!cls) return {};
-  const result: Record<number, FeatureEntry[]> = {};
-  for (let lvl = 1; lvl <= maxLevel; lvl++) {
-    const entries = mapFeatureIds(cls.features[lvl.toString()] ?? [], featureObjectMap.value);
-    if (entries.length > 0) result[lvl] = entries;
-  }
-  return result;
-}
-
-/**
- * Feature groups keyed by class — one per character_classes row. DM-built
- * characters have no character_classes rows (only the player creation wizard
- * seeds one — see useCharacterClasses.ts), so fall back to a single group
- * synthesized from the legacy party_members.class/subclass/level fields.
- */
-const classFeatureGroups = computed<ClassFeatureGroup[]>(() => {
-  const rows = characterClasses.value ?? [];
-  if (rows.length > 0) {
-    return rows.map(cc => {
-      const classDefinition = classDefinitionFor(cc);
-      const subclassDefinition = subclassDefinitionFor(cc);
-      return {
-        class_name: cc.class_name,
-        subclass_name: cc.subclass_name,
-        levels: cc.levels,
-        featuresByLevel: buildFeaturesByLevel(classDefinition, cc.levels),
-        subclassFeaturesByLevel: buildFeaturesByLevel(subclassDefinition, cc.levels),
-      };
-    });
-  }
-  if (!props.member.class) return [];
-  const className = props.member.class;
-  const subclassName = props.member.subclass ?? null;
-  const levels = props.member.level;
-  return [{
-    class_name: className,
-    subclass_name: subclassName,
-    levels,
-    featuresByLevel: buildFeaturesByLevel(classDataMap.value.get(className), levels),
-    subclassFeaturesByLevel: subclassName
-      ? buildFeaturesByLevel(subclassDataMap.value.get(`${className}::${subclassName}`), levels)
-      : {},
-  }];
-});
+const {
+  characterClasses,
+  classFeatureGroups,
+  featureDataPending,
+  classDefinitionFor,
+} = useClassFeatureGroups(memberRef);
 
 // ── Local optimistic state ────────────────────────────────────────────────────
 
@@ -523,29 +336,7 @@ const spellPickSteps = computed((): CustomStep[] => {
   return allSteps.filter(s => s.step_type === "spell_pick" && s.level <= props.member.level);
 });
 
-// ── Class choices (read-only) ─────────────────────────────────────────────────
-
-const CHOICE_LABELS: Record<string, string> = {
-  subclass:               "Subclass",
-  fighting_style:         "Fighting Style",
-  pact_boon:              "Pact Boon",
-  expertise:              "Expertise",
-  eldritch_invocations:   "Invocations",
-  metamagic_options:      "Metamagic",
-  infusions_known:        "Infusions",
-  favored_enemy:          "Favored Enemy",
-  natural_explorer:       "Natural Explorer",
-  ranger_conclave:        "Ranger Conclave",
-  divine_domain:          "Divine Domain",
-  druid_circle:           "Druid Circle",
-  arcane_tradition:       "Arcane Tradition",
-  sorcerous_origin:       "Sorcerous Origin",
-  bardic_college:         "Bardic College",
-  monastic_tradition:     "Monastic Tradition",
-  roguish_archetype:      "Roguish Archetype",
-  martial_archetype:      "Martial Archetype",
-  barbarian_path:         "Primal Path",
-};
+// ── Background ASI & feat (2024 PHB), fed to PlayerChoicesCard ────────────────
 
 /** Background feat name from class_choices (set when a 2024 PHB background is picked). */
 const backgroundFeat = computed(() => {
@@ -578,38 +369,23 @@ const backgroundAsiBonuses = computed(() => {
     .map(([key, delta]) => ({ key, label: LABELS[key], delta }));
 });
 
+const { data: rulesetReviews } = useRulesetReviews(memberIdRef);
+const hasBackgroundRulesetReview = computed(() =>
+  (rulesetReviews.value ?? []).some((r) => r.flag_type === "background"),
+);
+const { mutateAsync: acknowledgeRulesetReviews } = useAcknowledgeRulesetReviews();
 const acknowledgingBackgroundReview = ref(false);
 async function acknowledgeBackgroundReview() {
   if (acknowledgingBackgroundReview.value) return;
   acknowledgingBackgroundReview.value = true;
   try {
-    const { error } = await supabase.rpc("acknowledge_background_ruleset_review", {
-      p_party_member_id: props.member.id,
-    });
-    if (error) throw error;
-    await queryClient.invalidateQueries({ queryKey: ["party"] });
+    await acknowledgeRulesetReviews({ partyMemberId: props.member.id, flagTypes: ["background"] });
   } catch (e) {
     toast.error(toast.fromError(e, "Couldn't acknowledge the rule change."));
   } finally {
     acknowledgingBackgroundReview.value = false;
   }
 }
-
-const choiceEntries = computed(() => {
-  const choices = props.member.class_choices ?? {};
-  return Object.entries(choices)
-    .filter(([key, v]) =>
-      key !== "metamagic_options" && key !== "infusions_known" &&
-      key !== "eldritch_invocations" && key !== "battle_master_maneuvers" &&
-      key !== "background_feat" && key !== "background_asi" &&
-      v !== null && v !== undefined && v !== "",
-    )
-    .map(([key, value]) => ({
-      key,
-      label: CHOICE_LABELS[key] ?? key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
-      values: Array.isArray(value) ? (value as string[]) : [String(value)],
-    }));
-});
 
 const { optionsByName: metamagicByName } = useMetamagicOptions();
 const knownMetamagic = computed(() => {
@@ -665,14 +441,7 @@ const isPaladin = computed(() =>
   (characterClasses.value ?? []).some(cc => cc.class_name === "Paladin"),
 );
 
-const DIVINE_SMITE_TABLE = [
-  { slotLevel: 1,   damage: "2d8", special: "3d8" },
-  { slotLevel: 2,   damage: "3d8", special: "4d8" },
-  { slotLevel: 3,   damage: "4d8", special: "5d8" },
-  { slotLevel: "4+", damage: "5d8", special: "6d8" },
-] as const;
-
-// ── Class detection ───────────────────────────────────────────────────────────
+// ── Class detection ─────────────────────────────────────────────────────────────
 
 const isBarbarian = computed(() =>
   props.member.class === "Barbarian" ||
@@ -778,7 +547,6 @@ const displayedResources = computed(() =>
 
 // ── Infusions (Artificer) ─────────────────────────────────────────────────────
 
-const memberRef = computed(() => props.member);
 const {
   isArtificer,
   artificerLevel,

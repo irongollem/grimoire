@@ -148,14 +148,6 @@ export interface PartyMember {
   languages: string[];
   /** 2024-only: item ids (matching `Item.id`) of weapons this character has mastery with. Empty/unused under 2014. */
   weapon_masteries: string[];
-  /**
-   * Set by the campaigns_flag_background_ruleset_review trigger when a ruleset
-   * change invalidates (2024→2014) or newly requires (2014→2024) the member's
-   * stored background ASI/Origin-feat choice in class_choices. Cleared by the
-   * acknowledge_background_ruleset_review RPC. Optional — legacy rows predate
-   * the column and default to unset (treated as false).
-   */
-  background_ruleset_review_required?: boolean;
   spell_slots: SpellSlotEntry[];
   current_location_id: string | null;
   carry_capacity_override: string | null; // expression: "*2", "+30", "-10", or bare number for absolute

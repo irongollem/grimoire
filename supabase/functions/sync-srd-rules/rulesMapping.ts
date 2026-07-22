@@ -9,6 +9,12 @@
  * API (2026-07-22): ruleset keys and rule keys never collide with each other,
  * so `slug` (used for the client-side tree lookup) can be the record's own
  * Open5e `key` directly — it doubles as `source_record_key`.
+ *
+ * `slug` is only guaranteed unique WITHIN a source document (edition) — NOT
+ * globally across all editions Open5e might ever expose. `srd_rules`' true row
+ * identity is the composite (`source_document_key`, `source_record_key`), not
+ * `slug` alone; there is no global UNIQUE constraint on `slug` (the legacy
+ * global constraint was dropped in favor of that composite identity index).
  */
 
 export type RulesetEdition = "2014" | "2024";

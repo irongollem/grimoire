@@ -4,6 +4,8 @@
  * Requires VITE_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY in environment.
  */
 
+import { createClient, type SupabaseClient, type PostgrestError } from "@supabase/supabase-js";
+
 export interface SupabaseEnv {
   supabaseUrl: string;
   serviceKey: string;
@@ -59,55 +61,51 @@ export function installOpen5eUserAgent(): void {
   }) as typeof fetch;
 }
 
-// ── Supabase REST ──────────────────────────────────────────────────────────────
+// ── Supabase client ──────────────────────────────────────────────────────────
 
-interface RequestOptions {
-  method?: string;
-  headers?: Record<string, string>;
-  body?: string;
-}
-
-export async function supabaseRequest(env: SupabaseEnv, path: string, options: RequestOptions = {}): Promise<unknown> {
-  const { headers: extraHeaders, ...restOptions } = options;
-  const res = await fetch(`${env.supabaseUrl}/rest/v1${path}`, {
-    ...restOptions,
-    headers: {
-      apikey: env.serviceKey,
-      Authorization: `Bearer ${env.serviceKey}`,
-      "Content-Type": "application/json",
-      Prefer: "resolution=merge-duplicates",
-      ...extraHeaders,
-    },
+/**
+ * Builds a service-role Supabase client for seed scripts — bypasses RLS,
+ * no browser session to persist/refresh. Mirrors the reference pattern in
+ * scripts/lib/import-chapter-npcs-db.ts's createServiceClient().
+ */
+export function createServiceClient(env: SupabaseEnv): SupabaseClient {
+  return createClient(env.supabaseUrl, env.serviceKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
   });
-  const text = await res.text();
-  if (!res.ok) throw new Error(`Supabase ${path}: HTTP ${res.status} — ${text}`);
-  return text ? JSON.parse(text) : [];
 }
+
+// ── Paginated reads ──────────────────────────────────────────────────────────
 
 const READ_PAGE_SIZE = 1000;
 
+/** Shape of a single `.range()` page response — matches supabase-js's PostgrestResponse. */
+export interface PageResult<T> {
+  data: T[] | null;
+  error: PostgrestError | null;
+}
+
 /**
- * Paginated Supabase REST GET. PostgREST caps a plain (unpaginated) GET at
- * its `max-rows` setting — observed as ~1000 on this project — so a table
- * like srd_spells (~1400 rows) silently truncates under `supabaseRequest`
- * alone. Loops via `?limit=&offset=` (appended after any existing query
- * string) until a short page (fewer than `READ_PAGE_SIZE` rows) signals the
- * end, concatenating every page's rows.
+ * Paginated Supabase read via `.range()` loops. PostgREST caps a plain
+ * (unpaginated) GET at its `max-rows` setting — observed as ~1000 on this
+ * project — so a table like srd_spells (~1400 rows) silently truncates
+ * under a single unpaginated query. Loops via `.range(from, to)` until a
+ * short page (fewer than `READ_PAGE_SIZE` rows) signals the end,
+ * concatenating every page's rows.
+ *
+ * `fetchPage` gets the `[from, to]` bounds for one page and must return the
+ * already-filtered/selected query response (i.e. call `.range(from, to)` as
+ * the last step before awaiting) — this keeps the helper agnostic to which
+ * table/columns/filters a given call site needs.
  */
-export async function supabaseRequestPaginated<T>(
-  env: SupabaseEnv,
-  path: string,
-  options: RequestOptions = {},
+export async function fetchAllRows<T>(
+  fetchPage: (from: number, to: number) => PromiseLike<PageResult<T>>,
 ): Promise<T[]> {
-  const sep = path.includes("?") ? "&" : "?";
   const all: T[] = [];
   let offset = 0;
   while (true) {
-    const page = (await supabaseRequest(
-      env,
-      `${path}${sep}limit=${READ_PAGE_SIZE}&offset=${offset}`,
-      options,
-    )) as T[];
+    const { data, error } = await fetchPage(offset, offset + READ_PAGE_SIZE - 1);
+    if (error) throw error;
+    const page = data ?? [];
     all.push(...page);
     if (page.length < READ_PAGE_SIZE) break;
     offset += READ_PAGE_SIZE;
@@ -122,19 +120,17 @@ export async function supabaseRequestPaginated<T>(
  * identity is the real re-run/dedup identity per the versioning migrations
  * (20260720000012, 20260720000018).
  */
-export async function upsertBatch<T>(
-  env: SupabaseEnv,
+export async function upsertBatch<T extends object>(
+  supabase: SupabaseClient,
   table: string,
   rows: ReadonlyArray<T>,
   onConflict: string,
   batchSize = 50,
 ): Promise<void> {
   for (let i = 0; i < rows.length; i += batchSize) {
-    await supabaseRequest(env, `/${table}?on_conflict=${encodeURIComponent(onConflict)}`, {
-      method: "POST",
-      headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
-      body: JSON.stringify(rows.slice(i, i + batchSize)),
-    });
+    const batch = rows.slice(i, i + batchSize);
+    const { error } = await supabase.from(table).upsert(batch, { onConflict });
+    if (error) throw error;
     process.stdout.write(`\r  Upserted ${Math.min(i + batchSize, rows.length)} / ${rows.length}`);
   }
   console.log();

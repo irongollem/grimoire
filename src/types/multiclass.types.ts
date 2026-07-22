@@ -11,8 +11,6 @@ export interface CharacterClass {
   class_definition_kind?: "system" | "custom" | null;
   subclass_name: string | null;
   subclass_definition_id?: string | null;
-  class_ruleset_review_required?: boolean;
-  subclass_ruleset_review_required?: boolean;
   levels: number;
   is_primary: boolean;
   hit_dice_used: number;

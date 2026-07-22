@@ -31,17 +31,17 @@ import {
   type ImportedSrdSpell,
 } from "@/lib/open5eSpellImport";
 import { fetchSupported5eDocumentKeys } from "@/lib/open5eApi";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   requireEnv,
   installOpen5eUserAgent,
-  supabaseRequest,
-  supabaseRequestPaginated,
+  createServiceClient,
+  fetchAllRows,
   upsertBatch,
   parseSeedCliArgs,
   printAvailableDocuments,
   countByRuleset,
   DEFAULT_SRD_DOCUMENT_KEYS,
-  type SupabaseEnv,
 } from "./lib/seed-helpers";
 
 // ── srd_spells table snapshot ────────────────────────────────────────────────
@@ -88,11 +88,15 @@ export function groupIdsByLowerName(rows: ReadonlyArray<{ id: string; name: stri
   return map;
 }
 
-async function backfillArt(env: SupabaseEnv, spells: ReadonlyArray<{ id: string; name: string }>): Promise<void> {
-  const art = await supabaseRequestPaginated<ArtDefaultRow>(
-    env,
-    "/srd_art_defaults?content_type=eq.spell&image_url=not.is.null&select=srd_slug,image_url,image_focal_point",
-    { method: "GET", headers: { Prefer: "" } },
+async function backfillArt(supabase: SupabaseClient, spells: ReadonlyArray<{ id: string; name: string }>): Promise<void> {
+  const art = await fetchAllRows<ArtDefaultRow>((from, to) =>
+    supabase
+      .from("srd_art_defaults")
+      .select("srd_slug,image_url,image_focal_point")
+      .eq("content_type", "spell")
+      .not("image_url", "is", null)
+      .range(from, to)
+      .returns<ArtDefaultRow[]>(),
   );
   if (!art.length) {
     console.log("  No canonical spell art found — skipping art backfill.");
@@ -108,13 +112,13 @@ async function backfillArt(env: SupabaseEnv, spells: ReadonlyArray<{ id: string;
     await Promise.all(
       art.slice(i, i + PATCH_BATCH).flatMap(({ srd_slug, image_url, image_focal_point }) => {
         const ids = idsByName.get(srd_slug) ?? [];
-        return ids.map((id) =>
-          supabaseRequest(env, `/srd_spells?id=eq.${encodeURIComponent(id)}`, {
-            method: "PATCH",
-            headers: { Prefer: "return=minimal" },
-            body: JSON.stringify({ image_url, image_focal_point }),
-          }),
-        );
+        return ids.map(async (id) => {
+          const { error } = await supabase
+            .from("srd_spells")
+            .update({ image_url, image_focal_point })
+            .eq("id", id);
+          if (error) throw error;
+        });
       }),
     );
     patched = Math.min(i + PATCH_BATCH, art.length);
@@ -177,6 +181,7 @@ async function main(): Promise<void> {
   }
 
   const env = requireEnv();
+  const supabase = createServiceClient(env);
 
   console.log("Step 2: Upserting to srd_spells table…");
   // Re-runs must not clobber admin-reviewed rows (mechanics_reviewed = true)
@@ -185,16 +190,18 @@ async function main(): Promise<void> {
   // Single paginated fetch of the full table (~1400 rows, past PostgREST's
   // unpaginated cap) — reused below for the art backfill's name map instead
   // of re-fetching the whole table a second time.
-  const existing = await supabaseRequestPaginated<SrdSpellRow>(
-    env,
-    "/srd_spells?select=id,name,source_document_key,source_record_key,mechanics_reviewed,image_url",
-    { method: "GET", headers: { Prefer: "" } },
+  const existing = await fetchAllRows<SrdSpellRow>((from, to) =>
+    supabase
+      .from("srd_spells")
+      .select("id,name,source_document_key,source_record_key,mechanics_reviewed,image_url")
+      .range(from, to)
+      .returns<SrdSpellRow[]>(),
   );
   const plan = planSrdSpellImport(rows, existing);
   if (plan.skippedReviewed > 0) {
     console.log(`  Skipping ${plan.skippedReviewed} admin-reviewed rows (mechanics_reviewed).`);
   }
-  await upsertBatch(env, "srd_spells", plan.rows, "source_document_key,source_record_key");
+  await upsertBatch(supabase, "srd_spells", plan.rows, "source_document_key,source_record_key");
   console.log(`  Done — ${plan.rows.length} rows upserted.\n`);
 
   console.log("Step 3: Backfilling art from srd_art_defaults…");
@@ -205,7 +212,7 @@ async function main(): Promise<void> {
   const idToName = new Map(existing.map((row) => [row.id, row.name]));
   for (const row of plan.rows) idToName.set(row.id, row.name);
   const spellIdentities = [...idToName.entries()].map(([id, name]) => ({ id, name }));
-  await backfillArt(env, spellIdentities);
+  await backfillArt(supabase, spellIdentities);
   console.log("  Art backfill complete.\n");
 
   console.log("=== Seeding complete ===");

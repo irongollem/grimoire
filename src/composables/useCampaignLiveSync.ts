@@ -73,6 +73,10 @@ export function useCampaignLiveSync() {
           // needs the deleted row's user_id, which realtime DELETE only carries under
           // full replica identity — tracked separately.)
           .on("postgres_changes", { event: "*", schema: "public", table: "campaign_members",   filter: f }, invalidate("campaign-members"))
+          // Ruleset-review flags — a campaign edition switch (or DM/player
+          // acknowledging one) writes/deletes rows here; refresh so the review
+          // banners on every connected client's sheet appear/disappear live.
+          .on("postgres_changes", { event: "*", schema: "public", table: "ruleset_reviews",     filter: f }, invalidate("ruleset_reviews"))
           // The Interlude — all four downtime queries share the "downtime" key
           // root, so a single invalidate string refreshes every one of them.
           .on("postgres_changes", { event: "*", schema: "public", table: "downtime_grants",     filter: f }, invalidate("downtime"))

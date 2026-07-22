@@ -1,34 +1,26 @@
 <template>
   <div class="space-y-4 pb-8">
-    <div
+    <RulesetReviewBanner
       v-if="rulesetReviewClasses.length"
-      class="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300"
-      role="status"
+      link-to="/codex/classes"
+      link-label="Compare classes"
+      ack-label="Keep current choices"
+      :acknowledging="acknowledgingRulesetReview"
+      @acknowledge="acknowledgeRulesetReview"
     >
       The campaign rules changed. Review {{ rulesetReviewClasses.map(entry => entry.label).join(", ") }} before changing its spells.
-      <RouterLink class="ml-1 underline font-semibold" to="/codex/classes">Compare classes</RouterLink>
-      <button
-        type="button"
-        class="ml-2 underline font-semibold disabled:opacity-50"
-        :disabled="acknowledgingRulesetReview"
-        @click="acknowledgeRulesetReview"
-      >Keep current choices</button>
-    </div>
-    <div
+    </RulesetReviewBanner>
+    <RulesetReviewBanner
       v-if="rulesetReviewSpells.length"
-      class="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300"
-      role="status"
+      link-to="/spells"
+      link-label="Compare spells"
+      ack-label="Keep current versions"
+      :acknowledging="acknowledgingSpellRulesetReview"
+      @acknowledge="acknowledgeSpellRulesetReview"
     >
       No safe {{ ruleset }} counterpart was found for {{ rulesetReviewSpells.map(entry => entry.spell.name).join(", ") }}.
       Review the spell text before play.
-      <RouterLink class="ml-1 underline font-semibold" to="/spells">Compare spells</RouterLink>
-      <button
-        type="button"
-        class="ml-2 underline font-semibold disabled:opacity-50"
-        :disabled="acknowledgingSpellRulesetReview"
-        @click="acknowledgeSpellRulesetReview"
-      >Keep current versions</button>
-    </div>
+    </RulesetReviewBanner>
     <div v-if="legacySpells.length" class="rounded-lg border border-amber-500/35 bg-amber-500/10 p-4 space-y-2">
       <p class="text-label-lg font-bold text-amber-500">Review legacy spell sources</p>
       <p class="text-body text-muted-foreground">These spells predate multiclass source tracking. Assign each one before changing its preparation.</p>
@@ -196,7 +188,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { RouterLink, useRoute } from "vue-router";
+import { useRoute } from "vue-router";
 import { useQueryClient } from "@tanstack/vue-query";
 import { refDebounced } from "@vueuse/core";
 import { IconGenerate, IconSearch } from '@/lib/icons';
@@ -209,6 +201,7 @@ import PlayerMySpells from "@/components/spells/PlayerMySpells.vue";
 import PlayerInnateSpells from "@/components/spells/PlayerInnateSpells.vue";
 import AddInnateSpellDialog from "@/components/spells/AddInnateSpellDialog.vue";
 import PlayerSpellModal from "@/components/spells/PlayerSpellModal.vue";
+import RulesetReviewBanner from "@/components/common/RulesetReviewBanner.vue";
 import type { Spell } from "@/types/spell.types";
 import { SPELL_SCHOOLS, getCasterType, computeMaxPrepared } from "@/types/spell.types";
 import { useCharacterClasses } from "@/composables/useCharacterClasses";
@@ -217,7 +210,7 @@ import { computeSpellcastingByClass } from "@/lib/spellcastingByClass";
 import { useRuleset } from "@/composables/useRuleset";
 import { getSpellPreparationPolicy, policyValueAtLevel } from "@/lib/spellPreparationPolicy";
 import { deriveEffectiveSpellSlots } from "@/lib/spellSlots";
-import { supabase } from "@/lib/supabase";
+import { useRulesetReviews, useAcknowledgeRulesetReviews } from "@/composables/useRulesetReviews";
 import { useToast } from "@/composables/useToast";
 
 const addInnateOpen = ref(false);
@@ -248,30 +241,33 @@ const memberClass = computed(() => {
 });
 
 const { data: characterClasses } = useCharacterClasses(resolvedMemberId);
-const rulesetReviewClasses = computed(() => (characterClasses.value ?? [])
-  .filter(entry => entry.class_ruleset_review_required || entry.subclass_ruleset_review_required)
-  .map(entry => ({
-    id: entry.id,
-    label: entry.subclass_name ? `${entry.class_name} (${entry.subclass_name})` : entry.class_name,
-  })));
+const { data: rulesetReviews } = useRulesetReviews(resolvedMemberId);
+const rulesetReviewClasses = computed(() => {
+  const flaggedIds = new Set(
+    (rulesetReviews.value ?? [])
+      .filter((r) => r.flag_type === "class" || r.flag_type === "subclass")
+      .map((r) => r.character_class_id)
+      .filter((id): id is string => !!id),
+  );
+  return (characterClasses.value ?? [])
+    .filter((entry) => flaggedIds.has(entry.id))
+    .map((entry) => ({
+      id: entry.id,
+      label: entry.subclass_name ? `${entry.class_name} (${entry.subclass_name})` : entry.class_name,
+    }));
+});
 const queryClient = useQueryClient();
 const toast = useToast();
+const { mutateAsync: acknowledgeRulesetReviews } = useAcknowledgeRulesetReviews();
 const acknowledgingRulesetReview = ref(false);
 async function acknowledgeRulesetReview() {
-  if (!rulesetReviewClasses.value.length || acknowledgingRulesetReview.value) return;
+  if (!rulesetReviewClasses.value.length || acknowledgingRulesetReview.value || !resolvedMemberId.value) return;
   acknowledgingRulesetReview.value = true;
   try {
-    const results = await Promise.allSettled(
-      rulesetReviewClasses.value.map((entry) =>
-        supabase.rpc("acknowledge_character_ruleset_review", { p_character_class_id: entry.id })
-          .then(({ error }) => { if (error) throw error; }),
-      ),
-    );
+    await acknowledgeRulesetReviews({ partyMemberId: resolvedMemberId.value, flagTypes: ["class", "subclass"] });
     await queryClient.invalidateQueries({ queryKey: ["character_classes", resolvedMemberId.value] });
-    const failures = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
-    if (failures.length) {
-      toast.error(`Couldn't acknowledge ${failures.length} of ${results.length} rule change${results.length === 1 ? "" : "s"}: ${toast.fromError(failures[0].reason)}`);
-    }
+  } catch (e) {
+    toast.error(toast.fromError(e, "Couldn't acknowledge the rule change."));
   } finally {
     acknowledgingRulesetReview.value = false;
   }
@@ -402,25 +398,25 @@ const sorcererLevel = computed(() =>
 const { data: characterSpells }        = useCharacterSpells(resolvedMemberId);
 // Details (with spell level) used for accurate known/cantrip counts
 const { data: characterSpellsDetails } = useCharacterSpellsWithDetails(resolvedMemberId);
-const rulesetReviewSpells = computed(() => (characterSpellsDetails.value ?? [])
-  .filter((entry) => entry.ruleset_review_required));
+const rulesetReviewSpells = computed(() => {
+  const flaggedIds = new Set(
+    (rulesetReviews.value ?? [])
+      .filter((r) => r.flag_type === "spell")
+      .map((r) => r.character_spell_id)
+      .filter((id): id is string => !!id),
+  );
+  return (characterSpellsDetails.value ?? []).filter((entry) => flaggedIds.has(entry.id));
+});
 const acknowledgingSpellRulesetReview = ref(false);
 async function acknowledgeSpellRulesetReview() {
-  if (!rulesetReviewSpells.value.length || acknowledgingSpellRulesetReview.value) return;
+  if (!rulesetReviewSpells.value.length || acknowledgingSpellRulesetReview.value || !resolvedMemberId.value) return;
   acknowledgingSpellRulesetReview.value = true;
   try {
-    const results = await Promise.allSettled(
-      rulesetReviewSpells.value.map((entry) =>
-        supabase.rpc("acknowledge_character_spell_ruleset_review", { p_character_spell_id: entry.id })
-          .then(({ error }) => { if (error) throw error; }),
-      ),
-    );
+    await acknowledgeRulesetReviews({ partyMemberId: resolvedMemberId.value, flagTypes: ["spell"] });
     await queryClient.invalidateQueries({ queryKey: ["characterSpellsDetails", resolvedMemberId.value] });
     await queryClient.invalidateQueries({ queryKey: ["characterSpells", resolvedMemberId.value] });
-    const failures = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
-    if (failures.length) {
-      toast.error(`Couldn't acknowledge ${failures.length} of ${results.length} spell version${results.length === 1 ? "" : "s"}: ${toast.fromError(failures[0].reason)}`);
-    }
+  } catch (e) {
+    toast.error(toast.fromError(e, "Couldn't acknowledge the rule change."));
   } finally {
     acknowledgingSpellRulesetReview.value = false;
   }

@@ -5,7 +5,6 @@ import { useParty, useCreatePartyMember, useUpdatePartyMember } from "@/composab
 import { useAddCharacterClass } from "@/composables/useCharacterClasses";
 import { useAddInventoryItem, useAddInventoryItems } from "@/composables/usePartyInventory";
 import { useCampaignMembers, useUpdateCampaignMember } from "@/composables/useCampaignMembers";
-import { parseBackgroundSkills, type SkillKey } from "@/lib/backgroundSkills";
 import { useAllSystemClasses, useAllCustomClasses } from "@/composables/useCustomClasses";
 import { useAllCustomSubclasses } from "@/composables/useCustomSubclasses";
 import { useAllSpecies } from "@/composables/useSpecies";
@@ -19,93 +18,14 @@ import type { PartyMember, PartyMemberInsert, SkillProfLevel, SaveKey, SpellSlot
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/composables/useToast";
 import { CLASS_EQUIPMENT } from "@/data/classEquipment";
-import type { BundleItemEntry } from "@/types/item.types";
+import { abilityBonusesForChoice } from "@/lib/backgroundAsi";
 import {
-  abilityBonusesForChoice, isValidAsiChoice, parseBackgroundAsiChoice,
-  type BackgroundAsiChoice,
-} from "@/lib/backgroundAsi";
-
-// ── Constants (exported for use in template components) ───────────────────────
-
-export const SLOT_LEVEL_LABELS = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"] as const;
-
-export const EDIT_TABS = [
-  { id: "identity", label: "Identity" },
-  { id: "stats",    label: "Stats" },
-  { id: "profs",    label: "Proficiencies" },
-] as const;
-
-export const WIZARD_STEPS = [
-  { id: "basics",     label: "Basics" },
-  { id: "abilities",  label: "Abilities" },
-  { id: "background", label: "Background" },
-  { id: "class",      label: "Class" },
-  { id: "equipment",  label: "Equipment" },
-  { id: "done",       label: "Done" },
-] as const;
-
-/** Edit mode skips the equipment step — character already has gear. */
-export const WIZARD_STEPS_EDIT = [
-  { id: "basics",     label: "Basics" },
-  { id: "abilities",  label: "Abilities" },
-  { id: "background", label: "Background" },
-  { id: "class",      label: "Class" },
-  { id: "done",       label: "Done" },
-] as const;
-
-export type AsiMode = "bonus" | "custom" | "manual";
-export type AbilityKey = "str" | "dex" | "con" | "int" | "wis" | "cha";
-
-export const ABILITY_STATS = [
-  { key: "str" as const, label: "STR" },
-  { key: "dex" as const, label: "DEX" },
-  { key: "con" as const, label: "CON" },
-  { key: "int" as const, label: "INT" },
-  { key: "wis" as const, label: "WIS" },
-  { key: "cha" as const, label: "CHA" },
-];
-
-export const SAVE_STATS = [
-  { key: "str" as SaveKey, label: "Strength" },
-  { key: "dex" as SaveKey, label: "Dexterity" },
-  { key: "con" as SaveKey, label: "Constitution" },
-  { key: "int" as SaveKey, label: "Intelligence" },
-  { key: "wis" as SaveKey, label: "Wisdom" },
-  { key: "cha" as SaveKey, label: "Charisma" },
-];
-
-export const PROF_LEVELS: { value: SkillProfLevel; label: string }[] = [
-  { value: "none",       label: "–" },
-  { value: "proficient", label: "P" },
-  { value: "expertise",  label: "E" },
-];
-
-export const SCORE_MODES = [
-  { id: "pointbuy" as const, label: "Point Buy" },
-  { id: "array"    as const, label: "Standard Array" },
-  { id: "roll"     as const, label: "Roll 4d6" },
-  { id: "manual"   as const, label: "Manual" },
-];
-
-export type ScoreMode = (typeof SCORE_MODES)[number]["id"];
-
-export const POINT_BUY_COSTS: Record<number, number> = { 8: 0, 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 7, 15: 9 };
-export const POINT_BUY_TOTAL = 27;
-
-/** Standard array per 5e PHB, highest first. */
-export const STANDARD_ARRAY = [15, 14, 13, 12, 10, 8] as const;
-
-/** Roll 4d6 and drop the lowest die. Returns the sum of the three kept dice. */
-export function roll4d6DropLowest(): number {
-  const rolls = [
-    Math.floor(Math.random() * 6) + 1,
-    Math.floor(Math.random() * 6) + 1,
-    Math.floor(Math.random() * 6) + 1,
-    Math.floor(Math.random() * 6) + 1,
-  ];
-  rolls.sort((a, b) => b - a);
-  return rolls[0] + rolls[1] + rolls[2];
-}
+  ABILITY_STATS, POINT_BUY_COSTS, POINT_BUY_TOTAL,
+  type AbilityKey, type AsiMode, type ScoreMode,
+  parseEquipmentList,
+} from "@/lib/characterCreation";
+import { useCharacterEquipmentSeeding } from "@/composables/useCharacterEquipmentSeeding";
+import { useCharacterBackgroundSelection } from "@/composables/useCharacterBackgroundSelection";
 
 // ── Composable ────────────────────────────────────────────────────────────────
 
@@ -297,97 +217,17 @@ export function useCharacterCreationForm() {
     },
   );
 
-  // Whether to import the chosen background's equipment text into inventory
-  // on creation. Defaults to true so new characters don't end up empty-handed;
-  // the player can untick it on the Background step.
-  const importBackgroundEquipment = ref(true);
+  const {
+    importBackgroundEquipment,
+    classEquipmentChoice, importClassEquipment, classEquipmentPack,
+    lookupVaultItems, seedEquipmentEntry,
+  } = useCharacterEquipmentSeeding(f, { addInventoryItem, addInventoryItems });
 
-  // Exact record of the proficiencies the *currently selected* background
-  // granted. Used to undo them when the player switches background — otherwise
-  // each newly-picked background's skills/tools/languages accumulate on top of
-  // the previous one's, and the orphaned skills wrongly count against the class
-  // skill budget (they're no longer recognised as background-granted).
-  const bgGrantedSkills = ref<SkillKey[]>([]);
-  const bgGrantedTools = ref<string[]>([]);
-  const bgGrantedLanguages = ref<string[]>([]);
-  // Subset of bgGrantedSkills the player actively chose for a background "choose
-  // one of …" clause (vs. the unconditional fixed grants). Drives the picker's
-  // selected state and enforces the choice's pick count.
-  const bgChosenSkills = ref<SkillKey[]>([]);
-
-  // Class starting equipment: choice A or B, and whether to seed inventory.
-  const classEquipmentChoice = ref<"a" | "b">("a");
-  const importClassEquipment  = ref(true);
-
-  /** The two equipment bundles for the currently chosen class (null if class has no data). */
-  const classEquipmentPack = computed(() => f.class ? (CLASS_EQUIPMENT[f.class] ?? null) : null);
-
-  /** Vault item data needed for equipment seeding. */
-  interface VaultEntry { id: string; bundle_items: BundleItemEntry[] | null }
-
-  /** Look up vault items by name (case-insensitive). Returns Map<lowercaseName, VaultEntry>. */
-  async function lookupVaultItems(names: string[]): Promise<Map<string, VaultEntry>> {
-    if (names.length === 0) return new Map();
-    const filter = names.map(n => `name.ilike.${n}`).join(",");
-    const { data } = await supabase.from("items").select("id, name, bundle_items").or(filter);
-    const map = new Map<string, VaultEntry>();
-    for (const row of data ?? []) {
-      map.set((row.name as string).toLowerCase(), {
-        id: row.id as string,
-        bundle_items: row.bundle_items as BundleItemEntry[] | null,
-      });
-    }
-    return map;
-  }
-
-  /**
-   * Seed one equipment entry into party_inventory.
-   * If the vault item is a pack (has bundle_items), the pack itself becomes an
-   * is_container=true row and each sub-item is inserted with container_id pointing to it.
-   */
-  async function seedEquipmentEntry(
-    entry: { name: string; quantity?: number },
-    vaultMap: Map<string, VaultEntry>,
-    carrierId: string,
-  ): Promise<void> {
-    const vault = vaultMap.get(entry.name.toLowerCase()) ?? null;
-    const bundleItems = vault?.bundle_items;
-
-    if (bundleItems && bundleItems.length > 0) {
-      // Pack: insert the pack itself as a container
-      const packRow = await addInventoryItem({
-        item_id: vault!.id, name: entry.name, quantity: entry.quantity ?? 1,
-        carried_by: carrierId, location: "backpack",
-        slot: null, is_container: true, container_id: null,
-        is_attuned: false, is_equipped: false, notes: null,
-        current_charges: null, is_identified: true, is_ruined: false, sort_order: 0,
-      });
-      // Look up the sub-items and batch-insert them inside the pack
-      const subNames = [...new Set(bundleItems.map(b => b.name))];
-      const subMap = await lookupVaultItems(subNames);
-      await addInventoryItems(
-        bundleItems.map((sub) => {
-          const subVault = subMap.get(sub.name.toLowerCase()) ?? null;
-          return {
-            item_id: subVault?.id ?? null, name: sub.name, quantity: sub.quantity ?? 1,
-            carried_by: carrierId, location: "container" as const,
-            slot: null, is_container: false, container_id: packRow.id,
-            is_attuned: false, is_equipped: false, notes: null,
-            current_charges: null, is_identified: true, is_ruined: false, sort_order: 0,
-          };
-        }),
-      );
-    } else {
-      // Plain item
-      await addInventoryItem({
-        item_id: vault?.id ?? null, name: entry.name, quantity: entry.quantity ?? 1,
-        carried_by: carrierId, location: "backpack",
-        slot: null, is_container: false, container_id: null,
-        is_attuned: false, is_equipped: false, notes: null,
-        current_charges: null, is_identified: true, is_ruined: false, sort_order: 0,
-      });
-    }
-  }
+  const {
+    bgSkillChoices, bgChosenSkills, bgChoiceLimit, bgFreeSkills,
+    onBackgroundSelect, toggleBgSkillChoice,
+    backgroundAsiChoice, backgroundAsiIncomplete,
+  } = useCharacterBackgroundSelection(f, { allBackgrounds, selectedBg, is2024 });
 
   // ── Point buy ────────────────────────────────────────────────────────────────
 
@@ -438,153 +278,6 @@ export function useCharacterCreationForm() {
       f.saving_throw_proficiencies = [...cls.saving_throws] as SaveKey[];
     }
     resetSlotsToDefault();
-  }
-
-  // ── Background selection ──────────────────────────────────────────────────────
-
-  function onBackgroundSelect(id: string) {
-    const bg = (allBackgrounds.value ?? []).find(b => b.id === id);
-
-    // Undo the previously-selected background's grants first, so switching
-    // backgrounds replaces rather than accumulates. Only remove skills still at
-    // exactly "proficient" (expertise would have come from the class, not here).
-    for (const key of bgGrantedSkills.value) {
-      if ((f.skill_proficiencies[key] ?? "none") === "proficient") {
-        f.skill_proficiencies[key] = "none";
-      }
-    }
-    for (const tool of bgGrantedTools.value) {
-      const idx = f.tool_proficiencies.indexOf(tool);
-      if (idx >= 0) f.tool_proficiencies.splice(idx, 1);
-    }
-    for (const lang of bgGrantedLanguages.value) {
-      const idx = f.languages.indexOf(lang);
-      if (idx >= 0) f.languages.splice(idx, 1);
-    }
-    bgGrantedSkills.value = [];
-    bgGrantedTools.value = [];
-    bgGrantedLanguages.value = [];
-    bgChosenSkills.value = [];
-
-    // Switching backgrounds invalidates any in-progress 2024 ASI choice — it was
-    // scoped to the previous background's ability trio and may not even apply
-    // to the new one's.
-    {
-      const { background_asi: _asi, ...rest } = f.class_choices as Record<string, unknown>;
-      void _asi;
-      f.class_choices = rest;
-    }
-
-    f.background_id = id || null;
-    if (!bg) return;
-
-    // Only auto-grant the background's FIXED skills. Choice skills ("either A
-    // or B") are picked separately, so a choice background no longer toggles
-    // every option on at once. Each grant is recorded so it can be undone above
-    // when the background changes.
-    const { fixed } = parseBackgroundSkills(bg.skill_proficiencies);
-    for (const key of fixed) {
-      if ((f.skill_proficiencies[key] ?? "none") === "none") {
-        f.skill_proficiencies[key] = "proficient";
-        bgGrantedSkills.value.push(key);
-      }
-    }
-    for (const tool of bg.tool_proficiencies ?? []) {
-      if (!f.tool_proficiencies.includes(tool)) {
-        f.tool_proficiencies.push(tool);
-        bgGrantedTools.value.push(tool);
-      }
-    }
-    for (const lang of bg.languages ?? []) {
-      if (!f.languages.includes(lang)) {
-        f.languages.push(lang);
-        bgGrantedLanguages.value.push(lang);
-      }
-    }
-    // 2024 PHB: record background feat grant in class_choices so it surfaces
-    // in the character's features tab. background_feat stays the raw display
-    // name — the origin feat itself is resolved live at display time (see
-    // PlayerFeaturesTab.vue's backgroundOriginFeat), so no id needs storing.
-    if (bg.feat_grant_name) {
-      f.class_choices = {
-        ...f.class_choices,
-        background_feat: bg.feat_grant_name,
-      };
-    } else {
-      const { background_feat: _removed, ...rest } = f.class_choices as Record<string, unknown>;
-      void _removed;
-      f.class_choices = rest;
-    }
-  }
-
-  /**
-   * The player's current 2024 background ASI choice, synced into
-   * `class_choices.background_asi` so it persists with the rest of the form
-   * and survives step navigation.
-   */
-  const backgroundAsiChoice = computed<BackgroundAsiChoice | null>({
-    get: () => parseBackgroundAsiChoice(f.class_choices?.background_asi),
-    set: (choice) => {
-      if (choice) {
-        f.class_choices = { ...f.class_choices, background_asi: choice };
-        return;
-      }
-      const { background_asi: _asi, ...rest } = f.class_choices as Record<string, unknown>;
-      void _asi;
-      f.class_choices = rest;
-    },
-  });
-
-  /**
-   * True when the background step's 2024 ASI choice has been started but
-   * isn't yet valid — a mode picked with the trio-specific abilities not
-   * fully chosen. Untouched (null) is a deliberate skip, not incomplete.
-   * Gates the wizard's Next/Create button so a half-made choice can't be
-   * carried forward and silently dropped.
-   */
-  const backgroundAsiIncomplete = computed(() => {
-    const trio = selectedBg.value?.asi_ability_trio;
-    if (!is2024.value || !trio) return false;
-    return backgroundAsiChoice.value !== null && !isValidAsiChoice(backgroundAsiChoice.value, trio);
-  });
-
-  /** Parsed "choose N of …" skill clauses for the selected background, if any. */
-  const bgSkillChoices = computed(() =>
-    selectedBg.value ? parseBackgroundSkills(selectedBg.value.skill_proficiencies).choices : [],
-  );
-
-  /** Total picks the background's choice clauses allow (used to cap selection). */
-  const bgChoiceLimit = computed(() =>
-    bgSkillChoices.value.reduce((sum, c) => sum + c.count, 0),
-  );
-
-  /** All skills the current background grants for free: fixed + actively chosen. */
-  const bgFreeSkills = computed<SkillKey[]>(() => {
-    const fixed = selectedBg.value
-      ? parseBackgroundSkills(selectedBg.value.skill_proficiencies).fixed
-      : [];
-    return [...new Set([...fixed, ...bgChosenSkills.value])];
-  });
-
-  /** Toggle a background choice-skill. Honors the choice's pick limit and keeps
-   *  the grant tracked so it's freed on background switch and excluded from the
-   *  class skill budget. */
-  function toggleBgSkillChoice(key: SkillKey) {
-    const chosen = bgChosenSkills.value.includes(key);
-    if (chosen) {
-      bgChosenSkills.value = bgChosenSkills.value.filter(k => k !== key);
-      bgGrantedSkills.value = bgGrantedSkills.value.filter(k => k !== key);
-      if ((f.skill_proficiencies[key] ?? "none") === "proficient") {
-        f.skill_proficiencies[key] = "none";
-      }
-      return;
-    }
-    if (bgChosenSkills.value.length >= bgChoiceLimit.value) return; // at limit
-    bgChosenSkills.value.push(key);
-    if ((f.skill_proficiencies[key] ?? "none") === "none") {
-      f.skill_proficiencies[key] = "proficient";
-      bgGrantedSkills.value.push(key);
-    }
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -826,20 +519,6 @@ export function useCharacterCreationForm() {
     } finally {
       saving.value = false;
     }
-  }
-
-  /**
-   * Split a free-text equipment list into individual entries. Open5e ships
-   * background equipment as prose: "a holy symbol, a prayer book, vestments,
-   * a set of common clothes, and a belt pouch containing 15 gp".
-   * We split on commas + " and " (case-insensitive), trim, and drop empties.
-   */
-  function parseEquipmentList(prose: string): string[] {
-    if (!prose.trim()) return [];
-    return prose
-      .split(/,| and /i)
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
   }
 
   return {

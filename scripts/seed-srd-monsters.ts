@@ -29,17 +29,17 @@ import { fetchOpen5eDocuments, fetchSrdMonsters } from "@/lib/open5eMonsterImpor
 import type { MonsterInsert } from "@/types/monster.types";
 import type { RulesetKey } from "@/types/ruleset.types";
 import { fetchSupported5eDocumentKeys, stableSrdId } from "@/lib/open5eApi";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   requireEnv,
   installOpen5eUserAgent,
-  supabaseRequest,
-  supabaseRequestPaginated,
+  createServiceClient,
+  fetchAllRows,
   upsertBatch,
   parseSeedCliArgs,
   printAvailableDocuments,
   countByRuleset,
   DEFAULT_SRD_DOCUMENT_KEYS,
-  type SupabaseEnv,
 } from "./lib/seed-helpers";
 
 /**
@@ -75,11 +75,15 @@ interface MonsterArtRow {
   portrait_focal_point: { x: number; y: number } | null;
 }
 
-async function backfillArt(env: SupabaseEnv): Promise<void> {
-  const art = await supabaseRequestPaginated<MonsterArtRow>(
-    env,
-    "/srd_monster_art?is_canonical=eq.true&image_url=not.is.null&select=srd_id,image_url,portrait_focal_point",
-    { method: "GET", headers: { Prefer: "" } },
+async function backfillArt(supabase: SupabaseClient): Promise<void> {
+  const art = await fetchAllRows<MonsterArtRow>((from, to) =>
+    supabase
+      .from("srd_monster_art")
+      .select("srd_id,image_url,portrait_focal_point")
+      .eq("is_canonical", true)
+      .not("image_url", "is", null)
+      .range(from, to)
+      .returns<MonsterArtRow[]>(),
   );
   if (!art.length) {
     console.log("  No canonical art found — skipping art backfill.");
@@ -89,13 +93,13 @@ async function backfillArt(env: SupabaseEnv): Promise<void> {
   const PATCH_BATCH = 25;
   for (let i = 0; i < art.length; i += PATCH_BATCH) {
     await Promise.all(
-      art.slice(i, i + PATCH_BATCH).map(({ srd_id, image_url, portrait_focal_point }) =>
-        supabaseRequest(env, `/srd_monsters?id=eq.${encodeURIComponent(srd_id)}`, {
-          method: "PATCH",
-          headers: { Prefer: "return=minimal" },
-          body: JSON.stringify({ image_url, portrait_focal_point }),
-        }),
-      ),
+      art.slice(i, i + PATCH_BATCH).map(async ({ srd_id, image_url, portrait_focal_point }) => {
+        const { error } = await supabase
+          .from("srd_monsters")
+          .update({ image_url, portrait_focal_point })
+          .eq("id", srd_id);
+        if (error) throw error;
+      }),
     );
     process.stdout.write(`\r  Art patched ${Math.min(i + PATCH_BATCH, art.length)} / ${art.length}`);
   }
@@ -170,13 +174,14 @@ async function main(): Promise<void> {
   }
 
   const env = requireEnv();
+  const supabase = createServiceClient(env);
 
   console.log("Step 2: Upserting to srd_monsters table…");
-  await upsertBatch(env, "srd_monsters", rows, "source_document_key,source_record_key");
+  await upsertBatch(supabase, "srd_monsters", rows, "source_document_key,source_record_key");
   console.log(`  Done — ${rows.length} rows upserted.\n`);
 
   console.log("Step 3: Backfilling art from canonical srd_monster_art…");
-  await backfillArt(env);
+  await backfillArt(supabase);
   console.log("  Art backfill complete.\n");
 
   console.log("=== Seeding complete ===");

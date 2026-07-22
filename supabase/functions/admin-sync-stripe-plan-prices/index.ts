@@ -2,6 +2,7 @@ import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
 import { corsHeaders } from "../_shared/cors.ts";
+import { requireAdmin } from "../_shared/requireAdmin.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
   apiVersion: "2024-06-20",
@@ -22,26 +23,8 @@ serve(async (req: Request) => {
     return new Response("Method not allowed", { status: 405 });
   }
 
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) {
-    return new Response("Unauthorized", { status: 401 });
-  }
-
-  // Verify caller is an admin from their verified JWT (app_metadata.role is
-  // server-controlled and signed), mirroring is_app_admin() in the DB.
-  const caller = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: authHeader } } },
-  );
-  const { data: { user }, error: authError } = await caller.auth.getUser();
-  if (authError || !user) {
-    return new Response("Unauthorized", { status: 401 });
-  }
-
-  if (user.app_metadata?.role !== "admin") {
-    return new Response("Forbidden", { status: 403 });
-  }
+  const gate = await requireAdmin(req, cors);
+  if (gate instanceof Response) return gate;
 
   let planId: string;
   let monthlyPriceId: string | undefined;

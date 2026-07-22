@@ -196,8 +196,9 @@
 import { ref, reactive, computed } from "vue";
 import {
   ABILITY_STATS, SCORE_MODES, POINT_BUY_COSTS, STANDARD_ARRAY, roll4d6DropLowest,
-} from "@/composables/useCharacterCreationForm";
-import type { CharacterCreationForm, AbilityKey } from "@/composables/useCharacterCreationForm";
+  type AbilityKey,
+} from "@/lib/characterCreation";
+import type { CharacterCreationForm } from "@/composables/useCharacterCreationForm";
 
 const { form } = defineProps<{ form: CharacterCreationForm }>();
 

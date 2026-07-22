@@ -1,15 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import {
   countByRuleset,
+  fetchAllRows,
   parseSeedCliArgs,
-  supabaseRequestPaginated,
+  upsertBatch,
   withOpen5eUserAgent,
 } from "./seed-helpers";
-import type { SupabaseEnv } from "./seed-helpers";
 
 afterEach(() => vi.unstubAllGlobals());
-
-const env: SupabaseEnv = { supabaseUrl: "https://example.test", serviceKey: "service-key" };
 
 describe("withOpen5eUserAgent", () => {
   it("adds a descriptive User-Agent for api.open5e.com requests", () => {
@@ -72,52 +71,118 @@ describe("countByRuleset", () => {
   });
 });
 
-describe("supabaseRequestPaginated", () => {
-  it("stops after a single short page without a second request", async () => {
-    const fetchMock = vi.fn(async (_input: string | URL | Request) =>
-      new Response(JSON.stringify([{ id: "a" }, { id: "b" }])));
-    vi.stubGlobal("fetch", fetchMock);
+/**
+ * Builds a fake PostgrestError with just the fields fetchAllRows/upsertBatch
+ * read. `PostgrestError` is a class (extends `Error`, adds `toJSON()`) —
+ * cast through `unknown` rather than stub every class member.
+ */
+function fakePostgrestError(message: string): PostgrestError {
+  return { message, details: "", hint: "", code: "500", name: "PostgrestError" } as unknown as PostgrestError;
+}
 
-    const rows = await supabaseRequestPaginated<{ id: string }>(env, "/srd_spells?select=id");
+describe("fetchAllRows", () => {
+  it("stops after a single short page without a second request", async () => {
+    const fetchPage = vi.fn(async (from: number, to: number) => {
+      expect(from).toBe(0);
+      expect(to).toBe(999);
+      return { data: [{ id: "a" }, { id: "b" }], error: null };
+    });
+
+    const rows = await fetchAllRows(fetchPage);
 
     expect(rows).toEqual([{ id: "a" }, { id: "b" }]);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(String(fetchMock.mock.calls[0][0])).toContain("limit=1000&offset=0");
+    expect(fetchPage).toHaveBeenCalledTimes(1);
   });
 
   it("concatenates multiple full pages until a short page terminates the loop", async () => {
     const fullPage = Array.from({ length: 1000 }, (_, i) => ({ id: `row-${i}` }));
     const shortPage = [{ id: "last" }];
-    const fetchMock = vi.fn(async (input: string | URL | Request) => {
-      const url = String(input);
-      return new Response(JSON.stringify(url.includes("offset=1000") ? shortPage : fullPage));
-    });
-    vi.stubGlobal("fetch", fetchMock);
+    const fetchPage = vi.fn(async (from: number) => ({
+      data: from === 1000 ? shortPage : fullPage,
+      error: null,
+    }));
 
-    const rows = await supabaseRequestPaginated<{ id: string }>(env, "/srd_spells?select=id");
+    const rows = await fetchAllRows(fetchPage);
 
     expect(rows).toHaveLength(1001);
     expect(rows[rows.length - 1]).toEqual({ id: "last" });
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchPage).toHaveBeenCalledTimes(2);
+    expect(fetchPage).toHaveBeenNthCalledWith(1, 0, 999);
+    expect(fetchPage).toHaveBeenNthCalledWith(2, 1000, 1999);
   });
 
-  it("appends the limit/offset params with '&' when the path already has a query string", async () => {
-    const fetchMock = vi.fn(async (input: string | URL | Request) => {
-      expect(String(input)).toContain("select=id&limit=1000&offset=0");
-      return new Response(JSON.stringify([]));
-    });
-    vi.stubGlobal("fetch", fetchMock);
+  it("treats a null data page as empty and still stops the loop", async () => {
+    const fetchPage = vi.fn(async () => ({ data: null, error: null }));
 
-    await supabaseRequestPaginated(env, "/srd_spells?select=id");
+    const rows = await fetchAllRows(fetchPage);
+
+    expect(rows).toEqual([]);
+    expect(fetchPage).toHaveBeenCalledTimes(1);
   });
 
-  it("appends the limit/offset params with '?' when the path has no existing query string", async () => {
-    const fetchMock = vi.fn(async (input: string | URL | Request) => {
-      expect(String(input)).toContain("/srd_art_defaults?limit=1000&offset=0");
-      return new Response(JSON.stringify([]));
-    });
-    vi.stubGlobal("fetch", fetchMock);
+  it("throws on a page error instead of returning partial rows", async () => {
+    const fetchPage = vi.fn(async () => ({ data: null, error: fakePostgrestError("boom") }));
 
-    await supabaseRequestPaginated(env, "/srd_art_defaults");
+    await expect(fetchAllRows(fetchPage)).rejects.toEqual(fakePostgrestError("boom"));
+  });
+});
+
+/**
+ * Minimal stand-in for the slice of SupabaseClient upsertBatch touches
+ * (`.from(table).upsert(rows, { onConflict })`). Cast through `unknown` —
+ * not the full client shape, but the only two methods the helper calls.
+ */
+function fakeSupabaseClient(
+  upsert: (table: string, rows: unknown[], options: { onConflict: string }) => { error: PostgrestError | null },
+): SupabaseClient {
+  return {
+    from: (table: string) => ({
+      upsert: (rows: unknown[], options: { onConflict: string }) => upsert(table, rows, options),
+    }),
+  } as unknown as SupabaseClient;
+}
+
+describe("upsertBatch", () => {
+  it("batches rows in groups of 50 by default and passes onConflict through", async () => {
+    const calls: Array<{ table: string; rows: unknown[]; onConflict: string }> = [];
+    const supabase = fakeSupabaseClient((table, rows, options) => {
+      calls.push({ table, rows, onConflict: options.onConflict });
+      return { error: null };
+    });
+
+    const rows = Array.from({ length: 120 }, (_, i) => ({ id: `row-${i}` }));
+    await upsertBatch(supabase, "srd_spells", rows, "source_document_key,source_record_key");
+
+    expect(calls).toHaveLength(3);
+    expect(calls.map((c) => c.rows.length)).toEqual([50, 50, 20]);
+    expect(calls.every((c) => c.table === "srd_spells")).toBe(true);
+    expect(calls.every((c) => c.onConflict === "source_document_key,source_record_key")).toBe(true);
+  });
+
+  it("throws immediately on an upsert error without issuing further batches", async () => {
+    let callCount = 0;
+    const supabase = fakeSupabaseClient(() => {
+      callCount += 1;
+      return { error: fakePostgrestError("conflict") };
+    });
+
+    const rows = Array.from({ length: 120 }, (_, i) => ({ id: `row-${i}` }));
+    await expect(
+      upsertBatch(supabase, "srd_spells", rows, "source_document_key,source_record_key"),
+    ).rejects.toEqual(fakePostgrestError("conflict"));
+    expect(callCount).toBe(1);
+  });
+
+  it("respects a custom batch size", async () => {
+    const calls: unknown[][] = [];
+    const supabase = fakeSupabaseClient((_table, rows) => {
+      calls.push(rows);
+      return { error: null };
+    });
+
+    const rows = Array.from({ length: 7 }, (_, i) => ({ id: `row-${i}` }));
+    await upsertBatch(supabase, "srd_monsters", rows, "source_document_key,source_record_key", 3);
+
+    expect(calls.map((c) => c.length)).toEqual([3, 3, 1]);
   });
 });

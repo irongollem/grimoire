@@ -318,8 +318,6 @@ export interface CharacterSpell {
   casting_ability?: "int" | "wis" | "cha" | null;
   fixed_save_dc?: number | null;
   fixed_attack_bonus?: number | null;
-  /** Exact spell version could not be safely remapped after a campaign edition change. */
-  ruleset_review_required?: boolean;
   created_at: string;
   updated_at: string;
 }
