@@ -126,7 +126,17 @@ export const WEAPON_PROPERTIES = [
   "versatile",
   "silvered",
   "adamantine",
-  // 2024 PHB mastery properties
+] as const;
+export type WeaponProperty = (typeof WEAPON_PROPERTIES)[number];
+
+/**
+ * 2024 PHB (SRD 5.2) weapon mastery properties. A weapon carries at most one of
+ * these — distinct from `WEAPON_PROPERTIES`, which are toggled directly by DMs
+ * in the item editor. Mastery is instead auto-extracted from Open5e's
+ * `property.type === "Mastery"` entries (see `open5eImport.ts`) or set manually
+ * for homebrew weapons, and only surfaces in 2024-ruleset campaigns.
+ */
+export const WEAPON_MASTERY_PROPERTIES = [
   "cleave",
   "graze",
   "nick",
@@ -136,7 +146,7 @@ export const WEAPON_PROPERTIES = [
   "topple",
   "vex",
 ] as const;
-export type WeaponProperty = (typeof WEAPON_PROPERTIES)[number];
+export type WeaponMasteryProperty = (typeof WEAPON_MASTERY_PROPERTIES)[number];
 
 /** One entry in a pack/bundle's contents list. */
 export interface BundleItemEntry {
@@ -158,6 +168,7 @@ export interface Item extends VersionedContentMetadata {
   damage_rolls: DamageRoll[] | null; // for weapons
   armor_class: string | null; // e.g. "13 + DEX modifier (max 2)"
   properties: string[]; // weapon properties
+  mastery?: WeaponMasteryProperty | null; // 2024 PHB weapon mastery property (weapons only)
   charges: number | null; // max charges (staff/wand/rod) or quantity (ammunition)
   recharge: string | null; // e.g. "Regains 1d6+4 charges daily at dawn"
   spell_ids: string[]; // UUIDs referencing spells in the spells table

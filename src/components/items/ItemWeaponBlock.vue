@@ -45,25 +45,43 @@
         </label>
       </div>
     </div>
+    <!-- Mastery — 2024 PHB only; each weapon carries at most one -->
+    <div v-if="is2024" class="flex flex-col gap-1">
+      <span class="text-eyebrow text-muted-foreground">Mastery <span class="normal-case font-fell font-normal text-muted-foreground/60">— 2024 only</span></span>
+      <select
+        :value="mastery ?? ''"
+        class="bg-muted border border-border rounded-md px-3 py-1.5 font-cinzel text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        @change="emit('update:mastery', (($event.target as HTMLSelectElement).value || null) as WeaponMasteryProperty | null)"
+      >
+        <option value="">None</option>
+        <option v-for="m in WEAPON_MASTERY_PROPERTIES" :key="m" :value="m">{{ WEAPON_MASTERY_DEFINITIONS[m].label }}</option>
+      </select>
+      <p v-if="mastery" class="text-caption text-muted-foreground italic">{{ WEAPON_MASTERY_DEFINITIONS[mastery].description }}</p>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import DamageRollsInput from "@/components/common/DamageRollsInput.vue";
 import DiceExprInput from "@/components/common/DiceExprInput.vue";
-import { WEAPON_PROPERTIES } from "@/types/item.types";
+import { WEAPON_PROPERTIES, WEAPON_MASTERY_PROPERTIES } from "@/types/item.types";
 import type { DamageRoll } from "@/lib/dice";
+import type { WeaponMasteryProperty } from "@/types/item.types";
+import { WEAPON_MASTERY_DEFINITIONS } from "@/data/weaponMastery";
+import { useRuleset } from "@/composables/useRuleset";
 
 const {
   damageRolls = [],
   properties = [],
   versatileDamage = "",
   weaponRange = "",
+  mastery = null,
 } = defineProps<{
   damageRolls?: DamageRoll[];
   properties?: string[];
   versatileDamage?: string;
   weaponRange?: string;
+  mastery?: WeaponMasteryProperty | null;
 }>();
 
 const emit = defineEmits<{
@@ -71,7 +89,10 @@ const emit = defineEmits<{
   "update:properties": [value: string[]];
   "update:versatileDamage": [value: string];
   "update:weaponRange": [value: string];
+  "update:mastery": [value: WeaponMasteryProperty | null];
 }>();
+
+const { is2024 } = useRuleset();
 
 function toggleProperty(p: string) {
   const next = properties.includes(p)

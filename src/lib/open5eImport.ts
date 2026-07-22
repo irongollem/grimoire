@@ -1,21 +1,12 @@
-import { fetchAll } from "@/lib/open5eApi";
-import type { ItemInsert, ItemType, ItemRarity, WeaponProperty } from "@/types/item.types";
-import type { RulesetKey } from "@/types/ruleset.types";
-import { WEAPON_PROPERTIES } from "@/types/item.types";
-
-interface DocumentRef {
-  key: string;
-  name: string;
-  display_name?: string;
-  permalink?: string | null;
-  publisher?: { name: string; key: string };
-  gamesystem?: { name: string; key: string };
-}
+import { fetchAllFromDocuments, fetchSupported5eDocumentKeys, rulesetForDocument } from "@/lib/open5eApi";
+import type { Open5eDocumentRef } from "@/lib/open5eApi";
+import type { ItemInsert, ItemType, ItemRarity, WeaponProperty, WeaponMasteryProperty } from "@/types/item.types";
+import { WEAPON_PROPERTIES, WEAPON_MASTERY_PROPERTIES } from "@/types/item.types";
 
 interface Open5eV2Weapon {
   key: string;
   name: string;
-  document: DocumentRef;
+  document: Open5eDocumentRef;
   properties: Array<{ property: { name: string; type?: string | null }; detail: string | null }>;
   damage_type: { name: string; key: string } | null;
   damage_dice: string;
@@ -28,7 +19,7 @@ interface Open5eV2Weapon {
 interface Open5eV2Armor {
   key: string;
   name: string;
-  document: DocumentRef;
+  document: Open5eDocumentRef;
   ac_display: string;
   category: string;
 }
@@ -45,16 +36,10 @@ interface Open5eV2MagicItem {
   cost: string | null;
   requires_attunement: boolean;
   attunement_detail: string | null;
-  document: DocumentRef;
+  document: Open5eDocumentRef;
 }
 
-function rulesetForDocument(document: DocumentRef): RulesetKey | null {
-  if (document.gamesystem?.key === "5e-2024") return "2024";
-  if (document.gamesystem?.key === "5e-2014" || document.gamesystem?.key === "5e") return "2014";
-  return null;
-}
-
-function metadata(record: { key: string; name: string; document: DocumentRef }) {
+function metadata(record: { key: string; name: string; document: Open5eDocumentRef }) {
   return {
     ruleset: rulesetForDocument(record.document),
     conceptual_key: record.name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, ""),
@@ -95,15 +80,26 @@ function magicItemType(category: string): ItemType {
 
 function weaponProperties(record: Open5eV2Weapon): WeaponProperty[] {
   const allowed = new Set<string>(WEAPON_PROPERTIES);
-  return record.properties.map(entry => entry.property.name.toLowerCase().replace(/\s+/g, "-"))
+  return record.properties
+    .filter(entry => entry.property.type !== "Mastery")
+    .map(entry => entry.property.name.toLowerCase().replace(/\s+/g, "-"))
     .filter(value => allowed.has(value)) as WeaponProperty[];
+}
+
+/** Extracts the single 2024 PHB mastery property (Open5e `property.type === "Mastery"`), if any. */
+function weaponMastery(record: Open5eV2Weapon): WeaponMasteryProperty | null {
+  const allowed = new Set<string>(WEAPON_MASTERY_PROPERTIES);
+  const entry = record.properties.find(p => p.property.type === "Mastery");
+  if (!entry) return null;
+  const value = entry.property.name.toLowerCase().replace(/\s+/g, "-");
+  return allowed.has(value) ? (value as WeaponMasteryProperty) : null;
 }
 
 function versatileDamage(record: Open5eV2Weapon): string | null {
   return record.properties.find(entry => entry.property.name.toLowerCase() === "versatile")?.detail ?? null;
 }
 
-function baseItem(record: { key: string; name: string; document: DocumentRef }) {
+function baseItem(record: { key: string; name: string; document: Open5eDocumentRef }) {
   return {
     ...metadata(record),
     name: record.name,
@@ -133,6 +129,7 @@ export function mapOpen5eV2Weapon(record: Open5eV2Weapon): ItemInsert {
       : null,
     armor_class: null,
     properties: weaponProperties(record),
+    mastery: weaponMastery(record),
     charges: null,
     recharge: null,
     spell_ids: [],
@@ -155,6 +152,7 @@ export function mapOpen5eV2Armor(record: Open5eV2Armor): ItemInsert {
     damage_rolls: null,
     armor_class: record.ac_display || null,
     properties: [],
+    mastery: null,
     charges: null,
     recharge: null,
     spell_ids: [],
@@ -180,6 +178,7 @@ export function mapOpen5eV2MagicItem(record: Open5eV2MagicItem): ItemInsert {
       : null,
     armor_class: record.armor?.ac_display || null,
     properties: record.weapon ? weaponProperties(record.weapon) : [],
+    mastery: record.weapon ? weaponMastery(record.weapon) : null,
     charges: null,
     recharge: null,
     spell_ids: [],
@@ -189,12 +188,17 @@ export function mapOpen5eV2MagicItem(record: Open5eV2MagicItem): ItemInsert {
   };
 }
 
-/** All item categories use V2 native keys; no display-name deduplication. */
+/**
+ * All item categories use V2 native keys; no display-name deduplication.
+ * Scoped to supported 5e documents — these endpoints ignore `document__key`
+ * filtering entirely, so fetchAllFromDocuments's own assertion is load-bearing here.
+ */
 export async function fetchSrdItems(): Promise<ItemInsert[]> {
+  const documentKeys = await fetchSupported5eDocumentKeys();
   const [weapons, armor, magicItems] = await Promise.all([
-    fetchAll<Open5eV2Weapon>("https://api.open5e.com/v2/weapons/"),
-    fetchAll<Open5eV2Armor>("https://api.open5e.com/v2/armor/"),
-    fetchAll<Open5eV2MagicItem>("https://api.open5e.com/v2/magicitems/"),
+    fetchAllFromDocuments<Open5eV2Weapon>("https://api.open5e.com/v2/weapons/", documentKeys),
+    fetchAllFromDocuments<Open5eV2Armor>("https://api.open5e.com/v2/armor/", documentKeys),
+    fetchAllFromDocuments<Open5eV2MagicItem>("https://api.open5e.com/v2/magicitems/", documentKeys),
   ]);
   return [
     ...weapons.map(mapOpen5eV2Weapon),

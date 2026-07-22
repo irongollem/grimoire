@@ -22,7 +22,7 @@
                   <span class="font-cinzel text-xs" :class="parseBeastAttackBonus(action.description)! >= 0 ? 'text-elven-green' : 'text-destructive'">
                     {{ signedNum(parseBeastAttackBonus(action.description)!) }}
                   </span>
-                  <span v-if="attackDisadvantage" class="font-cinzel text-2xs md:text-sm text-amber-500">Dis</span>
+                  <span v-if="attackBadgeLabel" class="font-cinzel text-2xs md:text-sm text-amber-500">{{ attackBadgeLabel }}</span>
                 </button>
               </div>
               <p class="text-caption text-muted-foreground leading-relaxed">{{ action.description }}</p>
@@ -45,6 +45,20 @@
             <span v-if="item?.subtype" class="text-label md:text-sm text-muted-foreground">{{ item.subtype }}</span>
             <span v-else-if="!item" class="text-label md:text-sm text-muted-foreground">Custom</span>
           </div>
+          <!-- Weapon mastery — 2024 campaigns only; toggles whether this character has mastery with the weapon -->
+          <button
+            v-if="is2024 && item?.mastery"
+            type="button"
+            class="mb-2 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-label transition-colors"
+            :class="hasMastery(item)
+              ? 'border-primary/50 bg-primary/10 text-primary'
+              : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground'"
+            :title="WEAPON_MASTERY_DEFINITIONS[item.mastery].description"
+            @click="toggleMastery(item)"
+          >
+            Mastery: {{ WEAPON_MASTERY_DEFINITIONS[item.mastery].label }}
+            <span v-if="hasMastery(item)">✓</span>
+          </button>
           <div class="flex flex-wrap gap-2">
             <button
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:border-primary/50 hover:bg-muted/30 transition-colors group"
@@ -55,7 +69,7 @@
               <span class="font-cinzel text-xs" :class="weaponAttackMod(item) >= 0 ? 'text-elven-green' : 'text-destructive'">
                 {{ signedNum(weaponAttackMod(item)) }}
               </span>
-              <span v-if="attackDisadvantage" class="text-label md:text-sm text-amber-500">Dis</span>
+              <span v-if="attackBadgeLabel" class="text-label md:text-sm text-amber-500">{{ attackBadgeLabel }}</span>
             </button>
             <button
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:border-amber-500/50 hover:bg-muted/30 transition-colors group"
@@ -86,7 +100,7 @@
               <span class="font-cinzel text-xs" :class="unarmedAttackMod >= 0 ? 'text-elven-green' : 'text-destructive'">
                 {{ signedNum(unarmedAttackMod) }}
               </span>
-              <span v-if="attackDisadvantage" class="text-label md:text-sm text-amber-500">Dis</span>
+              <span v-if="attackBadgeLabel" class="text-label md:text-sm text-amber-500">{{ attackBadgeLabel }}</span>
             </button>
             <span class="font-cinzel text-xs text-muted-foreground">{{ unarmedDamage }} bludgeoning</span>
           </div>
@@ -106,7 +120,7 @@
               <span class="font-cinzel text-xs" :class="improvisedAttackMod >= 0 ? 'text-elven-green' : 'text-destructive'">
                 {{ signedNum(improvisedAttackMod) }}
               </span>
-              <span v-if="attackDisadvantage" class="text-label md:text-sm text-amber-500">Dis</span>
+              <span v-if="attackBadgeLabel" class="text-label md:text-sm text-amber-500">{{ attackBadgeLabel }}</span>
             </button>
             <button
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:border-amber-500/50 hover:bg-muted/30 transition-colors group"
@@ -124,7 +138,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import { IconLightning, IconSword } from '@/lib/icons';
 import { rollParsed, combineModes } from "@/lib/roller";
 import type { RollMode, DieSize } from "@/lib/roller";
@@ -134,13 +148,22 @@ import { usePartyInventory } from "@/composables/usePartyInventory";
 import { usePlayerVisibleItems } from "@/composables/useItems";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
+import { useRuleset } from "@/composables/useRuleset";
+import { useUpdatePartyMember } from "@/composables/useParty";
+import { WEAPON_MASTERY_DEFINITIONS } from "@/data/weaponMastery";
 import PlayerLoadout from "@/components/player/PlayerLoadout.vue";
 import type { PartyMember } from "@/types/party.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
 import type { Monster } from "@/types/monster.types";
 
-const props = defineProps<{ member: PartyMember; attackDisadvantage: boolean; wildshapeMonster?: Monster }>();
+const props = defineProps<{
+  member: PartyMember;
+  attackDisadvantage: boolean;
+  /** 2024-only flat Exhaustion penalty to every attack roll (0 under 2014 — see `attackDisadvantage`). */
+  attackPenalty: number;
+  wildshapeMonster?: Monster;
+}>();
 const emit = defineEmits<{ roll: [result: { label: string; dice: number; modifier: number; total: number }] }>();
 
 const { data: inventory } = usePartyInventory();
@@ -150,6 +173,15 @@ const { promptRoll } = usePromptedRoll();
 
 function abilityMod(score: number) { return Math.floor((score - 10) / 2); }
 function signedNum(n: number) { return n >= 0 ? `+${n}` : `${n}`; }
+
+// Badge next to each Attack button: "Dis" under 2014 exhaustion/conditions,
+// or the flat numeric penalty under 2024 exhaustion (never both at once —
+// see `hasAttackDisadvantage` / `getExhaustionD20Penalty` in `@/lib/conditions`).
+const attackBadgeLabel = computed(() => {
+  if (props.attackDisadvantage) return "Dis";
+  if (props.attackPenalty !== 0) return String(props.attackPenalty);
+  return null;
+});
 
 const myInventory = computed(() =>
   (inventory.value ?? []).filter((i) => i.carried_by === props.member.id),
@@ -169,6 +201,36 @@ const equippedWeapons = computed<{ inv: PartyInventoryItem; item: Item | null }[
       return inv.slot && WEAPON_SLOTS.has(inv.slot) ? [{ inv, item: null }] : [];
     }),
 );
+
+// ── Weapon mastery (2024 only) ──────────────────────────────────────────────
+const { is2024 } = useRuleset();
+const { mutateAsync: updateMember } = useUpdatePartyMember();
+
+// Local optimistic set — mirrors the local-ref-synced-via-watch pattern used
+// in ItemDetailPanel.vue, avoiding a flash back to the stale value before refetch.
+const localMasteries = ref<Set<string>>(new Set(props.member.weapon_masteries));
+watch(() => [props.member.id, props.member.weapon_masteries] as const, () => {
+  localMasteries.value = new Set(props.member.weapon_masteries);
+}, { immediate: true });
+
+function hasMastery(item: Item | null): boolean {
+  return !!item && localMasteries.value.has(item.name);
+}
+
+const isTogglingMastery = ref(false);
+async function toggleMastery(item: Item | null) {
+  if (!item || isTogglingMastery.value) return;
+  isTogglingMastery.value = true;
+  try {
+    const next = new Set(localMasteries.value);
+    if (next.has(item.name)) next.delete(item.name);
+    else next.add(item.name);
+    localMasteries.value = next; // optimistic
+    await updateMember({ id: props.member.id, update: { weapon_masteries: [...next] } });
+  } finally {
+    isTogglingMastery.value = false;
+  }
+}
 
 const strMod = computed(() => abilityMod(props.member.str));
 const dexMod = computed(() => abilityMod(props.member.dex));
@@ -240,11 +302,12 @@ async function rollAttackWith(mod: number, baseLabel: string, override: RollMode
     override ?? "normal",
     props.attackDisadvantage ? "disadvantage" : "normal",
   );
+  const totalMod = mod + props.attackPenalty;
   const fullLabel = `${baseLabel} — Attack` + modeTag(mode);
-  const result = await promptRoll({ counts: { 20: 1 }, modifier: mod, label: fullLabel, mode });
+  const result = await promptRoll({ counts: { 20: 1 }, modifier: totalMod, label: fullLabel, mode });
   if (!result) return;
   const kept = result.breakdown.find(d => !d.dropped)!;
-  emit("roll", { label: fullLabel, dice: kept.val, modifier: mod, total: result.total });
+  emit("roll", { label: fullLabel, dice: kept.val, modifier: totalMod, total: result.total });
 }
 
 function rollUnarmedAttack(override: RollMode | null = null) { return rollAttackWith(unarmedAttackMod.value, "Unarmed Strike", override); }

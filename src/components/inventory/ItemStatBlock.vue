@@ -53,6 +53,15 @@
       <span class="text-muted-foreground shrink-0">Properties</span>
       <span class="text-right capitalize">{{ item.properties.join(", ") }}</span>
     </div>
+    <!-- Weapon mastery — 2024 campaigns only -->
+    <div
+      v-if="item?.mastery && is2024"
+      class="flex justify-between gap-3"
+      :title="WEAPON_MASTERY_DEFINITIONS[item.mastery].description"
+    >
+      <span class="text-muted-foreground shrink-0">Mastery</span>
+      <span class="text-right font-bold">{{ WEAPON_MASTERY_DEFINITIONS[item.mastery].label }}</span>
+    </div>
     <div v-if="item?.is_arcane_focus && isIdentified" class="flex justify-between">
       <span class="text-muted-foreground">Arcane Focus</span>
       <span>Yes</span>
@@ -74,11 +83,15 @@ import {
   MAGIC_ONLY_ITEM_TYPES,
 } from "@/types/item.types";
 import type { Item } from "@/types/item.types";
+import { WEAPON_MASTERY_DEFINITIONS } from "@/data/weaponMastery";
+import { useRuleset } from "@/composables/useRuleset";
 
 const { item, isIdentified } = defineProps<{
   item: Item | null;
   isIdentified: boolean;
 }>();
+
+const { is2024 } = useRuleset();
 
 const rarityColor = computed(() =>
   item ? (RARITY_COLORS[item.rarity] ?? "#888888") : "#888888"

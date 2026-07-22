@@ -105,10 +105,12 @@
           :properties="properties"
           :versatile-damage="versatileDamage"
           :weapon-range="weaponRange"
+          :mastery="mastery"
           @update:damage-rolls="damageRolls = $event"
           @update:properties="properties = $event"
           @update:versatile-damage="versatileDamage = $event"
           @update:weapon-range="weaponRange = $event"
+          @update:mastery="mastery = $event"
         />
 
         <!-- Armor stats -->
@@ -396,7 +398,7 @@ import {
   isArmorType,
   itemSourceLabel,
 } from "@/types/item.types";
-import type { Item, ItemType, ItemRarity } from "@/types/item.types";
+import type { Item, ItemType, ItemRarity, WeaponMasteryProperty } from "@/types/item.types";
 import type { DamageRoll } from "@/lib/dice";
 import { buildEntityContext, toPlainText } from "@/ai/utils";
 
@@ -438,6 +440,7 @@ const damageRolls = ref<DamageRoll[]>(props.item?.damage_rolls ?? []);
 const properties = ref<string[]>(props.item?.properties ?? []);
 const weaponRange = ref(props.item?.weapon_range ?? "");
 const versatileDamage = ref(props.item?.versatile_damage ?? "");
+const mastery = ref<WeaponMasteryProperty | null>(props.item?.mastery ?? null);
 
 // ── Armor fields ──────────────────────────────────────────────────────────────
 const armorClass = ref(props.item?.armor_class ?? "");
@@ -551,6 +554,7 @@ function buildPayload() {
     damage_rolls: isWeapon.value && damageRolls.value.length ? damageRolls.value : null,
     armor_class: isArmor.value ? armorClass.value.trim() || null : null,
     properties: isWeapon.value ? properties.value : [],
+    mastery: isWeapon.value ? mastery.value : null,
     weapon_range: isWeapon.value ? weaponRange.value.trim() || null : null,
     versatile_damage: isWeapon.value ? versatileDamage.value.trim() || null : null,
     charges: charges.value ?? null,
