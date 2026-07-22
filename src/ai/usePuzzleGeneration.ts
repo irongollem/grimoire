@@ -3,8 +3,9 @@ import { uploadWithVariants } from "@/lib/storage";
 import {
   buildCampaignContext,
 } from "./utils";
-import { fetchSystemPrompt, fetchImageBasePrompt } from "./systemPrompts";
+import { fetchSystemPrompt, fetchImageBasePrompt, fetchRulesetContext } from "./systemPrompts";
 import { buildSimpleImagePrompt } from "./imagePrompt";
+import { useRuleset } from "@/composables/useRuleset";
 import type { PuzzleAiResult, PuzzleAiGenerated } from "./types";
 import {
   createAiGenerationState,
@@ -42,6 +43,7 @@ export interface PuzzleGenerationOptions {
 export function usePuzzleGeneration() {
   const auth = useAuthStore();
   const campaign = useCampaignStore();
+  const { ruleset } = useRuleset();
 
   async function generate(
     userPrompt: string,
@@ -59,12 +61,13 @@ export function usePuzzleGeneration() {
     try {
       const textProvider = getTextProvider();
       // ── 1. Generate puzzle text ───────────────────────────────────────
-      const [basePrompt, imageBasePrompt] = await Promise.all([
+      const [basePrompt, imageBasePrompt, rulesetContext] = await Promise.all([
         fetchSystemPrompt("puzzle"),
         fetchImageBasePrompt(),
+        fetchRulesetContext(ruleset.value),
       ]);
       if (!basePrompt) throw new Error("Puzzle system prompt not configured.");
-      const systemContent = `${basePrompt}${buildCampaignContext({
+      const systemContent = `${basePrompt}${rulesetContext ? `\n\n${rulesetContext}` : ""}${buildCampaignContext({
         setting: settingPrompt,
       })}`;
 

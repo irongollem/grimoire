@@ -1,6 +1,7 @@
 import { ref } from "vue";
 import { wrapUserInput, buildCampaignContext } from "./utils";
-import { fetchSystemPrompt } from "./systemPrompts";
+import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
+import { useRuleset } from "@/composables/useRuleset";
 import type { RollTableAiResult } from "./types";
 import {
   createAiGenerationState,
@@ -34,6 +35,7 @@ export interface RollTableGenerationOptions {
 
 export function useRollTableGeneration() {
   const campaign = useCampaignStore();
+  const { ruleset } = useRuleset();
 
   async function generate(
     userPrompt: string,
@@ -47,9 +49,12 @@ export function useRollTableGeneration() {
 
     try {
       const textProvider = getTextProvider();
-      const basePrompt = await fetchSystemPrompt("roll_table");
+      const [basePrompt, rulesetContext] = await Promise.all([
+        fetchSystemPrompt("roll_table"),
+        fetchRulesetContext(ruleset.value),
+      ]);
       if (!basePrompt) throw new Error("Roll table system prompt not configured.");
-      const systemContent = `${basePrompt}${buildCampaignContext({
+      const systemContent = `${basePrompt}${rulesetContext ? `\n\n${rulesetContext}` : ""}${buildCampaignContext({
         setting: campaign.activeCampaign?.ai_setting_prompt ?? "",
       })}`;
 

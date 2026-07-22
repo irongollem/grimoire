@@ -1,8 +1,10 @@
 import { useAuthStore } from "@/stores/auth";
 import { uploadWithVariants } from "@/lib/storage";
 import { buildCampaignContext } from "./utils";
-import { fetchSystemPrompt, fetchImageBasePrompt } from "./systemPrompts";
+import { fetchSystemPrompt, fetchImageBasePrompt, fetchRulesetContext } from "./systemPrompts";
 import { buildSimpleImagePrompt } from "./imagePrompt";
+import { normalizeAiItemMastery } from "./itemMastery";
+import { useRuleset } from "@/composables/useRuleset";
 import type { ItemAiResult, ItemAiGenerated } from "./types";
 import {
   createAiGenerationState,
@@ -41,6 +43,7 @@ registerAiGenerator({
 export function useItemGeneration() {
   const auth = useAuthStore();
   const campaign = useCampaignStore();
+  const { ruleset } = useRuleset();
 
   async function generate(
     userPrompt: string,
@@ -58,12 +61,13 @@ export function useItemGeneration() {
     try {
       const textProvider = getTextProvider();
       // ── 1. Generate item text ─────────────────────────────────────────────
-      const [basePrompt, imageBasePrompt] = await Promise.all([
+      const [basePrompt, imageBasePrompt, rulesetContext] = await Promise.all([
         fetchSystemPrompt("item"),
         fetchImageBasePrompt(),
+        fetchRulesetContext(ruleset.value),
       ]);
       if (!basePrompt) throw new Error("Item system prompt not configured.");
-      const systemContent = `${basePrompt}${buildCampaignContext({
+      const systemContent = `${basePrompt}${rulesetContext ? `\n\n${rulesetContext}` : ""}${buildCampaignContext({
         setting: settingPrompt,
       })}`;
 
@@ -89,6 +93,12 @@ export function useItemGeneration() {
       // Honour explicit user overrides
       if (options?.item_type) result.item_type = options.item_type as ItemAiResult["item_type"];
       if (options?.rarity) result.rarity = options.rarity as ItemAiResult["rarity"];
+
+      // Weapon Mastery is a 2024-only weapon mechanic — normalize/strip otherwise (#564).
+      result.mastery = normalizeAiItemMastery(result.mastery, {
+        ruleset: ruleset.value,
+        itemType: result.item_type,
+      });
 
       // ── 2. Generate art (unless opted out) ───────────────────────────────
       const wantImage = options?.generateImage !== false;

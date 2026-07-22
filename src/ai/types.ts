@@ -65,6 +65,8 @@ export interface ItemAiResult {
   damage_rolls: DamageRoll[] | null;
   armor_class: string | null;
   properties: string[];
+  /** 2024 PHB Weapon Mastery property (weapons only) — normalized via normalizeAiItemMastery before use */
+  mastery?: string | null;
   weapon_range: string | null;
   versatile_damage: string | null;
   charges: number | null;

@@ -147,7 +147,7 @@ serve(async (req: Request) => {
 
   const { data: campaign } = await admin
     .from("campaigns")
-    .select("id, user_id, ai_enabled, text_provider, image_provider, ai_setting_prompt, openai_api_key, anthropic_api_key, gemini_api_key, falai_api_key")
+    .select("id, user_id, ai_enabled, text_provider, image_provider, ai_setting_prompt, ruleset, openai_api_key, anthropic_api_key, gemini_api_key, falai_api_key")
     .eq("id", campaign_id)
     .maybeSingle();
   if (!campaign) return new Response("Campaign not found", { status: 404 });
@@ -160,11 +160,17 @@ serve(async (req: Request) => {
     if (!membership) return new Response("Forbidden", { status: 403 });
   }
 
+  // Ruleset-aware generation (#564) — anything other than "2024" resolves to "2014".
+  const ruleset = campaign.ruleset === "2024" ? "2024" : "2014";
+
   const { data: promptRows } = await admin
     .from("ai_system_prompts").select("generator_type, content")
-    .in("generator_type", ["trap", "image_base"]);
+    .in("generator_type", ["trap", "image_base", `ruleset_context_${ruleset}`]);
   const promptRow = promptRows?.find((r) => r.generator_type === "trap");
   const imageBasePrompt = promptRows?.find((r) => r.generator_type === "image_base")?.content ?? "";
+  // Missing row (older DBs that predate #564) is a silent skip, not an error.
+  const rulesetContext =
+    promptRows?.find((r) => r.generator_type === `ruleset_context_${ruleset}`)?.content ?? null;
   if (!promptRow) return new Response("Prompt not configured", { status: 500 });
 
   // BYOK is Pro-only: ignore stored campaign keys unless the owner is currently Pro.
@@ -196,7 +202,7 @@ serve(async (req: Request) => {
     providerConfigs,
   });
 
-  const systemContent = promptRow.content + buildCampaignContext(campaign.ai_setting_prompt) + INJECTION_GUARD_SUFFIX;
+  const systemContent = promptRow.content + (rulesetContext ? `\n\n${rulesetContext}` : "") + buildCampaignContext(campaign.ai_setting_prompt) + INJECTION_GUARD_SUFFIX;
 
   const constraints: string[] = [];
   if (trap_type) constraints.push(`Trap Type: ${trap_type}`);

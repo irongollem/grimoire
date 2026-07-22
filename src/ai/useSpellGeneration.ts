@@ -3,7 +3,8 @@ import { uploadWithVariants } from "@/lib/storage";
 import {
   buildCampaignContext,
 } from "./utils";
-import { fetchSystemPrompt, fetchImageBasePrompt } from "./systemPrompts";
+import { fetchSystemPrompt, fetchImageBasePrompt, fetchRulesetContext } from "./systemPrompts";
+import { useRuleset } from "@/composables/useRuleset";
 import type { SpellAiResult, SpellAiGenerated } from "./types";
 import {
   createAiGenerationState,
@@ -45,6 +46,7 @@ registerAiGenerator({
 export function useSpellGeneration() {
   const auth = useAuthStore();
   const campaign = useCampaignStore();
+  const { ruleset } = useRuleset();
 
   async function generate(
     userPrompt: string,
@@ -62,12 +64,13 @@ export function useSpellGeneration() {
     try {
       const textProvider = getTextProvider();
       // ── 1. Generate spell text ────────────────────────────────────────
-      const [basePrompt, imageBasePrompt] = await Promise.all([
+      const [basePrompt, imageBasePrompt, rulesetContext] = await Promise.all([
         fetchSystemPrompt("spell"),
         fetchImageBasePrompt(),
+        fetchRulesetContext(ruleset.value),
       ]);
       if (!basePrompt) throw new Error("Spell system prompt not configured.");
-      const systemContent = `${basePrompt}${buildCampaignContext({
+      const systemContent = `${basePrompt}${rulesetContext ? `\n\n${rulesetContext}` : ""}${buildCampaignContext({
         setting: settingPrompt,
       })}`;
 

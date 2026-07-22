@@ -130,7 +130,7 @@ serve(async (req: Request) => {
 
   const { data: campaign } = await admin
     .from("campaigns")
-    .select("id, user_id, ai_enabled, text_provider, ai_setting_prompt, openai_api_key, anthropic_api_key, gemini_api_key")
+    .select("id, user_id, ai_enabled, text_provider, ai_setting_prompt, ruleset, openai_api_key, anthropic_api_key, gemini_api_key")
     .eq("id", campaign_id)
     .maybeSingle();
   if (!campaign) return new Response("Campaign not found", { status: 404 });
@@ -143,9 +143,16 @@ serve(async (req: Request) => {
     if (!membership) return new Response("Forbidden", { status: 403 });
   }
 
-  const { data: promptRow } = await admin
-    .from("ai_system_prompts").select("content")
-    .eq("generator_type", "chronicle_text").maybeSingle();
+  // Ruleset-aware generation (#564) — anything other than "2024" resolves to "2014".
+  const ruleset = campaign.ruleset === "2024" ? "2024" : "2014";
+
+  const { data: promptRows } = await admin
+    .from("ai_system_prompts").select("generator_type, content")
+    .in("generator_type", ["chronicle_text", `ruleset_context_${ruleset}`]);
+  const promptRow = promptRows?.find((r) => r.generator_type === "chronicle_text");
+  // Missing row (older DBs that predate #564) is a silent skip, not an error.
+  const rulesetContext =
+    promptRows?.find((r) => r.generator_type === `ruleset_context_${ruleset}`)?.content ?? null;
   if (!promptRow) return new Response("Prompt not configured", { status: 500 });
 
   const entityBlock = entity_descriptions.length > 0
@@ -157,7 +164,9 @@ serve(async (req: Request) => {
   const systemContent = promptRow.content
     .replace("{entities}", entityBlock)
     .replace("{settingPrompt}", settingBlock)
-    .replace("{toneInstruction}", tone_instruction) + INJECTION_GUARD_SUFFIX;
+    .replace("{toneInstruction}", tone_instruction) +
+    (rulesetContext ? `\n\n${rulesetContext}` : "") +
+    INJECTION_GUARD_SUFFIX;
 
   // BYOK is Pro-only: ignore stored campaign keys unless the owner is currently Pro.
   const ownerIsPro = await isUserPro(admin, campaign.user_id);

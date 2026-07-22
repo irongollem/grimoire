@@ -6,7 +6,8 @@ import type { NpcAiResult, NpcAiGenerated } from "./types";
 import {
   buildCampaignContext,
 } from "./utils";
-import { fetchSystemPrompt, fetchImageBasePrompt } from "./systemPrompts";
+import { fetchSystemPrompt, fetchImageBasePrompt, fetchRulesetContext } from "./systemPrompts";
+import { useRuleset } from "@/composables/useRuleset";
 import { getTextProvider, getImageProvider } from "./providers";
 import { b64ToBlob, wrapUserInput } from "./utils";
 import {
@@ -101,6 +102,7 @@ export function toTiptapJson(text: string): string {
 export function useNpcGeneration() {
   const auth = useAuthStore();
   const campaign = useCampaignStore();
+  const { ruleset } = useRuleset();
 
   async function generate(
     userPrompt: string,
@@ -190,13 +192,15 @@ export function useNpcGeneration() {
 
     // ── 1. Text generation ─────────────────────────────────────────────────
     const textProvider = getTextProvider();
-    const [basePrompt, imageBasePrompt] = await Promise.all([
+    const [basePrompt, imageBasePrompt, rulesetContext] = await Promise.all([
       fetchSystemPrompt("npc"),
       fetchImageBasePrompt(),
+      fetchRulesetContext(ruleset.value),
     ]);
     if (!basePrompt) throw new Error("NPC system prompt not configured.");
     const systemContent =
       basePrompt +
+      (rulesetContext ? `\n\n${rulesetContext}` : "") +
       buildCampaignContext({ setting: settingPrompt });
 
     const userContent = options?.generateAlterEgo

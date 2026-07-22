@@ -9,7 +9,8 @@ import type { Npc } from "@/types/npc.types";
 import type { Monster } from "@/types/monster.types";
 import type { PartyMember } from "@/types/party.types";
 import { logUsage } from "@/composables/useAiCredits";
-import { fetchSystemPrompt } from "./systemPrompts";
+import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
+import { useRuleset } from "@/composables/useRuleset";
 
 export type ChroniclerTone = "dramatic" | "humorous" | "mysterious" | "epic";
 
@@ -48,6 +49,7 @@ export function useChroniclerTextGeneration() {
   const isGenerating = ref(false);
   const error = ref<string | null>(null);
   const campaign = useCampaignStore();
+  const { ruleset } = useRuleset();
 
   async function generate(params: {
     rawText: string;
@@ -111,13 +113,18 @@ export function useChroniclerTextGeneration() {
   }): Promise<string> {
     const { rawText, tone, entities, settingPrompt } = params;
 
-    const basePrompt = await fetchSystemPrompt("chronicle_text");
+    const [basePrompt, rulesetContext] = await Promise.all([
+      fetchSystemPrompt("chronicle_text"),
+      fetchRulesetContext(ruleset.value),
+    ]);
     if (!basePrompt) throw new Error("Chronicle text prompt not configured.");
 
-    const systemPrompt = basePrompt
-      .replace("{entities}", buildEntityDescriptions(entities))
-      .replace("{settingPrompt}", settingPrompt)
-      .replace("{toneInstruction}", TONE_INSTRUCTIONS[tone]);
+    const systemPrompt =
+      basePrompt
+        .replace("{entities}", buildEntityDescriptions(entities))
+        .replace("{settingPrompt}", settingPrompt)
+        .replace("{toneInstruction}", TONE_INSTRUCTIONS[tone]) +
+      (rulesetContext ? `\n\n${rulesetContext}` : "");
 
     const provider = getTextProvider();
     const { content, usage: textUsage } = await provider.complete(systemPrompt, wrapUserInput(rawText));

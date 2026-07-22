@@ -5,8 +5,9 @@ import { edgeErrorMessage } from "@/lib/edgeError";
 import {
   buildCampaignContext,
 } from "./utils";
-import { fetchSystemPrompt, fetchImageBasePrompt } from "./systemPrompts";
+import { fetchSystemPrompt, fetchImageBasePrompt, fetchRulesetContext } from "./systemPrompts";
 import { buildSimpleImagePrompt } from "./imagePrompt";
+import { useRuleset } from "@/composables/useRuleset";
 import type { LocationAiResult, LocationAiGenerated } from "./types";
 import {
   createAiGenerationState,
@@ -50,6 +51,7 @@ export interface LocationGenerationOptions {
 export function useLocationGeneration() {
   const auth = useAuthStore();
   const campaign = useCampaignStore();
+  const { ruleset } = useRuleset();
 
   async function generate(
     userPrompt: string,
@@ -138,12 +140,13 @@ export function useLocationGeneration() {
     const textProvider = getTextProvider();
     const imageProvider = getImageProvider();
 
-    const [basePrompt, imageBasePrompt] = await Promise.all([
+    const [basePrompt, imageBasePrompt, rulesetContext] = await Promise.all([
       fetchSystemPrompt("location"),
       fetchImageBasePrompt(),
+      fetchRulesetContext(ruleset.value),
     ]);
     if (!basePrompt) throw new Error("Location system prompt not configured.");
-    const systemContent = `${basePrompt}${buildCampaignContext({
+    const systemContent = `${basePrompt}${rulesetContext ? `\n\n${rulesetContext}` : ""}${buildCampaignContext({
       setting: settingPrompt,
     })}`;
 

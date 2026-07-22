@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import type { RulesetKey } from "@/types/ruleset.types";
 
 /**
  * Fetch a system prompt from the DB for local-mode (BYOK) generation.
@@ -15,6 +16,15 @@ export async function fetchSystemPrompt(generatorType: string): Promise<string |
   } catch {
     return null;
   }
+}
+
+/**
+ * Fetch the admin-editable ruleset context block for the campaign's ruleset
+ * (#564 — ruleset-aware AI generation). Returns null when the row is missing
+ * so callers append it only when present — never coerce to "".
+ */
+export async function fetchRulesetContext(ruleset: RulesetKey): Promise<string | null> {
+  return fetchSystemPrompt(`ruleset_context_${ruleset}`);
 }
 
 /**

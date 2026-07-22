@@ -4,9 +4,10 @@ import { buildCampaignContext, wrapUserInput } from "./utils";
 import { createAiGenerationState, startAiQuotes, stopAiQuotes } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { getTextProvider } from "./providers";
-import { fetchSystemPrompt } from "./systemPrompts";
+import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
 import { logUsage } from "@/composables/useAiCredits";
 import { useCampaignStore } from "@/stores/campaign";
+import { useRuleset } from "@/composables/useRuleset";
 import { seedFromAiResult } from "@/lib/downtimeAiSeed";
 import type { DowntimeActivity, DowntimeSeed } from "@/types/downtime.types";
 
@@ -51,6 +52,7 @@ export interface DowntimeDraftArgs {
 
 export function useDowntimeGeneration() {
   const campaign = useCampaignStore();
+  const { ruleset } = useRuleset();
 
   async function generate(args: DowntimeDraftArgs): Promise<DowntimeSeed | null> {
     if (isAnyAiGenerating.value) return null;
@@ -107,10 +109,13 @@ export function useDowntimeGeneration() {
   /** BYOK/local mode: the key never leaves the browser, so no edge call. */
   async function draftClientSide(args: DowntimeDraftArgs): Promise<unknown> {
     const textProvider = getTextProvider();
-    const basePrompt = await fetchSystemPrompt("downtime");
+    const [basePrompt, rulesetContext] = await Promise.all([
+      fetchSystemPrompt("downtime"),
+      fetchRulesetContext(ruleset.value),
+    ]);
     if (!basePrompt) throw new Error("Downtime system prompt not configured.");
 
-    const systemContent = `${basePrompt}${buildCampaignContext({
+    const systemContent = `${basePrompt}${rulesetContext ? `\n\n${rulesetContext}` : ""}${buildCampaignContext({
       setting: campaign.activeCampaign?.ai_setting_prompt ?? "",
     })}`;
 

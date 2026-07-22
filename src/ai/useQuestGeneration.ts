@@ -1,6 +1,7 @@
 import { ref } from "vue";
 import { wrapUserInput, buildCampaignContext } from "./utils";
-import { fetchSystemPrompt } from "./systemPrompts";
+import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
+import { useRuleset } from "@/composables/useRuleset";
 import type { QuestHookResult, QuestHooksAiResult } from "./types";
 import {
   createAiGenerationState,
@@ -30,6 +31,7 @@ registerAiGenerator({
 
 export function useQuestGeneration() {
   const campaign = useCampaignStore();
+  const { ruleset } = useRuleset();
 
   async function generate(userPrompt: string): Promise<QuestHookResult[] | null> {
     if (isAnyAiGenerating.value) return null;
@@ -40,9 +42,12 @@ export function useQuestGeneration() {
 
     try {
       const textProvider = getTextProvider();
-      const basePrompt = await fetchSystemPrompt("quest");
+      const [basePrompt, rulesetContext] = await Promise.all([
+        fetchSystemPrompt("quest"),
+        fetchRulesetContext(ruleset.value),
+      ]);
       if (!basePrompt) throw new Error("Quest system prompt not configured.");
-      const systemContent = `${basePrompt}${buildCampaignContext({
+      const systemContent = `${basePrompt}${rulesetContext ? `\n\n${rulesetContext}` : ""}${buildCampaignContext({
         setting: campaign.activeCampaign?.ai_setting_prompt ?? "",
       })}`;
 

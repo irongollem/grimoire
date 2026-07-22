@@ -1,8 +1,9 @@
 import { useAuthStore } from "@/stores/auth";
 import { uploadWithVariants } from "@/lib/storage";
 import { buildCampaignContext } from "./utils";
-import { fetchSystemPrompt, fetchImageBasePrompt } from "./systemPrompts";
+import { fetchSystemPrompt, fetchImageBasePrompt, fetchRulesetContext } from "./systemPrompts";
 import { buildSimpleImagePrompt } from "./imagePrompt";
+import { useRuleset } from "@/composables/useRuleset";
 import type { MonsterAiResult, MonsterAiGenerated } from "./types";
 import {
   createAiGenerationState,
@@ -41,6 +42,7 @@ registerAiGenerator({
 export function useMonsterGeneration() {
   const auth = useAuthStore();
   const campaign = useCampaignStore();
+  const { ruleset } = useRuleset();
 
   async function generate(
     userPrompt: string,
@@ -58,12 +60,13 @@ export function useMonsterGeneration() {
     try {
       const textProvider = getTextProvider();
       // ── 1. Generate stat block text ───────────────────────────────────
-      const [basePrompt, imageBasePrompt] = await Promise.all([
+      const [basePrompt, imageBasePrompt, rulesetContext] = await Promise.all([
         fetchSystemPrompt("monster"),
         fetchImageBasePrompt(),
+        fetchRulesetContext(ruleset.value),
       ]);
       if (!basePrompt) throw new Error("Monster system prompt not configured.");
-      const systemContent = `${basePrompt}${buildCampaignContext({
+      const systemContent = `${basePrompt}${rulesetContext ? `\n\n${rulesetContext}` : ""}${buildCampaignContext({
         setting: settingPrompt,
       })}`;
 
@@ -80,6 +83,12 @@ export function useMonsterGeneration() {
       const { content, usage: _textUsage } = await textProvider.complete(systemContent, userContent);
       textUsage = _textUsage;
       const result = JSON.parse(content) as MonsterAiResult;
+
+      // 2014 monster stat blocks never carry an initiative bonus — only 2024
+      // separates initiative from the DEX modifier this way (#564).
+      if (ruleset.value !== "2024") {
+        delete result.stat_block.initiative_bonus;
+      }
 
       // Honour explicit user overrides
       if (options?.challenge_rating) result.stat_block.challenge_rating = options.challenge_rating;

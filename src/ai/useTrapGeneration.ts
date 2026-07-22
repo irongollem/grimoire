@@ -17,7 +17,8 @@ import { getTextProvider, getImageProvider, OPENAI_IMAGE_MODEL_KEY } from "./pro
 import { b64ToBlob, wrapUserInput } from "./utils";
 import { useCampaignStore } from "@/stores/campaign";
 import { logUsage } from "@/composables/useAiCredits";
-import { fetchSystemPrompt, fetchImageBasePrompt } from "./systemPrompts";
+import { fetchSystemPrompt, fetchImageBasePrompt, fetchRulesetContext } from "./systemPrompts";
+import { useRuleset } from "@/composables/useRuleset";
 import { buildSimpleImagePrompt } from "./imagePrompt";
 import type { ImageUsage } from "./providers/types";
 
@@ -88,6 +89,7 @@ export interface TrapGenerationOptions {
 export function useTrapGeneration() {
   const auth = useAuthStore();
   const campaign = useCampaignStore();
+  const { ruleset } = useRuleset();
 
   async function generate(
     userPrompt: string,
@@ -170,13 +172,14 @@ export function useTrapGeneration() {
     const textProvider = getTextProvider();
     const imageProvider = getImageProvider();
 
-    const [basePrompt, imageBasePrompt] = await Promise.all([
+    const [basePrompt, imageBasePrompt, rulesetContext] = await Promise.all([
       fetchSystemPrompt("trap"),
       fetchImageBasePrompt(),
+      fetchRulesetContext(ruleset.value),
     ]);
     if (!basePrompt) throw new Error("Trap system prompt not configured.");
 
-    const systemContent = `${basePrompt}${buildCampaignContext({
+    const systemContent = `${basePrompt}${rulesetContext ? `\n\n${rulesetContext}` : ""}${buildCampaignContext({
       setting: settingPrompt,
     })}`;
 

@@ -3,8 +3,9 @@ import { uploadWithVariants } from "@/lib/storage";
 import {
   buildCampaignContext,
 } from "./utils";
-import { fetchSystemPrompt, fetchImageBasePrompt } from "./systemPrompts";
+import { fetchSystemPrompt, fetchImageBasePrompt, fetchRulesetContext } from "./systemPrompts";
 import { buildSimpleImagePrompt } from "./imagePrompt";
+import { useRuleset } from "@/composables/useRuleset";
 import type { FactionAiResult, FactionAiGenerated } from "./types";
 import {
   createAiGenerationState,
@@ -44,6 +45,7 @@ export interface FactionGenerationOptions {
 export function useFactionGeneration() {
   const auth = useAuthStore();
   const campaign = useCampaignStore();
+  const { ruleset } = useRuleset();
 
   async function generate(
     userPrompt: string,
@@ -61,12 +63,13 @@ export function useFactionGeneration() {
     try {
       const textProvider = getTextProvider();
 
-      const [basePrompt, imageBasePrompt] = await Promise.all([
+      const [basePrompt, imageBasePrompt, rulesetContext] = await Promise.all([
         fetchSystemPrompt("faction"),
         fetchImageBasePrompt(),
+        fetchRulesetContext(ruleset.value),
       ]);
       if (!basePrompt) throw new Error("Faction system prompt not configured.");
-      const systemContent = `${basePrompt}${buildCampaignContext({
+      const systemContent = `${basePrompt}${rulesetContext ? `\n\n${rulesetContext}` : ""}${buildCampaignContext({
         setting: settingPrompt,
       })}`;
 
