@@ -27,6 +27,8 @@ The Bestiary (`/monsters`) is the DM's custom monster compendium. It is a union 
 2. **Open5e imported monsters** — the DM can sync monsters from any Open5e source document (Tome of Beasts, Creature Codex, etc.) via the "Sync from Open5e" button. Source selection is a persistent popover; leaving all sources unchecked imports everything. Deduplication rule: if a DB row exists with the same name as a static SRD entry, the DB row wins, so edits survive re-syncs.
 3. **Custom monsters** — created directly in the app.
 
+The shared `srd_monsters` table behind the Open5e-sourced content is seeded dual-edition by `npm run seed-srd-monsters` — 325 `srd-2014` + 331 `srd-2024` rows (see the SRD seed pipeline note in `items-spells-crafting.md`, #560).
+
 **List filters** (stored in `useUiStore`):
 
 - Text search
@@ -39,7 +41,7 @@ Each monster stores a full `stat_block` JSONB object with:
 
 - Basic: name, size, monster_type, alignment, CR, habitat, source, tags
 - Lair location: optional `lair_location_id` FK to `locations` (migration `20260720000001`, #168) — picked via `EntityCombobox` next to the Habitat field; rendered on `MonsterSheet`/`MonsterSheetMobile` as a nav link to `/locations/:id`. User monsters only; SRD monsters have no FK, and a lair set in another campaign simply doesn't render (the link resolves against the active campaign's location tree)
-- Combat: AC, HP (with dice expression), speed, initiative
+- Combat: AC, HP (with dice expression), speed, initiative, and (2024 monsters only, #559) `initiative_bonus` — a new key on the `stat_block` JSONB (`MonsterStatBlock.initiative_bonus`; no migration needed since it rides inside the existing JSONB column), editable in `StatBlockEditor` and shown in `StatBlockPanel`. Import maps it only for 2024-ruleset creatures; 2014 creatures and everything else fall back to their DEX modifier.
 - Ability scores: STR/DEX/CON/INT/WIS/CHA
 - Derived: saving throws, skills, senses, languages
 - Resistances / immunities / condition immunities
@@ -209,7 +211,7 @@ Party member HP, conditions, death saves, and curses are seeded from `party_memb
 - Back to Builder link
 - Round counter with Previous Turn / Next Turn buttons
 - Encounter name
-- Roll Initiative button (pre-combat only)
+- Roll Initiative button (pre-combat only) — rolls `d20 + initiativeModifier(combatant)` per combatant. `initiativeModifier()` (`src/lib/combatantSort.ts`) uses a monster's 2024 `initiative_bonus` when the stat block declares one, and the plain DEX modifier for everyone else (2014 monsters, NPCs, players)
 - Start Combat button (only when the encounter is live; disabled in pre-combat mode)
 - Dice Roller widget
 - Go Live / Live badge (only when a campaign is active)
@@ -231,6 +233,9 @@ Per combatant row:
 - **Quick HP panel** — expands below the row when the row is selected; shows an amount input with Dmg / Heal / +Temp buttons
 - **AC** — read-only display; uses beast AC when wildshaped
 - **CONDITIONS** — badge row, click a badge to remove; "+" button opens a dropdown of available conditions. Exhaustion uses a pip chip with level control. Concentration is shown as an indigo chip (auto-cleared by concentration-breaking conditions). Reaction is a ⚡ chip, toggled per turn, reset automatically at the start of each new round
+
+**Dual-edition conditions (#556)** — condition text is edition-sensitive: `getCondition(name, ruleset)` (`src/lib/conditions.ts`) resolves the campaign's active ruleset against `src/data/srdConditions2014.ts` / `srdConditions2024.ts`, with `CONDITION_PATCHES` (`src/data/conditionPatches.ts`) applied last as an override/fill-gap layer — the 2024 texts there were verified line-by-line against the official 2024 rules glossary (SRD 5.2, CC-BY-4.0) since Open5e has no structured 2024 condition data yet (upstream open5e-api#793); the patch layer is the regeneration point once that data ships. 2024 Exhaustion is mechanically different from 2014: a flat −2×level penalty on every d20 Test (`getExhaustionD20Penalty`) instead of the 2014 disadvantage-based effects, −5ft×level Speed reduction (`getExhaustionSpeedPenaltyFt`), and death at level 6 in both editions. Both resolvers live in `src/lib/conditions.ts` and are wired through the runner's combatant rows/cards, the condition picker, and the player-facing condition views.
+
 - **Surprised badge** — can be set pre-combat or during round 1; auto-cleared when the combatant ends their first turn. A subtle "✦?" button appears on non-surprised combatants during the setup window
 
 **Turn management:**
@@ -371,6 +376,8 @@ HP bar colour thresholds: >75% green, >50% amber, >25% red, 0 grey.
 9. **Mid-combat spawn** — monsters or stat-block NPCs can be injected into the live initiative order at any time, with automatic initiative rolls and legendary action pool priming.
 
 10. **Difficulty calculator integrated into the builder.** The DMG XP budget calculation (with count multiplier, party size adjustment, ally offset, and trap XP) runs live as the DM adds combatants. Visual threshold bars and an enemy breakdown table make it immediately clear whether a planned encounter is worth balancing differently.
+
+11. **Re-import clobber protection (#560).** Re-syncing monsters from Open5e (into the shared `srd_monsters` table, or via the legacy per-user `useImportSrdMonsters` path) only refreshes fields Open5e actually supplies — name, type/size, source metadata, `stat_block`. DM-authored notes, portrait, description, habitat, and lair link are never touched by a re-run. Full field breakdown in [`docs/srd-reimport.md`](../../docs/srd-reimport.md).
 
 ---
 

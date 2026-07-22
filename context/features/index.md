@@ -51,20 +51,20 @@ Each doc covers **both DM and player perspectives**, lists exact file paths, com
 - **NPC Relationship Web** — force-directed graph; 13 relationship types with directional inverses; shift+click to create edges on graph; DM-managed with player-facing visibility controls
 - **NPC Generator** — quick-create (faction + associate auto-wired); AI generation with optional alter-ego portrait (2× credits); setting population bulk-import
 - **Party Tracker** — initiative tracker; HP tracking (temp HP absorbs first); conditions, exhaustion, named curses; death saves; companions; inline party inventory with Vault combobox
-- **Character Sheet** — full D&D 5e stats; Wild Shape (CR filtering, stat block override, Circle of Moon); health visibility modes (strategic numeric vs. immersive prose); level-up wizard
+- **Character Sheet** — full D&D 5e stats; Wild Shape (CR filtering, stat block override, Circle of Moon); health visibility modes (strategic numeric vs. immersive prose); level-up wizard; 2024 background ASI (+2/+1 or +1/+1/+1) + Origin feat
 - **Character Codex** — Species (traits, shapeshifter flag, Open5e import); Backgrounds; custom Classes (full 20×9 spell slot grid); Archetypes (Open5e import); Abilities/Features
 - **Hall of Heroes** — reusable iconic characters importable into any campaign; supports bench characters and campaign guests
 - **Shapeshifter Disguise** — player-controlled via server RPC; DM sees true form + badge; others see full fake species profile
 
 ### Combat
 
-- **Bestiary** — custom monster builder; 12 SRD template presets; full stat block (all speeds, senses, saves, skills, resistances, actions, reactions, legendary/lair); Open5e sync; AI generator; per-monster player discovery/visibility system
+- **Bestiary** — custom monster builder; 12 SRD template presets; full stat block (all speeds, senses, saves, skills, resistances, actions, reactions, legendary/lair); dual-edition (2014/2024) `srd_monsters`, 2024 stat blocks carry their own initiative bonus; Open5e sync; AI generator; per-monster player discovery/visibility system
 - **Encounter Builder** — combatant roster (CombatantDef); faction system (4 defaults + custom); pre-scripted events (4 trigger types, 2 action types); boss mechanics (legendary + lair actions); difficulty calculator; loot + trap linking
-- **Encounter Runner** — live combat tracker; initiative order; HP flash animations; conditions; reaction tracking; surprised badge; DM detail panel (roll modes, chat modes, legendary action tracker); mid-encounter spawn; bidirectional HP sync with party_members
+- **Encounter Runner** — live combat tracker; initiative order (ruleset-aware monster initiative modifier); HP flash animations; dual-edition conditions (2024 Exhaustion math); reaction tracking; surprised badge; DM detail panel (roll modes, chat modes, legendary action tracker); mid-encounter spawn; bidirectional HP sync with party_members
 
 ### Items, Spells & Crafting
 
-- **Item Vault** — dual-image identification system (mundane vs. identified portrait with focal point); weapon/armor stats; magic properties (attunement, charges, recharge, arcane focus); container flag; bundle/pack auto-expansion; linked spells; SRD import
+- **Item Vault** — dual-image identification system (mundane vs. identified portrait with focal point); weapon/armor stats; 2024 weapon mastery properties; magic properties (attunement, charges, recharge, arcane focus); container flag; bundle/pack auto-expansion; linked spells; SRD import
 - **Player Inventory** — paper doll with 11 anatomical slots; attunement 3-pip tracker; carry weight bar with 4-tier burden portraits; Powerful Build species doubling; extradimensional weight exclusion; drag-and-drop reordering; coin purse with chat drop; real-time sync
 - **Spellbook** — custom + Open5e import; Spell Level Advisor wizard; player view adapts to caster type (spellbook/prepared/known/none); multiclass-accurate slot computation
 - **Workshop** — crafting recipes with discipline, DC, time, tool proficiency check, critical fail ruins ingredient; per-player visibility; roll posts to campaign chat; cooking food variant

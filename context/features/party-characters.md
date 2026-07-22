@@ -157,6 +157,7 @@ Filterable by search and source (Custom / Open5e). Supports bulk import from Ope
 - Skill/tool/language proficiencies
 - Starting equipment description
 - Personality traits, ideals, bonds, flaws (rich text or freeform lists)
+- **2024 mechanics (#558)** — `asi_ability_trio` (the three abilities the background's ASI can be spent on) and `origin_feat` (jsonb: feat name + optional variant), added by migration `20260722000003`, parsed from the Open5e v2 background `benefits` on import. 2014 backgrounds simply have these columns null.
 
 **Background Detail view** (`BackgroundDetailView.vue`): Same edit/view toggle pattern as Species.
 
@@ -270,6 +271,10 @@ This view switches between two modes based on whether a `memberId` query param i
 
 Both are provided the shared `useCharacterCreationForm` composable via `provide(CHARACTER_FORM_KEY, form)`.
 
+**2024 background step (#558)** — for a background with `asi_ability_trio` set, `CharacterCreateBackgroundStep.vue` renders `BackgroundAsiPicker.vue`: the player picks either +2/+1 split across two of the trio's abilities or +1/+1/+1 across all three. The choice is stored in `class_choices.background_asi` (via the `backgroundAsiChoice` computed in `useCharacterCreationForm`) and applied to the character's ability scores the same way species ASI is — once, at the point the choice is made. If the background also grants an `origin_feat`, `BackgroundOriginFeatBadge.vue` shows it and resolves it to a full-text `class_features` row by `conceptual_key` when one has been imported; unresolved feats still save their raw name (`class_choices.background_feat`) — a feat grant is never silently dropped just because the matching feature hasn't been imported yet.
+
+**Ruleset-switch safety net** — if a campaign's ruleset changes after a character already has a background ASI/feat choice recorded (or gains access to one), a campaign trigger flags `party_members.background_ruleset_review_required`. `PlayerFeaturesTab` shows a review banner when the flag is set; acknowledging it calls the `acknowledge_background_ruleset_review` RPC (SECURITY DEFINER, authorizes the caller against the party member before clearing the flag).
+
 ### Character Sheet (`/play` — `PlayerCharacterView.vue`)
 
 The primary player-facing character sheet. Also used by the DM via `PartyMemberView` (with `hide-player-actions` prop) and in DM preview mode.
@@ -314,6 +319,8 @@ The primary player-facing character sheet. Also used by the DM via `PartyMemberV
 | Wild Shape | inline              | Druid-only; usage pips (2/day at level 2+), CR limit display, Circle of Moon label; beast picker showing discovered + DM-pinned beasts filtered by CR/level/type restrictions |
 
 Wild Shape tab is only shown for Druid characters (detected by class name containing "druid") or when a wildshape is already active.
+
+**Weapon mastery (#557, 2024 campaigns only)** — an equipped weapon row in `PlayerCombatTab` shows its mastery property (from `items.mastery`, definitions in `src/data/weaponMastery.ts` — see `items-spells-crafting.md`) when the item has one, and the player toggles whether that mastery is currently active for their character; active masteries are tracked in `party_members.weapon_masteries`.
 
 **Wild Shape mechanics:**
 
@@ -433,6 +440,7 @@ The player can toggle their own disguise on/off using DB functions `set_shapeshi
 - **Wild Shape as a first-class feature:** Full CR/level/type filtering, stat block preview lightbox, beast HP tracking separate from character HP, ability score override (STR/DEX/CON from beast), automatic tab visibility for Druids only.
 - **Custom class/archetype system:** DMs can build fully custom classes with per-level feature tables, custom spell slot grids, ASI scheduling, wizard step flows for player-facing choices, and resource pools — all surfacing automatically in the level-up wizard and character sheet.
 - **Open5e integration:** One-click import for species, backgrounds, classes, archetypes, and abilities from the Black Flag SRD. Incremental (upsert-based) so re-importing is safe and reports changes.
+- **Re-import clobber protection (#560):** for species, classes, and subclasses, the update path on a re-import is narrowed to fields Open5e actually supplies (name/description/mechanics/source metadata); anything a DM only fills in by hand — notes, custom art, hand-tuned class mechanics like `spell_slots`/`resources`/`steps` — is never touched by a re-run. Full per-field breakdown per entity type in [`docs/srd-reimport.md`](../../docs/srd-reimport.md).
 - **Shapeshifter disguise:** Cryptographic-grade privacy — other players see a completely different species entry with no tells. The shapeshifter and DM are the only ones who see the true form.
 - **Hall of Heroes as a template library:** App-admin-managed iconic characters that any DM can import into their campaign in one click, complete with stat block and lore.
 - **Health visibility modes:** Strategic (numeric) vs. immersive (prose labels) per campaign, preserving narrative tension.
