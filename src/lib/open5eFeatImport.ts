@@ -1,15 +1,6 @@
 import type { ClassFeatureInsert, FeatureType } from "@/types/feature.types";
-import type { RulesetKey } from "@/types/ruleset.types";
-import { fetchAll } from "@/lib/open5eApi";
-
-interface DocumentRef {
-  key: string;
-  name: string;
-  display_name?: string;
-  permalink?: string | null;
-  publisher?: { name: string; key: string };
-  gamesystem?: { name: string; key: string };
-}
+import { fetchAllFromDocuments, fetchSupported5eDocumentKeys, rulesetForDocument } from "@/lib/open5eApi";
+import type { Open5eDocumentRef } from "@/lib/open5eApi";
 
 interface Open5eV2Feat {
   key: string;
@@ -17,7 +8,7 @@ interface Open5eV2Feat {
   desc: string;
   prerequisite: string;
   benefits: Array<{ desc: string }>;
-  document: DocumentRef;
+  document: Open5eDocumentRef;
 }
 
 function textToTiptap(desc: string, benefits: string[]): string {
@@ -40,12 +31,6 @@ function detectFeatureType(desc: string): FeatureType {
   if (/\bas a reaction\b/.test(lower)) return "reaction";
   if (/\bbonus action\b/.test(lower)) return "bonus_action";
   return "passive";
-}
-
-function rulesetForDocument(document: DocumentRef): RulesetKey | null {
-  if (document.gamesystem?.key === "5e-2024") return "2024";
-  if (document.gamesystem?.key === "5e-2014" || document.gamesystem?.key === "5e") return "2014";
-  return null;
 }
 
 export function mapOpen5eV2Feat(feat: Open5eV2Feat): ClassFeatureInsert {
@@ -80,6 +65,7 @@ export function mapOpen5eV2Feat(feat: Open5eV2Feat): ClassFeatureInsert {
 
 /** Native V2 identity means equal names from different documents remain distinct. */
 export async function fetchSrdFeats(): Promise<ClassFeatureInsert[]> {
-  const raw = await fetchAll<Open5eV2Feat>("https://api.open5e.com/v2/feats/");
+  const documentKeys = await fetchSupported5eDocumentKeys();
+  const raw = await fetchAllFromDocuments<Open5eV2Feat>("https://api.open5e.com/v2/feats/", documentKeys);
   return raw.map(mapOpen5eV2Feat);
 }
