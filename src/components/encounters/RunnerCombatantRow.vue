@@ -118,7 +118,7 @@
           v-for="cond in nonExhaustion(displayConditions)"
           :key="cond"
           class="cond-badge"
-          :title="`${cond} — click to remove\n\n${getConditionDescription(cond)}`"
+          :title="`${cond} — click to remove\n\n${getConditionDescription(cond, ruleset)}`"
           @click="store.toggleCondition(combatant.instance_id, cond)"
         >{{ cond }} ×</span>
         <span
@@ -170,6 +170,7 @@ import FocalImage from "@/components/common/FocalImage.vue";
 import ExhaustionChip from "@/components/common/ExhaustionChip.vue";
 import ConditionPicker from "@/components/encounters/ConditionPicker.vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
+import { useRuleset } from "@/composables/useRuleset";
 import { getExhaustionLevel, getConditionDescription } from "@/lib/conditions";
 import { useRunnerCombatant } from "@/composables/useRunnerCombatant";
 import type { RunCombatant } from "@/types/encounter.types";
@@ -182,6 +183,7 @@ const { combatant, selectedId } = defineProps<{
 const emit = defineEmits<{ select: [id: string | null] }>();
 
 const store = useEncounterRunStore();
+const { ruleset } = useRuleset();
 
 const {
   wildshape,

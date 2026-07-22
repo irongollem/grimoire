@@ -9,7 +9,7 @@
       v-for="cond in nonExhaustionConditions"
       :key="cond"
       class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-destructive/10 border border-destructive/30 font-cinzel text-2xs font-semibold text-destructive"
-      :title="getConditionDescription(cond)"
+      :title="getConditionDescription(cond, ruleset)"
     >
       {{ cond }}
       <button type="button" class="hover:text-destructive/60 transition-colors" @click="removeCondition(cond)">×</button>
@@ -59,7 +59,7 @@
           :key="cond"
           type="button"
           class="w-full text-left px-2 py-1 rounded font-cinzel text-xs text-foreground hover:bg-muted transition-colors"
-          :title="getConditionDescription(cond)"
+          :title="getConditionDescription(cond, ruleset)"
           @click="addCondition(cond)"
         >{{ cond }}</button>
         <div class="border-t border-border mt-1 pt-1">
@@ -78,6 +78,7 @@
 import { ref, computed, nextTick } from "vue";
 import { IconAdd } from '@/lib/icons';
 import { useUpdatePartyMember } from "@/composables/useParty";
+import { useRuleset } from "@/composables/useRuleset";
 import {
   CONDITIONS,
   getConditionDescription,
@@ -90,6 +91,7 @@ import type { PartyMember } from "@/types/party.types";
 
 const { member } = defineProps<{ member: PartyMember }>();
 const { mutateAsync: updateMember } = useUpdatePartyMember();
+const { ruleset } = useRuleset();
 
 const conditionOpen = ref(false);
 const conditionOpenUp = ref(false);

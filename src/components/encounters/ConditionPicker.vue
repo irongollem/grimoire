@@ -17,7 +17,7 @@
             type="button"
             class="picker-chip"
             :class="isActive(cond) ? 'picker-chip-active' : 'picker-chip-inactive'"
-            :title="getConditionShort(cond)"
+            :title="getConditionShort(cond, ruleset)"
             @click.stop="emit('pick', cond)"
           >{{ cond }}</button>
         </div>
@@ -29,6 +29,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { onClickOutside } from "@vueuse/core";
+import { useRuleset } from "@/composables/useRuleset";
 import { CONDITIONS, getExhaustionLevel, getConditionShort } from "@/lib/conditions";
 import type { ConditionName } from "@/lib/conditions";
 
@@ -41,6 +42,7 @@ const emit = defineEmits<{
   pick: [name: ConditionName];
 }>();
 
+const { ruleset } = useRuleset();
 const open = ref(false);
 const root = ref<HTMLElement | null>(null);
 

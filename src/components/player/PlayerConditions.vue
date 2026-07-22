@@ -17,7 +17,7 @@
     >
       <span
         class="text-label-lg text-destructive leading-none"
-        :title="getConditionDescription(cond)"
+        :title="getConditionDescription(cond, ruleset)"
       >{{ cond }}</span>
       <button
         class="flex items-center justify-center w-4 h-4 rounded-full text-destructive/50 hover:text-destructive hover:bg-destructive/20 transition-colors text-sm leading-none"
@@ -78,6 +78,7 @@ import { computed } from "vue";
 import { useUpdatePartyMember } from "@/composables/useParty";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
+import { useRuleset } from "@/composables/useRuleset";
 import {
   getConditionDescription,
   getExhaustionLevel,
@@ -93,6 +94,7 @@ const emit = defineEmits<{ roll: [result: { label: string; dice: number; modifie
 const { mutateAsync: updateMember } = useUpdatePartyMember();
 const { sendRoll } = useCampaignMessages();
 const { promptRoll } = usePromptedRoll();
+const { ruleset } = useRuleset();
 
 // ── Condition helpers ─────────────────────────────────────────────────────────
 

@@ -37,6 +37,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { MAX_EXHAUSTION, getConditionDescription } from "@/lib/conditions";
+import { useRuleset } from "@/composables/useRuleset";
 
 const isTouch = typeof window !== "undefined" && window.matchMedia("(hover: none)").matches;
 
@@ -52,7 +53,9 @@ const emit = defineEmits<{
   (e: "update", newLevel: number): void;
 }>();
 
-const tooltip = computed(() => getConditionDescription(`Exhausted ${level}`));
+const { ruleset } = useRuleset();
+
+const tooltip = computed(() => getConditionDescription(`Exhausted ${level}`, ruleset.value));
 
 const wrapperClass = computed(() => {
   const base = "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5";

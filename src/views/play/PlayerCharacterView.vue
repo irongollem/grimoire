@@ -105,6 +105,7 @@
         :member="member"
         :override-scores="activeWildshape ? effectiveScores : undefined"
         :check-disadvantage="checkDisadvantage"
+        :check-penalty="exhaustionD20Penalty"
         @roll="onChildRoll"
       />
 
@@ -122,6 +123,7 @@
         :member="member"
         :wildshape-monster="beastMonster ?? undefined"
         :attack-disadvantage="attackDisadvantage"
+        :attack-penalty="exhaustionD20Penalty"
         @roll="onChildRoll"
       />
 
@@ -249,7 +251,13 @@ import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useParty } from "@/composables/useParty";
-import { hasAttackDisadvantage, hasCheckDisadvantage, hasSaveDisadvantage } from "@/lib/conditions";
+import { useRuleset } from "@/composables/useRuleset";
+import {
+  hasAttackDisadvantage,
+  hasCheckDisadvantage,
+  hasSaveDisadvantage,
+  getExhaustionD20Penalty,
+} from "@/lib/conditions";
 import { parseCr } from "@/lib/utils";
 import { wildshapeMaxCr as calcWildshapeMaxCr, wildshapeCrDisplay as calcWildshapeCrDisplay, isEligibleWildshapeForm } from "@/lib/wildshape";
 import { hitPointsToMax } from "@/lib/dice";
@@ -285,6 +293,7 @@ const customTrackers = computed(() => {
 });
 const { data: partyMembers } = useParty();
 const { promptRoll } = usePromptedRoll();
+const { ruleset } = useRuleset();
 
 const resolvedMemberId = computed(() =>
   props.memberId ?? (ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId),
@@ -451,8 +460,10 @@ const memberSaves = computed(() => {
 });
 
 // ── Conditions (needed as props for child components) ──────────────────────────
-const attackDisadvantage = computed(() => hasAttackDisadvantage(member.value?.conditions ?? []));
-const checkDisadvantage = computed(() => hasCheckDisadvantage(member.value?.conditions ?? []));
+const attackDisadvantage = computed(() => hasAttackDisadvantage(member.value?.conditions ?? [], ruleset.value));
+const checkDisadvantage = computed(() => hasCheckDisadvantage(member.value?.conditions ?? [], ruleset.value));
+// 2024-only flat penalty (0 under 2014, which uses the disadvantage flags above instead).
+const exhaustionD20Penalty = computed(() => getExhaustionD20Penalty(member.value?.conditions ?? [], ruleset.value));
 
 // ── HP bar (full-width, spans header + sidebar on tablet+) ────────────────────
 const hpPct = computed(() => {
@@ -507,15 +518,15 @@ async function doRoll(label: string, modifier: number, mode: RollMode = "normal"
 function onRollAbility(_key: string, label: string, mod: number, override: RollMode | null = null) {
   doRoll(
     `${label} Check`,
-    mod,
+    mod + exhaustionD20Penalty.value,
     combineModes(override ?? "normal", checkDisadvantage.value ? "disadvantage" : "normal"),
   );
 }
 function onRollSave(key: string, label: string, bonus: number, override: RollMode | null = null) {
-  const saveDisadvantage = hasSaveDisadvantage(member.value?.conditions ?? [], key);
+  const saveDisadvantage = hasSaveDisadvantage(member.value?.conditions ?? [], key, ruleset.value);
   doRoll(
     `${label} Save`,
-    bonus,
+    bonus + exhaustionD20Penalty.value,
     combineModes(override ?? "normal", saveDisadvantage ? "disadvantage" : "normal"),
   );
 }

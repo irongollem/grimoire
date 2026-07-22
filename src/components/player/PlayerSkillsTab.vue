@@ -79,6 +79,8 @@ import type { PartyMember, SkillProficiencies } from "@/types/party.types";
 const props = defineProps<{
   member: PartyMember;
   checkDisadvantage: boolean;
+  /** 2024-only flat Exhaustion penalty to every ability check (0 under 2014 — see `checkDisadvantage`). */
+  checkPenalty: number;
   /** Beast ability scores override STR/DEX/CON when wildshaped */
   overrideScores?: { str: number; dex: number; con: number; int: number; wis: number; cha: number };
 }>();
@@ -157,7 +159,7 @@ async function rollSkill(skill: (typeof SKILLS)[number], override: RollMode | nu
     override ?? "normal",
     props.checkDisadvantage ? "disadvantage" : "normal",
   );
-  const modifier = skillBonusValue(skill);
+  const modifier = skillBonusValue(skill) + props.checkPenalty;
   const name = props.member.name;
 
   if (isImmersive) {

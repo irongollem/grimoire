@@ -92,6 +92,7 @@
           >+{{ member.temp_hp }} tmp <span class="text-blue-400/50">×</span></button>
           <span v-if="attackDisadvantage" class="text-label md:text-sm text-amber-500 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 ml-1" title="Disadvantage on attack rolls">⚔ Dis</span>
           <span v-if="checkDisadvantage"  class="text-label md:text-sm text-amber-500 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 ml-1" title="Disadvantage on ability checks">✦ Dis</span>
+          <span v-if="exhaustionD20Penalty !== 0" class="text-label md:text-sm text-amber-500 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 ml-1" title="Exhaustion penalty on every d20 Test (attack rolls, ability checks, saving throws)">{{ exhaustionD20Penalty }} d20</span>
           <button
             v-if="member.concentration"
             class="text-label md:text-sm text-indigo-300 px-1.5 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/30 ml-1 hover:bg-indigo-500/20 transition-colors inline-flex items-center gap-1"
@@ -155,7 +156,7 @@
                       ? 'text-destructive/40 cursor-default'
                       : 'text-foreground hover:bg-amber-500/10 hover:text-amber-500'"
                     :disabled="hasCondition(cond)"
-                    :title="getConditionDescription(cond)"
+                    :title="getConditionDescription(cond, ruleset)"
                     @click="addCondition(cond)"
                   >{{ cond }}</button>
                 </div>
@@ -188,6 +189,7 @@ import { useShieldAcBonus } from "@/composables/useShieldAc";
 import { formatMulticlassLabel, totalLevel } from "@/types/multiclass.types";
 import { getHitDie } from "@/types/spell.types";
 import { useConcentration } from "@/composables/useConcentration";
+import { useRuleset } from "@/composables/useRuleset";
 import {
   CONDITIONS,
   getConditionDescription,
@@ -195,6 +197,7 @@ import {
   setExhaustionLevel,
   hasAttackDisadvantage,
   hasCheckDisadvantage,
+  getExhaustionD20Penalty,
 } from "@/lib/conditions";
 import type { PartyMember } from "@/types/party.types";
 import { xpForNextLevel, xpForLevel, levelForXp } from "@/types/party.types";
@@ -395,8 +398,10 @@ const hpBarColor = computed(() => {
   return "bg-elven-green";
 });
 
-const attackDisadvantage = computed(() => hasAttackDisadvantage(props.member.conditions ?? []));
-const checkDisadvantage  = computed(() => hasCheckDisadvantage(props.member.conditions ?? []));
+const { ruleset } = useRuleset();
+const attackDisadvantage = computed(() => hasAttackDisadvantage(props.member.conditions ?? [], ruleset.value));
+const checkDisadvantage  = computed(() => hasCheckDisadvantage(props.member.conditions ?? [], ruleset.value));
+const exhaustionD20Penalty = computed(() => getExhaustionD20Penalty(props.member.conditions ?? [], ruleset.value));
 
 async function applyDamage() {
   if (!hpInput.value || hpInput.value <= 0) return;

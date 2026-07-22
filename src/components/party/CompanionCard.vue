@@ -116,7 +116,7 @@
         v-for="cond in companion.conditions.filter((c) => !isExhaustion(c))"
         :key="cond"
         class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-destructive/10 border border-destructive/20 text-label text-destructive"
-        :title="getConditionDescription(cond)"
+        :title="getConditionDescription(cond, ruleset)"
       >
         {{ cond }}
         <button type="button" class="leading-none hover:opacity-70" @click="removeCondition(cond)">×</button>
@@ -161,6 +161,7 @@
 import { ref, computed } from "vue";
 import { IconClose, IconEdit } from '@/lib/icons';
 import { useUpdateCompanion } from "@/composables/useCompanions";
+import { useRuleset } from "@/composables/useRuleset";
 import {
   CONDITIONS,
   getConditionDescription,
@@ -188,6 +189,7 @@ defineEmits<{
 }>();
 
 const { mutateAsync: updateCompanion } = useUpdateCompanion();
+const { ruleset } = useRuleset();
 
 const hpAmount = ref(1);
 const addingCondition = ref(false);

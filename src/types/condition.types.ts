@@ -1,8 +1,10 @@
 /**
- * A 5e game condition (Blinded, Charmed, Poisoned, …). Baked from Open5e's
- * `/v1/conditions/` endpoint into `src/data/srdConditions.ts` at build time;
- * callers should import the `CONDITIONS` / `getCondition` helpers from
- * `@/lib/conditions` rather than reading the static module directly.
+ * A 5e game condition (Blinded, Charmed, Poisoned, …). Baked per-edition into
+ * `src/data/srdConditions2014.ts` (SRD 5.1) and `src/data/srdConditions2024.ts`
+ * (SRD 5.2, patched via `src/data/conditionPatches.ts` — see that file for why)
+ * at build time; callers should import the `CONDITIONS` / `getCondition`
+ * helpers from `@/lib/conditions` rather than reading the static modules
+ * directly.
  */
 export interface Condition {
   /** Stable id derived from the slug (e.g. "blinded"). */

@@ -1,10 +1,16 @@
 // Hand-baked from the SRD 5.1 condition text (CC-BY 4.0, Wizards of the Coast),
 // matching the shape Open5e exposes at /v1/conditions/. Re-run
-// `node scripts/fetch-srd-conditions.mjs` to refresh from live Open5e if the
-// upstream text ever changes — that script will overwrite this file.
+// `node scripts/fetch-srd-conditions.mjs -- --edition=2014` to refresh from
+// live Open5e if the upstream text ever changes — that script will overwrite
+// this file.
+//
+// This is the 2014 (SRD 5.1) edition of the condition data. See
+// `srdConditions2024.ts` for the 2024 (SRD 5.2) edition, and
+// `conditionPatches.ts` for the per-edition override/fill-gap layer applied
+// on top of both by `src/lib/conditions.ts`'s resolver.
 import type { Condition } from "@/types/condition.types";
 
-export const SRD_CONDITIONS: Condition[] = [
+export const SRD_CONDITIONS_2014: Condition[] = [
   {
     id: "blinded",
     slug: "blinded",

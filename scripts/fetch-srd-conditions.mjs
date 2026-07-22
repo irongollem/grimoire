@@ -1,13 +1,27 @@
 #!/usr/bin/env node
 /**
- * Fetches all 5e conditions from the Open5e API and generates
- * src/data/srdConditions.ts — a read-only lookup for Grimoire.
+ * Fetches 5e condition text from Open5e and (re)generates the per-edition
+ * baked files consumed by src/lib/conditions.ts:
  *
- * Conditions are global reference data (not per-user), small (~15 entries),
- * and don't change between releases, so a baked static file is simpler than
- * a DB table + RLS.
+ *   --edition=2014 (default) -> src/data/srdConditions2014.ts
+ *     Source: Open5e v1 /conditions/ (SRD 5.1, CC-BY 4.0).
  *
- * Run once:  node scripts/fetch-srd-conditions.mjs
+ *   --edition=2024 -> src/data/srdConditions2024.ts
+ *     Source: Open5e v2 /rules/?document__key__in=srd-2024 (SRD 5.2, CC-BY 4.0).
+ *     Open5e has no dedicated 2024 conditions endpoint yet (open5e-api#793),
+ *     so this filters the v2 rules glossary down to entries whose name
+ *     matches one of the 15 canonical SRD condition names. As of this
+ *     writing that glossary doesn't carry the Conditions appendix at all,
+ *     so this branch writes an empty array — see the header comment this
+ *     script generates in srdConditions2024.ts, and
+ *     src/data/conditionPatches.ts for where the real 2024 text lives
+ *     (hand-maintained) until upstream data exists.
+ *
+ * Conditions are global reference data (not per-user), small (~15 entries
+ * per edition), and don't change between releases, so baked static files
+ * are simpler than a DB table + RLS.
+ *
+ * Run:  node scripts/fetch-srd-conditions.mjs [--edition=2014|2024]
  */
 
 import { writeFileSync } from "fs";
@@ -15,26 +29,23 @@ import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const OUT_FILE = resolve(__dirname, "../src/data/srdConditions.ts");
 
-const API_URL = "https://api.open5e.com/v1/conditions/?limit=100&format=json";
-
-async function fetchAll() {
-  const conditions = [];
-  let url = API_URL;
-  while (url) {
-    console.log(`Fetching: ${url}`);
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
-    conditions.push(...json.results);
-    url = json.next;
-  }
-  return conditions;
-}
+const CANONICAL_CONDITION_NAMES = new Set([
+  "blinded", "charmed", "deafened", "exhaustion", "frightened", "grappled",
+  "incapacitated", "invisible", "paralyzed", "petrified", "poisoned", "prone",
+  "restrained", "stunned", "unconscious",
+]);
 
 function slugToId(slug) {
   return slug.replace(/-/g, "_");
+}
+
+function nameToId(name) {
+  return name.trim().toLowerCase().replace(/\s+/g, "_");
+}
+
+function nameToSlug(name) {
+  return name.trim().toLowerCase().replace(/\s+/g, "-");
 }
 
 // Cleans Open5e's prose (which includes markdown-style bullets) into an
@@ -49,15 +60,85 @@ function parseEffects(desc) {
     .map((line) => line.replace(/^[-*]\s*/, ""));
 }
 
-function transform(c) {
-  return {
-    id: slugToId(c.slug),
-    slug: c.slug,
-    name: c.name,
-    description: (c.desc ?? "").trim(),
-    effects: parseEffects(c.desc ?? ""),
-  };
+async function fetchAllPages(url) {
+  const results = [];
+  let next = url;
+  while (next) {
+    console.log(`Fetching: ${next}`);
+    const res = await fetch(next);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    results.push(...json.results);
+    next = json.next;
+  }
+  return results;
 }
+
+const EDITIONS = {
+  "2014": {
+    apiUrl: "https://api.open5e.com/v1/conditions/?limit=100&format=json",
+    outFile: resolve(__dirname, "../src/data/srdConditions2014.ts"),
+    exportName: "SRD_CONDITIONS_2014",
+    header: (_fetchDate) => [
+      `// Hand-baked from the SRD 5.1 condition text (CC-BY 4.0, Wizards of the Coast),`,
+      `// matching the shape Open5e exposes at /v1/conditions/. Re-run`,
+      `// \`node scripts/fetch-srd-conditions.mjs -- --edition=2014\` to refresh from`,
+      `// live Open5e if the upstream text ever changes — that script will overwrite`,
+      `// this file.`,
+      `//`,
+      `// This is the 2014 (SRD 5.1) edition of the condition data. See`,
+      `// \`srdConditions2024.ts\` for the 2024 (SRD 5.2) edition, and`,
+      `// \`conditionPatches.ts\` for the per-edition override/fill-gap layer applied`,
+      `// on top of both by \`src/lib/conditions.ts\`'s resolver.`,
+    ],
+    extract(raw) {
+      return raw.map((c) => ({
+        id: slugToId(c.slug),
+        slug: c.slug,
+        name: c.name,
+        description: (c.desc ?? "").trim(),
+        effects: parseEffects(c.desc ?? ""),
+      }));
+    },
+  },
+  "2024": {
+    apiUrl: "https://api.open5e.com/v2/rules/?document__key__in=srd-2024&limit=200&format=json",
+    outFile: resolve(__dirname, "../src/data/srdConditions2024.ts"),
+    exportName: "SRD_CONDITIONS_2024",
+    header: (fetchDate) => [
+      `// AUTO-GENERATED by scripts/fetch-srd-conditions.mjs -- do not edit manually.`,
+      `// Re-run \`node scripts/fetch-srd-conditions.mjs -- --edition=2024\` to refresh.`,
+      `//`,
+      `// Intended source: Systems Reference Document 5.2 (CC-BY-4.0, Wizards of the`,
+      `// Coast) via the Open5e v2 rules glossary`,
+      `// (https://api.open5e.com/v2/rules/?document__key__in=srd-2024), filtered to`,
+      `// entries whose name matches one of the 15 canonical SRD condition names.`,
+      `//`,
+      `// Last fetch: ${fetchDate}.`,
+      `//`,
+      `// Open5e has no dedicated 2024 conditions endpoint yet (open5e-api#793) — as`,
+      `// of the fetch date above, \`/v2/conditions/\` only returns the 2014 core`,
+      `// conditions (empty \`desc\` fields, tagged to the 5e-2014 gamesystem) and`,
+      `// \`/v2/rules/?document__key__in=srd-2024\` doesn't carry the Conditions`,
+      `// appendix or Exhaustion at all. Until that upstream gap closes, real 2024`,
+      `// condition text lives in \`CONDITION_PATCHES["2024"]\` in`,
+      `// \`conditionPatches.ts\` (hand-maintained, each entry flagged`,
+      `// \`// TODO verify against SRD 5.2 PDF\`). Once this script starts finding real`,
+      `// entries, trim that patch map back down to genuine overrides/gaps.`,
+    ],
+    extract(raw) {
+      return raw
+        .filter((r) => CANONICAL_CONDITION_NAMES.has(nameToId(r.name)))
+        .map((r) => ({
+          id: nameToId(r.name),
+          slug: nameToSlug(r.name),
+          name: r.name,
+          description: (r.desc ?? "").trim(),
+          effects: parseEffects(r.desc ?? ""),
+        }));
+    },
+  },
+};
 
 function serialise(value, indent = 0) {
   const pad = " ".repeat(indent);
@@ -84,25 +165,45 @@ function serialise(value, indent = 0) {
   return String(value);
 }
 
-async function main() {
-  const raw = await fetchAll();
-  console.log(`Fetched ${raw.length} conditions from Open5e`);
+function parseEditionArg() {
+  const arg = process.argv.find((a) => a.startsWith("--edition="));
+  const edition = arg ? arg.split("=")[1] : "2014";
+  if (!EDITIONS[edition]) {
+    throw new Error(`Unknown --edition=${edition}. Expected one of: ${Object.keys(EDITIONS).join(", ")}`);
+  }
+  return edition;
+}
 
-  const conditions = raw.map(transform);
+async function main() {
+  const edition = parseEditionArg();
+  const config = EDITIONS[edition];
+
+  const raw = await fetchAllPages(config.apiUrl);
+  console.log(`Fetched ${raw.length} raw entries from Open5e for edition ${edition}`);
+
+  const conditions = config.extract(raw);
   conditions.sort((a, b) => a.name.localeCompare(b.name));
 
+  if (conditions.length === 0) {
+    console.warn(
+      `No condition entries matched for edition ${edition} — writing an empty array. ` +
+        `See the generated file header for what to do next.`,
+    );
+  } else if (conditions.length !== 15) {
+    console.warn(`Expected 15 canonical conditions, matched ${conditions.length} for edition ${edition}.`);
+  }
+
+  const fetchDate = new Date().toISOString().slice(0, 10);
   const lines = [
-    `// AUTO-GENERATED by scripts/fetch-srd-conditions.mjs — do not edit manually`,
-    `// Source: Systems Reference Document 5.1 via Open5e (CC-BY 4.0)`,
-    `// Re-run the script to refresh.`,
+    ...config.header(fetchDate),
     `import type { Condition } from "@/types/condition.types";`,
     ``,
-    `export const SRD_CONDITIONS: Condition[] = ${serialise(conditions, 0)};`,
+    `export const ${config.exportName}: Condition[] = ${serialise(conditions, 0)};`,
     ``,
   ];
 
-  writeFileSync(OUT_FILE, lines.join("\n"), "utf8");
-  console.log(`Written ${conditions.length} conditions → ${OUT_FILE}`);
+  writeFileSync(config.outFile, lines.join("\n"), "utf8");
+  console.log(`Written ${conditions.length} conditions → ${config.outFile}`);
 }
 
 main().catch((err) => {
