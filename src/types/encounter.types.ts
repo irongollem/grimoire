@@ -134,6 +134,10 @@ export interface RunCombatant {
   party_member_id?: string;
   companion_id?: string;
   dex_mod: number; // for initiative tiebreaking
+  // Monster-only: stat_block.initiative_bonus (2024 stat blocks), when the source
+  // monster declares one. Present (non-null) means "use this instead of dex_mod"
+  // for the initiative roll modifier — see combatantSort.initiativeModifier().
+  initiative_bonus?: number | null;
   portrait_url?: string | null;
   portrait_focal_point?: { x: number; y: number } | null;
   // reveal state — only meaningful for monsters; players are always "revealed"

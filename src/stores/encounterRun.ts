@@ -6,7 +6,7 @@ import type { Npc } from "@/types/npc.types";
 import type { Trap } from "@/types/trap.types";
 import type { PartyMemberUpdate } from "@/types/party.types";
 import { sizeToFootprint } from "@/lib/tokenFootprint";
-import { sortCombatantsByInitiative } from "@/lib/combatantSort";
+import { sortCombatantsByInitiative, initiativeModifier } from "@/lib/combatantSort";
 import { hitPointsToMax } from "@/lib/dice";
 
 /** Persists a player-combatant change to party_members and invalidates the
@@ -60,13 +60,13 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
   function rollInitiative(instanceId: string) {
     const c = combatants.value.find((x) => x.instance_id === instanceId);
     if (!c) return;
-    c.initiative = Math.floor(Math.random() * 20) + 1 + c.dex_mod;
+    c.initiative = Math.floor(Math.random() * 20) + 1 + initiativeModifier(c);
   }
 
   function rollAllInitiatives() {
     for (const c of combatants.value) {
       if (c.type === "player" && c.initiative !== null) continue; // keep player-set initiatives
-      c.initiative = Math.floor(Math.random() * 20) + 1 + c.dex_mod;
+      c.initiative = Math.floor(Math.random() * 20) + 1 + initiativeModifier(c);
     }
     started.value = true;
   }
@@ -295,6 +295,8 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     const maxHp = hitPointsToMax(sb?.hit_points, 1);
     const dex = Number(sb?.dex ?? 10);
     const dexMod = Math.floor((dex - 10) / 2);
+    const initiativeBonus = sb?.initiative_bonus ?? null;
+    const initModifier = initiativeModifier({ dex_mod: dexMod, initiative_bonus: initiativeBonus });
     const ac = String(sb?.armor_class ?? 10);
     const spawnKey = `spawn-${monsterId}-${Date.now()}`;
     const legendaryCap = sb?.legendary_actions?.length ? 3 : undefined;
@@ -305,7 +307,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
         type: "monster",
         name: displayName,
         faction_id: factionId,
-        initiative: started.value ? Math.floor(Math.random() * 20) + 1 + dexMod : null,
+        initiative: started.value ? Math.floor(Math.random() * 20) + 1 + initModifier : null,
         hp: maxHp,
         max_hp: maxHp,
         ac,
@@ -314,6 +316,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
         death_saves: { successes: 0, failures: 0 },
         monster_id: monster.id,
         dex_mod: dexMod,
+        initiative_bonus: initiativeBonus,
         reveal_state: "hidden",
         portrait_url: monster.image_url ?? null,
         portrait_focal_point: monster.portrait_focal_point ?? null,
@@ -366,6 +369,8 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     const maxHp = hitPointsToMax(sb?.hit_points, 1);
     const dex = Number(sb?.dex ?? 10);
     const dexMod = Math.floor((dex - 10) / 2);
+    const initiativeBonus = sb?.initiative_bonus ?? null;
+    const initModifier = initiativeModifier({ dex_mod: dexMod, initiative_bonus: initiativeBonus });
     const ac = String(sb?.armor_class ?? 10);
     const spawnKey = `spawn-${spawn.monster_id}-${Date.now()}`;
     for (let i = 0; i < spawn.count; i++) {
@@ -376,7 +381,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
         type: "monster",
         name: displayName,
         faction_id: spawn.faction_id,
-        initiative: started.value ? Math.floor(Math.random() * 20) + 1 + dexMod : null,
+        initiative: started.value ? Math.floor(Math.random() * 20) + 1 + initModifier : null,
         hp: maxHp,
         max_hp: maxHp,
         ac,
@@ -385,6 +390,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
         death_saves: { successes: 0, failures: 0 },
         monster_id: monster.id,
         dex_mod: dexMod,
+        initiative_bonus: initiativeBonus,
         reveal_state: "hidden",
         portrait_url: monster.image_url ?? null,
         portrait_focal_point: monster.portrait_focal_point ?? null,

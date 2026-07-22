@@ -1,11 +1,14 @@
 <template>
   <div class="rounded-lg border border-primary/30 bg-card overflow-hidden font-stat text-base">
 
-    <!-- AC · HP · Speed -->
+    <!-- AC · HP · Speed · Initiative -->
     <div class="flex flex-wrap gap-x-5 gap-y-1 px-4 py-2 border-b border-primary/20 font-medium">
       <span><strong>AC</strong> {{ sb.armor_class }}</span>
       <span><strong>HP</strong> {{ formatHitPoints(sb.hit_points) }}</span>
       <span><strong>Speed</strong> {{ sb.speed }}</span>
+      <span v-if="initiativeBonus !== null">
+        <strong>Initiative</strong> {{ initiativeBonus >= 0 ? "+" : "" }}{{ initiativeBonus }}
+      </span>
     </div>
 
     <!-- Ability scores -->
@@ -98,4 +101,11 @@ const savesObj = computed<Record<string, SaveEntry>>(() => {
 });
 
 const skillsLine = computed(() => skillsToString(props.sb.skills));
+
+// 2024 stat blocks print a flat Initiative bonus; only MonsterStatBlock carries it
+// (NPCs keep DEX-derived initiative). Null/absent renders nothing.
+const initiativeBonus = computed(() => {
+  const value = (props.sb as MonsterStatBlock).initiative_bonus;
+  return typeof value === "number" ? value : null;
+});
 </script>

@@ -41,6 +41,16 @@
               @focus="($event.target as HTMLInputElement).select()"
             />
           </label>
+          <label class="block">
+            <span class="field-label">Initiative</span>
+            <input
+              v-model.number="(sb as unknown as Record<string, number>).initiative_bonus"
+              type="number"
+              class="field-input w-full"
+              placeholder="Overrides DEX mod (2024)"
+              @focus="($event.target as HTMLInputElement).select()"
+            />
+          </label>
           <div class="block col-span-full">
             <span class="field-label">Speed</span>
             <SpeedGrid

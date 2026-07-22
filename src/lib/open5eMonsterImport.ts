@@ -1,15 +1,6 @@
-import { fetchAll } from "@/lib/open5eApi";
-import type { MonsterInsert, MonsterStatBlock, MonsterSize, MonsterType } from "@/types/monster.types";
-import type { RulesetKey } from "@/types/ruleset.types";
-
-interface DocumentRef {
-  key: string;
-  name: string;
-  display_name?: string;
-  permalink?: string | null;
-  publisher?: { name: string; key: string };
-  gamesystem?: { name: string; key: string };
-}
+import { fetchAll, fetchAllFromDocuments, fetchSupported5eDocumentKeys, rulesetForDocument } from "@/lib/open5eApi";
+import type { Open5eDocumentRef } from "@/lib/open5eApi";
+import type { MonsterInsert, MonsterStatBlock, MonsterSize, MonsterType, MonsterUpdate } from "@/types/monster.types";
 
 interface Open5eV2Action {
   name: string;
@@ -20,7 +11,7 @@ interface Open5eV2Action {
 interface Open5eV2Monster {
   key: string;
   name: string;
-  document: DocumentRef;
+  document: Open5eDocumentRef;
   type: { name: string; key: string };
   size: { name: string; key: string };
   alignment: string;
@@ -31,6 +22,10 @@ interface Open5eV2Monster {
   speed?: Record<string, number | boolean | string>;
   ability_scores: Record<string, number>;
   modifiers?: Record<string, number>;
+  // Populated with the printed 2024 initiative bonus for srd-2024 creatures.
+  // Observed as 0 on srd-2014 records regardless of DEX — indistinguishable from
+  // unset, so it's only trusted when the record's ruleset resolves to "2024".
+  initiative_bonus?: number;
   saving_throws?: Record<string, number>;
   skill_bonuses?: Record<string, number>;
   resistances_and_immunities?: Record<string, string | unknown[]>;
@@ -54,12 +49,6 @@ const VALID_TYPES: ReadonlyArray<MonsterType> = [
 const VALID_SIZES: ReadonlyArray<MonsterSize> = [
   "tiny", "small", "medium", "large", "huge", "gargantuan",
 ];
-
-function rulesetForDocument(document: DocumentRef): RulesetKey | null {
-  if (document.gamesystem?.key === "5e-2024") return "2024";
-  if (document.gamesystem?.key === "5e-2014" || document.gamesystem?.key === "5e") return "2014";
-  return null;
-}
 
 function normalizeType(raw: string): MonsterType {
   const value = raw.toLowerCase().split("(")[0].split(" of ")[0].trim();
@@ -130,6 +119,7 @@ export function mapOpen5eV2Monster(monster: Open5eV2Monster): MonsterInsert {
   const legendaryResistance = monster.traits?.find(trait => /legendary resistance/i.test(trait.name));
   const count = legendaryResistance?.name.match(/\((\d+)\s*\/\s*day/i)?.[1];
   const scores = monster.ability_scores;
+  const ruleset = rulesetForDocument(monster.document);
   const statBlock: MonsterStatBlock = {
     armor_class: monster.armor_class ?? 10,
     hit_points: monster.hit_dice ? `${monster.hit_points} (${monster.hit_dice})` : String(monster.hit_points),
@@ -155,9 +145,13 @@ export function mapOpen5eV2Monster(monster: Open5eV2Monster): MonsterInsert {
     reactions: actionsOf(monster, "REACTION"),
     legendary_resistance: count ? Number(count) : undefined,
     legendary_actions: actionsOf(monster, "LEGENDARY_ACTION"),
+    // Only trust initiative_bonus for 2024 records — see the field's doc comment above.
+    initiative_bonus: ruleset === "2024" && typeof monster.initiative_bonus === "number"
+      ? monster.initiative_bonus
+      : undefined,
   };
   return {
-    ruleset: rulesetForDocument(monster.document),
+    ruleset,
     conceptual_key: monster.name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, ""),
     source_document_key: monster.document.key,
     source_record_key: monster.key,
@@ -190,15 +184,46 @@ export function mapOpen5eV2Monster(monster: Open5eV2Monster): MonsterInsert {
 }
 
 export async function fetchOpen5eDocuments(): Promise<Open5eDocument[]> {
-  const documents = await fetchAll<DocumentRef>("https://api.open5e.com/v2/documents/");
+  const documents = await fetchAll<Open5eDocumentRef>("https://api.open5e.com/v2/documents/");
   return documents.map(document => ({ slug: document.key, title: document.display_name || document.name }))
     .sort((a, b) => a.title.localeCompare(b.title));
 }
 
 /** V2 native keys preserve equal-name creatures across books and editions. */
 export async function fetchSrdMonsters(sourceKeys?: string[]): Promise<MonsterInsert[]> {
-  const url = sourceKeys?.length
-    ? `https://api.open5e.com/v2/creatures/?document__key__in=${encodeURIComponent(sourceKeys.join(","))}`
-    : "https://api.open5e.com/v2/creatures/";
-  return (await fetchAll<Open5eV2Monster>(url)).map(mapOpen5eV2Monster);
+  const documentKeys = sourceKeys?.length ? sourceKeys : await fetchSupported5eDocumentKeys();
+  const raw = await fetchAllFromDocuments<Open5eV2Monster>("https://api.open5e.com/v2/creatures/", documentKeys);
+  return raw.map(mapOpen5eV2Monster);
+}
+
+/**
+ * Narrows a freshly-mapped Open5e monster down to the fields a re-import is
+ * allowed to refresh on an existing row: upstream identity/content (name,
+ * type, size, alignment, source metadata, stat block). `mapOpen5eV2Monster`
+ * always sets `notes`, `image_url`, `habitat` and `tags` to empty defaults
+ * (Open5e has no equivalent data), so those — plus `description`,
+ * `portrait_focal_point` and `lair_location_id`, which only ever come from a
+ * DM — must never be included here or a re-import would silently wipe
+ * DM-added art, notes, and customization on every run.
+ */
+export function monsterImportUpdateFields(insert: MonsterInsert): MonsterUpdate {
+  return {
+    ruleset: insert.ruleset,
+    conceptual_key: insert.conceptual_key,
+    source_document_key: insert.source_document_key,
+    source_record_key: insert.source_record_key,
+    source_revision: insert.source_revision,
+    source_license: insert.source_license,
+    provenance: insert.provenance,
+    name: insert.name,
+    monster_type: insert.monster_type,
+    size: insert.size,
+    alignment: insert.alignment,
+    source: insert.source,
+    source_title: insert.source_title,
+    source_url: insert.source_url,
+    stat_block: insert.stat_block,
+    is_srd: insert.is_srd,
+    open5e_import: insert.open5e_import,
+  };
 }

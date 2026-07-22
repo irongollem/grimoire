@@ -189,6 +189,7 @@ function initStore(enc: Encounter, mons: Monster[], par: PartyMember[], npcList:
           monster_id: monster.id,
           def_id: entry.id,
           dex_mod: dexMod,
+          initiative_bonus: sb?.initiative_bonus ?? null,
           reveal_state: "hidden",
           portrait_url: monster.image_url ?? null,
           portrait_focal_point: monster.portrait_focal_point ?? null,

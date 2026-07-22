@@ -17,3 +17,13 @@ export function compareCombatantsByInitiative(a: RunCombatant, b: RunCombatant):
 export function sortCombatantsByInitiative(combatants: readonly RunCombatant[]): RunCombatant[] {
   return [...combatants].sort(compareCombatantsByInitiative);
 }
+
+/**
+ * The d20 modifier used when (re)rolling this combatant's initiative.
+ * Monsters whose stat block declares a 2024 `initiative_bonus` use that value
+ * outright (it already accounts for proficiency etc.); everyone else — 2014
+ * monsters, NPCs, and players — falls back to the plain DEX modifier.
+ */
+export function initiativeModifier(c: Pick<RunCombatant, "dex_mod" | "initiative_bonus">): number {
+  return c.initiative_bonus ?? c.dex_mod;
+}
