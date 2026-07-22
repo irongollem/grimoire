@@ -43,4 +43,3 @@ const { is2024 } = useRuleset();
 
 const def = computed(() => (mastery ? WEAPON_MASTERY_DEFINITIONS[mastery] : null));
 </script>
-</content>
