@@ -309,9 +309,9 @@ function pibfOne(s: SectionId) {
 /* abilities — designed stat cells */
 .illustrated .fld-abilities { gap: 6px; justify-content: space-between; padding: 5px 7px; }
 .illustrated .ab {
-  display: grid; grid-template-columns: 46px 1fr; align-items: center; gap: 9px;
+  display: grid; grid-template-columns: 43px 1fr; align-items: center; gap: 7px;
   border: 1.4px solid color-mix(in srgb, var(--ink) 34%, transparent); border-radius: 5px;
-  background: color-mix(in srgb, var(--paper) 55%, transparent); padding: 4px 8px; flex: 1;
+  background: color-mix(in srgb, var(--paper) 55%, transparent); padding: 4px 6px 4px 7px; flex: 1;
 }
 .illustrated .ab .modbox {
   text-align: center; border: 1.3px solid color-mix(in srgb, var(--ink) 40%, transparent);
@@ -323,8 +323,10 @@ function pibfOne(s: SectionId) {
   border-top: 1px solid color-mix(in srgb, var(--ink) 28%, transparent);
   margin-top: 2px; padding-top: 1px; font-variant-numeric: tabular-nums;
 }
-/* 10.5px: the widest name (CONSTITUTION) must fit the meta column un-truncated */
-.illustrated .ab .meta .an { font-family: var(--head); font-size: 10.5px; font-weight: 600; letter-spacing: .03em; color: var(--ink); line-height: 1.05; }
+/* CONSTITUTION (the widest name) must fit the meta column un-truncated even in
+   Cinzel, the widest of the theme heading faces — hence 10px + minimal tracking
+   (fairy's Cormorant and sumi-e's Mincho have room to spare at this size) */
+.illustrated .ab .meta .an { font-family: var(--head); font-size: 10px; font-weight: 600; letter-spacing: .01em; color: var(--ink); line-height: 1.05; white-space: nowrap; }
 .illustrated .ab .meta .al { font-size: 8px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); margin-top: 2px; }
 
 /* big single stats (ac/init/speed) */
