@@ -197,23 +197,44 @@ describe("toFront — spell DC/attack", () => {
   });
 });
 
-describe("toFront — hit dice", () => {
-  it("uses the per-class die and remaining count when present", () => {
+describe("toFront — hit dice (print-first: die type + level total; remaining is pencil)", () => {
+  it("uses the per-class die; total is level x die regardless of remaining", () => {
     const m = member({ class: "Barbarian", level: 6, hit_dice_remaining: 4 });
     const front = toFront(m, []);
-    expect(front.hitdice).toBe("4d12");
+    expect(front.hitdice).toEqual({ die: "d12", total: "6d12" });
   });
 
-  it("falls back to the character level when hit_dice_remaining is absent", () => {
+  it("total tracks the character level", () => {
     const m = member({ class: "Rogue", level: 3, hit_dice_remaining: null });
     const front = toFront(m, []);
-    expect(front.hitdice).toBe("3d8");
+    expect(front.hitdice).toEqual({ die: "d8", total: "3d8" });
   });
 
   it("defaults to d8 for an unmapped/absent class", () => {
     const m = member({ class: null, level: 2, hit_dice_remaining: null });
     const front = toFront(m, []);
-    expect(front.hitdice).toBe("2d8");
+    expect(front.hitdice).toEqual({ die: "d8", total: "2d8" });
+  });
+});
+
+describe("toFront — saving throws on ability cells", () => {
+  it("adds proficiency bonus only to proficient saves and flags them", () => {
+    const m = member({
+      str: 8, wis: 12, proficiency_bonus: 3,
+      saving_throw_proficiencies: ["wis"],
+    });
+    const front = toFront(m, []);
+    const str = front.abilities.find((a) => a.key === "str");
+    const wis = front.abilities.find((a) => a.key === "wis");
+    expect(str).toMatchObject({ save: "−1", saveProf: false });
+    expect(wis).toMatchObject({ save: "+4", saveProf: true });
+  });
+});
+
+describe("toFront — print-first blanks", () => {
+  it("prints only max HP (current/temp are pencil)", () => {
+    const m = member({ current_hp: 10, max_hp: 44, temp_hp: 5 });
+    expect(toFront(m, []).hp).toEqual({ max: 44 });
   });
 });
 

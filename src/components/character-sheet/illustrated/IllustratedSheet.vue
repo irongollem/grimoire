@@ -32,7 +32,9 @@
             </div>
             <div class="meta">
               <div class="an">{{ a.name }}</div>
-              <div class="al">{{ a.key.toUpperCase() }}</div>
+              <div class="as" :class="{ prof: a.saveProf }">
+                <i class="sdot" /><span>Save {{ a.save }}</span>
+              </div>
             </div>
           </div>
         </template>
@@ -46,23 +48,26 @@
         </template>
 
         <template v-else-if="f.section === 'hp'">
-          <!-- temp sits inside the plate's painted heart; cur/max centers in the rest -->
-          <div class="temp">{{ front.hp.temp }}</div>
-          <div class="big">{{ front.hp.cur }} / {{ front.hp.max }}</div>
+          <!-- print-first: current + temp HP are penciled in; only max prints.
+               The .temp div stays (blank) so the no-heart themes keep their caption. -->
+          <div class="temp"></div>
+          <div class="big"><i class="wl" />/ {{ front.hp.max }}</div>
         </template>
 
         <template v-else-if="f.section === 'hitdice'">
-          <div class="row"><span class="k">Remaining</span><span class="v">{{ front.hitdice }}</span></div>
+          <div class="row"><span class="k">Remaining</span><span class="v"><i class="wl" />{{ front.hitdice.die }}</span></div>
+          <div class="row"><span class="k">Total</span><span class="v">{{ front.hitdice.total }}</span></div>
         </template>
 
+        <!-- death saves print as empty pips — marks are pencil -->
         <template v-else-if="f.section === 'death'">
           <div class="grp2">
             <span class="lab">Succ</span>
-            <span v-for="n in 3" :key="n" class="pip s" :class="{ on: n <= front.death.succ }" />
+            <span v-for="n in 3" :key="n" class="pip s" />
           </div>
           <div class="grp2">
             <span class="lab">Fail</span>
-            <span v-for="n in 3" :key="n" class="pip f" :class="{ on: n <= front.death.fail }" />
+            <span v-for="n in 3" :key="n" class="pip f" />
           </div>
         </template>
 
@@ -327,7 +332,24 @@ function pibfOne(s: SectionId) {
    Cinzel, the widest of the theme heading faces — hence 10px + minimal tracking
    (fairy's Cormorant and sumi-e's Mincho have room to spare at this size) */
 .illustrated .ab .meta .an { font-family: var(--head); font-size: 10px; font-weight: 600; letter-spacing: .01em; color: var(--ink); line-height: 1.05; white-space: nowrap; }
-.illustrated .ab .meta .al { font-size: 8px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); margin-top: 2px; }
+/* save modifier under the name; the dot fills for save-proficient ("focussed")
+   abilities so they read at a glance */
+.illustrated .ab .meta .as {
+  display: flex; align-items: center; gap: 4px; margin-top: 2px;
+  font-size: 8.5px; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-soft);
+}
+.illustrated .ab .meta .as .sdot {
+  width: 6px; height: 6px; border-radius: 50%; border: 1.2px solid var(--ink-soft);
+  display: inline-block; flex: 0 0 auto;
+}
+.illustrated .ab .meta .as.prof { color: var(--ink); font-weight: 600; }
+.illustrated .ab .meta .as.prof .sdot { background: var(--accent); border-color: var(--accent); }
+
+/* pencil write-line: a short blank rule where the player writes the dynamic value */
+.illustrated .wl {
+  display: inline-block; width: 26px; height: 11px; margin-right: 3px;
+  border-bottom: 1px solid color-mix(in srgb, var(--ink) 45%, transparent);
+}
 
 /* big single stats (ac/init/speed) */
 .illustrated .fld-ac, .illustrated .fld-init, .illustrated .fld-speed { align-items: center; justify-content: center; }
@@ -348,6 +370,8 @@ function pibfOne(s: SectionId) {
 /* keep the value clear of the die glyph painted at the box's right edge
    (px, not %: percentage padding resolves against the PAGE, not this box) */
 .illustrated .fld-hitdice { padding-right: 34px; }
+/* shorter pencil line here — the row also holds its label + die type */
+.illustrated .fld-hitdice .wl { width: 16px; }
 /* temp HP lives inside the painted heart (left side of the HP box);
    current/max centers in the remaining space right of it */
 .illustrated .fld-hp .temp {
@@ -375,8 +399,6 @@ function pibfOne(s: SectionId) {
 .illustrated .fld-death .grp2 { display: flex; align-items: center; gap: 6px; }
 .illustrated .fld-death .lab { font-size: 9.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-soft); }
 .illustrated .pip { width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid var(--ink-soft); display: inline-block; }
-.illustrated .pip.s.on { background: #2d5a1f; border-color: #2d5a1f; }
-.illustrated .pip.f.on { background: var(--accent); border-color: var(--accent); }
 
 /* portrait */
 .illustrated .fld-portrait { padding: 0; }

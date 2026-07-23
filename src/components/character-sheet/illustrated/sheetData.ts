@@ -34,12 +34,14 @@ const HIT_DIE: Record<string, number> = {
   Artificer: 8, Sorcerer: 6, Wizard: 6,
 };
 
+// The sheet is print-first: static facts are printed, dynamic state (current
+// HP, temp HP, remaining hit dice, death-save marks) is left blank for pencil.
 export interface FrontData {
   name: string; sub: string;
-  abilities: { key: string; name: string; mod: string; score: number }[];
+  abilities: { key: string; name: string; mod: string; score: number; save: string; saveProf: boolean }[];
   ac: string; init: string; speed: string;
-  hp: { cur: number; max: number; temp: string }; hitdice: string;
-  death: { succ: number; fail: number };
+  hp: { max: number };
+  hitdice: { die: string; total: string };
   portraitUrl: string | null;
   attacks: { name: string; bonus: string; damage: string }[];
   spell: { ability: string; dc: string; atk: string } | null;
@@ -107,13 +109,19 @@ export function toFront(
       m.subrace ?? speciesName,
       m.alignment,
     ].filter(Boolean).join(" · "),
-    abilities: ABIL.map((k) => ({ key: k, name: ABNAME[k], mod: signed(mod(m[k] as number)), score: m[k] as number })),
+    abilities: ABIL.map((k) => {
+      const am = mod(m[k] as number);
+      const saveProf = (m.saving_throw_proficiencies ?? []).includes(k);
+      return {
+        key: k, name: ABNAME[k], mod: signed(am), score: m[k] as number,
+        save: signed(am + (saveProf ? pb : 0)), saveProf,
+      };
+    }),
     ac: String(m.ac + acBonus),
     init: signed(m.initiative_bonus + mod(m.dex)),
     speed: String(m.speed),
-    hp: { cur: m.current_hp, max: m.max_hp, temp: m.temp_hp ? String(m.temp_hp) : "—" },
-    hitdice: `${m.hit_dice_remaining ?? m.level}d${die}`,
-    death: { succ: m.death_save_successes, fail: m.death_save_failures },
+    hp: { max: m.max_hp },
+    hitdice: { die: `d${die}`, total: `${m.level}d${die}` },
     portraitUrl: m.portrait_url ?? null,
     // Same weapon math as PlayerCombatTab.vue (src/lib/weaponAttack.ts), so the
     // exported sheet's numbers always agree with the live combat tab.
