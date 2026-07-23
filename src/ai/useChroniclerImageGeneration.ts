@@ -213,64 +213,71 @@ function buildPrompt(
   return parts.join("\n");
 }
 
-export async function generateChroniclerImage(params: {
+// Local (BYOK) jobs never touch the DB — there is no row to poll — so an
+// in-memory map is the only record of an in-flight local render. Entries are
+// removed once the promise settles (either way); a page reload loses any
+// still-pending entries, which is accepted (see task notes).
+const localImageJobs = new Map<string, Promise<string>>();
+
+/** Looks up an in-flight local (BYOK) image render started by startChroniclerImage. */
+export function getLocalImageJob(jobId: string): Promise<string> | undefined {
+  return localImageJobs.get(jobId);
+}
+
+// ── Server-side path (async job pattern) ───────────────────────────────────
+// Edge function returns a job id immediately; OpenAI call continues in
+// EdgeRuntime.waitUntil and the storage URL lands on the job row when ready.
+async function invokeServerImageJob(params: {
   sceneText: string;
   entities: ResolvedEntity[];
   size: ChroniclerSize;
-  kind?: ImageJobKind;
+  kind: ImageJobKind;
+  campaignId: string;
+  imageModel: string;
 }): Promise<string> {
-  const { sceneText, entities, size, kind = "chronicler" } = params;
-  const store = useCampaignStore();
-  const imageModel =
-    store.activeCampaign?.image_provider === "openai-mini"
-      ? "gpt-image-1-mini"
-      : ((typeof localStorage !== "undefined"
-          ? localStorage.getItem(OPENAI_IMAGE_MODEL_KEY)
-          : null) ?? "gpt-image-2");
-  const settingPrompt = store.activeCampaign?.ai_setting_prompt ?? "";
-  const campaignId = store.activeCampaign?.id;
+  const { sceneText, entities, size, kind, campaignId, imageModel } = params;
+  const portrait_urls = entities
+    .filter((e) => e.portraitUrl)
+    .map((e) => e.portraitUrl!);
+  const text_descriptions = entities
+    .map((e) => e.textDescription)
+    .filter((d): d is string => !!d);
 
-  const isLocalMode =
-    typeof localStorage !== "undefined" &&
-    localStorage.getItem(LOCAL_MODE_KEY) === "local";
-
-  // ── Server-side path (async job pattern) ───────────────────────────────────
-  // Edge function returns a job id immediately; OpenAI call continues in
-  // EdgeRuntime.waitUntil and the storage URL lands on the job row when ready.
-  if (!isLocalMode && campaignId) {
-    const portrait_urls = entities
-      .filter((e) => e.portraitUrl)
-      .map((e) => e.portraitUrl!);
-    const text_descriptions = entities
-      .map((e) => e.textDescription)
-      .filter((d): d is string => !!d);
-
-    const { data, error } = await supabase.functions.invoke(
-      "generate-chronicle-image",
-      {
-        body: {
-          campaign_id: campaignId,
-          scene_text: sceneText,
-          portrait_urls,
-          text_descriptions,
-          size,
-          image_model: imageModel,
-          kind,
-        },
+  const { data, error } = await supabase.functions.invoke(
+    "generate-chronicle-image",
+    {
+      body: {
+        campaign_id: campaignId,
+        scene_text: sceneText,
+        portrait_urls,
+        text_descriptions,
+        size,
+        image_model: imageModel,
+        kind,
       },
-    );
-    if (error) throw new Error(await edgeErrorMessage(error));
-    if (data?.error) throw new Error(data.error);
+    },
+  );
+  if (error) throw new Error(await edgeErrorMessage(error));
+  if (data?.error) throw new Error(data.error);
 
-    const jobId = (data as { job_id?: string }).job_id;
-    if (!jobId) throw new Error("Server did not return a job id.");
-    return await waitForImageJob(jobId);
-  }
+  const jobId = (data as { job_id?: string }).job_id;
+  if (!jobId) throw new Error("Server did not return a job id.");
+  return jobId;
+}
 
-  // ── Client-side path (BYOK local mode) ─────────────────────────────────────
-  // Resolve the campaign's chosen image provider (OpenAI, Gemini, or fal.ai)
-  // from the local vault — same abstraction every other generator uses — so
-  // local mode reaches full provider parity with the server-side path above.
+// ── Client-side path (BYOK local mode) ─────────────────────────────────────
+// Resolve the campaign's chosen image provider (OpenAI, Gemini, or fal.ai)
+// from the local vault — same abstraction every other generator uses — so
+// local mode reaches full provider parity with the server-side path above.
+async function renderLocalImage(params: {
+  sceneText: string;
+  entities: ResolvedEntity[];
+  size: ChroniclerSize;
+  kind: ImageJobKind;
+  settingPrompt: string;
+  campaignId: string | undefined;
+}): Promise<string> {
+  const { sceneText, entities, size, kind, settingPrompt, campaignId } = params;
   const provider = getImageProvider();
 
   // Collect portrait blobs and text descriptions in parallel
@@ -312,7 +319,7 @@ export async function generateChroniclerImage(params: {
   const url = await uploadToBucket({
     bucket: "chronicle",
     blob,
-    path: `${user!.id}/scene-${Date.now()}.webp`,
+    path: `${user!.id}/scene-${crypto.randomUUID()}.webp`,
     contentType: "image/webp",
   });
   if (!url) throw new Error("Failed to upload scene image.");
@@ -331,4 +338,79 @@ export async function generateChroniclerImage(params: {
   }
 
   return url;
+}
+
+/**
+ * Kicks off a chronicle image render and returns immediately with a job id —
+ * never awaits the render itself. Server mode: the edge function's job id.
+ * Local (BYOK) mode: a synthetic `local-<uuid>` id backed by an in-memory
+ * promise (see `localImageJobs` / `getLocalImageJob`), since there is no DB
+ * row to poll for a client-side render.
+ */
+export async function startChroniclerImage(params: {
+  sceneText: string;
+  entities: ResolvedEntity[];
+  size: ChroniclerSize;
+  kind?: ImageJobKind;
+}): Promise<{ jobId: string }> {
+  const { sceneText, entities, size, kind = "chronicler" } = params;
+  const store = useCampaignStore();
+  const imageModel =
+    store.activeCampaign?.image_provider === "openai-mini"
+      ? "gpt-image-1-mini"
+      : ((typeof localStorage !== "undefined"
+          ? localStorage.getItem(OPENAI_IMAGE_MODEL_KEY)
+          : null) ?? "gpt-image-2");
+  const settingPrompt = store.activeCampaign?.ai_setting_prompt ?? "";
+  const campaignId = store.activeCampaign?.id;
+
+  const isLocalMode =
+    typeof localStorage !== "undefined" &&
+    localStorage.getItem(LOCAL_MODE_KEY) === "local";
+
+  if (!isLocalMode && campaignId) {
+    const jobId = await invokeServerImageJob({
+      sceneText,
+      entities,
+      size,
+      kind,
+      campaignId,
+      imageModel,
+    });
+    return { jobId };
+  }
+
+  const jobId = `local-${crypto.randomUUID()}`;
+  const promise = renderLocalImage({
+    sceneText,
+    entities,
+    size,
+    kind,
+    settingPrompt,
+    campaignId,
+  }).finally(() => {
+    localImageJobs.delete(jobId);
+  });
+  localImageJobs.set(jobId, promise);
+  return { jobId };
+}
+
+/**
+ * Awaits a full chronicle image render to completion. Builds on
+ * startChroniclerImage — one code path for both the fire-and-forget
+ * (Chronicler note) and await-to-completion (group portrait) callers.
+ */
+export async function generateChroniclerImage(params: {
+  sceneText: string;
+  entities: ResolvedEntity[];
+  size: ChroniclerSize;
+  kind?: ImageJobKind;
+}): Promise<string> {
+  const { jobId } = await startChroniclerImage(params);
+  if (jobId.startsWith("local-")) {
+    const promise = getLocalImageJob(jobId);
+    if (!promise) throw new Error("Local image job not found.");
+    return promise;
+  }
+  return waitForImageJob(jobId);
 }

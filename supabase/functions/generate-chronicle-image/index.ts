@@ -39,7 +39,7 @@ function buildPrompt(sceneText: string, textDescriptions: string[], settingPromp
 
 async function uploadResult(b64: string, userId: string): Promise<string> {
   const bin = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-  const path = `${userId}/scene-${Date.now()}.webp`;
+  const path = `${userId}/scene-${crypto.randomUUID()}.webp`;
   // The generated image is already in memory and re-running the OpenAI call
   // is expensive, so uploadWithRetry's backoff protects a transient storage
   // hiccup from wasting the generation. This caller wants the public URL.

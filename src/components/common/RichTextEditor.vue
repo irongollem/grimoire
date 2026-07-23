@@ -353,7 +353,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onUnmounted } from "vue";
+import { ref, reactive, computed, watch, onUnmounted } from "vue";
 import { getCurrentUser } from "@/lib/supabase";
 import { toWebP } from "@/lib/mediaConvert";
 import { uploadToBucket } from "@/lib/storage";
@@ -401,6 +401,8 @@ import type { CalendarEventRefAttrs } from "@/lib/tiptap/CalendarEventRef";
 import { createEntityMentionExtension } from "@/lib/tiptap/EntityMention";
 import type { EntityMentionItem, EntityMentionAttrs, EntityType } from "@/lib/tiptap/EntityMention";
 import { IllustrationSuggestion } from "@/lib/tiptap/IllustrationSuggestion";
+import { PendingImage } from "@/lib/tiptap/PendingImage";
+import { usePendingImageResolver } from "@/composables/usePendingImageResolver";
 
 const CustomDocument = Node.create({
   name: "doc",
@@ -597,6 +599,7 @@ const editor = useEditor({
     IllustrationSuggestion.configure({
       onPromptClick: (prompt) => emit("illustration-click", prompt),
     }),
+    PendingImage,
   ],
   editorProps: {
     handlePaste(view, event) {
@@ -680,6 +683,12 @@ const editor = useEditor({
 
 onUnmounted(() => editor.value?.destroy());
 
+// Pending-image anchors ("generating…" placeholders) are inserted synchronously
+// but resolve asynchronously once the background job completes — the resolver
+// owns its own subscriptions and swaps ready anchors for real image nodes.
+const pendingImageResolver = usePendingImageResolver(() => editor.value);
+watch(editor, (e) => { if (e) pendingImageResolver.scan(); }, { immediate: true });
+
 defineExpose({
   insertCalendarEventRef(attrs: CalendarEventRefAttrs): void {
     editor.value?.commands.insertCalendarEventRef(attrs);
@@ -689,6 +698,19 @@ defineExpose({
   },
   insertImageAtCursor(src: string): void {
     editor.value?.chain().focus().setImage({ src }).run();
+  },
+  insertPendingImageAtCursor(attrs: { jobId: string; prompt: string; size: string }): void {
+    if (!editor.value) return;
+    const pos = editor.value.state.selection.to;
+    editor.value
+      .chain()
+      .focus()
+      .insertContentAt(pos, [
+        { type: "pendingImage", attrs: { ...attrs, status: "pending", startedAt: Date.now() } },
+        { type: "paragraph" },
+      ])
+      .run();
+    pendingImageResolver.scan();
   },
   insertMarkdownContent(md: string): void {
     const nodes = parseMarkdown(md);

@@ -220,7 +220,7 @@
     :visible="showChroniclerGenerate"
     :initial-prompt="illustrationPrompt"
     @close="showChroniclerGenerate = false; illustrationPrompt = ''"
-    @generated="onChroniclerGenerated"
+    @started="onChroniclerStarted"
   />
 
   <ChroniclerWriteDialog
@@ -387,8 +387,8 @@ function openChroniclerWrite() {
   showChroniclerWrite.value = true;
 }
 
-function onChroniclerGenerated(url: string) {
-  rteRef.value?.insertImageAtCursor(url);
+function onChroniclerStarted(job: { jobId: string; prompt: string; size: string }) {
+  rteRef.value?.insertPendingImageAtCursor(job);
 }
 
 function onChroniclerSelect(url: string) {
