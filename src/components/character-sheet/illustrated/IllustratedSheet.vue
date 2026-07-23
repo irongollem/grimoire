@@ -184,6 +184,7 @@ const {
   acBonus = 0,
   items = [],
   debug = false,
+  fieldsOverride = null,
 } = defineProps<{
   member: PartyMember;
   inventory: PartyInventoryItem[];
@@ -199,6 +200,9 @@ const {
   items?: Item[];
   /** Calibration aid: outline each overlay box so coordinates can be nudged by eye. */
   debug?: boolean;
+  /** DEV calibration only: replaces the active config's field list so the
+   *  calibration view can live-edit boxes before writing them to the config. */
+  fieldsOverride?: FieldSpec[] | null;
 }>();
 
 // All plate PNGs, resolved to hashed build URLs. Keyed by their /src path so the
@@ -209,7 +213,10 @@ const plateModules = import.meta.glob("/src/assets/sheets/**/*.png", {
 }) as Record<string, string>;
 
 const px = computed(() => PAGE_PX[pageSize]);
-const sheet = computed(() => (pageSize === "Letter" ? LETTER : A4)[theme][side]);
+const sheet = computed(() => {
+  const cfg = (pageSize === "Letter" ? LETTER : A4)[theme][side];
+  return fieldsOverride ? { ...cfg, fields: fieldsOverride } : cfg;
+});
 const plateUrl = computed(
   () => plateModules[`/src/assets/sheets/${pageSize.toLowerCase()}/${sheet.value.plate}`],
 );

@@ -44,10 +44,37 @@
         <input type="checkbox" v-model="debug" class="size-4" />
         <span class="text-caption text-muted-foreground">Debug boxes</span>
       </label>
+
+      <label class="flex items-center gap-2">
+        <input type="checkbox" v-model="editMode" class="size-4" />
+        <span class="text-caption text-muted-foreground">Edit boxes</span>
+      </label>
+
+      <template v-if="editMode">
+        <button
+          type="button"
+          class="rounded border border-primary bg-primary/15 px-3 py-1 font-cinzel text-xs tracking-wide hover:bg-primary/25 transition-colors"
+          @click="copyConfig"
+        >
+          {{ copied ? "Copied!" : "Copy config" }}
+        </button>
+        <button
+          type="button"
+          class="rounded border border-border bg-card px-3 py-1 font-cinzel text-xs tracking-wide text-muted-foreground hover:text-foreground transition-colors"
+          @click="resetFields"
+        >
+          Reset
+        </button>
+        <span v-if="selected !== null" class="text-caption font-mono text-muted-foreground">
+          {{ editFields[selected]?.section }}: [{{ editFields[selected]?.box.join(", ") }}]
+          — drag to move, corner to resize, arrows nudge 0.1% (⇧ 0.5%, ⌥ resizes)
+        </span>
+        <span v-else class="text-caption text-muted-foreground">click a box to select</span>
+      </template>
     </div>
 
     <div class="overflow-auto rounded-lg border border-border bg-muted p-4">
-      <div :data-theme="theme" :data-side="side" :data-size="pageSize" class="inline-block">
+      <div :data-theme="theme" :data-side="side" :data-size="pageSize" class="relative inline-block">
         <IllustratedSheet
           :member="sampleMember"
           :inventory="sampleInventory"
@@ -57,17 +84,47 @@
           :species-name="SPECIES_NAME"
           :background-name="BACKGROUND_NAME"
           :debug="debug"
+          :fields-override="editMode ? editFields : null"
         />
+        <!-- Edit layer: one draggable/resizable handle per field box. -->
+        <div v-if="editMode" class="absolute inset-0" @pointerdown.self="selected = null">
+          <div
+            v-for="(f, i) in editFields"
+            :key="f.section + i"
+            class="absolute cursor-move touch-none"
+            :class="i === selected ? 'outline-2 outline-dashed outline-red-600 bg-red-500/10 z-10' : 'outline-1 outline-dashed outline-blue-500/60 hover:bg-blue-500/10'"
+            :style="{ left: f.box[0] + '%', top: f.box[1] + '%', width: f.box[2] + '%', height: f.box[3] + '%', outlineStyle: 'dashed' }"
+            @pointerdown.prevent="startDrag($event, i, 'move')"
+          >
+            <span
+              v-if="i === selected"
+              class="absolute -top-4 left-0 whitespace-nowrap bg-red-600 px-1 font-mono text-2xs text-white"
+            >{{ f.section }} [{{ f.box.join(", ") }}]</span>
+            <span
+              class="absolute -right-1 -bottom-1 size-3 cursor-nwse-resize rounded-sm bg-blue-600"
+              :class="{ 'bg-red-600': i === selected }"
+              @pointerdown.stop.prevent="startDrag($event, i, 'resize')"
+            />
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, watch, onMounted, onBeforeUnmount } from "vue";
 import { useRoute, useRouter, type LocationQueryValue } from "vue-router";
 import IllustratedSheet from "@/components/character-sheet/illustrated/IllustratedSheet.vue";
-import type { IllustratedTheme, SheetSide, SheetPageSize } from "@/components/character-sheet/illustrated/sheetTypes";
+import {
+  PAGE_PX,
+  type FieldSpec,
+  type IllustratedTheme,
+  type SheetSide,
+  type SheetPageSize,
+} from "@/components/character-sheet/illustrated/sheetTypes";
+import { A4 } from "@/components/character-sheet/illustrated/sheetConfig.a4";
+import { LETTER } from "@/components/character-sheet/illustrated/sheetConfig.letter";
 import type { PartyMember } from "@/types/party.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 
@@ -118,6 +175,103 @@ const debug = computed<boolean>({
   },
   set: (v) => updateQuery({ debug: v ? "1" : "0" }),
 });
+
+// ── Box editing ──────────────────────────────────────────────────────────
+// A live-editable clone of the active (size, theme, side) field list, fed to
+// IllustratedSheet via fieldsOverride. Drag to move, corner handle to resize,
+// arrow keys to nudge; "Copy config" emits the exact TS block for the
+// sheetConfig.{a4,letter}.ts file.
+
+const editMode = ref(false);
+const selected = ref<number | null>(null);
+const copied = ref(false);
+const editFields = ref<FieldSpec[]>([]);
+
+function activeConfigFields(): FieldSpec[] {
+  const cfg = (pageSize.value === "Letter" ? LETTER : A4)[theme.value][side.value];
+  return cfg.fields.map((f) => ({ ...f, box: [...f.box] as FieldSpec["box"] }));
+}
+function resetFields() {
+  editFields.value = activeConfigFields();
+  selected.value = null;
+}
+watch([theme, side, pageSize], resetFields, { immediate: true });
+
+const round1 = (n: number) => Math.round(n * 10) / 10;
+
+interface DragState {
+  index: number;
+  mode: "move" | "resize";
+  startX: number;
+  startY: number;
+  startBox: [number, number, number, number];
+}
+let drag: DragState | null = null;
+
+function startDrag(e: PointerEvent, index: number, mode: "move" | "resize") {
+  selected.value = index;
+  const f = editFields.value[index];
+  drag = { index, mode, startX: e.clientX, startY: e.clientY, startBox: [...f.box] };
+  window.addEventListener("pointermove", onDragMove);
+  window.addEventListener("pointerup", endDrag, { once: true });
+}
+function onDragMove(e: PointerEvent) {
+  if (!drag) return;
+  const px = PAGE_PX[pageSize.value];
+  const dx = ((e.clientX - drag.startX) / px.w) * 100;
+  const dy = ((e.clientY - drag.startY) / px.h) * 100;
+  const b = drag.startBox;
+  const f = editFields.value[drag.index];
+  if (drag.mode === "move") {
+    f.box = [round1(b[0] + dx), round1(b[1] + dy), b[2], b[3]];
+  } else {
+    f.box = [b[0], b[1], round1(Math.max(1, b[2] + dx)), round1(Math.max(0.8, b[3] + dy))];
+  }
+}
+function endDrag() {
+  drag = null;
+  window.removeEventListener("pointermove", onDragMove);
+}
+
+function onKeydown(e: KeyboardEvent) {
+  if (!editMode.value || selected.value === null) return;
+  const dirs: Record<string, [number, number]> = {
+    ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1],
+  };
+  const d = dirs[e.key];
+  if (!d) return;
+  e.preventDefault();
+  const step = e.shiftKey ? 0.5 : 0.1;
+  const f = editFields.value[selected.value];
+  const b = f.box;
+  f.box = e.altKey
+    ? [b[0], b[1], round1(Math.max(1, b[2] + d[0] * step)), round1(Math.max(0.8, b[3] + d[1] * step))]
+    : [round1(b[0] + d[0] * step), round1(b[1] + d[1] * step), b[2], b[3]];
+}
+onMounted(() => window.addEventListener("keydown", onKeydown));
+onBeforeUnmount(() => {
+  window.removeEventListener("keydown", onKeydown);
+  window.removeEventListener("pointermove", onDragMove);
+});
+
+/** The exact `fields: [...]` block to paste into sheetConfig.{a4,letter}.ts. */
+function serializeFields(): string {
+  const lines = editFields.value.map((f) => {
+    const opts = f.opts ? `, opts: ${JSON.stringify(f.opts).replace(/"(\w+)":/g, "$1: ").replace(/,/g, ", ").replace(/\{/, "{ ").replace(/\}$/, " }")}` : "";
+    return `        { section: "${f.section}", box: [${f.box.join(", ")}]${opts} },`;
+  });
+  return `      fields: [\n${lines.join("\n")}\n      ],`;
+}
+async function copyConfig() {
+  const text = serializeFields();
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    console.log(text); // clipboard blocked (e.g. headless) — read it from the console
+  }
+  copied.value = true;
+  setTimeout(() => (copied.value = false), 1500);
+}
 
 // ── Fixture data ─────────────────────────────────────────────────────────
 // A single deliberately "full" PartyMember + inventory so every overlay
