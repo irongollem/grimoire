@@ -49,9 +49,13 @@ The Scriptorium uses a rich Tiptap editor with a full formatting toolbar:
 
 ## Preview and export
 
-The live **Preview** panel shows a paginated, print-accurate rendering of your document beside the editor. Use zoom controls to inspect at different sizes.
+The live **Preview** panel shows the real book beside the editor: content flows and paginates automatically as you type, exactly as it will print. Use zoom controls to inspect at different sizes.
 
-Click **Export PDF** to generate a PDF. A preview dialog appears before the download so you can confirm layout.
+Click **PDF** above the preview to export. Your browser's print dialog opens — choose "Save as PDF" to download a true vector PDF with selectable text and embedded fonts.
+
+## Sharing your PDF with campaign data
+
+An exported PDF can carry your campaign's data (NPCs, monsters, locations, and more) embedded invisibly inside it, so another DM who imports the file gets ready-to-run content along with the readable module. See **Sharing Adventures as PDFs** in this section of the manual for the full walkthrough.
 
 ## Publishing
 

@@ -2,7 +2,7 @@
 title: Illuminator — Image Effects
 section: Publishing Tools
 section_order: 11
-order: 3
+order: 4
 summary: Apply colour grading, vignettes, depth of field, and edge effects to campaign art.
 keywords: illuminator, image, effect, colour grading, vignette, depth of field, edge, texture, export
 ---

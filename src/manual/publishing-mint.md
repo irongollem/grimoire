@@ -2,7 +2,7 @@
 title: The Mint — Tokens and Coins
 section: Publishing Tools
 section_order: 11
-order: 2
+order: 3
 summary: Create printable circular tokens for combat and custom campaign coins.
 keywords: mint, token, coin, print, roll20, combat, portrait, ring, circular
 ---

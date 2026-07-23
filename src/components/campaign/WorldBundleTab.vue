@@ -241,6 +241,24 @@
         </p>
       </div>
 
+      <!-- Output options explainer -->
+      <div class="rounded-md border border-border bg-muted/30 px-4 py-3 space-y-1.5">
+        <div class="flex items-center gap-1.5">
+          <p class="text-eyebrow font-semibold text-muted-foreground">Two ways to share</p>
+          <ManualHelpLink page="sharing-adventures-as-pdfs" tooltip="DM Manual — Sharing Adventures as PDFs" />
+        </div>
+        <p class="text-caption text-muted-foreground">
+          <strong class="text-foreground">Export .grimoire</strong> downloads the bundle as a file
+          another DM can import directly into their campaign.
+        </p>
+        <p class="text-caption text-muted-foreground">
+          <strong class="text-foreground">Attach to PDF</strong> embeds the bundle invisibly inside a
+          PDF you exported from the Scriptorium — one shareable file that reads like a normal PDF and
+          imports as campaign content. Re-saving that PDF through another app strips the embedded
+          data, so share the downloaded file as-is.
+        </p>
+      </div>
+
       <p v-if="exportError" class="text-caption text-destructive">{{ exportError }}</p>
 
       <div class="flex justify-end gap-2 pt-2">
@@ -293,6 +311,7 @@ import {
 } from "@/composables/useWorldBundle";
 import type { BundleEntityKey } from "@/composables/useWorldBundle";
 import ImportBundleModal from "@/components/campaign/ImportBundleModal.vue";
+import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 
 const campaignStore = useCampaignStore();
 const authStore = useAuthStore();

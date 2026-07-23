@@ -54,13 +54,38 @@
           title="Export as PDF"
           :disabled="isGeneratingPdf"
           class="inline-flex items-center gap-1 px-2 py-1 rounded text-eyebrow font-semibold border border-border text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          @click="$emit('exportPdf')"
+          @click="onExportPdf"
         >
           <IconLoading v-if="isGeneratingPdf" class="h-3 w-3 animate-spin" />
           <IconExport v-else class="h-3 w-3" />
           {{ isGeneratingPdf ? "Building…" : "PDF" }}
         </button>
       </div>
+    </div>
+
+    <!-- Post-export tip: the saved PDF can carry campaign data (Phase E flow) -->
+    <div
+      v-if="showShareTip"
+      class="flex items-start gap-2 px-4 py-2 border-b border-border bg-card/90 shrink-0"
+    >
+      <IconInfo class="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary" />
+      <p class="flex-1 text-caption text-muted-foreground leading-snug">
+        Your saved PDF can carry campaign data — embed NPCs, monsters, and more so another DM can
+        import them straight from this file. Go to
+        <strong class="text-foreground">Campaign Settings → World Bundle → Attach to PDF</strong>, or
+        <RouterLink
+          :to="{ path: '/rules', query: { tab: 'manual', page: 'sharing-adventures-as-pdfs' } }"
+          class="text-primary hover:underline"
+        >read how in the DM Manual</RouterLink>.
+      </p>
+      <button
+        type="button"
+        class="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+        aria-label="Dismiss tip"
+        @click="dismissShareTip"
+      >
+        <IconClose class="h-3 w-3" />
+      </button>
     </div>
 
     <!-- The auto-paginated book (Paged.js) — the live preview. -->
@@ -91,7 +116,8 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { IconExport, IconLoading, IconZoomIn, IconZoomOut } from "@/lib/icons";
+import { RouterLink } from "vue-router";
+import { IconClose, IconExport, IconInfo, IconLoading, IconZoomIn, IconZoomOut } from "@/lib/icons";
 import { docTypeLabel, docTypeColor } from "@/lib/scriptorium/editorConstants";
 import { useScriptoriumZoom } from "@/composables/useScriptoriumZoom";
 import { usePagedPreview } from "@/composables/usePagedPreview";
@@ -144,6 +170,22 @@ const emit = defineEmits<{
   "update:furniture": [items: PageFurnitureItem[]];
   "update:selectedFurnitureId": [id: string | null];
 }>();
+
+// Discovery tip for the attach-campaign-data flow (Phase E): shown after an
+// export, when the user actually has a saved PDF in hand. Dismiss hides it
+// for the rest of this editing session.
+const showShareTip = ref(false);
+const shareTipDismissed = ref(false);
+
+function onExportPdf() {
+  emit("exportPdf");
+  if (!shareTipDismissed.value) showShareTip.value = true;
+}
+
+function dismissShareTip() {
+  showShareTip.value = false;
+  shareTipDismissed.value = true;
+}
 
 // Click-to-edit: resolve the clicked block's stable id (data-block-id, set by
 // the BlockId extension and preserved through Paged.js fragmentation) and ask

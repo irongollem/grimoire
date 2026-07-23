@@ -2,7 +2,7 @@
 title: Card Forge — Card Printer
 section: Publishing Tools
 section_order: 11
-order: 1
+order: 2
 summary: Print physical trading-card-style cards for NPCs, monsters, items, and spells.
 keywords: card forge, card, print, mtg, tarot, npc, monster, item, spell, duplex, library
 ---
