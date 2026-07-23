@@ -29,8 +29,12 @@ async function openaiText(apiKey: string, model: string, system: string, user: s
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    // Plain text out — NO response_format json_object. JSON mode's constrained
+    // decoding lets an unescaped quote inside the narrative (a nickname like
+    // "B.B.") legally terminate the JSON string, silently truncating the
+    // chronicle mid-sentence with finish_reason "stop".
     body: JSON.stringify({
-      model, response_format: { type: "json_object" },
+      model,
       messages: [{ role: "system", content: system }, { role: "user", content: user }],
     }),
   });
@@ -51,7 +55,7 @@ async function anthropicText(apiKey: string, model: string, system: string, user
     headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
     body: JSON.stringify({
       model, max_tokens: 8192,
-      system: system + "\n\nRespond with a valid JSON object only, no markdown fencing.",
+      system,
       messages: [{ role: "user", content: user }],
     }),
   });
@@ -75,7 +79,6 @@ async function geminiText(apiKey: string, model: string, system: string, user: s
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: system }] },
         contents: [{ role: "user", parts: [{ text: user }] }],
-        generationConfig: { responseMimeType: "application/json" },
       }),
     },
   );
@@ -109,7 +112,7 @@ serve(withCors(async (req: Request) => {
   if (authError || !user) return new Response("Unauthorized", { status: 401 });
 
   // Frozen accounts cannot generate — including BYOK, which skips the credit gate.
-  if (await isAccountSuspended(admin, user.id)) return suspendedResponse(cors);
+  if (await isAccountSuspended(admin, user.id)) return suspendedResponse();
 
   let campaign_id: string, raw_text: string, tone_instruction: string, entity_descriptions: string[];
 
@@ -206,7 +209,7 @@ serve(withCors(async (req: Request) => {
 
   const reservation = await reserveCredits(admin, user.id, chronicleTextCost, "chronicle_text");
   if (!reservation.ok) {
-    return reservationFailureResponse(reservation, cors);
+    return reservationFailureResponse(reservation);
   }
 
   const textModel = providerConfigs[textProvider as keyof typeof providerConfigs]?.text_model;
@@ -240,9 +243,16 @@ serve(withCors(async (req: Request) => {
     input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
   }).catch(console.error);
 
-  const parsed = JSON.parse(textResult.content) as { chronicle?: string };
+  // The narrative is plain markdown now, but tolerate the legacy JSON wrapper
+  // in case a model still emits it (the old system prompt asked for one).
+  let chronicle = textResult.content;
+  try {
+    const parsed = JSON.parse(textResult.content) as { chronicle?: string };
+    if (parsed && typeof parsed.chronicle === "string") chronicle = parsed.chronicle;
+  } catch { /* plain markdown — use as-is */ }
+
   return new Response(
-    JSON.stringify({ chronicle: parsed.chronicle ?? textResult.content }),
+    JSON.stringify({ chronicle }),
     { headers: { ...cors, "Content-Type": "application/json" } },
   );
 }));

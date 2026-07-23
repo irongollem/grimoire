@@ -136,8 +136,14 @@ export function useChroniclerTextGeneration() {
     const provider = getTextProvider();
     const { content, usage: textUsage } = await provider.complete(systemPrompt, wrapUserInput(rawText));
     logUsage({ reason: "chronicler_text", textUsage });
-    const parsed = JSON.parse(content) as { chronicle?: string };
-    return parsed.chronicle ?? content;
+    // Plain markdown since the JSON wrapper was dropped (an unescaped quote in
+    // the narrative could legally terminate the JSON string and silently
+    // truncate the chronicle); tolerate the legacy wrapper if a model emits it.
+    try {
+      const parsed = JSON.parse(content) as { chronicle?: string };
+      if (parsed && typeof parsed.chronicle === "string") return parsed.chronicle;
+    } catch { /* plain markdown — use as-is */ }
+    return content;
   }
 
   return { isGenerating, error, generate };
