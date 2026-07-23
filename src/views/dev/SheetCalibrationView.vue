@@ -86,8 +86,11 @@
           :debug="debug"
           :fields-override="editMode ? editFields : null"
         />
-        <!-- Edit layer: one draggable/resizable handle per field box. -->
-        <div v-if="editMode" class="absolute inset-0" @pointerdown.self="selected = null">
+        <!-- Edit layer: one draggable/resizable handle per field box.
+             z-10: must beat the sheet's own .fields (z-2) / .fld-name (z-3),
+             or clicks fall through to the sheet text. select-none kills the
+             text-selection cursor fight while dragging. -->
+        <div v-if="editMode" class="absolute inset-0 z-10 select-none" @pointerdown.self="selected = null">
           <div
             v-for="(f, i) in editFields"
             :key="f.section + i"
