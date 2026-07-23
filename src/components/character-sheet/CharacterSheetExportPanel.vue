@@ -87,6 +87,7 @@
           :species-name="speciesName"
           :background-name="backgroundName"
           :ac-bonus="acBonus"
+          :items="items"
           :debug="showBoxes"
         />
         <CharacterSheetRenderer
@@ -110,6 +111,7 @@ import CharacterSheetRenderer from "@/components/character-sheet/CharacterSheetR
 import IllustratedSheetDocument from "@/components/character-sheet/illustrated/IllustratedSheetDocument.vue";
 import type { PartyMember } from "@/types/party.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
+import type { Item } from "@/types/item.types";
 import { useShieldAcBonus } from "@/composables/useShieldAc";
 import {
   useCharacterSheetPdf,
@@ -121,13 +123,16 @@ import {
   type IllustratedTheme,
 } from "@/composables/useCharacterSheetPdf";
 
-const { member, inventory, storageKey, speciesName = null, backgroundName = null } = defineProps<{
+const { member, inventory, storageKey, speciesName = null, backgroundName = null, items = [] } = defineProps<{
   member: PartyMember;
   inventory: PartyInventoryItem[];
   /** Per-character key for persisting the export-screen preferences. */
   storageKey: string;
   speciesName?: string | null;
   backgroundName?: string | null;
+  /** Vault items backing equipped weapons — real attack math on the illustrated front.
+   *  The caller supplies its context's catalog (DM: useItems, player: usePlayerVisibleItems). */
+  items?: Item[];
 }>();
 
 // Shield AC bonus from equipped shields — added to base AC in both preview modes
@@ -161,6 +166,7 @@ async function doExport() {
     speciesName,
     backgroundName,
     acBonus: acBonus.value,
+    items,
   });
 }
 </script>

@@ -6,6 +6,7 @@ import { describe, it, expect } from "vitest";
 import { toFront, toBack } from "./sheetData";
 import type { PartyMember } from "@/types/party.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
+import type { Item } from "@/types/item.types";
 
 function member(overrides: Partial<PartyMember> = {}): PartyMember {
   return {
@@ -97,6 +98,40 @@ function inv(overrides: Partial<PartyInventoryItem> = {}): PartyInventoryItem {
   };
 }
 
+function item(overrides: Partial<Item> = {}): Item {
+  return {
+    id: "item-1",
+    user_id: "u1",
+    name: "Longsword",
+    item_type: "weapon",
+    subtype: "longsword",
+    rarity: "mundane",
+    requires_attunement: false,
+    attunement_requirements: null,
+    weight: 3,
+    cost: "15 gp",
+    damage_rolls: [{ dice: "1d8", type: "slashing" }],
+    armor_class: null,
+    properties: [],
+    charges: null,
+    recharge: null,
+    spell_ids: [],
+    description: "",
+    source: null,
+    tags: [],
+    image_url: null,
+    is_arcane_focus: false,
+    mundane_description: null,
+    mundane_image_url: null,
+    curse_description: null,
+    campaign_id: null,
+    dm_notes: null,
+    created_at: "",
+    updated_at: "",
+    ...overrides,
+  };
+}
+
 describe("toFront — ability modifiers", () => {
   it("formats positive, zero, and negative modifiers with an en dash", () => {
     const m = member({ str: 8, dex: 10, con: 20 }); // mods: -1, 0, +5
@@ -183,18 +218,33 @@ describe("toFront — hit dice", () => {
 });
 
 describe("toFront — attacks derived from inventory", () => {
-  it("includes equipped main_hand/off_hand weapons, vault-linked or custom", () => {
+  it("computes real atk bonus/damage for a vault-linked weapon using src/lib/weaponAttack.ts", () => {
+    // str 8 (-1 mod), pb 3, matches the default `member()` fixture.
+    const longsword = item({ id: "item-longsword", damage_rolls: [{ dice: "1d8", type: "slashing" }], properties: [] });
     const vaultWeapon = inv({ id: "a", item_id: "item-longsword", name: "Longsword", slot: "main_hand" });
+    const front = toFront(member(), [vaultWeapon], null, null, 0, [longsword]);
+    expect(front.attacks).toHaveLength(1);
+    expect(front.attacks[0].name).toBe("Longsword");
+    expect(front.attacks[0].bonus).toBe("+2"); // -1 STR + 3 PB
+    expect(front.attacks[0].damage).toBe("1d8-1 slashing");
+  });
+
+  it("treats a custom weapon (no item_id) as improvised: 1d4 + better of STR/DEX + proficiency", () => {
+    // str 8 (-1), dex 14 (+2) on the default `member()` fixture → DEX wins.
     const customWeapon = inv({ id: "b", item_id: null, name: "Rusty Pipe", slot: "off_hand" });
-    const front = toFront(member(), [vaultWeapon, customWeapon]);
-    expect(front.attacks).toHaveLength(2);
-    expect(front.attacks.map((a) => a.name)).toEqual(["Longsword", "Rusty Pipe"]);
-    // Atk bonus/damage aren't modeled on inventory in CharacterSheetRenderer either —
-    // both print an em dash placeholder, vault-linked or custom alike.
-    for (const a of front.attacks) {
-      expect(a.bonus).toBe("—");
-      expect(a.damage).toBe("—");
-    }
+    const front = toFront(member({ dex: 14 }), [customWeapon]);
+    expect(front.attacks).toHaveLength(1);
+    expect(front.attacks[0].name).toBe("Rusty Pipe");
+    expect(front.attacks[0].bonus).toBe("+5"); // +2 DEX + 3 PB
+    expect(front.attacks[0].damage).toBe("1d4+2 bludgeoning");
+  });
+
+  it("also falls back to the improvised 1d4 treatment when item_id doesn't resolve in `items`", () => {
+    // Default `member()` fixture: str 8 (-1 mod), dex 14 (+2 mod) → DEX wins.
+    const vaultWeapon = inv({ id: "a", item_id: "item-missing", name: "Mystery Blade", slot: "main_hand" });
+    const front = toFront(member(), [vaultWeapon], null, null, 0, []); // items list doesn't contain it
+    expect(front.attacks[0].bonus).toBe("+5"); // +2 DEX + 3 PB
+    expect(front.attacks[0].damage).toBe("1d4+2 bludgeoning");
   });
 
   it("excludes items not equipped in a weapon-hand slot", () => {

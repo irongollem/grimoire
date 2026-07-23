@@ -10,6 +10,12 @@
 import { SKILLS, type PartyMember } from "@/types/party.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import { getCastingAbility } from "@/types/spell.types";
+import type { Item } from "@/types/item.types";
+import {
+  weaponAttackMod,
+  weaponDamageExpr,
+  weaponDamageType,
+} from "@/lib/weaponAttack";
 
 const ABIL = ["str", "dex", "con", "int", "wis", "cha"] as const;
 const ABNAME: Record<(typeof ABIL)[number], string> = {
@@ -59,6 +65,11 @@ export function toFront(
   speciesName?: string | null,
   backgroundName?: string | null,
   acBonus = 0,
+  // Vault items backing equipped weapons, for real atk-bonus/damage math (see
+  // `attacks` below). Optional + trailing so existing callers (IllustratedSheet.vue,
+  // SheetCalibrationView.vue) keep compiling unchanged; when omitted every
+  // equipped weapon is treated as a custom/no-vault-stats weapon (improvised 1d4).
+  items: Item[] = [],
 ): FrontData {
   const pb = m.proficiency_bonus;
   const skillLevel = (k: string) =>
@@ -84,6 +95,10 @@ export function toFront(
     (i) => i.carried_by === m.id && i.location === "equipped" && (i.slot === "main_hand" || i.slot === "off_hand"),
   );
   const carried = inv.filter((i) => i.carried_by === m.id);
+  // No item_id (or the vault item can't be found) → treated as a custom weapon,
+  // same as PlayerCombatTab.vue: improvised 1d4 + better of STR/DEX + proficiency.
+  const findWeaponItem = (itemId: string | null) => (itemId ? items.find((it) => it.id === itemId) ?? null : null);
+  const weaponScores = { str: m.str, dex: m.dex, proficiencyBonus: pb };
 
   return {
     name: m.name,
@@ -100,9 +115,18 @@ export function toFront(
     hitdice: `${m.hit_dice_remaining ?? m.level}d${die}`,
     death: { succ: m.death_save_successes, fail: m.death_save_failures },
     portraitUrl: m.portrait_url ?? null,
-    // Atk bonus / damage aren't modeled on inventory yet — match the clean
-    // renderer, which also prints an em dash for these columns.
-    attacks: weapons.map((w) => ({ name: w.name, bonus: "—", damage: "—" })),
+    // Same weapon math as PlayerCombatTab.vue (src/lib/weaponAttack.ts), so the
+    // exported sheet's numbers always agree with the live combat tab.
+    // `bonus` uses this file's en-dash `signed()` convention (not the combat
+    // tab's plain-hyphen `signedNum`) to match every other signed field on the plate.
+    attacks: weapons.map((w) => {
+      const item = findWeaponItem(w.item_id);
+      return {
+        name: w.name,
+        bonus: signed(weaponAttackMod(item, weaponScores)),
+        damage: `${weaponDamageExpr(item, weaponScores)} ${weaponDamageType(item)}`,
+      };
+    }),
     spell,
     skills: SKILLS.map((sk) => ({
       name: sk.label, abil: sk.ability.toUpperCase(), mod: signed(skillBonus(sk)), level: skillLevel(sk.key),

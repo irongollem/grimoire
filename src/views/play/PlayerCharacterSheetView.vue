@@ -26,6 +26,7 @@
         :storage-key="member.id"
         :species-name="speciesName"
         :background-name="backgroundName"
+        :items="items"
       >
         <template #back>
           <RouterLink
@@ -45,6 +46,7 @@ import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useParty } from "@/composables/useParty";
 import { usePartyInventory } from "@/composables/usePartyInventory";
+import { usePlayerVisibleItems } from "@/composables/useItems";
 import { useSpeciesNameMap } from "@/composables/useSpecies";
 import { useBackgroundNameMap } from "@/composables/useBackgrounds";
 import CharacterSheetExportPanel from "@/components/character-sheet/CharacterSheetExportPanel.vue";
@@ -62,6 +64,7 @@ const linkedMemberId = computed(() =>
 
 const { data: partyMembers, isLoading } = useParty();
 const { data: inventoryItems } = usePartyInventory();
+const { data: items } = usePlayerVisibleItems();
 const speciesMap = useSpeciesNameMap();
 const backgroundMap = useBackgroundNameMap();
 

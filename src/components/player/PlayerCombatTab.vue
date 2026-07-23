@@ -142,7 +142,6 @@ import { computed, ref, watch } from "vue";
 import { IconLightning, IconSword } from '@/lib/icons';
 import { rollParsed, combineModes } from "@/lib/roller";
 import type { RollMode, DieSize } from "@/lib/roller";
-import { parseExpression } from "@/lib/dice";
 import type { ParsedExpression } from "@/lib/dice";
 import { usePartyInventory } from "@/composables/usePartyInventory";
 import { usePlayerVisibleItems } from "@/composables/useItems";
@@ -156,6 +155,17 @@ import type { PartyMember } from "@/types/party.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
 import type { Monster } from "@/types/monster.types";
+import {
+  signedNum,
+  weaponAbilityMod as libWeaponAbilityMod,
+  weaponAttackMod as libWeaponAttackMod,
+  weaponDamageExpr as libWeaponDamageExpr,
+  weaponDamageType as libWeaponDamageType,
+  weaponDamageParsedExpression,
+  unarmedAttackMod as libUnarmedAttackMod,
+  unarmedDamage as libUnarmedDamage,
+  improvisedAttackMod as libImprovisedAttackMod,
+} from "@/lib/weaponAttack";
 
 const props = defineProps<{
   member: PartyMember;
@@ -170,9 +180,6 @@ const { data: inventory } = usePartyInventory();
 const { data: allItems } = usePlayerVisibleItems();
 const { sendRoll } = useCampaignMessages();
 const { promptRoll } = usePromptedRoll();
-
-function abilityMod(score: number) { return Math.floor((score - 10) / 2); }
-function signedNum(n: number) { return n >= 0 ? `+${n}` : `${n}`; }
 
 // Badge next to each Attack button: "Dis" under 2014 exhaustion/conditions,
 // or the flat numeric penalty under 2024 exhaustion (never both at once —
@@ -232,13 +239,9 @@ async function toggleMastery(item: Item | null) {
   }
 }
 
-const strMod = computed(() => abilityMod(props.member.str));
-const dexMod = computed(() => abilityMod(props.member.dex));
-const bestMod = computed(() => Math.max(strMod.value, dexMod.value));
-
-const unarmedAttackMod = computed(() => strMod.value + props.member.proficiency_bonus);
-const unarmedDamage = computed(() => Math.max(1, 1 + strMod.value));
-const improvisedAttackMod = computed(() => bestMod.value);
+const unarmedAttackMod = computed(() => libUnarmedAttackMod(props.member.str, props.member.proficiency_bonus));
+const unarmedDamage = computed(() => libUnarmedDamage(props.member.str));
+const improvisedAttackMod = computed(() => libImprovisedAttackMod(props.member.str, props.member.dex));
 
 // Beast action sections shown when wildshaped
 const beastActionSections = computed(() => {
@@ -264,31 +267,19 @@ async function rollBeastAttack(name: string, bonus: number, override: RollMode |
   return rollAttackWith(bonus, name, override);
 }
 
+// Thin wrappers over src/lib/weaponAttack.ts, binding in this member's scores —
+// keeps the template's existing call sites (`weaponAttackMod(item)`, etc.) unchanged.
+function memberScores() {
+  return { str: props.member.str, dex: props.member.dex, proficiencyBonus: props.member.proficiency_bonus };
+}
 function weaponAbilityMod(item: Item | null): number {
-  const strModVal = abilityMod(props.member.str);
-  const dexModVal = abilityMod(props.member.dex);
-  // Custom weapon (no vault stats): use the better of STR/DEX, like an improvised weapon.
-  if (!item) return Math.max(strModVal, dexModVal);
-  const itemProps = item.properties ?? [];
-  if (itemProps.includes("ammunition")) return dexModVal;
-  if (itemProps.includes("finesse")) return dexModVal > strModVal ? dexModVal : strModVal;
-  return strModVal;
+  return libWeaponAbilityMod(item, memberScores());
 }
 function weaponAttackMod(item: Item | null): number {
-  return weaponAbilityMod(item) + props.member.proficiency_bonus;
+  return libWeaponAttackMod(item, memberScores());
 }
-
 function weaponDamageExpr(item: Item | null): string {
-  const raw = item?.damage_rolls?.[0]?.dice ?? "1d4"; // custom weapon → improvised 1d4
-  const abilMod = weaponAbilityMod(item);
-  if (abilMod === 0) return raw;
-  const parsed = parseExpression(raw);
-  if (!parsed) return raw;
-  const totalMod = parsed.modifier + abilMod;
-  const parts: string[] = parsed.terms.map(t => `${t.count}d${t.sides}`);
-  if (totalMod > 0) parts.push(`+${totalMod}`);
-  else if (totalMod < 0) parts.push(String(totalMod));
-  return parts.join("") || raw;
+  return libWeaponDamageExpr(item, memberScores());
 }
 
 function modeTag(mode: RollMode) {
@@ -353,11 +344,9 @@ function rollImprovisedDamage() {
 function rollWeaponDamage(inv: PartyInventoryItem, item: Item | null) {
   const abilMod = weaponAbilityMod(item);
   // Custom weapon with no vault stats rolls as an improvised 1d4.
-  const parsed = item?.damage_rolls?.length
-    ? parseExpression(item.damage_rolls[0].dice)
-    : { terms: [{ count: 1, sides: 4 }], modifier: 0 };
+  const parsed = weaponDamageParsedExpression(item);
   if (!parsed) return;
-  const typeLabel = item?.damage_rolls?.[0]?.type ?? "bludgeoning";
+  const typeLabel = libWeaponDamageType(item);
   const label = `${inv.name} — Damage (${typeLabel})`;
   return rollDamageLabelled(parsed, abilMod, label);
 }

@@ -34,6 +34,7 @@
         :storage-key="memberId"
         :species-name="speciesName"
         :background-name="backgroundName"
+        :items="items"
       >
         <template #back>
           <RouterLink
@@ -61,6 +62,7 @@ import CharacterSheetExportPanel from "@/components/character-sheet/CharacterShe
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { useParty } from "@/composables/useParty";
 import { usePartyInventory } from "@/composables/usePartyInventory";
+import { useItems } from "@/composables/useItems";
 import { useSpeciesNameMap } from "@/composables/useSpecies";
 import { useBackgroundNameMap } from "@/composables/useBackgrounds";
 import { useAuthStore } from "@/stores/auth";
@@ -70,6 +72,7 @@ const auth = useAuthStore();
 
 const { data: partyMembers, isLoading: partyLoading } = useParty();
 const { data: inventoryItems, isLoading: inventoryLoading } = usePartyInventory();
+const { data: items } = useItems();
 const speciesMap = useSpeciesNameMap();
 const backgroundMap = useBackgroundNameMap();
 

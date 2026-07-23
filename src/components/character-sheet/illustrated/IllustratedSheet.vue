@@ -8,7 +8,7 @@
   Markup + CSS ported from the design handoff mockups (Sheet Front/Back Illustrated).
 -->
 <template>
-  <div class="cs-page illustrated" :class="[`t-${theme}`, { dbg: debug }]" :style="{ width: px.w + 'px', height: px.h + 'px' }">
+  <div class="cs-page illustrated" :class="[`t-${theme}`, `s-${pageSize.toLowerCase()}`, { dbg: debug }]" :style="{ width: px.w + 'px', height: px.h + 'px' }">
     <img class="plate" :src="plateUrl" alt="" crossorigin="anonymous" />
     <div class="fields">
       <div
@@ -46,8 +46,9 @@
         </template>
 
         <template v-else-if="f.section === 'hp'">
+          <!-- temp sits inside the plate's painted heart; cur/max centers in the rest -->
+          <div class="temp">{{ front.hp.temp }}</div>
           <div class="big">{{ front.hp.cur }} / {{ front.hp.max }}</div>
-          <div class="row"><span class="k">Temp</span><span class="v">{{ front.hp.temp }}</span></div>
         </template>
 
         <template v-else-if="f.section === 'hitdice'">
@@ -159,6 +160,7 @@
 import { computed } from "vue";
 import type { PartyMember } from "@/types/party.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
+import type { Item } from "@/types/item.types";
 import {
   PAGE_PX,
   type IllustratedTheme,
@@ -180,6 +182,7 @@ const {
   speciesName = null,
   backgroundName = null,
   acBonus = 0,
+  items = [],
   debug = false,
 } = defineProps<{
   member: PartyMember;
@@ -191,6 +194,9 @@ const {
   backgroundName?: string | null;
   /** Shield AC bonus added to the member's base AC. */
   acBonus?: number;
+  /** Vault items backing equipped weapons — enables real attack-bonus/damage
+   *  values; without them equipped weapons fall back to improvised 1d4. */
+  items?: Item[];
   /** Calibration aid: outline each overlay box so coordinates can be nudged by eye. */
   debug?: boolean;
 }>();
@@ -208,7 +214,7 @@ const plateUrl = computed(
   () => plateModules[`/src/assets/sheets/${pageSize.toLowerCase()}/${sheet.value.plate}`],
 );
 
-const front = computed(() => toFront(member, inventory, speciesName, backgroundName, acBonus));
+const front = computed(() => toFront(member, inventory, speciesName, backgroundName, acBonus, items));
 const back = computed(() => toBack(member));
 const pibfBlocks = computed(() => [
   { k: "Personality", v: back.value.personality.traits },
@@ -272,7 +278,12 @@ function pibfOne(s: SectionId) {
   z-index: 0;
 }
 .cs-page.illustrated .fields { position: absolute; inset: 0; z-index: 2; }
-.cs-page.illustrated .fld { position: absolute; overflow: hidden; display: flex; flex-direction: column; }
+/* Keep this base rule at the same specificity (0,2,0) as the per-section
+   `.illustrated .fld-*` rules below — they rely on source order to override
+   e.g. flex-direction (the mockup's cascade). A `.cs-page.illustrated .fld`
+   selector here silently wins over every section rule and breaks layouts
+   (death saves stacked instead of inline was exactly this). */
+.illustrated .fld { position: absolute; overflow: hidden; display: flex; flex-direction: column; }
 /* Calibration overlay — outline every box for nudging coordinates by eye. */
 .cs-page.illustrated.dbg .fld { outline: 1px solid rgba(0, 120, 255, .65); background: rgba(0, 120, 255, .08); }
 
@@ -305,7 +316,8 @@ function pibfOne(s: SectionId) {
   border-top: 1px solid color-mix(in srgb, var(--ink) 28%, transparent);
   margin-top: 2px; padding-top: 1px; font-variant-numeric: tabular-nums;
 }
-.illustrated .ab .meta .an { font-family: var(--head); font-size: 12px; font-weight: 600; letter-spacing: .03em; color: var(--ink); line-height: 1.05; }
+/* 10.5px: the widest name (CONSTITUTION) must fit the meta column un-truncated */
+.illustrated .ab .meta .an { font-family: var(--head); font-size: 10.5px; font-weight: 600; letter-spacing: .03em; color: var(--ink); line-height: 1.05; }
 .illustrated .ab .meta .al { font-size: 8px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); margin-top: 2px; }
 
 /* big single stats (ac/init/speed) */
@@ -317,14 +329,37 @@ function pibfOne(s: SectionId) {
 
 /* hp / hit dice */
 .illustrated .fld-hp, .illustrated .fld-hitdice { gap: 2px; justify-content: center; }
-.illustrated .fld-hp .row, .illustrated .fld-hitdice .row {
+.illustrated .fld-hitdice .row {
   display: flex; justify-content: space-between; align-items: baseline; gap: 6px; font-size: 12px;
 }
-.illustrated .fld-hp .row .k, .illustrated .fld-hitdice .row .k {
+.illustrated .fld-hitdice .row .k {
   color: var(--ink-soft); font-size: 9.5px; letter-spacing: .04em; text-transform: uppercase;
 }
-.illustrated .fld-hp .row .v, .illustrated .fld-hitdice .row .v { font-family: var(--head); font-weight: 600; font-size: 15px; color: var(--ink); }
-.illustrated .fld-hp .big { font-family: var(--head); font-weight: 700; font-size: 22px; color: var(--ink); line-height: 1; text-align: right; }
+.illustrated .fld-hitdice .row .v { font-family: var(--head); font-weight: 600; font-size: 15px; color: var(--ink); }
+/* keep the value clear of the die glyph painted at the box's right edge
+   (px, not %: percentage padding resolves against the PAGE, not this box) */
+.illustrated .fld-hitdice { padding-right: 34px; }
+/* temp HP lives inside the painted heart (left side of the HP box);
+   current/max centers in the remaining space right of it */
+.illustrated .fld-hp .temp {
+  position: absolute; left: 2%; top: 12%; width: 32%; text-align: center;
+  font-family: var(--head); font-weight: 600; font-size: 14px; color: var(--ink);
+}
+/* themes whose plate paints no heart show a tiny caption under the number */
+.illustrated .fld-hp .temp::after {
+  content: "temp"; display: block; font-family: var(--body); font-weight: 400;
+  font-size: 8px; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-soft);
+}
+.illustrated.t-classic .fld-hp .temp::after, .illustrated.t-gothic .fld-hp .temp::after { display: none; }
+.illustrated.t-fairy .fld-hp .temp { top: 24%; left: 0; width: 28%; }
+/* fairy's portrait arch is rounder than the other themes */
+.illustrated.t-fairy .fld-portrait img { border-radius: 50% 50% 4px 4px / 20% 20% 4px 4px; }
+/* sumi-e's portrait is a rectangular hanging scroll — no arch */
+.illustrated.t-sumie .fld-portrait img { border-radius: 2px; }
+.illustrated .fld-hp .big {
+  position: absolute; left: 34%; right: 3%; top: 50%; transform: translateY(-50%);
+  font-family: var(--head); font-weight: 700; font-size: 22px; color: var(--ink); line-height: 1; text-align: center;
+}
 
 /* death saves */
 .illustrated .fld-death { flex-direction: row; align-items: center; justify-content: center; gap: 18px; }
@@ -336,7 +371,9 @@ function pibfOne(s: SectionId) {
 
 /* portrait */
 .illustrated .fld-portrait { padding: 0; }
-.illustrated .fld-portrait img { width: 100%; height: 100%; object-fit: cover; border-radius: 3px; }
+/* top radius follows the plates' arched portrait frame so the image doesn't
+   square off the arch corners */
+.illustrated .fld-portrait img { width: 100%; height: 100%; object-fit: cover; border-radius: 48% 48% 3px 3px / 14% 14% 3px 3px; }
 .illustrated .fld-portrait .ph {
   flex: 1; display: flex; align-items: center; justify-content: center;
   font-family: var(--head); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft);
@@ -382,9 +419,23 @@ function pibfOne(s: SectionId) {
 .illustrated .fld-features .fn { font-family: var(--head); font-weight: 600; font-size: 11px; color: var(--ink); }
 .illustrated .fld-features .ft { color: var(--ink-soft); font-size: 10.5px; line-height: 1.35; }
 
-/* single value (passperc / profbonus) */
+/* single value (passperc / profbonus) — the config box IS the blank writing
+   slot between the painted label and the painted glyph; no padding tricks */
 .illustrated .fld-passperc, .illustrated .fld-profbonus { align-items: center; justify-content: center; }
-.illustrated .ssv { font-family: var(--head); font-weight: 700; font-size: 16px; color: var(--ink); }
+.illustrated .ssv { font-family: var(--head); font-weight: 700; font-size: 14px; color: var(--ink); }
+
+/* gothic's heart is larger and sits lower-left in its HP panel */
+.illustrated.t-gothic .fld-hp .temp { left: 0; width: 21%; top: 34%; }
+/* gothic paints no blank slot for these values — they sit on the skull glyphs,
+   so use a light ink that reads against the dark art */
+.illustrated.t-gothic .ssv { color: #e9dfca; text-shadow: 0 1px 2px rgba(0, 0, 0, .8); }
+/* the Letter gothic plate paints a skull between the two death-save groups */
+.illustrated.s-letter.t-gothic .fld-death { gap: 44px; }
+/* adventure's heart fills more of its HP panel — shift both values right */
+.illustrated.t-adventure .fld-hp .temp { left: 4%; width: 28%; top: 14%; }
+.illustrated.t-adventure .fld-hp .big { left: 42%; }
+/* sumi-e Letter paints its temp enso at the panel's lower-left */
+.illustrated.s-letter.t-sumie .fld-hp .temp { top: 54%; left: 0; width: 24%; }
 
 /* prose (notes + most back sections) */
 .illustrated .prose {

@@ -16,6 +16,7 @@
       :species-name="speciesName"
       :background-name="backgroundName"
       :ac-bonus="acBonus"
+      :items="items"
       :debug="debug"
     />
     <IllustratedSheet
@@ -35,6 +36,7 @@
 <script setup lang="ts">
 import type { PartyMember } from "@/types/party.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
+import type { Item } from "@/types/item.types";
 import IllustratedSheet from "./IllustratedSheet.vue";
 import type { IllustratedTheme, SheetPageSize } from "./sheetTypes";
 
@@ -47,6 +49,8 @@ defineProps<{
   backgroundName?: string | null;
   /** Shield AC bonus added to the member's base AC. */
   acBonus?: number;
+  /** Vault items backing equipped weapons (real attack math on the front). */
+  items?: Item[];
   /** Calibration aid: outline each overlay box (preview only). */
   debug?: boolean;
 }>();

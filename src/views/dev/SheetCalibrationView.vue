@@ -179,7 +179,8 @@ const sampleMember: PartyMember = {
   inspiration: true,
   death_save_successes: 2,
   death_save_failures: 1,
-  portrait_url: null,
+  // opaque rectangle so the portrait box's true edges are visible against the arch
+  portrait_url: "/icon-512.png",
   portrait_focal_point: null,
   notes:
     "Carries a sunbleached journal bound in dragonhide, its pages dense with annotated evocation diagrams. Owes a favor to the Duskwhisper family's estranged patriarch and refuses to discuss it. Keeps a pressed flower from the Sundered Vale tucked into the journal's spine as a reminder of what the war actually cost.",

@@ -3,6 +3,7 @@ import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import type { PartyMember } from "@/types/party.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
+import type { Item } from "@/types/item.types";
 import CharacterSheetRenderer from "@/components/character-sheet/CharacterSheetRenderer.vue";
 import IllustratedSheetDocument from "@/components/character-sheet/illustrated/IllustratedSheetDocument.vue";
 import { PAGE_PX as ILLUSTRATED_PAGE_PX, type IllustratedTheme } from "@/components/character-sheet/illustrated/sheetTypes";
@@ -48,6 +49,8 @@ export interface SheetExportOptions {
   backgroundName?: string | null;
   /** AC bonus from equipped shields — computed by the caller via useShieldAcBonus(). */
   acBonus?: number;
+  /** Vault items backing equipped weapons — illustrated mode's attack math. */
+  items?: Item[];
 }
 
 // Clean-mode pixel dims — must match the `.cs-page` sizing in character-sheet/base.css.
@@ -77,6 +80,7 @@ export function useCharacterSheetPdf() {
       speciesName = null,
       backgroundName = null,
       acBonus = 0,
+      items = [],
     }: SheetExportOptions = {},
   ): Promise<void> {
     isGenerating.value = true;
@@ -102,6 +106,7 @@ export function useCharacterSheetPdf() {
       speciesName,
       backgroundName,
       acBonus,
+      ...(mode === "illustrated" ? { items } : {}),
     });
     app.mount(container);
 
