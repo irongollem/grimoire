@@ -7,12 +7,12 @@ import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-confi
 import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import {
-  AI_PROMPT_LIMIT_LONG,
+  AI_PROMPT_LIMIT_CHRONICLE,
   INJECTION_GUARD_SUFFIX,
   validatePromptInput,
   wrapUserInput,
 } from "../_shared/ai-prompt.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import { corsHeaders, withCors } from "../_shared/cors.ts";
 import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
 
 const admin = createClient(
@@ -93,9 +93,8 @@ async function geminiText(apiKey: string, model: string, system: string, user: s
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 
-serve(async (req: Request) => {
-  const cors = corsHeaders(req);
-  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+serve(withCors(async (req: Request) => {
+  const cors = corsHeaders(req); // kept for responses that set extra headers alongside CORS
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
 
   const authHeader = req.headers.get("Authorization");
@@ -125,7 +124,7 @@ serve(async (req: Request) => {
     return new Response("Invalid body — need { campaign_id, raw_text, tone_instruction, entity_descriptions }", { status: 400 });
   }
 
-  const promptCheck = validatePromptInput(raw_text, AI_PROMPT_LIMIT_LONG);
+  const promptCheck = validatePromptInput(raw_text, AI_PROMPT_LIMIT_CHRONICLE);
   if (!promptCheck.ok) return promptCheck.errorResponse;
 
   const { data: campaign } = await admin
@@ -246,4 +245,4 @@ serve(async (req: Request) => {
     JSON.stringify({ chronicle: parsed.chronicle ?? textResult.content }),
     { headers: { ...cors, "Content-Type": "application/json" } },
   );
-});
+}));

@@ -3,7 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@/lib/edgeError";
 import { getTextProvider } from "./providers";
 import { useCampaignStore } from "@/stores/campaign";
-import { wrapUserInput } from "./utils";
+import { wrapUserInput, AI_PROMPT_LIMIT_CHRONICLE } from "./utils";
 import { parseSceneEntities, type ResolvedEntity } from "./useChroniclerImageGeneration";
 import type { Npc } from "@/types/npc.types";
 import type { Monster } from "@/types/monster.types";
@@ -67,6 +67,13 @@ export function useChroniclerTextGeneration() {
     error.value = null;
 
     try {
+      // Fail fast with a readable message instead of a server 400 round-trip.
+      if (rawText.length > AI_PROMPT_LIMIT_CHRONICLE) {
+        throw new Error(
+          `Session notes exceed the ${AI_PROMPT_LIMIT_CHRONICLE.toLocaleString()}-character limit ` +
+            `(currently ${rawText.length.toLocaleString()}). Trim the text and try again.`,
+        );
+      }
       const isLocalMode =
         typeof localStorage !== "undefined" &&
         localStorage.getItem(LOCAL_MODE_KEY) === "local";

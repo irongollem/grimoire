@@ -24,6 +24,8 @@ export function b64ToBlob(b64: string, mimeType = "image/webp"): Blob {
 export const AI_PROMPT_LIMIT = 1000;
 export const AI_PROMPT_LIMIT_SHORT = 500;
 export const AI_PROMPT_LIMIT_LONG = 2000;
+// Chronicle input is raw session notes — mirror of the edge function's limit.
+export const AI_PROMPT_LIMIT_CHRONICLE = 10000;
 
 export function wrapUserInput(input: string): string {
   return `<user_input>\n${input}\n</user_input>`;

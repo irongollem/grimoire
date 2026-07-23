@@ -21,6 +21,9 @@
 export const AI_PROMPT_LIMIT       = 1000;
 export const AI_PROMPT_LIMIT_SHORT =  500;
 export const AI_PROMPT_LIMIT_LONG  = 2000;
+// Chronicle input is raw session notes — long-form prose by design. ~10k chars
+// ≈ 2.5k input tokens: still cheap, but bounded against runaway/abusive bodies.
+export const AI_PROMPT_LIMIT_CHRONICLE = 10000;
 
 // Cap on a model-AUTHORED image-subject string before it is concatenated into a
 // (token-priced) image prompt — bounds cost even if the text model is coaxed

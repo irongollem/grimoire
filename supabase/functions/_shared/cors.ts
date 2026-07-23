@@ -29,3 +29,38 @@ export function corsHeaders(req: Request): Record<string, string> {
     "Vary": "Origin",
   };
 }
+
+/**
+ * Wrap a handler so EVERY response — success, early-return error, thrown
+ * exception — carries the CORS headers, and OPTIONS preflights are answered
+ * centrally. Without this, any `return new Response(..., { status: 4xx })`
+ * that forgets `{ headers: cors }` surfaces in the browser as an opaque
+ * "blocked by CORS policy: No 'Access-Control-Allow-Origin' header" instead
+ * of its actual error message (this is exactly what hid the chronicle-text
+ * prompt-limit 400 during the app-subdomain cutover).
+ *
+ * Usage: `serve(withCors(async (req) => { ... }));`
+ */
+export function withCors(
+  handler: (req: Request) => Promise<Response> | Response,
+): (req: Request) => Promise<Response> {
+  return async (req: Request): Promise<Response> => {
+    const cors = corsHeaders(req);
+    if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+    let res: Response;
+    try {
+      res = await handler(req);
+    } catch (err) {
+      console.error("unhandled edge-function error:", err);
+      res = new Response(JSON.stringify({ error: "Internal error" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    const headers = new Headers(res.headers);
+    headers.set("Access-Control-Allow-Origin", cors["Access-Control-Allow-Origin"]);
+    headers.set("Access-Control-Allow-Headers", cors["Access-Control-Allow-Headers"]);
+    if (!(headers.get("Vary") ?? "").toLowerCase().includes("origin")) headers.append("Vary", "Origin");
+    return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
+  };
+}
