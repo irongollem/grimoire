@@ -74,9 +74,10 @@ export interface RequireAdminOptions {
  * Verify the caller is an app admin from their signed JWT (`app_metadata.role`,
  * server-controlled). Returns the authenticated admin `User`, or a ready-to-
  * return error `Response` (401/403). Shared by every admin-only edge function so
- * the gate is defined once.
+ * the gate is defined once. CORS headers are applied uniformly by the
+ * `withCors` wrapper, not here.
  *
- *   const gate = await requireAdmin(req, cors);
+ *   const gate = await requireAdmin(req);
  *   if (gate instanceof Response) return gate;
  *   const user = gate; // authenticated admin
  *
@@ -84,34 +85,30 @@ export interface RequireAdminOptions {
  * trusted cron caller) is also accepted and short-circuits to the sentinel
  * string `"service_role"` instead of a `User`:
  *
- *   const gate = await requireAdmin(req, cors, { allowServiceRole: true });
+ *   const gate = await requireAdmin(req, { allowServiceRole: true });
  *   if (gate instanceof Response) return gate;
  *   if (gate === "service_role") { ... } else { const user = gate; }
  */
-// Overloads keep the three pre-existing 2-arg callers typed exactly as before
+// Overloads keep the three pre-existing 1-arg callers typed exactly as before
 // (`User | Response`, no `"service_role"` in the union) — only opting in via
 // `{ allowServiceRole: true }` widens the return type.
 export function requireAdmin(
   req: Request,
-  cors: Record<string, string>,
 ): Promise<User | Response>;
 export function requireAdmin(
   req: Request,
-  cors: Record<string, string>,
   options: { allowServiceRole: true },
 ): Promise<User | "service_role" | Response>;
 export function requireAdmin(
   req: Request,
-  cors: Record<string, string>,
   options?: RequireAdminOptions,
 ): Promise<User | Response>;
 export async function requireAdmin(
   req: Request,
-  cors: Record<string, string>,
   options?: RequireAdminOptions,
 ): Promise<User | "service_role" | Response> {
   const json = (body: unknown, status: number) =>
-    new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
+    new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) return json({ error: "Unauthorized" }, 401);

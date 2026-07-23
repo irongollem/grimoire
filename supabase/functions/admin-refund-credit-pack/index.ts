@@ -1,7 +1,7 @@
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
-import { corsHeaders } from "../_shared/cors.ts";
+import { withCors } from "../_shared/cors.ts";
 import { computePackLots, type LedgerRowLite } from "../_shared/creditLots.ts";
 import { requireAdmin } from "../_shared/requireAdmin.ts";
 
@@ -34,15 +34,13 @@ async function purchasedBalance(userId: string): Promise<number> {
   return Number((data as { purchased_balance: number } | null)?.purchased_balance ?? 0);
 }
 
-serve(async (req: Request) => {
-  const cors = corsHeaders(req);
-  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+serve(withCors(async (req: Request) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
 
   const json = (body: unknown, status = 200) =>
-    new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
+    new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
-  const gate = await requireAdmin(req, cors);
+  const gate = await requireAdmin(req);
   if (gate instanceof Response) return gate;
 
   let body: { action?: string; userId?: string; paymentIntentId?: string; override?: boolean; reason?: string };
@@ -120,4 +118,4 @@ serve(async (req: Request) => {
     console.error("admin-refund-credit-pack:", err);
     return json({ error: "Internal server error" }, 500);
   }
-});
+}));

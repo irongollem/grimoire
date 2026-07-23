@@ -73,12 +73,12 @@ export interface SpendResult {
  * Build the HTTP error response for a refused paid spend, mapping the distinct
  * reasons (frozen / rate-limited / insufficient) to the right status + message.
  * Shared by every generator + deduct-ai-credit so the surfaced reason is honest.
+ * CORS headers are applied uniformly by the `withCors` wrapper, not here.
  */
 export function reservationFailureResponse(
   r: { suspended?: boolean; velocity?: boolean; balance?: number },
-  cors: Record<string, string>,
 ): Response {
-  const headers = { ...cors, "Content-Type": "application/json" };
+  const headers = { "Content-Type": "application/json" };
   if (r.suspended) {
     return new Response(JSON.stringify({ error: "account_suspended" }), { status: 403, headers });
   }

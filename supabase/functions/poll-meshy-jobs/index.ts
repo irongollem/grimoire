@@ -13,6 +13,7 @@
  */
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
+import { withCors } from "../_shared/cors.ts";
 import { releaseCredits, recordGeneration } from "../_shared/credits.ts";
 import { getImageTo3dTask, resolveMeshyKey, type MeshFormat } from "../_shared/mesh3d.ts";
 import { resolveSculptOutcome, isStale, type MiniStatusB } from "../_shared/simulacrum.ts";
@@ -244,7 +245,7 @@ async function processMini(mini: MiniRow, meshyKey: string): Promise<void> {
   }
 }
 
-serve(async (req: Request) => {
+serve(withCors(async (req: Request) => {
   if (req.method !== "POST") return new Response("Method Not Allowed", { status: 405 });
 
   const authHeader = req.headers.get("Authorization") ?? "";
@@ -294,4 +295,4 @@ serve(async (req: Request) => {
   }
 
   return new Response(JSON.stringify({ processed }), { headers: { "Content-Type": "application/json" } });
-});
+}));

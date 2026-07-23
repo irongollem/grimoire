@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
     // key as the bearer token, which is also accepted — either way, an ordinary
     // authenticated user cannot trigger a canonical re-sync. No CORS headers
     // here (this function has none — it's not called from the browser).
-    const gate = await requireAdmin(req, {}, { allowServiceRole: true });
+    const gate = await requireAdmin(req, { allowServiceRole: true });
     if (gate instanceof Response) return gate;
 
     const supabase = createClient(

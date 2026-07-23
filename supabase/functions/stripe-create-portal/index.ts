@@ -1,22 +1,18 @@
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
-import { corsHeaders } from "../_shared/cors.ts";
+import { withCors } from "../_shared/cors.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
   apiVersion: "2024-06-20",
   httpClient: Stripe.createFetchHttpClient(),
 });
 
-serve(async (req: Request) => {
-  // Origin-allowlisted CORS (shared helper) + this endpoint's method set.
-  const cors = { ...corsHeaders(req), "Access-Control-Allow-Methods": "POST, OPTIONS" };
-  if (req.method === "OPTIONS") return new Response(null, { headers: cors });
-
+serve(withCors(async (req: Request) => {
   const json = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), {
       status,
-      headers: { ...cors, "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
     });
 
   try {
@@ -59,4 +55,4 @@ serve(async (req: Request) => {
     console.error("stripe-create-portal:", err);
     return json({ error: "Internal server error" }, 500);
   }
-});
+}));

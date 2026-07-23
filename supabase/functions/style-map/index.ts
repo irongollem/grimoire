@@ -7,7 +7,7 @@ import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-confi
 import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { generateImage, resolveImageProvider } from "../_shared/imageGen.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import { withCors } from "../_shared/cors.ts";
 import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
 
 // ~9 MB binary once base64-decoded — caps the client-supplied source map image.
@@ -51,9 +51,7 @@ function buildPrompt(
   return parts.join(", ");
 }
 
-serve(async (req: Request) => {
-  const cors = corsHeaders(req);
-  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+serve(withCors(async (req: Request) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
 
   const authHeader = req.headers.get("Authorization");
@@ -68,7 +66,7 @@ serve(async (req: Request) => {
   if (authError || !user) return new Response("Unauthorized", { status: 401 });
 
   // Frozen accounts cannot generate — including BYOK, which skips the credit gate.
-  if (await isAccountSuspended(admin, user.id)) return suspendedResponse(cors);
+  if (await isAccountSuspended(admin, user.id)) return suspendedResponse();
 
   let campaign_id: string, preset_id: string, image_b64: string,
       map_name: string, map_description: string | null, prompt_suffix: string | null;
@@ -144,13 +142,13 @@ serve(async (req: Request) => {
   if (!(await checkRateLimit(admin, user.id, "ai_generation"))) {
     return new Response(
       JSON.stringify({ error: "rate_limited" }),
-      { status: 429, headers: { ...cors, "Content-Type": "application/json" } },
+      { status: 429, headers: { "Content-Type": "application/json" } },
     );
   }
 
   const reservation = await reserveCredits(admin, user.id, cost, "map_style_generation");
   if (!reservation.ok) {
-    return reservationFailureResponse(reservation, cors);
+    return reservationFailureResponse(reservation);
   }
 
   const prompt = buildPrompt(preset_id, map_name, map_description, prompt_suffix);
@@ -172,7 +170,7 @@ serve(async (req: Request) => {
     const msg = e instanceof Error ? e.message : "Image generation failed";
     return new Response(
       JSON.stringify({ error: msg }),
-      { status: 502, headers: { ...cors, "Content-Type": "application/json" } },
+      { status: 502, headers: { "Content-Type": "application/json" } },
     );
   }
 
@@ -190,6 +188,6 @@ serve(async (req: Request) => {
 
   return new Response(
     JSON.stringify({ image_b64: result_b64 }),
-    { headers: { ...cors, "Content-Type": "application/json" } },
+    { headers: { "Content-Type": "application/json" } },
   );
-});
+}));

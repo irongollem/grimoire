@@ -8,7 +8,7 @@ import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { createImageJob, completeImageJob, failImageJob, type ImageJobKind } from "../_shared/imageJob.ts";
 import { fetchProviderConfigs } from "../_shared/provider-config.ts";
 import { generateImage, resolveImageProvider, type ImageProviderKey } from "../_shared/imageGen.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import { withCors } from "../_shared/cors.ts";
 import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
 import { isSafeStorageUrl } from "../_shared/storage-url.ts";
 import { uploadWithRetry } from "../_shared/storage-upload.ts";
@@ -110,12 +110,9 @@ async function runGeneration(args: {
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 
-serve(async (req: Request) => {
-  const cors = corsHeaders(req);
-  const text = (msg: string, status: number) =>
-    new Response(msg, { status, headers: cors });
+serve(withCors(async (req: Request) => {
+  const text = (msg: string, status: number) => new Response(msg, { status });
 
-  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return text("Method not allowed", 405);
 
   const authHeader = req.headers.get("Authorization");
@@ -130,7 +127,7 @@ serve(async (req: Request) => {
   if (authError || !user) return text("Unauthorized", 401);
 
   // Frozen accounts cannot generate — including BYOK, which skips the credit gate.
-  if (await isAccountSuspended(admin, user.id)) return suspendedResponse(cors);
+  if (await isAccountSuspended(admin, user.id)) return suspendedResponse();
 
   let campaign_id: string, scene_text: string, portrait_urls: string[],
       text_descriptions: string[], size: string, image_model: string, kind: ImageJobKind;
@@ -194,13 +191,13 @@ serve(async (req: Request) => {
   if (!(await checkRateLimit(admin, user.id, "ai_generation"))) {
     return new Response(
       JSON.stringify({ error: "rate_limited" }),
-      { status: 429, headers: { ...cors, "Content-Type": "application/json" } },
+      { status: 429, headers: { "Content-Type": "application/json" } },
     );
   }
 
   const reservation = await reserveCredits(admin, user.id, chronicleImageCost, "chronicle_image");
   if (!reservation.ok) {
-    return reservationFailureResponse(reservation, cors);
+    return reservationFailureResponse(reservation);
   }
 
   const settingPrompt = campaign.ai_setting_prompt ?? "";
@@ -232,6 +229,6 @@ serve(async (req: Request) => {
 
   return new Response(
     JSON.stringify({ job_id: jobId }),
-    { headers: { ...cors, "Content-Type": "application/json" } },
+    { headers: { "Content-Type": "application/json" } },
   );
-});
+}));

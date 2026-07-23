@@ -15,7 +15,7 @@ import {
   wrapUserInput,
 } from "../_shared/ai-prompt.ts";
 import { buildSimpleImagePrompt } from "../_shared/image-prompt.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import { withCors } from "../_shared/cors.ts";
 import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
 
 const admin = createClient(
@@ -106,9 +106,7 @@ async function geminiText(apiKey: string, model: string, system: string, user: s
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 
-serve(async (req: Request) => {
-  const cors = corsHeaders(req);
-  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+serve(withCors(async (req: Request) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
 
   const authHeader = req.headers.get("Authorization");
@@ -123,7 +121,7 @@ serve(async (req: Request) => {
   if (authError || !user) return new Response("Unauthorized", { status: 401 });
 
   // Frozen accounts cannot generate — including BYOK, which skips the credit gate.
-  if (await isAccountSuspended(admin, user.id)) return suspendedResponse(cors);
+  if (await isAccountSuspended(admin, user.id)) return suspendedResponse();
 
   let campaign_id: string, prompt: string, location_type: string | undefined,
       parent_name: string | undefined, generate_image: boolean, generate_map: boolean;
@@ -232,13 +230,13 @@ serve(async (req: Request) => {
   if (!(await checkRateLimit(admin, user.id, "ai_generation"))) {
     return new Response(
       JSON.stringify({ error: "rate_limited" }),
-      { status: 429, headers: { ...cors, "Content-Type": "application/json" } },
+      { status: 429, headers: { "Content-Type": "application/json" } },
     );
   }
 
   const reservation = await reserveCredits(admin, user.id, locationTotalCost, "location_generation");
   if (!reservation.ok) {
-    return reservationFailureResponse(reservation, cors);
+    return reservationFailureResponse(reservation);
   }
 
   const textModel = providerConfigs[textProvider as keyof typeof providerConfigs]?.text_model;
@@ -262,7 +260,7 @@ serve(async (req: Request) => {
     console.error("Location text generation failed:", e);
     return new Response(
       JSON.stringify({ error: "Text generation failed" }),
-      { status: 502, headers: { ...cors, "Content-Type": "application/json" } },
+      { status: 502, headers: { "Content-Type": "application/json" } },
     );
   }
 
@@ -333,6 +331,6 @@ serve(async (req: Request) => {
 
   return new Response(
     JSON.stringify({ ...locationData, image_b64, map_b64 }),
-    { headers: { ...cors, "Content-Type": "application/json" } },
+    { headers: { "Content-Type": "application/json" } },
   );
-});
+}));

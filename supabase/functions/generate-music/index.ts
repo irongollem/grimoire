@@ -5,7 +5,7 @@ import { isUserPro } from "../_shared/plan.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import { withCors } from "../_shared/cors.ts";
 import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
 
 const admin = createClient(
@@ -13,9 +13,7 @@ const admin = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
-serve(async (req: Request) => {
-  const cors = corsHeaders(req);
-  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+serve(withCors(async (req: Request) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
 
   const authHeader = req.headers.get("Authorization");
@@ -30,7 +28,7 @@ serve(async (req: Request) => {
   if (authError || !user) return new Response("Unauthorized", { status: 401 });
 
   // Frozen accounts cannot generate — including BYOK, which skips the credit gate.
-  if (await isAccountSuspended(admin, user.id)) return suspendedResponse(cors);
+  if (await isAccountSuspended(admin, user.id)) return suspendedResponse();
 
   let campaign_id: string, style: string, model: string, lyrics: string | undefined;
 
@@ -81,7 +79,7 @@ serve(async (req: Request) => {
   if (!isByok && !geminiProviderRow?.audio_enabled) {
     return new Response(
       JSON.stringify({ error: "Music generation is not enabled on this platform. Contact your admin." }),
-      { status: 403, headers: { ...cors, "Content-Type": "application/json" } },
+      { status: 403, headers: { "Content-Type": "application/json" } },
     );
   }
 
@@ -89,7 +87,7 @@ serve(async (req: Request) => {
   if (!geminiKey) {
     return new Response(
       JSON.stringify({ error: "No Gemini API key configured. Add one in Campaign Settings → AI, or ask your admin to configure a platform key." }),
-      { status: 422, headers: { ...cors, "Content-Type": "application/json" } },
+      { status: 422, headers: { "Content-Type": "application/json" } },
     );
   }
 
@@ -103,13 +101,13 @@ serve(async (req: Request) => {
   if (!(await checkRateLimit(admin, user.id, "ai_generation"))) {
     return new Response(
       JSON.stringify({ error: "rate_limited" }),
-      { status: 429, headers: { ...cors, "Content-Type": "application/json" } },
+      { status: 429, headers: { "Content-Type": "application/json" } },
     );
   }
 
   const reservation = await reserveCredits(admin, user.id, audioCost, generationType);
   if (!reservation.ok) {
-    return reservationFailureResponse(reservation, cors);
+    return reservationFailureResponse(reservation);
   }
 
   try {
@@ -138,7 +136,7 @@ serve(async (req: Request) => {
       console.error(`Lyria API error ${lyriaRes.status}:`, body?.error?.message ?? body);
       return new Response(
         JSON.stringify({ error: "Music generation failed" }),
-        { status: 502, headers: { ...cors, "Content-Type": "application/json" } },
+        { status: 502, headers: { "Content-Type": "application/json" } },
       );
     }
 
@@ -152,7 +150,7 @@ serve(async (req: Request) => {
       await releaseCredits(admin, reservation.ids);
       return new Response(
         JSON.stringify({ error: "No audio data in Lyria response." }),
-        { status: 502, headers: { ...cors, "Content-Type": "application/json" } },
+        { status: 502, headers: { "Content-Type": "application/json" } },
       );
     }
 
@@ -169,10 +167,10 @@ serve(async (req: Request) => {
         audio_base64: audioPart.inlineData.data,
         mime_type: audioPart.inlineData.mimeType ?? "audio/mpeg",
       }),
-      { headers: { ...cors, "Content-Type": "application/json" } },
+      { headers: { "Content-Type": "application/json" } },
     );
   } catch (e) {
     await releaseCredits(admin, reservation.ids);
     throw e;
   }
-});
+}));

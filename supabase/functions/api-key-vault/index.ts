@@ -1,6 +1,6 @@
 import { serve } from "std/http/server.ts";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { corsHeaders } from "../_shared/cors.ts";
+import { withCors } from "../_shared/cors.ts";
 
 const VAULT_KEY_HEX = Deno.env.get("VAULT_KEY");
 if (!VAULT_KEY_HEX) {
@@ -90,15 +90,11 @@ async function callerOwnsBlob(
   return false;
 }
 
-serve(async (req: Request) => {
-  const cors = corsHeaders(req);
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: cors });
-  }
+serve(withCors(async (req: Request) => {
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405,
-      headers: { ...cors, "Content-Type": "application/json", "Allow": "POST, OPTIONS" },
+      headers: { "Content-Type": "application/json", "Allow": "POST, OPTIONS" },
     });
   }
 
@@ -107,7 +103,7 @@ serve(async (req: Request) => {
   if (!authHeader) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
-      headers: { ...cors, "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
     });
   }
   const userClient = createClient(SUPABASE_URL, ANON_KEY, {
@@ -117,7 +113,7 @@ serve(async (req: Request) => {
   if (authError || !user) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
-      headers: { ...cors, "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
     });
   }
   const isAdmin = (user.app_metadata as { role?: string } | null)?.role === "admin";
@@ -129,7 +125,7 @@ serve(async (req: Request) => {
     if (!action || !value || typeof value !== "string" || value.length > MAX_VALUE_LENGTH) {
       return new Response(JSON.stringify({ error: "Missing or invalid action/value" }), {
         status: 400,
-        headers: { ...cors, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" },
       });
     }
 
@@ -147,32 +143,32 @@ serve(async (req: Request) => {
         // Not a vault ciphertext — reject rather than echo arbitrary input back.
         return new Response(JSON.stringify({ error: "Invalid ciphertext" }), {
           status: 400,
-          headers: { ...cors, "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json" },
         });
       } else if (await callerOwnsBlob(admin, user.id, isAdmin, value)) {
         result = await decryptValue(value);
       } else {
         return new Response(JSON.stringify({ error: "Forbidden" }), {
           status: 403,
-          headers: { ...cors, "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json" },
         });
       }
     } else {
       return new Response(JSON.stringify({ error: "Invalid action" }), {
         status: 400,
-        headers: { ...cors, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" },
       });
     }
 
     return new Response(JSON.stringify({ result }), {
       status: 200,
-      headers: { ...cors, "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error("Error:", error);
     return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
-      headers: { ...cors, "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
     });
   }
-});
+}));

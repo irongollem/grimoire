@@ -1,6 +1,7 @@
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
+import { withCors } from "../_shared/cors.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
   apiVersion: "2024-06-20",
@@ -240,7 +241,7 @@ async function suspendUserForCharge(charge: Stripe.Charge | null, reason: string
   if (error) console.error("suspendUserForCharge:", error);
 }
 
-serve(async (req: Request) => {
+serve(withCors(async (req: Request) => {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
   }
@@ -420,4 +421,4 @@ serve(async (req: Request) => {
   return new Response(JSON.stringify({ received: true }), {
     headers: { "Content-Type": "application/json" },
   });
-});
+}));

@@ -39,7 +39,7 @@ import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { createImageJob, completeImageJob, failImageJob } from "../_shared/imageJob.ts";
 import { generateImage, resolveImageProvider, type ImageProviderKey } from "../_shared/imageGen.ts";
 import { buildMiniStylizePrompt } from "../_shared/image-prompt.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import { withCors } from "../_shared/cors.ts";
 import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
 import { isSafeStorageUrl } from "../_shared/storage-url.ts";
 import { uploadWithRetry, fetchBytes } from "../_shared/storage-upload.ts";
@@ -193,7 +193,6 @@ async function runStylize(args: {
 async function handleStylize(
   userId: string,
   body: Record<string, unknown>,
-  cors: Record<string, string>,
   json: JsonFn,
 ): Promise<Response> {
   const campaignId = typeof body.campaign_id === "string" ? body.campaign_id : null;
@@ -282,7 +281,7 @@ async function handleStylize(
   if (!(await checkRateLimit(admin, userId, "ai_generation"))) return json({ error: "rate_limited" }, 429);
 
   const reservation = await reserveCredits(admin, userId, cost, "entity_image");
-  if (!reservation.ok) return reservationFailureResponse(reservation, cors);
+  if (!reservation.ok) return reservationFailureResponse(reservation);
 
   const prompt = buildMiniStylizePrompt(format, source.name, instructions);
 
@@ -337,7 +336,6 @@ async function handleStylize(
 async function handleSculptAction(
   userId: string,
   body: Record<string, unknown>,
-  cors: Record<string, string>,
   json: JsonFn,
   paid: boolean,
 ): Promise<Response> {
@@ -378,7 +376,7 @@ async function handleSculptAction(
     const reservation = await reserveCredits(admin, userId, cost, "mini_sculpt");
     if (!reservation.ok) {
       await revert();
-      return reservationFailureResponse(reservation, cors);
+      return reservationFailureResponse(reservation);
     }
     reservationIds = reservation.ids;
     await admin.from("minis").update({ reservation_ids: reservationIds, credits_spent: cost }).eq("id", miniId);
@@ -568,12 +566,10 @@ async function handleSetBase(userId: string, body: Record<string, unknown>, json
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 
-serve(async (req: Request) => {
-  const cors = corsHeaders(req);
+serve(withCors(async (req: Request) => {
   const json: JsonFn = (body, status = 200) =>
-    new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
+    new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
-  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
   const authHeader = req.headers.get("Authorization");
@@ -590,7 +586,7 @@ serve(async (req: Request) => {
   // Frozen accounts cannot generate — Simulacrum has no BYOK path to worry
   // about skipping the credit gate, but the freeze must still block sculpt/
   // resculpt/stylize alike.
-  if (await isAccountSuspended(admin, user.id)) return suspendedResponse(cors);
+  if (await isAccountSuspended(admin, user.id)) return suspendedResponse();
 
   let body: Record<string, unknown>;
   try {
@@ -605,12 +601,12 @@ serve(async (req: Request) => {
   if (spends && !(await isLiveMode())) return json({ error: "feature_disabled" }, 403);
 
   switch (body.action) {
-    case "stylize":  return handleStylize(user.id, body, cors, json);
-    case "sculpt":   return handleSculptAction(user.id, body, cors, json, true);
-    case "resculpt": return handleSculptAction(user.id, body, cors, json, false);
+    case "stylize":  return handleStylize(user.id, body, json);
+    case "sculpt":   return handleSculptAction(user.id, body, json, true);
+    case "resculpt": return handleSculptAction(user.id, body, json, false);
     case "cancel":   return handleCancel(user.id, body, json);
     case "delete":   return handleDelete(user.id, body, json);
     case "set_base": return handleSetBase(user.id, body, json);
     default:         return json({ error: "invalid_action" }, 400);
   }
-});
+}));

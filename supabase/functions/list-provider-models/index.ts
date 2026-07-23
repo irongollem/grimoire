@@ -1,7 +1,7 @@
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import { withCors } from "../_shared/cors.ts";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -46,13 +46,11 @@ async function listGeminiModels(apiKey: string): Promise<string[]> {
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 
-serve(async (req: Request) => {
-  const cors = corsHeaders(req);
-  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
-  if (req.method !== "POST") return new Response("Method not allowed", { status: 405, headers: cors });
+serve(withCors(async (req: Request) => {
+  if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
 
   const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return new Response("Unauthorized", { status: 401, headers: cors });
+  if (!authHeader) return new Response("Unauthorized", { status: 401 });
 
   // Admin-only: verify the caller is authenticated and is a platform admin.
   // Admin is determined from the caller's verified JWT (app_metadata.role is
@@ -63,9 +61,9 @@ serve(async (req: Request) => {
     { global: { headers: { Authorization: authHeader } } },
   );
   const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return new Response("Unauthorized", { status: 401, headers: cors });
+  if (authError || !user) return new Response("Unauthorized", { status: 401 });
 
-  if (user.app_metadata?.role !== "admin") return new Response("Forbidden", { status: 403, headers: cors });
+  if (user.app_metadata?.role !== "admin") return new Response("Forbidden", { status: 403 });
 
   let provider: string;
   try {
@@ -73,7 +71,7 @@ serve(async (req: Request) => {
     provider = body.provider;
     if (!provider) throw new Error("invalid");
   } catch {
-    return new Response("Invalid body — need { provider }", { status: 400, headers: cors });
+    return new Response("Invalid body — need { provider }", { status: 400 });
   }
 
   const keys = await fetchPlatformKeys(admin, [provider as "openai" | "anthropic" | "gemini" | "falai"]);
@@ -81,7 +79,7 @@ serve(async (req: Request) => {
   if (!apiKey) {
     return new Response(
       JSON.stringify({ error: "no_key", message: "No platform API key configured for this provider" }),
-      { status: 422, headers: { ...cors, "Content-Type": "application/json" } },
+      { status: 422, headers: { "Content-Type": "application/json" } },
     );
   }
 
@@ -96,20 +94,20 @@ serve(async (req: Request) => {
     } else {
       return new Response(
         JSON.stringify({ error: "unsupported_provider" }),
-        { status: 400, headers: { ...cors, "Content-Type": "application/json" } },
+        { status: 400, headers: { "Content-Type": "application/json" } },
       );
 
     }
 
     return new Response(
       JSON.stringify({ models }),
-      { headers: { ...cors, "Content-Type": "application/json" } },
+      { headers: { "Content-Type": "application/json" } },
     );
   } catch (e) {
     console.error(`list-provider-models failed for ${provider}:`, e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Failed to list models" }),
-      { status: 502, headers: { ...cors, "Content-Type": "application/json" } },
+      { status: 502, headers: { "Content-Type": "application/json" } },
     );
   }
-});
+}));

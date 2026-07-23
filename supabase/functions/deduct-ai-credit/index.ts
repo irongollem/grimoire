@@ -1,18 +1,14 @@
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
 import { spendCredits, reservationFailureResponse } from "../_shared/credits.ts";
-import { corsHeaders as buildCors } from "../_shared/cors.ts";
+import { withCors } from "../_shared/cors.ts";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
-serve(async (req: Request) => {
-  const corsHeaders = buildCors(req);
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+serve(withCors(async (req: Request) => {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
   }
@@ -78,7 +74,7 @@ serve(async (req: Request) => {
     }
     return new Response(
       JSON.stringify({ ok: true, byok: true }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      { headers: { "Content-Type": "application/json" } },
     );
   }
 
@@ -96,11 +92,11 @@ serve(async (req: Request) => {
   );
 
   if (!result.ok) {
-    return reservationFailureResponse(result, corsHeaders);
+    return reservationFailureResponse(result);
   }
 
   return new Response(
     JSON.stringify({ ok: true, balance: result.balance }),
-    { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    { headers: { "Content-Type": "application/json" } },
   );
-});
+}));

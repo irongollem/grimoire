@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { corsHeaders } from "../_shared/cors.ts";
+import { withCors } from "../_shared/cors.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 
 // Authenticated endpoint. `verify_jwt = false` in config.toml so we can return
@@ -45,22 +45,16 @@ function inlineSafe(s: string): string {
   return s.replace(/[\r\n]+/g, " ").replace(/[`@<>]/g, "").trim();
 }
 
-Deno.serve(async (req: Request) => {
-  const cors = corsHeaders(req);
-
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: cors });
-  }
-
+Deno.serve(withCors(async (req: Request) => {
   if (req.method !== "POST") {
-    return new Response("Method Not Allowed", { status: 405, headers: cors });
+    return new Response("Method Not Allowed", { status: 405 });
   }
 
   // Enforce auth in code (config.toml keeps verify_jwt=false). A valid Supabase
   // user is required to file a report.
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) {
-    return new Response("Unauthorized", { status: 401, headers: cors });
+    return new Response("Unauthorized", { status: 401 });
   }
   const caller = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -69,7 +63,7 @@ Deno.serve(async (req: Request) => {
   );
   const { data: { user }, error: authError } = await caller.auth.getUser();
   if (authError || !user) {
-    return new Response("Unauthorized", { status: 401, headers: cors });
+    return new Response("Unauthorized", { status: 401 });
   }
 
   // Cap per-user issue creation (issue #466) so the reporter can't be used to
@@ -79,14 +73,14 @@ Deno.serve(async (req: Request) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
   if (!(await checkRateLimit(rateAdmin, user.id, "bug_report"))) {
-    return new Response("Too many bug reports — please try again later.", { status: 429, headers: cors });
+    return new Response("Too many bug reports — please try again later.", { status: 429 });
   }
 
   let payload: BugReportPayload;
   try {
     payload = await req.json();
   } catch {
-    return new Response("Invalid JSON", { status: 400, headers: cors });
+    return new Response("Invalid JSON", { status: 400 });
   }
 
   const { kind: rawKind, where, action, expected, actual, summary, problem, screenshot, screenshotName, submittedBy } = payload;
@@ -99,13 +93,13 @@ Deno.serve(async (req: Request) => {
     ? !where?.trim() || !action?.trim() || !expected?.trim() || !actual?.trim()
     : !summary?.trim() || !problem?.trim();
   if (missing) {
-    return new Response("Missing required fields", { status: 400, headers: cors });
+    return new Response("Missing required fields", { status: 400 });
   }
 
   const githubToken = Deno.env.get("GITHUB_TOKEN");
   if (!githubToken) {
     console.error("GITHUB_TOKEN secret is not set");
-    return new Response("Server misconfigured", { status: 500, headers: cors });
+    return new Response("Server misconfigured", { status: 500 });
   }
 
   // Ensure the `user-report` label exists on the repo (idempotent).
@@ -252,13 +246,13 @@ Deno.serve(async (req: Request) => {
   if (!ghResponse.ok) {
     const errText = await ghResponse.text();
     console.error("GitHub API error:", ghResponse.status, errText);
-    return new Response("Failed to create issue", { status: 502, headers: cors });
+    return new Response("Failed to create issue", { status: 502 });
   }
 
   const issue = await ghResponse.json() as { number: number; html_url: string };
 
   return new Response(
     JSON.stringify({ issueNumber: issue.number, issueUrl: issue.html_url }),
-    { status: 201, headers: { ...cors, "Content-Type": "application/json" } },
+    { status: 201, headers: { "Content-Type": "application/json" } },
   );
-});
+}));

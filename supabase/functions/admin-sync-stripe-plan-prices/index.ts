@@ -1,7 +1,7 @@
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
-import { corsHeaders } from "../_shared/cors.ts";
+import { withCors } from "../_shared/cors.ts";
 import { requireAdmin } from "../_shared/requireAdmin.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
@@ -14,16 +14,12 @@ const admin = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
-serve(async (req: Request) => {
-  const cors = corsHeaders(req);
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: cors });
-  }
+serve(withCors(async (req: Request) => {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
   }
 
-  const gate = await requireAdmin(req, cors);
+  const gate = await requireAdmin(req);
   if (gate instanceof Response) return gate;
 
   let planId: string;
@@ -75,6 +71,6 @@ serve(async (req: Request) => {
   }
 
   return new Response(JSON.stringify(update), {
-    headers: { ...cors, "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" },
   });
-});
+}));

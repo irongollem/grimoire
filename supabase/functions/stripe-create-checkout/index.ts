@@ -1,7 +1,7 @@
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
-import { corsHeaders } from "../_shared/cors.ts";
+import { withCors } from "../_shared/cors.ts";
 import { getOrCreateStripeCustomer } from "../_shared/stripeCustomer.ts";
 import { WITHDRAWAL_CONSENT_VERSION } from "../_shared/consent.ts";
 
@@ -27,21 +27,18 @@ async function getCheckoutConfig(): Promise<{ promo_codes_enabled: boolean }> {
   return checkoutConfigCache;
 }
 
-serve(async (req: Request) => {
-  // Origin-allowlisted CORS (shared helper) + this endpoint's method set.
-  const cors = { ...corsHeaders(req), "Access-Control-Allow-Methods": "POST, OPTIONS" };
-  if (req.method === "OPTIONS") return new Response(null, { headers: cors });
+serve(withCors(async (req: Request) => {
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405,
-      headers: { ...cors, "Content-Type": "application/json", "Allow": "POST, OPTIONS" },
+      headers: { "Content-Type": "application/json", "Allow": "POST, OPTIONS" },
     });
   }
 
   const json = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), {
       status,
-      headers: { ...cors, "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
     });
 
   try {
@@ -145,4 +142,4 @@ serve(async (req: Request) => {
     console.error("stripe-create-checkout:", err);
     return json({ error: "Internal server error" }, 500);
   }
-});
+}));

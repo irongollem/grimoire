@@ -15,7 +15,7 @@ import {
   wrapUserInput,
 } from "../_shared/ai-prompt.ts";
 import { buildImagePromptAuthorSystem, buildSimpleImagePrompt } from "../_shared/image-prompt.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import { withCors } from "../_shared/cors.ts";
 import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
 
 // Entity portraits always render portrait-orientation.
@@ -104,9 +104,7 @@ async function geminiText(apiKey: string, model: string, system: string, user: s
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 
-serve(async (req: Request) => {
-  const cors = corsHeaders(req);
-  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+serve(withCors(async (req: Request) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
 
   const authHeader = req.headers.get("Authorization");
@@ -121,7 +119,7 @@ serve(async (req: Request) => {
   if (authError || !user) return new Response("Unauthorized", { status: 401 });
 
   // Frozen accounts cannot generate — including BYOK, which skips the credit gate.
-  if (await isAccountSuspended(admin, user.id)) return suspendedResponse(cors);
+  if (await isAccountSuspended(admin, user.id)) return suspendedResponse();
 
   let campaign_id: string, kind: string, context: string;
 
@@ -202,13 +200,13 @@ serve(async (req: Request) => {
   if (!(await checkRateLimit(admin, user.id, "ai_generation"))) {
     return new Response(
       JSON.stringify({ error: "rate_limited" }),
-      { status: 429, headers: { ...cors, "Content-Type": "application/json" } },
+      { status: 429, headers: { "Content-Type": "application/json" } },
     );
   }
 
   const reservation = await reserveCredits(admin, user.id, cost, "entity_image");
   if (!reservation.ok) {
-    return reservationFailureResponse(reservation, cors);
+    return reservationFailureResponse(reservation);
   }
 
   // ── 1. Author a visual prompt from the entity's facts ──────────────────────
@@ -242,7 +240,7 @@ serve(async (req: Request) => {
     console.error("Entity image prompt authoring failed:", e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Prompt authoring failed" }),
-      { status: 502, headers: { ...cors, "Content-Type": "application/json" } },
+      { status: 502, headers: { "Content-Type": "application/json" } },
     );
   }
 
@@ -253,7 +251,7 @@ serve(async (req: Request) => {
     await releaseCredits(admin, reservation.ids);
     return new Response(
       JSON.stringify({ error: "The AI did not return an image description." }),
-      { status: 502, headers: { ...cors, "Content-Type": "application/json" } },
+      { status: 502, headers: { "Content-Type": "application/json" } },
     );
   }
 
@@ -275,7 +273,7 @@ serve(async (req: Request) => {
     console.error("Entity image generation failed:", e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Image generation failed" }),
-      { status: 502, headers: { ...cors, "Content-Type": "application/json" } },
+      { status: 502, headers: { "Content-Type": "application/json" } },
     );
   }
 
@@ -295,6 +293,6 @@ serve(async (req: Request) => {
 
   return new Response(
     JSON.stringify({ image_b64: imgResult.b64 }),
-    { headers: { ...cors, "Content-Type": "application/json" } },
+    { headers: { "Content-Type": "application/json" } },
   );
-});
+}));

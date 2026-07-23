@@ -1,6 +1,6 @@
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
-import { corsHeaders } from "../_shared/cors.ts";
+import { withCors } from "../_shared/cors.ts";
 import { requireAdmin } from "../_shared/requireAdmin.ts";
 
 const admin = createClient(
@@ -11,15 +11,13 @@ const admin = createClient(
 // ~100 years — an indefinite hard lock-out. "none" lifts the ban.
 const BAN_FOREVER = "876000h";
 
-serve(async (req: Request) => {
-  const cors = corsHeaders(req);
-  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+serve(withCors(async (req: Request) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
 
   const json = (body: unknown, status = 200) =>
-    new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
+    new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
-  const gate = await requireAdmin(req, cors);
+  const gate = await requireAdmin(req);
   if (gate instanceof Response) return gate;
   const caller = gate;
 
@@ -47,4 +45,4 @@ serve(async (req: Request) => {
   }
 
   return json({ ok: true, banned });
-});
+}));

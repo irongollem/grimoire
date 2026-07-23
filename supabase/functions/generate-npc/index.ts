@@ -28,7 +28,7 @@ import {
   buildLabelledImagePrompt,
   buildSimpleImagePrompt,
 } from "../_shared/image-prompt.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import { withCors } from "../_shared/cors.ts";
 import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
 
 const admin = createClient(
@@ -174,10 +174,7 @@ async function geminiText(
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 
-serve(async (req: Request) => {
-  const cors = corsHeaders(req);
-  if (req.method === "OPTIONS")
-    return new Response("ok", { headers: cors });
+serve(withCors(async (req: Request) => {
   if (req.method !== "POST")
     return new Response("Method not allowed", { status: 405 });
 
@@ -196,7 +193,7 @@ serve(async (req: Request) => {
   if (authError || !user) return new Response("Unauthorized", { status: 401 });
 
   // Frozen accounts cannot generate — including BYOK, which skips the credit gate.
-  if (await isAccountSuspended(admin, user.id)) return suspendedResponse(cors);
+  if (await isAccountSuspended(admin, user.id)) return suspendedResponse();
 
   // ── Parse body ──────────────────────────────────────────────────────────────
   let campaign_id: string;
@@ -345,13 +342,13 @@ serve(async (req: Request) => {
   if (!(await checkRateLimit(admin, user.id, "ai_generation"))) {
     return new Response(
       JSON.stringify({ error: "rate_limited" }),
-      { status: 429, headers: { ...cors, "Content-Type": "application/json" } },
+      { status: 429, headers: { "Content-Type": "application/json" } },
     );
   }
 
   const reservation = await reserveCredits(admin, user.id, totalNeeded, "npc_text");
   if (!reservation.ok) {
-    return reservationFailureResponse(reservation, cors);
+    return reservationFailureResponse(reservation);
   }
 
   let textResult: TextResult;
@@ -403,7 +400,7 @@ serve(async (req: Request) => {
       JSON.stringify({ error: "Text generation failed" }),
       {
         status: 502,
-        headers: { ...cors, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" },
       },
     );
   }
@@ -421,7 +418,7 @@ serve(async (req: Request) => {
       }),
       {
         status: 502,
-        headers: { ...cors, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" },
       },
     );
   }
@@ -540,6 +537,6 @@ serve(async (req: Request) => {
   // ── Return result ───────────────────────────────────────────────────────────
   return new Response(
     JSON.stringify({ ...npcData, portrait_b64, disguise_portrait_b64 }),
-    { headers: { ...cors, "Content-Type": "application/json" } },
+    { headers: { "Content-Type": "application/json" } },
   );
-});
+}));

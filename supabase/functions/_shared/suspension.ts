@@ -36,10 +36,11 @@ export async function isAccountSuspended(
 /**
  * Standard 403 for a frozen account. Mirrors the `account_suspended` shape
  * `reservationFailureResponse` returns so the client sees one consistent error.
+ * CORS headers are applied uniformly by the `withCors` wrapper, not here.
  */
-export function suspendedResponse(cors: Record<string, string>): Response {
+export function suspendedResponse(): Response {
   return new Response(
     JSON.stringify({ error: "account_suspended" }),
-    { status: 403, headers: { ...cors, "Content-Type": "application/json" } },
+    { status: 403, headers: { "Content-Type": "application/json" } },
   );
 }

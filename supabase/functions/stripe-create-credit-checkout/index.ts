@@ -1,7 +1,7 @@
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
-import { corsHeaders } from "../_shared/cors.ts";
+import { withCors } from "../_shared/cors.ts";
 import { getOrCreateStripeCustomer } from "../_shared/stripeCustomer.ts";
 import { WITHDRAWAL_CONSENT_VERSION } from "../_shared/consent.ts";
 
@@ -27,12 +27,7 @@ async function getCheckoutConfig(): Promise<{ promo_codes_enabled: boolean }> {
   return checkoutConfigCache;
 }
 
-serve(async (req: Request) => {
-  // Origin-allowlisted CORS (shared helper).
-  const cors = corsHeaders(req);
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: cors });
-  }
+serve(withCors(async (req: Request) => {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
   }
@@ -153,10 +148,10 @@ serve(async (req: Request) => {
     });
 
     return new Response(JSON.stringify({ url: session.url }), {
-      headers: { ...cors, "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
     });
   } catch (err) {
     console.error("Stripe checkout creation failed:", err);
     return new Response("Failed to create checkout session", { status: 500 });
   }
-});
+}));

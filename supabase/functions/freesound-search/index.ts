@@ -1,6 +1,6 @@
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
-import { corsHeaders as makeCors } from "../_shared/cors.ts";
+import { withCors } from "../_shared/cors.ts";
 
 // Only CC0 + CC-BY. CC-BY-NC is excluded because Grimoire is a commercial product
 // (Pro tier), and we want to respect contributor intent regardless of free-tier
@@ -98,17 +98,14 @@ export function trimHit(hit: FreesoundResult): TrimmedHit | null {
   };
 }
 
-serve(async (req: Request) => {
-  // Origin-allowlisted CORS (shared helper) instead of a wildcard.
-  const corsHeaders = makeCors(req);
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+serve(withCors(async (req: Request) => {
   if (req.method !== "GET") {
-    return new Response("Method not allowed", { status: 405, headers: corsHeaders });
+    return new Response("Method not allowed", { status: 405 });
   }
 
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) {
-    return new Response("Unauthorized", { status: 401, headers: corsHeaders });
+    return new Response("Unauthorized", { status: 401 });
   }
 
   const supabase = createClient(
@@ -118,7 +115,7 @@ serve(async (req: Request) => {
   );
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) {
-    return new Response("Unauthorized", { status: 401, headers: corsHeaders });
+    return new Response("Unauthorized", { status: 401 });
   }
 
   const url = new URL(req.url);
@@ -129,13 +126,13 @@ serve(async (req: Request) => {
   if (!q) {
     return new Response(
       JSON.stringify({ count: 0, results: [], page, page_size: pageSize }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      { headers: { "Content-Type": "application/json" } },
     );
   }
 
   const apiKey = Deno.env.get("FREESOUND_API_KEY");
   if (!apiKey) {
-    return new Response("FREESOUND_API_KEY not configured", { status: 500, headers: corsHeaders });
+    return new Response("FREESOUND_API_KEY not configured", { status: 500 });
   }
 
   const params = new URLSearchParams({
@@ -155,7 +152,7 @@ serve(async (req: Request) => {
     console.error(`Freesound error ${fsRes.status}:`, body.slice(0, 500));
     return new Response(
       JSON.stringify({ error: "Sound search failed" }),
-      { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      { status: 502, headers: { "Content-Type": "application/json" } },
     );
   }
 
@@ -170,6 +167,6 @@ serve(async (req: Request) => {
       page_size: pageSize,
       has_next: !!data.next,
     }),
-    { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    { headers: { "Content-Type": "application/json" } },
   );
-});
+}));
