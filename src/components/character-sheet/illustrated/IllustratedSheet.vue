@@ -149,12 +149,12 @@
         </template>
 
         <template v-else-if="f.section === 'pTraits' || f.section === 'pIdeals' || f.section === 'pBonds' || f.section === 'pFlaws'">
-          <div class="prose" :style="clampStyle(f.opts?.lines ?? 3)">{{ pibfOne(f.section) }}</div>
+          <div class="prose" :style="clampStyle(f)">{{ pibfOne(f.section) }}</div>
         </template>
 
         <!-- appearance / backstory / spellnotes / generalnotes / secrets / travel / notes -->
         <template v-else>
-          <div class="prose" :style="clampStyle(f.opts?.lines)">{{ proseText(f.section) }}</div>
+          <div class="prose" :style="clampStyle(f)">{{ proseText(f.section) }}</div>
         </template>
       </div>
     </div>
@@ -246,8 +246,14 @@ function fldClass(f: FieldSpec) {
     f.opts?.cols === 2 ? "two" : "",
   ];
 }
-function clampStyle(lines?: number) {
-  return lines ? ({ "-webkit-line-clamp": String(lines) } as Record<string, string>) : undefined;
+/* Prose clamps to as many lines as the BOX can hold (its height is the source
+   of truth — recalibrating a box automatically re-derives its capacity). An
+   explicit opts.lines still wins, for boxes that must stop short of painted
+   art (stamps, waves, oval frames). */
+function clampStyle(f: FieldSpec) {
+  const lineH = f.section === "notes" ? 15.6 : 17.25; // .fld-notes uses 11px/1.42, .prose 11.5px/1.5
+  const capacity = Math.max(1, Math.floor(((f.box[3] / 100) * px.value.h) / lineH));
+  return { "-webkit-line-clamp": String(f.opts?.lines ?? capacity) } as Record<string, string>;
 }
 function frontValue(s: "ac" | "init" | "speed" | "passperc" | "profbonus") {
   return front.value[s];
@@ -421,15 +427,17 @@ function pibfOne(s: SectionId) {
 .illustrated .spellline { display: flex; gap: 14px; margin-top: 5px; font-size: 11px; color: var(--ink-soft); }
 .illustrated .spellline b { font-family: var(--head); color: var(--ink); font-weight: 600; }
 
-/* skills */
+/* skills — the 18 rows always divide the box height evenly (grid 1fr rows),
+   so a recalibrated box re-spaces the list instead of overflowing it */
 .illustrated .fld-skills { padding: 1px 4px; font-size: 10px; }
-.illustrated .fld-skills .skgrid { display: block; }
-.illustrated .fld-skills.two .skgrid { column-count: 2; column-gap: 11px; }
+.illustrated .fld-skills .skgrid { display: grid; grid-auto-rows: 1fr; align-items: center; height: 100%; min-height: 0; }
+.illustrated .fld-skills.two .skgrid { display: block; column-count: 2; column-gap: 11px; height: auto; }
 .illustrated .sk {
   display: grid; grid-template-columns: 11px 26px 1fr; gap: 5px; align-items: center;
-  font-size: inherit; padding: 1px 0; line-height: 1.18; break-inside: avoid; -webkit-column-break-inside: avoid;
+  font-size: inherit; padding: 0; line-height: 1.1; break-inside: avoid; -webkit-column-break-inside: avoid;
+  min-height: 0;
 }
-.illustrated .fld-skills.tight .sk { line-height: 1.05; padding: 0; }
+.illustrated .fld-skills.tight .sk { line-height: 1.05; }
 .illustrated .dot { width: 7px; height: 7px; border-radius: 50%; border: 1.4px solid var(--ink-soft); display: inline-block; }
 .illustrated .dot.on { background: var(--accent); border-color: var(--accent); }
 .illustrated .dot.ex { box-shadow: 0 0 0 1.5px var(--accent); }
