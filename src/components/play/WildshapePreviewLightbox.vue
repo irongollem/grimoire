@@ -14,7 +14,7 @@
         · CR {{ beast?.stat_block?.challenge_rating }}
       </p>
     </div>
-    <StatBlockPanel v-if="beast?.stat_block" :sb="beast.stat_block" />
+    <StatBlockPanel v-if="beast?.stat_block" :sb="beast.stat_block" :name="beast.name" />
 
     <!-- Special abilities -->
     <div v-if="beast?.stat_block?.special_abilities?.length" class="space-y-2">

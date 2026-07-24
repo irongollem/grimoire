@@ -44,6 +44,7 @@ Each monster stores a full `stat_block` JSONB object with:
 - Combat: AC, HP (with dice expression), speed, initiative, and (2024 monsters only, #559) `initiative_bonus` — a new key on the `stat_block` JSONB (`MonsterStatBlock.initiative_bonus`; no migration needed since it rides inside the existing JSONB column), editable in `StatBlockEditor` and shown in `StatBlockPanel`. Import maps it only for 2024-ruleset creatures; 2014 creatures and everything else fall back to their DEX modifier.
 - Ability scores: STR/DEX/CON/INT/WIS/CHA
 - Derived: saving throws, skills, senses, languages
+- Ability/save rolling: `StatBlockPanel` wires `AbilityScoreTable`'s `roll-ability`/`roll-save` emits to `usePromptedRoll`, so clicking an ability or save in a monster/NPC sheet rolls it and posts to campaign chat attributed to the creature (`:name` prop). Right-click / long-press opens the advantage-disadvantage picker (`v-roll-mode`). `AbilityScoreTable` only emits — a consumer that renders it without both listeners silently swallows every click (the original bug: tooltips worked on `/monsters/:id`, clicks did nothing); if you add a new consumer, wire both.
 - Resistances / immunities / condition immunities
 - Trait sections: Traits, Actions, Bonus Actions, Reactions, Legendary Actions, Lair Actions, Mythic Actions
 - Spellcasting block (spell list per level)

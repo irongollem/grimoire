@@ -206,7 +206,13 @@
                   <p class="font-bold">{{ lightbox.monster.stat_block.speed }}</p>
                 </div>
               </div>
-              <AbilityScoreTable :scores="lightboxScores" :rounded="false" />
+              <AbilityScoreTable
+                :scores="lightboxScores"
+                :rounded="false"
+                :roll-mode-picker="true"
+                @roll-ability="(_k, label, modifier, m) => rollCheck(modifier, `${label} Check`, m)"
+                @roll-save="(_k, label, bonus, m) => rollCheck(bonus, `${label} Save`, m)"
+              />
               <template v-for="section in lightboxTraitSections" :key="section.label">
                 <div class="border-t border-border pt-3">
                   <p class="text-label md:text-sm text-muted-foreground mb-2">{{ section.label.toUpperCase() }}</p>
@@ -484,6 +490,20 @@ async function rollAttack(attackBonus: number, actionName: string, override: Rol
     senderName: member.value?.name,
   });
   if (result) lastRoll.value = { label, total: result.total };
+}
+
+async function rollCheck(modifier: number, label: string, override: RollMode | null = null) {
+  const mode: RollMode = override ?? "normal";
+  const modeTag = mode === "advantage" ? " (Adv)" : mode === "disadvantage" ? " (Dis)" : "";
+  const fullLabel = `${lightbox.value?.name ?? "Monster"} ${label}${modeTag}`;
+  const result = await promptRoll({
+    counts: { 20: 1 },
+    modifier,
+    label: fullLabel,
+    mode,
+    senderName: member.value?.name,
+  });
+  if (result) lastRoll.value = { label: fullLabel, total: result.total };
 }
 
 async function rollActionDamage(desc: string, actionName: string) {

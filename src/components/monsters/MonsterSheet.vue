@@ -47,7 +47,7 @@
         <!-- Two-column: stat block left, actions right -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
           <!-- Left: stat block panel -->
-          <StatBlockPanel :sb="monster.stat_block" />
+          <StatBlockPanel :sb="monster.stat_block" :name="monster.name" />
 
           <!-- Right: special abilities + actions -->
           <div class="flex flex-col gap-3">

@@ -70,7 +70,7 @@
     <!-- Combat tab -->
     <div v-else-if="activeTab === 'combat'" class="space-y-4">
       <template v-if="npc.stat_block">
-        <StatBlockPanel :sb="npc.stat_block" />
+        <StatBlockPanel :sb="npc.stat_block" :name="npc.name" />
         <TraitList title="Special Abilities" :traits="npc.stat_block.special_abilities" />
         <SpellcastingList :spellcasting="npc.stat_block.spellcasting" />
         <TraitList title="Actions" :traits="npc.stat_block.actions" />

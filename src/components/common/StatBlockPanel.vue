@@ -13,7 +13,14 @@
 
     <!-- Ability scores -->
     <div class="border-b border-primary/20 p-1">
-      <AbilityScoreTable :scores="scoresObj" :saves="savesObj" :rounded="false" />
+      <AbilityScoreTable
+        :scores="scoresObj"
+        :saves="savesObj"
+        :rounded="false"
+        :roll-mode-picker="true"
+        @roll-ability="(_k, label, modifier, mode) => roll(modifier, `${label} Check`, mode)"
+        @roll-save="(_k, label, bonus, mode) => roll(bonus, `${label} Save`, mode)"
+      />
     </div>
 
     <!-- Derived rows -->
@@ -62,6 +69,8 @@ import { computed } from "vue";
 import { skillsToString, formatHitPoints } from "@/lib/utils";
 import type { MonsterStatBlock } from "@/types/monster.types";
 import type { StatBlock } from "@/types/npc.types";
+import type { RollMode } from "@/lib/roller";
+import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
 import type { SaveEntry } from "@/components/common/AbilityScoreTable.vue";
 
@@ -69,7 +78,25 @@ const ABILITY_KEYS = ["str", "dex", "con", "int", "wis", "cha"] as const;
 
 const props = defineProps<{
   sb: MonsterStatBlock | StatBlock;
+  /** Creature name, used to attribute the roll in campaign chat. */
+  name?: string;
 }>();
+
+// Ability/save buttons in the table only emit — without this the clicks were
+// silently dropped everywhere StatBlockPanel is used (#monster sheets, NPCs,
+// wildshape preview). Plain click rolls normal; right-click / long-press picks
+// advantage or disadvantage via the v-roll-mode picker.
+const { promptRoll } = usePromptedRoll();
+
+function roll(modifier: number, label: string, mode?: RollMode | null): void {
+  void promptRoll({
+    counts: { 20: 1 },
+    modifier,
+    label,
+    mode: mode ?? "normal",
+    senderName: props.name,
+  });
+}
 
 function rawScore(key: string): number {
   return Number((props.sb as unknown as Record<string, unknown>)[key]) || 0;

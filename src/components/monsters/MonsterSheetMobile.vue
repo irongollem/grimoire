@@ -187,7 +187,7 @@
 
       <NpcAccordionSection v-model:open="openSections.combat" title="Combat">
         <div class="flex flex-col gap-4">
-          <StatBlockPanel :sb="monster.stat_block" />
+          <StatBlockPanel :sb="monster.stat_block" :name="monster.name" />
           <TraitList title="Special Abilities" :traits="monster.stat_block.special_abilities" />
           <SpellcastingList :spellcasting="monster.stat_block.spellcasting" />
           <TraitList title="Actions" :traits="monster.stat_block.actions" />
