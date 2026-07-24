@@ -98,3 +98,28 @@ describe("monsterImportUpdateFields", () => {
     expect(update.stat_block).toEqual(mapped.stat_block);
   });
 });
+
+describe("mapOpen5eV2Monster — speed", () => {
+  it("prefers native `speed` over `speed_all` (derived half-speeds would break wild shape)", () => {
+    // Open5e v2's speed_all bakes in derived swim/crawl at walk/2 for every
+    // walker; isEligibleWildshapeForm excludes swim/fly forms below druid
+    // level 8, so mapping speed_all made every beast ineligible (#553 fallout).
+    const monster = mapOpen5eV2Monster(
+      record({
+        speed: { walk: 40, unit: "feet", climb: 30 },
+        speed_all: { walk: 40, unit: "feet", climb: 30, swim: 20, crawl: 20, fly: 0, hover: false },
+      }) as Parameters<typeof mapOpen5eV2Monster>[0],
+    );
+    expect(monster.stat_block.speed).toBe("40 ft., climb 30 ft.");
+  });
+
+  it("falls back to speed_all when native speed is absent", () => {
+    const monster = mapOpen5eV2Monster(
+      record({
+        speed: undefined,
+        speed_all: { walk: 30, unit: "feet", swim: 15 },
+      }) as Parameters<typeof mapOpen5eV2Monster>[0],
+    );
+    expect(monster.stat_block.speed).toBe("30 ft., swim 15 ft.");
+  });
+});
