@@ -87,6 +87,12 @@
           <p class="font-cinzel text-2xs text-amber-400/80 mt-1">
             {{ meta.quantity_remaining }} remaining
           </p>
+          <div
+            v-if="grabbedSummary"
+            class="text-caption text-muted-foreground italic mt-1"
+          >
+            Grabbed by {{ grabbedSummary }}
+          </div>
           <div class="flex flex-wrap gap-1.5 mt-1.5">
             <template v-if="linkedPartyMemberId">
               <button
@@ -170,6 +176,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import { IconChevronDown, IconLoot } from '@/lib/icons';
 import ChatItemDropDetails from '@/components/chat/ChatItemDropDetails.vue';
 import EntityCombobox from '@/components/common/EntityCombobox.vue';
@@ -196,6 +203,21 @@ const {
   npcSelectValue?: string;
   timeLabel: string;
 }>();
+
+/** Names of grabbers (with per-person totals) while a stack is partially claimed. */
+const grabbedSummary = computed(() => {
+  const claims = meta.claims;
+  if (!claims?.length) return '';
+  const totals = new Map<string, { name: string; qty: number }>();
+  for (const c of claims) {
+    const existing = totals.get(c.user_id);
+    if (existing) existing.qty += c.qty;
+    else totals.set(c.user_id, { name: c.name, qty: c.qty });
+  }
+  return Array.from(totals.values())
+    .map(t => (t.qty > 1 ? `${t.name} ×${t.qty}` : t.name))
+    .join(', ');
+});
 
 const emit = defineEmits<{
   'toggle-details': [messageId: string];
