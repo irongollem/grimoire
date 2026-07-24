@@ -350,7 +350,7 @@ Players see only recipes the DM has shared with them (via `player_visible_to`) v
 - **Per-character spell management** — spell view adapts to caster type (spellbook/prepared/known/none), shows multiclass-accurate slot tables, and tracks prepared vs known separately from innate spells.
 - **Player-gated recipe visibility** — each recipe has a `player_visible_to` array; the DM controls visibility per recipe per party member without separate publish flows.
 - **Crafting proficiency and tools matrix** — the attempt dialog separately handles the three states: proficiency (adds bonus), tools present (normal roll), tools absent (disadvantage). A recipe can hard-lock to require proficiency or tools.
-- **Campaign chat integration** — item drops, coin drops, item-sell offers, and crafting outcomes all post messages to the campaign chat feed.
+- **Campaign chat integration** — item drops, coin drops, item-sell offers, and crafting outcomes all post messages to the campaign chat feed. Clicking a dropped vault item's name (or the "Show Details" toggle) expands its stat block/description inline — available whether or not the item has already been grabbed (`ChatItemDropMessage.vue` → `ChatItemDropDetails.vue`, RLS-gated so unclaimed players still see a "claim it to reveal" placeholder).
 - **Scriptorium export** — any item or spell can be sent to the Scriptorium as a formatted document.
 
 ---

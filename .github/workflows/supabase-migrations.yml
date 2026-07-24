@@ -62,3 +62,23 @@ jobs:
 
       - name: Push migrations to production
         run: supabase db push
+
+      # A data migration that strands text-id references to shared content
+      # (the #553 "Unknown creature" class) fails its own deploy here instead
+      # of surfacing as a player report. Runs the checked-in integrity query
+      # against production via the Management API (runners have no direct DB
+      # connectivity); any returned row is a dangling-reference violation.
+      - name: Verify content referential integrity
+        run: |
+          payload=$(jq -Rs '{query: .}' < supabase/checks/content_integrity.sql)
+          result=$(curl -sf -X POST \
+            "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_ID/database/query" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$payload")
+          echo "$result"
+          violations=$(echo "$result" | jq 'length')
+          if [ "$violations" != "0" ]; then
+            echo "::error::Dangling shared-content references after migration — see rows above (supabase/checks/content_integrity.sql)"
+            exit 1
+          fi

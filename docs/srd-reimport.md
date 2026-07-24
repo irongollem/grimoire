@@ -81,7 +81,11 @@ owned by a separate in-flight change.
 
 ## Verifying a re-run was safe
 
-After any bulk seed/import:
+After any bulk seed/import (and automatically after every migration deploy —
+the supabase-migrations workflow runs
+[`supabase/checks/content_integrity.sql`](../supabase/checks/content_integrity.sql)
+against production and fails the deploy on any dangling shared-content
+reference):
 
 1. Row counts shouldn't jump beyond `inserted` — `select count(*) from srd_spells;` before/after.
 2. `select id, name from srd_spells where mechanics_reviewed and updated_at > now() - interval '5 minutes';` should return nothing after a spell re-import (reviewed rows must never show as just-updated).

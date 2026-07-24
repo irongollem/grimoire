@@ -22,7 +22,17 @@
         class="w-full rounded mb-2 object-cover max-h-40"
       />
       <div class="flex items-baseline gap-2 mb-1">
-        <span class="text-body font-semibold text-foreground">
+        <component
+          :is="meta.item_id ? 'button' : 'span'"
+          :type="meta.item_id ? 'button' : undefined"
+          class="text-body font-semibold text-foreground text-left"
+          :class="
+            meta.item_id
+              ? 'hover:text-amber-400 transition-colors cursor-pointer'
+              : ''
+          "
+          @click="meta.item_id && emit('toggle-details', messageId)"
+        >
           {{ meta.quantity > 1 ? `${meta.quantity}× ` : "" }}{{ meta.item_name }}
           <span
             v-if="
@@ -32,7 +42,7 @@
             "
             class="font-cinzel text-2xs text-amber-400/70 ml-1"
           >({{ meta.quantity_remaining }} left)</span>
-        </span>
+        </component>
         <span
           v-if="meta.item_rarity"
           class="font-cinzel text-2xs text-muted-foreground capitalize tracking-wide"
