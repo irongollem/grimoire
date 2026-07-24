@@ -18,6 +18,36 @@ export function getOptionalRule(key: string): OptionalRuleDef | undefined {
   return REGISTRY.get(key);
 }
 
+// ── Turn Timer ────────────────────────────────────────────────────────────────
+registerOptionalRule({
+  key: "turn_timer",
+  name: "Turn Timer",
+  summary:
+    "Put a clock on each combatant's turn. The DM sets how long a turn lasts; a countdown shows in the runner and on every player's encounter panel.",
+  description:
+    "Keeps combat moving by giving each combatant a fixed amount of time to decide and take their turn.\n\n" +
+    "The DM sets the duration in **Campaign Settings → Rules**. When combat is live, a countdown appears in the encounter runner and on each player's encounter panel; it **resets automatically at the start of every turn**.\n\n" +
+    "It's a *soft* timer — it flashes red when time runs out, but it never force-ends a turn or takes an action for you. Use it as a gentle nudge, not a hard cut-off.",
+  dmOnly: false,
+  defaultEnabled: false,
+  config: [
+    { key: "seconds", label: "Seconds per turn", type: "number", default: 60, min: 5, max: 600, unit: "seconds" },
+  ],
+});
+
+// ── Random Initiative ─────────────────────────────────────────────────────────
+registerOptionalRule({
+  key: "random_initiative",
+  name: "Random Initiative Each Round",
+  summary:
+    "Re-roll everyone's initiative at the start of every round, so the turn order is never the same twice.",
+  description:
+    "By default initiative is rolled once and the order holds for the whole fight. With this rule enabled, **every combatant's initiative is re-rolled and the order re-sorted at the start of each new round**, keeping combat unpredictable and tense.\n\n" +
+    "The re-rolls happen automatically when the turn wraps back to the top of the order — no prompts, even in physical-dice mode — and each new round starts from the top of the freshly-shuffled order.",
+  dmOnly: false,
+  defaultEnabled: false,
+});
+
 // ── Multiclass prerequisites ──────────────────────────────────────────────────
 registerOptionalRule({
   key: "ignore_multiclass_prereqs",

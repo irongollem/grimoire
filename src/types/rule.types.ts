@@ -112,14 +112,31 @@ export interface TrackerState {
 
 // ── Built-in optional rule toggle (campaign_rules table) ──────────────────────
 
+/** Per-campaign config for a configurable optional rule, keyed by config field.
+ *  All current fields are numeric (e.g. the turn timer's duration in seconds). */
+export type RuleConfig = Record<string, number>;
+
 export interface CampaignRule {
   campaign_id: string;
   rule_key: string;
   enabled: boolean;
+  config: RuleConfig | null;
   updated_at: string;
 }
 
 // ── Built-in optional rule module definition (frontend registry only) ─────────
+
+/** A single tunable parameter a rule exposes to the DM (rendered as a number
+ *  input in Campaign Settings → Rules, stored in `campaign_rules.config`). */
+export interface RuleConfigField {
+  key: string;
+  label: string;
+  type: "number";
+  default: number;
+  min?: number;
+  max?: number;
+  unit?: string;   // e.g. "seconds" — shown next to the input
+}
 
 export interface OptionalRuleDef {
   key: string;
@@ -130,4 +147,6 @@ export interface OptionalRuleDef {
   /** When true, treat the rule as enabled if no campaign_rules row exists (opt-out model). */
   defaultEnabled?: boolean;
   tracker?: Omit<TrackerDef, "dmButtons">;  // pre-configured tracker; dmButtons fixed per module
+  /** Tunable parameters shown when the rule is enabled; persisted to `config`. */
+  config?: RuleConfigField[];
 }

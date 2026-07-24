@@ -62,6 +62,27 @@
             >active</span>
           </div>
           <p class="text-caption text-muted-foreground mt-0.5">{{ def.summary }}</p>
+
+          <!-- Configurable parameters — shown only while the rule is enabled -->
+          <div v-if="def.config && isEnabled(def.key)" class="mt-2 flex flex-wrap gap-3">
+            <label
+              v-for="field in def.config"
+              :key="field.key"
+              class="flex items-center gap-2 text-caption text-muted-foreground"
+            >
+              <span>{{ field.label }}</span>
+              <input
+                type="number"
+                :min="field.min"
+                :max="field.max"
+                :value="configValue(def.key, field.key)"
+                :disabled="savingConfig === def.key"
+                class="w-20 bg-background border border-border rounded-md px-2 py-1 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
+                @change="onConfigChange(def, field, $event)"
+              />
+              <span v-if="field.unit">{{ field.unit }}</span>
+            </label>
+          </div>
         </div>
       </div>
     </div>
@@ -71,16 +92,25 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { listOptionalRules } from "@/rules/optionalRules";
-import { useOptionalRules, useToggleOptionalRule, isRuleEffectivelyEnabled } from "@/composables/useOptionalRules";
+import {
+  useOptionalRules,
+  useToggleOptionalRule,
+  useSetRuleConfig,
+  isRuleEffectivelyEnabled,
+  resolveRuleConfig,
+} from "@/composables/useOptionalRules";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUpdateCampaign } from "@/composables/useCampaigns";
 import { DEFAULT_RULESET, RULESET_OPTIONS, type RulesetKey } from "@/types/ruleset.types";
+import type { OptionalRuleDef, RuleConfigField } from "@/types/rule.types";
 
 const allRules = listOptionalRules();
 const { data: campaignRules } = useOptionalRules();
 const { mutateAsync: toggleRule } = useToggleOptionalRule();
+const { mutateAsync: setRuleConfig } = useSetRuleConfig();
 
 const toggling = ref<string | null>(null);
+const savingConfig = ref<string | null>(null);
 const campaign = useCampaignStore();
 const { mutateAsync: updateCampaign } = useUpdateCampaign();
 const savingRuleset = ref(false);
@@ -104,12 +134,30 @@ function isEnabled(ruleKey: string): boolean {
   return isRuleEffectivelyEnabled(campaignRules.value, ruleKey);
 }
 
+function configValue(ruleKey: string, fieldKey: string): number {
+  return resolveRuleConfig(campaignRules.value, ruleKey)[fieldKey];
+}
+
 async function toggle(ruleKey: string) {
   toggling.value = ruleKey;
   try {
-    await toggleRule({ ruleKey, enabled: !isEnabled(ruleKey) });
+    // Preserve any tuned config across the on/off flip.
+    const existing = (campaignRules.value ?? []).find((r) => r.rule_key === ruleKey)?.config ?? null;
+    await toggleRule({ ruleKey, enabled: !isEnabled(ruleKey), config: existing });
   } finally {
     toggling.value = null;
+  }
+}
+
+async function onConfigChange(def: OptionalRuleDef, field: RuleConfigField, e: Event) {
+  const raw = Number((e.target as HTMLInputElement).value);
+  const clamped = Math.min(field.max ?? Infinity, Math.max(field.min ?? -Infinity, Math.round(raw)));
+  const next = { ...resolveRuleConfig(campaignRules.value, def.key), [field.key]: clamped };
+  savingConfig.value = def.key;
+  try {
+    await setRuleConfig({ ruleKey: def.key, enabled: isEnabled(def.key), config: next });
+  } finally {
+    savingConfig.value = null;
   }
 }
 </script>
