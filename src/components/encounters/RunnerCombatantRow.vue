@@ -40,13 +40,7 @@
 
       <!-- Initiative -->
       <div class="init-cell" @click.stop>
-        <input
-          type="number"
-          :value="combatant.initiative ?? ''"
-          placeholder="—"
-          class="init-input"
-          @change="(e) => store.setInitiative(combatant.instance_id, Number((e.target as HTMLInputElement).value))"
-        />
+        <RunnerInitiativeField :combatant="combatant" />
       </div>
 
       <!-- Name + type badge -->
@@ -169,6 +163,7 @@ import { IconHide, IconReveal } from '@/lib/icons';
 import FocalImage from "@/components/common/FocalImage.vue";
 import ExhaustionChip from "@/components/common/ExhaustionChip.vue";
 import ConditionPicker from "@/components/encounters/ConditionPicker.vue";
+import RunnerInitiativeField from "@/components/encounters/RunnerInitiativeField.vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useRuleset } from "@/composables/useRuleset";
 import { getExhaustionLevel, getConditionDescription } from "@/lib/conditions";
@@ -298,10 +293,6 @@ function toggleDetail() {
   @apply w-11 text-muted-foreground font-normal bg-transparent border-transparent hover:bg-muted hover:border-border focus:bg-muted focus:border-border;
 }
 
-.init-input {
-  @apply w-10 text-center bg-muted border border-border rounded px-1 py-0.5 font-cinzel text-sm font-bold text-foreground focus:outline-none focus:ring-1 focus:ring-ring;
-}
-
 @keyframes damage-flash {
   0%   { opacity: 1; transform: translateX(-50%) translateY(0); }
   70%  { opacity: 1; transform: translateX(-50%) translateY(-0.25rem); }
@@ -375,7 +366,7 @@ function toggleDetail() {
 
 .combatant-row {
   display: grid;
-  grid-template-columns: 2.5rem 3.5rem 1fr 10rem 3rem 1fr;
+  grid-template-columns: 2.5rem 4.75rem 1fr 10rem 3rem 1fr;
   gap: 0.5rem;
   @apply pr-3 py-0 border-b border-border/50 items-stretch relative transition-colors hover:bg-muted/20 cursor-pointer;
 }

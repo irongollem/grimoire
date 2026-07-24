@@ -106,7 +106,7 @@ The builder (`EncounterDetail.vue`) is the pre-combat setup form. It has two mod
 - Checkbox selection of party members from the Party Tracker
 - Companions are shown in a separate subsection
 - Each selected member/companion gets a faction assignment dropdown (colour-coded by faction colour)
-- Player initiative starts blank each encounter (no longer pre-seeded from `party_members.current_initiative`, which carried stale values between fights — see #504). Players roll their own from the player encounter panel; the runner ingests the value live via its `party_members` subscription. The DM's "Roll Initiative" still fills in anyone who hasn't rolled (it skips players who already have a value)
+- Player initiative starts blank each encounter (no longer pre-seeded from `party_members.current_initiative`, which carried stale values between fights — see #504). Players roll their own from the player encounter panel; the runner ingests the value live via its `party_members` subscription. The DM's "Roll Initiative" still fills in anyone who hasn't rolled (it skips **every** combatant that already has a value, not just players)
 
 ### Combatants (`EncounterCombatants.vue`)
 
@@ -190,10 +190,11 @@ Shown on the read-only encounter sheet and computed live in the editor. Implemen
 
 ## Encounter Runner (Live Combat)
 
-The runner is a full-screen layout at `/encounters/:id/run`. It loads from the Pinia store `useEncounterRunStore` and is composed of four components:
+The runner is a full-screen layout at `/encounters/:id/run`. It loads from the Pinia store `useEncounterRunStore` and is composed of these components:
 
 - `EncounterRunner.vue` — shell: top bar, layout wiring, end/abandon, live sync
-- `RunnerCombatantList.vue` — the initiative order list
+- `RunnerCombatantList.vue` — the initiative order list (desktop grid rows / mobile cards)
+- `RunnerInitiativeField.vue` — initiative input + per-combatant roll button, shared by `RunnerCombatantRow.vue` and `RunnerCombatantCard.vue`. Note the desktop grid template lives in **both** `RunnerCombatantList.vue` (header) and `RunnerCombatantRow.vue` (rows) — they must be changed together or the columns drift apart
 - `RunnerEntityDetail.vue` — slide-in stat block panel
 - `RunnerDmTools.vue` — events + traps sidebar
 - `RunnerBossMechanics.vue` — surprise panel, lair actions, legendary actions
@@ -212,12 +213,13 @@ Party member HP, conditions, death saves, and curses are seeded from `party_memb
 - Back to Builder link
 - Round counter with Previous Turn / Next Turn buttons
 - Encounter name
-- Roll Initiative button (pre-combat only) — rolls `d20 + initiativeModifier(combatant)` per combatant. `initiativeModifier()` (`src/lib/combatantSort.ts`) uses a monster's 2024 `initiative_bonus` when the stat block declares one, and the plain DEX modifier for everyone else (2014 monsters, NPCs, players)
+- Roll Initiative button (pre-combat only) — rolls `d20 + initiativeModifier(combatant)` for every combatant that **doesn't have an initiative yet**; a value already in the list (a player's own roll, a monster the DM typed by hand) is never overwritten, whatever its type. `initiativeModifier()` (`src/lib/combatantSort.ts`) uses a monster's 2024 `initiative_bonus` when the stat block declares one, and the plain DEX modifier for everyone else (2014 monsters, NPCs, players). The d20 itself goes through `usePromptedRoll`, so a DM on **physical** dice mode gets one manual-entry prompt per combatant (labelled with its name) instead of an auto-roll — the runner registers that roller on the store via `setInitiativeRoller()`; the store falls back to `Math.random()` when none is registered. Rolls are silent (not posted to chat) — the order reaches players through the live encounter state, and posting each monster's roll would leak hidden combatants. Cancelling a prompt stops the run and leaves the remaining combatants blank, so pressing the button again picks up where it left off. Mid-combat spawns keep their automatic roll rather than interrupting the turn with a modal
+- Per-combatant roll button (pre-combat only) — a die button next to every initiative input in the combatant list (`RunnerInitiativeField.vue`, shared by the desktop row and the mobile card), calling `store.rollInitiative(instanceId)`. Unlike the top-bar button this is an explicit request, so it **does** replace an existing value (it re-rolls a single monster whose roll you don't like). It disappears once combat starts — the order is locked and a stray re-roll would shuffle the turn everyone is standing in; the initiative input stays editable for a manual correction. `store.rollingInitiative` is the shared busy flag: while a manual-entry prompt is open (a single global slot) the top-bar and every per-combatant button disable together
 - Start Combat button (only when the encounter is live; disabled in pre-combat mode)
 - Dice Roller widget
 - Go Live / Live badge (only when a campaign is active)
-- Abandon — ends without syncing HP or marking discoveries
-- End Combat — syncs HP/conditions/death saves/curses back to `party_members` and returns to the encounter sheet
+- Abandon — ends without syncing HP or revealing/marking NPCs
+- End Combat — syncs HP/conditions/death saves/curses back to `party_members`, marks fallen roster NPCs dead, reveals every faced NPC to the party, and returns to the encounter sheet
 
 **Initiative order (combatant list):**
 
@@ -241,17 +243,28 @@ Per combatant row:
 
 **Turn management:**
 
-`nextTurn()` skips dead monsters (HP = 0) while always including players. Round number increments when the turn wraps back to position 0. `prevTurn()` steps backwards. At the start of each combatant's turn: their reaction is restored and their legendary action pool is refilled.
+`nextTurn()` skips dead monsters (HP = 0) while always including players. Round number increments when the turn wraps back to position 0. `prevTurn()` steps backwards. At the start of each combatant's turn: their reaction is restored and their legendary action pool is refilled (extracted as `refreshTurnStart()` in the store so the round-wrap reshuffle path reuses it).
+
+**Optional combat rules (Turn Timer + Random Initiative):**
+
+Two encounter mechanics live in the built-in optional-rule registry (`src/rules/optionalRules.ts`), toggled per campaign in **Campaign Settings → Rules** like every other `OptionalRuleDef`. Both `dmOnly: false` so they also list in the player Reliquary; both default off.
+
+- **`turn_timer`** — a _configurable_ rule (the first one). The DM sets **seconds per turn** (default 60, clamped 5–600). Config is the general mechanism added here: `campaign_rules` gained a nullable `config jsonb` column (migration `20260724000006`), `OptionalRuleDef.config?: RuleConfigField[]` declares the tunable fields, `CampaignRule.config: RuleConfig | null` holds the stored values, and `resolveRuleConfig(rows, key)` (`useOptionalRules`) merges stored values over registry defaults (dropping any non-numeric stray). `RulesTab.vue` renders a number input per field only while the rule is enabled and persists via `useSetRuleConfig` (preserves `enabled`); the toggle (`useToggleOptionalRule`) now passes the existing `config` through so flipping the switch never wipes tuned values. The countdown itself is `TurnTimer.vue` (`src/components/encounters/`) — a purely-visual, self-contained clock taking `:seconds` + `:reset-key` (round + active combatant instance id). It restarts whenever the key changes, flashes amber ≤10s, pulses red at 0, and never force-ends a turn. Rendered in the runner top bar (`EncounterRunner.vue`, gated on `store.round > 0`) and on the player panel (`PlayerEncounterPanel.vue`, gated on `!isInLobby`). Each side runs its own copy — a sub-second drift is fine for a nudge, so no start-timestamp is synced.
+- **`random_initiative`** — a plain boolean. When on, the store re-rolls **every** combatant's initiative and re-sorts at the start of each new round, then hands the turn to the top of the fresh order. Implemented as `store.reshuffleInitiative()` (silent `autoRollInitiative` for all — deliberately **never** the physical-dice prompt, since it fires once per round; a modal storm each round would be unusable), called from `nextTurn()` on the round-wrap branch when `store.randomizeInitiativeEachRound` is set. The runner keeps that store flag in sync with the campaign rule via a `watch` on `isRuleEffectivelyEnabled(..., "random_initiative")` → `store.setRandomizeInitiativeEachRound()`, so toggling mid-fight takes effect on the next wrap. Live sync is automatic: the reshuffled initiatives ride the existing `combatants_live` push, so players see the new order without extra plumbing. Both the flag and reshuffle are reset in `store.reset()`.
 
 **Wildshape tracking:**
 
-When a player enters wildshape (from `RunnerEntityDetail`), the combatant gets a `wildshape` overlay. The overlay stores beast HP, max HP, and AC independently — the player's real stats are never modified. Damage goes to beast HP first; excess overflows to real HP on revert (5e RAW). The avatar switches to the beast portrait. Reverting clears the overlay and restores display to real stats.
+When a player enters wildshape (from `RunnerEntityDetail`), the combatant gets a `wildshape` overlay. The overlay stores beast HP, max HP, and AC independently — the player's real stats are never modified. Damage lands on temp HP first, then beast HP; excess overflows to real HP on revert (5e RAW). The avatar switches to the beast portrait. Reverting clears the overlay and restores display to real stats.
 
 The DM picks the form via `RunnerPcWildshape` ("Choose Form"). The picker is **teleported to `<body>`** as a `position: fixed` floating popover anchored to the toggle button (`useAnchoredPopover` + `computeAnchoredPosition` in `src/lib/floatingPosition.ts`). This is deliberate: the detail panel's `.detail-panel`/`.panel-shell` ancestors are `overflow: hidden`, so an inline (or `position:absolute`) picker gets clipped and appears to render nothing — the original #503 bug. Teleporting sidesteps all ancestor clipping. The available list is the same discovered/pinned-gated set as the player sheet; when it's empty the popover shows a "📌 Pin a form" affordance listing every _eligible_ beast (CR/speed rules only), and pinning one via `useTogglePinnedForm` unlocks it immediately without leaving the runner. The eligibility rules (max CR, beast-only, no fly/swim below level 8) live in `src/lib/wildshape.ts` (`wildshapeMaxCr` / `isEligibleWildshapeForm`) and are shared by the runner, the player character sheet and the player bestiary.
 
 **Temp HP:**
 
-Stored per combatant. Temp HP absorbs damage first (regardless of wildshape state). Does not stack — setting temp HP takes the higher of existing vs new value. Shown as a sky-blue "+N tmp" badge.
+Temp HP absorbs damage first, in beast form as well as normal form — it is a buffer in front of whichever HP pool is active, and Wild Shape does not remove it. Does not stack: a new source only replaces the pool if it is larger. Shown as a sky-blue "+N tmp" badge.
+
+The arithmetic (temp → beast HP → real HP, with overflow on revert) lives in `src/lib/hitPoints.ts` (`applyDamage` / `applyHealing` / `betterTempHp`) and is shared by `encounterRun.adjustHp`, the player character sheet (`PlayerCharacterHeader`) and the DM party tracker (`PartyTrackerRow`), so all three agree. `hitPoints.test.ts` covers the beast-form and overflow cases.
+
+**Where a PC's temp HP comes from during a run:** the party member row is the authority. `EncounterRunView.initStore` seeds `temp_hp` onto the player combatant at init, `EncounterRunner`'s `party_members` realtime subscription ingests later changes via `store.ingestTempHp` (assign-only, no write-back — the DB is the source), and the runner row/card read `displayTempHp` from the live party row exactly as they already do for HP, AC and conditions. Without all three a player's temp HP was invisible to the DM, and the first HP write persisted `temp_hp: 0` over it.
 
 **Concentration:**
 
@@ -275,8 +288,10 @@ For each combatant type the panel shows:
 
 - _Monsters_: portrait, type/alignment, AC/HP/Speed/CR stats row, full ability score table (with clickable roll buttons), skills grid, senses/languages/resistances/immunities, full trait sections with inline attack roll and damage roll buttons, spellcasting list, legendary action pip tracker with "Use 1" button
 - _NPCs_: portrait, race/occupation/alignment, stat block if defined (same sections as monsters), fallback message if no stat block
-- _Players_: portrait, species/class/level, AC/HP/Speed/Prof Bonus, full ability scores with saves, skills grid with proficiency indicators, melee attacks section, death saves (tracked live with success/failure pips)
+- _Players_: portrait, species/class/level, AC/HP/Speed/Prof Bonus, full ability scores with saves, skills grid with proficiency indicators, melee + ranged attacks section, death saves (tracked live with success/failure pips)
 - _Companions_: portrait, type, AC/HP/Speed, ability scores if stat block defined, trait sections
+
+**Ammunition (`useAmmoConsumption` + `src/lib/ammunition.ts`):** Firing a ranged weapon depletes the carried ammo — arrows/bolts/bullets/needles/darts/firearm rounds — resolved from the member's inventory (quiver/container → belt → backpack) or, for self-charged weapons (laser rifle, internal-magazine firearms), the weapon's own `charges`. `weaponAmmoTag`/`ammoTagFromName` (pure, unit-tested) classify weapons and stacks; `useAmmoConsumption` owns selection + the decrement and is shared by both the DM runner (`RunnerPcAttacks.vue`) and the player's own combat tab (`PlayerCombatTab.vue`) so the two paths cannot diverge. Both surfaces disable the Attack button and show a remaining count when a weapon needs ammo it doesn't have.
 
 **Roll mode bar** (top of detail panel, per combatant):
 
@@ -319,8 +334,9 @@ Bidirectional HP sync: while live, player HP changes in the runner are debounced
 
 **End / Abandon:**
 
-- **End Combat**: confirms, cancels any pending HP debounce, ends the live state, syncs all player combatants' HP + conditions + curses + death saves back to `party_members`, resets the store, navigates to the encounter sheet.
-- **Abandon**: ends live without syncing HP; useful when a combat didn't actually happen or was a mistake.
+- **End Combat**: confirms, cancels any pending HP debounce, ends the live state, syncs all player combatants' HP + conditions + curses + death saves back to `party_members`, then syncs roster NPCs back to their records, resets the store, navigates to the encounter sheet.
+  - **Roster-NPC conclusion sync** (`src/lib/npcEncounterSync.ts`, `computeNpcConclusionUpdates` + test): for every combatant carrying an `npc_id` (roster NPCs run as `type: "monster"` + `npc_id`, never `monster_id`), any that fell (`hp <= 0`) is written `status: "dead"`, and **every** faced NPC — living or dead — is revealed to the whole party via a _widening_ union on `npcs.player_visible_to` (+ `player_visible_fields` gains `name`/`portrait`, plus `status` for the dead) so they surface in the player portal. Idempotent (already-dead + already-revealed → no write); reveal is skipped when there is no party, but death is still marked. Monster combatants have no persistent per-instance record and are untouched. This is separate from the monster **bestiary** discovery, which fires on **Go Live** (`discovered_monsters`) and covers `monster_id` combatants only. Regression note: end-combat used to auto-discover revealed monsters too; commit `98e05020` moved that to Go Live, and NPC combatants were never covered by either path until this sync.
+- **Abandon**: ends live without syncing HP or revealing/marking NPCs; useful when a combat didn't actually happen or was a mistake.
 
 ### Player View
 
@@ -348,11 +364,13 @@ Players see a live encounter panel in their portal. On mobile it renders as a fu
 
 HP bar colour thresholds: >75% green, >50% amber, >25% red, 0 grey.
 
-**Clicking a combatant** opens a lightbox:
+**Clicking a combatant** opens a lightbox. Every visible row is tappable — a tap must never be a no-op, since enlarging the portrait to read a face is the whole point:
 
-- Monster: portrait + player notes widget (personal observations, stored per-player per-monster)
-- NPC: portrait (if DM enabled it in NPC visibility settings), relationship badge, status dot, occupation, personal connection note (DM-written per PC), player notes widget, star rating (1–5 relevance)
 - Player / Companion: party member lightbox (portrait, stats, conditions, etc.)
+- NPC the party has already met — i.e. present in the `get_player_visible_npcs` projection (`useSharedNpcs`): `PlayerNpcLightbox` — portrait (if the DM enabled it in NPC visibility settings), relationship badge, status dot, occupation, personal connection note (DM-written per PC), player notes widget, star rating (1–5 relevance)
+- Everything else — monsters, and NPCs the party has **not** met: `EncounterCombatantLightbox` — enlarged portrait + name straight off the live combatant, plus a player notes widget keyed on `npc_id`/`monster_id` when one is present
+
+That last fallback matters: an enemy NPC the DM revealed only inside the encounter is not in the player's NPC roster, so there is nothing to look up. The live combatant already carries the name, portrait and focal point the row is drawing, and the DM authorised showing it by setting `reveal_state` — so the lightbox renders from the combatant directly. Never gate the player panel's NPC lookup on the raw `npcs` table (`useNpcs`): RLS there requires the NPC to list this player in `player_visible_to`, which is a different visibility axis than encounter reveal, and it also hands the client DM-only columns and the true identity of disguised NPCs.
 
 ---
 

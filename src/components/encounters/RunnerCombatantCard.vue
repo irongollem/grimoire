@@ -63,16 +63,10 @@
 
     <!-- Row 2: stats (init input + HP / max + AC) -->
     <div class="mc-stats" @click.stop>
-      <label class="mc-stat-init">
+      <div class="mc-stat-init">
         <span class="mc-stat-label">INIT</span>
-        <input
-          type="number"
-          :value="combatant.initiative ?? ''"
-          placeholder="—"
-          class="init-input"
-          @change="(e) => store.setInitiative(combatant.instance_id, Number((e.target as HTMLInputElement).value))"
-        />
-      </label>
+        <RunnerInitiativeField :combatant="combatant" />
+      </div>
       <div class="mc-stat-hp">
         <span class="mc-stat-label">HP</span>
         <span class="mc-stat-value">{{ displayHp }}<span class="mc-stat-sep">/</span>{{ displayMaxHp }}</span>
@@ -160,6 +154,7 @@ import { IconHide, IconReveal } from '@/lib/icons';
 import FocalImage from "@/components/common/FocalImage.vue";
 import ExhaustionChip from "@/components/common/ExhaustionChip.vue";
 import ConditionPicker from "@/components/encounters/ConditionPicker.vue";
+import RunnerInitiativeField from "@/components/encounters/RunnerInitiativeField.vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useRuleset } from "@/composables/useRuleset";
 import { getExhaustionLevel, getConditionDescription } from "@/lib/conditions";
@@ -272,10 +267,6 @@ function toggleDetail() {
 .reaction-used  { @apply bg-muted text-muted-foreground/40 border-border line-through hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/30; }
 
 /* ── Shared HP styles ───────────────────────────────────────────────────── */
-.init-input {
-  @apply w-10 text-center bg-muted border border-border rounded px-1 py-0.5 font-cinzel text-sm font-bold text-foreground focus:outline-none focus:ring-1 focus:ring-ring;
-}
-
 .hp-btn {
   @apply w-6 h-6 rounded bg-muted border border-border font-cinzel font-bold text-sm flex items-center justify-center hover:bg-card transition-colors;
 }
@@ -402,6 +393,9 @@ function toggleDetail() {
 .mc-stats {
   display: flex;
   align-items: center;
+  /* The INIT group grew a roll button — wrap rather than overflow on the
+     narrowest phones. */
+  flex-wrap: wrap;
   gap: 0.75rem;
   padding-left: 3.125rem;
   font-family: var(--font-cinzel, serif);

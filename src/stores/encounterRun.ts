@@ -8,12 +8,20 @@ import type { PartyMemberUpdate } from "@/types/party.types";
 import { sizeToFootprint } from "@/lib/tokenFootprint";
 import { sortCombatantsByInitiative, initiativeModifier } from "@/lib/combatantSort";
 import { hitPointsToMax } from "@/lib/dice";
+import { applyDamage, applyHealing, betterTempHp, type HpPools } from "@/lib/hitPoints";
 
 /** Persists a player-combatant change to party_members and invalidates the
  *  party query cache. The store stays UI-only — the actual DB write + cache
  *  invalidation is owned by a TanStack Query mutation registered by the
  *  encounter runner via `setPersistHandler`. */
 export type PersistPlayerHandler = (partyMemberId: string, patch: PartyMemberUpdate) => void;
+
+/** Rolls one combatant's initiative. Registered by the encounter runner so the
+ *  DM's dice-mode preference is honoured — in "physical" mode this resolves via
+ *  the manual-entry prompt instead of Math.random(). Returns null when the DM
+ *  cancels the prompt. Without a registered roller the store falls back to an
+ *  automatic d20 (used by tests and by any non-UI caller). */
+export type InitiativeRoller = (combatant: RunCombatant) => Promise<number | null>;
 
 export const useEncounterRunStore = defineStore("encounterRun", () => {
   /** Registered by the encounter runner; routes persistence through the
@@ -22,6 +30,14 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
 
   function setPersistHandler(handler: PersistPlayerHandler | null) {
     persistHandler = handler;
+  }
+
+  /** Registered by the encounter runner; routes initiative rolls through
+   *  `usePromptedRoll` so physical-dice mode prompts the DM for each result. */
+  let initiativeRoller: InitiativeRoller | null = null;
+
+  function setInitiativeRoller(roller: InitiativeRoller | null) {
+    initiativeRoller = roller;
   }
 
   /** The store is the immediate source of truth for DM display; this call
@@ -57,22 +73,94 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
 
   const activeCombatant = computed(() => sortedCombatants.value[activeIndex.value] ?? null);
 
-  function rollInitiative(instanceId: string) {
-    const c = combatants.value.find((x) => x.instance_id === instanceId);
+  /** Automatic d20 + modifier — the fallback when no roller is registered, and
+   *  what mid-combat spawns use (a modal per spawned goblin would stall the turn). */
+  function autoRollInitiative(c: Pick<RunCombatant, "dex_mod" | "initiative_bonus">): number {
+    return Math.floor(Math.random() * 20) + 1 + initiativeModifier(c);
+  }
+
+  function rollOneInitiative(c: RunCombatant): Promise<number | null> {
+    return initiativeRoller ? initiativeRoller(c) : Promise.resolve(autoRollInitiative(c));
+  }
+
+  /** When true, every combatant's initiative is re-rolled and the order
+   *  re-sorted at the start of each new round (the "Random Initiative Each
+   *  Round" optional rule). Set by the runner from the campaign rule toggle. */
+  const randomizeInitiativeEachRound = ref(false);
+
+  function setRandomizeInitiativeEachRound(value: boolean) {
+    randomizeInitiativeEachRound.value = value;
+  }
+
+  /** Refill the per-turn pools a combatant regains at the start of its turn
+   *  (5e RAW: reaction resets, legendary actions refill). */
+  function refreshTurnStart(c: RunCombatant | undefined) {
     if (!c) return;
-    c.initiative = Math.floor(Math.random() * 20) + 1 + initiativeModifier(c);
-  }
-
-  function rollAllInitiatives() {
-    for (const c of combatants.value) {
-      if (c.type === "player" && c.initiative !== null) continue; // keep player-set initiatives
-      c.initiative = Math.floor(Math.random() * 20) + 1 + initiativeModifier(c);
+    c.reactionUsed = false;
+    if (typeof c.legendary_action_cap === "number") {
+      c.legendary_actions_remaining = c.legendary_action_cap;
     }
-    started.value = true;
   }
 
-  function startCombat() {
-    if (!started.value) rollAllInitiatives();
+  /** Re-roll everyone's initiative silently (auto d20 — never a physical-dice
+   *  prompt, since this fires once per round) and hand the turn to the top of
+   *  the freshly-sorted order. */
+  function reshuffleInitiative() {
+    for (const c of combatants.value) {
+      c.initiative = autoRollInitiative(c);
+    }
+    const sorted = sortedCombatants.value;
+    const firstAlive = sorted.findIndex((c) => c.hp > 0 || c.type === "player");
+    activeIndex.value = firstAlive >= 0 ? firstAlive : 0;
+    refreshTurnStart(sorted[activeIndex.value]);
+  }
+
+  /** True while a roll is in flight. In physical-dice mode that means a
+   *  manual-entry prompt is open, so every roll control (top bar + per-combatant)
+   *  disables until it's answered — the prompt is a single global slot. */
+  const rollingInitiative = ref(false);
+
+  /** Rolls (or re-rolls) one combatant — the per-row button. Unlike
+   *  `rollAllInitiatives` this is an explicit request, so it does replace an
+   *  existing value. */
+  async function rollInitiative(instanceId: string) {
+    const c = combatants.value.find((x) => x.instance_id === instanceId);
+    if (!c || rollingInitiative.value) return;
+    rollingInitiative.value = true;
+    try {
+      const rolled = await rollOneInitiative(c);
+      if (rolled !== null) c.initiative = rolled;
+    } finally {
+      rollingInitiative.value = false;
+    }
+  }
+
+  /** Fills in everyone who doesn't have an initiative yet. Never overwrites a
+   *  value that's already there — a player's own roll, a monster the DM rolled
+   *  or typed by hand. Rolls sequentially because physical-dice mode prompts the
+   *  DM once per combatant; cancelling stops the run and leaves the rest blank
+   *  so the button can be pressed again to pick up where it left off. */
+  async function rollAllInitiatives() {
+    if (rollingInitiative.value) return;
+    rollingInitiative.value = true;
+    try {
+      for (const c of combatants.value) {
+        if (c.initiative !== null) continue;
+        const rolled = await rollOneInitiative(c);
+        if (rolled === null) return;
+        c.initiative = rolled;
+      }
+      started.value = true;
+    } finally {
+      rollingInitiative.value = false;
+    }
+  }
+
+  async function startCombat() {
+    if (!started.value) await rollAllInitiatives();
+    // Combat starts even if the DM cancelled a manual-entry prompt — anyone left
+    // without a value sorts to the end of the order and can be typed in there.
+    started.value = true;
     activeIndex.value = 0;
     round.value = 1;
   }
@@ -99,18 +187,22 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     const nextId = aliveSorted[nextInAlive].instance_id;
     const nextIndexInSorted = sorted.findIndex((c) => c.instance_id === nextId);
 
-    if (nextInAlive === 0) round.value++;
+    if (nextInAlive === 0) {
+      round.value++;
+      // New round: with random initiative on, re-roll and re-sort, then start
+      // from the top of the new order (which also refreshes that combatant's
+      // per-turn pools). Nothing below applies since the order just changed.
+      if (randomizeInitiativeEachRound.value) {
+        reshuffleInitiative();
+        checkEvents();
+        return;
+      }
+    }
     activeIndex.value = nextIndexInSorted;
 
     // At the start of each combatant's turn: refresh their reaction and
     // legendary action pool (5e RAW: reactions reset at start of YOUR turn).
-    const nextCombatant = sorted[nextIndexInSorted];
-    if (nextCombatant) {
-      nextCombatant.reactionUsed = false;
-      if (typeof nextCombatant.legendary_action_cap === "number") {
-        nextCombatant.legendary_actions_remaining = nextCombatant.legendary_action_cap;
-      }
-    }
+    refreshTurnStart(sorted[nextIndexInSorted]);
     checkEvents();
   }
 
@@ -156,30 +248,23 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
   function adjustHp(instanceId: string, delta: number) {
     const c = combatants.value.find((x) => x.instance_id === instanceId);
     if (!c) return;
-    // Temp HP absorbs damage first, regardless of wildshape state
-    if (delta < 0 && c.temp_hp) {
-      const absorbed = Math.min(c.temp_hp, -delta);
-      c.temp_hp = c.temp_hp - absorbed;
-      delta = delta + absorbed;
-      if (c.temp_hp === 0) c.temp_hp = undefined;
-    }
-    if (c.wildshape) {
-      if (delta < 0) {
-        // Damage reduces beast HP. 5e RAW: excess damage on revert carries to real HP.
-        const newBeastHp = c.wildshape.beast_hp + delta;
-        if (newBeastHp <= 0) {
-          const overflow = -newBeastHp;
-          revertWildshape(instanceId); // clears c.wildshape
-          c.hp = Math.max(0, c.hp - overflow);
-        } else {
-          c.wildshape.beast_hp = newBeastHp;
-        }
-      } else {
-        // Healing goes to beast HP, capped at beast max
-        c.wildshape.beast_hp = Math.min(c.wildshape.beast_max_hp, c.wildshape.beast_hp + delta);
-      }
+    const pools: HpPools = {
+      current_hp: c.hp,
+      max_hp: c.max_hp,
+      temp_hp: c.temp_hp ?? 0,
+      beast: c.wildshape ? { hp: c.wildshape.beast_hp, max_hp: c.wildshape.beast_max_hp } : null,
+    };
+    if (delta < 0) {
+      // Temp HP absorbs first, then the beast form, then real HP (5e RAW).
+      const out = applyDamage(pools, -delta);
+      c.temp_hp = out.temp_hp || undefined;
+      c.hp = out.current_hp;
+      if (out.reverted) revertWildshape(instanceId); // clears c.wildshape
+      else if (c.wildshape && out.beast_hp !== null) c.wildshape.beast_hp = out.beast_hp;
     } else {
-      c.hp = Math.min(c.max_hp, Math.max(0, c.hp + delta));
+      const out = applyHealing(pools, delta);
+      c.hp = out.current_hp;
+      if (c.wildshape && out.beast_hp !== null) c.wildshape.beast_hp = out.beast_hp;
     }
     if (c.type === "player") {
       persistPlayer(c, { current_hp: c.hp, temp_hp: c.temp_hp ?? 0, wildshape_state: c.wildshape ?? null });
@@ -191,8 +276,17 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     const c = combatants.value.find((x) => x.instance_id === instanceId);
     if (!c) return;
     // Temp HP doesn't stack — take the higher value
-    c.temp_hp = Math.max(c.temp_hp ?? 0, value) || undefined;
+    c.temp_hp = betterTempHp(c.temp_hp ?? 0, value) || undefined;
     persistPlayer(c, { temp_hp: c.temp_hp ?? 0 });
+  }
+
+  /** Adopt a temp-HP value that came FROM party_members (the player changed it on
+   *  their own sheet). Assigns verbatim — no max(), no persist — because the DB row
+   *  is the authority here and writing back would echo our own realtime event. */
+  function ingestTempHp(instanceId: string, value: number) {
+    const c = combatants.value.find((x) => x.instance_id === instanceId);
+    if (!c) return;
+    c.temp_hp = value > 0 ? value : undefined;
   }
 
   function setHp(instanceId: string, value: number) {
@@ -296,7 +390,6 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     const dex = Number(sb?.dex ?? 10);
     const dexMod = Math.floor((dex - 10) / 2);
     const initiativeBonus = sb?.initiative_bonus ?? null;
-    const initModifier = initiativeModifier({ dex_mod: dexMod, initiative_bonus: initiativeBonus });
     const ac = String(sb?.armor_class ?? 10);
     const spawnKey = `spawn-${monsterId}-${Date.now()}`;
     const legendaryCap = sb?.legendary_actions?.length ? 3 : undefined;
@@ -307,7 +400,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
         type: "monster",
         name: displayName,
         faction_id: factionId,
-        initiative: started.value ? Math.floor(Math.random() * 20) + 1 + initModifier : null,
+        initiative: started.value ? autoRollInitiative({ dex_mod: dexMod, initiative_bonus: initiativeBonus }) : null,
         hp: maxHp,
         max_hp: maxHp,
         ac,
@@ -345,7 +438,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
         type: "monster",
         name: displayName,
         faction_id: factionId,
-        initiative: started.value ? Math.floor(Math.random() * 20) + 1 + dexMod : null,
+        initiative: started.value ? autoRollInitiative({ dex_mod: dexMod, initiative_bonus: null }) : null,
         hp: maxHp,
         max_hp: maxHp,
         ac,
@@ -370,7 +463,6 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     const dex = Number(sb?.dex ?? 10);
     const dexMod = Math.floor((dex - 10) / 2);
     const initiativeBonus = sb?.initiative_bonus ?? null;
-    const initModifier = initiativeModifier({ dex_mod: dexMod, initiative_bonus: initiativeBonus });
     const ac = String(sb?.armor_class ?? 10);
     const spawnKey = `spawn-${spawn.monster_id}-${Date.now()}`;
     for (let i = 0; i < spawn.count; i++) {
@@ -381,7 +473,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
         type: "monster",
         name: displayName,
         faction_id: spawn.faction_id,
-        initiative: started.value ? Math.floor(Math.random() * 20) + 1 + initModifier : null,
+        initiative: started.value ? autoRollInitiative({ dex_mod: dexMod, initiative_bonus: initiativeBonus }) : null,
         hp: maxHp,
         max_hp: maxHp,
         ac,
@@ -445,6 +537,8 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     availableMonsters.value = [];
     availableNpcs.value = [];
     pendingBroadcasts.value = [];
+    rollingInitiative.value = false;
+    randomizeInitiativeEachRound.value = false;
     lairEnabled.value = false;
     lairOwnerInstanceId.value = null;
     lairFiredRounds.value = new Set();
@@ -548,8 +642,13 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     lairCanFireThisRound,
     sortedCombatants,
     activeCombatant,
+    rollingInitiative,
+    randomizeInitiativeEachRound,
+    setRandomizeInitiativeEachRound,
+    reshuffleInitiative,
     rollInitiative,
     rollAllInitiatives,
+    setInitiativeRoller,
     startCombat,
     setInitiative,
     nextTurn,
@@ -558,6 +657,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     setHp,
     setMaxHp,
     setTempHp,
+    ingestTempHp,
     toggleCondition,
     setConditions,
     addCurse,

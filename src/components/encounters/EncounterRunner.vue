@@ -9,6 +9,11 @@
       <div class="round-controls">
         <button @click="store.prevTurn()" :disabled="store.round === 0" class="prev-btn">‹</button>
         <span class="round-label">{{ store.round === 0 ? 'Pre-Combat' : 'Round ' + store.round }}</span>
+        <TurnTimer
+          v-if="turnTimerSeconds !== null && store.round > 0"
+          :seconds="turnTimerSeconds"
+          :reset-key="turnResetKey"
+        />
         <button @click="store.nextTurn()" :disabled="store.round === 0" class="next-btn">Next Turn ›</button>
       </div>
 
@@ -17,15 +22,17 @@
         <ManualHelpLink page="encounter-runner" />
         <button
           v-if="!store.started"
-          @click="store.rollAllInitiatives()"
+          :disabled="store.rollingInitiative"
+          @click="handleRollInitiative"
           class="roll-btn"
-          title="Roll Initiative"
+          title="Roll initiative for everyone who hasn't rolled yet"
         >
           <IconDiceRoll class="h-3.5 w-3.5" />
           <span class="btn-label">Roll Initiative</span>
         </button>
         <button
           v-if="isLive && store.round === 0"
+          :disabled="store.rollingInitiative"
           @click="handleStartCombat"
           class="start-combat-btn"
           title="Start Combat"
@@ -140,15 +147,21 @@ import { supabase } from "@/lib/supabase";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useAllMonsters } from "@/composables/useMonsters";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
+import { useUpdateNpc } from "@/composables/useNpcs";
+import { computeNpcConclusionUpdates } from "@/lib/npcEncounterSync";
 import { useEncounterLive } from "@/composables/useEncounterLive";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAutoDiscoverMonsters } from "@/composables/useDiscoveredMonsters";
 import { useAuthStore } from "@/stores/auth";
+import { usePromptedRoll } from "@/composables/usePromptedRoll";
+import { initiativeModifier } from "@/lib/combatantSort";
+import { useOptionalRules, isRuleEffectivelyEnabled, resolveRuleConfig } from "@/composables/useOptionalRules";
 import RunnerCombatantList from "./RunnerCombatantList.vue";
 import RunnerEntityDetail from "./RunnerEntityDetail.vue";
 import RunnerDmTools from "./RunnerDmTools.vue";
 import RunnerBossMechanics from "./RunnerBossMechanics.vue";
 import RunnerSpawnPanel from "./RunnerSpawnPanel.vue";
+import TurnTimer from "./TurnTimer.vue";
 
 const store = useEncounterRunStore();
 const router = useRouter();
@@ -182,6 +195,7 @@ function openBattleMapInNewWindow() {
   window.open(`/encounters/${encounterId.value}/run/map`, "_blank", "noopener,noreferrer");
 }
 const { mutateAsync: updatePartyMember } = useUpdatePartyMember();
+const { mutateAsync: updateNpc } = useUpdateNpc();
 const { mutateAsync: autoDiscover } = useAutoDiscoverMonsters();
 
 const selectedId = ref<string | null>(null);
@@ -225,8 +239,55 @@ function startDetailResizeTouch(e: TouchEvent) {
   document.addEventListener("touchend", onEnd);
 }
 
+// ── Initiative rolling ───────────────────────────────────────────────────────
+// The store owns the "who still needs a value" logic; the actual d20 goes
+// through promptRoll so the DM's physical-dice preference is honoured — one
+// manual-entry prompt per combatant, in initiative-list order. Rolls are silent:
+// the initiative order is broadcast through the live encounter state anyway, and
+// posting each monster's roll to campaign chat would leak the hidden ones.
+// `store.rollingInitiative` is the shared busy flag — the top bar and every
+// per-combatant roll button disable together, since the manual-entry prompt is a
+// single global slot.
+const { promptRoll } = usePromptedRoll();
+
+store.setInitiativeRoller(async (combatant) => {
+  const result = await promptRoll({
+    counts: { 20: 1 },
+    modifier: initiativeModifier(combatant),
+    label: `Initiative — ${combatant.name}`,
+    senderName: combatant.name,
+    silent: true,
+  });
+  return result?.total ?? null;
+});
+
+// ── Optional combat rules (turn timer + random initiative) ───────────────────
+const { data: campaignRules } = useOptionalRules();
+
+// Re-roll initiative each round when the DM has enabled the rule. Kept in sync
+// so toggling it mid-fight takes effect on the next round wrap.
+watch(
+  () => isRuleEffectivelyEnabled(campaignRules.value, "random_initiative"),
+  (on) => store.setRandomizeInitiativeEachRound(on),
+  { immediate: true },
+);
+
+// Turn-timer duration (seconds) or null when the rule is off.
+const turnTimerSeconds = computed(() =>
+  isRuleEffectivelyEnabled(campaignRules.value, "turn_timer")
+    ? resolveRuleConfig(campaignRules.value, "turn_timer").seconds
+    : null,
+);
+// Restarts the countdown whenever the active combatant or round changes.
+const turnResetKey = computed(() => `${store.round}:${store.activeCombatant?.instance_id ?? ""}`);
+
+function handleRollInitiative() {
+  void store.rollAllInitiatives();
+}
+
 function handleStartCombat() {
-  store.startCombat();
+  if (store.rollingInitiative) return;
+  void store.startCombat();
 }
 
 async function handleGoLive() {
@@ -316,8 +377,15 @@ onMounted(() => {
       { event: "UPDATE", schema: "public", table: "party_members",
         filter: `campaign_id=eq.${campaignId}` },
       (payload) => {
-        const row = payload.new as { id: string; current_hp: number; current_initiative: number | null };
+        const row = payload.new as { id: string; current_hp: number; temp_hp: number; current_initiative: number | null };
         const combatant = store.combatants.find((c) => c.party_member_id === row.id);
+
+        // Temp HP the player granted themselves (or spent) on their own sheet.
+        // No echo guard needed: our own writes set the combatant first, so the
+        // values already match by the time the event comes back.
+        if (combatant && (combatant.temp_hp ?? 0) !== (row.temp_hp ?? 0)) {
+          store.ingestTempHp(combatant.instance_id, row.temp_hp ?? 0);
+        }
 
         // Ingest player-rolled initiative (#504). The runner never writes
         // current_initiative, so there's no echo to guard against. Only apply a
@@ -345,6 +413,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   store.setPersistHandler(null);
+  store.setInitiativeRoller(null);
   if (partyHpTimer) clearTimeout(partyHpTimer);
   if (partyMembersChannel) {
     supabase.removeChannel(partyMembersChannel);
@@ -382,7 +451,7 @@ async function handleAbandon() {
 }
 
 async function handleEndCombat() {
-  if (!await confirm("End combat? Party HP, conditions, and curses will be updated.")) return;
+  if (!await confirm("End combat? Party HP/conditions are saved, fallen NPCs are marked dead, and every NPC the party faced is revealed to them.")) return;
   // Cancel any pending HP debounce — end-combat does its own authoritative write below.
   if (partyHpTimer) { clearTimeout(partyHpTimer); partyHpTimer = null; }
   partyHpQueue.clear();
@@ -404,6 +473,13 @@ async function handleEndCombat() {
       }),
     ),
   );
+
+  // Sync roster NPCs back to their records: mark the fallen dead and reveal
+  // every NPC the party faced (living or dead) so they surface in the player
+  // portal. Monster combatants have no persistent record and are left untouched.
+  const partyMemberIds = (partyMembers.value ?? []).map((m) => m.id);
+  const npcUpdates = computeNpcConclusionUpdates(store.combatants, store.availableNpcs, partyMemberIds);
+  await Promise.all(npcUpdates.map((u) => updateNpc({ id: u.id, update: u.update })));
 
   store.reset();
   router.push(`/encounters/${encounterId.value}`);
