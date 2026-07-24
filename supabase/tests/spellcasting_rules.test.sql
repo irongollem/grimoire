@@ -492,8 +492,8 @@ select ok(exists(
   where cc.id = '00000000-0000-4000-8000-000000000546'
     and cc.class_definition_kind = 'system' and definition.ruleset = '2014'
 ), 'ruleset switches remap official classes to the matching edition definition');
-select ok(not (select class_ruleset_review_required from public.character_classes
-  where id = '00000000-0000-4000-8000-000000000546'),
+select ok(not exists(select 1 from public.ruleset_reviews
+  where character_class_id = '00000000-0000-4000-8000-000000000546' and flag_type = 'class'),
   'an automatically remapped official class does not require manual review');
 select is((select class_definition_id from public.character_classes
   where id = '00000000-0000-4000-8000-000000000564'),

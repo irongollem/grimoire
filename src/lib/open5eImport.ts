@@ -192,13 +192,17 @@ export function mapOpen5eV2MagicItem(record: Open5eV2MagicItem): ItemInsert {
  * All item categories use V2 native keys; no display-name deduplication.
  * Scoped to supported 5e documents — these endpoints ignore `document__key`
  * filtering entirely, so fetchAllFromDocuments's own assertion is load-bearing here.
+ *
+ * `documentKeys` defaults to every supported 5e document (the existing
+ * in-app import's behavior, unchanged); pass it explicitly to scope the
+ * fetch (e.g. the seed script's `--dry-run`/explicit doc-key CLI flags).
  */
-export async function fetchSrdItems(): Promise<ItemInsert[]> {
-  const documentKeys = await fetchSupported5eDocumentKeys();
+export async function fetchSrdItems(documentKeys?: string[]): Promise<ItemInsert[]> {
+  const keys = documentKeys ?? (await fetchSupported5eDocumentKeys());
   const [weapons, armor, magicItems] = await Promise.all([
-    fetchAllFromDocuments<Open5eV2Weapon>("https://api.open5e.com/v2/weapons/", documentKeys),
-    fetchAllFromDocuments<Open5eV2Armor>("https://api.open5e.com/v2/armor/", documentKeys),
-    fetchAllFromDocuments<Open5eV2MagicItem>("https://api.open5e.com/v2/magicitems/", documentKeys),
+    fetchAllFromDocuments<Open5eV2Weapon>("https://api.open5e.com/v2/weapons/", keys),
+    fetchAllFromDocuments<Open5eV2Armor>("https://api.open5e.com/v2/armor/", keys),
+    fetchAllFromDocuments<Open5eV2MagicItem>("https://api.open5e.com/v2/magicitems/", keys),
   ]);
   return [
     ...weapons.map(mapOpen5eV2Weapon),

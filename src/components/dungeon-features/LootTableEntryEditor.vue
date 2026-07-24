@@ -48,7 +48,7 @@
               :model-value="entry.item_id ?? ''"
               :options="itemOptions"
               placeholder="Pick an item from the Vault…"
-              @update:model-value="entry.item_id = $event"
+              @update:model-value="onPickItem(entry, $event)"
             />
             <div class="flex items-center gap-1">
               <input
@@ -186,13 +186,32 @@ import {
 } from '@/types/item.types';
 import type { LootEntry, LootEntryType } from '@/types/lootTable.types';
 import EntityCombobox from '@/components/common/EntityCombobox.vue';
+import { useEnsureOwnedItem } from '@/composables/useItems';
+import type { Item } from '@/types/item.types';
 
-const { entries, itemOptions, entriesError, randomPoolSizes } = defineProps<{
+const { entries, itemOptions, entriesError, randomPoolSizes, resolveItem } = defineProps<{
   entries: LootEntry[];
   itemOptions: { id: string; name: string }[];
   entriesError: string | null;
   randomPoolSizes: Map<string, number>;
+  /** Full item lookup — needed (beyond the display-only `itemOptions`) so a
+   *  picked srd row can be cloned into an owned row before it enters `entries`. */
+  resolveItem: (id: string) => Item | undefined;
 }>();
+
+const { ensureOwnedItem } = useEnsureOwnedItem();
+
+/** Resolves the picked item to its owned (uuid) id BEFORE writing it into
+ *  `entry.item_id`, so a table Save during the clone can never persist an srd
+ *  slug into the `items` uuid FK column. Already-owned items resolve instantly
+ *  (no round-trip), so only a freshly-cloned srd row shows a brief delay. */
+async function onPickItem(entry: LootEntry, itemId: string) {
+  if (!itemId) { entry.item_id = itemId; return; }
+  const picked = resolveItem(itemId);
+  if (!picked) { entry.item_id = itemId; return; }
+  const owned = await ensureOwnedItem(picked);
+  entry.item_id = owned.id;
+}
 
 const emit = defineEmits<{
   add: [type: LootEntryType];

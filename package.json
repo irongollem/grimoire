@@ -25,7 +25,9 @@
     "migrate-plaintext-to-tiptap": "tsx --env-file=.env.local scripts/migrate-plaintext-to-tiptap.ts",
     "ingest-mini-bases": "tsx --env-file=.env.local scripts/ingest-mini-bases.ts",
     "seed-srd-spells": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/seed-srd-spells.ts",
-    "seed-srd-monsters": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/seed-srd-monsters.ts"
+    "seed-srd-monsters": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/seed-srd-monsters.ts",
+    "seed-srd-species": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/seed-srd-species.ts",
+    "seed-srd-items": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/seed-srd-items.ts"
   },
   "dependencies": {
     "@google/model-viewer": "^4.3.1",

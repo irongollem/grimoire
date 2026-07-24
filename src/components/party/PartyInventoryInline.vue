@@ -169,7 +169,7 @@ import { ref, computed, reactive, nextTick } from "vue";
 import { useRouter } from "vue-router";
 import { IconArrowUp, IconDelete, IconExternalLink, IconInventory } from '@/lib/icons';
 import { usePartyInventory, useAddInventoryItem, useUpdateInventoryItem, useRemoveInventoryItem } from "@/composables/usePartyInventory";
-import { useItems } from "@/composables/useItems";
+import { useItems, useEnsureOwnedItem } from "@/composables/useItems";
 import type { Item } from "@/types/item.types";
 import { ITEM_TYPE_LABELS, RARITY_COLORS } from "@/types/item.types";
 import { useCampaignStore } from "@/stores/campaign";
@@ -189,6 +189,7 @@ const { mutateAsync: updateInventoryItem } = useUpdateInventoryItem();
 const { mutateAsync: removeInventoryItem } = useRemoveInventoryItem();
 
 const { data: catalogItems } = useItems();
+const { ensureOwnedItem } = useEnsureOwnedItem();
 const catalogItemMap = computed(() => {
   const map = new Map<string, Item>();
   for (const item of catalogItems.value ?? []) map.set(item.id, item);
@@ -217,11 +218,15 @@ function onItemSearchInput() {
   showItemDropdown.value = true;
 }
 
-function selectCatalogItem(item: Item) {
+async function selectCatalogItem(item: Item) {
   newItem.name = item.name;
   newItem.selectedItemId = item.id;
   newItem.isAttuned = item.requires_attunement;
   showItemDropdown.value = false;
+  // Srd rows carry a slug id — clone into the user's own items on pick, before
+  // anything downstream (submit, "Drop in Chat") can persist it as a FK.
+  const owned = await ensureOwnedItem(item);
+  if (newItem.selectedItemId === item.id) newItem.selectedItemId = owned.id;
 }
 
 function focusDropdownItem(idx: number) {

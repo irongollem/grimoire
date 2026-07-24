@@ -68,7 +68,7 @@ import { ref, computed } from "vue";
 import { IconAdd, IconDelete, IconLoot } from '@/lib/icons';
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { useNpcInventory, useAddNpcInventoryItem, useRemoveNpcInventoryItem } from "@/composables/useNpcInventory";
-import { useItems } from "@/composables/useItems";
+import { useItems, useEnsureOwnedItem } from "@/composables/useItems";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import type { NpcInventoryItem } from "@/types/npc-inventory.types";
 
@@ -80,6 +80,7 @@ const { mutateAsync: addItem } = useAddNpcInventoryItem();
 const { mutateAsync: removeItem } = useRemoveNpcInventoryItem();
 const { sendItemDrop } = useCampaignMessages();
 const { data: vaultItems } = useItems();
+const { ensureOwnedItem } = useEnsureOwnedItem();
 
 const selectedVaultId = ref("");
 const adding = ref(false);
@@ -90,7 +91,8 @@ async function addFromVault() {
   if (!vaultItem) return;
   adding.value = true;
   try {
-    await addItem({ npc_id: props.npcId, item_id: vaultItem.id, name: vaultItem.name, quantity: 1, notes: null });
+    const owned = await ensureOwnedItem(vaultItem);
+    await addItem({ npc_id: props.npcId, item_id: owned.id, name: owned.name, quantity: 1, notes: null });
     selectedVaultId.value = "";
   } finally {
     adding.value = false;

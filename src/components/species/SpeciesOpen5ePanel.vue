@@ -20,20 +20,6 @@
         </button>
       </div>
 
-      <!-- Seed core races -->
-      <div class="px-5 py-3 border-b border-border shrink-0">
-        <button
-          type="button"
-          :disabled="seeding || importing"
-          class="w-full inline-flex items-center justify-center gap-2 rounded-md border border-border bg-muted px-3 py-2 text-label-lg font-semibold text-foreground hover:bg-accent disabled:opacity-50 transition-colors"
-          @click="seedCoreRaces"
-        >
-          <IconScriptorium class="h-3.5 w-3.5 shrink-0" />
-          <span v-if="seeding">{{ seedProgress }}</span>
-          <span v-else>Import / update core PHB species ({{ CORE_RACE_NAMES.length }})</span>
-        </button>
-      </div>
-
       <!-- IconSearch -->
       <div class="px-5 py-3 border-b border-border shrink-0">
         <div class="relative">
@@ -97,41 +83,15 @@
 <script setup lang="ts">
 import { ref, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
-import { IconClose, IconDownload, IconScriptorium, IconSearch } from '@/lib/icons';
+import { IconClose, IconDownload, IconSearch } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import { useCreateSpecies, useUpdateSpecies, useAllSpecies } from "@/composables/useSpecies";
-import { toTiptapJson } from "@/ai/useNpcGeneration";
-import { markdownToTiptapJson } from "@/lib/markdownToTiptap";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import type { SpeciesSize } from "@/types/species.types";
-import { useRuleset } from "@/composables/useRuleset";
-import { fetchAllFromDocuments, rulesetForDocument } from "@/lib/open5eApi";
-import type { Open5eDocumentRef } from "@/lib/open5eApi";
-
-interface Open5eTrait {
-  name: string;
-  desc: string;
-  type: string | null;
-}
-
-interface Open5eRace {
-  key: string;
-  name: string;
-  desc: string;
-  is_subspecies: boolean;
-  subspecies_of: { key: string; name: string } | null;
-  traits: Open5eTrait[];
-  document: Open5eDocumentRef;
-}
-
-const CORE_RACE_NAMES = [
-  "dragonborn", "dwarf", "elf", "gnome",
-  "half-elf", "half-orc", "halfling", "human", "tiefling",
-] as const;
+import { buildImportedFields, buildCreateOnlyDefaults } from "@/lib/open5eSpeciesImport";
+import type { Open5eRace } from "@/lib/open5eSpeciesImport";
 
 const ui = useUiStore();
 const router = useRouter();
-const { ruleset } = useRuleset();
 const { mutateAsync: createSpecies } = useCreateSpecies();
 const { mutateAsync: updateSpecies } = useUpdateSpecies();
 const { data: existingSpecies } = useAllSpecies();
@@ -141,8 +101,6 @@ const results = ref<Open5eRace[]>([]);
 const loading = ref(false);
 const error = ref("");
 const importing = ref(false);
-const seeding = ref(false);
-const seedProgress = ref("");
 
 let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -176,120 +134,6 @@ async function search() {
   }
 }
 
-const VALID_SIZES: SpeciesSize[] = ["tiny", "small", "medium", "large"];
-
-function parseSize(raw: string): SpeciesSize | null {
-  const s = raw?.toLowerCase() as SpeciesSize;
-  return VALID_SIZES.includes(s) ? s : null;
-}
-
-function parseSpeed(raw: string | undefined): Record<string, number> | null {
-  if (!raw) return null;
-  // e.g. "30 ft., fly 30 ft."
-  const result: Record<string, number> = {};
-  const walkMatch = raw.match(/^(\d+)/);
-  if (walkMatch) result.walk = parseInt(walkMatch[1]);
-  const flyMatch = raw.match(/fly\s+(\d+)/i);
-  if (flyMatch) result.fly = parseInt(flyMatch[1]);
-  const swimMatch = raw.match(/swim\s+(\d+)/i);
-  if (swimMatch) result.swim = parseInt(swimMatch[1]);
-  const climbMatch = raw.match(/climb\s+(\d+)/i);
-  if (climbMatch) result.climb = parseInt(climbMatch[1]);
-  return Object.keys(result).length ? result : null;
-}
-
-function parseLanguages(raw: string | undefined): string[] {
-  if (!raw) return [];
-  // Strip leading markdown bold/italic header — handles both "***Languages.***" and "**_Languages._**"
-  const cleaned = raw.replace(/^\*+_?[^*\n]+_?\.?\*+\s*/i, "");
-  // Take only the first sentence (the one listing the language names)
-  const firstSentence = cleaned.split(".")[0];
-  // Strip "You can speak, read, and write " / "You speak " preamble
-  const stripped = firstSentence.replace(/^you (?:can )?(?:speak(?:,? read(?:,? and write)?)?\s+)/i, "");
-  // Drop entries that are still clearly descriptive phrases (e.g. "your choice of Common or Undercommon")
-  return stripped
-    .split(/,\s*|\s+and\s+/)
-    .map((l) => l.trim())
-    .filter((l) => Boolean(l) && !/^your choice/i.test(l));
-}
-
-function parseTags(race: Open5eRace, size: SpeciesSize | null): string[] {
-  const tags: string[] = ["humanoid"];
-  if (size) tags.push(size);
-  // Add the race's own name as a tag (e.g. "elf", "dwarf", "half-elf")
-  const nameTag = race.name.toLowerCase().replace(/\s+/g, "-");
-  if (!tags.includes(nameTag)) tags.push(nameTag);
-  return tags;
-}
-
-function parseAsi(raw: string | undefined): Record<string, number | string> | null {
-  if (!raw) return null;
-  const entries: Record<string, number> = {};
-  const pattern = /(Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma)\s+(?:score\s+)?increases? by (\d+)/gi;
-  for (const match of raw.matchAll(pattern)) {
-    entries[match[1].toLowerCase().slice(0, 3)] = Number(match[2]);
-  }
-  return Object.keys(entries).length ? entries : null;
-}
-
-/**
- * Content Open5e actually supplies — safe to refresh on every re-import,
- * including on an existing row, so upstream fixes (e.g. open5e-api#964-style
- * corrections) are picked up.
- */
-function buildImportedFields(race: Open5eRace) {
-  const trait = (name: string) => race.traits.find(entry => entry.name.toLowerCase() === name);
-  const size = parseSize(trait("size")?.desc.match(/\b(tiny|small|medium|large)\b/i)?.[1] ?? "");
-  const speciesTraits = race.traits
-    .filter(entry => !["size", "speed", "languages", "ability score increase"].includes(entry.name.toLowerCase()))
-    .map(entry => ({ name: entry.name, description: markdownToTiptapJson(entry.desc) }));
-  return {
-    name: race.name,
-    description: race.desc ? toTiptapJson(race.desc) : null,
-    size,
-    speed: parseSpeed(trait("speed")?.desc),
-    ability_score_increases: parseAsi(trait("ability score increase")?.desc),
-    traits: speciesTraits,
-    languages: parseLanguages(trait("languages")?.desc),
-    tags: parseTags(race, size),
-    source: race.document.display_name || race.document.name,
-    ruleset: rulesetForDocument(race.document),
-    conceptual_key: race.name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, ""),
-    source_document_key: race.document.key,
-    source_record_key: race.key,
-    source_revision: race.document.name,
-    source_license: null,
-    provenance: {
-      provider: "open5e-v2",
-      document: {
-        key: race.document.key,
-        publisher: race.document.publisher ?? null,
-        gamesystem: race.document.gamesystem ?? null,
-        permalink: race.document.permalink ?? null,
-      },
-    },
-  };
-}
-
-/**
- * Fields Open5e has no data for — DM-owned from the moment the species is
- * created. Only used to fill out a brand-new row; a re-import must never
- * reset these back to null/empty on an existing species (that would wipe
- * DM-added art, notes, subraces, and overrides).
- */
-function buildCreateOnlyDefaults() {
-  return {
-    notes: null,
-    subraces: null,
-    image_url: null,
-    focal_point: null,
-    is_shapeshifter: false,
-    avg_height: null,
-    avg_weight: null,
-    granted_spells: [],
-  };
-}
-
 async function upsertRace(race: Open5eRace) {
   const imported = buildImportedFields(race);
   const existing = (existingSpecies.value ?? []).find(
@@ -302,27 +146,6 @@ async function upsertRace(race: Open5eRace) {
   }
   const created = await createSpecies({ ...imported, ...buildCreateOnlyDefaults() });
   return created.id;
-}
-
-async function seedCoreRaces() {
-  seeding.value = true;
-  error.value = "";
-  let done = 0;
-  const documentKey = ruleset.value === "2024" ? "srd-2024" : "srd-2014";
-  try {
-    const results = await fetchAllFromDocuments<Open5eRace>("https://api.open5e.com/v2/species/", [documentKey]);
-    const core = results.filter(race => !race.is_subspecies && CORE_RACE_NAMES.includes(race.name.toLowerCase() as typeof CORE_RACE_NAMES[number]));
-    for (const race of core) {
-      seedProgress.value = `${done} / ${core.length}…`;
-      await upsertRace(race);
-      done++;
-    }
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : "Failed to seed core species.";
-  }
-  seeding.value = false;
-  seedProgress.value = "";
-  ui.speciesOpen5ePanelOpen = false;
 }
 
 async function importRace(race: Open5eRace) {

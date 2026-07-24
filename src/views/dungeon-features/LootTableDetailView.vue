@@ -170,6 +170,7 @@
           :item-options="itemOptions"
           :entries-error="entriesError"
           :random-pool-sizes="randomPoolSizes"
+          :resolve-item="(id) => itemsById.get(id)"
           @add="addEntry"
           @remove="removeEntry"
         />

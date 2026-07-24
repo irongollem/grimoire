@@ -5,32 +5,7 @@
     <SrdArtRepairPanel mode="spell" />
 
     <!-- SRD Art Defaults -->
-    <div class="rounded-lg border border-border bg-card p-4 space-y-3">
-      <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">SRD Art Defaults</h2>
-      <p class="text-caption text-muted-foreground italic">
-        Publish your uploaded SRD art as community defaults. Other DMs will see your images
-        for any SRD content they haven't personalised. Re-running is safe — it updates
-        existing defaults with your latest images.
-      </p>
-      <div v-if="statsQuery.data.value" class="text-caption text-foreground">
-        Currently published:
-        <span class="font-semibold">{{ statsQuery.data.value.monsters }}</span> monsters ·
-        <span class="font-semibold">{{ statsQuery.data.value.spells }}</span> spells ·
-        <span class="font-semibold">{{ statsQuery.data.value.items }}</span> items
-      </div>
-      <div v-if="publishResult" class="text-caption text-green-500">
-        Done — {{ publishResult.monsters }} monsters · {{ publishResult.spells }} spells ·
-        {{ publishResult.items }} items published.
-      </div>
-      <button
-        class="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground font-cinzel text-xs tracking-wide hover:opacity-90 transition-opacity disabled:opacity-50"
-        :disabled="bulkPublish.isPending.value"
-        @click="handlePublishArt"
-      >
-        <IconUpload class="h-3.5 w-3.5" />
-        {{ bulkPublish.isPending.value ? 'Publishing…' : 'Publish all my SRD art' }}
-      </button>
-    </div>
+    <SrdArtPublishPanel />
 
     <!-- Placeholder Art Focal Points -->
     <div class="rounded-lg border border-border bg-card p-4 space-y-4">
@@ -103,36 +78,10 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { IconCheck, IconUpload } from "@/lib/icons";
+import { IconCheck } from "@/lib/icons";
 import SrdArtRepairPanel from "@/components/admin/SrdArtRepairPanel.vue";
-import { useBulkPublishSrdArtDefaults, useSrdArtDefaultStats, useSyncSrdSpellArtToSharedTable } from "@/composables/useSrdArtDefaults";
-import type { SrdArtDefaultStats } from "@/composables/useSrdArtDefaults";
-import { useBulkMarkSrdMonsterArtAsCanonical, useSyncSrdArtToSharedTable } from "@/composables/useSrdMonsterArt";
-import { useBulkMarkSrdSpellArtAsCanonical } from "@/composables/useSrdSpellArt";
+import SrdArtPublishPanel from "@/components/admin/SrdArtPublishPanel.vue";
 import { useAdminPlaceholderFocalPoints } from "@/composables/useAdminPlaceholderFocalPoints";
-
-const statsQuery = useSrdArtDefaultStats();
-const bulkPublish = useBulkPublishSrdArtDefaults();
-const bulkMarkMonsters = useBulkMarkSrdMonsterArtAsCanonical();
-const bulkMarkSpells   = useBulkMarkSrdSpellArtAsCanonical();
-const syncArtToShared  = useSyncSrdArtToSharedTable();
-const syncSpellArt     = useSyncSrdSpellArtToSharedTable();
-const publishResult = ref<SrdArtDefaultStats | null>(null);
-
-async function handlePublishArt() {
-  publishResult.value = null;
-  const [monsterCount, spellArtCount, contentResult] = await Promise.all([
-    bulkMarkMonsters.mutateAsync(),
-    bulkMarkSpells.mutateAsync(),
-    bulkPublish.mutateAsync(),
-  ]);
-  await Promise.all([
-    syncArtToShared.mutateAsync(),
-    syncSpellArt.mutateAsync(),
-  ]);
-  publishResult.value = { monsters: monsterCount, spells: contentResult.spells + spellArtCount, items: contentResult.items };
-  statsQuery.refetch();
-}
 
 const PLACEHOLDER_ENTITIES = [
   { type: "background",     label: "Background",      aspect: "aspect-3/4" },

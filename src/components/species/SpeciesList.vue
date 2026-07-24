@@ -107,9 +107,9 @@
           </button>
         </div>
 
-        <!-- Edit button -->
+        <!-- Edit button — DM mode only, not shown for srd (shared) species cards -->
         <RouterLink
-          v-if="!readonly && !selectMode"
+          v-if="!readonly && !selectMode && isUuid(s.id)"
           :to="`/species/${s.id}?edit=true`"
           class="absolute top-2 left-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 text-label font-semibold text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
           title="Edit species"
@@ -137,6 +137,7 @@ import { IconCheck, IconEdit } from '@/lib/icons';
 import type { Species } from "@/types/species.types";
 import { useUiStore } from "@/stores/ui";
 import { useAllSpecies } from "@/composables/useSpecies";
+import { isUuid } from "@/lib/contentIdentity";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";

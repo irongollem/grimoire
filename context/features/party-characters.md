@@ -142,9 +142,11 @@ Filterable by text search and size (Tiny / Small / Medium / Large). Each species
 - Subraces (list) — drives the Variant dropdown in character creation
 - Traits — rich-text descriptions
 
-**Open5e import panel:** Searches the Open5e API and bulk-imports species, deduplicating by slug.
+**Shared SRD species (#303):** the core species per edition come from the shared `srd_species` table (public read, admin write; seeded by `npm run seed-srd-species`; mapper in `src/lib/open5eSpeciesImport.ts`). `useAllSpecies()` merges shared rows (slug ids) with the user's own; a per-user row shadows its shared counterpart by source identity (or lowercase name for pre-versioning imports). Species references (`party_members.species_id`/`disguise_species_id`, `campaigns.disabled_species_ids`) are **text** since migration `20260724000003` and hold either a custom uuid or an `srd_species` slug — players can pick shared species directly in character creation without any cloning.
 
-**Species Detail view** (`SpeciesDetailView.vue`): Toggles between a read-only `SpeciesSheet` and editable `SpeciesDetail` based on `?edit=true` query param. `DetailActions` (save/delete) live in the PageHeader `#actions` slot.
+**Open5e import panel:** Searches the Open5e API and imports individual species into the user's own table, deduplicating by source identity. (The "seed core PHB species" bulk button was retired in #303.)
+
+**Species Detail view** (`SpeciesDetailView.vue`): Toggles between a read-only `SpeciesSheet` and editable `SpeciesDetail` based on `?edit=true` query param. `DetailActions` (save/delete) live in the PageHeader `#actions` slot. Shared SRD species render read-only with a "Clone to customize" action — the clone shadows the shared row and can then be enriched (subraces, granted spells, art).
 
 ### Backgrounds Tab
 

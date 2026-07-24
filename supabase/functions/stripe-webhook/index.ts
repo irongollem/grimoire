@@ -289,7 +289,7 @@ serve(withCors(async (req: Request) => {
           if (session.payment_status === "paid") {
             await grantCreditPackFromSession(session);
           } else {
-            console.log("credit pack awaiting async settlement", session.id, session.payment_status);
+            console.warn("credit pack awaiting async settlement", session.id, session.payment_status);
           }
         }
         break;

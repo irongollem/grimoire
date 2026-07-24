@@ -54,6 +54,13 @@
           >
             {{ ITEM_RARITY_LABELS[item.rarity] }}
           </span>
+          <!-- SRD badge — top left; shared/unowned rows only -->
+          <span
+            v-if="!isUuid(item.id)"
+            class="absolute top-1.5 left-1.5 text-label px-1.5 py-0.5 rounded leading-none bg-black/50 text-white"
+          >
+            SRD
+          </span>
           <!-- Type icon + name — bottom gradient -->
           <div
             class="absolute bottom-0 left-0 right-0 px-2.5 py-2 bg-linear-to-t from-black/75 to-transparent flex items-end gap-1.5"
@@ -113,8 +120,10 @@
           </div>
         </div>
 
-        <!-- Edit button (floats top-left on hover) -->
+        <!-- Edit button (floats top-left on hover) — owned rows only; SRD rows
+             are read-only and link through to the detail view's Clone action -->
         <RouterLink
+          v-if="isUuid(item.id)"
           :to="`/vault/${item.id}?edit=true`"
           class="absolute top-2 left-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 text-label font-semibold text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
           title="Edit item"
@@ -163,6 +172,7 @@ function itemTypeIcon(type: ItemType): VueComponent {
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";
 import { useItems } from "@/composables/useItems";
+import { isUuid } from "@/lib/contentIdentity";
 import { ITEM_RARITY_LABELS, RARITY_BADGE_COLORS } from "@/types/item.types";
 import type { ItemRarity } from "@/types/item.types";
 import EmptyState from "@/components/common/EmptyState.vue";

@@ -64,7 +64,7 @@ Each doc covers **both DM and player perspectives**, lists exact file paths, com
 
 ### Items, Spells & Crafting
 
-- **Item Vault** — dual-image identification system (mundane vs. identified portrait with focal point); weapon/armor stats; 2024 weapon mastery properties; magic properties (attunement, charges, recharge, arcane focus); container flag; bundle/pack auto-expansion; linked spells; SRD import
+- **Item Vault** — dual-image identification system (mundane vs. identified portrait with focal point); weapon/armor stats; 2024 weapon mastery properties; magic properties (attunement, charges, recharge, arcane focus); container flag; bundle/pack auto-expansion; linked spells; shared dual-edition `srd_items` table with per-user shadowing + clone-to-customize (#303)
 - **Player Inventory** — paper doll with 11 anatomical slots; attunement 3-pip tracker; carry weight bar with 4-tier burden portraits; Powerful Build species doubling; extradimensional weight exclusion; drag-and-drop reordering; coin purse with chat drop; real-time sync
 - **Spellbook** — custom + Open5e import; Spell Level Advisor wizard; player view adapts to caster type (spellbook/prepared/known/none); multiclass-accurate slot computation
 - **Workshop** — crafting recipes with discipline, DC, time, tool proficiency check, critical fail ruins ingredient; per-player visibility; roll posts to campaign chat; cooking food variant

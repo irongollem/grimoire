@@ -4,8 +4,21 @@
     :description="item ? subtitle : 'Fill in the details to add an item to your vault'"
   >
     <template #actions>
-      <!-- View-mode controls (existing items only) -->
-      <template v-if="!isNewItem && !isEditing">
+      <!-- SRD/shared items are strictly read-only in the vault; cloning mints
+           an owned, editable copy that shadows the shared row afterwards. -->
+      <template v-if="!isNewItem && isShared">
+        <PageHeaderAction
+          type="button"
+          :label="isCloning ? 'Cloning…' : 'Clone to customize'"
+          :disabled="isCloning"
+          :icon="IconCopy"
+          variant="primary"
+          @click="cloneToCustomize"
+        />
+      </template>
+
+      <!-- View-mode controls (existing, owned items only) -->
+      <template v-if="!isNewItem && !isShared && !isEditing">
         <ItemSendMenu v-if="item" :item="item" />
         <PageHeaderAction
           type="button"
@@ -15,7 +28,7 @@
         />
       </template>
 
-      <!-- Edit-mode actions -->
+      <!-- Edit-mode actions (owned items only; shared rows never enter edit mode) -->
       <template v-if="isEditing && itemDetail">
         <PageHeaderAction
           v-if="!isNewItem"
@@ -83,7 +96,8 @@
 import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconCopy, IconDelete, IconDocument, IconEdit, IconSave, IconScrollText } from '@/lib/icons';
-import { useItem } from "@/composables/useItems";
+import { useResolvedItem, useEnsureOwnedItem } from "@/composables/useItems";
+import { useToast } from "@/composables/useToast";
 import { ITEM_TYPE_LABELS, ITEM_RARITY_LABELS } from "@/types/item.types";
 import PageHeader from "@/components/common/PageHeader.vue";
 import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
@@ -94,10 +108,16 @@ import ItemSendMenu from "@/components/items/ItemSendMenu.vue";
 
 const route = useRoute();
 const router = useRouter();
+const toast = useToast();
 
 const isNewItem = computed(() => route.name === "vault-new");
 const id = computed(() => (isNewItem.value ? "" : (route.params.id as string)));
-const isEditing = computed(() => isNewItem.value || route.query.edit === "true");
+
+const { data: resolvedData, isLoading: itemLoading } = useResolvedItem(id);
+const item = computed(() => resolvedData.value?.item ?? null);
+// Shared/SRD rows are strictly read-only — ?edit=true is never honored for them.
+const isShared = computed(() => resolvedData.value?.isShared === true);
+const isEditing = computed(() => !isShared.value && (isNewItem.value || route.query.edit === "true"));
 
 const itemDetail = ref<InstanceType<typeof ItemDetail> | null>(null);
 
@@ -110,8 +130,22 @@ function stopEditing() {
   router.replace({ query: q });
 }
 
-const { data: item, isLoading: itemLoading } = useItem(id);
 const isLoading = computed(() => !isNewItem.value && itemLoading.value);
+
+const { ensureOwnedItem } = useEnsureOwnedItem();
+const isCloning = ref(false);
+async function cloneToCustomize() {
+  if (!item.value) return;
+  isCloning.value = true;
+  try {
+    const clone = await ensureOwnedItem(item.value);
+    router.replace(`/vault/${clone.id}?edit=true`);
+  } catch (e) {
+    toast.error(toast.fromError(e, "Failed to clone item. Please try again."));
+  } finally {
+    isCloning.value = false;
+  }
+}
 
 const subtitle = computed(() => {
   if (!item.value) return "";

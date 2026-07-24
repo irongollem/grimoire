@@ -7,53 +7,25 @@
 
     <template #actions>
       <!-- Sources panel — per-campaign library selection, DB-backed so it persists -->
-      <div ref="sourcePickerRef" class="relative shrink-0">
-        <button
-          type="button"
-          class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors shrink-0"
-          :class="showSourcePicker ? 'border-primary/50 text-foreground' : ''"
-          title="Manage monster sources for this campaign"
-          @click="showSourcePicker = !showSourcePicker"
-        >
-          <IconLibrary class="size-3.5 shrink-0" />
-        </button>
-        <div
-          v-show="showSourcePicker"
-          class="absolute right-0 top-full mt-1 z-50 w-80 rounded-md border border-border bg-popover shadow-lg"
-        >
-          <div class="p-3 border-b border-border">
-            <p class="font-cinzel text-xs font-semibold text-foreground">Monster Sources</p>
-            <p class="text-caption text-muted-foreground mt-0.5 italic">
-              Enabled sources appear in your Bestiary instantly — no download needed.
-            </p>
-          </div>
-          <div v-if="sourcesLoading" class="p-4 flex items-center justify-center">
-            <IconLoading class="size-4 animate-spin text-muted-foreground" />
-          </div>
-          <div v-else-if="availableSources.length === 0" class="p-4">
-            <p class="text-caption text-muted-foreground italic">No sources available yet. Ask your admin to seed the srd_monsters table.</p>
-          </div>
-          <div v-else class="p-2 flex flex-col gap-0.5 max-h-72 overflow-y-auto">
-            <label
-              v-for="src in availableSources"
-              :key="src.source"
-              class="flex items-center gap-2.5 px-2 py-2 rounded cursor-pointer hover:bg-accent transition-colors"
-              :class="(enableEnable.isPending.value || enableDisable.isPending.value) ? 'pointer-events-none opacity-60' : ''"
-            >
-              <input
-                type="checkbox"
-                :checked="isEnabled(src.source)"
-                class="accent-primary shrink-0"
-                @change="toggleSource(src)"
-              />
-              <span class="text-body text-foreground flex-1 min-w-0 truncate">
-                {{ src.source_title ?? src.source }}
-              </span>
-              <span class="font-cinzel text-2xs text-muted-foreground shrink-0">{{ src.count.toLocaleString() }}</span>
-            </label>
-          </div>
-        </div>
-      </div>
+      <SourcesPickerPanel
+        title="Monster Sources"
+        description="Enabled sources appear in your Bestiary instantly — no download needed."
+        empty-message="No sources available yet. Ask your admin to seed the srd_monsters table."
+        :available-sources="availableSourceData"
+        :is-loading="sourcesLoading"
+      >
+        <template #trigger="{ open: pickerOpen, toggle }">
+          <button
+            type="button"
+            class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors shrink-0"
+            :class="pickerOpen ? 'border-primary/50 text-foreground' : ''"
+            title="Manage monster sources for this campaign"
+            @click="toggle"
+          >
+            <IconLibrary class="size-3.5 shrink-0" />
+          </button>
+        </template>
+      </SourcesPickerPanel>
 
       <ListActionButton
         :icon="IconGenerate"
@@ -256,34 +228,13 @@
 
     <!-- Sources picker sheet -->
     <MobileSheet v-model:open="sourcesOpen" title="Monster Sources">
-      <p class="mb-3 text-caption italic text-muted-foreground">
-        Enabled sources appear in your Bestiary instantly — no download needed.
-      </p>
-      <div v-if="sourcesLoading" class="flex items-center justify-center py-6">
-        <IconLoading class="size-5 animate-spin text-muted-foreground" />
-      </div>
-      <p v-else-if="availableSources.length === 0" class="py-4 text-body italic text-muted-foreground">
-        No sources available yet. Ask your admin to seed the srd_monsters table.
-      </p>
-      <div v-else class="flex flex-col gap-0.5">
-        <label
-          v-for="src in availableSources"
-          :key="src.source"
-          class="flex items-center gap-3 rounded-lg px-2 py-3 hover:bg-muted/50"
-          :class="(enableEnable.isPending.value || enableDisable.isPending.value) ? 'pointer-events-none opacity-60' : ''"
-        >
-          <input
-            type="checkbox"
-            :checked="isEnabled(src.source)"
-            class="size-4 shrink-0 accent-primary"
-            @change="toggleSource(src)"
-          />
-          <span class="min-w-0 flex-1 truncate text-body text-foreground">
-            {{ src.source_title ?? src.source }}
-          </span>
-          <span class="shrink-0 font-cinzel text-2xs text-muted-foreground">{{ src.count.toLocaleString() }}</span>
-        </label>
-      </div>
+      <SourcesPickerPanel
+        variant="sheet"
+        description="Enabled sources appear in your Bestiary instantly — no download needed."
+        empty-message="No sources available yet. Ask your admin to seed the srd_monsters table."
+        :available-sources="availableSourceData"
+        :is-loading="sourcesLoading"
+      />
     </MobileSheet>
   </div>
 
@@ -292,9 +243,9 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { onClickOutside, useMediaQuery } from "@vueuse/core";
+import { useMediaQuery } from "@vueuse/core";
 import {
-  IconAdd, IconClose, IconGenerate, IconLibrary, IconLoading,
+  IconAdd, IconClose, IconGenerate, IconLibrary,
   IconSearch, IconSettings,
 } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
@@ -305,18 +256,13 @@ import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import MobileSheet from "@/components/common/MobileSheet.vue";
 import MonsterList from "@/components/monsters/MonsterList.vue";
+import SourcesPickerPanel from "@/components/common/SourcesPickerPanel.vue";
 import { useUiStore } from "@/stores/ui";
 import { useRouter } from "vue-router";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useQuota } from "@/composables/useQuota";
 import { useAllMonsters } from "@/composables/useMonsters";
-import {
-  useEnabledSources,
-  useAvailableSrdSources,
-  useEnableSource,
-  useDisableSource,
-  type AvailableSrdSource,
-} from "@/composables/useEnabledSources";
+import { useEnabledSources, useAvailableSrdSources } from "@/composables/useEnabledSources";
 
 // IconSettings (sliders) reads as "filters". The overflow ⋮ has no kebab glyph
 // in the icon set, so it is rendered as an inline SVG in the template.
@@ -356,27 +302,10 @@ const TYPE_OPTIONS = [
 ] as const;
 
 // ── Sources panel ────────────────────────────────────────────────────────────
-const showSourcePicker = ref(false);
-const sourcePickerRef  = ref<HTMLElement | null>(null);
-onClickOutside(sourcePickerRef, () => { showSourcePicker.value = false; });
-
-const { data: enabledSourceData }                      = useEnabledSources();
+// enabledSourceData also feeds the Source filter dropdown below; the enable/
+// disable wiring itself now lives inside SourcesPickerPanel.
+const { data: enabledSourceData } = useEnabledSources();
 const { data: availableSourceData, isLoading: sourcesLoading } = useAvailableSrdSources();
-const enableEnable  = useEnableSource();
-const enableDisable = useDisableSource();
-
-const availableSources = computed(() => availableSourceData.value ?? []);
-const enabledSlugs     = computed(() => new Set(enabledSourceData.value?.map((e) => e.source_slug) ?? []));
-
-function isEnabled(slug: string) { return enabledSlugs.value.has(slug); }
-
-function toggleSource(src: AvailableSrdSource) {
-  if (isEnabled(src.source)) {
-    enableDisable.mutate(src.source);
-  } else {
-    enableEnable.mutate({ source_slug: src.source, source_title: src.source_title });
-  }
-}
 
 // ── Mobile filter chrome ────────────────────────────────────────────────────
 

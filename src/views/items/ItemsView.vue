@@ -5,12 +5,27 @@
     </template>
 
     <template #actions>
-      <ListActionButton
-        :icon="importMutation.isPending.value ? IconLoading : IconDownload"
-        :label="importStatusLabel"
-        :disabled="importMutation.isPending.value"
-        @click="handleImport"
-      />
+      <!-- Sources panel — per-campaign library selection, DB-backed so it persists -->
+      <SourcesPickerPanel
+        title="Item Sources"
+        description="Enabled sources appear in your Vault instantly — no download needed."
+        empty-message="No sources available yet. Ask your admin to seed the srd_items table."
+        :available-sources="availableSourceData"
+        :is-loading="sourcesLoading"
+      >
+        <template #trigger="{ open: pickerOpen, toggle }">
+          <button
+            type="button"
+            class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors shrink-0"
+            :class="pickerOpen ? 'border-primary/50 text-foreground' : ''"
+            title="Manage item sources for this campaign"
+            @click="toggle"
+          >
+            <IconLibrary class="size-3.5 shrink-0" />
+          </button>
+        </template>
+      </SourcesPickerPanel>
+
       <ListActionButton
         :icon="IconGenerate"
         label="Generate"
@@ -55,8 +70,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
-import { IconAdd, IconDownload, IconGenerate, IconLoading } from '@/lib/icons';
+import { computed } from "vue";
+import { IconAdd, IconGenerate, IconLibrary } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
@@ -64,9 +79,11 @@ import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import ItemList from "@/components/items/ItemList.vue";
-import { useImportSrdItems, useItemSources } from "@/composables/useItems";
+import SourcesPickerPanel from "@/components/common/SourcesPickerPanel.vue";
+import { useItemSources } from "@/composables/useItems";
 import { ITEM_TYPES, ITEM_TYPE_LABELS, ITEM_RARITIES, ITEM_RARITY_LABELS, itemSourceLabel } from "@/types/item.types";
 import { useUiStore } from "@/stores/ui";
+import { useAvailableSrdItemSources } from "@/composables/useEnabledSources";
 
 const ui = useUiStore();
 const search = computed({
@@ -94,34 +111,8 @@ const hasActiveFilters = computed(() => ui.vaultHasActiveFilters);
 function clearFilters() { ui.resetVaultFilters(); }
 
 const { data: sources } = useItemSources();
-const importMutation = useImportSrdItems();
 
-const importStatus = ref<"idle" | "done" | "uptodate">("idle");
-const importedCount = ref(0);
-
-const importError = ref<string | null>(null);
-
-const importStatusLabel = computed(() => {
-  if (importMutation.isPending.value) return "Importing…";
-  if (importError.value) return `Error: ${importError.value}`;
-  if (importStatus.value === "done") return `Imported ${importedCount.value} items`;
-  if (importStatus.value === "uptodate") return "Already up to date";
-  return "Import SRD Items";
-});
-
-async function handleImport() {
-  importStatus.value = "idle";
-  importError.value = null;
-  try {
-    const count = await importMutation.mutateAsync();
-    importedCount.value = count;
-    importStatus.value = count === 0 ? "uptodate" : "done";
-  } catch (e) {
-    importError.value = e instanceof Error ? e.message : String(e);
-  }
-  setTimeout(() => {
-    importStatus.value = "idle";
-    importError.value = null;
-  }, 8000);
-}
+// ── Sources panel ────────────────────────────────────────────────────────────
+// The enable/disable wiring (campaign-scoped) now lives inside SourcesPickerPanel.
+const { data: availableSourceData, isLoading: sourcesLoading } = useAvailableSrdItemSources();
 </script>

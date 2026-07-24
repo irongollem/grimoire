@@ -28,34 +28,7 @@
 
         <div class="px-5 py-4 space-y-5 max-h-[70vh] overflow-y-auto">
           <!-- SRD Art Defaults -->
-          <div class="space-y-2">
-            <h3 class="text-label-lg font-semibold text-muted-foreground uppercase">
-              SRD Art Defaults
-            </h3>
-            <p class="text-caption text-muted-foreground italic">
-              Publish your uploaded SRD art as community defaults. Other DMs will see your images
-              for any SRD content they haven't personalised. Re-running is safe — it updates
-              existing defaults with your latest images.
-            </p>
-            <div v-if="statsQuery.data.value" class="text-caption text-foreground">
-              Currently published:
-              <span class="font-semibold">{{ statsQuery.data.value.monsters }}</span> monsters ·
-              <span class="font-semibold">{{ statsQuery.data.value.spells }}</span> spells ·
-              <span class="font-semibold">{{ statsQuery.data.value.items }}</span> items
-            </div>
-            <div v-if="publishResult" class="text-caption text-elven-green">
-              Done — {{ publishResult.monsters }} monsters · {{ publishResult.spells }} spells ·
-              {{ publishResult.items }} items published.
-            </div>
-            <button
-              class="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground font-cinzel text-xs tracking-wide hover:opacity-90 transition-opacity disabled:opacity-50"
-              :disabled="bulkPublish.isPending.value"
-              @click="handlePublishArt"
-            >
-              <IconUpload class="h-3.5 w-3.5" />
-              {{ bulkPublish.isPending.value ? 'Publishing…' : 'Publish all my SRD art' }}
-            </button>
-          </div>
+          <SrdArtPublishPanel variant="inline" />
 
           <div class="border-t border-border" />
 
@@ -235,14 +208,11 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { IconAdd, IconCheck, IconCopy, IconDelete, IconShieldCheck, IconUpload } from '@/lib/icons';
+import { IconAdd, IconCheck, IconCopy, IconDelete, IconShieldCheck } from '@/lib/icons';
 import { useAppInvites, useCreateAppInvite, useDeleteAppInvite } from "@/composables/useAppInvites";
 import type { AppInvite } from "@/composables/useAppInvites";
 import type { GrantedPlan } from "@/composables/useAppInvites";
-import { useBulkPublishSrdArtDefaults, useSrdArtDefaultStats, useSyncSrdSpellArtToSharedTable } from "@/composables/useSrdArtDefaults";
-import type { SrdArtDefaultStats } from "@/composables/useSrdArtDefaults";
-import { useBulkMarkSrdMonsterArtAsCanonical, useSyncSrdArtToSharedTable } from "@/composables/useSrdMonsterArt";
-import { useBulkMarkSrdSpellArtAsCanonical } from "@/composables/useSrdSpellArt";
+import SrdArtPublishPanel from "@/components/admin/SrdArtPublishPanel.vue";
 import { useAiUsageStats } from "@/composables/useAiUsageStats";
 
 const open = ref(false);
@@ -250,13 +220,6 @@ const invitesQuery = useAppInvites();
 const usageStats = useAiUsageStats();
 const createInvite = useCreateAppInvite();
 const deleteInvite = useDeleteAppInvite();
-const statsQuery = useSrdArtDefaultStats();
-const bulkPublish = useBulkPublishSrdArtDefaults();
-const bulkMarkMonsters  = useBulkMarkSrdMonsterArtAsCanonical();
-const bulkMarkSpells    = useBulkMarkSrdSpellArtAsCanonical();
-const syncArtToShared   = useSyncSrdArtToSharedTable();
-const syncSpellArt      = useSyncSrdSpellArtToSharedTable();
-const publishResult = ref<SrdArtDefaultStats | null>(null);
 
 const invites = computed(() => invitesQuery.data.value ?? []);
 
@@ -300,22 +263,6 @@ function handleCreate() {
       newGrantedPlan.value = "free";
     },
   });
-}
-
-async function handlePublishArt() {
-  publishResult.value = null;
-  const [monsterCount, spellArtCount, contentResult] = await Promise.all([
-    bulkMarkMonsters.mutateAsync(),
-    bulkMarkSpells.mutateAsync(),
-    bulkPublish.mutateAsync(),
-  ]);
-  // Sync canonical art into shared SRD tables
-  await Promise.all([
-    syncArtToShared.mutateAsync(),
-    syncSpellArt.mutateAsync(),
-  ]);
-  publishResult.value = { monsters: monsterCount, spells: contentResult.spells + spellArtCount, items: contentResult.items };
-  statsQuery.refetch();
 }
 
 async function copy(invite: AppInvite) {

@@ -184,3 +184,63 @@ export function markdownToTiptapJson(text: string): string {
     content: parseMarkdown(text),
   });
 }
+
+
+/**
+ * Convert plain text (with optional markdown headings) to a minimal Tiptap
+ * JSON string. Lines starting with "# " become level-1, "## " level-2, etc.
+ * Everything else is a paragraph. Double newlines separate blocks.
+ * (AI generators don't emit markdown tables; use markdownToTiptapJson for
+ * that.) Pure — safe for both browser and Node/tsx seed-script use.
+ */
+export function toTiptapJson(text: string): string {
+  const blocks = text
+    .split(/\n\n+/)
+    .map((b) => b.trim())
+    .filter(Boolean)
+    .flatMap((b) => {
+      const match = b.match(/^(#+)\s/);
+      if (match) {
+        const level = match[1].length;
+
+        const newline = b.indexOf("\n");
+        if (newline !== -1) {
+          // Heading and paragraph were not separated by a blank line — split them
+          const headingText = b.slice(level + 1, newline).trim();
+          const paraText = b.slice(newline + 1).trim();
+          if (paraText) {
+            return [
+              {
+                type: "heading",
+                attrs: { level },
+                content: [{ type: "text", text: headingText }],
+              },
+              {
+                type: "paragraph",
+                content: [{ type: "text", text: paraText }],
+              },
+            ];
+          }
+          return [
+            {
+              type: "heading",
+              attrs: { level },
+              content: [{ type: "text", text: headingText }],
+            },
+          ];
+        }
+        return [
+          {
+            type: "heading",
+            attrs: { level },
+            content: [{ type: "text", text: b.slice(level + 1).trim() }],
+          },
+        ];
+      }
+      return [{ type: "paragraph", content: [{ type: "text", text: b }] }];
+    });
+  return JSON.stringify({
+    type: "doc",
+    content: blocks.length ? blocks : [{ type: "paragraph" }],
+  });
+}

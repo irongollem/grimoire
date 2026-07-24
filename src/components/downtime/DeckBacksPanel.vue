@@ -2,7 +2,7 @@
 import { computed, ref } from "vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { useNpcs } from "@/composables/useNpcs";
-import { useItems } from "@/composables/useItems";
+import { useItems, useEnsureOwnedItem } from "@/composables/useItems";
 import { useNotes } from "@/composables/useNotes";
 import { useDeckBacks, useCreateDeckBack, useDeleteDeckBack } from "@/composables/useDowntime";
 import { DOWNTIME_ACTIVITIES, getDowntimeActivity } from "@/data/downtimeActivities";
@@ -12,6 +12,7 @@ const { data: backs } = useDeckBacks();
 const { data: npcs } = useNpcs();
 const { data: items } = useItems();
 const { data: notes } = useNotes();
+const { ensureOwnedItem } = useEnsureOwnedItem();
 const createBack = useCreateDeckBack();
 const deleteBack = useDeleteDeckBack();
 
@@ -94,10 +95,23 @@ async function addBack() {
   const nextPosition =
     pile.value.filter((b) => b.activity_key === activityKey.value).length;
   try {
+    // reward_id is a plain `uuid not null` column (the polymorphic pair can't
+    // carry a real FK) — an srd item's slug id would fail the insert outright,
+    // so it must become an owned row before it's handed to the mutation.
+    let ownedRewardId = rewardId.value;
+    if (rewardType.value === "item") {
+      const picked = items.value?.find((i) => i.id === rewardId.value);
+      if (!picked) {
+        errorMessage.value = "That item is no longer available — pick another.";
+        return;
+      }
+      const owned = await ensureOwnedItem(picked);
+      ownedRewardId = owned.id;
+    }
     await createBack.mutateAsync({
       activity_key: activityKey.value,
       reward_type: rewardType.value,
-      reward_id: rewardId.value,
+      reward_id: ownedRewardId,
       is_recurring: isRecurring.value,
       position: nextPosition,
     });

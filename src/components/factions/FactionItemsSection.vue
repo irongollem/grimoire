@@ -41,13 +41,14 @@ import {
   useRemoveFactionItem,
   type FactionItemWithItem,
 } from "@/composables/useFactions";
-import { useItems } from "@/composables/useItems";
+import { useItems, useEnsureOwnedItem } from "@/composables/useItems";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 
 const props = defineProps<{ factionId: string }>();
 
 const { data: entries }  = useFactionItems(props.factionId);
 const { data: allItems } = useItems();
+const { ensureOwnedItem } = useEnsureOwnedItem();
 const addMut    = useAddFactionItem();
 const removeMut = useRemoveFactionItem();
 
@@ -61,9 +62,12 @@ const adding    = ref(false);
 
 async function add() {
   if (!newItemId.value) return;
+  const picked = availableItems.value.find((i) => i.id === newItemId.value);
+  if (!picked) return;
   adding.value = true;
   try {
-    await addMut.mutateAsync({ faction_id: props.factionId, item_id: newItemId.value });
+    const owned = await ensureOwnedItem(picked);
+    await addMut.mutateAsync({ faction_id: props.factionId, item_id: owned.id });
     newItemId.value = "";
   } finally {
     adding.value = false;

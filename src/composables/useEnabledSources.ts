@@ -4,9 +4,11 @@ import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { useRuleset } from "@/composables/useRuleset";
 
-const ENABLED_KEY         = "enabled-sources";
-const AVAILABLE_KEY       = "available-srd-sources";
-const AVAILABLE_SPELL_KEY = "available-srd-spell-sources";
+const ENABLED_KEY          = "enabled-sources";
+const AVAILABLE_KEY        = "available-srd-sources";
+const AVAILABLE_SPELL_KEY  = "available-srd-spell-sources";
+const AVAILABLE_ITEM_KEY   = "available-srd-item-sources";
+const AVAILABLE_SPECIES_KEY = "available-srd-species-sources";
 
 export interface EnabledSource {
   id: string;
@@ -88,6 +90,36 @@ export function useAvailableSrdSpellSources() {
   });
 }
 
+async function fetchAvailableSrdItemSources(ruleset: "2014" | "2024"): Promise<AvailableSrdSource[]> {
+  const { data, error } = await supabase.rpc("get_srd_item_sources", { p_ruleset: ruleset });
+  if (error) throw error;
+  return (data ?? []) as AvailableSrdSource[];
+}
+
+export function useAvailableSrdItemSources() {
+  const { ruleset } = useRuleset();
+  return useQuery({
+    queryKey: computed(() => [AVAILABLE_ITEM_KEY, ruleset.value]),
+    queryFn: () => fetchAvailableSrdItemSources(ruleset.value),
+    staleTime: Infinity,
+  });
+}
+
+async function fetchAvailableSrdSpeciesSources(ruleset: "2014" | "2024"): Promise<AvailableSrdSource[]> {
+  const { data, error } = await supabase.rpc("get_srd_species_sources", { p_ruleset: ruleset });
+  if (error) throw error;
+  return (data ?? []) as AvailableSrdSource[];
+}
+
+export function useAvailableSrdSpeciesSources() {
+  const { ruleset } = useRuleset();
+  return useQuery({
+    queryKey: computed(() => [AVAILABLE_SPECIES_KEY, ruleset.value]),
+    queryFn: () => fetchAvailableSrdSpeciesSources(ruleset.value),
+    staleTime: Infinity,
+  });
+}
+
 export function useEnableSource() {
   const campaign = useCampaignStore();
   const queryClient = useQueryClient();
@@ -98,6 +130,8 @@ export function useEnableSource() {
       queryClient.invalidateQueries({ queryKey: [ENABLED_KEY] });
       queryClient.invalidateQueries({ queryKey: ["srd-monsters"] });
       queryClient.invalidateQueries({ queryKey: ["srd-spells"] });
+      queryClient.invalidateQueries({ queryKey: ["srd-items"] });
+      queryClient.invalidateQueries({ queryKey: ["srd-species"] });
     },
   });
 }
@@ -112,6 +146,8 @@ export function useDisableSource() {
       queryClient.invalidateQueries({ queryKey: [ENABLED_KEY] });
       queryClient.invalidateQueries({ queryKey: ["srd-monsters"] });
       queryClient.invalidateQueries({ queryKey: ["srd-spells"] });
+      queryClient.invalidateQueries({ queryKey: ["srd-items"] });
+      queryClient.invalidateQueries({ queryKey: ["srd-species"] });
     },
   });
 }

@@ -219,7 +219,7 @@ import {
   getDiscipline,
 } from "@/lib/crafting-disciplines";
 import { useUiStore } from "@/stores/ui";
-import { useItems } from "@/composables/useItems";
+import { useItems, useEnsureOwnedItem } from "@/composables/useItems";
 import {
   useCreateRecipe,
   useUpdateRecipe,
@@ -247,6 +247,7 @@ const recipeId = computed(() => props.recipe?.id);
 const ui = useUiStore();
 
 const { data: allItems } = useItems();
+const { ensureOwnedItem } = useEnsureOwnedItem();
 
 // Load existing sub-resources when editing — pass the computed so the query
 // re-enables reactively once the recipe prop resolves after a hard refresh.
@@ -385,24 +386,33 @@ function itemById(id: string) {
   return items.value.find((i) => i.id === id);
 }
 
-function addOutput(itemId: string) {
-  const existing = outputs.value.find((o) => o.item_id === itemId);
+async function addOutput(itemId: string) {
+  const picked = itemById(itemId);
+  if (!picked) return;
+  outputSearch.value = "";
+  // Resolve the owned (uuid) id BEFORE it enters the outputs array, so a Save
+  // that fires during the clone can never persist an srd slug into the
+  // crafting_recipe_outputs.item_id uuid FK.
+  const owned = await ensureOwnedItem(picked);
+  const existing = outputs.value.find((o) => o.item_id === owned.id);
   if (existing) {
     existing.quantity += 1;
   } else {
-    outputs.value.push({ item_id: itemId, quantity: 1 });
+    outputs.value.push({ item_id: owned.id, quantity: 1 });
   }
-  outputSearch.value = "";
 }
 
-function addIngredient(itemId: string) {
-  const existing = ingredients.value.find((i) => i.item_id === itemId);
+async function addIngredient(itemId: string) {
+  const picked = itemById(itemId);
+  if (!picked) return;
+  ingredientSearch.value = "";
+  const owned = await ensureOwnedItem(picked);
+  const existing = ingredients.value.find((i) => i.item_id === owned.id);
   if (existing) {
     existing.quantity += 1;
   } else {
-    ingredients.value.push({ item_id: itemId, tags: null, quantity: 1 });
+    ingredients.value.push({ item_id: owned.id, tags: null, quantity: 1 });
   }
-  ingredientSearch.value = "";
 }
 
 function addTagIngredient() {

@@ -346,7 +346,7 @@ import type {
 import type { CampaignMember } from "@/types/campaign.types";
 import type { PartyMember } from "@/types/party.types";
 import type { DieSize, RollMode, RollResult } from "@/lib/dice";
-import { useItems } from "@/composables/useItems";
+import { useItems, useEnsureOwnedItem } from "@/composables/useItems";
 import { COINS, type CoinKey, toCP } from "@/lib/currency";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
@@ -417,6 +417,7 @@ const vendorItemQuery = ref("");
 const vendorItemId    = ref("");
 const vendorShowItems = ref(false);
 const { data: allVaultItems } = useItems();
+const { ensureOwnedItem } = useEnsureOwnedItem();
 const vendorItemSuggestions = computed(() => {
   const q = vendorItemQuery.value.trim().toLowerCase();
   const all = allVaultItems.value ?? [];
@@ -427,15 +428,18 @@ const vendorItemSuggestions = computed(() => {
 const vendorPrice = reactive<Record<CoinKey, number>>({ pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 });
 const vendorHasPrice = computed(() => COINS.some(c => vendorPrice[c.key] > 0));
 
-function postVendorOffer() {
+async function postVendorOffer() {
   if (!vendorDesc.value.trim()) return;
   const selectedItem = vendorItemId.value
     ? (allVaultItems.value ?? []).find(it => it.id === vendorItemId.value) ?? null
     : null;
+  // A paid offer lands in party_inventory.item_id (hard FK) via handlePayVendorOffer
+  // — the id embedded in the offer's chat metadata must already be owned.
+  const owned = selectedItem ? await ensureOwnedItem(selectedItem) : null;
   emit("send-vendor-offer", {
     description: vendorDesc.value.trim(),
     itemName: selectedItem?.name ?? null,
-    itemId: selectedItem?.id ?? null,
+    itemId: owned?.id ?? null,
     pp: vendorPrice.pp, gp: vendorPrice.gp, ep: vendorPrice.ep,
     sp: vendorPrice.sp, cp: vendorPrice.cp,
   });

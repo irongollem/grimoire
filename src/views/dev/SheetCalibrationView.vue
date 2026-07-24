@@ -270,7 +270,7 @@ async function copyConfig() {
   try {
     await navigator.clipboard.writeText(text);
   } catch {
-    console.log(text); // clipboard blocked (e.g. headless) — read it from the console
+    console.warn(text); // clipboard blocked (e.g. headless) — read it from the console
   }
   copied.value = true;
   setTimeout(() => (copied.value = false), 1500);

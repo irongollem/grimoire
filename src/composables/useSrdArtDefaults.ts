@@ -184,3 +184,17 @@ export function useSyncSrdSpellArtToSharedTable() {
     },
   });
 }
+
+export function useSyncSrdItemArtToSharedTable() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (): Promise<number> => {
+      const { data, error } = await supabase.rpc("sync_srd_item_art_to_shared_table");
+      if (error) throw error;
+      return data as number;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["srd-items"] });
+    },
+  });
+}

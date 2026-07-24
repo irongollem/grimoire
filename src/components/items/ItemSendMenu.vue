@@ -89,6 +89,7 @@ import { useUiStore } from "@/stores/ui";
 import { useParty } from "@/composables/useParty";
 import { useAddInventoryItem } from "@/composables/usePartyInventory";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
+import { useEnsureOwnedItem } from "@/composables/useItems";
 import type { Item } from "@/types/item.types";
 import type { PartyMember } from "@/types/party.types";
 
@@ -98,6 +99,7 @@ const ui = useUiStore();
 const { data: party } = useParty();
 const { mutateAsync: addInventoryItem } = useAddInventoryItem();
 const { sendItemDrop } = useCampaignMessages();
+const { ensureOwnedItem } = useEnsureOwnedItem();
 
 const open = ref(false);
 const showPlayerPicker = ref(false);
@@ -131,8 +133,9 @@ function tiptapToPlainText(content: string): string {
 async function addToStash() {
   isAddingToStash.value = true;
   try {
+    const owned = await ensureOwnedItem(props.item);
     await addInventoryItem({
-      item_id: props.item.id,
+      item_id: owned.id,
       name: props.item.name,
       quantity: 1,
       carried_by: null,
@@ -156,8 +159,9 @@ async function addToStash() {
 async function assignToPlayer(member: PartyMember) {
   assigningTo.value = member.id;
   try {
+    const owned = await ensureOwnedItem(props.item);
     await addInventoryItem({
-      item_id: props.item.id,
+      item_id: owned.id,
       name: props.item.name,
       quantity: 1,
       carried_by: member.id,
@@ -190,9 +194,12 @@ async function dropInChat() {
     const description = descSource
       ? tiptapToPlainText(descSource).slice(0, 200) || null
       : null;
+    // A claimed drop lands in party_inventory.item_id (hard FK) via
+    // claim_item_drop — the id embedded in the chat card must already be owned.
+    const owned = await ensureOwnedItem(props.item);
     await sendItemDrop(
       props.item.name,
-      props.item.id,
+      owned.id,
       1,
       props.item.rarity,
       undefined,

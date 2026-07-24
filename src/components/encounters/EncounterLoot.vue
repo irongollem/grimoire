@@ -137,6 +137,7 @@
 import { ref, computed } from "vue";
 import { IconAdd, IconClose, IconCoins, IconLoot, IconMinus, IconPackage } from '@/lib/icons';
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import { useEnsureOwnedItem } from "@/composables/useItems";
 import type { Item } from "@/types/item.types";
 import type { RewardCurrencyPool } from "@/types/quest.types";
 
@@ -182,11 +183,17 @@ const linkedItemGroups = computed(() => {
 const totalCount = computed(() => linkedItemGroups.value.length + currencyPools.value.length);
 
 const selectedItemId = ref("");
+const { ensureOwnedItem } = useEnsureOwnedItem();
 
-function addItem() {
+async function addItem() {
   if (!selectedItemId.value) return;
-  itemIds.value = [...itemIds.value, selectedItemId.value];
+  const picked = props.allItems.find((i) => i.id === selectedItemId.value);
+  if (!picked) return;
   selectedItemId.value = "";
+  // reward_item_ids / encounter.item_ids are hard uuid[] columns — an srd slug
+  // must become an owned row before it enters the array, not at save time.
+  const owned = await ensureOwnedItem(picked);
+  itemIds.value = [...itemIds.value, owned.id];
 }
 
 function incrementItem(id: string) {

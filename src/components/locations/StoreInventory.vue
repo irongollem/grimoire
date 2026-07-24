@@ -218,7 +218,7 @@
 import { ref, computed, reactive } from "vue";
 import { IconAdd, IconClose, IconHide, IconReveal, IconShop, IconShuffle } from '@/lib/icons';
 import ItemSheet from "@/components/items/ItemSheet.vue";
-import { useItems } from "@/composables/useItems";
+import { useItems, useEnsureOwnedItem } from "@/composables/useItems";
 import {
   useStoreItems,
   useAddStoreItem,
@@ -238,6 +238,7 @@ const locationIdRef = computed(() => props.locationId);
 
 const { data: items } = useStoreItems(locationIdRef);
 const { data: allItems } = useItems();
+const { ensureOwnedItem } = useEnsureOwnedItem();
 const { mutate: add } = useAddStoreItem();
 const { mutate: addMany, isPending: isFilling } = useAddStoreItems();
 const { mutate: update } = useUpdateStoreItem(locationIdRef);
@@ -257,10 +258,11 @@ const searchResults = computed(() => {
     .slice(0, 10);
 });
 
-function addItem(item: Item) {
+async function addItem(item: Item) {
   search.value = "";
   dropdownOpen.value = false;
-  add({ location_id: props.locationId, item_id: item.id });
+  const owned = await ensureOwnedItem(item);
+  add({ location_id: props.locationId, item_id: owned.id });
 }
 
 function onSearchBlur() {
@@ -305,7 +307,7 @@ const fillPool = computed(() =>
 );
 const fillPoolSize = computed(() => fillPool.value.length);
 
-function quickFill() {
+async function quickFill() {
   const pool = [...fillPool.value];
   // Fisher-Yates shuffle then take fillCount
   for (let i = pool.length - 1; i > 0; i--) {
@@ -316,7 +318,11 @@ function quickFill() {
   const count = Math.min(Math.max(1, Math.floor(fillCount.value || 1)), 20);
   const picks = pool.slice(0, count);
   if (picks.length === 0) return;
-  addMany(picks.map((item) => ({ location_id: props.locationId, item_id: item.id })));
+  // Srd rows in the pool must become user-owned rows before the FK insert —
+  // clone each (idempotent, so repeat picks of the same srd item just resolve
+  // to the same owned row) before handing the batch to addMany.
+  const owned = await Promise.all(picks.map((item) => ensureOwnedItem(item)));
+  addMany(owned.map((item) => ({ location_id: props.locationId, item_id: item.id })));
 }
 
 // ── Vendor offer form ───────────────────────────────────────────────────────────

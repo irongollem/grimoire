@@ -6,10 +6,14 @@ import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { Item, ItemInsert, ItemUpdate } from "@/types/item.types";
 import { deleteByPublicUrl } from "@/lib/storage";
 import { useSrdArtDefaults } from "@/composables/useSrdArtDefaults";
+import { useEnabledSources } from "@/composables/useEnabledSources";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
 import { useToast } from "@/composables/useToast";
+import { isUuid } from "@/lib/contentIdentity";
+import { mergeSrdWithCustom } from "@/lib/srdShadow";
 import { useRuleset } from "@/composables/useRuleset";
+import type { RulesetKey } from "@/types/ruleset.types";
 
 interface ItemSource {
   slug: string;
@@ -17,6 +21,8 @@ interface ItemSource {
 }
 
 const QUERY_KEY = "items";
+const SRD_QUERY_KEY = "srd-items";
+const UNIQUE_VIOLATION = "23505";
 
 async function fetchItems(): Promise<Item[]> {
   const all: Item[] = [];
@@ -71,35 +77,47 @@ async function deleteItem(item: Item): Promise<void> {
   await deleteByPublicUrl(item.image_url, item.mundane_image_url);
 }
 
-async function fetchItemSources(): Promise<ItemSource[]> {
-  const all: { source: string; source_title: string | null }[] = [];
-  const PAGE = 1000;
-  let offset = 0;
-  while (true) {
-    const { data, error } = await supabase
-      .from("items")
-      .select("source, source_title")
-      .not("source", "is", null)
-      .range(offset, offset + PAGE - 1);
-    if (error) throw error;
-    all.push(...(data as { source: string; source_title: string | null }[]));
-    if ((data ?? []).length < PAGE) break;
-    offset += PAGE;
-  }
-  // Deduplicate by slug, preferring a non-null title
-  const map = new Map<string, string | null>();
-  for (const r of all) {
-    if (!map.has(r.source) || r.source_title) map.set(r.source, r.source_title);
-  }
-  return [...map.entries()]
-    .map(([slug, title]) => ({ slug, title }))
-    .sort((a, b) => (a.title ?? a.slug).localeCompare(b.title ?? b.slug));
+async function fetchSrdItems(enabledSlugs: string[], ruleset: RulesetKey): Promise<Item[]> {
+  // Edition-neutral grimoire-bundled gear is always visible; enabled campaign
+  // sources add to it. Array-form `.in()` (not a string-interpolated
+  // `.or(...in.(...))`) keeps slug values from ever being parsed as PostgREST
+  // filter syntax, and a single-element list handles the no-enabled-sources case.
+  const { data, error } = await supabase
+    .from("srd_items")
+    .select("*")
+    .in("source_document_key", ["grimoire-bundled", ...enabledSlugs])
+    .or(`ruleset.is.null,ruleset.eq.${ruleset}`)
+    .order("name", { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map((row) => ({
+    ...row,
+    user_id: "",
+    campaign_id: null,
+    dm_notes: null,
+    // srd_items carries no spell_ids column — the field only exists on
+    // user-authored items with linked spells (e.g. a homebrew staff).
+    spell_ids: [],
+  })) as Item[];
 }
 
-const SOURCES_KEY = "item-sources";
 
+/** Distinct item sources — derived from the merged {@link useItems} catalog so
+ *  campaign-enabled srd_items sources surface in the Vault "Source" filter
+ *  alongside any custom-item sources. */
 export function useItemSources() {
-  return useQuery({ queryKey: [SOURCES_KEY], queryFn: fetchItemSources, staleTime: Infinity });
+  const { data: items, isLoading } = useItems();
+  const data = computed<ItemSource[]>(() => {
+    const list = items.value ?? [];
+    const map = new Map<string, string | null>();
+    for (const item of list) {
+      if (!item.source) continue;
+      if (!map.has(item.source) || item.source_title) map.set(item.source, item.source_title ?? null);
+    }
+    return [...map.entries()]
+      .map(([slug, title]) => ({ slug, title }))
+      .sort((a, b) => (a.title ?? a.slug).localeCompare(b.title ?? b.slug));
+  });
+  return { data, isLoading };
 }
 
 export interface UseItemsOptions {
@@ -112,18 +130,34 @@ export function useItems(getOptions?: () => UseItemsOptions) {
   const artDefaults = useSrdArtDefaults();
   const { activeCampaignId } = storeToRefs(useCampaignStore());
   const { ruleset } = useRuleset();
+  const enabledQuery = useEnabledSources();
+
+  const enabledSlugs = computed(() =>
+    enabledQuery.data.value?.map((e) => e.source_slug) ?? null,
+  );
+
+  const srdQuery = useQuery({
+    queryKey: computed(() => [SRD_QUERY_KEY, enabledSlugs.value, ruleset.value]),
+    queryFn: () => fetchSrdItems(enabledSlugs.value!, ruleset.value),
+    enabled: () => enabledSlugs.value !== null,
+    staleTime: Infinity,
+  });
 
   const data = computed(() => {
     const items = itemsQuery.data.value;
     const defaults = artDefaults.data.value;
     if (!items) return items;
     const opts = getOptions?.() ?? {};
+    // srd_items rows are already server-filtered by ruleset — this edition
+    // filter is only load-bearing for the custom side, but it's harmless to
+    // re-apply once merged below.
     const editionFiltered = items.filter((item) => !item.ruleset || item.ruleset === ruleset.value);
     const scopeFiltered = opts.includeAllScopes
       ? editionFiltered
       : editionFiltered.filter((i) => i.campaign_id === null || i.campaign_id === activeCampaignId.value);
-    if (!defaults) return scopeFiltered;
-    return scopeFiltered.map((item) => {
+    const merged = mergeSrdWithCustom(srdQuery.data.value ?? [], scopeFiltered);
+    if (!defaults) return merged;
+    return merged.map((item) => {
       if (item.image_url || !item.source) return item;
       const d = defaults[`item:${item.name.toLowerCase()}`];
       if (!d?.image_url) return item;
@@ -131,7 +165,11 @@ export function useItems(getOptions?: () => UseItemsOptions) {
     });
   });
 
-  return { ...itemsQuery, data };
+  const isLoading = computed(
+    () => itemsQuery.isLoading.value || enabledQuery.isLoading.value || srdQuery.isLoading.value,
+  );
+
+  return { ...itemsQuery, data, isLoading };
 }
 
 /** Player-visible items (their vault + shared store items) via the
@@ -150,6 +188,21 @@ export function usePlayerVisibleItems(getOptions?: () => UseItemsOptions) {
   const artDefaults = useSrdArtDefaults();
   const { activeCampaignId } = storeToRefs(useCampaignStore());
   const { ruleset } = useRuleset();
+  // Players can read campaign_enabled_sources directly (RLS allows any
+  // campaign member select), so the same enabled-sources → srd_items query
+  // used by the DM catalog works unchanged here.
+  const enabledQuery = useEnabledSources();
+
+  const enabledSlugs = computed(() =>
+    enabledQuery.data.value?.map((e) => e.source_slug) ?? null,
+  );
+
+  const srdQuery = useQuery({
+    queryKey: computed(() => [SRD_QUERY_KEY, enabledSlugs.value, ruleset.value]),
+    queryFn: () => fetchSrdItems(enabledSlugs.value!, ruleset.value),
+    enabled: () => enabledSlugs.value !== null,
+    staleTime: Infinity,
+  });
 
   // Real player → gated projection. DM preview → full owned catalog (the DM
   // isn't a campaign_member, so the projection returns nothing; the DM owns the
@@ -171,7 +224,9 @@ export function usePlayerVisibleItems(getOptions?: () => UseItemsOptions) {
     ui.dmPreviewMode ? baseQuery.data.value : projectionQuery.data.value,
   );
   const isLoading = computed(() =>
-    ui.dmPreviewMode ? baseQuery.isLoading.value : projectionQuery.isLoading.value,
+    enabledQuery.isLoading.value ||
+    srdQuery.isLoading.value ||
+    (ui.dmPreviewMode ? baseQuery.isLoading.value : projectionQuery.isLoading.value),
   );
 
   const data = computed(() => {
@@ -183,8 +238,9 @@ export function usePlayerVisibleItems(getOptions?: () => UseItemsOptions) {
     const scopeFiltered = opts.includeAllScopes
       ? editionFiltered
       : editionFiltered.filter((i) => i.campaign_id === null || i.campaign_id === activeCampaignId.value);
-    if (!defaults) return scopeFiltered;
-    return scopeFiltered.map((item) => {
+    const merged = mergeSrdWithCustom(srdQuery.data.value ?? [], scopeFiltered);
+    if (!defaults) return merged;
+    return merged.map((item) => {
       if (item.image_url || !item.source) return item;
       const d = defaults[`item:${item.name.toLowerCase()}`];
       if (!d?.image_url) return item;
@@ -235,95 +291,133 @@ export function useDeleteItem() {
   });
 }
 
-export function useImportSrdItems() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async () => {
-      const { fetchSrdItems } = await import("@/lib/open5eImport");
-      const { GEAR } = await import("@/data/gear");
-      const { PROVISIONS } = await import("@/data/provisions");
-      const { SERVICES } = await import("@/data/services");
-      const { AMMUNITION } = await import("@/data/ammunition");
-      const apiItems = await fetchSrdItems();
-      const slug = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
-      const items = [...apiItems, ...GEAR, ...PROVISIONS, ...SERVICES, ...AMMUNITION].map((item) => ({
-        ruleset: "2014" as const,
-        conceptual_key: item.conceptual_key ?? slug(item.name),
-        source_document_key: item.source_document_key ?? item.source ?? "grimoire-bundled",
-        source_record_key: item.source_record_key ?? `${item.source ?? "grimoire-bundled"}:${slug(item.name)}`,
-        source_revision: item.source_revision ?? (item.source ? "open5e-v1" : "bundled"),
-        source_license: item.source_license ?? null,
-        provenance: item.provenance ?? { provider: item.source ? "open5e" : "grimoire" },
-        ...item,
-      }));
-
-      const user = getCurrentUser();
-      if (!user) throw new Error("Not authenticated");
-      type ExistingItem = { id: string; source_document_key: string; source_record_key: string };
-      const { data: existingData, error: existingError } = await supabase
-        .from("items")
-        .select("id, source_document_key, source_record_key")
-        .eq("user_id", user.id)
-        .not("source_document_key", "is", null)
-        .not("source_record_key", "is", null);
-      if (existingError) throw existingError;
-      const existing = (existingData ?? []) as ExistingItem[];
-      const byIdentity = new Map(existing.map(row => [
-        `${row.source_document_key}::${row.source_record_key}`,
-        row,
-      ]));
-      const existingFor = (item: typeof items[number]) =>
-        byIdentity.get(`${item.source_document_key}::${item.source_record_key}`);
-      const toInsert = items.filter((item) => !existingFor(item));
-      const toUpdate = items.filter((item) => !!existingFor(item));
-
-      // Insert new items in batches of 100
-      const BATCH = 100;
-      for (let i = 0; i < toInsert.length; i += BATCH) {
-        const batch = toInsert.slice(i, i + BATCH).map((item) => ({
-          curse_description: null,
-          ...item,
-          user_id: user.id,
-        }));
-        const { error } = await supabase.from("items").insert(batch);
-        if (error) throw error;
+/** Resolve an opaque item ID against explicit shared/custom stores — mirrors
+ *  {@link useResolvedMonster}/`useResolvedSpell`. */
+export function useResolvedItem(id: Ref<string>) {
+  return useQuery({
+    queryKey: computed(() => ["resolved-item", id.value]),
+    queryFn: async () => {
+      // srd_items ids are text slugs, custom items are uuids — the two id
+      // spaces are disjoint, so branch on the id shape and do a single lookup
+      // rather than always probing srd_items first (the common owned-item
+      // detail page is a uuid and would otherwise pay a guaranteed-miss query).
+      if (isUuid(id.value)) {
+        const item = await fetchItem(id.value);
+        if (!item) throw new Error("Item not found");
+        return { item, isShared: false };
       }
-
-      // Update existing items: refresh source fields + tags.
-      // Preserves user-added data (image_url, image_focal_point, description).
-      const UPDATE_BATCH = 50;
-      for (let i = 0; i < toUpdate.length; i += UPDATE_BATCH) {
-        await Promise.all(
-          toUpdate.slice(i, i + UPDATE_BATCH).map((item) =>
-            supabase
-              .from("items")
-              .update({
-                source: item.source,
-                source_title: item.source_title ?? null,
-                source_url: item.source_url ?? null,
-                weapon_range: item.weapon_range ?? null,
-                versatile_damage: item.versatile_damage ?? null,
-                properties: item.properties,
-                mastery: item.mastery,
-                tags: item.tags,
-                ruleset: item.ruleset,
-                conceptual_key: item.conceptual_key,
-                source_document_key: item.source_document_key,
-                source_record_key: item.source_record_key,
-                source_revision: item.source_revision,
-                source_license: item.source_license,
-                provenance: item.provenance,
-              })
-              .eq("id", existingFor(item)!.id),
-          ),
-        );
-      }
-
-      return toInsert.length;
+      const { data: shared, error: sharedError } = await supabase
+        .from("srd_items").select("*").eq("id", id.value).maybeSingle();
+      if (sharedError) throw sharedError;
+      if (!shared) throw new Error("Item not found");
+      return {
+        item: { ...shared, user_id: "", campaign_id: null, dm_notes: null, spell_ids: [] } as Item,
+        isShared: true,
+      };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
-      queryClient.invalidateQueries({ queryKey: [SOURCES_KEY] });
-    },
+    enabled: () => !!id.value,
   });
+}
+
+function isUniqueViolation(e: unknown): boolean {
+  return typeof e === "object" && e !== null && "code" in e
+    && (e as { code?: unknown }).code === UNIQUE_VIOLATION;
+}
+
+/**
+ * Bridges text-slug srd_items ids and the uuid FK columns that reference the
+ * user's `items` table (store_items, party_inventory, recipes, npc_inventory,
+ * loot tables, …): every FK-bearing write path must own a real `items` row, so
+ * a picker calls this before persisting a reference. A uuid `Item` (already
+ * user-owned, custom or previously cloned) passes through unchanged; an srd
+ * slug row is cloned into the user's own `items` table on first reference —
+ * the clone then shadows the shared row in every merged {@link useItems} list
+ * (same source identity), so no duplicate appears afterwards.
+ */
+export function useEnsureOwnedItem() {
+  const queryClient = useQueryClient();
+
+  async function ensureOwnedItem(item: Item): Promise<Item> {
+    if (isUuid(item.id)) return item;
+
+    const user = getCurrentUser();
+    if (!user) throw new Error("Not authenticated");
+    if (!item.source_document_key || !item.source_record_key) {
+      throw new Error("SRD item is missing source identity");
+    }
+
+    const findExisting = async (): Promise<Item | null> => {
+      const { data, error } = await supabase
+        .from("items")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("source_document_key", item.source_document_key as string)
+        .eq("source_record_key", item.source_record_key as string)
+        .maybeSingle();
+      if (error) throw error;
+      return data as Item | null;
+    };
+
+    const existing = await findExisting();
+    if (existing) return existing;
+
+    const payload: ItemInsert = {
+      name: item.name,
+      item_type: item.item_type,
+      subtype: item.subtype,
+      rarity: item.rarity,
+      requires_attunement: item.requires_attunement,
+      attunement_requirements: item.attunement_requirements,
+      weight: item.weight,
+      cost: item.cost,
+      damage_rolls: item.damage_rolls,
+      armor_class: item.armor_class,
+      properties: item.properties,
+      mastery: item.mastery,
+      charges: item.charges,
+      recharge: item.recharge,
+      spell_ids: item.spell_ids,
+      weapon_range: item.weapon_range,
+      versatile_damage: item.versatile_damage,
+      description: item.description,
+      source: item.source,
+      source_title: item.source_title,
+      source_url: item.source_url,
+      tags: item.tags,
+      bundle_items: item.bundle_items,
+      image_url: item.image_url,
+      image_focal_point: item.image_focal_point,
+      is_arcane_focus: item.is_arcane_focus,
+      curse_description: item.curse_description,
+      mundane_description: item.mundane_description,
+      mundane_image_url: item.mundane_image_url,
+      mundane_image_focal_point: item.mundane_image_focal_point,
+      campaign_id: null,
+      dm_notes: null,
+      ruleset: item.ruleset,
+      conceptual_key: item.conceptual_key,
+      source_document_key: item.source_document_key,
+      source_record_key: item.source_record_key,
+      source_revision: item.source_revision,
+      source_license: item.source_license,
+      provenance: item.provenance,
+    };
+
+    try {
+      const created = await createItem(payload);
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      return created;
+    } catch (e) {
+      // Two concurrent pickers can race to clone the same srd item — the
+      // loser hits the (user_id, source_document_key, source_record_key)
+      // unique index; re-query for the winner's row instead of failing.
+      if (isUniqueViolation(e)) {
+        const retried = await findExisting();
+        if (retried) return retried;
+      }
+      throw e;
+    }
+  }
+
+  return { ensureOwnedItem };
 }
