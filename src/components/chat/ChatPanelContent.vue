@@ -10,7 +10,7 @@
           class="text-label-lg font-semibold text-foreground"
           >Campaign Chat</span
         >
-        <ManualHelpLink page="campaign-chat" />
+        <ManualHelpLink v-if="auth.isDM" page="campaign-chat" />
       </div>
       <div class="flex items-center gap-1">
         <button
