@@ -52,15 +52,35 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import BackgroundOriginFeatBadge from "@/components/backgrounds/BackgroundOriginFeatBadge.vue";
+import { isInternalChoiceKey } from "@/lib/classChoices";
+import { useAllFeatures } from "@/composables/useFeatures";
 import type { BackgroundOriginFeat } from "@/types/background.types";
 import type { SaveKey } from "@/types/party.types";
 
-const { classChoices, backgroundAsiBonuses, backgroundOriginFeat, backgroundFeat } = defineProps<{
+const { classChoices, backgroundAsiBonuses, backgroundOriginFeat, backgroundFeat, excludeKeys = [] } = defineProps<{
   classChoices: Record<string, unknown>;
   backgroundAsiBonuses: { key: SaveKey; label: string; delta: number }[];
   backgroundOriginFeat: BackgroundOriginFeat | null;
   backgroundFeat: string | null;
+  /** Keys owned by another card (e.g. spell_pick steps shown in Spell Choices) — hidden here to avoid duplication. */
+  excludeKeys?: string[];
 }>();
+
+// Feat / feature_pick choices store class_features UUIDs; resolve them to names
+// so the card never shows a raw id. Unknown values (subclass names, text picks)
+// pass through unchanged. The map is empty until the query resolves, in which
+// case the raw value is shown as a graceful fallback.
+const { data: allFeatures } = useAllFeatures();
+const featureNameById = computed(() => {
+  const map = new Map<string, string>();
+  for (const f of allFeatures.value ?? []) map.set(f.id, f.name);
+  return map;
+});
+
+function displayValue(value: unknown): string {
+  const raw = String(value);
+  return featureNameById.value.get(raw) ?? raw;
+}
 
 // ── Class choices (read-only) ─────────────────────────────────────────────────
 
@@ -87,17 +107,16 @@ const CHOICE_LABELS: Record<string, string> = {
 };
 
 const choiceEntries = computed(() => {
+  const excluded = new Set(excludeKeys);
   return Object.entries(classChoices)
     .filter(([key, v]) =>
-      key !== "metamagic_options" && key !== "infusions_known" &&
-      key !== "eldritch_invocations" && key !== "battle_master_maneuvers" &&
-      key !== "background_feat" && key !== "background_asi" &&
+      !isInternalChoiceKey(key) && !excluded.has(key) &&
       v !== null && v !== undefined && v !== "",
     )
     .map(([key, value]) => ({
       key,
       label: CHOICE_LABELS[key] ?? key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
-      values: Array.isArray(value) ? (value as string[]) : [String(value)],
+      values: (Array.isArray(value) ? (value as unknown[]) : [value]).map(displayValue),
     }));
 });
 </script>

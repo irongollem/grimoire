@@ -97,6 +97,7 @@
     <!-- ── Class choices, background ASI & background feat (2024 PHB) ───────── -->
     <PlayerChoicesCard
       :class-choices="member.class_choices"
+      :exclude-keys="spellPickStepKeys"
       :background-asi-bonuses="backgroundAsiBonuses"
       :background-origin-feat="backgroundOriginFeat"
       :background-feat="backgroundFeat"
@@ -327,14 +328,25 @@ async function longRest() {
 
 // ── Spell pick steps ──────────────────────────────────────────────────────────
 
-/** All spell_pick steps from the class and subclass at levels the character has reached. */
-const spellPickSteps = computed((): CustomStep[] => {
-  const allSteps = [
-    ...(classData.value?.steps ?? []),
-    ...(customSubclass.value?.steps ?? []),
-  ] as CustomStep[];
-  return allSteps.filter(s => s.step_type === "spell_pick" && s.level <= props.member.level);
-});
+/** Every custom class + subclass level-up step defined for this character. */
+const allCustomSteps = computed((): CustomStep[] => [
+  ...(classData.value?.steps ?? []),
+  ...(customSubclass.value?.steps ?? []),
+] as CustomStep[]);
+
+/** All spell_pick steps at levels the character has reached (drives the picker). */
+const spellPickSteps = computed((): CustomStep[] =>
+  allCustomSteps.value.filter(s => s.step_type === "spell_pick" && s.level <= props.member.level),
+);
+
+/**
+ * Keys of every spell_pick step — these render in PlayerSpellChoices, so the
+ * generic Choices card excludes them to avoid showing the same pick twice
+ * (as a raw stored value at that).
+ */
+const spellPickStepKeys = computed(() =>
+  allCustomSteps.value.filter(s => s.step_type === "spell_pick").map(s => s.key),
+);
 
 // ── Background ASI & feat (2024 PHB), fed to PlayerChoicesCard ────────────────
 
