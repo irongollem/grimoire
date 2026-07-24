@@ -54,12 +54,12 @@
           >
             {{ ITEM_RARITY_LABELS[item.rarity] }}
           </span>
-          <!-- SRD badge — top left; shared/unowned rows only -->
+          <!-- Reference badge — top left; shared/unowned rows only -->
           <span
             v-if="!isUuid(item.id)"
             class="absolute top-1.5 left-1.5 text-label px-1.5 py-0.5 rounded leading-none bg-black/50 text-white"
           >
-            SRD
+            Reference
           </span>
           <!-- Type icon + name — bottom gradient -->
           <div

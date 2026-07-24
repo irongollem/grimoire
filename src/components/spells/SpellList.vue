@@ -115,7 +115,7 @@
               class="relative z-10 mt-auto font-cinzel text-2xs text-muted-foreground/60 hover:text-muted-foreground truncate transition-colors"
               @click.stop
             >
-              {{ spell.source_title ?? spell.source ?? "SRD" }}
+              {{ spell.source_title ?? spell.source ?? "Reference" }}
             </a>
             <span
               v-else-if="spell.source_title || spell.source"

@@ -111,10 +111,10 @@
             <div class="flex items-center gap-1 shrink-0">
               <span
                 v-if="monster.is_srd"
-                :title="monster.source_title ?? monster.source ?? 'SRD'"
+                :title="monster.source_title ?? monster.source ?? 'Reference'"
                 class="max-w-22 truncate px-1 py-0.5 rounded text-label font-bold bg-muted text-muted-foreground border border-border"
               >
-                {{ monster.source_title ?? monster.source ?? "SRD" }}
+                {{ monster.source_title ?? monster.source ?? "Reference" }}
               </span>
               <span
                 class="min-w-8 text-center px-1.5 py-0.5 rounded text-label font-bold text-white"

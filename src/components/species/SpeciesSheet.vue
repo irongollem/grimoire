@@ -19,7 +19,7 @@
       </button>
     </div>
     <p v-else class="text-caption text-muted-foreground italic text-right">
-      SRD reference — read only
+      Reference — read only
     </p>
 
     <!-- Identity card: two-column layout -->

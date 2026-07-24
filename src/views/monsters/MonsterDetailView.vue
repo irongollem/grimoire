@@ -196,7 +196,7 @@ const pageTitle = computed(() => {
 const pageDescription = computed(() => {
   const m = resolvedMonster.value;
   if (!m) return "";
-  const sourceLabel = m.is_srd ? ` · ${m.source_title ?? m.source ?? "SRD"}` : "";
+  const sourceLabel = m.is_srd ? ` · ${m.source_title ?? m.source ?? "Reference"}` : "";
   return `${m.size} ${m.monster_type} · CR ${m.stat_block.challenge_rating}${sourceLabel}`;
 });
 

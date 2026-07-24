@@ -82,7 +82,7 @@
     <!-- SRD Classes (always shown unless search hides them all) -->
     <div v-if="filteredSystem.length > 0" class="px-4 md:px-6 mt-6 mb-4">
       <h3 class="font-cinzel text-xs tracking-widest uppercase text-muted-foreground mb-2">
-        SRD Classes — read only · duplicate to customise
+        Reference classes — read only · duplicate to customise
       </h3>
       <div class="rounded-lg border border-border bg-card overflow-hidden divide-y divide-border">
         <div

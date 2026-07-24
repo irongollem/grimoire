@@ -114,7 +114,7 @@
             v-if="monster.is_srd"
             class="rounded bg-black/55 px-2 py-0.5 text-eyebrow font-bold text-white"
           >
-            {{ monster.source_title ?? monster.source ?? "SRD" }}
+            {{ monster.source_title ?? monster.source ?? "Reference" }}
           </span>
           <span
             v-if="isDiscovered"

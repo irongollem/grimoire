@@ -61,7 +61,7 @@
         class="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/50 px-4 py-3"
       >
         <p class="text-body italic text-muted-foreground">
-          Read-only SRD reference.
+          Read-only reference.
         </p>
         <button
           type="button"
