@@ -79,7 +79,7 @@ The character sheet is the player's primary view. When no character is linked, i
 
 - **Skills** — full proficiency/expertise-aware skill list, each tappable to roll with advantage/disadvantage auto-applied from conditions. **Manual advantage/disadvantage**: long-press (touch) or right-click (desktop) any roll button — skill, ability, save, weapon/spell attack — to open a Normal/Advantage/Disadvantage picker for that single roll. The picked mode combines with any condition-imposed mode (opposing sources cancel to normal, 5e RAW) via `combineModes` in `src/lib/roller.ts`. Wired through the `v-roll-mode` directive (`src/directives/vRollMode.ts`) + shared `RollModePicker` (mounted once in `App.vue`); `AbilityScoreTable` exposes it behind the opt-in `rollModePicker` prop so DM/read-only usages are unaffected
 - **Features** — class features, racial traits, feats with expandable rich text descriptions
-- **Combat** — attack actions with to-hit and damage rolls; weapon list; action/bonus action/reaction economy
+- **Combat** — attack actions with to-hit and damage rolls; weapon list; action/bonus action/reaction economy. Also hosts the **Hide action**: rolls Dexterity (Stealth) and marks the character with the shared **Hidden** condition, with a live "Hidden / Reveal" indicator. Attacking auto-clears Hidden (5e RAW). Stealth math is the shared `skillCheckBonus` (`src/lib/skillCheck.ts`), also used by the Skills tab
 - **Wild Shape** (Druid only) — usage pips, CR limit display, Circle of the Moon badge, form picker from discovered beasts, active form HP/AC tracking
 
 **Wild Shape mechanics:**

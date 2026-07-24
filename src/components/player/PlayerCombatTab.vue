@@ -1,6 +1,57 @@
 <template>
   <div class="space-y-3">
 
+    <!-- ── Hide action / hidden state ────────────────────────────────────────── -->
+    <!-- Take the Hide action (rolls Dexterity (Stealth) + marks the Hidden
+         condition), and shows at a glance whether you're currently hidden.
+         Attacking auto-reveals you (see rollAttackWith). -->
+    <div
+      class="flex items-center justify-between gap-3 rounded-lg border px-4 py-3 transition-colors"
+      :class="isHidden ? 'border-primary/50 bg-primary/10' : 'border-border bg-card'"
+    >
+      <div class="flex items-center gap-2.5 min-w-0">
+        <component
+          :is="isHidden ? IconHide : IconReveal"
+          class="h-4 w-4 shrink-0"
+          :class="isHidden ? 'text-primary' : 'text-muted-foreground'"
+        />
+        <div class="min-w-0">
+          <p class="text-body font-semibold" :class="isHidden ? 'text-primary' : 'text-foreground'">
+            {{ isHidden ? "Hidden" : "Hide" }}
+          </p>
+          <p class="text-caption text-muted-foreground leading-snug">
+            {{ isHidden
+              ? "You are unseen — attacking or making noise reveals you."
+              : "Roll Dexterity (Stealth) to slip out of sight." }}
+          </p>
+        </div>
+      </div>
+      <button
+        v-if="!isHidden"
+        class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:border-primary/50 hover:bg-muted/30 transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+        :disabled="hiding"
+        title="Take the Hide action"
+        v-roll-mode="(mode: RollMode | null) => takeHideAction(mode)"
+      >
+        <IconHide class="h-3.5 w-3.5 text-muted-foreground" />
+        <span class="font-cinzel text-xs text-foreground">Hide</span>
+        <span class="font-cinzel text-xs" :class="stealthBonus >= 0 ? 'text-elven-green' : 'text-destructive'">
+          {{ signedNum(stealthBonus) }}
+        </span>
+        <span v-if="checkBadgeLabel" class="font-cinzel text-2xs md:text-sm text-amber-500">{{ checkBadgeLabel }}</span>
+      </button>
+      <button
+        v-else
+        class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-primary/40 bg-primary/10 hover:bg-primary/20 transition-colors shrink-0 disabled:opacity-40"
+        :disabled="hiding"
+        title="Step out of hiding"
+        @click="revealSelf"
+      >
+        <IconReveal class="h-3.5 w-3.5 text-primary" />
+        <span class="font-cinzel text-xs text-primary">Reveal</span>
+      </button>
+    </div>
+
     <!-- ── Beast actions (when wildshaped) ───────────────────────────────────── -->
     <template v-if="wildshapeMonster">
       <template v-for="section in beastActionSections" :key="section.label">
@@ -59,9 +110,11 @@
             Mastery: {{ WEAPON_MASTERY_DEFINITIONS[item.mastery].label }}
             <span v-if="hasMastery(item)">✓</span>
           </button>
-          <div class="flex flex-wrap gap-2">
+          <div class="flex flex-wrap gap-2 items-center">
             <button
-              class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:border-primary/50 hover:bg-muted/30 transition-colors group"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:border-primary/50 hover:bg-muted/30 transition-colors group disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-border disabled:hover:bg-transparent"
+              :disabled="weaponAmmoById[inv.id]?.needsAmmo && !weaponAmmoById[inv.id]?.hasAmmo"
+              :title="weaponAmmoById[inv.id]?.needsAmmo && !weaponAmmoById[inv.id]?.hasAmmo ? 'No ammunition available' : undefined"
               v-roll-mode="(mode: RollMode | null) => rollWeaponAttack(inv, item, mode)"
             >
               <IconSword class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
@@ -79,6 +132,14 @@
               <span class="font-cinzel text-xs text-foreground">{{ weaponDamageExpr(item) }}</span>
               <span class="font-cinzel text-xs text-muted-foreground">{{ item?.damage_rolls?.[0]?.type ?? 'bludgeoning' }}</span>
             </button>
+            <span
+              v-if="weaponAmmoById[inv.id]?.needsAmmo && weaponAmmoById[inv.id]?.hasAmmo"
+              class="font-cinzel text-xs text-muted-foreground self-center"
+            >🏹 × {{ weaponAmmoById[inv.id].remaining }}</span>
+            <span
+              v-else-if="weaponAmmoById[inv.id]?.needsAmmo"
+              class="font-cinzel text-xs text-destructive self-center"
+            >no ammo</span>
           </div>
         </div>
       </div>
@@ -139,16 +200,19 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { IconLightning, IconSword } from '@/lib/icons';
+import { IconHide, IconLightning, IconReveal, IconSword } from '@/lib/icons';
 import { rollParsed, combineModes } from "@/lib/roller";
 import type { RollMode, DieSize } from "@/lib/roller";
 import type { ParsedExpression } from "@/lib/dice";
 import { usePartyInventory } from "@/composables/usePartyInventory";
 import { usePlayerVisibleItems } from "@/composables/useItems";
+import { useAmmoConsumption } from "@/composables/useAmmoConsumption";
+import { weaponAmmoTag } from "@/lib/ammunition";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { useRuleset } from "@/composables/useRuleset";
 import { useUpdatePartyMember } from "@/composables/useParty";
+import { skillCheckBonus } from "@/lib/skillCheck";
 import { WEAPON_MASTERY_DEFINITIONS } from "@/data/weaponMastery";
 import PlayerLoadout from "@/components/player/PlayerLoadout.vue";
 import type { PartyMember } from "@/types/party.types";
@@ -172,6 +236,10 @@ const props = defineProps<{
   attackDisadvantage: boolean;
   /** 2024-only flat Exhaustion penalty to every attack roll (0 under 2014 — see `attackDisadvantage`). */
   attackPenalty: number;
+  /** Disadvantage on ability checks (used by the Hide action's Stealth roll). */
+  checkDisadvantage: boolean;
+  /** 2024-only flat Exhaustion penalty to every ability check (0 under 2014). */
+  checkPenalty: number;
   wildshapeMonster?: Monster;
 }>();
 const emit = defineEmits<{ roll: [result: { label: string; dice: number; modifier: number; total: number }] }>();
@@ -189,6 +257,66 @@ const attackBadgeLabel = computed(() => {
   if (props.attackPenalty !== 0) return String(props.attackPenalty);
   return null;
 });
+
+// ── Hide action ───────────────────────────────────────────────────────────────
+// The Hide action rolls Dexterity (Stealth) — an ability *check*, so it uses the
+// check-disadvantage/penalty props, not the attack ones. On a completed roll the
+// character is marked with the "Hidden" condition (a shared, DM-visible chip);
+// making any attack clears it again (see rollAttackWith).
+const stealthBonus = computed(() => skillCheckBonus(props.member, "stealth"));
+const isHidden = computed(() => (props.member.conditions ?? []).includes("Hidden"));
+const hiding = ref(false);
+
+// Same "Dis" / numeric-penalty badge as attacks, but for the Stealth check.
+const checkBadgeLabel = computed(() => {
+  if (props.checkDisadvantage) return "Dis";
+  if (props.checkPenalty !== 0) return String(props.checkPenalty);
+  return null;
+});
+
+async function markHidden() {
+  const conditions = props.member.conditions ?? [];
+  if (conditions.includes("Hidden")) return;
+  await updateMember({ id: props.member.id, update: { conditions: [...conditions, "Hidden"] } });
+}
+
+async function clearHidden() {
+  const conditions = props.member.conditions ?? [];
+  if (!conditions.includes("Hidden")) return;
+  await updateMember({ id: props.member.id, update: { conditions: conditions.filter((c) => c !== "Hidden") } });
+}
+
+async function takeHideAction(override: RollMode | null = null) {
+  if (hiding.value) return;
+  hiding.value = true;
+  try {
+    // Player-picked mode merged with condition-imposed disadvantage — opposing
+    // sources cancel to normal (5e RAW), matching the Skills tab.
+    const mode: RollMode = combineModes(
+      override ?? "normal",
+      props.checkDisadvantage ? "disadvantage" : "normal",
+    );
+    const modifier = stealthBonus.value + props.checkPenalty;
+    const label = "Hide — Dexterity (Stealth)" + modeTag(mode);
+    const result = await promptRoll({ counts: { 20: 1 }, modifier, label, mode });
+    if (!result) return; // physical-dice prompt cancelled — don't mark hidden
+    const kept = result.breakdown.find((d) => !d.dropped)!;
+    emit("roll", { label, dice: kept.val, modifier, total: result.total });
+    await markHidden();
+  } finally {
+    hiding.value = false;
+  }
+}
+
+async function revealSelf() {
+  if (hiding.value) return;
+  hiding.value = true;
+  try {
+    await clearHidden();
+  } finally {
+    hiding.value = false;
+  }
+}
 
 const myInventory = computed(() =>
   (inventory.value ?? []).filter((i) => i.carried_by === props.member.id),
@@ -208,6 +336,43 @@ const equippedWeapons = computed<{ inv: PartyInventoryItem; item: Item | null }[
       return inv.slot && WEAPON_SLOTS.has(inv.slot) ? [{ inv, item: null }] : [];
     }),
 );
+
+// ── Ammunition ────────────────────────────────────────────────────────────────
+// Firing a ranged weapon from the player's own sheet must deplete their quiver,
+// matching the DM encounter runner (see RunnerPcAttacks.vue).
+const vaultItemMap = computed<Map<string, Item>>(() => {
+  const map = new Map<string, Item>();
+  for (const item of allItems.value ?? []) map.set(item.id, item);
+  return map;
+});
+const { availableAmmoFor, ammoRemainingCount, consumeAmmo, weaponSelfChargesRemaining, consumeWeaponCharge } =
+  useAmmoConsumption(myInventory, vaultItemMap);
+
+interface WeaponAmmoInfo {
+  /** True for ranged weapons that draw from ammo or an internal charge. */
+  needsAmmo: boolean;
+  hasAmmo: boolean;
+  remaining: number;
+}
+
+function weaponAmmoInfo(inv: PartyInventoryItem, item: Item | null): WeaponAmmoInfo {
+  if (!item) return { needsAmmo: false, hasAmmo: true, remaining: 0 };
+  // A self-charged weapon (laser rifle, internal-magazine firearm) spends its own charges.
+  if (item.charges !== null) {
+    const remaining = weaponSelfChargesRemaining(inv.id, item.charges);
+    return { needsAmmo: true, hasAmmo: remaining > 0, remaining };
+  }
+  const tag = weaponAmmoTag(item);
+  if (!tag) return { needsAmmo: false, hasAmmo: true, remaining: 0 };
+  const ammo = availableAmmoFor(tag);
+  return { needsAmmo: true, hasAmmo: !!ammo, remaining: ammoRemainingCount(ammo) };
+}
+
+const weaponAmmoById = computed<Record<string, WeaponAmmoInfo>>(() => {
+  const map: Record<string, WeaponAmmoInfo> = {};
+  for (const { inv, item } of equippedWeapons.value) map[inv.id] = weaponAmmoInfo(inv, item);
+  return map;
+});
 
 // ── Weapon mastery (2024 only) ──────────────────────────────────────────────
 const { is2024 } = useRuleset();
@@ -286,7 +451,8 @@ function modeTag(mode: RollMode) {
   return mode === "advantage" ? " (Adv)" : mode === "disadvantage" ? " (Dis)" : "";
 }
 
-async function rollAttackWith(mod: number, baseLabel: string, override: RollMode | null = null) {
+/** Resolves an attack roll; returns true when it actually rolled (false if the prompt was cancelled). */
+async function rollAttackWith(mod: number, baseLabel: string, override: RollMode | null = null): Promise<boolean> {
   // Player-picked mode (long-press/right-click) merged with condition-imposed
   // disadvantage — opposing sources cancel to normal (5e RAW).
   const mode: RollMode = combineModes(
@@ -296,15 +462,26 @@ async function rollAttackWith(mod: number, baseLabel: string, override: RollMode
   const totalMod = mod + props.attackPenalty;
   const fullLabel = `${baseLabel} — Attack` + modeTag(mode);
   const result = await promptRoll({ counts: { 20: 1 }, modifier: totalMod, label: fullLabel, mode });
-  if (!result) return;
+  if (!result) return false;
   const kept = result.breakdown.find(d => !d.dropped)!;
   emit("roll", { label: fullLabel, dice: kept.val, modifier: totalMod, total: result.total });
+  // Attacking gives away your position (5e RAW) — drop Hidden if it was set.
+  void clearHidden();
+  return true;
 }
 
 function rollUnarmedAttack(override: RollMode | null = null) { return rollAttackWith(unarmedAttackMod.value, "Unarmed Strike", override); }
 function rollImprovisedAttack(override: RollMode | null = null) { return rollAttackWith(improvisedAttackMod.value, "Improvised Weapon", override); }
-function rollWeaponAttack(inv: PartyInventoryItem, item: Item | null, override: RollMode | null = null) {
-  return rollAttackWith(weaponAttackMod(item), inv.name, override);
+async function rollWeaponAttack(inv: PartyInventoryItem, item: Item | null, override: RollMode | null = null) {
+  const rolled = await rollAttackWith(weaponAttackMod(item), inv.name, override);
+  // Only deplete ammo once the attack has actually been made.
+  if (!rolled || !item) return;
+  if (item.charges !== null) {
+    consumeWeaponCharge(inv.id, item.charges);
+  } else {
+    const tag = weaponAmmoTag(item);
+    if (tag) consumeAmmo(tag);
+  }
 }
 
 function parsedToCounts(parsed: ParsedExpression): Partial<Record<DieSize, number>> {

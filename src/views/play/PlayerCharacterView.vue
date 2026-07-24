@@ -124,6 +124,8 @@
         :wildshape-monster="beastMonster ?? undefined"
         :attack-disadvantage="attackDisadvantage"
         :attack-penalty="exhaustionD20Penalty"
+        :check-disadvantage="checkDisadvantage"
+        :check-penalty="exhaustionD20Penalty"
         @roll="onChildRoll"
       />
 
@@ -481,15 +483,16 @@ const hpBarColor = computed(() => {
   if (p < 66) return "bg-amber-500";
   return "bg-elven-green";
 });
+// Temp HP is a buffer in front of whichever HP pool is active — it survives
+// Wild Shape and is spent before the beast's HP, so the segment is shown in
+// beast form too (denominator uses the beast's max, matching the HP segment).
 const tempHpBarPct = computed(() => {
   const m = member.value;
   if (!m) return 0;
-  // While wildshaped the bar tracks the beast's HP; the character's temp HP
-  // doesn't apply to the beast form (the mobile header already zeroes it).
-  if (activeWildshape.value) return 0;
+  const maxHp = activeWildshape.value?.beast_max_hp ?? m.max_hp;
   const temp = m.temp_hp ?? 0;
-  if (temp <= 0) return 0;
-  return (temp / (m.max_hp + temp)) * 100;
+  if (temp <= 0 || maxHp + temp === 0) return 0;
+  return (temp / (maxHp + temp)) * 100;
 });
 const hpBarWidthPct = computed(() => {
   const m = member.value;

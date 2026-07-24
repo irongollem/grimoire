@@ -30,8 +30,24 @@ export type ConditionPatchMap = Record<string, Condition>;
 
 export const CONDITION_PATCHES: Record<RulesetKey, ConditionPatchMap> = {
   // 2014 (SRD 5.1) text is already complete and accurate in
-  // `srdConditions2014.ts` — no patches needed.
-  "2014": {},
+  // `srdConditions2014.ts`. The only patch is "Hidden" — not a formal SRD
+  // condition but a tracking marker Grimoire surfaces for the Hide action
+  // (see `CONDITIONS` in `src/lib/conditions.ts`).
+  "2014": {
+    hidden: {
+      id: "hidden",
+      slug: "hidden",
+      name: "Hidden",
+      description:
+        "You are unseen and unheard by one or more creatures (you took the Hide action and beat their passive Perception).\n" +
+        "- Attacks. You have Advantage on attack rolls against a creature that can't see you; its attacks against you have Disadvantage.\n" +
+        "- Staying Hidden. You give away your position — and stop being hidden — the moment you make noise, such as making an attack (whether it hits or misses) or casting a spell with a verbal component.",
+      effects: [
+        "Advantage on attack rolls against a creature that can't see you; its attacks against you have Disadvantage.",
+        "You stop being hidden when you attack or otherwise give away your position.",
+      ],
+    },
+  },
 
   // 2024 (SRD 5.2) — see file header above.
   "2024": {
@@ -249,6 +265,21 @@ export const CONDITION_PATCHES: Record<RulesetKey, ConditionPatchMap> = {
         "Saving Throws Affected. You automatically fail Strength and Dexterity saving throws.",
         "Automatic Critical Hits. Any attack roll that hits you is a Critical Hit if the attacker is within 5 feet of you.",
         "Unaware. You're unaware of your surroundings.",
+      ],
+    },
+    // Non-SRD tracking marker — 2024 folds hiding into the Invisible condition,
+    // but Grimoire tracks it as its own "Hidden" chip for the Hide action.
+    hidden: {
+      id: "hidden",
+      slug: "hidden",
+      name: "Hidden",
+      description:
+        "You took the Hide action and are unseen (your Dexterity (Stealth) check beat the passive Perception of every creature that could notice you). You have the benefits of the Invisible condition against creatures that can't find you:\n" +
+        "- Attacks Affected. Attack rolls against you have Disadvantage, and your attack rolls have Advantage.\n" +
+        "- Revealed. You stop being hidden the instant you make a sound louder than a whisper, make an attack roll, or cast a spell with a Verbal component.",
+      effects: [
+        "Attacks Affected. Attack rolls against you have Disadvantage, and your attack rolls have Advantage.",
+        "Revealed. You stop being hidden when you make noise, attack, or cast a spell with a Verbal component.",
       ],
     },
   },

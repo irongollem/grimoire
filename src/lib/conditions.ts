@@ -7,13 +7,15 @@ import type { RulesetKey } from "@/types/ruleset.types";
 export type { Condition };
 
 /**
- * Pickable conditions surfaced in the "+ Condition" dropdown. Just the
- * canonical 15 SRD names — Exhaustion is a single entry, not split by
- * level. Storage still uses `"Exhausted N"` so the level rides with the
- * condition string, but the picker treats it as one option; the chip UI
- * shows the current level with inline −/+ controls (see
- * `getExhaustionLevel` / `setExhaustionLevel` below). The name list itself
- * doesn't vary between editions.
+ * Pickable conditions surfaced in the "+ Condition" dropdown. The canonical 15
+ * SRD names plus "Hidden" — a non-SRD tracking marker for a creature that has
+ * taken the Hide action (its rules text lives in `CONDITION_PATCHES`, since
+ * Open5e has no such entry). Exhaustion is a single entry, not split by level:
+ * storage still uses `"Exhausted N"` so the level rides with the condition
+ * string, but the picker treats it as one option; the chip UI shows the
+ * current level with inline −/+ controls (see `getExhaustionLevel` /
+ * `setExhaustionLevel` below). The name list itself doesn't vary between
+ * editions.
  */
 export const CONDITIONS = [
   "Blinded",
@@ -22,6 +24,7 @@ export const CONDITIONS = [
   "Exhaustion",
   "Frightened",
   "Grappled",
+  "Hidden",
   "Incapacitated",
   "Invisible",
   "Paralyzed",

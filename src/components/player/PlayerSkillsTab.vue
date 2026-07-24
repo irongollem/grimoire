@@ -73,6 +73,7 @@ import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { useCampaignMembers } from "@/composables/useCampaignMembers";
 import { useCampaignStore } from "@/stores/campaign";
+import { skillCheckBonus } from "@/lib/skillCheck";
 import { SKILLS } from "@/types/party.types";
 import type { PartyMember, SkillProficiencies } from "@/types/party.types";
 
@@ -92,7 +93,6 @@ const { data: campaignMembers } = useCampaignMembers();
 const campaignStore = useCampaignStore();
 const dmUserId = computed(() => campaignMembers.value?.find((m) => m.role === "dm")?.user_id ?? null);
 
-function abilityMod(score: number) { return Math.floor((score - 10) / 2); }
 function signedNum(n: number) { return n >= 0 ? `+${n}` : `${n}`; }
 
 function profLevel(key: keyof SkillProficiencies) {
@@ -106,13 +106,9 @@ function skillProfClass(key: keyof SkillProficiencies) {
   return "border-muted-foreground/30 text-transparent";
 }
 function skillBonusValue(skill: (typeof SKILLS)[number]) {
-  // When wildshaped, use beast STR/DEX/CON; player keeps INT/WIS/CHA proficiency bonuses
-  const src = props.overrideScores ?? props.member;
-  const score = src[skill.ability as keyof typeof src] as number;
-  const mod = abilityMod(score);
-  const level = profLevel(skill.key);
-  const pb = props.member.proficiency_bonus;
-  return mod + (level === "expertise" ? pb * 2 : level === "proficient" ? pb : 0);
+  // When wildshaped, use beast STR/DEX/CON; player keeps INT/WIS/CHA proficiency
+  // bonuses. Shared with the Hide action's Stealth roll via `@/lib/skillCheck`.
+  return skillCheckBonus(props.member, skill.key, props.overrideScores);
 }
 
 function passiveScore(skillKey: keyof SkillProficiencies) {
