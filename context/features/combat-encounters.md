@@ -218,8 +218,8 @@ Party member HP, conditions, death saves, and curses are seeded from `party_memb
 - Start Combat button (only when the encounter is live; disabled in pre-combat mode)
 - Dice Roller widget
 - Go Live / Live badge (only when a campaign is active)
-- Abandon — ends without syncing HP or revealing/marking NPCs
-- End Combat — syncs HP/conditions/death saves/curses back to `party_members`, marks fallen roster NPCs dead (seen or not), reveals every NPC the party actually saw (`reveal_state === "revealed"`), and returns to the encounter sheet
+- Abandon — ends the live state without syncing player HP/conditions (roster-NPC death/reveal already happened live during combat)
+- End Combat — syncs HP/conditions/death saves/curses back to `party_members` and returns to the encounter sheet. (Roster-NPC death/reveal is handled live as it happens, not here — see "Live roster-NPC sync" below.)
 
 **Initiative order (combatant list):**
 
@@ -336,9 +336,17 @@ Bidirectional HP sync: while live, player HP changes in the runner are debounced
 
 **End / Abandon:**
 
-- **End Combat**: confirms, cancels any pending HP debounce, ends the live state, syncs all player combatants' HP + conditions + curses + death saves back to `party_members`, then syncs roster NPCs back to their records, resets the store, navigates to the encounter sheet.
-  - **Roster-NPC conclusion sync** (`src/lib/npcEncounterSync.ts`, `computeNpcConclusionUpdates` + test): for every combatant carrying an `npc_id` (roster NPCs run as `type: "monster"` + `npc_id`, never `monster_id`), two rules apply. **Death is a world fact** — any NPC whose token fell (`hp <= 0`) is written `status: "dead"` regardless of whether the party saw it. **Discovery requires being seen** — only NPCs that reached `reveal_state === "revealed"` (the same "seen" gate that governs monster discovery on Go Live and reveal-cycle) are revealed to the whole party via a _widening_ union on `npcs.player_visible_to` (+ `player_visible_fields` gains `name`/`portrait`, plus `status` for the dead); an NPC left `hidden`/`unseen` the whole fight is never added to the players' seen list, even if it died. Note the reveal toggle renders for any `type === "monster"` combatant, so roster NPCs are cyclable hidden → unseen → revealed just like monsters — that is how an NPC becomes "seen". Idempotent (already-dead + already-revealed → no write); reveal is skipped when there is no party, but death is still marked. Monster combatants have no persistent per-instance record and are untouched. This is separate from the monster **bestiary** discovery (`discovered_monsters`, `monster_id` only). Regression note: end-combat used to auto-discover revealed monsters too; commit `98e05020` moved that to Go Live, and NPC combatants were never covered by any path until this sync.
-- **Abandon**: ends live without syncing HP or revealing/marking NPCs; useful when a combat didn't actually happen or was a mistake.
+- **End Combat**: confirms, cancels any pending HP debounce, ends the live state, syncs all player combatants' HP + conditions + curses + death saves back to `party_members`, resets the store, navigates to the encounter sheet. (Roster-NPC death/reveal is handled live during combat — see below — not here.)
+- **Abandon**: ends live without syncing player HP; useful when a combat didn't actually happen or was a mistake.
+
+**Live roster-NPC sync:**
+
+Roster NPCs run as combatants of `type: "monster"` carrying an `npc_id` (never `monster_id`), and their records are written back **the moment it happens, not at conclusion** — mirroring how monster discovery fires on reveal. Driven by a `watch` over the NPC combatants in `EncounterRunner.vue` (`src/lib/npcEncounterSync.ts`, `buildNpcSyncUpdate` + test), reacting to two events:
+
+- **Revealed** — the DM cycles a token to `reveal_state === "revealed"`. The reveal toggle renders for any `type === "monster"` combatant, so roster NPCs are cyclable hidden → unseen → revealed exactly like monsters — that is how an NPC becomes "seen". On reveal the NPC joins the party's seen list: a _widening_ union on `npcs.player_visible_to` (never narrows an existing partial share) with `player_visible_fields` gaining `name`/`portrait` (mirrors `NpcRevealSheet`'s first-reveal defaults). An NPC left `hidden`/`unseen` is never added.
+- **Died** — a token drops to 0 HP. **Death is a world fact**, written `status: "dead"` whether or not the party saw it — but **reveal always requires being seen**: a hidden NPC that dies is recorded dead and _not_ disclosed to players. A seen NPC that dies is both marked dead and revealed (same union, plus the `status` field so its death shows). If a hidden death is later seen (the DM cycles it to "revealed"), the reveal fires then, carrying the `status` field.
+
+The builder (`buildNpcSyncUpdate`) takes the NPC's current `{ seen, died }` state and returns `null` when nothing would change (already dead + already revealed, or a DM pre-reveal), so writes happen only on real transitions; the watcher patches the local `store.availableNpcs` snapshot after each write so re-fires stay no-ops (healing-then-re-killing or a reveal→hide→reveal cycle won't spam writes). Reveal needs a party to reveal to; with none, death is still marked. Monster combatants have no persistent per-instance record and are untouched — this is separate from the monster **bestiary** discovery (`discovered_monsters`, `monster_id` only, fired on reveal-cycle + Go Live).
 
 ### Player View
 

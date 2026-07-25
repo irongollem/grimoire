@@ -148,7 +148,7 @@ import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useAllMonsters } from "@/composables/useMonsters";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
 import { useUpdateNpc } from "@/composables/useNpcs";
-import { computeNpcConclusionUpdates } from "@/lib/npcEncounterSync";
+import { buildNpcSyncUpdate } from "@/lib/npcEncounterSync";
 import { useEncounterLive } from "@/composables/useEncounterLive";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAutoDiscoverMonsters } from "@/composables/useDiscoveredMonsters";
@@ -358,6 +358,33 @@ watch(
   },
 );
 
+// ── Live roster-NPC sync ─────────────────────────────────────────────────────
+// Roster NPCs run as combatants of type "monster" carrying an `npc_id`. Their
+// records are written back the moment it matters — NOT at conclusion: a token the
+// DM cycles to "revealed" (seen) joins the party's seen list, and a token that
+// drops to 0 HP is marked dead — but a hidden death is recorded without being
+// disclosed (reveal always requires being seen). Mirrors how monster discovery
+// fires on reveal. Dedup is by the builder itself: it returns null when nothing
+// would change, and we patch the local snapshot so re-fires stay no-ops.
+watch(
+  () => store.combatants
+    .filter((c) => c.type === "monster" && c.npc_id)
+    .map((c) => ({ npcId: c.npc_id!, seen: c.reveal_state === "revealed", died: c.hp <= 0 })),
+  (rows) => {
+    const partyMemberIds = (partyMembers.value ?? []).map((m) => m.id);
+    for (const row of rows) {
+      if (!row.seen && !row.died) continue;
+      const npc = store.availableNpcs.find((n) => n.id === row.npcId);
+      if (!npc) continue;
+      const update = buildNpcSyncUpdate(npc, partyMemberIds, { seen: row.seen, died: row.died });
+      if (update) {
+        Object.assign(npc, update); // keep the local snapshot fresh so re-fires stay no-ops
+        void updateNpc({ id: row.npcId, update });
+      }
+    }
+  },
+);
+
 let partyMembersChannel: ReturnType<typeof supabase.channel> | null = null;
 
 // Route the store's player-combatant persistence through the party-member
@@ -451,13 +478,14 @@ async function handleAbandon() {
 }
 
 async function handleEndCombat() {
-  if (!await confirm("End combat? Party HP/conditions are saved, fallen NPCs are marked dead, and every NPC the party faced is revealed to them.")) return;
+  if (!await confirm("End combat? Party HP, conditions, and curses will be updated.")) return;
   // Cancel any pending HP debounce — end-combat does its own authoritative write below.
   if (partyHpTimer) { clearTimeout(partyHpTimer); partyHpTimer = null; }
   partyHpQueue.clear();
   await endLive();
 
-  // Sync player combatants back to party_members
+  // Sync player combatants back to party_members. (Roster-NPC death/reveal is
+  // handled live as it happens — see the NPC-sync watcher above — not here.)
   const playerCombatants = store.combatants.filter((c) => c.type === "player" && c.party_member_id);
   await Promise.all(
     playerCombatants.map((c) =>
@@ -473,13 +501,6 @@ async function handleEndCombat() {
       }),
     ),
   );
-
-  // Sync roster NPCs back to their records: mark the fallen dead and reveal
-  // every NPC the party faced (living or dead) so they surface in the player
-  // portal. Monster combatants have no persistent record and are left untouched.
-  const partyMemberIds = (partyMembers.value ?? []).map((m) => m.id);
-  const npcUpdates = computeNpcConclusionUpdates(store.combatants, store.availableNpcs, partyMemberIds);
-  await Promise.all(npcUpdates.map((u) => updateNpc({ id: u.id, update: u.update })));
 
   store.reset();
   router.push(`/encounters/${encounterId.value}`);
