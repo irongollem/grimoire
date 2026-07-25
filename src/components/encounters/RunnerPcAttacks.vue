@@ -84,6 +84,34 @@
     </div>
   </template>
 
+  <!-- Thrown Attacks -->
+  <template v-if="thrownAttacks.length">
+    <div class="detail-divider" />
+    <p class="detail-section-label">Thrown Attacks</p>
+    <div v-for="atk in thrownAttacks" :key="atk.weaponInvId" class="detail-trait">
+      <div class="detail-trait-header">
+        <strong>{{ atk.name }}.</strong>
+        <div class="trait-roll-bar">
+          <button
+            type="button"
+            class="trait-roll-btn trait-atk-btn"
+            :disabled="throwCountFor(atk.weaponInvId) <= 0"
+            :title="throwCountFor(atk.weaponInvId) <= 0 ? 'None left to throw' : undefined"
+            @click.stop="fireThrownAttack(atk)"
+          >🎯 {{ atk.attackBonus >= 0 ? '+' : '' }}{{ atk.attackBonus }}</button>
+          <button
+            v-if="atk.damageDice"
+            type="button"
+            class="trait-roll-btn trait-dmg-btn"
+            @click.stop="emit('roll-damage', atk.damageDice, atk.name)"
+          >🎲 {{ actionDiceLabel(atk.damageDice) }}</button>
+          <span class="font-cinzel text-2xs text-muted-foreground whitespace-nowrap self-center">× {{ throwCountFor(atk.weaponInvId) }}</span>
+        </div>
+      </div>
+      <span class="detail-trait-desc">Thrown attack. The weapon lands on the ground — recoverable from chat.</span>
+    </div>
+  </template>
+
   <!-- Class Features -->
   <template v-if="sneakAttackDice">
     <div class="detail-divider" />
@@ -110,8 +138,13 @@
 import { computed } from "vue";
 import type { PartyMember } from "@/types/party.types";
 import type { Item } from "@/types/item.types";
-import { usePartyInventory, useUpdateInventoryItem, useRemoveInventoryItem } from "@/composables/usePartyInventory";
+import { usePartyInventory } from "@/composables/usePartyInventory";
 import { useItems } from "@/composables/useItems";
+import { useAmmoConsumption } from "@/composables/useAmmoConsumption";
+import { useThrownWeapon } from "@/composables/useThrownWeapon";
+import { weaponAmmoTag } from "@/lib/ammunition";
+import { isThrownWeapon } from "@/lib/thrownWeapon";
+import { weaponAttackMod, weaponAbilityMod } from "@/lib/weaponAttack";
 import { parseExpression } from "@/lib/dice";
 
 const { member, profBonus, abilityMod } = defineProps<{
@@ -129,43 +162,8 @@ const emit = defineEmits<{
 
 const { data: inventoryItems } = usePartyInventory();
 const { data: vaultItems } = useItems();
-const updateInventoryItem = useUpdateInventoryItem();
-const removeInventoryItem = useRemoveInventoryItem();
 
-// ── Ammo tag helpers ──────────────────────────────────────────────────────────
-
-const AMMO_TAGS = ["arrow", "bolt", "bullet", "needle", "dart", "firearm-bullet"] as const;
-
-function weaponAmmoTag(item: Item): string | null {
-  const explicitTag = AMMO_TAGS.find((t) => item.tags.includes(t));
-  if (explicitTag) return explicitTag;
-  if (item.tags.includes("firearm")) return "firearm-bullet";
-  const sub = (item.subtype ?? "").toLowerCase();
-  if (sub.includes("shortbow") || sub.includes("longbow") || (sub.includes("bow") && !sub.includes("crossbow"))) return "arrow";
-  if (sub.includes("crossbow")) return "bolt";
-  if (sub === "sling") return "bullet";
-  if (sub.includes("blowgun")) return "needle";
-  if (sub.includes("dart")) return "dart";
-  const name = item.name.toLowerCase();
-  if (name.includes("longbow") || name.includes("shortbow") || (name.includes("bow") && !name.includes("crossbow"))) return "arrow";
-  if (name.includes("crossbow")) return "bolt";
-  if (name.includes("sling")) return "bullet";
-  if (name.includes("blowgun")) return "needle";
-  return null;
-}
-
-function ammoTagFromName(name: string): string | null {
-  const lower = name.toLowerCase();
-  if (lower.includes("arrow")) return "arrow";
-  if (lower.includes("bolt")) return "bolt";
-  if ((lower.includes("bullet") || lower.includes("shot")) && (lower.includes("firearm") || lower.includes("black powder") || lower.includes("pistol") || lower.includes("musket"))) return "firearm-bullet";
-  if (lower.includes("bullet")) return "bullet";
-  if (lower.includes("needle")) return "needle";
-  if (lower.includes("dart")) return "dart";
-  return null;
-}
-
-// ── Inventory helpers ─────────────────────────────────────────────────────────
+// ── Inventory views ───────────────────────────────────────────────────────────
 
 const vaultItemMap = computed<Map<string, Item>>(() => {
   const map = new Map<string, Item>();
@@ -178,77 +176,16 @@ const memberInventory = computed(() => {
   return (inventoryItems.value ?? []).filter((i) => i.carried_by === mid);
 });
 
-const memberContainerIds = computed<Set<string>>(() => {
-  const s = new Set<string>();
-  for (const i of memberInventory.value) {
-    if (i.is_container) s.add(i.id);
-  }
-  return s;
-});
+const {
+  availableAmmoFor,
+  ammoRemainingCount,
+  consumeAmmo,
+  weaponMaxCharges,
+  weaponSelfChargesRemaining,
+  consumeWeaponCharge,
+} = useAmmoConsumption(memberInventory, vaultItemMap);
 
-function availableAmmoFor(ammoTag: string) {
-  const candidates = memberInventory.value.filter((inv) => {
-    const vaultItem = inv.item_id ? vaultItemMap.value.get(inv.item_id) : undefined;
-    const tag = vaultItem
-      ? (vaultItem.tags.includes("firearm") && ammoTag === "firearm-bullet"
-          ? "firearm-bullet"
-          : vaultItem.tags.find((t) => ["arrow", "bolt", "bullet", "needle", "dart"].includes(t)) ?? null)
-      : ammoTagFromName(inv.name);
-    if (tag !== ammoTag) return false;
-    const maxCharges = vaultItem?.charges ?? null;
-    const remaining = inv.current_charges !== null ? inv.current_charges : maxCharges;
-    if (remaining !== null && remaining <= 0) return false;
-    if (remaining === null && inv.quantity <= 0) return false;
-    return true;
-  });
-  const inContainer = candidates.filter((i) => i.location === "container" && memberContainerIds.value.has(i.container_id ?? ""));
-  const onBelt = candidates.filter((i) => i.location === "belt");
-  const inBackpack = candidates.filter((i) => i.location === "backpack");
-  return inContainer[0] ?? onBelt[0] ?? inBackpack[0] ?? null;
-}
-
-function ammoRemainingCount(inv: ReturnType<typeof availableAmmoFor>): number {
-  if (!inv) return 0;
-  const vaultItem = inv.item_id ? vaultItemMap.value.get(inv.item_id) : undefined;
-  const maxCharges = vaultItem?.charges ?? null;
-  if (inv.current_charges !== null) return inv.current_charges;
-  if (maxCharges !== null) return maxCharges;
-  return inv.quantity;
-}
-
-function weaponMaxCharges(weaponInvId: string): number {
-  const inv = memberInventory.value.find((i) => i.id === weaponInvId);
-  const vaultItem = inv?.item_id ? vaultItemMap.value.get(inv.item_id) : undefined;
-  return vaultItem?.charges ?? 0;
-}
-
-function weaponSelfChargesRemaining(weaponInvId: string, maxCharges: number): number {
-  const inv = memberInventory.value.find((i) => i.id === weaponInvId);
-  if (!inv) return 0;
-  return inv.current_charges !== null ? inv.current_charges : maxCharges;
-}
-
-function consumeWeaponCharge(weaponInvId: string, maxCharges: number) {
-  const remaining = weaponSelfChargesRemaining(weaponInvId, maxCharges);
-  updateInventoryItem.mutate({ id: weaponInvId, update: { current_charges: Math.max(0, remaining - 1) } });
-}
-
-function consumeAmmo(ammoTag: string) {
-  const inv = availableAmmoFor(ammoTag);
-  if (!inv) return;
-  const vaultItem = inv.item_id ? vaultItemMap.value.get(inv.item_id) : undefined;
-  const maxCharges = vaultItem?.charges ?? null;
-  if (maxCharges !== null) {
-    const current = inv.current_charges !== null ? inv.current_charges : maxCharges;
-    updateInventoryItem.mutate({ id: inv.id, update: { current_charges: Math.max(0, current - 1) } });
-  } else {
-    if (inv.quantity <= 1) {
-      removeInventoryItem.mutate(inv.id);
-    } else {
-      updateInventoryItem.mutate({ id: inv.id, update: { quantity: inv.quantity - 1 } });
-    }
-  }
-}
+const { throwWeapon } = useThrownWeapon();
 
 // ── Attack interfaces & computeds ─────────────────────────────────────────────
 
@@ -336,6 +273,50 @@ function fireRangedAttack(atk: RangedAttack) {
     const vaultItem = inv?.item_id ? vaultItemMap.value.get(inv.item_id) : undefined;
     if (vaultItem?.charges) consumeWeaponCharge(atk.weaponInvId, vaultItem.charges);
   }
+}
+
+// ── Thrown attacks ────────────────────────────────────────────────────────────
+// Thrown weapons (javelin, dagger, handaxe, spear) can be hurled at range. The
+// STR-unless-finesse math comes from the shared weaponAttack lib so it matches
+// the player combat tab exactly; throwing drops one to the ground (recoverable)
+// and shrinks the equipped stack.
+
+interface ThrownAttack {
+  name: string;
+  attackBonus: number;
+  damageDice: string | null;
+  weaponInvId: string;
+}
+
+const thrownAttacks = computed<ThrownAttack[]>(() => {
+  const scores = { str: member.str, dex: member.dex, proficiencyBonus: profBonus };
+  return memberInventory.value
+    .filter((inv) => ["main_hand", "off_hand"].includes(inv.slot ?? ""))
+    .flatMap((inv) => {
+      const item = inv.item_id ? vaultItemMap.value.get(inv.item_id) ?? null : null;
+      if (!isThrownWeapon(inv.name, item)) return [];
+      const dmgMod = weaponAbilityMod(item, scores);
+      const base = item?.damage_rolls?.[0]?.dice ?? "1d4";
+      const damageDice = `${base}${dmgMod >= 0 ? "+" : ""}${dmgMod}`;
+      return [{
+        name: inv.name,
+        attackBonus: weaponAttackMod(item, scores),
+        damageDice,
+        weaponInvId: inv.id,
+      }] satisfies ThrownAttack[];
+    });
+});
+
+function throwCountFor(weaponInvId: string): number {
+  return memberInventory.value.find((i) => i.id === weaponInvId)?.quantity ?? 0;
+}
+
+function fireThrownAttack(atk: ThrownAttack) {
+  emit("roll-attack", atk.attackBonus, atk.name);
+  const inv = memberInventory.value.find((i) => i.id === atk.weaponInvId);
+  if (!inv) return;
+  const item = inv.item_id ? vaultItemMap.value.get(inv.item_id) ?? null : null;
+  void throwWeapon(inv, item, member.name);
 }
 
 // ── Class features ────────────────────────────────────────────────────────────

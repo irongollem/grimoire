@@ -125,6 +125,19 @@
               <span v-if="attackBadgeLabel" class="text-label md:text-sm text-amber-500">{{ attackBadgeLabel }}</span>
             </button>
             <button
+              v-if="weaponIsThrowable(inv, item)"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:border-primary/50 hover:bg-muted/30 transition-colors group"
+              :title="`Throw ${inv.name} — lands on the ground, recoverable from chat`"
+              v-roll-mode="(mode: RollMode | null) => rollThrowAttack(inv, item, mode)"
+            >
+              <IconSend class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+              <span class="font-cinzel text-xs text-foreground">Throw</span>
+              <span class="font-cinzel text-xs" :class="weaponAttackMod(item) >= 0 ? 'text-elven-green' : 'text-destructive'">
+                {{ signedNum(weaponAttackMod(item)) }}
+              </span>
+              <span class="font-cinzel text-xs text-muted-foreground">× {{ inv.quantity }}</span>
+            </button>
+            <button
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:border-amber-500/50 hover:bg-muted/30 transition-colors group"
               @click="rollWeaponDamage(inv, item)"
             >
@@ -200,14 +213,16 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { IconHide, IconLightning, IconReveal, IconSword } from '@/lib/icons';
+import { IconHide, IconLightning, IconReveal, IconSend, IconSword } from '@/lib/icons';
 import { rollParsed, combineModes } from "@/lib/roller";
 import type { RollMode, DieSize } from "@/lib/roller";
 import type { ParsedExpression } from "@/lib/dice";
 import { usePartyInventory } from "@/composables/usePartyInventory";
 import { usePlayerVisibleItems } from "@/composables/useItems";
 import { useAmmoConsumption } from "@/composables/useAmmoConsumption";
+import { useThrownWeapon } from "@/composables/useThrownWeapon";
 import { weaponAmmoTag } from "@/lib/ammunition";
+import { isThrownWeapon } from "@/lib/thrownWeapon";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { useRuleset } from "@/composables/useRuleset";
@@ -347,6 +362,7 @@ const vaultItemMap = computed<Map<string, Item>>(() => {
 });
 const { availableAmmoFor, ammoRemainingCount, consumeAmmo, weaponSelfChargesRemaining, consumeWeaponCharge } =
   useAmmoConsumption(myInventory, vaultItemMap);
+const { throwWeapon } = useThrownWeapon();
 
 interface WeaponAmmoInfo {
   /** True for ranged weapons that draw from ammo or an internal charge. */
@@ -482,6 +498,18 @@ async function rollWeaponAttack(inv: PartyInventoryItem, item: Item | null, over
     const tag = weaponAmmoTag(item);
     if (tag) consumeAmmo(tag);
   }
+}
+
+// Throwing a thrown weapon (javelin, dagger, …) at range: same to-hit math as
+// the melee attack, then the weapon leaves the hand — one drops to the ground
+// (recoverable in chat) and the equipped stack shrinks by one.
+function weaponIsThrowable(inv: PartyInventoryItem, item: Item | null): boolean {
+  return isThrownWeapon(inv.name, item);
+}
+async function rollThrowAttack(inv: PartyInventoryItem, item: Item | null, override: RollMode | null = null) {
+  const rolled = await rollAttackWith(weaponAttackMod(item), `${inv.name} (Thrown)`, override);
+  if (!rolled) return; // cancelled physical-dice prompt spends nothing
+  await throwWeapon(inv, item, props.member.name);
 }
 
 function parsedToCounts(parsed: ParsedExpression): Partial<Record<DieSize, number>> {
