@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { applyDamage, applyHealing, betterTempHp, type HpPools } from "@/lib/hitPoints";
+import {
+  applyDamage,
+  applyHealing,
+  betterTempHp,
+  displayTempHp,
+  type HpPools,
+  type TempHpCombatant,
+  type TempHpPartyMember,
+} from "@/lib/hitPoints";
 
 function pools(over: Partial<HpPools> = {}): HpPools {
   return { current_hp: 30, max_hp: 40, temp_hp: 0, beast: null, ...over };
@@ -101,5 +109,30 @@ describe("betterTempHp", () => {
 
   it("ignores negative input", () => {
     expect(betterTempHp(4, -2)).toBe(4);
+  });
+});
+
+describe("displayTempHp", () => {
+  const member = (temp_hp: number): TempHpPartyMember => ({ temp_hp });
+
+  it("reads the combatant's own temp_hp for non-players", () => {
+    const c: TempHpCombatant = { type: "monster", temp_hp: 7 };
+    expect(displayTempHp(c, new Map())).toBe(7);
+  });
+
+  it("defaults to 0 for a non-player with no temp_hp", () => {
+    const c: TempHpCombatant = { type: "monster" };
+    expect(displayTempHp(c, new Map())).toBe(0);
+  });
+
+  it("prefers the live party row for players", () => {
+    const c: TempHpCombatant = { type: "player", party_member_id: "m1", temp_hp: 3 };
+    const partyMap = new Map([["m1", member(9)]]);
+    expect(displayTempHp(c, partyMap)).toBe(9);
+  });
+
+  it("falls back to the combatant's own temp_hp when the player isn't in the party map", () => {
+    const c: TempHpCombatant = { type: "player", party_member_id: "missing", temp_hp: 4 };
+    expect(displayTempHp(c, new Map())).toBe(4);
   });
 });

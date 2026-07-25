@@ -24,14 +24,22 @@ export interface ParsedArmor {
  *   "11 + Dex modifier"         → { base: 11, dex: "full" }
  *   "14 + Dex modifier (max 2)" → { base: 14, dex: "capped", maxDex: 2 }
  *
- * Returns null when there is no leading base integer — e.g. magic-armor rows
- * whose `armor_class` is null or opaque. Callers fall back to the stored `ac`.
+ * The base integer must anchor the start of the string (optional leading
+ * whitespace) — armor bases are never negative, so this deliberately does NOT
+ * scan for the first digit anywhere in the string. Scanning would misparse
+ * free-text like "+1 (12 + Dex modifier)" (a magic-item bonus written before
+ * the base) as base 1 instead of 12.
+ *
+ * Returns null when the string does not begin with an integer — e.g.
+ * magic-armor rows whose `armor_class` is null or opaque, or descriptive text
+ * that doesn't lead with the base. Callers fall back to the stored `ac`,
+ * which is safer than a wrong base.
  */
 export function parseArmorClass(armorClass: string | null | undefined): ParsedArmor | null {
   if (!armorClass) return null;
-  const baseMatch = armorClass.match(/-?\d+/);
+  const baseMatch = armorClass.match(/^\s*(\d+)/);
   if (!baseMatch) return null;
-  const base = parseInt(baseMatch[0], 10);
+  const base = parseInt(baseMatch[1], 10);
   if (!/dex/i.test(armorClass)) return { base, dex: "none", maxDex: null };
   const capMatch = armorClass.match(/max\s*(\d+)/i);
   if (capMatch) return { base, dex: "capped", maxDex: parseInt(capMatch[1], 10) };
@@ -45,6 +53,50 @@ export function armorAcFor(parsed: ParsedArmor, dex: number): number {
   // A cap only limits the *upper* bound; a penalty (negative mod) still applies.
   const applied = parsed.dex === "capped" ? Math.min(dexMod, parsed.maxDex ?? 0) : dexMod;
   return parsed.base + applied;
+}
+
+/**
+ * Resolve a member's base AC (before shield) given their `ac_formula`, stored
+ * `ac`, currently-equipped body armor (or null if none/unparseable), and Dex
+ * score. Pure function — the reactive wiring (which armor is equipped) lives
+ * in `useShieldAc`; this is the actual 5e-rules decision table:
+ *
+ *  - `"armor"`                       → derived from equipped armor; falls
+ *                                       back to the stored `ac` when nothing
+ *                                       parseable is equipped.
+ *  - `"unarmored:*"` / `"mage_armor"` → these formulas only function while NOT
+ *                                       wearing body armor. If parseable body
+ *                                       armor is equipped it silently replaces
+ *                                       the formula (real 5e semantics — you
+ *                                       lose Unarmored Defense / Mage Armor's
+ *                                       benefit while armored); otherwise the
+ *                                       stored `ac` (which bakes the formula).
+ *  - `"natural:*"`                   → natural armor: use whichever is
+ *                                       higher, the stored `ac` (bakes the
+ *                                       formula) or the armor-derived AC —
+ *                                       the 5e rule that you use natural
+ *                                       armor only if worn armor would leave
+ *                                       you with a lower AC.
+ *  - null / manual / unrecognized     → stored `ac` unchanged. Equipped armor
+ *                                       never silently overrides a manual AC.
+ */
+export function resolveBaseAc(
+  formula: string | null | undefined,
+  storedAc: number,
+  parsedArmor: ParsedArmor | null,
+  dex: number,
+): number {
+  if (!formula) return storedAc;
+  if (formula === "armor") {
+    return parsedArmor ? armorAcFor(parsedArmor, dex) : storedAc;
+  }
+  if (formula.startsWith("unarmored:") || formula === "mage_armor") {
+    return parsedArmor ? armorAcFor(parsedArmor, dex) : storedAc;
+  }
+  if (formula.startsWith("natural:")) {
+    return parsedArmor ? Math.max(storedAc, armorAcFor(parsedArmor, dex)) : storedAc;
+  }
+  return storedAc;
 }
 
 /**

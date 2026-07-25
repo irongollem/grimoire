@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseArmorClass, armorAcFor, equippedArmorByMember } from "./armorAc";
+import { parseArmorClass, armorAcFor, equippedArmorByMember, resolveBaseAc } from "./armorAc";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
 
@@ -9,6 +9,18 @@ describe("parseArmorClass", () => {
     expect(parseArmorClass(undefined)).toBeNull();
     expect(parseArmorClass("")).toBeNull();
     expect(parseArmorClass("special")).toBeNull();
+  });
+
+  it("returns null for free text where a number appears before the base (anchor bug)", () => {
+    // "+1 (12 + Dex modifier)" — a +1 magic bonus written before the base AC.
+    // The naive `/-?\d+/` scan used to grab "1" from "+1" as the base; anchoring
+    // to the start of the string fixes it by refusing to parse this form at all
+    // (callers fall back to the stored `ac`, which is safer than base 1).
+    expect(parseArmorClass("+1 (12 + Dex modifier)")).toBeNull();
+  });
+
+  it("still parses the base when it correctly leads the string", () => {
+    expect(parseArmorClass("12 + Dex modifier (+1)")).toEqual({ base: 12, dex: "full", maxDex: null });
   });
 
   it("parses heavy armor as a fixed base with no Dex", () => {
@@ -136,5 +148,63 @@ describe("equippedArmorByMember", () => {
         [item({}), item({ id: "armor-2", armor_class: "16" })],
       ),
     ).toEqual({ "pm-1": { base: 16, dex: "none", maxDex: null } });
+  });
+});
+
+describe("resolveBaseAc", () => {
+  const leather = { base: 11, dex: "full", maxDex: null } as const; // 11 + Dex
+  const plate = { base: 18, dex: "none", maxDex: null } as const; // fixed 18
+
+  describe("null / manual / unrecognized formula", () => {
+    it("always returns the stored ac, even with armor equipped", () => {
+      expect(resolveBaseAc(null, 15, leather, 14)).toBe(15);
+      expect(resolveBaseAc(undefined, 15, plate, 14)).toBe(15);
+      expect(resolveBaseAc("some_future_formula", 15, leather, 14)).toBe(15);
+    });
+
+    it("returns the stored ac with no armor equipped", () => {
+      expect(resolveBaseAc(null, 15, null, 14)).toBe(15);
+    });
+  });
+
+  describe('"armor" formula', () => {
+    it("derives from equipped armor", () => {
+      expect(resolveBaseAc("armor", 10, leather, 14)).toBe(13); // 11 + 2
+      expect(resolveBaseAc("armor", 10, plate, 8)).toBe(18);
+    });
+
+    it("falls back to the stored ac when nothing parseable is equipped", () => {
+      expect(resolveBaseAc("armor", 15, null, 14)).toBe(15);
+    });
+  });
+
+  describe('"unarmored:*" / "mage_armor" formulas', () => {
+    it("only function while unarmored — equipped body armor silently replaces them", () => {
+      expect(resolveBaseAc("unarmored:dex+con", 16, leather, 14)).toBe(13); // 11 + 2
+      expect(resolveBaseAc("unarmored:dex+wis", 16, plate, 8)).toBe(18);
+      expect(resolveBaseAc("mage_armor", 16, leather, 14)).toBe(13);
+    });
+
+    it("fall back to the stored (formula-baked) ac when unarmored", () => {
+      expect(resolveBaseAc("unarmored:dex+con", 16, null, 14)).toBe(16);
+      expect(resolveBaseAc("unarmored:dex+wis", 15, null, 8)).toBe(15);
+      expect(resolveBaseAc("mage_armor", 15, null, 14)).toBe(15);
+    });
+  });
+
+  describe('"natural:*" formulas', () => {
+    it("uses the higher of the stored ac and the armor-derived ac when armor is equipped", () => {
+      // natural 15 baked into storedAc beats leather (11 + 2 = 13)
+      expect(resolveBaseAc("natural:15", 15, leather, 14)).toBe(15);
+      // plate (18) beats a lower natural armor (13) baked into storedAc
+      expect(resolveBaseAc("natural:13", 13, plate, 8)).toBe(18);
+      // natural + dex (13 + 2 = 15) beats leather (11 + 2 = 13)
+      expect(resolveBaseAc("natural:13+dex", 15, leather, 14)).toBe(15);
+    });
+
+    it("returns the stored (formula-baked) ac when no armor is equipped", () => {
+      expect(resolveBaseAc("natural:15", 15, null, 14)).toBe(15);
+      expect(resolveBaseAc("natural:13+dex", 15, null, 14)).toBe(15);
+    });
   });
 });

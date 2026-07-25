@@ -1,8 +1,9 @@
 import { computed } from "vue";
+import { createSharedComposable } from "@vueuse/core";
 import { usePartyInventory } from "@/composables/usePartyInventory";
 import { useItems, usePlayerVisibleItems } from "@/composables/useItems";
 import { shieldAcBonusByMember } from "@/lib/shieldAc";
-import { equippedArmorByMember, armorAcFor, type ParsedArmor } from "@/lib/armorAc";
+import { equippedArmorByMember, resolveBaseAc, type ParsedArmor } from "@/lib/armorAc";
 
 /** The member fields the AC resolver needs — a `PartyMember` satisfies this. */
 type AcMember = { id: string; ac: number; ac_formula?: string | null; dex: number };
@@ -11,16 +12,19 @@ type AcMember = { id: string; ac: number; ac_formula?: string | null; dex: numbe
  * Reactive AC resolver, per party member.
  *
  * A member's stored `ac` is their armor class WITHOUT shield. On top of it:
- *  - When `ac_formula === "armor"`, the base AC is live-derived from the
- *    currently-equipped body armor + the member's Dex (so swapping armor updates
- *    every sheet instantly, exactly like shields). Falls back to stored `ac`
- *    when no parseable armor is equipped.
+ *  - The base AC (before shield) is resolved from `ac_formula` + equipped body
+ *    armor via `resolveBaseAc` (see `@/lib/armorAc` for the full rules table),
+ *    so swapping armor updates every sheet instantly, exactly like shields.
  *  - Any equipped (non-ruined) shield in the paper doll adds its bonus.
  *
  * Wildshaped characters use the beast's AC instead — call sites keep the
  * `beast_ac ?? …` precedence and never route through here while shaped.
+ *
+ * Shared across all v-for rows via `createSharedComposable` — each row
+ * (RunnerCombatantRow/Card, PartyTrackerRow, …) previously instantiated its
+ * own copy, re-scanning the full inventory + item catalog per row.
  */
-export function useShieldAcBonus() {
+function useShieldAcBonusImpl() {
   const { data: inventory } = usePartyInventory();
   // Runs in both DM and player contexts. The DM reads the full catalog (owner
   // policy); a player reads only their visible items via the projection (base
@@ -47,25 +51,16 @@ export function useShieldAcBonus() {
     equippedArmorByMember(inventory.value ?? [], mergedItems.value),
   );
 
-  function bonusFor(memberId: string | null | undefined): number {
-    if (!memberId) return 0;
-    return bonusByMember.value[memberId] ?? 0;
-  }
-
   /** Parsed body armor equipped by a member, or null when none is derivable. */
   function armorFor(memberId: string | null | undefined): ParsedArmor | null {
     if (!memberId) return null;
     return armorByMember.value[memberId] ?? null;
   }
 
-  /** AC before the shield — live-derived from equipped armor for the "armor"
-   *  formula, otherwise the stored `ac` (which already bakes in other formulas). */
+  /** AC before the shield — thin delegate to the pure `resolveBaseAc` rules
+   *  table in `@/lib/armorAc`. */
   function baseAcFor(member: AcMember): number {
-    if (member.ac_formula === "armor") {
-      const parsed = armorByMember.value[member.id];
-      if (parsed) return armorAcFor(parsed, member.dex);
-    }
-    return member.ac;
+    return resolveBaseAc(member.ac_formula, member.ac, armorByMember.value[member.id] ?? null, member.dex);
   }
 
   /** Fully resolved AC = base (armor or stored) + equipped shield. Excludes
@@ -74,5 +69,9 @@ export function useShieldAcBonus() {
     return baseAcFor(member) + (bonusByMember.value[member.id] ?? 0);
   }
 
-  return { bonusByMember, bonusFor, armorByMember, armorFor, baseAcFor, acFor };
+  return { bonusByMember, armorByMember, armorFor, acFor };
 }
+
+/** Shared across all instances (see composable docstring above) — avoids
+ *  re-scanning inventory + item catalog once per rendered combatant row. */
+export const useShieldAcBonus = createSharedComposable(useShieldAcBonusImpl);

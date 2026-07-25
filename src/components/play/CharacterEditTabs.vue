@@ -101,6 +101,7 @@
               <option value="unarmored:dex+wis">Unarmored Defense (Monk)</option>
               <option value="mage_armor">Mage Armor</option>
               <option value="natural">Natural Armor</option>
+              <option value="natural_dex">Natural Armor (base + Dex) — Lizardfolk, Draconic Resilience</option>
             </select>
             <!-- Editable number: manual mode, or armor mode with nothing derivable equipped -->
             <input v-if="!acFormulaType || (acFormulaType === 'armor' && armorDerivedAc === null)" v-model.number="f.ac" type="number" min="1" class="field-input w-20" />
@@ -108,7 +109,7 @@
             <template v-else>
               <span class="field-input w-16 text-center font-bold pointer-events-none select-none">{{ acFormulaType === 'armor' ? armorDerivedAc : f.ac }}</span>
               <span class="text-caption text-muted-foreground italic">{{ acFormulaLabel }}</span>
-              <input v-if="acFormulaType === 'natural'" v-model.number="naturalBase" type="number" min="1" class="field-input w-20" placeholder="Base AC" />
+              <input v-if="acFormulaType === 'natural' || acFormulaType === 'natural_dex'" v-model.number="naturalBase" type="number" min="1" class="field-input w-20" placeholder="Base AC" />
             </template>
           </div>
           <p class="text-caption text-muted-foreground italic mt-1">Without shield — an equipped shield adds its bonus automatically. “Equipped armor” derives base AC from the armor in the paper doll, so it updates when you swap armor.</p>
@@ -210,36 +211,40 @@ const currentBgName = computed(
 
 // ── AC formula picker ─────────────────────────────────────────────────────────
 
-/** Dropdown value: "" = manual, "natural" = natural armor, else the formula string. */
+/** Dropdown value: "" = manual, "natural" = natural armor, "natural_dex" =
+ *  natural armor + Dex (Lizardfolk, Draconic Resilience), else the formula string. */
 const acFormulaType = computed({
   get(): string {
     const fm = f.ac_formula;
     if (!fm) return "";
-    if (fm.startsWith("natural:")) return "natural";
+    if (fm.startsWith("natural:")) return fm.endsWith("+dex") ? "natural_dex" : "natural";
     return fm;
   },
   set(val: string) {
     if (val === "") {
       f.ac_formula = null;
-    } else if (val === "natural") {
+    } else if (val === "natural" || val === "natural_dex") {
       // Seed from species natural_armor_ac if available, else 10.
       const speciesBase = (selectedSpecies.value as { natural_armor_ac?: number | null } | null)?.natural_armor_ac ?? 10;
-      f.ac_formula = `natural:${speciesBase}`;
+      f.ac_formula = `natural:${speciesBase}${val === "natural_dex" ? "+dex" : ""}`;
     } else {
       f.ac_formula = val;
     }
   },
 });
 
-/** The base AC integer for the natural armor option. */
+/** The base AC integer for the natural armor option (with or without +Dex). */
 const naturalBase = computed({
   get(): number {
     const fm = f.ac_formula;
-    if (fm?.startsWith("natural:")) return parseInt(fm.slice(8), 10) || 10;
+    if (fm?.startsWith("natural:")) {
+      const match = fm.match(/^natural:(\d+)(\+dex)?$/);
+      return match ? parseInt(match[1], 10) : 10;
+    }
     return (selectedSpecies.value as { natural_armor_ac?: number | null } | null)?.natural_armor_ac ?? 10;
   },
   set(val: number) {
-    f.ac_formula = `natural:${val}`;
+    f.ac_formula = `natural:${val}${acFormulaType.value === "natural_dex" ? "+dex" : ""}`;
   },
 });
 
@@ -276,7 +281,11 @@ const acFormulaLabel = computed(() => {
   if (fm === "unarmored:dex+con") return `10 + DEX (${mod(f.dex) >= 0 ? "+" : ""}${mod(f.dex)}) + CON (${mod(f.con) >= 0 ? "+" : ""}${mod(f.con)})`;
   if (fm === "unarmored:dex+wis") return `10 + DEX (${mod(f.dex) >= 0 ? "+" : ""}${mod(f.dex)}) + WIS (${mod(f.wis) >= 0 ? "+" : ""}${mod(f.wis)})`;
   if (fm === "mage_armor")        return `13 + DEX (${mod(f.dex) >= 0 ? "+" : ""}${mod(f.dex)})`;
-  if (fm.startsWith("natural:"))  return "Natural Armor — base:";
+  if (fm.startsWith("natural:")) {
+    return fm.endsWith("+dex")
+      ? `Natural Armor — base + DEX (${mod(f.dex) >= 0 ? "+" : ""}${mod(f.dex)}):`
+      : "Natural Armor — base:";
+  }
   return "";
 });
 </script>

@@ -11,6 +11,7 @@ import {
   isExhaustion,
 } from "@/lib/conditions";
 import type { ConditionName } from "@/lib/conditions";
+import { applyDamage, displayTempHp as calcDisplayTempHp, type HpPools } from "@/lib/hitPoints";
 import { CONCENTRATION_BREAKING_CONDITIONS } from "@/composables/useConcentration";
 import type { RunCombatant, RevealState } from "@/types/encounter.types";
 
@@ -63,14 +64,7 @@ export function useRunnerCombatant(getCombatant: MaybeRefOrGetter<RunCombatant>)
   // Temp HP survives Wild Shape and is spent before the beast's HP, so it is
   // shown in both forms. For players the party row is the authority — the player
   // can grant themselves temp HP on their own sheet mid-encounter.
-  const displayTempHp = computed((): number => {
-    const c = combatant.value;
-    if (c.type === "player") {
-      const m = partyMap.value.get(c.party_member_id ?? "");
-      if (m) return m.temp_hp;
-    }
-    return c.temp_hp ?? 0;
-  });
+  const displayTempHp = computed((): number => calcDisplayTempHp(combatant.value, partyMap.value));
 
   const displayAc = computed((): string => {
     const c = combatant.value;
@@ -183,13 +177,26 @@ export function useRunnerCombatant(getCombatant: MaybeRefOrGetter<RunCombatant>)
     const memberBefore = c.party_member_id
       ? (partyList.value?.find((m) => m.id === c.party_member_id) ?? null)
       : null;
-    const hpBefore = displayHp.value;
     store.adjustHp(c.instance_id, -amt);
     showFlash(-amt);
     quickAmount.value = null;
     if (memberBefore?.concentration && amt > 0) {
-      const newHp = Math.max(0, hpBefore - amt);
-      if (newHp === 0) {
+      // A hit is still "taking damage" for the concentration-save prompt even
+      // when temp HP fully absorbs it (5e RAW) — that check uses the raw
+      // amount. But the auto-end-on-0 check must respect absorption: temp HP
+      // (then beast HP, if wildshaped) soaks up damage before the character's
+      // own HP, so route through the same applyDamage logic store.adjustHp
+      // uses to find the character's REAL HP after this hit.
+      const pools: HpPools = {
+        current_hp: memberBefore.current_hp,
+        max_hp: memberBefore.max_hp,
+        temp_hp: memberBefore.temp_hp,
+        beast: memberBefore.wildshape_state
+          ? { hp: memberBefore.wildshape_state.beast_hp, max_hp: memberBefore.wildshape_state.beast_max_hp }
+          : null,
+      };
+      const realHpAfter = applyDamage(pools, amt).current_hp;
+      if (realHpAfter === 0) {
         await endConcentration(memberBefore, { reason: "dropped to 0 HP" });
       } else {
         await rollConcentrationSave(memberBefore, amt);

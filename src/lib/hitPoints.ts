@@ -93,3 +93,34 @@ export function applyHealing(pools: HpPools, amount: number): HealOutcome {
 export function betterTempHp(current: number, incoming: number): number {
   return Math.max(current, Math.max(0, incoming));
 }
+
+/** Minimal combatant shape `displayTempHp` needs — kept structural (rather than
+ *  importing `RunCombatant`) so this file stays free of app-level type deps. */
+export interface TempHpCombatant {
+  type: string;
+  party_member_id?: string;
+  temp_hp?: number;
+}
+
+/** Minimal party-member shape `displayTempHp` needs — kept structural (rather
+ *  than importing `PartyMember`) for the same reason. */
+export interface TempHpPartyMember {
+  temp_hp: number;
+}
+
+/**
+ * Temp HP survives Wild Shape and is spent before the beast's HP, so it is
+ * shown in both forms. For players the party row is the authority — the
+ * player can grant themselves temp HP on their own sheet mid-encounter, so
+ * their live party row (when present) wins over the combatant's own copy.
+ */
+export function displayTempHp(
+  combatant: TempHpCombatant,
+  partyMap: Map<string, TempHpPartyMember>,
+): number {
+  if (combatant.type === "player") {
+    const m = partyMap.get(combatant.party_member_id ?? "");
+    if (m) return m.temp_hp;
+  }
+  return combatant.temp_hp ?? 0;
+}
