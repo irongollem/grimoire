@@ -9,7 +9,7 @@
         <button
           type="button"
           class="trait-roll-btn trait-atk-btn"
-          @click.stop="emit('roll-attack', atk.attackBonus, atk.name)"
+          @click.stop="emit('roll-attack', atk.attackBonus, atk.name, onAttackResolved)"
         >⚔ {{ atk.attackBonus >= 0 ? '+' : '' }}{{ atk.attackBonus }}</button>
         <button
           v-if="atk.damageDice"
@@ -132,6 +132,35 @@
       </span>
     </div>
   </template>
+
+  <!-- Custom Attacks -->
+  <template v-if="member.custom_attacks?.length">
+    <div class="detail-divider" />
+    <p class="detail-section-label">Custom Attacks</p>
+    <div v-for="atk in member.custom_attacks" :key="atk.id" class="detail-trait">
+      <div class="detail-trait-header">
+        <strong>{{ atk.name }}.</strong>
+        <div class="trait-roll-bar">
+          <button
+            v-if="atk.attack_bonus != null"
+            type="button"
+            class="trait-roll-btn trait-atk-btn"
+            @click.stop="emit('roll-attack', atk.attack_bonus, atk.name)"
+          >✨ {{ atk.attack_bonus >= 0 ? '+' : '' }}{{ atk.attack_bonus }}</button>
+          <button
+            type="button"
+            class="trait-roll-btn trait-dmg-btn"
+            @click.stop="emit('roll-damage', atk.damage, atk.name)"
+          >🎲 {{ actionDiceLabel(atk.damage) }}</button>
+          <span
+            v-if="atk.damage_type"
+            class="font-cinzel text-2xs text-muted-foreground whitespace-nowrap self-center"
+          >{{ atk.damage_type }}</span>
+        </div>
+      </div>
+      <span class="detail-trait-desc">Custom attack.</span>
+    </div>
+  </template>
 </template>
 
 <script setup lang="ts">
@@ -142,7 +171,8 @@ import { usePartyInventory } from "@/composables/usePartyInventory";
 import { useItems } from "@/composables/useItems";
 import { useAmmoConsumption } from "@/composables/useAmmoConsumption";
 import { useThrownWeapon } from "@/composables/useThrownWeapon";
-import { weaponAmmoTag } from "@/lib/ammunition";
+import { useUpdatePartyMember } from "@/composables/useParty";
+import { weaponAmmoTag, weaponUsesChargesAsAmmo, type WeaponAmmoTag } from "@/lib/ammunition";
 import { isThrownWeapon } from "@/lib/thrownWeapon";
 import { weaponAttackMod, weaponAbilityMod } from "@/lib/weaponAttack";
 import { parseExpression } from "@/lib/dice";
@@ -154,7 +184,7 @@ const { member, profBonus, abilityMod } = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  "roll-attack": [bonus: number, name: string];
+  "roll-attack": [bonus: number, name: string, onResolved?: (rolled: boolean) => void];
   "roll-damage": [desc: string, name: string];
 }>();
 
@@ -187,6 +217,22 @@ const {
 
 const { throwWeapon } = useThrownWeapon();
 
+const { mutateAsync: updateMember } = useUpdatePartyMember();
+
+// ── Hidden clearing ───────────────────────────────────────────────────────────
+// Attacking gives away your position (5e RAW) — mirrors PlayerCombatTab's
+// clearHidden, but only fires once a roll has actually resolved (see
+// `onAttackResolved`), since a cancelled physical-dice prompt shouldn't reveal.
+async function clearHidden() {
+  const conditions = member.conditions ?? [];
+  if (!conditions.includes("Hidden")) return;
+  await updateMember({ id: member.id, update: { conditions: conditions.filter((c) => c !== "Hidden") } });
+}
+
+function onAttackResolved(rolled: boolean) {
+  if (rolled) void clearHidden();
+}
+
 // ── Attack interfaces & computeds ─────────────────────────────────────────────
 
 interface MeleeAttack {
@@ -202,7 +248,7 @@ interface RangedAttack {
   attackBonus: number;
   damageDice: string | null;
   description: string;
-  ammoTag: string | null;
+  ammoTag: WeaponAmmoTag | null;
   weaponInvId: string;
 }
 
@@ -241,7 +287,7 @@ const rangedAttacks = computed<RangedAttack[]>(() => {
       if (!inv.item_id) return [];
       const item = vaultItemMap.value.get(inv.item_id);
       if (!item) return [];
-      const isSelfCharged = item.charges !== null;
+      const isSelfCharged = weaponUsesChargesAsAmmo(item);
       const ammoTag = isSelfCharged ? null : weaponAmmoTag(item);
       if (!item.properties.includes("ammunition") && !isSelfCharged && !ammoTag) return [];
       const usesStr = item.properties.includes("finesse") && strMod > dexMod;
@@ -265,14 +311,17 @@ const rangedAttacks = computed<RangedAttack[]>(() => {
 });
 
 function fireRangedAttack(atk: RangedAttack) {
-  emit("roll-attack", atk.attackBonus, atk.name);
-  if (atk.ammoTag) {
-    consumeAmmo(atk.ammoTag);
-  } else {
-    const inv = memberInventory.value.find((i) => i.id === atk.weaponInvId);
-    const vaultItem = inv?.item_id ? vaultItemMap.value.get(inv.item_id) : undefined;
-    if (vaultItem?.charges) consumeWeaponCharge(atk.weaponInvId, vaultItem.charges);
-  }
+  emit("roll-attack", atk.attackBonus, atk.name, (rolled) => {
+    onAttackResolved(rolled);
+    if (!rolled) return; // cancelled physical-dice prompt spends nothing
+    if (atk.ammoTag) {
+      consumeAmmo(atk.ammoTag);
+    } else {
+      const inv = memberInventory.value.find((i) => i.id === atk.weaponInvId);
+      const vaultItem = inv?.item_id ? vaultItemMap.value.get(inv.item_id) : undefined;
+      if (vaultItem?.charges && weaponUsesChargesAsAmmo(vaultItem)) consumeWeaponCharge(atk.weaponInvId, vaultItem.charges);
+    }
+  });
 }
 
 // ── Thrown attacks ────────────────────────────────────────────────────────────
@@ -312,11 +361,14 @@ function throwCountFor(weaponInvId: string): number {
 }
 
 function fireThrownAttack(atk: ThrownAttack) {
-  emit("roll-attack", atk.attackBonus, atk.name);
-  const inv = memberInventory.value.find((i) => i.id === atk.weaponInvId);
-  if (!inv) return;
-  const item = inv.item_id ? vaultItemMap.value.get(inv.item_id) ?? null : null;
-  void throwWeapon(inv, item, member.name);
+  emit("roll-attack", atk.attackBonus, atk.name, (rolled) => {
+    onAttackResolved(rolled);
+    if (!rolled) return; // cancelled physical-dice prompt throws nothing
+    const inv = memberInventory.value.find((i) => i.id === atk.weaponInvId);
+    if (!inv) return;
+    const item = inv.item_id ? vaultItemMap.value.get(inv.item_id) ?? null : null;
+    void throwWeapon(inv, item, member.name);
+  });
 }
 
 // ── Class features ────────────────────────────────────────────────────────────

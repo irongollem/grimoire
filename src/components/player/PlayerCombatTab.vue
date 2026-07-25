@@ -157,6 +157,15 @@
         </div>
       </div>
 
+      <!-- Custom attacks — player-defined attacks not derived from equipment (#568) -->
+      <PlayerCustomAttacks
+        :member="member"
+        :attack-disadvantage="attackDisadvantage"
+        :attack-penalty="attackPenalty"
+        @roll="emit('roll', $event)"
+        @attacked="clearHidden"
+      />
+
       <!-- Always-available melee attacks -->
       <div class="rounded-lg border border-border bg-card overflow-hidden divide-y divide-border">
         <div class="px-4 py-3">
@@ -221,7 +230,7 @@ import { usePartyInventory } from "@/composables/usePartyInventory";
 import { usePlayerVisibleItems } from "@/composables/useItems";
 import { useAmmoConsumption } from "@/composables/useAmmoConsumption";
 import { useThrownWeapon } from "@/composables/useThrownWeapon";
-import { weaponAmmoTag } from "@/lib/ammunition";
+import { weaponAmmoTag, weaponUsesChargesAsAmmo } from "@/lib/ammunition";
 import { isThrownWeapon } from "@/lib/thrownWeapon";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
@@ -230,6 +239,7 @@ import { useUpdatePartyMember } from "@/composables/useParty";
 import { skillCheckBonus } from "@/lib/skillCheck";
 import { WEAPON_MASTERY_DEFINITIONS } from "@/data/weaponMastery";
 import PlayerLoadout from "@/components/player/PlayerLoadout.vue";
+import PlayerCustomAttacks from "@/components/player/PlayerCustomAttacks.vue";
 import type { PartyMember } from "@/types/party.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
@@ -374,8 +384,8 @@ interface WeaponAmmoInfo {
 function weaponAmmoInfo(inv: PartyInventoryItem, item: Item | null): WeaponAmmoInfo {
   if (!item) return { needsAmmo: false, hasAmmo: true, remaining: 0 };
   // A self-charged weapon (laser rifle, internal-magazine firearm) spends its own charges.
-  if (item.charges !== null) {
-    const remaining = weaponSelfChargesRemaining(inv.id, item.charges);
+  if (weaponUsesChargesAsAmmo(item)) {
+    const remaining = weaponSelfChargesRemaining(inv.id, item.charges!);
     return { needsAmmo: true, hasAmmo: remaining > 0, remaining };
   }
   const tag = weaponAmmoTag(item);
@@ -492,8 +502,8 @@ async function rollWeaponAttack(inv: PartyInventoryItem, item: Item | null, over
   const rolled = await rollAttackWith(weaponAttackMod(item), inv.name, override);
   // Only deplete ammo once the attack has actually been made.
   if (!rolled || !item) return;
-  if (item.charges !== null) {
-    consumeWeaponCharge(inv.id, item.charges);
+  if (weaponUsesChargesAsAmmo(item)) {
+    consumeWeaponCharge(inv.id, item.charges!);
   } else {
     const tag = weaponAmmoTag(item);
     if (tag) consumeAmmo(tag);

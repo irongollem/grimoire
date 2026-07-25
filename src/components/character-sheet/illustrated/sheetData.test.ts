@@ -65,6 +65,7 @@ function member(overrides: Partial<PartyMember> = {}): PartyMember {
     class_resources: {},
     class_choices: {},
     active_infusions: [],
+    custom_attacks: [],
     level_choices: {},
     created_at: "",
     updated_at: "",

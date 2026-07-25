@@ -76,6 +76,21 @@ export interface LevelChoiceEntry {
 
 export type LevelChoices = Record<number, LevelChoiceEntry>;
 
+/**
+ * A player-defined attack button (#568) — for attacks not derived from
+ * equipment: companion attacks, class features, improvised setups.
+ * `damage` is a dice expression parseable by `parseExpression` ("2d6+3").
+ * `attack_bonus: null` means no to-hit roll (auto-hit / save-based) — only
+ * the damage button renders.
+ */
+export interface CustomAttack {
+  id: string;
+  name: string;
+  attack_bonus: number | null;
+  damage: string;
+  damage_type: string | null;
+}
+
 export interface PartyMember {
   id: string;
   user_id: string;
@@ -156,6 +171,8 @@ export interface PartyMember {
   class_choices: Record<string, unknown>;
   active_infusions: { name: string; inv_item_id: string | null }[];
   rage_active?: boolean;
+  /** Player-defined attack buttons not derived from equipment (companion attacks, etc. — #568). */
+  custom_attacks: CustomAttack[];
   level_choices: LevelChoices;
   concentration?: ConcentrationState | null;
   wildshape_state?: WildshapeState | null;
@@ -194,6 +211,8 @@ export { CONDITIONS, ATTACK_DIS_CONDITIONS, CHECK_DIS_CONDITIONS } from "@/lib/c
 // "unarmored:dex+wis" → Monk Unarmored Defense:      10 + DEX mod + WIS mod
 // "mage_armor"        → Mage Armor spell:             13 + DEX mod
 // "natural:<N>"       → Natural Armor:                fixed base AC N (e.g. "natural:15")
+// "natural:<N>+dex"   → Natural Armor + Dex:           base N + DEX mod (e.g. Lizardfolk
+//                       "natural:13+dex", Sorcerer Draconic Resilience "natural:13+dex")
 
 export function computeAc(
   formula: string | null | undefined,
@@ -206,8 +225,10 @@ export function computeAc(
   if (formula === "unarmored:dex+wis") return 10 + dexMod + Math.floor((scores.wis - 10) / 2);
   if (formula === "mage_armor") return 13 + dexMod;
   if (formula.startsWith("natural:")) {
-    const base = parseInt(formula.slice(8), 10);
-    return isNaN(base) ? scores.ac : base;
+    const match = formula.match(/^natural:(\d+)(\+dex)?$/);
+    if (!match) return scores.ac;
+    const base = parseInt(match[1], 10);
+    return match[2] ? base + dexMod : base;
   }
   return scores.ac;
 }
