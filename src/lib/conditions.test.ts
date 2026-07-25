@@ -119,9 +119,9 @@ describe("exhaustion models — 2014 (disadvantage tiers) vs 2024 (flat penalty)
 });
 
 describe("getConditions / getCondition resolver", () => {
-  it("returns all 15 canonical conditions for both editions", () => {
-    expect(getConditions("2014")).toHaveLength(15);
-    expect(getConditions("2024")).toHaveLength(15);
+  it("returns all 16 conditions (15 SRD + Hidden) for both editions", () => {
+    expect(getConditions("2014")).toHaveLength(16);
+    expect(getConditions("2024")).toHaveLength(16);
   });
 
   it("defaults to 2014", () => {
