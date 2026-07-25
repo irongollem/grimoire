@@ -31,6 +31,7 @@
         :loc="loc"
         :parent-name="parentName(loc)"
         :description="descriptionPreview(loc)"
+        :out-of-era="isLocationOutOfEra(loc, todayYear)"
       />
     </div>
 
@@ -47,6 +48,9 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import { IconNavAtlas } from "@/lib/icons";
 import { extractTiptapText } from "@/lib/utils";
+import { isLocationOutOfEra } from "@/lib/locationEra";
+import { useCampaignStore } from "@/stores/campaign";
+import { storeToRefs } from "pinia";
 import LocationCard from "@/components/locations/LocationCard.vue";
 import type { Location } from "@/types/location.types";
 
@@ -56,6 +60,7 @@ const props = defineProps<{
 }>();
 
 const { data: locations, isLoading } = useAllLocations();
+const { todayYear } = storeToRefs(useCampaignStore());
 
 const filtered = computed(() => {
   let list = [...(locations.value ?? [])];

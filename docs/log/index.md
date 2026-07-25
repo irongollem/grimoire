@@ -3,7 +3,7 @@
 Curated history of shipped features and resolved bugs, chunked by subsystem. This
 is a **log**, not a tracker: open work lives in GitHub issues on `irongollem/grimoire`.
 
-- **Features** (529 entries) — what shipped, newest first per file.
+- **Features** (530 entries) — what shipped, newest first per file.
 - **Fixes** (249 entries) — resolved bugs, newest first per file.
 
 When you finish work, append a `- [x]` line to the matching file below
@@ -27,7 +27,7 @@ Pick the subsystem the change is primarily about; use `misc` only as a last reso
 | Encounters & Combat | 26 | [features/encounters.md](features/encounters.md) |
 | Quests | 7 | [features/quests.md](features/quests.md) |
 | Party & Characters | 54 | [features/party.md](features/party.md) |
-| Atlas & Locations | 16 | [features/atlas.md](features/atlas.md) |
+| Atlas & Locations | 17 | [features/atlas.md](features/atlas.md) |
 | Cartographer & VTT | 31 | [features/cartographer.md](features/cartographer.md) |
 | Chat & Dice | 8 | [features/chat.md](features/chat.md) |
 | Images & Art | 16 | [features/images.md](features/images.md) |

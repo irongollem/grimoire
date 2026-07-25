@@ -101,6 +101,32 @@
           <div class="flex-1"><TagInput v-model="tags" /></div>
         </div>
 
+        <!-- Optional in-world era bounds — location is greyed out / hidden outside this range -->
+        <div class="flex items-center gap-2">
+          <span
+            class="text-label-lg font-semibold text-muted-foreground shrink-0 w-16 flex items-center gap-1"
+          >
+            <IconClock class="h-3.5 w-3.5" />Era
+          </span>
+          <div class="flex-1 flex items-center gap-1.5">
+            <input
+              :value="eraStart ?? ''"
+              type="number"
+              placeholder="From year…"
+              class="w-0 flex-1 bg-card border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              @input="eraStart = parseEraYear(($event.target as HTMLInputElement).value)"
+            />
+            <span class="text-muted-foreground shrink-0">–</span>
+            <input
+              :value="eraEnd ?? ''"
+              type="number"
+              placeholder="To year…"
+              class="w-0 flex-1 bg-card border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              @input="eraEnd = parseEraYear(($event.target as HTMLInputElement).value)"
+            />
+          </div>
+        </div>
+
         <!-- Compact calendar pins -->
         <EntityCalendarSection
           compact
@@ -203,7 +229,7 @@ const { confirm } = useConfirm();
 import { ref, computed, watch } from "vue";
 import { buildEntityContext, toPlainText } from "@/ai/utils";
 import { useRoute, useRouter } from "vue-router";
-import { IconTag } from '@/lib/icons';
+import { IconTag, IconClock } from '@/lib/icons';
 import EntityEditorActionBar from "@/components/common/EntityEditorActionBar.vue";
 import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
@@ -335,6 +361,11 @@ const locationType = ref<LocationType>(
 const tags = ref<string[]>(
   props.location?.tags ? [...props.location.tags] : [],
 );
+const eraStart = ref<number | null>(props.location?.era_start ?? null);
+const eraEnd = ref<number | null>(props.location?.era_end ?? null);
+function parseEraYear(raw: string): number | null {
+  return raw === "" ? null : parseInt(raw, 10);
+}
 const imageUrl = ref<string | null>(props.location?.image_url ?? null);
 const saving = ref(false);
 const deleting = ref(false);
@@ -426,6 +457,8 @@ function buildPayload() {
     description: description.value,
     notes: null,
     tags: tags.value,
+    era_start: eraStart.value,
+    era_end: eraEnd.value,
     parent_id: selectedParentId.value,
     image_url: imageUrl.value,
     map_url: mapUrl.value,

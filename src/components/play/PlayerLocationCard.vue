@@ -1,7 +1,7 @@
 <template>
   <div
     class="rounded-lg border bg-card overflow-hidden"
-    :class="isFavourite ? 'border-amber-400/40' : 'border-border'"
+    :class="[isFavourite ? 'border-amber-400/40' : 'border-border', outOfEra && 'opacity-60']"
     :style="depth ? { marginLeft: `${depth * 16}px` } : undefined"
   >
     <!-- Header row -->
@@ -64,7 +64,7 @@ import EntityNewDot from "@/components/common/EntityNewDot.vue";
 import { LOCATION_TYPE_COLORS, LOCATION_TYPE_LABELS } from "@/types/location.types";
 import type { Location } from "@/types/location.types";
 
-const { loc, isNew = false, isFavourite = false, hasChildren = false, childrenOpen = false, detailOpen = false, depth = 0 } = defineProps<{
+const { loc, isNew = false, isFavourite = false, hasChildren = false, childrenOpen = false, detailOpen = false, depth = 0, outOfEra = false } = defineProps<{
   loc: Location;
   isNew?: boolean;
   isFavourite?: boolean;
@@ -72,6 +72,7 @@ const { loc, isNew = false, isFavourite = false, hasChildren = false, childrenOp
   childrenOpen?: boolean;
   detailOpen?: boolean;
   depth?: number;
+  outOfEra?: boolean;
 }>();
 
 const emit = defineEmits<{

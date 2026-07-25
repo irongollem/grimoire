@@ -129,6 +129,13 @@ export interface Location {
    * `origin_y_pct` (0–1) place cell (0,0) on the image.
    */
   grid_calibration: GridCalibration | null;
+  /**
+   * Optional in-world year bounds. When set, the location is only "current"
+   * while the campaign's `current_year` falls within [era_start, era_end]
+   * (either bound may be open-ended).
+   */
+  era_start: number | null;
+  era_end: number | null;
   created_at: string;
   updated_at: string;
 }

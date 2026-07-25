@@ -265,6 +265,8 @@ async function generateAndCreate() {
     player_summary:        result.player_summary || null,
     tags:                  result.tags,
     notes:                 result.notes || null,
+    era_start:             null,
+    era_end:               null,
     parent_id:             parentLocationId.value || null,
     image_url:             result.image_url,
     map_url:               result.map_url,

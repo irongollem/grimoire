@@ -2,6 +2,8 @@
 
 Shipped features in the **Atlas & Locations** area, newest first. Part of the Grimoire feature log — see the [log index](../index.md).
 
+- [x] Atlas — time-bound locations: optional `era_start`/`era_end` year fields; locations outside the campaign's current year are greyed out (with an era badge) in the DM Atlas grid and player Atlas list
+
 - [x] Atlas (Locations) — recursive hierarchy (world → plane → continent → region → city → town → building → room), Tiptap description, Scriptorium formatter
 
 - [x] Atlas — "Populate Setting" button seeds iconic locations from the active campaign's setting (Faerûn: ~70 locations, Greyhawk/Eberron/Dragonlance: ~15–20 each)

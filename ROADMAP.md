@@ -12,12 +12,12 @@
 > The **AI Features** and **Monetization** sections below are kept in full because they're
 > living reference / strategy — not a completed-work log.
 
-## Feature log by subsystem  ·  529 shipped
+## Feature log by subsystem  ·  530 shipped
 
 | Subsystem | Shipped | | Subsystem | Shipped |
 | --- | ---: | --- | --- | ---: |
 | [Campaign](docs/log/features/campaign.md) | 26 | | [Party & Characters](docs/log/features/party.md) | 54 |
-| [Collaboration](docs/log/features/collaboration.md) | 7 | | [Atlas & Locations](docs/log/features/atlas.md) | 16 |
+| [Collaboration](docs/log/features/collaboration.md) | 7 | | [Atlas & Locations](docs/log/features/atlas.md) | 17 |
 | [Player Portal](docs/log/features/players.md) | 46 | | [Cartographer & VTT](docs/log/features/cartographer.md) | 31 |
 | [Rules Reliquary](docs/log/features/rules.md) | 19 | | [Chat & Dice](docs/log/features/chat.md) | 8 |
 | [Content & Import](docs/log/features/content.md) | 9 | | [Images & Art](docs/log/features/images.md) | 16 |
@@ -31,6 +31,7 @@
 
 ## Latest features
 
+- Atlas — time-bound locations: optional era_start/era_end year fields, out-of-era locations greye… — [Atlas & Locations](docs/log/features/atlas.md)
 - Shared SRD items & species — the compendium stops living in every DM's account (#303) — the las… — [Content & Import](docs/log/features/content.md)
 - Queued chronicle images — drop an anchor, keep writing — chronicle image generation no longer b… — [AI Generation](docs/log/features/ai.md)
 - Illustrated character-sheet export — recovered, calibrated, shipped (part of EPIC #422) — the J… — [Publishing & Export](docs/log/features/publishing.md)
@@ -40,7 +41,6 @@
 - MCP server — create & update content from your own AI (write v2) — extends the read-only MCP se… — [Infrastructure](docs/log/features/infra.md)
 - MCP server — entity images as inline image blocks (`get_image`) — `get` only returned storage U… — [Infrastructure](docs/log/features/infra.md)
 - Free-tier quota expansion + version-control — seeded the full free-plan quota set in a migratio… — [Billing](docs/log/features/billing.md)
-- Campaign setting field — datalist with canonical D&D settings (Forgotten Realms, Eberron, Raven… — [Campaign](docs/log/features/campaign.md)
 
 ---
 

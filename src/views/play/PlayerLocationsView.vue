@@ -39,6 +39,7 @@
           :has-children="hasSharedChildren.has(loc.id)"
           :children-open="childrenOpen.has(loc.id)"
           :detail-open="detailOpen.has(loc.id)"
+          :out-of-era="isLocationOutOfEra(loc, todayYear)"
           @toggle-children="toggleChildren"
           @toggle-favourite="toggleFavourite"
           @toggle-detail="toggleDetail"
@@ -91,6 +92,7 @@
         :children-open="childrenOpen.has(entry.loc.id)"
         :detail-open="detailOpen.has(entry.loc.id)"
         :depth="entry.depth"
+        :out-of-era="isLocationOutOfEra(entry.loc, todayYear)"
         @toggle-children="toggleChildren"
         @toggle-favourite="toggleFavourite"
         @toggle-detail="toggleDetail"
@@ -195,6 +197,9 @@ import { useSharedLocations } from "@/composables/useLocations";
 import { usePlayerFavourites } from "@/composables/usePlayerFavourites";
 import { useUiStore } from "@/stores/ui";
 import { useSharedNpcsByLocations } from "@/composables/useNpcs";
+import { useCampaignStore } from "@/stores/campaign";
+import { storeToRefs } from "pinia";
+import { isLocationOutOfEra } from "@/lib/locationEra";
 import PlayerNpcLightbox from "@/components/play/PlayerNpcLightbox.vue";
 import type { PlayerNpc } from "@/types/npc.types";
 import { extractTiptapText } from "@/lib/utils";
@@ -220,6 +225,7 @@ interface WatchTarget {
 }
 
 const { data: locations, isLoading } = useSharedLocations();
+const { todayYear } = storeToRefs(useCampaignStore());
 const { favouriteIds, toggleFavourite } = usePlayerFavourites("location");
 const { isNew } = useReadItems("location");
 const { mutate: markRead } = useMarkRead();

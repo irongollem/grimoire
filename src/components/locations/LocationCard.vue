@@ -2,6 +2,7 @@
   <RouterLink
     :to="`/locations/${loc.id}`"
     class="group flex flex-col rounded-lg border border-border bg-card hover:border-primary/50 transition-colors overflow-hidden"
+    :class="outOfEra && 'opacity-60'"
   >
     <!-- Type colour bar -->
     <div class="h-1.5 w-full shrink-0" :style="{ backgroundColor: LOCATION_TYPE_COLORS[loc.location_type] }" />
@@ -40,6 +41,9 @@
           <span v-if="parentName" class="text-caption text-muted-foreground italic">
             in {{ parentName }}
           </span>
+          <span v-if="outOfEra" class="flex items-center gap-1 text-caption text-muted-foreground italic">
+            <IconClock class="h-3 w-3 shrink-0" />{{ eraLabel }}
+          </span>
         </div>
       </div>
 
@@ -64,13 +68,24 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import FocalImage from "@/components/common/FocalImage.vue";
+import { IconClock } from "@/lib/icons";
 import { LOCATION_TYPE_LABELS, LOCATION_TYPE_COLORS } from "@/types/location.types";
 import type { Location } from "@/types/location.types";
 
-defineProps<{
+const props = defineProps<{
   loc: Location;
   parentName: string;
   description: string;
+  outOfEra: boolean;
 }>();
+
+const eraLabel = computed(() => {
+  const { era_start, era_end } = props.loc;
+  if (era_start && era_end) return `${era_start}–${era_end}`;
+  if (era_start) return `From ${era_start}`;
+  if (era_end) return `Until ${era_end}`;
+  return "";
+});
 </script>
