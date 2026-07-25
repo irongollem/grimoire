@@ -47,7 +47,8 @@ export interface SheetExportOptions {
   illustratedTheme?: IllustratedTheme;
   speciesName?: string | null;
   backgroundName?: string | null;
-  /** AC bonus from equipped shields — computed by the caller via useShieldAcBonus(). */
+  /** AC delta over the stored `ac` (equipped shield + armor-formula derivation) —
+   *  computed by the caller via useShieldAcBonus().acFor. */
   acBonus?: number;
   /** Vault items backing equipped weapons — illustrated mode's attack math. */
   items?: Item[];

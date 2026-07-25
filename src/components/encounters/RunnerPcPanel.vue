@@ -14,7 +14,7 @@
     </p>
     <div class="detail-divider" />
     <div class="detail-stats">
-      <div class="detail-stat"><span>AC</span><strong>{{ member.ac + shieldAcBonusFor(member.id) }}</strong></div>
+      <div class="detail-stat"><span>AC</span><strong>{{ acFor(member) }}</strong></div>
       <div class="detail-stat">
         <span>HP</span>
         <strong>
@@ -144,7 +144,7 @@ const emit = defineEmits<{
 
 const store = useEncounterRunStore();
 const speciesNameMap = useSpeciesNameMap();
-const { bonusFor: shieldAcBonusFor } = useShieldAcBonus();
+const { acFor } = useShieldAcBonus();
 const { ruleset } = useRuleset();
 
 const memberId = computed(() => member.id);

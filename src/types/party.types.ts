@@ -186,6 +186,10 @@ export { CONDITIONS, ATTACK_DIS_CONDITIONS, CHECK_DIS_CONDITIONS } from "@/lib/c
 // ── AC formula ───────────────────────────────────────────────────────────────
 // Encodes where a character's AC comes from. Stored in party_members.ac_formula.
 // null → manual (use ac integer as-is).
+// "armor"             → Equipped armor:               base+Dex derived live at
+//                       display from the paper doll (useShieldAc.acFor), NOT baked
+//                       here; the stored `ac` is only the fallback when no armor
+//                       is equipped, so this returns it unchanged.
 // "unarmored:dex+con" → Barbarian Unarmored Defense: 10 + DEX mod + CON mod
 // "unarmored:dex+wis" → Monk Unarmored Defense:      10 + DEX mod + WIS mod
 // "mage_armor"        → Mage Armor spell:             13 + DEX mod
@@ -197,6 +201,7 @@ export function computeAc(
 ): number {
   if (!formula) return scores.ac;
   const dexMod = Math.floor((scores.dex - 10) / 2);
+  if (formula === "armor") return scores.ac; // resolved live at display, not baked
   if (formula === "unarmored:dex+con") return 10 + dexMod + Math.floor((scores.con - 10) / 2);
   if (formula === "unarmored:dex+wis") return 10 + dexMod + Math.floor((scores.wis - 10) / 2);
   if (formula === "mage_armor") return 13 + dexMod;

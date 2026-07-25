@@ -135,10 +135,11 @@ const { member, inventory, storageKey, speciesName = null, backgroundName = null
   items?: Item[];
 }>();
 
-// Shield AC bonus from equipped shields — added to base AC in both preview modes
-// and the exported PDF so the sheet matches the live party tracker.
-const { bonusFor: shieldAcBonusFor } = useShieldAcBonus();
-const acBonus = computed(() => shieldAcBonusFor(member?.id));
+// AC delta over the stored `ac` — equipped shield plus the armor-derivation
+// adjustment for the "armor" formula — added in both preview modes and the
+// exported PDF so the sheet matches the live party tracker.
+const { acFor } = useShieldAcBonus();
+const acBonus = computed(() => (member ? acFor(member) - member.ac : 0));
 
 function read<T extends string>(prefix: string, fallback: T): T {
   if (!storageKey) return fallback;

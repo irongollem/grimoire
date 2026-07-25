@@ -366,9 +366,9 @@ function profAdd(profs: SkillProficiencies, key: keyof SkillProficiencies, profB
   return level === "proficient" ? profBonus : level === "expertise" ? profBonus * 2 : 0;
 }
 
-const { bonusFor: shieldAcBonusFor } = useShieldAcBonus();
+const { acFor } = useShieldAcBonus();
 const displayAc = computed(
-  () => member.wildshape_state?.beast_ac ?? member.ac + shieldAcBonusFor(member.id),
+  () => member.wildshape_state?.beast_ac ?? acFor(member),
 );
 
 const passivePerception = computed(() => 10 + mod(member.wis) + profAdd(member.skill_proficiencies, "perception", member.proficiency_bonus));

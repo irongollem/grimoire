@@ -335,7 +335,7 @@ const hitDiceRemaining = computed(() =>
 // When wildshaped, display beast AC/HP; otherwise real member stats.
 // An equipped shield adds its bonus on top of the stored (shieldless) AC,
 // but never to a beast form — gear merges into the form while wildshaped.
-const { bonusFor: shieldAcBonusFor } = useShieldAcBonus();
+const { acFor } = useShieldAcBonus();
 const hpPools = computed(() => ({
   current_hp: props.member.current_hp,
   max_hp: props.member.max_hp,
@@ -347,7 +347,7 @@ const hpPools = computed(() => ({
 
 const displayHp    = computed(() => props.wildshape?.beast_hp    ?? props.member.current_hp);
 const displayMaxHp = computed(() => props.wildshape?.beast_max_hp ?? props.member.max_hp);
-const displayAc    = computed(() => props.wildshape?.beast_ac     ?? props.member.ac + shieldAcBonusFor(props.member.id));
+const displayAc    = computed(() => props.wildshape?.beast_ac     ?? acFor(props.member));
 
 // Initiative = DEX mod + initiative_bonus (feat/special extras like Alert).
 const initiativeDisplay = computed(() => {

@@ -96,21 +96,22 @@
           <div class="flex flex-wrap gap-2 items-center">
             <select v-model="acFormulaType" class="field-input shrink-0">
               <option value="">Manual</option>
+              <option value="armor">Equipped armor</option>
               <option value="unarmored:dex+con">Unarmored Defense (Barbarian)</option>
               <option value="unarmored:dex+wis">Unarmored Defense (Monk)</option>
               <option value="mage_armor">Mage Armor</option>
               <option value="natural">Natural Armor</option>
             </select>
-            <!-- Manual: editable number -->
-            <input v-if="!acFormulaType" v-model.number="f.ac" type="number" min="1" class="field-input w-20" />
-            <!-- Formula: computed read-only value + optional natural base input -->
+            <!-- Editable number: manual mode, or armor mode with nothing derivable equipped -->
+            <input v-if="!acFormulaType || (acFormulaType === 'armor' && armorDerivedAc === null)" v-model.number="f.ac" type="number" min="1" class="field-input w-20" />
+            <!-- Formula / derived: computed read-only value + optional natural base input -->
             <template v-else>
-              <span class="field-input w-16 text-center font-bold pointer-events-none select-none">{{ f.ac }}</span>
+              <span class="field-input w-16 text-center font-bold pointer-events-none select-none">{{ acFormulaType === 'armor' ? armorDerivedAc : f.ac }}</span>
               <span class="text-caption text-muted-foreground italic">{{ acFormulaLabel }}</span>
               <input v-if="acFormulaType === 'natural'" v-model.number="naturalBase" type="number" min="1" class="field-input w-20" placeholder="Base AC" />
             </template>
           </div>
-          <p class="text-caption text-muted-foreground italic mt-1">Without shield — an equipped shield adds its bonus automatically.</p>
+          <p class="text-caption text-muted-foreground italic mt-1">Without shield — an equipped shield adds its bonus automatically. “Equipped armor” derives base AC from the armor in the paper doll, so it updates when you swap armor.</p>
         </div>
         <label class="block"><span class="field-label">Speed (ft)</span><input v-model.number="f.speed" type="number" min="0" step="5" class="field-input w-full" /></label>
         <label class="block"><span class="field-label">Initiative Bonus</span><input v-model.number="f.initiative_bonus" type="number" class="field-input w-full" placeholder="extra on top of DEX (e.g. Alert +5)" /></label>
@@ -175,8 +176,11 @@
 </template>
 
 <script setup lang="ts">
-import { inject, computed } from "vue";
+import { inject, computed, watch } from "vue";
 import { CHARACTER_FORM_KEY } from "@/composables/useCharacterCreationForm";
+import { useShieldAcBonus } from "@/composables/useShieldAc";
+import { armorAcFor } from "@/lib/armorAc";
+import type { PartyMember } from "@/types/party.types";
 import { EDIT_TABS, ABILITY_STATS, SAVE_STATS, PROF_LEVELS, SLOT_LEVEL_LABELS } from "@/lib/characterCreation";
 import { SKILLS } from "@/types/party.types";
 import { TOOL_PROFICIENCY_GROUPS, LANGUAGE_GROUPS } from "@/lib/proficiency-lists";
@@ -239,9 +243,36 @@ const naturalBase = computed({
   },
 });
 
+// ── Equipped-armor derivation (live preview) ──────────────────────────────────
+// Mirrors the display-time resolver so the editor shows exactly what the sheets
+// will. Keyed by the saved member id, so it only resolves in edit mode.
+const { armorFor } = useShieldAcBonus();
+const equippedArmor = computed(() => armorFor((existingMember.value as PartyMember | null)?.id));
+const armorDerivedAc = computed(() =>
+  equippedArmor.value ? armorAcFor(equippedArmor.value, f.dex) : null,
+);
+const armorAcLabel = computed(() => {
+  const a = equippedArmor.value;
+  if (!a) return "";
+  if (a.dex === "none") return `${a.base} (no DEX)`;
+  const dm = mod(f.dex);
+  const applied = a.dex === "capped" ? Math.min(dm, a.maxDex ?? 0) : dm;
+  const cap = a.dex === "capped" ? ` (max +${a.maxDex})` : "";
+  return `${a.base} + DEX (${applied >= 0 ? "+" : ""}${applied})${cap}`;
+});
+
+// Keep the stored `ac` synced to the derived value while "armor" mode is active,
+// so it stays a sensible fallback if the armor is later unequipped/unparseable.
+watch([armorDerivedAc, acFormulaType], () => {
+  if (acFormulaType.value === "armor" && armorDerivedAc.value !== null) {
+    f.ac = armorDerivedAc.value;
+  }
+});
+
 const acFormulaLabel = computed(() => {
   const fm = f.ac_formula;
   if (!fm) return "";
+  if (fm === "armor")             return armorDerivedAc.value === null ? "No armor equipped — enter AC manually" : armorAcLabel.value;
   if (fm === "unarmored:dex+con") return `10 + DEX (${mod(f.dex) >= 0 ? "+" : ""}${mod(f.dex)}) + CON (${mod(f.con) >= 0 ? "+" : ""}${mod(f.con)})`;
   if (fm === "unarmored:dex+wis") return `10 + DEX (${mod(f.dex) >= 0 ? "+" : ""}${mod(f.dex)}) + WIS (${mod(f.wis) >= 0 ? "+" : ""}${mod(f.wis)})`;
   if (fm === "mage_armor")        return `13 + DEX (${mod(f.dex) >= 0 ? "+" : ""}${mod(f.dex)})`;

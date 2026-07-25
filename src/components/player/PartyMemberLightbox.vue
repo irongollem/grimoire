@@ -211,10 +211,10 @@ const speciesNameMap = useSpeciesNameMap();
 
 const speciesModalOpen = ref(false);
 
-const { bonusFor: shieldAcBonusFor } = useShieldAcBonus();
+const { acFor } = useShieldAcBonus();
 const displayAc = computed(() => {
   if (!props.member) return 0;
-  return props.member.wildshape_state?.beast_ac ?? props.member.ac + shieldAcBonusFor(props.member.id);
+  return props.member.wildshape_state?.beast_ac ?? acFor(props.member);
 });
 
 const healthVis = computed<HealthVisibility>(

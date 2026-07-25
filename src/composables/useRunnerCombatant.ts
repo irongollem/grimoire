@@ -25,7 +25,7 @@ export function useRunnerCombatant(getCombatant: MaybeRefOrGetter<RunCombatant>)
   const { data: monsters } = useAllMonsters();
   const { mutateAsync: autoDiscover } = useAutoDiscoverMonsters();
   const { rollConcentrationSave, endConcentration } = useConcentration();
-  const { bonusFor: shieldAcBonusFor } = useShieldAcBonus();
+  const { acFor } = useShieldAcBonus();
 
   const partyMap = computed(
     () => new Map(partyList.value?.map((m) => [m.id, m]) ?? []),
@@ -76,7 +76,7 @@ export function useRunnerCombatant(getCombatant: MaybeRefOrGetter<RunCombatant>)
     const c = combatant.value;
     if (c.type === "player") {
       const m = partyMap.value.get(c.party_member_id ?? "");
-      if (m) return m.wildshape_state?.beast_ac ?? String(m.ac + shieldAcBonusFor(m.id));
+      if (m) return m.wildshape_state?.beast_ac ?? String(acFor(m));
     }
     return c.wildshape?.beast_ac ?? c.ac;
   });

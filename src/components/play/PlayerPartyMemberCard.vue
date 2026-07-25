@@ -88,8 +88,8 @@ const { hpColor, hpBarColor, immersiveHpLabel } = useHpDisplay(
   () => member.max_hp
 );
 
-const { bonusFor: shieldAcBonusFor } = useShieldAcBonus();
+const { acFor } = useShieldAcBonus();
 const displayAc = computed(
-  () => member.wildshape_state?.beast_ac ?? member.ac + shieldAcBonusFor(member.id),
+  () => member.wildshape_state?.beast_ac ?? acFor(member),
 );
 </script>

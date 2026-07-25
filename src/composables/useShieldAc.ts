@@ -2,12 +2,23 @@ import { computed } from "vue";
 import { usePartyInventory } from "@/composables/usePartyInventory";
 import { useItems, usePlayerVisibleItems } from "@/composables/useItems";
 import { shieldAcBonusByMember } from "@/lib/shieldAc";
+import { equippedArmorByMember, armorAcFor, type ParsedArmor } from "@/lib/armorAc";
+
+/** The member fields the AC resolver needs — a `PartyMember` satisfies this. */
+type AcMember = { id: string; ac: number; ac_formula?: string | null; dex: number };
 
 /**
- * Reactive AC bonus from equipped shields, per party member.
- * A member's stored `ac` is their armor class WITHOUT shield; the bonus from
- * an equipped (non-ruined) shield in the paper doll is added at display time.
- * Wildshaped characters use the beast's AC instead — don't add the bonus there.
+ * Reactive AC resolver, per party member.
+ *
+ * A member's stored `ac` is their armor class WITHOUT shield. On top of it:
+ *  - When `ac_formula === "armor"`, the base AC is live-derived from the
+ *    currently-equipped body armor + the member's Dex (so swapping armor updates
+ *    every sheet instantly, exactly like shields). Falls back to stored `ac`
+ *    when no parseable armor is equipped.
+ *  - Any equipped (non-ruined) shield in the paper doll adds its bonus.
+ *
+ * Wildshaped characters use the beast's AC instead — call sites keep the
+ * `beast_ac ?? …` precedence and never route through here while shaped.
  */
 export function useShieldAcBonus() {
   const { data: inventory } = usePartyInventory();
@@ -32,10 +43,36 @@ export function useShieldAcBonus() {
     shieldAcBonusByMember(inventory.value ?? [], mergedItems.value),
   );
 
+  const armorByMember = computed(() =>
+    equippedArmorByMember(inventory.value ?? [], mergedItems.value),
+  );
+
   function bonusFor(memberId: string | null | undefined): number {
     if (!memberId) return 0;
     return bonusByMember.value[memberId] ?? 0;
   }
 
-  return { bonusByMember, bonusFor };
+  /** Parsed body armor equipped by a member, or null when none is derivable. */
+  function armorFor(memberId: string | null | undefined): ParsedArmor | null {
+    if (!memberId) return null;
+    return armorByMember.value[memberId] ?? null;
+  }
+
+  /** AC before the shield — live-derived from equipped armor for the "armor"
+   *  formula, otherwise the stored `ac` (which already bakes in other formulas). */
+  function baseAcFor(member: AcMember): number {
+    if (member.ac_formula === "armor") {
+      const parsed = armorByMember.value[member.id];
+      if (parsed) return armorAcFor(parsed, member.dex);
+    }
+    return member.ac;
+  }
+
+  /** Fully resolved AC = base (armor or stored) + equipped shield. Excludes
+   *  Wild Shape; call sites apply `beast_ac ?? acFor(member)`. */
+  function acFor(member: AcMember): number {
+    return baseAcFor(member) + (bonusByMember.value[member.id] ?? 0);
+  }
+
+  return { bonusByMember, bonusFor, armorByMember, armorFor, baseAcFor, acFor };
 }
