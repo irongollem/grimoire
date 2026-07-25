@@ -55,7 +55,7 @@
       :member="member"
       :prof-bonus="profBonus"
       :ability-mod="abilityMod"
-      @roll-attack="(bonus, name) => emit('roll-attack', bonus, name)"
+      @roll-attack="(bonus, name, onResolved) => emit('roll-attack', bonus, name, onResolved)"
       @roll-damage="(desc, name) => emit('roll-damage', desc, name)"
     />
 
@@ -134,7 +134,7 @@ const { combatant, member, monsters } = defineProps<{
 
 const emit = defineEmits<{
   "roll-check": [modifier: number, label: string];
-  "roll-attack": [bonus: number, name: string];
+  "roll-attack": [bonus: number, name: string, onResolved?: (rolled: boolean) => void];
   "roll-damage": [desc: string, name: string];
   "roll-spell": [spell: Spell];
   "roll-spell-save": [spell: Spell, dc: number];

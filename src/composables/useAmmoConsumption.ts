@@ -1,8 +1,26 @@
 import { computed, type Ref } from "vue";
 import { useUpdateInventoryItem, useRemoveInventoryItem } from "@/composables/usePartyInventory";
-import { ammoTagFromName } from "@/lib/ammunition";
+import { AMMO_TAGS, ANY_AMMO_TAG, ammoTagFromName, type AmmoTag, type WeaponAmmoTag } from "@/lib/ammunition";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
+
+/**
+ * Decrements an inventory stack's quantity by one, or removes the row
+ * entirely when it was the last one. Shared by anything that spends one unit
+ * of a stackable inventory item (ammo, thrown weapons).
+ */
+export interface StackMutators {
+  updateInventoryItem: ReturnType<typeof useUpdateInventoryItem>;
+  removeInventoryItem: ReturnType<typeof useRemoveInventoryItem>;
+}
+
+export function consumeOneFromStack(inv: PartyInventoryItem, mutators: StackMutators) {
+  if (inv.quantity > 1) {
+    mutators.updateInventoryItem.mutate({ id: inv.id, update: { quantity: inv.quantity - 1 } });
+  } else {
+    mutators.removeInventoryItem.mutate(inv.id);
+  }
+}
 
 /**
  * Ammunition selection + consumption for a single combatant, shared by the DM
@@ -24,16 +42,24 @@ export function useAmmoConsumption(
     return s;
   });
 
+  /** Classifies an inventory stack's own ammo kind — the same tag `weaponAmmoTag` would want to match. */
+  function ammoStackTag(inv: PartyInventoryItem): AmmoTag | null {
+    const vaultItem = inv.item_id ? vaultItemMap.value.get(inv.item_id) : undefined;
+    if (vaultItem) {
+      if (vaultItem.tags.includes("firearm")) return "firearm-bullet";
+      return AMMO_TAGS.find((t) => vaultItem.tags.includes(t)) ?? null;
+    }
+    return ammoTagFromName(inv.name);
+  }
+
   /** The best matching, non-empty ammo stack for `ammoTag`: quiver/container → belt → backpack. */
-  function availableAmmoFor(ammoTag: string): PartyInventoryItem | null {
+  function availableAmmoFor(ammoTag: WeaponAmmoTag): PartyInventoryItem | null {
     const candidates = memberInventory.value.filter((inv) => {
+      const tag = ammoStackTag(inv);
+      if (tag === null) return false;
+      // The generic "any" tag (weapon needs ammo, kind unknown) matches any recognized ammo stack.
+      if (ammoTag !== ANY_AMMO_TAG && tag !== ammoTag) return false;
       const vaultItem = inv.item_id ? vaultItemMap.value.get(inv.item_id) : undefined;
-      const tag = vaultItem
-        ? (vaultItem.tags.includes("firearm") && ammoTag === "firearm-bullet"
-            ? "firearm-bullet"
-            : vaultItem.tags.find((t) => ["arrow", "bolt", "bullet", "needle", "dart"].includes(t)) ?? null)
-        : ammoTagFromName(inv.name);
-      if (tag !== ammoTag) return false;
       const maxCharges = vaultItem?.charges ?? null;
       const remaining = inv.current_charges !== null ? inv.current_charges : maxCharges;
       if (remaining !== null && remaining <= 0) return false;
@@ -56,7 +82,7 @@ export function useAmmoConsumption(
   }
 
   /** Spends one unit of ammo from the best matching stack — a charge, or a stack quantity. */
-  function consumeAmmo(ammoTag: string) {
+  function consumeAmmo(ammoTag: WeaponAmmoTag) {
     const inv = availableAmmoFor(ammoTag);
     if (!inv) return;
     const vaultItem = inv.item_id ? vaultItemMap.value.get(inv.item_id) : undefined;
@@ -64,10 +90,8 @@ export function useAmmoConsumption(
     if (maxCharges !== null) {
       const current = inv.current_charges !== null ? inv.current_charges : maxCharges;
       updateInventoryItem.mutate({ id: inv.id, update: { current_charges: Math.max(0, current - 1) } });
-    } else if (inv.quantity <= 1) {
-      removeInventoryItem.mutate(inv.id);
     } else {
-      updateInventoryItem.mutate({ id: inv.id, update: { quantity: inv.quantity - 1 } });
+      consumeOneFromStack(inv, { updateInventoryItem, removeInventoryItem });
     }
   }
 

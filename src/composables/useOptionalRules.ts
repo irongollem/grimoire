@@ -71,32 +71,16 @@ export function isRuleEffectivelyEnabled(
   return getOptionalRule(ruleKey)?.defaultEnabled ?? false;
 }
 
-/** Toggle a built-in optional rule on/off. Any existing `config` is preserved —
- *  the caller passes the current config so flipping the switch never wipes the
- *  DM's tuned values. */
-export function useToggleOptionalRule() {
+/** Upsert a built-in optional rule's `enabled` flag and/or `config`. Used both to
+ *  toggle a rule on/off (caller passes the preserved existing config, if any, so
+ *  flipping the switch never wipes the DM's tuned values) and to persist tuned
+ *  config values (caller passes the current `enabled` flag so saving config never
+ *  toggles the rule). */
+export function useUpsertCampaignRule() {
   const queryClient = useQueryClient();
   const campaign = useCampaignStore();
   return useMutation({
     mutationFn: ({ ruleKey, enabled, config = null }: { ruleKey: string; enabled: boolean; config?: RuleConfig | null }) =>
-      upsertCampaignRule({
-        campaign_id: campaign.activeCampaignId!,
-        rule_key: ruleKey,
-        enabled,
-        config,
-      }),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: [KEY, campaign.activeCampaignId] }),
-  });
-}
-
-/** Persist a configurable rule's tuned values. Preserves the current `enabled`
- *  flag (the caller passes it) so saving config never toggles the rule. */
-export function useSetRuleConfig() {
-  const queryClient = useQueryClient();
-  const campaign = useCampaignStore();
-  return useMutation({
-    mutationFn: ({ ruleKey, enabled, config }: { ruleKey: string; enabled: boolean; config: RuleConfig }) =>
       upsertCampaignRule({
         campaign_id: campaign.activeCampaignId!,
         rule_key: ruleKey,

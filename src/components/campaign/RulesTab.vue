@@ -94,8 +94,7 @@ import { computed, ref } from "vue";
 import { listOptionalRules } from "@/rules/optionalRules";
 import {
   useOptionalRules,
-  useToggleOptionalRule,
-  useSetRuleConfig,
+  useUpsertCampaignRule,
   isRuleEffectivelyEnabled,
   resolveRuleConfig,
 } from "@/composables/useOptionalRules";
@@ -106,8 +105,7 @@ import type { OptionalRuleDef, RuleConfigField } from "@/types/rule.types";
 
 const allRules = listOptionalRules();
 const { data: campaignRules } = useOptionalRules();
-const { mutateAsync: toggleRule } = useToggleOptionalRule();
-const { mutateAsync: setRuleConfig } = useSetRuleConfig();
+const { mutateAsync: upsertRule } = useUpsertCampaignRule();
 
 const toggling = ref<string | null>(null);
 const savingConfig = ref<string | null>(null);
@@ -143,7 +141,7 @@ async function toggle(ruleKey: string) {
   try {
     // Preserve any tuned config across the on/off flip.
     const existing = (campaignRules.value ?? []).find((r) => r.rule_key === ruleKey)?.config ?? null;
-    await toggleRule({ ruleKey, enabled: !isEnabled(ruleKey), config: existing });
+    await upsertRule({ ruleKey, enabled: !isEnabled(ruleKey), config: existing });
   } finally {
     toggling.value = null;
   }
@@ -155,7 +153,7 @@ async function onConfigChange(def: OptionalRuleDef, field: RuleConfigField, e: E
   const next = { ...resolveRuleConfig(campaignRules.value, def.key), [field.key]: clamped };
   savingConfig.value = def.key;
   try {
-    await setRuleConfig({ ruleKey: def.key, enabled: isEnabled(def.key), config: next });
+    await upsertRule({ ruleKey: def.key, enabled: isEnabled(def.key), config: next });
   } finally {
     savingConfig.value = null;
   }

@@ -103,6 +103,7 @@
 import FocalImage from "@/components/common/FocalImage.vue";
 import type { RunCombatant, HealthVisibility } from "@/types/encounter.types";
 import type { PartyMember } from "@/types/party.types";
+import { displayTempHp as calcDisplayTempHp } from "@/lib/hitPoints";
 
 const {
   visibleCombatants,
@@ -166,11 +167,7 @@ function displayMaxHp(c: RunCombatant): number {
 // Temp HP applies in beast form too (it absorbs damage before the beast's HP),
 // so it is not zeroed while wildshaped.
 function displayTempHp(c: RunCombatant): number {
-  if (c.type === "player") {
-    const m = partyMap.get(c.party_member_id ?? "");
-    if (m) return m.temp_hp;
-  }
-  return c.temp_hp ?? 0;
+  return calcDisplayTempHp(c, partyMap);
 }
 function hpColor(c: RunCombatant) {
   const pct = displayHp(c) / displayMaxHp(c);

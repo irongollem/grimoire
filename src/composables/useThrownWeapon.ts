@@ -1,5 +1,6 @@
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { useUpdateInventoryItem, useRemoveInventoryItem } from "@/composables/usePartyInventory";
+import { consumeOneFromStack } from "@/composables/useAmmoConsumption";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
 
@@ -31,11 +32,7 @@ export function useThrownWeapon() {
       false,
     );
     // Remove it from the wielder's equipped stack.
-    if (inv.quantity > 1) {
-      updateInventoryItem.mutate({ id: inv.id, update: { quantity: inv.quantity - 1 } });
-    } else {
-      removeInventoryItem.mutate(inv.id);
-    }
+    consumeOneFromStack(inv, { updateInventoryItem, removeInventoryItem });
   }
 
   return { throwWeapon };

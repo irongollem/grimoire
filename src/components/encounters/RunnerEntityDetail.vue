@@ -306,8 +306,8 @@ async function postRollToChat(
   }
 }
 
-function rollAttack(attackBonus: number, actionName: string) {
-  void performCheck(attackBonus, actionName + " Attack");
+function rollAttack(attackBonus: number, actionName: string, onResolved?: (rolled: boolean) => void) {
+  void performCheck(attackBonus, actionName + " Attack").then((r) => onResolved?.(!!r));
 }
 
 function parsedTermsToCounts(terms: { count: number; sides: number }[]): Partial<Record<DieSize, number>> {

@@ -18,5 +18,5 @@ const THROWN_WEAPON_NAMES = [
 export function isThrownWeapon(name: string, item: Pick<Item, "properties"> | null): boolean {
   if (item) return item.properties.includes("thrown");
   const lower = name.toLowerCase();
-  return THROWN_WEAPON_NAMES.some((n) => lower.includes(n));
+  return THROWN_WEAPON_NAMES.some((n) => new RegExp(`\\b${n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(lower));
 }

@@ -30,4 +30,16 @@ describe("isThrownWeapon", () => {
   it("returns false for an item-less non-thrown weapon", () => {
     expect(isThrownWeapon("Longsword", null)).toBe(false);
   });
+
+  it("does NOT substring-match an item-less 'Longspear' against 'spear'", () => {
+    expect(isThrownWeapon("Longspear", null)).toBe(false);
+  });
+
+  it("word-boundary matches an item-less 'Javelin of Lightning'", () => {
+    expect(isThrownWeapon("Javelin of Lightning", null)).toBe(true);
+  });
+
+  it("word-boundary matches an item-less 'Spear +1'", () => {
+    expect(isThrownWeapon("Spear +1", null)).toBe(true);
+  });
 });
