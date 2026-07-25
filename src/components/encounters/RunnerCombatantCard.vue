@@ -70,7 +70,7 @@
       <div class="mc-stat-hp">
         <span class="mc-stat-label">HP</span>
         <span class="mc-stat-value">{{ displayHp }}<span class="mc-stat-sep">/</span>{{ displayMaxHp }}</span>
-        <span v-if="combatant.temp_hp" class="mc-stat-temp">+{{ combatant.temp_hp }} tmp</span>
+        <span v-if="displayTempHp" class="mc-stat-temp">+{{ displayTempHp }} tmp</span>
       </div>
       <div class="mc-stat-ac">
         <span class="mc-stat-label">AC</span>
@@ -175,6 +175,7 @@ const {
   wildshape,
   displayHp,
   displayMaxHp,
+  displayTempHp,
   displayAc,
   displayConditions,
   factionColor,

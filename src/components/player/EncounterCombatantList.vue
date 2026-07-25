@@ -86,6 +86,7 @@
               <template v-if="combatant.type === 'player'">
                 <span class="font-cinzel text-sm font-bold" :class="hpColor(combatant)">{{ displayHp(combatant) }}</span>
                 <span class="text-caption text-muted-foreground">/{{ displayMaxHp(combatant) }}</span>
+                <span v-if="displayTempHp(combatant) > 0" class="text-caption text-blue-400 ml-1">+{{ displayTempHp(combatant) }}</span>
               </template>
               <template v-else>
                 <span class="text-caption text-muted-foreground italic">{{ hpLabel(combatant) }}</span>
@@ -164,6 +165,15 @@ function displayMaxHp(c: RunCombatant): number {
     if (m) return m.wildshape_state?.beast_max_hp ?? m.max_hp;
   }
   return c.wildshape?.beast_max_hp ?? c.max_hp;
+}
+// Temp HP applies in beast form too (it absorbs damage before the beast's HP),
+// so it is not zeroed while wildshaped.
+function displayTempHp(c: RunCombatant): number {
+  if (c.type === "player") {
+    const m = partyMap.get(c.party_member_id ?? "");
+    if (m) return m.temp_hp;
+  }
+  return c.temp_hp ?? 0;
 }
 function hpColor(c: RunCombatant) {
   const pct = displayHp(c) / displayMaxHp(c);

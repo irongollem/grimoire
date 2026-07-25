@@ -85,9 +85,13 @@
           <div class="flex items-center gap-2">
             <span class="text-label-lg font-semibold text-muted-foreground flex-1">
               HP
-              <span class="ml-2 text-sm font-bold" :class="hpColor(member.current_hp, member.max_hp)">{{ member.current_hp }}</span>
-              <span class="text-muted-foreground font-normal"> / {{ member.max_hp }}</span>
+              <span class="ml-2 text-sm font-bold" :class="hpColor(displayHp, displayMaxHp)">{{ displayHp }}</span>
+              <span class="text-muted-foreground font-normal"> / {{ displayMaxHp }}</span>
               <span v-if="member.temp_hp > 0" class="ml-1 text-blue-400 font-bold">+{{ member.temp_hp }} tmp</span>
+              <span
+                v-if="member.wildshape_state"
+                class="ml-1 font-normal italic text-elven-green"
+              >({{ member.wildshape_state.beast_name }})</span>
             </span>
             <button
               type="button"
@@ -107,8 +111,8 @@
           <div class="h-2 rounded-full bg-muted overflow-hidden">
             <div
               class="h-full rounded-full transition-all duration-300"
-              :class="hpBarColor(member.current_hp, member.max_hp)"
-              :style="{ width: `${Math.max(0, Math.min(100, (member.current_hp / member.max_hp) * 100))}%` }"
+              :class="hpBarColor(displayHp, displayMaxHp)"
+              :style="{ width: `${Math.max(0, Math.min(100, (displayHp / displayMaxHp) * 100))}%` }"
             />
           </div>
 
@@ -249,7 +253,8 @@ import FocalImage from "@/components/common/FocalImage.vue";
 import CompanionCard from "./CompanionCard.vue";
 import PartyConditionsPanel from "./PartyConditionsPanel.vue";
 import PartyDeathSaves from "./PartyDeathSaves.vue";
-import type { PartyMember, SkillProficiencies, SkillProfLevel } from "@/types/party.types";
+import { applyDamage, applyHealing, betterTempHp } from "@/lib/hitPoints";
+import type { PartyMember, PartyMemberUpdate, SkillProficiencies, SkillProfLevel } from "@/types/party.types";
 import type { Companion } from "@/types/companion.types";
 
 const {
@@ -295,35 +300,56 @@ function getHpAmount(): number {
   return Math.max(0, hpInput.value ?? 0);
 }
 
+// While wildshaped the tracker reads (and damages) the beast's pool — otherwise
+// the DM would hit Damage and watch nothing move.
+const displayHp = computed(() => member.wildshape_state?.beast_hp ?? member.current_hp);
+const displayMaxHp = computed(() => member.wildshape_state?.beast_max_hp ?? member.max_hp);
+
+/** HP pools as the shared arithmetic sees them — beast form included, so a
+ *  wildshaped druid takes damage on the beast's HP here too, not their own. */
+const hpPools = computed(() => ({
+  current_hp: member.current_hp,
+  max_hp: member.max_hp,
+  temp_hp: member.temp_hp,
+  beast: member.wildshape_state
+    ? { hp: member.wildshape_state.beast_hp, max_hp: member.wildshape_state.beast_max_hp }
+    : null,
+}));
+
 async function dealDamage() {
   const amount = getHpAmount();
   if (!amount) return;
-  let hp = member.current_hp;
-  let temp = member.temp_hp;
-  if (temp > 0) {
-    const absorbed = Math.min(temp, amount);
-    temp -= absorbed;
-    hp = Math.max(-member.max_hp, hp - (amount - absorbed));
-  } else {
-    hp = Math.max(-member.max_hp, hp - amount);
+  // Floor at -max_hp so overkill stays visible for the instant-death rule.
+  const out = applyDamage(hpPools.value, amount, -member.max_hp);
+  const update: PartyMemberUpdate = { current_hp: out.current_hp, temp_hp: out.temp_hp };
+  if (member.wildshape_state) {
+    update.wildshape_state = out.beast_hp === null
+      ? null
+      : { ...member.wildshape_state, beast_hp: out.beast_hp };
   }
-  await updateMember({ id: member.id, update: { current_hp: hp, temp_hp: temp } });
+  await updateMember({ id: member.id, update });
   hpInput.value = 0;
 }
 
 async function heal() {
   const amount = getHpAmount();
   if (!amount) return;
-  const hp = Math.min(member.max_hp, member.current_hp + amount);
-  await updateMember({ id: member.id, update: { current_hp: hp, death_save_successes: 0, death_save_failures: 0 } });
+  const out = applyHealing(hpPools.value, amount);
+  if (member.wildshape_state && out.beast_hp !== null) {
+    await updateMember({ id: member.id, update: {
+      wildshape_state: { ...member.wildshape_state, beast_hp: out.beast_hp },
+    }});
+    hpInput.value = 0;
+    return;
+  }
+  await updateMember({ id: member.id, update: { current_hp: out.current_hp, death_save_successes: 0, death_save_failures: 0 } });
   hpInput.value = 0;
 }
 
 async function addTemp() {
   const amount = getHpAmount();
   if (!amount) return;
-  const temp = Math.max(member.temp_hp, amount);
-  await updateMember({ id: member.id, update: { temp_hp: temp } });
+  await updateMember({ id: member.id, update: { temp_hp: betterTempHp(member.temp_hp, amount) } });
   hpInput.value = 0;
 }
 

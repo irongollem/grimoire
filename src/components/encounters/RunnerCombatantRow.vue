@@ -153,7 +153,7 @@
       <button type="button" class="quick-btn quick-dmg" @click="quickDamage">Dmg</button>
       <button type="button" class="quick-btn quick-heal" @click="quickHeal">Heal</button>
       <button type="button" class="quick-btn quick-temp" @click="quickTemp">+Temp</button>
-      <span v-if="combatant.temp_hp" class="quick-temp-display">{{ combatant.temp_hp }} tmp</span>
+      <span v-if="displayTempHp" class="quick-temp-display">{{ displayTempHp }} tmp</span>
     </div>
   </div>
 </template>
@@ -184,6 +184,7 @@ const {
   wildshape,
   displayHp,
   displayMaxHp,
+  displayTempHp,
   displayAc,
   displayConditions,
   pcConcentration,

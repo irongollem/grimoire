@@ -85,7 +85,7 @@
           <span class="text-title font-bold" :class="hpColor">{{ displayHp }}</span>
           <span class="text-body text-muted-foreground">/ {{ displayMaxHp }}</span>
           <button
-            v-if="!wildshape && member.temp_hp"
+            v-if="member.temp_hp"
             class="font-cinzel text-2xs md:text-sm text-blue-400 ml-1 hover:text-blue-300 transition-colors inline-flex items-center gap-0.5"
             title="Click to clear temp HP"
             @click="clearTempHp"
@@ -117,7 +117,7 @@
           />
           <button class="h-6 px-1.5 rounded bg-destructive/15 border border-destructive/40 text-eyebrow md:text-sm text-destructive hover:bg-destructive/25 transition-colors" @click="applyDamage">DMG</button>
           <button class="h-6 px-1.5 rounded bg-elven-green/10 border border-elven-green/40 text-label md:text-sm text-elven-green hover:bg-elven-green/20 transition-colors" @click="applyHeal">Heal</button>
-          <button v-if="!wildshape" class="h-6 px-1.5 rounded bg-blue-500/10 border border-blue-500/30 text-label md:text-sm text-blue-400 hover:bg-blue-500/20 transition-colors" @click="applyTempHp">Tmp</button>
+          <button class="h-6 px-1.5 rounded bg-blue-500/10 border border-blue-500/30 text-label md:text-sm text-blue-400 hover:bg-blue-500/20 transition-colors" @click="applyTempHp">Tmp</button>
         </div>
 
         <!-- Rest + condition picker (management actions, pinned to bottom) -->
@@ -189,6 +189,7 @@ import { useShieldAcBonus } from "@/composables/useShieldAc";
 import { formatMulticlassLabel, totalLevel } from "@/types/multiclass.types";
 import { getHitDie } from "@/types/spell.types";
 import { useConcentration } from "@/composables/useConcentration";
+import { applyDamage as damagePools, applyHealing as healPools, betterTempHp } from "@/lib/hitPoints";
 import { useRuleset } from "@/composables/useRuleset";
 import {
   CONDITIONS,
@@ -199,7 +200,7 @@ import {
   hasCheckDisadvantage,
   getExhaustionD20Penalty,
 } from "@/lib/conditions";
-import type { PartyMember } from "@/types/party.types";
+import type { PartyMember, PartyMemberUpdate } from "@/types/party.types";
 import { xpForNextLevel, xpForLevel, levelForXp } from "@/types/party.types";
 import type { WildshapeState } from "@/types/encounter.types";
 import { useAllSpecies } from "@/composables/useSpecies";
@@ -335,6 +336,15 @@ const hitDiceRemaining = computed(() =>
 // An equipped shield adds its bonus on top of the stored (shieldless) AC,
 // but never to a beast form — gear merges into the form while wildshaped.
 const { bonusFor: shieldAcBonusFor } = useShieldAcBonus();
+const hpPools = computed(() => ({
+  current_hp: props.member.current_hp,
+  max_hp: props.member.max_hp,
+  temp_hp: props.member.temp_hp,
+  beast: props.wildshape
+    ? { hp: props.wildshape.beast_hp, max_hp: props.wildshape.beast_max_hp }
+    : null,
+}));
+
 const displayHp    = computed(() => props.wildshape?.beast_hp    ?? props.member.current_hp);
 const displayMaxHp = computed(() => props.wildshape?.beast_max_hp ?? props.member.max_hp);
 const displayAc    = computed(() => props.wildshape?.beast_ac     ?? props.member.ac + shieldAcBonusFor(props.member.id));
@@ -357,13 +367,16 @@ const hpPct = computed(() => {
   if (displayMaxHp.value === 0) return 0;
   return Math.max(0, Math.min(100, (displayHp.value / displayMaxHp.value) * 100));
 });
+// Temp HP is a buffer in front of whatever HP pool is active — it persists
+// through Wild Shape and is spent before the beast's hit points, so the bar
+// shows it in beast form too.
 const tempHpBarPct = computed(() => {
-  const temp = props.wildshape ? 0 : (props.member.temp_hp ?? 0);
+  const temp = props.member.temp_hp ?? 0;
   if (temp <= 0 || displayMaxHp.value === 0) return 0;
   return (temp / (displayMaxHp.value + temp)) * 100;
 });
 const hpBarWidthPct = computed(() => {
-  const temp = props.wildshape ? 0 : (props.member.temp_hp ?? 0);
+  const temp = props.member.temp_hp ?? 0;
   const total = displayMaxHp.value + temp;
   if (total === 0) return 0;
   return Math.max(0, Math.min(100, (displayHp.value / total) * 100));
@@ -407,41 +420,25 @@ async function applyDamage() {
   if (!hpInput.value || hpInput.value <= 0) return;
   const dmg = hpInput.value;
   hpInput.value = null;
+
+  // Temp HP absorbs first in either form, then the beast's HP — shared with the
+  // encounter runner so DM-side and player-side damage agree.
+  const out = damagePools(hpPools.value, dmg);
+  const update: PartyMemberUpdate = { current_hp: out.current_hp };
+  if (out.temp_hp !== props.member.temp_hp) update.temp_hp = out.temp_hp;
   if (props.wildshape) {
-    const newBeastHp = props.wildshape.beast_hp - dmg;
-    if (newBeastHp <= 0) {
-      // Beast drops to 0 — revert and apply overflow damage to real HP
-      const overflow = Math.abs(newBeastHp);
-      const newHp = Math.max(0, props.member.current_hp - overflow);
-      await updateMember({ id: props.member.id, update: { wildshape_state: null, current_hp: newHp } });
-      if (props.member.concentration && newHp === 0) {
-        await endConcentration(props.member, { reason: "dropped to 0 HP" });
-      }
+    update.wildshape_state = out.beast_hp === null ? null : { ...props.wildshape, beast_hp: out.beast_hp };
+  }
+  await updateMember({ id: props.member.id, update });
+
+  const newHp = out.current_hp;
+  if (props.member.concentration) {
+    if (newHp === 0) {
+      await endConcentration(props.member, { reason: "dropped to 0 HP" });
     } else {
-      await updateMember({ id: props.member.id, update: {
-        wildshape_state: { ...props.wildshape, beast_hp: newBeastHp },
-      }});
-    }
-  } else {
-    // Temp HP absorbs damage first
-    let remaining = dmg;
-    const tempHp = props.member.temp_hp ?? 0;
-    let newTempHp = tempHp;
-    if (tempHp > 0) {
-      const absorbed = Math.min(tempHp, remaining);
-      newTempHp = tempHp - absorbed;
-      remaining -= absorbed;
-    }
-    const newHp = Math.max(0, props.member.current_hp - remaining);
-    const update: Record<string, number> = { current_hp: newHp };
-    if (newTempHp !== tempHp) update.temp_hp = newTempHp;
-    await updateMember({ id: props.member.id, update });
-    if (props.member.concentration) {
-      if (newHp === 0) {
-        await endConcentration(props.member, { reason: "dropped to 0 HP" });
-      } else if (remaining > 0) {
-        await rollConcentrationSave(props.member, dmg);
-      }
+      // Damage soaked by temp HP is still damage taken, so it still forces the
+      // save (SAC ruling) — and concentration survives Wild Shape.
+      await rollConcentrationSave(props.member, dmg);
     }
   }
 }
@@ -449,26 +446,26 @@ async function applyHeal() {
   if (!hpInput.value || hpInput.value <= 0) return;
   const val = hpInput.value;
   hpInput.value = null;
-  if (props.wildshape) {
-    const newBeastHp = Math.min(props.wildshape.beast_max_hp, props.wildshape.beast_hp + val);
+  const out = healPools(hpPools.value, val);
+  if (props.wildshape && out.beast_hp !== null) {
     await updateMember({ id: props.member.id, update: {
-      wildshape_state: { ...props.wildshape, beast_hp: newBeastHp },
+      wildshape_state: { ...props.wildshape, beast_hp: out.beast_hp },
     }});
-  } else {
-    const newHp = Math.min(props.member.max_hp, props.member.current_hp + val);
-    const update: Record<string, number> = { current_hp: newHp };
-    // Any healing from 0 or below ends the dying condition (5e) — clear the
-    // death-save pips so a later drop to 0 starts fresh instead of with stale ones.
-    if (props.member.current_hp <= 0 && newHp > 0) {
-      update.death_save_successes = 0;
-      update.death_save_failures = 0;
-    }
-    await updateMember({ id: props.member.id, update });
+    return;
   }
+  const update: PartyMemberUpdate = { current_hp: out.current_hp };
+  // Any healing from 0 or below ends the dying condition (5e) — clear the
+  // death-save pips so a later drop to 0 starts fresh instead of with stale ones.
+  if (props.member.current_hp <= 0 && out.current_hp > 0) {
+    update.death_save_successes = 0;
+    update.death_save_failures = 0;
+  }
+  await updateMember({ id: props.member.id, update });
 }
 async function applyTempHp() {
   if (!hpInput.value || hpInput.value <= 0) return;
-  await updateMember({ id: props.member.id, update: { temp_hp: hpInput.value } });
+  // Temp HP doesn't stack — a smaller new source never replaces a bigger pool.
+  await updateMember({ id: props.member.id, update: { temp_hp: betterTempHp(props.member.temp_hp, hpInput.value) } });
   hpInput.value = null;
 }
 async function clearTempHp() {

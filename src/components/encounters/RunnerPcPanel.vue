@@ -15,7 +15,13 @@
     <div class="detail-divider" />
     <div class="detail-stats">
       <div class="detail-stat"><span>AC</span><strong>{{ member.ac + shieldAcBonusFor(member.id) }}</strong></div>
-      <div class="detail-stat"><span>HP</span><strong>{{ member.current_hp }}/{{ member.max_hp }}</strong></div>
+      <div class="detail-stat">
+        <span>HP</span>
+        <strong>
+          {{ member.current_hp }}/{{ member.max_hp }}
+          <span v-if="member.temp_hp > 0" class="text-blue-400">+{{ member.temp_hp }}</span>
+        </strong>
+      </div>
       <div class="detail-stat"><span>Speed</span><strong>{{ member.speed }} ft.</strong></div>
       <div class="detail-stat"><span>Prof</span><strong>+{{ profBonus }}</strong></div>
     </div>

@@ -122,6 +122,10 @@ function initStore(enc: Encounter, mons: Monster[], par: PartyMember[], npcList:
       initiative: null,
       hp: member.current_hp,
       max_hp: member.max_hp,
+      // Temp HP the character walked in with (Aid, Inspiring Leader, a fiend
+      // warlock's kills) has to come along, or the runner shows none and the
+      // first HP write persists temp_hp: 0 back over it.
+      temp_hp: member.temp_hp > 0 ? member.temp_hp : undefined,
       ac: String(member.ac),
       conditions: [...(member.conditions ?? [])],
       curses: [...(member.curses ?? [])],

@@ -60,6 +60,18 @@ export function useRunnerCombatant(getCombatant: MaybeRefOrGetter<RunCombatant>)
     return c.wildshape?.beast_max_hp ?? c.max_hp;
   });
 
+  // Temp HP survives Wild Shape and is spent before the beast's HP, so it is
+  // shown in both forms. For players the party row is the authority — the player
+  // can grant themselves temp HP on their own sheet mid-encounter.
+  const displayTempHp = computed((): number => {
+    const c = combatant.value;
+    if (c.type === "player") {
+      const m = partyMap.value.get(c.party_member_id ?? "");
+      if (m) return m.temp_hp;
+    }
+    return c.temp_hp ?? 0;
+  });
+
   const displayAc = computed((): string => {
     const c = combatant.value;
     if (c.type === "player") {
@@ -255,6 +267,7 @@ export function useRunnerCombatant(getCombatant: MaybeRefOrGetter<RunCombatant>)
     wildshape,
     displayHp,
     displayMaxHp,
+    displayTempHp,
     displayAc,
     displayConditions,
     pcConcentration,
