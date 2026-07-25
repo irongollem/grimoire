@@ -121,7 +121,7 @@
     <PartyMemberLightbox :member="selectedMember" @close="closeMember" />
 
     <!-- ── NPC lightbox ────────────────────────────────────────────────────── -->
-    <PlayerPartyNpcLightbox :npc="selectedNpc" @close="closeNpc" />
+    <PlayerNpcLightbox :npc="selectedNpc" @close="closeNpc" />
 
     <!-- ── Companion lightbox ──────────────────────────────────────────────── -->
     <PlayerPartyCompanionLightbox
@@ -154,7 +154,7 @@ import PartyMemberLightbox from "@/components/player/PartyMemberLightbox.vue";
 import PlayerNpcCard from "@/components/play/PlayerNpcCard.vue";
 import PlayerPartyMemberCard from "@/components/play/PlayerPartyMemberCard.vue";
 import PlayerPartyCompanionCard from "@/components/play/PlayerPartyCompanionCard.vue";
-import PlayerPartyNpcLightbox from "@/components/play/PlayerPartyNpcLightbox.vue";
+import PlayerNpcLightbox from "@/components/play/PlayerNpcLightbox.vue";
 import PlayerPartyCompanionLightbox from "@/components/play/PlayerPartyCompanionLightbox.vue";
 import type { Companion } from "@/types/companion.types";
 import type { PartyMember } from "@/types/party.types";

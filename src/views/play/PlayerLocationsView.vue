@@ -128,7 +128,7 @@
   </Teleport>
 
   <!-- NPC lightbox — shared component (badges, connection note, rating) -->
-  <PlayerPartyNpcLightbox :npc="selectedNpc" @close="selectedNpc = null" />
+  <PlayerNpcLightbox :npc="selectedNpc" @close="selectedNpc = null" />
 
   <!-- Watch panel — art + player summary + notes for a pinned sub-location -->
   <Teleport to="body">
@@ -195,7 +195,7 @@ import { useSharedLocations } from "@/composables/useLocations";
 import { usePlayerFavourites } from "@/composables/usePlayerFavourites";
 import { useUiStore } from "@/stores/ui";
 import { useSharedNpcsByLocations } from "@/composables/useNpcs";
-import PlayerPartyNpcLightbox from "@/components/play/PlayerPartyNpcLightbox.vue";
+import PlayerNpcLightbox from "@/components/play/PlayerNpcLightbox.vue";
 import type { PlayerNpc } from "@/types/npc.types";
 import { extractTiptapText } from "@/lib/utils";
 import { LOCATION_TYPE_LABELS, LOCATION_TYPE_COLORS } from "@/types/location.types";

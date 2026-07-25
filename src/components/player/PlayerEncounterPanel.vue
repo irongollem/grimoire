@@ -93,6 +93,11 @@
             </div>
           </template>
 
+          <!-- Turn timer (optional rule) — a shared soft countdown for the active turn -->
+          <div v-if="turnTimerSeconds !== null && !isInLobby" class="flex items-center justify-center">
+            <TurnTimer :seconds="turnTimerSeconds" :reset-key="turnResetKey" />
+          </div>
+
           <!-- Your initiative — players roll their own each encounter (#504) -->
           <div
             v-if="myPlayer && showMyInitiative"
@@ -151,11 +156,11 @@
     </div>
   </div>
 
-  <!-- Monster lightbox -->
-  <EncounterMonsterLightbox :combatant="selectedMonsterCombatant" @close="selectedMonsterCombatant = null" />
+  <!-- Combatant lightbox — monsters, and NPCs the player has no roster entry for -->
+  <EncounterCombatantLightbox :combatant="selectedCombatant" @close="selectedCombatant = null" />
 
-  <!-- NPC lightbox -->
-  <EncounterNpcLightbox :npc="selectedNpc" @close="selectedNpc = null" />
+  <!-- NPC lightbox — the richer view, for NPCs the party has already met -->
+  <PlayerNpcLightbox :npc="selectedNpc" @close="selectedNpc = null" />
 
   <!-- Party member / companion lightbox -->
   <PartyMemberLightbox :member="selectedMember" @close="selectedMemberCombatant = null" />
@@ -173,16 +178,18 @@ import { useCampaignStore } from "@/stores/campaign";
 import { liveState } from "@/composables/useEncounterLive";
 import { sortCombatantsByInitiative } from "@/lib/combatantSort";
 import type { RunCombatant, HealthVisibility, EncounterEvent, EventAction } from "@/types/encounter.types";
-import type { Npc } from "@/types/npc.types";
+import type { PlayerNpc } from "@/types/npc.types";
 import { usePlayerCombatPrefs } from "@/composables/usePlayerCombatPrefs";
 import { useTurnChime } from "@/composables/useTurnChime";
 import { useScreenShake } from "@/composables/useScreenShake";
-import { useNpcs } from "@/composables/useNpcs";
+import { useSharedNpcs } from "@/composables/useNpcs";
 import { useParty } from "@/composables/useParty";
+import { useOptionalRules, isRuleEffectivelyEnabled, resolveRuleConfig } from "@/composables/useOptionalRules";
 import PartyMemberLightbox from "@/components/player/PartyMemberLightbox.vue";
 import EncounterCombatantList from "@/components/player/EncounterCombatantList.vue";
-import EncounterNpcLightbox from "@/components/player/EncounterNpcLightbox.vue";
-import EncounterMonsterLightbox from "@/components/player/EncounterMonsterLightbox.vue";
+import PlayerNpcLightbox from "@/components/play/PlayerNpcLightbox.vue";
+import EncounterCombatantLightbox from "@/components/player/EncounterCombatantLightbox.vue";
+import TurnTimer from "@/components/encounters/TurnTimer.vue";
 
 defineEmits<{ close: [] }>();
 
@@ -245,6 +252,18 @@ const myPlayer = computed(
 );
 
 const isInLobby = computed(() => (liveState.value?.current_round ?? 1) === 0);
+
+// ── Turn timer (optional rule) ───────────────────────────────────────────────
+const { data: campaignRules } = useOptionalRules();
+const turnTimerSeconds = computed(() =>
+  isRuleEffectivelyEnabled(campaignRules.value, "turn_timer")
+    ? resolveRuleConfig(campaignRules.value, "turn_timer").seconds
+    : null,
+);
+// Restart the countdown whenever the DM advances the turn.
+const turnResetKey = computed(
+  () => `${liveState.value?.current_round ?? 0}:${activeCombatant.value?.instance_id ?? ""}`,
+);
 
 // ── Player-rolled initiative (#504) ─────────────────────────────────────────────
 // The player rolls their own d20 + DEX. We write the total to their party_members
@@ -320,26 +339,33 @@ const selectedMember = computed(() => {
   return partyList.value?.find((m) => m.id === id) ?? null;
 });
 
-// NPC lightbox
-const { data: allNpcs } = useNpcs();
-const selectedNpc = ref<Npc | null>(null);
+// NPC lightbox — the player-visible projection, NOT the raw `npcs` table. The
+// raw query is DM-only: RLS gates it on the NPC listing this player in
+// `player_visible_to`, so an enemy the DM only revealed inside the encounter
+// came back empty and the tap did nothing at all (#tap-to-enlarge).
+const { data: sharedNpcs } = useSharedNpcs();
+const selectedNpc = ref<PlayerNpc | null>(null);
 
-// Monster lightbox
-const selectedMonsterCombatant = ref<RunCombatant | null>(null);
+// Fallback lightbox for combatants the player has no roster entry for — the
+// live combatant already carries the name and portrait the row is drawing, and
+// the DM authorised showing it by setting reveal_state, so there's nothing to
+// look up. This is the path that makes tapping an unmet enemy enlarge her face.
+const selectedCombatant = ref<RunCombatant | null>(null);
 
 function onCombatantClick(combatant: RunCombatant) {
-  if (combatant.npc_id) {
-    const npc = allNpcs.value?.find((n) => n.id === combatant.npc_id);
-    if (npc) selectedNpc.value = npc;
-    return;
-  }
-  if (combatant.type === "monster" && !combatant.npc_id && combatant.monster_id) {
-    selectedMonsterCombatant.value = combatant;
-    return;
-  }
   if (combatant.party_member_id || combatant.companion_id) {
     selectedMemberCombatant.value = combatant;
+    return;
   }
+  if (combatant.npc_id) {
+    const npc = sharedNpcs.value?.find((n) => n.id === combatant.npc_id);
+    if (npc) {
+      selectedNpc.value = npc;
+      return;
+    }
+  }
+  // Monsters, and NPCs the party hasn't met yet.
+  selectedCombatant.value = combatant;
 }
 </script>
 

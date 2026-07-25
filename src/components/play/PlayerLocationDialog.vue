@@ -70,7 +70,7 @@
 
   <!-- Nested NPC quick-view (from the "People in the Area" list) -->
   <Teleport to="body">
-    <PlayerPartyNpcLightbox :npc="selectedNpc" @close="selectedNpc = null" />
+    <PlayerNpcLightbox :npc="selectedNpc" @close="selectedNpc = null" />
   </Teleport>
 
   <!-- Image lightbox -->
@@ -97,7 +97,7 @@ import { LOCATION_TYPE_COLORS, LOCATION_TYPE_LABELS } from "@/types/location.typ
 import type { PlayerNpc } from "@/types/npc.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import PlayerLocationDetailPanel from "@/components/play/PlayerLocationDetailPanel.vue";
-import PlayerPartyNpcLightbox from "@/components/play/PlayerPartyNpcLightbox.vue";
+import PlayerNpcLightbox from "@/components/play/PlayerNpcLightbox.vue";
 
 const ui = useUiStore();
 const router = useRouter();

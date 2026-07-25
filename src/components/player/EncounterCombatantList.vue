@@ -28,12 +28,9 @@
       <!-- Normal row -->
       <div
         v-else
-        class="player-row"
+        class="player-row cursor-pointer"
         :data-combatant-type="combatant.type"
-        :class="[
-          isActive(combatant) ? 'bg-primary/8 ring-1 ring-inset ring-primary/20' : 'hover:bg-muted/20',
-          (combatant.npc_id || combatant.monster_id || combatant.party_member_id || combatant.companion_id) ? 'cursor-pointer' : '',
-        ]"
+        :class="isActive(combatant) ? 'bg-primary/8 ring-1 ring-inset ring-primary/20' : 'hover:bg-muted/20'"
         @click="$emit('combatant-click', combatant)"
       >
         <div class="portrait-cell">
