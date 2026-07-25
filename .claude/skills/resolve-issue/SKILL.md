@@ -119,12 +119,12 @@ Follow all project conventions from CLAUDE.md:
 
 ## Step 5 — Update tracking files
 
-After implementing, add a `[x]` entry to the relevant local file:
+After implementing, prepend a `- [x]` entry to the top of the matching subsystem file under `docs/log/` (pick the subsystem the change is primarily about — taxonomy at the top of `docs/log/index.md`):
 
-- Bug issue → `BUGS.md` — one-line summary of root cause + fix
-- Enhancement issue → `ROADMAP.md` — one-line summary of what was built
+- Bug issue → `docs/log/fixes/<subsystem>.md` — one-line summary of root cause + fix
+- Enhancement issue → `docs/log/features/<subsystem>.md` — one-line summary of what was built
 
-Do NOT add `[ ]` items. These files are a history log only.
+Do NOT add `[ ]` items, and do NOT append to the root `ROADMAP.md` / `BUGS.md` (thin pointers only). The `docs/log/` tree is a history log; GitHub issues track open work.
 
 ---
 

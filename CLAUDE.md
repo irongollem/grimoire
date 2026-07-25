@@ -69,16 +69,24 @@ Never stay on the detail/editor page or navigate to the newly created resource's
 
 ## Roadmap & Bug Tracking
 
-Open work is tracked as GitHub issues on `irongollem/grimoire`. Do NOT add new `[ ]` items to `ROADMAP.md` or `BUGS.md` — open a GitHub issue instead.
+Open work is tracked as GitHub issues on `irongollem/grimoire`. Do NOT add new `[ ]` items anywhere in the change log — open a GitHub issue instead.
+
+The completed-work history is a curated **log**, chunked by subsystem under `docs/log/`:
+
+- `docs/log/features/<subsystem>.md` — shipped features
+- `docs/log/fixes/<subsystem>.md` — resolved bugs
+- `docs/log/index.md` — index + counts for every subsystem file
+- Root `ROADMAP.md` / `BUGS.md` are **thin pointers** (subsystem table + latest-10). Do NOT append full entries there; they'd grow unbounded again and blow read-size limits. `ROADMAP.md` also keeps the evergreen **AI Features** and **Monetization** reference sections in full.
 
 **CRITICAL — when you implement a feature or fix a bug, always do both:**
 
-1. Add a `[x]` entry to the relevant local file with a brief description of what was done and why:
-   - `ROADMAP.md` — for completed features
-   - `BUGS.md` — for resolved bugs
+1. Prepend a `- [x]` entry (brief what + why) to the top of the matching subsystem file:
+   - `docs/log/features/<subsystem>.md` — for completed features
+   - `docs/log/fixes/<subsystem>.md` — for resolved bugs
+   - Pick the subsystem the change is primarily about (see the taxonomy at the top of `docs/log/index.md`); use `misc` only as a last resort. If a fitting subsystem file doesn't exist yet, create it and add it to `docs/log/index.md`.
 2. Close the corresponding GitHub issue (if one exists) using `mcp__github__update_issue` with `state: closed`
 
-The local files are a curated history log. GitHub issues are the source of truth for what needs doing.
+GitHub issues are the source of truth for what needs doing; `docs/log/` is the curated history of what got done.
 
 ## Storage Path Convention — Shared vs. Private Entities
 
