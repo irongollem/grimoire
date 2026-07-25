@@ -137,7 +137,7 @@
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
-import { ref, computed, watch, onMounted, onUnmounted } from "vue";
+import { ref, computed, watch, onUnmounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { IconDiceRoll, IconDungeon, IconEncounter, IconFlag, IconLive, IconMap } from '@/lib/icons';
 import ManualHelpLink from '@/components/common/ManualHelpLink.vue';
@@ -147,6 +147,7 @@ import { supabase } from "@/lib/supabase";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useAllMonsters } from "@/composables/useMonsters";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
+import { useCompanions, useUpdateCompanion } from "@/composables/useCompanions";
 import { useUpdateNpc } from "@/composables/useNpcs";
 import { buildNpcSyncUpdate } from "@/lib/npcEncounterSync";
 import { useEncounterLive } from "@/composables/useEncounterLive";
@@ -155,7 +156,9 @@ import { useAutoDiscoverMonsters } from "@/composables/useDiscoveredMonsters";
 import { useAuthStore } from "@/stores/auth";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { initiativeModifier } from "@/lib/combatantSort";
-import { useOptionalRules, isRuleEffectivelyEnabled, resolveRuleConfig } from "@/composables/useOptionalRules";
+import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/useOptionalRules";
+import { useTurnTimerConfig } from "@/composables/useTurnTimerConfig";
+import { useRunnerPartySync } from "@/composables/useRunnerPartySync";
 import RunnerCombatantList from "./RunnerCombatantList.vue";
 import RunnerEntityDetail from "./RunnerEntityDetail.vue";
 import RunnerDmTools from "./RunnerDmTools.vue";
@@ -174,6 +177,7 @@ const auth = useAuthStore();
 
 const { data: monsters } = useAllMonsters();
 const { data: partyMembers } = useParty();
+const { data: companions } = useCompanions();
 const { data: encounter } = useEncounter(encounterId);
 const battleMapLocationId = computed(() => encounter.value?.location_id ?? "");
 const { data: battleMapLocation } = useLocation(battleMapLocationId);
@@ -195,6 +199,7 @@ function openBattleMapInNewWindow() {
   window.open(`/encounters/${encounterId.value}/run/map`, "_blank", "noopener,noreferrer");
 }
 const { mutateAsync: updatePartyMember } = useUpdatePartyMember();
+const { mutateAsync: updateCompanion } = useUpdateCompanion();
 const { mutateAsync: updateNpc } = useUpdateNpc();
 const { mutateAsync: autoDiscover } = useAutoDiscoverMonsters();
 
@@ -272,14 +277,11 @@ watch(
   { immediate: true },
 );
 
-// Turn-timer duration (seconds) or null when the rule is off.
-const turnTimerSeconds = computed(() =>
-  isRuleEffectivelyEnabled(campaignRules.value, "turn_timer")
-    ? resolveRuleConfig(campaignRules.value, "turn_timer").seconds
-    : null,
+// Turn timer — restarts whenever the active combatant or round changes.
+const { turnTimerSeconds, turnResetKey } = useTurnTimerConfig(
+  computed(() => store.round),
+  computed(() => store.activeCombatant?.instance_id),
 );
-// Restarts the countdown whenever the active combatant or round changes.
-const turnResetKey = computed(() => `${store.round}:${store.activeCombatant?.instance_id ?? ""}`);
 
 function handleRollInitiative() {
   void store.rollAllInitiatives();
@@ -327,36 +329,9 @@ watch(
 );
 
 // ── Bidirectional HP sync between runner and party_members ───────────────────
-// lastWrittenHp tracks the HP values we've sent to the DB so the Realtime echo
-// of our own write is dropped explicitly rather than relying on Vue's same-value
-// reactive no-op (which is an implementation detail, not a guarantee).
-
-const partyHpQueue = new Map<string, number>(); // partyMemberId → pending hp
-const lastWrittenHp = new Map<string, number>(); // partyMemberId → hp we last wrote
-let partyHpTimer: ReturnType<typeof setTimeout> | null = null;
-
-watch(
-  () => store.combatants
-    .filter((c) => c.type === "player" && c.party_member_id)
-    .map((c) => ({ iid: c.instance_id, hp: c.hp, pmId: c.party_member_id! })),
-  (newVals, oldVals) => {
-    if (!isLive.value || !oldVals) return;
-    for (const nv of newVals) {
-      const ov = oldVals.find((o) => o.iid === nv.iid);
-      if (ov && ov.hp !== nv.hp) partyHpQueue.set(nv.pmId, nv.hp);
-    }
-    if (!partyHpQueue.size) return;
-    if (partyHpTimer) clearTimeout(partyHpTimer);
-    partyHpTimer = setTimeout(async () => {
-      const entries = [...partyHpQueue.entries()];
-      partyHpQueue.clear();
-      entries.forEach(([id, hp]) => lastWrittenHp.set(id, hp));
-      await Promise.all(entries.map(([id, current_hp]) =>
-        updatePartyMember({ id, update: { current_hp } }),
-      ));
-    }, 400);
-  },
-);
+// Debounced HP writes out, Realtime ingest (HP / temp HP / player-rolled
+// initiative) in, and the store's persist handler — see useRunnerPartySync.
+const { cancelPendingHpFlush } = useRunnerPartySync(isLive);
 
 // ── Live roster-NPC sync ─────────────────────────────────────────────────────
 // Roster NPCs run as combatants of type "monster" carrying an `npc_id`. Their
@@ -385,67 +360,39 @@ watch(
   },
 );
 
-let partyMembersChannel: ReturnType<typeof supabase.channel> | null = null;
-
-// Route the store's player-combatant persistence through the party-member
-// mutation so the party query cache is invalidated on every write (HP, temp
-// HP, conditions, wildshape, …). The store stays UI-only.
-store.setPersistHandler((id, update) => {
-  void updatePartyMember({ id, update });
-});
-
-onMounted(() => {
-  const campaignId = campaign.activeCampaignId;
-  if (!campaignId) return;
-  partyMembersChannel = supabase
-    .channel("runner_party_members_hp")
-    .on(
-      "postgres_changes",
-      { event: "UPDATE", schema: "public", table: "party_members",
-        filter: `campaign_id=eq.${campaignId}` },
-      (payload) => {
-        const row = payload.new as { id: string; current_hp: number; temp_hp: number; current_initiative: number | null };
-        const combatant = store.combatants.find((c) => c.party_member_id === row.id);
-
-        // Temp HP the player granted themselves (or spent) on their own sheet.
-        // No echo guard needed: our own writes set the combatant first, so the
-        // values already match by the time the event comes back.
-        if (combatant && (combatant.temp_hp ?? 0) !== (row.temp_hp ?? 0)) {
-          store.ingestTempHp(combatant.instance_id, row.temp_hp ?? 0);
-        }
-
-        // Ingest player-rolled initiative (#504). The runner never writes
-        // current_initiative, so there's no echo to guard against. Only apply a
-        // fresh non-null value that differs — this keeps the player's own roll
-        // and lets "Roll Initiative" skip anyone who already rolled.
-        if (
-          combatant &&
-          row.current_initiative !== null &&
-          combatant.initiative !== row.current_initiative
-        ) {
-          store.setInitiative(combatant.instance_id, row.current_initiative);
-        }
-
-        if (lastWrittenHp.get(row.id) === row.current_hp) {
-          lastWrittenHp.delete(row.id);
-          return;
-        }
-        if (combatant && combatant.hp !== row.current_hp) {
-          store.setHp(combatant.instance_id, row.current_hp);
-        }
-      },
-    )
-    .subscribe();
-});
+// ── Companion bench sync (lobby only) ────────────────────────────────────────
+// A companion's `combat_ready` flag can flip while the lobby (round 0) is open
+// — the DM benches one from CompanionCard, or the owning player toggles theirs.
+// The `companions` query is kept fresh by useCampaignLiveSync (mounted in the
+// layout, "companions" is in its SYNC_TABLES list), so this watch reconciles
+// the roster against it: benched → drop the combatant, un-benched → add it
+// back. Runs `immediate` so a stale `combatants_live` row (bench toggled while
+// no one had the runner open) is reconciled the moment it mounts. Once combat
+// starts (round > 0) the roster is locked — companions already in the fight
+// stay in it regardless of a bench toggle.
+watch(
+  companions,
+  (comps) => {
+    if (!comps || store.round !== 0) return;
+    const enc = encounter.value;
+    if (!enc) return;
+    for (const compId of enc.companion_ids ?? []) {
+      const comp = comps.find((c) => c.id === compId);
+      if (!comp) continue;
+      const instanceId = `c-${comp.id}`;
+      const exists = store.combatants.some((c) => c.instance_id === instanceId);
+      if (comp.combat_ready === false) {
+        if (exists) store.removeCombatant(instanceId);
+      } else if (!exists) {
+        store.addCompanionCombatant(comp, enc.party_member_factions?.[comp.id] ?? "players");
+      }
+    }
+  },
+  { deep: true, immediate: true },
+);
 
 onUnmounted(() => {
-  store.setPersistHandler(null);
   store.setInitiativeRoller(null);
-  if (partyHpTimer) clearTimeout(partyHpTimer);
-  if (partyMembersChannel) {
-    supabase.removeChannel(partyMembersChannel);
-    partyMembersChannel = null;
-  }
 });
 
 watch(
@@ -480,15 +427,18 @@ async function handleAbandon() {
 async function handleEndCombat() {
   if (!await confirm("End combat? Party HP, conditions, and curses will be updated.")) return;
   // Cancel any pending HP debounce — end-combat does its own authoritative write below.
-  if (partyHpTimer) { clearTimeout(partyHpTimer); partyHpTimer = null; }
-  partyHpQueue.clear();
+  cancelPendingHpFlush();
   await endLive();
 
   // Sync player combatants back to party_members. (Roster-NPC death/reveal is
   // handled live as it happens — see the NPC-sync watcher above — not here.)
   const playerCombatants = store.combatants.filter((c) => c.type === "player" && c.party_member_id);
-  await Promise.all(
-    playerCombatants.map((c) =>
+  // Companions persist HP + conditions the same way so they walk into the next
+  // encounter at whatever state combat left them in (#569). Abandon skips this
+  // block entirely, same as it does for party members.
+  const companionCombatants = store.combatants.filter((c) => c.type === "player" && c.companion_id);
+  await Promise.all([
+    ...playerCombatants.map((c) =>
       updatePartyMember({
         id: c.party_member_id!,
         update: {
@@ -500,7 +450,16 @@ async function handleEndCombat() {
         },
       }),
     ),
-  );
+    ...companionCombatants.map((c) =>
+      updateCompanion({
+        id: c.companion_id!,
+        update: {
+          current_hp: c.hp,
+          conditions: c.conditions,
+        },
+      }),
+    ),
+  ]);
 
   store.reset();
   router.push(`/encounters/${encounterId.value}`);

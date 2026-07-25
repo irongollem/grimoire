@@ -5,10 +5,18 @@ import type { Monster } from "@/types/monster.types";
 import type { Npc } from "@/types/npc.types";
 import type { Trap } from "@/types/trap.types";
 import type { PartyMemberUpdate } from "@/types/party.types";
-import { sizeToFootprint } from "@/lib/tokenFootprint";
-import { sortCombatantsByInitiative, initiativeModifier } from "@/lib/combatantSort";
-import { hitPointsToMax } from "@/lib/dice";
+import type { Companion } from "@/types/companion.types";
+import { sortCombatantsByInitiative } from "@/lib/combatantSort";
 import { applyDamage, applyHealing, betterTempHp, type HpPools } from "@/lib/hitPoints";
+import {
+  rollInitiativeValue,
+  rollAllInitiativeValues,
+  findFirstActiveIndex,
+  stepTurnIndex,
+  evaluateTrigger,
+  buildMonsterCombatants,
+  buildNpcCombatants,
+} from "@/lib/encounterCombatLogic";
 
 /** Persists a player-combatant change to party_members and invalidates the
  *  party query cache. The store stays UI-only — the actual DB write + cache
@@ -73,14 +81,10 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
 
   const activeCombatant = computed(() => sortedCombatants.value[activeIndex.value] ?? null);
 
-  /** Automatic d20 + modifier — the fallback when no roller is registered, and
-   *  what mid-combat spawns use (a modal per spawned goblin would stall the turn). */
-  function autoRollInitiative(c: Pick<RunCombatant, "dex_mod" | "initiative_bonus">): number {
-    return Math.floor(Math.random() * 20) + 1 + initiativeModifier(c);
-  }
-
+  /** Falls back to an automatic d20 + modifier when no roller is registered —
+   *  used by mid-combat spawns too (a modal per spawned goblin would stall the turn). */
   function rollOneInitiative(c: RunCombatant): Promise<number | null> {
-    return initiativeRoller ? initiativeRoller(c) : Promise.resolve(autoRollInitiative(c));
+    return initiativeRoller ? initiativeRoller(c) : Promise.resolve(rollInitiativeValue(c));
   }
 
   /** When true, every combatant's initiative is re-rolled and the order
@@ -106,12 +110,10 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
    *  prompt, since this fires once per round) and hand the turn to the top of
    *  the freshly-sorted order. */
   function reshuffleInitiative() {
-    for (const c of combatants.value) {
-      c.initiative = autoRollInitiative(c);
-    }
+    const rolled = rollAllInitiativeValues(combatants.value);
+    for (const c of combatants.value) c.initiative = rolled.get(c.instance_id) ?? c.initiative;
     const sorted = sortedCombatants.value;
-    const firstAlive = sorted.findIndex((c) => c.hp > 0 || c.type === "player");
-    activeIndex.value = firstAlive >= 0 ? firstAlive : 0;
+    activeIndex.value = findFirstActiveIndex(sorted);
     refreshTurnStart(sorted[activeIndex.value]);
   }
 
@@ -172,22 +174,16 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
 
   function nextTurn() {
     const sorted = sortedCombatants.value;
-    const aliveSorted = sorted.filter((c) => c.hp > 0 || c.type === "player");
-    if (!aliveSorted.length) return;
 
     // Clear surprise on the combatant whose turn is ending — surprised creatures
     // can't act on their first turn, but the flag lifts at its end per 5e RAW.
     const endingCombatant = sorted[activeIndex.value];
     if (endingCombatant?.surprised) endingCombatant.surprised = false;
 
-    // Find current active in sorted list
-    const currentId = endingCombatant?.instance_id;
-    const currentPosInAlive = aliveSorted.findIndex((c) => c.instance_id === currentId);
-    const nextInAlive = (currentPosInAlive + 1) % aliveSorted.length;
-    const nextId = aliveSorted[nextInAlive].instance_id;
-    const nextIndexInSorted = sorted.findIndex((c) => c.instance_id === nextId);
+    const step = stepTurnIndex(sorted, activeIndex.value, 1);
+    if (!step) return;
 
-    if (nextInAlive === 0) {
+    if (step.wrapped) {
       round.value++;
       // New round: with random initiative on, re-roll and re-sort, then start
       // from the top of the new order (which also refreshes that combatant's
@@ -198,27 +194,20 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
         return;
       }
     }
-    activeIndex.value = nextIndexInSorted;
+    activeIndex.value = step.sortedIndex;
 
     // At the start of each combatant's turn: refresh their reaction and
     // legendary action pool (5e RAW: reactions reset at start of YOUR turn).
-    refreshTurnStart(sorted[nextIndexInSorted]);
+    refreshTurnStart(sorted[step.sortedIndex]);
     checkEvents();
   }
 
   function prevTurn() {
     const sorted = sortedCombatants.value;
-    const aliveSorted = sorted.filter((c) => c.hp > 0 || c.type === "player");
-    if (!aliveSorted.length) return;
-
-    const currentId = sorted[activeIndex.value]?.instance_id;
-    const currentPosInAlive = aliveSorted.findIndex((c) => c.instance_id === currentId);
-    const prevInAlive = (currentPosInAlive - 1 + aliveSorted.length) % aliveSorted.length;
-    const prevId = aliveSorted[prevInAlive].instance_id;
-    const prevIndexInSorted = sorted.findIndex((c) => c.instance_id === prevId);
-
-    if (currentPosInAlive === 0 && round.value > 1) round.value--;
-    activeIndex.value = prevIndexInSorted;
+    const step = stepTurnIndex(sorted, activeIndex.value, -1);
+    if (!step) return;
+    if (step.wrapped && round.value > 1) round.value--;
+    activeIndex.value = step.sortedIndex;
   }
 
   function enterWildshape(instanceId: string, beast: { id: string; name: string; image_url: string | null; max_hp: number; ac: string }, wildshapesUsed: number) {
@@ -368,127 +357,79 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
   }
 
   function shouldTrigger(trigger: EventTrigger): boolean {
-    if (trigger.type === "round_start") return round.value >= trigger.round;
-    if (trigger.type === "combatant_hp_pct") {
-      return combatants.value
-        .filter((c) => c.def_id === trigger.combatant_def_id)
-        .some((c) => c.max_hp > 0 && (c.hp / c.max_hp) * 100 <= trigger.pct);
-    }
-    if (trigger.type === "combatant_dies") {
-      return combatants.value
-        .filter((c) => c.def_id === trigger.combatant_def_id)
-        .some((c) => c.hp <= 0);
-    }
-    return false;
+    return evaluateTrigger(trigger, combatants.value, round.value);
   }
 
   function addMonster(monsterId: string, factionId: string, count: number, customName?: string) {
     const monster = availableMonsters.value.find((m) => m.id === monsterId);
     if (!monster) return;
-    const sb = monster.stat_block;
-    const maxHp = hitPointsToMax(sb?.hit_points, 1);
-    const dex = Number(sb?.dex ?? 10);
-    const dexMod = Math.floor((dex - 10) / 2);
-    const initiativeBonus = sb?.initiative_bonus ?? null;
-    const ac = String(sb?.armor_class ?? 10);
-    const spawnKey = `spawn-${monsterId}-${Date.now()}`;
-    const legendaryCap = sb?.legendary_actions?.length ? 3 : undefined;
-    for (let i = 0; i < count; i++) {
-      const displayName = count > 1 ? `${customName || monster.name} ${i + 1}` : customName || monster.name;
-      combatants.value.push({
-        instance_id: `${spawnKey}-${i}`,
-        type: "monster",
-        name: displayName,
-        faction_id: factionId,
-        initiative: started.value ? autoRollInitiative({ dex_mod: dexMod, initiative_bonus: initiativeBonus }) : null,
-        hp: maxHp,
-        max_hp: maxHp,
-        ac,
-        conditions: [],
-        curses: [],
-        death_saves: { successes: 0, failures: 0 },
-        monster_id: monster.id,
-        dex_mod: dexMod,
-        initiative_bonus: initiativeBonus,
-        reveal_state: "hidden",
-        portrait_url: monster.image_url ?? null,
-        portrait_focal_point: monster.portrait_focal_point ?? null,
-        footprint: sizeToFootprint(monster.size),
-        ...(legendaryCap !== undefined && {
-          legendary_action_cap: legendaryCap,
-          legendary_actions_remaining: legendaryCap,
-        }),
-      });
-    }
+    combatants.value.push(
+      ...buildMonsterCombatants(monster, { factionId, count, customName, started: started.value, includeLegendaryActions: true }),
+    );
   }
 
   function addNpc(npcId: string, factionId: string, count: number, customName?: string) {
     const npc = availableNpcs.value.find((n) => n.id === npcId);
     if (!npc) return;
-    const sb = npc.stat_block;
-    const maxHp = hitPointsToMax(sb?.hit_points, 10);
-    const dex = Number(sb?.dex ?? 10);
-    const dexMod = Math.floor((dex - 10) / 2);
-    const ac = String(sb?.armor_class ?? 10);
-    const spawnKey = `spawn-npc-${npcId}-${Date.now()}`;
-    for (let i = 0; i < count; i++) {
-      const displayName = count > 1 ? `${customName || npc.name} ${i + 1}` : customName || npc.name;
-      combatants.value.push({
-        instance_id: `${spawnKey}-${i}`,
-        type: "monster",
-        name: displayName,
-        faction_id: factionId,
-        initiative: started.value ? autoRollInitiative({ dex_mod: dexMod, initiative_bonus: null }) : null,
-        hp: maxHp,
-        max_hp: maxHp,
-        ac,
-        conditions: [],
-        curses: [],
-        death_saves: { successes: 0, failures: 0 },
-        npc_id: npc.id,
-        dex_mod: dexMod,
-        reveal_state: "hidden",
-        portrait_url: npc.portrait_url ?? null,
-        portrait_focal_point: npc.portrait_focal_point ?? null,
-        footprint: 1,
-      });
-    }
+    combatants.value.push(...buildNpcCombatants(npc, { factionId, count, customName, started: started.value }));
   }
 
+  /** Mid-combat event spawns intentionally don't seed a legendary-action pool
+   *  (unlike `addMonster`) — matches prior behavior, see buildMonsterCombatants. */
   function spawnFromDef(spawn: SpawnDef) {
     const monster = availableMonsters.value.find((m) => m.id === spawn.monster_id);
     if (!monster) return;
-    const sb = monster.stat_block;
-    const maxHp = hitPointsToMax(sb?.hit_points, 1);
-    const dex = Number(sb?.dex ?? 10);
-    const dexMod = Math.floor((dex - 10) / 2);
-    const initiativeBonus = sb?.initiative_bonus ?? null;
-    const ac = String(sb?.armor_class ?? 10);
-    const spawnKey = `spawn-${spawn.monster_id}-${Date.now()}`;
-    for (let i = 0; i < spawn.count; i++) {
-      const displayName =
-        spawn.count > 1 ? `${spawn.custom_name || monster.name} ${i + 1}` : spawn.custom_name || monster.name;
-      combatants.value.push({
-        instance_id: `${spawnKey}-${i}`,
-        type: "monster",
-        name: displayName,
-        faction_id: spawn.faction_id,
-        initiative: started.value ? autoRollInitiative({ dex_mod: dexMod, initiative_bonus: initiativeBonus }) : null,
-        hp: maxHp,
-        max_hp: maxHp,
-        ac,
-        conditions: [],
-        curses: [],
-        death_saves: { successes: 0, failures: 0 },
-        monster_id: monster.id,
-        dex_mod: dexMod,
-        initiative_bonus: initiativeBonus,
-        reveal_state: "hidden",
-        portrait_url: monster.image_url ?? null,
-        portrait_focal_point: monster.portrait_focal_point ?? null,
-        footprint: sizeToFootprint(monster.size),
-      });
+    combatants.value.push(
+      ...buildMonsterCombatants(monster, {
+        factionId: spawn.faction_id,
+        count: spawn.count,
+        customName: spawn.custom_name,
+        started: started.value,
+      }),
+    );
+  }
+
+  /** Removes a combatant from the roster entirely — used to pull a benched
+   *  companion out of the lobby (round 0). `activeIndex` is an index into
+   *  `sortedCombatants`, so we re-derive the removed entry's sorted position
+   *  first and shift/clamp accordingly; safe to call after combat has started
+   *  too, though nothing currently does so. */
+  function removeCombatant(instanceId: string) {
+    const removedSortedIndex = sortedCombatants.value.findIndex((c) => c.instance_id === instanceId);
+    const idx = combatants.value.findIndex((c) => c.instance_id === instanceId);
+    if (idx < 0) return;
+    combatants.value.splice(idx, 1);
+    if (removedSortedIndex >= 0 && removedSortedIndex < activeIndex.value) {
+      activeIndex.value--;
     }
+    const maxIndex = Math.max(0, sortedCombatants.value.length - 1);
+    activeIndex.value = Math.min(activeIndex.value, maxIndex);
+  }
+
+  /** Adds a companion combatant to the roster — the counterpart to the
+   *  companion-seeding loop in EncounterRunView's initStore, used when a
+   *  benched companion is flipped back to "with the party" mid-lobby. No-op if
+   *  the companion is already present. */
+  function addCompanionCombatant(comp: Companion, factionId: string) {
+    const instanceId = `c-${comp.id}`;
+    if (combatants.value.some((c) => c.instance_id === instanceId)) return;
+    combatants.value.push({
+      instance_id: instanceId,
+      type: "player",
+      name: comp.name,
+      faction_id: factionId,
+      initiative: null,
+      hp: comp.current_hp,
+      max_hp: comp.max_hp,
+      ac: String(comp.ac),
+      conditions: [...comp.conditions],
+      curses: [],
+      death_saves: { successes: 0, failures: 0 },
+      dex_mod: 0,
+      portrait_url: comp.portrait_url ?? null,
+      portrait_focal_point: comp.portrait_focal_point ?? null,
+      companion_id: comp.id,
+    });
   }
 
   function executeEvent(event: EncounterEvent) {
@@ -668,6 +609,8 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     revertWildshape,
     addMonster,
     addNpc,
+    removeCombatant,
+    addCompanionCombatant,
     fireEvent,
     checkEvents,
     clearPendingBroadcast,
