@@ -16,6 +16,11 @@
         class="absolute top-2 right-2 text-label md:text-sm px-1.5 py-0.5 rounded text-white"
         :style="{ backgroundColor: COMPANION_TYPE_COLORS[companion.companion_type] + 'CC' }"
       >{{ COMPANION_TYPE_LABELS[companion.companion_type] }}</span>
+      <span
+        v-if="!companion.combat_ready"
+        class="absolute top-2 left-2 text-label md:text-sm px-1.5 py-0.5 rounded bg-black/60 text-white italic"
+        title="Not with the party right now"
+      >Elsewhere</span>
     </div>
     <div class="p-2.5 flex flex-col gap-1.5">
       <div>

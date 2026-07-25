@@ -3,7 +3,18 @@
 
     <!-- ── The Party ───────────────────────────────────────────────────────── -->
     <section>
-      <h2 class="text-heading font-bold text-foreground mb-4">The Party</h2>
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-heading font-bold text-foreground">The Party</h2>
+        <button
+          v-if="viewerMemberId"
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+          @click="openCompanionForm(null)"
+        >
+          <IconAdd class="h-3.5 w-3.5" />
+          Add companion
+        </button>
+      </div>
 
       <div v-if="partyLoading" class="flex justify-center py-8">
         <LoadingSpinner />
@@ -127,7 +138,19 @@
     <PlayerPartyCompanionLightbox
       :companion="selectedCompanion"
       :owner-name="selectedCompanion ? ownerName(selectedCompanion) : ''"
+      :viewer-member-id="viewerMemberId"
       @close="closeCompanion"
+      @edit="handleEditCompanion"
+    />
+
+    <!-- ── Companion form side-sheet ───────────────────────────────────────── -->
+    <CompanionForm
+      v-if="companionFormOpen"
+      :companion="editingCompanion ?? undefined"
+      :party-members="members ?? []"
+      :locked-owner-id="viewerMemberId"
+      @saved="closeCompanionForm"
+      @cancel="closeCompanionForm"
     />
 
   </div>
@@ -138,7 +161,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { IconSearch } from "@/lib/icons";
+import { IconSearch, IconAdd } from "@/lib/icons";
 import ImageLightbox from "@/components/common/ImageLightbox.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import { useAuthStore } from "@/stores/auth";
@@ -156,6 +179,7 @@ import PlayerPartyMemberCard from "@/components/play/PlayerPartyMemberCard.vue";
 import PlayerPartyCompanionCard from "@/components/play/PlayerPartyCompanionCard.vue";
 import PlayerNpcLightbox from "@/components/play/PlayerNpcLightbox.vue";
 import PlayerPartyCompanionLightbox from "@/components/play/PlayerPartyCompanionLightbox.vue";
+import CompanionForm from "@/components/party/CompanionForm.vue";
 import type { Companion } from "@/types/companion.types";
 import type { PartyMember } from "@/types/party.types";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
@@ -365,6 +389,25 @@ const selectedCompanion = ref<Companion | null>(null);
 
 function openCompanion(c: Companion) { selectedCompanion.value = c; }
 function closeCompanion() { selectedCompanion.value = null; }
+
+// ── Companion form (players manage their own companions — #569) ───────────────
+const companionFormOpen = ref(false);
+const editingCompanion  = ref<Companion | null>(null);
+
+function openCompanionForm(companion: Companion | null) {
+  editingCompanion.value  = companion;
+  companionFormOpen.value = true;
+}
+
+function closeCompanionForm() {
+  companionFormOpen.value = false;
+  editingCompanion.value  = null;
+}
+
+function handleEditCompanion(companion: Companion) {
+  closeCompanion();
+  openCompanionForm(companion);
+}
 
 // ── Companion helpers ─────────────────────────────────────────────────────────
 function ownerName(c: Companion): string {

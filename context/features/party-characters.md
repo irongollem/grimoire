@@ -63,6 +63,8 @@ Each card displays a grid of computed passives: Passive Perception, Insight, Inv
 
 Each party member card has a **Companions** sub-section. The DM can add named companions (familiars, mounts, summoned creatures, NPC allies, etc.) via `CompanionForm`. Companions have their own HP, AC, and condition tracking. They can be linked to a specific monster or NPC entry as their "source". Unowned companions (no specific owner) appear in a separate "Unassigned Companions" block below the party list.
 
+A `combat_ready` boolean (default true) toggles per companion via a "With Party" / "Elsewhere" chip on `CompanionCard.vue` (#569) — controls whether the companion auto-joins new encounters (see combat-encounters.md); benched companions render the whole card at reduced opacity with an "· Elsewhere" label. Players can now manage their own companions from `/play/party` too — create, edit, HP/condition tracking, and the same `combat_ready` toggle, not just the DM (see player-portal.md). RLS (migration `20260725000002`) was reworked accordingly: insert still requires `auth.uid() = user_id` but now also campaign membership; update/delete allow the creator, the campaign DM (`private.is_campaign_dm`), or the player whose character owns the companion (`private.my_party_member_id`) — the same grant that lets End Combat write companion HP back and lets a DM manage player-created companions. `CompanionForm` also role-gates its NPC-source picker: DMs browse the raw `npcs` table, non-DM callers get the player-safe `useSharedNpcs()` projection so a disguised NPC's true identity and DM-only columns never reach a player's client.
+
 ### Party Inventory
 
 A shared **Party Inventory** section below the party cards tracks items carried by the group rather than individual characters. Items can be:
@@ -113,7 +115,7 @@ Clicking a member's name navigates to `/party/:id` (`PartyMemberView.vue`), whic
 - **Saving throw proficiencies** checkboxes (6 stats)
 - **Skill Proficiencies** grid: None / Proficient / Expertise per skill
 
-**Shield AC** — the stored `party_members.ac` is the armor class WITHOUT shield. An equipped (non-ruined) shield in the paper doll adds its `armor_class` bonus at display time via `useShieldAcBonus()` (`src/composables/useShieldAc.ts`, pure logic + tests in `src/lib/shieldAc.ts`). Wired into: PlayerCharacterHeader, PlayerPartyMemberCard, PartyMemberLightbox, PartyTrackerRow, RunnerPcPanel, useRunnerCombatant, and CharacterSheetRenderer (via `acBonus` prop — the renderer is mounted with a bare `createApp` for PDF export, so it can't use query composables). Wildshaped characters show the beast AC with no shield bonus. Both AC edit fields (CharacterEditTabs, PartyMemberAbilitiesTab) carry a "without shield" hint.
+**Shield & armor AC** — the stored `party_members.ac` is the armor class WITHOUT shield. Display AC resolves through `useShieldAcBonus().acFor(member)` (`src/composables/useShieldAc.ts`, wrapped in `createSharedComposable` so N tracker/runner rows share one set of inventory-scanning computeds; pure logic + tests in `src/lib/shieldAc.ts` and `src/lib/armorAc.ts`): base AC comes from `resolveBaseAc(ac_formula, storedAc, equippedArmor, dex)` — `"armor"` live-derives from the equipped body armor (`parseArmorClass`, base anchored to a leading integer), `"unarmored:*"`/`"mage_armor"` are replaced by armor-derived AC while body armor is equipped (RAW: those calculations only function unarmored), `"natural:*"` (fixed `natural:<N>` or Dex-based `natural:<N>+dex` — Tortle vs. Lizardfolk/Draconic Resilience) takes the higher of shell vs. worn armor, and null/manual `ac` is never overridden — then any equipped (non-ruined) shield bonus stacks on top in every mode. Wired into: PlayerCharacterHeader, PlayerPartyMemberCard, PartyMemberLightbox, PartyTrackerRow, RunnerPcPanel, useRunnerCombatant, and CharacterSheetRenderer (via `acBonus` prop — the renderer is mounted with a bare `createApp` for PDF export, so it can't use query composables). Wildshaped characters show the beast AC with no shield bonus. Both AC edit fields (CharacterEditTabs, PartyMemberAbilitiesTab) carry a "without shield" hint.
 
 ### Equipment Tab
 
@@ -313,16 +315,18 @@ The primary player-facing character sheet. Also used by the DM via `PartyMemberV
 
 **Tabs:**
 
-| Tab        | Component           | Contents                                                                                                                                                                      |
-| ---------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Skills     | `PlayerSkillsTab`   | Full skill list with proficiency/expertise indicators, passive scores, clickable roll buttons                                                                                 |
+| Tab        | Component           | Contents                                                                                                                                                                                                                                                                          |
+| ---------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Skills     | `PlayerSkillsTab`   | Full skill list with proficiency/expertise indicators, passive scores, clickable roll buttons                                                                                                                                                                                     |
 | Features   | `PlayerFeaturesTab` | Class features and species traits from the character's class/archetype data; expandable descriptions via `RichTextViewer`. Multiclass grouping lives in `useClassFeatureGroups`; `PlayerProficienciesCard`, `PlayerChoicesCard`, `PlayerDivineSmiteCard` are extracted sub-cards. |
-| Combat     | `PlayerCombatTab`   | Attack entries, spell slots, resource pools; attack rolls with advantage/disadvantage from conditions                                                                         |
-| Wild Shape | inline              | Druid-only; usage pips (2/day at level 2+), CR limit display, Circle of Moon label; beast picker showing discovered + DM-pinned beasts filtered by CR/level/type restrictions |
+| Combat     | `PlayerCombatTab`   | Attack entries, spell slots, resource pools; attack rolls with advantage/disadvantage from conditions                                                                                                                                                                             |
+| Wild Shape | inline              | Druid-only; usage pips (2/day at level 2+), CR limit display, Circle of Moon label; beast picker showing discovered + DM-pinned beasts filtered by CR/level/type restrictions                                                                                                     |
 
 Wild Shape tab is only shown for Druid characters (detected by class name containing "druid") or when a wildshape is already active.
 
 **Weapon mastery (#557, 2024 campaigns only)** — an equipped weapon row in `PlayerCombatTab` shows its mastery property (from `items.mastery`, definitions in `src/data/weaponMastery.ts` — see `items-spells-crafting.md`) when the item has one, and the player toggles whether that mastery is currently active for their character; active masteries are tracked in `party_members.weapon_masteries`.
+
+**Custom attacks (#568)** — `PlayerCombatTab` also renders a **Custom Attacks** card (between equipped weapons and the always-available melee attacks) for anything not derived from equipment: companion attacks, save-based features, improvised setups. Each entry is a `CustomAttack` (`id`, `name`, `attack_bonus: number | null`, `damage` dice expression, `damage_type`) stored in `party_members.custom_attacks` JSONB; `attack_bonus: null` marks an auto-hit/save-based attack, rendering only the Damage button. Players add/edit/delete entries inline (`src/lib/customAttack.ts`, vitest-covered) with the same local-optimistic persistence pattern as weapon masteries. The DM sees the identical list in the encounter runner — see combat-encounters.md.
 
 **Wild Shape mechanics:**
 
@@ -345,6 +349,8 @@ The `LevelUpWizard` (at `src/levelup/LevelUpWizard.vue`) walks through class-def
 **Route:** `/play/party` — `PlayerPartyView.vue`
 
 ### The Party Section
+
+An **Add companion** button beside the section heading opens `CompanionForm` as a side-sheet with the owner locked to the viewer's own character (#569) — see the Companions note above for the RLS/role-gating changes that made this safe.
 
 A responsive grid of character cards for all party members plus companions. Each card shows:
 
@@ -387,7 +393,7 @@ NPC filter controls:
 
 ### Companion Lightbox
 
-Clicking a companion card opens a lightbox with HP bar, AC, active conditions, and personal notes.
+Clicking a companion card opens a lightbox with HP bar, AC, active conditions, and personal notes. For the owning player (`companion.owner_party_member_id` matches the viewer's linked character), the lightbox becomes a full management panel (#569): HP damage/heal steppers, a `combat_ready` "With the party / Elsewhere" status toggle, condition add/remove (with an `ExhaustionChip` for pip-level Exhaustion), and footer **Edit** (opens `CompanionForm` prefilled) / confirm-guarded **Delete** actions. Non-owners see the read-only view unchanged.
 
 ---
 

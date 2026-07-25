@@ -79,7 +79,7 @@ The character sheet is the player's primary view. When no character is linked, i
 
 - **Skills** — full proficiency/expertise-aware skill list, each tappable to roll with advantage/disadvantage auto-applied from conditions. **Manual advantage/disadvantage**: long-press (touch) or right-click (desktop) any roll button — skill, ability, save, weapon/spell attack — to open a Normal/Advantage/Disadvantage picker for that single roll. The picked mode combines with any condition-imposed mode (opposing sources cancel to normal, 5e RAW) via `combineModes` in `src/lib/roller.ts`. Wired through the `v-roll-mode` directive (`src/directives/vRollMode.ts`) + shared `RollModePicker` (mounted once in `App.vue`); `AbilityScoreTable` exposes it behind the opt-in `rollModePicker` prop so DM/read-only usages are unaffected
 - **Features** — class features, racial traits, feats with expandable rich text descriptions
-- **Combat** — attack actions with to-hit and damage rolls; weapon list; action/bonus action/reaction economy. Also hosts the **Hide action**: rolls Dexterity (Stealth) and marks the character with the shared **Hidden** condition, with a live "Hidden / Reveal" indicator. Attacking auto-clears Hidden (5e RAW). Stealth math is the shared `skillCheckBonus` (`src/lib/skillCheck.ts`), also used by the Skills tab
+- **Combat** — attack actions with to-hit and damage rolls; weapon list; action/bonus action/reaction economy. Also hosts the **Hide action**: rolls Dexterity (Stealth) and marks the character with the shared **Hidden** condition, with a live "Hidden / Reveal" indicator. Attacking auto-clears Hidden (5e RAW). Stealth math is the shared `skillCheckBonus` (`src/lib/skillCheck.ts`), also used by the Skills tab. Also renders **Custom Attacks** (#568) — player-defined attack buttons for anything not derived from equipment (companion attacks, save-based features, improvised setups), added/edited/deleted inline; attacking through one auto-clears Hidden the same as a weapon attack. Full detail (data shape, DM-runner parity) in `combat-encounters.md`
 - **Wild Shape** (Druid only) — usage pips, CR limit display, Circle of the Moon badge, form picker from discovered beasts, active form HP/AC tracking
 
 **Wild Shape mechanics:**
@@ -109,7 +109,9 @@ Displays a card grid of all party members plus companions. The player's own char
 
 **Shapeshifter disguise:** If a party member is a shapeshifter using a disguise, `getDisplayRace()` from `src/lib/partyMemberDisplay.ts` returns the fake species/race. Other players (and the DM in preview mode) see the disguise; the DM in normal mode sees the true form.
 
-**Companions:** Appear interleaved with their owner, or at the end for group companions. Type badge shown (familiar / animal companion / mount / etc.).
+**Companions:** Appear interleaved with their owner, or at the end for group companions. Type badge shown (familiar / animal companion / mount / etc.); an "Elsewhere" badge overlays the portrait when `combat_ready` is false (#569 — see combat-encounters.md for the encounter-auto-join gate this flag controls).
+
+**Managing your own companions (#569):** An "Add companion" button beside the section heading opens `CompanionForm` as a side-sheet with the owner locked to your own character — the same form the DM uses, but the NPC-source picker swaps to the player-safe `useSharedNpcs()` projection so a disguised NPC's true identity and DM-only columns never reach your client. Clicking a companion you own opens an owner-gated lightbox instead of the plain read-only one: HP damage/heal steppers, condition add/remove, a "With the party / Elsewhere" `combat_ready` toggle, and Edit / confirm-guarded Delete. Companions you don't own still open the standard read-only lightbox.
 
 **Clicking a card opens a lightbox** with portrait, HP details, AC, conditions, a DM-supplied per-PC connection note (rich text), and a private PlayerNotesWidget for the player's own observations.
 
@@ -352,6 +354,7 @@ The `PlayerEncounterPanel` component (always subscribed in the layout via `usePl
 
 - Initiative order with all combatants
 - **Roll your own initiative** — a "YOUR INITIATIVE" chip shows a Roll button (d20 + DEX) while the player has no initiative yet, or during the lobby. The roll goes through the shared dice system (chat + sound), then writes `party_members.current_initiative`; the DM's runner ingests that change live (`EncounterRunner.vue` `party_members` subscription) and pushes it into the shared encounter state, which loops back into the order. A local echo shows the value instantly before the round-trip. Encounters no longer pre-seed a stale saved value (see combat-encounters.md), so the button is active each fight
+- **Your companions** (#569, lobby only, and only if you own any) — a strip lets you toggle each companion Joining/Elsewhere before combat starts, writing `companions.combat_ready` directly (optimistic, reverts on failure). The DM's runner watches the same flag live while parked in the lobby, so a companion you bench never has to be removed by the DM by hand — see combat-encounters.md for the reconciliation mechanics
 - Current turn indicator; audio chime plays when it's the player's turn
 - The player's own HP/conditions updated live as the DM makes changes
 - Ability to view enemy stat blocks (for discovered monsters)

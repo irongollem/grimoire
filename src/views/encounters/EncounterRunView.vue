@@ -144,6 +144,9 @@ function initStore(enc: Encounter, mons: Monster[], par: PartyMember[], npcList:
   for (const compId of enc.companion_ids ?? []) {
     const comp = (companions.value ?? []).find((c) => c.id === compId);
     if (!comp) continue;
+    // Benched ("elsewhere") companions sit out combat entirely until the DM or
+    // player flips them back to "with the party" (#569).
+    if (comp.combat_ready === false) continue;
     combatants.push({
       instance_id: `c-${comp.id}`,
       type: "player",

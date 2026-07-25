@@ -61,8 +61,46 @@
             <span class="text-caption text-muted-foreground italic ml-auto">DM is preparing</span>
           </div>
 
-          <!-- Round + active turn header (full / compact variants, CSS picks which) -->
-          <template v-else>
+          <!-- Your companions — bench/unbench before the DM starts the encounter (#569).
+               Writes combat_ready directly; the DM's runner reacts to the change live. -->
+          <div
+            v-if="isInLobby && myCompanions.length > 0"
+            class="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 space-y-2"
+          >
+            <span class="text-label-lg font-semibold text-amber-500/80 tracking-wider">YOUR COMPANIONS</span>
+            <div
+              v-for="companion in myCompanions"
+              :key="companion.id"
+              class="flex items-center gap-2.5"
+            >
+              <div class="shrink-0 w-8 h-8 rounded-full overflow-hidden border border-border bg-muted">
+                <FocalImage
+                  :src="companion.portrait_url"
+                  format="token"
+                  :focal-point="companion.portrait_focal_point ?? null"
+                  placeholder="/assets/placeholders/companion.webp"
+                />
+              </div>
+              <span class="min-w-0 flex-1 text-body text-foreground truncate">{{ companion.name }}</span>
+              <button
+                type="button"
+                class="shrink-0 rounded-full border px-3 py-1 text-caption font-semibold transition-colors"
+                :class="companionCombatReady(companion)
+                  ? 'border-primary/40 bg-primary/10 text-primary hover:bg-primary/20'
+                  : 'border-border bg-muted/40 text-muted-foreground hover:bg-muted/60'"
+                role="switch"
+                :aria-checked="companionCombatReady(companion)"
+                @click="toggleCompanionCombatReady(companion)"
+              >
+                {{ companionCombatReady(companion) ? "Joining" : "Elsewhere" }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Round + active turn header (full / compact variants, CSS picks which).
+               Explicit !isInLobby (not v-else): the companions strip sits between
+               this and the lobby header, and v-else would pair with *its* v-if. -->
+          <template v-if="!isInLobby">
             <div class="round-header-full flex items-center justify-center flex-wrap gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
               <div class="text-label-lg font-semibold text-muted-foreground">ROUND</div>
               <div class="text-title font-bold text-primary">{{ liveState.current_round }}</div>
@@ -157,10 +195,10 @@
   </div>
 
   <!-- Combatant lightbox — monsters, and NPCs the player has no roster entry for -->
-  <EncounterCombatantLightbox :combatant="selectedCombatant" @close="selectedCombatant = null" />
+  <EncounterCombatantLightbox :combatant="selectedCombatant" @close="tappedCombatant = null" />
 
   <!-- NPC lightbox — the richer view, for NPCs the party has already met -->
-  <PlayerNpcLightbox :npc="selectedNpc" @close="selectedNpc = null" />
+  <PlayerNpcLightbox :npc="selectedNpc" @close="tappedCombatant = null" />
 
   <!-- Party member / companion lightbox -->
   <PartyMemberLightbox :member="selectedMember" @close="selectedMemberCombatant = null" />
@@ -173,23 +211,26 @@ import { useEncounter } from "@/composables/useEncounters";
 import { usePlayerVisibleLocation } from "@/composables/useLocations";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { useUpdatePartyMember } from "@/composables/useParty";
+import { useCompanions, useUpdateCompanion } from "@/composables/useCompanions";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { liveState } from "@/composables/useEncounterLive";
 import { sortCombatantsByInitiative } from "@/lib/combatantSort";
 import type { RunCombatant, HealthVisibility, EncounterEvent, EventAction } from "@/types/encounter.types";
 import type { PlayerNpc } from "@/types/npc.types";
+import type { Companion } from "@/types/companion.types";
 import { usePlayerCombatPrefs } from "@/composables/usePlayerCombatPrefs";
 import { useTurnChime } from "@/composables/useTurnChime";
 import { useScreenShake } from "@/composables/useScreenShake";
 import { useSharedNpcs } from "@/composables/useNpcs";
 import { useParty } from "@/composables/useParty";
-import { useOptionalRules, isRuleEffectivelyEnabled, resolveRuleConfig } from "@/composables/useOptionalRules";
+import { useTurnTimerConfig } from "@/composables/useTurnTimerConfig";
 import PartyMemberLightbox from "@/components/player/PartyMemberLightbox.vue";
 import EncounterCombatantList from "@/components/player/EncounterCombatantList.vue";
 import PlayerNpcLightbox from "@/components/play/PlayerNpcLightbox.vue";
 import EncounterCombatantLightbox from "@/components/player/EncounterCombatantLightbox.vue";
 import TurnTimer from "@/components/encounters/TurnTimer.vue";
+import FocalImage from "@/components/common/FocalImage.vue";
 
 defineEmits<{ close: [] }>();
 
@@ -253,16 +294,37 @@ const myPlayer = computed(
 
 const isInLobby = computed(() => (liveState.value?.current_round ?? 1) === 0);
 
-// ── Turn timer (optional rule) ───────────────────────────────────────────────
-const { data: campaignRules } = useOptionalRules();
-const turnTimerSeconds = computed(() =>
-  isRuleEffectivelyEnabled(campaignRules.value, "turn_timer")
-    ? resolveRuleConfig(campaignRules.value, "turn_timer").seconds
-    : null,
+// ── Bench/unbench own companions from the lobby (#569) ──────────────────────
+// Writes combat_ready directly to the companions row (RLS lets the owning
+// player update their own companion); the DM's runner reacts to the change
+// live while parked in the lobby. Local overrides keep the toggle snappy
+// instead of waiting on the query invalidation round-trip.
+const { data: companions } = useCompanions();
+const { mutateAsync: updateCompanion } = useUpdateCompanion();
+const companionOverrides = ref<Record<string, boolean>>({});
+
+const myCompanions = computed(() =>
+  (companions.value ?? []).filter((c) => c.owner_party_member_id === myMemberId.value),
 );
-// Restart the countdown whenever the DM advances the turn.
-const turnResetKey = computed(
-  () => `${liveState.value?.current_round ?? 0}:${activeCombatant.value?.instance_id ?? ""}`,
+
+function companionCombatReady(companion: Companion): boolean {
+  return companionOverrides.value[companion.id] ?? companion.combat_ready;
+}
+
+async function toggleCompanionCombatReady(companion: Companion) {
+  const next = !companionCombatReady(companion);
+  companionOverrides.value[companion.id] = next;
+  try {
+    await updateCompanion({ id: companion.id, update: { combat_ready: next } });
+  } catch {
+    companionOverrides.value[companion.id] = !next;
+  }
+}
+
+// ── Turn timer (optional rule) — restarts whenever the DM advances the turn ──
+const { turnTimerSeconds, turnResetKey } = useTurnTimerConfig(
+  computed(() => liveState.value?.current_round ?? 0),
+  computed(() => activeCombatant.value?.instance_id),
 );
 
 // ── Player-rolled initiative (#504) ─────────────────────────────────────────────
@@ -344,28 +406,36 @@ const selectedMember = computed(() => {
 // `player_visible_to`, so an enemy the DM only revealed inside the encounter
 // came back empty and the tap did nothing at all (#tap-to-enlarge).
 const { data: sharedNpcs } = useSharedNpcs();
-const selectedNpc = ref<PlayerNpc | null>(null);
+
+// The tapped combatant is stored raw and the lightbox choice is DERIVED, so a
+// tap that lands before the sharedNpcs query resolves still upgrades to the
+// rich NPC lightbox the moment the data arrives (instead of being locked into
+// the bare fallback by a one-shot lookup at click time).
+const tappedCombatant = ref<RunCombatant | null>(null);
+
+// The richer NPC view — only for NPC-backed combatants the player-visible
+// projection actually knows about (RLS/reveal gating lives in that query).
+const selectedNpc = computed<PlayerNpc | null>(() => {
+  const c = tappedCombatant.value;
+  if (!c?.npc_id) return null;
+  return sharedNpcs.value?.find((n) => n.id === c.npc_id) ?? null;
+});
 
 // Fallback lightbox for combatants the player has no roster entry for — the
 // live combatant already carries the name and portrait the row is drawing, and
 // the DM authorised showing it by setting reveal_state, so there's nothing to
 // look up. This is the path that makes tapping an unmet enemy enlarge her face.
-const selectedCombatant = ref<RunCombatant | null>(null);
+// Monsters, and NPCs the party hasn't met yet, stay here.
+const selectedCombatant = computed<RunCombatant | null>(() =>
+  selectedNpc.value ? null : tappedCombatant.value,
+);
 
 function onCombatantClick(combatant: RunCombatant) {
   if (combatant.party_member_id || combatant.companion_id) {
     selectedMemberCombatant.value = combatant;
     return;
   }
-  if (combatant.npc_id) {
-    const npc = sharedNpcs.value?.find((n) => n.id === combatant.npc_id);
-    if (npc) {
-      selectedNpc.value = npc;
-      return;
-    }
-  }
-  // Monsters, and NPCs the party hasn't met yet.
-  selectedCombatant.value = combatant;
+  tappedCombatant.value = combatant;
 }
 </script>
 

@@ -43,7 +43,7 @@
         <label class="text-label-lg font-semibold text-muted-foreground">NPC</label>
         <EntityCombobox
           :model-value="selectedNpcId"
-          :options="npcs ?? []"
+          :options="npcOptions"
           placeholder="Search NPCs…"
           @update:model-value="selectedNpcId = $event; onNpcSelected()"
         />
@@ -110,14 +110,21 @@
         </div>
 
         <div class="flex flex-col gap-1.5">
-          <label class="text-label-lg font-semibold text-muted-foreground">Owner (optional)</label>
+          <label class="text-label-lg font-semibold text-muted-foreground">
+            Owner{{ isOwnerLocked ? '' : ' (optional)' }}
+          </label>
           <select
+            v-if="!isOwnerLocked"
             v-model="ownerMemberId"
             class="w-full bg-card border border-border rounded-md px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           >
             <option value="">— Party —</option>
             <option v-for="m in partyMembers" :key="m.id" :value="m.id">{{ m.name }}</option>
           </select>
+          <p
+            v-else
+            class="w-full bg-muted border border-border rounded-md px-3 py-2 text-body text-foreground"
+          >{{ lockedOwnerName }}</p>
         </div>
 
         <div class="flex flex-col gap-1.5">
@@ -138,6 +145,24 @@
         <div class="flex flex-col gap-1.5">
           <label class="text-label-lg font-semibold text-muted-foreground">Speed (ft)</label>
           <input v-model.number="speed" type="number" min="0" class="w-full bg-card border border-border rounded-md px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+        </div>
+
+        <div class="col-span-2 flex flex-col gap-1.5">
+          <label class="text-label-lg font-semibold text-muted-foreground">Status</label>
+          <div class="flex rounded-md border border-border overflow-hidden text-label-lg font-semibold w-fit">
+            <button
+              type="button"
+              class="px-3 py-1.5 transition-colors"
+              :class="combatReady ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
+              @click="combatReady = true"
+            >With the party</button>
+            <button
+              type="button"
+              class="px-3 py-1.5 transition-colors"
+              :class="!combatReady ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
+              @click="combatReady = false"
+            >Elsewhere</button>
+          </div>
         </div>
       </div>
 
@@ -249,11 +274,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from "vue";
+import { ref, reactive, computed } from "vue";
 import { IconAddImage, IconClose } from '@/lib/icons';
 import { useCreateCompanion, useUpdateCompanion } from "@/composables/useCompanions";
 import { useAllMonsters } from "@/composables/useMonsters";
-import { useNpcs } from "@/composables/useNpcs";
+import { useNpcs, useSharedNpcs } from "@/composables/useNpcs";
+import { useAuthStore } from "@/stores/auth";
+import { useUiStore } from "@/stores/ui";
+import { getNpcDisplayName } from "@/lib/npcDisplay";
 import { useImageUpload } from "@/composables/useImageUpload";
 import { hitPointsToMax } from "@/lib/dice";
 import {
@@ -262,6 +290,7 @@ import {
 } from "@/types/companion.types";
 import type { Companion, CompanionType, CompanionSourceType } from "@/types/companion.types";
 import type { MonsterStatBlock } from "@/types/monster.types";
+import type { StatBlock } from "@/types/npc.types";
 import type { PartyMember } from "@/types/party.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import FocalPointPicker from "@/components/common/FocalPointPicker.vue";
@@ -288,6 +317,9 @@ const SOURCE_TABS: Array<{ value: CompanionSourceType; label: string }> = [
 const props = defineProps<{
   companion?: Companion;
   partyMembers: PartyMember[];
+  /** When set, the companion's owner is fixed (player editing their own roster) — the
+   * owner select is replaced with a read-only display. */
+  lockedOwnerId?: string | null;
 }>();
 
 const emit = defineEmits<{
@@ -298,7 +330,34 @@ const emit = defineEmits<{
 const isEdit = !!props.companion;
 
 const { data: monsters } = useAllMonsters();
-const { data: npcs }     = useNpcs();
+
+// NPC source — role-gated. DMs browse the raw `npcs` table (full stat blocks,
+// true identities); players get the player-visible projection only, so a
+// disguised NPC's real name/stat block never reaches the client (#569).
+// DM-preview counts as player (WYSIWYG); captured at setup — the role can't
+// change while the form is open.
+const auth = useAuthStore();
+const viewerIsDm = !useUiStore().dmPreviewMode && auth.isDM;
+const dmNpcsQuery     = viewerIsDm ? useNpcs() : null;
+const sharedNpcsQuery = viewerIsDm ? null : useSharedNpcs();
+
+interface NpcOption { id: string; name: string; portrait_url: string | null; portrait_focal_point?: { x: number; y: number } | null; stat_block: StatBlock | null }
+
+const npcOptions = computed<NpcOption[]>(() => {
+  if (viewerIsDm) {
+    return (dmNpcsQuery?.data.value ?? []).map((n) => ({
+      id: n.id, name: n.name, portrait_url: n.portrait_url, portrait_focal_point: n.portrait_focal_point, stat_block: n.stat_block,
+    }));
+  }
+  return (sharedNpcsQuery?.data.value ?? []).map((n) => ({
+    id: n.id, name: getNpcDisplayName(n) ?? "???", portrait_url: n.portrait_url, portrait_focal_point: n.portrait_focal_point, stat_block: n.stat_block,
+  }));
+});
+
+const isOwnerLocked = computed(() => !!props.lockedOwnerId);
+const lockedOwnerName = computed(() =>
+  props.partyMembers.find((m) => m.id === props.lockedOwnerId)?.name ?? "You"
+);
 
 const { mutateAsync: create } = useCreateCompanion();
 const { mutateAsync: update } = useUpdateCompanion();
@@ -310,7 +369,8 @@ const selectedMonsterId = ref(props.companion?.source_monster_id ?? "");
 const selectedNpcId     = ref(props.companion?.source_npc_id ?? "");
 const name              = ref(props.companion?.name ?? "");
 const companionType     = ref<CompanionType>(props.companion?.companion_type ?? "ally");
-const ownerMemberId     = ref(props.companion?.owner_party_member_id ?? "");
+const ownerMemberId     = ref(props.lockedOwnerId ?? props.companion?.owner_party_member_id ?? "");
+const combatReady       = ref(props.companion?.combat_ready ?? true);
 const maxHp             = ref(props.companion?.max_hp ?? 1);
 const currentHp         = ref(props.companion?.current_hp ?? 1);
 const ac                = ref(props.companion?.ac ?? 10);
@@ -408,7 +468,7 @@ function onMonsterSelected() {
 }
 
 function onNpcSelected() {
-  const n = (npcs.value ?? []).find((x) => x.id === selectedNpcId.value);
+  const n = npcOptions.value.find((x) => x.id === selectedNpcId.value);
   if (!n) return;
   name.value = n.name;
   if (n.stat_block) {
@@ -450,6 +510,7 @@ async function save() {
       source_monster_id:     sourceType.value === "monster" ? selectedMonsterId.value || null : null,
       source_npc_id:         sourceType.value === "npc" ? selectedNpcId.value || null : null,
       owner_party_member_id: ownerMemberId.value || null,
+      combat_ready:          combatReady.value,
       max_hp:                maxHp.value,
       current_hp:            currentHp.value,
       ac:                    ac.value,

@@ -1,5 +1,8 @@
 <template>
-  <div class="flex flex-col gap-2 rounded-lg border border-border bg-card/60 px-3 py-2.5">
+  <div
+    class="flex flex-col gap-2 rounded-lg border border-border bg-card/60 px-3 py-2.5 transition-opacity"
+    :class="{ 'opacity-70': !companion.combat_ready }"
+  >
     <!-- Header row -->
     <div class="flex items-center gap-2">
       <!-- Token avatar -->
@@ -29,6 +32,8 @@
           <template v-if="sourceName">
             · <RouterLink :to="sourceLink ?? '#'" class="hover:text-primary transition-colors">{{ sourceName }}</RouterLink>
           </template>
+          <!-- Subtle benched indicator — the toggle chip below is the primary control -->
+          <span v-if="!companion.combat_ready" class="text-amber-500">· Elsewhere</span>
         </p>
       </div>
 
@@ -76,6 +81,23 @@
       <span class="text-label text-muted-foreground px-1.5 py-0.5 rounded bg-muted" title="Speed">
         {{ companion.speed }} ft
       </span>
+
+      <!-- Combat-ready toggle: whether this companion auto-joins new encounters (#569) -->
+      <button
+        type="button"
+        role="switch"
+        :aria-checked="companion.combat_ready"
+        class="shrink-0 px-1.5 py-0.5 rounded font-cinzel text-2xs font-semibold border transition-colors"
+        :class="companion.combat_ready
+          ? 'bg-green-500/10 border-green-500/30 text-green-400 hover:bg-green-500/20'
+          : 'bg-muted border-border text-muted-foreground hover:bg-muted/70'"
+        :title="companion.combat_ready
+          ? 'With the party — joins new encounters. Click to bench.'
+          : 'Elsewhere — sits out new encounters. Click to bring back.'"
+        @click="toggleCombatReady"
+      >
+        {{ companion.combat_ready ? "With Party" : "Elsewhere" }}
+      </button>
 
       <!-- Damage -->
       <div class="flex items-center gap-1 ml-auto">
@@ -239,6 +261,10 @@ async function heal() {
   const newHp = Math.min(props.companion.max_hp, props.companion.current_hp + amount);
   await updateCompanion({ id: props.companion.id, update: { current_hp: newHp } });
   hpAmount.value = 1;
+}
+
+async function toggleCombatReady() {
+  await updateCompanion({ id: props.companion.id, update: { combat_ready: !props.companion.combat_ready } });
 }
 
 async function addCondition() {

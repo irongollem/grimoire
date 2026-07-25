@@ -404,6 +404,18 @@ if (!props.encounter) {
     },
     { immediate: true, once: true },
   );
+
+  // Same auto-select for companions — a new encounter starts with the whole
+  // party (companions included) and the DM benches anyone that shouldn't join.
+  watch(
+    companions,
+    (comps) => {
+      if (comps?.length && !form.companion_ids.length) {
+        form.companion_ids = comps.map((c) => c.id);
+      }
+    },
+    { immediate: true, once: true },
+  );
 }
 
 // Only reset form when navigating to a different encounter
