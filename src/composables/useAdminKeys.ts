@@ -1,9 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 
-// "meshy" is managed from the Simulacrum panel (SimulacrumConfig.vue), not the
-// generic provider rows — it's deliberately absent from PROVIDERS below.
-export type KeyProvider = "openai" | "anthropic" | "gemini" | "falai" | "meshy";
+// "meshy" is managed from the Simulacrum panel (SimulacrumConfig.vue), and
+// "github" from GithubIntegrationConfig.vue — neither is an AI provider, so
+// both are deliberately absent from PROVIDERS below.
+export type KeyProvider = "openai" | "anthropic" | "gemini" | "falai" | "meshy" | "github";
 
 export interface PlatformKeyRow {
   provider: KeyProvider;

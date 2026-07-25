@@ -39,8 +39,10 @@ verify_jwt = true
 # In-app bug reporter — called by the browser on behalf of any logged-in user.
 # The gateway check is off because we want anonymous reports too (e.g. users
 # who can't access their session). Security: the function only creates GitHub
-# issues; it never reads or mutates app data. The GITHUB_TOKEN secret is
-# scoped to `issues: write` only.
+# issues; it never reads or mutates app data. The GitHub token is a
+# fine-grained PAT scoped to `issues: write` only, stored encrypted in
+# platform_api_keys (provider "github") and managed from the admin panel —
+# not a static function secret, since the PAT has a GitHub-side expiry.
 [functions.create-bug-report]
 verify_jwt = false
 

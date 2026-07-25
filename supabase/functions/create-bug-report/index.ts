@@ -1,12 +1,15 @@
 import { createClient } from "@supabase/supabase-js";
 import { withCors } from "../_shared/cors.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
+import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 
 // Authenticated endpoint. `verify_jwt = false` in config.toml so we can return
 // CORS-friendly errors, but auth is enforced in code below: a valid Supabase
 // user is required. We only create GitHub issues (no reads, no destructive
-// ops). The GITHUB_TOKEN secret is scoped to `issues: write` on
-// irongollem/grimoire.
+// ops). The token is a fine-grained PAT scoped to `issues: write` on
+// irongollem/grimoire, stored encrypted in platform_api_keys (provider
+// "github") and managed from the admin panel — it has an expiry date on
+// GitHub's side, so it gets rotated there periodically without a redeploy.
 
 // Cap decoded screenshot size at ~5MB and only accept image uploads.
 const MAX_SCREENSHOT_BYTES = 5 * 1024 * 1024;
@@ -96,9 +99,9 @@ Deno.serve(withCors(async (req: Request) => {
     return new Response("Missing required fields", { status: 400 });
   }
 
-  const githubToken = Deno.env.get("GITHUB_TOKEN");
+  const { github: githubToken } = await fetchPlatformKeys(rateAdmin, ["github"]);
   if (!githubToken) {
-    console.error("GITHUB_TOKEN secret is not set");
+    console.error("No github platform key configured (set it in the admin panel)");
     return new Response("Server misconfigured", { status: 500 });
   }
 

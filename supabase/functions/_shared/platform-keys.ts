@@ -9,7 +9,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 // "meshy" has no row in platform_api_keys until the Simulacrum go-live
 // (SIMULACRUM_PLAN.md §7 Phase 4) — fetchPlatformKeys simply omits it from
 // the returned record until then, so existing callers are unaffected.
-export type Provider = "openai" | "anthropic" | "gemini" | "falai" | "meshy";
+// "github" holds the fine-grained PAT used by create-bug-report to file
+// issues — not an AI provider, but reuses the same encrypted-at-rest vault.
+export type Provider = "openai" | "anthropic" | "gemini" | "falai" | "meshy" | "github";
 
 export async function fetchPlatformKeys(
   admin: SupabaseClient,

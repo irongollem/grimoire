@@ -10,6 +10,7 @@
     </div>
 
     <SimulacrumConfig />
+    <GithubIntegrationConfig />
 
     <div v-if="providersQuery.isPending.value" class="text-muted-foreground text-body">Loading…</div>
     <div v-else-if="providersQuery.isError.value" class="text-destructive text-body">Failed to load provider config.</div>
@@ -382,6 +383,7 @@ import { useProviderModels } from "@/composables/useProviderModels";
 import { useAiUsageStats } from "@/composables/useAiUsageStats";
 import type { ModelStat } from "@/composables/useAiUsageStats";
 import SimulacrumConfig from "@/components/admin/SimulacrumConfig.vue";
+import GithubIntegrationConfig from "@/components/admin/GithubIntegrationConfig.vue";
 
 // ── Keys ───────────────────────────────────────────────────────────────────
 const { keysQuery, setKey, clearKey } = useAdminKeys();
