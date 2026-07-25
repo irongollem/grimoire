@@ -18,6 +18,9 @@ const ALLOWED_ORIGINS = new Set<string>([
   "http://localhost:5173",
   "http://localhost:4173", // vite preview
   "http://127.0.0.1:5173",
+  // Fixed local dev origin (e.g. via a local TLS proxy / mkcert) — stable
+  // across Vite port shuffles, unlike the localhost:<port> entries above.
+  "https://grimoire.localhost",
 ]);
 
 export function corsHeaders(req: Request): Record<string, string> {

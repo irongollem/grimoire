@@ -35,50 +35,10 @@
         </div>
 
         <!-- Platform API Key -->
-        <div class="p-3 rounded-md bg-muted/40 border border-border space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="text-eyebrow font-semibold text-muted-foreground">Platform API Key</span>
-            <div class="flex items-center gap-2">
-              <span v-if="isKeySet(row.provider as KeyProvider)" class="font-cinzel text-2xs tracking-widest text-emerald-500 uppercase">
-                Set · {{ new Date(keyUpdatedAt(row.provider as KeyProvider)!).toLocaleDateString() }}
-              </span>
-              <span v-else class="font-cinzel text-2xs tracking-widest text-muted-foreground/60 uppercase">Not configured</span>
-              <button
-                v-if="isKeySet(row.provider as KeyProvider)"
-                class="px-2 py-0.5 text-label font-semibold text-destructive border border-destructive/40 rounded hover:bg-destructive/10 disabled:opacity-50 transition-colors"
-                :disabled="keyClearing[row.provider as KeyProvider]"
-                @click="doClrKey(row.provider as KeyProvider)"
-              >
-                {{ keyClearing[row.provider as KeyProvider] ? '…' : 'Clear' }}
-              </button>
-            </div>
-          </div>
-          <div class="flex gap-2">
-            <div class="relative flex-1">
-              <input
-                v-model="keyDrafts[row.provider as KeyProvider]"
-                :type="keyVisible[row.provider as KeyProvider] ? 'text' : 'password'"
-                :placeholder="isKeySet(row.provider as KeyProvider) ? '•••••••• (leave blank to keep current)' : (PROVIDERS.find(p => p.id === row.provider)?.hint ?? '…')"
-                class="w-full bg-background border border-border rounded px-2.5 py-1.5 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring pr-9"
-                autocomplete="off"
-              />
-              <button
-                type="button"
-                class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                @click="keyVisible[row.provider as KeyProvider] = !keyVisible[row.provider as KeyProvider]"
-              >
-                <component :is="keyVisible[row.provider as KeyProvider] ? IconHide : IconReveal" class="h-3.5 w-3.5" />
-              </button>
-            </div>
-            <button
-              class="shrink-0 px-3 py-1.5 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
-              :disabled="keySaving[row.provider as KeyProvider] || !keyDrafts[row.provider as KeyProvider]?.trim()"
-              @click="saveKey(row.provider as KeyProvider)"
-            >
-              {{ keySaving[row.provider as KeyProvider] ? 'Saving…' : 'Set Key' }}
-            </button>
-          </div>
-        </div>
+        <PlatformKeyField
+          :provider="row.provider as KeyProvider"
+          :hint="PROVIDERS.find(p => p.id === row.provider)?.hint ?? '…'"
+        />
 
         <!-- Model config + pricing: only shown once a key is set -->
         <template v-if="isKeySet(row.provider as KeyProvider)">
@@ -373,7 +333,6 @@
 
 <script setup lang="ts">
 import { reactive, computed, watch } from "vue";
-import { IconHide, IconReveal } from "@/lib/icons";
 import { useAdminKeys, PROVIDERS } from "@/composables/useAdminKeys";
 import type { KeyProvider } from "@/composables/useAdminKeys";
 import { useAdminProviders, PROVIDER_LABELS } from "@/composables/useAdminProviders";
@@ -384,41 +343,13 @@ import { useAiUsageStats } from "@/composables/useAiUsageStats";
 import type { ModelStat } from "@/composables/useAiUsageStats";
 import SimulacrumConfig from "@/components/admin/SimulacrumConfig.vue";
 import GithubIntegrationConfig from "@/components/admin/GithubIntegrationConfig.vue";
+import PlatformKeyField from "@/components/admin/PlatformKeyField.vue";
 
 // ── Keys ───────────────────────────────────────────────────────────────────
-const { keysQuery, setKey, clearKey } = useAdminKeys();
-const keyDrafts = reactive<Record<KeyProvider, string>>({} as Record<KeyProvider, string>);
-const keyVisible = reactive<Record<KeyProvider, boolean>>({} as Record<KeyProvider, boolean>);
-const keySaving = reactive<Record<KeyProvider, boolean>>({} as Record<KeyProvider, boolean>);
-const keyClearing = reactive<Record<KeyProvider, boolean>>({} as Record<KeyProvider, boolean>);
+const { keysQuery } = useAdminKeys();
 
 function isKeySet(provider: KeyProvider): boolean {
   return !!(keysQuery.data.value ?? []).find((r) => r.provider === provider);
-}
-function keyUpdatedAt(provider: KeyProvider): string | null {
-  const row = (keysQuery.data.value ?? []).find((r) => r.provider === provider);
-  return row?.updated_at ?? null;
-}
-
-async function saveKey(provider: KeyProvider) {
-  const val = keyDrafts[provider]?.trim();
-  if (!val) return;
-  keySaving[provider] = true;
-  try {
-    await setKey.mutateAsync({ provider, plaintext: val });
-    keyDrafts[provider] = "";
-  } finally {
-    keySaving[provider] = false;
-  }
-}
-
-async function doClrKey(provider: KeyProvider) {
-  keyClearing[provider] = true;
-  try {
-    await clearKey.mutateAsync(provider);
-  } finally {
-    keyClearing[provider] = false;
-  }
 }
 
 // ── Provider config ────────────────────────────────────────────────────────

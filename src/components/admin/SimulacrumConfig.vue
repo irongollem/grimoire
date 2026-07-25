@@ -14,56 +14,7 @@
     <template v-else>
       <!-- Meshy platform key — managed here (not the generic provider rows):
            it exists solely for this feature, and "Live" is gated on it. -->
-      <div class="rounded-md bg-muted/40 border border-border p-3 space-y-2">
-        <div class="flex items-center justify-between gap-2">
-          <span class="font-cinzel text-xs font-semibold tracking-wide text-foreground">Meshy platform key</span>
-          <template v-if="meshyKeySet">
-            <span class="text-eyebrow text-green-500">
-              Set · {{ meshyKeyDate }}
-            </span>
-          </template>
-        </div>
-        <div v-if="!meshyKeySet || replacingKey" class="flex items-center gap-2">
-          <input
-            v-model="keyDraft"
-            :type="keyDraftVisible ? 'text' : 'password'"
-            placeholder="msy-…"
-            class="flex-1 bg-background border border-border rounded px-2.5 py-1.5 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          />
-          <button
-            type="button"
-            class="px-2 py-1.5 font-cinzel text-2xs text-muted-foreground border border-border rounded hover:text-foreground transition-colors"
-            @click="keyDraftVisible = !keyDraftVisible"
-          >
-            {{ keyDraftVisible ? 'Hide' : 'Show' }}
-          </button>
-          <button
-            type="button"
-            :disabled="!keyDraft.trim() || setKey.isPending.value"
-            class="px-3 py-1.5 text-label font-semibold bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50 transition-opacity"
-            @click="saveKey"
-          >
-            {{ setKey.isPending.value ? 'Saving…' : 'Save key' }}
-          </button>
-        </div>
-        <div v-else class="flex items-center gap-2">
-          <button
-            type="button"
-            class="px-3 py-1.5 font-cinzel text-2xs text-muted-foreground border border-border rounded hover:text-foreground transition-colors"
-            @click="replacingKey = true"
-          >
-            Replace
-          </button>
-          <button
-            type="button"
-            :disabled="clearKey.isPending.value"
-            class="px-3 py-1.5 font-cinzel text-2xs text-destructive border border-destructive/40 rounded hover:bg-destructive/10 disabled:opacity-50 transition-colors"
-            @click="doClearKey"
-          >
-            {{ clearKey.isPending.value ? '…' : 'Clear' }}
-          </button>
-        </div>
-      </div>
+      <PlatformKeyField provider="meshy" label="Meshy platform key" hint="msy-…" @cleared="onKeyCleared" />
 
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
         <button
@@ -119,31 +70,17 @@ import { useSimulacrumConfig, useUpdateSimulacrumMode } from "@/composables/useS
 import { useFeatureInterestCount } from "@/composables/useFeatureInterest";
 import { useAdminKeys } from "@/composables/useAdminKeys";
 import { SIMULACRUM_FEATURE_KEY, type SimulacrumMode } from "@/types/mini.types";
+import PlatformKeyField from "@/components/admin/PlatformKeyField.vue";
 
 const { query } = useSimulacrumConfig();
 const update = useUpdateSimulacrumMode();
 const interestCount = useFeatureInterestCount(SIMULACRUM_FEATURE_KEY);
 
 // ── Meshy platform key (same vault flow as the generic provider keys) ──────
-const { keysQuery, setKey, clearKey } = useAdminKeys();
-const meshyRow = computed(() => keysQuery.data.value?.find((r) => r.provider === "meshy") ?? null);
-const meshyKeySet = computed(() => !!meshyRow.value);
-const meshyKeyDate = computed(() =>
-  meshyRow.value ? new Date(meshyRow.value.updated_at).toLocaleDateString() : "",
-);
+const { keysQuery } = useAdminKeys();
+const meshyKeySet = computed(() => !!keysQuery.data.value?.find((r) => r.provider === "meshy"));
 
-const keyDraft = ref("");
-const keyDraftVisible = ref(false);
-const replacingKey = ref(false);
-
-async function saveKey() {
-  await setKey.mutateAsync({ provider: "meshy", plaintext: keyDraft.value.trim() });
-  keyDraft.value = "";
-  replacingKey.value = false;
-}
-
-async function doClearKey() {
-  await clearKey.mutateAsync("meshy");
+function onKeyCleared() {
   // Live mode without a key is a broken pipeline — drop the draft off "live"
   // so Save can't persist it past the disabled option.
   if (localMode.value === "live") localMode.value = "teaser";
