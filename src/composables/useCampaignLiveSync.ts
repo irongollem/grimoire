@@ -44,6 +44,9 @@ const SYNC_TABLES = [
   // Ruleset-review flags — a campaign edition switch (or DM/player acknowledging
   // one) writes/deletes rows here; refresh so the review banners appear/disappear.
   ["ruleset_reviews",         "ruleset_reviews"],
+  // Optional rule toggles (turn-timer, random-initiative, ...) — so a DM flipping
+  // a rule shows up for already-mounted players without waiting out staleTime.
+  ["campaign_rules",          "campaign_rules"],
   // The Interlude — all four downtime tables share the "downtime" key root, so
   // one invalidate string refreshes every downtime query (deduped for reconcile).
   ["downtime_grants",         "downtime"],
@@ -106,8 +109,19 @@ export function useCampaignLiveSync() {
           const now = Date.now();
           if (now - lastReconcile < 2000) return;
           lastReconcile = now;
+          sawDrop = false;
           for (const k of RECONCILE_KEYS) void qc.invalidateQueries({ queryKey: [k] });
         };
+
+        // Whether the channel reported an actual problem (error/timeout/close)
+        // since the last reconcile. Routine alt-tabbing shouldn't trigger a
+        // reconcile burst when the socket never dropped — only genuine gaps
+        // (flagged here) or a long-enough background stint should.
+        let sawDrop = false;
+        // Timestamp the tab went hidden, so a return-to-visible can tell how
+        // long the socket was potentially frozen in the background.
+        let hiddenAt: number | null = null;
+        const HIDDEN_RECONCILE_MS = 5 * 60 * 1000;
 
         let channel = supabase.channel(`campaign_live_sync:${campaignId}`);
         for (const [table, key] of SYNC_TABLES) {
@@ -135,6 +149,10 @@ export function useCampaignLiveSync() {
 
         let hasJoined = false;
         activeChannel = channel.subscribe((status) => {
+          if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+            sawDrop = true;
+            return;
+          }
           if (status !== "SUBSCRIBED") return;
           // First SUBSCRIBED is the initial join (queries fetch on their own).
           // Any later one is a rejoin after a drop — reconcile to recover events
@@ -143,13 +161,26 @@ export function useCampaignLiveSync() {
           hasJoined = true;
         });
 
+        // Coming back online always implies a possible drop — reconcile unconditionally.
         const onOnline = () => reconcile();
-        const onVisible = () => { if (document.visibilityState === "visible") reconcile(); };
+        // Alt-tabbing back shouldn't burst-invalidate every key unless the channel
+        // actually reported a problem while away, or the tab was hidden long enough
+        // that Supabase realtime could have silently dropped the socket in the
+        // background (missed-event safety net).
+        const onVisibilityChange = () => {
+          if (document.visibilityState === "hidden") {
+            hiddenAt = Date.now();
+            return;
+          }
+          const hiddenFor = hiddenAt !== null ? Date.now() - hiddenAt : 0;
+          hiddenAt = null;
+          if (sawDrop || hiddenFor >= HIDDEN_RECONCILE_MS) reconcile();
+        };
         window.addEventListener("online", onOnline);
-        document.addEventListener("visibilitychange", onVisible);
+        document.addEventListener("visibilitychange", onVisibilityChange);
         detachHealListeners = () => {
           window.removeEventListener("online", onOnline);
-          document.removeEventListener("visibilitychange", onVisible);
+          document.removeEventListener("visibilitychange", onVisibilityChange);
         };
       },
       { immediate: true },
