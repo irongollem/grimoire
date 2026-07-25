@@ -61,6 +61,20 @@ registerOptionalRule({
   defaultEnabled: false,
 });
 
+// ── Tasha's Optional Class Features ───────────────────────────────────────────
+registerOptionalRule({
+  key: "tashas_optional_features",
+  name: "Optional Class Features",
+  summary:
+    "Allow the optional class-feature swaps from Tasha's Cauldron of Everything — e.g. a Ranger replacing Primeval Awareness with Primal Awareness to gain always-prepared spells.",
+  description:
+    "Tasha's Cauldron of Everything offers *optional* class features that a character may take **in place of** a default feature (PHB) — Primal Awareness for Primeval Awareness, Favored Foe for Favored Enemy, Deft Explorer for Natural Explorer, and more.\n\n" +
+    "With this rule enabled, eligible characters can choose these swaps during **Level Up**, and already-levelled characters can adopt them from their sheet. Some of these features grant spells that are **always prepared and don't count against your prepared limit** (for example, Primal Awareness grants Speak with Animals at 3rd level, Beast Sense at 5th, and so on), with any once-per-long-rest free casting tracked for you.\n\n" +
+    "This is a permission the DM grants for the whole campaign; each player still opts in per feature. Leaving it off keeps every class on its default PHB features.",
+  dmOnly: true,
+  defaultEnabled: false,
+});
+
 // ── Experience Points (XP levelling) ──────────────────────────────────────────
 registerOptionalRule({
   key: "xp_levelling",
