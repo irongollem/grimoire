@@ -1,5 +1,6 @@
 import { ref, computed, watch, type Ref } from "vue";
 import { ARTIFICER_INFUSIONS, ARTIFICER_INFUSIONS_MAP } from "@/data/artificerInfusions";
+import { useClassOptionTexts, useSaveClassOptionText } from "@/composables/useClassOptionTexts";
 import { usePartyInventory } from "@/composables/usePartyInventory";
 import { useUpdatePartyMember } from "@/composables/useParty";
 import type { PartyMember } from "@/types/party.types";
@@ -7,12 +8,19 @@ import type { ArtificerInfusion } from "@/data/artificerInfusions";
 
 interface CharacterClass { class_name: string; levels: number }
 
+/** Infusion mechanics plus the campaign-supplied effect text (Tiptap JSON), if transcribed. */
+export interface ArtificerInfusionView extends ArtificerInfusion {
+  description: string | null;
+}
+
 export function useArtificerState(
   member: Ref<PartyMember>,
   characterClasses: Ref<CharacterClass[] | undefined>,
 ) {
   const { mutate: updateMember } = useUpdatePartyMember();
   const { data: partyInventory } = usePartyInventory();
+  const { textByOption: infusionTexts } = useClassOptionTexts("Artificer", "infusions_known");
+  const { mutate: saveOptionText } = useSaveClassOptionText("Artificer", "infusions_known");
 
   const isArtificer = computed(() =>
     member.value.class === "Artificer" ||
@@ -28,10 +36,13 @@ export function useArtificerState(
     (partyInventory.value ?? []).filter(i => i.carried_by === member.value.id),
   );
 
-  const knownInfusions = computed(() => {
+  const knownInfusions = computed<ArtificerInfusionView[]>(() => {
     const raw = member.value.class_choices?.infusions_known;
     const names: string[] = Array.isArray(raw) ? (raw as string[]) : raw ? [String(raw)] : [];
-    return names.map(n => ARTIFICER_INFUSIONS_MAP.get(n)).filter(Boolean) as ArtificerInfusion[];
+    return names
+      .map(n => ARTIFICER_INFUSIONS_MAP.get(n))
+      .filter((i): i is ArtificerInfusion => Boolean(i))
+      .map(i => ({ ...i, description: infusionTexts.value.get(i.name) ?? null }));
   });
 
   const infusionSlotsMax = computed(() =>
@@ -88,6 +99,10 @@ export function useArtificerState(
     persistActiveInfusions();
   }
 
+  function saveInfusionText(name: string, description: string) {
+    saveOptionText({ optionName: name, description });
+  }
+
   return {
     isArtificer,
     artificerLevel,
@@ -99,5 +114,6 @@ export function useArtificerState(
     learnInfusion,
     applyInfusion,
     removeActiveInfusionByName,
+    saveInfusionText,
   };
 }

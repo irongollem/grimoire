@@ -73,12 +73,36 @@
           </div>
         </div>
 
-        <!-- Description -->
-        <div
-          v-if="expanded.has(`infusion-${inf.name}`)"
-          class="mt-2 rounded-md bg-muted/30 border border-border/60 px-3 py-2 text-body text-muted-foreground leading-relaxed"
-        >
-          {{ inf.description }}
+        <!-- Description — campaign-supplied text (transcribed from the table's own sourcebook) -->
+        <div v-if="expanded.has(`infusion-${inf.name}`)" class="mt-2">
+          <div v-if="editingName === inf.name" class="space-y-2">
+            <RichTextEditor v-model="editingText" />
+            <div class="flex gap-2">
+              <button
+                class="text-label px-3 py-1 rounded bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+                @click="confirmEditText"
+              >Save</button>
+              <button
+                class="text-label px-3 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors"
+                @click="editingName = ''"
+              >Cancel</button>
+            </div>
+          </div>
+          <template v-else>
+            <div
+              v-if="inf.description"
+              class="rounded-md bg-muted/30 border border-border/60 px-3 py-2 text-body text-muted-foreground leading-relaxed"
+            >
+              <RichTextViewer :content="inf.description" />
+            </div>
+            <p v-else class="text-caption text-muted-foreground italic">
+              No effect text yet — add it from your sourcebook.
+            </p>
+            <button
+              class="mt-1 text-label text-muted-foreground hover:text-foreground transition-colors"
+              @click="openEditText(inf)"
+            >{{ inf.description ? "Edit text" : "+ Add effect text" }}</button>
+          </template>
         </div>
       </div>
     </div>
@@ -120,7 +144,10 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { IconChevronDown } from "@/lib/icons";
+import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import type { ArtificerInfusion } from "@/data/artificerInfusions";
+import type { ArtificerInfusionView } from "@/composables/useArtificerState";
 
 interface InventoryItem {
   id: string;
@@ -139,7 +166,7 @@ const {
   slotsMax,
   inventoryItems,
 } = defineProps<{
-  knownInfusions: ArtificerInfusion[];
+  knownInfusions: ArtificerInfusionView[];
   availableToLearn: ArtificerInfusion[];
   activeInfusions: ActiveInfusion[];
   slotsMax: number;
@@ -150,6 +177,7 @@ const emit = defineEmits<{
   remove: [name: string];
   apply: [name: string, invItemId: string | null];
   learn: [name: string];
+  saveText: [name: string, description: string];
 }>();
 
 const activeCount = computed(() => activeInfusions.length);
@@ -188,6 +216,20 @@ function confirmApply() {
   if (!pendingApplyName.value) return;
   emit("apply", pendingApplyName.value, pendingItemId.value || null);
   cancelApplyForm();
+}
+
+const editingName = ref("");
+const editingText = ref<string>("");
+
+function openEditText(inf: ArtificerInfusionView) {
+  editingName.value = inf.name;
+  editingText.value = inf.description ?? "";
+}
+
+function confirmEditText() {
+  if (!editingName.value) return;
+  emit("saveText", editingName.value, editingText.value);
+  editingName.value = "";
 }
 
 const showLearnForm = ref(false);

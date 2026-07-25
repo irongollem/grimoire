@@ -162,6 +162,7 @@
       @remove="removeActiveInfusionByName"
       @apply="applyInfusion"
       @learn="learnInfusion"
+      @save-text="saveInfusionText"
     />
 
   </div>
@@ -570,5 +571,6 @@ const {
   learnInfusion,
   applyInfusion,
   removeActiveInfusionByName,
+  saveInfusionText,
 } = useArtificerState(memberRef, characterClasses);
 </script>

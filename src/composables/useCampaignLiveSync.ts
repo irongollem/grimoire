@@ -56,6 +56,10 @@ const SYNC_TABLES = [
   // Simulacrum minis gallery — so other members see a mini land (or sculpt
   // progress) without waiting out the query's staleTime.
   ["minis",                   "minis"],
+  // Campaign-supplied class option text (e.g. Artificer infusion effects
+  // transcribed from the table's sourcebooks) — shared reference content, so
+  // one member typing it in must reach everyone at the table.
+  ["class_option_texts",      "class-option-texts"],
 ] as const;
 
 // Deduped set of every key the sync owns, plus "campaigns" (handled specially

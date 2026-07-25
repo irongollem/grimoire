@@ -46,7 +46,7 @@ Pick the subsystem the change is primarily about; use `misc` only as a last reso
 | Collaboration | 5 | [fixes/collaboration.md](fixes/collaboration.md) |
 | Player Portal | 7 | [fixes/players.md](fixes/players.md) |
 | Rules Reliquary | 1 | [fixes/rules.md](fixes/rules.md) |
-| Content & Import | 4 | [fixes/content.md](fixes/content.md) |
+| Content & Import | 5 | [fixes/content.md](fixes/content.md) |
 | Monsters & Bestiary | 12 | [fixes/monsters.md](fixes/monsters.md) |
 | NPCs & Companions | 14 | [fixes/npcs.md](fixes/npcs.md) |
 | Items & Workshop | 26 | [fixes/items.md](fixes/items.md) |
