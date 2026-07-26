@@ -60,14 +60,10 @@
                 </p>
               </div>
               <!-- Volume -->
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.02"
-                class="w-14 h-1 accent-green-500 shrink-0"
-                :value="spotifyStore.volume"
-                @input="spotifyStore.setVolume(+($event.target as HTMLInputElement).value)"
+              <VolumeSlider
+                accent="green"
+                :model-value="spotifyStore.volume"
+                @update:model-value="spotifyStore.setVolume($event)"
               />
               <!-- Prev / IconPlay·IconPause / Next -->
               <button
@@ -231,14 +227,9 @@
             >
               <p class="font-cinzel text-xs font-medium text-foreground truncate flex-1 min-w-0">{{ sound.name }}</p>
               <!-- Volume -->
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.02"
-                class="w-16 h-1 accent-gold-500 shrink-0"
-                :value="store.getState(sound.id).volume"
-                @input="store.setVolume(sound.id, +($event.target as HTMLInputElement).value)"
+              <VolumeSlider
+                :model-value="store.getState(sound.id).volume"
+                @update:model-value="store.setVolume(sound.id, $event)"
               />
               <!-- Effect picker -->
               <SoundEffectPicker
@@ -272,6 +263,44 @@
             </RouterLink>
           </div>
         </div>
+
+        <!-- Mixer — master and per-bus faders -->
+        <div class="border-t border-border px-3 py-2 space-y-1.5">
+          <button
+            class="flex items-center gap-1.5 w-full text-left text-muted-foreground hover:text-foreground transition-colors"
+            :aria-expanded="mixerOpen"
+            @click="mixerOpen = !mixerOpen"
+          >
+            <IconChevronRight
+              class="h-3 w-3 shrink-0 transition-transform"
+              :class="mixerOpen ? 'rotate-90' : ''"
+            />
+            <span class="font-cinzel text-2xs font-semibold tracking-wide flex-1">Mixer</span>
+            <span v-if="!mixerOpen" class="text-2xs tabular-nums">
+              {{ Math.round(store.masterVolume * 100) }}
+            </span>
+          </button>
+
+          <template v-if="mixerOpen">
+            <VolumeSlider
+              label="Master"
+              wide
+              show-percent
+              :model-value="store.masterVolume"
+              @update:model-value="store.setMasterVolume($event)"
+            />
+            <VolumeSlider
+              v-for="bus in BUSES"
+              :key="bus.id"
+              :label="bus.label"
+              wide
+              show-percent
+              :muted="store.masterVolume === 0"
+              :model-value="store.busVolumes[bus.id]"
+              @update:model-value="store.setBusVolume(bus.id, $event)"
+            />
+          </template>
+        </div>
       </div>
     </Transition>
   </Teleport>
@@ -279,11 +308,21 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted, nextTick } from "vue";
-import { IconClose, IconMusicNote, IconMute, IconPause, IconPlay, IconRepeat, IconRepeatOne, IconShuffle, IconSkipBack, IconSkipForward, IconStop, IconWind } from '@/lib/icons';
+import { IconChevronRight, IconClose, IconMusicNote, IconMute, IconPause, IconPlay, IconRepeat, IconRepeatOne, IconShuffle, IconSkipBack, IconSkipForward, IconStop, IconWind } from '@/lib/icons';
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSpotifyStore } from "@/stores/spotify";
 import { useSounds } from "@/composables/useSounds";
 import SoundEffectPicker from "./SoundEffectPicker.vue";
+import VolumeSlider from "./VolumeSlider.vue";
+import type { AudioBus } from "@/lib/audioEngine";
+
+const BUSES = [
+  { id: "music", label: "Music" },
+  { id: "ambient", label: "Ambience" },
+  { id: "effects", label: "Effects" },
+] as const satisfies readonly { id: AudioBus; label: string }[];
+
+const mixerOpen = ref(false);
 import CastButton from "./CastButton.vue";
 
 const store = useSoundboardStore();

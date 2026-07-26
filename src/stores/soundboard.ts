@@ -7,6 +7,23 @@ import type {
   SoundCategory,
 } from "@/types/sound.types";
 import { getAudioEngine, type AudioBus } from "@/lib/audioEngine";
+import {
+  getInstance,
+  setInstance,
+  forEachInstance,
+  makeAudio,
+  destroyAudio,
+  hasRetried,
+  markRetried,
+  clearRetried,
+  acquireDuck as takeDuck,
+  releaseDuck as dropDuck,
+  clearDucking,
+  bumpGeneration,
+  isCurrentGeneration,
+  forgetGeneration,
+  busForCategory,
+} from "@/lib/soundTransport";
 
 // ── Playlist run-state types (module-level, not exported) ─────────────────
 
@@ -57,75 +74,6 @@ const AMBIENT_FADE_MS = 1200;
 
 const DEFAULT_VOLUME = 0.8;
 
-// ── Audio Engine (module-level, NEVER reactive) ───────────────────────────
-//
-// HTMLAudioElement cannot go into Vue reactive state. Vue's Proxy wrapper
-// breaks the browser audio pipeline (volume/loop mutations silently dropped,
-// play() calls fail unpredictably). Keep instances in a plain Map at module
-// scope and only surface serializable state to Pinia.
-//
-// The Web Audio graph itself (buses, per-sound gain, filters, ducking) lives
-// in `@/lib/audioEngine` — this store no longer owns an AudioContext.
-//
-const audioInstances = new Map<string, HTMLAudioElement>();
-
-// Tracks which sound IDs have already been retried once after a load error.
-// CDN 502s from Freesound are usually transient — a single retry catches most.
-const retriedIds = new Set<string>();
-
-// Sound IDs currently holding the effects-bus duck. Set membership IS the
-// refcount, so overlapping one-shots don't un-duck each other prematurely and
-// a double-release is a no-op.
-const duckingSounds = new Set<string>();
-
-// Bumped whenever a sound starts a fade-out. A fade-out completion callback
-// only acts if its generation is still current — otherwise a stop() quickly
-// followed by a play() would let the stale callback pause the freshly started
-// element. This is the race that makes naive crossfading eat tracks.
-const transitionGen = new Map<string, number>();
-
-function bumpGeneration(soundId: string): number {
-  const prev = transitionGen.get(soundId);
-  const next = (prev === undefined ? 0 : prev) + 1;
-  transitionGen.set(soundId, next);
-  return next;
-}
-
-function isCurrentGeneration(soundId: string, gen: number): boolean {
-  return transitionGen.get(soundId) === gen;
-}
-
-/**
- * Which bus a sound is summed through. Only an explicit "effects" category
- * triggers ducking, so an uncategorised sound can never accidentally duck the
- * music bed under itself.
- */
-function busForCategory(category: SoundCategory | undefined): AudioBus {
-  if (category === "music") return "music";
-  if (category === "effects") return "effects";
-  return "ambient";
-}
-
-function makeAudio(fileUrl: string): HTMLAudioElement {
-  const audio = new Audio();
-  // crossOrigin must be set BEFORE src so the browser fetches with CORS headers.
-  // Required for Web Audio API (MediaElementAudioSourceNode) to read audio data
-  // from cross-origin URLs (Supabase Storage, Freesound CDN, etc.).
-  audio.crossOrigin = "anonymous";
-  audio.preload = "auto";
-  audio.src = fileUrl;
-  return audio;
-}
-
-function destroyAudio(soundId: string): void {
-  const el = audioInstances.get(soundId);
-  if (el) {
-    el.pause();
-    el.src = "";
-    audioInstances.delete(soundId);
-  }
-}
-
 // ─────────────────────────────────────────────────────────────────────────
 
 export const useSoundboardStore = defineStore("soundboard", () => {
@@ -166,21 +114,21 @@ export const useSoundboardStore = defineStore("soundboard", () => {
   }
 
   function getOrCreate(soundId: string, fileUrl: string): HTMLAudioElement {
-    if (!audioInstances.has(soundId)) {
-      const audio = makeAudio(fileUrl);
-      audio.onerror = () => handleLoadError(soundId, fileUrl);
-      audioInstances.set(soundId, audio);
-    }
-    return audioInstances.get(soundId)!;
+    const existing = getInstance(soundId);
+    if (existing) return existing;
+    const audio = makeAudio(fileUrl);
+    audio.onerror = () => handleLoadError(soundId, fileUrl);
+    setInstance(soundId, audio);
+    return audio;
   }
 
   function handleLoadError(soundId: string, fileUrl: string): void {
-    if (retriedIds.has(soundId)) {
+    if (hasRetried(soundId)) {
       // Already retried once — surface the failure to the UI.
       getState(soundId).loadError = true;
       return;
     }
-    retriedIds.add(soundId);
+    markRetried(soundId);
     // Recreate the element to re-trigger the network fetch. Same URL — most
     // 502s are transient CDN blips that resolve on the next request. The engine
     // keys its source nodes by element identity, so it rebuilds the chain when
@@ -188,29 +136,26 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     destroyAudio(soundId);
     const fresh = makeAudio(fileUrl);
     fresh.onerror = () => handleLoadError(soundId, fileUrl);
-    audioInstances.set(soundId, fresh);
+    setInstance(soundId, fresh);
   }
 
   function retryLoad(soundId: string, fileUrl: string): void {
     getState(soundId).loadError = false;
-    retriedIds.delete(soundId);
+    clearRetried(soundId);
     destroyAudio(soundId);
     const fresh = makeAudio(fileUrl);
     fresh.onerror = () => handleLoadError(soundId, fileUrl);
-    audioInstances.set(soundId, fresh);
+    setInstance(soundId, fresh);
   }
 
   // ── Ducking ─────────────────────────────────────────────────────────────
 
   function acquireDuck(soundId: string): void {
-    if (duckingSounds.has(soundId)) return;
-    duckingSounds.add(soundId);
-    if (duckingSounds.size === 1) engine.duck();
+    if (takeDuck(soundId)) engine.duck();
   }
 
   function releaseDuck(soundId: string): void {
-    if (!duckingSounds.delete(soundId)) return;
-    if (duckingSounds.size === 0) engine.unduck();
+    if (dropDuck(soundId)) engine.unduck();
   }
 
   // ── Core playback ───────────────────────────────────────────────────────
@@ -316,7 +261,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
    * synchronous, matching the previous hard-cut signatures.
    */
   function fadeAndHalt(soundId: string, rewind: boolean, fadeMs: number): void {
-    const audio = audioInstances.get(soundId);
+    const audio = getInstance(soundId);
     releaseDuck(soundId);
 
     const st = playbackStates.value[soundId];
@@ -356,7 +301,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
   }
 
   function seek(soundId: string, time: number): void {
-    const audio = audioInstances.get(soundId);
+    const audio = getInstance(soundId);
     if (audio) {
       audio.currentTime = Math.max(0, Math.min(time, audio.duration || 0));
     }
@@ -368,7 +313,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
   function setVolume(soundId: string, volume: number): void {
     const clamped = Math.max(0, Math.min(1, volume));
     getState(soundId).volume = clamped;
-    const audio = audioInstances.get(soundId);
+    const audio = getInstance(soundId);
     if (audio) applyVolume(soundId, audio, clamped, 0);
   }
 
@@ -392,12 +337,12 @@ export const useSoundboardStore = defineStore("soundboard", () => {
   function toggleLoop(soundId: string): void {
     const state = getState(soundId);
     state.isLooping = !state.isLooping;
-    const audio = audioInstances.get(soundId);
+    const audio = getInstance(soundId);
     if (audio) audio.loop = state.isLooping;
   }
 
   function stopAll(): void {
-    audioInstances.forEach((audio, id) => {
+    forEachInstance((audio, id) => {
       bumpGeneration(id);
       audio.pause();
       audio.currentTime = 0;
@@ -405,7 +350,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
         playbackStates.value[id].isPlaying = false;
       }
     });
-    duckingSounds.clear();
+    clearDucking();
     engine.unduck(0);
     activeMusicPlaylist.value = null;
     activeAmbientPlaylist.value = null;
@@ -469,7 +414,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
   function startCurrentPlaylistTrack(mpl: MusicPlaylistRunState): void {
     const soundId = mpl.trackSoundIds[mpl.currentIndex];
     getState(soundId).isLooping = false;
-    const el = audioInstances.get(soundId);
+    const el = getInstance(soundId);
     if (el) el.loop = false;
     play(soundId, mpl.fileUrls[soundId], "music", mpl.gainTrims[soundId]);
     if (mpl.effect !== "none") {
@@ -588,7 +533,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     // They rise together over AMBIENT_FADE_MS rather than snapping in at full.
     tracks.forEach((t) => {
       getState(t.sound.id).isLooping = true;
-      const el = audioInstances.get(t.sound.id);
+      const el = getInstance(t.sound.id);
       if (el) el.loop = true;
       play(t.sound.id, t.sound.file_url, "ambient", t.sound.gain_trim);
       engine.fadeIn(t.sound.id, AMBIENT_FADE_MS);
@@ -606,7 +551,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     const apl = activeAmbientPlaylist.value;
     if (!apl || !apl.paused) return;
     apl.soundIds.forEach((id) => {
-      const el = audioInstances.get(id);
+      const el = getInstance(id);
       if (!el) return;
       bumpGeneration(id);
       const st = playbackStates.value[id];
@@ -652,7 +597,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
    * while keeping isPlaying = true so the UI reflects that audio is playing (via Cast).
    */
   function pauseForCast(soundId: string): void {
-    const audio = audioInstances.get(soundId);
+    const audio = getInstance(soundId);
     if (audio) audio.pause();
   }
 
@@ -662,8 +607,8 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     bumpGeneration(soundId);
     engine.detach(soundId);
     destroyAudio(soundId);
-    retriedIds.delete(soundId);
-    transitionGen.delete(soundId);
+    clearRetried(soundId);
+    forgetGeneration(soundId);
     delete playbackStates.value[soundId];
     delete soundEffects.value[soundId];
   }

@@ -235,18 +235,14 @@
         </button>
 
         <!-- Volume -->
-        <input
-          type="range"
-          min="0"
-          max="1"
-          step="0.02"
-          class="flex-1 min-w-0 h-1 accent-green-500"
-          :value="spotifyStore.volume"
-          @input="spotifyStore.setVolume(+($event.target as HTMLInputElement).value)"
+        <VolumeSlider
+          class="flex-1"
+          wide
+          show-percent
+          accent="green"
+          :model-value="spotifyStore.volume"
+          @update:model-value="spotifyStore.setVolume($event)"
         />
-        <span class="text-caption text-muted-foreground w-6 text-right shrink-0">
-          {{ Math.round(spotifyStore.volume * 100) }}
-        </span>
       </div>
 
       <!-- Spotify progress bar (only when this card is active) -->
@@ -352,18 +348,13 @@
         />
 
         <!-- Volume -->
-        <input
-          type="range"
-          min="0"
-          max="1"
-          step="0.02"
-          class="flex-1 min-w-0 h-1 accent-gold-500"
-          :value="audioState.volume"
-          @input="soundboardStore.setVolume(sound.id, +($event.target as HTMLInputElement).value)"
+        <VolumeSlider
+          class="flex-1"
+          wide
+          show-percent
+          :model-value="audioState.volume"
+          @update:model-value="soundboardStore.setVolume(sound.id, $event)"
         />
-        <span class="text-caption text-muted-foreground w-6 text-right shrink-0">
-          {{ Math.round(audioState.volume * 100) }}
-        </span>
       </div>
 
       <!-- Progress bar (finite tracks only) -->
@@ -404,6 +395,7 @@
 import { computed, ref, nextTick, onMounted } from "vue";
 import { IconDelete, IconEdit, IconImage, IconLayers, IconMusicNote, IconPause, IconPlay, IconRepeat, IconRepeatOne, IconShuffle, IconSkipBack, IconSkipForward, IconStop, IconWarning } from '@/lib/icons';
 import SoundEffectPicker from "./SoundEffectPicker.vue";
+import VolumeSlider from "./VolumeSlider.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSpotifyStore } from "@/stores/spotify";
