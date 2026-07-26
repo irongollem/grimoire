@@ -1,6 +1,12 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
-import type { SoundPlaybackState, PlaylistTrackWithSound, AudioEffectPreset } from "@/types/sound.types";
+import type {
+  SoundPlaybackState,
+  PlaylistTrackWithSound,
+  AudioEffectPreset,
+  SoundCategory,
+} from "@/types/sound.types";
+import { getAudioEngine, type AudioBus } from "@/lib/audioEngine";
 
 // ── Playlist run-state types (module-level, not exported) ─────────────────
 
@@ -17,6 +23,8 @@ interface MusicPlaylistRunState {
   artists: Record<string, string | null>;
   /** soundId → thumbnail URL (nullable) — used as Media Session artwork. */
   thumbnailUrls: Record<string, string | null>;
+  /** soundId → loudness-normalisation multiplier from the sound row. */
+  gainTrims: Record<string, number>;
   currentIndex: number;
   repeat: boolean;
   /** Effect carried across all tracks in this playlist session. */
@@ -33,98 +41,21 @@ interface AmbientPlaylistRunState {
   paused: boolean;
 }
 
-// ── Web Audio effect engine (module-level) ────────────────────────────────
+// ── Transition timings ────────────────────────────────────────────────────
 //
-// Sounds can be "promoted" into a Web Audio graph to apply real-time filter
-// effects. Once promoted, an HTMLAudioElement's output permanently routes
-// through the AudioContext (Web Audio API constraint) — but the chain is
-// transparent (frequency=22 kHz, gain=1.0) until an effect is applied.
-//
-// Volume is still controlled via audio.volume (pre-context), so the user's
-// volume setting and the effect's gain reduction stack correctly.
-//
+// Every transition used to be a hard cut: play() slammed the element to full
+// volume, stop() called pause() outright, and playlist advance did
+// stop(current) → play(next) with a silence gap while the next file fetched.
+// These are the ramps that replace that.
 
-interface EffectChain {
-  source: MediaElementAudioSourceNode;
-  filter: BiquadFilterNode;
-  gainNode: GainNode;
-}
+const FADE_IN_MS = 250;
+const FADE_OUT_MS = 400;
+/** Overlap when advancing between music-playlist tracks. */
+const CROSSFADE_MS = 1500;
+/** Ambient scene layers come up slower — they're a bed, not a cue. */
+const AMBIENT_FADE_MS = 1200;
 
-interface EffectParams {
-  frequency: number; // lowpass cutoff (Hz)
-  Q: number;         // resonance
-  gain: number;      // linear gain multiplier — < 1 = quieter
-}
-
-const EFFECT_PARAMS: Record<Exclude<AudioEffectPreset, "none">, EffectParams> = {
-  through_door: { frequency: 700,  Q: 1.2, gain: 0.50 }, // wood: muffled, slight resonance
-  through_wall: { frequency: 220,  Q: 0.8, gain: 0.25 }, // stone: very muffled, barely there
-  distant:      { frequency: 1800, Q: 0.5, gain: 0.35 }, // air: loses sparkle, much quieter
-  underwater:   { frequency: 150,  Q: 3.5, gain: 0.40 }, // water: heavy, resonant
-  cave:         { frequency: 900,  Q: 2.5, gain: 0.65 }, // stone: hollow, resonant, highs cut
-  sewer:        { frequency: 500,  Q: 2.2, gain: 0.55 }, // wet stone tunnel: more muffled, resonant
-};
-
-const EFFECT_RAMP_S = 0.5; // smooth transition duration in seconds
-
-let sharedAudioCtx: AudioContext | null = null;
-const effectChains = new Map<string, EffectChain>();
-
-function getAudioCtx(): AudioContext {
-  if (!sharedAudioCtx) sharedAudioCtx = new AudioContext();
-  if (sharedAudioCtx.state === "suspended") void sharedAudioCtx.resume();
-  return sharedAudioCtx;
-}
-
-function promoteToAudioCtx(soundId: string, audioEl: HTMLAudioElement): EffectChain {
-  if (effectChains.has(soundId)) return effectChains.get(soundId)!;
-
-  // If the element was created before crossOrigin was added to makeAudio()
-  // (e.g. warmed-up or played in a previous session without the fix), we must
-  // reload it with CORS headers before the browser will let Web Audio read it.
-  // New elements from makeAudio() already have crossOrigin set, so this branch
-  // is only hit on elements that predate this fix.
-  if (audioEl.crossOrigin !== "anonymous") {
-    const wasPlaying = !audioEl.paused;
-    const savedTime  = audioEl.currentTime;
-    audioEl.crossOrigin = "anonymous";
-    audioEl.load(); // re-fetches with CORS; brief silence while rebuffering
-    if (wasPlaying) {
-      audioEl.addEventListener("canplay", () => {
-        audioEl.currentTime = isFinite(audioEl.duration)
-          ? Math.min(savedTime, audioEl.duration)
-          : savedTime;
-        void audioEl.play();
-      }, { once: true });
-    }
-  }
-
-  const ctx = getAudioCtx();
-  const source = ctx.createMediaElementSource(audioEl);
-  const filter = ctx.createBiquadFilter();
-  filter.type = "lowpass";
-  filter.frequency.value = 22000; // fully open — passes all frequencies
-  filter.Q.value = 0.7071;        // maximally flat (Butterworth Q)
-  const gainNode = ctx.createGain();
-  gainNode.gain.value = 1.0;
-  source.connect(filter);
-  filter.connect(gainNode);
-  gainNode.connect(ctx.destination);
-  const chain: EffectChain = { source, filter, gainNode };
-  effectChains.set(soundId, chain);
-  return chain;
-}
-
-function destroyEffectChain(soundId: string): void {
-  const chain = effectChains.get(soundId);
-  if (!chain) return;
-  try {
-    chain.source.disconnect();
-    chain.filter.disconnect();
-    chain.gainNode.disconnect();
-  } catch { /* already disconnected — ignore */ }
-  effectChains.delete(soundId);
-}
+const DEFAULT_VOLUME = 0.8;
 
 // ── Audio Engine (module-level, NEVER reactive) ───────────────────────────
 //
@@ -133,11 +64,47 @@ function destroyEffectChain(soundId: string): void {
 // play() calls fail unpredictably). Keep instances in a plain Map at module
 // scope and only surface serializable state to Pinia.
 //
+// The Web Audio graph itself (buses, per-sound gain, filters, ducking) lives
+// in `@/lib/audioEngine` — this store no longer owns an AudioContext.
+//
 const audioInstances = new Map<string, HTMLAudioElement>();
 
 // Tracks which sound IDs have already been retried once after a load error.
 // CDN 502s from Freesound are usually transient — a single retry catches most.
 const retriedIds = new Set<string>();
+
+// Sound IDs currently holding the effects-bus duck. Set membership IS the
+// refcount, so overlapping one-shots don't un-duck each other prematurely and
+// a double-release is a no-op.
+const duckingSounds = new Set<string>();
+
+// Bumped whenever a sound starts a fade-out. A fade-out completion callback
+// only acts if its generation is still current — otherwise a stop() quickly
+// followed by a play() would let the stale callback pause the freshly started
+// element. This is the race that makes naive crossfading eat tracks.
+const transitionGen = new Map<string, number>();
+
+function bumpGeneration(soundId: string): number {
+  const prev = transitionGen.get(soundId);
+  const next = (prev === undefined ? 0 : prev) + 1;
+  transitionGen.set(soundId, next);
+  return next;
+}
+
+function isCurrentGeneration(soundId: string, gen: number): boolean {
+  return transitionGen.get(soundId) === gen;
+}
+
+/**
+ * Which bus a sound is summed through. Only an explicit "effects" category
+ * triggers ducking, so an uncategorised sound can never accidentally duck the
+ * music bed under itself.
+ */
+function busForCategory(category: SoundCategory | undefined): AudioBus {
+  if (category === "music") return "music";
+  if (category === "effects") return "effects";
+  return "ambient";
+}
 
 function makeAudio(fileUrl: string): HTMLAudioElement {
   const audio = new Audio();
@@ -162,6 +129,8 @@ function destroyAudio(soundId: string): void {
 // ─────────────────────────────────────────────────────────────────────────
 
 export const useSoundboardStore = defineStore("soundboard", () => {
+  const engine = getAudioEngine();
+
   // Per-sound playback state (serializable only)
   const playbackStates = ref<Record<string, SoundPlaybackState>>({});
 
@@ -176,8 +145,13 @@ export const useSoundboardStore = defineStore("soundboard", () => {
   const activeMusicPlaylist = ref<MusicPlaylistRunState | null>(null);
   const activeAmbientPlaylist = ref<AmbientPlaylistRunState | null>(null);
 
-  // Per-sound audio effect presets (reactive — drives UI only; actual params live in effectChains)
+  // Per-sound audio effect presets (reactive — drives UI only; actual params live in the engine)
   const soundEffects = ref<Record<string, AudioEffectPreset>>({});
+
+  // Master + per-bus faders. New surface — nothing existed before, so a DM had
+  // to ride every sound's slider individually to bring the whole mix down.
+  const masterVolume = ref(1);
+  const busVolumes = ref<Record<AudioBus, number>>({ music: 1, ambient: 1, effects: 1 });
 
   // Number of currently playing sounds — used for badge
   const playingCount = computed(
@@ -186,7 +160,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
 
   function getState(soundId: string): SoundPlaybackState {
     if (!playbackStates.value[soundId]) {
-      playbackStates.value[soundId] = { isPlaying: false, volume: 0.8, isLooping: false, currentTime: 0, duration: 0, loadError: false };
+      playbackStates.value[soundId] = { isPlaying: false, volume: DEFAULT_VOLUME, isLooping: false, currentTime: 0, duration: 0, loadError: false };
     }
     return playbackStates.value[soundId];
   }
@@ -208,7 +182,9 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     }
     retriedIds.add(soundId);
     // Recreate the element to re-trigger the network fetch. Same URL — most
-    // 502s are transient CDN blips that resolve on the next request.
+    // 502s are transient CDN blips that resolve on the next request. The engine
+    // keys its source nodes by element identity, so it rebuilds the chain when
+    // this new element is attached.
     destroyAudio(soundId);
     const fresh = makeAudio(fileUrl);
     fresh.onerror = () => handleLoadError(soundId, fileUrl);
@@ -224,56 +200,159 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     audioInstances.set(soundId, fresh);
   }
 
-  function play(soundId: string, fileUrl: string): void {
+  // ── Ducking ─────────────────────────────────────────────────────────────
+
+  function acquireDuck(soundId: string): void {
+    if (duckingSounds.has(soundId)) return;
+    duckingSounds.add(soundId);
+    if (duckingSounds.size === 1) engine.duck();
+  }
+
+  function releaseDuck(soundId: string): void {
+    if (!duckingSounds.delete(soundId)) return;
+    if (duckingSounds.size === 0) engine.unduck();
+  }
+
+  // ── Core playback ───────────────────────────────────────────────────────
+
+  /**
+   * Apply the store's notion of a sound's level to whichever path is live:
+   * the engine's gain node when Web Audio is available, the element's own
+   * volume otherwise.
+   */
+  function applyVolume(soundId: string, audio: HTMLAudioElement, volume: number, rampMs: number): void {
+    if (engine.available) {
+      // Element stays wide open; the graph owns level so it can be ramped.
+      audio.volume = 1;
+      engine.setSoundVolume(soundId, volume, rampMs);
+    } else {
+      audio.volume = volume;
+    }
+  }
+
+  function play(
+    soundId: string,
+    fileUrl: string,
+    category?: SoundCategory,
+    gainTrim?: number,
+  ): void {
     const audio = getOrCreate(soundId, fileUrl);
     const state = getState(soundId);
-    audio.volume = state.volume;
+    const bus = busForCategory(category);
+
+    engine.attach(soundId, audio, bus);
+    if (gainTrim !== undefined) engine.setSoundTrim(soundId, gainTrim);
+
     audio.loop = state.isLooping;
-    if (!isCasting.value) {
-      audio.play().catch(() => {
-        // Browser may block autoplay; silently ignore — the button stays in
-        // "stopped" state so the user can retry.
-      });
+    attachHandlers(soundId, audio, bus);
+
+    // A new play supersedes any in-flight fade-out for this sound.
+    bumpGeneration(soundId);
+
+    if (isCasting.value) {
+      // Cast device is the output; keep the UI truthful about it playing.
+      state.isPlaying = true;
+      return;
     }
-    state.isPlaying = true;
+
+    // Start silent so fadeIn has somewhere to come from.
+    applyVolume(soundId, audio, state.volume, 0);
+
+    void audio
+      .play()
+      .then(() => {
+        const live = playbackStates.value[soundId];
+        if (live) live.isPlaying = true;
+        if (bus === "effects") acquireDuck(soundId);
+        engine.fadeIn(soundId, FADE_IN_MS);
+      })
+      .catch(() => {
+        // Autoplay blocked (or the element was torn down mid-start). Previously
+        // isPlaying was set unconditionally before this point, so the UI showed
+        // a playing sound while the room heard silence. Tell the truth instead.
+        const live = playbackStates.value[soundId];
+        if (live) live.isPlaying = false;
+      });
+  }
+
+  function attachHandlers(soundId: string, audio: HTMLAudioElement, bus: AudioBus): void {
     audio.ontimeupdate = () => {
       const s = playbackStates.value[soundId];
-      if (s) {
-        s.currentTime = audio.currentTime;
-        s.duration = isFinite(audio.duration) ? audio.duration : 0;
+      if (!s) return;
+      s.currentTime = audio.currentTime;
+      s.duration = isFinite(audio.duration) ? audio.duration : 0;
+
+      // Begin the crossfade before the track actually ends, so the next one is
+      // already rising as this one falls. Without this the "crossfade" would be
+      // a fade-in after silence, which is just a slower hard cut.
+      const mpl = activeMusicPlaylist.value;
+      if (!mpl || mpl.paused) return;
+      if (mpl.trackSoundIds[mpl.currentIndex] !== soundId) return;
+      if (!audio.loop && isFinite(audio.duration) && audio.duration > 0) {
+        const remainingMs = (audio.duration - audio.currentTime) * 1000;
+        if (remainingMs <= CROSSFADE_MS) advanceMusicPlaylist(1, CROSSFADE_MS);
       }
     };
+
     audio.onended = () => {
-      if (playbackStates.value[soundId]) {
-        playbackStates.value[soundId].isPlaying = false;
-        playbackStates.value[soundId].currentTime = 0;
+      const s = playbackStates.value[soundId];
+      if (s) {
+        s.isPlaying = false;
+        s.currentTime = 0;
       }
-      // Auto-advance music playlist when this track finishes
+      if (bus === "effects") releaseDuck(soundId);
+
+      // Fallback advance for streams whose duration never resolves, so
+      // ontimeupdate's early crossfade never got a chance to fire.
       const mpl = activeMusicPlaylist.value;
       if (mpl && mpl.trackSoundIds[mpl.currentIndex] === soundId) {
-        musicPlaylistNext();
+        advanceMusicPlaylist(1, 0);
       }
     };
+  }
+
+  /**
+   * Ramp a sound to silence, then pause it. Returns immediately — callers stay
+   * synchronous, matching the previous hard-cut signatures.
+   */
+  function fadeAndHalt(soundId: string, rewind: boolean, fadeMs: number): void {
+    const audio = audioInstances.get(soundId);
+    releaseDuck(soundId);
+
+    const st = playbackStates.value[soundId];
+    if (st) {
+      st.isPlaying = false;
+      if (rewind) st.currentTime = 0;
+    }
+    if (!audio) return;
+
+    const halt = (): void => {
+      audio.pause();
+      if (rewind) audio.currentTime = 0;
+      // Restore the gain node for the next play, which starts from this value.
+      const live = playbackStates.value[soundId];
+      engine.setSoundVolume(soundId, live === undefined ? DEFAULT_VOLUME : live.volume, 0);
+    };
+
+    if (!engine.available || fadeMs <= 0) {
+      halt();
+      return;
+    }
+
+    const gen = bumpGeneration(soundId);
+    void engine.fadeOut(soundId, fadeMs).then(() => {
+      // A play() landed while we were fading — leave the new playback alone.
+      if (!isCurrentGeneration(soundId, gen)) return;
+      halt();
+    });
   }
 
   function stop(soundId: string): void {
-    const audio = audioInstances.get(soundId);
-    if (audio) {
-      audio.pause();
-      audio.currentTime = 0;
-    }
-    if (playbackStates.value[soundId]) {
-      playbackStates.value[soundId].isPlaying = false;
-      playbackStates.value[soundId].currentTime = 0;
-    }
+    fadeAndHalt(soundId, true, FADE_OUT_MS);
   }
 
   function pause(soundId: string): void {
-    const audio = audioInstances.get(soundId);
-    if (audio) audio.pause();
-    if (playbackStates.value[soundId]) {
-      playbackStates.value[soundId].isPlaying = false;
-    }
+    fadeAndHalt(soundId, false, FADE_OUT_MS);
   }
 
   function seek(soundId: string, time: number): void {
@@ -290,7 +369,24 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     const clamped = Math.max(0, Math.min(1, volume));
     getState(soundId).volume = clamped;
     const audio = audioInstances.get(soundId);
-    if (audio) audio.volume = clamped;
+    if (audio) applyVolume(soundId, audio, clamped, 0);
+  }
+
+  /** Per-sound loudness-normalisation offset, so a quiet clip and a loud upload can be levelled once. */
+  function setTrim(soundId: string, trim: number): void {
+    engine.setSoundTrim(soundId, trim);
+  }
+
+  function setMasterVolume(volume: number): void {
+    const clamped = Math.max(0, Math.min(1, volume));
+    masterVolume.value = clamped;
+    engine.setMasterVolume(clamped, 60);
+  }
+
+  function setBusVolume(bus: AudioBus, volume: number): void {
+    const clamped = Math.max(0, Math.min(1, volume));
+    busVolumes.value[bus] = clamped;
+    engine.setBusVolume(bus, clamped, 60);
   }
 
   function toggleLoop(soundId: string): void {
@@ -302,12 +398,15 @@ export const useSoundboardStore = defineStore("soundboard", () => {
 
   function stopAll(): void {
     audioInstances.forEach((audio, id) => {
+      bumpGeneration(id);
       audio.pause();
       audio.currentTime = 0;
       if (playbackStates.value[id]) {
         playbackStates.value[id].isPlaying = false;
       }
     });
+    duckingSounds.clear();
+    engine.unduck(0);
     activeMusicPlaylist.value = null;
     activeAmbientPlaylist.value = null;
   }
@@ -339,11 +438,13 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     const soundNames: Record<string, string> = {};
     const artists: Record<string, string | null> = {};
     const thumbnailUrls: Record<string, string | null> = {};
+    const gainTrims: Record<string, number> = {};
     ordered.forEach((t) => {
       fileUrls[t.sound.id] = t.sound.file_url;
       soundNames[t.sound.id] = t.sound.name;
       artists[t.sound.id] = t.sound.artist ?? null;
       thumbnailUrls[t.sound.id] = t.sound.thumbnail_url ?? null;
+      gainTrims[t.sound.id] = t.sound.gain_trim;
     });
 
     activeMusicPlaylist.value = {
@@ -354,6 +455,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
       soundNames,
       artists,
       thumbnailUrls,
+      gainTrims,
       currentIndex: 0,
       repeat: playlist.repeat,
       effect: "none",
@@ -369,31 +471,59 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     getState(soundId).isLooping = false;
     const el = audioInstances.get(soundId);
     if (el) el.loop = false;
-    play(soundId, mpl.fileUrls[soundId]);
+    play(soundId, mpl.fileUrls[soundId], "music", mpl.gainTrims[soundId]);
     if (mpl.effect !== "none") {
-      setEffect(soundId, mpl.fileUrls[soundId], mpl.effect);
+      engine.setEffect(soundId, mpl.effect);
+      soundEffects.value[soundId] = mpl.effect;
     }
+    prefetchNeighbour(mpl);
   }
 
-  function musicPlaylistNext(): void {
+  /**
+   * Create the next track's element ahead of time so its fetch and decode
+   * happen before the transition rather than inside the gap it would leave.
+   */
+  function prefetchNeighbour(mpl: MusicPlaylistRunState): void {
+    const nextIndex = mpl.currentIndex + 1;
+    const wrapped = nextIndex >= mpl.trackSoundIds.length ? (mpl.repeat ? 0 : -1) : nextIndex;
+    if (wrapped < 0) return;
+    const nextId = mpl.trackSoundIds[wrapped];
+    if (nextId === undefined) return;
+    getOrCreate(nextId, mpl.fileUrls[nextId]);
+  }
+
+  /**
+   * Move by `delta` tracks, overlapping the outgoing fade-out with the incoming
+   * fade-in. `fadeMs` of 0 means the outgoing track already ended, so there is
+   * nothing to overlap.
+   */
+  function advanceMusicPlaylist(delta: number, fadeMs: number): void {
     const mpl = activeMusicPlaylist.value;
     if (!mpl) return;
 
-    stop(mpl.trackSoundIds[mpl.currentIndex]);
+    const outgoingId = mpl.trackSoundIds[mpl.currentIndex];
+    const nextIndex = mpl.currentIndex + delta;
 
-    const nextIndex = mpl.currentIndex + 1;
     if (nextIndex >= mpl.trackSoundIds.length) {
-      if (mpl.repeat) {
-        mpl.currentIndex = 0;
-      } else {
+      if (!mpl.repeat) {
+        fadeAndHalt(outgoingId, true, fadeMs);
         activeMusicPlaylist.value = null;
         return;
       }
+      mpl.currentIndex = 0;
+    } else if (nextIndex < 0) {
+      mpl.currentIndex = mpl.repeat ? mpl.trackSoundIds.length - 1 : 0;
     } else {
       mpl.currentIndex = nextIndex;
     }
 
+    const incomingId = mpl.trackSoundIds[mpl.currentIndex];
+    if (incomingId !== outgoingId) fadeAndHalt(outgoingId, true, fadeMs);
     startCurrentPlaylistTrack(mpl);
+  }
+
+  function musicPlaylistNext(): void {
+    advanceMusicPlaylist(1, CROSSFADE_MS);
   }
 
   function musicPlaylistPrev(): void {
@@ -407,14 +537,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
       return;
     }
 
-    stop(curId);
-
-    const prevIndex = mpl.currentIndex - 1;
-    mpl.currentIndex = prevIndex < 0
-      ? (mpl.repeat ? mpl.trackSoundIds.length - 1 : 0)
-      : prevIndex;
-
-    startCurrentPlaylistTrack(mpl);
+    advanceMusicPlaylist(-1, CROSSFADE_MS);
   }
 
   function setMusicPlaylistEffect(preset: AudioEffectPreset): void {
@@ -436,7 +559,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     const mpl = activeMusicPlaylist.value;
     if (!mpl || !mpl.paused) return;
     const soundId = mpl.trackSoundIds[mpl.currentIndex];
-    play(soundId, mpl.fileUrls[soundId]);
+    play(soundId, mpl.fileUrls[soundId], "music", mpl.gainTrims[soundId]);
     mpl.paused = false;
   }
 
@@ -461,12 +584,14 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     const soundIds = tracks.map((t) => t.sound.id);
     activeAmbientPlaylist.value = { playlistId: playlist.id, playlistName: playlist.name, soundIds, paused: false };
 
-    // All tracks loop independently so the scene runs until explicitly stopped
+    // All tracks loop independently so the scene runs until explicitly stopped.
+    // They rise together over AMBIENT_FADE_MS rather than snapping in at full.
     tracks.forEach((t) => {
       getState(t.sound.id).isLooping = true;
       const el = audioInstances.get(t.sound.id);
       if (el) el.loop = true;
-      play(t.sound.id, t.sound.file_url);
+      play(t.sound.id, t.sound.file_url, "ambient", t.sound.gain_trim);
+      engine.fadeIn(t.sound.id, AMBIENT_FADE_MS);
     });
   }
 
@@ -480,55 +605,44 @@ export const useSoundboardStore = defineStore("soundboard", () => {
   function resumeAmbientPlaylist(): void {
     const apl = activeAmbientPlaylist.value;
     if (!apl || !apl.paused) return;
-    // Re-fetch file URLs from the audio instances (they were warmed up at play time)
     apl.soundIds.forEach((id) => {
       const el = audioInstances.get(id);
-      if (el) void el.play();
-      if (playbackStates.value[id]) playbackStates.value[id].isPlaying = true;
+      if (!el) return;
+      bumpGeneration(id);
+      const st = playbackStates.value[id];
+      applyVolume(id, el, st === undefined ? DEFAULT_VOLUME : st.volume, 0);
+      void el
+        .play()
+        .then(() => {
+          const live = playbackStates.value[id];
+          if (live) live.isPlaying = true;
+          engine.fadeIn(id, AMBIENT_FADE_MS);
+        })
+        .catch(() => {
+          const live = playbackStates.value[id];
+          if (live) live.isPlaying = false;
+        });
     });
     apl.paused = false;
   }
 
   function stopAmbientPlaylist(): void {
     if (!activeAmbientPlaylist.value) return;
-    activeAmbientPlaylist.value.soundIds.forEach((id) => stop(id));
+    activeAmbientPlaylist.value.soundIds.forEach((id) => fadeAndHalt(id, true, AMBIENT_FADE_MS));
     activeAmbientPlaylist.value = null;
   }
 
   // ── Audio effects ─────────────────────────────────────────────────────────
 
   /**
-   * Apply (or remove) a filter effect to a sound with a smooth 500 ms transition.
-   * Promotes the audio element into the Web Audio graph on first call — this is
-   * permanent for the element's lifetime, but the chain is transparent when
-   * preset is "none".
+   * Apply (or remove) a filter effect to a sound with a smooth transition.
+   * The element is attached to the graph on first use; the chain is transparent
+   * while the preset is "none".
    */
   function setEffect(soundId: string, fileUrl: string, preset: AudioEffectPreset): void {
     const audio = getOrCreate(soundId, fileUrl);
-    const chain = promoteToAudioCtx(soundId, audio);
-    const ctx = getAudioCtx();
-    const now = ctx.currentTime;
-
-    // Anchor current values before scheduling a ramp (prevents discontinuities
-    // if setEffect is called multiple times before a previous ramp finishes)
-    chain.filter.frequency.cancelScheduledValues(now);
-    chain.filter.frequency.setValueAtTime(chain.filter.frequency.value, now);
-    chain.filter.Q.cancelScheduledValues(now);
-    chain.filter.Q.setValueAtTime(chain.filter.Q.value, now);
-    chain.gainNode.gain.cancelScheduledValues(now);
-    chain.gainNode.gain.setValueAtTime(chain.gainNode.gain.value, now);
-
-    if (preset === "none") {
-      chain.filter.frequency.linearRampToValueAtTime(22000, now + EFFECT_RAMP_S);
-      chain.filter.Q.linearRampToValueAtTime(0.7071, now + EFFECT_RAMP_S);
-      chain.gainNode.gain.linearRampToValueAtTime(1.0, now + EFFECT_RAMP_S);
-    } else {
-      const p = EFFECT_PARAMS[preset];
-      chain.filter.frequency.linearRampToValueAtTime(p.frequency, now + EFFECT_RAMP_S);
-      chain.filter.Q.linearRampToValueAtTime(p.Q, now + EFFECT_RAMP_S);
-      chain.gainNode.gain.linearRampToValueAtTime(p.gain, now + EFFECT_RAMP_S);
-    }
-
+    engine.attach(soundId, audio, "ambient");
+    engine.setEffect(soundId, preset);
     soundEffects.value[soundId] = preset;
   }
 
@@ -544,9 +658,12 @@ export const useSoundboardStore = defineStore("soundboard", () => {
 
   /** Call when a sound is deleted from the library to clean up the engine. */
   function releaseSound(soundId: string): void {
-    destroyEffectChain(soundId); // disconnect AudioContext nodes before destroying element
+    releaseDuck(soundId);
+    bumpGeneration(soundId);
+    engine.detach(soundId);
     destroyAudio(soundId);
     retriedIds.delete(soundId);
+    transitionGen.delete(soundId);
     delete playbackStates.value[soundId];
     delete soundEffects.value[soundId];
   }
@@ -557,13 +674,11 @@ export const useSoundboardStore = defineStore("soundboard", () => {
    *
    * Only the AudioContext is resumed here. Re-playing HTMLAudioElements that
    * were paused by an interruption is intentionally omitted: doing so races with
-   * the play() → onended → musicPlaylistNext() chain and can cause an AbortError
-   * that silently kills auto-advance.
+   * the play() → onended → advance chain and can cause an AbortError that
+   * silently kills auto-advance.
    */
   function resumeAudioEngine(): void {
-    if (sharedAudioCtx?.state === "suspended") {
-      void sharedAudioCtx.resume();
-    }
+    engine.resume();
   }
 
   function toggleWidget(): void {
@@ -586,12 +701,17 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     activeAmbientPlaylist,
     soundEffects,
     isCasting,
+    masterVolume,
+    busVolumes,
     getState,
     play,
     pause,
     stop,
     seek,
     setVolume,
+    setTrim,
+    setMasterVolume,
+    setBusVolume,
     toggleLoop,
     stopAll,
     releaseSound,

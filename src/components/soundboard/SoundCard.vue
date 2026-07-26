@@ -483,7 +483,14 @@ function togglePlay() {
   if (audioState.value.isPlaying) {
     soundboardStore.pause(props.sound.id);
   } else {
-    soundboardStore.play(props.sound.id, props.sound.file_url);
+    // Category picks the bus: "effects" one-shots duck the music and ambient
+    // beds under themselves, music and ambience do not.
+    soundboardStore.play(
+      props.sound.id,
+      props.sound.file_url,
+      props.sound.category,
+      props.sound.gain_trim,
+    );
   }
 }
 

@@ -298,7 +298,7 @@ function onSessionStateChanged(e: SessionStateEvent): void {
         const mpl = store.activeMusicPlaylist;
         if (mpl && !mpl.paused) {
           const soundId = mpl.trackSoundIds[mpl.currentIndex];
-          store.play(soundId, mpl.fileUrls[soundId]);
+          store.play(soundId, mpl.fileUrls[soundId], "music", mpl.gainTrims[soundId]);
         }
       }
       break;

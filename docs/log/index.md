@@ -3,8 +3,8 @@
 Curated history of shipped features and resolved bugs, chunked by subsystem. This
 is a **log**, not a tracker: open work lives in GitHub issues on `irongollem/grimoire`.
 
-- **Features** (530 entries) — what shipped, newest first per file.
-- **Fixes** (249 entries) — resolved bugs, newest first per file.
+- **Features** (531 entries) — what shipped, newest first per file.
+- **Fixes** (251 entries) — resolved bugs, newest first per file.
 
 When you finish work, append a `- [x]` line to the matching file below
 (`features/<subsystem>.md` for a feature, `fixes/<subsystem>.md` for a bug fix).
@@ -36,7 +36,8 @@ Pick the subsystem the change is primarily about; use `misc` only as a last reso
 | AI Generation | 24 | [features/ai.md](features/ai.md) |
 | Billing | 33 | [features/billing.md](features/billing.md) |
 | Infrastructure | 12 | [features/infra.md](features/infra.md) |
-| Miscellaneous | 6 | [features/misc.md](features/misc.md) |
+| Soundboard | 6 | [features/soundboard.md](features/soundboard.md) |
+| Miscellaneous | 1 | [features/misc.md](features/misc.md) |
 
 ## Fixes — `docs/log/fixes/`
 
@@ -60,9 +61,10 @@ Pick the subsystem the change is primarily about; use `misc` only as a last reso
 | Chat & Dice | 10 | [fixes/chat.md](fixes/chat.md) |
 | Images & Art | 8 | [fixes/images.md](fixes/images.md) |
 | Publishing & Export | 23 | [fixes/publishing.md](fixes/publishing.md) |
-| UI & Layout | 13 | [fixes/ui.md](fixes/ui.md) |
+| UI & Layout | 12 | [fixes/ui.md](fixes/ui.md) |
 | Database & Security | 9 | [fixes/database.md](fixes/database.md) |
 | AI Generation | 9 | [fixes/ai.md](fixes/ai.md) |
 | Billing | 5 | [fixes/billing.md](fixes/billing.md) |
 | Infrastructure | 8 | [fixes/infra.md](fixes/infra.md) |
-| Miscellaneous | 2 | [fixes/misc.md](fixes/misc.md) |
+| Soundboard | 3 | [fixes/soundboard.md](fixes/soundboard.md) |
+| Miscellaneous | 1 | [fixes/misc.md](fixes/misc.md) |

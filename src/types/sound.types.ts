@@ -35,14 +35,18 @@ export interface Sound {
   attribution_url: string | null; // link back to the source page
   thumbnail_url: string | null; // optional cover art — used by Media Session (CarPlay, lock screen, etc.)
   artist: string | null; // e.g. "Vindsvept" — shown in Media Session; defaults to "Dungeon Grimoire"
+  gain_trim: number; // loudness-normalisation multiplier applied ahead of user volume; 1.0 = unmodified
   created_at: string;
   updated_at: string;
 }
 
 export type SoundInsert = Omit<
   Sound,
-  "id" | "user_id" | "created_at" | "updated_at"
->;
+  "id" | "user_id" | "created_at" | "updated_at" | "gain_trim"
+> & {
+  /** Omit to take the column default of 1.0 (unmodified loudness). */
+  gain_trim?: number;
+};
 export type SoundUpdate = Partial<SoundInsert>;
 
 export interface SoundPlaybackState {

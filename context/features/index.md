@@ -12,21 +12,22 @@ Auth: Supabase Auth. Role system: `dm` or `player` per campaign (stored in `camp
 
 Each doc covers **both DM and player perspectives**, lists exact file paths, composables, TypeScript types, and DB tables. Read the relevant doc before working on a feature.
 
-| File                                                     | What it covers                                                                                                    |
-| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| [campaign-notes-calendar.md](campaign-notes-calendar.md) | Dashboard, Session Notes, Player Journal, Faerûn Calendar, timeline, AI Chronicler image gen                      |
-| [world-building.md](world-building.md)                   | Atlas/Locations (17 types, hierarchical), Quest Log (kanban + status), Factions + relations                       |
-| [npcs.md](npcs.md)                                       | NPC list, full detail sheet, force-directed Relationship Web, NPC Generator, player visibility                    |
-| [party-characters.md](party-characters.md)               | Party Tracker, full D&D 5e character sheet, Character Codex, Hall of Heroes, shapeshifter disguise                |
-| [combat-encounters.md](combat-encounters.md)             | Bestiary (monster builder + discovery), Encounter Builder, live Encounter Runner, player combat view              |
-| [items-spells-crafting.md](items-spells-crafting.md)     | Item Vault, player Paper Doll inventory, Spellbook, Workshop recipes + player crafting                            |
-| [dungeon-craft.md](dungeon-craft.md)                     | Dungeon Features, Traps (CR advisor), Puzzles (DM/player split), Roll Tables, Loot Tables                         |
-| [cartographer.md](cartographer.md)                       | **(Spec)** Tile-based battle map builder; versioned tile packs; per-brush theme; bakes to Atlas locations         |
-| [downtime-interlude.md](downtime-interlude.md)           | The Interlude: DM-granted downtime credits, card-driven player draws, DM batch resolution, prepped deck backs     |
-| [simulacrum.md](simulacrum.md)                           | Simulacrum: portrait → AI mini-render → Meshy 3D sculpt (print STL / VTT GLB), teaser demand gate, /minis gallery |
-| [publishing-tools.md](publishing-tools.md)               | Scriptorium (document publisher), Card Forge (MTG/Tarot print), The Mint (tokens+coins), Illuminator, Reliquary   |
-| [player-portal.md](player-portal.md)                     | The full player experience: all /play/\* views, layout, nav, live encounter panel, DM Preview Mode                |
-| [collaboration.md](collaboration.md)                     | Multi-user invite system, campaign members, DM/player roles, live sync, RLS security model                        |
+| File                                                     | What it covers                                                                                                                                   |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [campaign-notes-calendar.md](campaign-notes-calendar.md) | Dashboard, Session Notes, Player Journal, Faerûn Calendar, timeline, AI Chronicler image gen                                                     |
+| [world-building.md](world-building.md)                   | Atlas/Locations (17 types, hierarchical), Quest Log (kanban + status), Factions + relations                                                      |
+| [npcs.md](npcs.md)                                       | NPC list, full detail sheet, force-directed Relationship Web, NPC Generator, player visibility                                                   |
+| [party-characters.md](party-characters.md)               | Party Tracker, full D&D 5e character sheet, Character Codex, Hall of Heroes, shapeshifter disguise                                               |
+| [combat-encounters.md](combat-encounters.md)             | Bestiary (monster builder + discovery), Encounter Builder, live Encounter Runner, player combat view                                             |
+| [items-spells-crafting.md](items-spells-crafting.md)     | Item Vault, player Paper Doll inventory, Spellbook, Workshop recipes + player crafting                                                           |
+| [dungeon-craft.md](dungeon-craft.md)                     | Dungeon Features, Traps (CR advisor), Puzzles (DM/player split), Roll Tables, Loot Tables                                                        |
+| [cartographer.md](cartographer.md)                       | **(Spec)** Tile-based battle map builder; versioned tile packs; per-brush theme; bakes to Atlas locations                                        |
+| [downtime-interlude.md](downtime-interlude.md)           | The Interlude: DM-granted downtime credits, card-driven player draws, DM batch resolution, prepped deck backs                                    |
+| [simulacrum.md](simulacrum.md)                           | Simulacrum: portrait → AI mini-render → Meshy 3D sculpt (print STL / VTT GLB), teaser demand gate, /minis gallery                                |
+| [publishing-tools.md](publishing-tools.md)               | Scriptorium (document publisher), Card Forge (MTG/Tarot print), The Mint (tokens+coins), Illuminator, Reliquary                                  |
+| [player-portal.md](player-portal.md)                     | The full player experience: all /play/\* views, layout, nav, live encounter panel, DM Preview Mode                                               |
+| [collaboration.md](collaboration.md)                     | Multi-user invite system, campaign members, DM/player roles, live sync, RLS security model                                                       |
+| [soundboard.md](soundboard.md)                           | Soundboard: HTML/Web Audio engine, pages/playlists, five sound sources, Spotify/Cast/Media Session, free-tier quotas — DM-only, no player access |
 
 ---
 
@@ -97,11 +98,7 @@ Each doc covers **both DM and player perspectives**, lists exact file paths, com
 
 ### Soundboard
 
-- **Soundboard** — ambient sounds & music; Spotify integration (OAuth callback); multi-page organisation; playlists (music: auto-advance sequential; ambient: layered simultaneous scenes)
-  - `src/components/soundboard/` — SoundCard, SoundboardWidget, SoundboardPageTabs, PlaylistsPanel, PlaylistCard, PlaylistEditorDialog, PlaylistTrackRow
-  - `src/composables/useSoundboardPlaylists.ts` — TanStack Query for `soundboard_playlists` + `soundboard_playlist_tracks`
-  - `src/stores/soundboard.ts` — HTML Audio engine + music/ambient playlist run state (`activeMusicPlaylist`, `activeAmbientPlaylist`)
-  - DB: `soundboard_playlists` (type/shuffle/repeat/page_id), `soundboard_playlist_tracks` (junction, ordered)
+- **Soundboard** — ambient sounds & music for live sessions; multi-page/scene organisation; five sound sources (upload, URL, Spotify, Freesound SFX search, AI-generated via Lyria — upload and AI generation are Pro-gated); music playlists (sequential auto-advance) and ambient playlists (layered simultaneous scenes); Web Audio filter effects (muffled through door/wall, distant, underwater, cave, sewer); Google Cast + Media Session (CarPlay/lock screen) for music playlists; free tier capped at 20 sounds / 1 page / 3 playlists; DM-only — players have no access (owner-only RLS, no realtime channel). See [soundboard.md](soundboard.md).
 
 ---
 
