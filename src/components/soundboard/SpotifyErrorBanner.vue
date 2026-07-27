@@ -40,7 +40,11 @@ const hint = computed<string | null>(() => {
     return "Close the Spotify desktop app and try again.";
   }
   if (err.includes("403") || err.includes("Development mode")) {
-    return "Open your Spotify app in the developer dashboard, go to User Management, and add the account you are signing in with. Owning the app is not enough — it has to be listed.";
+    // Ordered by how often each is actually the cause. The API/SDK declaration
+    // catches out every app created before Spotify split "Web API" and "Web
+    // Playback SDK" into separate checkboxes — those apps declare only Web API
+    // and are refused the moment the SDK is used, with no hint as to why.
+    return "In the Spotify developer dashboard, check two things on this app: under Basic Information, both Web API and Web Playback SDK must be ticked; and under User Management, the account you sign in with must be listed. Owning the app is not enough on either count.";
   }
   return null;
 });

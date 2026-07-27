@@ -81,7 +81,7 @@ export async function readSpotifyError(res: Response): Promise<string> {
   // in Development mode and this account is not on its user list. Say so,
   // because the fix is in the Spotify dashboard and nowhere in this codebase.
   if (res.status === 403) {
-    return `${base}: ${detail}. If the app is in Development mode, the listening account must be added under User Management in the Spotify dashboard.`;
+    return `${base}: ${detail}. Check the Spotify app declares both Web API and Web Playback SDK, and that this account is listed under User Management.`;
   }
   return `${base}: ${detail}`;
 }

@@ -26,15 +26,17 @@ describe("readSpotifyError", () => {
     expect(msg).toContain("User not registered");
   });
 
-  it("explains what a 403 usually means, because the fix is not in this codebase", async () => {
+  it("names both 403 causes, because neither is fixable in this codebase", async () => {
     const msg = await readSpotifyError(res(403, { error: { message: "Forbidden" } }));
-    expect(msg).toContain("Development mode");
+    // The API/SDK declaration is the one that catches out apps created before
+    // Spotify split Web API and Web Playback SDK into separate checkboxes.
+    expect(msg).toContain("Web Playback SDK");
     expect(msg).toContain("User Management");
   });
 
-  it("does not add the Development-mode hint to non-403 failures", async () => {
+  it("does not add the dashboard hint to non-403 failures", async () => {
     const msg = await readSpotifyError(res(401, { error: "invalid_token" }));
-    expect(msg).not.toContain("Development mode");
+    expect(msg).not.toContain("User Management");
   });
 
   it("degrades to the status alone when the body is not JSON", async () => {

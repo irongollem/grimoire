@@ -34,8 +34,23 @@
             <IconCopy v-else class="h-3.5 w-3.5" />
           </button>
         </div>
-        <p class="text-caption text-muted-foreground italic">
-          3. Copy your Client ID below and save.
+        <ol class="text-caption text-muted-foreground space-y-1 list-decimal list-inside" start="3">
+          <li>
+            Under <span class="font-semibold text-foreground">Which API/SDKs are you planning to use?</span>,
+            tick <span class="font-semibold text-foreground">both</span> Web API
+            <span class="font-semibold text-foreground">and</span> Web Playback SDK.
+          </li>
+          <li>
+            Open <span class="font-semibold text-foreground">User Management</span> and add your own
+            Spotify account (name + the email on the account).
+          </li>
+          <li>Copy your Client ID below and save.</li>
+        </ol>
+        <p class="text-caption text-muted-foreground italic leading-relaxed">
+          Steps 3 and 4 are the ones people miss. Spotify used to offer a single
+          "Web" option and to grant the app owner access implicitly, so older apps
+          often have only Web API ticked and an empty user list — both now return a
+          bare <span class="font-mono not-italic">403</span> with no explanation.
         </p>
       </div>
     </div>
