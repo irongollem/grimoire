@@ -7,6 +7,7 @@ import type {
   SoundCategory,
 } from "@/types/sound.types";
 import { getAudioEngine, type AudioBus } from "@/lib/audioEngine";
+import { createSceneGeneratorPool } from "@/lib/sceneGenerators";
 import {
   getInstance,
   setInstance,
@@ -101,40 +102,15 @@ interface GaplessLoop {
 /** Logical soundId → its gapless-loop state. Non-reactive; the UI only ever sees the logical id. */
 const gaplessLoops = new Map<string, GaplessLoop>();
 
-/**
- * A scene layer that fires one-shots at random intervals rather than looping.
- *
- * This is the mechanic that separates a scene from a stack of loops. Three
- * looping files are the same three files every time and players start hearing
- * the seam; a mug that clatters somewhere on the left every forty-odd seconds,
- * never at quite the same level or from quite the same place, reads as a room.
- */
-interface SceneGenerator {
-  soundId: string;
-  fileUrl: string;
-  gainTrim: number | undefined;
-  minIntervalS: number;
-  maxIntervalS: number;
-  minGain: number;
-  maxGain: number;
-  panSpread: number;
-  /** Level of the owning layer, folded into every firing. */
-  layerVolume: number;
-  timer: ReturnType<typeof setTimeout> | null;
-}
-
-const sceneGenerators = new Map<string, SceneGenerator>();
-
-/** Uniform draw in [min, max]. */
-function randomBetween(min: number, max: number): number {
-  if (max <= min) return min;
-  return min + Math.random() * (max - min);
-}
-
 // ─────────────────────────────────────────────────────────────────────────
 
 export const useSoundboardStore = defineStore("soundboard", () => {
   const engine = getAudioEngine();
+
+  // Scene layers that fire one-shots at random intervals rather than looping.
+  // Lives outside the store because it is timers and randomness rather than
+  // reactive state — see src/lib/sceneGenerators.ts.
+  const generators = createSceneGeneratorPool({ engine, getAudio: getOrCreate });
 
   // Per-sound playback state (serializable only)
   const playbackStates = ref<Record<string, SoundPlaybackState>>({});
@@ -169,14 +145,6 @@ export const useSoundboardStore = defineStore("soundboard", () => {
   );
 
   /**
-   * Is anything at all producing sound?
-   *
-   * Deliberately broader than `playingCount`. A running playlist or scene has no
-   * per-sound playback state of its own, and generator layers never create one
-   * at all — they fire one-shots directly. Judging "is the board silent?" by
-   * `playbackStates` alone therefore reports silence over a playing scene.
-   */
-  /**
    * How many distinct things are making noise, for the nav badge.
    *
    * A running playlist counts as one item, not as its individual tracks — and
@@ -200,6 +168,14 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     return count;
   });
 
+  /**
+   * Is anything at all producing sound?
+   *
+   * Deliberately broader than `playingCount`. A running playlist or scene has no
+   * per-sound playback state of its own, and generator layers never create one
+   * at all — they fire one-shots directly. Judging "is the board silent?" by
+   * `playbackStates` alone therefore reports silence over a playing scene.
+   */
   const hasActiveAudio = computed(() => {
     if (playingCount.value > 0) return true;
     const mpl = activeMusicPlaylist.value;
@@ -466,7 +442,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
         playbackStates.value[id].isPlaying = false;
       }
     });
-    stopGenerators([...sceneGenerators.keys()]);
+    generators.stopAll();
     gaplessLoops.clear();
     clearDucking();
     engine.unduck(0);
@@ -738,66 +714,16 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     activeMusicPlaylist.value = null;
   }
 
-  // ── Scene generators ────────────────────────────────────────────────────
-
-  /**
-   * Fire one instance of a generator layer, then schedule the next at a fresh
-   * random interval. Every firing varies level and stereo position, which is
-   * what makes a generator read as a room rather than a repeating cue.
-   */
-  function fireGenerator(gen: SceneGenerator): void {
-    const audio = getOrCreate(gen.soundId, gen.fileUrl);
-    engine.attach(gen.soundId, audio, "ambient");
-    if (gen.gainTrim !== undefined) engine.setSoundTrim(gen.soundId, gen.gainTrim);
-
-    const level = randomBetween(gen.minGain, gen.maxGain) * gen.layerVolume;
-    engine.setPan(gen.soundId, randomBetween(-gen.panSpread, gen.panSpread));
-    engine.setSoundVolume(gen.soundId, level, 0);
-
-    audio.loop = false;
-    audio.currentTime = 0;
-    void audio.play().catch(() => {
-      /* a refused one-shot should not kill the schedule — the next one may work */
-    });
-
-    scheduleGenerator(gen);
-  }
-
-  function scheduleGenerator(gen: SceneGenerator): void {
-    if (gen.timer !== null) clearTimeout(gen.timer);
-    const delayMs = randomBetween(gen.minIntervalS, gen.maxIntervalS) * 1000;
-    gen.timer = setTimeout(() => fireGenerator(gen), delayMs);
-  }
-
-  /** Silence generators but keep their config, so resume can restart them. */
-  function pauseGenerators(soundIds: string[]): void {
-    soundIds.forEach((id) => {
-      const gen = sceneGenerators.get(id);
-      if (!gen || gen.timer === null) return;
-      clearTimeout(gen.timer);
-      gen.timer = null;
-    });
-  }
-
-  /** Silence and forget generators — the scene is over. */
-  function stopGenerators(soundIds: string[]): void {
-    pauseGenerators(soundIds);
-    soundIds.forEach((id) => sceneGenerators.delete(id));
-  }
-
   /** Live-adjust one layer's level while its scene is running. */
   function setLayerVolume(soundId: string, volume: number): void {
     const clamped = Math.max(0, Math.min(1, volume));
     const apl = activeAmbientPlaylist.value;
     if (apl && apl.soundIds.includes(soundId)) apl.layerVolumes[soundId] = clamped;
 
-    const gen = sceneGenerators.get(soundId);
-    if (gen) {
-      // Generators pick a level per firing; this changes the ceiling they draw
-      // against rather than the currently-audible instance.
-      gen.layerVolume = clamped;
-      return;
-    }
+    // Generators pick a level per firing, so the pool takes the change as a new
+    // ceiling rather than touching a currently-audible instance.
+    if (generators.setLayerVolume(soundId, clamped)) return;
+
     getState(soundId).volume = clamped;
     const audio = getInstance(soundId);
     if (audio) applyVolume(soundId, audio, clamped, 120);
@@ -819,12 +745,12 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     const fileUrls: Record<string, string> = {};
     const gainTrims: Record<string, number> = {};
     const layerVolumes: Record<string, number> = {};
-    const generators: Record<string, boolean> = {};
+    const isGenerator: Record<string, boolean> = {};
     tracks.forEach((t) => {
       fileUrls[t.sound.id] = t.sound.file_url;
       gainTrims[t.sound.id] = t.sound.gain_trim;
       layerVolumes[t.sound.id] = t.layer_volume;
-      generators[t.sound.id] = t.is_generator;
+      isGenerator[t.sound.id] = t.is_generator;
     });
     activeAmbientPlaylist.value = {
       playlistId: playlist.id,
@@ -833,15 +759,13 @@ export const useSoundboardStore = defineStore("soundboard", () => {
       fileUrls,
       gainTrims,
       layerVolumes,
-      generators,
+      generators: isGenerator,
       paused: false,
     };
 
     tracks.forEach((t) => {
       if (t.is_generator) {
-        // Generators do not start immediately — a scene where every one-shot
-        // fires the instant you press play announces itself as a machine.
-        const gen: SceneGenerator = {
+        generators.start({
           soundId: t.sound.id,
           fileUrl: t.sound.file_url,
           gainTrim: t.sound.gain_trim,
@@ -851,10 +775,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
           maxGain: t.max_gain,
           panSpread: t.pan_spread,
           layerVolume: t.layer_volume,
-          timer: null,
-        };
-        sceneGenerators.set(t.sound.id, gen);
-        scheduleGenerator(gen);
+        });
         return;
       }
 
@@ -867,7 +788,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
   function pauseAmbientPlaylist(): void {
     const apl = activeAmbientPlaylist.value;
     if (!apl || apl.paused) return;
-    pauseGenerators(apl.soundIds);
+    generators.pause(apl.soundIds);
     apl.soundIds.forEach((id) => pause(id));
     apl.paused = true;
   }
@@ -875,14 +796,12 @@ export const useSoundboardStore = defineStore("soundboard", () => {
   function resumeAmbientPlaylist(): void {
     const apl = activeAmbientPlaylist.value;
     if (!apl || !apl.paused) return;
+    // Generators come back on a fresh interval rather than resuming mid-count,
+    // so the scene does not return with every one-shot firing at once.
+    generators.resume(apl.soundIds);
+
     apl.soundIds.forEach((id) => {
-      if (apl.generators[id]) {
-        // Generators were torn down on pause; rebuild rather than resume, so
-        // the scene does not come back with every one-shot firing at once.
-        const gen = sceneGenerators.get(id);
-        if (gen) scheduleGenerator(gen);
-        return;
-      }
+      if (apl.generators[id]) return;
       startGaplessLoop(id, apl.fileUrls[id], "ambient", apl.gainTrims[id]);
       engine.fadeIn(id, AMBIENT_FADE_MS);
     });
@@ -891,7 +810,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
 
   function stopAmbientPlaylist(): void {
     if (!activeAmbientPlaylist.value) return;
-    stopGenerators(activeAmbientPlaylist.value.soundIds);
+    generators.stop(activeAmbientPlaylist.value.soundIds);
     activeAmbientPlaylist.value.soundIds.forEach((id) => {
       stopGaplessLoop(id, AMBIENT_FADE_MS);
       fadeAndHalt(id, true, AMBIENT_FADE_MS);
