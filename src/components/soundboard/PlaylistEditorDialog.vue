@@ -85,6 +85,15 @@
               </div>
             </template>
 
+            <!-- Themes -->
+            <div class="space-y-1.5">
+              <label class="font-cinzel text-xs font-semibold text-foreground tracking-wide">Themes</label>
+              <TagInput v-model="localTags" placeholder="battle, tavern…" />
+              <p class="text-caption text-muted-foreground italic">
+                Encounters and locations request audio by theme. A music playlist tagged "battle" can be picked when a combat starts.
+              </p>
+            </div>
+
             <!-- Track list -->
             <div class="space-y-1.5">
               <div class="flex items-center justify-between">
@@ -165,6 +174,7 @@ import { DEFAULT_LAYER } from "@/types/sound.types";
 import type { SoundboardPlaylist, PlaylistType, Sound, PlaylistTrackLayer } from "@/types/sound.types";
 import PlaylistTrackRow from "./PlaylistTrackRow.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import TagInput from "@/components/common/TagInput.vue";
 
 interface TrackListItem {
   sound: Sound;
@@ -205,6 +215,7 @@ const localName = ref("");
 const localType = ref<PlaylistType>("music");
 const localShuffle = ref(false);
 const localRepeat = ref(true);
+const localTags = ref<string[]>([]);
 const trackList = ref<TrackListItem[]>([]);
 const trackListSeeded = ref(false);
 const addSoundId = ref("");
@@ -222,11 +233,13 @@ watch(
       localType.value = pl.playlist_type;
       localShuffle.value = pl.shuffle;
       localRepeat.value = pl.repeat;
+      localTags.value = pl.tags;
     } else {
       localName.value = "";
       localType.value = "music";
       localShuffle.value = false;
       localRepeat.value = true;
+      localTags.value = [];
       trackList.value = [];
     }
   },
@@ -294,7 +307,7 @@ async function save() {
 
     if (playlist) {
       // Edit: update metadata + replace tracks
-      await updatePlaylist({ id: playlist.id, update: { name: localName.value.trim(), shuffle: localShuffle.value, repeat: localRepeat.value } });
+      await updatePlaylist({ id: playlist.id, update: { name: localName.value.trim(), shuffle: localShuffle.value, repeat: localRepeat.value, tags: localTags.value } });
       await replaceTracks({ playlistId: playlist.id, tracks });
     } else {
       // Create: insert playlist then tracks
@@ -305,6 +318,7 @@ async function save() {
         playlist_type: localType.value,
         shuffle: localShuffle.value,
         repeat: localRepeat.value,
+        tags: localTags.value,
         sort_order: 0,
       });
       if (tracks.length > 0) {

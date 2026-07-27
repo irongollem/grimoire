@@ -90,6 +90,7 @@ import SoundboardWidget from "@/components/soundboard/SoundboardWidget.vue";
 import GlobalHotkeys from "@/components/layout/GlobalHotkeys.vue";
 import DowngradeCampaignPickerModal from "@/components/billing/DowngradeCampaignPickerModal.vue";
 import SuspensionBanner from "@/components/billing/SuspensionBanner.vue";
+import { useAudioThemeTriggers } from "@/composables/useAudioThemeTriggers";
 import { useCampaignPresence } from "@/composables/useCampaignPresence";
 import { useCampaignLiveSync } from "@/composables/useCampaignLiveSync";
 import { usePartyLive } from "@/composables/useParty";
@@ -112,6 +113,11 @@ const fullscreenMobile = computed(() => isMobile.value && !!route.meta.fullscree
 useCampaignPresence();
 useCampaignLiveSync();
 usePartyLive();
+
+// Listens for encounters and locations asking for a theme. Mounted here rather
+// than on the soundboard page because the DM is looking at the encounter when
+// it fires, not at the board.
+useAudioThemeTriggers();
 
 const { isPro } = useSubscription();
 const { data: campaigns } = useCampaigns();

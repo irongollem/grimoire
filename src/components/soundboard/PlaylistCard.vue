@@ -31,6 +31,17 @@
       </div>
     </div>
 
+    <!-- Themes -->
+    <div v-if="playlist.tags.length" class="flex flex-wrap gap-1 px-1">
+      <span
+        v-for="tag in playlist.tags"
+        :key="tag"
+        class="shrink-0 rounded border border-border px-1.5 py-0.5 text-caption-sm text-muted-foreground"
+      >
+        {{ tag }}
+      </span>
+    </div>
+
     <!-- Music: current track name when active -->
     <p
       v-if="isActive && playlist.playlist_type === 'music' && currentTrackName"

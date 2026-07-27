@@ -104,6 +104,32 @@ MediaElementAudioSource → BiquadFilter → soundGain → bus(music|ambient|eff
 
 `play(soundId, fileUrl, category?, gainTrim?)` takes category and trim as **optional** trailing params. Omitting `category` typechecks cleanly and routes the sound to the ambient bus, where it will never duck — a green build will not catch it. Every new call site must pass the sound's category.
 
+## Themed audio (encounters & locations)
+
+Audio binds to campaign events by **theme label**, never by a foreign key to one playlist. An encounter asks for `battle`; any music playlist tagged `battle` is a candidate, picked at random. Tagging three playlists once gives every future combat variety — a track per encounter is exactly the prep burden this avoids.
+
+| Piece                                       | Role                                                                                       |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `src/lib/audioThemes.ts`                    | Pure resolution: `resolveAudioTheme`, `collectThemes`, `tagsIncludeTheme`                    |
+| `src/lib/audioTriggers.ts`                  | The bus: `requestAudioTheme` / `releaseAudioTheme` / `onAudioTrigger`                        |
+| `src/composables/useAudioThemeTriggers.ts`  | The only consumer. Mounted once in `DefaultLayout`. Also exports `useAudioTriggerPrefs`      |
+| `src/lib/audioTriggerPrefs.ts`              | The DM's on/off switch, localStorage, default on                                            |
+| `src/components/common/ThemeInput.vue`      | Free-text label with datalist suggestions, shared by the encounter and location editors     |
+
+**Slots.** An encounter drives `music`; a location drives `ambient`. They compose deliberately — dungeon ambience keeps running underneath battle music — and neither can ever contend for the other's channel. `resolveAudioTheme` will not look in the other slot even when its own has no answer.
+
+### The rule that governs all of it
+
+**A trigger that finds no match does nothing at all.** It never stops, fades or replaces what is already playing. Silence the DM chose beats silence we chose, and a feature that hijacks the room the first time it guesses wrong gets switched off and never switched back on. Anything added here must keep that property; it is the behaviour the consumer's tests exist to protect.
+
+Second rule: a **release only takes effect from whoever currently owns the slot** (`sourceId`), so a stale encounter ending cannot cut the music a newer one started. On release the slot goes back to whatever the DM had running before the takeover, restarting from the top — the honest cost of not holding a paused playlist open for the length of a fight.
+
+### Why a bus rather than a direct call
+
+Combat does not import the soundboard. The encounter runner has no idea which playlists exist or whether themed audio is even switched on, and giving it that knowledge would mean every future producer — locations, sessions, the calendar — grew the same dependency. Producers say what happened; the soundboard decides whether it means anything.
+
+The encounter trigger fires on **Start Combat**, not Go Live: Go Live is about the player portal, and most tables running this are in one room.
+
 ## Keyboard
 
 Shortcuts go through the app-wide registry (`src/lib/hotkeys.ts` + `src/composables/useHotkeys.ts`), not through per-component `document` listeners. Three layers:
@@ -169,8 +195,8 @@ Both integrations are **music-playlist-only** — ambient's simultaneous-layer m
 ## Known Gaps
 
 Tracked in [#572](https://github.com/irongollem/grimoire/issues/572), which sequences
-the work in six phases. **Phases 1 (engine), 2 (scenes) and 4 (speed) have shipped.**
-What remains:
+the work in six phases. **Phases 1 (engine), 2 (scenes), 4 (speed) and the bulk of
+5 (integration) have shipped.** What remains:
 
 ### Left over from phase 2
 
@@ -179,12 +205,15 @@ What remains:
 
 ### Phase 3 — content
 
-- **No bundled sound library.** A new campaign's Soundboard opens completely empty ("No sounds yet"); nothing ships as canonical/seed content the way SRD monsters or spells do. Blocked on the Freesound commercial-use question, though the provider adapter added in phase 2 means the answer changes an adapter rather than the feature.
+- **No bundled sound library.** A new campaign's Soundboard opens completely empty ("No sounds yet"); nothing ships as canonical/seed content the way SRD monsters or spells do. Being assembled **outside this repo** as a self-sourced CC0 / CC-BY collection, which sidesteps the Freesound commercial-use question rather than waiting on it. Check before starting any bundling work here.
 - **Freesound's own filters are not exposed.** The edge function forwards only query, page and page size, so finding a three-second door creak means auditioning a lot of forty-second field recordings.
 
 ### Phase 5 — integration
 
-- **No integration with encounters, locations, or sessions.** `useSoundboardStore` is imported only by soundboard's own files and by `GlobalHotkeys`. Starting an encounter doesn't start combat music and a Location has no attached soundscape. The planned model binds by _theme_ (a tagged pool) rather than a track per encounter, so it costs no per-encounter prep.
+Encounters and locations are wired (see **Themed audio** above). Still open:
+
+- **Sessions and the calendar do not trigger anything.** The bus is producer-agnostic, so adding one is a `requestAudioTheme` call plus a theme field — no soundboard changes.
+- **No indication of _why_ audio is playing.** The trigger carries a `label` ("Goblin ambush") that nothing displays yet, so a DM who forgot they themed an encounter has no way to see what started the music.
 
 ### Phase 6 — shared playback
 

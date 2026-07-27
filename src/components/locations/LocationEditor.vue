@@ -127,6 +127,30 @@
           </div>
         </div>
 
+        <!-- Ambient theme — asks the soundboard for an ambient playlist tagged
+             with this label when the location is opened. ThemeInput, not
+             EntityCombobox: EntityCombobox can only commit one of its given
+             `options` (typing a value with no match is discarded on blur),
+             which rules out "type a new label" — the exact case this field
+             exists for, since a DM may tag a playlist for it afterwards. -->
+        <div class="flex items-start gap-2">
+          <span
+            class="text-label-lg font-semibold text-muted-foreground shrink-0 w-16 flex items-center gap-1 pt-1.5"
+          >
+            <IconWind class="h-3.5 w-3.5" />Ambient
+          </span>
+          <div class="flex-1 flex flex-col gap-1">
+            <ThemeInput
+              v-model="audioTheme"
+              :suggestions="themeOptions"
+              placeholder="dungeon, tavern, storm…"
+            />
+            <p class="text-caption text-muted-foreground">
+              Opening this location asks the soundboard for an ambient playlist tagged with this theme — nothing happens if none matches.
+            </p>
+          </div>
+        </div>
+
         <!-- Compact calendar pins -->
         <EntityCalendarSection
           compact
@@ -229,12 +253,13 @@ const { confirm } = useConfirm();
 import { ref, computed, watch } from "vue";
 import { buildEntityContext, toPlainText } from "@/ai/utils";
 import { useRoute, useRouter } from "vue-router";
-import { IconTag, IconClock } from '@/lib/icons';
+import { IconTag, IconClock, IconWind } from '@/lib/icons';
 import EntityEditorActionBar from "@/components/common/EntityEditorActionBar.vue";
 import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import ThemeInput from "@/components/common/ThemeInput.vue";
 import GridCalibrationDialog from "@/components/locations/GridCalibrationDialog.vue";
 import StoreInventory from "@/components/locations/StoreInventory.vue";
 import LocationHierarchyPanel from "@/components/locations/LocationHierarchyPanel.vue";
@@ -242,6 +267,9 @@ import LocationSharingPanel from "@/components/locations/LocationSharingPanel.vu
 import LocationResidents from "@/components/locations/LocationResidents.vue";
 import LocationMapEditor from "@/components/locations/LocationMapEditor.vue";
 import { useNpcs } from "@/composables/useNpcs";
+import { usePlaylists } from "@/composables/useSoundboardPlaylists";
+import { useSounds } from "@/composables/useSounds";
+import { collectThemes } from "@/lib/audioThemes";
 import EntityCalendarSection from "@/components/calendar/EntityCalendarSection.vue";
 import {
   useLocations,
@@ -366,6 +394,21 @@ const eraEnd = ref<number | null>(props.location?.era_end ?? null);
 function parseEraYear(raw: string): number | null {
   return raw === "" ? null : parseInt(raw, 10);
 }
+const audioTheme = ref<string | null>(props.location?.audio_theme ?? null);
+
+// ── Ambient theme suggestions — every label already in use, so a DM re-uses
+// existing playlist tags instead of guessing at spelling. ──────────────────
+const { data: playlists } = usePlaylists();
+const { data: sounds } = useSounds();
+// `undefined` here is "still loading", which is a real state rather than a null
+// to be papered over — an empty suggestion list is the correct thing to show
+// until the queries land.
+const themeOptions = computed(() =>
+  collectThemes(
+    playlists.value === undefined ? [] : playlists.value,
+    sounds.value === undefined ? [] : sounds.value,
+  ),
+);
 const imageUrl = ref<string | null>(props.location?.image_url ?? null);
 const saving = ref(false);
 const deleting = ref(false);
@@ -459,6 +502,10 @@ function buildPayload() {
     tags: tags.value,
     era_start: eraStart.value,
     era_end: eraEnd.value,
+    // Empty input means "leave audio alone", not an empty-string theme label.
+    // Blank means "ask for nothing", which the column should say as null.
+    audio_theme:
+      audioTheme.value === null || audioTheme.value.trim() === "" ? null : audioTheme.value.trim(),
     parent_id: selectedParentId.value,
     image_url: imageUrl.value,
     map_url: mapUrl.value,

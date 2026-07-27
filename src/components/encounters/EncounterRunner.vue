@@ -158,6 +158,7 @@ import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { initiativeModifier } from "@/lib/combatantSort";
 import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/useOptionalRules";
 import { useTurnTimerConfig } from "@/composables/useTurnTimerConfig";
+import { requestAudioTheme, releaseAudioTheme } from "@/lib/audioTriggers";
 import { useRunnerPartySync } from "@/composables/useRunnerPartySync";
 import RunnerCombatantList from "./RunnerCombatantList.vue";
 import RunnerEntityDetail from "./RunnerEntityDetail.vue";
@@ -287,9 +288,37 @@ function handleRollInitiative() {
   void store.rollAllInitiatives();
 }
 
+// ── Themed audio ─────────────────────────────────────────────────────────────
+//
+// Fired on Start Combat rather than Go Live: Go Live is about the player
+// portal, and most tables running this are in one room. The music should come
+// up when the fight starts, whether or not anyone is watching remotely.
+//
+// This asks; it does not command. If nothing is tagged with the encounter's
+// theme the soundboard leaves the room exactly as it found it.
+const audioSourceId = computed(() => `encounter:${encounterId.value}`);
+
+function requestEncounterAudio() {
+  const current = encounter.value;
+  if (!current) return;
+  const theme = current.audio_theme;
+  if (theme === null || theme.trim() === "") return;
+  requestAudioTheme({
+    sourceId: audioSourceId.value,
+    theme,
+    slot: "music",
+    label: current.name,
+  });
+}
+
+function releaseEncounterAudio() {
+  releaseAudioTheme(audioSourceId.value);
+}
+
 function handleStartCombat() {
   if (store.rollingInitiative) return;
   void store.startCombat();
+  requestEncounterAudio();
 }
 
 async function handleGoLive() {
@@ -393,6 +422,10 @@ watch(
 
 onUnmounted(() => {
   store.setInitiativeRoller(null);
+  // Leaving the runner mid-fight still gives the slot back. Without this the
+  // battle music would follow the DM around the app with nothing left on screen
+  // to stop it.
+  releaseEncounterAudio();
 });
 
 watch(
@@ -420,6 +453,7 @@ watch(
 async function handleAbandon() {
   if (!await confirm("Abandon this run? Party HP and conditions will NOT be updated.")) return;
   await endLive();
+  releaseEncounterAudio();
   store.reset();
   router.push(`/encounters/${encounterId.value}`);
 }
@@ -429,6 +463,9 @@ async function handleEndCombat() {
   // Cancel any pending HP debounce — end-combat does its own authoritative write below.
   cancelPendingHpFlush();
   await endLive();
+  // Hands the music slot back to whatever was playing before the fight, or
+  // stops it if the DM had nothing running.
+  releaseEncounterAudio();
 
   // Sync player combatants back to party_members. (Roster-NPC death/reveal is
   // handled live as it happens — see the NPC-sync watcher above — not here.)

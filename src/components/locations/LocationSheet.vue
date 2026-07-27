@@ -230,10 +230,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch, onUnmounted } from "vue";
 import { useRoute, useRouter, RouterLink } from "vue-router";
 import { IconChevronRight, IconDelete, IconEdit } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
+import { requestAudioTheme, releaseAudioTheme } from "@/lib/audioTriggers";
 import {
   useLocations,
   useAllLocations,
@@ -366,4 +367,36 @@ async function onDelete() {
 function onPinClick(childId: string) {
   router.push(`/locations/${childId}`);
 }
+
+// ── Ambient audio ─────────────────────────────────────────────────────────
+// Opening this location tells the soundboard "an ambient theme wants to play";
+// leaving it says the opposite. A release always names the location being
+// *left* — naming the one being entered would have a DM walking between two
+// themed rooms cancel the audio they just started.
+function requestAmbience(loc: Location): void {
+  if (!loc.audio_theme) return;
+  requestAudioTheme({
+    sourceId: `location:${loc.id}`,
+    theme: loc.audio_theme,
+    slot: "ambient",
+    label: loc.name,
+  });
+}
+
+watch(
+  () => props.location.id,
+  (_id, previousId) => {
+    // Request first, release second, and the order is load-bearing. The new
+    // location takes ownership of the ambient slot synchronously, so the
+    // release that follows is recognised as stale and ignored. Releasing first
+    // would instead hand the slot back to whatever preceded the old location
+    // and then immediately take it again — an audible stop-start between two
+    // rooms that should simply cross over.
+    requestAmbience(props.location);
+    if (previousId) releaseAudioTheme(`location:${previousId}`);
+  },
+  { immediate: true },
+);
+
+onUnmounted(() => releaseAudioTheme(`location:${props.location.id}`));
 </script>

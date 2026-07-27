@@ -156,6 +156,22 @@
           @update:combatants="form.combatants = $event"
         />
 
+        <!-- Battle music, by theme rather than by track -->
+        <div class="flex flex-col gap-1.5">
+          <label class="font-cinzel text-xs font-semibold tracking-wide text-foreground">
+            Battle music theme
+          </label>
+          <ThemeInput
+            v-model="form.audio_theme"
+            :suggestions="audioThemeOptions"
+            placeholder="battle, boss…"
+          />
+          <p class="text-caption text-muted-foreground italic">
+            Starting combat asks the soundboard for a music playlist tagged with this theme.
+            Tag several and each fight picks one at random. Nothing matching means the audio is left alone.
+          </p>
+        </div>
+
         <!-- Boss Mechanics (legendary/lair) -->
         <EncounterBossMechanics
           :lair-enabled="form.lair_enabled"
@@ -243,6 +259,9 @@ import { useNpcs } from "@/composables/useNpcs";
 import { useItems } from "@/composables/useItems";
 import { useTraps } from "@/composables/useTraps";
 import { useAllLocations } from "@/composables/useLocations";
+import { useSounds } from "@/composables/useSounds";
+import { usePlaylists } from "@/composables/useSoundboardPlaylists";
+import { collectThemes } from "@/lib/audioThemes";
 import {
   useCreateEncounter,
   useUpdateEncounter,
@@ -276,6 +295,7 @@ import EncounterLoot from "@/components/encounters/EncounterLoot.vue";
 import EncounterTraps from "@/components/encounters/EncounterTraps.vue";
 import EncounterPartyRoster from "@/components/encounters/EncounterPartyRoster.vue";
 import EncounterBossMechanics from "@/components/encounters/EncounterBossMechanics.vue";
+import ThemeInput from "@/components/common/ThemeInput.vue";
 import EncounterLinkedQuests from "@/components/encounters/EncounterLinkedQuests.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { isQuotaExceeded } from "@/lib/quotaError";
@@ -391,7 +411,20 @@ const form = reactive({
   events: [...(props.encounter?.events ?? [])] as EncounterEvent[],
   lair_enabled: props.encounter?.lair_enabled ?? false,
   lair_owner_def_id: props.encounter?.lair_owner_def_id ?? (null as string | null),
+  audio_theme: props.encounter?.audio_theme ?? (null as string | null),
 });
+
+// Theme suggestions come from what the DM has already labelled, but the field
+// stays free text: labelling the encounter before building the playlist is a
+// perfectly reasonable order to work in.
+const { data: themePlaylists } = usePlaylists();
+const { data: themeSounds } = useSounds();
+const audioThemeOptions = computed(() =>
+  collectThemes(
+    themePlaylists.value === undefined ? [] : themePlaylists.value,
+    themeSounds.value === undefined ? [] : themeSounds.value,
+  ),
+);
 
 // For new encounters, auto-select all party members once the party data loads
 if (!props.encounter) {
@@ -498,6 +531,10 @@ async function buildPayload() {
     events: form.events,
     lair_enabled: form.lair_enabled,
     lair_owner_def_id: form.lair_enabled ? form.lair_owner_def_id : null,
+    // Empty means "ask for nothing", which is null rather than an empty string —
+    // the resolver treats a blank theme as no request at all either way, but the
+    // column should say what it means.
+    audio_theme: form.audio_theme === null || form.audio_theme.trim() === "" ? null : form.audio_theme.trim(),
   };
 }
 

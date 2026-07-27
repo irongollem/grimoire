@@ -52,6 +52,23 @@
         :model-value="store.busVolumes[bus.id]"
         @update:model-value="store.setBusVolume(bus.id, $event)"
       />
+
+      <!-- Whether the campaign is allowed to drive the board. Lives here rather
+           than in settings because this is where a DM looks when the audio did
+           something they did not ask for. -->
+      <label
+        class="flex cursor-pointer select-none items-center gap-1.5 text-2xs text-muted-foreground"
+        :class="collapsible ? 'w-full border-t border-border/50 pt-1.5' : 'w-full'"
+        title="Encounters and locations can request a playlist by theme. They are ignored when nothing matches."
+      >
+        <input
+          type="checkbox"
+          class="h-3 w-3 accent-gold-500"
+          :checked="audioTriggersEnabled"
+          @change="setAudioTriggersEnabled(($event.target as HTMLInputElement).checked)"
+        />
+        Let encounters and locations pick audio
+      </label>
     </template>
   </div>
 </template>
@@ -67,6 +84,7 @@
 import { computed, ref } from "vue";
 import { IconChevronRight } from "@/lib/icons";
 import { useSoundboardStore } from "@/stores/soundboard";
+import { useAudioTriggerPrefs } from "@/composables/useAudioThemeTriggers";
 import type { AudioBus } from "@/lib/audioEngine";
 import VolumeSlider from "./VolumeSlider.vue";
 import SoundEffectPicker from "./SoundEffectPicker.vue";
@@ -84,6 +102,7 @@ const { collapsible = false } = defineProps<{
 }>();
 
 const store = useSoundboardStore();
+const { audioTriggersEnabled, setAudioTriggersEnabled } = useAudioTriggerPrefs();
 
 // Only worth the space when a scene is actually running.
 const showScene = computed(() => store.activeAmbientPlaylist !== null);

@@ -136,6 +136,12 @@ export interface Location {
    */
   era_start: number | null;
   era_end: number | null;
+  /**
+   * Theme label requested from the soundboard when this location is opened;
+   * resolves against ambient playlists tagged with it. Null = leave audio
+   * alone.
+   */
+  audio_theme: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -157,6 +163,9 @@ export const DEFAULT_GRID_OPACITY = 0.35;
 
 export type LocationInsert = Omit<
   Location,
-  "id" | "user_id" | "created_at" | "updated_at"
->;
+  "id" | "user_id" | "created_at" | "updated_at" | "audio_theme"
+> & {
+  /** Omit to take the column default of null — no audio is requested. */
+  audio_theme?: string | null;
+};
 export type LocationUpdate = Partial<LocationInsert>;

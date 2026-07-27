@@ -83,18 +83,27 @@ export interface SoundboardPlaylist {
   shuffle: boolean;
   repeat: boolean;
   sort_order: number;
+  /**
+   * Theme labels this playlist can answer, e.g. `["battle", "boss"]`. Matched
+   * against an encounter's or location's `audio_theme` — several playlists
+   * sharing a label is what gives repeated combats variety without prep.
+   */
+  tags: string[];
   created_at: string;
   updated_at: string;
 }
 
 export type SoundboardPlaylistInsert = Omit<
   SoundboardPlaylist,
-  "id" | "user_id" | "created_at" | "updated_at"
->;
+  "id" | "user_id" | "created_at" | "updated_at" | "tags"
+> & {
+  /** Omit to take the column default of no themes. */
+  tags?: string[];
+};
 export type SoundboardPlaylistUpdate = Partial<
   Pick<
     SoundboardPlaylist,
-    "name" | "playlist_type" | "shuffle" | "repeat" | "sort_order"
+    "name" | "playlist_type" | "shuffle" | "repeat" | "sort_order" | "tags"
   >
 >;
 

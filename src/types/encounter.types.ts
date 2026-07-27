@@ -64,11 +64,22 @@ export interface Encounter {
   lair_enabled: boolean;
   /** References a CombatantDef.id in `combatants[]`. Null = no owner chosen yet. */
   lair_owner_def_id: string | null;
+  /**
+   * Theme label requested from the soundboard when this encounter goes live,
+   * matched against music playlists tagged with it. Null = leave audio alone.
+   */
+  audio_theme: string | null;
   created_at: string;
   updated_at: string;
 }
 
-export type EncounterInsert = Omit<Encounter, "id" | "user_id" | "created_at" | "updated_at">;
+export type EncounterInsert = Omit<
+  Encounter,
+  "id" | "user_id" | "created_at" | "updated_at" | "audio_theme"
+> & {
+  /** Omit to take the column default of null — no audio is requested. */
+  audio_theme?: string | null;
+};
 export type EncounterUpdate = Partial<EncounterInsert>;
 
 // How much health info players see for non-PC combatants
