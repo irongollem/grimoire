@@ -125,7 +125,9 @@ export const useSoundboardStore = defineStore("soundboard", () => {
 
   // Active playlist run states
   const activeMusicPlaylist = ref<MusicPlaylistRunState | null>(null);
-  const activeAmbientPlaylist = ref<AmbientPlaylistRunState | null>(null);
+  // Scenes stack: rain over a tavern, a forge under a market. Music does not —
+  // two tracks at once is a mistake, two rooms at once is the feature.
+  const activeAmbientPlaylists = ref<AmbientPlaylistRunState[]>([]);
 
   // Per-sound audio effect presets (reactive — drives UI only; actual params live in the engine)
   const soundEffects = ref<Record<string, AudioEffectPreset>>({});
@@ -153,19 +155,21 @@ export const useSoundboardStore = defineStore("soundboard", () => {
    * reads as "1", matching how the DM thinks about it.
    */
   const activeAudioCount = computed(() => {
-    const apl = activeAmbientPlaylist.value;
+    const scenes = activeAmbientPlaylists.value;
     const mpl = activeMusicPlaylist.value;
-    const sceneIds = new Set<string>([
-      ...(apl ? apl.soundIds : []),
+    const ownedIds = new Set<string>([
+      ...scenes.flatMap((s) => s.soundIds),
       ...(mpl ? mpl.trackSoundIds : []),
     ]);
 
     let count = Object.entries(playbackStates.value).filter(
-      ([id, st]) => st.isPlaying && !sceneIds.has(id),
+      ([id, st]) => st.isPlaying && !ownedIds.has(id),
     ).length;
 
     if (mpl && !mpl.paused) count += 1;
-    if (apl && !apl.paused) count += 1;
+    // Each running scene is one item. Two stacked scenes are two things the DM
+    // started and two things they may want to stop, so they read as two.
+    count += scenes.filter((s) => !s.paused).length;
     return count;
   });
 
@@ -181,8 +185,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     if (playingCount.value > 0) return true;
     const mpl = activeMusicPlaylist.value;
     if (mpl && !mpl.paused) return true;
-    const apl = activeAmbientPlaylist.value;
-    return apl !== null && !apl.paused;
+    return activeAmbientPlaylists.value.some((s) => !s.paused);
   });
 
   function getState(soundId: string): SoundPlaybackState {
@@ -487,7 +490,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     clearDucking();
     engine.unduck(0);
     activeMusicPlaylist.value = null;
-    activeAmbientPlaylist.value = null;
+    activeAmbientPlaylists.value = [];
   }
 
   /**
@@ -500,9 +503,8 @@ export const useSoundboardStore = defineStore("soundboard", () => {
   /** Sound IDs currently owned by a running playlist or scene. */
   function playlistOwnedIds(): Set<string> {
     const mpl = activeMusicPlaylist.value;
-    const apl = activeAmbientPlaylist.value;
     return new Set<string>([
-      ...(apl ? apl.soundIds : []),
+      ...activeAmbientPlaylists.value.flatMap((s) => s.soundIds),
       ...(mpl ? mpl.trackSoundIds : []),
     ]);
   }
@@ -525,8 +527,8 @@ export const useSoundboardStore = defineStore("soundboard", () => {
 
     const mpl = activeMusicPlaylist.value;
     if (mpl && !mpl.paused) pauseMusicPlaylist();
-    const apl = activeAmbientPlaylist.value;
-    if (apl && !apl.paused) pauseAmbientPlaylist();
+    // No id: every running scene pauses, which is what "everything" means.
+    pauseAmbientPlaylist();
   }
 
   function resumeAll(): void {
@@ -550,7 +552,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     suspendedByPauseAll.clear();
 
     if (activeMusicPlaylist.value?.paused) resumeMusicPlaylist();
-    if (activeAmbientPlaylist.value?.paused) resumeAmbientPlaylist();
+    resumeAmbientPlaylist();
   }
 
   /** One key for "hold on a moment" and "carry on" — see the space binding. */
@@ -826,8 +828,10 @@ export const useSoundboardStore = defineStore("soundboard", () => {
   /** Live-adjust one layer's level while its scene is running. */
   function setLayerVolume(soundId: string, volume: number): void {
     const clamped = Math.max(0, Math.min(1, volume));
-    const apl = activeAmbientPlaylist.value;
-    if (apl && apl.soundIds.includes(soundId)) apl.layerVolumes[soundId] = clamped;
+    // A sound belongs to at most one running scene — playAmbientPlaylist skips
+    // layers another scene already claimed — so the first match is the only one.
+    const apl = activeAmbientPlaylists.value.find((s) => s.soundIds.includes(soundId));
+    if (apl) apl.layerVolumes[soundId] = clamped;
 
     // Generators pick a level per firing, so the pool takes the change as a new
     // ceiling rather than touching a currently-audible instance.
@@ -840,14 +844,25 @@ export const useSoundboardStore = defineStore("soundboard", () => {
 
   // ── Ambient playlist playback ───────────────────────────────────────────
 
+  /**
+   * Start a scene **alongside** whatever else is running.
+   *
+   * Scenes stack because rooms do: rain over a tavern, a forge under a market.
+   * Replacing was never a deliberate design, only the shape a single ref forced.
+   *
+   * A layer already audible in another scene is skipped rather than started
+   * twice — one element per sound, so a second copy would just play over itself
+   * at double volume with no way to tell the two apart afterwards.
+   */
   function playAmbientPlaylist(
     playlist: { id: string; name: string },
     tracks: PlaylistTrackWithSound[],
   ): void {
-    // Stop previous ambient scene first
-    if (activeAmbientPlaylist.value) {
-      stopAmbientPlaylist();
-    }
+    if (tracks.length === 0) return;
+    if (activeAmbientPlaylists.value.some((s) => s.playlistId === playlist.id)) return;
+
+    const claimed = new Set(activeAmbientPlaylists.value.flatMap((s) => s.soundIds));
+    tracks = tracks.filter((t) => !claimed.has(t.sound.id));
     if (tracks.length === 0) return;
 
     const soundIds = tracks.map((t) => t.sound.id);
@@ -861,16 +876,19 @@ export const useSoundboardStore = defineStore("soundboard", () => {
       layerVolumes[t.sound.id] = t.layer_volume;
       isGenerator[t.sound.id] = t.is_generator;
     });
-    activeAmbientPlaylist.value = {
-      playlistId: playlist.id,
-      playlistName: playlist.name,
-      soundIds,
-      fileUrls,
-      gainTrims,
-      layerVolumes,
-      generators: isGenerator,
-      paused: false,
-    };
+    activeAmbientPlaylists.value = [
+      ...activeAmbientPlaylists.value,
+      {
+        playlistId: playlist.id,
+        playlistName: playlist.name,
+        soundIds,
+        fileUrls,
+        gainTrims,
+        layerVolumes,
+        generators: isGenerator,
+        paused: false,
+      },
+    ];
 
     tracks.forEach((t) => {
       if (t.is_generator) {
@@ -894,37 +912,54 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     });
   }
 
-  function pauseAmbientPlaylist(): void {
-    const apl = activeAmbientPlaylist.value;
-    if (!apl || apl.paused) return;
-    generators.pause(apl.soundIds);
-    apl.soundIds.forEach((id) => pause(id));
-    apl.paused = true;
+  /** The scenes a call applies to: one by id, or every running scene. */
+  function scenesMatching(playlistId?: string): AmbientPlaylistRunState[] {
+    if (playlistId === undefined) return [...activeAmbientPlaylists.value];
+    return activeAmbientPlaylists.value.filter((s) => s.playlistId === playlistId);
   }
 
-  function resumeAmbientPlaylist(): void {
-    const apl = activeAmbientPlaylist.value;
-    if (!apl || !apl.paused) return;
-    // Generators come back on a fresh interval rather than resuming mid-count,
-    // so the scene does not return with every one-shot firing at once.
-    generators.resume(apl.soundIds);
-
-    apl.soundIds.forEach((id) => {
-      if (apl.generators[id]) return;
-      startGaplessLoop(id, apl.fileUrls[id], "ambient", apl.gainTrims[id]);
-      engine.fadeIn(id, AMBIENT_FADE_MS);
+  function pauseAmbientPlaylist(playlistId?: string): void {
+    scenesMatching(playlistId).forEach((apl) => {
+      if (apl.paused) return;
+      generators.pause(apl.soundIds);
+      apl.soundIds.forEach((id) => pause(id));
+      apl.paused = true;
     });
-    apl.paused = false;
   }
 
-  function stopAmbientPlaylist(): void {
-    if (!activeAmbientPlaylist.value) return;
-    generators.stop(activeAmbientPlaylist.value.soundIds);
-    activeAmbientPlaylist.value.soundIds.forEach((id) => {
-      stopGaplessLoop(id, AMBIENT_FADE_MS);
-      fadeAndHalt(id, true, AMBIENT_FADE_MS);
+  function resumeAmbientPlaylist(playlistId?: string): void {
+    scenesMatching(playlistId).forEach((apl) => {
+      if (!apl.paused) return;
+      // Generators come back on a fresh interval rather than resuming mid-count,
+      // so the scene does not return with every one-shot firing at once.
+      generators.resume(apl.soundIds);
+
+      apl.soundIds.forEach((id) => {
+        if (apl.generators[id]) return;
+        startGaplessLoop(id, apl.fileUrls[id], "ambient", apl.gainTrims[id]);
+        engine.fadeIn(id, AMBIENT_FADE_MS);
+      });
+      apl.paused = false;
     });
-    activeAmbientPlaylist.value = null;
+  }
+
+  /** Stop one scene, or every scene when no id is given. */
+  function stopAmbientPlaylist(playlistId?: string): void {
+    const doomed = scenesMatching(playlistId);
+    if (doomed.length === 0) return;
+
+    doomed.forEach((apl) => {
+      generators.stop(apl.soundIds);
+      apl.soundIds.forEach((id) => {
+        stopGaplessLoop(id, AMBIENT_FADE_MS);
+        fadeAndHalt(id, true, AMBIENT_FADE_MS);
+      });
+    });
+
+    const gone = new Set(doomed.map((s) => s.playlistId));
+    activeAmbientPlaylists.value = activeAmbientPlaylists.value.filter(
+      (s) => !gone.has(s.playlistId),
+    );
   }
 
   // ── Playlist dispatch ───────────────────────────────────────────────────
@@ -948,25 +983,45 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     else playAmbientPlaylist(playlist, tracks);
   }
 
-  function stopPlaylist(type: PlaylistType): void {
+  // `playlistId` matters only for ambient, where several scenes run at once and
+  // a caller almost always means its own. Omitting it targets every scene, which
+  // is what a global Stop All wants and what a card never does.
+  function stopPlaylist(type: PlaylistType, playlistId?: string): void {
     if (type === "music") stopMusicPlaylist();
-    else stopAmbientPlaylist();
+    else stopAmbientPlaylist(playlistId);
   }
 
-  function pausePlaylist(type: PlaylistType): void {
+  function pausePlaylist(type: PlaylistType, playlistId?: string): void {
     if (type === "music") pauseMusicPlaylist();
-    else pauseAmbientPlaylist();
+    else pauseAmbientPlaylist(playlistId);
   }
 
-  function resumePlaylist(type: PlaylistType): void {
+  function resumePlaylist(type: PlaylistType, playlistId?: string): void {
     if (type === "music") resumeMusicPlaylist();
-    else resumeAmbientPlaylist();
+    else resumeAmbientPlaylist(playlistId);
   }
 
-  /** Which playlist, if any, is currently running for this type. */
-  function activePlaylistId(type: PlaylistType): string | null {
-    const run = type === "music" ? activeMusicPlaylist.value : activeAmbientPlaylist.value;
+  /**
+   * Which playlist is running in the music slot, which holds one at a time.
+   * Scenes stack, so ask `isPlaylistActive` about those instead.
+   */
+  function activeMusicPlaylistId(): string | null {
+    const run = activeMusicPlaylist.value;
     return run === null ? null : run.playlistId;
+  }
+
+  /** Is this specific playlist running, whatever its type? */
+  function isPlaylistActive(playlistId: string): boolean {
+    if (activeMusicPlaylist.value?.playlistId === playlistId) return true;
+    return activeAmbientPlaylists.value.some((s) => s.playlistId === playlistId);
+  }
+
+  /** Is this specific playlist running but paused? */
+  function isPlaylistPaused(playlistId: string): boolean {
+    const mpl = activeMusicPlaylist.value;
+    if (mpl?.playlistId === playlistId) return mpl.paused;
+    const scene = activeAmbientPlaylists.value.find((s) => s.playlistId === playlistId);
+    return scene !== undefined && scene.paused;
   }
 
   // ── Audio effects ─────────────────────────────────────────────────────────
@@ -1078,7 +1133,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     activeAudioCount,
     hasActiveAudio,
     activeMusicPlaylist,
-    activeAmbientPlaylist,
+    activeAmbientPlaylists,
     soundEffects,
     isCasting,
     masterVolume,
@@ -1121,7 +1176,9 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     stopPlaylist,
     pausePlaylist,
     resumePlaylist,
-    activePlaylistId,
+    activeMusicPlaylistId,
+    isPlaylistActive,
+    isPlaylistPaused,
     setEffect,
     setMusicPlaylistEffect,
     setLayerVolume,

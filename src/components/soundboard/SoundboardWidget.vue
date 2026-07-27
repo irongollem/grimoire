@@ -179,26 +179,30 @@
             </div>
           </div>
 
-          <!-- Active ambient playlist -->
+          <!-- Active ambient scenes — several can run at once -->
           <div
-            v-if="store.activeAmbientPlaylist"
-            class="pb-1.5 border-b border-border/50"
+            v-if="store.activeAmbientPlaylists.length > 0"
+            class="pb-1.5 border-b border-border/50 space-y-1"
           >
-            <div class="flex items-center gap-2 px-2 py-1.5 rounded-md bg-green-500/5 border border-green-500/20">
+            <div
+              v-for="scene in store.activeAmbientPlaylists"
+              :key="scene.playlistId"
+              class="flex items-center gap-2 px-2 py-1.5 rounded-md bg-green-500/5 border border-green-500/20"
+            >
               <IconWind class="h-3.5 w-3.5 text-green-400 shrink-0" />
               <div class="flex-1 min-w-0">
                 <p class="font-cinzel text-xs font-medium text-foreground truncate">
-                  {{ store.activeAmbientPlaylist.playlistName }}
+                  {{ scene.playlistName }}
                 </p>
                 <p class="text-caption-sm text-muted-foreground">
-                  {{ store.activeAmbientPlaylist.soundIds.length }} layered tracks
+                  {{ scene.soundIds.length }} layered tracks
                 </p>
               </div>
-              <!-- Stop scene -->
+              <!-- Stops this scene only; the others stacked with it keep running -->
               <button
                 class="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
-                title="Stop ambient scene"
-                @click="store.stopAmbientPlaylist()"
+                :title="`Stop ${scene.playlistName}`"
+                @click="store.stopAmbientPlaylist(scene.playlistId)"
               >
                 <IconStop class="h-3 w-3" />
               </button>

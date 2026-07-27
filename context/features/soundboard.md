@@ -118,6 +118,8 @@ Audio binds to campaign events by **theme label**, never by a foreign key to one
 
 **Slots.** An encounter drives `music`; a location drives `ambient`. They compose deliberately — dungeon ambience keeps running underneath battle music — and neither can ever contend for the other's channel. `resolveAudioTheme` will not look in the other slot even when its own has no answer.
 
+The two slots also behave differently on release, mirroring the store. **Music is exclusive**: a trigger takes the slot and hands it back to whatever preceded it. **Ambient is additive**: a trigger adds its own scene and removes only that one, because a location has no business stopping a scene a different location started, and combat ending must leave the room the party is standing in alone.
+
 ### The rule that governs all of it
 
 **A trigger that finds no match does nothing at all.** It never stops, fades or replaces what is already playing. Silence the DM chose beats silence we chose, and a feature that hijacks the room the first time it guesses wrong gets switched off and never switched back on. Anything added here must keep that property; it is the behaviour the consumer's tests exist to protect.
@@ -161,7 +163,13 @@ The overlay layer is a hard cutoff, not a precedence bump — an open palette mu
 - **Music** — tracks play **sequentially**. `playMusicPlaylist()` builds an ordered (optionally shuffled) list of sound IDs and starts the first; each track's `audio.onended` handler checks whether it's the currently-active playlist track and calls `musicPlaylistNext()` if so — auto-advance, with `repeat` looping back to index 0 or stopping. `musicPlaylistPrev()` restarts the current track instead of going back if more than 3s in. An `AudioEffectPreset` set on the active playlist is **carried across track changes** (re-applied via `startCurrentPlaylistTrack`).
 - **Ambient** — all tracks in the playlist loop **simultaneously** as independent layered sounds (`playAmbientPlaylist()` sets `isLooping = true` and calls `play()` on every track at once). There's no "current track" concept, no shuffle/repeat, and no effect carry-over.
 
-Only one music playlist and one ambient playlist can be active at a time (`activeMusicPlaylist` / `activeAmbientPlaylist` are single refs, not a list) — you cannot layer two ambient scenes.
+**Music is exclusive; scenes stack.** `activeMusicPlaylist` is a single ref — two tracks at once is a mistake — while `activeAmbientPlaylists` is a list, because two rooms at once is the feature: rain over a tavern, a forge under a market.
+
+Consequences worth knowing before touching this:
+
+- `stopAmbientPlaylist` / `pauseAmbientPlaylist` / `resumeAmbientPlaylist` take an **optional** playlist id and default to every scene. Anything acting on behalf of one scene (a card, the palette, the scene mixer, a location trigger) must pass the id, or it silences scenes it does not own.
+- `playAmbientPlaylist` **skips a layer another running scene already claimed**. There is one element per sound, so starting it twice would play it over itself at double volume with nothing to tell the copies apart. A sound therefore belongs to at most one running scene, which is what lets `setLayerVolume` take the first match.
+- Ask `isPlaylistActive(id)` / `isPlaylistPaused(id)` rather than comparing against a slot. `activeMusicPlaylistId()` exists for the music slot alone.
 
 ## Sound Sources
 
@@ -197,11 +205,6 @@ Both integrations are **music-playlist-only** — ambient's simultaneous-layer m
 Tracked in [#572](https://github.com/irongollem/grimoire/issues/572), which sequences
 the work in six phases. **Phases 1 (engine), 2 (scenes), 4 (speed) and the bulk of
 5 (integration) have shipped.** What remains:
-
-### Left over from phase 2
-
-- **Only one scene at a time.** `activeAmbientPlaylist` is still a single ref, so you cannot run rain on top of a tavern — you can only replace one with the other.
-- **Scenes do not crossfade into each other.** Individual tracks and loop wraps do; switching from one scene to another still cuts.
 
 ### Phase 3 — content
 

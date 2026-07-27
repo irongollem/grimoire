@@ -105,7 +105,7 @@ const store = useSoundboardStore();
 const { audioTriggersEnabled, setAudioTriggersEnabled } = useAudioTriggerPrefs();
 
 // Only worth the space when a scene is actually running.
-const showScene = computed(() => store.activeAmbientPlaylist !== null);
+const showScene = computed(() => store.activeAmbientPlaylists.length > 0);
 
 // Open by default even when collapsible — a collapsed grey row is
 // indistinguishable from "nothing changed here".

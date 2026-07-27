@@ -152,17 +152,10 @@ const { data: tracks, isPending: tracksLoading } = usePlaylistTracks(computed(()
 
 const trackCount = computed(() => tracks.value?.length ?? 0);
 
-const isActive = computed(() =>
-  playlist.playlist_type === "music"
-    ? store.activeMusicPlaylist?.playlistId === playlist.id
-    : store.activeAmbientPlaylist?.playlistId === playlist.id,
-);
-
-const isPaused = computed(() =>
-  playlist.playlist_type === "music"
-    ? (store.activeMusicPlaylist?.playlistId === playlist.id && store.activeMusicPlaylist?.paused === true)
-    : (store.activeAmbientPlaylist?.playlistId === playlist.id && store.activeAmbientPlaylist?.paused === true),
-);
+// Asked per playlist rather than per slot, because several scenes run at once
+// and "is the ambient slot busy" no longer answers "is this card playing".
+const isActive = computed(() => store.isPlaylistActive(playlist.id));
+const isPaused = computed(() => store.isPlaylistPaused(playlist.id));
 
 const typeIcon = computed(() =>
   playlist.playlist_type === "music" ? IconMusicNote : IconWind,
@@ -175,14 +168,16 @@ const currentTrackName = computed(() => {
   return tracks.value?.find((t) => t.sound.id === soundId)?.sound.name ?? null;
 });
 
+// Always scoped to this playlist: stopping a scene from its own card must not
+// take down the other scenes stacked with it.
 function togglePlay() {
   if (!tracks.value) return;
-  if (isActive.value) store.stopPlaylist(playlist.playlist_type);
+  if (isActive.value) store.stopPlaylist(playlist.playlist_type, playlist.id);
   else store.playPlaylist(playlist, tracks.value);
 }
 
 function togglePause() {
-  if (isPaused.value) store.resumePlaylist(playlist.playlist_type);
-  else store.pausePlaylist(playlist.playlist_type);
+  if (isPaused.value) store.resumePlaylist(playlist.playlist_type, playlist.id);
+  else store.pausePlaylist(playlist.playlist_type, playlist.id);
 }
 </script>

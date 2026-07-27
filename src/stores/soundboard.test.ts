@@ -647,7 +647,7 @@ describe("scene layers and generators", () => {
     engineCalls.setSoundVolume.mockClear();
 
     store.setLayerVolume("a1", 0.25);
-    expect(store.activeAmbientPlaylist?.layerVolumes.a1).toBeCloseTo(0.25);
+    expect(store.activeAmbientPlaylists[0]?.layerVolumes.a1).toBeCloseTo(0.25);
     expect(engineCalls.setSoundVolume).toHaveBeenCalledWith("a1", 0.25, expect.any(Number));
   });
 });
@@ -859,11 +859,118 @@ describe("playlist dispatch", () => {
     );
     await flush();
 
-    expect(store.activePlaylistId("music")).toBe("p");
-    expect(store.activePlaylistId("ambient")).toBeNull();
+    expect(store.activeMusicPlaylistId()).toBe("p");
+    expect(store.isPlaylistActive("p")).toBe(true);
 
     store.stopPlaylist("music");
     await flush();
-    expect(store.activePlaylistId("music")).toBeNull();
+    expect(store.activeMusicPlaylistId()).toBeNull();
+  });
+});
+
+describe("scenes stack", () => {
+  function layer(soundId: string, over: Record<string, unknown> = {}) {
+    return {
+      id: `t-${soundId}`, playlist_id: "p", sound_id: soundId, sort_order: 0, created_at: "",
+      layer_volume: 1, is_generator: false,
+      min_interval_s: 20, max_interval_s: 60,
+      min_gain: 0.6, max_gain: 1, pan_spread: 0.5,
+      sound: { id: soundId, file_url: `https://example.test/${soundId}.mp3`, name: soundId, artist: null, thumbnail_url: null, gain_trim: 1 },
+      ...over,
+    };
+  }
+  function scene(tracks: unknown[]) {
+    return tracks as unknown as Parameters<Awaited<ReturnType<typeof loadStore>>["playAmbientPlaylist"]>[1];
+  }
+
+  it("runs rain over a tavern instead of replacing it", async () => {
+    const store = await loadStore();
+    store.playAmbientPlaylist({ id: "tavern", name: "Tavern" }, scene([layer("crowd")]));
+    await flush();
+    store.playAmbientPlaylist({ id: "storm", name: "Storm" }, scene([layer("rain")]));
+    await flush();
+
+    expect(store.activeAmbientPlaylists.map((s) => s.playlistId)).toEqual(["tavern", "storm"]);
+    expect(store.getState("crowd").isPlaying).toBe(true);
+    expect(store.getState("rain").isPlaying).toBe(true);
+  });
+
+  it("counts each running scene as one item", async () => {
+    const store = await loadStore();
+    store.playAmbientPlaylist({ id: "tavern", name: "Tavern" }, scene([layer("crowd"), layer("fire")]));
+    await flush();
+    store.playAmbientPlaylist({ id: "storm", name: "Storm" }, scene([layer("rain")]));
+    await flush();
+
+    // Two things the DM started, and two things they may want to stop.
+    expect(store.activeAudioCount).toBe(2);
+  });
+
+  it("stops one scene without touching the other", async () => {
+    const store = await loadStore();
+    store.playAmbientPlaylist({ id: "tavern", name: "Tavern" }, scene([layer("crowd")]));
+    await flush();
+    store.playAmbientPlaylist({ id: "storm", name: "Storm" }, scene([layer("rain")]));
+    await flush();
+
+    store.stopAmbientPlaylist("tavern");
+    await flush();
+
+    expect(store.activeAmbientPlaylists.map((s) => s.playlistId)).toEqual(["storm"]);
+    expect(store.getState("crowd").isPlaying).toBe(false);
+    expect(store.getState("rain").isPlaying).toBe(true);
+  });
+
+  it("stops every scene when no id is given", async () => {
+    const store = await loadStore();
+    store.playAmbientPlaylist({ id: "tavern", name: "Tavern" }, scene([layer("crowd")]));
+    await flush();
+    store.playAmbientPlaylist({ id: "storm", name: "Storm" }, scene([layer("rain")]));
+    await flush();
+
+    store.stopAmbientPlaylist();
+    await flush();
+    expect(store.activeAmbientPlaylists).toEqual([]);
+  });
+
+  it("refuses to start the same scene twice", async () => {
+    const store = await loadStore();
+    store.playAmbientPlaylist({ id: "tavern", name: "Tavern" }, scene([layer("crowd")]));
+    await flush();
+    store.playAmbientPlaylist({ id: "tavern", name: "Tavern" }, scene([layer("crowd")]));
+    await flush();
+
+    expect(store.activeAmbientPlaylists).toHaveLength(1);
+  });
+
+  it("skips a layer another scene already claimed", async () => {
+    const store = await loadStore();
+    store.playAmbientPlaylist({ id: "tavern", name: "Tavern" }, scene([layer("crowd")]));
+    await flush();
+    // There is one element per sound, so starting it twice would play it over
+    // itself at double volume with no way to tell the copies apart.
+    store.playAmbientPlaylist({ id: "market", name: "Market" }, scene([layer("crowd"), layer("stalls")]));
+    await flush();
+
+    const market = store.activeAmbientPlaylists.find((s) => s.playlistId === "market");
+    expect(market?.soundIds).toEqual(["stalls"]);
+  });
+
+  it("pauses and resumes one scene independently", async () => {
+    const store = await loadStore();
+    store.playAmbientPlaylist({ id: "tavern", name: "Tavern" }, scene([layer("crowd")]));
+    await flush();
+    store.playAmbientPlaylist({ id: "storm", name: "Storm" }, scene([layer("rain")]));
+    await flush();
+
+    store.pauseAmbientPlaylist("tavern");
+    await flush();
+    expect(store.isPlaylistPaused("tavern")).toBe(true);
+    expect(store.isPlaylistPaused("storm")).toBe(false);
+    expect(store.hasActiveAudio).toBe(true);
+
+    store.resumeAmbientPlaylist("tavern");
+    await flush();
+    expect(store.isPlaylistPaused("tavern")).toBe(false);
   });
 });

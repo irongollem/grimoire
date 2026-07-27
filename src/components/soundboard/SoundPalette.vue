@@ -155,7 +155,7 @@ interface PaletteRow {
  */
 const playlistRows = computed<PaletteRow[]>(() =>
   rankEntries(query.value, allPlaylists.value, (p) => ({ name: p.name }), 8).map((playlist) => {
-    const active = store.activePlaylistId(playlist.playlist_type) === playlist.id;
+    const active = store.isPlaylistActive(playlist.id);
     return {
       key: `playlist:${playlist.id}`,
       kind: "playlist",
@@ -215,8 +215,10 @@ async function fireRow(row: PaletteRow): Promise<void> {
   const playlist = row.playlist;
   if (!playlist) return;
 
-  if (store.activePlaylistId(playlist.playlist_type) === playlist.id) {
-    store.stopPlaylist(playlist.playlist_type);
+  if (store.isPlaylistActive(playlist.id)) {
+    // Scoped by id: stopping one scene from the palette must not take down the
+    // others stacked with it.
+    store.stopPlaylist(playlist.playlist_type, playlist.id);
     return;
   }
   const tracks = await fetchTracks(playlist.id);

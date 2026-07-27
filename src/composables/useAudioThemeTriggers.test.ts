@@ -17,8 +17,11 @@ const tracks: PlaylistTrackWithSound[] = [
 const store = {
   playPlaylist: vi.fn(),
   stopPlaylist: vi.fn(),
+  stopAmbientPlaylist: vi.fn(),
   play: vi.fn(),
-  activePlaylistId: vi.fn<(slot: string) => string | null>(() => null),
+  stop: vi.fn(),
+  activeMusicPlaylistId: vi.fn<() => string | null>(() => null),
+  isPlaylistActive: vi.fn<(id: string) => boolean>(() => false),
 };
 
 vi.mock("@/stores/soundboard", () => ({ useSoundboardStore: () => store }));
@@ -56,7 +59,8 @@ async function mount() {
 beforeEach(async () => {
   vi.resetModules();
   Object.values(store).forEach((fn) => fn.mockClear());
-  store.activePlaylistId.mockImplementation(() => null);
+  store.activeMusicPlaylistId.mockImplementation(() => null);
+  store.isPlaylistActive.mockImplementation(() => false);
   playlists.value = [];
   sounds.value = [];
   const { clearAudioTriggerHandlers } = await import("@/lib/audioTriggers");
@@ -79,7 +83,7 @@ describe("a trigger that matches nothing", () => {
 
   it("does not stop the music that is already running", async () => {
     const { requestAudioTheme } = await mount();
-    store.activePlaylistId.mockImplementation(() => "travel-music");
+    store.activeMusicPlaylistId.mockImplementation(() => "travel-music");
 
     requestAudioTheme({ sourceId: "encounter:1", theme: "battle", slot: "music", label: "Ambush" });
     await flush();
@@ -103,7 +107,7 @@ describe("a trigger that matches", () => {
   it("does not restart what is already playing", async () => {
     const { requestAudioTheme } = await mount();
     playlists.value = [playlist({ id: "battle", tags: ["battle"] })];
-    store.activePlaylistId.mockImplementation(() => "battle");
+    store.activeMusicPlaylistId.mockImplementation(() => "battle");
 
     requestAudioTheme({ sourceId: "encounter:1", theme: "battle", slot: "music", label: "Ambush" });
     await flush();
@@ -142,7 +146,7 @@ describe("release", () => {
     const battle = playlist({ id: "battle", tags: ["battle"] });
     const travel = playlist({ id: "travel" });
     playlists.value = [battle, travel];
-    store.activePlaylistId.mockImplementation(() => "travel");
+    store.activeMusicPlaylistId.mockImplementation(() => "travel");
 
     requestAudioTheme({ sourceId: "encounter:1", theme: "battle", slot: "music", label: "Ambush" });
     await flush();
@@ -180,7 +184,7 @@ describe("release", () => {
     expect(store.stopPlaylist).not.toHaveBeenCalled();
   });
 
-  it("treats a release as stale once another source has taken the slot", async () => {
+  it("removes only the scene the released source started", async () => {
     const { requestAudioTheme, releaseAudioTheme } = await mount();
     const tavern = playlist({ id: "tavern", playlist_type: "ambient", tags: ["tavern"] });
     const dungeon = playlist({ id: "dungeon", playlist_type: "ambient", tags: ["dungeon"] });
@@ -188,15 +192,16 @@ describe("release", () => {
 
     requestAudioTheme({ sourceId: "location:1", theme: "tavern", slot: "ambient", label: "Inn" });
     await flush();
-
-    // Walking from one themed room to the next: LocationSheet requests the new
-    // one before releasing the old, so the old release must not tear down the
-    // audio that has already replaced it.
     requestAudioTheme({ sourceId: "location:2", theme: "dungeon", slot: "ambient", label: "Crypt" });
+    await flush();
+
     releaseAudioTheme("location:1");
     await flush();
 
-    expect(store.playPlaylist).toHaveBeenLastCalledWith(dungeon, tracks);
+    // Scoped by id: the crypt keeps running, and the blunt "stop the ambient
+    // slot" call is never made.
+    expect(store.stopAmbientPlaylist).toHaveBeenCalledWith("tavern");
+    expect(store.stopAmbientPlaylist).not.toHaveBeenCalledWith("dungeon");
     expect(store.stopPlaylist).not.toHaveBeenCalled();
   });
 
@@ -211,7 +216,7 @@ describe("release", () => {
     await flush();
     // Second trigger while we already own the slot — battle music is ours, so
     // it must not become the thing we restore afterwards.
-    store.activePlaylistId.mockImplementation(() => "battle");
+    store.activeMusicPlaylistId.mockImplementation(() => "battle");
     requestAudioTheme({ sourceId: "encounter:1", theme: "boss", slot: "music", label: "Phase 2" });
     await flush();
 
@@ -219,5 +224,54 @@ describe("release", () => {
     await flush();
 
     expect(store.stopPlaylist).toHaveBeenCalledWith("music");
+  });
+});
+
+describe("scenes stack", () => {
+  const tavern = () => playlist({ id: "tavern", playlist_type: "ambient", tags: ["tavern"] });
+  const storm = () => playlist({ id: "storm", playlist_type: "ambient", tags: ["storm"] });
+
+  it("adds a scene without displacing the one already running", async () => {
+    const { requestAudioTheme } = await mount();
+    playlists.value = [tavern(), storm()];
+
+    requestAudioTheme({ sourceId: "location:1", theme: "tavern", slot: "ambient", label: "Inn" });
+    await flush();
+    requestAudioTheme({ sourceId: "weather:1", theme: "storm", slot: "ambient", label: "Storm" });
+    await flush();
+
+    // Rain over a tavern: two rooms at once is the feature, not a mistake.
+    expect(store.playPlaylist).toHaveBeenCalledTimes(2);
+    expect(store.stopPlaylist).not.toHaveBeenCalled();
+    expect(store.stopAmbientPlaylist).not.toHaveBeenCalled();
+  });
+
+  it("ignores a repeat request from a source that already owns a scene", async () => {
+    const { requestAudioTheme } = await mount();
+    playlists.value = [tavern()];
+
+    requestAudioTheme({ sourceId: "location:1", theme: "tavern", slot: "ambient", label: "Inn" });
+    await flush();
+    requestAudioTheme({ sourceId: "location:1", theme: "tavern", slot: "ambient", label: "Inn" });
+    await flush();
+
+    expect(store.playPlaylist).toHaveBeenCalledTimes(1);
+  });
+
+  it("never stops a scene when only the music slot is released", async () => {
+    const { requestAudioTheme, releaseAudioTheme } = await mount();
+    playlists.value = [tavern(), playlist({ id: "battle", tags: ["battle"] })];
+
+    requestAudioTheme({ sourceId: "location:1", theme: "tavern", slot: "ambient", label: "Inn" });
+    await flush();
+    requestAudioTheme({ sourceId: "encounter:1", theme: "battle", slot: "music", label: "Ambush" });
+    await flush();
+
+    releaseAudioTheme("encounter:1");
+    await flush();
+
+    // Combat ending must leave the room the party is standing in alone.
+    expect(store.stopPlaylist).toHaveBeenCalledWith("music");
+    expect(store.stopAmbientPlaylist).not.toHaveBeenCalled();
   });
 });

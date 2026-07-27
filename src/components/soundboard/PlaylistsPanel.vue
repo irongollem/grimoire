@@ -108,9 +108,10 @@ function closeEditor() {
 }
 
 function handleDelete(id: string) {
-  // Stop the playlist if it's currently active
+  // Stop the playlist if it's currently active — by id, so deleting one scene
+  // does not silence the others stacked with it.
   if (store.activeMusicPlaylist?.playlistId === id) store.stopMusicPlaylist();
-  if (store.activeAmbientPlaylist?.playlistId === id) store.stopAmbientPlaylist();
+  store.stopAmbientPlaylist(id);
   deletePlaylist(id);
 }
 </script>
