@@ -42,13 +42,18 @@ DM-driven ambient sound and music player for live sessions: a per-campaign libra
 | File                                                                      | Role                                                                                                                                                                                                                                                                    |
 | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `SoundForm.vue` (636 lines — over the 600-line soft max, flagged in #572) | The add-sound form with 5 source tabs: URL, Upload, Spotify, Generate (AI), Browse SFX (Freesound). Whole-window drag-and-drop hijack while mounted.                                                                                                                    |
-| `SoundCard.vue` (609 lines — also over the soft max)                      | Per-sound card: thumbnail upload, inline name/artist/category editing, HTML Audio transport (play/pause/stop/loop/seek/volume/effect picker) **or** Spotify transport depending on `source_type`, page-move dropdown, WebM/Safari warning badge, load-error retry badge |
+| `SoundCard.vue` (76 lines)                                                | Thin orchestrator: routes between the two transports on `source_type`, computes the card's active-highlight state, warms up the audio element on mount |
+| `SoundCardHeader.vue`                                                     | Thumbnail upload, inline name/artist/category editing, WebM/Safari + retry badges, loop toggle, delete, and the trim control |
+| `SoundCardAudioTransport.vue`                                             | Local-audio transport: page picker, play/stop, effect picker, volume, progress bar |
+| `SoundCardSpotifyTransport.vue`                                           | Spotify transport in its three states (disabled / not connected / ready) |
+| `SoundTrimControl.vue`                                                    | Persisted per-sound loudness correction (`gain_trim`, 0.25×–4×). Live preview on `@input`, persists once on `@change`. Gold badge when trimmed away from 1× |
+| `VolumeSlider.vue`                                                        | The one shared range input — master, buses, per-sound and Spotify all use it (`label`/`showPercent`/`wide`/`muted`/`accent` props) |
 | `AddSoundDialog.vue`                                                      | Modal wrapper around `SoundForm`                                                                                                                                                                                                                                        |
 | `SoundFreesoundBrowser.vue`                                               | Freesound search results with a single shared preview `<Audio>` element (module-scope, same non-reactive pattern as the store) and an "Add" button per hit                                                                                                              |
 | `SoundEffectPicker.vue`                                                   | Wand-icon popover for the 6 `AudioEffectPreset` values, teleported to `<body>` to escape widget overflow clipping                                                                                                                                                       |
 | `SoundCategoryFilter.vue`                                                 | Pill filter (All/Ambient/Music/Effects/Misc)                                                                                                                                                                                                                            |
 | `SoundboardPageTabs.vue`                                                  | Draggable page-tab bar: rename (double-click), delete, horizontal-scroll overflow cues, quota-gated "Add Page"                                                                                                                                                          |
-| `SoundboardWidget.vue`                                                    | Floating, draggable mini-player (teleported to `<body>`) showing Spotify / active music playlist / active ambient playlist / individual playing sounds, plus "Stop All"                                                                                                 |
+| `SoundboardWidget.vue`                                                    | Floating, draggable mini-player (teleported to `<body>`) showing Spotify / active music playlist / active ambient playlist / individual playing sounds, plus "Stop All" and a collapsible **Mixer** (master + music/ambience/effects faders) |
 | `SoundboardWidgetToggle.vue`                                              | Nav-bar button that opens/closes the floating widget; badge = count of currently-playing sounds (+1 if Spotify is playing)                                                                                                                                              |
 | `CastButton.vue`                                                          | Google Cast trigger; renders nothing until `isCastAvailable`                                                                                                                                                                                                            |
 | `PlaylistsPanel.vue`                                                      | Playlist grid for the active page (or all playlists on "All"), quota-gated "New Playlist"                                                                                                                                                                               |
@@ -63,13 +68,34 @@ DM-driven ambient sound and music player for live sessions: a per-campaign libra
 
 ## Audio Engine
 
-Playback for everything except Spotify goes through a **module-level, non-reactive** engine in `src/stores/soundboard.ts` — deliberately kept out of Pinia's reactive state because Vue's Proxy wrapper breaks `HTMLAudioElement` (volume/loop mutations silently drop, `play()` calls fail unpredictably):
+Rebuilt in #572 phase 1. Playback for everything except Spotify runs through a
+**Web Audio bus graph** in `src/lib/audioEngine.ts`, with `src/stores/soundboard.ts`
+orchestrating on top and `src/lib/soundTransport.ts` holding the non-reactive
+plumbing:
 
-- `audioInstances: Map<soundId, HTMLAudioElement>` — one element per sound, created lazily via `getOrCreate()` and eagerly "warmed up" (buffering starts) as soon as a `SoundCard` mounts, so playback starts instantly on click. `crossOrigin = "anonymous"` is set before `src` so the element can later be promoted into a Web Audio graph.
-- A **transient CDN-error retry**: on `audio.onerror` the element is recreated once (`retriedIds` tracks this); a second failure surfaces `loadError` in the UI with a manual Retry badge.
-- **Web Audio effect chain** (`effectChains: Map<soundId, EffectChain>`): a sound is "promoted" into a Web Audio graph — `source (MediaElementAudioSourceNode) → BiquadFilter (lowpass) → GainNode → ctx.destination` — the first time an effect is applied via `setEffect()`. Once promoted, the element's output permanently routes through the shared `AudioContext` (a Web Audio constraint), but the chain stays transparent (`frequency = 22000 Hz`, `Q = 0.7071`, `gain = 1.0`) until a preset is picked. Six presets (`through_door`, `through_wall`, `distant`, `underwater`, `cave`, `sewer`) are just different lowpass-frequency/Q/gain triples — all ramped over 0.5s via `linearRampToValueAtTime`. Volume itself is **not** part of this graph — it's set directly via `audio.volume`, pre-context, so it stacks with (rather than goes through) the effect gain.
-- There is **one `AudioContext` per browser tab** (`sharedAudioCtx`), resumed on `visibilitychange` (screen unlock, CarPlay interaction) since iOS suspends it in the background.
-- `releaseSound()` tears down both the effect chain and the audio element when a sound is deleted.
+```
+MediaElementAudioSource → BiquadFilter → soundGain → bus(music|ambient|effects) → master → destination
+```
+
+- **`src/lib/audioEngine.ts`** — owns the graph. `getAudioEngine()` returns a stable object; `engine.available` is false when no `AudioContext` exists, and every method is then a safe no-op so playback still works (just without fades or buses). Consumes the shared singleton in `src/lib/audioContext.ts` — the store no longer owns its own context.
+- **`src/lib/soundTransport.ts`** — the `HTMLAudioElement` registry, duck refcounting, transition generations, and `category → bus` mapping. Deliberately outside Pinia: Vue's Proxy wrapper breaks `HTMLAudioElement` (volume/loop mutations silently drop, `play()` calls fail unpredictably).
+- **Volume runs through `GainNode.gain`, not `audio.volume`.** That is the change that made everything else possible — `audio.volume` is pre-context and cannot be ramped as an `AudioParam`, so every transition used to be a hard cut. Elements are held wide open at `volume = 1` and the graph owns level. The fallback path still uses `audio.volume` when Web Audio is unavailable.
+- **Per-sound gain composes three factors** — user volume × `gain_trim` (persisted loudness normalisation) × the active effect's gain reduction. All three writers recompute the product against the same node rather than clobbering each other.
+- **Fades and crossfade.** Fade-in on play, fade-out before pause/stop (the fade-out promise resolves before the element is paused). Music-playlist advance is a real crossfade, triggered from `ontimeupdate` while the outgoing track is still audible — *not* from `onended`, which would only give a fade-in after silence. The next element is pre-created so its fetch and decode precede the transition.
+- **Ducking.** An `effects`-category sound attenuates the music and ambient buses (never the effects bus) with a fast attack and slower release. Ref-counted via a Set in `soundTransport`, so overlapping one-shots do not un-duck each other.
+- **Master and per-bus faders** — `setMasterVolume` / `setBusVolume`, surfaced in the widget's Mixer section.
+- **Effect presets** are six lowpass frequency/Q/gain triples (`through_door`, `through_wall`, `distant`, `underwater`, `cave`, `sewer`), ramped over 0.5s, ported into the engine from the old store.
+- A **transient CDN-error retry**: on `audio.onerror` the element is recreated once (`hasRetried`/`markRetried`); a second failure surfaces `loadError` with a manual Retry badge. The engine keys its source nodes by element identity (a `WeakMap`), so it rebuilds the chain when the retry swaps the element.
+
+### Two invariants not to break
+
+**Ramp shape.** `exponentialRampToValueAtTime` can neither approach nor leave zero. `scheduleGain` picks exponential only when both endpoints clear a silence floor and falls back to linear otherwise — this is what lets a fade-out reach true silence instead of stalling at an epsilon. Changing it reintroduces a classic Web Audio bug.
+
+**Transition generations.** `bumpGeneration`/`isCurrentGeneration` guard the fade-out completion callback. Without them, a `stop()` immediately followed by a `play()` lets the stale callback pause the element that just started — the race that makes naive crossfading eat tracks.
+
+### Trap when adding a call site
+
+`play(soundId, fileUrl, category?, gainTrim?)` takes category and trim as **optional** trailing params. Omitting `category` typechecks cleanly and routes the sound to the ambient bus, where it will never duck — a green build will not catch it. Every new call site must pass the sound's category.
 
 ## Pages & Playlists
 
@@ -113,13 +139,23 @@ Both integrations are **music-playlist-only** — ambient's simultaneous-layer m
 
 ## Known Gaps
 
-Per the audit in [#572](https://github.com/irongollem/grimoire/issues/572):
+Tracked in [#572](https://github.com/irongollem/grimoire/issues/572). Phase 1 (the
+audio engine) is largely done — fades, crossfade, ducking, master/bus faders and
+per-sound trim all shipped. What remains:
 
-- **No fades or crossfade anywhere.** `play()`/`stop()`/`pause()`/`musicPlaylistNext()` all hard-cut; the only ramp in the codebase is the 0.5s effect-preset transition in `setEffect()`. Track advance is `stop(current)` then `play(next)`, so the next element isn't even created (let alone buffered) until the previous one ends.
-- **No master volume or bus mixing.** Each sound gets its own private `source → filter → gain → destination` chain; there's no shared bus per `category`, and `category` itself has zero effect on the audio graph — it's a metadata filter only.
-- **No ducking** — an effect/one-shot sound never attenuates a music or ambient bed underneath it.
-- **No keyboard shortcuts** — every control is mouse/touch only; there's no global hotkey composable in the repo.
+**Still open in phase 1**
+
+- **Looping is not gapless.** Ambience beds use `audio.loop`, which seams audibly on every cycle in every browser.
+- **`cave` and `sewer` have no reverb.** All six presets are lowpass-only, so those two sound muffled rather than reverberant, which is acoustically wrong for a space defined by its reflections.
+- **Effects apply per-sound only.** `setEffect` filters one sound's chain, so selecting `cave` colours a single track while the music bed and every other layer stay dry. Walking into a cave should affect everything audible — the bus graph now makes bus/master-level effects cheap, but they don't exist yet.
+- **Playlists can still stall after OS suspension.** `resumeAudioEngine()` resumes the `AudioContext` but deliberately does not re-play paused elements, because that raced with the advance chain. Note the transition-generation counter added in phase 1 is the mechanism that would now make safe re-play possible. This matters more than it looks: the soundboard's music playlists are in daily CarPlay use, where the DM cannot touch the screen to recover.
+
+**Later phases**
+
+- **No keyboard shortcuts** — every control is mouse/touch only; no global hotkey composable exists in the repo.
 - **No bundled sound library** — a new campaign's Soundboard opens completely empty ("No sounds yet"); nothing ships as canonical/seed content the way SRD monsters or spells do.
-- **No integration with encounters, locations, or sessions** — `useSoundboardStore` is imported only by soundboard's own files. Starting an encounter doesn't start combat music, a Location has no attached soundscape, and there's no session cue sheet.
+- **No scene model or random generators** — ambient playlists layer fixed loops, but there is no concept of a one-shot firing at a random interval within a range, which is what stops ambience sounding like a two-minute loop.
+- **No integration with encounters, locations, or sessions** — `useSoundboardStore` is imported only by soundboard's own files. Starting an encounter doesn't start combat music and a Location has no attached soundscape. The planned model binds by *theme* (a tagged pool) rather than a track per encounter, so it costs no per-encounter prep.
+- **Players hear nothing** — RLS on all three soundboard tables is owner-only and no realtime channel is subscribed. Planned as opt-in and off by default, and explicitly remote-only: several devices in one room playing the same track comb-filter into a flanged mess.
 
-See the issue for the full remediation plan (bus-graph rebuild, scene/generator model, curated library, campaign-triggered audio, opt-in broadcast to players) and exact file/line references for each gap.
+See the issue for the full plan and per-gap file references.
