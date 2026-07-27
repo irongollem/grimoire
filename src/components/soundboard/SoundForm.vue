@@ -228,7 +228,7 @@
 
       <!-- Browse Freesound -->
       <div v-else-if="activeSourceTab === 'browse'">
-        <SoundFreesoundBrowser :page-id="pageId" @saved="$emit('saved')" />
+        <SoundProviderBrowser :page-id="pageId" @saved="$emit('saved')" />
       </div>
 
       <!-- File upload -->
@@ -293,7 +293,7 @@ import { useSubscription } from "@/composables/useSubscription";
 import { generateMusicWithLyria, structureMusicPrompt, LYRIA_MODELS, LYRICS_MAX_CHARS, type LyriaModel } from "@/lib/aiMusic";
 import { logUsage, useAiCredits } from "@/composables/useAiCredits";
 import { supabase } from "@/lib/supabase";
-import SoundFreesoundBrowser from "@/components/soundboard/SoundFreesoundBrowser.vue";
+import SoundProviderBrowser from "@/components/soundboard/SoundProviderBrowser.vue";
 import type { SoundCategory } from "@/types/sound.types";
 
 const spotifyStore = useSpotifyStore();
