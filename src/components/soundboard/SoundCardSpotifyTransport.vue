@@ -146,6 +146,7 @@ import { computed } from "vue";
 import { IconMusicNote, IconPause, IconPlay, IconRepeat, IconRepeatOne, IconShuffle, IconSkipBack, IconSkipForward } from '@/lib/icons';
 import VolumeSlider from "./VolumeSlider.vue";
 import { useSpotifyStore } from "@/stores/spotify";
+import { useSoundPlayback } from "@/composables/useSoundPlayback";
 import type { Sound } from "@/types/sound.types";
 
 const { sound } = defineProps<{
@@ -154,19 +155,9 @@ const { sound } = defineProps<{
 
 const spotifyStore = useSpotifyStore();
 
-// This card is "active" when it's the one currently driving the Spotify player.
-const isActive = computed(
-  () => spotifyStore.lastPlayedUrl === sound.file_url && spotifyStore.isPlaying,
-);
-
-function toggleSpotify() {
-  if (!spotifyStore.isReady) return;
-  if (isActive.value) {
-    spotifyStore.pause();
-  } else {
-    spotifyStore.play(sound.file_url);
-  }
-}
+// "Active" (this card drives the player) and the play/pause decision are shared
+// with the audio transport and the command palette — see useSoundPlayback.
+const { isPlaying: isActive, toggle: toggleSpotify } = useSoundPlayback(() => sound);
 
 const spotifyProgressPercent = computed(() => {
   if (!spotifyStore.durationMs) return 0;

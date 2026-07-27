@@ -29,7 +29,7 @@
           ? 'bg-gold-500/20 border-gold-500/50 text-gold-300 hover:bg-gold-500/30'
           : 'border-border text-muted-foreground hover:text-foreground hover:border-border/80'
       "
-      :title="playBlocked ? 'WebM — cannot play in Safari' : audioState.isPlaying ? 'Pause' : 'Play'"
+      :title="blockedReason ?? (audioState.isPlaying ? 'Pause' : 'Play')"
       :disabled="playBlocked"
       @click="togglePlay"
     >
@@ -89,10 +89,9 @@ import { IconLayers, IconPause, IconPlay, IconStop } from '@/lib/icons';
 import SoundEffectPicker from "./SoundEffectPicker.vue";
 import VolumeSlider from "./VolumeSlider.vue";
 import { useSoundboardStore } from "@/stores/soundboard";
+import { useSoundPlayback } from "@/composables/useSoundPlayback";
 import { useMoveSound } from "@/composables/useSounds";
 import type { Sound, SoundboardPage } from "@/types/sound.types";
-
-const IS_SAFARI = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
 const { sound, pages } = defineProps<{
   sound: Sound;
@@ -102,30 +101,12 @@ const { sound, pages } = defineProps<{
 const soundboardStore = useSoundboardStore();
 const { mutate: moveSound } = useMoveSound();
 
+// Shared with the command palette, so a file this card knows it cannot play is
+// never offered as playable there either.
+const { blockedReason, toggle: togglePlay } = useSoundPlayback(() => sound);
+
 const audioState = computed(() => soundboardStore.getState(sound.id));
-
-const isWebM = computed(() => {
-  const path = (sound.storage_path ?? sound.file_url).split("?")[0];
-  return path.endsWith(".webm");
-});
-
-const playBlocked = computed(() => (isWebM.value && IS_SAFARI) || audioState.value.loadError);
-
-function togglePlay() {
-  if (playBlocked.value) return;
-  if (audioState.value.isPlaying) {
-    soundboardStore.pause(sound.id);
-  } else {
-    // Category picks the bus: "effects" one-shots duck the music and ambient
-    // beds under themselves, music and ambience do not.
-    soundboardStore.play(
-      sound.id,
-      sound.file_url,
-      sound.category,
-      sound.gain_trim,
-    );
-  }
-}
+const playBlocked = computed(() => blockedReason.value !== null);
 
 const audioProgressPercent = computed(() => {
   if (!audioState.value.duration) return 0;

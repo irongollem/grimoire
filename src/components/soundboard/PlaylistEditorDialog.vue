@@ -159,6 +159,7 @@ import { IconClose, IconListOrdered, IconMusicNote, IconWind } from "@/lib/icons
 import { useSounds } from "@/composables/useSounds";
 import { usePlaylistTracks, useCreatePlaylist, useUpdatePlaylist, useReplacePlaylistTracks } from "@/composables/useSoundboardPlaylists";
 import { useCampaignStore } from "@/stores/campaign";
+import { useHotkeys } from "@/composables/useHotkeys";
 import { storeToRefs } from "pinia";
 import { DEFAULT_LAYER } from "@/types/sound.types";
 import type { SoundboardPlaylist, PlaylistType, Sound, PlaylistTrackLayer } from "@/types/sound.types";
@@ -178,6 +179,14 @@ const { open, playlist, pageId } = defineProps<{
   pageId: string | null;
 }>();
 const emit = defineEmits<{ close: [] }>();
+
+// Registering at the overlay layer does two jobs: Escape closes the dialog, and
+// the soundboard page's transport keys stop responding while it is open — so
+// typing a playlist name cannot pause the session's audio.
+useHotkeys(
+  [{ combo: "escape", description: "Close", handler: () => emit("close"), hidden: true }],
+  { layer: "overlay", enabled: () => open },
+);
 
 const { activeCampaignId } = storeToRefs(useCampaignStore());
 const { data: allSounds } = useSounds();

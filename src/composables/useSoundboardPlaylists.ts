@@ -139,6 +139,21 @@ export function usePlaylistTracks(playlistId: MaybeRefOrGetter<string | null>) {
   });
 }
 
+/**
+ * Fetch one playlist's tracks on demand, reading the cache when it is warm.
+ *
+ * The command palette lists every playlist but cannot mount a query per row, so
+ * it resolves tracks at the moment the DM chooses one.
+ */
+export function useFetchPlaylistTracks() {
+  const qc = useQueryClient();
+  return (playlistId: string): Promise<PlaylistTrackWithSound[]> =>
+    qc.fetchQuery({
+      queryKey: [TRACKS_KEY, playlistId],
+      queryFn: () => fetchPlaylistTracks(playlistId),
+    });
+}
+
 export function useCreatePlaylist() {
   const qc = useQueryClient();
   const { activeCampaignId } = storeToRefs(useCampaignStore());

@@ -5,6 +5,7 @@ import type {
   PlaylistTrackWithSound,
   AudioEffectPreset,
   SoundCategory,
+  PlaylistType,
 } from "@/types/sound.types";
 import { getAudioEngine, type AudioBus } from "@/lib/audioEngine";
 import { createSceneGeneratorPool } from "@/lib/sceneGenerators";
@@ -387,6 +388,23 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     fadeAndHalt(soundId, false, FADE_OUT_MS);
   }
 
+  /**
+   * Fire a sound from the top even if it is already running.
+   *
+   * The soundboard idiom for a one-shot: hitting the thunderclap twice should
+   * give you two thunderclaps, not a pause. Safe against an in-flight fade-out
+   * because play() bumps the generation counter, which discards it.
+   */
+  function restart(
+    soundId: string,
+    fileUrl: string,
+    category?: SoundCategory,
+    gainTrim?: number,
+  ): void {
+    seek(soundId, 0);
+    play(soundId, fileUrl, category, gainTrim);
+  }
+
   function seek(soundId: string, time: number): void {
     const audio = getInstance(soundId);
     if (audio) {
@@ -420,6 +438,28 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     engine.setMasterEffect(preset);
   }
 
+  /**
+   * Level to restore when unmuting. Kept in the store rather than in the view
+   * that owns the shortcut, so muting, walking to another screen and unmuting
+   * there returns to the level you actually had.
+   */
+  const preMuteVolume = ref(1);
+
+  function toggleMute(): void {
+    if (masterVolume.value > 0) {
+      preMuteVolume.value = masterVolume.value;
+      setMasterVolume(0);
+      return;
+    }
+    // A mute at zero with nothing remembered would unmute to silence.
+    setMasterVolume(preMuteVolume.value > 0 ? preMuteVolume.value : 1);
+  }
+
+  /** Nudge the master fader, for the volume shortcuts. */
+  function adjustMasterVolume(delta: number): void {
+    setMasterVolume(masterVolume.value + delta);
+  }
+
   function setBusVolume(bus: AudioBus, volume: number): void {
     const clamped = Math.max(0, Math.min(1, volume));
     busVolumes.value[bus] = clamped;
@@ -448,6 +488,75 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     engine.unduck(0);
     activeMusicPlaylist.value = null;
     activeAmbientPlaylist.value = null;
+  }
+
+  /**
+   * Sounds that pauseAll silenced, so resumeAll knows what to bring back.
+   * Only ones playing in their own right — playlist and scene members are
+   * restored by their own playlist, not individually.
+   */
+  const suspendedByPauseAll = new Set<string>();
+
+  /** Sound IDs currently owned by a running playlist or scene. */
+  function playlistOwnedIds(): Set<string> {
+    const mpl = activeMusicPlaylist.value;
+    const apl = activeAmbientPlaylist.value;
+    return new Set<string>([
+      ...(apl ? apl.soundIds : []),
+      ...(mpl ? mpl.trackSoundIds : []),
+    ]);
+  }
+
+  /**
+   * Silence everything without losing where anything was.
+   *
+   * The doorbell case: Stop All would cost the DM their place in a playlist and
+   * their scene, which is too much to pay for answering the door.
+   */
+  function pauseAll(): void {
+    const owned = playlistOwnedIds();
+    suspendedByPauseAll.clear();
+
+    Object.entries(playbackStates.value).forEach(([id, st]) => {
+      if (!st.isPlaying || owned.has(id)) return;
+      suspendedByPauseAll.add(id);
+      pause(id);
+    });
+
+    const mpl = activeMusicPlaylist.value;
+    if (mpl && !mpl.paused) pauseMusicPlaylist();
+    const apl = activeAmbientPlaylist.value;
+    if (apl && !apl.paused) pauseAmbientPlaylist();
+  }
+
+  function resumeAll(): void {
+    suspendedByPauseAll.forEach((id) => {
+      const audio = getInstance(id);
+      if (!audio) return;
+      // Supersede the fade-out that pause() left in flight, or its callback
+      // lands after this and pauses the element we just restarted.
+      bumpGeneration(id);
+      void audio
+        .play()
+        .then(() => {
+          const live = playbackStates.value[id];
+          if (live) live.isPlaying = true;
+          engine.fadeIn(id, FADE_IN_MS);
+        })
+        .catch(() => {
+          /* autoplay refused — the UI already shows this one stopped */
+        });
+    });
+    suspendedByPauseAll.clear();
+
+    if (activeMusicPlaylist.value?.paused) resumeMusicPlaylist();
+    if (activeAmbientPlaylist.value?.paused) resumeAmbientPlaylist();
+  }
+
+  /** One key for "hold on a moment" and "carry on" — see the space binding. */
+  function togglePauseAll(): void {
+    if (hasActiveAudio.value) pauseAll();
+    else resumeAll();
   }
 
   // ── Gapless looping ─────────────────────────────────────────────────────
@@ -818,6 +927,48 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     activeAmbientPlaylist.value = null;
   }
 
+  // ── Playlist dispatch ───────────────────────────────────────────────────
+  //
+  // Music playlists and ambient scenes are genuinely different mechanisms — one
+  // advances through tracks, the other runs layers at once — but every caller
+  // picks between them on the same field. Doing that branch once here keeps it
+  // out of the UI, where it was repeated four times per surface.
+
+  function playPlaylist(
+    playlist: {
+      id: string;
+      name: string;
+      playlist_type: PlaylistType;
+      shuffle: boolean;
+      repeat: boolean;
+    },
+    tracks: PlaylistTrackWithSound[],
+  ): void {
+    if (playlist.playlist_type === "music") playMusicPlaylist(playlist, tracks);
+    else playAmbientPlaylist(playlist, tracks);
+  }
+
+  function stopPlaylist(type: PlaylistType): void {
+    if (type === "music") stopMusicPlaylist();
+    else stopAmbientPlaylist();
+  }
+
+  function pausePlaylist(type: PlaylistType): void {
+    if (type === "music") pauseMusicPlaylist();
+    else pauseAmbientPlaylist();
+  }
+
+  function resumePlaylist(type: PlaylistType): void {
+    if (type === "music") resumeMusicPlaylist();
+    else resumeAmbientPlaylist();
+  }
+
+  /** Which playlist, if any, is currently running for this type. */
+  function activePlaylistId(type: PlaylistType): string | null {
+    const run = type === "music" ? activeMusicPlaylist.value : activeAmbientPlaylist.value;
+    return run === null ? null : run.playlistId;
+  }
+
   // ── Audio effects ─────────────────────────────────────────────────────────
 
   /**
@@ -935,12 +1086,15 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     masterEffect,
     getState,
     play,
+    restart,
     pause,
     stop,
     seek,
     setVolume,
     setTrim,
     setMasterVolume,
+    adjustMasterVolume,
+    toggleMute,
     setBusVolume,
     setMasterEffect,
     toggleLoop,
@@ -960,6 +1114,14 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     pauseAmbientPlaylist,
     resumeAmbientPlaylist,
     stopAmbientPlaylist,
+    pauseAll,
+    resumeAll,
+    togglePauseAll,
+    playPlaylist,
+    stopPlaylist,
+    pausePlaylist,
+    resumePlaylist,
+    activePlaylistId,
     setEffect,
     setMusicPlaylistEffect,
     setLayerVolume,

@@ -74,6 +74,7 @@ import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
 import { useRouter } from "vue-router";
 import { IconClose, IconLoading, IconSearch } from '@/lib/icons';
 import { useGlobalSearch } from "@/composables/useGlobalSearch";
+import { useHotkeys } from "@/composables/useHotkeys";
 import type { SearchGroup } from "@/composables/useGlobalSearch";
 
 const router = useRouter();
@@ -141,22 +142,30 @@ function handleOutsideClick(e: MouseEvent) {
   }
 }
 
-// Cmd/Ctrl+K to focus search
-function handleKeydown(e: KeyboardEvent) {
-  if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-    e.preventDefault();
-    inputRef.value?.focus();
-    open.value = true;
-  }
-}
+// Registered rather than listened for directly, so the registry knows this
+// combo is taken and the cheat sheet can show it. See composables/useHotkeys.
+useHotkeys(
+  [
+    {
+      combo: "mod+k",
+      description: "Search the campaign",
+      // Deliberately fires while typing: the shortcut's job is to pull focus
+      // here from wherever it currently is, including another field.
+      allowInTextEntry: true,
+      handler: () => {
+        inputRef.value?.focus();
+        open.value = true;
+      },
+    },
+  ],
+  { layer: "global" },
+);
 
 onMounted(() => {
   document.addEventListener("mousedown", handleOutsideClick);
-  document.addEventListener("keydown", handleKeydown);
 });
 
 onBeforeUnmount(() => {
   document.removeEventListener("mousedown", handleOutsideClick);
-  document.removeEventListener("keydown", handleKeydown);
 });
 </script>

@@ -166,36 +166,12 @@ const currentTrackName = computed(() => {
 
 function togglePlay() {
   if (!tracks.value) return;
-
-  if (isActive.value) {
-    if (playlist.playlist_type === "music") {
-      store.stopMusicPlaylist();
-    } else {
-      store.stopAmbientPlaylist();
-    }
-    return;
-  }
-
-  if (playlist.playlist_type === "music") {
-    store.playMusicPlaylist(playlist, tracks.value);
-  } else {
-    store.playAmbientPlaylist(playlist, tracks.value);
-  }
+  if (isActive.value) store.stopPlaylist(playlist.playlist_type);
+  else store.playPlaylist(playlist, tracks.value);
 }
 
 function togglePause() {
-  if (isPaused.value) {
-    if (playlist.playlist_type === "music") {
-      store.resumeMusicPlaylist();
-    } else {
-      store.resumeAmbientPlaylist();
-    }
-  } else {
-    if (playlist.playlist_type === "music") {
-      store.pauseMusicPlaylist();
-    } else {
-      store.pauseAmbientPlaylist();
-    }
-  }
+  if (isPaused.value) store.resumePlaylist(playlist.playlist_type);
+  else store.pausePlaylist(playlist.playlist_type);
 }
 </script>

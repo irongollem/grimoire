@@ -12,7 +12,12 @@ DM-driven ambient sound and music player for live sessions: a per-campaign libra
 
 ### Store & audio engine
 
-`src/stores/soundboard.ts` (Pinia `useSoundboardStore`, ~620 lines) owns all non-Spotify playback. See **Audio Engine** below for the mechanics.
+`src/stores/soundboard.ts` (Pinia `useSoundboardStore`, ~1130 lines) owns all non-Spotify playback. See **Audio Engine** below for the mechanics.
+
+Two mechanics live outside it because neither is reactive state and both are untestable from inside a store:
+
+- `src/lib/soundTransport.ts` — element registry, duck refcounting, transition generations, category→bus mapping.
+- `src/lib/sceneGenerators.ts` — the timers and randomness behind generator layers, as a pool with an injectable clock and RNG.
 
 ### Composables
 
@@ -24,6 +29,8 @@ DM-driven ambient sound and music player for live sessions: a per-campaign libra
 | `src/composables/useFreesoundSearch.ts`     | TanStack Query wrapper around the `freesound-search` edge function, min 2-char query, 10 min `staleTime`                                                                                                        |
 | `src/composables/useMediaSession.ts`        | Wires the active **music** playlist to `navigator.mediaSession`; called once from `App.vue` (`if (!import.meta.env.SSR) useMediaSession();`) so it's live app-wide, not just on the Soundboard page             |
 | `src/composables/useCast.ts`                | Google Cast Sender SDK integration (see **Cast** below); singleton, lazily initialised only when a `CastButton` first mounts                                                                                    |
+| `src/composables/useSoundPlayback.ts`       | The one answer to "is this sound audible / is it blocked / what does the next press do", as list-friendly predicates plus a reactive facade. Both card transports and the palette use it, so a file one surface knows it cannot play is never offered as playable by another |
+| `src/composables/useSoundboardHotkeys.ts`   | The `page`-layer transport bindings for `/soundboard` (see **Keyboard** below)                                                                                                                                  |
 
 ### Spotify
 
@@ -39,27 +46,27 @@ DM-driven ambient sound and music player for live sessions: a per-campaign libra
 
 ### Components (`src/components/soundboard/`)
 
-| File                                                                      | Role                                                                                                                                                                                                                                                                    |
-| ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SoundForm.vue` (636 lines — over the 600-line soft max, flagged in #572) | The add-sound form with 5 source tabs: URL, Upload, Spotify, Generate (AI), Browse SFX (Freesound). Whole-window drag-and-drop hijack while mounted.                                                                                                                    |
-| `SoundCard.vue` (76 lines)                                                | Thin orchestrator: routes between the two transports on `source_type`, computes the card's active-highlight state, warms up the audio element on mount |
-| `SoundCardHeader.vue`                                                     | Thumbnail upload, inline name/artist/category editing, WebM/Safari + retry badges, loop toggle, delete, and the trim control |
-| `SoundCardAudioTransport.vue`                                             | Local-audio transport: page picker, play/stop, effect picker, volume, progress bar |
-| `SoundCardSpotifyTransport.vue`                                           | Spotify transport in its three states (disabled / not connected / ready) |
-| `SoundTrimControl.vue`                                                    | Persisted per-sound loudness correction (`gain_trim`, 0.25×–4×). Live preview on `@input`, persists once on `@change`. Gold badge when trimmed away from 1× |
-| `VolumeSlider.vue`                                                        | The one shared range input — master, buses, per-sound and Spotify all use it (`label`/`showPercent`/`wide`/`muted`/`accent` props) |
-| `AddSoundDialog.vue`                                                      | Modal wrapper around `SoundForm`                                                                                                                                                                                                                                        |
-| `SoundFreesoundBrowser.vue`                                               | Freesound search results with a single shared preview `<Audio>` element (module-scope, same non-reactive pattern as the store) and an "Add" button per hit                                                                                                              |
-| `SoundEffectPicker.vue`                                                   | Wand-icon popover for the 6 `AudioEffectPreset` values, teleported to `<body>` to escape widget overflow clipping                                                                                                                                                       |
-| `SoundCategoryFilter.vue`                                                 | Pill filter (All/Ambient/Music/Effects/Misc)                                                                                                                                                                                                                            |
-| `SoundboardPageTabs.vue`                                                  | Draggable page-tab bar: rename (double-click), delete, horizontal-scroll overflow cues, quota-gated "Add Page"                                                                                                                                                          |
+| File                                                                      | Role                                                                                                                                                                                                                                         |
+| ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SoundForm.vue` (636 lines — over the 600-line soft max, flagged in #572) | The add-sound form with 5 source tabs: URL, Upload, Spotify, Generate (AI), Browse SFX (Freesound). Whole-window drag-and-drop hijack while mounted.                                                                                         |
+| `SoundCard.vue` (76 lines)                                                | Thin orchestrator: routes between the two transports on `source_type`, computes the card's active-highlight state, warms up the audio element on mount                                                                                       |
+| `SoundCardHeader.vue`                                                     | Thumbnail upload, inline name/artist/category editing, WebM/Safari + retry badges, loop toggle, delete, and the trim control                                                                                                                 |
+| `SoundCardAudioTransport.vue`                                             | Local-audio transport: page picker, play/stop, effect picker, volume, progress bar                                                                                                                                                           |
+| `SoundCardSpotifyTransport.vue`                                           | Spotify transport in its three states (disabled / not connected / ready)                                                                                                                                                                     |
+| `SoundTrimControl.vue`                                                    | Persisted per-sound loudness correction (`gain_trim`, 0.25×–4×). Live preview on `@input`, persists once on `@change`. Gold badge when trimmed away from 1×                                                                                  |
+| `VolumeSlider.vue`                                                        | The one shared range input — master, buses, per-sound and Spotify all use it (`label`/`showPercent`/`wide`/`muted`/`accent` props)                                                                                                           |
+| `AddSoundDialog.vue`                                                      | Modal wrapper around `SoundForm`                                                                                                                                                                                                             |
+| `SoundFreesoundBrowser.vue`                                               | Freesound search results with a single shared preview `<Audio>` element (module-scope, same non-reactive pattern as the store) and an "Add" button per hit                                                                                   |
+| `SoundEffectPicker.vue`                                                   | Wand-icon popover for the 6 `AudioEffectPreset` values, teleported to `<body>` to escape widget overflow clipping                                                                                                                            |
+| `SoundCategoryFilter.vue`                                                 | Pill filter (All/Ambient/Music/Effects/Misc)                                                                                                                                                                                                 |
+| `SoundboardPageTabs.vue`                                                  | Draggable page-tab bar: rename (double-click), delete, horizontal-scroll overflow cues, quota-gated "Add Page"                                                                                                                               |
 | `SoundboardWidget.vue`                                                    | Floating, draggable mini-player (teleported to `<body>`) showing Spotify / active music playlist / active ambient playlist / individual playing sounds, plus "Stop All" and a collapsible **Mixer** (master + music/ambience/effects faders) |
-| `SoundboardWidgetToggle.vue`                                              | Nav-bar button that opens/closes the floating widget; badge = count of currently-playing sounds (+1 if Spotify is playing)                                                                                                                                              |
-| `CastButton.vue`                                                          | Google Cast trigger; renders nothing until `isCastAvailable`                                                                                                                                                                                                            |
-| `PlaylistsPanel.vue`                                                      | Playlist grid for the active page (or all playlists on "All"), quota-gated "New Playlist"                                                                                                                                                                               |
-| `PlaylistCard.vue`                                                        | Playlist grid card: play/pause/stop; prev/next + `CastButton` for music playlists only                                                                                                                                                                                  |
-| `PlaylistEditorDialog.vue`                                                | Create/edit modal: name, type (locked after creation), shuffle/repeat (music only), draggable track list, add-sound via `EntityCombobox`                                                                                                                                |
-| `PlaylistTrackRow.vue`                                                    | One draggable track row inside the editor, with a category colour chip                                                                                                                                                                                                  |
+| `SoundboardWidgetToggle.vue`                                              | Nav-bar button that opens/closes the floating widget; badge = count of currently-playing sounds (+1 if Spotify is playing)                                                                                                                   |
+| `CastButton.vue`                                                          | Google Cast trigger; renders nothing until `isCastAvailable`                                                                                                                                                                                 |
+| `PlaylistsPanel.vue`                                                      | Playlist grid for the active page (or all playlists on "All"), quota-gated "New Playlist"                                                                                                                                                    |
+| `PlaylistCard.vue`                                                        | Playlist grid card: play/pause/stop; prev/next + `CastButton` for music playlists only                                                                                                                                                       |
+| `PlaylistEditorDialog.vue`                                                | Create/edit modal: name, type (locked after creation), shuffle/repeat (music only), draggable track list, add-sound via `EntityCombobox`                                                                                                     |
+| `PlaylistTrackRow.vue`                                                    | One draggable track row inside the editor, with a category colour chip                                                                                                                                                                       |
 
 ### Views
 
@@ -81,7 +88,7 @@ MediaElementAudioSource → BiquadFilter → soundGain → bus(music|ambient|eff
 - **`src/lib/soundTransport.ts`** — the `HTMLAudioElement` registry, duck refcounting, transition generations, and `category → bus` mapping. Deliberately outside Pinia: Vue's Proxy wrapper breaks `HTMLAudioElement` (volume/loop mutations silently drop, `play()` calls fail unpredictably).
 - **Volume runs through `GainNode.gain`, not `audio.volume`.** That is the change that made everything else possible — `audio.volume` is pre-context and cannot be ramped as an `AudioParam`, so every transition used to be a hard cut. Elements are held wide open at `volume = 1` and the graph owns level. The fallback path still uses `audio.volume` when Web Audio is unavailable.
 - **Per-sound gain composes three factors** — user volume × `gain_trim` (persisted loudness normalisation) × the active effect's gain reduction. All three writers recompute the product against the same node rather than clobbering each other.
-- **Fades and crossfade.** Fade-in on play, fade-out before pause/stop (the fade-out promise resolves before the element is paused). Music-playlist advance is a real crossfade, triggered from `ontimeupdate` while the outgoing track is still audible — *not* from `onended`, which would only give a fade-in after silence. The next element is pre-created so its fetch and decode precede the transition.
+- **Fades and crossfade.** Fade-in on play, fade-out before pause/stop (the fade-out promise resolves before the element is paused). Music-playlist advance is a real crossfade, triggered from `ontimeupdate` while the outgoing track is still audible — _not_ from `onended`, which would only give a fade-in after silence. The next element is pre-created so its fetch and decode precede the transition.
 - **Ducking.** An `effects`-category sound attenuates the music and ambient buses (never the effects bus) with a fast attack and slower release. Ref-counted via a Set in `soundTransport`, so overlapping one-shots do not un-duck each other.
 - **Master and per-bus faders** — `setMasterVolume` / `setBusVolume`, surfaced in the widget's Mixer section.
 - **Effect presets** are six lowpass frequency/Q/gain triples (`through_door`, `through_wall`, `distant`, `underwater`, `cave`, `sewer`), ramped over 0.5s, ported into the engine from the old store.
@@ -96,6 +103,28 @@ MediaElementAudioSource → BiquadFilter → soundGain → bus(music|ambient|eff
 ### Trap when adding a call site
 
 `play(soundId, fileUrl, category?, gainTrim?)` takes category and trim as **optional** trailing params. Omitting `category` typechecks cleanly and routes the sound to the ambient bus, where it will never duck — a green build will not catch it. Every new call site must pass the sound's category.
+
+## Keyboard
+
+Shortcuts go through the app-wide registry (`src/lib/hotkeys.ts` + `src/composables/useHotkeys.ts`), not through per-component `document` listeners. Three layers:
+
+| Layer     | Meaning                                                                              |
+| --------- | ------------------------------------------------------------------------------------ |
+| `global`  | Works anywhere. Currently `mod+K` (campaign search), `mod+shift+K` (sound palette), `?` (cheat sheet) |
+| `page`    | Registered by a screen. The soundboard's transport keys live here                     |
+| `overlay` | A modal. While **any** overlay binding is enabled, page and global bindings do not fire at all |
+
+The overlay layer is a hard cutoff, not a precedence bump — an open palette must not let `1`-`9` fire sounds on the board behind it. This is also why every dialog reachable from `/soundboard` registers an overlay `escape` binding: it closes the dialog _and_ stops the transport keys responding while the DM types a name.
+
+**On `/soundboard`** (`useSoundboardHotkeys`): `1`-`9` fire the first nine cards in **rendered** order — after page filter, category filter and drag-reordering — and the card shows its number, because a shortcut nobody can see is a shortcut nobody uses. Plus `space` (pause/resume everything), `←`/`→` (track), `↑`/`↓` (master volume), `m` (mute), `x` (stop all). Space yields when a button has focus, since a focused button already answers to it.
+
+**Anywhere** (`GlobalHotkeys.vue`, mounted in `DefaultLayout`): `mod+shift+K` opens `SoundPalette`. Not plain `mod+K` — `GlobalSearch` owns that for entity navigation. The palette ranks via `src/lib/soundSearch.ts` (exact → prefix → word-prefix → substring, over name → tags → artist), deliberately not fuzzy: the DM has to be able to predict the top hit from the letters they typed. Playlists rank above loose sounds. Enter on a playing `effects` sound **re-fires from the top** rather than pausing; everything else toggles. The palette stays open after firing.
+
+`?` opens `HotkeyCheatSheet`, which renders `useActiveHotkeys()` directly — it lists what is actually bound rather than a hand-maintained list that goes stale the first time someone forgets to update it.
+
+### Gotcha: punctuation combos
+
+`matchesCombo` skips the shift comparison for single non-alphanumeric keys. `?` is what Shift+`/` produces, so a `"?"` binding that also demanded `shiftKey === false` could never match a real keypress. Letters and digits keep the check, since `k` and `shift+k` are otherwise indistinguishable after case normalisation.
 
 ## Pages & Playlists
 
@@ -139,23 +168,31 @@ Both integrations are **music-playlist-only** — ambient's simultaneous-layer m
 
 ## Known Gaps
 
-Tracked in [#572](https://github.com/irongollem/grimoire/issues/572). Phase 1 (the
-audio engine) is largely done — fades, crossfade, ducking, master/bus faders and
-per-sound trim all shipped. What remains:
+Tracked in [#572](https://github.com/irongollem/grimoire/issues/572), which sequences
+the work in six phases. **Phases 1 (engine), 2 (scenes) and 4 (speed) have shipped.**
+What remains:
 
-**Still open in phase 1**
+### Left over from phase 2
 
-- **Looping is not gapless.** Ambience beds use `audio.loop`, which seams audibly on every cycle in every browser.
-- **`cave` and `sewer` have no reverb.** All six presets are lowpass-only, so those two sound muffled rather than reverberant, which is acoustically wrong for a space defined by its reflections.
-- **Effects apply per-sound only.** `setEffect` filters one sound's chain, so selecting `cave` colours a single track while the music bed and every other layer stay dry. Walking into a cave should affect everything audible — the bus graph now makes bus/master-level effects cheap, but they don't exist yet.
-- **Playlists can still stall after OS suspension.** `resumeAudioEngine()` resumes the `AudioContext` but deliberately does not re-play paused elements, because that raced with the advance chain. Note the transition-generation counter added in phase 1 is the mechanism that would now make safe re-play possible. This matters more than it looks: the soundboard's music playlists are in daily CarPlay use, where the DM cannot touch the screen to recover.
+- **Only one scene at a time.** `activeAmbientPlaylist` is still a single ref, so you cannot run rain on top of a tavern — you can only replace one with the other.
+- **Scenes do not crossfade into each other.** Individual tracks and loop wraps do; switching from one scene to another still cuts.
 
-**Later phases**
+### Phase 3 — content
 
-- **No keyboard shortcuts** — every control is mouse/touch only; no global hotkey composable exists in the repo.
-- **No bundled sound library** — a new campaign's Soundboard opens completely empty ("No sounds yet"); nothing ships as canonical/seed content the way SRD monsters or spells do.
-- **No scene model or random generators** — ambient playlists layer fixed loops, but there is no concept of a one-shot firing at a random interval within a range, which is what stops ambience sounding like a two-minute loop.
-- **No integration with encounters, locations, or sessions** — `useSoundboardStore` is imported only by soundboard's own files. Starting an encounter doesn't start combat music and a Location has no attached soundscape. The planned model binds by *theme* (a tagged pool) rather than a track per encounter, so it costs no per-encounter prep.
-- **Players hear nothing** — RLS on all three soundboard tables is owner-only and no realtime channel is subscribed. Planned as opt-in and off by default, and explicitly remote-only: several devices in one room playing the same track comb-filter into a flanged mess.
+- **No bundled sound library.** A new campaign's Soundboard opens completely empty ("No sounds yet"); nothing ships as canonical/seed content the way SRD monsters or spells do. Blocked on the Freesound commercial-use question, though the provider adapter added in phase 2 means the answer changes an adapter rather than the feature.
+- **Freesound's own filters are not exposed.** The edge function forwards only query, page and page size, so finding a three-second door creak means auditioning a lot of forty-second field recordings.
+
+### Phase 5 — integration
+
+- **No integration with encounters, locations, or sessions.** `useSoundboardStore` is imported only by soundboard's own files and by `GlobalHotkeys`. Starting an encounter doesn't start combat music and a Location has no attached soundscape. The planned model binds by _theme_ (a tagged pool) rather than a track per encounter, so it costs no per-encounter prep.
+
+### Phase 6 — shared playback
+
+- **Players hear nothing.** RLS on all three soundboard tables is owner-only and no realtime channel is subscribed. Planned as opt-in and off by default, and explicitly remote-only: several devices in one room playing the same track comb-filter into a flanged mess.
+
+### Not phased
+
+- **`useReplacePlaylistTracks` deletes and re-inserts the whole track list on every save** rather than diffing.
+- **Other shortcuts have not migrated to the registry.** `GlobalSearch` and the soundboard dialogs have; `ImageLightbox`, `RollModePicker`, `NpcWebView` and the cartographer editor still open their own `document` listeners, so the registry cannot see those combos and the cheat sheet cannot list them.
 
 See the issue for the full plan and per-gap file references.

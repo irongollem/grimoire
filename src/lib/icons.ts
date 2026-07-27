@@ -17,7 +17,7 @@ import {
   Gamepad2, Gem, Ghost, Gift, Globe, Globe2, GraduationCap, GripVertical,
   Hammer, Hand, Handshake, Hash, Hexagon, Highlighter, Home, Image, ImagePlus, Images, Info,
   Cloud,
-  KeyRound, Landmark, Layers, LayoutDashboard, LayoutGrid, LayoutList,
+  Keyboard, KeyRound, Landmark, Layers, LayoutDashboard, LayoutGrid, LayoutList,
   Leaf, Library, LibraryBig, Lightbulb, Link, Link2, List, ListOrdered, ListTodo,
   Loader2, LoaderCircle, Lock, LogOut,
   Map, MapPin, Maximize2, Megaphone, Menu, MessageCircle, MessageSquare, Minus, Monitor, MoreHorizontal,
@@ -104,6 +104,7 @@ export { Link2 as IconEntityLink }
 export { Hexagon as IconRoomTemplate }
 export { Cloud as IconCave }
 export { KeyRound as IconKey }
+export { Keyboard as IconKeyboard }
 export { Highlighter as IconHighlight }
 
 // ── Navigation / Layout ───────────────────────────────────────────────────────

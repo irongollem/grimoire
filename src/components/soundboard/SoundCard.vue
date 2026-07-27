@@ -32,12 +32,12 @@
 // one making noise right now" state. Each child owns its own layout,
 // interaction, and store calls — see SoundCardHeader / SoundCardSpotifyTransport
 // / SoundCardAudioTransport / SoundTrimControl.
-import { computed, onMounted } from "vue";
+import { onMounted } from "vue";
 import SoundCardHeader from "./SoundCardHeader.vue";
 import SoundCardSpotifyTransport from "./SoundCardSpotifyTransport.vue";
 import SoundCardAudioTransport from "./SoundCardAudioTransport.vue";
 import { useSoundboardStore } from "@/stores/soundboard";
-import { useSpotifyStore } from "@/stores/spotify";
+import { useSoundPlayback } from "@/composables/useSoundPlayback";
 import type { Sound, SoundboardPage } from "@/types/sound.types";
 
 const { sound, showDelete, pages } = defineProps<{
@@ -51,9 +51,10 @@ defineEmits<{
 }>();
 
 const soundboardStore = useSoundboardStore();
-const spotifyStore = useSpotifyStore();
 
-const isSpotify = computed(() => sound.source_type === "spotify");
+// "Is this card the one making noise" is the same question on both transports
+// and in the command palette — see useSoundPlayback.
+const { isSpotify, isPlaying: isActive } = useSoundPlayback(() => sound);
 
 // Kick off the network fetch as soon as the card is mounted so the file is
 // already buffered when the DM clicks play. Skipped for Spotify (no <audio>).
@@ -63,14 +64,4 @@ onMounted(() => {
   }
 });
 
-const audioState = computed(() => soundboardStore.getState(sound.id));
-
-// A card is "active" if it's currently the one driving the Spotify player or
-// if it's an audio card that is playing.
-const isActive = computed(() => {
-  if (isSpotify.value) {
-    return spotifyStore.lastPlayedUrl === sound.file_url && spotifyStore.isPlaying;
-  }
-  return audioState.value.isPlaying;
-});
 </script>

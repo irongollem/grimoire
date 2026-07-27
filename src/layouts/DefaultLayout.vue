@@ -56,6 +56,9 @@
     <!-- Soundboard floating widget — always mounted so audio survives navigation -->
     <SoundboardWidget />
 
+    <!-- App-wide shortcuts: the sound palette and the shortcut cheat sheet -->
+    <GlobalHotkeys />
+
     <!-- Shown after downgrade when the user has more active campaigns than their free-plan limit -->
     <DowngradeCampaignPickerModal
       :show="showDowngradePicker"
@@ -84,6 +87,7 @@ import LocationGeneratorPanel from "@/components/locations/LocationGeneratorPane
 import RollTableGeneratorPanel from "@/components/dungeon-features/RollTableGeneratorPanel.vue";
 import AiGenerationBadge from "@/components/common/AiGenerationBadge.vue";
 import SoundboardWidget from "@/components/soundboard/SoundboardWidget.vue";
+import GlobalHotkeys from "@/components/layout/GlobalHotkeys.vue";
 import DowngradeCampaignPickerModal from "@/components/billing/DowngradeCampaignPickerModal.vue";
 import SuspensionBanner from "@/components/billing/SuspensionBanner.vue";
 import { useCampaignPresence } from "@/composables/useCampaignPresence";

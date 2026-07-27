@@ -163,7 +163,7 @@
         ghost-class="opacity-40"
         @end="persistOrder"
       >
-        <div v-for="sound in orderedSounds" :key="sound.id" class="group relative">
+        <div v-for="(sound, index) in orderedSounds" :key="sound.id" class="group relative">
           <!-- Drag handle — only visible when not filtered -->
           <div
             v-if="!ui.soundboardHasActiveFilters"
@@ -172,6 +172,15 @@
           >
             <IconDrag class="h-3.5 w-3.5" />
           </div>
+          <!-- The number key that fires this card. Shown rather than documented,
+               because a shortcut nobody can see is a shortcut nobody uses. -->
+          <span
+            v-if="index < 9"
+            class="pointer-events-none absolute top-2 right-2 z-10 rounded border border-border/60 bg-background/80 px-1 text-2xs tabular-nums text-muted-foreground/70"
+            :title="`Press ${index + 1} to fire this sound`"
+          >
+            {{ index + 1 }}
+          </span>
           <SoundCard
             :sound="sound"
             :show-delete="true"
@@ -197,6 +206,7 @@ import { useSpotifyStore } from "@/stores/spotify";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useQuota } from "@/composables/useQuota";
+import { useSoundboardHotkeys } from "@/composables/useSoundboardHotkeys";
 import { storeToRefs } from "pinia";
 import { useCampaignStore } from "@/stores/campaign";
 import type { Sound } from "@/types/sound.types";
@@ -302,6 +312,10 @@ watch(
   },
   { immediate: true },
 );
+
+// Number keys fire the cards in the order they are rendered, so the mapping
+// always matches the badges the DM can see.
+useSoundboardHotkeys(orderedSounds);
 
 function persistOrder() {
   const updates = orderedSounds.value

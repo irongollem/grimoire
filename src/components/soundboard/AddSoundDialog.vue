@@ -50,17 +50,26 @@
 <script setup lang="ts">
 import { IconClose, IconMusic } from '@/lib/icons';
 import SoundForm from "./SoundForm.vue";
+import { useHotkeys } from "@/composables/useHotkeys";
 
-defineProps<{
+const { open } = defineProps<{
   open: boolean;
   pageId?: string | null;
   geminiApiKey?: string | null;
   campaignId?: string | null;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   (e: "close"): void;
 }>();
+
+// Registering at the overlay layer does two jobs: Escape closes the dialog, and
+// the soundboard page's transport keys stop responding while it is open — so
+// typing a sound name cannot pause the session's audio.
+useHotkeys(
+  [{ combo: "escape", description: "Close", handler: () => emit("close"), hidden: true }],
+  { layer: "overlay", enabled: () => open },
+);
 </script>
 
 <style scoped>

@@ -730,3 +730,140 @@ describe("hasActiveAudio", () => {
     expect(store.hasActiveAudio).toBe(false);
   });
 });
+
+describe("pause everything without losing your place", () => {
+  const musicTracks = [
+    { id: "t1", playlist_id: "p", sound_id: "s1", sort_order: 0, created_at: "", sound: { id: "s1", file_url: "https://example.test/1.mp3", name: "One", artist: null, thumbnail_url: null, gain_trim: 1 } },
+  ] as unknown as Parameters<Awaited<ReturnType<typeof loadStore>>["playMusicPlaylist"]>[1];
+
+  it("pauses a loose sound and brings it back", async () => {
+    const store = await loadStore();
+    store.play("fx1", "https://example.test/fx.mp3", "effects");
+    await flush();
+
+    store.pauseAll();
+    await flush();
+    expect(store.hasActiveAudio).toBe(false);
+
+    store.resumeAll();
+    await flush();
+    expect(store.getState("fx1").isPlaying).toBe(true);
+  });
+
+  it("keeps the playlist rather than tearing it down", async () => {
+    const store = await loadStore();
+    store.playMusicPlaylist({ id: "p", name: "P", shuffle: false, repeat: true }, musicTracks);
+    await flush();
+
+    store.pauseAll();
+    await flush();
+    // The doorbell case: Stop All would have discarded the run state entirely.
+    expect(store.activeMusicPlaylist).not.toBeNull();
+    expect(store.hasActiveAudio).toBe(false);
+
+    store.resumeAll();
+    await flush();
+    expect(store.hasActiveAudio).toBe(true);
+  });
+
+  it("does not resume a playlist track twice over", async () => {
+    const store = await loadStore();
+    store.playMusicPlaylist({ id: "p", name: "P", shuffle: false, repeat: true }, musicTracks);
+    await flush();
+
+    store.pauseAll();
+    await flush();
+    store.resumeAll();
+    await flush();
+
+    // The track belongs to the playlist, so the playlist restores it. Counting
+    // it individually as well would leave a second element playing over itself.
+    expect(store.activeAudioCount).toBe(1);
+  });
+
+  it("toggles in both directions from one entry point", async () => {
+    const store = await loadStore();
+    store.play("fx1", "https://example.test/fx.mp3", "effects");
+    await flush();
+
+    store.togglePauseAll();
+    await flush();
+    expect(store.hasActiveAudio).toBe(false);
+
+    store.togglePauseAll();
+    await flush();
+    expect(store.hasActiveAudio).toBe(true);
+  });
+});
+
+describe("master mute", () => {
+  it("restores the level it was muted from", async () => {
+    const store = await loadStore();
+    store.setMasterVolume(0.4);
+
+    store.toggleMute();
+    expect(store.masterVolume).toBe(0);
+
+    store.toggleMute();
+    expect(store.masterVolume).toBeCloseTo(0.4);
+  });
+
+  it("unmutes to full when it was already silent", async () => {
+    const store = await loadStore();
+    store.setMasterVolume(0);
+    // Nothing was remembered, so unmuting to the remembered value would be a
+    // no-op and the key would look broken.
+    store.toggleMute();
+    expect(store.masterVolume).toBe(1);
+  });
+
+  it("clamps a nudge past either end", async () => {
+    const store = await loadStore();
+    store.setMasterVolume(0.98);
+    store.adjustMasterVolume(0.05);
+    expect(store.masterVolume).toBe(1);
+
+    store.setMasterVolume(0.02);
+    store.adjustMasterVolume(-0.05);
+    expect(store.masterVolume).toBe(0);
+  });
+});
+
+describe("restart fires a one-shot again", () => {
+  it("rewinds before playing", async () => {
+    const store = await loadStore();
+    store.play("fx1", "https://example.test/fx.mp3", "effects");
+    await flush();
+
+    const el = created[created.length - 1];
+    el.currentTime = 3.2;
+
+    store.restart("fx1", "https://example.test/fx.mp3", "effects");
+    await flush();
+
+    expect(el.currentTime).toBe(0);
+    expect(store.getState("fx1").isPlaying).toBe(true);
+  });
+});
+
+describe("playlist dispatch", () => {
+  const musicTracks = [
+    { id: "t1", playlist_id: "p", sound_id: "s1", sort_order: 0, created_at: "", sound: { id: "s1", file_url: "https://example.test/1.mp3", name: "One", artist: null, thumbnail_url: null, gain_trim: 1 } },
+  ] as unknown as Parameters<Awaited<ReturnType<typeof loadStore>>["playMusicPlaylist"]>[1];
+
+  it("routes by playlist_type instead of making every caller branch", async () => {
+    const store = await loadStore();
+    store.playPlaylist(
+      { id: "p", name: "P", playlist_type: "music", shuffle: false, repeat: true },
+      musicTracks,
+    );
+    await flush();
+
+    expect(store.activePlaylistId("music")).toBe("p");
+    expect(store.activePlaylistId("ambient")).toBeNull();
+
+    store.stopPlaylist("music");
+    await flush();
+    expect(store.activePlaylistId("music")).toBeNull();
+  });
+});
