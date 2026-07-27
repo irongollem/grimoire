@@ -160,6 +160,9 @@
 
       <main class="flex-1 overflow-y-auto">
         <div class="px-4 py-6">
+          <!-- Renders nothing unless the DM is actually sharing audio, so a
+               table that plays in one room never sees it. -->
+          <PlayerAudioStream class="mb-4" />
           <RouterView />
         </div>
       </main>
@@ -321,6 +324,7 @@ import BugReportModal from "@/components/common/BugReportModal.vue";
 import PlayerLocationDialog from "@/components/play/PlayerLocationDialog.vue";
 import NewCampaignModal from "@/components/campaign/NewCampaignModal.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
+import PlayerAudioStream from "@/components/soundboard/PlayerAudioStream.vue";
 import { useQuota } from "@/composables/useQuota";
 import type { Campaign } from "@/types/campaign.types";
 

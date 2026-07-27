@@ -152,3 +152,48 @@ export const DEFAULT_LAYER: PlaylistTrackLayer = {
 export interface PlaylistTrackWithSound extends PlaylistTrack {
   sound: Sound;
 }
+
+// ── Shared playback ───────────────────────────────────────────────────────
+
+/**
+ * What the DM is sharing with remote players, one row per campaign.
+ *
+ * The track is denormalised rather than referenced so players never need read
+ * access to the `sounds` table: this row is a snapshot of exactly what is
+ * audible right now, which is all a player is entitled to see.
+ */
+export interface SoundboardBroadcast {
+  id: string;
+  campaign_id: string;
+  user_id: string;
+  /** Off by default and per session — most tables are in one room. */
+  is_live: boolean;
+  sound_id: string | null;
+  track_name: string | null;
+  track_url: string | null;
+  artist: string | null;
+  thumbnail_url: string | null;
+  playlist_name: string | null;
+  /** Wall clock corresponding to position zero of the current track. */
+  started_at: string | null;
+  is_paused: boolean;
+  /** Where the track froze, so a paused broadcast stops advancing. */
+  paused_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** The half a DM pushes; identity and timestamps are server-owned. */
+export type SoundboardBroadcastState = Pick<
+  SoundboardBroadcast,
+  | "is_live"
+  | "sound_id"
+  | "track_name"
+  | "track_url"
+  | "artist"
+  | "thumbnail_url"
+  | "playlist_name"
+  | "started_at"
+  | "is_paused"
+  | "paused_at"
+>;

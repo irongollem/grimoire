@@ -196,15 +196,46 @@ Both integrations are **music-playlist-only** — ambient's simultaneous-layer m
 - **Media Session** (`useMediaSession`) is wired globally from `App.vue`, not gated to the Soundboard page — CarPlay/Android Auto/lock-screen controls work as long as a music playlist is active anywhere in the app. It publishes `MediaMetadata` (title/artist/album/artwork) and `play`/`pause`/`nexttrack`/`previoustrack`/`stop`/`seekto` action handlers, all delegating back into the soundboard store.
 - **Google Cast** (`useCast`) mirrors the active music playlist to a Chromecast/Google Home device via the Default Media Receiver (no custom receiver app). It's lazily initialised — the Cast Sender SDK `<script>` is injected only when a `CastButton` first mounts, specifically to avoid the SDK's continuous mDNS device discovery starving audio-streaming bandwidth (this caused audible crackling when it was loaded at app startup). While casting, `soundboardStore.isCasting` is set and local playback is silenced (`pauseForCast`) so only the Cast device plays. Only Chrome/Edge desktop and Android support it; elsewhere `isCastAvailable` stays false and the button doesn't render.
 
+## Shared playback (remote players)
+
+A DM can share **the music slot only** with players in the portal. `soundboard_broadcast` holds one row per campaign; the DM writes it, campaign members may only read it.
+
+| Piece                                        | Role                                                        |
+| -------------------------------------------- | ------------------------------------------------------------ |
+| `src/lib/broadcastOffset.ts`                 | Pure: anchor → current position, and the resync threshold      |
+| `src/composables/useSoundboardBroadcast.ts`  | DM side. Module-level `broadcasting` flag + the upsert         |
+| `src/composables/usePlayerAudioStream.ts`    | Player side. Realtime subscription and the element             |
+| `src/components/soundboard/PlayerAudioStream.vue` | Player UI, mounted in `PlayerLayout`                      |
+
+### Four decisions worth not undoing
+
+**The current track is denormalised onto the row.** The obvious alternative — opening `sounds` up so players can read what a broadcast points at — would grant every campaign member read access to the DM's whole library in order to share one track. The row instead carries a snapshot of exactly what is audible, which is all a player is entitled to. The `sounds` bucket is already public, so the URL resolves with no storage-policy change. **Phase 6 therefore changes no existing table's RLS at all.**
+
+**`started_at` is an anchor, not a position** — the wall-clock instant corresponding to position zero. Each client derives its own offset, so a player joining thirty seconds late lands in the right place and the row does not need rewriting several times a second. The DM pushes only on track change, pause and stop; **never on `timeupdate`**.
+
+**Joining is an explicit act.** A browser will not start audio without a gesture from that player, so "Join audio" is a requirement rather than a courtesy — and it is the right consent model regardless: nobody's speakers should come alive because someone else pressed play.
+
+**Broadcasting is per session and off by default.** The flag lives in memory and is gone on reload. Most tables using this are in one room, where several devices playing the same track comb-filter into a flanged mess.
+
+### Known limits
+
+- **Sync is approximate.** Each client plays its own copy seeked to the offset; there is no media server. Fine for music, which is why one-shot effects are deliberately not carried — they would land a second apart across a group.
+- **Ambience is not shared.** Generator layers fire on random schedules, so "the same scene" would be a different arrangement on every device anyway.
+- **A DM who closes the tab leaves `is_live` true.** Players hear the current track finish and then nothing. The row is corrected next time the DM opens the board.
+- The player receiver owns its own realtime channel rather than going through `useCampaignLiveSync`, which invalidates TanStack queries — there is no query here to invalidate, only a live ref driving an element.
+- `soundboard_broadcast` had to be added to the `supabase_realtime` publication explicitly (migration `20260728000003`); a new table is not published automatically, and without it the receiver subscribes happily and simply never hears about a track change.
+
 ## DM / Player Split
 
-**Players currently have no access to the soundboard at all.** All three tables — `sounds`, `soundboard_pages`, `soundboard_playlists` (and the `soundboard_playlist_tracks` junction, scoped via the parent playlist's owner) — carry RLS policies of the form `auth.uid() = user_id` with no player-facing SELECT policy of any kind. `useCampaignLiveSync` does not subscribe to any soundboard table either, so there's no realtime channel a player-side view could even listen on. The Soundboard route (`/soundboard`) and every component in this doc are reachable only from the DM-side nav; there is no `/play/soundboard` equivalent. Any "the party can hear ambient audio" experience today is purely physical — the DM's speakers.
+**The soundboard itself is DM-only; players get one read-only stream.** `sounds`, `soundboard_pages`, `soundboard_playlists` (and the `soundboard_playlist_tracks` junction, scoped via the parent playlist's owner) all carry RLS of the form `auth.uid() = user_id`, with no player-facing SELECT policy — **shared playback did not change that**, because the broadcast row carries its own denormalised copy of the audible track. The Soundboard route (`/soundboard`) and every editing component in this doc are reachable only from the DM-side nav; there is no `/play/soundboard`.
+
+What a player can reach is `soundboard_broadcast`, SELECT only, via `PlayerAudioStream` in `PlayerLayout` — and only when the DM has switched sharing on for that session and the player has pressed Join on their own device. A player can never start, stop or retarget the table's audio: there is no player-facing INSERT, UPDATE or DELETE policy on that table.
 
 ## Known Gaps
 
 Tracked in [#572](https://github.com/irongollem/grimoire/issues/572), which sequences
-the work in six phases. **Phases 1 (engine), 2 (scenes), 4 (speed) and the bulk of
-5 (integration) have shipped.** What remains:
+the work in six phases. **Phases 1 (engine), 2 (scenes), 4 (speed), 5 (integration)
+and 6 (shared playback) have shipped.** What remains:
 
 ### Phase 3 — content
 
@@ -217,10 +248,6 @@ Encounters and locations are wired (see **Themed audio** above). Still open:
 
 - **Sessions and the calendar do not trigger anything.** The bus is producer-agnostic, so adding one is a `requestAudioTheme` call plus a theme field — no soundboard changes.
 - **No indication of _why_ audio is playing.** The trigger carries a `label` ("Goblin ambush") that nothing displays yet, so a DM who forgot they themed an encounter has no way to see what started the music.
-
-### Phase 6 — shared playback
-
-- **Players hear nothing.** RLS on all three soundboard tables is owner-only and no realtime channel is subscribed. Planned as opt-in and off by default, and explicitly remote-only: several devices in one room playing the same track comb-filter into a flanged mess.
 
 ### Not phased
 

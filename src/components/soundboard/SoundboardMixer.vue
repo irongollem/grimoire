@@ -69,6 +69,26 @@
         />
         Let encounters and locations pick audio
       </label>
+
+      <!-- Off every session on purpose: several devices in one room playing the
+           same track comb-filter into a flanged mess, and most tables running
+           this are in one room. -->
+      <label
+        class="flex w-full cursor-pointer select-none items-center gap-1.5 text-2xs text-muted-foreground"
+        title="Share the music with players in the portal. For remote games — players must still opt in on their own device."
+      >
+        <input
+          type="checkbox"
+          class="h-3 w-3 accent-gold-500"
+          :checked="broadcasting"
+          @change="setBroadcasting(($event.target as HTMLInputElement).checked)"
+        />
+        Share music with remote players
+      </label>
+
+      <p v-if="broadcastError" class="w-full text-2xs text-destructive">
+        {{ broadcastError }}
+      </p>
     </template>
   </div>
 </template>
@@ -85,6 +105,7 @@ import { computed, ref } from "vue";
 import { IconChevronRight } from "@/lib/icons";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useAudioTriggerPrefs } from "@/composables/useAudioThemeTriggers";
+import { useSoundboardBroadcast } from "@/composables/useSoundboardBroadcast";
 import type { AudioBus } from "@/lib/audioEngine";
 import VolumeSlider from "./VolumeSlider.vue";
 import SoundEffectPicker from "./SoundEffectPicker.vue";
@@ -103,6 +124,7 @@ const { collapsible = false } = defineProps<{
 
 const store = useSoundboardStore();
 const { audioTriggersEnabled, setAudioTriggersEnabled } = useAudioTriggerPrefs();
+const { broadcasting, broadcastError, setBroadcasting } = useSoundboardBroadcast();
 
 // Only worth the space when a scene is actually running.
 const showScene = computed(() => store.activeAmbientPlaylists.length > 0);
