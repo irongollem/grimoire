@@ -12,6 +12,7 @@ import { ref, computed, watch } from "vue";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import {
+  readSpotifyError,
   getValidToken,
   buildAuthUrl,
   clearTokens,
@@ -148,7 +149,13 @@ export const useSpotifyStore = defineStore("spotify", () => {
     const res = await fetch("https://api.spotify.com/v1/me", {
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (!res.ok) return;
+    if (!res.ok) {
+      // A 403 here means the login succeeded but the account cannot use the
+      // app — almost always Development mode without the user allowlisted.
+      // Silently returning left the UI looking connected but inert.
+      playError.value = await readSpotifyError(res);
+      return;
+    }
     const data = await res.json() as { display_name: string; email: string; product: string };
     spotifyUser.value = { display_name: data.display_name, email: data.email, product: data.product };
   }

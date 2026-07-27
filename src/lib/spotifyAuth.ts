@@ -50,6 +50,42 @@ const SCOPES = [
   "user-modify-playback-state",
 ].join(" ");
 
+
+/**
+ * Spotify replies to a failed auth/API call with a JSON body that says exactly
+ * what is wrong (`error` / `error_description`, or a nested `error.message`).
+ * Swallowing it leaves the UI able to say only "it failed", which is useless to
+ * whoever has to fix the Spotify app settings.
+ */
+export async function readSpotifyError(res: Response): Promise<string> {
+  let detail = "";
+  try {
+    const body: unknown = await res.json();
+    if (body !== null && typeof body === "object") {
+      const rec = body as Record<string, unknown>;
+      if (typeof rec.error_description === "string") detail = rec.error_description;
+      else if (typeof rec.error === "string") detail = rec.error;
+      else if (rec.error !== null && typeof rec.error === "object") {
+        const nested = rec.error as Record<string, unknown>;
+        if (typeof nested.message === "string") detail = nested.message;
+      }
+    }
+  } catch {
+    /* non-JSON body — the status alone will have to do */
+  }
+
+  const base = `Spotify returned ${res.status}`;
+  if (!detail) return base;
+
+  // 403 after a successful login almost always means the Spotify app is still
+  // in Development mode and this account is not on its user list. Say so,
+  // because the fix is in the Spotify dashboard and nowhere in this codebase.
+  if (res.status === 403) {
+    return `${base}: ${detail}. If the app is in Development mode, the listening account must be added under User Management in the Spotify dashboard.`;
+  }
+  return `${base}: ${detail}`;
+}
+
 // ── Auth flow ─────────────────────────────────────────────────────────────
 
 const CLIENT_ID_KEY = "spotify_client_id_pending";
@@ -76,13 +112,22 @@ export async function buildAuthUrl(clientId: string): Promise<string> {
 }
 
 /** Exchange the auth code for tokens. Client ID is read from sessionStorage if not provided. */
-export async function exchangeCode(code: string, clientId?: string): Promise<SpotifyTokens | null> {
+export async function exchangeCode(code: string, clientId?: string): Promise<SpotifyTokens> {
   const verifier = localStorage.getItem(VERIFIER_KEY);
-  if (!verifier) return null;
+  // The verifier lives in localStorage, which is per-origin. If the login began
+  // on one host and the callback landed on another (an apex → app redirect, say),
+  // it is simply not here — worth naming, because it looks nothing like a
+  // Spotify problem from the outside.
+  if (!verifier) {
+    throw new Error(
+      `No PKCE verifier found for ${window.location.origin}. If the login started on a different domain, the redirect URI registered with Spotify must point at this one.`,
+    );
+  }
   localStorage.removeItem(VERIFIER_KEY);
-  const id = clientId ?? localStorage.getItem(CLIENT_ID_KEY) ?? "";
+  const stored = localStorage.getItem(CLIENT_ID_KEY);
+  const id = clientId ?? (stored === null ? "" : stored);
   localStorage.removeItem(CLIENT_ID_KEY);
-  if (!id) return null;
+  if (!id) throw new Error("No Spotify client ID available for the token exchange.");
 
   const res = await fetch("https://accounts.spotify.com/api/token", {
     method: "POST",
@@ -96,7 +141,7 @@ export async function exchangeCode(code: string, clientId?: string): Promise<Spo
     }),
   });
 
-  if (!res.ok) return null;
+  if (!res.ok) throw new Error(await readSpotifyError(res));
   const data = await res.json() as { access_token: string; refresh_token: string; expires_in: number };
   const tokens: SpotifyTokens = {
     access_token: data.access_token,
