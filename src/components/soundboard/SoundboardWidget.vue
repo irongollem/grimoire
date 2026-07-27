@@ -282,13 +282,21 @@
           </button>
 
           <template v-if="mixerOpen">
-            <VolumeSlider
-              label="Master"
-              wide
-              show-percent
-              :model-value="store.masterVolume"
-              @update:model-value="store.setMasterVolume($event)"
-            />
+            <div class="flex items-center gap-2">
+              <VolumeSlider
+                class="flex-1"
+                label="Master"
+                wide
+                show-percent
+                :model-value="store.masterVolume"
+                @update:model-value="store.setMasterVolume($event)"
+              />
+              <!-- Puts the whole mix in a space, rather than one selected track. -->
+              <SoundEffectPicker
+                :model-value="store.masterEffect"
+                @update:model-value="store.setMasterEffect($event)"
+              />
+            </div>
             <VolumeSlider
               v-for="bus in BUSES"
               :key="bus.id"

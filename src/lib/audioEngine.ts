@@ -3,12 +3,19 @@
 // Replaces the "every sound builds its own private chain straight to
 // destination" approach with a proper bus graph:
 //
-//   MediaElementAudioSource → BiquadFilter → soundGain → busGain → masterGain → destination
+//   source → filter → soundGain → busFilter → busGain → masterFilter → masterGain → destination
+//                        └→ reverbSend ─┐
+//   masterFilter →  masterSend ─────────┴→ convolver → reverbReturn → masterGain
 //
-// This gives us a master volume fader, per-bus (music/ambient/effects)
-// volume, and ducking (attenuate music+ambient while an effect one-shot
-// plays) — none of which are possible when every sound routes straight to
-// ctx.destination.
+// This gives us a master volume fader, per-bus (music/ambient/effects) volume,
+// ducking (attenuate music+ambient while an effect one-shot plays), and effects
+// at any of the three levels — none of which are possible when every sound
+// routes straight to ctx.destination.
+//
+// Effects exist at sound, bus and master level because they answer different
+// questions. Per-sound is "that bard is behind a door". Master is "the party is
+// in a cave", where everything audible should be in the cave — applying that to
+// one track while the music bed stays dry is acoustically backwards.
 //
 // Consumes the shared AudioContext singleton from `audioContext.ts` rather
 // than owning its own — that module already null-safes environments without
@@ -48,8 +55,16 @@ export interface AudioEngine {
   duck(attackMs?: number, depth?: number): void;
   /** Restore whatever duck() attenuated, with a slower release. */
   unduck(releaseMs?: number): void;
-  /** Apply (or clear, via "none") a lowpass-filter preset to a sound. */
+  /** Apply (or clear, via "none") a preset to a single sound — the local case, e.g. one bard heard through a door. */
   setEffect(soundId: string, preset: AudioEffectPreset, rampMs?: number): void;
+  /** Apply a preset to a whole bus, colouring every sound routed through it. */
+  setBusEffect(bus: AudioBus, preset: AudioEffectPreset, rampMs?: number): void;
+  /**
+   * Apply a preset to the entire mix. This is the "the party just walked into a
+   * cave" case: everything audible should be in the cave, not just whichever
+   * track happens to be selected.
+   */
+  setMasterEffect(preset: AudioEffectPreset, rampMs?: number): void;
   /** Resume a suspended AudioContext (e.g. after OS/PWA backgrounding). */
   resume(): void;
 }
@@ -60,20 +75,30 @@ interface FilterTarget {
   frequency: number; // lowpass cutoff (Hz)
   Q: number;         // resonance
   gain: number;       // linear gain multiplier contributed by the effect — < 1 = quieter
+  /**
+   * How much of this signal is fed to the shared reverb, 0–1.
+   *
+   * Occlusion presets (door, wall, distance) are about something being *blocked*,
+   * so they stay dry. Spaces are defined by their reflections, so cave and sewer
+   * send heavily — a lowpass alone makes a cave sound merely muffled, which is
+   * the wrong instinct entirely.
+   */
+  send: number;
+  /** Reverb tail length in seconds, used when this preset drives the shared convolver. */
+  decay: number;
 }
 
 const EFFECT_PARAMS: Record<Exclude<AudioEffectPreset, "none">, FilterTarget> = {
-  through_door: { frequency: 700,  Q: 1.2, gain: 0.50 }, // wood: muffled, slight resonance
-  through_wall: { frequency: 220,  Q: 0.8, gain: 0.25 }, // stone: very muffled, barely there
-  distant:      { frequency: 1800, Q: 0.5, gain: 0.35 }, // air: loses sparkle, much quieter
-  underwater:   { frequency: 150,  Q: 3.5, gain: 0.40 }, // water: heavy, resonant
-  cave:         { frequency: 900,  Q: 2.5, gain: 0.65 }, // stone: hollow, resonant, highs cut
-  sewer:        { frequency: 500,  Q: 2.2, gain: 0.55 }, // wet stone tunnel: more muffled, resonant
+  through_door: { frequency: 700,  Q: 1.2, gain: 0.50, send: 0.05, decay: 0.6 }, // wood: muffled, slight resonance
+  through_wall: { frequency: 220,  Q: 0.8, gain: 0.25, send: 0.03, decay: 0.5 }, // stone: very muffled, barely there
+  distant:      { frequency: 1800, Q: 0.5, gain: 0.35, send: 0.25, decay: 1.4 }, // air: loses sparkle, some space
+  underwater:   { frequency: 150,  Q: 3.5, gain: 0.40, send: 0.15, decay: 1.0 }, // water: heavy, resonant, damped
+  cave:         { frequency: 900,  Q: 2.5, gain: 0.65, send: 0.55, decay: 3.2 }, // stone: long, diffuse tail
+  sewer:        { frequency: 500,  Q: 2.2, gain: 0.55, send: 0.45, decay: 1.6 }, // wet tunnel: tighter, slappier
 };
 
-// Fully open — passes all frequencies, no gain reduction. Matches EFFECT_RAMP_S's
-// "none" target in the old store.
-const OPEN_FILTER: FilterTarget = { frequency: 22000, Q: 0.7071, gain: 1.0 };
+// Fully open — passes all frequencies, no gain reduction, fully dry.
+const OPEN_FILTER: FilterTarget = { frequency: 22000, Q: 0.7071, gain: 1.0, send: 0, decay: 1.5 };
 
 const EFFECT_RAMP_MS_DEFAULT = 500;
 
@@ -153,6 +178,8 @@ interface SoundChain {
   source: MediaElementAudioSourceNode;
   filter: BiquadFilterNode;
   soundGain: GainNode;
+  /** Tap off soundGain into the shared convolver. Silent unless a preset asks for reverb. */
+  reverbSend: GainNode;
   bus: AudioBus;
   volume: number;     // 0–1 user volume, last value passed to setSoundVolume
   trim: number;        // linear multiplier, last value passed to setSoundTrim (default 1)
@@ -170,7 +197,61 @@ const chains = new Map<string, SoundChain>();
 interface BusGraph {
   ctx: AudioContext;
   master: GainNode;
+  /** Sits ahead of master gain, so a master effect colours the whole mix. */
+  masterFilter: BiquadFilterNode;
   buses: Record<AudioBus, GainNode>;
+  /** One per bus, ahead of the bus gain — sounds connect here, not to the gain. */
+  busFilters: Record<AudioBus, BiquadFilterNode>;
+  /** Shared reverb. One convolver for the page, fed by per-sound and master sends. */
+  convolver: ConvolverNode;
+  /** Convolver output level into master. */
+  reverbReturn: GainNode;
+  /** Master-level reverb send, tapped off masterFilter. */
+  masterSend: GainNode;
+}
+
+/**
+ * Build an impulse response procedurally: exponentially-decaying stereo noise,
+ * lightly darkened over time so the tail loses highs the way a real room does.
+ *
+ * Generated rather than shipped as audio files on purpose. Bundling third-party
+ * IRs would drag in licensing questions this project is careful about elsewhere,
+ * and for "does the cave sound like a cave" a synthetic tail is entirely
+ * convincing.
+ */
+function buildImpulseResponse(ctx: AudioContext, seconds: number): AudioBuffer {
+  const rate = ctx.sampleRate;
+  const length = Math.max(1, Math.floor(rate * seconds));
+  const buffer = ctx.createBuffer(2, length, rate);
+
+  for (let channel = 0; channel < 2; channel++) {
+    const data = buffer.getChannelData(channel);
+    // One-pole lowpass state, so later reflections are darker than early ones.
+    let last = 0;
+    for (let i = 0; i < length; i++) {
+      const progress = i / length;
+      const decay = Math.pow(1 - progress, 2.5);
+      const white = Math.random() * 2 - 1;
+      // Damping rises with progress: the tail gets progressively duller.
+      const damp = 0.2 + progress * 0.6;
+      last = white * (1 - damp) + last * damp;
+      data[i] = last * decay;
+    }
+  }
+  return buffer;
+}
+
+// Cache IRs by decay length — regenerating on every setEffect would be wasteful
+// and audibly glitchy.
+const impulseCache = new Map<number, AudioBuffer>();
+
+function getImpulseResponse(ctx: AudioContext, seconds: number): AudioBuffer {
+  const key = Math.round(seconds * 10) / 10;
+  const cached = impulseCache.get(key);
+  if (cached) return cached;
+  const built = buildImpulseResponse(ctx, key);
+  impulseCache.set(key, built);
+  return built;
 }
 
 let graph: BusGraph | null = null;
@@ -179,24 +260,57 @@ let graph: BusGraph | null = null;
 // restores exactly (and so a duck() while already ducked doesn't compound).
 let preDuckGains: Partial<Record<AudioBus, number>> | null = null;
 
+function openFilter(ctx: AudioContext): BiquadFilterNode {
+  const filter = ctx.createBiquadFilter();
+  filter.type = "lowpass";
+  filter.frequency.value = OPEN_FILTER.frequency;
+  filter.Q.value = OPEN_FILTER.Q;
+  return filter;
+}
+
 function ensureGraph(ctx: AudioContext): BusGraph {
   if (graph && graph.ctx === ctx) return graph;
 
+  // sound → busFilter → busGain → masterFilter → masterGain → destination
   const master = ctx.createGain();
   master.gain.value = 1;
   master.connect(ctx.destination);
+
+  const masterFilter = openFilter(ctx);
+  masterFilter.connect(master);
 
   const buses: Record<AudioBus, GainNode> = {
     music: ctx.createGain(),
     ambient: ctx.createGain(),
     effects: ctx.createGain(),
   };
+  const busFilters: Record<AudioBus, BiquadFilterNode> = {
+    music: openFilter(ctx),
+    ambient: openFilter(ctx),
+    effects: openFilter(ctx),
+  };
   (Object.keys(buses) as AudioBus[]).forEach((bus) => {
     buses[bus].gain.value = 1;
-    buses[bus].connect(master);
+    busFilters[bus].connect(buses[bus]);
+    buses[bus].connect(masterFilter);
   });
 
-  graph = { ctx, master, buses };
+  // Shared reverb. Returns into master gain rather than master filter, so the
+  // tail isn't filtered a second time on its way out.
+  const convolver = ctx.createConvolver();
+  convolver.buffer = getImpulseResponse(ctx, OPEN_FILTER.decay);
+
+  const reverbReturn = ctx.createGain();
+  reverbReturn.gain.value = 1;
+  convolver.connect(reverbReturn);
+  reverbReturn.connect(master);
+
+  const masterSend = ctx.createGain();
+  masterSend.gain.value = 0; // dry until a master effect asks otherwise
+  masterFilter.connect(masterSend);
+  masterSend.connect(convolver);
+
+  graph = { ctx, master, masterFilter, buses, busFilters, convolver, reverbReturn, masterSend };
   return graph;
 }
 
@@ -206,6 +320,7 @@ function teardownChain(chain: SoundChain): void {
   try { chain.source.disconnect(); } catch { /* already disconnected */ }
   try { chain.filter.disconnect(); } catch { /* already disconnected */ }
   try { chain.soundGain.disconnect(); } catch { /* already disconnected */ }
+  try { chain.reverbSend.disconnect(); } catch { /* already disconnected */ }
 }
 
 function buildChain(ctx: AudioContext, busGraph: BusGraph, soundId: string, el: HTMLAudioElement, bus: AudioBus): void {
@@ -215,19 +330,21 @@ function buildChain(ctx: AudioContext, busGraph: BusGraph, soundId: string, el: 
     sourceNodes.set(el, source);
   }
 
-  const filter = ctx.createBiquadFilter();
-  filter.type = "lowpass";
-  filter.frequency.value = OPEN_FILTER.frequency;
-  filter.Q.value = OPEN_FILTER.Q;
+  const filter = openFilter(ctx);
 
   const soundGain = ctx.createGain();
   soundGain.gain.value = 1; // transparent until setSoundVolume/setSoundTrim/setEffect say otherwise
 
+  const reverbSend = ctx.createGain();
+  reverbSend.gain.value = 0; // dry until a preset says otherwise
+
   source.connect(filter);
   filter.connect(soundGain);
-  soundGain.connect(busGraph.buses[bus]);
+  soundGain.connect(busGraph.busFilters[bus]);
+  soundGain.connect(reverbSend);
+  reverbSend.connect(busGraph.convolver);
 
-  chains.set(soundId, { el, source, filter, soundGain, bus, volume: 1, trim: 1, effectGain: 1 });
+  chains.set(soundId, { el, source, filter, soundGain, reverbSend, bus, volume: 1, trim: 1, effectGain: 1 });
 }
 
 // ── Public API ──────────────────────────────────────────────────────────────
@@ -243,7 +360,8 @@ function attach(soundId: string, el: HTMLAudioElement, bus: AudioBus): void {
       // Already wired — just make sure the bus routing matches the request.
       if (existing.bus !== bus) {
         existing.soundGain.disconnect();
-        existing.soundGain.connect(busGraph.buses[bus]);
+        existing.soundGain.connect(busGraph.busFilters[bus]);
+        existing.soundGain.connect(existing.reverbSend);
         existing.bus = bus;
       }
       return;
@@ -344,11 +462,24 @@ function unduck(releaseMs = DEFAULT_DUCK_RELEASE_MS): void {
   preDuckGains = null;
 }
 
+/**
+ * Point the shared convolver at a tail of the requested length.
+ *
+ * One convolver serves the whole page, so the last preset to ask wins. In
+ * practice presets that actually send meaningfully (cave, sewer, distant) are
+ * spaces the party is *in*, and you are only in one space at a time.
+ */
+function setReverbDecay(ctx: AudioContext, busGraph: BusGraph, seconds: number): void {
+  const wanted = getImpulseResponse(ctx, seconds);
+  if (busGraph.convolver.buffer !== wanted) busGraph.convolver.buffer = wanted;
+}
+
 function setEffect(soundId: string, preset: AudioEffectPreset, rampMs = EFFECT_RAMP_MS_DEFAULT): void {
   const ctx = getAudioContext();
   if (!ctx) return;
   const chain = chains.get(soundId);
   if (!chain) return;
+  const busGraph = ensureGraph(ctx);
 
   const target = preset === "none" ? OPEN_FILTER : EFFECT_PARAMS[preset];
 
@@ -357,6 +488,34 @@ function setEffect(soundId: string, preset: AudioEffectPreset, rampMs = EFFECT_R
 
   chain.effectGain = target.gain;
   scheduleLinear(chain.soundGain.gain, ctx, chain.volume * chain.trim * chain.effectGain, rampMs);
+
+  if (target.send > 0) setReverbDecay(ctx, busGraph, target.decay);
+  scheduleGain(chain.reverbSend.gain, ctx, target.send, rampMs);
+}
+
+function setBusEffect(bus: AudioBus, preset: AudioEffectPreset, rampMs = EFFECT_RAMP_MS_DEFAULT): void {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  const busGraph = ensureGraph(ctx);
+  const target = preset === "none" ? OPEN_FILTER : EFFECT_PARAMS[preset];
+
+  scheduleLinear(busGraph.busFilters[bus].frequency, ctx, target.frequency, rampMs);
+  scheduleLinear(busGraph.busFilters[bus].Q, ctx, target.Q, rampMs);
+}
+
+function setMasterEffect(preset: AudioEffectPreset, rampMs = EFFECT_RAMP_MS_DEFAULT): void {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  const busGraph = ensureGraph(ctx);
+  const target = preset === "none" ? OPEN_FILTER : EFFECT_PARAMS[preset];
+
+  scheduleLinear(busGraph.masterFilter.frequency, ctx, target.frequency, rampMs);
+  scheduleLinear(busGraph.masterFilter.Q, ctx, target.Q, rampMs);
+
+  // Master reverb is what makes "we are all in a cave now" land: the whole mix
+  // picks up the space, not just whichever track had an effect selected.
+  if (target.send > 0) setReverbDecay(ctx, busGraph, target.decay);
+  scheduleGain(busGraph.masterSend.gain, ctx, target.send, rampMs);
 }
 
 function resume(): void {
@@ -385,6 +544,8 @@ export function getAudioEngine(): AudioEngine {
       duck,
       unduck,
       setEffect,
+      setBusEffect,
+      setMasterEffect,
       resume,
     };
   }

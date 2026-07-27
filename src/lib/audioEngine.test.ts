@@ -68,14 +68,48 @@ class FakeMediaElementSource extends FakeAudioNode {
   }
 }
 
+class FakeAudioBuffer {
+  private channels: Float32Array[];
+  constructor(
+    public numberOfChannels: number,
+    public length: number,
+    public sampleRate: number,
+  ) {
+    this.channels = Array.from({ length: numberOfChannels }, () => new Float32Array(length));
+  }
+  getChannelData(index: number): Float32Array {
+    return this.channels[index];
+  }
+}
+
+class FakeConvolverNode extends FakeAudioNode {
+  buffer: FakeAudioBuffer | null = null;
+}
+
 class FakeAudioContext {
   currentTime = 0;
   state: "running" | "suspended" | "closed" = "running";
   destination = new FakeAudioNode();
 
+  sampleRate = 48000;
+
   gains: FakeGainNode[] = [];
   filters: FakeBiquadFilterNode[] = [];
   sources: FakeMediaElementSource[] = [];
+  convolvers: FakeConvolverNode[] = [];
+  /** Counts IR construction so a test can prove the cache actually caches. */
+  buffersCreated = 0;
+
+  createConvolver(): FakeConvolverNode {
+    const node = new FakeConvolverNode();
+    this.convolvers.push(node);
+    return node;
+  }
+
+  createBuffer(channels: number, length: number, rate: number): FakeAudioBuffer {
+    this.buffersCreated++;
+    return new FakeAudioBuffer(channels, length, rate);
+  }
 
   resume = vi.fn(async () => {
     this.state = "running";
@@ -119,13 +153,20 @@ function makeAudioEl(): HTMLAudioElement {
   return document.createElement("audio");
 }
 
-// Node creation order on the FIRST call that touches the graph: ensureGraph()
-// builds master, then music/ambient/effects (in that source order); attach()
-// additionally creates a filter and a per-sound gain afterward. Tests key off
-// this fixed order rather than exporting internal graph state.
+// Node creation order on the FIRST call that touches the graph.
+//
+// ensureGraph(): master gain, master filter, the three bus gains, the three bus
+// filters, then convolver, reverb return, master send.
+// attach() then adds: the sound's filter, its gain, and its reverb send.
+//
+// Tests key off this fixed order rather than exporting internal graph state.
 function graphNodes(ctx: FakeAudioContext) {
-  const [master, music, ambient, effects, soundGain] = ctx.gains;
-  return { master, music, ambient, effects, soundGain };
+  const [master, music, ambient, effects, reverbReturn, masterSend, soundGain, reverbSend] = ctx.gains;
+  const [masterFilter, musicFilter, ambientFilter, effectsFilter, soundFilter] = ctx.filters;
+  return {
+    master, music, ambient, effects, reverbReturn, masterSend, soundGain, reverbSend,
+    masterFilter, musicFilter, ambientFilter, effectsFilter, soundFilter,
+  };
 }
 
 describe("audioEngine", () => {
@@ -137,16 +178,24 @@ describe("audioEngine", () => {
 
       engine.attach("s1", el, "music");
 
-      const { master, music, ambient, effects, soundGain } = graphNodes(ctx);
+      const {
+        master, music, ambient, effects, soundGain,
+        masterFilter, musicFilter, ambientFilter, effectsFilter, soundFilter,
+      } = graphNodes(ctx);
       const [source] = ctx.sources;
-      const [filter] = ctx.filters;
 
-      expect(source.connections).toContain(filter);
-      expect(filter.connections).toContain(soundGain);
-      expect(soundGain.connections).toContain(music);
-      expect(music.connections).toContain(master);
-      expect(ambient.connections).toContain(master);
-      expect(effects.connections).toContain(master);
+      expect(source.connections).toContain(soundFilter);
+      expect(soundFilter.connections).toContain(soundGain);
+      // Sounds land on their bus's FILTER, so a bus effect colours everything on it.
+      expect(soundGain.connections).toContain(musicFilter);
+      expect(musicFilter.connections).toContain(music);
+      expect(ambientFilter.connections).toContain(ambient);
+      expect(effectsFilter.connections).toContain(effects);
+      // Buses sum into the master filter, so a master effect colours the whole mix.
+      expect(music.connections).toContain(masterFilter);
+      expect(ambient.connections).toContain(masterFilter);
+      expect(effects.connections).toContain(masterFilter);
+      expect(masterFilter.connections).toContain(master);
       expect(master.connections).toContain(ctx.destination);
     });
 
@@ -323,16 +372,15 @@ describe("audioEngine", () => {
       const engine = await loadEngine(ctx);
       const el = makeAudioEl();
       engine.attach("s1", el, "effects");
-      const { soundGain } = graphNodes(ctx);
-      const [filter] = ctx.filters;
+      const { soundGain, soundFilter } = graphNodes(ctx);
 
       engine.setEffect("s1", "through_wall", 100);
 
-      expect(filter.frequency.value).toBe(220);
-      expect(filter.Q.value).toBe(0.8);
+      expect(soundFilter.frequency.value).toBe(220);
+      expect(soundFilter.Q.value).toBe(0.8);
       expect(soundGain.gain.value).toBeCloseTo(0.25); // volume(1) * trim(1) * effect gain(0.25)
 
-      const freqMethods = filter.frequency.calls.map((c) => c.method);
+      const freqMethods = soundFilter.frequency.calls.map((c) => c.method);
       expect(freqMethods).toEqual(["cancelScheduledValues", "setValueAtTime", "linearRampToValueAtTime"]);
     });
 
@@ -375,9 +423,11 @@ describe("audioEngine", () => {
       engine.attach("s1", el, "music");
 
       expect(ctx.sources.length).toBe(1);
-      expect(ctx.filters.length).toBe(1);
-      // master, music, ambient, effects, soundGain — no extra soundGain created
-      expect(ctx.gains.length).toBe(5);
+      // 4 from the graph (master + 3 buses) + exactly 1 for the sound.
+      expect(ctx.filters.length).toBe(5);
+      // master, 3 buses, reverb return, master send, soundGain, its reverb send
+      // — no extras created by the second attach.
+      expect(ctx.gains.length).toBe(8);
     });
 
     it("re-attaching an already-attached sound to a new bus re-routes without rebuilding the chain", async () => {
@@ -385,13 +435,16 @@ describe("audioEngine", () => {
       const engine = await loadEngine(ctx);
       const el = makeAudioEl();
       engine.attach("s1", el, "music");
-      const { soundGain, music, effects } = graphNodes(ctx);
+      const { soundGain, musicFilter, effectsFilter, reverbSend } = graphNodes(ctx);
 
       engine.attach("s1", el, "effects");
 
       expect(ctx.sources.length).toBe(1); // no re-creation
-      expect(soundGain.connections).not.toContain(music);
-      expect(soundGain.connections).toContain(effects);
+      expect(soundGain.connections).not.toContain(musicFilter);
+      expect(soundGain.connections).toContain(effectsFilter);
+      // Re-routing disconnects everything downstream of soundGain, so the
+      // reverb send has to be reconnected too or the sound silently goes dry.
+      expect(soundGain.connections).toContain(reverbSend);
     });
 
     it("detach disconnects the chain; re-attaching the same element does not call createMediaElementSource again", async () => {
@@ -399,15 +452,16 @@ describe("audioEngine", () => {
       const engine = await loadEngine(ctx);
       const el = makeAudioEl();
       engine.attach("s1", el, "music");
-      const { soundGain } = graphNodes(ctx);
+      const { soundGain, soundFilter, masterFilter, master } = graphNodes(ctx);
       const [source] = ctx.sources;
-      const [filter] = ctx.filters;
 
       engine.detach("s1");
 
       expect(source.connections).toEqual([]);
-      expect(filter.connections).toEqual([]);
+      expect(soundFilter.connections).toEqual([]);
       expect(soundGain.connections).toEqual([]);
+      // The shared graph must survive one sound detaching.
+      expect(masterFilter.connections).toContain(master);
 
       engine.attach("s1", el, "music");
       // createMediaElementSource can only be called ONCE per element, ever —
@@ -469,4 +523,150 @@ describe("audioEngine", () => {
       expect(() => engine.resume()).not.toThrow();
     });
   });
+
+  describe("reverb", () => {
+    it("builds one shared convolver, not one per sound", async () => {
+      const ctx = new FakeAudioContext();
+      const engine = await loadEngine(ctx);
+      engine.attach("s1", makeAudioEl(), "music");
+      engine.attach("s2", makeAudioEl(), "ambient");
+      engine.attach("s3", makeAudioEl(), "effects");
+
+      expect(ctx.convolvers.length).toBe(1);
+    });
+
+    it("routes every sound's reverb send into the shared convolver", async () => {
+      const ctx = new FakeAudioContext();
+      const engine = await loadEngine(ctx);
+      engine.attach("s1", makeAudioEl(), "music");
+      const { reverbSend, reverbReturn, master } = graphNodes(ctx);
+      const [convolver] = ctx.convolvers;
+
+      expect(reverbSend.connections).toContain(convolver);
+      expect(convolver.connections).toContain(reverbReturn);
+      // Returns into master GAIN, not the master filter — otherwise the tail
+      // would be filtered a second time on its way out.
+      expect(reverbReturn.connections).toContain(master);
+    });
+
+    it("starts dry", async () => {
+      const ctx = new FakeAudioContext();
+      const engine = await loadEngine(ctx);
+      engine.attach("s1", makeAudioEl(), "music");
+      const { reverbSend, masterSend } = graphNodes(ctx);
+
+      expect(reverbSend.gain.value).toBe(0);
+      expect(masterSend.gain.value).toBe(0);
+    });
+
+    it("sends heavily for a space, but stays dry for occlusion", async () => {
+      const ctx = new FakeAudioContext();
+      const engine = await loadEngine(ctx);
+      engine.attach("s1", makeAudioEl(), "music");
+      const { reverbSend } = graphNodes(ctx);
+
+      // A cave is defined by its reflections.
+      engine.setEffect("s1", "cave", 0);
+      const caveSend = reverbSend.gain.value;
+      expect(caveSend).toBeGreaterThan(0.4);
+
+      // A closed door is not a space — it blocks sound, it doesn't reverberate.
+      engine.setEffect("s1", "through_wall", 0);
+      expect(reverbSend.gain.value).toBeLessThan(0.1);
+      expect(reverbSend.gain.value).toBeLessThan(caveSend);
+    });
+
+    it("returns to fully dry on 'none'", async () => {
+      const ctx = new FakeAudioContext();
+      const engine = await loadEngine(ctx);
+      engine.attach("s1", makeAudioEl(), "music");
+      const { reverbSend } = graphNodes(ctx);
+
+      engine.setEffect("s1", "cave", 0);
+      engine.setEffect("s1", "none", 0);
+
+      expect(reverbSend.gain.value).toBe(0);
+    });
+
+    it("caches impulse responses instead of regenerating per call", async () => {
+      const ctx = new FakeAudioContext();
+      const engine = await loadEngine(ctx);
+      engine.attach("s1", makeAudioEl(), "music");
+      const afterGraph = ctx.buffersCreated;
+
+      engine.setEffect("s1", "cave", 0);
+      const afterFirstCave = ctx.buffersCreated;
+      engine.setEffect("s1", "cave", 0);
+      engine.setEffect("s1", "cave", 0);
+
+      expect(afterFirstCave).toBeGreaterThan(afterGraph); // built once
+      expect(ctx.buffersCreated).toBe(afterFirstCave);    // and then reused
+    });
+  });
+
+  describe("bus and master effects", () => {
+    it("a bus effect colours only that bus", async () => {
+      const ctx = new FakeAudioContext();
+      const engine = await loadEngine(ctx);
+      engine.attach("s1", makeAudioEl(), "music");
+      const { musicFilter, ambientFilter } = graphNodes(ctx);
+
+      engine.setBusEffect("music", "underwater", 0);
+
+      expect(musicFilter.frequency.value).toBe(150);
+      expect(ambientFilter.frequency.value).toBe(22000); // untouched
+    });
+
+    it("a master effect colours the whole mix", async () => {
+      const ctx = new FakeAudioContext();
+      const engine = await loadEngine(ctx);
+      engine.attach("s1", makeAudioEl(), "music");
+      const { masterFilter, masterSend } = graphNodes(ctx);
+
+      // The case this exists for: the party walks into a cave, so everything
+      // audible is in the cave — not just whichever track was selected.
+      engine.setMasterEffect("cave", 0);
+
+      expect(masterFilter.frequency.value).toBe(900);
+      expect(masterSend.gain.value).toBeGreaterThan(0.4);
+    });
+
+    it("sound, bus and master effects compose rather than clobbering each other", async () => {
+      const ctx = new FakeAudioContext();
+      const engine = await loadEngine(ctx);
+      engine.attach("s1", makeAudioEl(), "music");
+      const { soundFilter, musicFilter, masterFilter } = graphNodes(ctx);
+
+      engine.setEffect("s1", "through_door", 0);
+      engine.setBusEffect("music", "distant", 0);
+      engine.setMasterEffect("cave", 0);
+
+      // A bard behind a door, heard from across the room, in a cave.
+      expect(soundFilter.frequency.value).toBe(700);
+      expect(musicFilter.frequency.value).toBe(1800);
+      expect(masterFilter.frequency.value).toBe(900);
+    });
+
+    it("clearing the master effect leaves sound-level effects alone", async () => {
+      const ctx = new FakeAudioContext();
+      const engine = await loadEngine(ctx);
+      engine.attach("s1", makeAudioEl(), "music");
+      const { soundFilter, masterFilter, masterSend } = graphNodes(ctx);
+
+      engine.setEffect("s1", "through_door", 0);
+      engine.setMasterEffect("cave", 0);
+      engine.setMasterEffect("none", 0);
+
+      expect(masterFilter.frequency.value).toBe(22000);
+      expect(masterSend.gain.value).toBe(0);
+      expect(soundFilter.frequency.value).toBe(700); // still behind its door
+    });
+
+    it("bus and master effects are safe no-ops without Web Audio", async () => {
+      const engine = await loadEngine(null);
+      expect(() => engine.setBusEffect("music", "cave", 0)).not.toThrow();
+      expect(() => engine.setMasterEffect("cave", 0)).not.toThrow();
+    });
+  });
+
 });

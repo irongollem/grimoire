@@ -101,6 +101,11 @@ export const useSoundboardStore = defineStore("soundboard", () => {
   const masterVolume = ref(1);
   const busVolumes = ref<Record<AudioBus, number>>({ music: 1, ambient: 1, effects: 1 });
 
+  // Effect applied to the whole mix. Per-sound effects answer "that bard is
+  // behind a door"; this answers "the party is in a cave", where everything
+  // audible should be in the cave rather than one selected track.
+  const masterEffect = ref<AudioEffectPreset>("none");
+
   // Number of currently playing sounds — used for badge
   const playingCount = computed(
     () => Object.values(playbackStates.value).filter((s) => s.isPlaying).length,
@@ -326,6 +331,11 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     const clamped = Math.max(0, Math.min(1, volume));
     masterVolume.value = clamped;
     engine.setMasterVolume(clamped, 60);
+  }
+
+  function setMasterEffect(preset: AudioEffectPreset): void {
+    masterEffect.value = preset;
+    engine.setMasterEffect(preset);
   }
 
   function setBusVolume(bus: AudioBus, volume: number): void {
@@ -648,6 +658,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     isCasting,
     masterVolume,
     busVolumes,
+    masterEffect,
     getState,
     play,
     pause,
@@ -657,6 +668,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     setTrim,
     setMasterVolume,
     setBusVolume,
+    setMasterEffect,
     toggleLoop,
     stopAll,
     releaseSound,
