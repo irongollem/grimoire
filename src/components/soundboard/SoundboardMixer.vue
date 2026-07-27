@@ -34,6 +34,12 @@
         />
       </div>
 
+      <SceneMixer
+        v-if="showScene"
+        :class="collapsible ? '' : 'w-full'"
+        class="border-t border-border/50 pt-1.5"
+      />
+
       <VolumeSlider
         v-for="bus in BUSES"
         :key="bus.id"
@@ -58,12 +64,13 @@
 // drift apart. A control that exists in one and not the other is worse than no
 // control at all, because the DM learns it is there and then cannot find it.
 // Anything new belongs here, not in one of the two hosts.
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { IconChevronRight } from "@/lib/icons";
 import { useSoundboardStore } from "@/stores/soundboard";
 import type { AudioBus } from "@/lib/audioEngine";
 import VolumeSlider from "./VolumeSlider.vue";
 import SoundEffectPicker from "./SoundEffectPicker.vue";
+import SceneMixer from "./SceneMixer.vue";
 
 const BUSES = [
   { id: "music", label: "Music" },
@@ -77,6 +84,9 @@ const { collapsible = false } = defineProps<{
 }>();
 
 const store = useSoundboardStore();
+
+// Only worth the space when a scene is actually running.
+const showScene = computed(() => store.activeAmbientPlaylist !== null);
 
 // Open by default even when collapsible — a collapsed grey row is
 // indistinguishable from "nothing changed here".

@@ -110,6 +110,8 @@
                   v-for="item in trackList"
                   :key="item.localId"
                   :sound="item.sound"
+                  :layer="localType === 'ambient' ? item.layer : null"
+                  @update:layer="Object.assign(item.layer, $event)"
                   @remove="removeTrack(item.localId)"
                 />
               </VueDraggable>
@@ -158,11 +160,17 @@ import { useSounds } from "@/composables/useSounds";
 import { usePlaylistTracks, useCreatePlaylist, useUpdatePlaylist, useReplacePlaylistTracks } from "@/composables/useSoundboardPlaylists";
 import { useCampaignStore } from "@/stores/campaign";
 import { storeToRefs } from "pinia";
-import type { SoundboardPlaylist, PlaylistType, Sound } from "@/types/sound.types";
+import { DEFAULT_LAYER } from "@/types/sound.types";
+import type { SoundboardPlaylist, PlaylistType, Sound, PlaylistTrackLayer } from "@/types/sound.types";
 import PlaylistTrackRow from "./PlaylistTrackRow.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 
-interface TrackListItem { sound: Sound; localId: string }
+interface TrackListItem {
+  sound: Sound;
+  localId: string;
+  /** Scene settings for this layer. Ignored for music playlists. */
+  layer: PlaylistTrackLayer;
+}
 
 const { open, playlist, pageId } = defineProps<{
   open: boolean;
@@ -225,6 +233,15 @@ watch(existingTracks, (tracks) => {
     trackList.value = tracks.map((t) => ({
       sound: t.sound,
       localId: t.id,
+      layer: {
+        layer_volume: t.layer_volume,
+        is_generator: t.is_generator,
+        min_interval_s: t.min_interval_s,
+        max_interval_s: t.max_interval_s,
+        min_gain: t.min_gain,
+        max_gain: t.max_gain,
+        pan_spread: t.pan_spread,
+      },
     }));
   }
 });
@@ -237,7 +254,7 @@ watch(addSoundId, (id) => {
     addSoundId.value = "";
     return;
   }
-  trackList.value.push({ sound, localId: crypto.randomUUID() });
+  trackList.value.push({ sound, localId: crypto.randomUUID(), layer: { ...DEFAULT_LAYER } });
   addSoundId.value = "";
 });
 
@@ -264,12 +281,12 @@ async function save() {
   if (!localName.value.trim() || !activeCampaignId.value) return;
   saving.value = true;
   try {
-    const soundIds = trackList.value.map((t) => t.sound.id);
+    const tracks = trackList.value.map((t) => ({ soundId: t.sound.id, layer: t.layer }));
 
     if (playlist) {
       // Edit: update metadata + replace tracks
       await updatePlaylist({ id: playlist.id, update: { name: localName.value.trim(), shuffle: localShuffle.value, repeat: localRepeat.value } });
-      await replaceTracks({ playlistId: playlist.id, soundIds });
+      await replaceTracks({ playlistId: playlist.id, tracks });
     } else {
       // Create: insert playlist then tracks
       const created = await createPlaylist({
@@ -281,8 +298,8 @@ async function save() {
         repeat: localRepeat.value,
         sort_order: 0,
       });
-      if (soundIds.length > 0) {
-        await replaceTracks({ playlistId: created.id, soundIds });
+      if (tracks.length > 0) {
+        await replaceTracks({ playlistId: created.id, tracks });
       }
     }
     emit("close");

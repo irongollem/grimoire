@@ -2,6 +2,7 @@ import { computed, toValue, type MaybeRefOrGetter } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { storeToRefs } from "pinia";
 import { supabase } from "@/lib/supabase";
+import { DEFAULT_LAYER, type PlaylistTrackLayer } from "@/types/sound.types";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import type {
@@ -84,20 +85,34 @@ async function removeTrack(trackId: string): Promise<void> {
   if (error) throw error;
 }
 
-/** Replaces all tracks for a playlist with the given ordered sound IDs. */
-async function replaceTracksForPlaylist(playlistId: string, soundIds: string[]): Promise<void> {
+/**
+ * One ordered entry in a playlist: which sound, plus the layer settings a scene
+ * remembers about it. Layer fields are optional — a music playlist has no use
+ * for them and takes the column defaults.
+ */
+export interface PlaylistTrackInput {
+  soundId: string;
+  layer?: Partial<PlaylistTrackLayer>;
+}
+
+/** Replaces all tracks for a playlist with the given ordered entries. */
+async function replaceTracksForPlaylist(playlistId: string, tracks: PlaylistTrackInput[]): Promise<void> {
   const { error: delErr } = await supabase
     .from("soundboard_playlist_tracks")
     .delete()
     .eq("playlist_id", playlistId);
   if (delErr) throw delErr;
 
-  if (soundIds.length === 0) return;
+  if (tracks.length === 0) return;
 
-  const inserts = soundIds.map((soundId, i) => ({
+  const inserts = tracks.map((t, i) => ({
     playlist_id: playlistId,
-    sound_id: soundId,
+    sound_id: t.soundId,
     sort_order: i,
+    // Spread the caller's layer settings over the defaults rather than writing
+    // undefined, so a music playlist simply takes the column defaults.
+    ...DEFAULT_LAYER,
+    ...t.layer,
   }));
   const { error: insErr } = await supabase
     .from("soundboard_playlist_tracks")
@@ -191,8 +206,8 @@ export function useReplacePlaylistTracks() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ playlistId, soundIds }: { playlistId: string; soundIds: string[] }) =>
-      replaceTracksForPlaylist(playlistId, soundIds),
+    mutationFn: ({ playlistId, tracks }: { playlistId: string; tracks: PlaylistTrackInput[] }) =>
+      replaceTracksForPlaylist(playlistId, tracks),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: [TRACKS_KEY, vars.playlistId] });
     },
