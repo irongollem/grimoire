@@ -22,7 +22,7 @@
           <span class="font-cinzel text-xs font-semibold text-foreground flex-1 tracking-wide">Soundboard</span>
           <CastButton />
           <button
-            v-if="store.playingCount > 0 || spotifyStore.isPlaying"
+            v-if="store.hasActiveAudio || spotifyStore.isPlaying"
             class="text-caption-sm text-muted-foreground hover:text-destructive transition-colors px-1.5 py-0.5 rounded border border-border hover:border-destructive/40"
             title="Stop all sounds"
             @click="stopAll"
@@ -236,7 +236,7 @@
 
           <!-- Empty state -->
           <div
-            v-if="playingSounds.length === 0 && !spotifyStore.isPlaying"
+            v-if="!store.hasActiveAudio && !spotifyStore.isPlaying"
             class="py-6 text-center"
           >
             <IconMute class="h-6 w-6 text-muted-foreground/40 mx-auto mb-1.5" />

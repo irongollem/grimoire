@@ -651,3 +651,82 @@ describe("scene layers and generators", () => {
     expect(engineCalls.setSoundVolume).toHaveBeenCalledWith("a1", 0.25, expect.any(Number));
   });
 });
+
+describe("hasActiveAudio", () => {
+  const musicTracks = [
+    { id: "t1", playlist_id: "p", sound_id: "s1", sort_order: 0, created_at: "", sound: { id: "s1", file_url: "https://example.test/1.mp3", name: "One", artist: null, thumbnail_url: null, gain_trim: 1 } },
+  ] as unknown as Parameters<Awaited<ReturnType<typeof loadStore>>["playMusicPlaylist"]>[1];
+
+  const generatorScene = [
+    {
+      id: "t1", playlist_id: "p", sound_id: "a1", sort_order: 0, created_at: "",
+      layer_volume: 1, is_generator: true,
+      min_interval_s: 30, max_interval_s: 60, min_gain: 0.6, max_gain: 1, pan_spread: 0.5,
+      sound: { id: "a1", file_url: "https://example.test/bell.mp3", name: "Bell", artist: null, thumbnail_url: null, gain_trim: 1 },
+    },
+  ] as unknown as Parameters<Awaited<ReturnType<typeof loadStore>>["playAmbientPlaylist"]>[1];
+
+  it("is false on an idle board", async () => {
+    const store = await loadStore();
+    expect(store.hasActiveAudio).toBe(false);
+  });
+
+  it("is true for a single playing sound", async () => {
+    const store = await loadStore();
+    store.play("s1", "https://example.test/a.mp3", "music");
+    await flush();
+    expect(store.hasActiveAudio).toBe(true);
+  });
+
+  it("is true while a music playlist runs", async () => {
+    const store = await loadStore();
+    store.playMusicPlaylist({ id: "p", name: "P", shuffle: false, repeat: true }, musicTracks);
+    await flush();
+    expect(store.hasActiveAudio).toBe(true);
+  });
+
+  it("is true for a scene of nothing but generators", async () => {
+    const store = await loadStore();
+    store.playAmbientPlaylist({ id: "p", name: "S" }, generatorScene);
+    await flush();
+    // Generators fire one-shots directly and never create a playbackState, so
+    // counting playbackStates alone reported silence over a running scene.
+    expect(store.playingCount).toBe(0);
+    expect(store.hasActiveAudio).toBe(true);
+  });
+
+  it("is false once a scene is paused", async () => {
+    const store = await loadStore();
+    store.playAmbientPlaylist({ id: "p", name: "S" }, generatorScene);
+    await flush();
+    store.pauseAmbientPlaylist();
+    expect(store.hasActiveAudio).toBe(false);
+  });
+
+  it("counts a running scene as one item, not as its layers", async () => {
+    const store = await loadStore();
+    store.playAmbientPlaylist({ id: "p", name: "S" }, generatorScene);
+    await flush();
+    // The DM thinks of a scene as one thing; a badge reading "3" for a
+    // three-layer tavern would be noise.
+    expect(store.activeAudioCount).toBe(1);
+  });
+
+  it("counts an individually played sound alongside a running playlist", async () => {
+    const store = await loadStore();
+    store.playMusicPlaylist({ id: "p", name: "P", shuffle: false, repeat: true }, musicTracks);
+    await flush();
+    store.play("fx1", "https://example.test/fx.mp3", "effects");
+    await flush();
+    expect(store.activeAudioCount).toBe(2);
+  });
+
+  it("is false again after everything stops", async () => {
+    const store = await loadStore();
+    store.playMusicPlaylist({ id: "p", name: "P", shuffle: false, repeat: true }, musicTracks);
+    await flush();
+    store.stopAll();
+    await flush();
+    expect(store.hasActiveAudio).toBe(false);
+  });
+});

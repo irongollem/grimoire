@@ -30,6 +30,6 @@ const spotifyStore = useSpotifyStore();
 
 // Count HTML audio sounds + 1 if Spotify is actively playing
 const totalPlaying = computed(
-  () => store.playingCount + (spotifyStore.isConnected && spotifyStore.isPlaying ? 1 : 0),
+  () => store.activeAudioCount + (spotifyStore.isConnected && spotifyStore.isPlaying ? 1 : 0),
 );
 </script>

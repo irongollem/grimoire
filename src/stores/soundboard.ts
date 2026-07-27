@@ -168,6 +168,46 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     () => Object.values(playbackStates.value).filter((s) => s.isPlaying).length,
   );
 
+  /**
+   * Is anything at all producing sound?
+   *
+   * Deliberately broader than `playingCount`. A running playlist or scene has no
+   * per-sound playback state of its own, and generator layers never create one
+   * at all — they fire one-shots directly. Judging "is the board silent?" by
+   * `playbackStates` alone therefore reports silence over a playing scene.
+   */
+  /**
+   * How many distinct things are making noise, for the nav badge.
+   *
+   * A running playlist counts as one item, not as its individual tracks — and
+   * its layers are excluded from the per-sound tally so a three-layer scene
+   * reads as "1", matching how the DM thinks about it.
+   */
+  const activeAudioCount = computed(() => {
+    const apl = activeAmbientPlaylist.value;
+    const mpl = activeMusicPlaylist.value;
+    const sceneIds = new Set<string>([
+      ...(apl ? apl.soundIds : []),
+      ...(mpl ? mpl.trackSoundIds : []),
+    ]);
+
+    let count = Object.entries(playbackStates.value).filter(
+      ([id, st]) => st.isPlaying && !sceneIds.has(id),
+    ).length;
+
+    if (mpl && !mpl.paused) count += 1;
+    if (apl && !apl.paused) count += 1;
+    return count;
+  });
+
+  const hasActiveAudio = computed(() => {
+    if (playingCount.value > 0) return true;
+    const mpl = activeMusicPlaylist.value;
+    if (mpl && !mpl.paused) return true;
+    const apl = activeAmbientPlaylist.value;
+    return apl !== null && !apl.paused;
+  });
+
   function getState(soundId: string): SoundPlaybackState {
     if (!playbackStates.value[soundId]) {
       playbackStates.value[soundId] = { isPlaying: false, volume: DEFAULT_VOLUME, isLooping: false, currentTime: 0, duration: 0, loadError: false };
@@ -965,6 +1005,8 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     playbackStates,
     widgetOpen,
     playingCount,
+    activeAudioCount,
+    hasActiveAudio,
     activeMusicPlaylist,
     activeAmbientPlaylist,
     soundEffects,
