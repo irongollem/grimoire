@@ -65,6 +65,12 @@ export interface AudioEngine {
    * track happens to be selected.
    */
   setMasterEffect(preset: AudioEffectPreset, rampMs?: number): void;
+  /**
+   * Place a sound in the stereo field. -1 hard left, 0 centre, 1 hard right.
+   * Used by scene generators, where a one-shot arriving from a different spot
+   * each time is most of what stops ambience sounding like a loop.
+   */
+  setPan(soundId: string, pan: number): void;
   /** Resume a suspended AudioContext (e.g. after OS/PWA backgrounding). */
   resume(): void;
 }
@@ -180,6 +186,8 @@ interface SoundChain {
   soundGain: GainNode;
   /** Tap off soundGain into the shared convolver. Silent unless a preset asks for reverb. */
   reverbSend: GainNode;
+  /** Stereo placement. Null where StereoPannerNode is unavailable. */
+  panner: StereoPannerNode | null;
   bus: AudioBus;
   volume: number;     // 0–1 user volume, last value passed to setSoundVolume
   trim: number;        // linear multiplier, last value passed to setSoundTrim (default 1)
@@ -321,6 +329,9 @@ function teardownChain(chain: SoundChain): void {
   try { chain.filter.disconnect(); } catch { /* already disconnected */ }
   try { chain.soundGain.disconnect(); } catch { /* already disconnected */ }
   try { chain.reverbSend.disconnect(); } catch { /* already disconnected */ }
+  if (chain.panner) {
+    try { chain.panner.disconnect(); } catch { /* already disconnected */ }
+  }
 }
 
 function buildChain(ctx: AudioContext, busGraph: BusGraph, soundId: string, el: HTMLAudioElement, bus: AudioBus): void {
@@ -338,13 +349,22 @@ function buildChain(ctx: AudioContext, busGraph: BusGraph, soundId: string, el: 
   const reverbSend = ctx.createGain();
   reverbSend.gain.value = 0; // dry until a preset says otherwise
 
+  // StereoPannerNode is near-universal but not guaranteed; without it the sound
+  // simply stays centred rather than failing to play.
+  const panner = typeof ctx.createStereoPanner === "function" ? ctx.createStereoPanner() : null;
+
   source.connect(filter);
   filter.connect(soundGain);
-  soundGain.connect(busGraph.busFilters[bus]);
+  if (panner) {
+    soundGain.connect(panner);
+    panner.connect(busGraph.busFilters[bus]);
+  } else {
+    soundGain.connect(busGraph.busFilters[bus]);
+  }
   soundGain.connect(reverbSend);
   reverbSend.connect(busGraph.convolver);
 
-  chains.set(soundId, { el, source, filter, soundGain, reverbSend, bus, volume: 1, trim: 1, effectGain: 1 });
+  chains.set(soundId, { el, source, filter, soundGain, reverbSend, panner, bus, volume: 1, trim: 1, effectGain: 1 });
 }
 
 // ── Public API ──────────────────────────────────────────────────────────────
@@ -360,7 +380,13 @@ function attach(soundId: string, el: HTMLAudioElement, bus: AudioBus): void {
       // Already wired — just make sure the bus routing matches the request.
       if (existing.bus !== bus) {
         existing.soundGain.disconnect();
-        existing.soundGain.connect(busGraph.busFilters[bus]);
+        if (existing.panner) {
+          existing.panner.disconnect();
+          existing.soundGain.connect(existing.panner);
+          existing.panner.connect(busGraph.busFilters[bus]);
+        } else {
+          existing.soundGain.connect(busGraph.busFilters[bus]);
+        }
         existing.soundGain.connect(existing.reverbSend);
         existing.bus = bus;
       }
@@ -518,6 +544,16 @@ function setMasterEffect(preset: AudioEffectPreset, rampMs = EFFECT_RAMP_MS_DEFA
   scheduleGain(busGraph.masterSend.gain, ctx, target.send, rampMs);
 }
 
+function setPan(soundId: string, pan: number): void {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  const chain = chains.get(soundId);
+  if (!chain || !chain.panner) return;
+  const clamped = Math.max(-1, Math.min(1, pan));
+  chain.panner.pan.cancelScheduledValues(ctx.currentTime);
+  chain.panner.pan.setValueAtTime(clamped, ctx.currentTime);
+}
+
 function resume(): void {
   const ctx = getAudioContext();
   if (!ctx) return;
@@ -546,6 +582,7 @@ export function getAudioEngine(): AudioEngine {
       setEffect,
       setBusEffect,
       setMasterEffect,
+      setPan,
       resume,
     };
   }

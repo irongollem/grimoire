@@ -20,6 +20,7 @@ const engineCalls = {
   duck: vi.fn(),
   unduck: vi.fn(),
   setEffect: vi.fn(),
+  setPan: vi.fn<(soundId: string, pan: number) => void>(),
   resume: vi.fn(),
 };
 
@@ -529,5 +530,124 @@ describe("resume after OS suspension", () => {
     const store = await loadStore();
     store.resumeAudioEngine();
     expect(engineCalls.resume).toHaveBeenCalled();
+  });
+});
+
+describe("scene layers and generators", () => {
+  function layer(over: Record<string, unknown> = {}) {
+    return {
+      id: "t1", playlist_id: "p", sound_id: "a1", sort_order: 0, created_at: "",
+      layer_volume: 1, is_generator: false,
+      min_interval_s: 20, max_interval_s: 60,
+      min_gain: 0.6, max_gain: 1, pan_spread: 0.5,
+      sound: { id: "a1", file_url: "https://example.test/bed.mp3", name: "Bed", artist: null, thumbnail_url: null, gain_trim: 1 },
+      ...over,
+    };
+  }
+  function scene(tracks: unknown[]) {
+    return tracks as unknown as Parameters<Awaited<ReturnType<typeof loadStore>>["playAmbientPlaylist"]>[1];
+  }
+
+  it("starts a looping layer at its own scene level, not the sound's global one", async () => {
+    const store = await loadStore();
+    store.playAmbientPlaylist({ id: "p", name: "S" }, scene([layer({ layer_volume: 0.3 })]));
+    await flush();
+    expect(store.getState("a1").volume).toBeCloseTo(0.3);
+  });
+
+  it("does not fire a generator immediately — a scene that all lands at once reads as a machine", async () => {
+    vi.useFakeTimers();
+    const store = await loadStore();
+    store.playAmbientPlaylist({ id: "p", name: "S" }, scene([layer({ is_generator: true })]));
+    // No element created yet: nothing has fired.
+    expect(created.length).toBe(0);
+    vi.useRealTimers();
+  });
+
+  it("fires a generator after its interval elapses, panned and level-varied", async () => {
+    vi.useFakeTimers();
+    const store = await loadStore();
+    store.playAmbientPlaylist(
+      { id: "p", name: "S" },
+      scene([layer({ is_generator: true, min_interval_s: 1, max_interval_s: 1 })]),
+    );
+    await vi.advanceTimersByTimeAsync(1100);
+
+    expect(engineCalls.setPan).toHaveBeenCalledWith("a1", expect.any(Number));
+    expect(engineCalls.setSoundVolume).toHaveBeenCalledWith("a1", expect.any(Number), 0);
+    vi.useRealTimers();
+  });
+
+  it("keeps firing, so the layer is a generator and not a one-off", async () => {
+    vi.useFakeTimers();
+    const store = await loadStore();
+    store.playAmbientPlaylist(
+      { id: "p", name: "S" },
+      scene([layer({ is_generator: true, min_interval_s: 1, max_interval_s: 1 })]),
+    );
+    await vi.advanceTimersByTimeAsync(1100);
+    const afterFirst = engineCalls.setPan.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(1100);
+    expect(engineCalls.setPan.mock.calls.length).toBeGreaterThan(afterFirst);
+    vi.useRealTimers();
+  });
+
+  it("does not loop a generator's element", async () => {
+    vi.useFakeTimers();
+    const store = await loadStore();
+    store.playAmbientPlaylist(
+      { id: "p", name: "S" },
+      scene([layer({ is_generator: true, min_interval_s: 1, max_interval_s: 1 })]),
+    );
+    await vi.advanceTimersByTimeAsync(1100);
+    expect(created[0].loop).toBe(false);
+    vi.useRealTimers();
+  });
+
+  it("stops firing once the scene stops", async () => {
+    vi.useFakeTimers();
+    const store = await loadStore();
+    store.playAmbientPlaylist(
+      { id: "p", name: "S" },
+      scene([layer({ is_generator: true, min_interval_s: 1, max_interval_s: 1 })]),
+    );
+    await vi.advanceTimersByTimeAsync(1100);
+    store.stopAmbientPlaylist();
+    const afterStop = engineCalls.setPan.mock.calls.length;
+
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(engineCalls.setPan.mock.calls.length).toBe(afterStop);
+    vi.useRealTimers();
+  });
+
+  it("restarts generators after a pause — pause must not forget their config", async () => {
+    vi.useFakeTimers();
+    const store = await loadStore();
+    store.playAmbientPlaylist(
+      { id: "p", name: "S" },
+      scene([layer({ is_generator: true, min_interval_s: 1, max_interval_s: 1 })]),
+    );
+    await vi.advanceTimersByTimeAsync(1100);
+
+    store.pauseAmbientPlaylist();
+    const afterPause = engineCalls.setPan.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(engineCalls.setPan.mock.calls.length).toBe(afterPause); // silent while paused
+
+    store.resumeAmbientPlaylist();
+    await vi.advanceTimersByTimeAsync(1100);
+    expect(engineCalls.setPan.mock.calls.length).toBeGreaterThan(afterPause);
+    vi.useRealTimers();
+  });
+
+  it("adjusts a looping layer's level live", async () => {
+    const store = await loadStore();
+    store.playAmbientPlaylist({ id: "p", name: "S" }, scene([layer()]));
+    await flush();
+    engineCalls.setSoundVolume.mockClear();
+
+    store.setLayerVolume("a1", 0.25);
+    expect(store.activeAmbientPlaylist?.layerVolumes.a1).toBeCloseTo(0.25);
+    expect(engineCalls.setSoundVolume).toHaveBeenCalledWith("a1", 0.25, expect.any(Number));
   });
 });

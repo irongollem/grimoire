@@ -104,7 +104,41 @@ export interface PlaylistTrack {
   sound_id: string;
   sort_order: number;
   created_at: string;
+  /** Level of this layer inside its scene, independent of the sound elsewhere. */
+  layer_volume: number;
+  /** True = fire one-shots at random intervals; false = loop continuously. */
+  is_generator: boolean;
+  /** Seconds between firings; drawn uniformly from [min, max] each time. */
+  min_interval_s: number;
+  max_interval_s: number;
+  /** Per-firing level multiplier, drawn from [min, max]. */
+  min_gain: number;
+  max_gain: number;
+  /** Stereo spread: 0 = always centred, 1 = anywhere across the field. */
+  pan_spread: number;
 }
+
+/** Editable layer settings — everything a scene remembers about one of its tracks. */
+export type PlaylistTrackLayer = Pick<
+  PlaylistTrack,
+  | "layer_volume"
+  | "is_generator"
+  | "min_interval_s"
+  | "max_interval_s"
+  | "min_gain"
+  | "max_gain"
+  | "pan_spread"
+>;
+
+export const DEFAULT_LAYER: PlaylistTrackLayer = {
+  layer_volume: 1,
+  is_generator: false,
+  min_interval_s: 20,
+  max_interval_s: 60,
+  min_gain: 0.6,
+  max_gain: 1,
+  pan_spread: 0.5,
+} as const;
 
 export interface PlaylistTrackWithSound extends PlaylistTrack {
   sound: Sound;
