@@ -131,3 +131,24 @@ export function busForCategory(category: SoundCategory | undefined): AudioBus {
   if (category === "effects") return "effects";
   return "ambient";
 }
+
+// ── Gapless looping ────────────────────────────────────────────────────────
+//
+// `audio.loop` is not gapless in any browser: every cycle of an ambience bed
+// has an audible click or gap. The fix is to keep a second element for the same
+// file and crossfade between them just before the first reaches its end, so the
+// seam is covered by an overlap instead of exposed.
+//
+// Buffer-based looping (AudioBufferSourceNode with loop=true) would be sample
+// accurate, but a three-minute stereo bed decodes to roughly 70 MB and ambient
+// scenes layer several at once — precisely where gapless matters most.
+
+/** Engine/element key for a looping sound's second element. */
+export function loopShadowId(soundId: string): string {
+  return `${soundId}::loop`;
+}
+
+/** True for the shadow half of a gapless pair, which must stay out of the UI. */
+export function isLoopShadowId(id: string): boolean {
+  return id.endsWith("::loop");
+}

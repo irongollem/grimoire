@@ -11,12 +11,12 @@ import type { AudioBus } from "@/lib/audioEngine";
 const engineCalls = {
   attach: vi.fn<(soundId: string, el: HTMLAudioElement, bus: AudioBus) => void>(),
   detach: vi.fn(),
-  setSoundVolume: vi.fn(),
+  setSoundVolume: vi.fn<(soundId: string, volume: number, rampMs?: number) => void>(),
   setSoundTrim: vi.fn(),
   setBusVolume: vi.fn(),
   setMasterVolume: vi.fn(),
-  fadeIn: vi.fn(),
-  fadeOut: vi.fn(() => Promise.resolve()),
+  fadeIn: vi.fn<(soundId: string, ms: number) => void>(),
+  fadeOut: vi.fn<(soundId: string, ms: number) => Promise<void>>(() => Promise.resolve()),
   duck: vi.fn(),
   unduck: vi.fn(),
   setEffect: vi.fn(),
@@ -379,5 +379,84 @@ describe("teardown", () => {
     const store = await loadStore();
     store.resumeAudioEngine();
     expect(engineCalls.resume).toHaveBeenCalled();
+  });
+});
+
+describe("gapless looping", () => {
+  const ambientTracks = [
+    { id: "t1", playlist_id: "p", sound_id: "a1", sort_order: 0, created_at: "", sound: { id: "a1", file_url: "https://example.test/bed.mp3", name: "Bed", artist: null, thumbnail_url: null, gain_trim: 1 } },
+  ] as unknown as Parameters<Awaited<ReturnType<typeof loadStore>>["playAmbientPlaylist"]>[1];
+
+  it("does not set audio.loop — the seam is covered by a crossfade instead", async () => {
+    const store = await loadStore();
+    store.playAmbientPlaylist({ id: "p", name: "Scene" }, ambientTracks);
+    await flush();
+    // audio.loop is not gapless in any browser; relying on it is the bug.
+    expect(created[0].loop).toBe(false);
+  });
+
+  it("pre-creates the partner element so its fetch precedes the wrap", async () => {
+    const store = await loadStore();
+    store.playAmbientPlaylist({ id: "p", name: "Scene" }, ambientTracks);
+    await flush();
+    // One audible element plus one pre-buffered partner.
+    expect(created.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("crossfades to the partner as the bed approaches its end", async () => {
+    const store = await loadStore();
+    store.playAmbientPlaylist({ id: "p", name: "Scene" }, ambientTracks);
+    await flush();
+    engineCalls.setSoundVolume.mockClear();
+
+    const primary = created[0];
+    primary.duration = 60;
+    primary.currentTime = 59.9; // inside the crossfade window
+    primary.ontimeupdate?.();
+    await flush();
+
+    // The partner is ramped up under its own engine id while the primary falls.
+    const ramped = engineCalls.setSoundVolume.mock.calls.map((c) => c[0]);
+    expect(ramped).toContain("a1::loop");
+    expect(engineCalls.fadeOut).toHaveBeenCalledWith("a1", expect.any(Number));
+  });
+
+  it("falls back to a plain loop when Web Audio is unavailable", async () => {
+    engineAvailable = false;
+    const store = await loadStore();
+    store.playAmbientPlaylist({ id: "p", name: "Scene" }, ambientTracks);
+    await flush();
+    // Without a gain graph there is nothing to crossfade with, so the seam is
+    // accepted rather than the bed not looping at all.
+    expect(created[0].loop).toBe(true);
+  });
+
+  it("does not swap while the duration is still unknown", async () => {
+    const store = await loadStore();
+    store.playAmbientPlaylist({ id: "p", name: "Scene" }, ambientTracks);
+    await flush();
+    engineCalls.fadeOut.mockClear();
+
+    const primary = created[0];
+    primary.duration = NaN; // live stream / not yet resolved
+    primary.currentTime = 10;
+    primary.ontimeupdate?.();
+    await flush();
+
+    expect(engineCalls.fadeOut).not.toHaveBeenCalled();
+  });
+
+  it("silences both halves when the scene stops", async () => {
+    const store = await loadStore();
+    store.playAmbientPlaylist({ id: "p", name: "Scene" }, ambientTracks);
+    await flush();
+    engineCalls.fadeOut.mockClear();
+
+    store.stopAmbientPlaylist();
+    await flush();
+
+    const faded = engineCalls.fadeOut.mock.calls.map((c) => c[0]);
+    expect(faded).toContain("a1");
+    expect(faded).toContain("a1::loop");
   });
 });

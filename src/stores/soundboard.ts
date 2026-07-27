@@ -23,6 +23,7 @@ import {
   isCurrentGeneration,
   forgetGeneration,
   busForCategory,
+  loopShadowId,
 } from "@/lib/soundTransport";
 
 // ── Playlist run-state types (module-level, not exported) ─────────────────
@@ -54,6 +55,10 @@ interface AmbientPlaylistRunState {
   playlistId: string;
   playlistName: string;
   soundIds: string[];
+  /** soundId → file URL, so resume can rebuild the gapless pair. */
+  fileUrls: Record<string, string>;
+  /** soundId → loudness-normalisation multiplier from the sound row. */
+  gainTrims: Record<string, number>;
   /** True while the ambient scene is paused (all tracks paused, state preserved). */
   paused: boolean;
 }
@@ -71,8 +76,26 @@ const FADE_OUT_MS = 400;
 const CROSSFADE_MS = 1500;
 /** Ambient scene layers come up slower — they're a bed, not a cue. */
 const AMBIENT_FADE_MS = 1200;
+/** Overlap used to hide the seam when a looping bed wraps around. */
+const LOOP_CROSSFADE_MS = 700;
 
 const DEFAULT_VOLUME = 0.8;
+
+/**
+ * A looping sound played as two alternating elements, so the wrap is covered by
+ * a crossfade rather than exposed as a gap. `liveId` is whichever half is
+ * currently audible; the other is idle and pre-buffered.
+ */
+interface GaplessLoop {
+  fileUrl: string;
+  bus: AudioBus;
+  gainTrim: number | undefined;
+  liveId: string;
+  swapping: boolean;
+}
+
+/** Logical soundId → its gapless-loop state. Non-reactive; the UI only ever sees the logical id. */
+const gaplessLoops = new Map<string, GaplessLoop>();
 
 // ─────────────────────────────────────────────────────────────────────────
 
@@ -227,6 +250,13 @@ export const useSoundboardStore = defineStore("soundboard", () => {
 
   function attachHandlers(soundId: string, audio: HTMLAudioElement, bus: AudioBus): void {
     audio.ontimeupdate = () => {
+      // The shadow half of a gapless pair drives the swap but owns no UI state.
+      const logicalId = soundId.endsWith("::loop") ? soundId.slice(0, -6) : soundId;
+      if (gaplessLoops.has(logicalId)) {
+        maybeSwapLoop(logicalId, soundId, audio);
+        if (soundId !== logicalId) return;
+      }
+
       const s = playbackStates.value[soundId];
       if (!s) return;
       s.currentTime = audio.currentTime;
@@ -298,10 +328,12 @@ export const useSoundboardStore = defineStore("soundboard", () => {
   }
 
   function stop(soundId: string): void {
+    stopGaplessLoop(soundId, FADE_OUT_MS);
     fadeAndHalt(soundId, true, FADE_OUT_MS);
   }
 
   function pause(soundId: string): void {
+    stopGaplessLoop(soundId, FADE_OUT_MS);
     fadeAndHalt(soundId, false, FADE_OUT_MS);
   }
 
@@ -360,10 +392,117 @@ export const useSoundboardStore = defineStore("soundboard", () => {
         playbackStates.value[id].isPlaying = false;
       }
     });
+    gaplessLoops.clear();
     clearDucking();
     engine.unduck(0);
     activeMusicPlaylist.value = null;
     activeAmbientPlaylist.value = null;
+  }
+
+  // ── Gapless looping ─────────────────────────────────────────────────────
+
+  /**
+   * Start a looping sound as a gapless pair. The element does NOT use
+   * `audio.loop`; instead `maybeSwapLoop` crossfades to a second element just
+   * before the first ends, so the wrap is covered rather than exposed.
+   *
+   * Falls back to plain `audio.loop` when Web Audio is unavailable — without a
+   * gain graph there is nothing to crossfade with.
+   */
+  function startGaplessLoop(
+    soundId: string,
+    fileUrl: string,
+    category: SoundCategory | undefined,
+    gainTrim: number | undefined,
+  ): void {
+    if (!engine.available) {
+      getState(soundId).isLooping = true;
+      play(soundId, fileUrl, category, gainTrim);
+      return;
+    }
+
+    const bus = busForCategory(category);
+    gaplessLoops.set(soundId, { fileUrl, bus, gainTrim, liveId: soundId, swapping: false });
+
+    // The visible half loops off; the swap handles wrapping.
+    getState(soundId).isLooping = false;
+    const el = getOrCreate(soundId, fileUrl);
+    el.loop = false;
+    play(soundId, fileUrl, category, gainTrim);
+
+    // Pre-buffer the partner so its fetch and decode are done well before the
+    // wrap, not during it.
+    getOrCreate(loopShadowId(soundId), fileUrl);
+  }
+
+  /** Is `id` either half of a live gapless pair for `soundId`? */
+  function loopHalves(soundId: string): string[] {
+    return [soundId, loopShadowId(soundId)];
+  }
+
+  /**
+   * Called from ontimeupdate. When the audible half is within one crossfade of
+   * its end, bring the idle half up from the start while the current one falls.
+   */
+  function maybeSwapLoop(logicalId: string, playingId: string, audio: HTMLAudioElement): void {
+    const loop = gaplessLoops.get(logicalId);
+    if (!loop || loop.swapping || loop.liveId !== playingId) return;
+    if (!isFinite(audio.duration) || audio.duration <= 0) return;
+
+    const remainingMs = (audio.duration - audio.currentTime) * 1000;
+    if (remainingMs > LOOP_CROSSFADE_MS) return;
+
+    const incomingId = playingId === logicalId ? loopShadowId(logicalId) : logicalId;
+    const incoming = getOrCreate(incomingId, loop.fileUrl);
+    loop.swapping = true;
+
+    engine.attach(incomingId, incoming, loop.bus);
+    if (loop.gainTrim !== undefined) engine.setSoundTrim(incomingId, loop.gainTrim);
+
+    incoming.loop = false;
+    incoming.currentTime = 0;
+    const level = playbackStates.value[logicalId];
+    engine.setSoundVolume(incomingId, 0, 0);
+
+    void incoming
+      .play()
+      .then(() => {
+        engine.setSoundVolume(incomingId, level === undefined ? DEFAULT_VOLUME : level.volume, LOOP_CROSSFADE_MS);
+        loop.liveId = incomingId;
+        // Fade the outgoing half out and park it at the start, ready to be the
+        // incoming half next time round.
+        const gen = bumpGeneration(playingId);
+        void engine.fadeOut(playingId, LOOP_CROSSFADE_MS).then(() => {
+          if (!isCurrentGeneration(playingId, gen)) return;
+          audio.pause();
+          audio.currentTime = 0;
+        });
+        loop.swapping = false;
+      })
+      .catch(() => {
+        // Autoplay refused the second element — fall back to a plain loop so the
+        // bed keeps running, seam and all, rather than stopping dead.
+        loop.swapping = false;
+        audio.loop = true;
+      });
+  }
+
+  /** Tear down a gapless pair, silencing both halves. */
+  function stopGaplessLoop(soundId: string, fadeMs: number): void {
+    const loop = gaplessLoops.get(soundId);
+    if (!loop) return;
+    gaplessLoops.delete(soundId);
+    const shadow = loopShadowId(soundId);
+    // The shadow has no playbackState of its own, so halt it directly.
+    const shadowEl = getInstance(shadow);
+    if (shadowEl) {
+      const gen = bumpGeneration(shadow);
+      void engine.fadeOut(shadow, fadeMs).then(() => {
+        if (!isCurrentGeneration(shadow, gen)) return;
+        shadowEl.pause();
+        shadowEl.currentTime = 0;
+      });
+    }
   }
 
   // ── Music playlist playback ─────────────────────────────────────────────
@@ -537,15 +676,25 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     if (tracks.length === 0) return;
 
     const soundIds = tracks.map((t) => t.sound.id);
-    activeAmbientPlaylist.value = { playlistId: playlist.id, playlistName: playlist.name, soundIds, paused: false };
+    const fileUrls: Record<string, string> = {};
+    const gainTrims: Record<string, number> = {};
+    tracks.forEach((t) => {
+      fileUrls[t.sound.id] = t.sound.file_url;
+      gainTrims[t.sound.id] = t.sound.gain_trim;
+    });
+    activeAmbientPlaylist.value = {
+      playlistId: playlist.id,
+      playlistName: playlist.name,
+      soundIds,
+      fileUrls,
+      gainTrims,
+      paused: false,
+    };
 
     // All tracks loop independently so the scene runs until explicitly stopped.
     // They rise together over AMBIENT_FADE_MS rather than snapping in at full.
     tracks.forEach((t) => {
-      getState(t.sound.id).isLooping = true;
-      const el = getInstance(t.sound.id);
-      if (el) el.loop = true;
-      play(t.sound.id, t.sound.file_url, "ambient", t.sound.gain_trim);
+      startGaplessLoop(t.sound.id, t.sound.file_url, "ambient", t.sound.gain_trim);
       engine.fadeIn(t.sound.id, AMBIENT_FADE_MS);
     });
   }
@@ -560,30 +709,21 @@ export const useSoundboardStore = defineStore("soundboard", () => {
   function resumeAmbientPlaylist(): void {
     const apl = activeAmbientPlaylist.value;
     if (!apl || !apl.paused) return;
+    // Rebuild as gapless pairs rather than bare-playing the primary half, or the
+    // scene would come back seaming on every wrap.
     apl.soundIds.forEach((id) => {
-      const el = getInstance(id);
-      if (!el) return;
-      bumpGeneration(id);
-      const st = playbackStates.value[id];
-      applyVolume(id, el, st === undefined ? DEFAULT_VOLUME : st.volume, 0);
-      void el
-        .play()
-        .then(() => {
-          const live = playbackStates.value[id];
-          if (live) live.isPlaying = true;
-          engine.fadeIn(id, AMBIENT_FADE_MS);
-        })
-        .catch(() => {
-          const live = playbackStates.value[id];
-          if (live) live.isPlaying = false;
-        });
+      startGaplessLoop(id, apl.fileUrls[id], "ambient", apl.gainTrims[id]);
+      engine.fadeIn(id, AMBIENT_FADE_MS);
     });
     apl.paused = false;
   }
 
   function stopAmbientPlaylist(): void {
     if (!activeAmbientPlaylist.value) return;
-    activeAmbientPlaylist.value.soundIds.forEach((id) => fadeAndHalt(id, true, AMBIENT_FADE_MS));
+    activeAmbientPlaylist.value.soundIds.forEach((id) => {
+      stopGaplessLoop(id, AMBIENT_FADE_MS);
+      fadeAndHalt(id, true, AMBIENT_FADE_MS);
+    });
     activeAmbientPlaylist.value = null;
   }
 
@@ -613,6 +753,11 @@ export const useSoundboardStore = defineStore("soundboard", () => {
 
   /** Call when a sound is deleted from the library to clean up the engine. */
   function releaseSound(soundId: string): void {
+    stopGaplessLoop(soundId, 0);
+    loopHalves(soundId).forEach((id) => {
+      engine.detach(id);
+      destroyAudio(id);
+    });
     releaseDuck(soundId);
     bumpGeneration(soundId);
     engine.detach(soundId);
