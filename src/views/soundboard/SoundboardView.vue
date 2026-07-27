@@ -32,6 +32,19 @@
         </button>
       </template>
 
+      <!-- Spotify is per-campaign BYOK. Without a Client ID the whole control
+           vanished, so a DM on a campaign that has not been configured saw no
+           trace of the feature and no way to find it. Point at the setting. -->
+      <RouterLink
+        v-else-if="auth.isDM"
+        :to="{ name: 'campaign-settings', query: { tab: 'spotify' } }"
+        class="flex items-center gap-1.5 rounded-md border border-dashed border-border px-3 py-1.5 font-cinzel text-xs tracking-wide text-muted-foreground transition-colors hover:text-foreground"
+        title="Spotify needs a Client ID on this campaign before it can be connected"
+      >
+        <IconMusicNote class="h-3.5 w-3.5 shrink-0" />
+        Set up Spotify
+      </RouterLink>
+
       <SoundboardWidgetToggle />
       <ListActionButton
         v-if="ui.soundboardViewMode === 'sounds'"
@@ -177,6 +190,7 @@ import { useSounds, useDeleteSound, useReorderSounds, useBulkAssignToPage } from
 import { useSoundboardPages, useCreateSoundboardPage } from "@/composables/useSoundboardPages";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSpotifyStore } from "@/stores/spotify";
+import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useQuota } from "@/composables/useQuota";
 import { storeToRefs } from "pinia";
@@ -201,6 +215,7 @@ import SoundboardMixer from "@/components/soundboard/SoundboardMixer.vue";
 const ui = useUiStore();
 const soundboardStore = useSoundboardStore();
 const spotifyStore = useSpotifyStore();
+const auth = useAuthStore();
 const { canCreate: canCreateSound, quota: soundQuota } = useQuota("sounds");
 const showSoundPaywall = ref(false);
 const campaignStore = useCampaignStore();
