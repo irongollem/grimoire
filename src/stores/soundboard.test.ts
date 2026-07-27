@@ -460,3 +460,74 @@ describe("gapless looping", () => {
     expect(faded).toContain("a1::loop");
   });
 });
+
+describe("resume after OS suspension", () => {
+  const tracks = [
+    { id: "t1", playlist_id: "p", sound_id: "s1", sort_order: 0, created_at: "", sound: { id: "s1", file_url: "https://example.test/1.mp3", name: "One", artist: null, thumbnail_url: null, gain_trim: 1 } },
+    { id: "t2", playlist_id: "p", sound_id: "s2", sort_order: 1, created_at: "", sound: { id: "s2", file_url: "https://example.test/2.mp3", name: "Two", artist: null, thumbnail_url: null, gain_trim: 1 } },
+  ] as unknown as Parameters<Awaited<ReturnType<typeof loadStore>>["playMusicPlaylist"]>[1];
+
+  it("re-plays a track the OS paused out from under us", async () => {
+    const store = await loadStore();
+    store.playMusicPlaylist({ id: "p", name: "P", shuffle: false, repeat: true }, tracks);
+    await flush();
+
+    // iOS suspended the element without telling the store.
+    created[0].paused = true;
+    expect(store.getState("s1").isPlaying).toBe(true);
+
+    store.resumeAudioEngine();
+    await flush();
+
+    // This is the CarPlay case: the playlist must keep moving without the
+    // driver touching the screen.
+    expect(created[0].paused).toBe(false);
+  });
+
+  it("leaves a deliberately paused playlist alone", async () => {
+    const store = await loadStore();
+    store.playMusicPlaylist({ id: "p", name: "P", shuffle: false, repeat: true }, tracks);
+    await flush();
+    store.pauseMusicPlaylist();
+    await flush();
+
+    store.resumeAudioEngine();
+    await flush();
+
+    expect(created[0].paused).toBe(true);
+  });
+
+  it("does not touch an element that is already playing", async () => {
+    const store = await loadStore();
+    store.playMusicPlaylist({ id: "p", name: "P", shuffle: false, repeat: true }, tracks);
+    await flush();
+    expect(created[0].paused).toBe(false);
+
+    store.resumeAudioEngine();
+    await flush();
+
+    expect(created[0].paused).toBe(false);
+    expect(store.getState("s1").isPlaying).toBe(true);
+  });
+
+  it("reports honestly when autoplay refuses on the way back", async () => {
+    const store = await loadStore();
+    store.playMusicPlaylist({ id: "p", name: "P", shuffle: false, repeat: true }, tracks);
+    await flush();
+
+    created[0].paused = true;
+    rejectNextPlay = true;
+
+    store.resumeAudioEngine();
+    await flush();
+
+    // Better a paused control than a lock screen claiming it is playing silence.
+    expect(store.getState("s1").isPlaying).toBe(false);
+  });
+
+  it("always resumes the AudioContext regardless", async () => {
+    const store = await loadStore();
+    store.resumeAudioEngine();
+    expect(engineCalls.resume).toHaveBeenCalled();
+  });
+});

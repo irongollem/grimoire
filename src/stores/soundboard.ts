@@ -777,8 +777,44 @@ export const useSoundboardStore = defineStore("soundboard", () => {
    * the play() → onended → advance chain and can cause an AbortError that
    * silently kills auto-advance.
    */
+  /**
+   * Resume after an OS suspension (screen lock, PWA backgrounding, CarPlay
+   * handing focus back). Called from useMediaSession on visibilitychange.
+   *
+   * Historically this only resumed the AudioContext and deliberately did NOT
+   * re-play paused elements, because doing so raced with the play() → advance
+   * chain and could throw an AbortError that silently killed auto-advance —
+   * i.e. the playlist stopped moving and the driver could not fix it.
+   *
+   * The transition-generation counter added for crossfading is what makes the
+   * re-play safe now: the completion path checks it is still current, so a
+   * resume that collides with a swap or a fade loses cleanly instead of
+   * stopping the wrong element. Only elements the store already believes are
+   * playing are touched, so a genuinely paused playlist stays paused.
+   */
   function resumeAudioEngine(): void {
     engine.resume();
+
+    const mpl = activeMusicPlaylist.value;
+    if (!mpl || mpl.paused) return;
+
+    const soundId = mpl.trackSoundIds[mpl.currentIndex];
+    const state = playbackStates.value[soundId];
+    if (!state || !state.isPlaying) return;
+
+    const audio = getInstance(soundId);
+    // Only act on the specific inconsistency an interruption leaves behind:
+    // we think it is playing, the element says otherwise.
+    if (!audio || !audio.paused) return;
+
+    const gen = bumpGeneration(soundId);
+    void audio.play().catch(() => {
+      if (!isCurrentGeneration(soundId, gen)) return;
+      // Autoplay refused on the way back — tell the truth rather than leaving
+      // the lock screen and CarPlay claiming it is still playing.
+      const live = playbackStates.value[soundId];
+      if (live) live.isPlaying = false;
+    });
   }
 
   function toggleWidget(): void {
