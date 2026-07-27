@@ -83,6 +83,12 @@
       </button>
     </div>
 
+    <!-- Mixer — the same component the floating widget uses, so the two
+         soundboard surfaces can never drift apart. -->
+    <div class="rounded-lg border border-border bg-card px-3 py-2">
+      <SoundboardMixer />
+    </div>
+
     <!-- Playlists panel -->
     <PlaylistsPanel
       v-if="ui.soundboardViewMode === 'playlists'"
@@ -190,6 +196,7 @@ import SoundCategoryFilter from "@/components/soundboard/SoundCategoryFilter.vue
 import SoundboardWidgetToggle from "@/components/soundboard/SoundboardWidgetToggle.vue";
 import SoundboardPageTabs from "@/components/soundboard/SoundboardPageTabs.vue";
 import PlaylistsPanel from "@/components/soundboard/PlaylistsPanel.vue";
+import SoundboardMixer from "@/components/soundboard/SoundboardMixer.vue";
 
 const ui = useUiStore();
 const soundboardStore = useSoundboardStore();

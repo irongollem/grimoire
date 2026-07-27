@@ -264,50 +264,9 @@
           </div>
         </div>
 
-        <!-- Mixer — master and per-bus faders -->
-        <div class="border-t border-border px-3 py-2 space-y-1.5">
-          <button
-            class="flex items-center gap-1.5 w-full text-left text-muted-foreground hover:text-foreground transition-colors"
-            :aria-expanded="mixerOpen"
-            @click="mixerOpen = !mixerOpen"
-          >
-            <IconChevronRight
-              class="h-3 w-3 shrink-0 transition-transform"
-              :class="mixerOpen ? 'rotate-90' : ''"
-            />
-            <span class="font-cinzel text-2xs font-semibold tracking-wide flex-1">Mixer</span>
-            <span v-if="!mixerOpen" class="text-2xs tabular-nums">
-              {{ Math.round(store.masterVolume * 100) }}
-            </span>
-          </button>
-
-          <template v-if="mixerOpen">
-            <div class="flex items-center gap-2">
-              <VolumeSlider
-                class="flex-1"
-                label="Master"
-                wide
-                show-percent
-                :model-value="store.masterVolume"
-                @update:model-value="store.setMasterVolume($event)"
-              />
-              <!-- Puts the whole mix in a space, rather than one selected track. -->
-              <SoundEffectPicker
-                :model-value="store.masterEffect"
-                @update:model-value="store.setMasterEffect($event)"
-              />
-            </div>
-            <VolumeSlider
-              v-for="bus in BUSES"
-              :key="bus.id"
-              :label="bus.label"
-              wide
-              show-percent
-              :muted="store.masterVolume === 0"
-              :model-value="store.busVolumes[bus.id]"
-              @update:model-value="store.setBusVolume(bus.id, $event)"
-            />
-          </template>
+        <!-- Mixer — shared with the /soundboard page so the two never drift -->
+        <div class="border-t border-border px-3 py-2">
+          <SoundboardMixer collapsible />
         </div>
       </div>
     </Transition>
@@ -316,21 +275,14 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted, nextTick } from "vue";
-import { IconChevronRight, IconClose, IconMusicNote, IconMute, IconPause, IconPlay, IconRepeat, IconRepeatOne, IconShuffle, IconSkipBack, IconSkipForward, IconStop, IconWind } from '@/lib/icons';
+import { IconClose, IconMusicNote, IconMute, IconPause, IconPlay, IconRepeat, IconRepeatOne, IconShuffle, IconSkipBack, IconSkipForward, IconStop, IconWind } from '@/lib/icons';
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSpotifyStore } from "@/stores/spotify";
 import { useSounds } from "@/composables/useSounds";
 import SoundEffectPicker from "./SoundEffectPicker.vue";
 import VolumeSlider from "./VolumeSlider.vue";
-import type { AudioBus } from "@/lib/audioEngine";
+import SoundboardMixer from "./SoundboardMixer.vue";
 
-const BUSES = [
-  { id: "music", label: "Music" },
-  { id: "ambient", label: "Ambience" },
-  { id: "effects", label: "Effects" },
-] as const satisfies readonly { id: AudioBus; label: string }[];
-
-const mixerOpen = ref(false);
 import CastButton from "./CastButton.vue";
 
 const store = useSoundboardStore();
