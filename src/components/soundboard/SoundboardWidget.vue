@@ -126,21 +126,8 @@
             </div>
           </div>
 
-          <!-- Spotify play error -->
-          <div
-            v-if="spotifyStore.playError"
-            class="flex items-start gap-2 px-2 py-1.5 rounded-md bg-destructive/10 border border-destructive/30"
-          >
-            <p class="text-caption-sm text-destructive flex-1 leading-snug">
-              {{ spotifyStore.playError }}
-              <span v-if="spotifyStore.playError.includes('Not allowed')" class="block mt-0.5 text-muted-foreground">
-                Close the Spotify desktop app and try again.
-              </span>
-            </p>
-            <button class="shrink-0 text-muted-foreground hover:text-foreground" @click="spotifyStore.playError = null">
-              <IconClose class="h-3 w-3" />
-            </button>
-          </div>
+          <!-- Spotify error — shared with the /soundboard page -->
+          <SpotifyErrorBanner />
 
           <!-- Active music playlist -->
           <div
@@ -282,6 +269,7 @@ import { useSounds } from "@/composables/useSounds";
 import SoundEffectPicker from "./SoundEffectPicker.vue";
 import VolumeSlider from "./VolumeSlider.vue";
 import SoundboardMixer from "./SoundboardMixer.vue";
+import SpotifyErrorBanner from "./SpotifyErrorBanner.vue";
 
 import CastButton from "./CastButton.vue";
 

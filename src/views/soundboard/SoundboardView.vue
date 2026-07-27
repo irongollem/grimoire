@@ -96,6 +96,10 @@
       </button>
     </div>
 
+    <!-- Spotify errors surface here too, not just in the widget: a connection
+         failure the DM never sees is a connection failure they cannot fix. -->
+    <SpotifyErrorBanner />
+
     <!-- Mixer — the same component the floating widget uses, so the two
          soundboard surfaces can never drift apart. -->
     <div class="rounded-lg border border-border bg-card px-3 py-2">
@@ -211,6 +215,7 @@ import SoundboardWidgetToggle from "@/components/soundboard/SoundboardWidgetTogg
 import SoundboardPageTabs from "@/components/soundboard/SoundboardPageTabs.vue";
 import PlaylistsPanel from "@/components/soundboard/PlaylistsPanel.vue";
 import SoundboardMixer from "@/components/soundboard/SoundboardMixer.vue";
+import SpotifyErrorBanner from "@/components/soundboard/SpotifyErrorBanner.vue";
 
 const ui = useUiStore();
 const soundboardStore = useSoundboardStore();

@@ -4,7 +4,7 @@ Curated history of shipped features and resolved bugs, chunked by subsystem. Thi
 is a **log**, not a tracker: open work lives in GitHub issues on `irongollem/grimoire`.
 
 - **Features** (537 entries) — what shipped, newest first per file.
-- **Fixes** (254 entries) — resolved bugs, newest first per file.
+- **Fixes** (255 entries) — resolved bugs, newest first per file.
 
 When you finish work, append a `- [x]` line to the matching file below
 (`features/<subsystem>.md` for a feature, `fixes/<subsystem>.md` for a bug fix).
@@ -66,5 +66,5 @@ Pick the subsystem the change is primarily about; use `misc` only as a last reso
 | AI Generation | 9 | [fixes/ai.md](fixes/ai.md) |
 | Billing | 5 | [fixes/billing.md](fixes/billing.md) |
 | Infrastructure | 8 | [fixes/infra.md](fixes/infra.md) |
-| Soundboard | 6 | [fixes/soundboard.md](fixes/soundboard.md) |
+| Soundboard | 7 | [fixes/soundboard.md](fixes/soundboard.md) |
 | Miscellaneous | 1 | [fixes/misc.md](fixes/misc.md) |
