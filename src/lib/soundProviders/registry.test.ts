@@ -1,5 +1,13 @@
-import { describe, it, expect } from "vitest";
-import { SOUND_PROVIDERS, getProvider, defaultProvider } from "./index";
+import { describe, it, expect, vi } from "vitest";
+
+// The registry pulls in every provider, and the grimoire provider imports the
+// supabase client, which throws at module load when the env vars are absent —
+// exactly the situation in CI. Same mock shape as freesound.test.ts.
+vi.mock("@/lib/supabase", () => ({
+  supabase: { functions: { invoke: vi.fn() }, from: vi.fn() },
+}));
+
+const { SOUND_PROVIDERS, getProvider, defaultProvider } = await import("./index");
 
 describe("provider registry", () => {
   it("registers at least one provider", () => {
