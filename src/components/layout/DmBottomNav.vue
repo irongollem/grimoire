@@ -170,7 +170,10 @@ function go(to: string) {
 // "+") still reaches create. Sections without a create route fall back to the
 // More grid.
 interface CreateAction {
-  to: string;
+  /** Route to push — the common case. */
+  to?: string;
+  /** Or an action to run — for sections whose "create" is a dialog, not a page. */
+  act?: () => void;
   label: string;
 }
 const CREATE_ACTIONS: Record<string, CreateAction> = {
@@ -182,18 +185,35 @@ const CREATE_ACTIONS: Record<string, CreateAction> = {
   "/spells": { to: "/spells/new", label: "New Spell" },
   "/monsters": { to: "/monsters/new", label: "New Monster" },
   "/deities": { to: "/deities/new", label: "New Deity" },
+  // Adding a sound is a dialog, not a route, so the FAB signals the view.
+  "/soundboard": { act: () => { ui.soundboardCreateSignal++; }, label: "Create" },
 };
 
 const currentCreate = computed<CreateAction | null>(() => {
   const prefix = Object.keys(CREATE_ACTIONS).find(
     (p) => route.path === p || route.path.startsWith(p + "/"),
   );
-  return prefix ? CREATE_ACTIONS[prefix] : null;
+  if (!prefix) return null;
+  const action = CREATE_ACTIONS[prefix];
+  // The soundboard's create depends on which peer is showing.
+  if (prefix === "/soundboard") {
+    const label =
+      ui.soundboardViewMode === "scenes"
+        ? "New Scene"
+        : ui.soundboardViewMode === "playlists"
+          ? "New Playlist"
+          : "New Sound";
+    return { ...action, label };
+  }
+  return action;
 });
 
 function onCreate() {
-  if (currentCreate.value) {
-    router.push(currentCreate.value.to);
+  const action = currentCreate.value;
+  if (action?.act) {
+    action.act();
+  } else if (action?.to) {
+    router.push(action.to);
   } else {
     // No create action for this section — surface the full grid instead.
     moreOpen.value = true;

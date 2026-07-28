@@ -9,7 +9,8 @@
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" />
 
         <div
-          class="relative w-full max-w-lg rounded-xl border border-border bg-card shadow-2xl flex flex-col max-h-[90vh]"
+          :class="localType === 'ambient' ? 'max-w-3xl' : 'max-w-lg'"
+          class="relative w-full rounded-xl border border-border bg-card shadow-2xl flex flex-col max-h-[90vh]"
           role="dialog"
           aria-modal="true"
           :aria-labelledby="dialogTitleId"
@@ -17,10 +18,10 @@
           <!-- Header -->
           <div class="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-border shrink-0">
             <div class="shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-gold-500/15 text-gold-400">
-              <IconListOrdered class="h-4.5 w-4.5" />
+              <component :is="noun.icon" class="h-4.5 w-4.5" />
             </div>
             <h2 :id="dialogTitleId" class="font-cinzel text-sm font-bold text-foreground tracking-wide flex-1">
-              {{ playlist ? "Edit Playlist" : "New Playlist" }}
+              {{ playlist ? `Edit ${noun.singular}` : `New ${noun.singular}` }}
             </h2>
             <button
               type="button"
@@ -45,31 +46,13 @@
               />
             </div>
 
-            <!-- Type -->
-            <div class="space-y-1.5">
-              <label class="font-cinzel text-xs font-semibold text-foreground tracking-wide">Type</label>
-              <div class="flex gap-2">
-                <button
-                  v-for="opt in typeOptions"
-                  :key="opt.value"
-                  type="button"
-                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-cinzel tracking-wide transition-colors"
-                  :class="localType === opt.value
-                    ? opt.activeClass
-                    : 'border-border text-muted-foreground hover:text-foreground hover:border-border/80'"
-                  :disabled="!!playlist"
-                  :title="playlist ? 'Type cannot be changed after creation' : undefined"
-                  @click="localType = opt.value"
-                >
-                  <component :is="opt.icon" class="h-3.5 w-3.5 shrink-0" />
-                  {{ opt.label }}
-                </button>
-              </div>
-              <p class="text-caption text-muted-foreground italic">
-                <template v-if="localType === 'music'">Tracks play one after another. Auto-advances when a track ends.</template>
-                <template v-else>All tracks play simultaneously as a layered soundscape.</template>
-              </p>
-            </div>
+            <!-- No type toggle: the tab you came from already decided, and a
+                 visible Music | Ambient control here would contradict it in
+                 schema vocabulary. What remains is the explanation. -->
+            <p class="text-caption text-muted-foreground italic">
+              <template v-if="localType === 'music'">Tracks play one after another. Auto-advances when a track ends.</template>
+              <template v-else>All layers play at once — beds loop underneath while random layers fire on their own schedules.</template>
+            </p>
 
             <!-- Music-only options -->
             <template v-if="localType === 'music'">
@@ -107,13 +90,13 @@
             <div class="space-y-1.5">
               <div class="flex items-center justify-between">
                 <label class="font-cinzel text-xs font-semibold text-foreground tracking-wide">
-                  Tracks
+                  {{ noun.entriesLabel }}
                   <span class="font-fell font-normal text-muted-foreground ml-1">({{ trackList.length }})</span>
                 </label>
               </div>
 
               <div v-if="trackList.length === 0" class="py-4 text-center text-caption text-muted-foreground italic">
-                No tracks yet — add sounds below.
+                No {{ noun.entriesLabel.toLowerCase() }} yet — add sounds below.
               </div>
 
               <VueDraggable
@@ -149,6 +132,12 @@
 
           <!-- Footer -->
           <div class="flex items-center justify-end gap-2 px-5 py-4 border-t border-border shrink-0">
+            <!-- The answer to "why did my rain not start" belongs in the room,
+                 not in a code comment. -->
+            <p v-if="localType === 'ambient'" class="me-auto text-caption text-muted-foreground text-pretty">
+              A sound already claimed by another running scene is skipped — one element per sound,
+              so nothing plays over itself.
+            </p>
             <button
               type="button"
               class="px-4 py-2 rounded-md border border-border font-cinzel text-xs tracking-wide text-muted-foreground hover:text-foreground transition-colors"
@@ -162,7 +151,7 @@
               :disabled="!localName.trim() || saving"
               @click="save"
             >
-              {{ saving ? "Saving…" : "Save Playlist" }}
+              {{ saving ? "Saving…" : `Save ${noun.singular}` }}
             </button>
           </div>
         </div>
@@ -174,7 +163,8 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { VueDraggable } from "vue-draggable-plus";
-import { IconClose, IconListOrdered, IconMusicNote, IconWind } from "@/lib/icons";
+import { IconClose } from "@/lib/icons";
+import { PLAYLIST_NOUNS } from "@/lib/playlistPeers";
 import { useSounds } from "@/composables/useSounds";
 import { usePlaylistTracks, useCreatePlaylist, useUpdatePlaylist, useReplacePlaylistTracks } from "@/composables/useSoundboardPlaylists";
 import { useCampaignStore } from "@/stores/campaign";
@@ -238,6 +228,8 @@ const trackListSeeded = ref(false);
 const addSoundId = ref("");
 const saving = ref(false);
 
+const noun = computed(() => PLAYLIST_NOUNS[localType.value]);
+
 const dialogTitleId = computed(() => playlist ? `edit-playlist-${playlist.id}` : "create-playlist");
 
 // Populate form when opening for edit
@@ -298,11 +290,6 @@ watch(addSoundId, (id) => {
 });
 
 // ── Computed options ──────────────────────────────────────────────────────
-
-const typeOptions = [
-  { value: "music" as PlaylistType, label: "Music", icon: IconMusicNote, activeClass: "border-gold-500/40 bg-gold-500/10 text-gold-400" },
-  { value: "ambient" as PlaylistType, label: "Ambient", icon: IconWind, activeClass: "border-green-500/40 bg-green-500/10 text-green-400" },
-] as const;
 
 /** Sounds not yet in the track list, available to add */
 const addableSounds = computed(() => {

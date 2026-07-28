@@ -3,8 +3,8 @@
 Curated history of shipped features and resolved bugs, chunked by subsystem. This
 is a **log**, not a tracker: open work lives in GitHub issues on `irongollem/grimoire`.
 
-- **Features** (547 entries) — what shipped, newest first per file.
-- **Fixes** (260 entries) — resolved bugs, newest first per file.
+- **Features** (548 entries) — what shipped, newest first per file.
+- **Fixes** (264 entries) — resolved bugs, newest first per file.
 
 When you finish work, append a `- [x]` line to the matching file below
 (`features/<subsystem>.md` for a feature, `fixes/<subsystem>.md` for a bug fix).
@@ -36,7 +36,7 @@ Pick the subsystem the change is primarily about; use `misc` only as a last reso
 | AI Generation | 24 | [features/ai.md](features/ai.md) |
 | Billing | 33 | [features/billing.md](features/billing.md) |
 | Infrastructure | 12 | [features/infra.md](features/infra.md) |
-| Soundboard | 22 | [features/soundboard.md](features/soundboard.md) |
+| Soundboard | 23 | [features/soundboard.md](features/soundboard.md) |
 | Miscellaneous | 1 | [features/misc.md](features/misc.md) |
 
 ## Fixes — `docs/log/fixes/`
@@ -66,5 +66,5 @@ Pick the subsystem the change is primarily about; use `misc` only as a last reso
 | AI Generation | 9 | [fixes/ai.md](fixes/ai.md) |
 | Billing | 5 | [fixes/billing.md](fixes/billing.md) |
 | Infrastructure | 8 | [fixes/infra.md](fixes/infra.md) |
-| Soundboard | 12 | [fixes/soundboard.md](fixes/soundboard.md) |
+| Soundboard | 16 | [fixes/soundboard.md](fixes/soundboard.md) |
 | Miscellaneous | 1 | [fixes/misc.md](fixes/misc.md) |

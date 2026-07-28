@@ -1,22 +1,4 @@
 <template>
-  <!-- ── Page picker (audio sounds only; multiple pages exist) ────────── -->
-  <!-- Always shown so a sound can be moved between boards, not only assigned
-       when unassigned. -->
-  <div
-    v-if="pages && pages.length > 1"
-    class="flex items-center gap-1.5 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
-  >
-    <IconLayers class="h-3 w-3 text-muted-foreground/50 shrink-0" />
-    <select
-      class="flex-1 rounded border border-border bg-background px-1.5 py-0.5 text-caption text-muted-foreground focus:outline-none focus:ring-1 focus:ring-gold-500 cursor-pointer"
-      :value="sound.page_id ?? ''"
-      @change="moveSound({ id: sound.id, pageId: ($event.target as HTMLSelectElement).value || null })"
-    >
-      <option value="">— Unassigned —</option>
-      <option v-for="page in pages" :key="page.id" :value="page.id">{{ page.name }}</option>
-    </select>
-  </div>
-
   <!-- ── HTML Audio controls ────────────────────── -->
   <div class="flex items-center gap-2">
     <!-- IconPlay / IconPause -->
@@ -50,7 +32,7 @@
     <SoundEffectPicker
       v-if="audioState.isPlaying"
       :model-value="soundboardStore.soundEffects?.[sound.id] ?? 'none'"
-      @update:model-value="soundboardStore.setEffect(sound.id, sound.file_url, $event)"
+      @update:model-value="soundboardStore.setEffect(sound.id, sound.file_url, $event, sound.category)"
     />
 
     <!-- Volume -->
@@ -63,49 +45,52 @@
     />
   </div>
 
-  <!-- Progress bar (finite tracks only) -->
-  <div v-if="audioState.duration > 0" class="flex items-center gap-2">
+  <!-- Progress bar. Always rendered: the duration only becomes known on first
+       play, and a row that pops in at that moment grows the card and shifts
+       the whole grid. Until then it reads –:–– and does not seek. -->
+  <div class="flex items-center gap-2" :class="hasDuration ? '' : 'opacity-50'">
     <span class="text-caption-sm text-muted-foreground tabular-nums shrink-0">
-      {{ formatTime(audioState.currentTime) }}
+      {{ hasDuration ? formatTime(audioState.currentTime) : "–:––" }}
     </span>
     <div
-      class="flex-1 relative h-1.5 bg-border/50 rounded-full cursor-pointer"
-      @click="handleAudioSeek"
+      class="flex-1 relative h-1.5 bg-border/50 rounded-full"
+      :class="hasDuration ? 'cursor-pointer' : ''"
+      @click="hasDuration ? handleAudioSeek($event) : undefined"
     >
       <div
-        class="absolute inset-y-0 left-0 bg-gold-500/60 rounded-full"
+        class="absolute inset-y-0 inset-s-0 bg-gold-500/60 rounded-full"
         :style="{ width: audioProgressPercent + '%' }"
       />
     </div>
     <span class="text-caption-sm text-muted-foreground tabular-nums shrink-0">
-      {{ formatTime(audioState.duration) }}
+      {{ hasDuration ? formatTime(audioState.duration) : "–:––" }}
     </span>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { IconLayers, IconPause, IconPlay, IconStop } from '@/lib/icons';
+import { IconPause, IconPlay, IconStop } from '@/lib/icons';
 import SoundEffectPicker from "./SoundEffectPicker.vue";
 import VolumeSlider from "./VolumeSlider.vue";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSoundPlayback } from "@/composables/useSoundPlayback";
-import { useMoveSound } from "@/composables/useSounds";
-import type { Sound, SoundboardPage } from "@/types/sound.types";
+import type { Sound } from "@/types/sound.types";
 
-const { sound, pages } = defineProps<{
+const { sound } = defineProps<{
   sound: Sound;
-  pages?: SoundboardPage[];
 }>();
 
 const soundboardStore = useSoundboardStore();
-const { mutate: moveSound } = useMoveSound();
 
 // Shared with the command palette, so a file this card knows it cannot play is
 // never offered as playable there either.
 const { blockedReason, toggle: togglePlay } = useSoundPlayback(() => sound);
 
 const audioState = computed(() => soundboardStore.getState(sound.id));
+
+/** Duration resolves on first play; until then the bar is a placeholder. */
+const hasDuration = computed(() => audioState.value.duration > 0);
 const playBlocked = computed(() => blockedReason.value !== null);
 
 const audioProgressPercent = computed(() => {

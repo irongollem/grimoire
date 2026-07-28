@@ -28,7 +28,7 @@ import {
   Puzzle, Quote, Radio, RectangleHorizontal, Redo2, RefreshCw,
   Repeat, Repeat1, RotateCcw,
   Save, ScanEye, Scissors, Scroll, ScrollText, Search, Send, Settings, Settings2,
-  Share2, Shield, ShieldCheck, ShoppingBag, Shuffle, SkipBack, SkipForward, Skull,
+  Share2, Shield, ShieldCheck, ShoppingBag, Shuffle, SkipBack, SkipForward, Skull, SlidersHorizontal,
   Sparkles, Square, SquareCode, SquareSplitVertical, Stamp, Star, Strikethrough, Sun, Sword, Swords,
   Table2, Tag, Trash2, Truck,
   Underline, Undo2, Upload, UploadCloud,
@@ -56,6 +56,7 @@ export { ExternalLink as IconExternalLink }
 export { Link as IconLink }
 export { Link2 as IconLinkAlt }
 export { Settings2 as IconSettings }
+export { SlidersHorizontal as IconMixer }   // fader bank — the soundboard mixer drawer
 export { Settings as IconSettingsAlt }
 export { Sparkles as IconGenerate }    // AI generation — standardized across all generators
 export { BookOpen as IconPopulate }    // populate-from-settings action — standardized

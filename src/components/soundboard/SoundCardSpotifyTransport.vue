@@ -64,7 +64,7 @@
             ? 'bg-green-500/20 border-green-500/50 text-green-300 hover:bg-green-500/30'
             : 'border-border text-muted-foreground hover:text-foreground hover:border-border/80'
         "
-        :title="!spotifyStore.isReady ? 'Spotify connecting…' : isActive && spotifyStore.isPlaying ? 'IconPause' : 'IconPlay'"
+        :title="!spotifyStore.isReady ? 'Spotify connecting…' : isActive && spotifyStore.isPlaying ? 'Pause' : 'Play'"
         :disabled="!spotifyStore.isReady"
         @click="toggleSpotify"
       >
@@ -177,9 +177,9 @@ function formatTime(ms: number): string {
 }
 
 const repeatTitle = computed(() => {
-  if (spotifyStore.repeatMode === 2) return "IconRepeat: Track";
-  if (spotifyStore.repeatMode === 1) return "IconRepeat: Context";
-  return "IconRepeat: Off";
+  if (spotifyStore.repeatMode === 2) return "Repeat: Track";
+  if (spotifyStore.repeatMode === 1) return "Repeat: Context";
+  return "Repeat: Off";
 });
 
 function cycleRepeat() {

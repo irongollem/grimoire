@@ -37,6 +37,30 @@
             feature is broken or working exactly as intended.
           -->
           <div class="space-y-5 px-5 py-4">
+            <!-- A preference, not performance chrome: three size buttons parked
+                 beside the mode control competed with it on every visit for a
+                 decision made about once per campaign. -->
+            <section class="space-y-1.5">
+              <span class="block font-cinzel text-body-sm text-foreground">Pad size in Perform</span>
+              <div class="flex gap-1 rounded-lg border border-border/50 bg-muted/40 p-1 w-fit">
+                <button
+                  v-for="pad in PAD_SIZES"
+                  :key="pad.id"
+                  type="button"
+                  class="rounded-md px-2.5 py-1 font-cinzel text-xs tracking-wide transition-colors"
+                  :class="ui.soundboardPadSize === pad.id
+                    ? 'bg-card shadow-sm text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'"
+                  @click="ui.soundboardPadSize = pad.id"
+                >
+                  {{ pad.label }}
+                </button>
+              </div>
+              <p class="text-caption text-muted-foreground">
+                {{ PAD_SIZES.find((p) => p.id === ui.soundboardPadSize)?.hint }}
+              </p>
+            </section>
+
             <label class="flex cursor-pointer select-none items-start gap-2.5">
               <input
                 type="checkbox"
@@ -103,6 +127,13 @@ import { IconClose, IconSettings } from "@/lib/icons";
 import { useHotkeys } from "@/composables/useHotkeys";
 import { useAudioTriggerPrefs } from "@/composables/useAudioThemeTriggers";
 import { useSoundboardBroadcast } from "@/composables/useSoundboardBroadcast";
+import { useUiStore } from "@/stores/ui";
+
+const PAD_SIZES = [
+  { id: "sm", label: "Small", hint: "Name and colour only — fits the most on screen." },
+  { id: "md", label: "Medium", hint: "Name, length and loop mark." },
+  { id: "lg", label: "Large", hint: "Adds the artist." },
+] as const;
 
 /**
  * The two switches that used to sit in the mixer wearing faders' clothes.
@@ -115,6 +146,7 @@ import { useSoundboardBroadcast } from "@/composables/useSoundboardBroadcast";
 const { open } = defineProps<{ open: boolean }>();
 const emit = defineEmits<{ (e: "close"): void }>();
 
+const ui = useUiStore();
 const { audioTriggersEnabled, setAudioTriggersEnabled } = useAudioTriggerPrefs();
 const { broadcasting, broadcastError, setBroadcasting } = useSoundboardBroadcast();
 

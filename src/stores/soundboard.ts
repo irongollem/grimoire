@@ -618,6 +618,11 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     const incoming = getOrCreate(incomingId, loop.fileUrl);
     loop.swapping = true;
 
+    // The incoming half needs the same handlers the visible half got from
+    // play(): ontimeupdate is what calls this function. Without it the pair
+    // swaps exactly once — the shadow plays its length with nobody watching,
+    // and a "looping" bed dies on the second pass.
+    attachHandlers(incomingId, incoming, loop.bus);
     engine.attach(incomingId, incoming, loop.bus);
     if (loop.gainTrim !== undefined) engine.setSoundTrim(incomingId, loop.gainTrim);
 
@@ -801,7 +806,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     if (!mpl) return;
     mpl.effect = preset;
     const soundId = mpl.trackSoundIds[mpl.currentIndex];
-    setEffect(soundId, mpl.fileUrls[soundId], preset);
+    setEffect(soundId, mpl.fileUrls[soundId], preset, "music");
   }
 
   function pauseMusicPlaylist(): void {
@@ -1030,10 +1035,20 @@ export const useSoundboardStore = defineStore("soundboard", () => {
    * Apply (or remove) a filter effect to a sound with a smooth transition.
    * The element is attached to the graph on first use; the chain is transparent
    * while the preset is "none".
+   *
+   * `category` must reflect the sound's real bus — a hardcoded bus here would
+   * silently move a playing music or effects sound onto the ambient bus (off
+   * its own volume fader, and onto the wrong side of ducking) the moment an
+   * effect was applied to it.
    */
-  function setEffect(soundId: string, fileUrl: string, preset: AudioEffectPreset): void {
+  function setEffect(
+    soundId: string,
+    fileUrl: string,
+    preset: AudioEffectPreset,
+    category?: SoundCategory,
+  ): void {
     const audio = getOrCreate(soundId, fileUrl);
-    engine.attach(soundId, audio, "ambient");
+    engine.attach(soundId, audio, busForCategory(category));
     engine.setEffect(soundId, preset);
     soundEffects.value[soundId] = preset;
   }

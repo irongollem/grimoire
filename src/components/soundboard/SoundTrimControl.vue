@@ -15,9 +15,12 @@
 
   <!-- Expanded: a dedicated range distinct from the volume slider — this is a
        persisted per-sound correction, not a live per-session level. -->
+  <!-- Overlaid across the card rather than squeezed into the info column,
+       where the slider was ~5 thumb-widths wide and useless to drag. Closes on
+       blur, so the overlay never lingers. -->
   <div
     v-else
-    class="mt-0.5 flex items-center gap-1.5 rounded border border-gold-500/40 bg-background px-1.5 py-1"
+    class="absolute inset-x-2 top-1/2 z-20 flex -translate-y-1/2 items-center gap-1.5 rounded border border-gold-500/40 bg-background px-2 py-1.5 shadow-lg"
   >
     <span class="shrink-0 font-cinzel text-2xs tracking-wide text-muted-foreground">Trim</span>
     <input

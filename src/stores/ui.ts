@@ -357,6 +357,15 @@ export const useUiStore = defineStore("ui", () => {
   const soundboardBoardMode = useLocalStorage<BoardMode>("grimoire_soundboard_mode", "arrange");
   const soundboardPadSize = useLocalStorage<PadSize>("grimoire_soundboard_pad_size", "md");
 
+  // The mixer drawer — same pattern as the campaign chat: in-flow, pushes the
+  // board left while open. Session-scoped like chatOpen, not persisted.
+  const soundboardMixerOpen = ref(false);
+
+  // Bumped by the mobile bottom-nav FAB. The soundboard view watches it and
+  // opens whichever create fits the tab that is showing — adding a sound is a
+  // dialog, not a route, so the FAB cannot simply navigate.
+  const soundboardCreateSignal = ref(0);
+
   // Player spell accordion — which levels are expanded (cantrips = 0, open by default)
   const playerSpellOpenLevels = ref<number[]>([0]);
 
@@ -783,6 +792,8 @@ export const useUiStore = defineStore("ui", () => {
     soundboardViewMode,
     soundboardBoardMode,
     soundboardPadSize,
+    soundboardMixerOpen,
+    soundboardCreateSignal,
 
     // Species
     speciesSearch,

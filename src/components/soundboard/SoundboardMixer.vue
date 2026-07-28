@@ -1,5 +1,5 @@
 <template>
-  <div :class="collapsible ? 'space-y-1.5' : 'flex flex-wrap items-center gap-x-4 gap-y-2'">
+  <div :class="stacked ? 'space-y-2' : 'flex flex-wrap items-center gap-x-4 gap-y-2'">
     <!-- Collapsible header — only used in the floating widget, where space is tight. -->
     <button
       v-if="collapsible"
@@ -18,7 +18,7 @@
     </button>
 
     <template v-if="!collapsible || open">
-      <div class="flex min-w-0 items-center gap-2" :class="collapsible ? '' : 'flex-1'">
+      <div class="flex min-w-0 items-center gap-2" :class="stacked ? '' : 'flex-1'">
         <VolumeSlider
           class="flex-1"
           label="Master"
@@ -36,7 +36,7 @@
 
       <SceneMixer
         v-if="showScene"
-        :class="collapsible ? '' : 'w-full'"
+        :class="stacked ? '' : 'w-full'"
         class="border-t border-border/50 pt-1.5"
       />
 
@@ -44,7 +44,7 @@
         v-for="bus in BUSES"
         :key="bus.id"
         class="min-w-0"
-        :class="collapsible ? '' : 'flex-1'"
+        :class="stacked ? '' : 'flex-1'"
         :label="bus.label"
         wide
         show-percent
@@ -103,10 +103,21 @@ const BUSES = [
   { id: "effects", label: "Effects" },
 ] as const satisfies readonly { id: AudioBus; label: string }[];
 
-const { collapsible = false } = defineProps<{
+const { collapsible = false, column = false } = defineProps<{
   /** Widget mode: fold behind a disclosure row because vertical space is scarce. */
   collapsible?: boolean;
+  /**
+   * Narrow-column mode: faders stack instead of sharing a row.
+   *
+   * The wrapping row assumes a full-width strip. In a 16.5rem sidebar it
+   * squeezes four faders and their labels onto one line, which is unreadable
+   * and unusable.
+   */
+  column?: boolean;
 }>();
+
+/** Both the widget and the sidebar want vertical stacking; only the widget folds. */
+const stacked = computed(() => collapsible || column);
 
 const store = useSoundboardStore();
 // Read-only here; the dialog owns changing them.

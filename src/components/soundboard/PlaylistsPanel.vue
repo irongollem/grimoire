@@ -1,22 +1,8 @@
 <template>
   <div class="space-y-3">
-    <!-- Panel header -->
-    <div class="flex items-center justify-between">
-      <p class="text-caption text-muted-foreground italic">
-        <template v-if="pageId">{{ noun.plural }} on this page.</template>
-        <template v-else>All {{ noun.plural.toLowerCase() }} in this campaign.</template>
-      </p>
-      <button
-        class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border font-cinzel text-xs tracking-wide text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors relative"
-        :title="canCreatePlaylist ? undefined : 'Pro feature — upgrade for unlimited playlists'"
-        @click="openNewPlaylist()"
-      >
-        <IconAdd class="h-3.5 w-3.5" />
-        New {{ noun.singular }}
-        <span v-if="playlistQuota && !playlistQuota.unlimited" class="text-caption-sm tabular-nums opacity-60">{{ playlistQuota.current }}/{{ playlistQuota.limit }}</span>
-        <span v-if="!canCreatePlaylist" class="absolute -top-1.5 -right-1.5 px-1 rounded text-2xs font-cinzel bg-amber-500 text-black leading-4">PRO</span>
-      </button>
-    </div>
+    <!-- No caption row: the tab already says which peer this is, the page rail
+         says which page, and a line that exists on two tabs out of three shifts
+         the whole page on every switch. Quota lives on the create button. -->
 
     <!-- Loading -->
     <LoadingSpinner v-if="isPending" />
@@ -28,9 +14,18 @@
          are all ambient — and it hides itself once they are all added. -->
     <StarterScenesCard v-if="playlistType === 'ambient'" compact />
 
+    <!-- Search found nothing — a different fact from "you have none", and
+         offering Create here would build a duplicate of the thing being
+         searched for. -->
+    <div v-if="visible.length === 0 && filter.trim() !== ''" class="py-10 text-center">
+      <p class="text-body italic text-muted-foreground">
+        No {{ noun.plural.toLowerCase() }} match "{{ filter.trim() }}".
+      </p>
+    </div>
+
     <!-- Empty state -->
     <div
-      v-if="visible.length === 0"
+      v-else-if="visible.length === 0"
       class="py-12 text-center space-y-2"
     >
       <component :is="noun.icon" class="h-8 w-8 text-muted-foreground/30 mx-auto" />
@@ -94,8 +89,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
-import { IconAdd, IconListOrdered, IconWind } from "@/lib/icons";
+import { ref, computed, watch } from "vue";
+import { PLAYLIST_NOUNS } from "@/lib/playlistPeers";
 import { usePlaylists, useDeletePlaylist } from "@/composables/useSoundboardPlaylists";
 import { useSounds } from "@/composables/useSounds";
 import { useSoundboardStore } from "@/stores/soundboard";
@@ -108,33 +103,24 @@ import SoundCard from "./SoundCard.vue";
 import PlaylistEditorDialog from "./PlaylistEditorDialog.vue";
 import StarterScenesCard from "./StarterScenesCard.vue";
 
-const { pageId, playlistType } = defineProps<{
+const { pageId, playlistType, filter = "", createSignal = 0 } = defineProps<{
   pageId: string | null;
   /** Which peer this panel is showing — scenes are ambient, playlists are music. */
   playlistType: PlaylistType;
+  /** Free-text search from the shared filter row: matches name and theme tags. */
+  filter?: string;
+  /** Bumped by the page head's create button; the panel owns dialog and gating. */
+  createSignal?: number;
 }>();
 
-/**
- * The two peers share a table, a card and an editor, and differ only in what a
- * DM is looking for. Naming them differently is the whole point of splitting
- * the tab: "scene" is a room, "playlist" is a running order.
- */
-const NOUNS = {
-  ambient: {
-    singular: "Scene",
-    plural: "Scenes",
-    icon: IconWind,
-    blurb: "A scene layers sounds into a room — a bed underneath, and one-shots firing on their own schedule so it never sounds like a loop.",
-  },
-  music: {
-    singular: "Playlist",
-    plural: "Playlists",
-    icon: IconListOrdered,
-    blurb: "A playlist chains tracks in order, with shuffle and repeat. One plays at a time.",
-  },
-} as const satisfies Record<PlaylistType, unknown>;
+watch(
+  () => createSignal,
+  () => openNewPlaylist(),
+);
 
-const noun = computed(() => NOUNS[playlistType]);
+// A scene is a room, a playlist is a running order — the shared vocabulary
+// lives in playlistPeers so the dialog behind this panel says the same word.
+const noun = computed(() => PLAYLIST_NOUNS[playlistType]);
 
 const { data: allSounds } = useSounds();
 
@@ -156,7 +142,7 @@ const spotifySounds = computed(() => {
 const { data: playlists, isPending } = usePlaylists();
 const { mutate: deletePlaylist } = useDeletePlaylist();
 const store = useSoundboardStore();
-const { canCreate: canCreatePlaylist, quota: playlistQuota } = useQuota("soundboard_playlists");
+const { canCreate: canCreatePlaylist } = useQuota("soundboard_playlists");
 const showPlaylistPaywall = ref(false);
 
 const showEditor = ref(false);
@@ -165,9 +151,21 @@ const editTarget = ref<SoundboardPlaylist | null>(null);
 /** This peer's playlists, on the current page (or every page when pageId is null). */
 const visible = computed(() => {
   const all = playlists.value === undefined ? [] : playlists.value;
-  const ofType = all.filter((pl) => pl.playlist_type === playlistType);
-  if (pageId === null) return ofType;
-  return ofType.filter((pl) => pl.page_id === pageId || pl.page_id === null);
+  let list = all.filter((pl) => pl.playlist_type === playlistType);
+  if (pageId !== null) {
+    list = list.filter((pl) => pl.page_id === pageId || pl.page_id === null);
+  }
+  const q = filter.trim().toLowerCase();
+  if (q !== "") {
+    // Tags too: a DM hunting the battle music types "battle", not the name
+    // they gave the playlist three months ago.
+    list = list.filter(
+      (pl) =>
+        pl.name.toLowerCase().includes(q) ||
+        pl.tags.some((tag) => tag.toLowerCase().includes(q)),
+    );
+  }
+  return list;
 });
 
 function openNewPlaylist() {

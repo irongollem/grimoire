@@ -1,13 +1,18 @@
 <template>
-  <div class="flex items-center gap-1 pb-1 mb-4 border-b border-border/50">
+  <!-- No margins or borders of its own: this sits inside a shared row with the
+       Sounds/Scenes/Playlists control, and standalone spacing here pushed the
+       rail out of line with its row-mates. -->
+  <div class="flex min-w-0 items-center gap-1">
     <!-- "All" virtual tab (pinned — stays visible while named tabs scroll) -->
     <button
+      data-page-drop=""
       class="shrink-0 px-3 py-1 rounded-md text-xs font-cinzel tracking-wide transition-colors"
-      :class="
+      :class="[
         activePageId === null
           ? 'bg-gold-500/20 border border-gold-500/40 text-gold-300'
-          : 'border border-transparent text-muted-foreground hover:text-foreground hover:border-border'
-      "
+          : 'border border-transparent text-muted-foreground hover:text-foreground hover:border-border',
+        highlightDrops ? 'ring-1 ring-gold-400/60' : '',
+      ]"
       @click="activePageId = null"
     >
       All
@@ -73,12 +78,14 @@
         />
         <button
           v-else
+          :data-page-drop="page.id"
           class="px-3 py-1 rounded-md text-xs font-cinzel tracking-wide transition-colors"
-          :class="
+          :class="[
             activePageId === page.id
               ? 'bg-gold-500/20 border border-gold-500/40 text-gold-300'
-              : 'border border-transparent text-muted-foreground hover:text-foreground hover:border-border'
-          "
+              : 'border border-transparent text-muted-foreground hover:text-foreground hover:border-border',
+            highlightDrops ? 'ring-1 ring-gold-400/60' : '',
+          ]"
           @click="activePageId = page.id"
           @dblclick="startRename(page)"
           :title="page.name + ' — double-click to rename'"
@@ -129,7 +136,9 @@ import PaywallModal from "@/components/common/PaywallModal.vue";
 import type { SoundboardPage } from "@/types/sound.types";
 
 const activePageId = defineModel<string | null>({ required: true });
-const { pages } = defineProps<{
+const { pages, highlightDrops = false } = defineProps<{
+  /** True while a sound card is being dragged — rings the tabs as drop targets. */
+  highlightDrops?: boolean;
   pages: SoundboardPage[];
 }>();
 

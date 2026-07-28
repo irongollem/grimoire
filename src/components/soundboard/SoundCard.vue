@@ -1,15 +1,35 @@
 <template>
-  <div class="group flex flex-col">
-    <!-- Perform and Arrange share the same pad; Arrange welds a control strip
-         underneath it. Nothing was removed in the split — the only move is
-         play/stop going up into the pad, where a DM is aiming anyway. -->
-    <SoundPad :sound="sound" :size="padSize" :class="mode === 'arrange' ? 'rounded-b-none' : ''">
+  <!-- One surface. In Arrange this wrapper is the card — border, fill and the
+       category spine all live here, and the pad inside is a bare title row.
+       A framed pad sitting on a differently-filled strip read as two stacked
+       widgets rather than one sound. -->
+  <div
+    class="group flex flex-col"
+    :class="
+      mode === 'arrange'
+        ? [
+            'relative h-full overflow-hidden rounded-md border bg-card',
+            isPlaying ? CATEGORY_BORDER[sound.category] : 'border-border',
+          ]
+        : ''
+    "
+  >
+    <span
+      v-if="mode === 'arrange'"
+      class="absolute inset-y-0 inset-s-0 z-10"
+      :class="[CATEGORY_SPINE[sound.category], isPlaying ? 'w-1' : 'w-0.75 opacity-75']"
+    />
+
+    <SoundPad :sound="sound" :size="padSize" :mode="mode">
       <template #key><slot name="key" /></template>
     </SoundPad>
 
+    <!-- Pinned to the bottom, next to the transport, with the flexible
+         whitespace ABOVE it. A two-line title then eats slack instead of
+         growing the card, and every card in a grid row keeps one shape. -->
     <div
       v-if="mode === 'arrange'"
-      class="flex flex-col gap-2 rounded-b-md border border-t-0 border-border bg-muted/30 px-2.5 py-2"
+      class="mt-auto flex flex-col gap-2 px-2.5 pb-2 pl-3.5"
     >
       <SoundCardHeader
         :sound="sound"
@@ -18,7 +38,7 @@
       />
 
       <SoundCardSpotifyTransport v-if="isSpotify" :sound="sound" />
-      <SoundCardAudioTransport v-else :sound="sound" :pages="pages" />
+      <SoundCardAudioTransport v-else :sound="sound" />
 
       <!-- Attribution (CC-BY from the curated library, Freesound, etc.) -->
       <a
@@ -47,12 +67,12 @@ import SoundCardSpotifyTransport from "./SoundCardSpotifyTransport.vue";
 import SoundCardAudioTransport from "./SoundCardAudioTransport.vue";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSoundPlayback } from "@/composables/useSoundPlayback";
-import type { Sound, SoundboardPage, BoardMode, PadSize } from "@/types/sound.types";
+import { CATEGORY_BORDER, CATEGORY_SPINE } from "@/lib/soundCategories";
+import type { Sound, BoardMode, PadSize } from "@/types/sound.types";
 
-const { sound, showDelete, pages, mode = "arrange", padSize = "md" } = defineProps<{
+const { sound, showDelete, mode = "arrange", padSize = "md" } = defineProps<{
   sound: Sound;
   showDelete?: boolean;
-  pages?: SoundboardPage[];
   mode?: BoardMode;
   padSize?: PadSize;
 }>();
@@ -65,7 +85,7 @@ const soundboardStore = useSoundboardStore();
 
 // "Is this card the one making noise" is the same question on both transports
 // and in the command palette — see useSoundPlayback.
-const { isSpotify } = useSoundPlayback(() => sound);
+const { isSpotify, isPlaying } = useSoundPlayback(() => sound);
 
 // Kick off the network fetch as soon as the card is mounted so the file is
 // already buffered when the DM clicks play. Skipped for Spotify (no <audio>).

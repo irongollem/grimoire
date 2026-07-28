@@ -4,7 +4,7 @@
   >
     <!-- Category spine, same language as the board's own cards: a DM should be
          able to tell a bed from a one-shot before reading anything. -->
-    <span class="absolute inset-y-0 left-0 w-0.75" :class="spineClass" />
+    <span class="absolute inset-y-0 inset-s-0 w-0.75" :class="spineClass" />
 
     <!-- Preview -->
     <button

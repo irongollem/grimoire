@@ -34,6 +34,9 @@
 
     <!-- Inline label + artist edit -->
     <div class="flex-1 min-w-0">
+      <!-- The name itself is not repeated here: the pad above already carries
+           it as the card's title. This input only surfaces while renaming, in
+           the same spot the "Rename" button below opens it. -->
       <input
         v-if="editingName"
         ref="nameInput"
@@ -44,7 +47,6 @@
         @keydown.escape="cancelNameEdit"
         @blur="saveName"
       />
-      <p v-else class="font-cinzel text-sm font-semibold text-foreground truncate">{{ sound.name }}</p>
 
       <!-- Artist (inline editable; shows placeholder on hover when empty) -->
       <input

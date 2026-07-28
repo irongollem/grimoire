@@ -116,7 +116,7 @@ const { open = false, barRoutes = [], create = null } = defineProps<{
   /** Routes pinned to the bottom bar for the current mode (gets a gold dot). */
   barRoutes?: string[];
   /** Context-aware create action for the current section, or null if none. */
-  create?: { to: string; label: string } | null;
+  create?: { to?: string; act?: () => void; label: string } | null;
 }>();
 
 const emit = defineEmits<{ "update:open": [boolean] }>();
@@ -170,6 +170,7 @@ function navigate(item: NavItem) {
 function onCreate() {
   if (!create) return;
   emit("update:open", false);
-  router.push(create.to);
+  if (create.act) create.act();
+  else if (create.to) router.push(create.to);
 }
 </script>

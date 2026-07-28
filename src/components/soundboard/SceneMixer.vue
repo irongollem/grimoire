@@ -5,7 +5,8 @@
       :key="scene.playlistId"
       class="overflow-hidden rounded-sm border border-border/60 bg-card/40"
     >
-      <div class="flex items-center gap-1.5 border-l-[0.1875rem] border-l-green-400 px-1.5 py-1">
+      <div class="relative flex items-center gap-1.5 py-1 pe-1.5 ps-2.5">
+        <span class="absolute inset-y-0 inset-s-0 w-0.75 bg-green-400" />
         <button
           type="button"
           class="flex min-w-0 flex-1 items-center gap-1 text-left text-foreground"

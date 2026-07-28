@@ -5,6 +5,40 @@
     </template>
 
     <template #actions>
+      <!-- Perform vs Arrange lives in the page head with the title: it decides
+           what the whole page below is for, so it does not belong among the
+           per-view furniture. -->
+      <div
+        v-if="ui.soundboardViewMode === 'sounds'"
+        class="flex shrink-0 gap-1 rounded-lg border border-border/50 bg-muted/40 p-1"
+      >
+        <button
+          v-for="board in BOARD_MODES"
+          :key="board.id"
+          class="rounded-md px-2.5 py-1 font-cinzel text-xs tracking-wide transition-colors"
+          :class="ui.soundboardBoardMode === board.id
+            ? 'bg-card shadow-sm text-foreground'
+            : 'text-muted-foreground hover:text-foreground'"
+          :title="board.hint"
+          @click="ui.soundboardBoardMode = board.id"
+        >
+          {{ board.label }}
+        </button>
+      </div>
+
+      <!-- The mixer drawer toggle — same idea as the chat toggle. -->
+      <button
+        class="hidden items-center gap-1.5 rounded-md border px-3 py-1.5 font-cinzel text-xs tracking-wide transition-colors lg:flex"
+        :class="ui.soundboardMixerOpen
+          ? 'border-gold-500/40 bg-gold-500/10 text-gold-400'
+          : 'border-border text-muted-foreground hover:text-foreground'"
+        :title="ui.soundboardMixerOpen ? 'Close the mixer' : 'Open the mixer'"
+        @click="ui.soundboardMixerOpen = !ui.soundboardMixerOpen"
+      >
+        <IconMixer class="h-3.5 w-3.5 shrink-0" />
+        Mixer
+      </button>
+
       <!-- Spotify connect/disconnect (only for the owner user) -->
       <template v-if="spotifyStore.isEnabled">
         <button
@@ -53,98 +87,87 @@
         variant="primary"
         @click="openAddSound()"
       />
+      <!-- Same convention, same corner, whichever peer is showing. -->
+      <ListActionButton
+        v-else
+        :icon="IconAdd"
+        :label="newPlaylistLabel"
+        variant="primary"
+        @click="createPlaylistSignal++"
+      />
     </template>
 
-    <template #filters>
-      <ListFilterBar
-        v-if="ui.soundboardViewMode === 'sounds'"
-        :has-active-filters="ui.soundboardHasActiveFilters"
-        @clear="ui.resetSoundboardFilters()"
-      >
-        <ListSearchInput v-model="ui.soundboardSearchQuery" placeholder="Search sounds…" />
-        <SoundCategoryFilter v-model="ui.soundboardFilterCategory" />
-      </ListFilterBar>
-    </template>
-
-    <!-- Page tabs (always visible so the DM can create the first page) -->
-    <!-- Above the tabs on purpose: "what is audible and why" is the first
-         question a DM has when they open this page, and answering it by
-         scanning the grid for lit cards is the delay the feature exists to
-         remove. -->
+    <!-- "What is audible and why" leads the page: it is the first question a
+         DM has, and answering it by scanning the grid for lit cards is the
+         delay the feature exists to remove. -->
     <NowRail class="-mx-3 rounded-none sm:mx-0 sm:rounded-lg sm:border sm:border-border" />
 
-    <SoundboardPageTabs
-      v-model="ui.soundboardActivePage"
-      :pages="pages ?? []"
-    />
+    <!-- Filters, under the playback block. Present on every tab — the row
+         vanishing when you switch to Scenes shifted the whole page, and a
+         scene list you cannot search is a scene list you scroll. -->
+    <div class="mt-3 flex flex-wrap items-center gap-2">
+      <ListSearchInput v-model="ui.soundboardSearchQuery" :placeholder="searchPlaceholder" />
+      <SoundCategoryFilter
+        v-if="ui.soundboardViewMode === 'sounds'"
+        v-model="ui.soundboardFilterCategory"
+      />
+      <button
+        v-if="ui.soundboardHasActiveFilters"
+        class="rounded-md border border-border px-2 py-1 text-caption text-muted-foreground transition-colors hover:text-foreground"
+        @click="ui.resetSoundboardFilters()"
+      >
+        Clear
+      </button>
+      <span class="flex-1" />
+      <!-- Says what the key caps mean, and that the order is the DM's to set. -->
+      <p v-if="ui.soundboardViewMode === 'sounds'" class="hidden text-caption text-muted-foreground md:block">
+        Keys <b class="text-gold-400">1–9</b> fire the first nine in this order
+        <span v-if="!ui.soundboardHasActiveFilters"> · drag to reorder</span>
+      </p>
+    </div>
 
-    <!-- Sounds / Scenes / Playlists — three peers. A scene is a room and a
-         playlist is a running order; filing both under "Playlists" meant a DM
-         hunting for the tavern had to read past their combat music. -->
-    <div class="my-3 flex flex-wrap items-center gap-3">
-      <div class="flex w-fit gap-1 rounded-lg border border-border/50 bg-muted/40 p-1">
+    <!-- Pages and the three peers share one row, hard-clamped to the screen.
+         Pages scope all three — a scene and a playlist both carry a page_id —
+         so stacking them implied a hierarchy that does not exist. The page
+         rail flexes and scrolls internally; this row must never be the reason
+         the page scrolls sideways. -->
+    <div class="mt-3 flex max-w-full min-w-0 items-center gap-2 overflow-hidden">
+      <!-- Wrapped rather than classed: the rail must never win a width contest
+           with the peers control, and a wrapper this view owns beats relying on
+           attribute fallthrough onto the rail's root. -->
+      <div class="min-w-0 flex-1 basis-0 overflow-hidden">
+        <SoundboardPageTabs
+          v-model="ui.soundboardActivePage"
+          :pages="pages ?? []"
+          :highlight-drops="draggingCard"
+        />
+      </div>
+      <div class="flex w-fit shrink-0 gap-1 rounded-lg border border-border/50 bg-muted/40 p-1">
         <button
           v-for="mode in VIEW_MODES"
           :key="mode.id"
-          class="flex items-center gap-1.5 px-3 py-1 rounded-md font-cinzel text-xs tracking-wide transition-colors"
+          class="flex items-center gap-1.5 rounded-md px-2.5 py-1 font-cinzel text-xs tracking-wide transition-colors"
           :class="ui.soundboardViewMode === mode.id
             ? 'bg-card shadow-sm text-foreground'
             : 'text-muted-foreground hover:text-foreground'"
           @click="ui.soundboardViewMode = mode.id"
         >
-          <component :is="mode.icon" class="h-3.5 w-3.5" />
-          {{ mode.label }}
+          <component :is="mode.icon" class="h-3.5 w-3.5 shrink-0" />
+          <span class="hidden sm:inline">{{ mode.label }}</span>
         </button>
       </div>
-
-      <!-- Perform vs Arrange: running a session vs setting one up. Only
-           meaningful on the sounds grid, so it is not shown anywhere else. -->
-      <template v-if="ui.soundboardViewMode === 'sounds'">
-        <div class="flex w-fit gap-1 rounded-lg border border-border/50 bg-muted/40 p-1">
-          <button
-            v-for="board in BOARD_MODES"
-            :key="board.id"
-            class="rounded-md px-3 py-1 font-cinzel text-xs tracking-wide transition-colors"
-            :class="ui.soundboardBoardMode === board.id
-              ? 'bg-card shadow-sm text-foreground'
-              : 'text-muted-foreground hover:text-foreground'"
-            :title="board.hint"
-            @click="ui.soundboardBoardMode = board.id"
-          >
-            {{ board.label }}
-          </button>
-        </div>
-
-        <!-- Size only matters once the controls are out of the way. -->
-        <div
-          v-if="ui.soundboardBoardMode === 'perform'"
-          class="flex w-fit gap-1 rounded-lg border border-border/50 bg-muted/40 p-1"
-        >
-          <button
-            v-for="pad in PAD_SIZES"
-            :key="pad.id"
-            class="rounded-md px-2.5 py-1 font-cinzel text-xs tracking-wide transition-colors"
-            :class="ui.soundboardPadSize === pad.id
-              ? 'bg-card shadow-sm text-foreground'
-              : 'text-muted-foreground hover:text-foreground'"
-            :title="pad.hint"
-            @click="ui.soundboardPadSize = pad.id"
-          >
-            {{ pad.label }}
-          </button>
-        </div>
-      </template>
     </div>
 
     <!-- Spotify errors surface here too, not just in the widget: a connection
          failure the DM never sees is a connection failure they cannot fix. -->
     <SpotifyErrorBanner />
 
-    <!-- Mixer — the same component the floating widget uses, so the two
-         soundboard surfaces can never drift apart. -->
-    <div class="rounded-lg border border-border bg-card px-3 py-2">
-      <SoundboardMixer />
-    </div>
+    <!-- The board, with the mixer as a drawer on its right — the campaign
+         chat's pattern: in-flow while open, so it pushes the grid left rather
+         than covering it, and gone entirely while closed. The toggle lives in
+         the page head. -->
+    <div class="mt-3 flex min-w-0 items-start gap-4">
+      <div class="min-w-0 flex-1">
 
     <!-- One panel, filtered by type — scenes and playlists are the same table
          and the same card; only the question being asked differs. -->
@@ -152,6 +175,8 @@
       v-if="ui.soundboardViewMode !== 'sounds'"
       :page-id="ui.soundboardActivePage"
       :playlist-type="ui.soundboardViewMode === 'scenes' ? 'ambient' : 'music'"
+      :filter="ui.soundboardSearchQuery"
+      :create-signal="createPlaylistSignal"
     />
 
     <template v-else>
@@ -208,7 +233,8 @@
         handle=".drag-handle"
         :animation="150"
         ghost-class="opacity-40"
-        @end="persistOrder"
+        @start="draggingCard = true"
+        @end="onCardDragEnd"
       >
         <div v-for="(sound, index) in orderedSounds" :key="sound.id" class="group relative">
           <!-- Drag handle — Arrange only, and only when not filtered. Ordering
@@ -216,7 +242,7 @@
                overlaid handle would sit on top of the name. -->
           <div
             v-if="!ui.soundboardHasActiveFilters && ui.soundboardBoardMode === 'arrange'"
-            class="drag-handle absolute top-2 left-2 z-10 cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground/60 transition-colors [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
+            class="drag-handle absolute top-2 inset-s-2 z-10 cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground/60 transition-colors [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
             title="Drag to reorder"
           >
             <IconDrag class="h-3.5 w-3.5" />
@@ -224,7 +250,6 @@
           <SoundCard
             :sound="sound"
             :show-delete="true"
-            :pages="pages ?? []"
             :mode="ui.soundboardBoardMode"
             :pad-size="ui.soundboardPadSize"
             @delete="handleDelete"
@@ -244,14 +269,45 @@
     </template>
 
     </template> <!-- end v-else sounds view -->
+      </div>
+
+      <!-- Mixer — the same component the floating widget uses, so the two
+           soundboard surfaces can never drift apart. Desktop only: below lg
+           the floating widget is the mixer surface. -->
+      <aside
+        v-if="ui.soundboardMixerOpen"
+        class="sticky top-0 hidden w-72 shrink-0 rounded-lg border border-border bg-card lg:block"
+        aria-label="Mixer"
+      >
+        <!-- No Stop All here: it has exactly one home, the widget header, which
+             follows the DM everywhere including this page. Two panic buttons
+             for the same act is how one of them drifts. -->
+        <div class="flex items-center gap-2 border-b border-border/60 px-3 py-2">
+          <h2 class="flex-1 font-cinzel text-2xs font-bold tracking-[0.16em] text-gold-500 uppercase">
+            Mixer
+          </h2>
+          <button
+            type="button"
+            class="text-muted-foreground transition-colors hover:text-foreground"
+            title="Close the mixer"
+            @click="ui.soundboardMixerOpen = false"
+          >
+            <IconClose class="h-3.5 w-3.5" />
+          </button>
+        </div>
+        <div class="px-3 py-2">
+          <SoundboardMixer column />
+        </div>
+      </aside>
+    </div>
   </ListPageLayout>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from "vue";
-import { IconAdd, IconDrag, IconMusicNote, IconList, IconListOrdered, IconWind } from '@/lib/icons';
+import { IconAdd, IconClose, IconDrag, IconMusicNote, IconList, IconListOrdered, IconWind, IconMixer } from '@/lib/icons';
 import { VueDraggable } from "vue-draggable-plus";
-import { useSounds, useDeleteSound, useReorderSounds, useBulkAssignToPage } from "@/composables/useSounds";
+import { useSounds, useDeleteSound, useReorderSounds, useBulkAssignToPage, useMoveSound } from "@/composables/useSounds";
 import { useSoundboardPages, useCreateSoundboardPage } from "@/composables/useSoundboardPages";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSpotifyStore } from "@/stores/spotify";
@@ -265,7 +321,6 @@ import type { Sound } from "@/types/sound.types";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
-import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
@@ -291,11 +346,6 @@ const BOARD_MODES = [
   { id: "perform", label: "Perform", hint: "Fire targets only, for running a session" },
 ] as const;
 
-const PAD_SIZES = [
-  { id: "sm", label: "S", hint: "Name and colour only — fits the most on screen" },
-  { id: "md", label: "M", hint: "Name, length and loop" },
-  { id: "lg", label: "L", hint: "Adds the artist" },
-] as const;
 import SoundboardMixer from "@/components/soundboard/SoundboardMixer.vue";
 import SpotifyErrorBanner from "@/components/soundboard/SpotifyErrorBanner.vue";
 
@@ -362,11 +412,35 @@ const newSoundPageId = computed(() => {
  * needs the width regardless of pad size.
  */
 const gridClass = computed(() => {
-  if (ui.soundboardBoardMode === "arrange") return "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3";
+  // auto-fill rather than fixed column counts: the board now shares its width
+  // with the mixer sidebar, and hardcoded breakpoints left a wide screen with
+  // three columns and a lane of dead space beside them. This fills whatever
+  // width it is actually given.
+  if (ui.soundboardBoardMode === "arrange") {
+    return "grid-cols-[repeat(auto-fill,minmax(15rem,1fr))]";
+  }
   switch (ui.soundboardPadSize) {
-    case "sm": return "grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8";
-    case "lg": return "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3";
-    default:   return "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5";
+    case "sm": return "grid-cols-[repeat(auto-fill,minmax(7.5rem,1fr))]";
+    case "lg": return "grid-cols-[repeat(auto-fill,minmax(11rem,1fr))]";
+    default:   return "grid-cols-[repeat(auto-fill,minmax(9.25rem,1fr))]";
+  }
+});
+
+const { quota: playlistQuota } = useQuota("soundboard_playlists");
+
+const newPlaylistLabel = computed(() => {
+  const base = ui.soundboardViewMode === "scenes" ? "New Scene" : "New Playlist";
+  const q = playlistQuota.value;
+  // Same shape as Add Sound: the count rides on the button now that the panel
+  // caption that used to carry it is gone.
+  return q !== undefined && q !== null && !q.unlimited ? `${base} (${q.current}/${q.limit})` : base;
+});
+
+const searchPlaceholder = computed(() => {
+  switch (ui.soundboardViewMode) {
+    case "scenes": return "Search scenes…";
+    case "playlists": return "Search playlists…";
+    default: return "Search sounds…";
   }
 });
 
@@ -408,6 +482,55 @@ watch(
 // Number keys fire the cards in the order they are rendered, so the mapping
 // always matches the badges the DM can see.
 useSoundboardHotkeys(orderedSounds);
+
+const draggingCard = ref(false);
+/** Bumped by the head's New Scene/Playlist button; the panel owns the dialog. */
+const createPlaylistSignal = ref(0);
+
+// The mobile FAB's create lands here and fans out by tab.
+watch(
+  () => ui.soundboardCreateSignal,
+  () => {
+    if (ui.soundboardViewMode === "sounds") openAddSound();
+    else createPlaylistSignal.value++;
+  },
+);
+const { mutate: moveSoundToPage } = useMoveSound();
+
+/**
+ * A card dropped on a page tab moves to that page — the intuitive gesture the
+ * old reveal-on-hover <select> stood in for. Dropping on "All" unassigns it.
+ * Anywhere else, the drag was a reorder and persists as one.
+ */
+function onCardDragEnd(evt: { oldIndex?: number; originalEvent?: Event }): void {
+  draggingCard.value = false;
+
+  const oe = evt.originalEvent;
+  const point =
+    oe instanceof MouseEvent
+      ? { x: oe.clientX, y: oe.clientY }
+      : oe instanceof TouchEvent && oe.changedTouches.length > 0
+        ? { x: oe.changedTouches[0].clientX, y: oe.changedTouches[0].clientY }
+        : null;
+
+  if (point !== null && evt.oldIndex !== undefined) {
+    const target = document
+      .elementFromPoint(point.x, point.y)
+      ?.closest<HTMLElement>("[data-page-drop]");
+    if (target && target.dataset.pageDrop !== undefined) {
+      const sound = orderedSounds.value[evt.oldIndex];
+      if (sound) {
+        moveSoundToPage({
+          id: sound.id,
+          pageId: target.dataset.pageDrop === "" ? null : target.dataset.pageDrop,
+        });
+        return;
+      }
+    }
+  }
+
+  persistOrder();
+}
 
 function persistOrder() {
   const updates = orderedSounds.value

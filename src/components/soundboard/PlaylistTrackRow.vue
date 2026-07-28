@@ -17,18 +17,56 @@
         {{ sound.category }}
       </span>
 
-      <!-- Layer settings — ambient scenes only; a music playlist has no layers -->
+      <!--
+        The row's primary control, always visible. It decides what the layer
+        *is* — a bed or a firing schedule — and the numeric detail appears and
+        vanishes with it. Hiding this behind a chip that said "generator" was
+        the schema vocabulary this control exists to replace.
+      -->
+      <span v-if="layer" class="inline-flex shrink-0 rounded-md border border-border bg-background p-px">
+        <button
+          type="button"
+          class="flex items-center gap-1 rounded px-1.5 py-0.5 font-cinzel text-2xs font-bold tracking-wide uppercase transition-colors"
+          :class="layer.is_generator ? 'text-muted-foreground hover:text-foreground' : 'bg-green-500/20 text-green-300'"
+          title="Loops continuously underneath the scene"
+          @click="patch({ is_generator: false })"
+        >
+          <IconRepeat class="h-2.5 w-2.5" />
+          Loop
+        </button>
+        <button
+          type="button"
+          class="flex items-center gap-1 rounded px-1.5 py-0.5 font-cinzel text-2xs font-bold tracking-wide uppercase transition-colors"
+          :class="layer.is_generator ? 'bg-gold-500/20 text-gold-300' : 'text-muted-foreground hover:text-foreground'"
+          title="Fires one-shots at random intervals"
+          @click="patch({ is_generator: true })"
+        >
+          <IconDice class="h-2.5 w-2.5" />
+          Random
+        </button>
+      </span>
+
+      <!-- Hear this layer on its own, while deciding about it. -->
       <button
         v-if="layer"
         type="button"
-        class="shrink-0 rounded border px-1.5 py-0.5 text-caption-sm transition-colors"
-        :class="layer.is_generator
-          ? 'border-gold-500/40 bg-gold-500/10 text-gold-400'
-          : 'border-border text-muted-foreground hover:text-foreground'"
-        :title="layer.is_generator ? 'Fires at random intervals — click to configure' : 'Loops continuously — click to configure'"
+        class="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+        title="Fire once, to hear it"
+        @click="$emit('preview')"
+      >
+        <IconPlay class="h-3 w-3" />
+      </button>
+
+      <!-- The numbers live behind the disclosure; the decision does not. -->
+      <button
+        v-if="layer"
+        type="button"
+        class="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+        :aria-expanded="expanded"
+        :title="expanded ? 'Hide the numbers' : 'Level, timing and spread'"
         @click="expanded = !expanded"
       >
-        {{ layer.is_generator ? "generator" : "loop" }}
+        <IconChevronRight class="h-3 w-3 transition-transform" :class="expanded ? 'rotate-90' : ''" />
       </button>
 
       <!-- Remove button -->
@@ -42,46 +80,22 @@
       </button>
     </div>
 
-    <div v-if="layer && expanded" class="space-y-2 border-t border-border/50 px-2 py-2">
-      <!--
-        A segmented choice rather than a checkbox, because this is not an
-        option on a layer — it decides what the layer *is*, and four fields
-        appear and vanish with it.
-      -->
-      <div class="flex items-center gap-2">
-        <span class="inline-flex rounded-md border border-border bg-background p-px">
-          <button
-            type="button"
-            class="flex items-center gap-1 rounded px-2 py-1 font-cinzel text-2xs font-bold tracking-wide uppercase transition-colors"
-            :class="layer.is_generator ? 'text-muted-foreground hover:text-foreground' : 'bg-green-500/20 text-green-300'"
-            title="Loops continuously underneath the scene"
-            @click="patch({ is_generator: false })"
-          >
-            <IconRepeat class="h-2.5 w-2.5" />
-            Loop
-          </button>
-          <button
-            type="button"
-            class="flex items-center gap-1 rounded px-2 py-1 font-cinzel text-2xs font-bold tracking-wide uppercase transition-colors"
-            :class="layer.is_generator ? 'bg-gold-500/20 text-gold-300' : 'text-muted-foreground hover:text-foreground'"
-            title="Fires one-shots at random intervals"
-            @click="patch({ is_generator: true })"
-          >
-            <IconDice class="h-2.5 w-2.5" />
-            Random
-          </button>
-        </span>
-        <button
-          type="button"
-          class="flex items-center gap-1 rounded border border-border px-2 py-1 text-caption text-muted-foreground transition-colors hover:text-foreground"
-          title="Fire once, to hear it"
-          @click="$emit('preview')"
-        >
-          <IconPlay class="h-2.5 w-2.5" />
-          Hear it
-        </button>
-      </div>
+    <!--
+      The sentence, on the closed row. It is the only place a DM learns that
+      Level is a ceiling rather than a live volume, so it cannot live behind a
+      disclosure nothing hints at. Truncated, it reads as a summary; the full
+      text is a hover away and always visible when expanded.
+    -->
+    <p
+      v-if="layer"
+      class="px-2 pb-1.5 ps-7.5 text-caption-sm italic text-muted-foreground"
+      :class="expanded ? '' : 'truncate'"
+      :title="behaviourSentence"
+    >
+      {{ behaviourSentence }}
+    </p>
 
+    <div v-if="layer && expanded" class="space-y-2 border-t border-border/50 px-2 py-2">
       <VolumeSlider
         label="Level"
         wide
@@ -92,64 +106,77 @@
       />
 
       <template v-if="layer.is_generator">
-        <!-- Ranges, not fixed values: identical timing and level every firing is
-             exactly what makes ambience sound like a loop. -->
-        <div class="flex items-center gap-2">
-          <span class="w-20 shrink-0 text-caption text-muted-foreground">Every</span>
-          <input
-            type="number" min="1" max="3600" step="1"
-            class="w-16 rounded border border-border bg-background px-1 py-0.5 text-caption text-foreground"
-            :value="layer.min_interval_s"
-            @change="patchInterval('min', $event)"
-          />
-          <span class="text-caption text-muted-foreground">to</span>
-          <input
-            type="number" min="1" max="3600" step="1"
-            class="w-16 rounded border border-border bg-background px-1 py-0.5 text-caption text-foreground"
-            :value="layer.max_interval_s"
-            @change="patchInterval('max', $event)"
-          />
-          <span class="text-caption text-muted-foreground">seconds</span>
+        <!--
+          Paired controls, one row per range. They are *ranges* — the same
+          firing never happening twice is the whole point — and two full-width
+          faders stacked on top of each other do not read as one range at all.
+        -->
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <label class="flex items-center gap-1.5 text-caption text-muted-foreground">
+            Every
+            <input
+              type="number" min="1" max="3600" step="1"
+              class="w-14 rounded border border-border bg-background px-1 py-0.5 text-caption text-foreground"
+              :value="layer.min_interval_s"
+              @change="patchInterval('min', $event)"
+            />
+            –
+            <input
+              type="number" min="1" max="3600" step="1"
+              class="w-14 rounded border border-border bg-background px-1 py-0.5 text-caption text-foreground"
+              :value="layer.max_interval_s"
+              @change="patchInterval('max', $event)"
+            />
+            s
+          </label>
+
+          <div class="flex min-w-40 flex-1 items-center gap-1.5">
+            <span class="shrink-0 text-caption text-muted-foreground">At</span>
+            <VolumeSlider
+              class="flex-1"
+              wide
+              compact
+              accent="gold"
+              :model-value="layer.min_gain"
+              @update:model-value="patchGain('min', $event)"
+            />
+            <span class="text-caption text-muted-foreground">–</span>
+            <VolumeSlider
+              class="flex-1"
+              wide
+              compact
+              accent="gold"
+              :model-value="layer.max_gain"
+              @update:model-value="patchGain('max', $event)"
+            />
+            <span class="shrink-0 text-caption tabular-nums text-muted-foreground">
+              {{ Math.round(layer.min_gain * 100) }}–{{ Math.round(layer.max_gain * 100) }}%
+            </span>
+          </div>
+
+          <div class="flex min-w-32 items-center gap-1.5">
+            <span class="shrink-0 text-caption text-muted-foreground">Spread</span>
+            <VolumeSlider
+              class="flex-1"
+              wide
+              compact
+              accent="gold"
+              :model-value="layer.pan_spread"
+              @update:model-value="patch({ pan_spread: $event })"
+            />
+            <span class="shrink-0 text-caption tabular-nums text-muted-foreground">
+              ±{{ Math.round(layer.pan_spread * 100) }}%
+            </span>
+          </div>
         </div>
-
-        <VolumeSlider
-          label="Quietest"
-          wide
-          show-percent
-          :model-value="layer.min_gain"
-          @update:model-value="patchGain('min', $event)"
-        />
-        <VolumeSlider
-          label="Loudest"
-          wide
-          show-percent
-          :model-value="layer.max_gain"
-          @update:model-value="patchGain('max', $event)"
-        />
-        <VolumeSlider
-          label="Spread"
-          wide
-          show-percent
-          accent="gold"
-          :model-value="layer.pan_spread"
-          @update:model-value="patch({ pan_spread: $event })"
-        />
       </template>
-
-      <!--
-        The sentence, not the fields, is what the DM is actually choosing.
-        "min_gain 0.6" is a column name; "at 60–100% of its level" is the
-        decision — and it carries the one fact the `gen` badge only hints at,
-        that Level is a ceiling rather than a live volume.
-      -->
-      <p class="text-caption italic text-muted-foreground text-pretty">{{ behaviourSentence }}</p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { IconDrag, IconClose, IconRepeat, IconPlay, IconDice } from "@/lib/icons";
+import { IconDrag, IconClose, IconRepeat, IconPlay, IconDice, IconChevronRight } from "@/lib/icons";
 import VolumeSlider from "./VolumeSlider.vue";
 import type { Sound, PlaylistTrackLayer } from "@/types/sound.types";
 
@@ -164,6 +191,8 @@ const emit = defineEmits<{
   preview: [];
   "update:layer": [patch: Partial<PlaylistTrackLayer>];
 }>();
+
+const expanded = ref(false);
 
 /**
  * What this layer will actually do, in a sentence.
@@ -183,8 +212,6 @@ const behaviourSentence = computed(() => {
     `Level is the ceiling those draws sit under, not a live volume.`
   );
 });
-
-const expanded = ref(false);
 
 function patch(next: Partial<PlaylistTrackLayer>): void {
   emit("update:layer", next);

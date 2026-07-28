@@ -1,21 +1,32 @@
 <template>
   <button
     type="button"
-    class="group/pad relative flex w-full flex-col overflow-hidden rounded-md border text-left transition-colors"
+    class="group/pad relative flex w-full flex-col overflow-hidden text-left transition-colors"
     :class="[
-      SIZE_CLASS[size],
-      isPlaying
-        ? `${CATEGORY_BORDER[sound.category]} ${CATEGORY_TINT[sound.category]}`
-        : 'border-border bg-card hover:border-border/80',
+      PADDING_CLASS[size],
+      // In Perform the pad is the whole card: chunky fixed height, own border,
+      // own fill. In Arrange the card around it is the surface, so the pad is
+      // bare — a title row you can still hit, not a framed box inside a frame.
+      mode === 'perform'
+        ? [
+            'rounded-md border',
+            HEIGHT_CLASS[size],
+            isPlaying
+              ? `${CATEGORY_BORDER[sound.category]} ${CATEGORY_TINT[sound.category]}`
+              : 'border-border bg-card hover:border-border/80',
+          ]
+        : ['min-h-11', isPlaying ? CATEGORY_TINT[sound.category] : 'hover:bg-muted/40'],
       blockedReason === null ? '' : 'opacity-60',
     ]"
     :title="blockedReason ?? undefined"
     @click="fire"
   >
     <!-- The spine is what makes the category readable across a table without
-         reading a word of it. Thicker while audible. -->
+         reading a word of it. Thicker while audible. In Arrange the card
+         wrapper draws one spine for the whole surface instead. -->
     <span
-      class="absolute inset-y-0 left-0"
+      v-if="mode === 'perform'"
+      class="absolute inset-y-0 inset-s-0"
       :class="[CATEGORY_SPINE[sound.category], isPlaying ? 'w-1' : 'w-0.75 opacity-75']"
     />
 
@@ -31,6 +42,10 @@
       >
         {{ sound.name }}
       </span>
+      <!-- In Arrange the bars sit inside the title row: a new row appearing on
+           play grows the card and shifts the whole grid, which reads as a bug
+           even when the bars themselves read as nice. -->
+      <EqBars v-if="mode === 'arrange' && isPlaying" :accent="sound.category" class="mt-1 shrink-0" />
       <slot name="key" />
     </span>
 
@@ -39,7 +54,7 @@
       the DM is firing by position and colour, so everything that is not "is it
       playing" comes off — a row of unreadable 8px metadata is worse than none.
     -->
-    <span v-if="size !== 'sm'" class="mt-auto flex min-w-0 items-center gap-1.5 pt-1">
+    <span v-if="mode === 'perform' && size !== 'sm'" class="mt-auto flex min-w-0 items-center gap-1.5 pt-1">
       <EqBars v-if="isPlaying" :accent="sound.category" />
       <IconRepeat
         v-if="isLooping"
@@ -56,8 +71,9 @@
       <CausedByChip :trigger="trigger" small :releasable="false" />
     </span>
 
-    <!-- Small pads still show that something is audible, just nothing else. -->
-    <span v-else-if="isPlaying" class="mt-auto pt-1">
+    <!-- Small pads still show that something is audible, just nothing else.
+         Perform only: those pads have fixed heights, so the row costs nothing. -->
+    <span v-else-if="mode === 'perform' && isPlaying" class="mt-auto pt-1">
       <EqBars :accent="sound.category" />
     </span>
 
@@ -65,9 +81,11 @@
       {{ blockedReason }}
     </span>
 
-    <!-- Progress along the bottom edge: position without spending a row on it. -->
+    <!-- Progress along the bottom edge: position without spending a row on it.
+         Perform only — Arrange's strip has the real seekable bar, and two
+         progress lines on one card read as two different sounds. -->
     <span
-      v-if="isPlaying && progress > 0"
+      v-if="mode === 'perform' && isPlaying && progress > 0"
       class="absolute inset-x-0 bottom-0 h-0.5 bg-black/35"
     >
       <span class="block h-full" :class="CATEGORY_SPINE[sound.category]" :style="{ width: `${progress * 100}%` }" />
@@ -89,7 +107,7 @@ import {
 import { useActiveAudioTriggers } from "@/composables/useAudioThemeTriggers";
 import CausedByChip from "./CausedByChip.vue";
 import EqBars from "./EqBars.vue";
-import type { Sound, SoundCategory, PadSize } from "@/types/sound.types";
+import type { Sound, SoundCategory, PadSize, BoardMode } from "@/types/sound.types";
 
 /**
  * The fire target.
@@ -109,15 +127,24 @@ const CATEGORY_ICON: Record<SoundCategory, typeof IconMusic> = {
   misc: IconMusic,
 };
 
-const SIZE_CLASS: Record<PadSize, string> = {
-  sm: "min-h-14 gap-0.5 px-2 py-1.5 pl-3",
-  md: "min-h-25 gap-1 px-2.5 py-2 pl-3.5",
-  lg: "min-h-30 gap-1 px-3 py-2.5 pl-4",
+const PADDING_CLASS: Record<PadSize, string> = {
+  sm: "gap-0.5 px-2 py-1.5 pl-3",
+  md: "gap-1 px-2.5 py-2 pl-3.5",
+  lg: "gap-1 px-3 py-2.5 pl-4",
 };
 
-const { sound, size = "md" } = defineProps<{
+/** Perform only. Chunky, uniform, and aimable without reading. */
+const HEIGHT_CLASS: Record<PadSize, string> = {
+  sm: "min-h-14",
+  md: "min-h-25",
+  lg: "min-h-30",
+};
+
+const { sound, size = "md", mode = "perform" } = defineProps<{
   sound: Sound;
   size?: PadSize;
+  /** Arrange shrinks the pad to its content — the strip below carries detail. */
+  mode?: BoardMode;
 }>();
 
 const store = useSoundboardStore();

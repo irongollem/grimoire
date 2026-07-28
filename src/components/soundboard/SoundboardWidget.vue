@@ -75,7 +75,7 @@
               </button>
               <button
                 class="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-                :title="spotifyStore.isPlaying ? 'IconPause' : 'Resume'"
+                :title="spotifyStore.isPlaying ? 'Pause' : 'Resume'"
                 @click="spotifyStore.isPlaying ? spotifyStore.pause() : spotifyStore.resume()"
               >
                 <IconPause v-if="spotifyStore.isPlaying" class="h-3 w-3" />
@@ -106,7 +106,7 @@
               </span>
               <!-- IconRepeat -->
               <button
-                class="shrink-0 transition-all opacity-0 group-hover/spotify:opacity-100"
+                class="shrink-0 transition-all opacity-40 [@media(hover:hover)]:opacity-0 group-hover/spotify:opacity-100"
                 :class="spotifyStore.repeatMode > 0 ? 'text-green-500' : 'text-muted-foreground hover:text-foreground'"
                 :title="repeatTitle"
                 @click="cycleRepeat"
@@ -116,7 +116,7 @@
               </button>
               <!-- IconShuffle -->
               <button
-                class="shrink-0 transition-all opacity-0 group-hover/spotify:opacity-100"
+                class="shrink-0 transition-all opacity-40 [@media(hover:hover)]:opacity-0 group-hover/spotify:opacity-100"
                 :class="spotifyStore.shuffleOn ? 'text-green-500' : 'text-muted-foreground hover:text-foreground'"
                 title="Shuffle"
                 @click="spotifyStore.setShuffle(!spotifyStore.shuffleOn)"
@@ -229,7 +229,7 @@
               <!-- Effect picker -->
               <SoundEffectPicker
                 :model-value="store.soundEffects?.[sound.id] ?? 'none'"
-                @update:model-value="store.setEffect(sound.id, sound.file_url, $event)"
+                @update:model-value="store.setEffect(sound.id, sound.file_url, $event, sound.category)"
               />
               <!-- Stop -->
               <button
@@ -365,9 +365,9 @@ function formatSpotifyTime(ms: number): string {
 }
 
 const repeatTitle = computed(() => {
-  if (spotifyStore.repeatMode === 2) return "IconRepeat: Track";
-  if (spotifyStore.repeatMode === 1) return "IconRepeat: Context";
-  return "IconRepeat: Off";
+  if (spotifyStore.repeatMode === 2) return "Repeat: Track";
+  if (spotifyStore.repeatMode === 1) return "Repeat: Context";
+  return "Repeat: Off";
 });
 
 function cycleRepeat() {

@@ -14,7 +14,7 @@
          you are about to fire, without painting a stripe down the whole list. -->
     <span
       v-if="focused"
-      class="absolute inset-y-0 left-0 w-0.75"
+      class="absolute inset-y-0 inset-s-0 w-0.75"
       :class="spineClass"
     />
 

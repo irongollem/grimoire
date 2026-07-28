@@ -129,6 +129,53 @@ describe("bus routing", () => {
     store.play("s1", "https://example.test/a.mp3");
     expect(engineCalls.attach).toHaveBeenCalledWith("s1", expect.anything(), "ambient");
   });
+
+  it("keeps a music sound on the music bus when an effect is applied to it", async () => {
+    // Regression: setEffect used to hardcode "ambient", silently moving a
+    // playing music/effects sound off its own bus fader and, for effects,
+    // onto the one bus that IS ducked.
+    const store = await loadStore();
+    store.play("s1", "https://example.test/a.mp3", "music");
+    engineCalls.attach.mockClear();
+
+    store.setEffect("s1", "https://example.test/a.mp3", "cave", "music");
+    expect(engineCalls.attach).toHaveBeenCalledWith("s1", expect.anything(), "music");
+  });
+
+  it("keeps an effects sound off the ambient (ducked) bus when an effect is applied to it", async () => {
+    const store = await loadStore();
+    store.play("s1", "https://example.test/a.mp3", "effects");
+    engineCalls.attach.mockClear();
+
+    store.setEffect("s1", "https://example.test/a.mp3", "through_door", "effects");
+    expect(engineCalls.attach).toHaveBeenCalledWith("s1", expect.anything(), "effects");
+  });
+
+  it("routes the active music-playlist track's bus effect to the music bus", async () => {
+    const store = await loadStore();
+    store.playMusicPlaylist(
+      { id: "pl1", name: "Tavern Tunes", shuffle: false, repeat: false },
+      [
+        {
+          id: "t1",
+          playlist_id: "pl1",
+          sort_order: 0,
+          sound: {
+            id: "s1",
+            name: "Jig",
+            file_url: "https://example.test/a.mp3",
+            gain_trim: 1,
+            artist: null,
+            thumbnail_url: null,
+          },
+        } as never,
+      ],
+    );
+    engineCalls.attach.mockClear();
+
+    store.setMusicPlaylistEffect("cave");
+    expect(engineCalls.attach).toHaveBeenCalledWith("s1", expect.anything(), "music");
+  });
 });
 
 describe("playback state truthfulness", () => {
@@ -420,6 +467,42 @@ describe("gapless looping", () => {
     const ramped = engineCalls.setSoundVolume.mock.calls.map((c) => c[0]);
     expect(ramped).toContain("a1::loop");
     expect(engineCalls.fadeOut).toHaveBeenCalledWith("a1", expect.any(Number));
+  });
+
+  it("keeps looping past the second pass — the shadow half swaps back", async () => {
+    // The regression that shipped: the visible half got its handlers from
+    // play(), but the shadow was started raw inside the swap. The pair swapped
+    // exactly once, the shadow played its length with nobody watching, and a
+    // "looping" tavern died on the second pass — while every generator layer
+    // kept firing, which is what made it look haunted rather than broken.
+    const store = await loadStore();
+    store.playAmbientPlaylist({ id: "p", name: "Scene" }, ambientTracks);
+    await flush();
+
+    // First wrap: visible half hands over to the shadow.
+    const primary = created[0];
+    primary.duration = 60;
+    primary.currentTime = 59.9;
+    primary.ontimeupdate?.();
+    await flush();
+
+    const shadow = created.find((el) => el !== primary);
+    expect(shadow).toBeDefined();
+    // The half that just became audible must be watched the same way the
+    // first one was, or there is no second wrap.
+    expect(shadow!.ontimeupdate).not.toBeNull();
+
+    // Second wrap: the shadow approaches its end and must hand back.
+    engineCalls.setSoundVolume.mockClear();
+    engineCalls.fadeOut.mockClear();
+    shadow!.duration = 60;
+    shadow!.currentTime = 59.9;
+    shadow!.ontimeupdate?.();
+    await flush();
+
+    const ramped = engineCalls.setSoundVolume.mock.calls.map((c) => c[0]);
+    expect(ramped).toContain("a1");
+    expect(engineCalls.fadeOut).toHaveBeenCalledWith("a1::loop", expect.any(Number));
   });
 
   it("falls back to a plain loop when Web Audio is unavailable", async () => {

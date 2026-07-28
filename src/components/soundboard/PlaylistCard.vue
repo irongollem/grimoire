@@ -6,7 +6,7 @@
     <!-- Now-playing pulse -->
     <span
       v-if="isActive"
-      class="absolute top-2 right-2 h-2 w-2 rounded-full animate-pulse"
+      class="absolute top-2 inset-e-2 h-2 w-2 rounded-full animate-pulse"
       :class="playlist.playlist_type === 'music' ? 'bg-gold-400' : 'bg-green-400'"
     />
 
