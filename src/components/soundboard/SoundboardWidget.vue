@@ -146,6 +146,9 @@
                     {{ store.activeMusicPlaylist.currentIndex + 1 }} / {{ store.activeMusicPlaylist.trackSoundIds.length }}
                   </span>
                 </p>
+                <!-- The widget is where a DM is standing when audio surprises
+                     them, so "why" has to be answerable here too. -->
+                <CausedByChip :trigger="musicTrigger" small class="mt-0.5" />
               </div>
               <!-- Effect -->
               <SoundEffectPicker
@@ -197,6 +200,7 @@
                 <p class="text-caption-sm text-muted-foreground">
                   {{ scene.soundIds.length }} layered tracks
                 </p>
+                <CausedByChip :trigger="triggerForPlaylist(scene.playlistId)" small class="mt-0.5" />
               </div>
               <!-- Stops this scene only; the others stacked with it keep running -->
               <button
@@ -273,11 +277,14 @@ import { useSounds } from "@/composables/useSounds";
 import SoundEffectPicker from "./SoundEffectPicker.vue";
 import VolumeSlider from "./VolumeSlider.vue";
 import SoundboardMixer from "./SoundboardMixer.vue";
+import CausedByChip from "./CausedByChip.vue";
+import { useActiveAudioTriggers } from "@/composables/useAudioThemeTriggers";
 import SpotifyErrorBanner from "./SpotifyErrorBanner.vue";
 
 import CastButton from "./CastButton.vue";
 
 const store = useSoundboardStore();
+const { musicTrigger, triggerForPlaylist } = useActiveAudioTriggers();
 const spotifyStore = useSpotifyStore();
 const { data: sounds } = useSounds();
 

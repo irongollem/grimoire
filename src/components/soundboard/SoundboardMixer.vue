@@ -53,43 +53,28 @@
         @update:model-value="store.setBusVolume(bus.id, $event)"
       />
 
-      <!-- Whether the campaign is allowed to drive the board. Lives here rather
-           than in settings because this is where a DM looks when the audio did
-           something they did not ask for. -->
-      <label
-        class="flex cursor-pointer select-none items-center gap-1.5 text-2xs text-muted-foreground"
-        :class="collapsible ? 'w-full border-t border-border/50 pt-1.5' : 'w-full'"
-        title="Encounters and locations can request a playlist by theme. They are ignored when nothing matches."
+      <!--
+        A read-only echo, not a control. The mixer is for levels; two
+        checkboxes among the faders read as levels too. But this is still where
+        a DM looks when the audio did something they did not ask for, so the
+        state stays visible here and opens the dialog that owns it.
+      -->
+      <button
+        type="button"
+        class="flex w-full items-center gap-1.5 border-t border-border/50 pt-1.5 text-left text-2xs text-muted-foreground transition-colors hover:text-foreground"
+        title="Open board settings"
+        @click="showSettings = true"
       >
-        <input
-          type="checkbox"
-          class="h-3 w-3 accent-gold-500"
-          :checked="audioTriggersEnabled"
-          @change="setAudioTriggersEnabled(($event.target as HTMLInputElement).checked)"
-        />
-        Let encounters and locations pick audio
-      </label>
-
-      <!-- Off every session on purpose: several devices in one room playing the
-           same track comb-filter into a flanged mess, and most tables running
-           this are in one room. -->
-      <label
-        class="flex w-full cursor-pointer select-none items-center gap-1.5 text-2xs text-muted-foreground"
-        title="Share the music with players in the portal. For remote games — players must still opt in on their own device."
-      >
-        <input
-          type="checkbox"
-          class="h-3 w-3 accent-gold-500"
-          :checked="broadcasting"
-          @change="setBroadcasting(($event.target as HTMLInputElement).checked)"
-        />
-        Share music with remote players
-      </label>
+        <IconSettings class="h-3 w-3 shrink-0" />
+        <span>Triggers {{ audioTriggersEnabled ? "on" : "off" }} · Sharing {{ broadcasting ? "on" : "off" }}</span>
+      </button>
 
       <p v-if="broadcastError" class="w-full text-2xs text-destructive">
         {{ broadcastError }}
       </p>
     </template>
+
+    <BoardSettingsDialog :open="showSettings" @close="showSettings = false" />
   </div>
 </template>
 
@@ -102,7 +87,7 @@
 // control at all, because the DM learns it is there and then cannot find it.
 // Anything new belongs here, not in one of the two hosts.
 import { computed, ref } from "vue";
-import { IconChevronRight } from "@/lib/icons";
+import { IconChevronRight, IconSettings } from "@/lib/icons";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useAudioTriggerPrefs } from "@/composables/useAudioThemeTriggers";
 import { useSoundboardBroadcast } from "@/composables/useSoundboardBroadcast";
@@ -110,6 +95,7 @@ import type { AudioBus } from "@/lib/audioEngine";
 import VolumeSlider from "./VolumeSlider.vue";
 import SoundEffectPicker from "./SoundEffectPicker.vue";
 import SceneMixer from "./SceneMixer.vue";
+import BoardSettingsDialog from "./BoardSettingsDialog.vue";
 
 const BUSES = [
   { id: "music", label: "Music" },
@@ -123,8 +109,11 @@ const { collapsible = false } = defineProps<{
 }>();
 
 const store = useSoundboardStore();
-const { audioTriggersEnabled, setAudioTriggersEnabled } = useAudioTriggerPrefs();
-const { broadcasting, broadcastError, setBroadcasting } = useSoundboardBroadcast();
+// Read-only here; the dialog owns changing them.
+const { audioTriggersEnabled } = useAudioTriggerPrefs();
+const { broadcasting, broadcastError } = useSoundboardBroadcast();
+
+const showSettings = ref(false);
 
 // Only worth the space when a scene is actually running.
 const showScene = computed(() => store.activeAmbientPlaylists.length > 0);

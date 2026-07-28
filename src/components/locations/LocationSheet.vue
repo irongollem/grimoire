@@ -380,6 +380,7 @@ function requestAmbience(loc: Location): void {
     theme: loc.audio_theme,
     slot: "ambient",
     label: loc.name,
+    kind: "location",
   });
 }
 

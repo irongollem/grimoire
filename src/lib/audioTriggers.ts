@@ -12,6 +12,16 @@ import type { AudioSlot } from "@/lib/audioThemes";
  * whether that means anything.
  */
 
+/**
+ * What kind of thing asked for audio.
+ *
+ * Carried explicitly rather than parsed back out of the `sourceId` prefix: the
+ * UI says "Started by encounter: Goblin ambush", and deriving that from a
+ * string convention would break silently the first time a producer chose a
+ * different prefix.
+ */
+export type AudioTriggerKind = "encounter" | "location";
+
 export interface AudioThemeRequest {
   /**
    * Who is asking. A release only takes effect when it comes from whoever
@@ -24,6 +34,7 @@ export interface AudioThemeRequest {
   slot: AudioSlot;
   /** Human-readable origin, for the "playing because of…" note in the UI. */
   label: string;
+  kind: AudioTriggerKind;
 }
 
 export type AudioTriggerEvent =

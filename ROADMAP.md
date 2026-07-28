@@ -12,7 +12,7 @@
 > The **AI Features** and **Monetization** sections below are kept in full because they're
 > living reference / strategy — not a completed-work log.
 
-## Feature log by subsystem  ·  544 shipped
+## Feature log by subsystem  ·  545 shipped
 
 | Subsystem | Shipped | | Subsystem | Shipped |
 | --- | ---: | --- | --- | ---: |
@@ -26,7 +26,7 @@
 | [Items & Workshop](docs/log/features/items.md) | 45 | | [AI Generation](docs/log/features/ai.md) | 24 |
 | [Spells](docs/log/features/spells.md) | 34 | | [Billing](docs/log/features/billing.md) | 33 |
 | [Factions](docs/log/features/factions.md) | 10 | | [Infrastructure](docs/log/features/infra.md) | 12 |
-| [Encounters & Combat](docs/log/features/encounters.md) | 26 | | [Soundboard](docs/log/features/soundboard.md) | 19 |
+| [Encounters & Combat](docs/log/features/encounters.md) | 26 | | [Soundboard](docs/log/features/soundboard.md) | 20 |
 | [Quests](docs/log/features/quests.md) | 7 | | [Miscellaneous](docs/log/features/misc.md) | 1 |
 
 ## Latest features

@@ -31,8 +31,8 @@
       </div>
     </div>
 
-    <!-- Themes -->
-    <div v-if="playlist.tags.length" class="flex flex-wrap gap-1 px-1">
+    <!-- Themes, plus the badge for a scene that came with the app -->
+    <div v-if="playlist.tags.length || isSeeded" class="flex flex-wrap gap-1 px-1">
       <span
         v-for="tag in playlist.tags"
         :key="tag"
@@ -40,6 +40,22 @@
       >
         {{ tag }}
       </span>
+      <span
+        v-if="isSeeded"
+        class="shrink-0 rounded border border-gold-500/30 bg-gold-500/10 px-1.5 py-0.5 text-caption-sm text-gold-400"
+        title="A starter scene that came with the app — yours to edit or delete"
+      >
+        seeded
+      </span>
+    </div>
+
+    <!--
+      Its own line, never sharing one. When the chip competes for width with
+      tags and badges it is the thing that loses, and a label crushed to "The …"
+      answers nothing.
+    -->
+    <div v-if="trigger !== null" class="px-1">
+      <CausedByChip :trigger="trigger" />
     </div>
 
     <!-- Music: current track name when active -->
@@ -140,8 +156,10 @@ import { computed } from "vue";
 import { IconPlay, IconPause, IconStop, IconSkipBack, IconSkipForward, IconEdit, IconDelete, IconMusicNote, IconWind } from "@/lib/icons";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { usePlaylistTracks } from "@/composables/useSoundboardPlaylists";
+import { useActiveAudioTriggers } from "@/composables/useAudioThemeTriggers";
 import type { SoundboardPlaylist } from "@/types/sound.types";
 import CastButton from "./CastButton.vue";
+import CausedByChip from "./CausedByChip.vue";
 
 const { playlist } = defineProps<{ playlist: SoundboardPlaylist }>();
 defineEmits<{ edit: []; delete: [] }>();
@@ -149,6 +167,12 @@ defineEmits<{ edit: []; delete: [] }>();
 const store = useSoundboardStore();
 
 const { data: tracks, isPending: tracksLoading } = usePlaylistTracks(computed(() => playlist.id));
+
+const { triggerForPlaylist } = useActiveAudioTriggers();
+const trigger = computed(() => triggerForPlaylist(playlist.id));
+
+/** Came with the app rather than being built by this DM. */
+const isSeeded = computed(() => playlist.library_scene_slug !== null);
 
 const trackCount = computed(() => tracks.value?.length ?? 0);
 

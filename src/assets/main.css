@@ -88,6 +88,20 @@
   --color-dragon-red: #c0392b;
   --color-elven-green: #2e7d32;
   --color-arcane-purple: #6a1b9a;
+  /* Soundboard's fourth category hue. `arcane-purple` itself is too dark to
+     read as a category spine against navy; this is the same hue, lightened.
+     Misc had no colour at all before, which left one of the four categories
+     unreadable from the spine alone. */
+  --color-arcane-purple-light: #9b7fc4;
+
+  /* Soundboard "this is audible" bars. Named here so the utility is
+     `animate-eq` rather than a per-component style block. */
+  --animate-eq: eq 1.1s ease-in-out infinite;
+}
+
+@keyframes eq {
+  0%, 100% { transform: scaleY(0.28); }
+  50%      { transform: scaleY(1); }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────

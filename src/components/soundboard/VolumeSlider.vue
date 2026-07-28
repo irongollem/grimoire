@@ -13,7 +13,7 @@
       max="1"
       step="0.02"
       class="h-1 shrink-0 min-w-0"
-      :class="[wide ? 'flex-1' : 'w-16', ACCENT_CLASS[accent]]"
+      :class="[wide ? 'flex-1' : compact ? 'w-10' : 'w-16', ACCENT_CLASS[accent]]"
       :value="modelValue"
       :aria-label="label ? `${label} volume` : 'Volume'"
       @input="onInput"
@@ -32,17 +32,28 @@
 // per-sound, and Spotify. These were four copies of the same markup before the
 // bus graph added two more places that needed one.
 
-// Written out in full so Tailwind's scanner can see both class names.
+// Written out in full so Tailwind's scanner can see every class name — an
+// interpolated `accent-${x}-500` would compile to nothing.
+//
+// Four accents rather than two because category colour is load-bearing across
+// the soundboard, and effects and misc had no colour of their own before.
 const ACCENT_CLASS = {
   gold: "accent-gold-500",
   green: "accent-green-500",
+  blue: "accent-blue-500",
+  purple: "accent-arcane-purple-light",
 } as const;
+
+// Per-category accents are mapped in `src/lib/soundCategories.ts` — kept out of
+// here because `<script setup>` cannot export, and several other surfaces need
+// the same mapping.
 
 const {
   modelValue,
   label = "",
   showPercent = false,
   wide = false,
+  compact = false,
   muted = false,
   accent = "gold",
 } = defineProps<{
@@ -51,11 +62,13 @@ const {
   label?: string;
   /** Show the 0–100 readout after the track. */
   showPercent?: boolean;
-  /** Fill available width instead of the compact fixed width. */
+  /** Fill available width instead of the fixed width. */
   wide?: boolean;
+  /** Narrower fixed width, for widget rows where the default is too greedy. Ignored when `wide`. */
+  compact?: boolean;
   /** Dim the label — used when the level is inaudible because a parent is at zero. */
   muted?: boolean;
-  /** Spotify's controls are green to match its own branding; everything else is gold. */
+  /** Category colour, or green for Spotify's own branding. */
   accent?: keyof typeof ACCENT_CLASS;
 }>();
 

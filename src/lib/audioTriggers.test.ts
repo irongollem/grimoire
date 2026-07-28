@@ -7,7 +7,13 @@ import {
   type AudioTriggerEvent,
 } from "./audioTriggers";
 
-const REQUEST = { sourceId: "enc-1", theme: "battle", slot: "music", label: "Goblin ambush" } as const;
+const REQUEST = {
+  sourceId: "enc-1",
+  theme: "battle",
+  slot: "music",
+  label: "Goblin ambush",
+  kind: "encounter",
+} as const;
 
 beforeEach(() => {
   clearAudioTriggerHandlers();

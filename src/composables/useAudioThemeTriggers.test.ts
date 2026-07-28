@@ -72,7 +72,7 @@ describe("a trigger that matches nothing", () => {
     const { requestAudioTheme } = await mount();
     playlists.value = [playlist({ id: "p", tags: ["calm"] })];
 
-    requestAudioTheme({ sourceId: "encounter:1", theme: "battle", slot: "music", label: "Ambush" });
+    requestAudioTheme({ sourceId: "encounter:1", theme: "battle", slot: "music", label: "Ambush", kind: "encounter" });
     await flush();
 
     // Silence the DM chose beats silence we chose — nothing is stopped either.
@@ -85,7 +85,7 @@ describe("a trigger that matches nothing", () => {
     const { requestAudioTheme } = await mount();
     store.activeMusicPlaylistId.mockImplementation(() => "travel-music");
 
-    requestAudioTheme({ sourceId: "encounter:1", theme: "battle", slot: "music", label: "Ambush" });
+    requestAudioTheme({ sourceId: "encounter:1", theme: "battle", slot: "music", label: "Ambush", kind: "encounter" });
     await flush();
 
     expect(store.stopPlaylist).not.toHaveBeenCalled();
@@ -98,7 +98,7 @@ describe("a trigger that matches", () => {
     const battle = playlist({ id: "battle", tags: ["battle"] });
     playlists.value = [battle];
 
-    requestAudioTheme({ sourceId: "encounter:1", theme: "battle", slot: "music", label: "Ambush" });
+    requestAudioTheme({ sourceId: "encounter:1", theme: "battle", slot: "music", label: "Ambush", kind: "encounter" });
     await flush();
 
     expect(store.playPlaylist).toHaveBeenCalledWith(battle, tracks);
@@ -109,7 +109,7 @@ describe("a trigger that matches", () => {
     playlists.value = [playlist({ id: "battle", tags: ["battle"] })];
     store.activeMusicPlaylistId.mockImplementation(() => "battle");
 
-    requestAudioTheme({ sourceId: "encounter:1", theme: "battle", slot: "music", label: "Ambush" });
+    requestAudioTheme({ sourceId: "encounter:1", theme: "battle", slot: "music", label: "Ambush", kind: "encounter" });
     await flush();
 
     // Restarting mid-bar would be worse than doing nothing.
@@ -121,7 +121,7 @@ describe("a trigger that matches", () => {
     playlists.value = [playlist({ id: "battle", tags: ["battle"] })];
     prefs().setAudioTriggersEnabled(false);
 
-    requestAudioTheme({ sourceId: "encounter:1", theme: "battle", slot: "music", label: "Ambush" });
+    requestAudioTheme({ sourceId: "encounter:1", theme: "battle", slot: "music", label: "Ambush", kind: "encounter" });
     await flush();
 
     expect(store.playPlaylist).not.toHaveBeenCalled();
@@ -133,7 +133,7 @@ describe("a trigger that matches", () => {
     // An ambient scene shares the label, but a music request must not take it.
     playlists.value = [playlist({ id: "battle-scene", playlist_type: "ambient", tags: ["battle"] })];
 
-    requestAudioTheme({ sourceId: "encounter:1", theme: "battle", slot: "music", label: "Ambush" });
+    requestAudioTheme({ sourceId: "encounter:1", theme: "battle", slot: "music", label: "Ambush", kind: "encounter" });
     await flush();
 
     expect(store.playPlaylist).not.toHaveBeenCalled();
@@ -148,7 +148,7 @@ describe("release", () => {
     playlists.value = [battle, travel];
     store.activeMusicPlaylistId.mockImplementation(() => "travel");
 
-    requestAudioTheme({ sourceId: "encounter:1", theme: "battle", slot: "music", label: "Ambush" });
+    requestAudioTheme({ sourceId: "encounter:1", theme: "battle", slot: "music", label: "Ambush", kind: "encounter" });
     await flush();
 
     releaseAudioTheme("encounter:1");
@@ -161,7 +161,7 @@ describe("release", () => {
     const { requestAudioTheme, releaseAudioTheme } = await mount();
     playlists.value = [playlist({ id: "battle", tags: ["battle"] })];
 
-    requestAudioTheme({ sourceId: "encounter:1", theme: "battle", slot: "music", label: "Ambush" });
+    requestAudioTheme({ sourceId: "encounter:1", theme: "battle", slot: "music", label: "Ambush", kind: "encounter" });
     await flush();
 
     releaseAudioTheme("encounter:1");
@@ -174,7 +174,7 @@ describe("release", () => {
     const { requestAudioTheme, releaseAudioTheme } = await mount();
     playlists.value = [playlist({ id: "battle", tags: ["battle"] })];
 
-    requestAudioTheme({ sourceId: "encounter:1", theme: "battle", slot: "music", label: "Ambush" });
+    requestAudioTheme({ sourceId: "encounter:1", theme: "battle", slot: "music", label: "Ambush", kind: "encounter" });
     await flush();
 
     // A stale encounter ending must not cut the music a newer one started.
@@ -190,9 +190,9 @@ describe("release", () => {
     const dungeon = playlist({ id: "dungeon", playlist_type: "ambient", tags: ["dungeon"] });
     playlists.value = [tavern, dungeon];
 
-    requestAudioTheme({ sourceId: "location:1", theme: "tavern", slot: "ambient", label: "Inn" });
+    requestAudioTheme({ sourceId: "location:1", theme: "tavern", slot: "ambient", label: "Inn", kind: "location" });
     await flush();
-    requestAudioTheme({ sourceId: "location:2", theme: "dungeon", slot: "ambient", label: "Crypt" });
+    requestAudioTheme({ sourceId: "location:2", theme: "dungeon", slot: "ambient", label: "Crypt", kind: "location" });
     await flush();
 
     releaseAudioTheme("location:1");
@@ -212,12 +212,12 @@ describe("release", () => {
       playlist({ id: "boss", tags: ["boss"] }),
     ];
 
-    requestAudioTheme({ sourceId: "encounter:1", theme: "battle", slot: "music", label: "Ambush" });
+    requestAudioTheme({ sourceId: "encounter:1", theme: "battle", slot: "music", label: "Ambush", kind: "encounter" });
     await flush();
     // Second trigger while we already own the slot — battle music is ours, so
     // it must not become the thing we restore afterwards.
     store.activeMusicPlaylistId.mockImplementation(() => "battle");
-    requestAudioTheme({ sourceId: "encounter:1", theme: "boss", slot: "music", label: "Phase 2" });
+    requestAudioTheme({ sourceId: "encounter:1", theme: "boss", slot: "music", label: "Phase 2", kind: "encounter" });
     await flush();
 
     releaseAudioTheme("encounter:1");
@@ -235,9 +235,9 @@ describe("scenes stack", () => {
     const { requestAudioTheme } = await mount();
     playlists.value = [tavern(), storm()];
 
-    requestAudioTheme({ sourceId: "location:1", theme: "tavern", slot: "ambient", label: "Inn" });
+    requestAudioTheme({ sourceId: "location:1", theme: "tavern", slot: "ambient", label: "Inn", kind: "location" });
     await flush();
-    requestAudioTheme({ sourceId: "weather:1", theme: "storm", slot: "ambient", label: "Storm" });
+    requestAudioTheme({ sourceId: "weather:1", theme: "storm", slot: "ambient", label: "Storm", kind: "location" });
     await flush();
 
     // Rain over a tavern: two rooms at once is the feature, not a mistake.
@@ -250,9 +250,9 @@ describe("scenes stack", () => {
     const { requestAudioTheme } = await mount();
     playlists.value = [tavern()];
 
-    requestAudioTheme({ sourceId: "location:1", theme: "tavern", slot: "ambient", label: "Inn" });
+    requestAudioTheme({ sourceId: "location:1", theme: "tavern", slot: "ambient", label: "Inn", kind: "location" });
     await flush();
-    requestAudioTheme({ sourceId: "location:1", theme: "tavern", slot: "ambient", label: "Inn" });
+    requestAudioTheme({ sourceId: "location:1", theme: "tavern", slot: "ambient", label: "Inn", kind: "location" });
     await flush();
 
     expect(store.playPlaylist).toHaveBeenCalledTimes(1);
@@ -262,9 +262,9 @@ describe("scenes stack", () => {
     const { requestAudioTheme, releaseAudioTheme } = await mount();
     playlists.value = [tavern(), playlist({ id: "battle", tags: ["battle"] })];
 
-    requestAudioTheme({ sourceId: "location:1", theme: "tavern", slot: "ambient", label: "Inn" });
+    requestAudioTheme({ sourceId: "location:1", theme: "tavern", slot: "ambient", label: "Inn", kind: "location" });
     await flush();
-    requestAudioTheme({ sourceId: "encounter:1", theme: "battle", slot: "music", label: "Ambush" });
+    requestAudioTheme({ sourceId: "encounter:1", theme: "battle", slot: "music", label: "Ambush", kind: "encounter" });
     await flush();
 
     releaseAudioTheme("encounter:1");
@@ -273,5 +273,90 @@ describe("scenes stack", () => {
     // Combat ending must leave the room the party is standing in alone.
     expect(store.stopPlaylist).toHaveBeenCalledWith("music");
     expect(store.stopAmbientPlaylist).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The label arrives on the request and used to be discarded the instant the
+ * audio started, leaving a DM with music they could not explain. These cover
+ * the snapshot that makes "why is this playing" answerable.
+ */
+describe("what the UI can read back", () => {
+  const tavern = () => playlist({ id: "tavern", playlist_type: "ambient", tags: ["tavern"] });
+
+  async function mountWithReader() {
+    const mod = await import("@/composables/useAudioThemeTriggers");
+    const triggers = await mount();
+    return { ...triggers, read: mod.useActiveAudioTriggers() };
+  }
+
+  it("keeps the label on the slot, not just on the event", async () => {
+    const { requestAudioTheme, read } = await mountWithReader();
+    playlists.value = [playlist({ id: "battle", tags: ["battle"] })];
+
+    requestAudioTheme({ sourceId: "encounter:1", theme: "battle", slot: "music", label: "Goblin ambush", kind: "encounter" });
+    await flush();
+
+    expect(read.musicTrigger.value?.label).toBe("Goblin ambush");
+    expect(read.musicTrigger.value?.kind).toBe("encounter");
+    expect(read.triggerForPlaylist("battle")?.label).toBe("Goblin ambush");
+  });
+
+  it("finds the trigger for a scene by its playlist id", async () => {
+    const { requestAudioTheme, read } = await mountWithReader();
+    playlists.value = [tavern()];
+
+    requestAudioTheme({ sourceId: "location:1", theme: "tavern", slot: "ambient", label: "The Rusty Anchor", kind: "location" });
+    await flush();
+
+    expect(read.triggerForPlaylist("tavern")?.label).toBe("The Rusty Anchor");
+    expect(read.ambientTriggers.value).toHaveLength(1);
+  });
+
+  it("finds the trigger for a loose sound standing in for a scene", async () => {
+    const { requestAudioTheme, read } = await mountWithReader();
+    sounds.value = [
+      { id: "s9", file_url: "u", category: "ambient", gain_trim: 1, tags: ["tavern"] } as Sound,
+    ];
+
+    requestAudioTheme({ sourceId: "location:1", theme: "tavern", slot: "ambient", label: "The Rusty Anchor", kind: "location" });
+    await flush();
+
+    expect(read.triggerForSound("s9")?.label).toBe("The Rusty Anchor");
+  });
+
+  it("reports nothing for audio the DM started themselves", async () => {
+    // The chip must never appear on a scene nobody triggered — that would
+    // claim a cause that does not exist.
+    const { read } = await mountWithReader();
+    expect(read.musicTrigger.value).toBeNull();
+    expect(read.triggerForPlaylist("tavern")).toBeNull();
+    expect(read.triggerForSound("s9")).toBeNull();
+  });
+
+  it("forgets the trigger once it is released", async () => {
+    const { requestAudioTheme, releaseAudioTheme, read } = await mountWithReader();
+    playlists.value = [tavern()];
+
+    requestAudioTheme({ sourceId: "location:1", theme: "tavern", slot: "ambient", label: "The Rusty Anchor", kind: "location" });
+    await flush();
+    releaseAudioTheme("location:1");
+    await flush();
+
+    expect(read.ambientTriggers.value).toHaveLength(0);
+    expect(read.triggerForPlaylist("tavern")).toBeNull();
+  });
+
+  it("keeps each scene's own trigger separate", async () => {
+    const { requestAudioTheme, read } = await mountWithReader();
+    playlists.value = [tavern(), playlist({ id: "storm", playlist_type: "ambient", tags: ["storm"] })];
+
+    requestAudioTheme({ sourceId: "location:1", theme: "tavern", slot: "ambient", label: "The Rusty Anchor", kind: "location" });
+    await flush();
+    requestAudioTheme({ sourceId: "location:2", theme: "storm", slot: "ambient", label: "The Moors", kind: "location" });
+    await flush();
+
+    expect(read.triggerForPlaylist("tavern")?.label).toBe("The Rusty Anchor");
+    expect(read.triggerForPlaylist("storm")?.label).toBe("The Moors");
   });
 });

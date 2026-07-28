@@ -67,6 +67,12 @@
     </template>
 
     <!-- Page tabs (always visible so the DM can create the first page) -->
+    <!-- Above the tabs on purpose: "what is audible and why" is the first
+         question a DM has when they open this page, and answering it by
+         scanning the grid for lit cards is the delay the feature exists to
+         remove. -->
+    <NowRail class="-mx-3 rounded-none sm:mx-0 sm:rounded-lg sm:border sm:border-border" />
+
     <SoundboardPageTabs
       v-model="ui.soundboardActivePage"
       :pages="pages ?? []"
@@ -224,6 +230,7 @@ import EmptyState from "@/components/common/EmptyState.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import SoundCard from "@/components/soundboard/SoundCard.vue";
 import StarterScenesCard from "@/components/soundboard/StarterScenesCard.vue";
+import NowRail from "@/components/soundboard/NowRail.vue";
 import AddSoundDialog from "@/components/soundboard/AddSoundDialog.vue";
 import SoundCategoryFilter from "@/components/soundboard/SoundCategoryFilter.vue";
 import SoundboardWidgetToggle from "@/components/soundboard/SoundboardWidgetToggle.vue";

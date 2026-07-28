@@ -308,6 +308,7 @@ function requestEncounterAudio() {
     theme,
     slot: "music",
     label: current.name,
+    kind: "encounter",
   });
 }
 
