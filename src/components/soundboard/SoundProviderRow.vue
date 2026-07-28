@@ -1,11 +1,15 @@
 <template>
   <li
-    class="flex items-center gap-2 rounded-md border border-border bg-card/30 p-2 hover:border-gold-500/30 transition-colors"
+    class="group/row relative flex items-center gap-2 overflow-hidden rounded-md border border-border bg-card/30 p-2 pl-3 transition-colors hover:border-gold-500/30"
   >
+    <!-- Category spine, same language as the board's own cards: a DM should be
+         able to tell a bed from a one-shot before reading anything. -->
+    <span class="absolute inset-y-0 left-0 w-0.75" :class="spineClass" />
+
     <!-- Preview -->
     <button
       type="button"
-      class="shrink-0 flex items-center justify-center w-7 h-7 rounded-full border border-border text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors"
+      class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:border-border/80 hover:text-foreground"
       :title="isPreviewing ? 'Stop preview' : 'Preview'"
       @click="emit('preview')"
     >
@@ -59,7 +63,9 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import { IconPause, IconPlay } from "@/lib/icons";
+import { CATEGORY_SPINE } from "@/lib/soundCategories";
 import type { ProviderHit } from "@/lib/soundProviders";
 
 const { hit, isPreviewing = false, isAdding = false } = defineProps<{
@@ -72,6 +78,10 @@ const emit = defineEmits<{
   (e: "preview"): void;
   (e: "add"): void;
 }>();
+
+// A provider that does not classify its results falls back to effects, which is
+// what the add flow will use — so the spine never promises a bus it will not get.
+const spineClass = computed(() => CATEGORY_SPINE[hit.category === null ? "effects" : hit.category]);
 
 function formatDuration(seconds: number): string {
   // 0 is the contract's "not reported", so it shows as unknown rather than 0.0s.

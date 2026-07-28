@@ -345,8 +345,10 @@ export const useUiStore = defineStore("ui", () => {
     gallerySearch.value = "";
   }
 
-  // 'sounds' = standard grid; 'playlists' = playlist panel
-  const soundboardViewMode = ref<"sounds" | "playlists">("sounds");
+  // Three peers, not two. Scenes and music playlists are the same table but
+  // answer different questions — a scene is a room, a playlist is a running
+  // order — and mixing them in one list meant neither read as a category.
+  const soundboardViewMode = ref<"sounds" | "scenes" | "playlists">("sounds");
 
   // Player spell accordion — which levels are expanded (cantrips = 0, open by default)
   const playerSpellOpenLevels = ref<number[]>([0]);

@@ -1,20 +1,39 @@
 <template>
   <button
     type="button"
-    class="flex w-full items-center gap-2 px-4 py-2 text-left transition-colors"
+    class="relative flex w-full items-center gap-2 py-2 pr-4 pl-4 text-left transition-colors"
     :class="[
       focused ? 'bg-secondary/70' : 'hover:bg-secondary/40',
-      blockedReason === null ? '' : 'opacity-50',
+      blockedReason === null ? '' : 'opacity-60',
     ]"
     :disabled="blockedReason !== null"
-    :title="blockedReason ?? undefined"
     @click="$emit('fire')"
     @mouseenter="$emit('focus')"
   >
-    <component :is="icon" class="h-3.5 w-3.5 shrink-0" :class="active ? 'text-gold-400' : 'text-muted-foreground/60'" />
+    <!-- Category spine on the focused row only. It tells you what kind of thing
+         you are about to fire, without painting a stripe down the whole list. -->
+    <span
+      v-if="focused"
+      class="absolute inset-y-0 left-0 w-0.75"
+      :class="spineClass"
+    />
 
-    <span class="min-w-0 flex-1 truncate text-body" :class="active ? 'text-gold-300' : 'text-foreground'">
-      {{ name }}
+    <EqBars v-if="active" :accent="eqAccent" class="shrink-0" />
+    <component
+      :is="icon"
+      v-else
+      class="h-3.5 w-3.5 shrink-0 text-muted-foreground/60"
+    />
+
+    <span class="min-w-0 flex-1">
+      <span class="block truncate text-body" :class="active ? 'text-gold-300' : 'text-foreground'">
+        {{ name }}
+      </span>
+      <!-- Why it cannot play, in words, under the name. A disabled row with a
+           tooltip is a dead end on a touch device. -->
+      <span v-if="blockedReason !== null" class="block truncate text-caption-sm text-destructive">
+        {{ blockedReason }}
+      </span>
     </span>
 
     <span v-if="hint" class="hidden shrink-0 truncate text-caption text-muted-foreground/70 sm:block">
@@ -38,6 +57,9 @@
 
 <script setup lang="ts">
 import { computed, type Component } from "vue";
+import EqBars from "./EqBars.vue";
+import { CATEGORY_SPINE } from "@/lib/soundCategories";
+import type { SoundCategory } from "@/types/sound.types";
 
 const { chip, blockedReason = null } = defineProps<{
   name: string;
@@ -52,6 +74,27 @@ const { chip, blockedReason = null } = defineProps<{
 }>();
 
 defineEmits<{ fire: []; focus: [] }>();
+
+/**
+ * The palette lists sounds and playlists together, so `chip` carries either a
+ * category or a playlist type. "scene" is an ambient playlist and reads as
+ * ambient; anything unrecognised falls back to misc rather than guessing.
+ */
+const category = computed<SoundCategory>(() => {
+  switch (chip) {
+    case "music":
+    case "ambient":
+    case "effects":
+      return chip;
+    case "scene":
+      return "ambient";
+    default:
+      return "misc";
+  }
+});
+
+const spineClass = computed(() => CATEGORY_SPINE[category.value]);
+const eqAccent = computed(() => category.value);
 
 const chipClass = computed(() => {
   switch (chip) {

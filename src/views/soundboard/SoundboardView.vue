@@ -78,27 +78,21 @@
       :pages="pages ?? []"
     />
 
-    <!-- Sounds / Playlists toggle -->
+    <!-- Sounds / Scenes / Playlists — three peers. A scene is a room and a
+         playlist is a running order; filing both under "Playlists" meant a DM
+         hunting for the tavern had to read past their combat music. -->
     <div class="flex gap-1 p-1 rounded-lg bg-muted/40 border border-border/50 w-fit my-3">
       <button
+        v-for="mode in VIEW_MODES"
+        :key="mode.id"
         class="flex items-center gap-1.5 px-3 py-1 rounded-md font-cinzel text-xs tracking-wide transition-colors"
-        :class="ui.soundboardViewMode === 'sounds'
+        :class="ui.soundboardViewMode === mode.id
           ? 'bg-card shadow-sm text-foreground'
           : 'text-muted-foreground hover:text-foreground'"
-        @click="ui.soundboardViewMode = 'sounds'"
+        @click="ui.soundboardViewMode = mode.id"
       >
-        <IconList class="h-3.5 w-3.5" />
-        Sounds
-      </button>
-      <button
-        class="flex items-center gap-1.5 px-3 py-1 rounded-md font-cinzel text-xs tracking-wide transition-colors"
-        :class="ui.soundboardViewMode === 'playlists'
-          ? 'bg-card shadow-sm text-foreground'
-          : 'text-muted-foreground hover:text-foreground'"
-        @click="ui.soundboardViewMode = 'playlists'"
-      >
-        <IconListOrdered class="h-3.5 w-3.5" />
-        Playlists
+        <component :is="mode.icon" class="h-3.5 w-3.5" />
+        {{ mode.label }}
       </button>
     </div>
 
@@ -112,10 +106,12 @@
       <SoundboardMixer />
     </div>
 
-    <!-- Playlists panel -->
+    <!-- One panel, filtered by type — scenes and playlists are the same table
+         and the same card; only the question being asked differs. -->
     <PlaylistsPanel
-      v-if="ui.soundboardViewMode === 'playlists'"
+      v-if="ui.soundboardViewMode !== 'sounds'"
       :page-id="ui.soundboardActivePage"
+      :playlist-type="ui.soundboardViewMode === 'scenes' ? 'ambient' : 'music'"
     />
 
     <template v-else>
@@ -184,13 +180,13 @@
           </div>
           <!-- The number key that fires this card. Shown rather than documented,
                because a shortcut nobody can see is a shortcut nobody uses. -->
-          <span
+          <KeyCap
             v-if="index < 9"
-            class="pointer-events-none absolute top-2 right-2 z-10 rounded border border-border/60 bg-background/80 px-1 text-2xs tabular-nums text-muted-foreground/70"
+            class="absolute top-2 right-2 z-10"
             :title="`Press ${index + 1} to fire this sound`"
           >
             {{ index + 1 }}
-          </span>
+          </KeyCap>
           <SoundCard
             :sound="sound"
             :show-delete="true"
@@ -207,7 +203,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from "vue";
-import { IconAdd, IconDrag, IconMusicNote, IconList, IconListOrdered } from '@/lib/icons';
+import { IconAdd, IconDrag, IconMusicNote, IconList, IconListOrdered, IconWind } from '@/lib/icons';
 import { VueDraggable } from "vue-draggable-plus";
 import { useSounds, useDeleteSound, useReorderSounds, useBulkAssignToPage } from "@/composables/useSounds";
 import { useSoundboardPages, useCreateSoundboardPage } from "@/composables/useSoundboardPages";
@@ -231,11 +227,18 @@ import PaywallModal from "@/components/common/PaywallModal.vue";
 import SoundCard from "@/components/soundboard/SoundCard.vue";
 import StarterScenesCard from "@/components/soundboard/StarterScenesCard.vue";
 import NowRail from "@/components/soundboard/NowRail.vue";
+import KeyCap from "@/components/soundboard/KeyCap.vue";
 import AddSoundDialog from "@/components/soundboard/AddSoundDialog.vue";
 import SoundCategoryFilter from "@/components/soundboard/SoundCategoryFilter.vue";
 import SoundboardWidgetToggle from "@/components/soundboard/SoundboardWidgetToggle.vue";
 import SoundboardPageTabs from "@/components/soundboard/SoundboardPageTabs.vue";
 import PlaylistsPanel from "@/components/soundboard/PlaylistsPanel.vue";
+
+const VIEW_MODES = [
+  { id: "sounds", label: "Sounds", icon: IconList },
+  { id: "scenes", label: "Scenes", icon: IconWind },
+  { id: "playlists", label: "Playlists", icon: IconListOrdered },
+] as const;
 import SoundboardMixer from "@/components/soundboard/SoundboardMixer.vue";
 import SpotifyErrorBanner from "@/components/soundboard/SpotifyErrorBanner.vue";
 

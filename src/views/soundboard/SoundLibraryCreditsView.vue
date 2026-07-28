@@ -34,8 +34,12 @@
             <li
               v-for="entry in credited"
               :key="entry.id"
-              class="rounded-md border border-border bg-card/30 px-3 py-2"
+              class="relative overflow-hidden rounded-md border border-border bg-card/30 px-3 py-2 pl-4"
             >
+              <!-- Gold spine: this is the half of the catalogue that carries an
+                   obligation, and it should look different from the courtesy
+                   list below at a glance. -->
+              <span class="absolute inset-y-0 left-0 w-0.75 bg-gold-500" />
               <p class="text-body-sm text-foreground">{{ entry.attribution }}</p>
               <p class="text-caption text-muted-foreground">
                 {{ entry.collection }} · {{ entry.license }} ·

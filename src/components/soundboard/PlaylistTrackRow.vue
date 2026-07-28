@@ -43,20 +43,50 @@
     </div>
 
     <div v-if="layer && expanded" class="space-y-2 border-t border-border/50 px-2 py-2">
-      <label class="flex items-center gap-2 text-caption text-muted-foreground">
-        <input
-          type="checkbox"
-          class="accent-gold-500"
-          :checked="layer.is_generator"
-          @change="patch({ is_generator: ($event.target as HTMLInputElement).checked })"
-        />
-        Fire at random intervals instead of looping
-      </label>
+      <!--
+        A segmented choice rather than a checkbox, because this is not an
+        option on a layer — it decides what the layer *is*, and four fields
+        appear and vanish with it.
+      -->
+      <div class="flex items-center gap-2">
+        <span class="inline-flex rounded-md border border-border bg-background p-px">
+          <button
+            type="button"
+            class="flex items-center gap-1 rounded px-2 py-1 font-cinzel text-2xs font-bold tracking-wide uppercase transition-colors"
+            :class="layer.is_generator ? 'text-muted-foreground hover:text-foreground' : 'bg-green-500/20 text-green-300'"
+            title="Loops continuously underneath the scene"
+            @click="patch({ is_generator: false })"
+          >
+            <IconRepeat class="h-2.5 w-2.5" />
+            Loop
+          </button>
+          <button
+            type="button"
+            class="flex items-center gap-1 rounded px-2 py-1 font-cinzel text-2xs font-bold tracking-wide uppercase transition-colors"
+            :class="layer.is_generator ? 'bg-gold-500/20 text-gold-300' : 'text-muted-foreground hover:text-foreground'"
+            title="Fires one-shots at random intervals"
+            @click="patch({ is_generator: true })"
+          >
+            <IconDice class="h-2.5 w-2.5" />
+            Random
+          </button>
+        </span>
+        <button
+          type="button"
+          class="flex items-center gap-1 rounded border border-border px-2 py-1 text-caption text-muted-foreground transition-colors hover:text-foreground"
+          title="Fire once, to hear it"
+          @click="$emit('preview')"
+        >
+          <IconPlay class="h-2.5 w-2.5" />
+          Hear it
+        </button>
+      </div>
 
       <VolumeSlider
         label="Level"
         wide
         show-percent
+        :accent="layer.is_generator ? 'gold' : 'green'"
         :model-value="layer.layer_volume"
         @update:model-value="patch({ layer_volume: $event })"
       />
@@ -100,17 +130,26 @@
           label="Spread"
           wide
           show-percent
+          accent="gold"
           :model-value="layer.pan_spread"
           @update:model-value="patch({ pan_spread: $event })"
         />
       </template>
+
+      <!--
+        The sentence, not the fields, is what the DM is actually choosing.
+        "min_gain 0.6" is a column name; "at 60–100% of its level" is the
+        decision — and it carries the one fact the `gen` badge only hints at,
+        that Level is a ceiling rather than a live volume.
+      -->
+      <p class="text-caption italic text-muted-foreground text-pretty">{{ behaviourSentence }}</p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { IconDrag, IconClose } from "@/lib/icons";
+import { IconDrag, IconClose, IconRepeat, IconPlay, IconDice } from "@/lib/icons";
 import VolumeSlider from "./VolumeSlider.vue";
 import type { Sound, PlaylistTrackLayer } from "@/types/sound.types";
 
@@ -120,7 +159,30 @@ const { sound, layer = null } = defineProps<{
   layer?: PlaylistTrackLayer | null;
 }>();
 
-const emit = defineEmits<{ remove: []; "update:layer": [patch: Partial<PlaylistTrackLayer>] }>();
+const emit = defineEmits<{
+  remove: [];
+  preview: [];
+  "update:layer": [patch: Partial<PlaylistTrackLayer>];
+}>();
+
+/**
+ * What this layer will actually do, in a sentence.
+ *
+ * The fields are all named after columns. A DM setting up a tavern is deciding
+ * how often a mug clatters and how loud, not editing `min_gain`.
+ */
+const behaviourSentence = computed(() => {
+  if (layer === null) return "";
+  if (!layer.is_generator) return "Loops continuously for as long as the scene runs.";
+  const secs = (n: number) => Math.round(n);
+  const pct = (n: number) => Math.round(n * 100);
+  return (
+    `Fires every ${secs(layer.min_interval_s)}–${secs(layer.max_interval_s)} s ` +
+    `at ${pct(layer.min_gain)}–${pct(layer.max_gain)}% of its level, ` +
+    `panned up to ${pct(layer.pan_spread)}% off centre. ` +
+    `Level is the ceiling those draws sit under, not a live volume.`
+  );
+});
 
 const expanded = ref(false);
 

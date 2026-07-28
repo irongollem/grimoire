@@ -122,6 +122,7 @@
                   :layer="localType === 'ambient' ? item.layer : null"
                   @update:layer="Object.assign(item.layer, $event)"
                   @remove="removeTrack(item.localId)"
+                  @preview="previewLayer(item.sound)"
                 />
               </VueDraggable>
             </div>
@@ -168,6 +169,7 @@ import { IconClose, IconListOrdered, IconMusicNote, IconWind } from "@/lib/icons
 import { useSounds } from "@/composables/useSounds";
 import { usePlaylistTracks, useCreatePlaylist, useUpdatePlaylist, useReplacePlaylistTracks } from "@/composables/useSoundboardPlaylists";
 import { useCampaignStore } from "@/stores/campaign";
+import { useSoundboardStore } from "@/stores/soundboard";
 import { useHotkeys } from "@/composables/useHotkeys";
 import { storeToRefs } from "pinia";
 import { DEFAULT_LAYER } from "@/types/sound.types";
@@ -183,10 +185,15 @@ interface TrackListItem {
   layer: PlaylistTrackLayer;
 }
 
-const { open, playlist, pageId } = defineProps<{
+const { open, playlist, pageId, defaultType = "music" } = defineProps<{
   open: boolean;
   playlist?: SoundboardPlaylist | null;
   pageId: string | null;
+  /**
+   * What a *new* one starts as. Opening this from the Scenes tab should not
+   * hand the DM a music playlist to change back. Ignored when editing.
+   */
+  defaultType?: PlaylistType;
 }>();
 const emit = defineEmits<{ close: [] }>();
 
@@ -199,6 +206,7 @@ useHotkeys(
 );
 
 const { activeCampaignId } = storeToRefs(useCampaignStore());
+const store = useSoundboardStore();
 const { data: allSounds } = useSounds();
 
 // Only load existing tracks when editing
@@ -236,7 +244,7 @@ watch(
       localTags.value = pl.tags;
     } else {
       localName.value = "";
-      localType.value = "music";
+      localType.value = defaultType;
       localShuffle.value = false;
       localRepeat.value = true;
       localTags.value = [];
@@ -295,6 +303,17 @@ const addableSounds = computed(() => {
 
 function removeTrack(localId: string) {
   trackList.value = trackList.value.filter((t) => t.localId !== localId);
+}
+
+/**
+ * Fire one layer on its own, so the DM can hear what they are setting.
+ *
+ * Deliberately a plain one-shot rather than a scene preview: the point is to
+ * check "is this the right mug", and the layer's own level and pan ranges only
+ * mean anything once the scene is running.
+ */
+function previewLayer(sound: Sound): void {
+  store.play(sound.id, sound.file_url, sound.category, sound.gain_trim);
 }
 
 // ── Save ──────────────────────────────────────────────────────────────────

@@ -3,9 +3,10 @@
        says "no audio" is noise on every other session. -->
   <div
     v-if="isOffered"
-    class="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2"
+    class="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card px-3 py-2"
   >
-    <IconWind class="h-4 w-4 shrink-0 text-gold-400" />
+    <EqBars v-if="joined" accent="music" :bars="5" class="shrink-0" />
+    <IconWind v-else class="h-4 w-4 shrink-0 text-gold-400" />
 
     <div class="min-w-0 flex-1">
       <p class="truncate font-cinzel text-xs text-foreground">
@@ -16,13 +17,16 @@
       </p>
     </div>
 
-    <!-- Joining is an explicit act: a browser refuses to start audio without a
-         gesture, and nobody's speakers should come alive because someone else
-         pressed play. -->
+    <!--
+      Solid gold and a full 2.75rem tall: this is the primary action on the
+      surface, not a confirmation step. A browser will not start audio without
+      this press, and nobody's speakers should come alive because someone else
+      pressed play — so it has to look like the thing you came here to do.
+    -->
     <button
       v-if="!joined"
       type="button"
-      class="shrink-0 rounded-md border border-gold-500/40 bg-gold-500/20 px-3 py-1.5 font-cinzel text-xs tracking-wide text-gold-400 transition-colors hover:bg-gold-500/30"
+      class="h-11 shrink-0 rounded-md bg-gold-500 px-4 font-cinzel text-xs font-bold tracking-wide text-navy-950 transition-colors hover:bg-gold-400"
       @click="join"
     >
       Join audio
@@ -34,9 +38,10 @@
         :model-value="volume"
         @update:model-value="setVolume"
       />
+      <!-- Recessive on purpose: once you are in, leaving is the rare action. -->
       <button
         type="button"
-        class="shrink-0 rounded-md border border-border px-2 py-1.5 text-caption text-muted-foreground transition-colors hover:text-foreground"
+        class="shrink-0 rounded-md px-2 py-1.5 text-caption text-muted-foreground transition-colors hover:text-foreground"
         title="Stop listening on this device"
         @click="leave"
       >
@@ -60,6 +65,7 @@
 import { computed } from "vue";
 import { IconWind } from "@/lib/icons";
 import VolumeSlider from "./VolumeSlider.vue";
+import EqBars from "./EqBars.vue";
 import { usePlayerAudioStream } from "@/composables/usePlayerAudioStream";
 
 const {
