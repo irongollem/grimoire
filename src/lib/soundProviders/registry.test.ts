@@ -13,6 +13,13 @@ describe("provider registry", () => {
 
   it("resolves a provider by id", () => {
     expect(getProvider("freesound")?.id).toBe("freesound");
+    expect(getProvider("grimoire")?.id).toBe("grimoire");
+  });
+
+  it("leads with our own catalogue", () => {
+    // The default tab should be the source that is free on every tier and
+    // whose terms cannot change under us.
+    expect(defaultProvider()?.id).toBe("grimoire");
   });
 
   it("returns undefined for a provider that has been removed", () => {

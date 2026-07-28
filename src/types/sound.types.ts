@@ -1,5 +1,5 @@
 export type SoundCategory = "ambient" | "music" | "effects" | "misc";
-export type SoundSourceType = "upload" | "url" | "spotify" | "freesound";
+export type SoundSourceType = "upload" | "url" | "spotify" | "freesound" | "library";
 
 export interface SoundboardPage {
   id: string;
@@ -28,7 +28,21 @@ export interface Sound {
   category: SoundCategory;
   source_type: SoundSourceType;
   file_url: string; // public URL (Supabase storage), external URL, or Spotify URL
-  storage_path: string | null; // only set for uploads; null for external URLs and Spotify
+  /**
+   * Only set for the user's own uploads — deleting a sound deletes this object.
+   *
+   * Null for external URLs, Spotify, and anything from the shared catalogue:
+   * a catalogue file is one object that every campaign points at, so recording
+   * it here would let one DM's delete take the sound away from everyone.
+   */
+  storage_path: string | null;
+  /**
+   * Set when this row came from the curated catalogue (`sound_library`).
+   *
+   * Two things hang off it: catalogue sounds are exempt from the free tier's
+   * cap, and their bucket object is never deleted with the row.
+   */
+  library_id: string | null;
   tags: string[];
   sort_order: number;
   attribution: string | null; // e.g. "Sound by FreesoundUser (CC-BY)" — only set when license requires it
@@ -42,10 +56,12 @@ export interface Sound {
 
 export type SoundInsert = Omit<
   Sound,
-  "id" | "user_id" | "created_at" | "updated_at" | "gain_trim"
+  "id" | "user_id" | "created_at" | "updated_at" | "gain_trim" | "library_id"
 > & {
   /** Omit to take the column default of 1.0 (unmodified loudness). */
   gain_trim?: number;
+  /** Omit for anything the DM added themselves; only the catalogue sets it. */
+  library_id?: string | null;
 };
 export type SoundUpdate = Partial<SoundInsert>;
 
@@ -89,16 +105,26 @@ export interface SoundboardPlaylist {
    * sharing a label is what gives repeated combats variety without prep.
    */
   tags: string[];
+  /**
+   * Which curated starter scene this came from, e.g. `tavern`. Null for every
+   * playlist a DM built themselves.
+   *
+   * Set means the playlist is shipped content, which is what exempts it from
+   * the free tier's playlist cap.
+   */
+  library_scene_slug: string | null;
   created_at: string;
   updated_at: string;
 }
 
 export type SoundboardPlaylistInsert = Omit<
   SoundboardPlaylist,
-  "id" | "user_id" | "created_at" | "updated_at" | "tags"
+  "id" | "user_id" | "created_at" | "updated_at" | "tags" | "library_scene_slug"
 > & {
   /** Omit to take the column default of no themes. */
   tags?: string[];
+  /** Only the starter-scene builder sets this. */
+  library_scene_slug?: string | null;
 };
 export type SoundboardPlaylistUpdate = Partial<
   Pick<
@@ -197,3 +223,43 @@ export type SoundboardBroadcastState = Pick<
   | "is_paused"
   | "paused_at"
 >;
+
+// ── Curated catalogue ─────────────────────────────────────────────────────
+
+/**
+ * One entry in the shared, free-for-everyone sound catalogue.
+ *
+ * Half of these columns exist only to record provenance — where the file came
+ * from and what the licence obliges us to say about it. That is deliberate:
+ * carrying the credit line on the row is what makes CC-BY compliance automatic
+ * when a DM adds the sound, rather than something a future change could quietly
+ * drop.
+ */
+export interface SoundLibraryEntry {
+  id: string;
+  /** Stable id from the curation manifest, e.g. `rain/rain-gutter-loop`. */
+  slug: string;
+  /** Curator's grouping — how the catalogue is browsed (`rain`, `tavern`). */
+  collection: string;
+  /** Which mixer bus it lands on when added. */
+  category: SoundCategory;
+  title: string;
+  author: string;
+  source: string;
+  source_page: string;
+  license: string;
+  license_url: string | null;
+  /** Ready-to-display credit line; null when the licence requires none. */
+  attribution: string | null;
+  storage_path: string;
+  file_url: string;
+  duration_seconds: number | null;
+  /** Theme labels, so encounter and location triggers work without setup. */
+  tags: string[];
+  /** True only when the source says so — never inferred from length. */
+  is_loopable: boolean;
+  gain_trim: number;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}

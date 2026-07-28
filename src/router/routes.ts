@@ -799,6 +799,14 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, title: "Soundboard" },
   },
   {
+    // The CC-BY half of the curated library has to be credited somewhere in
+    // the app; this is that somewhere.
+    path: "/soundboard/credits",
+    name: "sound-library-credits",
+    component: () => import("@/views/soundboard/SoundLibraryCreditsView.vue"),
+    meta: { requiresAuth: true, title: "Sound library credits" },
+  },
+  {
     path: "/spotify/callback",
     name: "spotify-callback",
     component: () => import("@/views/soundboard/SpotifyCallbackView.vue"),

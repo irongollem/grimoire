@@ -52,7 +52,12 @@ async function deleteSound(sound: Sound, currentUserId: string): Promise<void> {
   // viewer ever gains a way to "remove" a sound from their view, that should
   // drop their reference, not the uploads that everyone else still points at.
   if (sound.user_id === currentUserId) {
-    if (sound.storage_path) {
+    // `library_id` is checked as well as `storage_path` even though catalogue
+    // rows are written with a null path. This delete is destructive and shared:
+    // the catalogue file backs every campaign that added it, so one stray path
+    // on one row would take the sound away from everyone. Two conditions is a
+    // cheap price for that not being possible.
+    if (sound.storage_path && sound.library_id === null) {
       await deleteFromBucket("sounds", [sound.storage_path]);
     }
     if (sound.thumbnail_url) {

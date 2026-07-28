@@ -21,9 +21,16 @@
     <!-- Loading -->
     <LoadingSpinner v-if="isPending" />
 
+    <template v-else>
+    <!-- Offered here as well as in the board's empty state, because a campaign
+         that predates the library has a full board and none of these scenes,
+         and would otherwise never find out they exist. Hides itself once they
+         are all added. -->
+    <StarterScenesCard compact />
+
     <!-- Empty state -->
     <div
-      v-else-if="visible.length === 0"
+      v-if="visible.length === 0"
       class="py-12 text-center space-y-2"
     >
       <IconListOrdered class="h-8 w-8 text-muted-foreground/30 mx-auto" />
@@ -49,6 +56,7 @@
         @delete="handleDelete(pl.id)"
       />
     </div>
+    </template>
 
     <!-- Editor dialog (create + edit) -->
     <PlaylistEditorDialog
@@ -73,6 +81,7 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import PlaylistCard from "./PlaylistCard.vue";
 import PlaylistEditorDialog from "./PlaylistEditorDialog.vue";
+import StarterScenesCard from "./StarterScenesCard.vue";
 
 const { pageId } = defineProps<{ pageId: string | null }>();
 

@@ -127,15 +127,19 @@
     <!-- Loading -->
     <LoadingSpinner v-if="isPending" />
 
-    <!-- Empty state -->
-    <EmptyState
-      v-else-if="filtered.length === 0 && !ui.soundboardHasActiveFilters"
-      icon="music"
-      title="No sounds yet"
-      description="Add ambient tracks, music, and effects for your sessions."
-      action-label="Add Sound"
-      @action="openAddSound()"
-    />
+    <!-- Empty state. The starter scenes lead rather than the Add button: a DM
+         on day one has nothing to add yet, and "build your own library" is the
+         work this feature is supposed to remove. -->
+    <div v-else-if="filtered.length === 0 && !ui.soundboardHasActiveFilters" class="space-y-4">
+      <StarterScenesCard />
+      <EmptyState
+        icon="music"
+        title="No sounds yet"
+        description="Add ambient tracks, music, and effects for your sessions."
+        action-label="Add Sound"
+        @action="openAddSound()"
+      />
+    </div>
 
     <div
       v-else-if="filtered.length === 0"
@@ -219,6 +223,7 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import SoundCard from "@/components/soundboard/SoundCard.vue";
+import StarterScenesCard from "@/components/soundboard/StarterScenesCard.vue";
 import AddSoundDialog from "@/components/soundboard/AddSoundDialog.vue";
 import SoundCategoryFilter from "@/components/soundboard/SoundCategoryFilter.vue";
 import SoundboardWidgetToggle from "@/components/soundboard/SoundboardWidgetToggle.vue";

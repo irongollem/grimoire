@@ -53,17 +53,27 @@ function toHit(raw: FreesoundApiHit): ProviderHit {
     pageUrl: raw.page_url,
     attribution: raw.attribution,
     attributionUrl: raw.attribution_url,
+    // Freesound does not report whether a clip is authored to loop, and length
+    // is not a substitute — so we say we do not know rather than guess.
+    isLoopable: false,
+    libraryId: null,
+    // Nor does it classify onto a mixer bus; the add flow picks the default.
+    category: null,
   };
 }
 
 export const freesoundProvider: SoundProvider = {
   id: FREESOUND_PROVIDER_ID,
+  sourceType: "freesound",
   label: "Freesound",
   attributionNote: "Creative Commons sounds from Freesound. Credit is kept with the sound.",
   minQueryLength: 2,
 
-  async search({ query, page }: ProviderSearchParams): Promise<ProviderSearchResult> {
-    const params = new URLSearchParams({ q: query, page: String(page) });
+  async search({ query, page, filters }: ProviderSearchParams): Promise<ProviderSearchResult> {
+    const params = new URLSearchParams({ q: query, page: String(page), sort: filters.sort });
+    // Only sent when set — an unset bound must not become a zero-second one.
+    if (filters.minDuration !== null) params.set("min_duration", String(filters.minDuration));
+    if (filters.maxDuration !== null) params.set("max_duration", String(filters.maxDuration));
     const { data, error } = await supabase.functions.invoke<FreesoundApiResult>(
       `freesound-search?${params}`,
       { method: "GET" },

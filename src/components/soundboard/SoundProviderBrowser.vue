@@ -1,8 +1,37 @@
 <template>
   <div class="space-y-3">
+    <!-- Source tabs — only worth showing once there is a choice to make -->
+    <div v-if="SOUND_PROVIDERS.length > 1" class="flex items-center gap-1 border-b border-border">
+      <button
+        v-for="p in SOUND_PROVIDERS"
+        :key="p.id"
+        type="button"
+        class="px-2.5 py-1.5 font-cinzel text-xs tracking-wide border-b-2 -mb-px transition-colors"
+        :class="
+          p.id === provider.id
+            ? 'border-gold-500 text-gold-300'
+            : 'border-transparent text-muted-foreground hover:text-foreground'
+        "
+        @click="selectProvider(p)"
+      >
+        {{ p.label }}
+      </button>
+    </div>
+
+    <p class="text-caption text-muted-foreground/70">
+      {{ provider.attributionNote }}
+      <RouterLink
+        v-if="provider.id === LIBRARY_PROVIDER_ID"
+        to="/soundboard/credits"
+        class="underline hover:text-foreground"
+      >
+        Credits
+      </RouterLink>
+    </p>
+
     <!-- Search input -->
     <div class="space-y-1">
-      <label class="text-caption text-muted-foreground">Search {{ provider.label }} — royalty-free SFX</label>
+      <label class="text-caption text-muted-foreground">Search {{ provider.label }}</label>
       <input
         v-model="query"
         type="search"
@@ -11,73 +40,70 @@
       />
     </div>
 
+    <!-- Filters. Length is the one that matters most: without it, hunting a
+         three-second door creak means auditioning forty-second field recordings. -->
+    <div class="flex flex-wrap items-center gap-2">
+      <div class="flex items-center gap-1">
+        <button
+          v-for="preset in LENGTH_PRESETS"
+          :key="preset.label"
+          type="button"
+          class="px-2 py-1 rounded-md border text-caption transition-colors"
+          :class="
+            isActivePreset(preset)
+              ? 'bg-gold-500/15 border-gold-500/40 text-gold-300'
+              : 'border-border text-muted-foreground hover:text-foreground'
+          "
+          @click="applyPreset(preset)"
+        >
+          {{ preset.label }}
+        </button>
+      </div>
+
+      <select
+        v-model="filters.sort"
+        class="rounded-md border border-border bg-background px-2 py-1 text-caption text-foreground focus:outline-none focus:ring-1 focus:ring-gold-500"
+        aria-label="Sort results"
+      >
+        <option v-for="option in PROVIDER_SORTS" :key="option.value" :value="option.value">
+          {{ option.label }}
+        </option>
+      </select>
+
+      <button
+        v-if="hasActiveFilters"
+        type="button"
+        class="px-2 py-1 rounded-md border border-border text-caption text-muted-foreground hover:text-foreground transition-colors"
+        @click="resetFilters"
+      >
+        Clear
+      </button>
+    </div>
+
     <!-- Status -->
     <p v-if="isLoading" class="text-caption text-muted-foreground text-center">Searching…</p>
-    <p v-else-if="isError" class="text-caption text-destructive">
-      Search failed. {{ errorMessage }}
-    </p>
+    <p v-else-if="isError" class="text-caption text-destructive">Search failed. {{ errorMessage }}</p>
     <p
       v-else-if="searchData && searchData.hits.length === 0 && debouncedQuery.length >= provider.minQueryLength"
       class="text-caption text-muted-foreground text-center"
     >
       No free-to-use matches for "{{ debouncedQuery }}".
     </p>
-    <p
-      v-else-if="!debouncedQuery || debouncedQuery.length < 2"
-      class="text-caption text-muted-foreground/60 text-center"
-    >
-      Type at least 2 characters to search hundreds of thousands of free sound effects.
+    <p v-else-if="!hasEnoughQuery" class="text-caption text-muted-foreground/60 text-center">
+      {{ emptyPrompt }}
     </p>
 
     <!-- Results -->
     <ul v-if="searchData && searchData.hits.length > 0" class="space-y-1.5 max-h-80 overflow-y-auto pr-1">
-      <li
+      <SoundProviderRow
         v-for="hit in searchData.hits"
         :key="hit.id"
-        class="flex items-center gap-2 rounded-md border border-border bg-card/30 p-2 hover:border-gold-500/30 transition-colors"
-      >
-        <!-- Preview button -->
-        <button
-          type="button"
-          class="shrink-0 flex items-center justify-center w-7 h-7 rounded-full border border-border text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors"
-          :title="previewingId === hit.id ? 'Stop preview' : 'Preview'"
-          @click="togglePreview(hit)"
-        >
-          <IconPause v-if="previewingId === hit.id" class="h-3.5 w-3.5" />
-          <IconPlay v-else class="h-3.5 w-3.5 translate-x-px" />
-        </button>
-
-        <!-- Info -->
-        <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-1.5">
-            <p class="font-cinzel text-xs text-foreground truncate">{{ hit.name }}</p>
-            <span
-              class="shrink-0 px-1 py-0.5 rounded text-caption-sm tracking-wide"
-              :class="
-                hit.license === 'public-domain'
-                  ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
-                  : 'bg-sky-500/15 text-sky-300 border border-sky-500/30'
-              "
-            >
-              {{ hit.license === "public-domain" ? "Public domain" : "Credit required" }}
-            </span>
-          </div>
-          <p class="text-caption text-muted-foreground truncate">
-            by {{ hit.author }} · {{ formatDuration(hit.duration) }}
-            <span v-if="hit.tags.length > 0" class="opacity-60">· {{ hit.tags.slice(0, 3).join(", ") }}</span>
-          </p>
-        </div>
-
-        <!-- Add button -->
-        <button
-          type="button"
-          class="shrink-0 px-2 py-1 rounded-md border bg-gold-500/15 border-gold-500/40 text-gold-300 hover:bg-gold-500/25 font-cinzel text-xs tracking-wide transition-colors disabled:opacity-50"
-          :disabled="addingId === hit.id"
-          @click="addHit(hit)"
-        >
-          {{ addingId === hit.id ? "Adding…" : "Add" }}
-        </button>
-      </li>
+        :hit="hit"
+        :is-previewing="previewingId === hit.id"
+        :is-adding="addingId === hit.id"
+        @preview="togglePreview(hit)"
+        @add="addHit(hit)"
+      />
     </ul>
 
     <!-- Pagination -->
@@ -93,7 +119,9 @@
       >
         ← Prev
       </button>
-      <span class="text-caption text-muted-foreground">Page {{ searchData.page }}</span>
+      <span class="text-caption text-muted-foreground">
+        Page {{ searchData.page }}<span v-if="searchData.total !== null"> · {{ searchData.total }} sounds</span>
+      </span>
       <button
         type="button"
         class="px-2 py-1 rounded-md border border-border text-caption text-muted-foreground hover:text-foreground transition-colors disabled:opacity-30"
@@ -108,10 +136,20 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onBeforeUnmount } from "vue";
+import { RouterLink } from "vue-router";
 import { refDebounced } from "@vueuse/core";
-import { IconPause, IconPlay } from "@/lib/icons";
+import SoundProviderRow from "./SoundProviderRow.vue";
 import { useProviderSearch } from "@/composables/useProviderSearch";
-import { SOUND_PROVIDERS, defaultProvider, type ProviderHit, type SoundProvider } from "@/lib/soundProviders";
+import {
+  SOUND_PROVIDERS,
+  LIBRARY_PROVIDER_ID,
+  PROVIDER_SORTS,
+  DEFAULT_PROVIDER_FILTERS,
+  defaultProvider,
+  type ProviderHit,
+  type ProviderFilters,
+  type SoundProvider,
+} from "@/lib/soundProviders";
 import { useCreateSound } from "@/composables/useSounds";
 
 const { pageId = null } = defineProps<{
@@ -125,16 +163,76 @@ const emit = defineEmits<{
 const query = ref("");
 const debouncedQuery = refDebounced(query, 400);
 const page = ref(1);
+const filters = ref<ProviderFilters>({ ...DEFAULT_PROVIDER_FILTERS });
 
-watch(debouncedQuery, () => {
+// Any change to what is being asked for starts again at page one — otherwise a
+// narrowed search lands the DM on page 4 of a 2-page result set.
+watch([debouncedQuery, filters], () => {
   page.value = 1;
-});
+}, { deep: true });
+
+/**
+ * Length presets rather than two number inputs. The real questions a DM has are
+ * "is this a one-shot or a bed", and typing bounds in seconds is a slower way
+ * to ask them.
+ */
+const LENGTH_PRESETS = [
+  { label: "Any length", minDuration: null, maxDuration: null },
+  { label: "Under 5s", minDuration: null, maxDuration: 5 },
+  { label: "5–30s", minDuration: 5, maxDuration: 30 },
+  { label: "Over 30s", minDuration: 30, maxDuration: null },
+] as const;
+
+type LengthPreset = (typeof LENGTH_PRESETS)[number];
+
+function isActivePreset(preset: LengthPreset): boolean {
+  return (
+    filters.value.minDuration === preset.minDuration &&
+    filters.value.maxDuration === preset.maxDuration
+  );
+}
+
+function applyPreset(preset: LengthPreset): void {
+  filters.value.minDuration = preset.minDuration;
+  filters.value.maxDuration = preset.maxDuration;
+}
+
+const hasActiveFilters = computed(
+  () =>
+    filters.value.minDuration !== null ||
+    filters.value.maxDuration !== null ||
+    filters.value.sort !== DEFAULT_PROVIDER_FILTERS.sort,
+);
+
+function resetFilters(): void {
+  filters.value = { ...DEFAULT_PROVIDER_FILTERS };
+}
 
 const searchQueryRef = computed(() => debouncedQuery.value);
-// Adapter-driven: the browser knows nothing about Freesound specifically, so
-// a provider can be swapped or removed without touching this component.
+// Adapter-driven: the browser knows nothing about any provider specifically, so
+// one can be swapped or removed without touching this component.
 const provider = ref<SoundProvider>(defaultProvider() ?? SOUND_PROVIDERS[0]);
-const { data: searchData, isFetching: isLoading, isError, error } = useProviderSearch(provider, searchQueryRef, page);
+const {
+  data: searchData,
+  isFetching: isLoading,
+  isError,
+  error,
+} = useProviderSearch(provider, searchQueryRef, page, filters);
+
+function selectProvider(next: SoundProvider): void {
+  if (next.id === provider.value.id) return;
+  stopPreview();
+  provider.value = next;
+  page.value = 1;
+}
+
+const hasEnoughQuery = computed(() => debouncedQuery.value.trim().length >= provider.value.minQueryLength);
+
+const emptyPrompt = computed(() =>
+  provider.value.minQueryLength <= 1
+    ? "Type to search the library — or browse a theme like rain, tavern or dungeon."
+    : `Type at least ${provider.value.minQueryLength} characters to search.`,
+);
 
 const errorMessage = computed(() => {
   if (!error.value) return "";
@@ -186,11 +284,17 @@ async function addHit(hit: ProviderHit) {
   try {
     await mutateAsync({
       name: hit.name,
-      category: "effects",
-      source_type: "freesound",
+      // The catalogue classifies onto a bus; a third party does not, and a
+      // one-shot on the effects bus is the safe default for an unknown clip.
+      category: hit.category === null ? "effects" : hit.category,
+      source_type: provider.value.sourceType,
       file_url: hit.audioUrl,
+      // Never a storage path, even for catalogue sounds: that file is shared by
+      // every campaign, and recording it here would let one DM's delete remove
+      // it for everyone.
       storage_path: null,
-      page_id: pageId ?? null,
+      library_id: hit.libraryId,
+      page_id: pageId,
       tags: hit.tags.slice(0, 8),
       sort_order: 0,
       attribution: hit.attribution,
@@ -202,15 +306,5 @@ async function addHit(hit: ProviderHit) {
   } finally {
     addingId.value = null;
   }
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────
-
-function formatDuration(seconds: number): string {
-  if (!isFinite(seconds) || seconds <= 0) return "—";
-  if (seconds < 60) return `${seconds.toFixed(1)}s`;
-  const m = Math.floor(seconds / 60);
-  const s = Math.round(seconds % 60);
-  return `${m}:${s.toString().padStart(2, "0")}`;
 }
 </script>

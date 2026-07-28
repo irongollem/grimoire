@@ -113,7 +113,10 @@
           "
           @click="activeSourceTab = 'browse'"
         >
-          Browse SFX
+          <!-- Not "Browse SFX" any more: this tab now leads with our own
+               catalogue, which is free and quota-exempt, and a DM should be able
+               to tell that from the label rather than by opening it. -->
+          Library
         </button>
       </div>
 

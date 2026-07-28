@@ -1,11 +1,7 @@
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
 import { withCors } from "../_shared/cors.ts";
-
-// Only CC0 + CC-BY. CC-BY-NC is excluded because Grimoire is a commercial product
-// (Pro tier), and we want to respect contributor intent regardless of free-tier
-// arguments. See: feedback_licensing_spirit.md
-const LICENSE_FILTER = 'license:("Creative Commons 0" OR "Attribution")';
+import { buildFreesoundFilter, resolveSort } from "../_shared/freesound-query.ts";
 
 const FIELDS = ["id", "name", "username", "license", "previews", "duration", "tags", "url"].join(",");
 
@@ -135,9 +131,17 @@ serve(withCors(async (req: Request) => {
     return new Response("FREESOUND_API_KEY not configured", { status: 500 });
   }
 
+  // Freesound's own duration/tag/sort filters, which we proxy but never used
+  // to forward — so finding a three-second door creak meant auditioning a lot
+  // of forty-second field recordings.
   const params = new URLSearchParams({
     query: q,
-    filter: LICENSE_FILTER,
+    filter: buildFreesoundFilter({
+      minDuration: url.searchParams.get("min_duration"),
+      maxDuration: url.searchParams.get("max_duration"),
+      tag: url.searchParams.get("tag"),
+    }),
+    sort: resolveSort(url.searchParams.get("sort")),
     fields: FIELDS,
     page: String(page),
     page_size: String(pageSize),

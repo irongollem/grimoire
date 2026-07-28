@@ -8,7 +8,7 @@ DM-driven ambient sound and music player for live sessions: a per-campaign libra
 
 ### Types
 
-`src/types/sound.types.ts` — `SoundCategory` (`ambient | music | effects | misc`), `SoundSourceType` (`upload | url | spotify | freesound`), `Sound`, `SoundboardPage`, `AudioEffectPreset` (`none | through_door | through_wall | distant | underwater | cave | sewer`), `PlaylistType` (`music | ambient`), `SoundboardPlaylist`, `PlaylistTrack`/`PlaylistTrackWithSound`. Note: AI-generated sounds are **not** a distinct `source_type` — Lyria output is uploaded through the normal `upload` path (see Sound Sources below).
+`src/types/sound.types.ts` — `SoundCategory` (`ambient | music | effects | misc`), `SoundSourceType` (`upload | url | spotify | freesound | library`), `Sound`, `SoundLibraryEntry`, `SoundboardPage`, `AudioEffectPreset` (`none | through_door | through_wall | distant | underwater | cave | sewer`), `PlaylistType` (`music | ambient`), `SoundboardPlaylist`, `PlaylistTrack`/`PlaylistTrackWithSound`. Note: AI-generated sounds are **not** a distinct `source_type` — Lyria output is uploaded through the normal `upload` path (see Sound Sources below).
 
 ### Store & audio engine
 
@@ -48,7 +48,7 @@ Two mechanics live outside it because neither is reactive state and both are unt
 
 | File                                                                      | Role                                                                                                                                                                                                                                         |
 | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SoundForm.vue` (636 lines — over the 600-line soft max, flagged in #572) | The add-sound form with 5 source tabs: URL, Upload, Spotify, Generate (AI), Browse SFX (Freesound). Whole-window drag-and-drop hijack while mounted.                                                                                         |
+| `SoundForm.vue` (636 lines — over the 600-line soft max, flagged in #572) | The add-sound form with 5 source tabs: URL, Upload, Spotify, Generate (AI), Library (our catalogue first, Freesound second). Whole-window drag-and-drop hijack while mounted.                                                                                         |
 | `SoundCard.vue` (76 lines)                                                | Thin orchestrator: routes between the two transports on `source_type`, computes the card's active-highlight state, warms up the audio element on mount                                                                                       |
 | `SoundCardHeader.vue`                                                     | Thumbnail upload, inline name/artist/category editing, WebM/Safari + retry badges, loop toggle, delete, and the trim control                                                                                                                 |
 | `SoundCardAudioTransport.vue`                                             | Local-audio transport: page picker, play/stop, effect picker, volume, progress bar                                                                                                                                                           |
@@ -108,13 +108,13 @@ MediaElementAudioSource → BiquadFilter → soundGain → bus(music|ambient|eff
 
 Audio binds to campaign events by **theme label**, never by a foreign key to one playlist. An encounter asks for `battle`; any music playlist tagged `battle` is a candidate, picked at random. Tagging three playlists once gives every future combat variety — a track per encounter is exactly the prep burden this avoids.
 
-| Piece                                       | Role                                                                                       |
-| ------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `src/lib/audioThemes.ts`                    | Pure resolution: `resolveAudioTheme`, `collectThemes`, `tagsIncludeTheme`                    |
-| `src/lib/audioTriggers.ts`                  | The bus: `requestAudioTheme` / `releaseAudioTheme` / `onAudioTrigger`                        |
-| `src/composables/useAudioThemeTriggers.ts`  | The only consumer. Mounted once in `DefaultLayout`. Also exports `useAudioTriggerPrefs`      |
-| `src/lib/audioTriggerPrefs.ts`              | The DM's on/off switch, localStorage, default on                                            |
-| `src/components/common/ThemeInput.vue`      | Free-text label with datalist suggestions, shared by the encounter and location editors     |
+| Piece                                      | Role                                                                                    |
+| ------------------------------------------ | --------------------------------------------------------------------------------------- |
+| `src/lib/audioThemes.ts`                   | Pure resolution: `resolveAudioTheme`, `collectThemes`, `tagsIncludeTheme`               |
+| `src/lib/audioTriggers.ts`                 | The bus: `requestAudioTheme` / `releaseAudioTheme` / `onAudioTrigger`                   |
+| `src/composables/useAudioThemeTriggers.ts` | The only consumer. Mounted once in `DefaultLayout`. Also exports `useAudioTriggerPrefs` |
+| `src/lib/audioTriggerPrefs.ts`             | The DM's on/off switch, localStorage, default on                                        |
+| `src/components/common/ThemeInput.vue`     | Free-text label with datalist suggestions, shared by the encounter and location editors |
 
 **Slots.** An encounter drives `music`; a location drives `ambient`. They compose deliberately — dungeon ambience keeps running underneath battle music — and neither can ever contend for the other's channel. `resolveAudioTheme` will not look in the other slot even when its own has no answer.
 
@@ -182,12 +182,40 @@ Consequences worth knowing before touching this:
 | Spotify                | `spotify`     | No (but DM-only, requires campaign Spotify setup) | Stores an `open.spotify.com` track/playlist/album/episode URL; playback delegates entirely to `useSpotifyStore`                                                                                                                                                                       |
 | Generate (AI, Lyria)   | `upload`      | **Yes**                                           | Two-step: `structureMusicPrompt()` expands the description, then Lyria generates audio (BYOK-local client-side, or the `generate-music` edge function for platform/campaign-BYOK); result is uploaded through the normal `useSoundUpload` path and saved with `artist: "Grimoire AI"` |
 | Browse SFX (Freesound) | `freesound`   | No                                                | Search-and-add from the `freesound-search` edge function; saved with the CDN preview URL plus attribution fields                                                                                                                                                                      |
+| Grimoire library       | `library`     | No                                                | Search-and-add from our own `sound_library` catalogue; sets `library_id`, which exempts the row from the sound quota. See "Curated library" below                                                                                                                                     |
 
 ## Free-Tier Quotas
 
 Enforced both client-side (`useQuota` gates the UI, showing a `PaywallModal`) and server-side (a `before insert` trigger calling `enforce_quota()` on all three tables, migration `20260614000004_soundboard_free_tier_quotas.sql`). The `check_quota` RPC is `security definer`, re-derives the plan from `user_subscriptions`/`plans` (defaulting to `free`), and counts existing rows — app admins always short-circuit to unlimited.
 
 Free plan limits: **20 sounds, 1 soundboard page, 3 soundboard playlists.** Uploads and AI generation are gated on the Pro plan directly in `SoundForm` (independent of the count-based quotas above).
+
+**Curated content is exempt from both counts.** `check_quota` and `check_all_quotas` append `and library_id is null` when counting `sounds`, and `and library_scene_slug is null` when counting `soundboard_playlists` (migrations `20260728000004`, `20260728000005`). Handing a DM a library and then charging them room to keep it defeats the point of shipping one. The two functions are the same rule written twice, once per call shape — **change both or neither**.
+
+## Curated library
+
+802 CC0 / CC-BY sounds hosted by us, free on every tier, plus seven ready-made scenes. This is what stops a new campaign opening to an empty grid (#572 §3).
+
+| Piece                                                      | Where                                                                       |
+| ---------------------------------------------------------- | --------------------------------------------------------------------------- |
+| Catalogue table                                            | `public.sound_library` — one row per sound, admin-write, authenticated-read |
+| Audio                                                      | `sounds` bucket under `library/<collection>/<name>.ogg`, admin-write prefix |
+| Provider adapter (default browser tab)                     | `src/lib/soundProviders/library.ts`                                         |
+| Scene recipes                                              | `src/data/starterScenes.ts`                                                 |
+| Add-scenes planner (pure) + executor                       | `src/lib/starterScenePlan.ts`, `src/composables/useStarterScenes.ts`        |
+| The offer (board empty state + Playlists panel, `compact`) | `src/components/soundboard/StarterScenesCard.vue`                           |
+| In-app credits                                             | `/soundboard/credits` → `src/views/soundboard/SoundLibraryCreditsView.vue`  |
+| Ingest (source folder is gitignored)                       | `scripts/ingest-sound-library.ts` + `scripts/lib/*`                         |
+
+Source of truth for ingestion is `art-src/sounds/manifest.json` (gitignored, ~180 MB of audio alongside it); `art-src/sounds/AGENTS.md` governs what may enter it. Re-run with `npx tsx --env-file=.env.local scripts/ingest-sound-library.ts` — idempotent, `--skip-upload` rewrites rows only.
+
+### Things not to undo
+
+- **It is not SRD content and is not filed as if it were.** The storage prefix is `library/`, not `srd/`. Mislabelling CC0 field recordings as SRD misdescribes the licence to anyone reading the bucket later.
+- **Catalogue-backed `sounds` rows carry a null `storage_path`.** One object backs every campaign that added it. `deleteSound` additionally checks `library_id` before deleting from the bucket — belt and braces, because that invariant is one stray write away from removing a sound from every user at once.
+- **Attribution travels with the sound.** `sound_library.attribution` is copied onto the `sounds` row at add time and rendered on `SoundCard`. The credits view reads the catalogue live rather than a static list, because a hand-maintained credits page eventually becomes a licence breach.
+- **`is_loopable` is never inferred from duration.** A forty-second field recording is long enough to be a bed and still clicks on every wrap. Only the source's own claim sets it.
+- **Adding starter scenes twice is a no-op.** `planStarterScenes` skips scenes already on the board and creates a shared layer once, not once per scene — the campfire appears in two scenes and must not leave a duplicate behind.
 
 ## Cast & Media Session
 

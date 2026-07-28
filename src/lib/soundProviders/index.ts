@@ -8,8 +8,11 @@
 
 import type { SoundProvider } from "./types";
 import { freesoundProvider } from "./freesound";
+import { libraryProvider } from "./library";
 
-export const SOUND_PROVIDERS: readonly SoundProvider[] = [freesoundProvider];
+// Our own catalogue leads: it is free on every tier, costs a DM nothing against
+// their sound cap, and is the one source whose terms cannot change under us.
+export const SOUND_PROVIDERS: readonly SoundProvider[] = [libraryProvider, freesoundProvider];
 
 export function getProvider(id: string): SoundProvider | undefined {
   return SOUND_PROVIDERS.find((p) => p.id === id);
@@ -24,5 +27,15 @@ export function defaultProvider(): SoundProvider | undefined {
   return SOUND_PROVIDERS[0];
 }
 
-export type { SoundProvider, ProviderHit, ProviderLicense, ProviderSearchResult, ProviderSearchParams } from "./types";
+export type {
+  SoundProvider,
+  ProviderHit,
+  ProviderLicense,
+  ProviderSearchResult,
+  ProviderSearchParams,
+  ProviderFilters,
+  ProviderSortKey,
+} from "./types";
+export { PROVIDER_SORTS, DEFAULT_PROVIDER_FILTERS } from "./types";
 export { FREESOUND_PROVIDER_ID } from "./freesound";
+export { LIBRARY_PROVIDER_ID } from "./library";
