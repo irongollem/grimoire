@@ -11,7 +11,7 @@
         activePageId === null
           ? 'bg-gold-500/20 border border-gold-500/40 text-gold-300'
           : 'border border-transparent text-muted-foreground hover:text-foreground hover:border-border',
-        highlightDrops ? 'ring-1 ring-gold-400/60' : '',
+        dropRing(''),
       ]"
       @click="activePageId = null"
     >
@@ -84,7 +84,7 @@
             activePageId === page.id
               ? 'bg-gold-500/20 border border-gold-500/40 text-gold-300'
               : 'border border-transparent text-muted-foreground hover:text-foreground hover:border-border',
-            highlightDrops ? 'ring-1 ring-gold-400/60' : '',
+            dropRing(page.id),
           ]"
           @click="activePageId = page.id"
           @dblclick="startRename(page)"
@@ -136,11 +136,22 @@ import PaywallModal from "@/components/common/PaywallModal.vue";
 import type { SoundboardPage } from "@/types/sound.types";
 
 const activePageId = defineModel<string | null>({ required: true });
-const { pages, highlightDrops = false } = defineProps<{
+const { pages, highlightDrops = false, dropTarget = null } = defineProps<{
   /** True while a sound card is being dragged — rings the tabs as drop targets. */
   highlightDrops?: boolean;
+  /** The tab the drag is currently over — `""` is All, null is none. That one
+      gets the strong ring; the rest stay a faint hint. */
+  dropTarget?: string | null;
   pages: SoundboardPage[];
 }>();
+
+/** Faint on every tab while dragging, strong only under the pointer. */
+function dropRing(id: string): string {
+  if (!highlightDrops) return "";
+  return dropTarget === id
+    ? "ring-2 ring-gold-400 bg-gold-500/20"
+    : "ring-1 ring-gold-400/25";
+}
 
 const { mutate: createPage } = useCreateSoundboardPage();
 const { mutate: updatePage } = useUpdateSoundboardPage();

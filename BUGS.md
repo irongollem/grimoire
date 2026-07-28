@@ -9,32 +9,33 @@
 > top of the matching [`docs/log/fixes/<subsystem>.md`](docs/log/fixes/) file, then
 > close the GitHub issue if one exists.
 
-## Fix log by subsystem  ·  250 resolved
+## Fix log by subsystem  ·  272 resolved
 
 | Subsystem | Fixes | | Subsystem | Fixes |
 | --- | ---: | --- | --- | ---: |
-| [Campaign](docs/log/fixes/campaign.md) | 11 | | [Party & Characters](docs/log/fixes/party.md) | 23 |
-| [Collaboration](docs/log/fixes/collaboration.md) | 5 | | [Atlas & Locations](docs/log/fixes/atlas.md) | 15 |
-| [Player Portal](docs/log/fixes/players.md) | 7 | | [Cartographer & VTT](docs/log/fixes/cartographer.md) | 1 |
-| [Rules Reliquary](docs/log/fixes/rules.md) | 1 | | [Chat & Dice](docs/log/fixes/chat.md) | 10 |
-| [Content & Import](docs/log/fixes/content.md) | 5 | | [Images & Art](docs/log/fixes/images.md) | 8 |
-| [Monsters & Bestiary](docs/log/fixes/monsters.md) | 12 | | [Publishing & Export](docs/log/fixes/publishing.md) | 23 |
-| [NPCs & Companions](docs/log/fixes/npcs.md) | 14 | | [UI & Layout](docs/log/fixes/ui.md) | 13 |
-| [Items & Workshop](docs/log/fixes/items.md) | 26 | | [Database & Security](docs/log/fixes/database.md) | 9 |
-| [Spells](docs/log/fixes/spells.md) | 5 | | [AI Generation](docs/log/fixes/ai.md) | 9 |
-| [Factions](docs/log/fixes/factions.md) | 3 | | [Billing](docs/log/fixes/billing.md) | 5 |
-| [Encounters & Combat](docs/log/fixes/encounters.md) | 22 | | [Infrastructure](docs/log/fixes/infra.md) | 8 |
-| [Quests](docs/log/fixes/quests.md) | 13 | | [Miscellaneous](docs/log/fixes/misc.md) | 2 |
+| [Campaign](docs/log/fixes/campaign.md) | 11 | | [Atlas & Locations](docs/log/fixes/atlas.md) | 15 |
+| [Collaboration](docs/log/fixes/collaboration.md) | 6 | | [Cartographer & VTT](docs/log/fixes/cartographer.md) | 1 |
+| [Player Portal](docs/log/fixes/players.md) | 7 | | [Chat & Dice](docs/log/fixes/chat.md) | 10 |
+| [Rules Reliquary](docs/log/fixes/rules.md) | 1 | | [Images & Art](docs/log/fixes/images.md) | 8 |
+| [Content & Import](docs/log/fixes/content.md) | 5 | | [Publishing & Export](docs/log/fixes/publishing.md) | 23 |
+| [Monsters & Bestiary](docs/log/fixes/monsters.md) | 12 | | [UI & Layout](docs/log/fixes/ui.md) | 12 |
+| [NPCs & Companions](docs/log/fixes/npcs.md) | 14 | | [Database & Security](docs/log/fixes/database.md) | 9 |
+| [Items & Workshop](docs/log/fixes/items.md) | 26 | | [AI Generation](docs/log/fixes/ai.md) | 10 |
+| [Spells](docs/log/fixes/spells.md) | 5 | | [Billing](docs/log/fixes/billing.md) | 5 |
+| [Factions](docs/log/fixes/factions.md) | 3 | | [Infrastructure](docs/log/fixes/infra.md) | 9 |
+| [Encounters & Combat](docs/log/fixes/encounters.md) | 25 | | [Soundboard](docs/log/fixes/soundboard.md) | 17 |
+| [Quests](docs/log/fixes/quests.md) | 13 | | [Miscellaneous](docs/log/fixes/misc.md) | 1 |
+| [Party & Characters](docs/log/fixes/party.md) | 24 | | | |
 
 ## Latest fixes
 
-- Artificer licensing hardening — Tasha's-derived infusion text no longer ships in the app; effec… — [Content & Import](docs/log/fixes/content.md)
-- Live campaign state could get permanently stranded on stale data after a realtime gap — a playe… — [Campaign](docs/log/fixes/campaign.md)
-- A character sheet's "Choices" card showed a bogus "Noncantrip Spell Turn" row whose value was a… — [Player Portal](docs/log/fixes/players.md)
-- Loot dropped into campaign chat lost its "grabbed by X" indicator after a player claimed part o… — [Items & Workshop](docs/log/fixes/items.md)
-- Roster NPCs in an encounter no longer got marked dead when they fell, nor revealed to players w… — [Monsters & Bestiary](docs/log/fixes/monsters.md)
-- A player firing a ranged weapon from their own character sheet never depleted their ammunition … — [Encounters & Combat](docs/log/fixes/encounters.md)
-- A PC's temporary HP was invisible during an encounter and got silently wiped — and Wild Shape d… — [Encounters & Combat](docs/log/fixes/encounters.md)
-- Clicking a monster's ability score or saving throw on `/monsters/:id` did nothing — the hover t… — [Monsters & Bestiary](docs/log/fixes/monsters.md)
-- The encounter runner's "Roll Initiative" ignored physical-dice mode and clobbered initiatives t… — [Encounters & Combat](docs/log/fixes/encounters.md)
-- Wild Shape showed "no eligible forms" for every druid below level 8 — third distinct piece of #… — [Monsters & Bestiary](docs/log/fixes/monsters.md)
+- Dragging a card lit every page tab, and the moved/deleted card lingered until the DB replied — … — [Soundboard](docs/log/fixes/soundboard.md)
+- A "looping" bed died on its second pass — the gapless pair only ever swapped once (#572) — the … — [Soundboard](docs/log/fixes/soundboard.md)
+- Designer round-2 review: two ground-rule breaks and a find/replace that leaked into copy (#572)… — [Soundboard](docs/log/fixes/soundboard.md)
+- Admin Providers tab queried each provider's model list even with no API key configured — every … — [AI Generation](docs/log/fixes/ai.md)
+- Chronicle text silently truncated mid-sentence — OpenAI JSON mode let an unescaped quote in the… — [AI Generation](docs/log/fixes/ai.md)
+- A sound card's name was shown twice, and Arrange mode read as oversized (#572) — the control st… — [Soundboard](docs/log/fixes/soundboard.md)
+- Applying an effect to a music or effects sound silently moved it onto the ambient bus (#572) — … — [Soundboard](docs/log/fixes/soundboard.md)
+- A pad tap stopped a one-shot instead of firing it again (#572) — the pad was wired to transport… — [Soundboard](docs/log/fixes/soundboard.md)
+- Restarting a live generator layer orphaned its timer, firing the sound on two schedules (#572) … — [Soundboard](docs/log/fixes/soundboard.md)
+- `playAmbientPlaylist` shadowed the generator pool with a local variable of the same name (#572)… — [Soundboard](docs/log/fixes/soundboard.md)

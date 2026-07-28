@@ -187,7 +187,23 @@ export function useDeletePlaylist() {
 
   return useMutation({
     mutationFn: (id: string) => deletePlaylist(id),
-    onSuccess: () => {
+    // Optimistic: the card leaves the grid on the click, not after the round
+    // trip — a delete that visibly does nothing for a beat reads as a failure.
+    onMutate: async (id) => {
+      const key = [PLAYLISTS_KEY, activeCampaignId.value];
+      await qc.cancelQueries({ queryKey: key });
+      const previous = qc.getQueryData<SoundboardPlaylist[]>(key);
+      if (previous !== undefined) {
+        qc.setQueryData<SoundboardPlaylist[]>(key, previous.filter((pl) => pl.id !== id));
+      }
+      return { key, previous };
+    },
+    onError: (_err, _id, context) => {
+      if (context !== undefined && context.previous !== undefined) {
+        qc.setQueryData(context.key, context.previous);
+      }
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: [PLAYLISTS_KEY, activeCampaignId.value] });
     },
   });

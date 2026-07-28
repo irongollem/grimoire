@@ -12,35 +12,35 @@
 > The **AI Features** and **Monetization** sections below are kept in full because they're
 > living reference / strategy — not a completed-work log.
 
-## Feature log by subsystem  ·  548 shipped
+## Feature log by subsystem  ·  555 shipped
 
 | Subsystem | Shipped | | Subsystem | Shipped |
 | --- | ---: | --- | --- | ---: |
-| [Campaign](docs/log/features/campaign.md) | 26 | | [Party & Characters](docs/log/features/party.md) | 54 |
+| [Campaign](docs/log/features/campaign.md) | 26 | | [Party & Characters](docs/log/features/party.md) | 56 |
 | [Collaboration](docs/log/features/collaboration.md) | 7 | | [Atlas & Locations](docs/log/features/atlas.md) | 17 |
 | [Player Portal](docs/log/features/players.md) | 46 | | [Cartographer & VTT](docs/log/features/cartographer.md) | 31 |
-| [Rules Reliquary](docs/log/features/rules.md) | 19 | | [Chat & Dice](docs/log/features/chat.md) | 8 |
+| [Rules Reliquary](docs/log/features/rules.md) | 20 | | [Chat & Dice](docs/log/features/chat.md) | 8 |
 | [Content & Import](docs/log/features/content.md) | 9 | | [Images & Art](docs/log/features/images.md) | 16 |
 | [Monsters & Bestiary](docs/log/features/monsters.md) | 9 | | [Publishing & Export](docs/log/features/publishing.md) | 52 |
 | [NPCs & Companions](docs/log/features/npcs.md) | 19 | | [UI & Layout](docs/log/features/ui.md) | 20 |
 | [Items & Workshop](docs/log/features/items.md) | 45 | | [AI Generation](docs/log/features/ai.md) | 24 |
 | [Spells](docs/log/features/spells.md) | 34 | | [Billing](docs/log/features/billing.md) | 33 |
-| [Factions](docs/log/features/factions.md) | 10 | | [Infrastructure](docs/log/features/infra.md) | 12 |
-| [Encounters & Combat](docs/log/features/encounters.md) | 26 | | [Soundboard](docs/log/features/soundboard.md) | 23 |
+| [Factions](docs/log/features/factions.md) | 10 | | [Infrastructure](docs/log/features/infra.md) | 13 |
+| [Encounters & Combat](docs/log/features/encounters.md) | 29 | | [Soundboard](docs/log/features/soundboard.md) | 23 |
 | [Quests](docs/log/features/quests.md) | 7 | | [Miscellaneous](docs/log/features/misc.md) | 1 |
 
 ## Latest features
 
-- Atlas — time-bound locations: optional era_start/era_end year fields, out-of-era locations greye… — [Atlas & Locations](docs/log/features/atlas.md)
-- Shared SRD items & species — the compendium stops living in every DM's account (#303) — the las… — [Content & Import](docs/log/features/content.md)
-- Queued chronicle images — drop an anchor, keep writing — chronicle image generation no longer b… — [AI Generation](docs/log/features/ai.md)
-- Illustrated character-sheet export — recovered, calibrated, shipped (part of EPIC #422) — the J… — [Publishing & Export](docs/log/features/publishing.md)
-- Derived Armor Class from equipped armor + Dex — kills the shield double-count (#571) — player A… — [Party & Characters](docs/log/features/party.md)
-- The Interlude — downtime activities that become real campaign content (phase 1: Carouse) (#486)… — [Campaign](docs/log/features/campaign.md)
-- MCP server — traverse your campaign from your own AI (read-only v1) — a DM can connect their ow… — [Infrastructure](docs/log/features/infra.md)
-- MCP server — create & update content from your own AI (write v2) — extends the read-only MCP se… — [Infrastructure](docs/log/features/infra.md)
-- MCP server — entity images as inline image blocks (`get_image`) — `get` only returned storage U… — [Infrastructure](docs/log/features/infra.md)
-- Free-tier quota expansion + version-control — seeded the full free-plan quota set in a migratio… — [Billing](docs/log/features/billing.md)
+- The board answers live use: designer round 2 plus a session's worth of field reports (#572, red… — [Soundboard](docs/log/features/soundboard.md)
+- Perform and Arrange: the card becomes a fire target, and Spotify stops pretending to be one (#5… — [Soundboard](docs/log/features/soundboard.md)
+- Scenes become their own category, and the prep controls say what they actually do (#572, redesi… — [Soundboard](docs/log/features/soundboard.md)
+- "Why is this playing?" is answerable, and the mixer stops being a junk drawer (#572, redesign f… — [Soundboard](docs/log/features/soundboard.md)
+- A curated sound library ships with the app, and it is free on every tier (#572 phase 3) — 800+ … — [Soundboard](docs/log/features/soundboard.md)
+- Shared playback: the DM can stream the music slot to remote players (#572 phase 6) — the market… — [Soundboard](docs/log/features/soundboard.md)
+- Ambient scenes stack instead of replacing each other (#572, phase 2 leftover) — `activeAmbientP… — [Soundboard](docs/log/features/soundboard.md)
+- Encounters and locations drive the audio, bound by theme label (#572 phase 5) — encounter runne… — [Soundboard](docs/log/features/soundboard.md)
+- Fire-by-search palette and a real hotkey registry (#572 phase 4) — buttons you can hit without … — [Soundboard](docs/log/features/soundboard.md)
+- Scene mixer and layer editor — the visible half of scenes (#572 phase 2) — the layers of a runn… — [Soundboard](docs/log/features/soundboard.md)
 
 ---
 

@@ -140,6 +140,7 @@
           v-model="ui.soundboardActivePage"
           :pages="pages ?? []"
           :highlight-drops="draggingCard"
+          :drop-target="dragOverPage"
         />
       </div>
       <div class="flex w-fit shrink-0 gap-1 rounded-lg border border-border/50 bg-muted/40 p-1">
@@ -233,7 +234,7 @@
         handle=".drag-handle"
         :animation="150"
         ghost-class="opacity-40"
-        @start="draggingCard = true"
+        @start="onCardDragStart"
         @end="onCardDragEnd"
       >
         <div v-for="(sound, index) in orderedSounds" :key="sound.id" class="group relative">
@@ -304,7 +305,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from "vue";
+import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
 import { IconAdd, IconClose, IconDrag, IconMusicNote, IconList, IconListOrdered, IconWind, IconMixer } from '@/lib/icons';
 import { VueDraggable } from "vue-draggable-plus";
 import { useSounds, useDeleteSound, useReorderSounds, useBulkAssignToPage, useMoveSound } from "@/composables/useSounds";
@@ -484,6 +485,59 @@ watch(
 useSoundboardHotkeys(orderedSounds);
 
 const draggingCard = ref(false);
+/**
+ * The page tab currently under the dragged card — `""` is the All tab, null
+ * means the pointer is nowhere droppable. Drives the strong ring on exactly
+ * one tab; every tab ringed alike said "drop targets exist" but never which
+ * one the release would hit.
+ */
+const dragOverPage = ref<string | null>(null);
+
+/** Hit-test a viewport point against the page tabs' [data-page-drop] markers. */
+function dropTargetAt(x: number, y: number): string | null {
+  // In Sortable's touch fallback the clone rides directly under the finger and
+  // would swallow the hit — blink it out for the test.
+  const ghost = document.querySelector<HTMLElement>(".sortable-fallback");
+  const prevDisplay = ghost === null ? "" : ghost.style.display;
+  if (ghost !== null) ghost.style.display = "none";
+  const target = document
+    .elementFromPoint(x, y)
+    ?.closest<HTMLElement>("[data-page-drop]");
+  if (ghost !== null) ghost.style.display = prevDisplay;
+  const raw = target?.dataset.pageDrop;
+  return raw === undefined ? null : raw;
+}
+
+function pointFrom(e: Event): { x: number; y: number } | null {
+  if (e instanceof MouseEvent) return { x: e.clientX, y: e.clientY };
+  if (e instanceof TouchEvent) {
+    const touch = e.touches.length > 0 ? e.touches[0] : e.changedTouches[0];
+    return touch === undefined ? null : { x: touch.clientX, y: touch.clientY };
+  }
+  return null;
+}
+
+function trackDragPoint(e: Event): void {
+  const point = pointFrom(e);
+  if (point === null) return;
+  dragOverPage.value = dropTargetAt(point.x, point.y);
+}
+
+// Desktop drags emit dragover, Sortable's touch fallback emits touchmove —
+// listen for both only while a card is in flight.
+function onCardDragStart(): void {
+  draggingCard.value = true;
+  document.addEventListener("dragover", trackDragPoint, { capture: true, passive: true });
+  document.addEventListener("touchmove", trackDragPoint, { capture: true, passive: true });
+}
+
+function stopDragTracking(): void {
+  document.removeEventListener("dragover", trackDragPoint, { capture: true });
+  document.removeEventListener("touchmove", trackDragPoint, { capture: true });
+  dragOverPage.value = null;
+}
+
+onBeforeUnmount(stopDragTracking);
 /** Bumped by the head's New Scene/Playlist button; the panel owns the dialog. */
 const createPlaylistSignal = ref(0);
 
@@ -506,23 +560,17 @@ function onCardDragEnd(evt: { oldIndex?: number; originalEvent?: Event }): void 
   draggingCard.value = false;
 
   const oe = evt.originalEvent;
-  const point =
-    oe instanceof MouseEvent
-      ? { x: oe.clientX, y: oe.clientY }
-      : oe instanceof TouchEvent && oe.changedTouches.length > 0
-        ? { x: oe.changedTouches[0].clientX, y: oe.changedTouches[0].clientY }
-        : null;
+  const point = oe === undefined ? null : pointFrom(oe);
+  stopDragTracking();
 
   if (point !== null && evt.oldIndex !== undefined) {
-    const target = document
-      .elementFromPoint(point.x, point.y)
-      ?.closest<HTMLElement>("[data-page-drop]");
-    if (target && target.dataset.pageDrop !== undefined) {
+    const pageDrop = dropTargetAt(point.x, point.y);
+    if (pageDrop !== null) {
       const sound = orderedSounds.value[evt.oldIndex];
       if (sound) {
         moveSoundToPage({
           id: sound.id,
-          pageId: target.dataset.pageDrop === "" ? null : target.dataset.pageDrop,
+          pageId: pageDrop === "" ? null : pageDrop,
         });
         return;
       }

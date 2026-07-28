@@ -116,7 +116,23 @@ export function useDeleteSound() {
 
   return useMutation({
     mutationFn: (sound: Sound) => deleteSound(sound, auth.user!.id),
-    onSuccess: () => {
+    // Optimistic: the card leaves the grid on the click, not after the round
+    // trip — a delete that visibly does nothing for a beat reads as a failure.
+    onMutate: async (sound) => {
+      const key = [QUERY_KEY, activeCampaignId.value];
+      await qc.cancelQueries({ queryKey: key });
+      const previous = qc.getQueryData<Sound[]>(key);
+      if (previous !== undefined) {
+        qc.setQueryData<Sound[]>(key, previous.filter((s) => s.id !== sound.id));
+      }
+      return { key, previous };
+    },
+    onError: (_err, _sound, context) => {
+      if (context !== undefined && context.previous !== undefined) {
+        qc.setQueryData(context.key, context.previous);
+      }
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: [QUERY_KEY, activeCampaignId.value] });
     },
   });
@@ -129,7 +145,26 @@ export function useMoveSound() {
   return useMutation({
     mutationFn: ({ id, pageId }: { id: string; pageId: string | null }) =>
       updateSound(id, { page_id: pageId }),
-    onSuccess: () => {
+    // Optimistic: Sortable snaps the dropped card back to its old slot, so if
+    // the cache only changes after the write the drop looks rejected first.
+    onMutate: async ({ id, pageId }) => {
+      const key = [QUERY_KEY, activeCampaignId.value];
+      await qc.cancelQueries({ queryKey: key });
+      const previous = qc.getQueryData<Sound[]>(key);
+      if (previous !== undefined) {
+        qc.setQueryData<Sound[]>(
+          key,
+          previous.map((s) => (s.id === id ? { ...s, page_id: pageId } : s)),
+        );
+      }
+      return { key, previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context !== undefined && context.previous !== undefined) {
+        qc.setQueryData(context.key, context.previous);
+      }
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: [QUERY_KEY, activeCampaignId.value] });
     },
   });
