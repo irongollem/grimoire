@@ -1,4 +1,16 @@
 export type SoundCategory = "ambient" | "music" | "effects" | "misc";
+
+/**
+ * How big the fire targets are on the board.
+ *
+ * `sm` is not a shrunken `md` — at that density a DM is firing by position and
+ * colour, so the pad drops everything that is not "is it playing". Fewer
+ * things on screen, more of them visible at once.
+ */
+export type PadSize = "sm" | "md" | "lg";
+
+/** Whether the grid shows fire targets only, or fire targets plus their controls. */
+export type BoardMode = "perform" | "arrange";
 export type SoundSourceType = "upload" | "url" | "spotify" | "freesound" | "library";
 
 export interface SoundboardPage {

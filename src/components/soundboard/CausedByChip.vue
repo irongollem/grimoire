@@ -5,13 +5,13 @@
   -->
   <span
     v-if="trigger !== null"
-    class="group/chip inline-flex min-w-0 max-w-full items-center rounded-sm border border-burgundy-400 bg-burgundy-500/40"
+    class="group/chip inline-flex min-w-0 max-w-full items-center rounded-sm border border-burgundy-400 bg-burgundy-500"
     :class="small ? 'gap-0.5 px-1 py-px' : 'gap-1 px-1.5 py-0.5'"
     :title="`Started by ${trigger.kind}: ${trigger.label}`"
   >
-    <IconFire :class="small ? 'h-2.5 w-2.5' : 'h-3 w-3'" class="shrink-0 text-gold-300" />
+    <IconFire :class="small ? 'h-2.5 w-2.5' : 'h-3 w-3'" class="shrink-0 text-gold-100" />
     <span
-      class="truncate font-cinzel font-bold tracking-wide text-gold-300"
+      class="truncate font-cinzel font-bold tracking-wide text-gold-100"
       :class="small ? 'text-2xs' : 'text-xs'"
     >
       {{ trigger.label }}
@@ -24,7 +24,7 @@
     <button
       v-if="releasable"
       type="button"
-      class="shrink-0 text-gold-300 opacity-40 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/chip:opacity-100 focus-visible:opacity-100"
+      class="shrink-0 text-gold-100 opacity-40 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/chip:opacity-100 focus-visible:opacity-100"
       title="Release this trigger — hands the slot back to what was playing before"
       @click.stop="release"
     >

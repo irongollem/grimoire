@@ -58,6 +58,38 @@
       <CausedByChip :trigger="trigger" />
     </div>
 
+    <!--
+      A scene's shape, before you open it. "3 tracks" says nothing about what
+      it will sound like; two beds under two random layers does. The layer
+      names follow, so a DM recognises the scene they built rather than
+      recognising only its title.
+    -->
+    <template v-if="playlist.playlist_type === 'ambient' && trackCount > 0">
+      <p class="px-1 text-caption-sm text-muted-foreground">
+        <span v-if="loopingCount > 0">{{ loopingCount }} looping</span>
+        <span v-if="loopingCount > 0 && generatorCount > 0"> · </span>
+        <span v-if="generatorCount > 0" class="text-gold-400">{{ generatorCount }} random</span>
+      </p>
+      <div class="flex flex-wrap gap-1 px-1">
+        <span
+          v-for="track in layerChips"
+          :key="track.id"
+          class="max-w-32 shrink-0 truncate rounded border px-1 py-px text-caption-sm"
+          :class="track.is_generator
+            ? 'border-gold-500/30 bg-gold-500/10 text-gold-400'
+            : 'border-border text-muted-foreground'"
+          :title="track.is_generator
+            ? `${track.sound.name} — fires every ${Math.round(track.min_interval_s)}–${Math.round(track.max_interval_s)} s`
+            : `${track.sound.name} — loops continuously`"
+        >
+          {{ track.sound.name }}
+        </span>
+        <span v-if="hiddenLayerCount > 0" class="shrink-0 text-caption-sm text-muted-foreground/70">
+          +{{ hiddenLayerCount }}
+        </span>
+      </div>
+    </template>
+
     <!-- Music: current track name when active -->
     <p
       v-if="isActive && playlist.playlist_type === 'music' && currentTrackName"
@@ -173,6 +205,20 @@ const trigger = computed(() => triggerForPlaylist(playlist.id));
 
 /** Came with the app rather than being built by this DM. */
 const isSeeded = computed(() => playlist.library_scene_slug !== null);
+
+// ── Scene shape ───────────────────────────────────────────────────────────
+// What a scene will sound like is the thing a DM is choosing between, and
+// "3 tracks" does not describe it. Beds and random layers behave completely
+// differently, so the split is worth stating on the card.
+
+/** How many chips fit before the card starts looking like a list. */
+const LAYER_CHIP_LIMIT = 4;
+
+const sceneLayers = computed(() => (tracks.value === undefined ? [] : tracks.value));
+const loopingCount = computed(() => sceneLayers.value.filter((t) => !t.is_generator).length);
+const generatorCount = computed(() => sceneLayers.value.filter((t) => t.is_generator).length);
+const layerChips = computed(() => sceneLayers.value.slice(0, LAYER_CHIP_LIMIT));
+const hiddenLayerCount = computed(() => Math.max(0, sceneLayers.value.length - LAYER_CHIP_LIMIT));
 
 const trackCount = computed(() => tracks.value?.length ?? 0);
 

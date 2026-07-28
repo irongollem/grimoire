@@ -90,7 +90,16 @@
               <label class="font-cinzel text-xs font-semibold text-foreground tracking-wide">Themes</label>
               <TagInput v-model="localTags" placeholder="battle, tavern…" />
               <p class="text-caption text-muted-foreground italic">
-                Encounters and locations request audio by theme. A music playlist tagged "battle" can be picked when a combat starts.
+                <template v-if="localType === 'music'">
+                  Encounters request music by theme. Tag this "battle" and any combat with that
+                  theme can start it — and if you tag three playlists the same, each fight picks
+                  between them, so your players stop recognising the goblin song.
+                </template>
+                <template v-else>
+                  Locations request ambience by theme. Tag this "tavern" and walking into a
+                  tavern-themed location starts it — tag three scenes the same and it picks between
+                  them. A theme that matches nothing leaves your audio exactly where it is.
+                </template>
               </p>
             </div>
 

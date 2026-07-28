@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { useLocalStorage } from "@vueuse/core";
 import type { NoteCategory } from "@/types/notes.types";
+import type { BoardMode, PadSize } from "@/types/sound.types";
 import type { JournalCategory } from "@/composables/usePlayerJournal";
 import type { SortField, SortDir } from "@/lib/noteSort";
 import type { NpcStatus, NpcRelationship } from "@/types/npc.types";
@@ -349,6 +350,12 @@ export const useUiStore = defineStore("ui", () => {
   // answer different questions — a scene is a room, a playlist is a running
   // order — and mixing them in one list meant neither read as a category.
   const soundboardViewMode = ref<"sounds" | "scenes" | "playlists">("sounds");
+
+  // Perform = fire targets only, for running a session. Arrange = the same
+  // pads with their full control strip, for setting one up. Persisted because
+  // a DM switches modes between prep and play, not within a page visit.
+  const soundboardBoardMode = useLocalStorage<BoardMode>("grimoire_soundboard_mode", "arrange");
+  const soundboardPadSize = useLocalStorage<PadSize>("grimoire_soundboard_pad_size", "md");
 
   // Player spell accordion — which levels are expanded (cantrips = 0, open by default)
   const playerSpellOpenLevels = ref<number[]>([0]);
@@ -774,6 +781,8 @@ export const useUiStore = defineStore("ui", () => {
     soundboardHasActiveFilters,
     resetSoundboardFilters,
     soundboardViewMode,
+    soundboardBoardMode,
+    soundboardPadSize,
 
     // Species
     speciesSearch,

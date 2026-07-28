@@ -81,19 +81,59 @@
     <!-- Sounds / Scenes / Playlists — three peers. A scene is a room and a
          playlist is a running order; filing both under "Playlists" meant a DM
          hunting for the tavern had to read past their combat music. -->
-    <div class="flex gap-1 p-1 rounded-lg bg-muted/40 border border-border/50 w-fit my-3">
-      <button
-        v-for="mode in VIEW_MODES"
-        :key="mode.id"
-        class="flex items-center gap-1.5 px-3 py-1 rounded-md font-cinzel text-xs tracking-wide transition-colors"
-        :class="ui.soundboardViewMode === mode.id
-          ? 'bg-card shadow-sm text-foreground'
-          : 'text-muted-foreground hover:text-foreground'"
-        @click="ui.soundboardViewMode = mode.id"
-      >
-        <component :is="mode.icon" class="h-3.5 w-3.5" />
-        {{ mode.label }}
-      </button>
+    <div class="my-3 flex flex-wrap items-center gap-3">
+      <div class="flex w-fit gap-1 rounded-lg border border-border/50 bg-muted/40 p-1">
+        <button
+          v-for="mode in VIEW_MODES"
+          :key="mode.id"
+          class="flex items-center gap-1.5 px-3 py-1 rounded-md font-cinzel text-xs tracking-wide transition-colors"
+          :class="ui.soundboardViewMode === mode.id
+            ? 'bg-card shadow-sm text-foreground'
+            : 'text-muted-foreground hover:text-foreground'"
+          @click="ui.soundboardViewMode = mode.id"
+        >
+          <component :is="mode.icon" class="h-3.5 w-3.5" />
+          {{ mode.label }}
+        </button>
+      </div>
+
+      <!-- Perform vs Arrange: running a session vs setting one up. Only
+           meaningful on the sounds grid, so it is not shown anywhere else. -->
+      <template v-if="ui.soundboardViewMode === 'sounds'">
+        <div class="flex w-fit gap-1 rounded-lg border border-border/50 bg-muted/40 p-1">
+          <button
+            v-for="board in BOARD_MODES"
+            :key="board.id"
+            class="rounded-md px-3 py-1 font-cinzel text-xs tracking-wide transition-colors"
+            :class="ui.soundboardBoardMode === board.id
+              ? 'bg-card shadow-sm text-foreground'
+              : 'text-muted-foreground hover:text-foreground'"
+            :title="board.hint"
+            @click="ui.soundboardBoardMode = board.id"
+          >
+            {{ board.label }}
+          </button>
+        </div>
+
+        <!-- Size only matters once the controls are out of the way. -->
+        <div
+          v-if="ui.soundboardBoardMode === 'perform'"
+          class="flex w-fit gap-1 rounded-lg border border-border/50 bg-muted/40 p-1"
+        >
+          <button
+            v-for="pad in PAD_SIZES"
+            :key="pad.id"
+            class="rounded-md px-2.5 py-1 font-cinzel text-xs tracking-wide transition-colors"
+            :class="ui.soundboardPadSize === pad.id
+              ? 'bg-card shadow-sm text-foreground'
+              : 'text-muted-foreground hover:text-foreground'"
+            :title="pad.hint"
+            @click="ui.soundboardPadSize = pad.id"
+          >
+            {{ pad.label }}
+          </button>
+        </div>
+      </template>
     </div>
 
     <!-- Spotify errors surface here too, not just in the widget: a connection
@@ -162,7 +202,8 @@
 
       <VueDraggable
         v-model="orderedSounds"
-        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"
+        class="grid gap-3"
+        :class="gridClass"
         :disabled="ui.soundboardHasActiveFilters"
         handle=".drag-handle"
         :animation="150"
@@ -170,29 +211,34 @@
         @end="persistOrder"
       >
         <div v-for="(sound, index) in orderedSounds" :key="sound.id" class="group relative">
-          <!-- Drag handle — only visible when not filtered -->
+          <!-- Drag handle — Arrange only, and only when not filtered. Ordering
+               the board is setup, not performance, and on a small pad an
+               overlaid handle would sit on top of the name. -->
           <div
-            v-if="!ui.soundboardHasActiveFilters"
+            v-if="!ui.soundboardHasActiveFilters && ui.soundboardBoardMode === 'arrange'"
             class="drag-handle absolute top-2 left-2 z-10 cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground/60 transition-colors [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
             title="Drag to reorder"
           >
             <IconDrag class="h-3.5 w-3.5" />
           </div>
-          <!-- The number key that fires this card. Shown rather than documented,
-               because a shortcut nobody can see is a shortcut nobody uses. -->
-          <KeyCap
-            v-if="index < 9"
-            class="absolute top-2 right-2 z-10"
-            :title="`Press ${index + 1} to fire this sound`"
-          >
-            {{ index + 1 }}
-          </KeyCap>
           <SoundCard
             :sound="sound"
             :show-delete="true"
             :pages="pages ?? []"
+            :mode="ui.soundboardBoardMode"
+            :pad-size="ui.soundboardPadSize"
             @delete="handleDelete"
-          />
+          >
+            <!-- The number key that fires this card. Shown rather than
+                 documented, because a shortcut nobody can see is a shortcut
+                 nobody uses. In the pad's own header row, so it cannot land on
+                 the name at small sizes. -->
+            <template #key>
+              <KeyCap v-if="index < 9" :title="`Press ${index + 1} to fire this sound`">
+                {{ index + 1 }}
+              </KeyCap>
+            </template>
+          </SoundCard>
         </div>
       </VueDraggable>
     </template>
@@ -238,6 +284,17 @@ const VIEW_MODES = [
   { id: "sounds", label: "Sounds", icon: IconList },
   { id: "scenes", label: "Scenes", icon: IconWind },
   { id: "playlists", label: "Playlists", icon: IconListOrdered },
+] as const;
+
+const BOARD_MODES = [
+  { id: "arrange", label: "Arrange", hint: "Every control, for setting the board up" },
+  { id: "perform", label: "Perform", hint: "Fire targets only, for running a session" },
+] as const;
+
+const PAD_SIZES = [
+  { id: "sm", label: "S", hint: "Name and colour only — fits the most on screen" },
+  { id: "md", label: "M", hint: "Name, length and loop" },
+  { id: "lg", label: "L", hint: "Adds the artist" },
 ] as const;
 import SoundboardMixer from "@/components/soundboard/SoundboardMixer.vue";
 import SpotifyErrorBanner from "@/components/soundboard/SpotifyErrorBanner.vue";
@@ -296,8 +353,28 @@ const newSoundPageId = computed(() => {
 
 // ── Filtering ─────────────────────────────────────────────────────────────
 
+/**
+ * Column counts per pad size.
+ *
+ * Small pads exist to fit as many fire targets on screen as possible, so they
+ * get their own much denser grid rather than the same three columns at a
+ * smaller height. Arrange always uses the roomier layout — the control strip
+ * needs the width regardless of pad size.
+ */
+const gridClass = computed(() => {
+  if (ui.soundboardBoardMode === "arrange") return "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3";
+  switch (ui.soundboardPadSize) {
+    case "sm": return "grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8";
+    case "lg": return "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3";
+    default:   return "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5";
+  }
+});
+
 const filtered = computed(() => {
-  let list = sounds.value ?? [];
+  // Spotify is a different animal: no waveform, no layering, a transport that
+  // belongs to Spotify's own SDK. It lives with the music, not among the pads,
+  // so the fire grid stays one uniform kind of thing.
+  let list = (sounds.value ?? []).filter((s) => s.source_type !== "spotify");
 
   // Filter by active page (null = "All", shows everything)
   if (ui.soundboardActivePage !== null) {

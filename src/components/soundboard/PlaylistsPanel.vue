@@ -54,6 +54,30 @@
         @delete="handleDelete(pl.id)"
       />
     </div>
+
+    <!--
+      Spotify lives here rather than among the pads. It is music by definition,
+      and its transport belongs to Spotify's own SDK — no waveform, no layering,
+      nothing the fire grid knows how to do. Keeping it out leaves that grid one
+      uniform kind of thing.
+    -->
+    <section v-if="playlistType === 'music' && spotifySounds.length > 0" class="space-y-2 pt-2">
+      <div class="flex items-center gap-2 border-t border-border/50 pt-3">
+        <h3 class="font-cinzel text-xs tracking-wide text-muted-foreground">From Spotify</h3>
+        <span class="text-caption text-muted-foreground/70">
+          Driven by Spotify's own player, so it has its own controls.
+        </span>
+      </div>
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <SoundCard
+          v-for="sound in spotifySounds"
+          :key="sound.id"
+          :sound="sound"
+          :show-delete="true"
+          mode="arrange"
+        />
+      </div>
+    </section>
     </template>
 
     <!-- Editor dialog (create + edit) -->
@@ -73,12 +97,14 @@
 import { ref, computed } from "vue";
 import { IconAdd, IconListOrdered, IconWind } from "@/lib/icons";
 import { usePlaylists, useDeletePlaylist } from "@/composables/useSoundboardPlaylists";
+import { useSounds } from "@/composables/useSounds";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useQuota } from "@/composables/useQuota";
 import type { SoundboardPlaylist, PlaylistType } from "@/types/sound.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import PlaylistCard from "./PlaylistCard.vue";
+import SoundCard from "./SoundCard.vue";
 import PlaylistEditorDialog from "./PlaylistEditorDialog.vue";
 import StarterScenesCard from "./StarterScenesCard.vue";
 
@@ -109,6 +135,13 @@ const NOUNS = {
 } as const satisfies Record<PlaylistType, unknown>;
 
 const noun = computed(() => NOUNS[playlistType]);
+
+const { data: allSounds } = useSounds();
+const spotifySounds = computed(() => {
+  const list = allSounds.value;
+  if (list === undefined) return [];
+  return list.filter((s) => s.source_type === "spotify");
+});
 
 const { data: playlists, isPending } = usePlaylists();
 const { mutate: deletePlaylist } = useDeletePlaylist();

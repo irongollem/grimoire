@@ -1,6 +1,6 @@
 <template>
   <div
-    class="flex min-h-13 items-stretch gap-2 border-b border-gold-500/25 bg-linear-to-b from-navy-800 to-navy-900 px-3 py-2"
+    class="flex min-h-13 items-stretch gap-2 border-b border-gold-500/25 bg-card px-3 py-2"
   >
     <span
       class="shrink-0 self-stretch font-cinzel text-2xs font-bold tracking-[0.2em] text-gold-500 [writing-mode:vertical-rl] rotate-180"
