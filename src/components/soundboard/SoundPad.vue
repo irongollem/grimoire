@@ -10,7 +10,7 @@
       blockedReason === null ? '' : 'opacity-60',
     ]"
     :title="blockedReason ?? undefined"
-    @click="toggle"
+    @click="fire"
   >
     <!-- The spine is what makes the category readable across a table without
          reading a word of it. Thicker while audible. -->
@@ -121,7 +121,11 @@ const { sound, size = "md" } = defineProps<{
 }>();
 
 const store = useSoundboardStore();
-const { isPlaying, blockedReason, toggle } = useSoundPlayback(() => sound);
+// `trigger`, not `toggle`. A pad is a fire target: hitting the thunderclap
+// twice should give you two thunderclaps, not stop the first one. `toggle` is
+// transport semantics and pauses whatever is audible regardless of category —
+// correct for a play/pause button, wrong for the thing you hit mid-sentence.
+const { isPlaying, blockedReason, trigger: fire } = useSoundPlayback(() => sound);
 const { triggerForSound } = useActiveAudioTriggers();
 
 const trigger = computed(() => triggerForSound(sound.id));

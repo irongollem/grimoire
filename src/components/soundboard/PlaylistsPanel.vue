@@ -137,10 +137,20 @@ const NOUNS = {
 const noun = computed(() => NOUNS[playlistType]);
 
 const { data: allSounds } = useSounds();
+
+/**
+ * Spotify sounds on this page.
+ *
+ * Page-filtered like the sounds grid is. Showing every campaign's Spotify
+ * tracks while the rest of the board is scoped to Chapter 3 would make the
+ * page tabs look broken.
+ */
 const spotifySounds = computed(() => {
   const list = allSounds.value;
   if (list === undefined) return [];
-  return list.filter((s) => s.source_type === "spotify");
+  return list.filter(
+    (s) => s.source_type === "spotify" && (pageId === null || s.page_id === pageId),
+  );
 });
 
 const { data: playlists, isPending } = usePlaylists();

@@ -19,13 +19,17 @@
           <span class="min-w-0 flex-1 truncate font-cinzel text-2xs font-semibold tracking-wide">
             {{ scene.playlistName }}
           </span>
-          <CausedByChip :trigger="triggerForPlaylist(scene.playlistId)" small />
           <!-- Collapsed summary: layer count and the average level, so a folded
                scene still says something rather than reading as nothing. -->
           <span v-if="!isOpen(scene.playlistId)" class="shrink-0 text-2xs tabular-nums text-muted-foreground">
             {{ scene.soundIds.length }}L · {{ averageLevel(scene) }}
           </span>
         </button>
+
+        <!-- Outside the expander, not inside it. The chip carries its own
+             release button, and a button inside a button is invalid markup with
+             genuinely ambiguous click behaviour. -->
+        <CausedByChip :trigger="triggerForPlaylist(scene.playlistId)" small />
         <!-- Per-scene stop. With scenes stacked, the global Stop All is too
              blunt: pulling the rain should not also close the tavern. -->
         <button
