@@ -394,10 +394,14 @@ async function saveProvider(provider: string) {
 }
 
 // ── Provider model options (datalists) ────────────────────────────────────
-const isActive = computed(() => true);
-const openaiModelList    = useProviderModels("openai",    isActive);
-const anthropicModelList = useProviderModels("anthropic", isActive);
-const geminiModelList    = useProviderModels("gemini",    isActive);
+// Gated on the key actually being set — querying before that always 422s
+// ("no_key"), which is expected but noisy in the network/console.
+const openaiKeySet    = computed(() => isKeySet("openai"));
+const anthropicKeySet = computed(() => isKeySet("anthropic"));
+const geminiKeySet    = computed(() => isKeySet("gemini"));
+const openaiModelList    = useProviderModels("openai",    openaiKeySet);
+const anthropicModelList = useProviderModels("anthropic", anthropicKeySet);
+const geminiModelList    = useProviderModels("gemini",    geminiKeySet);
 
 const providerModelOptions = computed<Record<string, string[]>>(() => ({
   openai:    openaiModelList.data.value    ?? [],
