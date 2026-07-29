@@ -1,5 +1,6 @@
 import { watch, onMounted, onUnmounted, type Ref } from "vue";
 import { supabase } from "@/lib/supabase";
+import { createRealtimeHeal, type RealtimeHeal } from "@/lib/realtimeHeal";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useUpdatePartyMember } from "@/composables/useParty";
 import { useCampaignStore } from "@/stores/campaign";
@@ -64,58 +65,92 @@ export function useRunnerPartySync(isLive: Ref<boolean>) {
   );
 
   let partyMembersChannel: ReturnType<typeof supabase.channel> | null = null;
+  let heal: RealtimeHeal | null = null;
 
   store.setPersistHandler((id, update) => {
     void updatePartyMember({ id, update });
   });
 
+  interface PartyMemberSyncRow {
+    id: string;
+    current_hp: number;
+    temp_hp: number;
+    current_initiative: number | null;
+  }
+
+  /**
+   * Apply one party_members row to the run store. Shared by the Realtime handler
+   * and the post-gap resync, so a recovered row lands through exactly the same
+   * rules as a live event — including the HP echo guard.
+   */
+  function applyPartyRow(row: PartyMemberSyncRow): void {
+    const combatant = store.combatants.find((c) => c.party_member_id === row.id);
+
+    // Temp HP the player granted themselves (or spent) on their own sheet.
+    // No echo guard needed: our own writes set the combatant first, so the
+    // values already match by the time the event comes back.
+    if (combatant && (combatant.temp_hp ?? 0) !== (row.temp_hp ?? 0)) {
+      store.ingestTempHp(combatant.instance_id, row.temp_hp ?? 0);
+    }
+
+    // Ingest player-rolled initiative (#504). The runner never writes
+    // current_initiative, so there's no echo to guard against. Only apply a
+    // fresh non-null value that differs — this keeps the player's own roll
+    // and lets "Roll Initiative" skip anyone who already rolled.
+    if (
+      combatant &&
+      row.current_initiative !== null &&
+      combatant.initiative !== row.current_initiative
+    ) {
+      store.setInitiative(combatant.instance_id, row.current_initiative);
+    }
+
+    // Checked before the combatant guard so a stale echo entry is always
+    // consumed, even for a party member not currently in the encounter.
+    if (lastWrittenHp.get(row.id) === row.current_hp) {
+      lastWrittenHp.delete(row.id);
+      return;
+    }
+    if (combatant && combatant.hp !== row.current_hp) {
+      store.setHp(combatant.instance_id, row.current_hp);
+    }
+  }
+
+  /**
+   * Re-derive every party member's synced fields from the DB. The runner had no
+   * recovery at all before this: a DM whose socket dropped mid-combat kept
+   * showing the HP, temp HP and initiative from whenever the gap started, with
+   * a page reload as the only way out.
+   */
+  async function resyncPartyFromDb(campaignId: string): Promise<void> {
+    const { data } = await supabase
+      .from("party_members")
+      .select("id, current_hp, temp_hp, current_initiative")
+      .eq("campaign_id", campaignId);
+    for (const row of (data ?? []) as PartyMemberSyncRow[]) applyPartyRow(row);
+  }
+
   onMounted(() => {
     const campaignId = campaign.activeCampaignId;
     if (!campaignId) return;
+    heal = createRealtimeHeal(() => void resyncPartyFromDb(campaignId));
     partyMembersChannel = supabase
       .channel("runner_party_members_hp")
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "party_members",
           filter: `campaign_id=eq.${campaignId}` },
-        (payload) => {
-          const row = payload.new as { id: string; current_hp: number; temp_hp: number; current_initiative: number | null };
-          const combatant = store.combatants.find((c) => c.party_member_id === row.id);
-
-          // Temp HP the player granted themselves (or spent) on their own sheet.
-          // No echo guard needed: our own writes set the combatant first, so the
-          // values already match by the time the event comes back.
-          if (combatant && (combatant.temp_hp ?? 0) !== (row.temp_hp ?? 0)) {
-            store.ingestTempHp(combatant.instance_id, row.temp_hp ?? 0);
-          }
-
-          // Ingest player-rolled initiative (#504). The runner never writes
-          // current_initiative, so there's no echo to guard against. Only apply a
-          // fresh non-null value that differs — this keeps the player's own roll
-          // and lets "Roll Initiative" skip anyone who already rolled.
-          if (
-            combatant &&
-            row.current_initiative !== null &&
-            combatant.initiative !== row.current_initiative
-          ) {
-            store.setInitiative(combatant.instance_id, row.current_initiative);
-          }
-
-          if (lastWrittenHp.get(row.id) === row.current_hp) {
-            lastWrittenHp.delete(row.id);
-            return;
-          }
-          if (combatant && combatant.hp !== row.current_hp) {
-            store.setHp(combatant.instance_id, row.current_hp);
-          }
-        },
+        (payload) => applyPartyRow(payload.new as PartyMemberSyncRow),
       )
-      .subscribe();
+      .subscribe((status) => heal?.onStatus(status));
   });
 
   onUnmounted(() => {
     store.setPersistHandler(null);
     if (partyHpTimer) clearTimeout(partyHpTimer);
+    // Detach before removeChannel(), so its CLOSED can't flag a discarded handle.
+    heal?.detach();
+    heal = null;
     if (partyMembersChannel) {
       supabase.removeChannel(partyMembersChannel);
       partyMembersChannel = null;

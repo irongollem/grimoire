@@ -1,5 +1,6 @@
 import { ref, computed, watch } from "vue";
 import { supabase } from "@/lib/supabase";
+import { createRealtimeHeal, type RealtimeHeal } from "@/lib/realtimeHeal";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
@@ -22,6 +23,7 @@ let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
 let subscribedCampaignId: string | null = null;
 let generation = 0; // incremented each subscribe(); callbacks ignore stale gens
 let reconnectAttempts = 0;
+let messagesHeal: RealtimeHeal | null = null;
 const MAX_RECONNECT = 5;
 
 async function fetchMessages(campaignId: string) {
@@ -55,9 +57,19 @@ async function fetchMessages(campaignId: string) {
 }
 
 function subscribe(campaignId: string) {
+  // Detach before removeChannel(), so the CLOSED it triggers can't flag a handle
+  // that is being replaced anyway.
+  messagesHeal?.detach();
   if (realtimeChannel) supabase.removeChannel(realtimeChannel);
   subscribedCampaignId = campaignId;
   const myGen = ++generation;
+  // Complements the backoff below rather than duplicating it: that path only
+  // reacts to channel errors it is told about, and covers neither a network
+  // switch nor a phone that slept long enough for the browser to freeze the
+  // socket without ever reporting an error.
+  messagesHeal = createRealtimeHeal(() => {
+    if (subscribedCampaignId) void fetchMessages(subscribedCampaignId);
+  });
   realtimeChannel = supabase
     .channel(`campaign-messages:${campaignId}`)
     .on(
@@ -103,6 +115,9 @@ function subscribe(campaignId: string) {
       // CLOSED fires whenever we call removeChannel() ourselves — ignore it.
       // Only reconnect on genuine transport errors for the current generation.
       if (myGen !== generation) return;
+      // A rejoin the transport made on its own (no error surfaced here) still
+      // means missed inserts; the heal turns that into a refetch.
+      messagesHeal?.onStatus(status);
       if (status === "SUBSCRIBED") {
         reconnectAttempts = 0;
         return;

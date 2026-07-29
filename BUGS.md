@@ -9,12 +9,12 @@
 > top of the matching [`docs/log/fixes/<subsystem>.md`](docs/log/fixes/) file, then
 > close the GitHub issue if one exists.
 
-## Fix log by subsystem  ·  274 resolved
+## Fix log by subsystem  ·  275 resolved
 
 | Subsystem | Fixes | | Subsystem | Fixes |
 | --- | ---: | --- | --- | ---: |
 | [Campaign](docs/log/fixes/campaign.md) | 11 | | [Atlas & Locations](docs/log/fixes/atlas.md) | 15 |
-| [Collaboration](docs/log/fixes/collaboration.md) | 6 | | [Cartographer & VTT](docs/log/fixes/cartographer.md) | 1 |
+| [Collaboration](docs/log/fixes/collaboration.md) | 7 | | [Cartographer & VTT](docs/log/fixes/cartographer.md) | 1 |
 | [Player Portal](docs/log/fixes/players.md) | 8 | | [Chat & Dice](docs/log/fixes/chat.md) | 10 |
 | [Rules Reliquary](docs/log/fixes/rules.md) | 1 | | [Images & Art](docs/log/fixes/images.md) | 8 |
 | [Content & Import](docs/log/fixes/content.md) | 5 | | [Publishing & Export](docs/log/fixes/publishing.md) | 23 |
@@ -29,6 +29,7 @@
 
 ## Latest fixes
 
+- Players kept reaching for refresh because only the DM's channel could heal itself (#579, partial) — the s… — [Collaboration](docs/log/fixes/collaboration.md)
 - Every player-portal locations read had been failing since July 26 — third stale-projection inci… — [Player Portal](docs/log/fixes/players.md)
 - The provider-registry test crashed CI at import — it pulled the real supabase client into an en… — [Soundboard](docs/log/fixes/soundboard.md)
 - Dragging a card lit every page tab, and the moved/deleted card lingered until the DB replied — … — [Soundboard](docs/log/fixes/soundboard.md)
@@ -38,4 +39,3 @@
 - Chronicle text silently truncated mid-sentence — OpenAI JSON mode let an unescaped quote in the… — [AI Generation](docs/log/fixes/ai.md)
 - A sound card's name was shown twice, and Arrange mode read as oversized (#572) — the control st… — [Soundboard](docs/log/fixes/soundboard.md)
 - Applying an effect to a music or effects sound silently moved it onto the ambient bus (#572) — … — [Soundboard](docs/log/fixes/soundboard.md)
-- A pad tap stopped a one-shot instead of firing it again (#572) — the pad was wired to transport… — [Soundboard](docs/log/fixes/soundboard.md)

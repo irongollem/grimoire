@@ -1,6 +1,7 @@
 import { ref, computed, onUnmounted, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { supabase } from "@/lib/supabase";
+import { createRealtimeHeal, type RealtimeHeal } from "@/lib/realtimeHeal";
 import { useCampaignStore } from "@/stores/campaign";
 import { broadcastOffsetSeconds, shouldResync } from "@/lib/broadcastOffset";
 import type { SoundboardBroadcast } from "@/types/sound.types";
@@ -99,10 +100,19 @@ export function usePlayerAudioStream() {
   }
 
   let channel: ReturnType<typeof supabase.channel> | null = null;
+  let heal: RealtimeHeal | null = null;
 
   function subscribe(campaignId: string): void {
     unsubscribe();
     void load(campaignId);
+    // Recovery re-reads the broadcast row, so a player who dropped mid-session
+    // lands back on whatever the DM is actually playing instead of a track that
+    // stopped being shared while they were disconnected.
+    //
+    // Left on the default hidden threshold rather than reconciling on every
+    // return to the tab: load() calls apply(), which seeks and plays, so a
+    // refetch per alt-tab would be audible.
+    heal = createRealtimeHeal(() => void load(campaignId));
     channel = supabase
       .channel(`soundboard_broadcast:${campaignId}`)
       .on(
@@ -113,10 +123,14 @@ export function usePlayerAudioStream() {
           apply();
         },
       )
-      .subscribe();
+      .subscribe((status) => heal?.onStatus(status));
   }
 
   function unsubscribe(): void {
+    // Detach first: removeChannel() fires CLOSED, which must not flag a handle
+    // we are dropping anyway.
+    heal?.detach();
+    heal = null;
     if (channel === null) return;
     void supabase.removeChannel(channel);
     channel = null;
