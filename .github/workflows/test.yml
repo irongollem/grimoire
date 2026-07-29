@@ -109,4 +109,4 @@ jobs:
       # concurrency control may replace. Do not add --prune: production may
       # contain intentionally remote-only functions.
       - name: Deploy Edge Functions to production
-        run: supabase functions deploy --project-ref "$SUPABASE_PROJECT_ID" --import-map supabase/functions/deno.json --jobs 4
+        run: supabase functions deploy --project-ref "$SUPABASE_PROJECT_ID" --import-map supabase/functions/deno.json
