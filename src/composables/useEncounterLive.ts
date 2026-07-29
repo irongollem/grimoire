@@ -1,41 +1,42 @@
 import { ref, computed, watch, onUnmounted, toValue, type MaybeRefOrGetter } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
-import { createRealtimeHeal, type RealtimeHeal } from "@/lib/realtimeHeal";
+import { createRealtimeChannel, type RealtimeChannelHandle } from "@/lib/realtimeChannel";
 import { useCampaignStore } from "@/stores/campaign";
 import type { EncounterState, RunCombatant } from "@/types/encounter.types";
 
 // ── Module-level singleton for running encounters ──────────────────────────────
-let runChannel: ReturnType<typeof supabase.channel> | null = null;
-let runHeal: RealtimeHeal | null = null;
+let runRealtime: RealtimeChannelHandle | null = null;
 let runRefCount = 0;
+let stopRunWatcher: (() => void) | null = null;
 const runningStates = ref<EncounterState[]>([]);
 const runningLoaded = ref(false);
 
 export function useRunningEncounters() {
   const campaign = useCampaignStore();
 
-  async function fetchRunning() {
-    const campaignId = campaign.activeCampaignId;
+  async function fetchRunning(campaignId: string) {
     if (!campaignId) { runningStates.value = []; return; }
     const { data } = await supabase
       .from("encounter_state")
       .select("*")
       .eq("campaign_id", campaignId)
       .eq("is_running", true);
-    runningStates.value = (data ?? []) as EncounterState[];
-    runningLoaded.value = true;
+    if (campaign.activeCampaignId === campaignId) {
+      runningStates.value = (data ?? []) as EncounterState[];
+      runningLoaded.value = true;
+    }
   }
 
-  function subscribe() {
-    if (runChannel || !campaign.activeCampaignId) return;
-    // Without this, a DM whose socket dropped kept showing an encounter as
-    // running (or missed one starting) until a full reload.
-    runHeal = createRealtimeHeal(() => void fetchRunning());
-    runChannel = supabase
-      .channel(`running_encounters:${campaign.activeCampaignId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "encounter_state",
-          filter: `campaign_id=eq.${campaign.activeCampaignId}` },
+  function subscribe(campaignId: string) {
+    runRealtime?.stop();
+    void fetchRunning(campaignId);
+    runRealtime = createRealtimeChannel({
+      topic: `running_encounters:${campaignId}`,
+      reconcile: () => void fetchRunning(campaignId),
+      bind: (channel) => channel.on("postgres_changes", { event: "*", schema: "public", table: "encounter_state",
+          filter: `campaign_id=eq.${campaignId}` },
         (payload) => {
+          if (campaign.activeCampaignId !== campaignId) return;
           if (payload.eventType === "DELETE") {
             const id = (payload.old as { encounter_id?: string }).encounter_id;
             if (id) runningStates.value = runningStates.value.filter(s => s.encounter_id !== id);
@@ -49,23 +50,32 @@ export function useRunningEncounters() {
               if (idx >= 0) runningStates.value.splice(idx, 1);
             }
           }
-        })
-      .subscribe((status) => runHeal?.onStatus(status));
+        }),
+    });
   }
 
   runRefCount++;
-  fetchRunning();
-  subscribe();
+  if (runRefCount === 1) {
+    stopRunWatcher = watch(
+      () => campaign.activeCampaignId,
+      (campaignId) => {
+        runRealtime?.stop();
+        runRealtime = null;
+        runningStates.value = [];
+        runningLoaded.value = false;
+        if (campaignId) subscribe(campaignId);
+      },
+      { immediate: true },
+    );
+  }
 
   onUnmounted(() => {
     runRefCount--;
-    if (runRefCount === 0 && runChannel) {
-      // Detach before removeChannel(): the resulting CLOSED must not land on a
-      // handle we are about to discard.
-      runHeal?.detach();
-      runHeal = null;
-      supabase.removeChannel(runChannel);
-      runChannel = null;
+    if (runRefCount === 0) {
+      stopRunWatcher?.();
+      stopRunWatcher = null;
+      runRealtime?.stop();
+      runRealtime = null;
       runningStates.value = [];
     }
   });
@@ -84,7 +94,7 @@ export function useRunningEncounters() {
 // can read the same reactive ref without needing its own subscription.
 export const liveState = ref<EncounterState | null>(null);
 const liveStateLoaded = ref(false);
-let playerChannel: ReturnType<typeof supabase.channel> | null = null;
+let playerRealtime: RealtimeChannelHandle | null = null;
 let pushTimer: ReturnType<typeof setTimeout> | null = null;
 
 // ── DM composable ──────────────────────────────────────────────────────────────
@@ -210,9 +220,11 @@ export function useEncounterLive(encounterId: MaybeRefOrGetter<string>) {
 
 
 // ── Player composable ──────────────────────────────────────────────────────────
-export function usePlayerEncounterLive(campaignId: string) {
-  async function fetchRunning() {
-    if (!campaignId) { liveState.value = null; return; }
+export function usePlayerEncounterLive(campaignId: MaybeRefOrGetter<string>) {
+  let subscribedCampaignId: string | null = null;
+
+  async function fetchRunning(id = subscribedCampaignId) {
+    if (!id) { liveState.value = null; return; }
     // Nothing enforces a single is_running row per campaign, so if a DM starts a
     // second encounter without ending the first, .maybeSingle() would error and
     // blank the player's live view mid-combat. Take the most recently started one
@@ -220,33 +232,33 @@ export function usePlayerEncounterLive(campaignId: string) {
     const { data } = await supabase
       .from("encounter_state")
       .select("*")
-      .eq("campaign_id", campaignId)
+      .eq("campaign_id", id)
       .eq("is_running", true)
       .order("started_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    liveState.value = data ? (data as EncounterState) : null;
+    // A campaign switch can complete before its previous request. Never let
+    // that stale response replace the active campaign's live encounter.
+    if (id === subscribedCampaignId) liveState.value = data ? (data as EncounterState) : null;
   }
 
-  // hiddenReconcileMs: 0 keeps the previous "refetch on every return to the tab"
-  // behaviour rather than waiting out a background threshold. This is one row,
-  // it is live combat, and a player who alt-tabs mid-fight must not come back to
-  // a stale board — the 2s throttle is enough to stop wake signals stacking.
-  const heal = createRealtimeHeal(() => void fetchRunning(), { hiddenReconcileMs: 0 });
-
-  function subscribe() {
-    if (playerChannel || !campaignId) return;
-    playerChannel = supabase
-      .channel(`encounter_state:${campaignId}`)
-      .on(
+  function subscribe(id: string): void {
+    unsubscribe();
+    subscribedCampaignId = id;
+    void fetchRunning(id);
+    playerRealtime = createRealtimeChannel({
+      topic: `encounter_state:${id}`,
+      reconcile: () => void fetchRunning(id),
+      bind: (channel) => channel.on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "encounter_state",
-          filter: `campaign_id=eq.${campaignId}`,
+          filter: `campaign_id=eq.${id}`,
         },
         (payload) => {
+          if (subscribedCampaignId !== id) return;
           // React to ROW IDENTITY, not just "any change in the campaign". Nothing
           // guarantees a single running encounter, so a second encounter starting
           // (which flips the FIRST one's is_running to false) or a stale row being
@@ -254,7 +266,7 @@ export function usePlayerEncounterLive(campaignId: string) {
           if (payload.eventType === "DELETE") {
             const oldRow = payload.old as Partial<EncounterState>;
             if (!liveState.value || oldRow.encounter_id === liveState.value.encounter_id) {
-              void fetchRunning(); // the shown encounter ended — find any other running one
+              void fetchRunning(id); // the shown encounter ended — find any other running one
             }
             return;
           }
@@ -268,23 +280,34 @@ export function usePlayerEncounterLive(campaignId: string) {
               liveState.value = row;
             }
           } else if (liveState.value && row.encounter_id === liveState.value.encounter_id) {
-            void fetchRunning(); // the encounter we show just stopped — fall back to another
+            void fetchRunning(id); // the encounter we show just stopped — fall back to another
           }
           // else: a different, non-running encounter changed — ignore.
         },
-      )
-      .subscribe((status) => heal.onStatus(status));
+      ),
+    });
   }
 
-  fetchRunning();
-  subscribe();
+  function unsubscribe(): void {
+    subscribedCampaignId = null;
+    playerRealtime?.stop();
+    playerRealtime = null;
+  }
+
+  watch(
+    () => toValue(campaignId),
+    (id) => {
+      if (id) subscribe(id);
+      else {
+        unsubscribe();
+        liveState.value = null;
+      }
+    },
+    { immediate: true },
+  );
 
   onUnmounted(() => {
-    heal.detach();
-    if (playerChannel) {
-      supabase.removeChannel(playerChannel);
-      playerChannel = null;
-    }
+    unsubscribe();
   });
 
   return { liveState };

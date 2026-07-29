@@ -368,7 +368,7 @@ const isMobile = useIsMobile();
 const { anyRunning, runningLoaded } = useRunningEncounters();
 // Keep the player encounter subscription alive for the entire session so state
 // stays in sync even when the player navigates away from the encounter page.
-usePlayerEncounterLive(campaign.activeCampaignId ?? "");
+usePlayerEncounterLive(() => campaign.activeCampaignId ?? "");
 const encounterLiveToast = ref(false);
 const showEncounterPanel = ref(false);
 const encounterPanelWidth = ref(288); // w-72 default

@@ -1,7 +1,7 @@
 import { ref, computed, onUnmounted, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { supabase } from "@/lib/supabase";
-import { createRealtimeHeal, type RealtimeHeal } from "@/lib/realtimeHeal";
+import { createRealtimeChannel, type RealtimeChannelHandle } from "@/lib/realtimeChannel";
 import { useCampaignStore } from "@/stores/campaign";
 import { broadcastOffsetSeconds, shouldResync } from "@/lib/broadcastOffset";
 import type { SoundboardBroadcast } from "@/types/sound.types";
@@ -89,21 +89,27 @@ export function usePlayerAudioStream() {
     audio.volume = volume.value;
   }
 
+  let subscribedCampaignId: string | null = null;
+
   async function load(campaignId: string): Promise<void> {
     const { data } = await supabase
       .from("soundboard_broadcast")
       .select("*")
       .eq("campaign_id", campaignId)
       .maybeSingle();
-    broadcast.value = data === null ? null : (data as SoundboardBroadcast);
-    apply();
+    // A prior campaign's initial/recovery fetch may complete after the player
+    // switches campaign. Its row must never restart or replace current audio.
+    if (campaignId === subscribedCampaignId) {
+      broadcast.value = data === null ? null : (data as SoundboardBroadcast);
+      apply();
+    }
   }
 
-  let channel: ReturnType<typeof supabase.channel> | null = null;
-  let heal: RealtimeHeal | null = null;
+  let realtime: RealtimeChannelHandle | null = null;
 
   function subscribe(campaignId: string): void {
     unsubscribe();
+    subscribedCampaignId = campaignId;
     void load(campaignId);
     // Recovery re-reads the broadcast row, so a player who dropped mid-session
     // lands back on whatever the DM is actually playing instead of a track that
@@ -112,28 +118,24 @@ export function usePlayerAudioStream() {
     // Left on the default hidden threshold rather than reconciling on every
     // return to the tab: load() calls apply(), which seeks and plays, so a
     // refetch per alt-tab would be audible.
-    heal = createRealtimeHeal(() => void load(campaignId));
-    channel = supabase
-      .channel(`soundboard_broadcast:${campaignId}`)
-      .on(
+    realtime = createRealtimeChannel({
+      topic: `soundboard_broadcast:${campaignId}`,
+      reconcile: () => void load(campaignId),
+      bind: (channel) => channel.on(
         "postgres_changes",
         { event: "*", schema: "public", table: "soundboard_broadcast", filter: `campaign_id=eq.${campaignId}` },
         (payload) => {
           broadcast.value = payload.eventType === "DELETE" ? null : (payload.new as SoundboardBroadcast);
           apply();
         },
-      )
-      .subscribe((status) => heal?.onStatus(status));
+      ),
+    });
   }
 
   function unsubscribe(): void {
-    // Detach first: removeChannel() fires CLOSED, which must not flag a handle
-    // we are dropping anyway.
-    heal?.detach();
-    heal = null;
-    if (channel === null) return;
-    void supabase.removeChannel(channel);
-    channel = null;
+    subscribedCampaignId = null;
+    realtime?.stop();
+    realtime = null;
   }
 
   watch(

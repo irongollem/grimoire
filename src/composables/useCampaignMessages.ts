@@ -1,6 +1,6 @@
 import { ref, computed, watch } from "vue";
 import { supabase } from "@/lib/supabase";
-import { createRealtimeHeal, type RealtimeHeal } from "@/lib/realtimeHeal";
+import { createRealtimeChannel, type RealtimeChannelHandle } from "@/lib/realtimeChannel";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
@@ -19,78 +19,98 @@ const LIMIT = 100;
 
 const messages = ref<CampaignMessage[]>([]);
 const loading  = ref(false);
-let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
+let realtimeChannel: RealtimeChannelHandle | null = null;
 let subscribedCampaignId: string | null = null;
 let generation = 0; // incremented each subscribe(); callbacks ignore stale gens
 let reconnectAttempts = 0;
-let messagesHeal: RealtimeHeal | null = null;
+let latestFetchId = 0;
+let deletedMessageIds = new Set<string>();
 const MAX_RECONNECT = 5;
 
-async function fetchMessages(campaignId: string) {
+function isVisibleToCurrentUser(msg: CampaignMessage): boolean {
+  const auth = useAuthStore();
+  const uid = auth.user?.id;
+  // dm_roll: only the recipient (DM) sees it — sender never sees result
+  if (msg.type === "dm_roll") return auth.isDM || msg.recipient_user_id === uid;
+  // public or addressed to me or DM or I sent it (regular whisper)
+  return msg.recipient_user_id === null || auth.isDM || msg.recipient_user_id === uid || msg.user_id === uid;
+}
+
+async function fetchMessages(campaignId: string, expectedGeneration = generation) {
+  if (expectedGeneration !== generation || campaignId !== subscribedCampaignId) return;
+  const fetchId = ++latestFetchId;
   loading.value = true;
   // Safety net: if navigator.locks contention (e.g. iOS resume + auth refresh)
   // causes getSession() to hang, clear the spinner after 8s instead of forever.
-  const bail = setTimeout(() => { loading.value = false; }, 8_000);
+  const bail = setTimeout(() => {
+    if (fetchId === latestFetchId && expectedGeneration === generation) loading.value = false;
+  }, 8_000);
   try {
     const { data, error } = await supabase
       .from("campaign_messages")
       .select("*")
       .eq("campaign_id", campaignId)
-      .order("created_at", { ascending: true })
+      // Fetch the newest window, then restore chronological display order.
+      .order("created_at", { ascending: false })
       .limit(LIMIT);
-    if (!error) {
-      const auth = useAuthStore();
-      const uid = auth.user?.id;
-      messages.value = ((data ?? []) as CampaignMessage[]).filter(msg => {
-        // dm_roll: only the recipient (DM) sees it — sender never sees result
-        if (msg.type === "dm_roll") return auth.isDM || msg.recipient_user_id === uid;
-        // public or addressed to me or DM or I sent it (regular whisper)
-        return msg.recipient_user_id === null || auth.isDM || msg.recipient_user_id === uid || msg.user_id === uid;
-      });
+    // A request may finish after Realtime has already delivered a newer row.
+    // Merge the HTTP snapshot underneath current socket state so the initial
+    // history is retained without overwriting an insert/update/delete that won
+    // the race.
+    if (!error && expectedGeneration === generation && campaignId === subscribedCampaignId
+      && fetchId === latestFetchId) {
+      const merged = new Map<string, CampaignMessage>();
+      for (const msg of (data ?? []) as CampaignMessage[]) merged.set(msg.id, msg);
+      for (const msg of messages.value) merged.set(msg.id, msg);
+      for (const id of deletedMessageIds) merged.delete(id);
+      messages.value = [...merged.values()]
+        .filter(isVisibleToCurrentUser)
+        .sort((a, b) => a.created_at.localeCompare(b.created_at))
+        .slice(-LIMIT);
     }
   } catch {
     // AbortError (auth lock steal) or network error — just leave current messages
   } finally {
     clearTimeout(bail);
-    loading.value = false;
+    if (fetchId === latestFetchId && expectedGeneration === generation) loading.value = false;
   }
 }
 
-function subscribe(campaignId: string) {
-  // Detach before removeChannel(), so the CLOSED it triggers can't flag a handle
-  // that is being replaced anyway.
-  messagesHeal?.detach();
-  if (realtimeChannel) supabase.removeChannel(realtimeChannel);
+function subscribe(campaignId: string, clearMessages = false) {
+  // stop() detaches recovery listeners before removing the channel, so its
+  // intentional CLOSED status cannot trigger a replacement reconnect.
+  realtimeChannel?.stop();
   subscribedCampaignId = campaignId;
   const myGen = ++generation;
-  // Complements the backoff below rather than duplicating it: that path only
-  // reacts to channel errors it is told about, and covers neither a network
-  // switch nor a phone that slept long enough for the browser to freeze the
-  // socket without ever reporting an error.
-  messagesHeal = createRealtimeHeal(() => {
-    if (subscribedCampaignId) void fetchMessages(subscribedCampaignId);
-  });
-  realtimeChannel = supabase
-    .channel(`campaign-messages:${campaignId}`)
-    .on(
+  if (clearMessages) {
+    messages.value = [];
+    deletedMessageIds = new Set();
+  }
+  realtimeChannel = createRealtimeChannel({
+    topic: `campaign-messages:${campaignId}`,
+    reconcile: () => {
+      if (myGen === generation && subscribedCampaignId === campaignId) {
+        void fetchMessages(campaignId, myGen);
+      }
+    },
+    bind: (channel) => channel
+      .on(
       "postgres_changes",
       { event: "INSERT", schema: "public", table: "campaign_messages", filter: `campaign_id=eq.${campaignId}` },
       (payload) => {
-        const auth = useAuthStore();
+        if (myGen !== generation || subscribedCampaignId !== campaignId) return;
         const msg = payload.new as CampaignMessage;
         // Replace optimistic entry with the confirmed DB version (which has full JSONB)
         const existingIdx = messages.value.findIndex(m => m.id === msg.id);
         if (existingIdx >= 0) {
           messages.value[existingIdx] = msg;
+          deletedMessageIds.delete(msg.id);
           return;
         }
-        const uid = auth.user?.id;
-        const visible = msg.type === "dm_roll"
-          ? auth.isDM || msg.recipient_user_id === uid
-          : msg.recipient_user_id === null || auth.isDM || msg.recipient_user_id === uid || msg.user_id === uid;
-        if (visible) {
+        if (isVisibleToCurrentUser(msg)) {
           messages.value.push(msg);
           if (messages.value.length > LIMIT) messages.value.shift();
+          deletedMessageIds.delete(msg.id);
         }
       },
     )
@@ -98,26 +118,31 @@ function subscribe(campaignId: string) {
       "postgres_changes",
       { event: "UPDATE", schema: "public", table: "campaign_messages", filter: `campaign_id=eq.${campaignId}` },
       (payload) => {
+        if (myGen !== generation || subscribedCampaignId !== campaignId) return;
         const updated = payload.new as CampaignMessage;
         const idx = messages.value.findIndex(m => m.id === updated.id);
-        if (idx >= 0) messages.value[idx] = updated;
+        if (idx >= 0) {
+          messages.value[idx] = updated;
+          deletedMessageIds.delete(updated.id);
+        }
       },
     )
     .on(
       "postgres_changes",
       { event: "DELETE", schema: "public", table: "campaign_messages", filter: `campaign_id=eq.${campaignId}` },
       (payload) => {
+        if (myGen !== generation || subscribedCampaignId !== campaignId) return;
         const deletedId = (payload.old as { id: string }).id;
+        deletedMessageIds.add(deletedId);
         messages.value = messages.value.filter(m => m.id !== deletedId);
       },
-    )
-    .subscribe((status, _err) => {
+    ),
+    onStatus: (status) => {
       // CLOSED fires whenever we call removeChannel() ourselves — ignore it.
       // Only reconnect on genuine transport errors for the current generation.
       if (myGen !== generation) return;
       // A rejoin the transport made on its own (no error surfaced here) still
       // means missed inserts; the heal turns that into a refetch.
-      messagesHeal?.onStatus(status);
       if (status === "SUBSCRIBED") {
         reconnectAttempts = 0;
         return;
@@ -131,11 +156,12 @@ function subscribe(campaignId: string) {
         const delay = Math.min(2000 * Math.pow(2, reconnectAttempts - 1), 30_000);
         setTimeout(async () => {
           if (!subscribedCampaignId || myGen !== generation) return;
-          await fetchMessages(subscribedCampaignId);
-          if (subscribedCampaignId && myGen === generation) subscribe(subscribedCampaignId);
+          subscribe(campaignId);
+          if (subscribedCampaignId === campaignId) void fetchMessages(campaignId, generation);
         }, delay);
       }
-    });
+    },
+  });
 }
 
 // Boot the subscription once when the campaign changes (shared watcher)
@@ -146,37 +172,24 @@ function ensureWatcher() {
   const campaign = useCampaignStore();
   watch(
     () => campaign.activeCampaignId,
-    async (id) => {
-      messages.value = [];
-      subscribedCampaignId = null;
+    (id) => {
       reconnectAttempts = 0;
-      if (id) { await fetchMessages(id); subscribe(id); }
+      if (!id) {
+        generation++;
+        latestFetchId++;
+        realtimeChannel?.stop();
+        realtimeChannel = null;
+        subscribedCampaignId = null;
+        messages.value = [];
+        deletedMessageIds = new Set();
+        loading.value = false;
+        return;
+      }
+      subscribe(id, true);
+      void fetchMessages(id, generation);
     },
     { immediate: true },
   );
-
-  // When the tab becomes visible again after sleeping/backgrounding:
-  // - If the channel gave up (max attempts reached), reset and fully reconnect.
-  // - Otherwise just backfill missed messages.
-  // singleTabLock (in supabase.ts) queues auth and DB operations without a
-  // timeout, so no explicit session wait is needed here — fetchMessages() will
-  // naturally run after autoRefreshToken finishes if the token needed renewal.
-  if (typeof document !== "undefined") {
-    document.addEventListener("visibilitychange", async () => {
-      if (document.visibilityState !== "visible" || !subscribedCampaignId) return;
-      const auth = useAuthStore();
-      if (!auth.isAuthenticated) return;
-      const cid = subscribedCampaignId;
-      if (!cid) return;
-      if (reconnectAttempts >= MAX_RECONNECT) {
-        reconnectAttempts = 0;
-        await fetchMessages(cid);
-        if (subscribedCampaignId) subscribe(subscribedCampaignId);
-      } else {
-        await fetchMessages(cid);
-      }
-    });
-  }
 }
 
 // ── Public composable ──────────────────────────────────────────────────────────
@@ -474,6 +487,7 @@ export function useCampaignMessages() {
 
   async function deleteMessage(id: string) {
     await supabase.from("campaign_messages").delete().eq("id", id);
+    deletedMessageIds.add(id);
     messages.value = messages.value.filter(m => m.id !== id);
   }
 
@@ -481,6 +495,7 @@ export function useCampaignMessages() {
     const cid = campaign.activeCampaignId;
     if (!cid) return;
     await supabase.from("campaign_messages").delete().eq("campaign_id", cid);
+    latestFetchId++;
     messages.value = [];
   }
 

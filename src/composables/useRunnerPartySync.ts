@@ -1,6 +1,6 @@
 import { watch, onMounted, onUnmounted, type Ref } from "vue";
 import { supabase } from "@/lib/supabase";
-import { createRealtimeHeal, type RealtimeHeal } from "@/lib/realtimeHeal";
+import { createRealtimeChannel, type RealtimeChannelHandle } from "@/lib/realtimeChannel";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useUpdatePartyMember } from "@/composables/useParty";
 import { useCampaignStore } from "@/stores/campaign";
@@ -64,8 +64,8 @@ export function useRunnerPartySync(isLive: Ref<boolean>) {
     },
   );
 
-  let partyMembersChannel: ReturnType<typeof supabase.channel> | null = null;
-  let heal: RealtimeHeal | null = null;
+  let partyMembersRealtime: RealtimeChannelHandle | null = null;
+  let subscribedCampaignId: string | null = null;
 
   store.setPersistHandler((id, update) => {
     void updatePartyMember({ id, update });
@@ -76,6 +76,7 @@ export function useRunnerPartySync(isLive: Ref<boolean>) {
     current_hp: number;
     temp_hp: number;
     current_initiative: number | null;
+    conditions: string[];
   }
 
   /**
@@ -91,6 +92,10 @@ export function useRunnerPartySync(isLive: Ref<boolean>) {
     // values already match by the time the event comes back.
     if (combatant && (combatant.temp_hp ?? 0) !== (row.temp_hp ?? 0)) {
       store.ingestTempHp(combatant.instance_id, row.temp_hp ?? 0);
+    }
+
+    if (combatant && !sameConditions(combatant.conditions, row.conditions ?? [])) {
+      store.ingestConditions(combatant.instance_id, row.conditions ?? []);
     }
 
     // Ingest player-rolled initiative (#504). The runner never writes
@@ -112,8 +117,12 @@ export function useRunnerPartySync(isLive: Ref<boolean>) {
       return;
     }
     if (combatant && combatant.hp !== row.current_hp) {
-      store.setHp(combatant.instance_id, row.current_hp);
+      store.ingestHp(combatant.instance_id, row.current_hp);
     }
+  }
+
+  function sameConditions(left: string[], right: string[]): boolean {
+    return left.length === right.length && left.every((condition, index) => condition === right[index]);
   }
 
   /**
@@ -125,36 +134,39 @@ export function useRunnerPartySync(isLive: Ref<boolean>) {
   async function resyncPartyFromDb(campaignId: string): Promise<void> {
     const { data } = await supabase
       .from("party_members")
-      .select("id, current_hp, temp_hp, current_initiative")
+      .select("id, current_hp, temp_hp, current_initiative, conditions")
       .eq("campaign_id", campaignId);
+    if (campaignId !== subscribedCampaignId) return;
     for (const row of (data ?? []) as PartyMemberSyncRow[]) applyPartyRow(row);
   }
 
   onMounted(() => {
     const campaignId = campaign.activeCampaignId;
     if (!campaignId) return;
-    heal = createRealtimeHeal(() => void resyncPartyFromDb(campaignId));
-    partyMembersChannel = supabase
-      .channel("runner_party_members_hp")
-      .on(
+    subscribedCampaignId = campaignId;
+    void resyncPartyFromDb(campaignId);
+    partyMembersRealtime = createRealtimeChannel({
+      topic: `runner_party_members:${campaignId}`,
+      reconcile: () => void resyncPartyFromDb(campaignId),
+      bind: (channel) => channel.on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "party_members",
           filter: `campaign_id=eq.${campaignId}` },
-        (payload) => applyPartyRow(payload.new as PartyMemberSyncRow),
-      )
-      .subscribe((status) => heal?.onStatus(status));
+        (payload) => {
+          if (subscribedCampaignId === campaignId) {
+            applyPartyRow(payload.new as PartyMemberSyncRow);
+          }
+        },
+      ),
+    });
   });
 
   onUnmounted(() => {
     store.setPersistHandler(null);
+    subscribedCampaignId = null;
     if (partyHpTimer) clearTimeout(partyHpTimer);
-    // Detach before removeChannel(), so its CLOSED can't flag a discarded handle.
-    heal?.detach();
-    heal = null;
-    if (partyMembersChannel) {
-      supabase.removeChannel(partyMembersChannel);
-      partyMembersChannel = null;
-    }
+    partyMembersRealtime?.stop();
+    partyMembersRealtime = null;
   });
 
   return { cancelPendingHpFlush };

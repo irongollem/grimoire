@@ -5,7 +5,7 @@
       ref="scrollEl"
       class="flex-1 overflow-y-auto px-3 py-3 space-y-2 min-h-0"
     >
-      <div v-if="isLoading" class="flex justify-center py-8">
+      <div v-if="loading" class="flex justify-center py-8">
         <LoadingSpinner />
       </div>
 
@@ -94,7 +94,7 @@
         </template>
       </div>
 
-      <div v-if="!isLoading && !messages?.length" class="text-center py-8">
+      <div v-if="!loading && !messages?.length" class="text-center py-8">
         <p class="text-body text-muted-foreground italic">
           No messages yet. Roll a skill to get started!
         </p>
@@ -140,8 +140,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from "vue";
-import { useCampaignChat } from "@/composables/useCampaignChat";
+import { ref, computed, watch, nextTick, onMounted } from "vue";
+import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { useParty } from "@/composables/useParty";
 import { useCampaignMembers } from "@/composables/useCampaignMembers";
 import { useAuthStore } from "@/stores/auth";
@@ -151,7 +151,7 @@ import type { CampaignMember } from "@/types/campaign.types";
 import { formatChatTimestamp } from "@/lib/utils";
 import { useLocalePrefs } from "@/composables/useLocalePrefs";
 
-const { messages, isLoading, postChat } = useCampaignChat();
+const { messages, loading, sendMessage } = useCampaignMessages();
 const { data: partyMembers } = useParty();
 const { data: members } = useCampaignMembers();
 const auth = useAuthStore();
@@ -176,31 +176,38 @@ function bestName(member: CampaignMember): string {
   return member.role === "dm" ? "DM" : "Player";
 }
 
-// Scroll to bottom when new messages arrive
+function isNearBottom(): boolean {
+  const el = scrollEl.value;
+  return !!el && el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+}
+
+function scrollToBottom() {
+  if (scrollEl.value) scrollEl.value.scrollTop = scrollEl.value.scrollHeight;
+}
+
+// Land on the newest message initially, but retain a reader's position when
+// Realtime adds a message while they are looking back through the chat.
+onMounted(async () => {
+  await nextTick();
+  scrollToBottom();
+});
+
 watch(
-  messages,
-  () => {
+  () => messages.value.length,
+  (_, previousLength) => {
+    const shouldFollow = previousLength === 0 || isNearBottom();
+    if (!shouldFollow) return;
     nextTick(() => {
-      if (scrollEl.value)
-        scrollEl.value.scrollTop = scrollEl.value.scrollHeight;
+      scrollToBottom();
     });
   },
-  { deep: true },
 );
-
-function senderName(): string {
-  if (auth.linkedPartyMemberId && partyMembers.value) {
-    const m = partyMembers.value.find((p) => p.id === auth.linkedPartyMemberId);
-    if (m) return m.name;
-  }
-  return auth.membership?.display_name ?? auth.userEmail?.split("@")[0] ?? "DM";
-}
 
 async function sendChat() {
   const text = chatInput.value.trim();
   if (!text) return;
   chatInput.value = "";
-  await postChat(text, senderName(), whisperTarget.value || null);
+  await sendMessage(text, whisperTarget.value || null);
 }
 
 const { chatLocale } = useLocalePrefs();

@@ -29,7 +29,7 @@
 
 ## Latest fixes
 
-- Players kept reaching for refresh because only the DM's channel could heal itself (#579, partial) — the s… — [Collaboration](docs/log/fixes/collaboration.md)
+- Players kept reaching for refresh because realtime payloads triggered HTTP refetches and player channels could not heal gaps (#579) — [Collaboration](docs/log/fixes/collaboration.md)
 - Every player-portal locations read had been failing since July 26 — third stale-projection inci… — [Player Portal](docs/log/fixes/players.md)
 - The provider-registry test crashed CI at import — it pulled the real supabase client into an en… — [Soundboard](docs/log/fixes/soundboard.md)
 - Dragging a card lit every page tab, and the moved/deleted card lingered until the DB replied — … — [Soundboard](docs/log/fixes/soundboard.md)

@@ -6,6 +6,10 @@ import { useAuthStore } from "@/stores/auth";
 import type { PartyMember, PartyMemberInsert, PartyMemberUpdate, SpellSlotEntry } from "@/types/party.types";
 import { removeStorageImages } from "@/composables/useImageUpload";
 import { useToast } from "@/composables/useToast";
+import {
+  createRealtimeChannel,
+  type RealtimeChannelHandle,
+} from "@/lib/realtimeChannel";
 
 const QUERY_KEY = "party";
 
@@ -217,16 +221,22 @@ export function useSyncPartyLocation() {
 export function usePartyLive() {
   const campaign = useCampaignStore();
   const queryClient = useQueryClient();
-  let channel: ReturnType<typeof supabase.channel> | null = null;
+  let live: RealtimeChannelHandle | null = null;
   const uid = Math.random().toString(36).slice(2, 8);
 
   watch(
     () => campaign.activeCampaignId,
     (campaignId) => {
-      if (channel) { supabase.removeChannel(channel); channel = null; }
+      live?.stop();
+      live = null;
       if (!campaignId) return;
-      channel = supabase
-        .channel(`party_members_live:${campaignId}:${uid}`)
+      live = createRealtimeChannel({
+        topic: `party_members_live:${campaignId}:${uid}`,
+        reconcile: () => {
+          void queryClient.invalidateQueries({ queryKey: [QUERY_KEY, campaignId] });
+          void queryClient.invalidateQueries({ queryKey: [MY_CHARS_KEY, campaignId] });
+        },
+        bind: (channel) => channel
         .on(
           "postgres_changes",
           { event: "UPDATE", schema: "public", table: "party_members",
@@ -237,6 +247,13 @@ export function usePartyLive() {
               if (!old) return old;
               return old.map((m) => (m.id === updated.id ? updated : m));
             });
+            // Character sheets use a second, ownership-filtered cache. Only
+            // replace rows already present there; payload visibility does not
+            // prove that a newly-owned row belongs in every cached variant.
+            queryClient.setQueriesData<PartyMember[]>(
+              { queryKey: [MY_CHARS_KEY, campaignId] },
+              (old) => old?.map((m) => (m.id === updated.id ? updated : m)),
+            );
           },
         )
         // A character removed (or added) by the DM must disappear (or appear) on
@@ -267,14 +284,15 @@ export function usePartyLive() {
             void queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
             void queryClient.invalidateQueries({ queryKey: [MY_CHARS_KEY] });
           },
-        )
-        .subscribe();
+        ),
+      });
     },
     { immediate: true },
   );
 
   onUnmounted(() => {
-    if (channel) { supabase.removeChannel(channel); channel = null; }
+    live?.stop();
+    live = null;
   });
 }
 

@@ -198,6 +198,21 @@ describe("createRealtimeHeal — detach", () => {
     expect(onReconcile).not.toHaveBeenCalled();
   });
 
+  it("makes late status callbacks and manual reconciles inert", () => {
+    const c = clock();
+    const onReconcile = vi.fn();
+    const heal = createRealtimeHeal(onReconcile, { now: c.now });
+
+    heal.onStatus("SUBSCRIBED");
+    heal.detach();
+    c.advance(10_000);
+    heal.onStatus("CLOSED");
+    heal.onStatus("SUBSCRIBED");
+    heal.reconcile();
+
+    expect(onReconcile).not.toHaveBeenCalled();
+  });
+
   it("is safe to detach twice", () => {
     const heal = createRealtimeHeal(vi.fn());
 

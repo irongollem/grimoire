@@ -87,8 +87,10 @@ export function createRealtimeHeal(
   let hasJoined = false;
   /** When the tab went hidden, so a return can measure the blind window. */
   let hiddenAt: number | null = null;
+  let detached = false;
 
   const reconcile = (): void => {
+    if (detached) return;
     const t = now();
     if (t - lastReconcile < throttleMs) return;
     lastReconcile = t;
@@ -97,6 +99,7 @@ export function createRealtimeHeal(
   };
 
   const onStatus = (status: string): void => {
+    if (detached) return;
     // CLOSED also fires when we remove the channel ourselves. Callers detach
     // before `removeChannel()`, so by then this handle is already discarded and
     // the spurious flag has nowhere to do damage.
@@ -132,6 +135,10 @@ export function createRealtimeHeal(
     onStatus,
     reconcile,
     detach(): void {
+      if (detached) return;
+      detached = true;
+      sawDrop = false;
+      hiddenAt = null;
       if (!canListen) return;
       window.removeEventListener("online", onOnline);
       document.removeEventListener("visibilitychange", onVisibilityChange);

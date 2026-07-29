@@ -497,6 +497,11 @@ function scrollToBottom() {
   if (scrollEl.value) scrollEl.value.scrollTop = scrollEl.value.scrollHeight;
 }
 
+function isNearBottom(): boolean {
+  const el = scrollEl.value;
+  return !!el && el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+}
+
 // Scroll to bottom on initial open (messages already loaded)
 onMounted(async () => {
   await nextTick();
@@ -506,7 +511,8 @@ onMounted(async () => {
 // Auto-scroll when new messages arrive
 watch(
   () => props.messages.length,
-  async () => {
+  async (_, previousLength) => {
+    if (previousLength > 0 && !isNearBottom()) return;
     await nextTick();
     scrollToBottom();
   },

@@ -278,6 +278,20 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     c.temp_hp = value > 0 ? value : undefined;
   }
 
+  /** Adopt HP from party_members without writing it back. Realtime rows are
+   * authoritative and must not create a second mutation or an echo loop. */
+  function ingestHp(instanceId: string, value: number) {
+    const c = combatants.value.find((x) => x.instance_id === instanceId);
+    if (!c) return;
+    if (c.wildshape) {
+      c.wildshape.beast_hp = Math.min(c.wildshape.beast_max_hp, Math.max(0, value));
+      if (c.wildshape.beast_hp === 0) c.wildshape = undefined;
+    } else {
+      c.hp = Math.min(c.max_hp, Math.max(0, value));
+    }
+    checkEvents();
+  }
+
   function setHp(instanceId: string, value: number) {
     const c = combatants.value.find((x) => x.instance_id === instanceId);
     if (!c) return;
@@ -329,6 +343,13 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     if (!c) return;
     c.conditions = conditions;
     persistPlayer(c, { conditions: c.conditions });
+  }
+
+  /** Adopt conditions from party_members without persisting the same row. */
+  function ingestConditions(instanceId: string, conditions: string[]) {
+    const c = combatants.value.find((x) => x.instance_id === instanceId);
+    if (!c) return;
+    c.conditions = [...conditions];
   }
 
   function addCurse(instanceId: string, curse: string) {
@@ -599,8 +620,10 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     setMaxHp,
     setTempHp,
     ingestTempHp,
+    ingestHp,
     toggleCondition,
     setConditions,
+    ingestConditions,
     addCurse,
     removeCurse,
     setRevealState,
