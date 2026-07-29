@@ -1,10 +1,12 @@
 import { ref, computed, watch, onUnmounted, toValue, type MaybeRefOrGetter } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
+import { createRealtimeHeal, type RealtimeHeal } from "@/lib/realtimeHeal";
 import { useCampaignStore } from "@/stores/campaign";
 import type { EncounterState, RunCombatant } from "@/types/encounter.types";
 
 // ── Module-level singleton for running encounters ──────────────────────────────
 let runChannel: ReturnType<typeof supabase.channel> | null = null;
+let runHeal: RealtimeHeal | null = null;
 let runRefCount = 0;
 const runningStates = ref<EncounterState[]>([]);
 const runningLoaded = ref(false);
@@ -26,6 +28,9 @@ export function useRunningEncounters() {
 
   function subscribe() {
     if (runChannel || !campaign.activeCampaignId) return;
+    // Without this, a DM whose socket dropped kept showing an encounter as
+    // running (or missed one starting) until a full reload.
+    runHeal = createRealtimeHeal(() => void fetchRunning());
     runChannel = supabase
       .channel(`running_encounters:${campaign.activeCampaignId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "encounter_state",
@@ -45,7 +50,7 @@ export function useRunningEncounters() {
             }
           }
         })
-      .subscribe();
+      .subscribe((status) => runHeal?.onStatus(status));
   }
 
   runRefCount++;
@@ -55,6 +60,10 @@ export function useRunningEncounters() {
   onUnmounted(() => {
     runRefCount--;
     if (runRefCount === 0 && runChannel) {
+      // Detach before removeChannel(): the resulting CLOSED must not land on a
+      // handle we are about to discard.
+      runHeal?.detach();
+      runHeal = null;
       supabase.removeChannel(runChannel);
       runChannel = null;
       runningStates.value = [];
@@ -219,6 +228,12 @@ export function usePlayerEncounterLive(campaignId: string) {
     liveState.value = data ? (data as EncounterState) : null;
   }
 
+  // hiddenReconcileMs: 0 keeps the previous "refetch on every return to the tab"
+  // behaviour rather than waiting out a background threshold. This is one row,
+  // it is live combat, and a player who alt-tabs mid-fight must not come back to
+  // a stale board — the 2s throttle is enough to stop wake signals stacking.
+  const heal = createRealtimeHeal(() => void fetchRunning(), { hiddenReconcileMs: 0 });
+
   function subscribe() {
     if (playerChannel || !campaignId) return;
     playerChannel = supabase
@@ -258,22 +273,14 @@ export function usePlayerEncounterLive(campaignId: string) {
           // else: a different, non-running encounter changed — ignore.
         },
       )
-      .subscribe();
-  }
-
-  // On tab focus: re-fetch to catch any state changes missed while the
-  // WebSocket was idle. The global supabase.realtime.connect() handler
-  // (in supabase.ts) will have already reconnected the channel itself.
-  function onVisibility() {
-    if (document.visibilityState === "visible") void fetchRunning();
+      .subscribe((status) => heal.onStatus(status));
   }
 
   fetchRunning();
   subscribe();
-  document.addEventListener("visibilitychange", onVisibility);
 
   onUnmounted(() => {
-    document.removeEventListener("visibilitychange", onVisibility);
+    heal.detach();
     if (playerChannel) {
       supabase.removeChannel(playerChannel);
       playerChannel = null;

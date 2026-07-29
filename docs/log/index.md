@@ -4,7 +4,7 @@ Curated history of shipped features and resolved bugs, chunked by subsystem. Thi
 is a **log**, not a tracker: open work lives in GitHub issues on `irongollem/grimoire`.
 
 - **Features** (556 entries) — what shipped, newest first per file.
-- **Fixes** (277 entries) — resolved bugs, newest first per file.
+- **Fixes** (278 entries) — resolved bugs, newest first per file.
 
 When you finish work, append a `- [x]` line to the matching file below
 (`features/<subsystem>.md` for a feature, `fixes/<subsystem>.md` for a bug fix).
@@ -44,7 +44,7 @@ Pick the subsystem the change is primarily about; use `misc` only as a last reso
 | Subsystem | Count | File |
 | --- | ---: | --- |
 | Campaign | 11 | [fixes/campaign.md](fixes/campaign.md) |
-| Collaboration | 6 | [fixes/collaboration.md](fixes/collaboration.md) |
+| Collaboration | 7 | [fixes/collaboration.md](fixes/collaboration.md) |
 | Player Portal | 8 | [fixes/players.md](fixes/players.md) |
 | Rules Reliquary | 1 | [fixes/rules.md](fixes/rules.md) |
 | Content & Import | 7 | [fixes/content.md](fixes/content.md) |
