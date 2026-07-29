@@ -21,7 +21,7 @@ import type { Editor } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { findPendingImages } from "@/lib/pendingImages";
 import { waitForImageJob } from "@/ai/useImageJob";
-import { getLocalImageJob } from "@/ai/useChroniclerImageGeneration";
+import { getLocalImageJob } from "@/ai/useImageGeneration";
 import { useToast } from "@/composables/useToast";
 
 // Module-level so multiple resolver instances (or repeated scan() calls)

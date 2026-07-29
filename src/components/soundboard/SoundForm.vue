@@ -290,12 +290,18 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick, onMounted, onUnmounted } from "vue";
+import { useQueryClient } from "@tanstack/vue-query";
 import { useCreateSound, useSoundUpload } from "@/composables/useSounds";
 import { useSpotifyStore } from "@/stores/spotify";
 import { useSubscription } from "@/composables/useSubscription";
 import { generateMusicWithLyria, structureMusicPrompt, LYRIA_MODELS, LYRICS_MAX_CHARS, type LyriaModel } from "@/lib/aiMusic";
 import { logUsage, useAiCredits } from "@/composables/useAiCredits";
 import { supabase } from "@/lib/supabase";
+import {
+  acknowledgeAiGenerationJob,
+  listUnconsumedAiGenerationJobs,
+  waitForAiGenerationJob,
+} from "@/ai/useAiGenerationJob";
 import SoundProviderBrowser from "@/components/soundboard/SoundProviderBrowser.vue";
 import type { SoundCategory } from "@/types/sound.types";
 
@@ -321,10 +327,113 @@ type SourceTab = "url" | "upload" | "spotify" | "generate" | "browse";
 
 const activeSourceTab = ref<SourceTab>("url");
 
+interface MusicGenerationResult {
+  campaign_id: string;
+  sound_id: string;
+}
+
+const MUSIC_REQUEST_STORAGE_PREFIX = "grimoire_music_request:";
+
+interface PendingMusicRequest {
+  requestId: string;
+  fingerprint: string;
+}
+
+/**
+ * Store the idempotency key before the HTTP request leaves this tab. Reusing it
+ * for the same draft turns a lost invoke response into a safe retry instead of
+ * a second paid generation.
+ */
+async function getOrCreateMusicRequestId(originCampaignId: string, fingerprint: string): Promise<string> {
+  const storageKey = `${MUSIC_REQUEST_STORAGE_PREFIX}${originCampaignId}`;
+  try {
+    const saved = JSON.parse(localStorage.getItem(storageKey) ?? "null") as PendingMusicRequest | null;
+    if (saved?.requestId && saved.fingerprint === fingerprint) {
+      // A retry reuses a pending request, but a terminal result must not trap
+      // the same form inputs behind an old failed/consumed job forever.
+      const { data, error } = await supabase
+        .from("ai_generation_jobs")
+        .select("status, consumed_at")
+        .eq("generator_type", "music")
+        .eq("idempotency_key", saved.requestId)
+        .maybeSingle();
+      const job = data as { status: string; consumed_at: string | null } | null;
+      if (error || !job || (job.status !== "failed" && !(job.status === "ready" && job.consumed_at))) {
+        return saved.requestId;
+      }
+      localStorage.removeItem(storageKey);
+    }
+    const requestId = crypto.randomUUID();
+    localStorage.setItem(storageKey, JSON.stringify({ requestId, fingerprint } satisfies PendingMusicRequest));
+    return requestId;
+  } catch {
+    // The server-side job is still durable once the request reaches it.
+    return crypto.randomUUID();
+  }
+}
+
+function forgetMusicRequest(originCampaignId: string, requestId?: string): void {
+  if (!requestId) return;
+  try {
+    const storageKey = `${MUSIC_REQUEST_STORAGE_PREFIX}${originCampaignId}`;
+    const saved = JSON.parse(localStorage.getItem(storageKey) ?? "null") as PendingMusicRequest | null;
+    if (saved?.requestId === requestId) localStorage.removeItem(storageKey);
+  } catch {
+    // Nothing else to clean up.
+  }
+}
+
 const form = ref<{ name: string; category: SoundCategory; external_url: string }>({
   name: "",
   category: "ambient",
   external_url: "",
+});
+const queryClient = useQueryClient();
+
+async function saveReadyMusicJob(
+  jobId: string,
+  job: Awaited<ReturnType<typeof waitForAiGenerationJob<MusicGenerationResult>>>,
+  requestId?: string,
+): Promise<void> {
+  if (!job.artifacts.url || !job.artifacts.storagePath || !job.result_json?.sound_id) {
+    throw new Error("The music job finished without a stored sound.");
+  }
+  await queryClient.invalidateQueries({ queryKey: ["sounds", job.result_json.campaign_id] });
+  await acknowledgeAiGenerationJob(jobId);
+  forgetMusicRequest(job.result_json.campaign_id, requestId);
+}
+
+async function resumeMusicJob(jobId: string, expectedCampaignId: string, requestId?: string): Promise<void> {
+  const job = await waitForAiGenerationJob<MusicGenerationResult>(jobId);
+  if (job.consumedAt) {
+    forgetMusicRequest(expectedCampaignId, requestId);
+    return;
+  }
+  if (job.result_json?.campaign_id !== expectedCampaignId) {
+    throw new Error("This music job belongs to a different campaign.");
+  }
+  await saveReadyMusicJob(jobId, job, requestId);
+}
+
+async function recoverReadyMusicJobs(): Promise<void> {
+  if (!campaignId) return;
+  try {
+    const jobs = await listUnconsumedAiGenerationJobs<MusicGenerationResult>({
+      campaignId,
+      generatorType: "music",
+    });
+    for (const job of jobs) {
+      if (!job.result_json?.sound_id || job.result_json.campaign_id !== campaignId) continue;
+      await saveReadyMusicJob(job.id, job);
+      emit("saved");
+    }
+  } catch (error) {
+    generateError.value = error instanceof Error ? error.message : "Could not recover completed music.";
+  }
+}
+
+onMounted(() => {
+  void recoverReadyMusicJobs();
 });
 
 // ── Upload tab ────────────────────────────────────────────────────────────
@@ -535,9 +644,18 @@ async function handleSubmit() {
       isStructuring.value = false;
     }
 
-    // Step 2: generate music with Lyria — client-side (local BYOK) or edge function
+    // Capture sound metadata before the async work begins. The server stores
+    // the same snapshot on its durable job, so switching campaigns or pages
+    // while Lyria runs can never attach the finished audio to the wrong board.
+    const soundName = form.value.name.trim() || generatePrompt.value.trim().slice(0, 60);
+    const soundCategory = form.value.category;
+    const originatingCampaignId = campaignId;
+    const originatingPageId = pageId ?? null;
+
+    // Step 2: generate music with Lyria — local BYOK remains browser-owned;
+    // all server-key work returns a durable job id and stores audio server-side.
     isGenerating.value = true;
-    let file: File;
+    let file: File | null = null;
     const isLocalMode = typeof localStorage !== "undefined" && localStorage.getItem("grimoire_key_local_mode") === "local";
 
     try {
@@ -550,23 +668,40 @@ async function handleSubmit() {
         );
         logUsage({ reason: "music_generation", imageUsage: { model: generateModel.value, provider: "google", image_count: 1 } });
       } else {
-        if (!campaignId) throw new Error("No campaign or API key configured for music generation.");
+        if (!originatingCampaignId) throw new Error("No campaign or API key configured for music generation.");
+        const requestFingerprint = JSON.stringify({
+          // The structuring pass is itself generative; key retries from the
+          // user's original intent so a lost music invoke response cannot turn
+          // a differently worded retry into another paid request.
+          style: generatePrompt.value.trim(),
+          model: generateModel.value,
+          lyrics: generateLyrics.value.trim() || null,
+          name: soundName,
+          category: soundCategory,
+          pageId: originatingPageId,
+        });
+        const requestId = await getOrCreateMusicRequestId(originatingCampaignId, requestFingerprint);
         const { data, error } = await supabase.functions.invoke("generate-music", {
           body: {
-            campaign_id: campaignId,
+            request_id: requestId,
+            campaign_id: originatingCampaignId,
             style: finalPrompt,
             model: generateModel.value,
             lyrics: generateLyrics.value.trim() || undefined,
+            sound_name: soundName,
+            category: soundCategory,
+            page_id: originatingPageId,
           },
         });
         if (error) throw new Error(error.message);
         if (data?.error) throw new Error(data.error);
 
-        const binary = atob(data.audio_base64 as string);
-        const bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-        const blob = new Blob([bytes], { type: (data.mime_type as string) ?? "audio/mpeg" });
-        file = new File([blob], `ai-generated-${Date.now()}.mp3`, { type: "audio/mpeg" });
+        const jobId = (data as { job_id?: string } | null)?.job_id;
+        if (!jobId) throw new Error("Music generator did not return a job id.");
+        await resumeMusicJob(jobId, originatingCampaignId, requestId);
+        emit("saved");
+        resetForm();
+        return;
       }
     } catch (err) {
       generateError.value = err instanceof Error ? err.message : "Generation failed.";
@@ -575,7 +710,7 @@ async function handleSubmit() {
       isGenerating.value = false;
     }
 
-    const result = await upload(file);
+    const result = await upload(file!);
     if (!result) {
       generateError.value = "Upload failed. Please try again.";
       return;

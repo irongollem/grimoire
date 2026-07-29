@@ -84,14 +84,14 @@ export function useCreateSound() {
   const auth = useAuthStore();
 
   return useMutation({
-    mutationFn: (sound: Omit<SoundInsert, "campaign_id">) =>
+    mutationFn: (sound: Omit<SoundInsert, "campaign_id"> & { campaign_id?: string }) =>
       createSound({
         ...sound,
-        campaign_id: activeCampaignId.value!,
+        campaign_id: sound.campaign_id ?? activeCampaignId.value!,
         user_id: auth.user!.id,
       }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: [QUERY_KEY, activeCampaignId.value] });
+    onSuccess: (_sound, input) => {
+      qc.invalidateQueries({ queryKey: [QUERY_KEY, input.campaign_id ?? activeCampaignId.value] });
     },
   });
 }

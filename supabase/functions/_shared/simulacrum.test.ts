@@ -8,6 +8,7 @@ import {
   resolveSculptOutcome,
   meshyParamsForFormat,
   isStale,
+  sculptPhaseStartedAt,
   type MiniStatusB,
 } from "./simulacrum";
 
@@ -215,5 +216,24 @@ describe("isStale", () => {
   });
   it("is false for an unparsable timestamp (fail toward not stale)", () => {
     expect(isStale("not-a-date", now)).toBe(false);
+  });
+});
+
+describe("sculptPhaseStartedAt", () => {
+  it("does not let a poll-lease bookkeeping update extend the sculpt timeout", () => {
+    expect(sculptPhaseStartedAt({
+      status: "sculpting",
+      sculpt_started_at: "2026-07-18T11:00:00.000Z",
+      updated_at: "2026-07-18T12:00:00.000Z",
+    })).toBe("2026-07-18T11:00:00.000Z");
+  });
+
+  it("uses the download phase clock once the model is being fetched", () => {
+    expect(sculptPhaseStartedAt({
+      status: "downloading",
+      sculpt_started_at: "2026-07-18T11:00:00.000Z",
+      download_started_at: "2026-07-18T11:30:00.000Z",
+      updated_at: "2026-07-18T12:00:00.000Z",
+    })).toBe("2026-07-18T11:30:00.000Z");
   });
 });

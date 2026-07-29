@@ -44,20 +44,20 @@
       <div class="flex flex-col items-center gap-1.5">
         <button
           type="button"
-          :disabled="isStylizing || !sourcePortraitUrl || !affordable(stylizeCost)"
+          :disabled="isStylizing || isResumingStylize || !sourcePortraitUrl || !affordable(stylizeCost)"
           class="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-label-lg font-semibold rounded-md disabled:opacity-50 transition-opacity"
           :class="stylizedUrl
             ? 'border border-border hover:bg-muted text-foreground'
             : 'bg-primary text-primary-foreground hover:opacity-90'"
           @click="runStylize"
         >
-          <IconGenerate class="h-3.5 w-3.5" :class="isStylizing ? 'animate-pulse text-primary' : ''" />
-          {{ isStylizing ? (stylizedUrl ? 'Re-rolling…' : 'Stylizing…') : (stylizedUrl ? 'Re-roll' : 'Stylize portrait') }}
+          <IconGenerate class="h-3.5 w-3.5" :class="(isStylizing || isResumingStylize) ? 'animate-pulse text-primary' : ''" />
+          {{ (isStylizing || isResumingStylize) ? (stylizedUrl ? 'Re-rolling…' : 'Stylizing…') : (stylizedUrl ? 'Re-roll' : 'Stylize portrait') }}
         </button>
         <GenerationCostBadge :credits="stylizeCost" :show-balance="false" />
       </div>
 
-      <div v-if="stylizedUrl" class="flex justify-end pt-2 border-t border-border">
+      <div v-if="stylizedUrl && !isResumingStylize" class="flex justify-end pt-2 border-t border-border">
         <button
           type="button"
           class="px-4 py-2 font-cinzel text-xs font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity"
@@ -73,7 +73,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { IconGenerate } from "@/lib/icons";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import ProFeatureGate from "@/components/common/ProFeatureGate.vue";
@@ -101,11 +101,13 @@ const { isPro } = useSubscription();
 
 const campaign = useCampaignStore();
 const { costOf, affordable } = useAiCredits();
-const { stylize, isStylizing } = useMiniForge();
+const { stylize, waitForStylize, isStylizing } = useMiniForge();
 
 const instructions = ref("");
 const error = ref<string | null>(null);
 const stylizedUrl = computed(() => mini?.stylized_image_url ?? null);
+const isResumingStylize = ref(false);
+const observedJobId = ref<string | null>(null);
 
 // Stylize always runs at 1024x1024 (square baseline, so no size multiplier).
 const stylizeCost = computed(() => costOf("entity_image", { size: "1024x1024" }));
@@ -127,4 +129,24 @@ async function runStylize() {
     error.value = e instanceof Error ? e.message : "Stylizing failed. Please try again.";
   }
 }
+
+// An active job belongs to the mini, not this component. Pick it up whenever
+// the forge is reopened (or Realtime updates the resumed mini) instead of
+// letting navigation turn a paid render into an indistinguishable retry.
+watch(
+  () => mini?.stylize_job_id ?? null,
+  (jobId) => {
+    if (!jobId || jobId === observedJobId.value) return;
+    observedJobId.value = jobId;
+    isResumingStylize.value = true;
+    error.value = null;
+    void waitForStylize(mini!.id, jobId)
+      .then((updated) => emit("stylized", updated))
+      .catch((e) => {
+        error.value = e instanceof Error ? e.message : "Stylizing failed. Please try again.";
+      })
+      .finally(() => { isResumingStylize.value = false; });
+  },
+  { immediate: true },
+);
 </script>

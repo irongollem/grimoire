@@ -16,7 +16,7 @@ import { createClient } from "@supabase/supabase-js";
 import { withCors } from "../_shared/cors.ts";
 import { releaseCredits, recordGeneration } from "../_shared/credits.ts";
 import { getImageTo3dTask, resolveMeshyKey, type MeshFormat } from "../_shared/mesh3d.ts";
-import { resolveSculptOutcome, isStale, type MiniStatusB } from "../_shared/simulacrum.ts";
+import { resolveSculptOutcome, isStale, sculptPhaseStartedAt, type MiniStatusB } from "../_shared/simulacrum.ts";
 import { uploadWithRetry, fetchBytes } from "../_shared/storage-upload.ts";
 import { composeStl, figureScaleFor } from "../_shared/mesh-compose.ts";
 import { composeGlb, figureScaleForGlb } from "../_shared/glb-compose.ts";
@@ -50,6 +50,43 @@ interface MiniRow {
   sculpt_count: number;
   scale_mm: 28 | 32;
   updated_at: string;
+  sculpt_started_at: string | null;
+  download_started_at: string | null;
+  poll_lease_id: string | null;
+  poll_lease_until: string | null;
+  poll_last_error: string | null;
+}
+
+const POLL_LEASE_MS = 10 * 60 * 1000;
+
+/**
+ * Every state-changing poll write is conditional on this worker's lease. A
+ * pg_net cron tick may overlap a slow download, but only the worker that still
+ * owns the lease can publish a result or settle the credit reservation.
+ */
+async function updateLeasedMini(
+  mini: MiniRow,
+  patch: Record<string, unknown>,
+  statuses: MiniStatusB[] = [mini.status],
+): Promise<boolean> {
+  if (!mini.poll_lease_id) return false;
+  const { data } = await admin
+    .from("minis")
+    .update(patch)
+    .eq("id", mini.id)
+    .eq("poll_lease_id", mini.poll_lease_id)
+    .in("status", statuses)
+    .select("id")
+    .maybeSingle();
+  return !!data;
+}
+
+async function releaseLease(mini: MiniRow, error?: string): Promise<void> {
+  await updateLeasedMini(mini, {
+    poll_lease_id: null,
+    poll_lease_until: null,
+    ...(error ? { poll_last_error: error.slice(0, 1000) } : {}),
+  });
 }
 
 const CONTENT_TYPES: Record<MeshFormat | "thumb", string> = {
@@ -71,15 +108,19 @@ async function uploadModelFile(path: string, bytes: Uint8Array, contentType: str
 }
 
 /** Terminal failure path shared by "no task id" / "no Meshy key" / resolveSculptOutcome's "fail". */
-async function failMini(mini: MiniRow, nextStatus: MiniStatusB, error: string, creditsSpent: number): Promise<void> {
-  if (mini.reservation_ids?.length) await releaseCredits(admin, mini.reservation_ids);
-  await admin.from("minis").update({
+async function failMini(mini: MiniRow, nextStatus: MiniStatusB, error: string, creditsSpent: number): Promise<boolean> {
+  const won = await updateLeasedMini(mini, {
     status: nextStatus,
     error,
     meshy_task_id: null,
     reservation_ids: null,
     credits_spent: creditsSpent,
-  }).eq("id", mini.id);
+    poll_lease_id: null,
+    poll_lease_until: null,
+    poll_last_error: error.slice(0, 1000),
+  }, ["sculpting", "downloading"]);
+  if (won && mini.reservation_ids?.length) await releaseCredits(admin, mini.reservation_ids);
+  return won;
 }
 
 /**
@@ -126,14 +167,17 @@ async function composeMiniModel(
 }
 
 async function processMini(mini: MiniRow, meshyKey: string): Promise<void> {
+  const stale = isStale(sculptPhaseStartedAt(mini), Date.now());
+
   if (!mini.meshy_task_id) {
-    // A sculpting/downloading row with no task id is corrupt state, not a
-    // transient one — no existing model possible without a prior sculpt.
-    await failMini(mini, "failed", "No Meshy task id recorded", 0);
+    // There is an unavoidable provider boundary between creating Meshy's task
+    // and persisting its id. Do not immediately discard a task if the edge
+    // request was merely still finishing; fail only once its sculpt phase has
+    // exceeded the normal provider window.
+    if (stale) await failMini(mini, "failed", "Meshy task id was not recorded", 0);
+    else await releaseLease(mini, "Waiting for Meshy task id");
     return;
   }
-
-  const stale = isStale(mini.updated_at, Date.now());
 
   // A row stuck in "downloading" past the stale window means the download step
   // itself keeps failing (SUCCEEDED tasks would otherwise re-enter "complete"
@@ -145,14 +189,31 @@ async function processMini(mini: MiniRow, meshyKey: string): Promise<void> {
     return;
   }
 
-  const task = await getImageTo3dTask(meshyKey, mini.meshy_task_id);
+  let task: Awaited<ReturnType<typeof getImageTo3dTask>>;
+  try {
+    task = await getImageTo3dTask(meshyKey, mini.meshy_task_id);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Meshy status check failed";
+    // A status API outage must not make a row immortal. The phase clock is
+    // deliberately independent of leases, so it eventually terminally fails.
+    if (stale) {
+      const nextStatus = mini.glb_path ? "ready" : "failed";
+      await failMini(mini, nextStatus, `Meshy status checks kept failing: ${message}`, nextStatus === "failed" ? 0 : mini.credits_spent);
+    } else {
+      await releaseLease(mini, message);
+    }
+    return;
+  }
   const outcome = resolveSculptOutcome({
     taskStatus: task.status,
     hasExistingModel: !!mini.glb_path,
     stale,
   });
 
-  if (outcome.kind === "wait") return;
+  if (outcome.kind === "wait") {
+    await releaseLease(mini);
+    return;
+  }
 
   if (outcome.kind === "fail") {
     const creditsSpent = outcome.nextStatus === "failed" ? 0 : mini.credits_spent;
@@ -161,9 +222,15 @@ async function processMini(mini: MiniRow, meshyKey: string): Promise<void> {
   }
 
   // outcome.kind === "complete" — only stamp "downloading" on the first entry;
-  // re-stamping on retry ticks would reset the staleness clock (see above).
+  // re-stamping on retry ticks would reset the phase clock (see above).
   if (mini.status !== "downloading") {
-    await admin.from("minis").update({ status: "downloading" }).eq("id", mini.id);
+    const moved = await updateLeasedMini(mini, {
+      status: "downloading",
+      download_started_at: new Date().toISOString(),
+      poll_last_error: null,
+    }, ["sculpting"]);
+    if (!moved) return;
+    mini = { ...mini, status: "downloading", download_started_at: new Date().toISOString() };
   }
 
   // Formats + thumbnail are independent fetch→upload pairs — run them together.
@@ -222,7 +289,7 @@ async function processMini(mini: MiniRow, meshyKey: string): Promise<void> {
     console.error(`poll-meshy-jobs: auto-compose failed for mini ${mini.id} — falling back to raw model`, e);
   }
 
-  await admin.from("minis").update({
+  const completed = await updateLeasedMini(mini, {
     glb_path: paths.glb ?? null,
     stl_path: paths.stl ?? null,
     extra_paths: extraPaths,
@@ -234,11 +301,17 @@ async function processMini(mini: MiniRow, meshyKey: string): Promise<void> {
     error: null,
     meshy_task_id: null,
     reservation_ids: null,
-  }).eq("id", mini.id);
+    poll_lease_id: null,
+    poll_lease_until: null,
+    poll_last_error: null,
+  }, ["downloading"]);
+
+  if (!completed) return;
 
   // Settle the hold and record the real (historical) spend — credits_spent
   // itself is left untouched as the charge record (forge-mini's sculpt step
-  // already wrote it).
+  // already wrote it). `completed` is the terminal ownership guard: an
+  // overlapping/reclaimed worker cannot enter this block and double-charge.
   if (mini.reservation_ids?.length) {
     await releaseCredits(admin, mini.reservation_ids);
     await recordGeneration(admin, mini.user_id, "mini_sculpt", false, mini.credits_spent).catch(console.error);
@@ -266,31 +339,81 @@ serve(withCors(async (req: Request) => {
     if (!timingSafeEqual(token, expected)) return new Response("Unauthorized", { status: 401 });
   }
 
-  const { data: minis } = await admin
+  const nowIso = new Date().toISOString();
+  const { data: candidates } = await admin
     .from("minis")
-    .select("id, user_id, format, status, meshy_task_id, glb_path, reservation_ids, credits_spent, sculpt_count, scale_mm, updated_at")
+    .select("id, user_id, format, status, meshy_task_id, glb_path, reservation_ids, credits_spent, sculpt_count, scale_mm, updated_at, sculpt_started_at, download_started_at, poll_lease_id, poll_lease_until, poll_last_error")
     .in("status", ["sculpting", "downloading"])
+    .or(`poll_lease_until.is.null,poll_lease_until.lt.${nowIso}`)
+    .order("sculpt_started_at", { ascending: true, nullsFirst: true })
     .limit(20);
 
-  const rows = (minis ?? []) as MiniRow[];
+  const rows = (candidates ?? []) as MiniRow[];
   if (!rows.length) return new Response(JSON.stringify({ processed: 0 }), { headers: { "Content-Type": "application/json" } });
 
   // One key fetch per tick, not per mini — it can't differ between rows.
   const meshyKey = await resolveMeshyKey(admin);
   if (!meshyKey) {
     // Shouldn't happen — forge-mini checked the key before creating any task —
-    // but fail the batch safely rather than poll forever.
-    for (const mini of rows) await failMini(mini, "failed", "Meshy platform key unavailable", 0);
+    // but fail the batch safely rather than poll forever. These rows are not
+    // leased yet, so use the same expired/no-lease predicate as a claim.
+    for (const mini of rows) {
+      const { data: failed } = await admin
+        .from("minis")
+        .update({
+          status: "failed",
+          error: "Meshy platform key unavailable",
+          meshy_task_id: null,
+          reservation_ids: null,
+          credits_spent: 0,
+          poll_lease_id: null,
+          poll_lease_until: null,
+          poll_last_error: "Meshy platform key unavailable",
+        })
+        .eq("id", mini.id)
+        .in("status", ["sculpting", "downloading"])
+        .or(`poll_lease_until.is.null,poll_lease_until.lt.${nowIso}`)
+        // The update clears reservation_ids, so return only the claim signal.
+        // Release the pre-update value from `mini` after this conditional write
+        // wins; releasing first could drop another worker's live reservation.
+        .select("id");
+      if (failed?.length && mini.reservation_ids?.length) {
+        await releaseCredits(admin, mini.reservation_ids);
+      }
+    }
     return new Response(JSON.stringify({ processed: 0 }), { headers: { "Content-Type": "application/json" } });
   }
 
   let processed = 0;
-  for (const mini of rows) {
+  for (const candidate of rows) {
+    const leaseId = crypto.randomUUID();
+    const leaseUntil = new Date(Date.now() + POLL_LEASE_MS).toISOString();
+    // Re-check both the state and expired/no lease inside the UPDATE. This is
+    // the atomic claim that makes concurrent cron HTTP calls safe.
+    const { data: claimed } = await admin
+      .from("minis")
+      .update({ poll_lease_id: leaseId, poll_lease_until: leaseUntil, poll_last_error: null })
+      .eq("id", candidate.id)
+      .in("status", ["sculpting", "downloading"])
+      .or(`poll_lease_until.is.null,poll_lease_until.lt.${nowIso}`)
+      .select("id, user_id, format, status, meshy_task_id, glb_path, reservation_ids, credits_spent, sculpt_count, scale_mm, updated_at, sculpt_started_at, download_started_at, poll_lease_id, poll_lease_until, poll_last_error")
+      .maybeSingle();
+    if (!claimed) continue;
+    const mini = claimed as MiniRow;
     try {
       await processMini(mini, meshyKey);
       processed++;
     } catch (e) {
       console.error(`poll-meshy-jobs: mini ${mini.id} failed`, e);
+      const message = e instanceof Error ? e.message : "Model processing failed";
+      // Download/compose failures retry while the phase is fresh. Once its
+      // independently tracked phase clock is stale, stop retrying forever.
+      if (isStale(sculptPhaseStartedAt(mini), Date.now())) {
+        const nextStatus = mini.glb_path ? "ready" : "failed";
+        await failMini(mini, nextStatus, message, nextStatus === "failed" ? 0 : mini.credits_spent);
+      } else {
+        await releaseLease(mini, message);
+      }
     }
   }
 

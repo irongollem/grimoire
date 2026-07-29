@@ -1,15 +1,13 @@
-import { useAuthStore } from "@/stores/auth";
-import { uploadWithVariants } from "@/lib/storage";
 import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@/lib/edgeError";
 import type { NpcAiResult, NpcAiGenerated } from "./types";
 import {
   buildCampaignContext,
 } from "./utils";
-import { fetchSystemPrompt, fetchImageBasePrompt, fetchRulesetContext } from "./systemPrompts";
+import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
 import { useRuleset } from "@/composables/useRuleset";
-import { getTextProvider, getImageProvider } from "./providers";
-import { b64ToBlob, wrapUserInput } from "./utils";
+import { getTextProvider } from "./providers";
+import { wrapUserInput } from "./utils";
 import {
   createAiGenerationState,
   startAiQuotes,
@@ -17,15 +15,12 @@ import {
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { useUiStore } from "@/stores/ui";
-import { useCampaignStore } from "@/stores/campaign";
 import { logUsage } from "@/composables/useAiCredits";
-import { OPENAI_IMAGE_MODEL_KEY } from "./providers";
-import { buildLabelledImagePrompt, buildSimpleImagePrompt } from "./imagePrompt";
-
-interface GenerateNpcResponse extends NpcAiResult {
-  portrait_b64: string | null;
-  disguise_portrait_b64: string | null;
-}
+import {
+  captureImageGenerationContext,
+  generateImage,
+  type ImageGenerationContext,
+} from "@/ai/useImageGeneration";
 
 // ── Module-level singleton state ────────────────────────────────────────────
 const _state = createAiGenerationState();
@@ -47,8 +42,6 @@ registerAiGenerator({
 export { toTiptapJson } from "@/lib/markdownToTiptap";
 
 export function useNpcGeneration() {
-  const auth = useAuthStore();
-  const campaign = useCampaignStore();
   const { ruleset } = useRuleset();
 
   async function generate(
@@ -60,13 +53,16 @@ export function useNpcGeneration() {
     _state.error.value = null;
     startAiQuotes();
 
-    const campaignId = campaign.activeCampaign?.id;
-    if (!campaignId) {
+    let imageContext: ImageGenerationContext;
+    try {
+      imageContext = captureImageGenerationContext();
+    } catch {
       _state.error.value = "No active campaign selected.";
       _state.isGenerating.value = false;
       stopAiQuotes();
       return null;
     }
+    const campaignId = imageContext.campaignId;
 
     try {
       const isLocalMode =
@@ -74,8 +70,8 @@ export function useNpcGeneration() {
         localStorage.getItem("grimoire_key_local_mode") === "local";
 
       return isLocalMode
-        ? await generateClientSide(userPrompt, options)
-        : await generateServerSide(userPrompt, options, campaignId);
+        ? await generateClientSide(userPrompt, options, imageContext)
+        : await generateServerSide(userPrompt, options, campaignId, imageContext);
     } catch (e) {
       _state.error.value = e instanceof Error ? e.message : "Generation failed";
       return null;
@@ -92,18 +88,15 @@ export function useNpcGeneration() {
     userPrompt: string,
     options: { generateAlterEgo?: boolean; generateImage?: boolean } | undefined,
     campaignId: string,
+    imageContext: ImageGenerationContext,
   ): Promise<NpcAiGenerated | null> {
-    const imageModel =
-      (typeof localStorage !== "undefined" ? localStorage.getItem(OPENAI_IMAGE_MODEL_KEY) : null) ??
-      "gpt-image-2";
-
     const { data, error } = await supabase.functions.invoke("generate-npc", {
       body: {
         campaign_id:        campaignId,
         prompt:             userPrompt,
         generate_alter_ego: options?.generateAlterEgo ?? false,
-        generate_image:     options?.generateImage !== false,
-        image_model:        imageModel,
+        // All art goes through the one durable image job pipeline below.
+        generate_image:     false,
       },
     });
 
@@ -114,18 +107,8 @@ export function useNpcGeneration() {
       startAiQuotes("image");
     }
 
-    const { portrait_b64, disguise_portrait_b64, ...npcFields } = data as GenerateNpcResponse;
-
-    const [portrait_url, disguise_portrait_url] = await Promise.all([
-      portrait_b64 && auth.user
-        ? uploadWithVariants({ bucket: "npcPortraits", userId: auth.user.id, blob: b64ToBlob(portrait_b64) })
-        : Promise.resolve(null),
-      disguise_portrait_b64 && auth.user
-        ? uploadWithVariants({ bucket: "npcPortraits", userId: auth.user.id, blob: b64ToBlob(disguise_portrait_b64) })
-        : Promise.resolve(null),
-    ]);
-
-    return { ...npcFields, portrait_url, disguise_portrait_url };
+    const npcData = data as NpcAiResult;
+    return { ...npcData, ...await generateNpcImages(npcData, options, imageContext) };
   }
 
   // ── Client-side path (key kept in localStorage, never leaves the browser) ──
@@ -134,14 +117,14 @@ export function useNpcGeneration() {
   async function generateClientSide(
     userPrompt: string,
     options: { generateAlterEgo?: boolean; generateImage?: boolean } | undefined,
+    imageContext: ImageGenerationContext,
   ): Promise<NpcAiGenerated | null> {
-    const settingPrompt = campaign.activeCampaign?.ai_setting_prompt ?? "";
+    const settingPrompt = imageContext.settingPrompt;
 
     // ── 1. Text generation ─────────────────────────────────────────────────
     const textProvider = getTextProvider();
-    const [basePrompt, imageBasePrompt, rulesetContext] = await Promise.all([
+    const [basePrompt, rulesetContext] = await Promise.all([
       fetchSystemPrompt("npc"),
-      fetchImageBasePrompt(),
       fetchRulesetContext(ruleset.value),
     ]);
     if (!basePrompt) throw new Error("NPC system prompt not configured.");
@@ -166,65 +149,34 @@ export function useNpcGeneration() {
       throw new Error("AI response was missing disguise fields — please try again.");
     }
 
-    // ── 2. Image generation ────────────────────────────────────────────────
+    return { ...npcData, ...await generateNpcImages(npcData, options, imageContext) };
+  }
+
+  async function generateNpcImages(
+    npcData: NpcAiResult,
+    options: { generateAlterEgo?: boolean; generateImage?: boolean } | undefined,
+    imageContext: ImageGenerationContext,
+  ): Promise<Pick<NpcAiGenerated, "portrait_url" | "disguise_portrait_url">> {
     let portrait_url: string | null = null;
     let disguise_portrait_url: string | null = null;
-
-    if (options?.generateImage !== false && npcData.true_portrait_prompt && auth.user) {
-      startAiQuotes("image");
-
-      const imageProvider = getImageProvider();
-      const imagePrompt = buildLabelledImagePrompt({
-        base: imageBasePrompt,
-        setting: settingPrompt,
-        subject: npcData.true_portrait_prompt,
-      });
-
-      let portraitB64: string | null = null;
-      try {
-        const { b64, usage: imgUsage } = await imageProvider.generate(imagePrompt, "1024x1536");
-        portraitB64 = b64;
-        logUsage({ reason: "npc_portrait", imageUsage: imgUsage });
-        portrait_url = await uploadWithVariants({
-          bucket: "npcPortraits",
-          userId: auth.user.id,
-          blob: b64ToBlob(b64),
-        });
-      } catch {
-        // non-fatal — continue without portrait
-      }
-
-      if (
-        options?.generateAlterEgo &&
-        portraitB64 &&
-        npcData.disguise_image_prompt &&
-        imageProvider.edit &&
-        auth.user
-      ) {
-        const disguisePrompt = buildSimpleImagePrompt({
-          base: imageBasePrompt,
-          setting: settingPrompt,
-          subject: npcData.disguise_image_prompt,
-        });
-        try {
-          const { b64: disguiseB64, usage: disguiseUsage } = await imageProvider.edit(
-            [b64ToBlob(portraitB64)],
-            disguisePrompt,
-            "1024x1536",
-          );
-          logUsage({ reason: "npc_disguise_portrait", imageUsage: disguiseUsage });
-          disguise_portrait_url = await uploadWithVariants({
-            bucket: "npcPortraits",
-            userId: auth.user.id,
-            blob: b64ToBlob(disguiseB64),
-          });
-        } catch {
-          // non-fatal — continue without disguise portrait
-        }
-      }
+    if (options?.generateImage === false || !npcData.true_portrait_prompt) {
+      return { portrait_url, disguise_portrait_url };
     }
-
-    return { ...npcData, portrait_url, disguise_portrait_url };
+    startAiQuotes("image");
+    try {
+      portrait_url = await generateImage({ ...imageContext, purpose: "npc_portrait", subject: npcData.true_portrait_prompt });
+    } catch { /* art is non-fatal */ }
+    if (options?.generateAlterEgo && portrait_url && npcData.disguise_image_prompt) {
+      try {
+        disguise_portrait_url = await generateImage({
+          ...imageContext,
+          purpose: "npc_disguise",
+          subject: npcData.disguise_image_prompt,
+          referenceUrls: [portrait_url],
+        });
+      } catch { /* disguise art is non-fatal */ }
+    }
+    return { portrait_url, disguise_portrait_url };
   }
 
   return { ..._state, generate };

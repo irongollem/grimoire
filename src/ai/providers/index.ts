@@ -35,15 +35,25 @@ export function getTextProvider(): TextProvider {
 
 export const OPENAI_IMAGE_MODEL_KEY = "grimoire_openai_image_model";
 
-export function getImageProvider(): ImageProvider {
-  const provider = useCampaignStore().activeCampaign?.image_provider ?? "openai";
-  const key = resolveKey(provider);
+export function getImageProvider(options: {
+  imageProvider?: string | null;
+  imageModel?: string;
+  /** Captured local-vault key. Null means the captured campaign had no key. */
+  apiKey?: string | null;
+} = {}): ImageProvider {
+  const provider = options.imageProvider ?? useCampaignStore().activeCampaign?.image_provider ?? "openai";
+  const key = options.apiKey === undefined ? resolveKey(provider) : (options.apiKey ?? "");
+  if (!key) {
+    throw new Error(
+      `No API key configured for ${provider}. Add one in Campaign Settings → AI.`,
+    );
+  }
   switch (provider) {
     case "falai":        return createFalAiImageProvider(key);
     case "gemini":       return createGeminiImageProvider(key);
     case "openai-mini":  return createOpenAiImageProvider(key, "gpt-image-1-mini");
     default: {
-      const model = (typeof localStorage !== "undefined" ? localStorage.getItem(OPENAI_IMAGE_MODEL_KEY) : null) ?? "gpt-image-1.5";
+      const model = options.imageModel ?? (typeof localStorage !== "undefined" ? localStorage.getItem(OPENAI_IMAGE_MODEL_KEY) : null) ?? "gpt-image-1.5";
       return createOpenAiImageProvider(key, model as "gpt-image-2" | "gpt-image-1.5");
     }
   }

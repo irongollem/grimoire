@@ -91,6 +91,7 @@ interface MiniRow {
   format: "print" | "vtt";
   status: MiniStatusB;
   stylized_image_url: string | null;
+  stylize_job_id: string | null;
   meshy_task_id: string | null;
   sculpt_count: number;
   credits_spent: number;
@@ -166,7 +167,24 @@ async function runStylize(args: {
     // Flip the mini BEFORE completing the image job: completeImageJob is the
     // client's unblock signal, and the post-wait refetch must never observe
     // status still "stylizing" (it would offer a sculpt the backend 409s).
-    await admin.from("minis").update({ status: "image_ready", stylized_image_url: imageUrl }).eq("id", miniId);
+    // Only the currently-linked job may publish a style image. This is the
+    // second half of the atomic claim in handleStylize and prevents an old
+    // worker from overwriting a newer re-roll after a delayed completion.
+    const { data: completedMini } = await admin
+      .from("minis")
+      .update({ status: "image_ready", stylized_image_url: imageUrl, stylize_job_id: null, error: null })
+      .eq("id", miniId)
+      .eq("stylize_job_id", jobId)
+      .select("id")
+      .maybeSingle();
+    if (!completedMini) {
+      // The mini may have been deleted or this worker superseded after a
+      // timeout. Never leave its reservation hanging just because the result
+      // can no longer be published.
+      await releaseCredits(admin, reservationIds);
+      await failImageJob(admin, jobId, "Stylize result could not be published");
+      return;
+    }
     await completeImageJob(admin, jobId, imageUrl);
 
     await releaseCredits(admin, reservationIds);
@@ -186,7 +204,11 @@ async function runStylize(args: {
     // A re-roll that fails must not clobber an already-accepted image: only
     // fall back to 'failed' when this mini never had a stylized image before.
     const fallbackStatus = previousHadImage ? previousStatus : "failed";
-    await admin.from("minis").update({ status: fallbackStatus, error: message.slice(0, 1000) }).eq("id", miniId);
+    await admin
+      .from("minis")
+      .update({ status: fallbackStatus, stylize_job_id: null, error: message.slice(0, 1000) })
+      .eq("id", miniId)
+      .eq("stylize_job_id", jobId);
   }
 }
 
@@ -236,11 +258,35 @@ async function handleStylize(
   if (!source.portrait) return json({ error: "no_portrait" }, 400);
 
   let mini: MiniRow;
+  let createdMini = false;
   if (miniId) {
     const { data: existing } = await admin.from("minis").select("*").eq("id", miniId).maybeSingle();
     if (!existing) return json({ error: "not_found" }, 404);
     mini = existing as MiniRow;
     if (mini.user_id !== userId) return json({ error: "forbidden" }, 403);
+    if (mini.stylize_job_id) {
+      const { data: activeJob } = await admin
+        .from("image_generation_jobs")
+        .select("status, error")
+        .eq("id", mini.stylize_job_id)
+        .maybeSingle();
+      if (activeJob?.status === "pending") return json({ error: "stylize_in_progress" }, 409);
+
+      // A stale-job sweep can terminally fail the image job after its edge
+      // worker died. Clear the orphaned link here so the next explicit retry
+      // becomes a fresh, atomically claimed render rather than a permanent
+      // "stylizing" mini.
+      if (activeJob?.status === "failed") {
+        await admin
+          .from("minis")
+          .update({ stylize_job_id: null, status: mini.stylized_image_url ? "image_ready" : "failed", error: activeJob.error ?? "Stylize failed" })
+          .eq("id", mini.id)
+          .eq("stylize_job_id", mini.stylize_job_id);
+        mini = { ...mini, stylize_job_id: null, status: mini.stylized_image_url ? "image_ready" : "failed" };
+      } else {
+        return json({ error: "stylize_in_progress" }, 409);
+      }
+    }
     if (!canStylize(mini.status)) return json({ error: "invalid_state" }, 409);
   } else {
     const { data: inserted, error: insertErr } = await admin.from("minis").insert({
@@ -257,6 +303,7 @@ async function handleStylize(
       return json({ error: "insert_failed" }, 500);
     }
     mini = inserted as MiniRow;
+    createdMini = true;
   }
 
   // Choose the platform image provider — openai first (matches the app-wide
@@ -273,15 +320,24 @@ async function handleStylize(
     platformKeys: { openai: platformKeys.openai, gemini: platformKeys.gemini },
     providerConfigs,
   });
-  if (!img) return json({ error: "no_image_provider" }, 422);
+  if (!img) {
+    if (createdMini) await admin.from("minis").update({ status: "failed", error: "No image provider configured" }).eq("id", mini.id);
+    return json({ error: "no_image_provider" }, 422);
+  }
 
   const baseCost = await fetchCreditCost(admin, "entity_image");
   const cost = Math.round(img.imageMultiplier * baseCost * sizeMultiplier("1024x1024") * 100) / 100;
 
-  if (!(await checkRateLimit(admin, userId, "ai_generation"))) return json({ error: "rate_limited" }, 429);
+  if (!(await checkRateLimit(admin, userId, "ai_generation"))) {
+    if (createdMini) await admin.from("minis").update({ status: "failed", error: "Rate limited" }).eq("id", mini.id);
+    return json({ error: "rate_limited" }, 429);
+  }
 
   const reservation = await reserveCredits(admin, userId, cost, "entity_image");
-  if (!reservation.ok) return reservationFailureResponse(reservation);
+  if (!reservation.ok) {
+    if (createdMini) await admin.from("minis").update({ status: "failed", error: "Insufficient credits" }).eq("id", mini.id);
+    return reservationFailureResponse(reservation);
+  }
 
   const prompt = buildMiniStylizePrompt(format, source.name, instructions);
 
@@ -301,8 +357,29 @@ async function handleStylize(
     });
   } catch (e) {
     await releaseCredits(admin, reservation.ids);
+    if (createdMini) await admin.from("minis").update({ status: "failed", error: "Could not create style job" }).eq("id", mini.id);
     console.error("forge-mini stylize: createImageJob failed", e);
     return json({ error: "job_create_failed" }, 500);
+  }
+
+  // Claim the mini only after the job exists. The `stylize_job_id is null`
+  // predicate is the concurrency boundary: a second tab may create a harmless
+  // pending job, but cannot start a second paid provider render. Its hold and
+  // unused job are immediately cleaned up below.
+  const { data: claimed } = await admin
+    .from("minis")
+    .update({ status: "stylizing", stylize_job_id: jobId, error: null })
+    .eq("id", mini.id)
+    .is("stylize_job_id", null)
+    .in("status", ["stylizing", "image_ready", "failed", "ready"])
+    .select("id")
+    .maybeSingle();
+  if (!claimed) {
+    await Promise.all([
+      admin.from("image_generation_jobs").delete().eq("id", jobId),
+      releaseCredits(admin, reservation.ids),
+    ]);
+    return json({ error: "stylize_in_progress" }, 409);
   }
 
   // @ts-ignore — EdgeRuntime is a Deno Deploy global, not in Deno's type defs.
@@ -360,7 +437,15 @@ async function handleSculptAction(
   // paid Meshy task.
   const { data: claimed } = await admin
     .from("minis")
-    .update({ status: "sculpting", error: null })
+    .update({
+      status: "sculpting",
+      error: null,
+      sculpt_started_at: new Date().toISOString(),
+      download_started_at: null,
+      poll_lease_id: null,
+      poll_lease_until: null,
+      poll_last_error: null,
+    })
     .eq("id", miniId)
     .eq("status", mini.status)
     .eq("sculpt_count", mini.sculpt_count)
@@ -368,7 +453,15 @@ async function handleSculptAction(
   if (!claimed?.length) return json({ error: "invalid_state" }, 409);
 
   const revert = (fields: Record<string, unknown> = {}) =>
-    admin.from("minis").update({ status: mini.status, ...fields }).eq("id", miniId);
+    admin.from("minis").update({
+      status: mini.status,
+      sculpt_started_at: null,
+      download_started_at: null,
+      poll_lease_id: null,
+      poll_lease_until: null,
+      poll_last_error: null,
+      ...fields,
+    }).eq("id", miniId);
 
   let reservationIds: string[] = [];
   if (paid) {
@@ -434,6 +527,11 @@ async function handleCancel(userId: string, body: Record<string, unknown>, json:
     status: "image_ready",
     meshy_task_id: null,
     reservation_ids: null,
+    sculpt_started_at: null,
+    download_started_at: null,
+    poll_lease_id: null,
+    poll_lease_until: null,
+    poll_last_error: null,
     sculpt_count: mini.sculpt_count + 1,
   }).eq("id", miniId);
 

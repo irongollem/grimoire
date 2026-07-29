@@ -6,6 +6,7 @@ import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse, sizeMultiplier } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { createImageJob, completeImageJob, failImageJob, type ImageJobKind } from "../_shared/imageJob.ts";
+import { buildLabelledImagePrompt, buildSimpleImagePrompt } from "../_shared/image-prompt.ts";
 import { fetchProviderConfigs } from "../_shared/provider-config.ts";
 import { generateImage, resolveImageProvider, type ImageProviderKey } from "../_shared/imageGen.ts";
 import { withCors } from "../_shared/cors.ts";
@@ -13,12 +14,45 @@ import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts"
 import { isSafeStorageUrl } from "../_shared/storage-url.ts";
 import { uploadWithRetry } from "../_shared/storage-upload.ts";
 
+// Keep browser-supplied composition inputs bounded before req.json()/atob hold
+// both the encoded and decoded copies in the Edge isolate.
+const MAX_SOURCE_IMAGE_B64_CHARS = 12_000_000;
+
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
-function buildPrompt(sceneText: string, textDescriptions: string[], settingPrompt: string, imageBasePrompt: string): string {
+type ImagePurpose =
+  | "chronicler" | "group_portrait" | "npc_portrait" | "npc_disguise"
+  | "monster" | "item" | "spell" | "faction" | "location" | "location_map"
+  | "trap" | "puzzle" | "party_member" | "species" | "map_style";
+
+const PURPOSE_CONFIG: Record<ImagePurpose, {
+  kind: ImageJobKind;
+  bucket: string;
+  prefix: string;
+  creditType: "chronicle_image" | "entity_image" | "map_style_generation";
+  boostStyle: boolean;
+}> = {
+  chronicler:     { kind: "chronicler",     bucket: "chronicle",       prefix: "scene",    creditType: "chronicle_image",    boostStyle: true },
+  group_portrait: { kind: "group_portrait", bucket: "chronicle",       prefix: "group",    creditType: "chronicle_image",    boostStyle: true },
+  npc_portrait:   { kind: "npc_portrait",   bucket: "npc-portraits",   prefix: "npc",      creditType: "entity_image",       boostStyle: true },
+  npc_disguise:   { kind: "npc_disguise",   bucket: "npc-portraits",   prefix: "disguise", creditType: "entity_image",       boostStyle: true },
+  monster:        { kind: "monster",        bucket: "monster-images",  prefix: "monster",  creditType: "entity_image",       boostStyle: true },
+  item:           { kind: "item",           bucket: "item-images",     prefix: "item",     creditType: "entity_image",       boostStyle: true },
+  spell:          { kind: "spell",          bucket: "spell-images",    prefix: "spell",    creditType: "entity_image",       boostStyle: true },
+  faction:        { kind: "faction",        bucket: "faction-images",  prefix: "faction",  creditType: "entity_image",       boostStyle: true },
+  location:       { kind: "location",       bucket: "location-images", prefix: "location", creditType: "entity_image",       boostStyle: true },
+  location_map:   { kind: "location_map",   bucket: "location-images", prefix: "map",      creditType: "entity_image",       boostStyle: false },
+  trap:           { kind: "trap",           bucket: "trap-images",     prefix: "trap",     creditType: "entity_image",       boostStyle: true },
+  puzzle:         { kind: "puzzle",         bucket: "puzzle-images",   prefix: "puzzle",   creditType: "entity_image",       boostStyle: true },
+  party_member:   { kind: "party_member",   bucket: "chronicle",       prefix: "party",    creditType: "entity_image",       boostStyle: true },
+  species:        { kind: "species",        bucket: "asset-images",    prefix: "species",  creditType: "entity_image",       boostStyle: true },
+  map_style:      { kind: "map_style",      bucket: "location-images", prefix: "styled",   creditType: "map_style_generation", boostStyle: false },
+};
+
+function buildScenePrompt(sceneText: string, textDescriptions: string[], settingPrompt: string, imageBasePrompt: string): string {
   const parts = [imageBasePrompt];
   if (settingPrompt.trim()) parts.push(settingPrompt.trim());
   parts.push("\n\nCompose a scene illustration.");
@@ -37,14 +71,32 @@ function buildPrompt(sceneText: string, textDescriptions: string[], settingPromp
   return parts.join("\n");
 }
 
-async function uploadResult(b64: string, userId: string): Promise<string> {
+function buildPurposePrompt(
+  purpose: ImagePurpose,
+  subject: string,
+  textDescriptions: string[],
+  settingPrompt: string,
+  imageBasePrompt: string,
+): string {
+  if (purpose === "chronicler" || purpose === "group_portrait") {
+    return buildScenePrompt(subject, textDescriptions, settingPrompt, imageBasePrompt);
+  }
+  if (purpose === "npc_portrait") {
+    return buildLabelledImagePrompt({ base: imageBasePrompt, setting: settingPrompt, subject });
+  }
+  if (purpose === "location_map" || purpose === "map_style") return subject;
+  return buildSimpleImagePrompt({ base: imageBasePrompt, setting: settingPrompt, subject });
+}
+
+async function uploadResult(b64: string, userId: string, purpose: ImagePurpose): Promise<string> {
   const bin = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-  const path = `${userId}/scene-${crypto.randomUUID()}.webp`;
+  const config = PURPOSE_CONFIG[purpose];
+  const path = `${userId}/${config.prefix}-${crypto.randomUUID()}.webp`;
   // The generated image is already in memory and re-running the OpenAI call
   // is expensive, so uploadWithRetry's backoff protects a transient storage
   // hiccup from wasting the generation. This caller wants the public URL.
-  await uploadWithRetry(admin, "chronicle", path, bin, "image/webp");
-  const { data } = admin.storage.from("chronicle").getPublicUrl(path);
+  await uploadWithRetry(admin, config.bucket, path, bin, "image/webp");
+  const { data } = admin.storage.from(config.bucket).getPublicUrl(path);
   return data.publicUrl;
 }
 
@@ -61,8 +113,10 @@ async function runGeneration(args: {
   isByok: boolean;
   cost: number;
   reservationIds: string[];
+  purpose: ImagePurpose;
+  source_image_b64: string | null;
 }) {
-  const { jobId, userId, provider, model, apiKey, prompt, size, quality, portrait_urls, isByok, cost, reservationIds } = args;
+  const { jobId, userId, provider, model, apiKey, prompt, size, quality, portrait_urls, isByok, cost, reservationIds, purpose, source_image_b64 } = args;
 
   try {
     // Fetch reference portrait blobs in parallel (openai + gemini compose them).
@@ -82,18 +136,22 @@ async function runGeneration(args: {
         if (r.status === "fulfilled" && r.value) portraitBlobs.push(r.value);
       }
     }
+    if (source_image_b64) {
+      const bytes = Uint8Array.from(atob(source_image_b64), (c) => c.charCodeAt(0));
+      portraitBlobs.push(new Blob([bytes], { type: "image/png" }));
+    }
 
     const { b64, usage } = await generateImage({
-      provider, model, apiKey, prompt, size, quality, boostStyle: true,
+      provider, model, apiKey, prompt, size, quality, boostStyle: PURPOSE_CONFIG[purpose].boostStyle,
       sourceImages: portraitBlobs.length > 0 ? portraitBlobs : undefined,
     });
 
-    const imageUrl = await uploadResult(b64, userId);
+    const imageUrl = await uploadResult(b64, userId, purpose);
     await completeImageJob(admin, jobId, imageUrl);
 
     // Release the hold and record the real spend (one cost row, with analytics).
     await releaseCredits(admin, reservationIds);
-    await recordGeneration(admin, userId, "chronicle_image", isByok, cost, {
+    await recordGeneration(admin, userId, PURPOSE_CONFIG[purpose].creditType, isByok, cost, {
       model,
       provider: usage.provider,
       image_count: 1,
@@ -129,21 +187,28 @@ serve(withCors(async (req: Request) => {
   // Frozen accounts cannot generate — including BYOK, which skips the credit gate.
   if (await isAccountSuspended(admin, user.id)) return suspendedResponse();
 
-  let campaign_id: string, scene_text: string, portrait_urls: string[],
-      text_descriptions: string[], size: string, image_model: string, kind: ImageJobKind;
+  let campaign_id: string, subject: string, portrait_urls: string[],
+      text_descriptions: string[], size: string, image_model: string,
+      purpose: ImagePurpose, source_image_b64: string | null;
 
   try {
     const body = await req.json();
     campaign_id       = body.campaign_id;
-    scene_text        = body.scene_text;
+    // `scene_text` remains accepted for existing Chronicler callers.
+    subject           = body.subject ?? body.scene_text;
     portrait_urls     = Array.isArray(body.portrait_urls) ? body.portrait_urls : [];
     text_descriptions = Array.isArray(body.text_descriptions) ? body.text_descriptions : [];
     size              = body.size ?? "1024x1024";
     image_model       = body.image_model ?? "gpt-image-2";
-    kind              = (body.kind as ImageJobKind | undefined) ?? "chronicler";
-    if (!campaign_id || !scene_text) throw new Error("invalid");
+    purpose           = (body.purpose as ImagePurpose | undefined)
+      ?? ((body.kind as string | undefined) === "group_portrait" ? "group_portrait" : "chronicler");
+    source_image_b64  = typeof body.source_image_b64 === "string" ? body.source_image_b64 : null;
+    if (!campaign_id || !subject || !(purpose in PURPOSE_CONFIG)) throw new Error("invalid");
   } catch {
-    return text("Invalid body — need { campaign_id, scene_text }", 400);
+    return text("Invalid body — need { campaign_id, purpose, subject }", 400);
+  }
+  if (source_image_b64 && source_image_b64.length > MAX_SOURCE_IMAGE_B64_CHARS) {
+    return text("Source image too large", 413);
   }
 
   const { data: campaign } = await admin
@@ -182,9 +247,10 @@ serve(withCors(async (req: Request) => {
 
   // Pre-flight credit check (deduction happens after generation, in the bg task).
   // Cost scales with output area (landscape/portrait = 1.5×) and the provider's multiplier.
-  const chronicleImageCost = isByok
+  const config = PURPOSE_CONFIG[purpose];
+  const imageCost = isByok
     ? 0
-    : Math.round(await fetchCreditCost(admin, "chronicle_image") * sizeMultiplier(size) * img.imageMultiplier * 100) / 100;
+    : Math.round(await fetchCreditCost(admin, config.creditType) * sizeMultiplier(size) * img.imageMultiplier * 100) / 100;
   // Atomic affordability gate: hold the balance now; the background task releases
   // it and records the real spend (or releases on failure).
   // Throttle abusive burst volume before any paid provider work (issue #466).
@@ -195,7 +261,7 @@ serve(withCors(async (req: Request) => {
     );
   }
 
-  const reservation = await reserveCredits(admin, user.id, chronicleImageCost, "chronicle_image");
+  const reservation = await reserveCredits(admin, user.id, imageCost, config.creditType);
   if (!reservation.ok) {
     return reservationFailureResponse(reservation);
   }
@@ -205,14 +271,14 @@ serve(withCors(async (req: Request) => {
     .from("ai_system_prompts").select("content")
     .eq("generator_type", "image_base").maybeSingle();
   const imageBasePrompt = imageBaseRow?.content ?? "";
-  const prompt = buildPrompt(scene_text, text_descriptions, settingPrompt, imageBasePrompt);
+  const prompt = buildPurposePrompt(purpose, subject, text_descriptions, settingPrompt, imageBasePrompt);
 
   // Insert pending job — client polls/subscribes by id
   const jobId = await createImageJob(admin, {
     user_id: user.id,
     campaign_id,
-    kind,
-    prompt: scene_text.slice(0, 500),
+    kind: config.kind,
+    prompt: subject.slice(0, 500),
     size,
     model,
     provider: img.provider,
@@ -223,8 +289,8 @@ serve(withCors(async (req: Request) => {
   // @ts-ignore — EdgeRuntime is a Deno Deploy global, not in Deno's type defs.
   EdgeRuntime.waitUntil(runGeneration({
     jobId, userId: user.id, provider: img.provider, model, apiKey: img.apiKey,
-    prompt, size, quality: img.imageQuality, portrait_urls, isByok, cost: chronicleImageCost,
-    reservationIds: reservation.ids,
+    prompt, size, quality: img.imageQuality, portrait_urls, isByok, cost: imageCost,
+    reservationIds: reservation.ids, purpose, source_image_b64,
   }));
 
   return new Response(

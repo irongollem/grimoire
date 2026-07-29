@@ -57,6 +57,18 @@ export function waitForSculpt(miniId: string): Promise<Mini> {
   });
 }
 
+/**
+ * Resume a durable style render after navigation. The image-job row is the
+ * completion signal; its worker updates the mini first, so the subsequent
+ * read always returns a sculptable image_ready row.
+ */
+export async function waitForStylize(miniId: string, jobId: string): Promise<Mini> {
+  await waitForImageJob(jobId);
+  const { data: mini, error } = await supabase.from("minis").select("*").eq("id", miniId).single();
+  if (error) throw error;
+  return mini as Mini;
+}
+
 // forge-mini returns its structured reasons on non-2xx responses, which
 // supabase.functions.invoke surfaces via `error` (data is null) — so this maps
 // the code AFTER edgeErrorMessage extracts it from the response body. Unknown
@@ -100,17 +112,10 @@ export function useMiniForge() {
       if (error) throw new Error(friendlyError(await edgeErrorMessage(error)));
       const res = data as StylizeResponse;
 
-      await waitForImageJob(res.job_id);
-
-      const { data: mini, error: fetchError } = await supabase
-        .from("minis")
-        .select("*")
-        .eq("id", res.mini_id)
-        .single();
-      if (fetchError) throw fetchError;
+      const mini = await waitForStylize(res.mini_id, res.job_id);
 
       invalidateMini(res.mini_id);
-      return mini as Mini;
+      return mini;
     } finally {
       isStylizing.value = false;
     }
@@ -193,6 +198,7 @@ export function useMiniForge() {
     cancel,
     setBase,
     waitForSculpt,
+    waitForStylize,
     isStylizing,
     isSculpting,
     isCancelling,

@@ -141,3 +141,20 @@ export function isStale(updatedAtIso: string, nowMs: number): boolean {
   if (Number.isNaN(updatedMs)) return false;
   return nowMs - updatedMs > STALE_SCULPT_MS;
 }
+
+/**
+ * The durable provider phase clock is intentionally separate from `updated_at`:
+ * a poller lease is a routine bookkeeping write, not proof that Meshy made
+ * progress. Keeping this pure makes that timeout invariant testable.
+ */
+export function sculptPhaseStartedAt(row: {
+  status: MiniStatusB;
+  updated_at: string;
+  sculpt_started_at?: string | null;
+  download_started_at?: string | null;
+}): string {
+  if (row.status === "downloading") {
+    return row.download_started_at ?? row.sculpt_started_at ?? row.updated_at;
+  }
+  return row.sculpt_started_at ?? row.updated_at;
+}

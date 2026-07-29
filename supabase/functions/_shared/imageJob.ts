@@ -18,7 +18,14 @@ export type ImageJobKind =
   | "spell"
   | "faction"
   | "location"
-  | "mini_style";
+  | "mini_style"
+  | "npc_disguise"
+  | "location_map"
+  | "trap"
+  | "puzzle"
+  | "party_member"
+  | "species"
+  | "map_style";
 
 // Allowlist of (table:column) pairs the async completion step may write to.
 // completeImageJob performs a DYNAMIC `.from(target_table).update({[target_column]})`
@@ -88,30 +95,38 @@ export async function completeImageJob(
     .select("target_table, target_id, target_column")
     .eq("id", jobId)
     .maybeSingle();
-  if (fetchErr) console.error("completeImageJob fetch failed:", fetchErr);
+  if (fetchErr || !job) {
+    throw new Error(`completeImageJob fetch failed: ${fetchErr?.message ?? "job not found"}`);
+  }
 
-  const { error } = await admin
+  const { data: completed, error } = await admin
     .from("image_generation_jobs")
     .update({
       status: "ready",
       image_url: imageUrl,
       completed_at: new Date().toISOString(),
     })
-    .eq("id", jobId);
-  if (error) console.error(`completeImageJob update failed (${jobId}):`, error);
+    .eq("id", jobId)
+    .eq("status", "pending")
+    .select("id")
+    .maybeSingle();
+  if (error || !completed) {
+    throw new Error(`completeImageJob failed: ${error?.message ?? "job was not pending"}`);
+  }
 
   const j = job as { target_table: string | null; target_id: string | null; target_column: string | null } | null;
   if (j?.target_table && j.target_id && j.target_column) {
     if (!ALLOWED_IMAGE_TARGETS.has(`${j.target_table}:${j.target_column}`)) {
-      console.error(`completeImageJob: rejected disallowed target ${j.target_table}.${j.target_column}`);
-      return;
+      throw new Error(`completeImageJob rejected target ${j.target_table}.${j.target_column}`);
     }
-    const { error: targetErr } = await admin
+    const { data: target, error: targetErr } = await admin
       .from(j.target_table)
       .update({ [j.target_column]: imageUrl })
-      .eq("id", j.target_id);
-    if (targetErr) {
-      console.error(`completeImageJob target update failed (${j.target_table}.${j.target_id}):`, targetErr);
+      .eq("id", j.target_id)
+      .select("id")
+      .maybeSingle();
+    if (targetErr || !target) {
+      throw new Error(`completeImageJob target update failed: ${targetErr?.message ?? "target not found"}`);
     }
   }
 }

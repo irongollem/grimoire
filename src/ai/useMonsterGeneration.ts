@@ -1,8 +1,5 @@
-import { useAuthStore } from "@/stores/auth";
-import { uploadWithVariants } from "@/lib/storage";
 import { buildCampaignContext } from "./utils";
-import { fetchSystemPrompt, fetchImageBasePrompt, fetchRulesetContext } from "./systemPrompts";
-import { buildSimpleImagePrompt } from "./imagePrompt";
+import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
 import { useRuleset } from "@/composables/useRuleset";
 import type { MonsterAiResult, MonsterAiGenerated } from "./types";
 import {
@@ -12,11 +9,11 @@ import {
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { useUiStore } from "@/stores/ui";
-import { getTextProvider, getImageProvider } from "./providers";
-import { b64ToBlob, wrapUserInput } from "./utils";
-import { useCampaignStore } from "@/stores/campaign";
+import { getTextProvider } from "./providers";
+import { wrapUserInput } from "./utils";
 import { logUsage } from "@/composables/useAiCredits";
-import type { TextUsage, ImageUsage } from "./providers/types";
+import type { TextUsage } from "./providers/types";
+import { captureImageGenerationContext, generateImage } from "./useImageGeneration";
 
 export interface MonsterGenerationOptions {
   challenge_rating?: string;
@@ -40,8 +37,6 @@ registerAiGenerator({
 // ────────────────────────────────────────────────────────────────────────────
 
 export function useMonsterGeneration() {
-  const auth = useAuthStore();
-  const campaign = useCampaignStore();
   const { ruleset } = useRuleset();
 
   async function generate(
@@ -53,16 +48,23 @@ export function useMonsterGeneration() {
     _state.error.value = null;
     startAiQuotes();
 
-    const settingPrompt = campaign.activeCampaign?.ai_setting_prompt ?? "";
+    let imageContext: ReturnType<typeof captureImageGenerationContext>;
+    try {
+      imageContext = captureImageGenerationContext();
+    } catch {
+      _state.error.value = "No active campaign selected.";
+      _state.isGenerating.value = false;
+      stopAiQuotes();
+      return null;
+    }
+    const settingPrompt = imageContext.settingPrompt;
     let textUsage: TextUsage | undefined;
-    let imgUsage: ImageUsage | undefined;
 
     try {
       const textProvider = getTextProvider();
       // ── 1. Generate stat block text ───────────────────────────────────
-      const [basePrompt, imageBasePrompt, rulesetContext] = await Promise.all([
+      const [basePrompt, rulesetContext] = await Promise.all([
         fetchSystemPrompt("monster"),
-        fetchImageBasePrompt(),
         fetchRulesetContext(ruleset.value),
       ]);
       if (!basePrompt) throw new Error("Monster system prompt not configured.");
@@ -102,23 +104,17 @@ export function useMonsterGeneration() {
       if (wantImage) {
         startAiQuotes("image");
         try {
-          const imageProvider = getImageProvider();
-          const imagePrompt = buildSimpleImagePrompt({
-            base: imageBasePrompt,
-            setting: settingPrompt,
+          image_url = await generateImage({
+            ...imageContext,
+            purpose: "monster",
             subject: result.image_prompt,
           });
-          const { b64, usage: _imgUsage } = await imageProvider.generate(imagePrompt, "1024x1536");
-          imgUsage = _imgUsage;
-          if (b64 && auth.user) {
-            image_url = await uploadWithVariants({ bucket: "monsterImages", userId: auth.user.id, blob: b64ToBlob(b64) });
-          }
         } catch {
           // non-fatal
         }
       }
 
-      logUsage({ reason: "monster_generation", textUsage, imageUsage: imgUsage });
+      logUsage({ reason: "monster_generation", textUsage });
       return { ...result, image_url };
     } catch (e) {
       _state.error.value = e instanceof Error ? e.message : "Generation failed";

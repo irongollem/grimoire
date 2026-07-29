@@ -96,6 +96,7 @@ const WIZARD_STEPS: WizardStep[] = [
 const stepIndex = ref(0);
 const format = ref<MiniFormat | null>(null);
 const mini = ref<Mini | null>(null);
+let initializedResume = false;
 
 // ── Source entity (header portrait + name) ──────────────────────────────────
 interface SourceEntity { id: string; name: string; portrait_url: string | null }
@@ -137,9 +138,11 @@ const { data: resumedMini } = useQuery({
 watch(
   resumedMini,
   (row) => {
-    if (!row || mini.value) return;
+    if (!row) return;
     mini.value = row;
     format.value = row.format;
+    if (initializedResume) return;
+    initializedResume = true;
     // Resume position: an in-flight or already-resolved sculpt goes straight
     // to the sculpt step (which handles picking the wait back up / retrying);
     // anything earlier (stylizing/image_ready) lands on the stylize step so

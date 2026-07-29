@@ -50,6 +50,8 @@ export interface Mini {
   format: MiniFormat;
   status: MiniStatus;
   stylized_image_url: string | null;
+  /** Durable link to the in-flight style render, if any. */
+  stylize_job_id: string | null;
   meshy_task_id: string | null;
   provider: string;
   glb_path: string | null;
@@ -93,6 +95,7 @@ export type MiniInsert = Omit<
   | "reservation_ids"
   | "error"
   | "stylized_image_url"
+  | "stylize_job_id"
 >;
 export type MiniUpdate = Partial<MiniInsert>;
 

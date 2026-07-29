@@ -36,6 +36,7 @@ export function useGroupPortrait() {
 
   async function generateGroupPortrait() {
     if (!store.activeCampaignId || !store.activeCampaign) return;
+    const campaignId = store.activeCampaignId;
     generating.value = true;
     error.value      = "";
     try {
@@ -57,7 +58,7 @@ export function useGroupPortrait() {
       });
 
       const updated = await updateCampaign({
-        id:     store.activeCampaignId,
+        id:     campaignId,
         update: { group_portrait_url: url },
       });
       store.switchToCampaign(updated);

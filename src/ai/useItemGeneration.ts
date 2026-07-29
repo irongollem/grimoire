@@ -1,8 +1,5 @@
-import { useAuthStore } from "@/stores/auth";
-import { uploadWithVariants } from "@/lib/storage";
 import { buildCampaignContext } from "./utils";
-import { fetchSystemPrompt, fetchImageBasePrompt, fetchRulesetContext } from "./systemPrompts";
-import { buildSimpleImagePrompt } from "./imagePrompt";
+import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
 import { normalizeAiItemMastery } from "./itemMastery";
 import { useRuleset } from "@/composables/useRuleset";
 import type { ItemAiResult, ItemAiGenerated } from "./types";
@@ -13,11 +10,11 @@ import {
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { useUiStore } from "@/stores/ui";
-import { getTextProvider, getImageProvider } from "./providers";
-import { b64ToBlob, wrapUserInput } from "./utils";
-import { useCampaignStore } from "@/stores/campaign";
+import { getTextProvider } from "./providers";
+import { wrapUserInput } from "./utils";
 import { logUsage } from "@/composables/useAiCredits";
-import type { TextUsage, ImageUsage } from "./providers/types";
+import type { TextUsage } from "./providers/types";
+import { captureImageGenerationContext, generateImage } from "./useImageGeneration";
 
 export interface ItemGenerationOptions {
   item_type?: string;
@@ -41,8 +38,6 @@ registerAiGenerator({
 // ────────────────────────────────────────────────────────────────────────────
 
 export function useItemGeneration() {
-  const auth = useAuthStore();
-  const campaign = useCampaignStore();
   const { ruleset } = useRuleset();
 
   async function generate(
@@ -54,16 +49,23 @@ export function useItemGeneration() {
     _state.error.value = null;
     startAiQuotes();
 
-    const settingPrompt = campaign.activeCampaign?.ai_setting_prompt ?? "";
+    let imageContext: ReturnType<typeof captureImageGenerationContext>;
+    try {
+      imageContext = captureImageGenerationContext();
+    } catch {
+      _state.error.value = "No active campaign selected.";
+      _state.isGenerating.value = false;
+      stopAiQuotes();
+      return null;
+    }
+    const settingPrompt = imageContext.settingPrompt;
     let textUsage: TextUsage | undefined;
-    let imgUsage: ImageUsage | undefined;
 
     try {
       const textProvider = getTextProvider();
       // ── 1. Generate item text ─────────────────────────────────────────────
-      const [basePrompt, imageBasePrompt, rulesetContext] = await Promise.all([
+      const [basePrompt, rulesetContext] = await Promise.all([
         fetchSystemPrompt("item"),
-        fetchImageBasePrompt(),
         fetchRulesetContext(ruleset.value),
       ]);
       if (!basePrompt) throw new Error("Item system prompt not configured.");
@@ -107,23 +109,17 @@ export function useItemGeneration() {
       if (wantImage) {
         startAiQuotes("image");
         try {
-          const imageProvider = getImageProvider();
-          const imagePrompt = buildSimpleImagePrompt({
-            base: imageBasePrompt,
-            setting: settingPrompt,
+          image_url = await generateImage({
+            ...imageContext,
+            purpose: "item",
             subject: result.image_prompt,
           });
-          const { b64, usage: _imgUsage } = await imageProvider.generate(imagePrompt, "1024x1536");
-          imgUsage = _imgUsage;
-          if (b64 && auth.user) {
-            image_url = await uploadWithVariants({ bucket: "itemImages", userId: auth.user.id, blob: b64ToBlob(b64) });
-          }
         } catch {
           // non-fatal
         }
       }
 
-      logUsage({ reason: "item_generation", textUsage, imageUsage: imgUsage });
+      logUsage({ reason: "item_generation", textUsage });
       return { ...result, image_url };
     } catch (e) {
       _state.error.value = e instanceof Error ? e.message : "Generation failed";
