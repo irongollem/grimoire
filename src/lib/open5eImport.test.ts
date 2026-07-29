@@ -76,6 +76,43 @@ describe("weapon mastery extraction", () => {
   });
 });
 
+describe("source_license from a document-metadata map", () => {
+  const battleaxe = {
+    key: "srd-2024_battleaxe", name: "Battleaxe", document: srd2024Document,
+    properties: [], damage_type: { name: "Slashing", key: "slashing" }, damage_dice: "1d8",
+    range: 0, long_range: 0, is_simple: false, is_improvised: false,
+  };
+
+  it("mapOpen5eV2Weapon derives source_license from the map, formatted as the stored comma-space list", () => {
+    const documentMetadata = new Map([
+      ["srd-2024", { ...srd2024Document, licenses: [{ name: "CC-BY 4.0", key: "cc-by-40" }] }],
+    ]);
+    const item = mapOpen5eV2Weapon(battleaxe, documentMetadata);
+    expect(item.source_license).toBe("cc-by-40");
+  });
+
+  it("mapOpen5eV2Weapon leaves source_license null when no document-metadata map is passed", () => {
+    const item = mapOpen5eV2Weapon(battleaxe);
+    expect(item.source_license).toBeNull();
+  });
+
+  it("mapOpen5eV2MagicItem derives source_license from the map for a non-weapon magic item", () => {
+    const ring = {
+      key: "srd-2024_ring-of-protection", name: "Ring of Protection", desc: "A protective ring.",
+      category: { name: "Ring", key: "ring" },
+      rarity: { name: "Rare", key: "rare" },
+      weapon: null, armor: null, weight: null, cost: null,
+      requires_attunement: true, attunement_detail: null,
+      document: srd2024Document,
+    };
+    const documentMetadata = new Map([
+      ["srd-2024", { ...srd2024Document, licenses: [{ name: "OGL 1.0a", key: "ogl-10a" }] }],
+    ]);
+    const item = mapOpen5eV2MagicItem(ring, documentMetadata);
+    expect(item.source_license).toBe("ogl-10a");
+  });
+});
+
 describe("fetchSrdItems document scoping", () => {
   it("scopes weapons, armor, and magic items to supported 5e documents and excludes a5e content", async () => {
     const srdDocument = {
@@ -83,11 +120,13 @@ describe("fetchSrdItems document scoping", () => {
       name: "System Reference Document 5.2",
       display_name: "5e 2024 Rules",
       gamesystem: { key: "5e-2024", name: "5th Edition 2024" },
+      licenses: [{ name: "OGL 1.0a", key: "ogl-10a" }],
     };
     const a5eDocument = {
       key: "a5e-srd",
       name: "Level Up: Advanced 5e SRD",
       gamesystem: { key: "a5e", name: "Level Up A5E" },
+      licenses: [{ name: "OGL 1.0a", key: "ogl-10a" }],
     };
 
     vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
@@ -126,11 +165,13 @@ describe("fetchSrdItems document scoping", () => {
       key: "srd-2024",
       name: "System Reference Document 5.2",
       gamesystem: { key: "5e-2024", name: "5th Edition 2024" },
+      licenses: [{ name: "OGL 1.0a", key: "ogl-10a" }],
     };
     const a5eDocument = {
       key: "a5e-srd",
       name: "Level Up: Advanced 5e SRD",
       gamesystem: { key: "a5e", name: "Level Up A5E" },
+      licenses: [{ name: "OGL 1.0a", key: "ogl-10a" }],
     };
 
     vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {

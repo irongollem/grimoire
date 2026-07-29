@@ -38,6 +38,14 @@
           <span class="font-cinzel text-2xs text-muted-foreground shrink-0">{{ src.count.toLocaleString() }}</span>
         </label>
       </div>
+      <div class="p-2 border-t border-border">
+        <RouterLink
+          to="/rules?tab=licenses"
+          class="block px-1 py-1 text-caption text-primary hover:underline"
+        >
+          Licenses &amp; attribution
+        </RouterLink>
+      </div>
     </div>
   </div>
 
@@ -71,11 +79,18 @@
         <span class="shrink-0 font-cinzel text-2xs text-muted-foreground">{{ src.count.toLocaleString() }}</span>
       </label>
     </div>
+    <RouterLink
+      to="/rules?tab=licenses"
+      class="mt-2 px-2 py-1 text-caption text-primary hover:underline"
+    >
+      Licenses &amp; attribution
+    </RouterLink>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import { RouterLink } from "vue-router";
 import { onClickOutside } from "@vueuse/core";
 import { IconLoading } from "@/lib/icons";
 import {

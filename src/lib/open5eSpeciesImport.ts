@@ -1,4 +1,4 @@
-import { fetchAllFromDocuments, rulesetForDocument } from "@/lib/open5eApi";
+import { fetchAllFromDocuments, licenseForDocumentKey, rulesetForDocument } from "@/lib/open5eApi";
 import type { Open5eDocumentRef } from "@/lib/open5eApi";
 import { markdownToTiptapJson, toTiptapJson } from "@/lib/markdownToTiptap";
 import type { SpeciesSize } from "@/types/species.types";
@@ -80,7 +80,7 @@ export function parseAsi(raw: string | undefined): Record<string, number | strin
  * including on an existing row, so upstream fixes (e.g. open5e-api#964-style
  * corrections) are picked up.
  */
-export function buildImportedFields(race: Open5eRace) {
+export function buildImportedFields(race: Open5eRace, documentMetadata?: ReadonlyMap<string, Open5eDocumentRef>) {
   const trait = (name: string) => race.traits.find(entry => entry.name.toLowerCase() === name);
   const size = parseSize(trait("size")?.desc.match(/\b(tiny|small|medium|large)\b/i)?.[1] ?? "");
   const speciesTraits = race.traits
@@ -101,7 +101,7 @@ export function buildImportedFields(race: Open5eRace) {
     source_document_key: race.document.key,
     source_record_key: race.key,
     source_revision: race.document.name,
-    source_license: null,
+    source_license: licenseForDocumentKey(documentMetadata, race.document.key),
     provenance: {
       provider: "open5e-v2",
       document: {

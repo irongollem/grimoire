@@ -99,6 +99,38 @@ describe("monsterImportUpdateFields", () => {
   });
 });
 
+describe("mapOpen5eV2Monster — source_license", () => {
+  it("derives source_license from a document-metadata map keyed by document key", () => {
+    const documentMetadata = new Map([
+      ["srd-2024", { ...document2024, licenses: [{ name: "CC-BY 4.0", key: "cc-by-40" }] }],
+    ]);
+    const monster = mapOpen5eV2Monster(record() as Parameters<typeof mapOpen5eV2Monster>[0], documentMetadata);
+    expect(monster.source_license).toBe("cc-by-40");
+  });
+
+  it("joins multiple license keys in the stored comma-space format", () => {
+    const documentMetadata = new Map([
+      ["srd-2024", {
+        ...document2024,
+        licenses: [{ name: "CC-BY 4.0", key: "cc-by-40" }, { name: "OGL 1.0a", key: "ogl-10a" }],
+      }],
+    ]);
+    const monster = mapOpen5eV2Monster(record() as Parameters<typeof mapOpen5eV2Monster>[0], documentMetadata);
+    expect(monster.source_license).toBe("cc-by-40, ogl-10a");
+  });
+
+  it("is null when no document-metadata map is passed at all", () => {
+    const monster = mapOpen5eV2Monster(record() as Parameters<typeof mapOpen5eV2Monster>[0]);
+    expect(monster.source_license).toBeNull();
+  });
+
+  it("is null when the map doesn't contain this monster's document key", () => {
+    const documentMetadata = new Map([["some-other-doc", { ...document2024, key: "some-other-doc" }]]);
+    const monster = mapOpen5eV2Monster(record() as Parameters<typeof mapOpen5eV2Monster>[0], documentMetadata);
+    expect(monster.source_license).toBeNull();
+  });
+});
+
 describe("mapOpen5eV2Monster — speed", () => {
   it("prefers native `speed` over `speed_all` (derived half-speeds would break wild shape)", () => {
     // Open5e v2's speed_all bakes in derived swim/crawl at walk/2 for every

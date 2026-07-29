@@ -30,7 +30,7 @@ import {
   planSrdSpellImport,
   type ImportedSrdSpell,
 } from "@/lib/open5eSpellImport";
-import { fetchSupported5eDocumentKeys } from "@/lib/open5eApi";
+import { fetchOpen5eDocumentRefs, fetchSupported5eDocumentKeys } from "@/lib/open5eApi";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   requireEnv,
@@ -41,8 +41,10 @@ import {
   parseSeedCliArgs,
   printAvailableDocuments,
   countByRuleset,
+  assertRedistributableDocuments,
   DEFAULT_SRD_DOCUMENT_KEYS,
 } from "./lib/seed-helpers";
+import { pathToFileURL } from "node:url";
 
 // ── srd_spells table snapshot ────────────────────────────────────────────────
 
@@ -171,6 +173,9 @@ async function main(): Promise<void> {
 
   console.log(`=== Seeding srd_spells (sources: ${documentKeys.join(", ")}) ===\n`);
 
+  console.log("Checking requested document(s) are licensed for hosted redistribution…");
+  assertRedistributableDocuments(documentKeys, await fetchOpen5eDocumentRefs());
+
   console.log("Step 1: Fetching + mapping spells from Open5e v2…");
   const rows = await fetchSrdSpells(documentKeys);
   console.log(`  Mapped ${rows.length} spells.\n`);
@@ -218,7 +223,14 @@ async function main(): Promise<void> {
   console.log("=== Seeding complete ===");
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+// Entry-point guard: these modules also export helpers their .test.ts files
+// import directly. Without it, a plain `import` runs main() — which reaches the
+// network before vitest can tear the worker down, producing "Failed to
+// terminate forks worker" on every full-suite run. Only auto-run when this file
+// is the actual entrypoint.
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

@@ -63,10 +63,109 @@ export function rulesetForDocument(document: Open5eDocumentRef | null | undefine
   return null;
 }
 
-/** Document keys for every 5e-gamesystem document (2014 or 2024), excluding a5e and other non-5e gamesystems. */
+/**
+ * Open5e v2 license keys that permit hosted redistribution of the content
+ * they're attached to. Any key outside this set, or a document with no
+ * license keys at all, must be refused rather than defaulted to allowed (see
+ * `isRedistributable`).
+ *
+ * `orc` (the ORC License) is included even though Open5e's own API never
+ * emits it: Kobold Press's site states the Black Flag Reference Document is
+ * ORC-licensed, but Open5e's license taxonomy has no ORC entry, so it tags
+ * that document `cc-by-40` instead (the nearest bucket it has). Upstream
+ * license metadata is authoritative-ish, not gospel — `content_sources` rows
+ * with `is_metadata_curated: true` (Black Flag among them) hand-correct
+ * exactly this kind of upstream mistake, and `scripts/seed-content-sources.ts`
+ * must never let a re-seed clobber that correction back to `cc-by-40`.
+ */
+export const REDISTRIBUTABLE_LICENSE_KEYS = ["ogl-10a", "cc-by-40", "cc0", "orc"] as const;
+
+/**
+ * Maps OUR `source_document_key` values to the current Open5e v2 document
+ * key, for the documents where the two differ. These are PRE-v2 Open5e
+ * slugs that are still live as `source_document_key` on rows already in
+ * production (srd_monsters, srd_spells, srd_items, srd_species) — they must
+ * NEVER be "cleaned up" to match the upstream key, or every existing row
+ * referencing them would silently orphan from its source document.
+ *
+ * Keys not listed here (`srd-2014`, `srd-2024`, `tob`, `tob2`, `tob3`,
+ * `tob-2023`, `toh`, `kp`) are already identical upstream and need no alias.
+ * `grimoire-bundled` is our own non-Open5e content and must never be looked
+ * up against this map or fetched upstream.
+ */
+export const LEGACY_DOCUMENT_KEY_ALIASES: Readonly<Record<string, string>> = {
+  cc: "ccdx",
+  blackflag: "bfrd",
+  menagerie: "a5e-mm",
+  dmag: "deepm",
+  "dmag-e": "deepmx",
+  warlock: "wz",
+  a5e: "a5e-ag",
+  o5e: "open5e",
+  taldorei: "tdcs",
+};
+
+/** Every license key attached to a document; `[]` when the document has none. */
+export function licenseKeysFor(document: Open5eDocumentRef): string[] {
+  return document.licenses?.map((license) => license.key) ?? [];
+}
+
+/**
+ * True only when a document carries at least one license AND every one of
+ * its license keys is in `REDISTRIBUTABLE_LICENSE_KEYS`. A document with an
+ * empty or missing `licenses` array is NOT redistributable — unknown
+ * licensing is always a refusal, never a default-allow.
+ */
+export function isRedistributable(document: Open5eDocumentRef): boolean {
+  const keys = licenseKeysFor(document);
+  const allowed = new Set<string>(REDISTRIBUTABLE_LICENSE_KEYS);
+  return keys.length > 0 && keys.every((key) => allowed.has(key));
+}
+
+/**
+ * Comma-space joined license key list, matching the format already stored in
+ * `source_license` on existing rows (e.g. `"cc-by-40, ogl-10a"`) — mirrors
+ * `src/lib/open5eSpellImport.ts`'s `document.licenses?.map(...).join(", ")`
+ * exactly so old and new rows agree. `null` for an empty list.
+ */
+export function formatLicenseKeys(keys: readonly string[]): string | null {
+  return keys.length ? keys.join(", ") : null;
+}
+
+/**
+ * Looks up a document by key in a document-metadata map and formats its
+ * license keys for `source_license`; `null` when the document is missing
+ * from the map (no metadata plumbed through) or carries no licenses at all.
+ * Shared by every Open5e mapper (monster/item/species) that plumbs a
+ * `Map<string, Open5eDocumentRef>` — built from `fetchOpen5eDocumentRefs()`
+ * — through to populate `source_license`. `open5eSpellImport.ts` predates
+ * this helper and has its own equivalent inline; left as-is intentionally.
+ */
+export function licenseForDocumentKey(
+  documentMetadata: ReadonlyMap<string, Open5eDocumentRef> | undefined,
+  documentKey: string,
+): string | null {
+  const document = documentMetadata?.get(documentKey);
+  return document ? formatLicenseKeys(licenseKeysFor(document)) : null;
+}
+
+/** Raw Open5e v2 `/v2/documents/` list — every field (`licenses`, `publisher`, `permalink`, `gamesystem`) intact, undiscarded. */
+export async function fetchOpen5eDocumentRefs(): Promise<Open5eDocumentRef[]> {
+  return fetchAll<Open5eDocumentRef>("https://api.open5e.com/v2/documents/");
+}
+
+/**
+ * Document keys for every 5e-gamesystem document (2014 or 2024) that ALSO
+ * permits hosted redistribution, excluding a5e and other non-5e gamesystems.
+ * A document whose license doesn't clear `isRedistributable` is filtered out
+ * here just as firmly as an unsupported gamesystem — this is the "--all"
+ * seeding path's own defense against ingesting content we may not host.
+ */
 export async function fetchSupported5eDocumentKeys(): Promise<string[]> {
-  const documents = await fetchAll<Open5eDocumentRef>("https://api.open5e.com/v2/documents/");
-  return documents.filter((document) => rulesetForDocument(document) !== null).map((document) => document.key);
+  const documents = await fetchOpen5eDocumentRefs();
+  return documents
+    .filter((document) => rulesetForDocument(document) !== null && isRedistributable(document))
+    .map((document) => document.key);
 }
 
 /**

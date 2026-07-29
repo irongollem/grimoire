@@ -37,6 +37,19 @@ export function useIsTouch() {
   return useMediaQuery("(hover: none) and (pointer: coarse)");
 }
 
+/**
+ * The bar-vs-sidebar nav rule (issue #575): the bottom bar serves touch-first
+ * devices (primary pointer coarse) and any window below md; the sidebar
+ * serves everything else. CSS mirror: the `barnav:` / `sidenav:` custom
+ * variants in assets/main.css — keep the two in sync.
+ */
+export const BAR_NAV_QUERY = "(pointer: coarse) or (width < 48rem)";
+
+/** Reactive: true while the bottom bar (not the sidebar) is the app's nav chrome. */
+export function useIsBarNav() {
+  return useMediaQuery(BAR_NAV_QUERY);
+}
+
 /** Shorthand: "is this a phone-ish viewport" — below md (768px). */
 export function useIsMobile() {
   return useBelow("md");

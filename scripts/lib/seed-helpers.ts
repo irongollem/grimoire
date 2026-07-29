@@ -5,6 +5,7 @@
  */
 
 import { createClient, type SupabaseClient, type PostgrestError } from "@supabase/supabase-js";
+import { isRedistributable, licenseKeysFor, LEGACY_DOCUMENT_KEY_ALIASES, type Open5eDocumentRef } from "@/lib/open5eApi";
 
 export interface SupabaseEnv {
   supabaseUrl: string;
@@ -173,4 +174,56 @@ export function countByRuleset(rows: ReadonlyArray<{ ruleset: string }>): Record
   const counts: Record<string, number> = {};
   for (const row of rows) counts[row.ruleset] = (counts[row.ruleset] ?? 0) + 1;
   return counts;
+}
+
+// ── redistribution guard ─────────────────────────────────────────────────────
+
+/**
+ * Refuses to seed any requested document key that either doesn't resolve to
+ * a real upstream Open5e v2 document, or resolves to one whose license(s)
+ * don't clear `isRedistributable` — an unknown/unreviewed license is always a
+ * refusal, never a default-allow. This is the guard that makes an explicit
+ * `npm run seed-srd-monsters some-unreviewed-key` fail just as firmly as
+ * `--all` (which already only ever offers redistributable keys, via
+ * `fetchSupported5eDocumentKeys`).
+ *
+ * `requestedKeys` are OUR keys (bare CLI args, e.g. "cc", "taldorei") — each
+ * is translated through `LEGACY_DOCUMENT_KEY_ALIASES` to the current Open5e
+ * v2 key before being looked up in `documents` (as fetched via
+ * `fetchOpen5eDocumentRefs()`). `grimoire-bundled` is never an Open5e
+ * document and must never be passed in `requestedKeys` — callers scope this
+ * to the document keys they're about to fetch FROM Open5e, not to any
+ * grimoire-owned bundled content they seed alongside it.
+ *
+ * Pure and synchronous so it stays trivially testable: callers fetch
+ * `documents` once (typically via `fetchOpen5eDocumentRefs()`) and pass the
+ * result straight through.
+ */
+export function assertRedistributableDocuments(
+  requestedKeys: readonly string[],
+  documents: readonly Open5eDocumentRef[],
+): void {
+  const byKey = new Map(documents.map((document) => [document.key, document]));
+  const problems: string[] = [];
+
+  for (const requestedKey of requestedKeys) {
+    const upstreamKey = LEGACY_DOCUMENT_KEY_ALIASES[requestedKey] ?? requestedKey;
+    const document = byKey.get(upstreamKey);
+    if (!document) {
+      problems.push(`"${requestedKey}" (looked up as "${upstreamKey}"): no such Open5e v2 document`);
+      continue;
+    }
+    if (!isRedistributable(document)) {
+      const keys = licenseKeysFor(document);
+      const licenseDesc = keys.length ? keys.join(", ") : "no licenses listed";
+      problems.push(`"${requestedKey}" (looked up as "${upstreamKey}"): license(s) [${licenseDesc}] do not permit hosted redistribution`);
+    }
+  }
+
+  if (problems.length) {
+    throw new Error(
+      `Refusing to seed: the following document key(s) are unknown or not cleared for hosted redistribution:\n` +
+        problems.map((problem) => `  - ${problem}`).join("\n"),
+    );
+  }
 }

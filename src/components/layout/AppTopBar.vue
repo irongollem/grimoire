@@ -1,25 +1,43 @@
 <template>
   <header
-    class="md:hidden flex items-center gap-3 px-4 py-3 border-b border-border bg-card sticky top-0 z-30"
+    class="sidenav:hidden flex items-center gap-3 px-4 py-3 border-b border-border bg-card sticky top-0 z-30"
   >
     <h1 class="font-cinzel text-lg font-semibold text-gold-500 tracking-wider flex-1 truncate">
       {{ pageTitle }}
     </h1>
 
+    <!-- At md+ within bar mode (a tablet), the top bar carries the real
+         search input inline, freeing the bottom bar's width for more nav
+         tabs. `:hotkey="false"` — the always-mounted sidebar instance owns
+         mod+k. -->
+    <div class="hidden w-64 md:block">
+      <GlobalSearch :hotkey="false" />
+    </div>
+
+    <!-- Phones only: at md+ within bar mode (a tablet), the inline search
+         above replaces this icon button. -->
     <button
-      class="text-muted-foreground hover:text-foreground transition-colors"
+      class="md:hidden text-muted-foreground hover:text-foreground transition-colors"
       aria-label="Search"
       @click="searchOpen = true"
     >
       <IconSearch class="h-5 w-5" />
     </button>
 
-    <!-- DM Prep/Play toggle — compact single-word pill showing current state. -->
+    <!-- At md+ within bar mode (a tablet), the top bar carries the full
+         Prep/Play toggle, freeing the bottom bar's width for more nav tabs. -->
+    <div v-if="isDm" class="hidden w-40 md:block">
+      <DmModeToggle />
+    </div>
+
+    <!-- DM Prep/Play toggle — compact single-word pill showing current state.
+         Phones only: at md+ within bar mode (a tablet), the toggle above
+         replaces this pill. -->
     <button
       v-if="isDm"
       type="button"
       :title="ui.dmMode === 'play' ? 'Play mode — click to stop broadcasting' : 'Prep mode — click to broadcast'"
-      class="rounded border px-2 py-0.5 font-cinzel text-2xs tracking-widest font-bold transition-colors shrink-0"
+      class="md:hidden rounded border px-2 py-0.5 font-cinzel text-2xs tracking-widest font-bold transition-colors shrink-0"
       :class="ui.dmMode === 'play'
         ? 'border-primary/60 bg-primary/15 text-primary'
         : 'border-border text-muted-foreground'"
@@ -98,6 +116,8 @@ import { IconClose, IconLoading, IconSearch } from '@/lib/icons';
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import SoundboardWidgetToggle from "@/components/soundboard/SoundboardWidgetToggle.vue";
+import GlobalSearch from "./GlobalSearch.vue";
+import DmModeToggle from "./DmModeToggle.vue";
 import { useGlobalSearch } from "@/composables/useGlobalSearch";
 
 const route = useRoute();

@@ -13,23 +13,45 @@ export const SPELL_SCHOOLS = [
 
 export type SpellSchool = (typeof SPELL_SCHOOLS)[number];
 
-// Human-readable labels for open5e document slugs.
-// Anything not in this map falls back to the raw slug.
+// Human-readable labels for open5e document slugs, used only as a fallback when a
+// row carries no stored `source_title`. The authoritative per-source title,
+// publisher and licence live in the `content_sources` table (see the Licences tab
+// in the Reliquary) — these labels must never contradict it. Getting a label wrong
+// misattributes one publisher's work to another, which is the exact thing the
+// OGL and CC-BY attribution terms forbid, so correct this map rather than papering
+// over it downstream. Anything not listed falls back to the raw slug.
 export const OPEN5E_SOURCE_LABELS: Record<string, string> = {
-  "wotc-srd": "D&D SRD 5.1",
-  "phb": "Player's Handbook",
-  "xge": "Xanathar's Guide to Everything",
-  "tce": "Tasha's Cauldron of Everything",
-  "ai": "Acquisitions Incorporated",
-  "a5e": "Level Up: A5E",
-  "blackflag": "Black Flag Roleplaying",
+  // Wizards of the Coast — CC-BY-4.0 (5.1 additionally OGL 1.0a)
+  "srd-2014": "System Reference Document 5.1",
+  "srd-2024": "System Reference Document 5.2",
+  "wotc-srd": "System Reference Document 5.1",
+  // Kobold Press — OGL 1.0a, except the Black Flag SRD (CC-BY-4.0)
+  "blackflag": "Black Flag SRD",
   "cc": "Creature Codex",
   "tob": "Tome of Beasts",
   "tob2": "Tome of Beasts 2",
   "tob3": "Tome of Beasts 3",
+  "tob-2023": "Tome of Beasts 2023",
+  "toh": "Tome of Heroes",
   "dmag": "Deep Magic",
+  "dmag-e": "Deep Magic Extended",
   "vom": "Vault of Magic",
-  "menagerie": "Tome of Beasts: Lairs",
+  "warlock": "Warlock Archives",
+  "kp": "Kobold Press Compilation",
+  // EN Publishing (Level Up: Advanced 5th Edition) — OGL 1.0a.
+  // NOT a Kobold Press title: this slug was previously mislabelled "Tome of
+  // Beasts: Lairs", crediting the wrong publisher entirely.
+  "menagerie": "Level Up: Monstrous Menagerie",
+  "a5e": "Level Up: Adventurer's Guide",
+  // Open5e's own content — OGL 1.0a
+  "o5e": "Open5e Originals",
+  // Green Ronin Publishing
+  "taldorei": "Tal'Dorei Campaign Setting",
+  // Books we do not host: these appear only on content a DM imported themselves.
+  "phb": "Player's Handbook",
+  "xge": "Xanathar's Guide to Everything",
+  "tce": "Tasha's Cauldron of Everything",
+  "ai": "Acquisitions Incorporated",
   "srd": "SRD (legacy)",
 };
 

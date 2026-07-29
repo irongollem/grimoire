@@ -38,7 +38,8 @@ import {
 // rather than duplicated (only read/imported here, this file does not modify
 // src/lib/open5eMonsterImport.ts).
 import { fetchOpen5eDocuments } from "@/lib/open5eMonsterImport";
-import { fetchSupported5eDocumentKeys, stableSrdId } from "@/lib/open5eApi";
+import { fetchOpen5eDocumentRefs, fetchSupported5eDocumentKeys, stableSrdId } from "@/lib/open5eApi";
+import type { Open5eDocumentRef } from "@/lib/open5eApi";
 import type { RulesetKey } from "@/types/ruleset.types";
 import {
   requireEnv,
@@ -48,8 +49,10 @@ import {
   parseSeedCliArgs,
   printAvailableDocuments,
   countByRuleset,
+  assertRedistributableDocuments,
   DEFAULT_SRD_DOCUMENT_KEYS,
 } from "./lib/seed-helpers";
+import { pathToFileURL } from "node:url";
 
 // ── row shape ─────────────────────────────────────────────────────────────────
 
@@ -81,8 +84,9 @@ type SeededSpecies = Omit<ImportedFields, "ruleset" | "source"> &
  */
 export function buildSeededSpeciesRow(
   race: Parameters<typeof buildImportedFields>[0],
+  documentMetadata?: ReadonlyMap<string, Open5eDocumentRef>,
 ): SeededSpecies | null {
-  const imported = buildImportedFields(race);
+  const imported = buildImportedFields(race, documentMetadata);
   if (!imported.ruleset) return null;
   const { notes: _notes, ...createOnlyDefaults } = buildCreateOnlyDefaults();
   return {
@@ -140,6 +144,15 @@ async function main(): Promise<void> {
 
   console.log(`=== Seeding srd_species (sources: ${documentKeys.join(", ")}) ===\n`);
 
+  console.log("Checking requested document(s) are licensed for hosted redistribution…");
+  // The embedded `document` ref on a /v2/species/ record never carries
+  // `licenses` (verified against the live API) — only the full
+  // /v2/documents/ listing does. Fetched once, reused both for the
+  // redistribution guard and as the source_license lookup map below.
+  const documents = await fetchOpen5eDocumentRefs();
+  assertRedistributableDocuments(documentKeys, documents);
+  const documentMetadata = new Map(documents.map((document) => [document.key, document]));
+
   console.log("Step 1: Fetching + mapping species from Open5e v2…");
   const races = await fetchSrdSpecies(documentKeys);
   const coreRaces = races.filter((race) => !race.is_subspecies);
@@ -148,7 +161,7 @@ async function main(): Promise<void> {
     console.log(`  Skipped ${subspeciesSkipped} subspecies row(s) — shared table holds core species only.`);
   }
 
-  const mapped = coreRaces.map(buildSeededSpeciesRow);
+  const mapped = coreRaces.map((race) => buildSeededSpeciesRow(race, documentMetadata));
   const rows = mapped.filter((row): row is SeededSpecies => row !== null);
   const unsupported = mapped.length - rows.length;
   if (unsupported > 0) {
@@ -171,7 +184,14 @@ async function main(): Promise<void> {
   console.log("=== Seeding complete ===");
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+// Entry-point guard: these modules also export helpers their .test.ts files
+// import directly. Without it, a plain `import` runs main() — which reaches the
+// network before vitest can tear the worker down, producing "Failed to
+// terminate forks worker" on every full-suite run. Only auto-run when this file
+// is the actual entrypoint.
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

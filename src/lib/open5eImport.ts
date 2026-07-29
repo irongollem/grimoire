@@ -1,4 +1,11 @@
-import { fetchAllFromDocuments, fetchSupported5eDocumentKeys, rulesetForDocument, slugifyKey } from "@/lib/open5eApi";
+import {
+  fetchAllFromDocuments,
+  fetchOpen5eDocumentRefs,
+  fetchSupported5eDocumentKeys,
+  licenseForDocumentKey,
+  rulesetForDocument,
+  slugifyKey,
+} from "@/lib/open5eApi";
 import type { Open5eDocumentRef } from "@/lib/open5eApi";
 import type { ItemInsert, ItemType, ItemRarity, WeaponProperty, WeaponMasteryProperty } from "@/types/item.types";
 import { WEAPON_PROPERTIES, WEAPON_MASTERY_PROPERTIES } from "@/types/item.types";
@@ -39,14 +46,17 @@ interface Open5eV2MagicItem {
   document: Open5eDocumentRef;
 }
 
-function metadata(record: { key: string; name: string; document: Open5eDocumentRef }) {
+function metadata(
+  record: { key: string; name: string; document: Open5eDocumentRef },
+  documentMetadata?: ReadonlyMap<string, Open5eDocumentRef>,
+) {
   return {
     ruleset: rulesetForDocument(record.document),
     conceptual_key: slugifyKey(record.name),
     source_document_key: record.document.key,
     source_record_key: record.key,
     source_revision: record.document.name,
-    source_license: null,
+    source_license: licenseForDocumentKey(documentMetadata, record.document.key),
     provenance: {
       provider: "open5e-v2",
       document: {
@@ -99,9 +109,12 @@ function versatileDamage(record: Open5eV2Weapon): string | null {
   return record.properties.find(entry => entry.property.name.toLowerCase() === "versatile")?.detail ?? null;
 }
 
-function baseItem(record: { key: string; name: string; document: Open5eDocumentRef }) {
+function baseItem(
+  record: { key: string; name: string; document: Open5eDocumentRef },
+  documentMetadata?: ReadonlyMap<string, Open5eDocumentRef>,
+) {
   return {
-    ...metadata(record),
+    ...metadata(record, documentMetadata),
     name: record.name,
     source: record.document.key,
     source_title: record.document.display_name || record.document.name,
@@ -113,10 +126,13 @@ function baseItem(record: { key: string; name: string; document: Open5eDocumentR
   };
 }
 
-export function mapOpen5eV2Weapon(record: Open5eV2Weapon): ItemInsert {
+export function mapOpen5eV2Weapon(
+  record: Open5eV2Weapon,
+  documentMetadata?: ReadonlyMap<string, Open5eDocumentRef>,
+): ItemInsert {
   const ranged = record.range > 0;
   return {
-    ...baseItem(record),
+    ...baseItem(record, documentMetadata),
     item_type: "weapon",
     subtype: `${record.is_simple ? "Simple" : "Martial"} ${ranged ? "Ranged" : "Melee"} Weapons`,
     rarity: "mundane",
@@ -139,9 +155,12 @@ export function mapOpen5eV2Weapon(record: Open5eV2Weapon): ItemInsert {
   };
 }
 
-export function mapOpen5eV2Armor(record: Open5eV2Armor): ItemInsert {
+export function mapOpen5eV2Armor(
+  record: Open5eV2Armor,
+  documentMetadata?: ReadonlyMap<string, Open5eDocumentRef>,
+): ItemInsert {
   return {
-    ...baseItem(record),
+    ...baseItem(record, documentMetadata),
     item_type: record.category.toLowerCase() === "shield" ? "shield" : "armor",
     subtype: record.category,
     rarity: "mundane",
@@ -162,10 +181,13 @@ export function mapOpen5eV2Armor(record: Open5eV2Armor): ItemInsert {
   };
 }
 
-export function mapOpen5eV2MagicItem(record: Open5eV2MagicItem): ItemInsert {
+export function mapOpen5eV2MagicItem(
+  record: Open5eV2MagicItem,
+  documentMetadata?: ReadonlyMap<string, Open5eDocumentRef>,
+): ItemInsert {
   const itemType = record.weapon ? "weapon" : record.armor ? "armor" : magicItemType(record.category.name);
   return {
-    ...baseItem(record),
+    ...baseItem(record, documentMetadata),
     item_type: itemType,
     subtype: record.category.name,
     rarity: mapRarity(record.rarity.name),
@@ -199,14 +221,21 @@ export function mapOpen5eV2MagicItem(record: Open5eV2MagicItem): ItemInsert {
  */
 export async function fetchSrdItems(documentKeys?: string[]): Promise<ItemInsert[]> {
   const keys = documentKeys ?? (await fetchSupported5eDocumentKeys());
-  const [weapons, armor, magicItems] = await Promise.all([
+  // The embedded `document` ref on a weapon/armor/magicitem record never
+  // carries `licenses` (verified against the live API) — only the full
+  // /v2/documents/ listing does. A document-metadata map keyed by document
+  // key is fetched alongside the items themselves so the mapOpen5eV2*
+  // functions can populate source_license.
+  const [weapons, armor, magicItems, documents] = await Promise.all([
     fetchAllFromDocuments<Open5eV2Weapon>("https://api.open5e.com/v2/weapons/", keys),
     fetchAllFromDocuments<Open5eV2Armor>("https://api.open5e.com/v2/armor/", keys),
     fetchAllFromDocuments<Open5eV2MagicItem>("https://api.open5e.com/v2/magicitems/", keys),
+    fetchOpen5eDocumentRefs(),
   ]);
+  const documentMetadata = new Map(documents.map((document) => [document.key, document]));
   return [
-    ...weapons.map(mapOpen5eV2Weapon),
-    ...armor.map(mapOpen5eV2Armor),
-    ...magicItems.map(mapOpen5eV2MagicItem),
+    ...weapons.map((record) => mapOpen5eV2Weapon(record, documentMetadata)),
+    ...armor.map((record) => mapOpen5eV2Armor(record, documentMetadata)),
+    ...magicItems.map((record) => mapOpen5eV2MagicItem(record, documentMetadata)),
   ];
 }

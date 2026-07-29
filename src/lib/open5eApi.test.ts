@@ -1,5 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchAllFromDocuments, fetchSupported5eDocumentKeys, rulesetForDocument } from "./open5eApi";
+import {
+  fetchAllFromDocuments,
+  fetchOpen5eDocumentRefs,
+  fetchSupported5eDocumentKeys,
+  formatLicenseKeys,
+  isRedistributable,
+  licenseForDocumentKey,
+  licenseKeysFor,
+  LEGACY_DOCUMENT_KEY_ALIASES,
+  REDISTRIBUTABLE_LICENSE_KEYS,
+  rulesetForDocument,
+} from "./open5eApi";
+import type { Open5eDocumentRef } from "./open5eApi";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -40,18 +52,127 @@ describe("rulesetForDocument", () => {
 });
 
 describe("fetchSupported5eDocumentKeys", () => {
-  it("keeps only documents whose gamesystem maps to a supported ruleset", async () => {
+  it("keeps only documents whose gamesystem maps to a supported ruleset AND whose license permits redistribution", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
-      count: 3,
+      count: 4,
       next: null,
       results: [
-        { key: "srd-2014", name: "SRD 5.1", gamesystem: { key: "5e-2014", name: "5th Edition 2014" } },
-        { key: "srd-2024", name: "SRD 5.2", gamesystem: { key: "5e-2024", name: "5th Edition 2024" } },
-        { key: "a5e-srd", name: "A5E SRD", gamesystem: { key: "a5e", name: "Level Up A5E" } },
+        { key: "srd-2014", name: "SRD 5.1", gamesystem: { key: "5e-2014", name: "5th Edition 2014" }, licenses: [{ name: "CC-BY 4.0", key: "cc-by-40" }] },
+        { key: "srd-2024", name: "SRD 5.2", gamesystem: { key: "5e-2024", name: "5th Edition 2024" }, licenses: [{ name: "OGL 1.0a", key: "ogl-10a" }] },
+        { key: "a5e-srd", name: "A5E SRD", gamesystem: { key: "a5e", name: "Level Up A5E" }, licenses: [{ name: "OGL 1.0a", key: "ogl-10a" }] },
+        { key: "unconfirmed", name: "Unconfirmed Document", gamesystem: { key: "5e-2014", name: "5th Edition 2014" }, licenses: [] },
       ],
     }))));
 
     expect(await fetchSupported5eDocumentKeys()).toEqual(["srd-2014", "srd-2024"]);
+  });
+});
+
+describe("fetchOpen5eDocumentRefs", () => {
+  it("returns the raw document list, licenses and all, undiscarded", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
+      count: 1,
+      next: null,
+      results: [
+        {
+          key: "ccdx",
+          name: "Creature Codex",
+          publisher: { name: "Kobold Press", key: "kobold-press" },
+          gamesystem: { key: "5e-2014", name: "5th Edition 2014" },
+          licenses: [{ name: "OGL 1.0a", key: "ogl-10a" }],
+          permalink: "https://example.test/creature-codex",
+        },
+      ],
+    }))));
+
+    const documents = await fetchOpen5eDocumentRefs();
+    expect(documents).toEqual([
+      {
+        key: "ccdx",
+        name: "Creature Codex",
+        publisher: { name: "Kobold Press", key: "kobold-press" },
+        gamesystem: { key: "5e-2014", name: "5th Edition 2014" },
+        licenses: [{ name: "OGL 1.0a", key: "ogl-10a" }],
+        permalink: "https://example.test/creature-codex",
+      },
+    ]);
+  });
+});
+
+describe("licenseKeysFor / isRedistributable", () => {
+  const withLicenses = (keys: string[]): Open5eDocumentRef => ({
+    key: "doc", name: "Doc", licenses: keys.map((key) => ({ name: key, key })),
+  });
+
+  it("licenseKeysFor extracts every license key, [] when there are none", () => {
+    expect(licenseKeysFor(withLicenses(["ogl-10a", "cc-by-40"]))).toEqual(["ogl-10a", "cc-by-40"]);
+    expect(licenseKeysFor({ key: "doc", name: "Doc" })).toEqual([]);
+  });
+
+  it("isRedistributable is true when every license key is in the whitelist", () => {
+    expect(isRedistributable(withLicenses(["ogl-10a"]))).toBe(true);
+    expect(isRedistributable(withLicenses(["cc-by-40", "cc0"]))).toBe(true);
+  });
+
+  it("isRedistributable is false for a document with an empty/missing licenses array — unknown licensing is a refusal, not a default-allow", () => {
+    expect(isRedistributable(withLicenses([]))).toBe(false);
+    expect(isRedistributable({ key: "doc", name: "Doc" })).toBe(false);
+  });
+
+  it("isRedistributable is false when any license key falls outside the whitelist", () => {
+    expect(isRedistributable(withLicenses(["ogl-10a", "some-other-license"]))).toBe(false);
+  });
+
+  it("REDISTRIBUTABLE_LICENSE_KEYS covers every whitelisted license, including 'orc' (never emitted by Open5e itself, only by our own curated corrections)", () => {
+    expect(REDISTRIBUTABLE_LICENSE_KEYS).toEqual(["ogl-10a", "cc-by-40", "cc0", "orc"]);
+  });
+});
+
+describe("formatLicenseKeys", () => {
+  it("comma-space joins license keys, matching the stored source_license format", () => {
+    expect(formatLicenseKeys(["cc-by-40", "ogl-10a"])).toBe("cc-by-40, ogl-10a");
+  });
+
+  it("returns null for an empty list", () => {
+    expect(formatLicenseKeys([])).toBeNull();
+  });
+});
+
+describe("licenseForDocumentKey", () => {
+  const document: Open5eDocumentRef = {
+    key: "ccdx",
+    name: "Creature Codex",
+    licenses: [{ name: "OGL 1.0a", key: "ogl-10a" }],
+  };
+
+  it("formats the license keys of the document found in the map", () => {
+    const map = new Map([["ccdx", document]]);
+    expect(licenseForDocumentKey(map, "ccdx")).toBe("ogl-10a");
+  });
+
+  it("returns null when the document key is not in the map", () => {
+    const map = new Map([["ccdx", document]]);
+    expect(licenseForDocumentKey(map, "unknown")).toBeNull();
+  });
+
+  it("returns null when no map is provided at all", () => {
+    expect(licenseForDocumentKey(undefined, "ccdx")).toBeNull();
+  });
+});
+
+describe("LEGACY_DOCUMENT_KEY_ALIASES", () => {
+  it("maps every legacy source_document_key to its verified current Open5e v2 key", () => {
+    expect(LEGACY_DOCUMENT_KEY_ALIASES).toEqual({
+      cc: "ccdx",
+      blackflag: "bfrd",
+      menagerie: "a5e-mm",
+      dmag: "deepm",
+      "dmag-e": "deepmx",
+      warlock: "wz",
+      a5e: "a5e-ag",
+      o5e: "open5e",
+      taldorei: "tdcs",
+    });
   });
 });
 

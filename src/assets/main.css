@@ -18,6 +18,24 @@
 ───────────────────────────────────────────────────────────────────────────── */
 @custom-variant dark (&:is(.dark *));
 
+/* Nav-surface variants (issue #575). The bottom bar serves touch-first
+   devices — primary pointer coarse: phones, tablets, a Surface with the
+   keyboard detached — plus any window too narrow for the sidebar; the
+   sidebar serves everything else. Pointer type, not width, is what tells an
+   iPad Pro in landscape (1366px) apart from a same-width laptop, and it
+   re-evaluates live when a convertible's keyboard detaches.
+   JS mirror: useIsBarNav() in composables/useBreakpoint.ts — keep in sync. */
+@custom-variant barnav {
+  @media (pointer: coarse) or (width < 48rem) {
+    @slot;
+  }
+}
+@custom-variant sidenav {
+  @media not ((pointer: coarse) or (width < 48rem)) {
+    @slot;
+  }
+}
+
 @theme inline {
   /* Shadcn-compatible semantic tokens */
   --color-background: var(--background);

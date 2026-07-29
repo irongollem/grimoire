@@ -8,18 +8,27 @@ import {
 } from "./open5eClassImport";
 import type { Open5eClassPreview, Open5eSubclassPreview } from "./open5eClassImport";
 
+// `licenses` is not decoration: fetchSupported5eDocumentKeys() refuses any
+// document that lists none, so a fixture without them is silently dropped and
+// the stray-document assertion fires instead of the behaviour under test. These
+// are the licence keys Open5e actually reports for the two SRD documents.
 const documents = {
   legacy: {
     key: "srd-2014",
     name: "System Reference Document 5.1",
     display_name: "5e 2014 Rules",
     gamesystem: { key: "5e-2014", name: "5th Edition 2014" },
+    licenses: [
+      { key: "cc-by-40", name: "Creative Commons Attribution 4.0" },
+      { key: "ogl-10a", name: "OPEN GAME LICENSE Version 1.0a" },
+    ],
   },
   revised: {
     key: "srd-2024",
     name: "System Reference Document 5.2",
     display_name: "5e 2024 Rules",
     gamesystem: { key: "5e-2024", name: "5th Edition 2024" },
+    licenses: [{ key: "cc-by-40", name: "Creative Commons Attribution 4.0" }],
   },
 };
 

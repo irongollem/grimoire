@@ -14,7 +14,7 @@
           <p
             class="text-body md:text-base text-muted-foreground italic mt-0.5"
           >
-            DM screen, SRD compendium &amp; custom rule systems
+            DM screen, compendium &amp; custom rule systems
           </p>
         </div>
         <div class="flex items-center gap-2 shrink-0">
@@ -57,6 +57,7 @@
       <CompendiumTab v-else-if="activeTab === 'compendium'" />
       <CustomRulesTab v-else-if="activeTab === 'custom'" />
       <ManualTab v-else-if="activeTab === 'manual'" />
+      <LicensesTab v-else-if="activeTab === 'licenses'" />
     </div>
   </div>
 </template>
@@ -64,19 +65,21 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { IconAdd, IconBookMarked, IconMonitor, IconPopulate, IconQuest } from '@/lib/icons';
+import { IconAdd, IconBookMarked, IconLandmark, IconMonitor, IconPopulate, IconQuest } from '@/lib/icons';
 import { RouterLink } from "vue-router";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ScreenTab from "@/components/rules/ScreenTab.vue";
 import CompendiumTab from "@/components/rules/CompendiumTab.vue";
 import CustomRulesTab from "@/components/rules/CustomRulesTab.vue";
 import ManualTab from "@/components/rules/ManualTab.vue";
+import LicensesTab from "@/components/rules/LicensesTab.vue";
 
 const TABS = [
   { id: "screen", label: "DM Screen", icon: IconMonitor },
   { id: "compendium", label: "Compendium", icon: IconPopulate },
   { id: "custom", label: "Custom Rules", icon: IconQuest },
   { id: "manual", label: "DM Manual", icon: IconBookMarked },
+  { id: "licenses", label: "Licenses", icon: IconLandmark },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];

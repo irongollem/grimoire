@@ -1,8 +1,8 @@
 <template>
   <MobileSheet :open="open" title="All sections" @update:open="emit('update:open', $event)">
-    <!-- Active campaign + switcher — the desktop sidebar (hidden md:flex) is the
-         only other place this lives, so mobile/PWA DMs get it here. Full-bleed
-         to align with the sheet's title divider. -->
+    <!-- Active campaign + switcher — the desktop sidebar (hidden sidenav:flex)
+         is the only other place this lives, so mobile/PWA DMs get it here.
+         Full-bleed to align with the sheet's title divider. -->
     <CampaignSwitcher class="-mx-4 mb-4" />
 
     <!-- Context-aware create — the create path in Play mode (whose center FAB
@@ -19,22 +19,7 @@
     </button>
 
     <!-- Prep / Play mode toggle -->
-    <div
-      class="mb-4 flex w-full overflow-hidden rounded-md border border-border"
-    >
-      <button
-        v-for="m in modes"
-        :key="m.value"
-        type="button"
-        class="flex-1 px-3 py-2 font-cinzel text-xs font-bold tracking-widest transition-colors"
-        :class="ui.dmMode === m.value
-          ? 'bg-primary/15 text-primary'
-          : 'text-muted-foreground hover:bg-secondary/60'"
-        @click="setMode(m.value)"
-      >
-        {{ m.label }}
-      </button>
-    </div>
+    <DmModeToggle size="md" :labels="['Prep mode', 'Play mode']" class="mb-4" />
 
     <!-- All sections as icon tiles, grouped by area -->
     <div class="flex flex-col gap-4">
@@ -103,6 +88,7 @@ import { useRoute, useRouter } from "vue-router";
 import MobileSheet from "@/components/common/MobileSheet.vue";
 import CampaignSwitcher from "@/components/layout/CampaignSwitcher.vue";
 import BugReportModal from "@/components/common/BugReportModal.vue";
+import DmModeToggle from "./DmModeToggle.vue";
 import { IconAdd, IconBug, IconRefresh } from "@/lib/icons";
 import { NAV_GROUPS, navItemHiddenByFlag, type NavItem } from "@/lib/nav";
 import { updateAvailable, reloadApp } from "@/composables/useAppUpdate";
@@ -110,6 +96,7 @@ import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/useOptionalRules";
 import { useSimulacrumConfig } from "@/composables/useSimulacrumConfig";
+import { useAbove } from "@/composables/useBreakpoint";
 
 const { open = false, barRoutes = [], create = null } = defineProps<{
   open?: boolean;
@@ -130,23 +117,18 @@ const campaignStore = useCampaignStore();
 
 const hasCampaign = computed(() => !!campaignStore.activeCampaignId);
 
-const modes = [
-  { value: "prep", label: "Prep mode" },
-  { value: "play", label: "Play mode" },
-] as const;
-
-function setMode(m: "prep" | "play") {
-  ui.dmMode = m;
-}
-
 const { data: campaignRules } = useOptionalRules();
 const { mode: simulacrumMode } = useSimulacrumConfig();
 
 // Drive the grid off the real nav registry. `desktopOnly` groups (A4/letter
-// output tools) stay desktop-only; rule-gated items follow their campaign rule.
+// output tools) are impractical on phone-sized viewports but a tablet has the
+// room — and in bar mode this sheet is a tablet's ONLY path to them (no
+// sidebar) — so they're included at md+. Rule-gated items follow their
+// campaign rule.
+const wideEnough = useAbove("md");
 const groups = computed(() =>
   NAV_GROUPS
-    .filter((g) => !g.desktopOnly)
+    .filter((g) => !g.desktopOnly || wideEnough.value)
     .map((group) => ({
       ...group,
       items: group.items.filter(

@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
+import type { Open5eDocumentRef } from "@/lib/open5eApi";
 import {
+  assertRedistributableDocuments,
   countByRuleset,
   fetchAllRows,
   parseSeedCliArgs,
@@ -57,6 +59,65 @@ describe("parseSeedCliArgs", () => {
     expect(parseSeedCliArgs(["srd-2014", "--dry-run", "srd-2024"])).toEqual({
       list: false, all: false, dryRun: true, documentKeys: ["srd-2014", "srd-2024"],
     });
+  });
+});
+
+describe("assertRedistributableDocuments", () => {
+  const srd2014: Open5eDocumentRef = {
+    key: "srd-2014",
+    name: "System Reference Document 5.1",
+    licenses: [{ name: "CC-BY 4.0", key: "cc-by-40" }],
+  };
+  const ccdx: Open5eDocumentRef = {
+    key: "ccdx",
+    name: "Creature Codex",
+    licenses: [{ name: "OGL 1.0a", key: "ogl-10a" }],
+  };
+  const unconfirmed: Open5eDocumentRef = {
+    key: "unconfirmed-doc",
+    name: "Unconfirmed Document",
+    licenses: [],
+  };
+  const disallowed: Open5eDocumentRef = {
+    key: "disallowed-doc",
+    name: "Disallowed Document",
+    licenses: [{ name: "Some Other License", key: "some-other-license" }],
+  };
+  const documents = [srd2014, ccdx, unconfirmed, disallowed];
+
+  it("does not throw when every requested key resolves to a redistributable document", () => {
+    expect(() => assertRedistributableDocuments(["srd-2014"], documents)).not.toThrow();
+  });
+
+  it("resolves a legacy alias (\"cc\" -> \"ccdx\") through LEGACY_DOCUMENT_KEY_ALIASES before checking", () => {
+    expect(() => assertRedistributableDocuments(["cc"], documents)).not.toThrow();
+  });
+
+  it("throws naming the offending key for one that doesn't exist upstream", () => {
+    expect(() => assertRedistributableDocuments(["totally-made-up"], documents)).toThrow(/totally-made-up/);
+  });
+
+  it("throws for a document with an empty licenses array", () => {
+    expect(() => assertRedistributableDocuments(["unconfirmed-doc"], documents)).toThrow(/unconfirmed-doc/);
+  });
+
+  it("throws naming the disallowed license for a document with a non-whitelisted license key", () => {
+    expect(() => assertRedistributableDocuments(["disallowed-doc"], documents)).toThrow(/some-other-license/);
+  });
+
+  it("throws once naming every offending key in a mixed request, without rejecting the good ones", () => {
+    expect(() =>
+      assertRedistributableDocuments(["srd-2014", "unconfirmed-doc", "totally-made-up"], documents),
+    ).toThrow(/unconfirmed-doc/);
+    try {
+      assertRedistributableDocuments(["srd-2014", "unconfirmed-doc", "totally-made-up"], documents);
+      throw new Error("expected assertRedistributableDocuments to throw");
+    } catch (error) {
+      const message = (error as Error).message;
+      expect(message).not.toContain("srd-2014");
+      expect(message).toContain("unconfirmed-doc");
+      expect(message).toContain("totally-made-up");
+    }
   });
 });
 

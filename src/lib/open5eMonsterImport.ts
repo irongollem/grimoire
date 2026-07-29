@@ -1,4 +1,12 @@
-import { fetchAll, fetchAllFromDocuments, fetchSupported5eDocumentKeys, rulesetForDocument, slugifyKey } from "@/lib/open5eApi";
+import {
+  fetchAll,
+  fetchAllFromDocuments,
+  fetchOpen5eDocumentRefs,
+  fetchSupported5eDocumentKeys,
+  licenseForDocumentKey,
+  rulesetForDocument,
+  slugifyKey,
+} from "@/lib/open5eApi";
 import type { Open5eDocumentRef } from "@/lib/open5eApi";
 import type { MonsterInsert, MonsterStatBlock, MonsterSize, MonsterType, MonsterUpdate } from "@/types/monster.types";
 
@@ -114,7 +122,10 @@ function displayResistance(monster: Open5eV2Monster, key: string): string | unde
   return typeof value === "string" && value ? value : undefined;
 }
 
-export function mapOpen5eV2Monster(monster: Open5eV2Monster): MonsterInsert {
+export function mapOpen5eV2Monster(
+  monster: Open5eV2Monster,
+  documentMetadata?: ReadonlyMap<string, Open5eDocumentRef>,
+): MonsterInsert {
   const traits = monster.traits?.map(trait => ({ name: trait.name, description: trait.desc }));
   const legendaryResistance = monster.traits?.find(trait => /legendary resistance/i.test(trait.name));
   const count = legendaryResistance?.name.match(/\((\d+)\s*\/\s*day/i)?.[1];
@@ -162,7 +173,7 @@ export function mapOpen5eV2Monster(monster: Open5eV2Monster): MonsterInsert {
     source_document_key: monster.document.key,
     source_record_key: monster.key,
     source_revision: monster.document.name,
-    source_license: null,
+    source_license: licenseForDocumentKey(documentMetadata, monster.document.key),
     provenance: {
       provider: "open5e-v2",
       document: {
@@ -198,8 +209,17 @@ export async function fetchOpen5eDocuments(): Promise<Open5eDocument[]> {
 /** V2 native keys preserve equal-name creatures across books and editions. */
 export async function fetchSrdMonsters(sourceKeys?: string[]): Promise<MonsterInsert[]> {
   const documentKeys = sourceKeys?.length ? sourceKeys : await fetchSupported5eDocumentKeys();
-  const raw = await fetchAllFromDocuments<Open5eV2Monster>("https://api.open5e.com/v2/creatures/", documentKeys);
-  return raw.map(mapOpen5eV2Monster);
+  // The embedded `monster.document` ref on a /v2/creatures/ record never
+  // carries `licenses` (verified against the live API) — only the full
+  // /v2/documents/ listing does. A document-metadata map keyed by document
+  // key is fetched alongside the creatures themselves so mapOpen5eV2Monster
+  // can populate source_license.
+  const [raw, documents] = await Promise.all([
+    fetchAllFromDocuments<Open5eV2Monster>("https://api.open5e.com/v2/creatures/", documentKeys),
+    fetchOpen5eDocumentRefs(),
+  ]);
+  const documentMetadata = new Map(documents.map((document) => [document.key, document]));
+  return raw.map((monster) => mapOpen5eV2Monster(monster, documentMetadata));
 }
 
 /**

@@ -1,6 +1,6 @@
 <template>
   <aside
-    class="hidden md:flex flex-col w-60 shrink-0 border-r border-border bg-card h-dvh sticky top-0"
+    class="hidden sidenav:flex flex-col w-60 shrink-0 border-r border-border bg-card h-dvh sticky top-0"
   >
     <!-- Logo -->
     <div class="px-4 py-4 border-b border-border space-y-2.5">
@@ -35,30 +35,8 @@
         </div>
       </div>
 
-      <!-- DM Prep/Play segmented control — DM-only, full-width below the brand.
-           In Play mode, visibility changes auto-broadcast to chat.
-           In Prep mode (default) that side-effect is silent. -->
-      <button
-        v-if="isDm"
-        type="button"
-        :title="ui.dmMode === 'play'
-          ? 'Play mode — visibility changes broadcast to chat. Click to stop broadcasting.'
-          : 'Prep mode — visibility changes are silent. Click to start broadcasting.'"
-        class="w-full flex items-center rounded border overflow-hidden font-cinzel text-2xs tracking-widest font-bold transition-colors"
-        :class="ui.dmMode === 'play' ? 'border-primary/50' : 'border-border'"
-        @click="ui.toggleDmMode()"
-      >
-        <span
-          class="flex-1 text-center py-1 transition-colors"
-          :class="ui.dmMode === 'prep' ? 'bg-muted text-foreground' : 'text-muted-foreground'"
-        >PREP</span>
-        <span
-          class="flex-1 text-center py-1 border-l transition-colors"
-          :class="ui.dmMode === 'play'
-            ? 'bg-primary/15 text-primary border-primary/30'
-            : 'text-muted-foreground border-border'"
-        >PLAY</span>
-      </button>
+      <!-- DM Prep/Play segmented control — DM-only, full-width below the brand. -->
+      <DmModeToggle v-if="isDm" />
     </div>
 
     <!-- Campaign switcher -->
@@ -215,7 +193,6 @@ import { onClickOutside } from "@vueuse/core";
 import { isAnyAiGenerating, getAiGeneratorRegistry } from "@/ai/aiGeneratorRegistry";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { useAuthStore } from "@/stores/auth";
-import { useUiStore } from "@/stores/ui";
 import { useUpdateCampaignMember } from "@/composables/useCampaignMembers";
 import LegalFooterLinks from "@/components/common/LegalFooterLinks.vue";
 import { NAV_GROUPS, navItemHiddenByFlag } from "@/lib/nav";
@@ -228,9 +205,9 @@ import CampaignSwitcher from "./CampaignSwitcher.vue";
 import GlobalSearch from "./GlobalSearch.vue";
 import DiceRoller from "@/components/common/DiceRoller.vue";
 import BugReportModal from "@/components/common/BugReportModal.vue";
+import DmModeToggle from "./DmModeToggle.vue";
 
 const auth = useAuthStore();
-const ui = useUiStore();
 const router = useRouter();
 const { canInstall, hasNativePrompt, install } = usePwaInstall();
 const bugReportOpen = ref(false);

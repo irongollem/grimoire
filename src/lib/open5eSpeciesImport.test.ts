@@ -146,6 +146,8 @@ describe("buildImportedFields", () => {
       source_document_key: "srd-2024",
       source_record_key: "srd-2024_elf",
       source_revision: "System Reference Document 5.2",
+      // No documentMetadata map passed above (no source_license data available) —
+      // the populated case is covered by the "source_license" describe block below.
       source_license: null,
     });
     expect(fields.description).toBe(
@@ -179,5 +181,26 @@ describe("buildImportedFields", () => {
       race({ document: { ...document, gamesystem: { name: "Advanced 5e", key: "a5e" } } }),
     );
     expect(fields.ruleset).toBeNull();
+  });
+});
+
+describe("buildImportedFields — source_license", () => {
+  it("derives source_license from a document-metadata map keyed by document key", () => {
+    const documentMetadata = new Map([
+      ["srd-2024", { ...document, licenses: [{ name: "CC-BY 4.0", key: "cc-by-40" }] }],
+    ]);
+    const fields = buildImportedFields(race(), documentMetadata);
+    expect(fields.source_license).toBe("cc-by-40");
+  });
+
+  it("is null when no document-metadata map is passed at all", () => {
+    const fields = buildImportedFields(race());
+    expect(fields.source_license).toBeNull();
+  });
+
+  it("is null when the map doesn't contain this race's document key", () => {
+    const documentMetadata = new Map([["some-other-doc", { ...document, key: "some-other-doc" }]]);
+    const fields = buildImportedFields(race(), documentMetadata);
+    expect(fields.source_license).toBeNull();
   });
 });

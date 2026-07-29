@@ -13,21 +13,26 @@
            which render their own top app bar — avoids two stacked top bars. -->
       <AppTopBar v-if="!fullscreenMobile" />
 
-      <!-- Mobile bottom padding reserves room for the docked DM bottom nav so
-           page/list bottoms aren't hidden behind it; reset at md+ where the
-           desktop sidebar (not a bottom bar) is used, and dropped entirely on
-           full-screen takeover routes (which own their full viewport). -->
+      <!-- Bottom padding reserves room for the docked DM bottom nav so
+           page/list bottoms aren't hidden behind it; reset whenever the
+           sidebar (not the bottom bar) is the nav chrome, and dropped
+           entirely on full-screen takeover routes (which own their full
+           viewport). The bar/sidebar boundary is pointer-driven, not just
+           width-driven — see the `barnav:`/`sidenav:` custom variants in
+           src/assets/main.css. -->
       <main
-        class="flex flex-1 min-h-0 flex-col overflow-y-auto md:pb-0"
+        class="flex flex-1 min-h-0 flex-col overflow-y-auto sidenav:pb-0"
         :class="fullscreenMobile ? '' : 'pb-[calc(4.5rem+env(safe-area-inset-bottom))]'"
       >
         <slot />
       </main>
     </div>
 
-    <!-- Docked, mode-aware DM bottom navigation (mobile only). Hidden on
-         full-screen takeover routes so it doesn't collide with the screen's
-         own bottom action bar. -->
+    <!-- Docked, mode-aware DM bottom navigation — shown whenever the bar (not
+         the sidebar) is the nav chrome: touch-first devices and narrow
+         windows alike, see the `barnav:`/`sidenav:` custom variants in
+         src/assets/main.css. Hidden on full-screen takeover routes so it
+         doesn't collide with the screen's own bottom action bar. -->
     <DmBottomNav v-if="!fullscreenMobile" />
 
     <CampaignChat />
@@ -106,6 +111,8 @@ void initPlaceholderFocalPoints();
 // Full-screen mobile takeover routes (e.g. NPC detail/edit) render their own
 // top + bottom bars, so the global AppTopBar / DmBottomNav are suppressed and
 // the <main> bottom padding dropped. Only below md — desktop is never affected.
+// This is deliberately phone-width-only regardless of pointer type: tablets
+// get desktop-style detail views plus the bar, never the full-screen takeover.
 const route = useRoute();
 const isMobile = useMediaQuery("(max-width: 767px)");
 const fullscreenMobile = computed(() => isMobile.value && !!route.meta.fullscreenMobile);

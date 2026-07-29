@@ -8,7 +8,8 @@
         v-model="query"
         type="text"
         placeholder="Search…"
-        class="w-full pl-7 pr-7 py-1.5 rounded-md bg-background border border-border text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500 transition-colors"
+        class="w-full pl-7 py-1.5 rounded-md bg-background border border-border text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500 transition-colors"
+        :class="hotkey && !query ? 'pr-12' : 'pr-7'"
         @focus="open = true"
         @keydown.escape="close"
         @keydown.down.prevent="moveFocus(1)"
@@ -23,6 +24,15 @@
       >
         <IconClose class="h-3.5 w-3.5" />
       </button>
+      <!-- Advertises mod+k only where the shortcut is actually registered —
+           the bar-mode tablet instance passes hotkey=false and a tablet has
+           no keyboard to advertise the shortcut to anyway. -->
+      <kbd
+        v-else-if="hotkey"
+        class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-border bg-secondary/60 px-1 py-0.5 text-2xs text-muted-foreground"
+      >
+        {{ hotkeyBadgeText }}
+      </kbd>
     </div>
 
     <!-- Dropdown -->
@@ -75,7 +85,15 @@ import { useRouter } from "vue-router";
 import { IconClose, IconLoading, IconSearch } from '@/lib/icons';
 import { useGlobalSearch } from "@/composables/useGlobalSearch";
 import { useHotkeys } from "@/composables/useHotkeys";
+import { formatCombo, isMacPlatform } from "@/lib/hotkeys";
 import type { SearchGroup } from "@/composables/useGlobalSearch";
+
+const { hotkey = true } = defineProps<{
+  hotkey?: boolean;
+}>();
+
+// Platform never changes mid-session, so this is computed once at setup.
+const hotkeyBadgeText = formatCombo("mod+k", isMacPlatform());
 
 const router = useRouter();
 const query = ref("");
@@ -144,22 +162,28 @@ function handleOutsideClick(e: MouseEvent) {
 
 // Registered rather than listened for directly, so the registry knows this
 // combo is taken and the cheat sheet can show it. See composables/useHotkeys.
-useHotkeys(
-  [
-    {
-      combo: "mod+k",
-      description: "Search the campaign",
-      // Deliberately fires while typing: the shortcut's job is to pull focus
-      // here from wherever it currently is, including another field.
-      allowInTextEntry: true,
-      handler: () => {
-        inputRef.value?.focus();
-        open.value = true;
+// The bar-embedded instance opts out — the always-mounted sidebar instance
+// owns mod+k, and a duplicate registration would double-book the combo in
+// the registry. `hotkey` is static for the component's lifetime, so this
+// conditional composable call is safe.
+if (hotkey) {
+  useHotkeys(
+    [
+      {
+        combo: "mod+k",
+        description: "Search the campaign",
+        // Deliberately fires while typing: the shortcut's job is to pull focus
+        // here from wherever it currently is, including another field.
+        allowInTextEntry: true,
+        handler: () => {
+          inputRef.value?.focus();
+          open.value = true;
+        },
       },
-    },
-  ],
-  { layer: "global" },
-);
+    ],
+    { layer: "global" },
+  );
+}
 
 onMounted(() => {
   document.addEventListener("mousedown", handleOutsideClick);
