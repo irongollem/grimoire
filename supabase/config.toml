@@ -7,6 +7,9 @@
 #
 # Per-function `supabase/functions/<name>/config.toml` files are NOT read
 # by `supabase functions deploy` — those must be declared here at the root.
+# Pushes that change this file, migrations, or functions are released by the
+# gated production job in `.github/workflows/test.yml`: migrations first, then
+# all current Edge Function bundles.
 
 # `supabase functions deploy <name>` needs a project_id (or a --project-ref
 # override). Set this to the linked Supabase project's ref. Left as a
