@@ -10,8 +10,13 @@ export interface RealtimeChannelOptions {
   topic: string;
   /** Add the feature's typed postgres/broadcast handlers. */
   bind: (channel: Channel) => Channel;
-  /** Re-read the smallest authoritative state after a possible event gap. */
-  reconcile: () => void;
+  /**
+   * Re-read the smallest authoritative state after a possible event gap.
+   * Omit this for ephemeral channels (Presence and one-shot waiters) where a
+   * database snapshot cannot restore the channel's state or polling already
+   * provides the recovery mechanism.
+   */
+  reconcile?: () => void;
   heal?: RealtimeHealOptions;
   /** Optional feature-specific status handling, such as chat backoff. */
   onStatus?: (status: string, error?: Error) => void;
@@ -32,22 +37,24 @@ export function createRealtimeChannel(
   options: RealtimeChannelOptions,
 ): RealtimeChannelHandle {
   let stopped = false;
-  const heal = createRealtimeHeal(options.reconcile, options.heal);
+  const heal = options.reconcile
+    ? createRealtimeHeal(options.reconcile, options.heal)
+    : null;
   let channel = options.bind(supabase.channel(options.topic));
 
   channel = channel.subscribe((status, error) => {
     if (stopped) return;
-    heal.onStatus(status);
+    heal?.onStatus(status);
     options.onStatus?.(status, error);
   });
 
   return {
     channel,
-    reconcile: heal.reconcile,
+    reconcile: () => heal?.reconcile(),
     stop(): void {
       if (stopped) return;
       stopped = true;
-      heal.detach();
+      heal?.detach();
       void supabase.removeChannel(channel);
     },
   };

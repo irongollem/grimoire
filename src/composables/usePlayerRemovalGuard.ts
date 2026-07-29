@@ -9,6 +9,7 @@
 import { watch, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { supabase } from "@/lib/supabase";
+import { createRealtimeChannel, type RealtimeChannelHandle } from "@/lib/realtimeChannel";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
@@ -19,54 +20,83 @@ export function usePlayerRemovalGuard() {
   const router = useRouter();
   const toast = useToast();
 
-  let channel: ReturnType<typeof supabase.channel> | null = null;
+  let realtime: RealtimeChannelHandle | null = null;
+  let subscribedCampaignId: string | null = null;
+  let generation = 0;
   let ejecting = false;
+
+  async function confirmStillMember(campaignId: string, expectedGeneration: number) {
+    if (expectedGeneration !== generation || subscribedCampaignId !== campaignId || ejecting) return;
+    const userId = auth.user?.id;
+    if (!userId) return;
+    const { data, error } = await supabase
+      .from("campaign_members")
+      .select("id")
+      .eq("campaign_id", campaignId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error || expectedGeneration !== generation || subscribedCampaignId !== campaignId || data) return;
+    void eject(campaignId, campaign.activeCampaign?.name ?? "the campaign", expectedGeneration);
+  }
 
   const stop = watch(
     () => campaign.activeCampaignId,
     (campaignId) => {
-      if (channel) { supabase.removeChannel(channel); channel = null; }
+      realtime?.stop();
+      realtime = null;
+      subscribedCampaignId = campaignId;
+      const myGeneration = ++generation;
       if (!campaignId) return;
 
-      channel = supabase
-        .channel(`player_removal_guard:${campaignId}`)
-        .on(
+      realtime = createRealtimeChannel({
+        topic: `player_removal_guard:${campaignId}`,
+        // Only a delivery gap needs an HTTP read. Normal DELETE events contain
+        // the old row (REPLICA IDENTITY FULL), so they can eject immediately.
+        reconcile: () => void confirmStillMember(campaignId, myGeneration),
+        bind: (channel) => channel.on(
           "postgres_changes",
           { event: "DELETE", schema: "public", table: "campaign_members", filter: `campaign_id=eq.${campaignId}` },
           (payload) => {
             const removedUserId = (payload.old as { user_id?: string } | null)?.user_id;
-            if (ejecting || !removedUserId || removedUserId !== auth.user?.id) return;
-            ejecting = true;
-            void eject(campaign.activeCampaign?.name ?? "the campaign");
+            if (myGeneration !== generation || subscribedCampaignId !== campaignId
+              || ejecting || !removedUserId || removedUserId !== auth.user?.id) return;
+            void eject(campaignId, campaign.activeCampaign?.name ?? "the campaign", myGeneration);
           },
-        )
-        .subscribe();
+        ),
+      });
     },
     { immediate: true },
   );
 
-  async function eject(campaignName: string) {
-    const removedCampaignId = campaign.activeCampaignId;
+  async function eject(campaignId: string, campaignName: string, expectedGeneration: number) {
+    if (ejecting || expectedGeneration !== generation || subscribedCampaignId !== campaignId) return;
+    ejecting = true;
     toast.error(`You have been removed from ${campaignName} by the DM.`, 0);
     campaign.clearActiveCampaign();
-    if (removedCampaignId) {
+    if (campaignId) {
       try { localStorage.removeItem("grimoire_active_campaign"); } catch { /* ignore */ }
     }
     // Re-derive the session's role from whatever membership remains (another
     // campaign, or none) and route to a place that membership can still reach.
-    await auth.refreshMembership();
-    if (auth.isPlayer) {
-      await router.replace({ name: "play" });
-    } else if (auth.isDM) {
-      await router.replace({ name: "dashboard" });
-    } else {
-      await router.replace({ name: "login" });
+    try {
+      await auth.refreshMembership();
+      if (auth.isPlayer) {
+        await router.replace({ name: "play" });
+      } else if (auth.isDM) {
+        await router.replace({ name: "dashboard" });
+      } else {
+        await router.replace({ name: "login" });
+      }
+    } finally {
+      ejecting = false;
     }
-    ejecting = false;
   }
 
   onUnmounted(() => {
     stop();
-    if (channel) { supabase.removeChannel(channel); channel = null; }
+    generation++;
+    subscribedCampaignId = null;
+    realtime?.stop();
+    realtime = null;
   });
 }

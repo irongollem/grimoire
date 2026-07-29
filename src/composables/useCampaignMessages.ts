@@ -19,13 +19,30 @@ const LIMIT = 100;
 
 const messages = ref<CampaignMessage[]>([]);
 const loading  = ref(false);
+const loadingOlder = ref(false);
+const hasOlder = ref(false);
 let realtimeChannel: RealtimeChannelHandle | null = null;
 let subscribedCampaignId: string | null = null;
 let generation = 0; // incremented each subscribe(); callbacks ignore stale gens
 let reconnectAttempts = 0;
 let latestFetchId = 0;
 let deletedMessageIds = new Set<string>();
+let oldestCursor: Pick<CampaignMessage, "created_at" | "id"> | null = null;
 const MAX_RECONNECT = 5;
+
+function compareMessages(a: CampaignMessage, b: CampaignMessage) {
+  return a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id);
+}
+
+function mergeMessages(incoming: CampaignMessage[]) {
+  const merged = new Map<string, CampaignMessage>();
+  for (const msg of messages.value) merged.set(msg.id, msg);
+  for (const msg of incoming) merged.set(msg.id, msg);
+  for (const id of deletedMessageIds) merged.delete(id);
+  messages.value = [...merged.values()]
+    .filter(isVisibleToCurrentUser)
+    .sort(compareMessages);
+}
 
 function isVisibleToCurrentUser(msg: CampaignMessage): boolean {
   const auth = useAuthStore();
@@ -36,7 +53,7 @@ function isVisibleToCurrentUser(msg: CampaignMessage): boolean {
   return msg.recipient_user_id === null || auth.isDM || msg.recipient_user_id === uid || msg.user_id === uid;
 }
 
-async function fetchMessages(campaignId: string, expectedGeneration = generation) {
+async function fetchMessages(campaignId: string, expectedGeneration = generation, resetPagination = false) {
   if (expectedGeneration !== generation || campaignId !== subscribedCampaignId) return;
   const fetchId = ++latestFetchId;
   loading.value = true;
@@ -52,6 +69,7 @@ async function fetchMessages(campaignId: string, expectedGeneration = generation
       .eq("campaign_id", campaignId)
       // Fetch the newest window, then restore chronological display order.
       .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
       .limit(LIMIT);
     // A request may finish after Realtime has already delivered a newer row.
     // Merge the HTTP snapshot underneath current socket state so the initial
@@ -59,20 +77,52 @@ async function fetchMessages(campaignId: string, expectedGeneration = generation
     // the race.
     if (!error && expectedGeneration === generation && campaignId === subscribedCampaignId
       && fetchId === latestFetchId) {
-      const merged = new Map<string, CampaignMessage>();
-      for (const msg of (data ?? []) as CampaignMessage[]) merged.set(msg.id, msg);
-      for (const msg of messages.value) merged.set(msg.id, msg);
-      for (const id of deletedMessageIds) merged.delete(id);
-      messages.value = [...merged.values()]
-        .filter(isVisibleToCurrentUser)
-        .sort((a, b) => a.created_at.localeCompare(b.created_at))
-        .slice(-LIMIT);
+      const page = (data ?? []) as CampaignMessage[];
+      if (resetPagination) {
+        oldestCursor = page.length
+          ? { created_at: page[page.length - 1].created_at, id: page[page.length - 1].id }
+          : null;
+        hasOlder.value = page.length === LIMIT;
+      }
+      mergeMessages(page);
     }
   } catch {
     // AbortError (auth lock steal) or network error — just leave current messages
   } finally {
     clearTimeout(bail);
     if (fetchId === latestFetchId && expectedGeneration === generation) loading.value = false;
+  }
+}
+
+async function loadOlder() {
+  const campaignId = subscribedCampaignId;
+  const cursor = oldestCursor;
+  const myGen = generation;
+  if (!campaignId || !cursor || !hasOlder.value || loadingOlder.value) return;
+
+  loadingOlder.value = true;
+  try {
+    const { data, error } = await supabase
+      .from("campaign_messages")
+      .select("*")
+      .eq("campaign_id", campaignId)
+      // The cursor is stable even when several messages share a timestamp.
+      .or(`created_at.lt.${cursor.created_at},and(created_at.eq.${cursor.created_at},id.lt.${cursor.id})`)
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(LIMIT);
+    if (error || myGen !== generation || campaignId !== subscribedCampaignId) return;
+
+    const page = (data ?? []) as CampaignMessage[];
+    if (page.length) {
+      oldestCursor = { created_at: page[page.length - 1].created_at, id: page[page.length - 1].id };
+      mergeMessages(page);
+    }
+    hasOlder.value = page.length === LIMIT;
+  } catch {
+    // Keep the current page and allow the user to retry by scrolling again.
+  } finally {
+    if (myGen === generation) loadingOlder.value = false;
   }
 }
 
@@ -85,6 +135,9 @@ function subscribe(campaignId: string, clearMessages = false) {
   if (clearMessages) {
     messages.value = [];
     deletedMessageIds = new Set();
+    oldestCursor = null;
+    hasOlder.value = false;
+    loadingOlder.value = false;
   }
   realtimeChannel = createRealtimeChannel({
     topic: `campaign-messages:${campaignId}`,
@@ -109,7 +162,7 @@ function subscribe(campaignId: string, clearMessages = false) {
         }
         if (isVisibleToCurrentUser(msg)) {
           messages.value.push(msg);
-          if (messages.value.length > LIMIT) messages.value.shift();
+          messages.value.sort(compareMessages);
           deletedMessageIds.delete(msg.id);
         }
       },
@@ -183,10 +236,13 @@ function ensureWatcher() {
         messages.value = [];
         deletedMessageIds = new Set();
         loading.value = false;
+        loadingOlder.value = false;
+        hasOlder.value = false;
+        oldestCursor = null;
         return;
       }
       subscribe(id, true);
-      void fetchMessages(id, generation);
+      void fetchMessages(id, generation, true);
     },
     { immediate: true },
   );
@@ -497,6 +553,10 @@ export function useCampaignMessages() {
     await supabase.from("campaign_messages").delete().eq("campaign_id", cid);
     latestFetchId++;
     messages.value = [];
+    deletedMessageIds = new Set();
+    oldestCursor = null;
+    hasOlder.value = false;
+    loadingOlder.value = false;
   }
 
   function _optimisticPush(msg: CampaignMessage) {
@@ -507,7 +567,7 @@ export function useCampaignMessages() {
       : msg.recipient_user_id === null || auth.isDM || msg.recipient_user_id === uid || msg.user_id === uid;
     if (!visible) return;
     messages.value.push(msg);
-    if (messages.value.length > LIMIT) messages.value.shift();
+    messages.value.sort(compareMessages);
   }
 
   const myUserId = computed(() => auth.user?.id);
@@ -553,5 +613,5 @@ export function useCampaignMessages() {
     if (idx >= 0 && data) messages.value[idx] = { ...messages.value[idx], metadata: data as PlayerOfferMetadata };
   }
 
-  return { messages: visibleMessages, loading, sendMessage, sendFlavorMessage, sendNarrativeEvent, sendRoll, sendItemDrop, claimItemDrop, grabItemDrop, sendCurrencyDrop, claimCurrencyDrop, sendLootChest, claimLootChestAtom, sendVendorOffer, claimVendorOffer, sendPlayerOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId };
+  return { messages: visibleMessages, loading, loadingOlder, hasOlder, loadOlder, sendMessage, sendFlavorMessage, sendNarrativeEvent, sendRoll, sendItemDrop, claimItemDrop, grabItemDrop, sendCurrencyDrop, claimCurrencyDrop, sendLootChest, claimLootChestAtom, sendVendorOffer, claimVendorOffer, sendPlayerOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId };
 }

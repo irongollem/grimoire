@@ -56,4 +56,21 @@ describe("createRealtimeChannel", () => {
     expect(reconcile).toHaveBeenCalledTimes(1);
     expect(onStatus).toHaveBeenCalledTimes(2);
   });
+
+  it("supports ephemeral channels without attaching recovery lifecycle", () => {
+    const onStatus = vi.fn();
+    const handle = createRealtimeChannel({
+      topic: "presence-topic",
+      bind: (channel) => channel,
+      onStatus,
+    });
+
+    mocked.statusCallback?.("SUBSCRIBED");
+    handle.reconcile();
+    handle.stop();
+    mocked.statusCallback?.("CLOSED");
+
+    expect(onStatus).toHaveBeenCalledOnce();
+    expect(mocked.removeChannel).toHaveBeenCalledOnce();
+  });
 });

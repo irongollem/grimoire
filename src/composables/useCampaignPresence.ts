@@ -1,5 +1,6 @@
 import { ref, watch, onUnmounted } from "vue";
 import { supabase } from "@/lib/supabase";
+import { createRealtimeChannel, type RealtimeChannelHandle } from "@/lib/realtimeChannel";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 
@@ -9,64 +10,83 @@ export interface PresenceUser {
   online_at: string;
 }
 
-// Module-level singleton so multiple callers share one channel
-let channel: ReturnType<typeof supabase.channel> | null = null;
+// Module-level singleton so multiple callers share one channel.
+// Unlike row subscriptions, Presence is itself the authoritative state: there
+// is no HTTP snapshot to reconcile after a gap.
+type PresenceChannel = ReturnType<typeof supabase.channel>;
+let realtime: RealtimeChannelHandle | null = null;
 let refCount = 0;
+let stopWatcher: (() => void) | null = null;
 const onlineUsers = ref<PresenceUser[]>([]);
 
-function sync() {
-  if (!channel) return;
+function sync(channel: PresenceChannel) {
+  if (realtime?.channel !== channel) return;
   const state = channel.presenceState<PresenceUser>();
   onlineUsers.value = Object.values(state).flat();
 }
 
 function connect(campaignId: string, userId: string, displayName: string | null) {
-  if (channel) return; // already connected
+  if (realtime) return; // already connected
 
-  channel = supabase.channel(`campaign:${campaignId}`)
-    .on("presence", { event: "sync" }, sync)
-    .on("presence", { event: "join" }, sync)
-    .on("presence", { event: "leave" }, sync)
-    .subscribe(async (status) => {
-      if (status === "SUBSCRIBED") {
-        await channel!.track({
+  let channel: PresenceChannel | null = null;
+  realtime = createRealtimeChannel({
+    topic: `campaign:${campaignId}`,
+    bind: (nextChannel) => {
+      channel = nextChannel;
+      return nextChannel
+        .on("presence", { event: "sync" }, () => sync(nextChannel))
+        .on("presence", { event: "join" }, () => sync(nextChannel))
+        .on("presence", { event: "leave" }, () => sync(nextChannel));
+    },
+    onStatus: (status) => {
+      // The channel can report SUBSCRIBED after this subscription was replaced.
+      // Do not let a stale callback re-track the old campaign/user.
+      if (status === "SUBSCRIBED" && channel && realtime?.channel === channel) {
+        void channel.track({
           user_id: userId,
           display_name: displayName,
           online_at: new Date().toISOString(),
         });
       }
-    });
+    },
+  });
 }
 
 function disconnect() {
-  if (!channel) return;
-  supabase.removeChannel(channel);
-  channel = null;
+  realtime?.stop();
+  realtime = null;
   onlineUsers.value = [];
 }
 
-export function useCampaignPresence() {
+function ensureWatcher() {
+  if (stopWatcher) return;
   const campaign = useCampaignStore();
   const auth = useAuthStore();
-
-  refCount++;
-
-  const stopWatch = watch(
-    () => [campaign.activeCampaignId, auth.user?.id] as const,
-    ([campaignId, userId]) => {
+  stopWatcher = watch(
+    () => [
+      campaign.activeCampaignId,
+      auth.user?.id,
+      auth.membership?.display_name ?? auth.userEmail ?? null,
+    ] as const,
+    ([campaignId, userId, displayName]) => {
       disconnect();
-      if (campaignId && userId) {
-        const displayName = auth.membership?.display_name ?? auth.userEmail ?? null;
-        connect(campaignId, userId, displayName);
-      }
+      if (campaignId && userId) connect(campaignId, userId, displayName);
     },
     { immediate: true },
   );
+}
+
+export function useCampaignPresence() {
+  refCount++;
+  ensureWatcher();
 
   onUnmounted(() => {
-    stopWatch();
     refCount--;
-    if (refCount === 0) disconnect();
+    if (refCount === 0) {
+      stopWatcher?.();
+      stopWatcher = null;
+      disconnect();
+    }
   });
 
   return {

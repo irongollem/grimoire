@@ -4,7 +4,7 @@ import type { PuzzleRoom, PuzzleInsert, PuzzleUpdate } from "@/types/puzzle.type
 import { removeStorageImages } from "@/composables/useImageUpload";
 import { PUZZLE_TEMPLATES } from "@/data/puzzleTemplates";
 import type { Ref } from "vue";
-import { computed, isRef, onUnmounted, ref, watch } from "vue";
+import { computed, isRef, ref } from "vue";
 import { useCampaignStore } from "@/stores/campaign";
 
 const QUERY_KEY = "puzzle_rooms";
@@ -69,46 +69,6 @@ export function usePuzzle(id: string | Ref<string>) {
   });
 }
 
-/**
- * Subscribe to realtime updates for a single puzzle room.
- * When the DM reveals/hides hints or toggles sharing, the player's
- * cached query is invalidated and immediately re-fetched.
- * Call this in the player detail view alongside usePuzzle().
- */
-export function usePuzzleRealtime(id: string | Ref<string>) {
-  const qc       = useQueryClient();
-  const resolved = isRef(id) ? id : ref(id);
-  let channel: ReturnType<typeof supabase.channel> | null = null;
-
-  function subscribe(puzzleId: string) {
-    if (channel) {
-      supabase.removeChannel(channel);
-      channel = null;
-    }
-    if (!puzzleId) return;
-    channel = supabase
-      .channel(`puzzle_rooms:${puzzleId}`)
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "puzzle_rooms", filter: `id=eq.${puzzleId}` },
-        () => {
-          qc.invalidateQueries({ queryKey: [QUERY_KEY, puzzleId] });
-          qc.invalidateQueries({ queryKey: [QUERY_KEY] });
-        },
-      )
-      .subscribe();
-  }
-
-  watch(resolved, (v) => subscribe(v), { immediate: true });
-
-  onUnmounted(() => {
-    if (channel) {
-      supabase.removeChannel(channel);
-      channel = null;
-    }
-  });
-}
-
 export function useCreatePuzzle() {
   const qc = useQueryClient();
   return useMutation({
@@ -166,22 +126,25 @@ export function usePlayerVisiblePuzzles() {
 /**
  * A single player-visible puzzle by id, via the same projection. Used by the
  * player detail view instead of usePuzzle (which does a base-table `select *`
- * and would leak DM secrets to any player who opened devtools). Keyed under
- * QUERY_KEY so usePuzzleRealtime's prefix invalidation refetches it on reveal.
+ * and would leak DM secrets to any player who opened devtools). The central
+ * campaign realtime registry invalidates this projection after a puzzle event;
+ * raw puzzle rows must never be written into this cache.
  */
 export function usePlayerVisiblePuzzle(id: string | Ref<string>) {
   const resolved = isRef(id) ? id : ref(id);
+  const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "player-one", resolved.value]),
+    queryKey: computed(() => [QUERY_KEY, "player-one", campaignId.value, resolved.value]),
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_player_visible_puzzles", {
-        p_campaign_id: null,
+        p_campaign_id: campaignId.value,
         p_puzzle_id: resolved.value,
       });
       if (error) throw error;
       return ((data ?? []) as PuzzleRoom[])[0] ?? null;
     },
-    enabled: () => !!resolved.value,
+    enabled: () => !!campaignId.value && !!resolved.value,
   });
 }
 

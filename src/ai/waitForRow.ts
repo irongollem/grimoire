@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { createRealtimeChannel, type RealtimeChannelHandle } from "@/lib/realtimeChannel";
 
 /**
  * Generic "wait for a row to settle" machine: subscribes to Realtime
@@ -24,12 +25,13 @@ export function waitForRow<Row>(opts: {
     let settled = false;
     let pollHandle: ReturnType<typeof setInterval> | null = null;
     let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
-    const channel = supabase.channel(`${table}-wait:${id}`);
+    let realtime: RealtimeChannelHandle | null = null;
 
     const cleanup = () => {
       if (pollHandle) clearInterval(pollHandle);
       if (timeoutHandle) clearTimeout(timeoutHandle);
-      void supabase.removeChannel(channel);
+      realtime?.stop();
+      realtime = null;
     };
 
     const settle = (row: Row | null) => {
@@ -57,13 +59,17 @@ export function waitForRow<Row>(opts: {
       settle(data as Row | null);
     };
 
-    channel
-      .on(
+    // This is deliberately a no-reconcile channel. The initial check and poll
+    // are its recovery path; attaching page/network self-healing would only
+    // add duplicate reads to a short-lived waiter.
+    realtime = createRealtimeChannel({
+      topic: `${table}-wait:${id}`,
+      bind: (channel) => channel.on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table, filter: `id=eq.${id}` },
         (payload) => settle(payload.new as Row),
-      )
-      .subscribe();
+      ),
+    });
 
     pollHandle = setInterval(checkOnce, pollIntervalMs);
     void checkOnce();

@@ -198,7 +198,7 @@ If no hints have been revealed a message reads "No hints revealed yet."
 
 #### Realtime sync
 
-The player detail view subscribes to `usePuzzleRealtime(id)`, which opens a Supabase Realtime channel on `puzzle_rooms:id`. When the DM toggles a hint reveal or changes the read-aloud text, the player's cached query is invalidated immediately — players see changes within seconds without refreshing.
+The shared campaign realtime registry listens for `puzzle_rooms` changes. Because player puzzle queries are SECURITY DEFINER projections that redact solutions, outcomes, notes, and unrevealed hints, puzzle events deliberately invalidate that projection instead of copying a raw database payload into it. Players see changes promptly without a second bespoke channel or a manual refresh.
 
 ---
 

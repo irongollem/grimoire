@@ -100,7 +100,6 @@ export function usePlayerCalendarEvents(year: MaybeRef<number>) {
       return data as CalendarEvent[];
     },
     enabled: () => !!campaignId.value,
-    refetchInterval: 15_000,
   });
 }
 
@@ -124,7 +123,6 @@ export function usePlayerCalendarEventsRange(startYear: MaybeRef<number>, endYea
       return data as CalendarEvent[];
     },
     enabled: () => !!campaignId.value,
-    refetchInterval: 15_000,
   });
 }
 

@@ -4,7 +4,11 @@
     <div
       ref="scrollEl"
       class="flex-1 overflow-y-auto px-3 py-3 space-y-2 min-h-0"
+      @scroll="onScroll"
     >
+      <div v-if="loadingOlder" class="flex justify-center py-2">
+        <LoadingSpinner />
+      </div>
       <div v-if="loading" class="flex justify-center py-8">
         <LoadingSpinner />
       </div>
@@ -151,7 +155,7 @@ import type { CampaignMember } from "@/types/campaign.types";
 import { formatChatTimestamp } from "@/lib/utils";
 import { useLocalePrefs } from "@/composables/useLocalePrefs";
 
-const { messages, loading, sendMessage } = useCampaignMessages();
+const { messages, loading, loadingOlder, hasOlder, loadOlder, sendMessage } = useCampaignMessages();
 const { data: partyMembers } = useParty();
 const { data: members } = useCampaignMembers();
 const auth = useAuthStore();
@@ -159,6 +163,7 @@ const auth = useAuthStore();
 const chatInput = ref("");
 const scrollEl = ref<HTMLElement | null>(null);
 const whisperTarget = ref<string>("");
+let prependAnchor: { height: number; top: number } | null = null;
 
 const otherMembers = computed(() =>
   (members.value ?? []).filter((m) => m.user_id !== auth.user?.id),
@@ -184,6 +189,25 @@ function isNearBottom(): boolean {
 function scrollToBottom() {
   if (scrollEl.value) scrollEl.value.scrollTop = scrollEl.value.scrollHeight;
 }
+
+function onScroll() {
+  const el = scrollEl.value;
+  if (!el || el.scrollTop > 80 || loadingOlder.value || !hasOlder.value) return;
+  prependAnchor = { height: el.scrollHeight, top: el.scrollTop };
+  void loadOlder();
+}
+
+watch(
+  loadingOlder,
+  async (isLoading, wasLoading) => {
+    if (isLoading || !wasLoading || !prependAnchor || !scrollEl.value) return;
+    const anchor = prependAnchor;
+    prependAnchor = null;
+    await nextTick();
+    const el = scrollEl.value;
+    if (el) el.scrollTop = anchor.top + (el.scrollHeight - anchor.height);
+  },
+);
 
 // Land on the newest message initially, but retain a reader's position when
 // Realtime adds a message while they are looking back through the chat.

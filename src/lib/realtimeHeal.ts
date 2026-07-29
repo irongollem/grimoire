@@ -63,12 +63,9 @@ export interface RealtimeHeal {
  * query keys, or refetch the rows the channel feeds. It is throttled, so it is
  * safe to have several wake signals land together.
  *
- * ```ts
- * const heal = createRealtimeHeal(() => void fetchRunning());
- * channel.subscribe((status) => heal.onStatus(status));
- * // teardown, before removeChannel():
- * heal.detach();
- * ```
+ * Most features should use `createRealtimeChannel()`, which wires this helper
+ * into the shared subscribe/teardown lifecycle. Call this lower-level helper
+ * directly only when adapting a non-standard transport.
  */
 export function createRealtimeHeal(
   onReconcile: () => void,

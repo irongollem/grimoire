@@ -9,6 +9,8 @@
       <ChatPanelContent
         :messages="messages"
         :loading="loading"
+        :loading-older="loadingOlder"
+        :has-older="hasOlder"
         :my-user-id="myUserId ?? ''"
         :members="members"
         :party="party"
@@ -25,6 +27,7 @@
         @pay-vendor-offer="handlePayVendorOffer"
         @send-vendor-offer="handleSendVendorOffer"
         @buy-player-offer="handleBuyPlayerOffer"
+        @load-older="loadOlder"
         @close="ui.chatOpen = false"
       />
     </aside>
@@ -64,6 +67,8 @@
       <ChatPanelContent
         :messages="messages"
         :loading="loading"
+        :loading-older="loadingOlder"
+        :has-older="hasOlder"
         :my-user-id="myUserId ?? ''"
         :members="members"
         :party="party"
@@ -80,6 +85,7 @@
         @pay-vendor-offer="handlePayVendorOffer"
         @send-vendor-offer="handleSendVendorOffer"
         @buy-player-offer="handleBuyPlayerOffer"
+        @load-older="loadOlder"
         @close="ui.chatOpen = false"
       />
     </div>
@@ -172,7 +178,7 @@ onUnmounted(() => {
 
 const ui = useUiStore();
 const auth = useAuthStore();
-const { messages, loading, sendMessage, sendRoll, claimItemDrop, grabItemDrop, claimCurrencyDrop, claimLootChestAtom, sendVendorOffer, claimVendorOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId } =
+const { messages, loading, loadingOlder, hasOlder, loadOlder, sendMessage, sendRoll, claimItemDrop, grabItemDrop, claimCurrencyDrop, claimLootChestAtom, sendVendorOffer, claimVendorOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId } =
   useCampaignMessages();
 const { data: members } = useCampaignMembers();
 const { data: party }    = useParty();

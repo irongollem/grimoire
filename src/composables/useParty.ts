@@ -220,6 +220,7 @@ export function useSyncPartyLocation() {
 // Keeps the party query fresh across browsers — e.g. DM damage updates the player's sheet.
 export function usePartyLive() {
   const campaign = useCampaignStore();
+  const auth = useAuthStore();
   const queryClient = useQueryClient();
   let live: RealtimeChannelHandle | null = null;
   const uid = Math.random().toString(36).slice(2, 8);
@@ -236,53 +237,29 @@ export function usePartyLive() {
           void queryClient.invalidateQueries({ queryKey: [QUERY_KEY, campaignId] });
           void queryClient.invalidateQueries({ queryKey: [MY_CHARS_KEY, campaignId] });
         },
-        bind: (channel) => channel
-        .on(
+        bind: (channel) => channel.on(
           "postgres_changes",
-          { event: "UPDATE", schema: "public", table: "party_members",
+          { event: "*", schema: "public", table: "party_members",
             filter: `campaign_id=eq.${campaignId}` },
           (payload) => {
-            const updated = payload.new as PartyMember;
-            queryClient.setQueryData<PartyMember[]>([QUERY_KEY, campaignId], (old) => {
+            if (campaign.activeCampaignId !== campaignId) return;
+            const row = (payload.eventType === "DELETE" ? payload.old : payload.new) as PartyMember;
+            const patchList = (old: PartyMember[] | undefined, include: boolean) => {
               if (!old) return old;
-              return old.map((m) => (m.id === updated.id ? updated : m));
-            });
-            // Character sheets use a second, ownership-filtered cache. Only
-            // replace rows already present there; payload visibility does not
-            // prove that a newly-owned row belongs in every cached variant.
+              const next = old.filter((member) => member.id !== row.id);
+              if (payload.eventType !== "DELETE" && include) next.push(payload.new as PartyMember);
+              return next.sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name));
+            };
+
+            queryClient.setQueryData<PartyMember[]>([QUERY_KEY, campaignId], (old) => patchList(old, true));
             queryClient.setQueriesData<PartyMember[]>(
               { queryKey: [MY_CHARS_KEY, campaignId] },
-              (old) => old?.map((m) => (m.id === updated.id ? updated : m)),
+              (old) => patchList(old,
+                row.owner_user_id === auth.user?.id || row.id === auth.linkedPartyMemberId),
             );
-          },
-        )
-        // A character removed (or added) by the DM must disappear (or appear) on
-        // every other client too — the acting client refetches via the mutation,
-        // but other views (the player portal, a second tab) would otherwise keep
-        // showing a removed character until a manual refetch. party_members has
-        // REPLICA IDENTITY FULL, so the DELETE payload carries the old row's id.
-        .on(
-          "postgres_changes",
-          { event: "DELETE", schema: "public", table: "party_members",
-            filter: `campaign_id=eq.${campaignId}` },
-          (payload) => {
-            const removedId = (payload.old as { id?: string } | null)?.id;
-            if (removedId) {
-              queryClient.setQueryData<PartyMember[]>([QUERY_KEY, campaignId], (old) =>
-                old?.filter((m) => m.id !== removedId),
-              );
-            }
-            void queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
-            void queryClient.invalidateQueries({ queryKey: [MY_CHARS_KEY] });
-          },
-        )
-        .on(
-          "postgres_changes",
-          { event: "INSERT", schema: "public", table: "party_members",
-            filter: `campaign_id=eq.${campaignId}` },
-          () => {
-            void queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
-            void queryClient.invalidateQueries({ queryKey: [MY_CHARS_KEY] });
+            queryClient.setQueryData<PartyMember[]>([OFFERED_KEY, campaignId], (old) =>
+              patchList(old, row.is_dm_managed && row.owner_user_id === null),
+            );
           },
         ),
       });

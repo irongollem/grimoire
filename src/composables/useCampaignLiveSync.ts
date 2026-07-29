@@ -10,17 +10,21 @@ import {
   type RealtimeChannelHandle,
 } from "@/lib/realtimeChannel";
 import { useCampaignStore } from "@/stores/campaign";
+import { useAuthStore } from "@/stores/auth";
 import type { PartyInventoryItem } from "@/types/inventory.types";
+import type { Campaign } from "@/types/campaign.types";
+import { applyCampaignRealtimeWorld } from "@/lib/campaignRealtimeWorld";
+import { dispatchCampaignRealtimePlayer } from "@/lib/campaignRealtimePlayer";
+import { dispatchCampaignRealtimeSystem } from "@/lib/campaignRealtimeSystems";
 
 let activeChannel: RealtimeChannelHandle | null = null;
 let refCount = 0;
 let stopWatcher: (() => void) | null = null;
 let clearPendingInvalidations: (() => void) | null = null;
 
-// Every campaign-scoped table whose changes map 1:1 to a single query-cache key.
-// Looped into the channel bindings AND reused to reconcile the whole set after a
-// reconnect: realtime is only a notification layer, so a dropped or missed event
-// must never strand the client on stale data.
+// One registry for every campaign-scoped table. Normal events go through typed
+// exact-row reducers; redacted projections, joins, and RLS-dependent shapes use
+// targeted invalidation in those reducers. The key is also the recovery root.
 const SYNC_TABLES = [
   ["notes",                   "notes"],
   ["quests",                  "quests"],
@@ -85,6 +89,7 @@ function upsertPartyInventoryItem(
 
 export function useCampaignLiveSync() {
   const campaign = useCampaignStore();
+  const auth = useAuthStore();
   const qc = useQueryClient();
 
   refCount++;
@@ -139,24 +144,43 @@ export function useCampaignLiveSync() {
           bind: (initialChannel) => {
             let channel = initialChannel;
             for (const [table, key] of SYNC_TABLES) {
-              channel = channel.on("postgres_changes", { event: "*", schema: "public", table, filter: f }, invalidate(key));
+              channel = channel.on("postgres_changes", { event: "*", schema: "public", table, filter: f }, (payload) => {
+                if (campaign.activeCampaignId !== campaignId) return;
+                const change = {
+                  eventType: payload.eventType,
+                  new: payload.new,
+                  old: payload.old,
+                };
+                const context = {
+                  campaignId,
+                  currentUserId: auth.user?.id ?? null,
+                  isDM: auth.isDM,
+                };
+                const handled = applyCampaignRealtimeWorld(qc, table, change as never, context)
+                  || dispatchCampaignRealtimePlayer(qc, context, table, change as never)
+                  || dispatchCampaignRealtimeSystem(qc, table, change as never, context);
+                if (!handled) invalidate(key)();
+              });
             }
             return channel
               // Party-inventory events have the exact query shape, so apply every
               // normal change directly instead of making every player poll.
               .on("postgres_changes", { event: "INSERT", schema: "public", table: "party_inventory", filter: f }, (payload) => {
+                if (campaign.activeCampaignId !== campaignId) return;
                 const inserted = payload.new as PartyInventoryItem;
                 qc.setQueryData<PartyInventoryItem[]>(["party-inventory", campaignId], (old) =>
                   upsertPartyInventoryItem(old, inserted),
                 );
               })
               .on("postgres_changes", { event: "UPDATE", schema: "public", table: "party_inventory", filter: f }, (payload) => {
+                if (campaign.activeCampaignId !== campaignId) return;
                 const updated = payload.new as PartyInventoryItem;
                 qc.setQueryData<PartyInventoryItem[]>(["party-inventory", campaignId], (old) => {
                   return upsertPartyInventoryItem(old, updated);
                 });
               })
               .on("postgres_changes", { event: "DELETE", schema: "public", table: "party_inventory", filter: f }, (payload) => {
+                if (campaign.activeCampaignId !== campaignId) return;
                 const deleted = payload.old as Pick<PartyInventoryItem, "id">;
                 qc.setQueryData<PartyInventoryItem[]>(["party-inventory", campaignId], (old) =>
                   old ? old.filter((item) => item.id !== deleted.id) : old,
@@ -169,16 +193,17 @@ export function useCampaignLiveSync() {
               .on("postgres_changes", { event: "INSERT", schema: "public", table: "party_inventory", filter: f }, invalidate("items"))
           // campaigns table uses `id` as the campaign identifier (not campaign_id)
               .on("postgres_changes", { event: "UPDATE", schema: "public", table: "campaigns", filter: `id=eq.${campaignId}` }, (payload) => {
-                const updated = payload.new as import("@/types/campaign.types").Campaign;
+                if (campaign.activeCampaignId !== campaignId) return;
+                const updated = payload.new as Campaign;
                 if (updated && campaign.activeCampaign) {
                   campaign.activeCampaign = {
                     ...campaign.activeCampaign,
-                    current_year:  updated.current_year,
-                    current_month: updated.current_month,
-                    current_day:   updated.current_day,
+                    ...updated,
                   };
                 }
-                void qc.invalidateQueries({ queryKey: ["campaigns"] });
+                qc.setQueryData<Campaign[]>(["campaigns"], (old) =>
+                  old?.map((entry) => entry.id === updated.id ? { ...entry, ...updated } : entry),
+                );
               });
           },
         });

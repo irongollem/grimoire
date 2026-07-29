@@ -35,7 +35,11 @@
     <div
       ref="scrollEl"
       class="flex-1 overflow-y-auto px-3 py-3 space-y-2 min-h-0"
+      @scroll="onScroll"
     >
+      <div v-if="loadingOlder" class="text-center py-2">
+        <LoadingSpinner />
+      </div>
       <div v-if="loading" class="text-center py-4">
         <LoadingSpinner />
       </div>
@@ -361,6 +365,8 @@ function onTalkAsChange(id: string) {
 const props = defineProps<{
   messages: CampaignMessage[];
   loading: boolean;
+  loadingOlder: boolean;
+  hasOlder: boolean;
   myUserId: string;
   members: CampaignMember[] | undefined;
   party: PartyMember[] | undefined;
@@ -381,6 +387,7 @@ const emit = defineEmits<{
   "send-vendor-offer": [payload: { description: string; itemName: string | null; itemId: string | null; pp: number; gp: number; ep: number; sp: number; cp: number }];
   "buy-player-offer": [payload: { messageId: string }];
   "claim-loot-chest": [payload: { messageId: string; atomId: string }];
+  "load-older": [];
 }>();
 
 function asRoll(m: CampaignMessage["metadata"]): RollMetadata {
@@ -492,6 +499,7 @@ function flavorForRoll(msg: CampaignMessage): CampaignMessage | null {
 
 const scrollEl = ref<HTMLElement | null>(null);
 const inputEl = ref<HTMLTextAreaElement | null>(null);
+let prependAnchor: { height: number; top: number } | null = null;
 
 function scrollToBottom() {
   if (scrollEl.value) scrollEl.value.scrollTop = scrollEl.value.scrollHeight;
@@ -501,6 +509,27 @@ function isNearBottom(): boolean {
   const el = scrollEl.value;
   return !!el && el.scrollHeight - el.scrollTop - el.clientHeight < 48;
 }
+
+function onScroll() {
+  const el = scrollEl.value;
+  if (!el || el.scrollTop > 80 || props.loadingOlder || !props.hasOlder) return;
+  // The older page is prepended, so restore this exact viewport position once
+  // Vue has rendered it rather than making the reader jump into the new rows.
+  prependAnchor = { height: el.scrollHeight, top: el.scrollTop };
+  emit("load-older");
+}
+
+watch(
+  () => props.loadingOlder,
+  async (isLoading, wasLoading) => {
+    if (isLoading || !wasLoading || !prependAnchor || !scrollEl.value) return;
+    const anchor = prependAnchor;
+    prependAnchor = null;
+    await nextTick();
+    const el = scrollEl.value;
+    if (el) el.scrollTop = anchor.top + (el.scrollHeight - anchor.height);
+  },
+);
 
 // Scroll to bottom on initial open (messages already loaded)
 onMounted(async () => {
