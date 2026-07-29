@@ -51,7 +51,7 @@ jobs:
         env:
           BEFORE_SHA: ${{ github.event.before }}
         run: |
-          if git diff --quiet "$BEFORE_SHA" "$GITHUB_SHA" -- supabase/migrations supabase/functions supabase/config.toml; then
+          if git diff --quiet "$BEFORE_SHA" "$GITHUB_SHA" -- .github/workflows/test.yml supabase/migrations supabase/functions supabase/config.toml; then
             echo "supabase=false" >> "$GITHUB_OUTPUT"
           else
             echo "supabase=true" >> "$GITHUB_OUTPUT"
@@ -109,4 +109,4 @@ jobs:
       # concurrency control may replace. Do not add --prune: production may
       # contain intentionally remote-only functions.
       - name: Deploy Edge Functions to production
-        run: supabase functions deploy --project-ref "$SUPABASE_PROJECT_ID" --use-api --jobs 4
+        run: supabase functions deploy --project-ref "$SUPABASE_PROJECT_ID" --import-map supabase/functions/deno.json --jobs 4
