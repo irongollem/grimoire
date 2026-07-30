@@ -20,11 +20,14 @@ import type { Spell } from "@/types/spell.types";
 const { mode = "monster" } = defineProps<{ mode?: "monster" | "spell" }>();
 
 // mode never changes at runtime — plain object is sufficient, avoids computed/ref wrapping issues
+// canonicalArtTable is the unowned, admin-managed table this panel reads
+// and writes (#584) — srd_monster_art / srd_spell_art now hold only private
+// per-DM overrides, which this admin-only panel never touches.
 const cfg = mode === "spell"
   ? {
       title: "SRD Spell Art",
       entityTable: "srd_spells" as const,
-      artTable: "srd_spell_art" as const,
+      canonicalArtTable: "srd_spell_art_canonical" as const,
       bucket: "spellImages" as const,
       subtitleCol: "school" as const,
       stagingQueryKey: "srd-art-staging-spell",
@@ -34,7 +37,7 @@ const cfg = mode === "spell"
   : {
       title: "SRD Monster Art",
       entityTable: "srd_monsters" as const,
-      artTable: "srd_monster_art" as const,
+      canonicalArtTable: "srd_monster_art_canonical" as const,
       bucket: "monsterImages" as const,
       subtitleCol: "monster_type" as const,
       stagingQueryKey: "srd-art-staging-monster",
@@ -109,7 +112,7 @@ const { data: monsters, isPending: libraryPending } = useQuery({
     const PAGE = 1000;
     const [artRes, allEntities] = await Promise.all([
       supabase
-        .from(cfg.artTable)
+        .from(cfg.canonicalArtTable)
         .select("srd_id, image_url, portrait_focal_point")
         .not("image_url", "is", null),
       (async () => {
@@ -136,7 +139,7 @@ const { data: monsters, isPending: libraryPending } = useQuery({
     ]);
     if (artRes.error) throw artRes.error;
 
-    const userArtMap = new Map(
+    const canonicalArtMap = new Map(
       (artRes.data ?? []).map((r) => [
         r.srd_id,
         {
@@ -148,15 +151,15 @@ const { data: monsters, isPending: libraryPending } = useQuery({
 
     return allEntities
       .map((row) => {
-        const userArt = userArtMap.get(row.id);
+        const canonicalArt = canonicalArtMap.get(row.id);
         return {
           srd_id: row.id,
           name: row.name,
           subtitle: row.subtitle,
           source: row.source,
-          image_url: userArt?.image_url ?? row.image_url,
-          portrait_focal_point: userArt?.portrait_focal_point ?? null,
-          has_user_art: !!userArt,
+          image_url: canonicalArt?.image_url ?? row.image_url,
+          portrait_focal_point: canonicalArt?.portrait_focal_point ?? null,
+          has_user_art: !!canonicalArt,
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name));
@@ -228,15 +231,15 @@ async function processFile(srdId: string, file: File) {
   try {
     const userId = getCurrentUser()!.id;
     const blob = await toWebP(file);
-    const { bucket, artTable, entityTable, artQueryKey, repairQueryKey } = cfg;
+    const { bucket, canonicalArtTable, entityTable, artQueryKey, repairQueryKey } = cfg;
     const url = await uploadWithVariants({ bucket, blob, userId, folderPrefix: "srd" });
     if (!url) throw new Error("Upload returned null");
 
     const { error: artErr } = await supabase
-      .from(artTable)
+      .from(canonicalArtTable)
       .upsert(
-        { srd_id: srdId, image_url: url, user_id: userId, is_canonical: true },
-        { onConflict: "user_id,srd_id" },
+        { srd_id: srdId, image_url: url },
+        { onConflict: "srd_id" },
       );
     if (artErr) throw artErr;
 
@@ -258,9 +261,8 @@ async function processFile(srdId: string, file: File) {
 }
 
 async function clearArt(srdId: string) {
-  const userId = getCurrentUser()!.id;
-  const { artTable, entityTable, artQueryKey, repairQueryKey } = cfg;
-  await supabase.from(artTable).delete().eq("srd_id", srdId).eq("user_id", userId);
+  const { canonicalArtTable, entityTable, artQueryKey, repairQueryKey } = cfg;
+  await supabase.from(canonicalArtTable).delete().eq("srd_id", srdId);
   await supabase.from(entityTable).update({ image_url: null }).eq("id", srdId);
   delete rowStatuses.value[srdId];
   delete rowUploadedUrls.value[srdId];
@@ -310,13 +312,12 @@ async function setFocalPoint(
 ) {
   rowFocalPoints.value[m.srd_id] = fp;
   const imageUrl = rowUploadedUrls.value[m.srd_id] ?? m.image_url!;
-  const userId = getCurrentUser()!.id;
-  const { artTable, artQueryKey } = cfg;
+  const { canonicalArtTable, artQueryKey } = cfg;
   const { error } = await supabase
-    .from(artTable)
+    .from(canonicalArtTable)
     .upsert(
-      { srd_id: m.srd_id, image_url: imageUrl, portrait_focal_point: fp, user_id: userId, is_canonical: true },
-      { onConflict: "user_id,srd_id" },
+      { srd_id: m.srd_id, image_url: imageUrl, portrait_focal_point: fp },
+      { onConflict: "srd_id" },
     );
   if (!error) queryClient.invalidateQueries({ queryKey: [artQueryKey] });
 }
@@ -406,14 +407,14 @@ async function assignStagedToSelected(item: StagingItem) {
       assignedUrls.value[item.id] = url!;
     }
 
-    const { artTable, entityTable, artQueryKey, repairQueryKey } = cfg;
+    const { canonicalArtTable, entityTable, artQueryKey, repairQueryKey } = cfg;
     await Promise.all(
       selected.map(async (srdId) => {
         const { error: artErr } = await supabase
-          .from(artTable)
+          .from(canonicalArtTable)
           .upsert(
-            { srd_id: srdId, image_url: url, user_id: userId, is_canonical: true },
-            { onConflict: "user_id,srd_id" },
+            { srd_id: srdId, image_url: url },
+            { onConflict: "srd_id" },
           );
         if (artErr) throw artErr;
         const { error: monErr } = await supabase

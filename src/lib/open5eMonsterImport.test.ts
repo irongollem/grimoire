@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mapOpen5eV2Monster, monsterImportUpdateFields } from "./open5eMonsterImport";
+import { mapOpen5eV2Monster } from "./open5eMonsterImport";
 
 const document2024 = {
   key: "srd-2024",
@@ -63,39 +63,6 @@ describe("mapOpen5eV2Monster — initiative_bonus", () => {
   it("leaves initiative_bonus undefined for a 2024 record that omits the field", () => {
     const monster = mapOpen5eV2Monster(record() as Parameters<typeof mapOpen5eV2Monster>[0]);
     expect(monster.stat_block.initiative_bonus).toBeUndefined();
-  });
-});
-
-describe("monsterImportUpdateFields", () => {
-  it("never re-import-writes DM-owned fields, even though the mapper sets them to empty defaults", () => {
-    const mapped = mapOpen5eV2Monster(record() as Parameters<typeof mapOpen5eV2Monster>[0]);
-    const update = monsterImportUpdateFields(mapped);
-
-    expect(update).not.toHaveProperty("notes");
-    expect(update).not.toHaveProperty("image_url");
-    expect(update).not.toHaveProperty("portrait_focal_point");
-    expect(update).not.toHaveProperty("description");
-    expect(update).not.toHaveProperty("habitat");
-    expect(update).not.toHaveProperty("lair_location_id");
-    expect(update).not.toHaveProperty("tags");
-  });
-
-  it("refreshes upstream identity, source metadata, and the stat block", () => {
-    const mapped = mapOpen5eV2Monster(record() as Parameters<typeof mapOpen5eV2Monster>[0]);
-    const update = monsterImportUpdateFields(mapped);
-
-    expect(update).toMatchObject({
-      name: "Ancient Red Dragon",
-      monster_type: "dragon",
-      size: "gargantuan",
-      alignment: "chaotic evil",
-      source: "srd-2024",
-      source_document_key: "srd-2024",
-      source_record_key: "srd-2024_ancient-red-dragon",
-      is_srd: true,
-      open5e_import: true,
-    });
-    expect(update.stat_block).toEqual(mapped.stat_block);
   });
 });
 

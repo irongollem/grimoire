@@ -516,6 +516,81 @@ export async function scheduleQuestTriggers(
 
 // ── Trigger firing (called when DM advances "today") ───────────────────────────
 
+/** A quest_trigger_scheduled row whose joined trigger actually resolved — the
+ *  only ones that can fire (a dangling scheduled row whose trigger was since
+ *  deleted has `trigger: null` and is left pending, same as before batching). */
+type FiringTrigger = QuestTriggerScheduled & { trigger: QuestTrigger };
+
+/** calendar_events insert row for a fired `create_calendar_event` trigger. */
+interface FiredCalendarEventRow {
+  user_id: string;
+  campaign_id: string;
+  title: string;
+  description: string | null;
+  event_type: string;
+  harptos_year: number;
+  harptos_month: number;
+  harptos_day: number;
+  festival_day: null;
+  is_multi_day: boolean;
+  end_year: null;
+  end_month: null;
+  end_day: null;
+  color: string;
+  linked_quest_id: string;
+  linked_encounter_id: null;
+  linked_location_id: null;
+  travel_party_member_ids: string[];
+  player_visible: boolean;
+}
+
+/**
+ * Pure row-builder for fireDueTriggers: turns the due-and-resolved rows into
+ * the calendar_events batch-insert payload and the plain broadcast messages
+ * to send, in trigger order. Exported for testing — see fireDueTriggers for
+ * the actual (batched) writes.
+ */
+export function buildFiredTriggerWrites(
+  firing: FiringTrigger[],
+  campaignId: string,
+  userId: string,
+): { calendarRows: FiredCalendarEventRow[]; broadcasts: string[] } {
+  const calendarRows: FiredCalendarEventRow[] = [];
+  const broadcasts: string[] = [];
+  for (const s of firing) {
+    const trigger = s.trigger;
+    if (trigger.action_type === "create_calendar_event") {
+      const payload = trigger.action_payload as CalendarEventTriggerPayload;
+      const color = EVENT_TYPE_COLORS[payload.event_type as keyof typeof EVENT_TYPE_COLORS] ?? EVENT_TYPE_COLORS.quest;
+      calendarRows.push({
+        user_id: userId,
+        campaign_id: campaignId,
+        title: payload.title,
+        description: payload.description ?? null,
+        event_type: payload.event_type ?? "quest",
+        harptos_year: s.fire_year,
+        harptos_month: s.fire_month,
+        harptos_day: s.fire_day,
+        festival_day: null,
+        is_multi_day: false,
+        end_year: null,
+        end_month: null,
+        end_day: null,
+        color,
+        linked_quest_id: s.quest_id,
+        linked_encounter_id: null,
+        linked_location_id: null,
+        travel_party_member_ids: [],
+        player_visible: false,
+      });
+    } else if (trigger.action_type === "send_broadcast") {
+      const payload = trigger.action_payload as BroadcastTriggerPayload;
+      broadcasts.push(payload.message);
+    }
+  }
+  return { calendarRows, broadcasts };
+}
+
 /** Fire all pending scheduled triggers that are due on or before `today`.
  *  Returns the number of triggers that fired. */
 export async function fireDueTriggers(
@@ -539,43 +614,28 @@ export async function fireDueTriggers(
 
   if (!due.length) return 0;
 
-  for (const s of due) {
-    const trigger = s.trigger;
-    if (!trigger) continue;
+  // Only rows whose trigger actually resolved are ones that fire — see
+  // FiringTrigger above. due.length (not firing.length) is still what's
+  // returned below, matching the pre-batching count exactly.
+  const firing = due.filter((s): s is FiringTrigger => s.trigger !== null);
 
-    if (trigger.action_type === "create_calendar_event") {
-      const payload = trigger.action_payload as CalendarEventTriggerPayload;
-      const color = EVENT_TYPE_COLORS[payload.event_type as keyof typeof EVENT_TYPE_COLORS] ?? EVENT_TYPE_COLORS.quest;
-      await supabase.from("calendar_events").insert({
-        user_id: user.id,
-        campaign_id: campaignId,
-        title: payload.title,
-        description: payload.description ?? null,
-        event_type: payload.event_type ?? "quest",
-        harptos_year: s.fire_year,
-        harptos_month: s.fire_month,
-        harptos_day: s.fire_day,
-        festival_day: null,
-        is_multi_day: false,
-        end_year: null,
-        end_month: null,
-        end_day: null,
-        color,
-        linked_quest_id: s.quest_id,
-        linked_encounter_id: null,
-        linked_location_id: null,
-        travel_party_member_ids: [],
-        player_visible: false,
-      });
-    } else if (trigger.action_type === "send_broadcast") {
-      const payload = trigger.action_payload as BroadcastTriggerPayload;
-      await sendCampaignAnnouncement(campaignId, payload.message);
+  if (firing.length > 0) {
+    const { calendarRows, broadcasts } = buildFiredTriggerWrites(firing, campaignId, user.id);
+
+    if (calendarRows.length > 0) {
+      const { error: insertErr } = await supabase.from("calendar_events").insert(calendarRows);
+      if (insertErr) throw insertErr;
     }
 
-    await supabase
+    for (const message of broadcasts) {
+      await sendCampaignAnnouncement(campaignId, message);
+    }
+
+    const { error: markErr } = await supabase
       .from("quest_trigger_scheduled")
       .update({ fired_at: new Date().toISOString() })
-      .eq("id", s.id);
+      .in("id", firing.map((s) => s.id));
+    if (markErr) throw markErr;
   }
 
   return due.length;

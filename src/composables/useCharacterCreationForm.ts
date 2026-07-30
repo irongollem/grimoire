@@ -15,17 +15,74 @@ import { applySpeciesSpellGrants } from "@/composables/useCharacterSpells";
 import type { SpeciesSpellGrant } from "@/types/species.types";
 import { computeAc } from "@/types/party.types";
 import type { PartyMember, PartyMemberInsert, SkillProfLevel, SaveKey, SpellSlotEntry } from "@/types/party.types";
+import type { PartyInventoryInsert } from "@/types/inventory.types";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/composables/useToast";
-import { CLASS_EQUIPMENT } from "@/data/classEquipment";
+import { CLASS_EQUIPMENT, type EquipmentEntry } from "@/data/classEquipment";
 import { abilityBonusesForChoice } from "@/lib/backgroundAsi";
 import {
   ABILITY_STATS, POINT_BUY_COSTS, POINT_BUY_TOTAL,
   type AbilityKey, type AsiMode, type ScoreMode,
   parseEquipmentList,
 } from "@/lib/characterCreation";
-import { useCharacterEquipmentSeeding } from "@/composables/useCharacterEquipmentSeeding";
+import { useCharacterEquipmentSeeding, type VaultEntry } from "@/composables/useCharacterEquipmentSeeding";
 import { useCharacterBackgroundSelection } from "@/composables/useCharacterBackgroundSelection";
+
+// ── Equipment-seeding row builders (pure — no I/O) ──────────────────────────
+// Extracted so the create-character hot path (save(), below) can batch these
+// into a single addInventoryItems() call instead of one insert per starting
+// item. seedEquipmentEntry (useCharacterEquipmentSeeding) still owns "pack"
+// entries (e.g. "Explorer's Pack") one at a time — a pack needs its own
+// generated id before its contents can reference it as container_id, so that
+// part can't be folded into the batch.
+
+/** party_inventory insert row for a single plain (non-container) equipment entry. */
+function buildPlainEquipmentRow(
+  name: string,
+  quantity: number,
+  itemId: string | null,
+  carrierId: string,
+): Omit<PartyInventoryInsert, "campaign_id"> {
+  return {
+    item_id: itemId, name, quantity,
+    carried_by: carrierId, location: "backpack",
+    slot: null, is_container: false, container_id: null,
+    is_attuned: false, is_equipped: false, notes: null,
+    current_charges: null, is_identified: true, is_ruined: false, sort_order: 0,
+  };
+}
+
+/**
+ * Splits a class-equipment bundle's entries into plain rows ready for one
+ * batched insert, and "pack" entries whose contents need the pack's own
+ * generated id first (so they stay one-at-a-time via seedEquipmentEntry).
+ * Exported for testing.
+ */
+export function partitionBundleEntries(
+  entries: EquipmentEntry[],
+  vaultMap: Map<string, VaultEntry>,
+  carrierId: string,
+): { plainRows: Omit<PartyInventoryInsert, "campaign_id">[]; packEntries: EquipmentEntry[] } {
+  const plainRows: Omit<PartyInventoryInsert, "campaign_id">[] = [];
+  const packEntries: EquipmentEntry[] = [];
+  for (const entry of entries) {
+    const vault = vaultMap.get(entry.name.toLowerCase()) ?? null;
+    if (vault?.bundle_items?.length) {
+      packEntries.push(entry);
+    } else {
+      plainRows.push(buildPlainEquipmentRow(entry.name, entry.quantity ?? 1, vault?.id ?? null, carrierId));
+    }
+  }
+  return { plainRows, packEntries };
+}
+
+/** party_inventory insert rows for a background's free-text equipment list. */
+export function buildBackgroundEquipmentRows(
+  equipmentText: string,
+  carrierId: string,
+): Omit<PartyInventoryInsert, "campaign_id">[] {
+  return parseEquipmentList(equipmentText).map((name) => buildPlainEquipmentRow(name, 1, null, carrierId));
+}
 
 // ── Composable ────────────────────────────────────────────────────────────────
 
@@ -477,31 +534,37 @@ export function useCharacterCreationForm() {
             await applySpeciesSpellGrants(created.id, selectedSpecies.value, 1, f.subrace || null);
           }
 
-          // Seed class starting equipment with vault lookup (packs expand into their contents)
+          // Seed class + background starting equipment as inventory rows.
+          // Plain entries from both sources batch into a single insert; any
+          // "pack" entries (e.g. a class's starting Pack) still need their
+          // generated id before their contents can be inserted, so those go
+          // through seedEquipmentEntry (which itself batches the pack's
+          // sub-items) one at a time — see partitionBundleEntries above.
+          const plainRows: Omit<PartyInventoryInsert, "campaign_id">[] = [];
+          let packEntries: EquipmentEntry[] = [];
+          let packVaultMap: Map<string, VaultEntry> = new Map();
+
           if (importClassEquipment.value && f.class) {
             const classPack = CLASS_EQUIPMENT[f.class];
             if (classPack) {
               const bundle = classEquipmentChoice.value === "a" ? classPack.a : classPack.b;
               const uniqueNames = [...new Set(bundle.items.map(e => e.name))];
-              const vaultMap = await lookupVaultItems(uniqueNames);
-              for (const entry of bundle.items) {
-                await seedEquipmentEntry(entry, vaultMap, created.id);
-              }
+              packVaultMap = await lookupVaultItems(uniqueNames);
+              const split = partitionBundleEntries(bundle.items, packVaultMap, created.id);
+              plainRows.push(...split.plainRows);
+              packEntries = split.packEntries;
             }
           }
 
           // Seed background starting equipment as inventory rows (text-based, no vault lookup)
           if (importBackgroundEquipment.value && f.background_id) {
             const bg = (allBackgrounds.value ?? []).find((b) => b.id === f.background_id);
-            for (const entry of parseEquipmentList(bg?.equipment ?? "")) {
-              await addInventoryItem({
-                item_id: null, name: entry, quantity: 1,
-                carried_by: created.id, location: "backpack",
-                slot: null, is_container: false, container_id: null,
-                is_attuned: false, is_equipped: false, notes: null,
-                current_charges: null, is_identified: true, is_ruined: false, sort_order: 0,
-              });
-            }
+            plainRows.push(...buildBackgroundEquipmentRows(bg?.equipment ?? "", created.id));
+          }
+
+          if (plainRows.length > 0) await addInventoryItems(plainRows);
+          for (const entry of packEntries) {
+            await seedEquipmentEntry(entry, packVaultMap, created.id);
           }
         } catch (seedErr) {
           await supabase.from("party_inventory").delete().eq("carried_by", created.id);

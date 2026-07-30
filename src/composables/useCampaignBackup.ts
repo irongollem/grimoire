@@ -9,6 +9,7 @@ import {
   remapKeepArr as rArr,
   type IdMap,
 } from "@/lib/campaignSerialization";
+import { disposeHomebrewAndDeleteCampaign } from "@/composables/useCampaigns";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = Record<string, any>;
@@ -894,8 +895,13 @@ async function executeImport(
       })),
     );
   } catch (err) {
-    // Attempt rollback — delete the partially-created campaign
-    await supabase.from("campaigns").delete().eq("id", newCampaignId);
+    // Attempt rollback — delete the partially-created campaign. Route through
+    // the shared homebrew-aware path (#585): custom_classes/custom_subclasses/
+    // class_features FKs are NO ACTION, so a bare `campaigns` delete throws if
+    // this import had already created campaign-scoped homebrew. "delete" is
+    // correct here — a rollback undoes the import's own work, it never
+    // touches pre-existing user content.
+    await disposeHomebrewAndDeleteCampaign(newCampaignId, "delete");
     throw err;
   }
 

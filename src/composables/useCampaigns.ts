@@ -4,6 +4,7 @@ import { supabase, getCurrentUser } from "@/lib/supabase";
 import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
 import type { Campaign, CampaignInsert, CampaignUpdate } from "@/types/campaign.types";
 import { useToast } from "@/composables/useToast";
+import type { HomebrewCounts, HomebrewDisposition } from "@/lib/campaignHomebrewDisposition";
 
 // All campaign-scoped tables whose orphaned rows (campaign_id IS NULL) can be claimed
 const CAMPAIGN_SCOPED_TABLES = [
@@ -68,8 +69,61 @@ async function updateCampaign(id: string, update: CampaignUpdate): Promise<Campa
   return data as Campaign;
 }
 
-async function deleteCampaign(id: string): Promise<void> {
-  const { error } = await supabase.from("campaigns").delete().eq("id", id);
+/**
+ * Rows in `custom_classes` / `custom_subclasses` / `class_features` scoped
+ * exclusively to `campaignId` — never rows with `campaign_id IS NULL`
+ * (already universal, see `allowedCampaignScoped`) and never another
+ * campaign's rows. Used to tell the DM what a campaign delete would affect
+ * before they choose a disposition (#585).
+ */
+async function countScopedHomebrew(campaignId: string): Promise<HomebrewCounts> {
+  const [classesResult, subclassesResult, featuresResult] = await Promise.all([
+    supabase.from("custom_classes").select("id", { count: "exact", head: true }).eq("campaign_id", campaignId),
+    supabase.from("custom_subclasses").select("id", { count: "exact", head: true }).eq("campaign_id", campaignId),
+    supabase.from("class_features").select("id", { count: "exact", head: true }).eq("campaign_id", campaignId),
+  ]);
+  if (classesResult.error) throw classesResult.error;
+  if (subclassesResult.error) throw subclassesResult.error;
+  if (featuresResult.error) throw featuresResult.error;
+  return {
+    classes: classesResult.count ?? 0,
+    subclasses: subclassesResult.count ?? 0,
+    features: featuresResult.count ?? 0,
+  };
+}
+
+/**
+ * Resolves homebrew scoped exclusively to `campaignId` per the chosen
+ * `disposition`, then deletes the campaign. This is the single place that
+ * satisfies the `NO ACTION` FK on `custom_classes.campaign_id` /
+ * `custom_subclasses.campaign_id` / `class_features.campaign_id` (#585) —
+ * both the DM-facing delete flow (`DangerZoneTab`) and the failed-import
+ * rollback (`useCampaignBackup`) call this instead of deleting `campaigns`
+ * directly, so neither can silently promote or destroy homebrew.
+ *
+ * "promote" sets `campaign_id = null` (the homebrew becomes universal);
+ * "delete" removes the rows. Either way only rows scoped to *this* campaign
+ * are touched — 0 matching rows is a harmless no-op, so callers that already
+ * know there's nothing scoped may pass either disposition.
+ *
+ * Routed through the `delete_campaign_with_homebrew` SECURITY DEFINER RPC
+ * (see `supabase/migrations/20260730000011_delete_campaign_with_homebrew.sql`)
+ * rather than doing the disposition and the campaign delete as two separate
+ * round trips: a PL/pgSQL function body runs inside the caller's single
+ * statement transaction, so either everything commits or nothing does. Two
+ * round trips could fail in between — e.g. homebrew already deleted while
+ * the campaign still exists, or already promoted (a silent leak, the exact
+ * thing this design exists to prevent) — and worse, be unretryable: a second
+ * attempt would see zero scoped rows and never re-offer the choice.
+ */
+export async function disposeHomebrewAndDeleteCampaign(
+  campaignId: string,
+  disposition: HomebrewDisposition,
+): Promise<void> {
+  const { error } = await supabase.rpc("delete_campaign_with_homebrew", {
+    p_campaign_id: campaignId,
+    p_disposition: disposition,
+  });
   if (error) throw error;
 }
 
@@ -120,6 +174,17 @@ export function useCampaignById(id: () => string | null) {
   });
 }
 
+/** Homebrew (classes/subclasses/features) scoped exclusively to `id()` — the
+ *  DangerZoneTab delete dialog uses this to decide whether the DM needs to
+ *  choose a disposition before the campaign can be deleted (#585). */
+export function useCampaignScopedHomebrewCounts(id: () => string | null) {
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY, id(), "homebrew-counts"]),
+    queryFn: () => countScopedHomebrew(id()!),
+    enabled: () => !!id(),
+  });
+}
+
 export function useCreateCampaign() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -137,12 +202,22 @@ export function useUpdateCampaign() {
   });
 }
 
+/** Deletes a campaign. Callers must resolve any campaign-scoped homebrew
+ *  disposition first — see {@link disposeHomebrewAndDeleteCampaign}. */
 export function useDeleteCampaign() {
   const queryClient = useQueryClient();
   const toast = useToast();
   return useMutation({
-    mutationFn: deleteCampaign,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+    mutationFn: ({ id, disposition }: { id: string; disposition: HomebrewDisposition }) =>
+      disposeHomebrewAndDeleteCampaign(id, disposition),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      // The disposition may have promoted or deleted homebrew rows — refresh
+      // every list that could contain them.
+      queryClient.invalidateQueries({ queryKey: ["custom_classes"] });
+      queryClient.invalidateQueries({ queryKey: ["custom_subclasses"] });
+      queryClient.invalidateQueries({ queryKey: ["class_features"] });
+    },
     onError: (e) => toast.error(toast.fromError(e)),
   });
 }

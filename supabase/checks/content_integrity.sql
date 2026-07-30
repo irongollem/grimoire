@@ -37,6 +37,15 @@ select check_name, cnt from (
   union all select 'srd_spell_art.srd_id -> srd_spells',
     (select count(*) from srd_spell_art a
        where not exists (select 1 from srd_spells s where s.id = a.srd_id))
+  -- The two *_canonical tables (20260730000010) hold what srd_monster_art /
+  -- srd_spell_art used to keep behind is_canonical, so they carry the same
+  -- dangling-text-id risk and need the same check.
+  union all select 'srd_monster_art_canonical.srd_id -> srd_monsters',
+    (select count(*) from srd_monster_art_canonical a
+       where not exists (select 1 from srd_monsters s where s.id = a.srd_id))
+  union all select 'srd_spell_art_canonical.srd_id -> srd_spells',
+    (select count(*) from srd_spell_art_canonical a
+       where not exists (select 1 from srd_spells s where s.id = a.srd_id))
   union all select 'character_spells.spell_id (slug) -> srd_spells',
     (select count(*) from character_spells cs where cs.spell_id !~ '^[0-9a-f]{8}-'
        and not exists (select 1 from srd_spells s where s.id = cs.spell_id))

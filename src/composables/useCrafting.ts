@@ -15,6 +15,7 @@ import type {
   CraftingAttemptResult,
 } from "@/types/crafting.types";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
+import type { StarterRecipeDef } from "@/data/starterRecipes";
 
 const RECIPES_KEY    = "crafting-recipes";
 const INGREDIENTS_KEY = "crafting-ingredients";
@@ -516,6 +517,108 @@ export function useAttemptCraft() {
 
 // ── Starter recipe import ────────────────────────────────────────────────────
 
+/**
+ * Correlates each starter-recipe definition with its freshly-inserted recipe
+ * id by array position (see useImportStarterRecipes: a single bulk
+ * `insert(...).select()` preserves input row order) rather than by name —
+ * starter recipe names aren't guaranteed unique, and a name→id Map would
+ * silently mis-map the moment two ever collided — then flattens the
+ * ingredients/outputs/modifiers into the three batched insert payloads.
+ * Exported for testing.
+ */
+export function buildStarterRecipeChildRows(
+  defs: StarterRecipeDef[],
+  recipeIds: string[],
+  outputItemIdByName: Map<string, string>,
+): {
+  ingredientRows: { recipe_id: string; item_id: null; tags: string[]; quantity: number }[];
+  outputRows: { recipe_id: string; item_id: string; quantity: number }[];
+  modifierRows: { recipe_id: string; description: string; bonus: number }[];
+} {
+  const ingredientRows = defs.flatMap((def, i) =>
+    def.ingredients.map((ing) => ({
+      recipe_id: recipeIds[i], item_id: null, tags: ing.tags, quantity: ing.quantity,
+    })),
+  );
+  const outputRows = defs.flatMap((def, i) =>
+    def.outputs
+      .map((o) => ({
+        recipe_id: recipeIds[i],
+        item_id: outputItemIdByName.get(o.name) ?? null,
+        quantity: o.quantity,
+      }))
+      .filter((o): o is { recipe_id: string; item_id: string; quantity: number } => o.item_id !== null),
+  );
+  const modifierRows = defs.flatMap((def, i) =>
+    (def.modifiers ?? []).map((m) => ({ recipe_id: recipeIds[i], description: m.description, bonus: m.bonus })),
+  );
+  return { ingredientRows, outputRows, modifierRows };
+}
+
+/**
+ * The three child-table writers + the rollback delete, injected so
+ * seedRecipeChildren's rollback logic can be unit-tested without a supabase
+ * double — see useImportStarterRecipes for the real (supabase-backed) ones.
+ * PromiseLike (not Promise) because supabase-js's query builders are
+ * thenables, not full Promise objects.
+ */
+export interface RecipeChildWriters {
+  insertIngredients: (rows: { recipe_id: string; item_id: null; tags: string[]; quantity: number }[]) => PromiseLike<{ error: unknown }>;
+  insertOutputs: (rows: { recipe_id: string; item_id: string; quantity: number }[]) => PromiseLike<{ error: unknown }>;
+  insertModifiers: (rows: { recipe_id: string; description: string; bonus: number }[]) => PromiseLike<{ error: unknown }>;
+  deleteRecipes: (ids: string[]) => PromiseLike<unknown>;
+}
+
+/**
+ * Seeds the ingredients/outputs/modifiers for a batch of already-bulk-
+ * inserted starter recipes. The recipe rows exist but aren't usable until
+ * this completes — if any child-row batch fails, this rolls the whole import
+ * back (deletes exactly the ids this call was given — never a pre-existing
+ * recipe) instead of leaving N empty, un-completable recipe shells behind (a
+ * retry would then skip re-importing them via the existingNames filter,
+ * without ever seeding them). The three child tables all FK recipe_id ON
+ * DELETE CASCADE, so deleting just the recipes also cleans up any child rows
+ * an earlier, now-failed batch did manage to write. Exported for testing.
+ */
+export async function seedRecipeChildren(
+  toImport: StarterRecipeDef[],
+  recipeIds: string[],
+  outputItemIdByName: Map<string, string>,
+  writers: RecipeChildWriters,
+): Promise<void> {
+  try {
+    if (recipeIds.length !== toImport.length) {
+      throw new Error("Starter recipe import: recipe insert count mismatch");
+    }
+
+    const { ingredientRows, outputRows, modifierRows } =
+      buildStarterRecipeChildRows(toImport, recipeIds, outputItemIdByName);
+
+    if (ingredientRows.length > 0) {
+      const { error } = await writers.insertIngredients(ingredientRows);
+      if (error) throw error;
+    }
+    if (outputRows.length > 0) {
+      const { error } = await writers.insertOutputs(outputRows);
+      if (error) throw error;
+    }
+    if (modifierRows.length > 0) {
+      const { error } = await writers.insertModifiers(modifierRows);
+      if (error) throw error;
+    }
+  } catch (childErr) {
+    if (recipeIds.length > 0) {
+      try {
+        await writers.deleteRecipes(recipeIds);
+      } catch {
+        // Best-effort cleanup — its own failure must not replace the real
+        // error being (re)thrown below.
+      }
+    }
+    throw childErr;
+  }
+}
+
 /** Returns the number of recipes inserted (skips ones that already exist by name). */
 export function useImportStarterRecipes() {
   const queryClient = useQueryClient();
@@ -561,52 +664,38 @@ export function useImportStarterRecipes() {
       const existingNames = new Set((existingRecipes ?? []).map((r: { name: string }) => r.name));
 
       const toImport = STARTER_RECIPES.filter((r) => !existingNames.has(r.name));
+      if (toImport.length === 0) return 0;
 
-      // 3. Insert each recipe + its ingredients + outputs + modifiers
-      for (const def of toImport) {
-        const { data: recipe, error: rErr } = await supabase
-          .from("crafting_recipes")
-          .insert({
-            user_id: user!.id,
-            campaign_id: campaignId,
-            name: def.name,
-            description: def.description,
-            discipline: def.discipline,
-            dc: def.dc,
-            crafting_time: def.crafting_time,
-            crafting_time_unit: def.crafting_time_unit,
-            requires_proficiency: def.requires_proficiency,
-            requires_tools: def.requires_tools,
-            player_visible_to: [],
-          })
-          .select("id")
-          .single();
-        if (rErr) throw rErr;
+      // 3. Bulk-insert the recipes, then the ingredients/outputs/modifiers in
+      // three more batched inserts (buildStarterRecipeChildRows correlates
+      // each child row back to its recipe by position — see that function's
+      // doc comment for why not by name).
+      const { data: inserted, error: rErr } = await supabase
+        .from("crafting_recipes")
+        .insert(toImport.map((def) => ({
+          user_id: user!.id,
+          campaign_id: campaignId,
+          name: def.name,
+          description: def.description,
+          discipline: def.discipline,
+          dc: def.dc,
+          crafting_time: def.crafting_time,
+          crafting_time_unit: def.crafting_time_unit,
+          requires_proficiency: def.requires_proficiency,
+          requires_tools: def.requires_tools,
+          player_visible_to: [],
+        })))
+        .select("id, name");
+      if (rErr) throw rErr;
+      const insertedRecipes = (inserted ?? []) as { id: string; name: string }[];
+      const recipeIds = insertedRecipes.map((r) => r.id);
 
-        const recipeId: string = recipe.id;
-
-        if (def.ingredients.length > 0) {
-          const { error } = await supabase
-            .from("crafting_recipe_ingredients")
-            .insert(def.ingredients.map((i) => ({ recipe_id: recipeId, item_id: null, tags: i.tags, quantity: i.quantity })));
-          if (error) throw error;
-        }
-
-        const outputRows = def.outputs
-          .map((o) => ({ recipe_id: recipeId, item_id: existingByName.get(o.name) ?? null, quantity: o.quantity }))
-          .filter((o) => o.item_id !== null);
-        if (outputRows.length > 0) {
-          const { error } = await supabase.from("crafting_recipe_outputs").insert(outputRows);
-          if (error) throw error;
-        }
-
-        if (def.modifiers && def.modifiers.length > 0) {
-          const { error } = await supabase
-            .from("crafting_recipe_modifiers")
-            .insert(def.modifiers.map((m) => ({ recipe_id: recipeId, description: m.description, bonus: m.bonus })));
-          if (error) throw error;
-        }
-      }
+      await seedRecipeChildren(toImport, recipeIds, existingByName, {
+        insertIngredients: (rows) => supabase.from("crafting_recipe_ingredients").insert(rows),
+        insertOutputs: (rows) => supabase.from("crafting_recipe_outputs").insert(rows),
+        insertModifiers: (rows) => supabase.from("crafting_recipe_modifiers").insert(rows),
+        deleteRecipes: (ids) => supabase.from("crafting_recipes").delete().in("id", ids),
+      });
 
       return toImport.length;
     },

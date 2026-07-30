@@ -432,21 +432,22 @@ onUnmounted(() => {
 watch(
   () => store.pendingBroadcasts.length,
   async () => {
-    if (!store.pendingBroadcasts.length || !campaign.activeCampaignId) return;
+    const campaignId = campaign.activeCampaignId;
+    if (!store.pendingBroadcasts.length || !campaignId) return;
     const messages = [...store.pendingBroadcasts];
-    for (const msg of messages) {
-      store.clearPendingBroadcast(msg);
-      try {
-        await supabase.from("campaign_messages").insert({
-          campaign_id: campaign.activeCampaignId,
+    for (const msg of messages) store.clearPendingBroadcast(msg);
+    try {
+      await supabase.from("campaign_messages").insert(
+        messages.map((msg) => ({
+          campaign_id: campaignId,
           user_id: auth.user?.id ?? "",
           recipient_user_id: null,
           sender_name: "⚔ Encounter",
           message: msg,
           type: "system",
-        });
-      } catch (e) {
-      }
+        })),
+      );
+    } catch (e) {
     }
   },
 );

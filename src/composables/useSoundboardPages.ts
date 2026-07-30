@@ -4,6 +4,7 @@ import { storeToRefs } from "pinia";
 import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
+import { persistReorder } from "@/lib/reorder";
 import type { SoundboardPage, SoundboardPageUpdate } from "@/types/sound.types";
 
 const QUERY_KEY = "soundboard_pages";
@@ -106,12 +107,7 @@ export function useReorderSoundboardPages() {
 
   return useMutation({
     mutationFn: async (updates: Array<{ id: string; sort_order: number }>) => {
-      if (updates.length === 0) return;
-      await Promise.all(
-        updates.map(({ id, sort_order }) =>
-          supabase.from("soundboard_pages").update({ sort_order }).eq("id", id),
-        ),
-      );
+      await persistReorder("reorder_soundboard_pages", updates);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QUERY_KEY, activeCampaignId.value] });

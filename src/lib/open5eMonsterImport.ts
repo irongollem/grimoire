@@ -8,7 +8,7 @@ import {
   slugifyKey,
 } from "@/lib/open5eApi";
 import type { Open5eDocumentRef } from "@/lib/open5eApi";
-import type { MonsterInsert, MonsterStatBlock, MonsterSize, MonsterType, MonsterUpdate } from "@/types/monster.types";
+import type { MonsterInsert, MonsterStatBlock, MonsterSize, MonsterType } from "@/types/monster.types";
 
 interface Open5eV2Action {
   name: string;
@@ -220,36 +220,4 @@ export async function fetchSrdMonsters(sourceKeys?: string[]): Promise<MonsterIn
   ]);
   const documentMetadata = new Map(documents.map((document) => [document.key, document]));
   return raw.map((monster) => mapOpen5eV2Monster(monster, documentMetadata));
-}
-
-/**
- * Narrows a freshly-mapped Open5e monster down to the fields a re-import is
- * allowed to refresh on an existing row: upstream identity/content (name,
- * type, size, alignment, source metadata, stat block). `mapOpen5eV2Monster`
- * always sets `notes`, `image_url`, `habitat` and `tags` to empty defaults
- * (Open5e has no equivalent data), so those — plus `description`,
- * `portrait_focal_point` and `lair_location_id`, which only ever come from a
- * DM — must never be included here or a re-import would silently wipe
- * DM-added art, notes, and customization on every run.
- */
-export function monsterImportUpdateFields(insert: MonsterInsert): MonsterUpdate {
-  return {
-    ruleset: insert.ruleset,
-    conceptual_key: insert.conceptual_key,
-    source_document_key: insert.source_document_key,
-    source_record_key: insert.source_record_key,
-    source_revision: insert.source_revision,
-    source_license: insert.source_license,
-    provenance: insert.provenance,
-    name: insert.name,
-    monster_type: insert.monster_type,
-    size: insert.size,
-    alignment: insert.alignment,
-    source: insert.source,
-    source_title: insert.source_title,
-    source_url: insert.source_url,
-    stat_block: insert.stat_block,
-    is_srd: insert.is_srd,
-    open5e_import: insert.open5e_import,
-  };
 }

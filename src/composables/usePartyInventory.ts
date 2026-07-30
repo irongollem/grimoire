@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
+import { persistReorder } from "@/lib/reorder";
 import type { PartyInventoryItem, PartyInventoryInsert, PartyInventoryUpdate } from "@/types/inventory.types";
 
 const QUERY_KEY = "party-inventory";
@@ -120,7 +121,7 @@ export function useReorderInventoryItems() {
   const campaign = useCampaignStore();
   return useMutation({
     mutationFn: async (updates: Array<{ id: string; sort_order: number }>) => {
-      await Promise.all(updates.map(({ id, sort_order }) => updateItem(id, { sort_order })));
+      await persistReorder("reorder_party_inventory", updates);
     },
     onMutate: async (updates) => {
       const qk = [QUERY_KEY, campaign.activeCampaignId];

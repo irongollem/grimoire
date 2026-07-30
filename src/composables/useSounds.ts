@@ -7,6 +7,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import { toOpus } from "@/lib/mediaConvert";
 import { useImageUpload } from "@/composables/useImageUpload";
+import { persistReorder } from "@/lib/reorder";
 import type { Sound, SoundInsert, SoundUpdate } from "@/types/sound.types";
 
 const QUERY_KEY = "sounds";
@@ -195,12 +196,7 @@ export function useReorderSounds() {
 
   return useMutation({
     mutationFn: async (updates: Array<{ id: string; sort_order: number }>) => {
-      if (updates.length === 0) return;
-      await Promise.all(
-        updates.map(({ id, sort_order }) =>
-          supabase.from("sounds").update({ sort_order }).eq("id", id),
-        ),
-      );
+      await persistReorder("reorder_sounds", updates);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QUERY_KEY, activeCampaignId.value] });

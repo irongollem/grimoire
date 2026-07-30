@@ -5,6 +5,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import type { Note, NoteInsert, NoteUpdate } from "@/types/notes.types";
 import { storeToRefs } from "pinia";
 import { useToast } from "@/composables/useToast";
+import { persistReorder, toReorderEntries } from "@/lib/reorder";
 
 const QUERY_KEY = "notes";
 
@@ -106,13 +107,7 @@ export function useDeleteNote() {
 }
 
 async function reorderNotes(orderedIds: string[]): Promise<void> {
-  const results = await Promise.all(
-    orderedIds.map((id, index) =>
-      supabase.from("notes").update({ sort_order: index }).eq("id", id),
-    ),
-  );
-  const firstError = results.find((r) => r.error)?.error;
-  if (firstError) throw firstError;
+  await persistReorder("reorder_notes", toReorderEntries(orderedIds));
 }
 
 export function useReorderNotes() {

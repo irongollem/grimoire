@@ -35,30 +35,27 @@ export interface SrdArtDefaultStats {
   items: number;
 }
 
+/**
+ * Canonical art/defaults are unowned (#584) — there is no "my contributions"
+ * to count anymore, so this reports the total published library size
+ * (monsters/spells/items that currently have canonical art), not a per-user
+ * count. The auth check just avoids four network calls for a signed-out
+ * caller; RLS already requires auth.uid() on the canonical tables.
+ */
 async function fetchSrdArtDefaultStats(): Promise<SrdArtDefaultStats> {
   const user = getCurrentUser();
   if (!user) return { monsters: 0, spells: 0, items: 0 };
 
   const [monstersRes, spellsDefaultsRes, spellsArtRes, itemsRes] = await Promise.all([
-    supabase
-      .from("srd_monster_art")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .eq("is_canonical", true),
+    supabase.from("srd_monster_art_canonical").select("*", { count: "exact", head: true }),
     supabase
       .from("srd_art_defaults")
       .select("*", { count: "exact", head: true })
-      .eq("contributed_by", user.id)
       .eq("content_type", "spell"),
-    supabase
-      .from("srd_spell_art")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .eq("is_canonical", true),
+    supabase.from("srd_spell_art_canonical").select("*", { count: "exact", head: true }),
     supabase
       .from("srd_art_defaults")
       .select("*", { count: "exact", head: true })
-      .eq("contributed_by", user.id)
       .eq("content_type", "item"),
   ]);
 
@@ -114,11 +111,10 @@ async function fetchItemsWithArt(): Promise<ArtRow[]> {
   return all;
 }
 
-async function upsertArtDefaults(userId: string, contentType: SrdContentType, rows: ArtRow[]): Promise<void> {
+async function upsertArtDefaults(contentType: SrdContentType, rows: ArtRow[]): Promise<void> {
   const BATCH = 200;
   for (let i = 0; i < rows.length; i += BATCH) {
     const batch = rows.slice(i, i + BATCH).map((r) => ({
-      contributed_by: userId,
       content_type: contentType,
       srd_slug: r.name.toLowerCase(),
       image_url: r.image_url,
@@ -138,8 +134,8 @@ async function bulkPublishSrdArtDefaults(): Promise<SrdArtDefaultStats> {
   const [allSpells, allItems] = await Promise.all([fetchSpellsWithArt(), fetchItemsWithArt()]);
 
   await Promise.all([
-    upsertArtDefaults(user.id, "spell", allSpells),
-    upsertArtDefaults(user.id, "item", allItems),
+    upsertArtDefaults("spell", allSpells),
+    upsertArtDefaults("item", allItems),
   ]);
 
   return { monsters: 0, spells: allSpells.length, items: allItems.length };

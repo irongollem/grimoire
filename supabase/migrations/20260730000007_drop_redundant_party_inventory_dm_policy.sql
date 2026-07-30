@@ -1,0 +1,55 @@
+-- Migration: drop_redundant_party_inventory_dm_policy
+--
+-- Issue #586 (270 `multiple_permissive_policies` findings). That issue proposed
+-- two approaches; investigating both changed the plan, so this migration does
+-- only the part that is provably safe AND a genuine removal.
+--
+-- What was rejected, recorded so #586 does not re-tread it:
+--
+-- 1. "Add `TO authenticated` to every overlapping policy." Rejected. It drops the
+--    finding count 270 -> 45 but buys an authenticated user nothing -- those
+--    policies already evaluate identically for that role. Meanwhile several of
+--    the affected policies are *deliberately* anon-reachable (plans_public_read,
+--    the canonical-art reads, pro_waitlist_insert, invite validation), so a
+--    blanket `TO authenticated` risks silently breaking anonymous paths for a
+--    purely cosmetic advisor win.
+--
+-- 2. "Merge each overlapping pair into one OR'd policy." Mostly not worth it.
+--    Postgres already combines permissive policies with OR and short-circuits,
+--    so `A OR B` as one policy does the same work as two policies -- the saving
+--    is per-policy machinery, not predicate evaluation. It also costs the
+--    legibility of the `*_dm_*` / `*_member_*` naming on the most
+--    security-sensitive tables in the app, where a mistake is a privilege bug.
+--
+-- What IS worth doing: dropping a policy that is a strict *subset* of a sibling,
+-- which removes evaluation rather than reshuffling it. Searching for those
+-- mechanically (per-action effective predicates, treating an UPDATE policy with
+-- no WITH CHECK as reusing its USING clause) found exactly one.
+--
+-- The proof is in the helper definitions, not in the data:
+--
+--   private.is_campaign_dm(cid)     = exists(campaign_members
+--                                       where campaign_id=cid
+--                                         and user_id=auth.uid() and role='dm')
+--   private.is_campaign_member(cid) = exists(campaign_members
+--                                       where campaign_id=cid
+--                                         and user_id=auth.uid())
+--
+-- The DM predicate is the member predicate plus `role = 'dm'`, so
+-- is_campaign_dm(cid) implies is_campaign_member(cid) unconditionally.
+--
+-- party_inventory_dm_all is FOR ALL with USING and WITH CHECK both
+-- `private.is_campaign_dm(campaign_id)`. Per action, the sibling member policy
+-- already permits a superset:
+--
+--   SELECT -- party_inventory_member_select  USING is_campaign_member
+--   INSERT -- party_inventory_member_insert  WITH CHECK is_campaign_member
+--   UPDATE -- party_inventory_member_update  USING is_campaign_member
+--            (no WITH CHECK, so USING serves as the check too)
+--   DELETE -- party_inventory_member_delete  USING is_campaign_member
+--
+-- So dropping it removes 4 of the 45 overlapping (table, action) pairs and
+-- changes nothing about what any role may do. A DM keeps full access through
+-- the member policies, because a DM is by definition a campaign member.
+
+drop policy party_inventory_dm_all on party_inventory;

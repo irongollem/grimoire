@@ -4,7 +4,7 @@ Curated history of shipped features and resolved bugs, chunked by subsystem. Thi
 is a **log**, not a tracker: open work lives in GitHub issues on `irongollem/grimoire`.
 
 - **Features** (556 entries) — what shipped, newest first per file.
-- **Fixes** (287 entries) — resolved bugs, newest first per file.
+- **Fixes** (294 entries) — resolved bugs, newest first per file.
 
 When you finish work, append a `- [x]` line to the matching file below
 (`features/<subsystem>.md` for a feature, `fixes/<subsystem>.md` for a bug fix).
@@ -43,15 +43,15 @@ Pick the subsystem the change is primarily about; use `misc` only as a last reso
 
 | Subsystem | Count | File |
 | --- | ---: | --- |
-| Campaign | 11 | [fixes/campaign.md](fixes/campaign.md) |
+| Campaign | 12 | [fixes/campaign.md](fixes/campaign.md) |
 | Collaboration | 7 | [fixes/collaboration.md](fixes/collaboration.md) |
 | Player Portal | 8 | [fixes/players.md](fixes/players.md) |
 | Rules Reliquary | 1 | [fixes/rules.md](fixes/rules.md) |
-| Content & Import | 7 | [fixes/content.md](fixes/content.md) |
+| Content & Import | 8 | [fixes/content.md](fixes/content.md) |
 | Monsters & Bestiary | 12 | [fixes/monsters.md](fixes/monsters.md) |
 | NPCs & Companions | 15 | [fixes/npcs.md](fixes/npcs.md) |
 | Items & Workshop | 26 | [fixes/items.md](fixes/items.md) |
-| Spells | 5 | [fixes/spells.md](fixes/spells.md) |
+| Spells | 6 | [fixes/spells.md](fixes/spells.md) |
 | Factions | 3 | [fixes/factions.md](fixes/factions.md) |
 | Encounters & Combat | 25 | [fixes/encounters.md](fixes/encounters.md) |
 | Quests | 13 | [fixes/quests.md](fixes/quests.md) |
@@ -62,9 +62,9 @@ Pick the subsystem the change is primarily about; use `misc` only as a last reso
 | Images & Art | 10 | [fixes/images.md](fixes/images.md) |
 | Publishing & Export | 23 | [fixes/publishing.md](fixes/publishing.md) |
 | UI & Layout | 12 | [fixes/ui.md](fixes/ui.md) |
-| Database & Security | 12 | [fixes/database.md](fixes/database.md) |
+| Database & Security | 15 | [fixes/database.md](fixes/database.md) |
 | AI Generation | 10 | [fixes/ai.md](fixes/ai.md) |
 | Billing | 5 | [fixes/billing.md](fixes/billing.md) |
-| Infrastructure | 11 | [fixes/infra.md](fixes/infra.md) |
+| Infrastructure | 12 | [fixes/infra.md](fixes/infra.md) |
 | Soundboard | 19 | [fixes/soundboard.md](fixes/soundboard.md) |
 | Miscellaneous | 1 | [fixes/misc.md](fixes/misc.md) |

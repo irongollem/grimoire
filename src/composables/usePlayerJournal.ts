@@ -2,6 +2,7 @@ import { computed } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
+import { persistReorder, toReorderEntries } from "@/lib/reorder";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -154,13 +155,7 @@ export function useDeleteJournalEntry() {
 }
 
 async function reorderEntries(orderedIds: string[]): Promise<void> {
-  const results = await Promise.all(
-    orderedIds.map((id, index) =>
-      supabase.from("player_journal_entries").update({ sort_order: index }).eq("id", id),
-    ),
-  );
-  const firstError = results.find((r) => r.error)?.error;
-  if (firstError) throw firstError;
+  await persistReorder("reorder_player_journal_entries", toReorderEntries(orderedIds));
 }
 
 export function useReorderJournalEntries() {

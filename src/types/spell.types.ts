@@ -338,8 +338,6 @@ export interface CharacterSpell {
   source_label: string | null;
   source_class_id?: string | null;
   casting_ability?: "int" | "wis" | "cha" | null;
-  fixed_save_dc?: number | null;
-  fixed_attack_bonus?: number | null;
   created_at: string;
   updated_at: string;
 }
