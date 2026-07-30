@@ -123,7 +123,7 @@ import PartyMemberIdentityTab from "./PartyMemberIdentityTab.vue";
 import PartyMemberAbilitiesTab from "./PartyMemberAbilitiesTab.vue";
 import PartyMemberProficienciesTab from "./PartyMemberProficienciesTab.vue";
 import PartyMemberPersonaTab from "./PartyMemberPersonaTab.vue";
-import { useAllSpecies } from "@/composables/useSpecies";
+import { useCampaignSpecies } from "@/composables/useSpecies";
 import {
   useCreatePartyMember,
   useUpdatePartyMember,
@@ -133,9 +133,8 @@ import {
   useCampaignMembers,
   useUpdateCampaignMember,
 } from "@/composables/useCampaignMembers";
-import { useAllSystemClasses, useAllCustomClasses } from "@/composables/useCustomClasses";
-import { useCampaignStore } from "@/stores/campaign";
-import { useAllCustomSubclasses } from "@/composables/useCustomSubclasses";
+import { useCampaignSystemClasses, useCampaignCustomClasses } from "@/composables/useCustomClasses";
+import { useCampaignCustomSubclasses } from "@/composables/useCustomSubclasses";
 import { useCharacterClasses } from "@/composables/useCharacterClasses";
 import { formatMulticlassLabel, totalLevel } from "@/types/multiclass.types";
 import type {
@@ -170,29 +169,21 @@ const hasBuilderData = computed(() =>
   (props.member !== null && Object.keys(props.member.level_choices ?? {}).length > 0),
 );
 
-const campaignStore = useCampaignStore();
-const { data: systemClasses } = useAllSystemClasses();
-const { data: customClasses } = useAllCustomClasses();
+const { data: systemClasses } = useCampaignSystemClasses();
+const { data: customClasses } = useCampaignCustomClasses();
 
-const allClassNames = computed<string[]>(() => {
-  const disabledSet = new Set(campaignStore.activeCampaign?.disabled_class_names ?? []);
-  const srd = (systemClasses.value ?? []).map(c => c.class_name).filter(n => !disabledSet.has(n));
-  const custom = (customClasses.value ?? []).map(c => c.class_name);
-  return [...new Set([...srd, ...custom])].sort();
-});
+const allClassNames = computed<string[]>(() =>
+  [...new Set([
+    ...systemClasses.value.map(c => c.class_name),
+    ...customClasses.value.map(c => c.class_name),
+  ])].sort(),
+);
 
-const { data: allSpecies } = useAllSpecies();
-const speciesOptions = computed(() => {
-  const campaignId = campaignStore.activeCampaignId;
-  const disabledIds = new Set(campaignStore.activeCampaign?.disabled_species_ids ?? []);
-  return (allSpecies.value ?? [])
-    .filter((s) => {
-      if (disabledIds.has(s.id)) return false;
-      if (s.campaign_id !== null && s.campaign_id !== campaignId) return false;
-      return true;
-    })
-    .map((s) => ({ id: s.id, name: s.name }));
-});
+// Pickers offer only what the campaign permits; `allSpecies` (ungated) still
+// backs name resolution below, so a member keeps their species after the DM
+// disables it (#566).
+const { data: campaignSpecies, all: allSpecies } = useCampaignSpecies();
+const speciesOptions = computed(() => campaignSpecies.value.map((s) => ({ id: s.id, name: s.name })));
 
 const allSpeciesMap = computed<Record<string, string>>(() =>
   Object.fromEntries((allSpecies.value ?? []).map(s => [s.id, s.name])),
@@ -204,9 +195,9 @@ const subraceOptions  = computed(() => selectedSpecies.value?.subraces?.map(sr =
 const selectedDisguiseSpecies = computed(() => (allSpecies.value ?? []).find(s => s.id === form.disguise_species_id) ?? null);
 const disguiseSubraceOptions  = computed(() => selectedDisguiseSpecies.value?.subraces?.map(sr => sr.name) ?? []);
 
-const { data: allCustomSubclasses } = useAllCustomSubclasses();
+const { data: campaignSubclasses } = useCampaignCustomSubclasses();
 const subclassOptions = computed(() =>
-  (allCustomSubclasses.value ?? [])
+  campaignSubclasses.value
     .filter(sc => sc.class_name === form.class)
     .map(sc => sc.subclass_name),
 );

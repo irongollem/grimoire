@@ -195,15 +195,18 @@ const {
   activeTab, saving,
   portraitUrl, focalPoint, spellSlotMaxes,
   existingMember, backRoute,
-  speciesOptions, backgroundOptions, selectedSpecies,
+  backgroundOptions, selectedSpecies,
   passivePerception, passiveInsight, passiveInvestigation,
   mod, setSkillProf, skillBonus, toggleSave, saveBonus,
   resetSlotsToDefault,
   save,
 } = form;
 
+// Resolve off `selectedSpecies` (the ungated list), not `speciesOptions` — a
+// species the DM disabled after this character picked it is gone from the
+// picker but still theirs, and must still render by name (#566).
 const currentSpeciesName = computed(
-  () => (speciesOptions.value as Array<{ id: string; name: string }>).find((s) => s.id === f.species_id)?.name ?? "—",
+  () => (selectedSpecies.value as { name: string } | null)?.name ?? "—",
 );
 const currentBgName = computed(
   () => (backgroundOptions.value as Array<{ id: string; name: string }>).find((b) => b.id === f.background_id)?.name ?? null,

@@ -9,6 +9,8 @@ import type {
 import { fetchOpen5eSubclasses, subclassToInsert, subclassImportUpdateFields } from "@/lib/open5eClassImport";
 import { classFeatureIdentity, collectFeatures, ensureClassFeatures } from "@/lib/classFeatureSync";
 import { useRuleset } from "@/composables/useRuleset";
+import { useCampaignStore } from "@/stores/campaign";
+import { allowedCampaignScoped } from "@/lib/campaignContentGating";
 import type { RulesetKey } from "@/types/ruleset.types";
 
 const QUERY_KEY = "custom_subclasses";
@@ -87,6 +89,17 @@ export function useAllCustomSubclasses() {
     queryFn: () => fetchAll(ruleset.value),
     staleTime: Infinity,
   });
+}
+
+/** {@link useAllCustomSubclasses} narrowed to the active campaign — a subclass
+ *  the DM marked "Campaign-scoped" for one table must not surface at another's
+ *  (#566). **Every subclass picker must use `data`**; `all` stays ungated for
+ *  resolving the subclass a character already has. */
+export function useCampaignCustomSubclasses() {
+  const { data: all, isLoading } = useAllCustomSubclasses();
+  const campaign = useCampaignStore();
+  const data = computed(() => allowedCampaignScoped(all.value, campaign.activeCampaignId));
+  return { data, all, isLoading };
 }
 
 export function useCustomSubclass(id: Ref<string>) {

@@ -5,6 +5,8 @@ import type { CustomClass, CustomClassInsert, CustomClassUpdate, SystemClass } f
 import { fetchOpen5eBaseClasses, baseClassToInsert, classImportUpdateFields } from "@/lib/open5eClassImport";
 import { classFeatureIdentity, collectFeatures, ensureClassFeatures } from "@/lib/classFeatureSync";
 import { useRuleset } from "@/composables/useRuleset";
+import { useCampaignStore } from "@/stores/campaign";
+import { allowedSystemClasses, allowedCampaignScoped } from "@/lib/campaignContentGating";
 import type { RulesetKey } from "@/types/ruleset.types";
 
 const QUERY_KEY = "custom_classes";
@@ -129,6 +131,31 @@ export function useAllSystemClasses() {
     },
     staleTime: Infinity,
   });
+}
+
+/** {@link useAllSystemClasses} narrowed to the SRD classes the DM left enabled
+ *  in Campaign Settings (`campaigns.disabled_class_names`). **Every class picker
+ *  must use `data`** — DM and player alike (#566). `all` is the ungated list,
+ *  for resolving the class a character already has: disabling a class hides it
+ *  from the pickers, it does not stop an existing barbarian from levelling. */
+export function useCampaignSystemClasses() {
+  const { data: all, isLoading } = useAllSystemClasses();
+  const campaign = useCampaignStore();
+  const data = computed(() =>
+    allowedSystemClasses(all.value, campaign.activeCampaign?.disabled_class_names),
+  );
+  return { data, all, isLoading };
+}
+
+/** {@link useAllCustomClasses} narrowed to the campaign's own homebrew — a class
+ *  marked exclusive to another campaign must never reach a picker here. The DM's
+ *  blocklist doesn't apply: ClassesTab only toggles SRD classes, custom ones are
+ *  always available. */
+export function useCampaignCustomClasses() {
+  const { data: all, isLoading } = useAllCustomClasses();
+  const campaign = useCampaignStore();
+  const data = computed(() => allowedCampaignScoped(all.value, campaign.activeCampaignId));
+  return { data, all, isLoading };
 }
 
 export interface ClassImportResult { inserted: number; updated: number }

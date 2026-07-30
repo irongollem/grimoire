@@ -4,6 +4,14 @@
       <LoadingSpinner />
     </div>
 
+    <!-- Nothing to pick: the DM disabled every species for this campaign. The
+         codex CTA below is DM-only, so select mode gets its own message. -->
+    <EmptyState
+      v-else-if="!filtered.length && !ui.speciesHasActiveFilters && selectMode"
+      title="No species available"
+      description="Your DM hasn't enabled any species for this campaign yet."
+    />
+
     <EmptyState
       v-else-if="!filtered.length && !ui.speciesHasActiveFilters"
       title="No species yet"
@@ -136,7 +144,7 @@ import { computed } from "vue";
 import { IconCheck, IconEdit } from '@/lib/icons';
 import type { Species } from "@/types/species.types";
 import { useUiStore } from "@/stores/ui";
-import { useAllSpecies } from "@/composables/useSpecies";
+import { useCampaignSpecies } from "@/composables/useSpecies";
 import { isUuid } from "@/lib/contentIdentity";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";
@@ -144,14 +152,16 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 
-defineProps<{ readonly?: boolean; selectMode?: boolean; selectedId?: string }>();
+const { selectMode } = defineProps<{ readonly?: boolean; selectMode?: boolean; selectedId?: string }>();
 const emit = defineEmits<{ select: [species: Species] }>();
 
 const ui = useUiStore();
-const { data: allSpecies, isLoading } = useAllSpecies();
+// Picking (select mode) obeys the campaign's blocklist; browsing the codex does
+// not — the DM still needs to open and edit a species they switched off (#566).
+const { data: campaignSpecies, all: allSpecies, isLoading } = useCampaignSpecies();
 
 const filtered = computed(() => {
-  let list = allSpecies.value ?? [];
+  let list = selectMode ? campaignSpecies.value : (allSpecies.value ?? []);
 
   if (ui.speciesFilterSize !== "all") {
     list = list.filter((s) => s.size === ui.speciesFilterSize);

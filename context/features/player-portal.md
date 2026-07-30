@@ -93,6 +93,8 @@ The character sheet is the player's primary view. When no character is linked, i
 **Character creation and edit:**
 `PlayerCharacterCreateView.vue` dispatches to either `CharacterCreateWizard` (step-by-step for new characters) or `CharacterEditTabs` (tabbed editor for existing characters). Players go through species picker → background picker → stats.
 
+Every player-side picker obeys the DM's per-campaign gates (#566) — the species grid (`SpeciesList` in select mode, `/play/species`), the disguise picker (`PlayerAppearanceSection`), the creation wizard's species/class/subclass steps, and the level-up wizard's new-class list all read the gated `data` from `useCampaignSpecies()` / `useCampaignSystemClasses()` / `useCampaignCustomClasses()` / `useCampaignCustomSubclasses()`. Anything that merely *displays* what the character already has resolves against the ungated `all`, so a species the DM disables afterwards keeps rendering on the sheet. See the gating note in [party-characters.md](party-characters.md).
+
 ## Party View
 
 Route: `/play/party` (`PlayerPartyView.vue`)

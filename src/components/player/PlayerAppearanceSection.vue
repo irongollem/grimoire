@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { ref, watch } from "vue";
 import type { PartyMember } from "@/types/party.types";
-import { useAllSpecies } from "@/composables/useSpecies";
+import { useCampaignSpecies } from "@/composables/useSpecies";
 import { useSetShapeshifterAppearance, useClearShapeshifterAppearance } from "@/composables/useParty";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 
 const props = defineProps<{ member: PartyMember }>();
 
-const { data: allSpecies } = useAllSpecies();
-const speciesOptions = computed(() => allSpecies.value ?? []);
+// A disguise is still a species pick — the campaign blocklist applies (#566).
+// The current disguise renders from `member.disguise_race` above, so a species
+// disabled after the fact stays readable even once it leaves this list.
+const { data: speciesOptions } = useCampaignSpecies();
 
 const { mutate: setAppearance, isPending: setting } = useSetShapeshifterAppearance();
 const { mutate: clearAppearance, isPending: clearing } = useClearShapeshifterAppearance();

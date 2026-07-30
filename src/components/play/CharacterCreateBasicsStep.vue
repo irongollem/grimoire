@@ -25,11 +25,11 @@
     <!-- Species picker -->
     <div class="space-y-3">
       <p class="text-label-lg font-semibold text-muted-foreground">SPECIES</p>
-      <div v-if="!allSpecies?.length" class="rounded-lg border border-border bg-card p-6 text-center">
+      <div v-if="!speciesChoices?.length" class="rounded-lg border border-border bg-card p-6 text-center">
         <p class="text-body text-muted-foreground italic">No species in the campaign yet — skip for now.</p>
       </div>
       <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        <button v-for="sp in allSpecies" :key="sp.id" type="button"
+        <button v-for="sp in speciesChoices" :key="sp.id" type="button"
           class="rounded-lg border overflow-hidden text-left transition-all"
           :class="f.species_id === sp.id
             ? 'border-primary ring-1 ring-primary bg-primary/5'
@@ -89,7 +89,7 @@ import type { CharacterCreationForm } from "@/composables/useCharacterCreationFo
 
 const { form } = defineProps<{ form: CharacterCreationForm }>();
 
-const { f, auth, portraitUrl, focalPoint, allSpecies, selectedSpecies, subraceOptions, onSpeciesSelect } = form;
+const { f, auth, portraitUrl, focalPoint, speciesChoices, selectedSpecies, subraceOptions, onSpeciesSelect } = form;
 </script>
 
 <style scoped>

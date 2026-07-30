@@ -5,9 +5,9 @@ import { useParty, useCreatePartyMember, useUpdatePartyMember } from "@/composab
 import { useAddCharacterClass } from "@/composables/useCharacterClasses";
 import { useAddInventoryItem, useAddInventoryItems } from "@/composables/usePartyInventory";
 import { useCampaignMembers, useUpdateCampaignMember } from "@/composables/useCampaignMembers";
-import { useAllSystemClasses, useAllCustomClasses } from "@/composables/useCustomClasses";
-import { useAllCustomSubclasses } from "@/composables/useCustomSubclasses";
-import { useAllSpecies } from "@/composables/useSpecies";
+import { useCampaignSystemClasses, useCampaignCustomClasses } from "@/composables/useCustomClasses";
+import { useCampaignCustomSubclasses } from "@/composables/useCustomSubclasses";
+import { useCampaignSpecies } from "@/composables/useSpecies";
 import { useBackgrounds } from "@/composables/useBackgrounds";
 import { useRuleset } from "@/composables/useRuleset";
 import { getDefaultSpellSlots } from "@/types/spell.types";
@@ -34,22 +34,28 @@ export function useCharacterCreationForm() {
   const route  = useRoute();
   const auth   = useAuthStore();
 
-  const { data: allSpecies }    = useAllSpecies();
+  // Pickers offer only what the campaign permits (`campaignSpecies` /
+  // `campaignSystemClasses`); resolution of what a character already has runs
+  // against the ungated lists, so a species/class disabled after the fact still
+  // renders on the sheet (#566).
+  const { data: campaignSpecies, all: allSpecies } = useCampaignSpecies();
   const { data: allBackgrounds } = useBackgrounds();
   const { is2024 } = useRuleset();
 
-  const speciesOptions    = computed(() => (allSpecies.value    ?? []).map(s => ({ id: s.id, name: s.name })));
+  /** The species the wizard may offer — gated. Full rows, not {id,name}: the
+   *  picker cards render art, size and traits. */
+  const speciesChoices    = campaignSpecies;
   const backgroundOptions = computed(() => (allBackgrounds.value ?? []).map(b => ({ id: b.id, name: b.name })));
   const selectedSpecies   = computed(() => (allSpecies.value ?? []).find(s => s.id === f.species_id) ?? null);
   const subraceOptions    = computed(() => selectedSpecies.value?.subraces?.map(sr => sr.name) ?? []);
 
-  const { data: systemClasses } = useAllSystemClasses();
-  const { data: customClasses } = useAllCustomClasses();
-  const { data: allSubclasses } = useAllCustomSubclasses();
+  const { data: systemClasses } = useCampaignSystemClasses();
+  const { data: customClasses } = useCampaignCustomClasses();
+  const { data: allSubclasses } = useCampaignCustomSubclasses();
 
   const mergedClasses = computed(() => [
-    ...(systemClasses.value ?? []).map(c => ({ ...c, definition_kind: "system" as const, choice_key: `system:${c.id}` })),
-    ...(customClasses.value ?? []).map(c => ({ ...c, definition_kind: "custom" as const, choice_key: `custom:${c.id}` })),
+    ...systemClasses.value.map(c => ({ ...c, definition_kind: "system" as const, choice_key: `system:${c.id}` })),
+    ...customClasses.value.map(c => ({ ...c, definition_kind: "custom" as const, choice_key: `custom:${c.id}` })),
   ].sort((a, b) => a.class_name.localeCompare(b.class_name)
     || a.definition_kind.localeCompare(b.definition_kind)
     || a.id.localeCompare(b.id)));
@@ -58,7 +64,7 @@ export function useCharacterCreationForm() {
   const allClassNames   = computed(() => [...new Set(mergedClasses.value.map(c => c.class_name))]);
   const subclassOptions = computed(() => {
     if (!f.class) return [];
-    return (allSubclasses.value ?? []).filter(sc => sc.class_name === f.class).map(sc => sc.subclass_name).sort();
+    return allSubclasses.value.filter(sc => sc.class_name === f.class).map(sc => sc.subclass_name).sort();
   });
 
   // ── ASI mode (new chars only) ─────────────────────────────────────────────────
@@ -536,8 +542,8 @@ export function useCharacterCreationForm() {
     asiMode, customAsi, customAsiTotal, adjustCustomAsi,
     // computed
     isEditMode, isDmCreate, existingMember, backRoute,
-    allSpecies, allBackgrounds,
-    speciesOptions, backgroundOptions, selectedSpecies, subraceOptions,
+    allBackgrounds,
+    speciesChoices, backgroundOptions, selectedSpecies, subraceOptions,
     selectedClass, selectedBg, selectedSubrace,
     mergedClasses, selectedClassKey, allClassNames, subclassOptions,
     pointsRemaining, suggestedHp, profBonus,

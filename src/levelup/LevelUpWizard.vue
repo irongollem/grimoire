@@ -164,8 +164,8 @@ import LevelUpSubclassPicker from "./LevelUpSubclassPicker.vue";
 import LevelUpSpellPicker from "./LevelUpSpellPicker.vue";
 import LevelUpClassSteps from "./LevelUpClassSteps.vue";
 import { useLevelUpConfirm } from "./useLevelUpConfirm";
-import { useAllCustomSubclasses } from "@/composables/useCustomSubclasses";
-import { useAllSystemClasses, useAllCustomClasses } from "@/composables/useCustomClasses";
+import { useCampaignCustomSubclasses } from "@/composables/useCustomSubclasses";
+import { useCampaignSystemClasses, useCampaignCustomClasses } from "@/composables/useCustomClasses";
 import {
   useCharacterClasses,
   useMulticlassPrereqs,
@@ -198,8 +198,11 @@ const { ruleset } = useRuleset();
 const memberIdRef = computed(() => props.member.id);
 const { data: characterClasses } = useCharacterClasses(memberIdRef);
 const { data: multiclassPrereqs } = useMulticlassPrereqs();
-const { data: allCustomClasses } = useAllCustomClasses();
-const { data: allSystemClasses } = useAllSystemClasses();
+// Ungated lists resolve the classes the character already has — a class the DM
+// disables mid-campaign must never block levelling what's already on the sheet.
+// Only the *new class* picker below obeys the campaign gate (#566).
+const { data: campaignCustomClasses, all: allCustomClasses } = useCampaignCustomClasses();
+const { data: campaignSystemClasses, all: allSystemClasses } = useCampaignSystemClasses();
 
 const memberClassEntries = computed<CharacterClass[]>(() => characterClasses.value ?? []);
 
@@ -285,7 +288,7 @@ const systemClass = computed(() => exactClassDefinition.value
   ? (exactClassDefinition.value.kind === "system" ? exactClassDefinition.value.value : undefined)
   : (allSystemClasses.value ?? []).find(c => c.class_name === memberClass.value));
 const { data: allFeatures }   = useAllFeatures();
-const { data: allCustomSubclasses } = useAllCustomSubclasses();
+const { data: campaignCustomSubclasses, all: allCustomSubclasses } = useCampaignCustomSubclasses();
 const subclassDefinitionId = ref("");
 const customSubclass = computed(() => {
   const id = subclassDefinitionId.value || chosenExistingEntry.value?.subclass_definition_id;
@@ -298,8 +301,8 @@ const customSubclass = computed(() => {
 const newClassCandidates = computed(() => {
   const existing = new Set(existingClassOptions.value.map(c => c.class_name));
   return [
-    ...(allSystemClasses.value ?? []).map(c => ({ key: `system:${c.id}`, className: c.class_name, label: `${c.class_name} — Official` })),
-    ...(allCustomClasses.value ?? []).map(c => ({ key: `custom:${c.id}`, className: c.class_name,
+    ...campaignSystemClasses.value.map(c => ({ key: `system:${c.id}`, className: c.class_name, label: `${c.class_name} — Official` })),
+    ...campaignCustomClasses.value.map(c => ({ key: `custom:${c.id}`, className: c.class_name,
       label: `${c.class_name} — ${c.source_document_key ? "Imported" : "Custom"}${c.source_revision ? ` (${c.source_revision})` : ""}` })),
   ].filter(candidate => !existing.has(candidate.className))
     .sort((a, b) => a.label.localeCompare(b.label));
@@ -398,7 +401,7 @@ const needsSubclassChoice = computed(() => {
   return false;
 });
 
-const subclassOptions = computed(() => (allCustomSubclasses.value ?? [])
+const subclassOptions = computed(() => campaignCustomSubclasses.value
   .filter(subclass => subclass.class_name === memberClass.value)
   .map(subclass => ({
     id: subclass.id,

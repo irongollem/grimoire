@@ -9,7 +9,7 @@
 > top of the matching [`docs/log/fixes/<subsystem>.md`](docs/log/fixes/) file, then
 > close the GitHub issue if one exists.
 
-## Fix log by subsystem  ·  282 resolved
+## Fix log by subsystem  ·  283 resolved
 
 | Subsystem | Fixes | | Subsystem | Fixes |
 | --- | ---: | --- | --- | ---: |
@@ -25,10 +25,11 @@
 | [Factions](docs/log/fixes/factions.md) | 3 | | [Infrastructure](docs/log/fixes/infra.md) | 11 |
 | [Encounters & Combat](docs/log/fixes/encounters.md) | 25 | | [Soundboard](docs/log/fixes/soundboard.md) | 19 |
 | [Quests](docs/log/fixes/quests.md) | 13 | | [Miscellaneous](docs/log/fixes/misc.md) | 1 |
-| [Party & Characters](docs/log/fixes/party.md) | 24 | | | |
+| [Party & Characters](docs/log/fixes/party.md) | 25 | | | |
 
 ## Latest fixes
 
+- Campaign species/class blocklists were enforced only in the DM's Add Hero form — every player-facing picker ignored them (#566) — [Party & Characters](docs/log/fixes/party.md)
 - Egress/performance audit: 1 MB of Simulacrum 3D code and 590 kB of PDF code were statically preloaded on every page — 4.9 MB → 3.3 MB initial JS — [Infrastructure](docs/log/fixes/infra.md)
 - Ten always-mounted generator panels plus the chat widget fetched their full data sets on every DM page load — [Infrastructure](docs/log/fixes/infra.md)
 - FocalImage ran smartcrop at mount, downloading every image on the page and defeating its own loading="lazy" — [Images & Art](docs/log/fixes/images.md)

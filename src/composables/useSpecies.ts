@@ -7,6 +7,8 @@ import { useEnabledSources } from "@/composables/useEnabledSources";
 import { isUuid } from "@/lib/contentIdentity";
 import { mergeSrdWithCustom } from "@/lib/srdShadow";
 import { useRuleset } from "@/composables/useRuleset";
+import { useCampaignStore } from "@/stores/campaign";
+import { allowedSpecies } from "@/lib/campaignContentGating";
 import type { RulesetKey } from "@/types/ruleset.types";
 
 const QUERY_KEY = "species";
@@ -106,6 +108,26 @@ export function useAllSpecies() {
   );
 
   return { data, isLoading };
+}
+
+/** {@link useAllSpecies} narrowed to what the active campaign permits: the DM's
+ *  `disabled_species_ids` blocklist and species exclusive to another campaign
+ *  are dropped. **Every species picker must use `data`** — DM and player alike;
+ *  the blocklist is a table rule, not DM-UI decoration (#566).
+ *
+ *  `all` is the ungated list, for resolving a species a character already has:
+ *  disabling a species hides it from the pickers, it does not erase it from the
+ *  characters who picked it first. */
+export function useCampaignSpecies() {
+  const { data: all, isLoading } = useAllSpecies();
+  const campaign = useCampaignStore();
+  const data = computed(() =>
+    allowedSpecies(all.value, {
+      campaignId: campaign.activeCampaignId,
+      disabledIds: campaign.activeCampaign?.disabled_species_ids,
+    }),
+  );
+  return { data, all, isLoading };
 }
 
 /** Returns a Map<species_id, species_name> for fast inline lookups. */
