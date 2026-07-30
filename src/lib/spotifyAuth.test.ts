@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { readSpotifyError } from "./spotifyAuth";
+import { beforeEach, describe, it, expect, vi } from "vitest";
+import { buildAuthUrl, exchangeCode, readSpotifyError } from "./spotifyAuth";
 
 function res(status: number, body: unknown): Response {
   return {
@@ -42,5 +42,36 @@ describe("readSpotifyError", () => {
   it("degrades to the status alone when the body is not JSON", async () => {
     const broken = { status: 502, json: async () => { throw new Error("not json"); } } as unknown as Response;
     expect(await readSpotifyError(broken)).toBe("Spotify returned 502");
+  });
+});
+
+describe("Spotify OAuth state", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    const values = new Map<string, string>();
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+      removeItem: (key: string) => values.delete(key),
+      clear: () => values.clear(),
+    });
+  });
+
+  it("adds a random state to the authorization request", async () => {
+    const url = new URL(await buildAuthUrl("client-id"));
+
+    expect(url.searchParams.get("state")).toBeTruthy();
+    expect(url.searchParams.get("state")).toBe(localStorage.getItem("spotify_oauth_state"));
+  });
+
+  it("rejects a callback whose state does not match before exchanging its code", async () => {
+    await buildAuthUrl("client-id");
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+
+    await expect(exchangeCode("authorization-code", "wrong-state")).rejects.toThrow(
+      "Spotify login state did not match",
+    );
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });

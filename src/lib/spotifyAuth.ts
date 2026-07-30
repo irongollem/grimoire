@@ -6,6 +6,7 @@
 
 const TOKEN_KEY = "spotify_tokens";
 const VERIFIER_KEY = "spotify_code_verifier";
+const STATE_KEY = "spotify_oauth_state";
 
 export interface SpotifyTokens {
   access_token: string;
@@ -24,6 +25,12 @@ function base64URLEncode(buffer: ArrayBuffer): string {
 }
 
 async function generateCodeVerifier(): Promise<string> {
+  const array = new Uint8Array(32);
+  crypto.getRandomValues(array);
+  return base64URLEncode(array.buffer);
+}
+
+function generateOAuthState(): string {
   const array = new Uint8Array(32);
   crypto.getRandomValues(array);
   return base64URLEncode(array.buffer);
@@ -93,10 +100,12 @@ const CLIENT_ID_KEY = "spotify_client_id_pending";
 export async function buildAuthUrl(clientId: string): Promise<string> {
   const verifier = await generateCodeVerifier();
   const challenge = await generateCodeChallenge(verifier);
+  const state = generateOAuthState();
   // localStorage (not sessionStorage) so the verifier survives when iOS PWA
   // hands the Spotify callback off to Safari and back — different session contexts.
   localStorage.setItem(VERIFIER_KEY, verifier);
   localStorage.setItem(CLIENT_ID_KEY, clientId);
+  localStorage.setItem(STATE_KEY, state);
 
   const params = new URLSearchParams({
     client_id: clientId,
@@ -104,6 +113,7 @@ export async function buildAuthUrl(clientId: string): Promise<string> {
     redirect_uri: getRedirectUri(),
     code_challenge_method: "S256",
     code_challenge: challenge,
+    state,
     scope: SCOPES,
     show_dialog: "true", // Always show account chooser so switching accounts works
   });
@@ -111,8 +121,14 @@ export async function buildAuthUrl(clientId: string): Promise<string> {
   return `https://accounts.spotify.com/authorize?${params}`;
 }
 
-/** Exchange the auth code for tokens. Client ID is read from sessionStorage if not provided. */
-export async function exchangeCode(code: string, clientId?: string): Promise<SpotifyTokens> {
+/** Exchange an auth response for tokens after validating its CSRF state. */
+export async function exchangeCode(code: string, state: string | undefined, clientId?: string): Promise<SpotifyTokens> {
+  const expectedState = localStorage.getItem(STATE_KEY);
+  localStorage.removeItem(STATE_KEY);
+  if (!expectedState || !state || state !== expectedState) {
+    throw new Error("Spotify login state did not match. Please start the connection again.");
+  }
+
   const verifier = localStorage.getItem(VERIFIER_KEY);
   // The verifier lives in localStorage, which is per-origin. If the login began
   // on one host and the callback landed on another (an apex → app redirect, say),

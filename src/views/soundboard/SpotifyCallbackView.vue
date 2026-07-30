@@ -35,6 +35,7 @@ const callbackUrl = `${window.location.origin}/spotify/callback`;
 
 onMounted(async () => {
   const code = route.query.code as string | undefined;
+  const state = route.query.state as string | undefined;
   const errorParam = route.query.error as string | undefined;
 
   if (errorParam) {
@@ -48,7 +49,7 @@ onMounted(async () => {
   }
 
   try {
-    await exchangeCode(code);
+    await exchangeCode(code, state);
   } catch (e) {
     // Show what Spotify actually said. "Token exchange failed, try again" sent
     // people round the same loop with no idea the fix was in the dashboard.
