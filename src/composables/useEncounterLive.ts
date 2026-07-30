@@ -225,64 +225,44 @@ export function usePlayerEncounterLive(campaignId: MaybeRefOrGetter<string>) {
 
   async function fetchRunning(id = subscribedCampaignId) {
     if (!id) { liveState.value = null; return; }
-    // Nothing enforces a single is_running row per campaign, so if a DM starts a
-    // second encounter without ending the first, .maybeSingle() would error and
-    // blank the player's live view mid-combat. Take the most recently started one
-    // instead so a stray second row degrades gracefully.
-    const { data } = await supabase
-      .from("encounter_state")
-      .select("*")
-      .eq("campaign_id", id)
-      .eq("is_running", true)
-      .order("started_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const { data, error } = await supabase.rpc("get_player_encounter_state", {
+      p_campaign_id: id,
+    });
     // A campaign switch can complete before its previous request. Never let
     // that stale response replace the active campaign's live encounter.
-    if (id === subscribedCampaignId) liveState.value = data ? (data as EncounterState) : null;
+    if (id === subscribedCampaignId) {
+      if (error) {
+        console.error("Failed to load player-safe encounter state", error);
+        liveState.value = null;
+      } else {
+        const rows = (data ?? []) as EncounterState[];
+        liveState.value = rows[0] ?? null;
+      }
+      liveStateLoaded.value = true;
+    }
   }
 
   function subscribe(id: string): void {
     unsubscribe();
     subscribedCampaignId = id;
+    liveStateLoaded.value = false;
     void fetchRunning(id);
     playerRealtime = createRealtimeChannel({
-      topic: `encounter_state:${id}`,
+      topic: `encounter_state_player_updates:${id}`,
       reconcile: () => void fetchRunning(id),
       bind: (channel) => channel.on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
-          table: "encounter_state",
+          table: "encounter_state_player_updates",
           filter: `campaign_id=eq.${id}`,
         },
-        (payload) => {
+        () => {
           if (subscribedCampaignId !== id) return;
-          // React to ROW IDENTITY, not just "any change in the campaign". Nothing
-          // guarantees a single running encounter, so a second encounter starting
-          // (which flips the FIRST one's is_running to false) or a stale row being
-          // deleted must NOT blank the encounter we're actually showing.
-          if (payload.eventType === "DELETE") {
-            const oldRow = payload.old as Partial<EncounterState>;
-            if (!liveState.value || oldRow.encounter_id === liveState.value.encounter_id) {
-              void fetchRunning(id); // the shown encounter ended — find any other running one
-            }
-            return;
-          }
-          const row = payload.new as EncounterState;
-          if (row.is_running) {
-            // A running encounter's state update — adopt it if it's the one we show,
-            // nothing is shown yet, or it started at/after the current one (newest wins).
-            if (!liveState.value
-              || row.encounter_id === liveState.value.encounter_id
-              || (row.started_at ?? "") >= (liveState.value.started_at ?? "")) {
-              liveState.value = row;
-            }
-          } else if (liveState.value && row.encounter_id === liveState.value.encounter_id) {
-            void fetchRunning(id); // the encounter we show just stopped — fall back to another
-          }
-          // else: a different, non-running encounter changed — ignore.
+          // The signal row deliberately contains no combatant payload. Resolve
+          // every change through the server-side projection before adopting it.
+          void fetchRunning(id);
         },
       ),
     });
@@ -310,7 +290,7 @@ export function usePlayerEncounterLive(campaignId: MaybeRefOrGetter<string>) {
     unsubscribe();
   });
 
-  return { liveState };
+  return { liveState, liveStateLoaded };
 }
 
 /**

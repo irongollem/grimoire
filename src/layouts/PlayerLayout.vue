@@ -306,7 +306,7 @@ import { useIsMobile } from "@/composables/useBreakpoint";
 import { IconAdd, IconBug, IconCalendarDays, IconClose, IconEncounter, IconLogOut, IconMenu, IconMessage, IconPopulate, IconReveal, IconSettingsAlt } from '@/lib/icons';
 import { useCalendarStore } from "@/stores/calendar";
 import DiceRoller from "@/components/common/DiceRoller.vue";
-import { useRunningEncounters, usePlayerEncounterLive } from "@/composables/useEncounterLive";
+import { usePlayerEncounterLive } from "@/composables/useEncounterLive";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
@@ -365,10 +365,11 @@ useCampaignLiveSync();
 usePlayerRemovalGuard();
 
 const isMobile = useIsMobile();
-const { anyRunning, runningLoaded } = useRunningEncounters();
 // Keep the player encounter subscription alive for the entire session so state
 // stays in sync even when the player navigates away from the encounter page.
-usePlayerEncounterLive(() => campaign.activeCampaignId ?? "");
+const { liveState: playerLiveState, liveStateLoaded: runningLoaded } =
+  usePlayerEncounterLive(() => campaign.activeCampaignId ?? "");
+const anyRunning = computed(() => playerLiveState.value?.is_running === true);
 const encounterLiveToast = ref(false);
 const showEncounterPanel = ref(false);
 const encounterPanelWidth = ref(288); // w-72 default

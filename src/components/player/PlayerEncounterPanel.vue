@@ -283,7 +283,11 @@ const visibleCombatants = computed(() =>
 );
 
 const activeCombatant = computed(
-  () => sortedCombatants.value[liveState.value?.active_combatant_index ?? 0] ?? null,
+  () => {
+    const activeId = liveState.value?.active_combatant_instance_id;
+    if (activeId) return sortedCombatants.value.find((c) => c.instance_id === activeId) ?? null;
+    return sortedCombatants.value[liveState.value?.active_combatant_index ?? 0] ?? null;
+  },
 );
 
 const myMemberId = computed(() => auth.linkedPartyMemberId);
@@ -377,8 +381,7 @@ async function rollMyInitiative() {
 
 const isMyTurn = computed(() => {
   if (!myPlayer.value || !liveState.value || isInLobby.value) return false;
-  const active = sortedCombatants.value[liveState.value.active_combatant_index];
-  return active?.instance_id === myPlayer.value.instance_id;
+  return activeCombatant.value?.instance_id === myPlayer.value.instance_id;
 });
 
 watch(isMyTurn, (now, prev) => {

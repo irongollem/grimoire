@@ -329,6 +329,8 @@ export interface EncounterState {
   is_running: boolean;
   current_round: number;
   active_combatant_index: number;
+  /** Present on the player-safe projection. Null when the active combatant is hidden. */
+  active_combatant_instance_id?: string | null;
   combatants_live: RunCombatant[];
   events_fired?: string[];
   /** VTT fog of war — semicolon-joined list of revealed "x,y" cell keys.

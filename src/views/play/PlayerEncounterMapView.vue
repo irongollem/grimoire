@@ -173,6 +173,9 @@ const liveCombatants = computed<RunCombatant[] | null>(() => {
 const activeInstanceId = computed(() => {
   const list = liveState.value?.combatants_live;
   if (!list) return null;
+  if (liveState.value?.active_combatant_instance_id) {
+    return liveState.value.active_combatant_instance_id;
+  }
   // active_combatant_index indexes the initiative-SORTED order (see encounterRun),
   // not the fog-filtered liveCombatants list — sort the full list with the shared
   // comparator and match by instance_id (the token layer keys on the id).
