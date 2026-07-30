@@ -100,54 +100,52 @@ export default defineConfig({
     },
   },
   build: {
-    rollupOptions: {
+    rolldownOptions: {
       output: {
-        manualChunks(id) {
-          // 3D model viewer — Simulacrum only, keep it out of the main bundle.
-          if (id.includes("node_modules/@google/model-viewer")) {
-            return "model-viewer";
-          }
-          // Tiptap editor — loaded on any page with a rich text field
-          if (id.includes("node_modules/@tiptap") || id.includes("node_modules/prosemirror")) {
-            return "tiptap";
-          }
-          // PDF/print — only needed in Card Forge
-          if (id.includes("node_modules/jspdf") || id.includes("node_modules/html2canvas")) {
-            return "pdf";
-          }
-          // Visualisation — NPC relationship web only
-          if (id.includes("node_modules/d3") || id.includes("node_modules/v-network-graph")) {
-            return "viz";
-          }
-          // Supabase client
-          if (id.includes("node_modules/@supabase")) {
-            return "supabase";
-          }
-          // UI primitives (radix + vueuse + icons + tw utils)
-          if (
-            id.includes("node_modules/radix-vue") ||
-            id.includes("node_modules/@vueuse") ||
-            id.includes("node_modules/lucide-vue-next") ||
-            id.includes("node_modules/class-variance-authority") ||
-            id.includes("node_modules/clsx") ||
-            id.includes("node_modules/tailwind-merge") ||
-            id.includes("node_modules/tw-animate-css")
-          ) {
-            return "ui";
-          }
-          // Vue ecosystem core
-          if (
-            id.includes("node_modules/vue") ||
-            id.includes("node_modules/vue-router") ||
-            id.includes("node_modules/pinia") ||
-            id.includes("node_modules/@tanstack")
-          ) {
-            return "vue-core";
-          }
-          // Everything else from node_modules
-          if (id.includes("node_modules")) {
-            return "vendor";
-          }
+        // Vite 8 / rolldown: the function form of `manualChunks` is deprecated
+        // and — importantly — is NOT consulted for virtual modules. That let
+        // Vite's `__vitePreload` helper (`\0vite/preload-helper.js`, needed by
+        // the entry and by every chunk with a dynamic import) get folded into
+        // whichever feature chunk claimed it first. It landed in `model-viewer`,
+        // so the entry statically imported 1 MB of Simulacrum-only 3D code on
+        // every single page load just to reach a ~1 kB function.
+        //
+        // `codeSplitting.groups` is the rolldown-native replacement and does see
+        // virtual modules, so the helper below is pinned to its own chunk.
+        // Groups are matched in order — first match wins — so the node_modules
+        // catch-all stays last.
+        codeSplitting: {
+          groups: [
+            // Shared dynamic-import helper — must never ride along with a
+            // feature chunk (see above).
+            { name: "preload-helper", test: /vite[\\/]preload-helper/ },
+            // 3D model viewer — Simulacrum only, keep it out of the main bundle.
+            { name: "model-viewer", test: /node_modules[\\/]@google[\\/]model-viewer/ },
+            // Tiptap editor — loaded on any page with a rich text field
+            { name: "tiptap", test: /node_modules[\\/](@tiptap|prosemirror)/ },
+            // Babel's runtime helpers are shared across many packages. Left
+            // unassigned, rolldown co-located them with their biggest consumer
+            // (jspdf) inside the `pdf` chunk — and then `vendor` had to import
+            // `_typeof` back out of it, making the entry statically depend on
+            // all ~590 kB of PDF code. Pin them to `vendor` so the edge only
+            // ever points the other way.
+            { name: "vendor", test: /node_modules[\\/]@babel[\\/]runtime/ },
+            // PDF/print — only needed in Card Forge and character-sheet export.
+            { name: "pdf", test: /node_modules[\\/](jspdf|html2canvas)/ },
+            // Visualisation — NPC relationship web only
+            { name: "viz", test: /node_modules[\\/](d3|v-network-graph)/ },
+            // Supabase client
+            { name: "supabase", test: /node_modules[\\/]@supabase/ },
+            // UI primitives (radix + vueuse + icons + tw utils)
+            {
+              name: "ui",
+              test: /node_modules[\\/](radix-vue|@vueuse|lucide-vue-next|class-variance-authority|clsx|tailwind-merge|tw-animate-css)/,
+            },
+            // Vue ecosystem core
+            { name: "vue-core", test: /node_modules[\\/](vue|pinia|@tanstack)/ },
+            // Everything else from node_modules
+            { name: "vendor", test: /node_modules/ },
+          ],
         },
       },
     },

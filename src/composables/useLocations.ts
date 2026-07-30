@@ -151,14 +151,18 @@ export function useLocations(parentId: string | null = null) {
   });
 }
 
-/** All locations in the campaign (flat list, for insert panel / search). */
-export function useAllLocations() {
+/** All locations in the campaign (flat list, for insert panel / search).
+ *
+ *  `enabled` lets permanently-mounted callers (the generator panels, which live
+ *  in DefaultLayout on every DM page) defer the fetch until their panel is open.
+ *  Query keys are shared, so the Atlas itself still fetches once. */
+export function useAllLocations(enabled?: () => boolean) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
     queryKey: computed(() => [QUERY_KEY, campaignId.value, "all"]),
     queryFn: () => fetchAllLocations(campaignId.value!),
-    enabled: () => !!campaignId.value,
+    enabled: () => !!campaignId.value && (enabled?.() ?? true),
   });
 }
 
@@ -169,8 +173,8 @@ export function useAllLocations() {
  *
  * Reuse wherever locations need hierarchical filtering (NPCs, quests, encounters, etc.)
  */
-export function useLocationTree() {
-  const { data: allLocations } = useAllLocations();
+export function useLocationTree(enabled?: () => boolean) {
+  const { data: allLocations } = useAllLocations(enabled);
 
   const childrenMap = computed<Map<string, string[]>>(() => {
     const m = new Map<string, string[]>();

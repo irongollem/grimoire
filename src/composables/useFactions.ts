@@ -21,7 +21,9 @@ import type { Deity } from "@/types/deity.types";
 
 // ── Factions CRUD ──────────────────────────────────────────────────────────────
 
-export function useAllFactions() {
+/** `enabled` lets permanently-mounted callers defer the fetch until their panel
+ *  is open — see {@link useNpcs} for the rationale. */
+export function useAllFactions(enabled?: () => boolean) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
@@ -35,7 +37,7 @@ export function useAllFactions() {
       if (error) throw error;
       return data as Faction[];
     },
-    enabled: computed(() => !!campaignId.value),
+    enabled: () => !!campaignId.value && (enabled?.() ?? true),
   });
 }
 

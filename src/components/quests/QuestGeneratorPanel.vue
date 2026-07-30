@@ -255,9 +255,11 @@ import type { QuestHookResult } from "@/ai/types";
 const ui = useUiStore();
 const router = useRouter();
 const campaign = useCampaignStore();
-const { data: party } = useParty();
-const { data: npcs } = useNpcs();
-const { data: locations } = useAllLocations();
+// Mounted on every DM page — only fetch the dropdown data once the panel opens.
+const panelOpen = () => ui.questGeneratorOpen;
+const { data: party } = useParty(panelOpen);
+const { data: npcs } = useNpcs(panelOpen);
+const { data: locations } = useAllLocations(panelOpen);
 const { isPro } = useSubscription();
 const showPaywall = ref(false);
 const creatingIndex = ref<number | null>(null);

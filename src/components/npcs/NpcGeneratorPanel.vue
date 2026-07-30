@@ -144,10 +144,14 @@ const {
   clearCompleted,
   generate,
 } = useNpcGeneration();
-const { locationOptions } = useLocationTree();
-const { data: factions } = useAllFactions();
+// This panel is mounted on every DM page (DefaultLayout) so background
+// generation survives navigation, but its dropdown data is only read while the
+// panel is open. Gate the fetches on that so a closed panel costs no egress.
+const panelOpen = () => ui.npcGeneratorOpen;
+const { locationOptions } = useLocationTree(panelOpen);
+const { data: factions } = useAllFactions(panelOpen);
 const { mutateAsync: addFactionNpc } = useAddFactionNpc();
-const { data: npcs } = useNpcs();
+const { data: npcs } = useNpcs(panelOpen);
 const { mutateAsync: createNpcRelation } = useCreateNpcRelation();
 
 const isAiEnabled = computed(() => campaign.isAiEnabled);

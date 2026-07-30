@@ -18,6 +18,7 @@
             :src="loc.image_url"
             :alt="loc.name"
             format="portrait"
+            :render-width="200"
             :focal-point="null"
             placeholder="/assets/placeholders/location.webp"
             class="w-full h-full object-cover"

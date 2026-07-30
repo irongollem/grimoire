@@ -51,13 +51,21 @@ async function deleteNpc(npc: Npc): Promise<void> {
   await removeStorageImages("asset-images", npc.portrait_url, npc.disguise_portrait_url);
 }
 
-export function useNpcs() {
+/** Every NPC in the active campaign.
+ *
+ *  `enabled` lets permanently-mounted callers (the chat widget, the closed
+ *  generator panels) hold the fetch back until their panel is actually open —
+ *  NPC rows carry appearance/personality/backstory/stat_block, so pulling the
+ *  whole campaign's set on every page load is a lot of egress for a UI nobody
+ *  opened. Query keys are shared, so a page that genuinely needs NPCs still
+ *  fetches them once. */
+export function useNpcs(enabled?: () => boolean) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
     queryKey: computed(() => [QUERY_KEY, campaignId.value]),
     queryFn: () => fetchNpcs(campaignId.value!),
-    enabled: () => !!campaignId.value,
+    enabled: () => !!campaignId.value && (enabled?.() ?? true),
   });
 }
 

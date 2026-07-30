@@ -24,15 +24,18 @@
       No locations match your filters.
     </p>
 
-    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-      <LocationCard
-        v-for="loc in filtered"
-        :key="loc.id"
-        :loc="loc"
-        :parent-name="parentName(loc)"
-        :description="descriptionPreview(loc)"
-        :out-of-era="isLocationOutOfEra(loc, todayYear)"
-      />
+    <div v-else>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+        <LocationCard
+          v-for="loc in visibleItems"
+          :key="loc.id"
+          :loc="loc"
+          :parent-name="parentName(loc)"
+          :description="descriptionPreview(loc)"
+          :out-of-era="isLocationOutOfEra(loc, todayYear)"
+        />
+      </div>
+      <div ref="sentinelRef" class="h-px" />
     </div>
 
     <p v-if="filtered.length" class="mt-4 text-caption text-muted-foreground italic text-right">
@@ -44,6 +47,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useAllLocations } from "@/composables/useLocations";
+import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import { IconNavAtlas } from "@/lib/icons";
@@ -76,6 +80,10 @@ const filtered = computed(() => {
   }
   return list;
 });
+
+// Render in pages like every other entity list — a campaign with a few hundred
+// locations otherwise builds every card (and its image) up front.
+const { visibleItems, sentinelRef } = useInfiniteScroll(filtered);
 
 function parentName(loc: Location): string {
   if (!loc.parent_id) return "";

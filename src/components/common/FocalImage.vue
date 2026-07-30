@@ -119,13 +119,17 @@ function handleImageClick() {
 // suffix (_w400_w600.webp) — serve the stored variant as-is instead.
 const VARIANT_URL_RE = /_w(?:200|300|400|600)\.webp$/;
 
+const renderVariantWidth = computed<VariantWidth>(
+  () => props.renderWidth ?? FORMAT_RENDER_WIDTHS[props.format],
+);
+
 const displaySrc = computed(() => {
   if (!props.src) return undefined;
   // blob:/data: URLs can't be converted to variant paths — serve as-is.
   if (props.print || variantFailed.value || !props.src.startsWith("http")) return props.src;
   // Already a variant URL in DB — use it directly, skip double-suffixing.
   if (VARIANT_URL_RE.test(props.src)) return props.src;
-  return toVariantUrl(props.src, props.renderWidth ?? FORMAT_RENDER_WIDTHS[props.format]);
+  return toVariantUrl(props.src, renderVariantWidth.value);
 });
 
 const rootRef = ref<HTMLElement | null>(null);
@@ -263,8 +267,11 @@ async function runSmartcrop(
       // Variant missing — fall back to original for smartcrop analysis.
       if (img.src !== src) { img.src = src; } else { resolve(); }
     };
-    // Local assets (placeholders) have no variants — skip _w400 to avoid 404s.
-    img.src = src.startsWith("http") ? toVariantUrl(src, 400) : src;
+    // Analyse the SAME variant the <img> renders rather than a fixed _w400, so
+    // the probe reuses the display fetch from cache instead of pulling a second,
+    // differently-sized copy of every image on the page.
+    // Local assets (placeholders) have no variants — use them as-is to avoid 404s.
+    img.src = src.startsWith("http") ? toVariantUrl(src, renderVariantWidth.value) : src;
   });
 
   if (!img.naturalWidth) return null;
@@ -368,12 +375,39 @@ async function resolvePlaceholder(url: string) {
   }
 }
 
+// ── Viewport gating ────────────────────────────────────────────────────────────
+//
+// Resolving a focal point without a manual/cached value runs smartcrop, which
+// downloads the image through a second `new Image()`. Doing that on mount fetched
+// every image on the page immediately — a list of 200 locations pulled 200 images
+// before the user scrolled past the first row, which silently defeated the
+// `loading="lazy"` on the rendered <img>. Gate the whole resolve pass on the
+// element approaching the viewport so the probe costs nothing for images that are
+// never scrolled to.
+//
+// Print mode is exempt: Card Forge renders into an off-screen/hidden container
+// that never intersects, and it needs focal points resolved to lay the card out.
+// Without IntersectionObserver support there is no way to tell — resolve eagerly.
+const nearViewport = ref(props.print === true || typeof IntersectionObserver === "undefined");
+
+const intersectionObserver: IntersectionObserver | null = nearViewport.value
+  ? null
+  : new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((e) => e.isIntersecting)) return;
+        nearViewport.value = true;
+        intersectionObserver?.disconnect();
+      },
+      { rootMargin: "200px" },
+    );
+
 watch(
-  [() => props.src, () => props.placeholder, () => props.focalPoint],
-  ([url, ph, fp]) => {
+  [() => props.src, () => props.placeholder, () => props.focalPoint, nearViewport],
+  ([url, ph, fp, visible]) => {
     rawFocalPoint.value = null;
     objectPosition.value = FORMAT_DEFAULTS[props.format];
     variantFailed.value = false;
+    if (!visible) return;
     if (url) {
       void resolve(url, fp);
     } else if (ph) {
@@ -394,9 +428,18 @@ const resizeObserver = new ResizeObserver(() => {
 });
 
 watch(rootRef, (el, prev) => {
-  if (prev) resizeObserver.unobserve(prev);
-  if (el) resizeObserver.observe(el);
+  if (prev) {
+    resizeObserver.unobserve(prev);
+    intersectionObserver?.unobserve(prev);
+  }
+  if (el) {
+    resizeObserver.observe(el);
+    intersectionObserver?.observe(el);
+  }
 });
 
-onBeforeUnmount(() => resizeObserver.disconnect());
+onBeforeUnmount(() => {
+  resizeObserver.disconnect();
+  intersectionObserver?.disconnect();
+});
 </script>

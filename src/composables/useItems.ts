@@ -123,10 +123,21 @@ export function useItemSources() {
 export interface UseItemsOptions {
   /** When true, return all items regardless of campaign scope. Default false: filtered to general + active campaign. */
   includeAllScopes?: boolean;
+  /** Set false to hold the fetch back — for callers mounted permanently (e.g. the
+   *  chat widget) that only need the catalogue once their panel is actually open.
+   *  The full item catalogue plus the SRD item table is multiple MB; pulling it on
+   *  every page load for a closed panel is pure egress. Defaults to true. */
+  enabled?: boolean;
 }
 
 export function useItems(getOptions?: () => UseItemsOptions) {
-  const itemsQuery = useQuery({ queryKey: [QUERY_KEY], queryFn: fetchItems, staleTime: Infinity });
+  const isEnabled = () => getOptions?.().enabled !== false;
+  const itemsQuery = useQuery({
+    queryKey: [QUERY_KEY],
+    queryFn: fetchItems,
+    staleTime: Infinity,
+    enabled: isEnabled,
+  });
   const artDefaults = useSrdArtDefaults();
   const { activeCampaignId } = storeToRefs(useCampaignStore());
   const { ruleset } = useRuleset();
@@ -139,7 +150,7 @@ export function useItems(getOptions?: () => UseItemsOptions) {
   const srdQuery = useQuery({
     queryKey: computed(() => [SRD_QUERY_KEY, enabledSlugs.value, ruleset.value]),
     queryFn: () => fetchSrdItems(enabledSlugs.value!, ruleset.value),
-    enabled: () => enabledSlugs.value !== null,
+    enabled: () => isEnabled() && enabledSlugs.value !== null,
     staleTime: Infinity,
   });
 

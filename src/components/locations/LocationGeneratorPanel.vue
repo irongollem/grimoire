@@ -200,7 +200,8 @@ const router   = useRouter();
 const campaign = useCampaignStore();
 const { mutateAsync: createLocation } = useCreateLocation();
 const { logImageGeneration } = useImageGenerationLog();
-const { locationOptions } = useLocationTree();
+// Mounted on every DM page — only fetch the parent-location tree once the panel opens.
+const { locationOptions } = useLocationTree(() => ui.locationGeneratorOpen);
 const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted, generate } = useLocationGeneration();
 
 const aiApiKey = computed(() => campaign.decryptedApiKey);

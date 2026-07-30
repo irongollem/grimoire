@@ -51,13 +51,15 @@ async function deletePartyMember(member: PartyMember): Promise<void> {
   await removeStorageImages("asset-images", member.portrait_url);
 }
 
-export function useParty() {
+/** `enabled` lets permanently-mounted callers defer the fetch until their panel
+ *  is open — see {@link useNpcs} for the rationale. */
+export function useParty(enabled?: () => boolean) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
     queryKey: computed(() => [QUERY_KEY, campaignId.value]),
     queryFn: () => fetchParty(campaignId.value!),
-    enabled: () => !!campaignId.value,
+    enabled: () => !!campaignId.value && (enabled?.() ?? true),
   });
 }
 

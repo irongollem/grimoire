@@ -4,7 +4,7 @@ Curated history of shipped features and resolved bugs, chunked by subsystem. Thi
 is a **log**, not a tracker: open work lives in GitHub issues on `irongollem/grimoire`.
 
 - **Features** (556 entries) — what shipped, newest first per file.
-- **Fixes** (278 entries) — resolved bugs, newest first per file.
+- **Fixes** (282 entries) — resolved bugs, newest first per file.
 
 When you finish work, append a `- [x]` line to the matching file below
 (`features/<subsystem>.md` for a feature, `fixes/<subsystem>.md` for a bug fix).
@@ -59,12 +59,12 @@ Pick the subsystem the change is primarily about; use `misc` only as a last reso
 | Atlas & Locations | 15 | [fixes/atlas.md](fixes/atlas.md) |
 | Cartographer & VTT | 1 | [fixes/cartographer.md](fixes/cartographer.md) |
 | Chat & Dice | 10 | [fixes/chat.md](fixes/chat.md) |
-| Images & Art | 8 | [fixes/images.md](fixes/images.md) |
+| Images & Art | 10 | [fixes/images.md](fixes/images.md) |
 | Publishing & Export | 23 | [fixes/publishing.md](fixes/publishing.md) |
 | UI & Layout | 12 | [fixes/ui.md](fixes/ui.md) |
 | Database & Security | 9 | [fixes/database.md](fixes/database.md) |
 | AI Generation | 10 | [fixes/ai.md](fixes/ai.md) |
 | Billing | 5 | [fixes/billing.md](fixes/billing.md) |
-| Infrastructure | 9 | [fixes/infra.md](fixes/infra.md) |
+| Infrastructure | 11 | [fixes/infra.md](fixes/infra.md) |
 | Soundboard | 19 | [fixes/soundboard.md](fixes/soundboard.md) |
 | Miscellaneous | 1 | [fixes/misc.md](fixes/misc.md) |

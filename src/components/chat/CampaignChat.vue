@@ -180,10 +180,16 @@ const ui = useUiStore();
 const auth = useAuthStore();
 const { messages, loading, loadingOlder, hasOlder, loadOlder, sendMessage, sendRoll, claimItemDrop, grabItemDrop, claimCurrencyDrop, claimLootChestAtom, sendVendorOffer, claimVendorOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId } =
   useCampaignMessages();
-const { data: members } = useCampaignMembers();
-const { data: party }    = useParty();
-const { data: allItems } = useItems();
-const { data: npcsData } = useNpcs();
+// The chat widget is mounted on every DM page so it can raise the unread badge,
+// but members / party / item catalogue / NPCs are only ever read by the panel's
+// own UI and its claim handlers. Gate them on the panel actually being open —
+// otherwise every page load pulled the full item catalogue (plus the SRD item
+// table) and every NPC row for a panel the user never opened.
+const chatOpen = () => ui.chatOpen;
+const { data: members } = useCampaignMembers(chatOpen);
+const { data: party }    = useParty(chatOpen);
+const { data: allItems } = useItems(() => ({ enabled: ui.chatOpen }));
+const { data: npcsData } = useNpcs(chatOpen);
 const { mutateAsync: addInventoryItem }    = useAddInventoryItem();
 const { mutateAsync: updatePartyMember }   = useUpdatePartyMember();
 const queryClient = useQueryClient();

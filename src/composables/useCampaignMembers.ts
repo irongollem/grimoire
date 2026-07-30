@@ -57,13 +57,15 @@ export function useMyMemberships() {
   });
 }
 
-export function useCampaignMembers() {
+/** `enabled` lets permanently-mounted callers defer the fetch until their panel
+ *  is open — see `useNpcs` for the rationale. */
+export function useCampaignMembers(enabled?: () => boolean) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
     queryKey: computed(() => [MEMBERS_KEY, campaignId.value]),
     queryFn: () => fetchMembers(campaignId.value!),
-    enabled: () => !!campaignId.value,
+    enabled: () => !!campaignId.value && (enabled?.() ?? true),
   });
 }
 

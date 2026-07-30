@@ -205,8 +205,10 @@ const { mutateAsync: addFactionNpc }    = useAddFactionNpc();
 const { mutateAsync: addFactionLocation } = useAddFactionLocation();
 const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted, generate } = useFactionGeneration();
 
-const { data: npcs }      = useNpcs();
-const { locationOptions } = useLocationTree();
+// Mounted on every DM page — only fetch the dropdown data once the panel opens.
+const panelOpen           = () => ui.factionGeneratorOpen;
+const { data: npcs }      = useNpcs(panelOpen);
+const { locationOptions } = useLocationTree(panelOpen);
 
 const aiApiKey = computed(() => campaign.decryptedApiKey);
 const isAiEnabled = computed(() => campaign.isAiEnabled);
