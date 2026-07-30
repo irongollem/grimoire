@@ -84,15 +84,6 @@ export function useCharacterSheetPdf() {
   ): Promise<void> {
     isGenerating.value = true;
 
-    // jspdf + html2canvas are ~590 kB together and are only ever needed once a
-    // user actually exports a sheet. Imported statically they were pulled into
-    // the initial page load through the shared vendor chunk, so they are loaded
-    // on demand here instead.
-    const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
-      import("jspdf"),
-      import("html2canvas"),
-    ]);
-
     const { w: pxW, h: pxH } = mode === "illustrated" ? ILLUSTRATED_PAGE_PX[pageSize] : PAGE_DIMS_PX[pageSize];
     const { w: mmW, h: mmH, format } = PAGE_DIMS_MM[pageSize];
 
@@ -119,6 +110,14 @@ export function useCharacterSheetPdf() {
     app.mount(container);
 
     try {
+      // jspdf + html2canvas are ~590 kB together and are only ever needed once a
+      // user actually exports a sheet. Keep the lazy imports inside this cleanup
+      // guard so a failed chunk request cannot leave the export permanently busy.
+      const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
+        import("jspdf"),
+        import("html2canvas"),
+      ]);
+
       await nextTick();
       await document.fonts.ready;
 
