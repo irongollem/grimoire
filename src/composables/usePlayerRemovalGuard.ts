@@ -4,8 +4,11 @@
 // removed. Mounted once in PlayerLayout only — the DM layout must never eject
 // when it removes a player (that DELETE is someone else's row).
 //
-// Relies on campaign_members being published with REPLICA IDENTITY FULL (see
-// 20260711000018) so the DELETE payload carries the old row's user_id.
+// A DELETE payload cannot tell us *whose* row was removed: with RLS enabled,
+// Postgres Changes trims the old record to the primary key, and Realtime does
+// not apply the channel filter to DELETE events at all ("Delete events are not
+// filterable"). So every campaign_members DELETE lands here, carrying only an
+// id, and the authoritative check is the same one a delivery gap uses.
 import { watch, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { supabase } from "@/lib/supabase";
@@ -50,17 +53,17 @@ export function usePlayerRemovalGuard() {
 
       realtime = createRealtimeChannel({
         topic: `player_removal_guard:${campaignId}`,
-        // Only a delivery gap needs an HTTP read. Normal DELETE events contain
-        // the old row (REPLICA IDENTITY FULL), so they can eject immediately.
         reconcile: () => void confirmStillMember(campaignId, myGeneration),
+        // No `filter` — Realtime ignores filters on DELETE, so requesting one
+        // would only imply a narrowing that never happens. Memberships are
+        // deleted rarely, so re-reading our own row per event is cheap, and it
+        // is the only reading that survives a primary-key-only payload.
         bind: (channel) => channel.on(
           "postgres_changes",
-          { event: "DELETE", schema: "public", table: "campaign_members", filter: `campaign_id=eq.${campaignId}` },
-          (payload) => {
-            const removedUserId = (payload.old as { user_id?: string } | null)?.user_id;
-            if (myGeneration !== generation || subscribedCampaignId !== campaignId
-              || ejecting || !removedUserId || removedUserId !== auth.user?.id) return;
-            void eject(campaignId, campaign.activeCampaign?.name ?? "the campaign", myGeneration);
+          { event: "DELETE", schema: "public", table: "campaign_members" },
+          () => {
+            if (myGeneration !== generation || subscribedCampaignId !== campaignId || ejecting) return;
+            void confirmStillMember(campaignId, myGeneration);
           },
         ),
       });

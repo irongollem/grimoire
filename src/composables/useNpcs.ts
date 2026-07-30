@@ -100,22 +100,10 @@ export function useNpcSpellCasters(spellId: string | Ref<string>) {
   });
 }
 
-export function useNpcsByLocation(locationId: string | Ref<string>) {
-  const idRef = isRef(locationId) ? locationId : ref(locationId);
-  return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "by-location", idRef.value]),
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("npcs")
-        .select("*")
-        .eq("location_id", idRef.value)
-        .order("name", { ascending: true });
-      if (error) throw error;
-      return data as Npc[];
-    },
-    enabled: () => !!idRef.value,
-  });
-}
+/** All the "People in the Area" panels render, and all they need. Matches the
+ *  narrow shape useEncountersByLocation already uses for the sibling panel. */
+export type NpcLocationSummary = Pick<Npc, "id" | "name" | "occupation" | "race" | "location_id">;
+const LOCATION_SUMMARY_COLUMNS = "id, name, occupation, race, location_id";
 
 /** Fetch NPCs across multiple location IDs (for "who's here" with descendants). */
 export function useNpcsByLocations(locationIds: Ref<string[]>) {
@@ -125,11 +113,11 @@ export function useNpcsByLocations(locationIds: Ref<string[]>) {
       if (!locationIds.value.length) return [];
       const { data, error } = await supabase
         .from("npcs")
-        .select("*")
+        .select(LOCATION_SUMMARY_COLUMNS)
         .in("location_id", locationIds.value)
         .order("name", { ascending: true });
       if (error) throw error;
-      return data as Npc[];
+      return data as NpcLocationSummary[];
     },
     enabled: () => locationIds.value.length > 0,
   });

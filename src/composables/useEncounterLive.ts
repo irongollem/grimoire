@@ -38,8 +38,12 @@ export function useRunningEncounters() {
         (payload) => {
           if (campaign.activeCampaignId !== campaignId) return;
           if (payload.eventType === "DELETE") {
-            const id = (payload.old as { encounter_id?: string }).encounter_id;
-            if (id) runningStates.value = runningStates.value.filter(s => s.encounter_id !== id);
+            // RLS trims a DELETE payload to the primary key, and Realtime does
+            // not apply the channel filter to DELETE events — so `id` is all we
+            // get, and it may belong to another campaign. Matching on the
+            // primary key is safe either way: a foreign id is simply absent.
+            const id = (payload.old as { id?: string }).id;
+            if (id) runningStates.value = runningStates.value.filter(s => s.id !== id);
           } else {
             const row = payload.new as EncounterState;
             const idx = runningStates.value.findIndex(s => s.encounter_id === row.encounter_id);

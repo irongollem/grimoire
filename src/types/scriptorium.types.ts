@@ -65,6 +65,21 @@ export interface ScriptoriumDocument {
   updated_at: string;
 }
 
+/** What the document list renders. Deliberately excludes `content` — the full
+ *  Tiptap JSON body — so browsing the list does not ship every document's text.
+ *  The editor fetches the whole row separately by id. */
+export type ScriptoriumDocumentSummary = Pick<
+  ScriptoriumDocument,
+  | "id"
+  | "title"
+  | "doc_type"
+  | "tags"
+  | "is_published"
+  | "word_count"
+  | "created_at"
+  | "updated_at"
+>;
+
 export type ScriptoriumDocInsert = Omit<
   ScriptoriumDocument,
   "id" | "user_id" | "created_at" | "updated_at"

@@ -3,19 +3,25 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type {
   ScriptoriumDocument,
+  ScriptoriumDocumentSummary,
   ScriptoriumDocInsert,
   ScriptoriumDocUpdate,
 } from "@/types/scriptorium.types";
 
 const QUERY_KEY = "scriptorium";
 
-async function fetchDocuments(): Promise<ScriptoriumDocument[]> {
+/** Columns the list view renders — see ScriptoriumDocumentSummary. Selecting
+ *  `*` here shipped every document's full Tiptap body just to draw its card. */
+const SUMMARY_COLUMNS =
+  "id, title, doc_type, tags, is_published, word_count, created_at, updated_at";
+
+async function fetchDocuments(): Promise<ScriptoriumDocumentSummary[]> {
   const { data, error } = await supabase
     .from("scriptorium_documents")
-    .select("*")
+    .select(SUMMARY_COLUMNS)
     .order("updated_at", { ascending: false });
   if (error) throw error;
-  return data as ScriptoriumDocument[];
+  return data as ScriptoriumDocumentSummary[];
 }
 
 async function fetchDocument(id: string): Promise<ScriptoriumDocument> {

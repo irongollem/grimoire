@@ -157,10 +157,14 @@ export function dispatchCampaignRealtimeSystem(
         matches: (_key, row) => stringAt(row, "campaign_id") === context.campaignId,
         compare: ascending("joined_at"),
       });
-      const affectedUserId = stringAt(change.eventType === "DELETE" ? change.old : change.new, "user_id");
+      // This is the current user's RLS-filtered membership projection; an
+      // insert/delete can change the campaigns and player-character fan-out. A
+      // DELETE payload is trimmed to the primary key by RLS, so `user_id` is
+      // only knowable for INSERT/UPDATE — a removal has to invalidate blind.
+      const affectedUserId = change.eventType === "DELETE"
+        ? context.currentUserId
+        : stringAt(change.new, "user_id");
       if (affectedUserId && affectedUserId === context.currentUserId) {
-        // This is the current user's RLS-filtered membership projection; an
-        // insert/delete can change the campaigns and player-character fan-out.
         invalidate(queryClient, ["my-memberships"], true);
         invalidate(queryClient, ["campaigns"]);
         invalidate(queryClient, ["my-characters"]);
@@ -196,10 +200,14 @@ export function dispatchCampaignRealtimeSystem(
         matches: (key, row) => key[1] === stringAt(row, "campaign_id") || key[1] === row.id,
         compare: descending("created_at"),
       });
-      {
-        const row = change.eventType === "DELETE" ? change.old : change.new;
-        const sourceTable = stringAt(row, "source_table");
-        const sourceId = stringAt(row, "source_id");
+      if (change.eventType === "DELETE") {
+        // A DELETE payload carries only the primary key (RLS trims the old
+        // record), so the deleted mini's source is unknowable here. Invalidate
+        // every projection rather than silently leaving a stale one behind.
+        invalidate(queryClient, ["minis", "for"]);
+      } else {
+        const sourceTable = stringAt(change.new, "source_table");
+        const sourceId = stringAt(change.new, "source_id");
         if (sourceTable && sourceId) invalidate(queryClient, ["minis", "for", sourceTable, sourceId], true);
       }
       return true;
