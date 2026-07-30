@@ -1,5 +1,13 @@
 <template>
   <div :class="stacked ? 'space-y-2' : 'flex flex-wrap items-center gap-x-4 gap-y-2'">
+    <p
+      v-if="store.isCasting"
+      class="flex w-full items-start gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-2xs text-amber-500"
+    >
+      <IconWarning class="mt-0.5 h-3 w-3 shrink-0" />
+      <span>Casting plays the original audio. Mixer levels, effects, fades, and ducking do not apply.</span>
+    </p>
+
     <!-- Collapsible header — only used in the floating widget, where space is tight. -->
     <button
       v-if="collapsible"
@@ -87,7 +95,7 @@
 // control at all, because the DM learns it is there and then cannot find it.
 // Anything new belongs here, not in one of the two hosts.
 import { computed, ref } from "vue";
-import { IconChevronRight, IconSettings } from "@/lib/icons";
+import { IconChevronRight, IconSettings, IconWarning } from "@/lib/icons";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useAudioTriggerPrefs } from "@/composables/useAudioThemeTriggers";
 import { useSoundboardBroadcast } from "@/composables/useSoundboardBroadcast";

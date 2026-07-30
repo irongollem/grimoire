@@ -21,3 +21,8 @@ export function primeAudioContext(): void {
   const ctx = getAudioContext();
   if (ctx?.state === "suspended") void ctx.resume();
 }
+
+/** Resume after an interruption without creating audio during page navigation. */
+export function resumeExistingAudioContext(): void {
+  if (_ctx?.state === "suspended") void _ctx.resume();
+}

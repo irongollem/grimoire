@@ -27,7 +27,7 @@
 // soundboard.ts. `getAudioEngine()` just hands back a stable object of
 // bound functions; there is only ever one graph per page.
 
-import { getAudioContext } from "@/lib/audioContext";
+import { getAudioContext, resumeExistingAudioContext } from "@/lib/audioContext";
 import type { AudioEffectPreset } from "@/types/sound.types";
 
 export type AudioBus = "music" | "ambient" | "effects";
@@ -555,9 +555,7 @@ function setPan(soundId: string, pan: number): void {
 }
 
 function resume(): void {
-  const ctx = getAudioContext();
-  if (!ctx) return;
-  if (ctx.state === "suspended") void ctx.resume();
+  resumeExistingAudioContext();
 }
 
 let engineSingleton: AudioEngine | null = null;
