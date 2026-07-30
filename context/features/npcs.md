@@ -289,7 +289,7 @@ The alter-ego system integrates transparently: if the NPC is not yet revealed (`
 
 ### Player NPC Card (`PlayerNpcCard`)
 
-Portrait (3:4 aspect ratio), name (or "???"), status dot, species, occupation, location (if the location field is visible). A **1–5 star relevance rating** system is shown at the bottom of each card, stored in `localStorage` per player. Ratings affect sort order (higher rated NPCs appear first).
+Portrait (3:4 aspect ratio), name (or "???"), status dot, species, occupation, location (if the location field is visible). A **1–5 star relevance rating** system is shown at the bottom of each card, stored per player in `player_npc_ratings`. Ratings affect sort order (higher rated NPCs appear first). Legacy `player_npc_rating:<npc-id>` browser values are uploaded for visible NPCs and removed only after the server copy is confirmed readable.
 
 ### Sort and Filter (People section)
 
@@ -333,7 +333,7 @@ Clicking a card opens a modal with:
 - **AI NPC generation with alter-ego support**: one generation call can produce both a true-form portrait and a disguise portrait. Generation runs in background so the DM can dismiss the panel and continue working.
 - **Setting population**: Faerûn campaigns can bulk-insert canonical NPCs (Hall of Heroes) in one click, with name-based deduplication and portrait back-fill.
 - **Bestiary bridge**: an NPC can link to a Bestiary monster (import stat block), or be promoted to a full Bestiary entry. Dual-direction linking: NPCs can also be exported to the Scriptorium as formatted documents.
-- **Player relevance ratings**: players can star-rate NPCs 1–5 in their portal to surface important characters; starred NPCs sort first and persist across sessions via localStorage.
+- **Player relevance ratings**: players can star-rate NPCs 1–5 in their portal to surface important characters; starred NPCs sort first and persist across browsers/devices via `player_npc_ratings`.
 
 ---
 
