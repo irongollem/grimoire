@@ -144,6 +144,9 @@ async function loadEngine(ctx: FakeAudioContext | null): Promise<AudioEngine> {
   vi.doMock("@/lib/audioContext", () => ({
     getAudioContext: () => asAudioContext(ctx),
     primeAudioContext: () => {},
+    resumeExistingAudioContext: () => {
+      if (ctx?.state === "suspended") void ctx.resume();
+    },
   }));
   const mod = await import("./audioEngine");
   return mod.getAudioEngine();
