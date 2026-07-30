@@ -54,8 +54,10 @@ export function npcInsertFromSeed(npc: DowntimeSeedNpc): Omit<NpcInsert, "campai
 }
 
 /**
- * A minted item is a private campaign entry, not a canonical/SRD row, so it is
- * never marked `is_canonical` and never lands under the `srd/` prefix. The seed
+ * A minted item is a private campaign entry, not a canonical/SRD row, so it
+ * never belongs in a `*_canonical` table and never lands under the `srd/`
+ * prefix (the old `is_canonical` flag was replaced by that split in
+ * 20260730000010). The seed
  * supplies flavour; everything else takes a mundane, un-magical default the DM
  * can dress up.
  */

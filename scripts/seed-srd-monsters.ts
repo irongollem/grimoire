@@ -2,7 +2,7 @@
 /**
  * Seeds the shared srd_monsters table from Open5e v2 — dual-edition by
  * default (SRD 5.1 "srd-2014" + SRD 5.2 "srd-2024") — then backfills
- * image_url + portrait_focal_point from any canonical rows in srd_monster_art.
+ * image_url + portrait_focal_point from srd_monster_art_canonical.
  *
  * Reuses src/lib/open5eMonsterImport.ts's fetchSrdMonsters(), the single
  * source of truth for the Open5e v2 → row mapping (shared with the in-app
@@ -69,7 +69,12 @@ export function srdMonsterId(sourceRecordKey: string): string {
  */
 type SeededMonster = Omit<MonsterInsert, "ruleset"> & { id: string; ruleset: RulesetKey };
 
-// ── art backfill from srd_monster_art ────────────────────────────────────────
+// ── art backfill from srd_monster_art_canonical ───────────────────────────────
+// Reads the dedicated canonical table, not srd_monster_art. Canonical art was
+// split out of that per-user table in 20260730000010 (#584) so it is no longer
+// owned by whoever uploaded it — srd_monster_art now holds only private per-DM
+// overrides, which must never be baked into the shared srd_monsters rows, and
+// its `is_canonical` discriminator is gone.
 
 interface MonsterArtRow {
   srd_id: string;
@@ -80,9 +85,8 @@ interface MonsterArtRow {
 async function backfillArt(supabase: SupabaseClient): Promise<void> {
   const art = await fetchAllRows<MonsterArtRow>((from, to) =>
     supabase
-      .from("srd_monster_art")
+      .from("srd_monster_art_canonical")
       .select("srd_id,image_url,portrait_focal_point")
-      .eq("is_canonical", true)
       .not("image_url", "is", null)
       .range(from, to)
       .returns<MonsterArtRow[]>(),
@@ -185,7 +189,7 @@ async function main(): Promise<void> {
   await upsertBatch(supabase, "srd_monsters", rows, "source_document_key,source_record_key");
   console.log(`  Done — ${rows.length} rows upserted.\n`);
 
-  console.log("Step 3: Backfilling art from canonical srd_monster_art…");
+  console.log("Step 3: Backfilling art from srd_monster_art_canonical…");
   await backfillArt(supabase);
   console.log("  Art backfill complete.\n");
 

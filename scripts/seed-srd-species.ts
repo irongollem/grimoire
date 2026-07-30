@@ -12,7 +12,7 @@
  * campaign_enabled_sources gating, unlike the panel's per-user import which
  * keeps the display name), and the Supabase upsert. There is no art backfill
  * step — species have no canonical art source yet (unlike srd_monsters/
- * srd_spells, which backfill from srd_monster_art/srd_art_defaults).
+ * srd_spells, which backfill from srd_monster_art_canonical/srd_art_defaults).
  *
  * Run (seeds both 2014 + 2024 by default):
  *   npx tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/seed-srd-species.ts
