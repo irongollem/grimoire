@@ -5,7 +5,7 @@ import {
   applyHpEffects,
   hasApplicableMemberEffect,
   isAutoAppliedKind,
-} from "@/lib/downtimeEffects";
+} from "@/lib/downtime/downtimeEffects";
 import type { DowntimeEffect } from "@/types/downtime.types";
 
 function gold(over: Partial<Extract<DowntimeEffect, { kind: "gold" }>> = {}): DowntimeEffect {

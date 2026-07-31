@@ -1,7 +1,7 @@
 import { computed, toValue, type MaybeRefOrGetter } from "vue";
 import type { DowntimeSeed } from "@/types/downtime.types";
 import { getDowntimeActivity, RISK_LABELS } from "@/data/downtimeActivities";
-import { describeEffect } from "@/lib/downtimeEffects";
+import { describeEffect } from "@/lib/downtime/downtimeEffects";
 import { truncateCard } from "@/types/card.types";
 
 /**

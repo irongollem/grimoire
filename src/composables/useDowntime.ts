@@ -5,19 +5,19 @@ import { useCampaignStore } from "@/stores/campaign";
 import { createNpc } from "./useNpcs";
 import { createItem } from "./useItems";
 import { createNote } from "./useNotes";
-import { computeBalance } from "@/lib/downtimeBalance";
-import { drawFromDeck } from "@/lib/downtimeDeck";
+import { computeBalance } from "@/lib/downtime/downtimeBalance";
+import { drawFromDeck } from "@/lib/downtime/downtimeDeck";
 import {
   npcInsertFromSeed,
   itemInsertFromSeed,
   noteInsertFromSeed,
-} from "@/lib/downtimeSeedReward";
+} from "@/lib/downtime/downtimeSeedReward";
 import {
   applyCoinEffects,
   applyConditionEffects,
   applyHpEffects,
   hasApplicableMemberEffect,
-} from "@/lib/downtimeEffects";
+} from "@/lib/downtime/downtimeEffects";
 import { DOWNTIME_SEEDS } from "@/data/downtimeSeeds";
 import type {
   CoinKey,

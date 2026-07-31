@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { QueryClient } from "@tanstack/vue-query";
-import { dispatchCampaignRealtimeSystem } from "@/lib/campaignRealtimeSystems";
+import { dispatchCampaignRealtimeSystem } from "@/lib/campaignLiveSync/campaignRealtimeSystems";
 
 const context = { campaignId: "campaign-a", currentUserId: "user-a", isDM: true };
 const event = (newRow: Record<string, unknown>, eventType: "INSERT" | "UPDATE" | "DELETE" = "INSERT") => ({

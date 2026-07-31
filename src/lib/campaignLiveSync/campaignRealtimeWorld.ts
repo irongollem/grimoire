@@ -1,5 +1,5 @@
 import type { QueryClient, QueryKey } from "@tanstack/vue-query";
-import { applyRealtimeRow, type RealtimeRowChange } from "@/lib/realtimeCache";
+import { applyRealtimeRow, type RealtimeRowChange } from "@/lib/campaignLiveSync/realtimeCache";
 
 type WorldTable = "notes" | "quests" | "locations" | "factions" | "npcs" | "companions";
 type Row = Record<string, unknown> & { id: string; campaign_id?: string | null };

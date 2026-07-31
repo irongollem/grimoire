@@ -10,6 +10,8 @@ import { installSwAutoUpdate } from "./lib/swAutoUpdate";
 import { updateAvailable } from "./composables/useAppUpdate";
 import { captureInstallPrompt } from "./composables/usePwaInstall";
 import { pendingBundleFile } from "./composables/usePendingBundle";
+import { useSoundboardStore } from "./stores/soundboard";
+import { useSpotifyStore } from "./stores/spotify";
 
 import "./assets/main.css";
 
@@ -101,16 +103,20 @@ if (lq) {
 // or via the menu action (updateAvailable), whichever comes first.
 if (import.meta.env.PROD) {
   installSwAutoUpdate({
-    isBusy: async () => {
-      if (queryClient.isMutating() > 0) return true;
-      // Lazy: the soundboard store pulls the whole audio stack, which must
-      // not ride into the entry chunk for a check that runs on deploys only.
-      const [{ useSoundboardStore }, { useSpotifyStore }] = await Promise.all([
-        import("./stores/soundboard"),
-        import("./stores/spotify"),
-      ]);
-      return useSoundboardStore(pinia).hasActiveAudio || useSpotifyStore(pinia).isPlaying;
-    },
+    // Both audio stores are imported statically, and must stay that way (#593).
+    // This used to `import()` them, on the theory that it kept the audio stack
+    // out of the entry chunk for a check that only runs on deploys. It did not:
+    // the app shell already reaches both eagerly and unconditionally, via the
+    // top bar's playing-count badge (SoundboardWidgetToggle), the always-mounted
+    // SoundboardWidget and trigger bus in DefaultLayout, and useMediaSession in
+    // App.vue. So the dynamic import moved nothing and only earned an
+    // INEFFECTIVE_DYNAMIC_IMPORT warning. Removing all four of those consumers
+    // outright takes a measured 11 kB gzip off the entry — which does not pay
+    // for async-ifying the CarPlay media-session or audio-trigger paths.
+    isBusy: () =>
+      queryClient.isMutating() > 0 ||
+      useSoundboardStore(pinia).hasActiveAudio ||
+      useSpotifyStore(pinia).isPlaying,
     onDeferred: () => {
       updateAvailable.value = true;
     },

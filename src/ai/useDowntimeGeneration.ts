@@ -8,7 +8,7 @@ import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
 import { logUsage } from "@/composables/useAiCredits";
 import { useCampaignStore } from "@/stores/campaign";
 import { useRuleset } from "@/composables/useRuleset";
-import { seedFromAiResult } from "@/lib/downtimeAiSeed";
+import { seedFromAiResult } from "@/lib/downtime/downtimeAiSeed";
 import type { DowntimeActivity, DowntimeSeed } from "@/types/downtime.types";
 
 /**

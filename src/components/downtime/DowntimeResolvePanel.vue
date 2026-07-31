@@ -5,7 +5,7 @@ import DowntimeActivityCard from "./DowntimeActivityCard.vue";
 import { getDowntimeActivity } from "@/data/downtimeActivities";
 import { markdownToTiptapJson } from "@/lib/markdownToTiptap";
 import { previewDraw, useResolveDraw, useCancelDraw, useApplyEffects } from "@/composables/useDowntime";
-import { isAutoAppliedKind, describeEffect } from "@/lib/downtimeEffects";
+import { isAutoAppliedKind, describeEffect } from "@/lib/downtime/downtimeEffects";
 import { useDowntimeGeneration } from "@/ai/useDowntimeGeneration";
 import { useAiCredits } from "@/composables/useAiCredits";
 import { useProviderConfig } from "@/composables/useProviderConfig";

@@ -13,9 +13,9 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Campaign } from "@/types/campaign.types";
-import { applyCampaignRealtimeWorld } from "@/lib/campaignRealtimeWorld";
-import { dispatchCampaignRealtimePlayer } from "@/lib/campaignRealtimePlayer";
-import { dispatchCampaignRealtimeSystem } from "@/lib/campaignRealtimeSystems";
+import { applyCampaignRealtimeWorld } from "@/lib/campaignLiveSync/campaignRealtimeWorld";
+import { dispatchCampaignRealtimePlayer } from "@/lib/campaignLiveSync/campaignRealtimePlayer";
+import { dispatchCampaignRealtimeSystem } from "@/lib/campaignLiveSync/campaignRealtimeSystems";
 
 let activeChannel: RealtimeChannelHandle | null = null;
 let refCount = 0;

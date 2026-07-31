@@ -3,7 +3,7 @@ import {
   applyRealtimeRow,
   type RealtimeRow,
   type RealtimeRowChange,
-} from "@/lib/realtimeCache";
+} from "@/lib/campaignLiveSync/realtimeCache";
 
 /** The identity available to a campaign realtime subscriber. */
 export interface CampaignRealtimeContext {

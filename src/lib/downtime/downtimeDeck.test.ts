@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { drawFromDeck, nextPreppedBack, pickWeightedSeed } from "@/lib/downtimeDeck";
+import { drawFromDeck, nextPreppedBack, pickWeightedSeed } from "@/lib/downtime/downtimeDeck";
 import type { DowntimeDeckBack, DowntimeSeed } from "@/types/downtime.types";
 
 const ISO = "2026-07-10T00:00:00.000Z";

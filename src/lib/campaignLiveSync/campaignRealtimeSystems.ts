@@ -3,7 +3,7 @@ import {
   applyRealtimeRow,
   type RealtimeRow,
   type RealtimeRowChange,
-} from "@/lib/realtimeCache";
+} from "@/lib/campaignLiveSync/realtimeCache";
 
 /** The small amount of session state needed to apply campaign table events safely. */
 export interface CampaignRealtimeContext {

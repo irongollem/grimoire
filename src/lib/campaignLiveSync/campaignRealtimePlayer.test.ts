@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { QueryClient } from "@tanstack/vue-query";
-import { dispatchCampaignRealtimePlayer } from "@/lib/campaignRealtimePlayer";
+import { dispatchCampaignRealtimePlayer } from "@/lib/campaignLiveSync/campaignRealtimePlayer";
 
 const dm = { campaignId: "campaign", currentUserId: "dm", isDM: true };
 const player = { campaignId: "campaign", currentUserId: "player", isDM: false };

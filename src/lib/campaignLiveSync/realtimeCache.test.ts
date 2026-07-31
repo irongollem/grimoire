@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { QueryClient } from "@tanstack/vue-query";
-import { applyRealtimeRow } from "@/lib/realtimeCache";
+import { applyRealtimeRow } from "@/lib/campaignLiveSync/realtimeCache";
 
 interface Row { id: string; campaign_id: string; group: string; name: string }
 

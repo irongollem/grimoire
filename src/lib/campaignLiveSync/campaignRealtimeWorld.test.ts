@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { QueryClient } from "@tanstack/vue-query";
-import { applyCampaignRealtimeWorld } from "@/lib/campaignRealtimeWorld";
+import { applyCampaignRealtimeWorld } from "@/lib/campaignLiveSync/campaignRealtimeWorld";
 
 type Row = Record<string, unknown> & { id: string; campaign_id: string };
 
