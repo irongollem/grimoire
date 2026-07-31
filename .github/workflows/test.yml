@@ -105,6 +105,14 @@ jobs:
             -H "Content-Type: application/json" \
             -d "$payload")
           echo "$result"
+          # The query API answers 200 with an error *object* for some failures.
+          # Without this guard `jq length` counts that object's keys and reports
+          # an API or auth outage as dangling content references — a data alarm
+          # for an infrastructure problem, sending the reader to the wrong file.
+          if ! echo "$result" | jq -e 'type == "array"' > /dev/null; then
+            echo "::error::Content integrity check could not run: the query API returned something other than a result array (see above). This is an API/auth failure, not a data problem."
+            exit 1
+          fi
           violations=$(echo "$result" | jq 'length')
           if [ "$violations" != "0" ]; then
             echo "::error::Dangling shared-content references after migration — see rows above (supabase/checks/content_integrity.sql)"
@@ -116,5 +124,31 @@ jobs:
       # queued release fully subsumes an older queued release that GitHub's
       # concurrency control may replace. Do not add --prune: production may
       # contain intentionally remote-only functions.
+      #
+      # No --import-map flag: the CLI stopped honouring it ("Specifying
+      # import_map through flags is no longer supported") and finds
+      # supabase/functions/deno.json on its own. Passing it was a silent no-op —
+      # confirmed by the failure below, which resolved the *bare* specifier
+      # `@supabase/supabase-js` to its mapped esm.sh URL while the flag was
+      # already being ignored.
+      #
+      # Retried because bundling resolves every dependency over the network at
+      # deploy time (esm.sh, deno.land), so a CDN blip fails the whole release.
+      # Not hypothetical: run 30668249029 died on a 522 from esm.sh *after*
+      # `db push` had already succeeded, leaving production schema ahead of
+      # function code with no rollback. Retrying closes the common case. The
+      # skew window itself is inherent to deploying schema and code in two
+      # steps, and is why the error below says so out loud.
       - name: Deploy Edge Functions to production
-        run: supabase functions deploy --project-ref "$SUPABASE_PROJECT_ID" --import-map supabase/functions/deno.json
+        run: |
+          for attempt in 1 2 3; do
+            if supabase functions deploy --project-ref "$SUPABASE_PROJECT_ID"; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "::warning::Edge Function deploy attempt $attempt failed; retrying in $((attempt * 15))s"
+              sleep $((attempt * 15))
+            fi
+          done
+          echo "::error::Edge Function deploy failed after 3 attempts. Migrations from this release are already applied, so production schema is now ahead of the deployed function code — re-run this job before assuming the release landed."
+          exit 1
