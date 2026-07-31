@@ -8,6 +8,12 @@
  * them from their own sourcebooks into `class_option_texts`
  * (see useClassOptionTexts / migration 20260725000003). Do NOT add description
  * strings from published books back into this file.
+ *
+ * Campaigns that predate this rule were grandfathered by seeding their previous
+ * descriptions into `class_option_texts` via one-off service SQL, deliberately
+ * NOT a committed migration — a migration would have put the licensed text back
+ * into the repo permanently, which is the whole thing being avoided. If that
+ * backfill ever needs repeating, it has to stay out of version control too.
  */
 export interface ArtificerInfusion {
   name: string

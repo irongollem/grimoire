@@ -116,6 +116,12 @@ async function countScopedHomebrew(campaignId: string): Promise<HomebrewCounts> 
  * thing this design exists to prevent) — and worse, be unretryable: a second
  * attempt would see zero scoped rows and never re-offer the choice.
  */
+/**
+ * The RPC authorizes from `auth.uid()` and mirrors `campaigns`' real DELETE
+ * gate — plain ownership, deliberately NOT `private.is_campaign_dm`. That
+ * helper admits co-DMs, so using it here would quietly widen who can destroy a
+ * campaign from "the owner" to "any DM".
+ */
 export async function disposeHomebrewAndDeleteCampaign(
   campaignId: string,
   disposition: HomebrewDisposition,

@@ -11,6 +11,12 @@ export interface ReorderEntry {
  * supabase/migrations/20260730000008_reorder_sort_order_rpc.sql. Each is a
  * SECURITY DEFINER function that re-derives the caller from auth.uid() and
  * verifies ownership of every id before writing anything.
+ *
+ * The obvious `upsert(rows, { onConflict: "id" })` was tried and rejected:
+ * sending only `{ id, sort_order }` violates NOT NULL on every other column
+ * the moment the insert path is taken, and it would need an INSERT policy the
+ * reorder path has no business holding. An RPC that only ever UPDATEs is the
+ * narrower grant.
  */
 export type ReorderRpc =
   | "reorder_notes"

@@ -1,6 +1,6 @@
 # Grimoire — Collaboration Features: Technical Plan
 
-> **⚠️ Historical design document.** This is the original collaboration design plan. Most phases described here as "future" or "planned" have since shipped. See `ROADMAP.md` for the current, up-to-date status of these features.
+> **⚠️ Historical design document.** This is the original collaboration design plan. Most phases described here as "future" or "planned" have since shipped. For how collaboration actually works today, see [`context/features/collaboration.md`](context/features/collaboration.md); open work is in GitHub issues.
 >
 > **Scope**: Multi-user campaign participation — DM + players on the same campaign, real-time encounter sync, shared inventory, and a player-facing portal. VTT/map management is out of scope here but this architecture is designed to accommodate it.
 

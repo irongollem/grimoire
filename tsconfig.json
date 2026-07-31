@@ -1,4 +1,8 @@
 {
+  // The `@/*` mapping is duplicated here from tsconfig.app.json on purpose.
+  // Non-tsc tools (linters, test runners, editor plugins) read the ROOT
+  // tsconfig and do not follow project references, so without this copy they
+  // cannot resolve a single `@/…` import.
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
