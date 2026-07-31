@@ -117,14 +117,17 @@ Follow all project conventions from CLAUDE.md:
 
 ---
 
-## Step 5 — Update tracking files
+## Step 5 — Record the reasoning, not the event
 
-After implementing, prepend a `- [x]` entry to the top of the matching subsystem file under `docs/log/` (pick the subsystem the change is primarily about — taxonomy at the top of `docs/log/index.md`):
+There is no change log. Do not create one, and do not reinstate `ROADMAP.md`, `BUGS.md` or `docs/log/` — they were deleted deliberately. Git history already records *what* changed; GitHub issues track open work.
 
-- Bug issue → `docs/log/fixes/<subsystem>.md` — one-line summary of root cause + fix
-- Enhancement issue → `docs/log/features/<subsystem>.md` — one-line summary of what was built
+What git does not capture is *why an alternative was rejected*. If this issue produced such a decision, write it where the next person to touch that line will be standing:
 
-Do NOT add `[ ]` items, and do NOT append to the root `ROADMAP.md` / `BUGS.md` (thin pointers only). The `docs/log/` tree is a history log; GitHub issues track open work.
+- A code comment at the decision site, or
+- A comment in the migration, or
+- The relevant `context/features/<area>.md` doc
+
+Then close the issue with `mcp__github__update_issue` (`state: closed`).
 
 ---
 
