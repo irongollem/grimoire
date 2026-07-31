@@ -54,7 +54,17 @@ export function applyVignette(
   const cy = h / 2;
   const maxR = Math.sqrt(cx * cx + cy * cy);
   const innerR = maxR * (1 - opts.softness * 0.85);
-  const rangeR = maxR - innerR;
+  // Floored, the same way dofBlur and edgeTreatment floor their falloff ranges.
+  // At softness 0 the inner radius *is* maxR, so an unfloored range is 0: every
+  // pixel divides by zero and clamps to no vignette, except the exact farthest
+  // corner where the division is 0/0 = NaN. NaN is not <= 0, so that pixel was
+  // not skipped, and Uint8ClampedArray coerced the NaN blend to 0 — one stray
+  // black/transparent corner pixel on an otherwise untouched image.
+  //
+  // Note that softness 0 still renders no visible vignette, because it leaves
+  // zero area between the inner radius and the edge. That is the formula's
+  // design (softness sets the inner radius), not a second bug.
+  const rangeR = Math.max(1, maxR - innerR);
 
   const isColour = opts.mode === "colour";
   const [vR, vG, vB] = isColour ? parseHexColour(opts.colour) : [0, 0, 0];

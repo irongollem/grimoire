@@ -363,6 +363,11 @@ export function createBrushMaskController(): BrushMaskController {
     if (undoStack.length === 0) return false;
     const data = undoStack.pop()!;
     maskCtx.putImageData(data, 0, 0);
+    // The stack holds the mask as it was *before* each stroke, so an empty
+    // stack after the pop means we just restored the pristine mask. Without
+    // this, hasStrokes stayed true after undoing the only stroke, and any UI
+    // gated on it (Apply/Clear enabled state) read an empty mask as dirty.
+    _hasStrokes = undoStack.length > 0;
     return true;
   }
 

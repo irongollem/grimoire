@@ -253,8 +253,13 @@ export async function applyEdgeTreatment(
 }
 
 /**
- * Full export pipeline: colour grading → DOF blur → vignette → edge mask → PNG blob.
- * Callers pass pre-bound functions to keep modules independent.
+ * Full export pipeline, in the order the stages actually run:
+ * colour grading → DOF blur → texture → vignette → edge mask → brush mask → PNG blob.
+ *
+ * Note this is NOT the parameter order below, which takes vignette before
+ * texture. Texture is composited under the vignette on purpose, so the vignette
+ * darkens the overlay too rather than sitting beneath it. Callers pass
+ * pre-bound functions to keep modules independent.
  */
 export async function processImage(
   image: HTMLImageElement,
