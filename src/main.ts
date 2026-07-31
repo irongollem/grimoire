@@ -5,6 +5,7 @@ import { VueQueryPlugin, QueryClient } from "@tanstack/vue-query";
 import App from "./App.vue";
 import { vRollMode } from "./directives/vRollMode";
 import { routes, setupRouterGuard } from "./router/index";
+import { installStaleChunkRecovery } from "./lib/staleChunkRecovery";
 import { updateAvailable } from "./composables/useAppUpdate";
 import { captureInstallPrompt } from "./composables/usePwaInstall";
 import { pendingBundleFile } from "./composables/usePendingBundle";
@@ -43,6 +44,12 @@ const router = createRouter({
 });
 
 setupRouterGuard(router);
+
+// A deploy strands already-open pages: the fresh service worker deletes the
+// old build's cache on activate, so the old page's next lazy route import
+// 404s and the navigation dies. Recover with a one-shot hard reload onto the
+// fresh build instead of showing a dead "failed to load" view.
+installStaleChunkRecovery(router);
 
 const app = createApp(App);
 app.use(createPinia());
