@@ -25,10 +25,19 @@ function toIso(unixSeconds: number): string {
  * gains a second item, rather than silently reporting the first item's date.
  */
 function subscriptionPeriodEnd(sub: Stripe.Subscription): string | null {
-  const ends = sub.items.data
+  const ends = (sub.items?.data ?? [])
     .map((item) => item.current_period_end)
     .filter((end): end is number => typeof end === "number");
-  return ends.length > 0 ? toIso(Math.max(...ends)) : null;
+  if (ends.length > 0) return toIso(Math.max(...ends));
+
+  // Pre-Basil fallback. A webhook payload's shape follows the ENDPOINT's API
+  // version configured in the Stripe Dashboard, not this SDK's — so events can
+  // still arrive in the old shape until that endpoint is moved to
+  // 2026-07-29.dahlia. Without this, customer.subscription.* would null out
+  // current_period_end on every delivery. Reading both shapes makes the code
+  // and the Dashboard safe to update in either order.
+  const legacy = (sub as unknown as { current_period_end?: number }).current_period_end;
+  return typeof legacy === "number" ? toIso(legacy) : null;
 }
 
 /**
@@ -38,8 +47,15 @@ function subscriptionPeriodEnd(sub: Stripe.Subscription): string | null {
  */
 function invoiceSubscriptionId(invoice: Stripe.Invoice): string | null {
   const sub = invoice.parent?.subscription_details?.subscription;
-  if (!sub) return null;
-  return typeof sub === "string" ? sub : sub.id;
+  if (sub) return typeof sub === "string" ? sub : sub.id;
+
+  // Pre-Basil fallback, for the same reason as subscriptionPeriodEnd: if the
+  // Dashboard endpoint is still on an older version this arrives at the old
+  // top-level path, and returning null here would silently skip every
+  // invoice.payment_succeeded — a paying customer never marked active.
+  const legacy = (invoice as unknown as { subscription?: string | { id: string } }).subscription;
+  if (!legacy) return null;
+  return typeof legacy === "string" ? legacy : legacy.id;
 }
 
 function toDateStr(unixSeconds: number): string {
