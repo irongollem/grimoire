@@ -379,27 +379,27 @@ The editor blocks saving when any entry has a drop_chance outside 1–100, an It
 
 ### PuzzleRoom (`puzzle_rooms` table)
 
-| Field                 | Type               | Notes                                              |
-| --------------------- | ------------------ | -------------------------------------------------- |
-| `name`                | string             | Required                                           |
-| `puzzle_type`         | PuzzleType         | Logic / Physical / Arcane / Social / Environmental |
-| `difficulty`          | PuzzleDifficulty   | Trivial / Easy / Medium / Hard / Deadly            |
-| `description`         | Tiptap JSON\|null  | "What the players see"                             |
-| `solution`            | Tiptap JSON\|null  | DM eyes only                                       |
-| `hints`               | PuzzleHint[]       | {order: number, text: Tiptap JSON}                 |
-| `skill_checks`        | PuzzleSkillCheck[] | {skill: string, dc: number}                        |
-| `success_outcome`     | Tiptap JSON\|null  |                                                    |
-| `failure_consequence` | Tiptap JSON\|null  |                                                    |
-| `campaign_id`         | string\|null       | Set when `is_shared` = true                        |
-| `is_shared`           | boolean            | Controls player visibility                         |
-| `shared_hints`        | number[]           | Orders of revealed hints                           |
-| `read_aloud`          | string\|null       | Scripted narration for players                     |
-| `image_url`           | string\|null       |                                                    |
-| `image_focal_point`   | {x,y}\|null        |                                                    |
-| `tags`                | string[]           |                                                    |
-| `notes`               | Tiptap JSON\|null  | DM-only                                            |
+| Field                 | Type               | Notes                                                                                    |
+| --------------------- | ------------------ | ---------------------------------------------------------------------------------------- |
+| `name`                | string             | Required                                                                                 |
+| `puzzle_type`         | PuzzleType         | Logic / Physical / Arcane / Social / Environmental                                       |
+| `difficulty`          | PuzzleDifficulty   | Trivial / Easy / Medium / Hard / Deadly                                                  |
+| `description`         | Tiptap JSON\|null  | "What the players see"                                                                   |
+| `solution`            | Tiptap JSON\|null  | DM eyes only                                                                             |
+| `hints`               | PuzzleHint[]       | {order: number, text: Tiptap JSON}                                                       |
+| `skill_checks`        | PuzzleSkillCheck[] | {skill: string, dc: number}                                                              |
+| `success_outcome`     | Tiptap JSON\|null  |                                                                                          |
+| `failure_consequence` | Tiptap JSON\|null  |                                                                                          |
+| `campaign_id`         | string\|null       | Set when `is_shared` = true                                                              |
+| `is_shared`           | boolean            | Controls player visibility                                                               |
+| `shared_hints`        | number[]           | Orders of revealed hints                                                                 |
+| `read_aloud`          | string\|null       | Scripted narration for players                                                           |
+| `image_url`           | string\|null       |                                                                                          |
+| `image_focal_point`   | {x,y}\|null        |                                                                                          |
+| `tags`                | string[]           |                                                                                          |
+| `notes`               | Tiptap JSON\|null  | DM-only                                                                                  |
 | `location_id`         | string\|null       | Host location anchor (#168); nav-link pill in view mode; nulled in the player projection |
-| `dungeon_feature_id`  | string\|null       | Host dungeon feature anchor (#168); same treatment |
+| `dungeon_feature_id`  | string\|null       | Host dungeon feature anchor (#168); same treatment                                       |
 
 ### RollTable (`roll_tables` table)
 
