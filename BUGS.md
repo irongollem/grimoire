@@ -9,7 +9,7 @@
 > top of the matching [`docs/log/fixes/<subsystem>.md`](docs/log/fixes/) file, then
 > close the GitHub issue if one exists.
 
-## Fix log by subsystem  ·  295 resolved
+## Fix log by subsystem  ·  296 resolved
 
 | Subsystem | Fixes | | Subsystem | Fixes |
 | --- | ---: | --- | --- | ---: |
@@ -22,13 +22,14 @@
 | [NPCs & Companions](docs/log/fixes/npcs.md) | 15 | | [Database & Security](docs/log/fixes/database.md) | 15 |
 | [Items & Workshop](docs/log/fixes/items.md) | 26 | | [AI Generation](docs/log/fixes/ai.md) | 10 |
 | [Spells](docs/log/fixes/spells.md) | 6 | | [Billing](docs/log/fixes/billing.md) | 5 |
-| [Factions](docs/log/fixes/factions.md) | 3 | | [Infrastructure](docs/log/fixes/infra.md) | 12 |
+| [Factions](docs/log/fixes/factions.md) | 3 | | [Infrastructure](docs/log/fixes/infra.md) | 13 |
 | [Encounters & Combat](docs/log/fixes/encounters.md) | 25 | | [Soundboard](docs/log/fixes/soundboard.md) | 19 |
 | [Quests](docs/log/fixes/quests.md) | 13 | | [Miscellaneous](docs/log/fixes/misc.md) | 1 |
 | [Party & Characters](docs/log/fixes/party.md) | 25 | | | |
 
 ## Latest fixes
 
+- CI could never run the test suite — `.env.local` was a hidden prerequisite; Vitest now carries its o… — [Infrastructure](docs/log/fixes/infra.md)
 - `npm run seed-srd-monsters` would have broken on #584's migration — it still filtered on the dropped `is_canonical` column — [Content & Import](docs/log/fixes/content.md)
 - Deleting a campaign with campaign-scoped homebrew failed with a raw FK violation; the DM now chooses promote-vs-delete (#585) — [Campaign](docs/log/fixes/campaign.md)
 - Canonical SRD art was owned by an account — `srd_spell_art` cascaded, so deleting it would have wiped all 96 canonical rows (#584) — [Database & Security](docs/log/fixes/database.md)
@@ -39,4 +40,3 @@
 - Drag-to-reorder issued one UPDATE per row, and the same fan-out was copy-pasted into five composables (#588) — [Infrastructure](docs/log/fixes/infra.md)
 - NPC relevance rankings were browser-local, so clearing site data or switching devices erased a player's stars (#582) — [NPCs & Companions](docs/log/fixes/npcs.md)
 - Schema consolidation audit (#580): 9 unindexed FK/RLS columns, 20 per-row `auth.uid()` policies, 25 tables paying for a `REPLICA IDENTITY FULL` that RLS made useless, and account deletion failing on 16 FKs — [Database & Security](docs/log/fixes/database.md)
-- Three realtime handlers had never worked — they read non-primary-key fields off `payload.old`, which RLS strips, so a removed player was never ejected — [Database & Security](docs/log/fixes/database.md)
