@@ -144,6 +144,23 @@ A DM can replace a canonical SRD image with their own — that override lives in
 - Never store canonical art under a user UUID — if that account changes, every canonical URL in the DB breaks.
 - When adding a new entity type that will have SRD defaults and user overrides, add the `srd/` storage policy to its bucket in the same migration that creates the entity table.
 
+## Module Placement — where a new logic module goes
+
+`src/lib/` is for genuinely cross-cutting infrastructure: `supabase`, `storage`, `utils`, `nav`, `icons`, `themes`, `hotkeys`, `sanitizeHtml`, `pricing`. If a module serves **one** feature, it does not go there.
+
+| What it is                                         | Where it goes        |
+| -------------------------------------------------- | -------------------- |
+| 5e rules computation (AC, HP, DCs, slots, attacks) | `src/rules/`         |
+| Logic owned by one feature                         | `src/lib/<feature>/` |
+| Static data tables with no logic                   | `src/data/`          |
+| Used by three or more unrelated features           | `src/lib/` root      |
+
+Existing feature folders: `lib/audio/` (+ `audio/providers/`), `lib/battlemap/`, `lib/illuminate/`, `lib/library/` (Open5e import + shared-content identity), `lib/scriptorium/`, `lib/tiptap/`. Top-level `src/cartographer/` is the tile-pack **authoring** tool and is separate from `lib/battlemap/`, which is the live **encounter runner** — do not merge them.
+
+**Name the folder after the consumer, not the vocabulary.** `lib/` grew to 136 flat modules because each one looked cross-cutting in isolation. Several were misfiled by name alone: `edgeTreatment` is photo edges (Illuminate), not map edges; `sceneGenerators` is an ambient soundscape, not a map scene; `staleChunkRecovery` is a service-worker concern, not audio. Before placing a module, check who actually imports it (`rg "lib/<name>\"" src/`) rather than what it sounds like.
+
+Tests are colocated next to the module they cover — never a `__tests__/` directory.
+
 ## Component Granularity
 
 **CRITICAL — extract shared UI, never duplicate it:**
