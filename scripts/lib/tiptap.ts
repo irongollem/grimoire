@@ -23,8 +23,7 @@
  * (same converter the paste-handling pipeline uses).
  */
 
-// Relative path — `@/` alias isn't resolved at runtime for value imports.
-import { parseMarkdown } from "../../src/lib/tiptap/markdownToTiptap";
+import { parseMarkdown } from "@/lib/tiptap/markdownToTiptap";
 
 /**
  * The doc node attrs the existing UI saves. `twoColumn: false` is the editor's
