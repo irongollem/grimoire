@@ -8,6 +8,7 @@ import type {
   PlaylistType,
 } from "@/types/sound.types";
 import { getAudioEngine, type AudioBus } from "@/lib/audioEngine";
+import { setAutoResumeGate } from "@/lib/audioContext";
 import { isVolumeSettable } from "@/lib/audioDirectOutput";
 import { getDirectOutputEnabled, setDirectOutputEnabled } from "@/lib/audioOutputPrefs";
 import { createSceneGeneratorPool } from "@/lib/sceneGenerators";
@@ -256,6 +257,16 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     if (mpl && !mpl.paused) return true;
     return activeAmbientPlaylists.value.some((s) => !s.paused);
   });
+
+  // With the screen locked (CarPlay, pocket), visibilitychange never fires, so
+  // an OS suspension of the AudioContext mid-play would otherwise go
+  // unresumed — heard as the track dropping 1–3 s chunks, since the element's
+  // clock keeps running while the graph's output is muted.
+  //
+  // Direct output is excluded for the same reason the gate exists at all:
+  // nothing audible is going through the graph then, so resuming it would hold
+  // the OS audio session open for a context nobody is listening to.
+  setAutoResumeGate(() => hasActiveAudio.value && !directOutput.value);
 
   function getState(soundId: string): SoundPlaybackState {
     if (!playbackStates.value[soundId]) {
