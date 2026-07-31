@@ -6,7 +6,7 @@ import { getOrCreateStripeCustomer } from "../_shared/stripeCustomer.ts";
 import { WITHDRAWAL_CONSENT_VERSION } from "../_shared/consent.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
-  apiVersion: "2024-06-20",
+  apiVersion: "2026-07-29.dahlia",
   httpClient: Stripe.createFetchHttpClient(),
 });
 
@@ -117,7 +117,7 @@ serve(withCors(async (req: Request) => {
       tax_id_collection: { enabled: true },
       // Stripe-recorded ToS acceptance. The separate withdrawal waiver is its
       // own app checkbox (recorded in purchase_consents) + the invoice footer.
-      // (Enum shape is correct for apiVersion 2024-06-20; requires a ToS URL set
+      // (Enum shape is correct for apiVersion 2026-07-29.dahlia; requires a ToS URL set
       // in the Stripe Dashboard branding settings.)
       consent_collection: { terms_of_service: "required" },
       custom_text: {

@@ -1,7 +1,7 @@
 {
   "imports": {
     "@supabase/supabase-js": "npm:@supabase/supabase-js@2.110.2",
-    "stripe": "https://esm.sh/stripe@14.25.0?target=deno",
+    "stripe": "npm:stripe@22.4.0",
     "@gltf-transform/core": "npm:@gltf-transform/core@4.4.1",
     "@gltf-transform/extensions": "npm:@gltf-transform/extensions@4.4.1",
     "std/": "https://deno.land/std@0.208.0/"

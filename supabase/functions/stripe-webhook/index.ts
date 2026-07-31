@@ -4,7 +4,7 @@ import Stripe from "stripe";
 import { withCors } from "../_shared/cors.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
-  apiVersion: "2024-06-20",
+  apiVersion: "2026-07-29.dahlia",
   httpClient: Stripe.createFetchHttpClient(),
 });
 
@@ -15,6 +15,31 @@ const admin = createClient(
 
 function toIso(unixSeconds: number): string {
   return new Date(unixSeconds * 1000).toISOString();
+}
+
+/**
+ * Basil (2025-03-31) moved `current_period_end` off Subscription and onto each
+ * SubscriptionItem, because one subscription can bill its items on different
+ * cadences. We sell a single-item "pro" plan, so there is one period in
+ * practice — taking the latest across items keeps this correct if a plan ever
+ * gains a second item, rather than silently reporting the first item's date.
+ */
+function subscriptionPeriodEnd(sub: Stripe.Subscription): string | null {
+  const ends = sub.items.data
+    .map((item) => item.current_period_end)
+    .filter((end): end is number => typeof end === "number");
+  return ends.length > 0 ? toIso(Math.max(...ends)) : null;
+}
+
+/**
+ * Basil also moved the invoice's subscription pointer under `parent`, next to
+ * the other things an invoice can be raised for. It is only populated on
+ * subscription invoices, and may arrive expanded or as a bare id.
+ */
+function invoiceSubscriptionId(invoice: Stripe.Invoice): string | null {
+  const sub = invoice.parent?.subscription_details?.subscription;
+  if (!sub) return null;
+  return typeof sub === "string" ? sub : sub.id;
 }
 
 function toDateStr(unixSeconds: number): string {
@@ -275,7 +300,7 @@ serve(withCors(async (req: Request) => {
             plan_id: "pro",
             status: "active",
             stripe_subscription_id: sub.id,
-            current_period_end: toIso(sub.current_period_end),
+            current_period_end: subscriptionPeriodEnd(sub),
             cancel_at_period_end: false,
             cancel_at: null,
           });
@@ -314,14 +339,13 @@ serve(withCors(async (req: Request) => {
 
       case "invoice.payment_succeeded": {
         const invoice = event.data.object as Stripe.Invoice;
-        if (!invoice.subscription) break;
+        const invoiceSubId = invoiceSubscriptionId(invoice);
+        if (!invoiceSubId) break;
 
-        const sub = await stripe.subscriptions.retrieve(
-          invoice.subscription as string,
-        );
+        const sub = await stripe.subscriptions.retrieve(invoiceSubId);
         await updateByCustomer(invoice.customer as string, {
           status: "active",
-          current_period_end: toIso(sub.current_period_end),
+          current_period_end: subscriptionPeriodEnd(sub),
         });
 
         // Reset the subscription credit bucket to the plan's monthly allowance (idempotent per period)
@@ -341,11 +365,35 @@ serve(withCors(async (req: Request) => {
         break;
       }
 
+      // Basil (2025-03-31) postponed subscription creation until after the
+      // customer pays, so checkout.session.completed can now fire with
+      // session.subscription still null. That branch has no else, so the row
+      // would silently never receive plan_id or stripe_subscription_id and the
+      // customer would pay without getting PRO. This performs the same
+      // activation from the subscription's own event, and is idempotent with
+      // the checkout path for the cases where the subscription does exist there.
+      //
+      // Writing sub.status verbatim is safe: isPro() requires plan_id "pro" AND
+      // a status of active/trialing, so an "incomplete" subscription records its
+      // identity here without granting anything.
+      case "customer.subscription.created": {
+        const sub = event.data.object as Stripe.Subscription;
+        await updateByCustomer(sub.customer as string, {
+          plan_id: "pro",
+          status: sub.status,
+          stripe_subscription_id: sub.id,
+          current_period_end: subscriptionPeriodEnd(sub),
+          cancel_at_period_end: sub.cancel_at_period_end,
+          cancel_at: sub.cancel_at ? toIso(sub.cancel_at) : null,
+        });
+        break;
+      }
+
       case "customer.subscription.updated": {
         const sub = event.data.object as Stripe.Subscription;
         await updateByCustomer(sub.customer as string, {
           status: sub.status,
-          current_period_end: toIso(sub.current_period_end),
+          current_period_end: subscriptionPeriodEnd(sub),
           cancel_at_period_end: sub.cancel_at_period_end,
           cancel_at: sub.cancel_at ? toIso(sub.cancel_at) : null,
         });

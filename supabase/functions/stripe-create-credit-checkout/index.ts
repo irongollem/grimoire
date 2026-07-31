@@ -6,7 +6,7 @@ import { getOrCreateStripeCustomer } from "../_shared/stripeCustomer.ts";
 import { WITHDRAWAL_CONSENT_VERSION } from "../_shared/consent.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
-  apiVersion: "2024-06-20",
+  apiVersion: "2026-07-29.dahlia",
   httpClient: Stripe.createFetchHttpClient(),
 });
 

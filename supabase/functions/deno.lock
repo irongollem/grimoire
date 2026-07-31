@@ -3,7 +3,8 @@
   "specifiers": {
     "npm:@gltf-transform/core@4.4.1": "4.4.1",
     "npm:@gltf-transform/extensions@4.4.1": "4.4.1",
-    "npm:@supabase/supabase-js@2.110.2": "2.110.2"
+    "npm:@supabase/supabase-js@2.110.2": "2.110.2",
+    "npm:stripe@22.4.0": "22.4.0"
   },
   "npm": {
     "@gltf-transform/core@4.4.1": {
@@ -73,6 +74,9 @@
     "property-graph@4.1.0": {
       "integrity": "sha512-AvPcP7XECNWy4LGmFQ77k7un4lSKM4eS29PTvW4ck95uYeLxXPWJM7hLuBqK91FaHqCcgJvIUCuNJjjxKE7VKQ=="
     },
+    "stripe@22.4.0": {
+      "integrity": "sha512-LVJ+tcSYeqOSnXr3i+Kz2tZ7y0crLLdP2uwD/4wccrmEVyn0g/Heo0pF7as7rxS/sOjJzrb1lxgZY0Y0Dx1pSA=="
+    },
     "tslib@2.8.1": {
       "integrity": "sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w=="
     }
@@ -86,7 +90,8 @@
     "dependencies": [
       "npm:@gltf-transform/core@4.4.1",
       "npm:@gltf-transform/extensions@4.4.1",
-      "npm:@supabase/supabase-js@2.110.2"
+      "npm:@supabase/supabase-js@2.110.2",
+      "npm:stripe@22.4.0"
     ]
   }
 }
