@@ -10,7 +10,7 @@ import { extractTiptapText } from "@/lib/utils";
 import { parseDamageGroups, type DamageGroup } from "@/lib/damageIcons";
 import { parseSpeed } from "@/lib/movement";
 import { parseSenses, type SenseEntry } from "@/lib/senses";
-import { parseDiceAvg } from "@/lib/dice";
+import { parseDiceAvg } from "@/lib/dice/dice";
 
 /** A stat row; damage/senses rows carry parsed data so the UI can render icons. */
 export interface CardStatRow {

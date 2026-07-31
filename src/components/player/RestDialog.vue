@@ -171,7 +171,7 @@ import { useClassByName } from "@/composables/useCustomClasses";
 import { abilityModifier } from "@/lib/utils";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { getExhaustionLevel, setExhaustionLevel } from "@/rules/conditions";
-import type { DieSize } from "@/lib/dice";
+import type { DieSize } from "@/lib/dice/dice";
 
 const props = defineProps<{
   member: PartyMember;

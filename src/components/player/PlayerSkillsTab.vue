@@ -67,8 +67,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconChevronRight } from '@/lib/icons';
-import type { RollMode } from "@/lib/roller";
-import { combineModes } from "@/lib/roller";
+import type { RollMode } from "@/lib/dice/roller";
+import { combineModes } from "@/lib/dice/roller";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { useCampaignMembers } from "@/composables/useCampaignMembers";

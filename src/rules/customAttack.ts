@@ -4,7 +4,7 @@
  * No Vue imports; safe to unit test in isolation.
  */
 
-import { parseExpression, type ParsedExpression } from "@/lib/dice";
+import { parseExpression, type ParsedExpression } from "@/lib/dice/dice";
 import type { CustomAttack } from "@/types/party.types";
 
 /** Editable shape of a CustomAttack, before an `id` has been assigned. */

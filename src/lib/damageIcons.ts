@@ -1,5 +1,5 @@
 import { DAMAGE_TYPES, type DamageType } from "@/types/damage.types";
-import type { DamageRoll } from "@/lib/dice";
+import type { DamageRoll } from "@/lib/dice/dice";
 
 /** The three physical damage types that "nonmagical" qualifiers modify. */
 const PHYSICAL: DamageType[] = ["bludgeoning", "piercing", "slashing"];

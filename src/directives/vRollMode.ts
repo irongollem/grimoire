@@ -1,5 +1,5 @@
 import type { Directive, DirectiveBinding } from "vue";
-import type { RollMode } from "@/lib/roller";
+import type { RollMode } from "@/lib/dice/roller";
 import { openRollModePicker } from "@/composables/useRollModePicker";
 
 /**

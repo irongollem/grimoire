@@ -13,7 +13,7 @@ import { useRoute } from "vue-router";
 import { useEncounter } from "@/composables/useEncounters";
 import { useAllMonsters } from "@/composables/useMonsters";
 import { sizeToFootprint } from "@/lib/battlemap/tokenFootprint";
-import { hitPointsToMax } from "@/lib/dice";
+import { hitPointsToMax } from "@/lib/dice/dice";
 import { useParty } from "@/composables/useParty";
 import { useCompanions } from "@/composables/useCompanions";
 import { useNpcs } from "@/composables/useNpcs";

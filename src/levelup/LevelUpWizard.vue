@@ -176,7 +176,7 @@ import type { CharacterClass } from "@/types/multiclass.types";
 import { getHitDie } from "@/types/spell.types";
 import { useLevelUpSpellSlots } from "./useLevelUpSpellSlots";
 import { useClassScopedReset } from "./useClassScopedReset";
-import type { DieSize } from "@/lib/dice";
+import type { DieSize } from "@/lib/dice/dice";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { useAllFeatures } from "@/composables/useFeatures";
 import { useCharacterSpells } from "@/composables/useCharacterSpells";

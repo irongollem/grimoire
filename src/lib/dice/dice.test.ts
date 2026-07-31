@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { hitPointsToMax, parseExpression } from "@/lib/dice";
+import { hitPointsToMax, parseExpression } from "@/lib/dice/dice";
 
 describe("parseExpression", () => {
   it("rejects symbolic modifiers instead of silently dropping them", () => {

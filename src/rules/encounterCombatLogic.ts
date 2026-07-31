@@ -6,9 +6,9 @@
  * keeps state mutation, persistence, and realtime orchestration and delegates
  * the actual computation here.
  */
-import { rollDie } from "@/lib/dice";
+import { rollDie } from "@/lib/dice/dice";
 import { initiativeModifier } from "@/rules/combatantSort";
-import { hitPointsToMax } from "@/lib/dice";
+import { hitPointsToMax } from "@/lib/dice/dice";
 import { sizeToFootprint } from "@/lib/battlemap/tokenFootprint";
 import type { RunCombatant, EventTrigger } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";

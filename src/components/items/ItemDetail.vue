@@ -399,7 +399,7 @@ import {
   itemSourceLabel,
 } from "@/types/item.types";
 import type { Item, ItemType, ItemRarity, WeaponMasteryProperty } from "@/types/item.types";
-import type { DamageRoll } from "@/lib/dice";
+import type { DamageRoll } from "@/lib/dice/dice";
 import { buildEntityContext, toPlainText } from "@/ai/utils";
 
 const props = defineProps<{ item: Item | null; prefillName?: string }>();

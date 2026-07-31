@@ -5,7 +5,7 @@ import {
   getDiceMode,
   setDiceModePref,
   type DiceMode,
-} from "@/lib/diceAudio";
+} from "@/lib/dice/diceAudio";
 
 const diceAudioEnabled = ref(getDiceAudioEnabled());
 const diceMode = ref<DiceMode>(getDiceMode());

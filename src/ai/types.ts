@@ -2,7 +2,7 @@ import type { NpcStatus, NpcRelationship } from "@/types/npc.types";
 import type { MonsterType, MonsterSize, MonsterStatBlock } from "@/types/monster.types";
 import type { ItemType, ItemRarity } from "@/types/item.types";
 import type { SpellSchool } from "@/types/spell.types";
-import type { DamageRoll } from "@/lib/dice";
+import type { DamageRoll } from "@/lib/dice/dice";
 import type { TrapType, TrapTrigger, TrapResetType, TrapSaveType, DamageEntry } from "@/types/trap.types";
 
 export interface NpcAiResult {

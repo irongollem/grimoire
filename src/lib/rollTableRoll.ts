@@ -7,7 +7,7 @@
  * `rollDice` so sound + future history hook in for free.
  */
 
-import { rollDice, type DieSize } from "@/lib/roller";
+import { rollDice, type DieSize } from "@/lib/dice/roller";
 import {
   ROLL_TABLE_DIE_MAX,
   type RollTable,

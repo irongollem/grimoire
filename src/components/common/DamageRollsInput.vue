@@ -64,7 +64,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { DAMAGE_TYPES } from "@/types/damage.types";
-import { parseDiceAvg, parseDamageExpression, type DamageRoll } from "@/lib/dice";
+import { parseDiceAvg, parseDamageExpression, type DamageRoll } from "@/lib/dice/dice";
 
 const SCHOOL_HINTS: Record<string, string> = {
   evocation: "e.g. 8d6 fire + 2d6 thunder…",

@@ -283,7 +283,7 @@ import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
 import { useImageUpload } from "@/composables/useImageUpload";
-import { hitPointsToMax } from "@/lib/dice";
+import { hitPointsToMax } from "@/lib/dice/dice";
 import {
   COMPANION_TYPES,
   COMPANION_TYPE_LABELS,

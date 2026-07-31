@@ -7,7 +7,7 @@
  * Reference: D&D DMG "Dungeon Hazards" + monster CR design guidelines.
  */
 
-import { parseDiceAvg } from "@/lib/dice";
+import { parseDiceAvg } from "@/lib/dice/dice";
 export { parseDiceAvg };
 
 // ── Inputs ────────────────────────────────────────────────────────────────────

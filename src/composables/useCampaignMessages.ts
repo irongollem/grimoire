@@ -8,7 +8,7 @@ import { useParty } from "@/composables/useParty";
 import { useCampaignMembers } from "@/composables/useCampaignMembers";
 import type { CampaignMessage, CampaignMessageInsert, ItemDropMetadata, CurrencyDropMetadata, VendorOfferMetadata, PlayerOfferMetadata, FlavorMetadata, LootChestMetadata } from "@/types/chat.types";
 import { formatCoinParts } from "@/rules/currency";
-import type { RollResult } from "@/lib/dice";
+import type { RollResult } from "@/lib/dice/dice";
 
 const LIMIT = 100;
 

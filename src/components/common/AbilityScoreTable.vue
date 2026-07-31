@@ -136,7 +136,7 @@
 </template>
 
 <script setup lang="ts">
-import type { RollMode } from "@/lib/roller";
+import type { RollMode } from "@/lib/dice/roller";
 
 const ABILITIES = [
   { key: "str", label: "STR", color: "#ef4444" },

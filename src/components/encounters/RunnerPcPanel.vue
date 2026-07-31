@@ -102,7 +102,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { hitPointsToMax } from "@/lib/dice";
+import { hitPointsToMax } from "@/lib/dice/dice";
 import FocalImage from "@/components/common/FocalImage.vue";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
 import RunnerPcAttacks from "@/components/encounters/RunnerPcAttacks.vue";

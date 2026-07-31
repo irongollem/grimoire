@@ -17,9 +17,9 @@
  * Art objects are vault items of type "art_object" — use item entries.
  */
 
-import { rollDie } from "@/lib/dice";
-import { rollParsed } from "@/lib/roller";
-import { parseExpression } from "@/lib/dice";
+import { rollDie } from "@/lib/dice/dice";
+import { rollParsed } from "@/lib/dice/roller";
+import { parseExpression } from "@/lib/dice/dice";
 import type { Item } from "@/types/item.types";
 import { ITEM_RARITY_LABELS, ITEM_TYPE_LABELS } from "@/types/item.types";
 import type { LootEntry, LootTable } from "@/types/lootTable.types";

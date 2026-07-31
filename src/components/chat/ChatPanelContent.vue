@@ -349,7 +349,7 @@ import type {
 } from "@/types/chat.types";
 import type { CampaignMember } from "@/types/campaign.types";
 import type { PartyMember } from "@/types/party.types";
-import type { DieSize, RollMode, RollResult } from "@/lib/dice";
+import type { DieSize, RollMode, RollResult } from "@/lib/dice/dice";
 import { useItems, useEnsureOwnedItem } from "@/composables/useItems";
 import { COINS, type CoinKey, toCP } from "@/rules/currency";
 import { useAuthStore } from "@/stores/auth";

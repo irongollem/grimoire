@@ -1,5 +1,5 @@
 import type { SpellOutcome, StructuredSpellEffect } from "@/types/spell.types";
-import { scaleExpression } from "@/lib/dice";
+import { scaleExpression } from "@/lib/dice/dice";
 
 export interface SpellEffectSource {
   attack_roll: boolean;

@@ -212,7 +212,7 @@ export interface Spell {
   attack_type: string | null; // ranged_spell | melee_spell | save | automatic | none
   save_attribute: string | null; // STR | DEX | CON | INT | WIS | CHA
   save_effect: string | null; // half | negates | special
-  damage_rolls: import("@/lib/dice").DamageRoll[] | null; // e.g. [{dice:"8d6",type:"fire"}]
+  damage_rolls: import("@/lib/dice/dice").DamageRoll[] | null; // e.g. [{dice:"8d6",type:"fire"}]
   healing_dice: string | null; // e.g. "1d8"
   target_description: string | null; // e.g. "one creature you can see within range", "up to three creatures"
   aoe_shape: string | null; // sphere | cone | line | cylinder | cube | emanation

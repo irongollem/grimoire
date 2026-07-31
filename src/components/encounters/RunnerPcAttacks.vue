@@ -175,7 +175,7 @@ import { useUpdatePartyMember } from "@/composables/useParty";
 import { weaponAmmoTag, weaponUsesChargesAsAmmo, type WeaponAmmoTag } from "@/rules/ammunition";
 import { isThrownWeapon } from "@/rules/thrownWeapon";
 import { weaponAttackMod, weaponAbilityMod } from "@/rules/weaponAttack";
-import { parseExpression } from "@/lib/dice";
+import { parseExpression } from "@/lib/dice/dice";
 
 const { member, profBonus, abilityMod } = defineProps<{
   member: PartyMember;

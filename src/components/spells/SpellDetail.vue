@@ -274,7 +274,7 @@ import type {
   SaveType,
   DurationTier,
 } from "@/lib/spellAdvisor";
-import { parseDamageExpression, type DamageRoll } from "@/lib/dice";
+import { parseDamageExpression, type DamageRoll } from "@/lib/dice/dice";
 
 const props = defineProps<{ spell: Spell | null; isShared?: boolean }>();
 const router = useRouter();

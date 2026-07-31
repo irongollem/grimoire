@@ -47,7 +47,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { IconDice } from '@/lib/icons';
-import { parseExpression, averageExpression, rollExpression } from "@/lib/dice";
+import { parseExpression, averageExpression, rollExpression } from "@/lib/dice/dice";
 
 const model = defineModel<string | null>({ required: true });
 const { placeholder = "2d6+3", compact = false } = defineProps<{

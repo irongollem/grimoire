@@ -1,7 +1,7 @@
 import { ref } from "vue";
-import { rollDice } from "@/lib/roller";
-import { playDiceRollSound } from "@/lib/diceAudio";
-import type { DieSize, RollMode, RollResult, DieResult } from "@/lib/dice";
+import { rollDice } from "@/lib/dice/roller";
+import { playDiceRollSound } from "@/lib/dice/diceAudio";
+import type { DieSize, RollMode, RollResult, DieResult } from "@/lib/dice/dice";
 import { useDicePrefs } from "@/composables/useDicePrefs";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 

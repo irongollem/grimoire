@@ -52,7 +52,7 @@ import type { CharacterSpellEntry, Spell } from "@/types/spell.types";
 import type { PartyMember } from "@/types/party.types";
 import { pickSpellcastingStats, type SpellcastingClassStats } from "@/types/multiclass.types";
 import { signedNum } from "@/lib/utils";
-import { scaleExpression } from "@/lib/dice";
+import { scaleExpression } from "@/lib/dice/dice";
 import { cantripDiceMultiplier } from "@/types/spell.types";
 import { availableSlotsForSpell, slotPool } from "@/rules/spellSlots";
 import { grantAttackBonus, grantSaveDc } from "@/rules/spellGrantStats";

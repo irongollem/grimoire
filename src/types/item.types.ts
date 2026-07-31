@@ -1,4 +1,4 @@
-import type { DamageRoll } from "@/lib/dice";
+import type { DamageRoll } from "@/lib/dice/dice";
 import type { VersionedContentMetadata } from "@/types/content.types";
 import { OPEN5E_SOURCE_LABELS } from "@/types/spell.types";
 

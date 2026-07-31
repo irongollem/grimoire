@@ -100,9 +100,9 @@
 <script setup lang="ts">
 import { ref, watch, computed } from "vue";
 import { IconAdd, IconDelete, IconEdit, IconLightning, IconSword } from "@/lib/icons";
-import { rollParsed, combineModes } from "@/lib/roller";
-import type { RollMode } from "@/lib/roller";
-import { parsedToCounts } from "@/lib/dice";
+import { rollParsed, combineModes } from "@/lib/dice/roller";
+import type { RollMode } from "@/lib/dice/roller";
+import { parsedToCounts } from "@/lib/dice/dice";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { useUpdatePartyMember } from "@/composables/useParty";

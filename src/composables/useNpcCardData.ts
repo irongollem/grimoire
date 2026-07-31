@@ -7,7 +7,7 @@ import {
   truncateCard,
 } from "@/types/card.types";
 import { extractTiptapText } from "@/lib/utils";
-import { parseDiceAvg } from "@/lib/dice";
+import { parseDiceAvg } from "@/lib/dice/dice";
 import { parseSenses, type SenseEntry } from "@/lib/senses";
 
 /**

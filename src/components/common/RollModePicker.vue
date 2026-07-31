@@ -30,7 +30,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted } from "vue";
 import type { CSSProperties } from "vue";
-import type { RollMode } from "@/lib/roller";
+import type { RollMode } from "@/lib/dice/roller";
 import { rollModePickerState, resolveRollModePicker } from "@/composables/useRollModePicker";
 
 const state = rollModePickerState;

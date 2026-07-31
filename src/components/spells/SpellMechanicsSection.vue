@@ -144,7 +144,7 @@
 import { ATTACK_TYPES, SAVE_ATTRIBUTES, SAVE_EFFECTS, AOE_SHAPES } from "@/types/spell.types";
 import type { SpellSchool } from "@/types/spell.types";
 import DamageRollsInput from "@/components/common/DamageRollsInput.vue";
-import type { DamageRoll } from "@/lib/dice";
+import type { DamageRoll } from "@/lib/dice/dice";
 
 const {
   attackType,

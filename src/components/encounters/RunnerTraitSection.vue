@@ -28,7 +28,7 @@
 </template>
 
 <script setup lang="ts">
-import { parseExpression } from "@/lib/dice";
+import { parseExpression } from "@/lib/dice/dice";
 import { renderTiptapHtml } from "@/lib/renderTiptap";
 
 export interface TraitEntry {

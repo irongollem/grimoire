@@ -330,7 +330,7 @@ import {
   type RolledLootEntry,
   type RolledUnresolvedEntry,
 } from "@/lib/lootTableRoll";
-import { parseExpression, rollExpression } from "@/lib/dice";
+import { parseExpression, rollExpression } from "@/lib/dice/dice";
 import PageHeader from "@/components/common/PageHeader.vue";
 import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";

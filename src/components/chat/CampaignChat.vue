@@ -105,7 +105,7 @@ import { useItems } from "@/composables/useItems";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
 import { useNpcs } from "@/composables/useNpcs";
 import ChatPanelContent from "./ChatPanelContent.vue";
-import type { RollResult } from "@/lib/dice";
+import type { RollResult } from "@/lib/dice/dice";
 import type { ItemDropMetadata, CurrencyDropMetadata, VendorOfferMetadata, PlayerOfferMetadata, LootChestMetadata } from "@/types/chat.types";
 import { toCP, fromCP } from "@/rules/currency";
 

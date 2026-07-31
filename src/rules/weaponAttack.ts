@@ -6,8 +6,8 @@
 // Behavior is preserved EXACTLY from the original inline implementation;
 // this is a pure extraction, not a redesign.
 
-import { parseExpression } from "@/lib/dice";
-import type { DamageRoll, ParsedExpression } from "@/lib/dice";
+import { parseExpression } from "@/lib/dice/dice";
+import type { DamageRoll, ParsedExpression } from "@/lib/dice/dice";
 
 /** Minimal shape of an `Item` this module needs — avoids coupling to the full Item type. */
 export interface WeaponLike {

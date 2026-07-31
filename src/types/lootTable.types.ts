@@ -9,7 +9,7 @@
 // All entries share drop_chance (1–100) and an optional DM note.
 // Rolling logic: src/lib/lootTableRoll.ts.
 
-import { parseExpression, maxExpression } from "@/lib/dice";
+import { parseExpression, maxExpression } from "@/lib/dice/dice";
 
 export const LOOT_CR_TIERS = ["any", "0-4", "5-10", "11-16", "17+"] as const;
 export type LootCrTier = (typeof LOOT_CR_TIERS)[number];

@@ -62,8 +62,8 @@
 import { computed, nextTick, ref, watch } from "vue";
 import type { Spell, SpellOutcome, StructuredSpellEffect } from "@/types/spell.types";
 import { effectsForCast, resolveSpellEffects } from "@/rules/spellEffects";
-import { parseExpression } from "@/lib/dice";
-import { rollParsed } from "@/lib/roller";
+import { parseExpression } from "@/lib/dice/dice";
+import { rollParsed } from "@/lib/dice/roller";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { useToast } from "@/composables/useToast";
 import { metamagicReminders, metamagicTargetBonus } from "@/rules/metamagicPolicy";

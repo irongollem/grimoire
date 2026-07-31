@@ -65,8 +65,8 @@
 
 <script setup lang="ts">
 import { reactive, ref, computed } from 'vue';
-import { ALL_DICE } from '@/lib/dice';
-import type { DieSize, RollMode } from '@/lib/dice';
+import { ALL_DICE } from '@/lib/dice/dice';
+import type { DieSize, RollMode } from '@/lib/dice/dice';
 
 const emit = defineEmits<{
   roll: [payload: { counts: Partial<Record<DieSize, number>>; modifier: number; mode: RollMode }];

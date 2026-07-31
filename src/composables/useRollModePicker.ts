@@ -1,5 +1,5 @@
 import { ref, readonly } from "vue";
-import type { RollMode } from "@/lib/roller";
+import type { RollMode } from "@/lib/dice/roller";
 
 /**
  * Shared state for the long-press / right-click advantage-disadvantage picker

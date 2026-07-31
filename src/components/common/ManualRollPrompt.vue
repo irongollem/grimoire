@@ -96,7 +96,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import type { DieSize } from "@/lib/dice";
+import type { DieSize } from "@/lib/dice/dice";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 
 const { pending, _resolveManual } = usePromptedRoll();

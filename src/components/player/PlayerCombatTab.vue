@@ -223,9 +223,9 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { IconHide, IconLightning, IconReveal, IconSend, IconSword } from '@/lib/icons';
-import { rollParsed, combineModes } from "@/lib/roller";
-import type { RollMode, DieSize } from "@/lib/roller";
-import type { ParsedExpression } from "@/lib/dice";
+import { rollParsed, combineModes } from "@/lib/dice/roller";
+import type { RollMode, DieSize } from "@/lib/dice/roller";
+import type { ParsedExpression } from "@/lib/dice/dice";
 import { usePartyInventory } from "@/composables/usePartyInventory";
 import { usePlayerVisibleItems } from "@/composables/useItems";
 import { useAmmoConsumption } from "@/composables/useAmmoConsumption";

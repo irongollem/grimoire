@@ -10,11 +10,11 @@
  *       Import from here instead.
  */
 
-import { rollDie as _rollDie, rollDice as _rollDice } from "@/lib/dice";
-import { playDiceRollSound } from "@/lib/diceAudio";
-import type { DieSize, RollMode, RollResult, ParsedExpression } from "@/lib/dice";
+import { rollDie as _rollDie, rollDice as _rollDice } from "@/lib/dice/dice";
+import { playDiceRollSound } from "@/lib/dice/diceAudio";
+import type { DieSize, RollMode, RollResult, ParsedExpression } from "@/lib/dice/dice";
 
-export type { DieSize, RollMode, RollResult } from "@/lib/dice";
+export type { DieSize, RollMode, RollResult } from "@/lib/dice/dice";
 
 /**
  * Combine two roll modes per 5e RAW: any advantage + any disadvantage cancel to

@@ -164,9 +164,9 @@
 import { ref, reactive, computed, nextTick, onBeforeUnmount, type Component } from "vue";
 import { IconDiceRoll, IconDie4, IconDie6, IconDie8, IconDie10, IconDie12, IconDie20, IconDie100 } from '@/lib/icons';
 import DiceResult from "@/components/common/DiceResult.vue";
-import { primeDiceAudio } from "@/lib/diceAudio";
+import { primeDiceAudio } from "@/lib/dice/diceAudio";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
-import type { DieSize, RollMode, RollResult } from "@/lib/roller";
+import type { DieSize, RollMode, RollResult } from "@/lib/dice/roller";
 
 const DICE: { sides: DieSize; icon: Component }[] = [
   { sides: 4, icon: IconDie4 },
