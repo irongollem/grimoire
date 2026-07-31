@@ -158,7 +158,7 @@ import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { initiativeModifier } from "@/rules/combatantSort";
 import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/useOptionalRules";
 import { useTurnTimerConfig } from "@/composables/useTurnTimerConfig";
-import { requestAudioTheme, releaseAudioTheme } from "@/lib/audioTriggers";
+import { requestAudioTheme, releaseAudioTheme } from "@/lib/audio/audioTriggers";
 import { useRunnerPartySync } from "@/composables/useRunnerPartySync";
 import RunnerCombatantList from "./RunnerCombatantList.vue";
 import RunnerEntityDetail from "./RunnerEntityDetail.vue";

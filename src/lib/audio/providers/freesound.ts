@@ -6,7 +6,7 @@
 // rewrite — stays in here.
 
 import { supabase } from "@/lib/supabase";
-import { rewriteToCdn } from "@/lib/freesound";
+import { rewriteToCdn } from "@/lib/audio/freesound";
 import type {
   SoundProvider,
   ProviderHit,

@@ -65,8 +65,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconPause, IconPlay } from "@/lib/icons";
-import { CATEGORY_SPINE } from "@/lib/soundCategories";
-import type { ProviderHit } from "@/lib/soundProviders";
+import { CATEGORY_SPINE } from "@/lib/audio/soundCategories";
+import type { ProviderHit } from "@/lib/audio/providers";
 
 const { hit, isPreviewing = false, isAdding = false } = defineProps<{
   hit: ProviderHit;

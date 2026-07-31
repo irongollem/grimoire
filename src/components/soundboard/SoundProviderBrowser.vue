@@ -149,7 +149,7 @@ import {
   type ProviderHit,
   type ProviderFilters,
   type SoundProvider,
-} from "@/lib/soundProviders";
+} from "@/lib/audio/providers";
 import { useCreateSound } from "@/composables/useSounds";
 
 const { pageId = null } = defineProps<{

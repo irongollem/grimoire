@@ -269,7 +269,7 @@ import LocationMapEditor from "@/components/locations/LocationMapEditor.vue";
 import { useNpcs } from "@/composables/useNpcs";
 import { usePlaylists } from "@/composables/useSoundboardPlaylists";
 import { useSounds } from "@/composables/useSounds";
-import { collectThemes } from "@/lib/audioThemes";
+import { collectThemes } from "@/lib/audio/audioThemes";
 import EntityCalendarSection from "@/components/calendar/EntityCalendarSection.vue";
 import {
   useLocations,

@@ -24,7 +24,7 @@
 -- (20260629000002). private.is_campaign_member / private.is_campaign_dm live in the
 -- non-exposed `private` schema as of 20260629000002.
 --
--- Coin math mirrors src/lib/currency.ts toCP/fromCP: value in copper is
+-- Coin math mirrors src/rules/currency.ts toCP/fromCP: value in copper is
 -- pp*1000 + gp*100 + ep*50 + sp*10 + cp, and greedy reconversion is PP→GP→SP→CP
 -- with EP folded into the total (ep always resolves to 0), exactly as the old
 -- client path did.

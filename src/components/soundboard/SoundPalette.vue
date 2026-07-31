@@ -100,7 +100,7 @@ import { useSounds } from "@/composables/useSounds";
 import { usePlaylists, useFetchPlaylistTracks } from "@/composables/useSoundboardPlaylists";
 import { useAudibleCheck, useBlockedCheck, useActionCheck, useSoundTrigger, ACTION_LABEL } from "@/composables/useSoundPlayback";
 import { useHotkeys } from "@/composables/useHotkeys";
-import { rankEntries } from "@/lib/soundSearch";
+import { rankEntries } from "@/lib/audio/soundSearch";
 import type { Sound, SoundboardPlaylist } from "@/types/sound.types";
 
 const { open } = defineProps<{ open: boolean }>();

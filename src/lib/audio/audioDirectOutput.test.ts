@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
-import * as direct from "@/lib/audioDirectOutput";
+import * as direct from "@/lib/audio/audioDirectOutput";
 
 /**
  * A stand-in for HTMLAudioElement that only has to hold a volume.
@@ -58,7 +58,7 @@ describe("audioDirectOutput — level composition", () => {
   beforeEach(() => stubVolumeSettable(true));
 
   it("folds sound, bus and master levels into the element's own volume", async () => {
-    const mod = await import("@/lib/audioDirectOutput");
+    const mod = await import("@/lib/audio/audioDirectOutput");
     mod.reset();
     const el = makeEl();
 
@@ -72,7 +72,7 @@ describe("audioDirectOutput — level composition", () => {
   });
 
   it("applies trim on top of user volume", async () => {
-    const mod = await import("@/lib/audioDirectOutput");
+    const mod = await import("@/lib/audio/audioDirectOutput");
     mod.reset();
     const el = makeEl();
 
@@ -84,7 +84,7 @@ describe("audioDirectOutput — level composition", () => {
   });
 
   it("clamps the composed level into 0–1 rather than throwing on an overshooting trim", async () => {
-    const mod = await import("@/lib/audioDirectOutput");
+    const mod = await import("@/lib/audio/audioDirectOutput");
     mod.reset();
     const el = makeEl();
 
@@ -96,7 +96,7 @@ describe("audioDirectOutput — level composition", () => {
   });
 
   it("only re-levels the bus that changed", async () => {
-    const mod = await import("@/lib/audioDirectOutput");
+    const mod = await import("@/lib/audio/audioDirectOutput");
     mod.reset();
     const music = makeEl();
     const ambient = makeEl();
@@ -117,7 +117,7 @@ describe("audioDirectOutput — ducking", () => {
   beforeEach(() => stubVolumeSettable(true));
 
   it("attenuates music and ambient but never effects", async () => {
-    const mod = await import("@/lib/audioDirectOutput");
+    const mod = await import("@/lib/audio/audioDirectOutput");
     mod.reset();
     const music = makeEl();
     const effect = makeEl();
@@ -134,7 +134,7 @@ describe("audioDirectOutput — ducking", () => {
   });
 
   it("restores exactly, and a duck while already ducked does not compound", async () => {
-    const mod = await import("@/lib/audioDirectOutput");
+    const mod = await import("@/lib/audio/audioDirectOutput");
     mod.reset();
     const music = makeEl();
 
@@ -150,7 +150,7 @@ describe("audioDirectOutput — ducking", () => {
   });
 
   it("unduck without a preceding duck is a no-op", async () => {
-    const mod = await import("@/lib/audioDirectOutput");
+    const mod = await import("@/lib/audio/audioDirectOutput");
     mod.reset();
     const music = makeEl();
 
@@ -167,7 +167,7 @@ describe("audioDirectOutput — fades", () => {
 
   it("ramps to silence over the requested time and resolves once there", async () => {
     vi.useFakeTimers();
-    const mod = await import("@/lib/audioDirectOutput");
+    const mod = await import("@/lib/audio/audioDirectOutput");
     mod.reset();
     const el = makeEl();
 
@@ -183,7 +183,7 @@ describe("audioDirectOutput — fades", () => {
 
   it("starts a fade-in from silence so it has somewhere to come from", async () => {
     vi.useFakeTimers();
-    const mod = await import("@/lib/audioDirectOutput");
+    const mod = await import("@/lib/audio/audioDirectOutput");
     mod.reset();
     const el = makeEl();
 
@@ -199,7 +199,7 @@ describe("audioDirectOutput — fades", () => {
 
   it("a new ramp cancels the one in flight instead of fighting it", async () => {
     vi.useFakeTimers();
-    const mod = await import("@/lib/audioDirectOutput");
+    const mod = await import("@/lib/audio/audioDirectOutput");
     mod.reset();
     const el = makeEl();
 
@@ -219,13 +219,13 @@ describe("audioDirectOutput — platforms that ignore volume (iOS)", () => {
   beforeEach(() => stubVolumeSettable(false));
 
   it("reports that volume is not settable", async () => {
-    const mod = await import("@/lib/audioDirectOutput");
+    const mod = await import("@/lib/audio/audioDirectOutput");
     expect(mod.isVolumeSettable()).toBe(false);
   });
 
   it("resolves fadeOut immediately, so a crossfade becomes a clean cut rather than a double-audible overlap", async () => {
     vi.useFakeTimers();
-    const mod = await import("@/lib/audioDirectOutput");
+    const mod = await import("@/lib/audio/audioDirectOutput");
     mod.reset();
     const el = makeEl(false);
 
@@ -246,7 +246,7 @@ describe("audioDirectOutput — chain lifecycle", () => {
   beforeEach(() => stubVolumeSettable(true));
 
   it("re-attaching the same element updates its bus without losing the chain", async () => {
-    const mod = await import("@/lib/audioDirectOutput");
+    const mod = await import("@/lib/audio/audioDirectOutput");
     mod.reset();
     const el = makeEl();
 
@@ -259,7 +259,7 @@ describe("audioDirectOutput — chain lifecycle", () => {
   });
 
   it("a detached sound stops responding to bus changes", async () => {
-    const mod = await import("@/lib/audioDirectOutput");
+    const mod = await import("@/lib/audio/audioDirectOutput");
     mod.reset();
     const el = makeEl();
 
@@ -272,7 +272,7 @@ describe("audioDirectOutput — chain lifecycle", () => {
   });
 
   it("reset drops every chain", async () => {
-    const mod = await import("@/lib/audioDirectOutput");
+    const mod = await import("@/lib/audio/audioDirectOutput");
     mod.reset();
     const el = makeEl();
 

@@ -67,7 +67,7 @@ import SoundCardSpotifyTransport from "./SoundCardSpotifyTransport.vue";
 import SoundCardAudioTransport from "./SoundCardAudioTransport.vue";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSoundPlayback } from "@/composables/useSoundPlayback";
-import { CATEGORY_BORDER, CATEGORY_SPINE } from "@/lib/soundCategories";
+import { CATEGORY_BORDER, CATEGORY_SPINE } from "@/lib/audio/soundCategories";
 import type { Sound, BoardMode, PadSize } from "@/types/sound.types";
 
 const { sound, showDelete, mode = "arrange", padSize = "md" } = defineProps<{

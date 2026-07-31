@@ -6,7 +6,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import { usePlaylists } from "@/composables/useSoundboardPlaylists";
 import { STARTER_SCENES, starterSceneSlugs, type StarterScene } from "@/data/starterScenes";
-import { planStarterScenes, type PlannedScene } from "@/lib/starterScenePlan";
+import { planStarterScenes, type PlannedScene } from "@/lib/audio/starterScenePlan";
 import { DEFAULT_LAYER } from "@/types/sound.types";
 import type { Sound, SoundLibraryEntry, SoundboardPlaylist } from "@/types/sound.types";
 

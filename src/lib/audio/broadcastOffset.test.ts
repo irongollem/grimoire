@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { broadcastOffsetSeconds, shouldResync, RESYNC_THRESHOLD_S } from "@/lib/broadcastOffset";
+import { broadcastOffsetSeconds, shouldResync, RESYNC_THRESHOLD_S } from "@/lib/audio/broadcastOffset";
 
 const NOW = Date.parse("2026-07-28T20:00:30.000Z");
 

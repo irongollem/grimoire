@@ -1,6 +1,6 @@
 import { computed, type Ref } from "vue";
 import { useQuery } from "@tanstack/vue-query";
-import type { SoundProvider, ProviderSearchResult, ProviderFilters } from "@/lib/soundProviders";
+import type { SoundProvider, ProviderSearchResult, ProviderFilters } from "@/lib/audio/providers";
 
 /**
  * Search whichever sound provider is currently selected.

@@ -1,5 +1,5 @@
 // Synthesized dice sounds via Web Audio API — no audio files needed.
-import { getAudioContext, primeAudioContext } from "@/lib/audioContext";
+import { getAudioContext, primeAudioContext } from "@/lib/audio/audioContext";
 
 export { primeAudioContext as primeDiceAudio };
 

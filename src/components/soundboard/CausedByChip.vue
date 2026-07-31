@@ -35,7 +35,7 @@
 
 <script setup lang="ts">
 import { IconClose, IconFire } from "@/lib/icons";
-import { releaseAudioTheme } from "@/lib/audioTriggers";
+import { releaseAudioTheme } from "@/lib/audio/audioTriggers";
 import type { ActiveTrigger } from "@/composables/useAudioThemeTriggers";
 
 /**

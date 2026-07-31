@@ -110,7 +110,7 @@ import { IconSkipBack, IconSkipForward, IconStop, IconWind } from "@/lib/icons";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSounds } from "@/composables/useSounds";
 import { useActiveAudioTriggers } from "@/composables/useAudioThemeTriggers";
-import { CATEGORY_SPINE } from "@/lib/soundCategories";
+import { CATEGORY_SPINE } from "@/lib/audio/soundCategories";
 import CausedByChip from "./CausedByChip.vue";
 import EqBars from "./EqBars.vue";
 import type { SoundCategory } from "@/types/sound.types";

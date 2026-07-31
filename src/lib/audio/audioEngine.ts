@@ -27,8 +27,8 @@
 // soundboard.ts. `getAudioEngine()` just hands back a stable object of
 // bound functions; there is only ever one graph per page.
 
-import { getAudioContext, resumeExistingAudioContext } from "@/lib/audioContext";
-import * as direct from "@/lib/audioDirectOutput";
+import { getAudioContext, resumeExistingAudioContext } from "@/lib/audio/audioContext";
+import * as direct from "@/lib/audio/audioDirectOutput";
 import type { AudioEffectPreset } from "@/types/sound.types";
 
 export type AudioBus = "music" | "ambient" | "effects";

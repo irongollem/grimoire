@@ -294,7 +294,7 @@ import { useQueryClient } from "@tanstack/vue-query";
 import { useCreateSound, useSoundUpload } from "@/composables/useSounds";
 import { useSpotifyStore } from "@/stores/spotify";
 import { useSubscription } from "@/composables/useSubscription";
-import { generateMusicWithLyria, structureMusicPrompt, LYRIA_MODELS, LYRICS_MAX_CHARS, type LyriaModel } from "@/lib/aiMusic";
+import { generateMusicWithLyria, structureMusicPrompt, LYRIA_MODELS, LYRICS_MAX_CHARS, type LyriaModel } from "@/lib/audio/aiMusic";
 import { logUsage, useAiCredits } from "@/composables/useAiCredits";
 import { supabase } from "@/lib/supabase";
 import {

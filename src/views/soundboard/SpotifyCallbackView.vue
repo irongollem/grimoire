@@ -23,7 +23,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { exchangeCode } from "@/lib/spotifyAuth";
+import { exchangeCode } from "@/lib/audio/spotifyAuth";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 
 const router = useRouter();

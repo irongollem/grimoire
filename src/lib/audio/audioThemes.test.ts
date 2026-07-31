@@ -6,7 +6,7 @@ import {
   themePlaylists,
   themeSounds,
   resolveAudioTheme,
-} from "@/lib/audioThemes";
+} from "@/lib/audio/audioThemes";
 import type { Sound, SoundboardPlaylist } from "@/types/sound.types";
 
 function playlist(over: Partial<SoundboardPlaylist> & { id: string }): SoundboardPlaylist {

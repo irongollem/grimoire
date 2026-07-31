@@ -2,9 +2,9 @@ import { ref, computed, onScopeDispose } from "vue";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSounds } from "@/composables/useSounds";
 import { usePlaylists, useFetchPlaylistTracks } from "@/composables/useSoundboardPlaylists";
-import { onAudioTrigger, type AudioThemeRequest, type AudioTriggerKind } from "@/lib/audioTriggers";
-import { resolveAudioTheme, type AudioSlot, type ThemeMatch } from "@/lib/audioThemes";
-import { getAudioTriggersEnabled, setAudioTriggersEnabled } from "@/lib/audioTriggerPrefs";
+import { onAudioTrigger, type AudioThemeRequest, type AudioTriggerKind } from "@/lib/audio/audioTriggers";
+import { resolveAudioTheme, type AudioSlot, type ThemeMatch } from "@/lib/audio/audioThemes";
+import { getAudioTriggersEnabled, setAudioTriggersEnabled } from "@/lib/audio/audioTriggerPrefs";
 import type { Sound, SoundboardPlaylist } from "@/types/sound.types";
 
 /**

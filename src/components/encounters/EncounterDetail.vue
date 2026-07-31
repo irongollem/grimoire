@@ -261,7 +261,7 @@ import { useTraps } from "@/composables/useTraps";
 import { useAllLocations } from "@/composables/useLocations";
 import { useSounds } from "@/composables/useSounds";
 import { usePlaylists } from "@/composables/useSoundboardPlaylists";
-import { collectThemes } from "@/lib/audioThemes";
+import { collectThemes } from "@/lib/audio/audioThemes";
 import {
   useCreateEncounter,
   useUpdateEncounter,

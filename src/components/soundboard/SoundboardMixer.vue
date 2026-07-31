@@ -120,7 +120,7 @@ import { IconChevronRight, IconSettings, IconWarning } from "@/lib/icons";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useAudioTriggerPrefs } from "@/composables/useAudioThemeTriggers";
 import { useSoundboardBroadcast } from "@/composables/useSoundboardBroadcast";
-import type { AudioBus } from "@/lib/audioEngine";
+import type { AudioBus } from "@/lib/audio/audioEngine";
 import VolumeSlider from "./VolumeSlider.vue";
 import SoundEffectPicker from "./SoundEffectPicker.vue";
 import SceneMixer from "./SceneMixer.vue";

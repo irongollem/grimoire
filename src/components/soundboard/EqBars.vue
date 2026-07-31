@@ -16,7 +16,7 @@
 </template>
 
 <script setup lang="ts">
-import { CATEGORY_SPINE } from "@/lib/soundCategories";
+import { CATEGORY_SPINE } from "@/lib/audio/soundCategories";
 import type { SoundCategory } from "@/types/sound.types";
 
 // The bars carry category colour for the same reason the spine does: a DM

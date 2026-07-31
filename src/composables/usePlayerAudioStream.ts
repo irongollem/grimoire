@@ -3,7 +3,7 @@ import { storeToRefs } from "pinia";
 import { supabase } from "@/lib/supabase";
 import { createRealtimeChannel, type RealtimeChannelHandle } from "@/lib/realtimeChannel";
 import { useCampaignStore } from "@/stores/campaign";
-import { broadcastOffsetSeconds, shouldResync } from "@/lib/broadcastOffset";
+import { broadcastOffsetSeconds, shouldResync } from "@/lib/audio/broadcastOffset";
 import type { SoundboardBroadcast } from "@/types/sound.types";
 
 /**

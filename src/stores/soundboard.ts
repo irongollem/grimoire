@@ -7,11 +7,11 @@ import type {
   SoundCategory,
   PlaylistType,
 } from "@/types/sound.types";
-import { getAudioEngine, type AudioBus } from "@/lib/audioEngine";
-import { setAutoResumeGate } from "@/lib/audioContext";
-import { isVolumeSettable } from "@/lib/audioDirectOutput";
-import { getDirectOutputEnabled, setDirectOutputEnabled } from "@/lib/audioOutputPrefs";
-import { createSceneGeneratorPool } from "@/lib/sceneGenerators";
+import { getAudioEngine, type AudioBus } from "@/lib/audio/audioEngine";
+import { setAutoResumeGate } from "@/lib/audio/audioContext";
+import { isVolumeSettable } from "@/lib/audio/audioDirectOutput";
+import { getDirectOutputEnabled, setDirectOutputEnabled } from "@/lib/audio/audioOutputPrefs";
+import { createSceneGeneratorPool } from "@/lib/audio/sceneGenerators";
 import {
   getInstance,
   setInstance,
@@ -29,7 +29,7 @@ import {
   forgetGeneration,
   busForCategory,
   loopShadowId,
-} from "@/lib/soundTransport";
+} from "@/lib/audio/soundTransport";
 
 // ── Playlist run-state types (module-level, not exported) ─────────────────
 
@@ -113,7 +113,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
 
   // Scene layers that fire one-shots at random intervals rather than looping.
   // Lives outside the store because it is timers and randomness rather than
-  // reactive state — see src/lib/sceneGenerators.ts.
+  // reactive state — see src/lib/audio/sceneGenerators.ts.
   const generators = createSceneGeneratorPool({ engine, getAudio: getOrCreate });
 
   // Per-sound playback state (serializable only)

@@ -58,7 +58,7 @@
 <script setup lang="ts">
 import { computed, type Component } from "vue";
 import EqBars from "./EqBars.vue";
-import { CATEGORY_SPINE } from "@/lib/soundCategories";
+import { CATEGORY_SPINE } from "@/lib/audio/soundCategories";
 import type { SoundCategory } from "@/types/sound.types";
 
 const { chip, blockedReason = null } = defineProps<{

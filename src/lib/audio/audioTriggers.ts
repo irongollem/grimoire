@@ -1,4 +1,4 @@
-import type { AudioSlot } from "@/lib/audioThemes";
+import type { AudioSlot } from "@/lib/audio/audioThemes";
 
 /**
  * The bus between "something happened in the campaign" and "the soundboard

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import type { AudioEngine } from "@/lib/audioEngine";
+import type { AudioEngine } from "@/lib/audio/audioEngine";
 
 // ── Minimal fake Web Audio graph ────────────────────────────────────────────
 //
@@ -141,14 +141,14 @@ function asAudioContext(ctx: FakeAudioContext | null): AudioContext | null {
 /** Fresh module instance per call so the engine's module-scope state never leaks between tests. */
 async function loadEngine(ctx: FakeAudioContext | null): Promise<AudioEngine> {
   vi.resetModules();
-  vi.doMock("@/lib/audioContext", () => ({
+  vi.doMock("@/lib/audio/audioContext", () => ({
     getAudioContext: () => asAudioContext(ctx),
     primeAudioContext: () => {},
     resumeExistingAudioContext: () => {
       if (ctx?.state === "suspended") void ctx.resume();
     },
   }));
-  const mod = await import("@/lib/audioEngine");
+  const mod = await import("@/lib/audio/audioEngine");
   return mod.getAudioEngine();
 }
 

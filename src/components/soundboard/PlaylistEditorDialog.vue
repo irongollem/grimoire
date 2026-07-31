@@ -164,7 +164,7 @@
 import { ref, computed, watch } from "vue";
 import { VueDraggable } from "vue-draggable-plus";
 import { IconClose } from "@/lib/icons";
-import { PLAYLIST_NOUNS } from "@/lib/playlistPeers";
+import { PLAYLIST_NOUNS } from "@/lib/audio/playlistPeers";
 import { useSounds } from "@/composables/useSounds";
 import { usePlaylistTracks, useCreatePlaylist, useUpdatePlaylist, useReplacePlaylistTracks } from "@/composables/useSoundboardPlaylists";
 import { useCampaignStore } from "@/stores/campaign";

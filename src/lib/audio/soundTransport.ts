@@ -14,7 +14,7 @@
 // failing unpredictably), so the elements stay in a plain Map at module scope.
 
 import type { SoundCategory } from "@/types/sound.types";
-import type { AudioBus } from "@/lib/audioEngine";
+import type { AudioBus } from "@/lib/audio/audioEngine";
 
 const audioInstances = new Map<string, HTMLAudioElement>();
 

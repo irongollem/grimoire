@@ -234,7 +234,7 @@ import { computed, ref, watch, onUnmounted } from "vue";
 import { useRoute, useRouter, RouterLink } from "vue-router";
 import { IconChevronRight, IconDelete, IconEdit } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
-import { requestAudioTheme, releaseAudioTheme } from "@/lib/audioTriggers";
+import { requestAudioTheme, releaseAudioTheme } from "@/lib/audio/audioTriggers";
 import {
   useLocations,
   useAllLocations,

@@ -1,5 +1,5 @@
 import { beforeEach, describe, it, expect, vi } from "vitest";
-import { buildAuthUrl, exchangeCode, readSpotifyError } from "@/lib/spotifyAuth";
+import { buildAuthUrl, exchangeCode, readSpotifyError } from "@/lib/audio/spotifyAuth";
 
 function res(status: number, body: unknown): Response {
   return {

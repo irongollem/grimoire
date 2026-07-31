@@ -90,7 +90,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { PLAYLIST_NOUNS } from "@/lib/playlistPeers";
+import { PLAYLIST_NOUNS } from "@/lib/audio/playlistPeers";
 import { usePlaylists, useDeletePlaylist } from "@/composables/useSoundboardPlaylists";
 import { useSounds } from "@/composables/useSounds";
 import { useSoundboardStore } from "@/stores/soundboard";

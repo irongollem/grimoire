@@ -103,7 +103,7 @@ import {
   CATEGORY_SPINE,
   CATEGORY_TEXT,
   CATEGORY_TINT,
-} from "@/lib/soundCategories";
+} from "@/lib/audio/soundCategories";
 import { useActiveAudioTriggers } from "@/composables/useAudioThemeTriggers";
 import CausedByChip from "./CausedByChip.vue";
 import EqBars from "./EqBars.vue";

@@ -35,7 +35,7 @@
 // the right trade for a music playlist over CarPlay and the wrong one for a
 // DM running atmosphere at the table.
 
-import type { AudioBus } from "@/lib/audioEngine";
+import type { AudioBus } from "@/lib/audio/audioEngine";
 
 /** How often a JS volume ramp steps. Fine enough to be inaudible, coarse enough to be cheap. */
 const RAMP_INTERVAL_MS = 25;

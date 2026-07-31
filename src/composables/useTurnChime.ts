@@ -1,5 +1,5 @@
 import { onMounted, onUnmounted } from "vue";
-import { getAudioContext, primeAudioContext } from "@/lib/audioContext";
+import { getAudioContext, primeAudioContext } from "@/lib/audio/audioContext";
 
 export function useTurnChime() {
   onMounted(() => {

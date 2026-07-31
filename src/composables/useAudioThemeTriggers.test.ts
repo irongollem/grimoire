@@ -48,7 +48,7 @@ async function flush(): Promise<void> {
 }
 
 async function mount() {
-  const triggers = await import("@/lib/audioTriggers");
+  const triggers = await import("@/lib/audio/audioTriggers");
   const mod = await import("@/composables/useAudioThemeTriggers");
   mod.useAudioTriggerPrefs().setAudioTriggersEnabled(true);
   const scope = effectScope();
@@ -63,7 +63,7 @@ beforeEach(async () => {
   store.isPlaylistActive.mockImplementation(() => false);
   playlists.value = [];
   sounds.value = [];
-  const { clearAudioTriggerHandlers } = await import("@/lib/audioTriggers");
+  const { clearAudioTriggerHandlers } = await import("@/lib/audio/audioTriggers");
   clearAudioTriggerHandlers();
 });
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
-import type { AudioBus } from "@/lib/audioEngine";
+import type { AudioBus } from "@/lib/audio/audioEngine";
 
 // ── Engine double ──────────────────────────────────────────────────────────
 //
@@ -28,7 +28,7 @@ const engineCalls = {
 let engineAvailable = true;
 const engineDirectMode = false;
 
-vi.mock("@/lib/audioEngine", () => ({
+vi.mock("@/lib/audio/audioEngine", () => ({
   getAudioEngine: () => ({
     get available() {
       return engineAvailable;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { normalizeLicense, buildAttribution, rewriteToCdn } from "@/lib/freesound";
+import { normalizeLicense, buildAttribution, rewriteToCdn } from "@/lib/audio/freesound";
 
 describe("normalizeLicense", () => {
   it("maps Creative Commons 0 to cc0 (friendly form)", () => {

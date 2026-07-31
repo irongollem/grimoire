@@ -47,7 +47,7 @@ const ACCENT_CLASS = {
   purple: "accent-arcane-purple-light",
 } as const;
 
-// Per-category accents are mapped in `src/lib/soundCategories.ts` — kept out of
+// Per-category accents are mapped in `src/lib/audio/soundCategories.ts` — kept out of
 // here because `<script setup>` cannot export, and several other surfaces need
 // the same mapping.
 

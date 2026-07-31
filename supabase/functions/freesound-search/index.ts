@@ -41,7 +41,7 @@ export interface TrimmedHit {
   attribution_url: string | null;
 }
 
-// Mirror of normalizeLicense in src/lib/freesound.ts — keep in sync.
+// Mirror of normalizeLicense in src/lib/audio/freesound.ts — keep in sync.
 // Freesound returns license URLs (e.g. http://creativecommons.org/publicdomain/zero/1.0/)
 // in API responses but accepts friendly names in the filter parameter.
 export function normalizeLicense(raw: string): "cc0" | "cc-by" | null {
@@ -67,7 +67,7 @@ export function buildAttribution(
   };
 }
 
-// Mirror of rewriteToCdn in src/lib/freesound.ts — keep in sync.
+// Mirror of rewriteToCdn in src/lib/audio/freesound.ts — keep in sync.
 // Freesound's preview URLs at freesound.org/data/previews/... 302-redirect to
 // cdn.freesound.org/previews/... — saving the CDN URL skips a round trip on
 // every play.

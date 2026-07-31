@@ -19,7 +19,7 @@ import {
   getStoredTokens,
   urlToUri,
   isContextUri,
-} from "@/lib/spotifyAuth";
+} from "@/lib/audio/spotifyAuth";
 
 // ── SDK type declarations (no npm package) ────────────────────────────────
 

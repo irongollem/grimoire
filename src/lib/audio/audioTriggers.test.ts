@@ -5,7 +5,7 @@ import {
   releaseAudioTheme,
   clearAudioTriggerHandlers,
   type AudioTriggerEvent,
-} from "@/lib/audioTriggers";
+} from "@/lib/audio/audioTriggers";
 
 const REQUEST = {
   sourceId: "enc-1",

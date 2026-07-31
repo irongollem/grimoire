@@ -1,4 +1,4 @@
-import type { AudioEngine } from "@/lib/audioEngine";
+import type { AudioEngine } from "@/lib/audio/audioEngine";
 
 /**
  * Scene layers that fire one-shots at random intervals rather than looping.

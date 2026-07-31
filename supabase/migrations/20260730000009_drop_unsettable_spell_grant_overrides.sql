@@ -5,7 +5,7 @@
 -- the computed attack bonus / save DC — e.g. a magic item with a printed DC.
 -- Nothing in the app ever writes either column (no character-creation step,
 -- item grant flow, or admin UI sets them), so both are 100% NULL in
--- production. src/lib/spellGrantStats.ts, and every template that renders
+-- production. src/rules/spellGrantStats.ts, and every template that renders
 -- through it, already fell through to the casting_ability/class-stats/
 -- fallback precedence whenever these were NULL — which is always — so
 -- removing the dead override branch changes no rendered output. Dropping the

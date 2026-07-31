@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { queryTerms, scoreEntry, rankEntries, type MatchFields } from "@/lib/soundSearch";
+import { queryTerms, scoreEntry, rankEntries, type MatchFields } from "@/lib/audio/soundSearch";
 
 const SOUNDS: (MatchFields & { id: string })[] = [
   { id: "rain", name: "Rain", tags: ["weather", "outdoor"], secondary: null },
