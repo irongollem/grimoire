@@ -143,6 +143,6 @@ export function buildCreateOnlyDefaults() {
  * `scripts/seed-library-species.ts`, which keeps only non-subspecies rows for the
  * shared table.
  */
-export async function fetchLibrarySpecies(documentKeys: string[]): Promise<Open5eRace[]> {
+export async function fetchOpen5eSpecies(documentKeys: string[]): Promise<Open5eRace[]> {
   return fetchAllFromDocuments<Open5eRace>("https://api.open5e.com/v2/species/", documentKeys);
 }

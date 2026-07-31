@@ -48,20 +48,20 @@ const emit = defineEmits<{ close: [] }>();
 </template>
 
 <style scoped>
-.srd-preview-enter-active,
-.srd-preview-leave-active {
+.library-preview-enter-active,
+.library-preview-leave-active {
   transition: opacity 0.2s ease;
 }
-.srd-preview-enter-active .relative,
-.srd-preview-leave-active .relative {
+.library-preview-enter-active .relative,
+.library-preview-leave-active .relative {
   transition: transform 0.2s ease, opacity 0.2s ease;
 }
-.srd-preview-enter-from,
-.srd-preview-leave-to {
+.library-preview-enter-from,
+.library-preview-leave-to {
   opacity: 0;
 }
-.srd-preview-enter-from .relative,
-.srd-preview-leave-to .relative {
+.library-preview-enter-from .relative,
+.library-preview-leave-to .relative {
   transform: translateY(0.75rem);
   opacity: 0;
 }

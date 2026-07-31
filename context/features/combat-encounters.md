@@ -414,7 +414,7 @@ That last fallback matters: an enemy NPC the DM revealed only inside the encount
 
 10. **Difficulty calculator integrated into the builder.** The DMG XP budget calculation (with count multiplier, party size adjustment, ally offset, and trap XP) runs live as the DM adds combatants. Visual threshold bars and an enemy breakdown table make it immediately clear whether a planned encounter is worth balancing differently.
 
-11. **Re-import clobber protection (#560).** Re-syncing monsters from Open5e (into the shared `library_monsters` table, or via the legacy per-user `useImportSrdMonsters` path) only refreshes fields Open5e actually supplies — name, type/size, source metadata, `stat_block`. DM-authored notes, portrait, description, habitat, and lair link are never touched by a re-run. Full field breakdown in [`docs/library-reimport.md`](../../docs/library-reimport.md).
+11. **Re-import clobber protection (#560).** Re-syncing monsters from Open5e into the shared `library_monsters` table only refreshes fields Open5e actually supplies — name, type/size, source metadata, `stat_block`. DM-authored notes, portrait, description, habitat, and lair link are never touched by a re-run. Full field breakdown in [`docs/library-reimport.md`](../../docs/library-reimport.md).
 
 ---
 

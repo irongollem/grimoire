@@ -323,7 +323,7 @@ export function planLibrarySpellImport(
   return { rows, skippedReviewed };
 }
 
-export async function fetchLibrarySpells(sourceKeys?: string[]): Promise<ImportedLibrarySpell[]> {
+export async function fetchOpen5eSpells(sourceKeys?: string[]): Promise<ImportedLibrarySpell[]> {
   const documents = await fetchOpen5eDocuments();
   const selected = sourceKeys?.length
     ? documents.filter((document) => sourceKeys.includes(document.slug))

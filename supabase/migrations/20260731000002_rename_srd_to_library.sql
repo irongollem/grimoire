@@ -101,23 +101,37 @@ declare
     'validate_character_spell_source'
   ];
   v_seen    text[] := '{}';
+  v_missing text;
 begin
+  -- Driven per ROW (i.e. per oid), and pg_get_functiondef emits the full
+  -- signature, so an overload is rewritten as itself rather than clobbering its
+  -- sibling. One that does not mention srd_spells needs no rewrite and is
+  -- skipped rather than raising — adding a second signature beside a live one
+  -- is a normal way to evolve an RPC and must not abort a deploy. The
+  -- assertion below is therefore per NAME, not a count: a name that disappears
+  -- from the schema, or whose every signature has stopped referencing
+  -- srd_spells, still stops the migration.
   for r in
     select p.oid, p.proname, pg_get_functiondef(p.oid) as def
     from pg_proc p
     join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public' and p.prokind = 'f' and p.proname = any(v_names)
-    order by p.proname
+    order by p.proname, p.oid
   loop
     if r.def !~ '\ysrd_spells\y' then
-      raise exception 'Expected %() to reference srd_spells; it no longer does.', r.proname;
+      continue;
     end if;
     v_seen := v_seen || r.proname;
     execute regexp_replace(r.def, '\ysrd_spells\y', 'library_spells', 'g');
   end loop;
 
-  if array_length(v_seen, 1) is distinct from array_length(v_names, 1) then
-    raise exception 'Expected to rewrite %, but found %.', v_names, v_seen;
+  select string_agg(nm, ', ' order by nm) into v_missing
+  from unnest(v_names) nm
+  where not (nm = any(v_seen));
+
+  if v_missing is not null then
+    raise exception 'Expected each of % to reference srd_spells and be rewritten; these did not: %',
+                    v_names, v_missing;
   end if;
 end $$;
 
@@ -374,6 +388,18 @@ alter table public.library_spell_art
   rename constraint srd_spell_art_user_id_srd_id_key
   to library_spell_art_user_id_entry_id_key;
 
+-- These two hang off USER tables (discovered_monsters, pinned_forms) whose
+-- shared-library column section 2 renamed to library_monster_id — so the loops
+-- below, which walk objects on `library_*` tables, never visit them, and the
+-- section-6 gate matches an `srd_` PREFIX these names do not have. Both would
+-- survive: a `dm_srd_uniq` over a column called library_monster_id, passing a
+-- gate that claims the vocabulary is gone. Neither name is referenced anywhere
+-- (both are minted by the squashed initial schema; no `on conflict on
+-- constraint` names them), so renaming is free.
+alter index public.dm_srd_uniq rename to dm_library_uniq;
+alter table public.pinned_forms
+  rename constraint pinned_forms_srd_unique to pinned_forms_library_unique;
+
 do $$
 declare r record;
 begin
@@ -435,6 +461,11 @@ end $$;
 -- of surfacing later as a 404 in the app. This inspects object NAMES and
 -- function bodies naming the old tables only, so row-id literals and the Open5e
 -- key columns are out of its reach by construction.
+--
+-- Every name test is a SUBSTRING, not a prefix. `dm_srd_uniq` and
+-- `pinned_forms_srd_unique` are precisely the shape a prefix test waves
+-- through, and they are the ones most likely to survive, since they sit on user
+-- tables rather than on a renamed `library_*` one.
 do $$
 declare
   v_old_tables text := '\y(srd_monsters|srd_spells|srd_items|srd_species|srd_rules'
@@ -445,11 +476,16 @@ begin
   select string_agg(what, ', ' order by what) into v_leftover from (
     select 'table ' || c.relname as what
       from pg_class c join pg_namespace n on n.oid = c.relnamespace
-      where n.nspname = 'public' and c.relkind = 'r' and c.relname like 'srd\_%'
+      where n.nspname = 'public' and c.relkind = 'r' and c.relname like '%srd%'
     union all
     select 'index ' || c.relname
       from pg_class c join pg_namespace n on n.oid = c.relnamespace
-      where n.nspname = 'public' and c.relkind = 'i' and c.relname like 'srd\_%'
+      where n.nspname = 'public' and c.relkind = 'i' and c.relname like '%srd%'
+    union all
+    select 'constraint ' || c.relname || '.' || con.conname
+      from pg_constraint con join pg_class c on c.oid = con.conrelid
+      join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'public' and con.conname like '%srd%'
     union all
     select 'column ' || table_name || '.' || column_name
       from information_schema.columns
@@ -463,12 +499,12 @@ begin
     select 'policy ' || c.relname || '.' || p.polname
       from pg_policy p join pg_class c on c.oid = p.polrelid
       join pg_namespace n on n.oid = c.relnamespace
-      where n.nspname = 'public' and p.polname like 'srd\_%'
+      where n.nspname = 'public' and p.polname like '%srd%'
     union all
     select 'trigger ' || c.relname || '.' || t.tgname
       from pg_trigger t join pg_class c on c.oid = t.tgrelid
       join pg_namespace n on n.oid = c.relnamespace
-      where n.nspname = 'public' and t.tgname like 'srd\_%' and not t.tgisinternal
+      where n.nspname = 'public' and t.tgname like '%srd%' and not t.tgisinternal
   ) leftovers;
 
   if v_leftover is not null then

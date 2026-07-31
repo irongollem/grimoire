@@ -3,7 +3,7 @@
  * Seeds the shared library_species table from Open5e v2 — dual-edition by
  * default (SRD 5.1 "srd-2014" + SRD 5.2 "srd-2024"), non-subspecies rows only.
  *
- * Reuses src/lib/open5eSpeciesImport.ts's fetchLibrarySpecies(), buildImportedFields()
+ * Reuses src/lib/open5eSpeciesImport.ts's fetchOpen5eSpecies(), buildImportedFields()
  * and buildCreateOnlyDefaults() — the single source of truth for the Open5e v2
  * → row mapping (shared with the in-app SpeciesOpen5ePanel.vue import flow).
  * This script only adds CLI plumbing, the non-subspecies filter, the
@@ -30,7 +30,7 @@
  */
 
 import {
-  fetchLibrarySpecies,
+  fetchOpen5eSpecies,
   buildImportedFields,
   buildCreateOnlyDefaults,
 } from "@/lib/open5eSpeciesImport";
@@ -154,7 +154,7 @@ async function main(): Promise<void> {
   const documentMetadata = new Map(documents.map((document) => [document.key, document]));
 
   console.log("Step 1: Fetching + mapping species from Open5e v2…");
-  const races = await fetchLibrarySpecies(documentKeys);
+  const races = await fetchOpen5eSpecies(documentKeys);
   const coreRaces = races.filter((race) => !race.is_subspecies);
   const subspeciesSkipped = races.length - coreRaces.length;
   if (subspeciesSkipped > 0) {

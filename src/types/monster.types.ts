@@ -72,7 +72,7 @@ export interface Monster extends VersionedContentMetadata {
   portrait_focal_point?: { x: number; y: number } | null;
   created_at: string;
   updated_at: string;
-  is_shared?: boolean;            // true for read-only SRD reference monsters (static file + wotc-srd imports)
+  is_shared?: boolean;            // true for read-only shared library_monsters rows, whatever the publisher
   open5e_import?: boolean;     // true when the row was upserted by Open5e sync
 }
 

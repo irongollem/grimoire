@@ -59,6 +59,7 @@ declare
   v_old        text;
   v_new        text;
   v_txt        text;
+  v_evt        text;
   v_encounters integer := 0;
   v_states     integer := 0;
   v_notes      integer := 0;
@@ -85,26 +86,33 @@ begin
         end if;
       end if;
     end loop;
-    if v_txt is distinct from r.combatants::text then
-      update encounters set combatants = v_txt::jsonb where id = r.id;
-      v_encounters := v_encounters + 1;
-    end if;
-
-    v_txt := r.events::text;
+    v_evt := r.events::text;
     for v_old in
-      select distinct m[1] from regexp_matches(coalesce(v_txt, ''), '"(srd_[a-z0-9_]+)"', 'g') m
+      select distinct m[1] from regexp_matches(coalesce(v_evt, ''), '"(srd_[a-z0-9_]+)"', 'g') m
     loop
       if not exists (select 1 from library_monsters lm where lm.id = v_old) then
         v_new := case when r.ruleset = '2024' then 'srd_srd_2024_' else 'srd_srd_' end
                  || substr(v_old, 5);
         if exists (select 1 from library_monsters lm
                    where lm.id = v_new and lm.ruleset = r.ruleset) then
-          v_txt := replace(v_txt, '"' || v_old || '"', '"' || v_new || '"');
+          v_evt := replace(v_evt, '"' || v_old || '"', '"' || v_new || '"');
         end if;
       end if;
     end loop;
-    if v_txt is distinct from r.events::text then
-      update encounters set events = v_txt::jsonb where id = r.id;
+
+    -- Both columns in ONE update, counted once. Two updates would bump
+    -- updated_at twice and broadcast the same repair to live tables twice.
+    -- Counting only the combatants branch is the subtler half: the count is the
+    -- one signal an operator has that this one-shot migration did its job. It
+    -- happens to come out right against today's data — all 12 affected
+    -- encounters carry a stranded id in `combatants`, and the 2 that also carry
+    -- one in `events` are a subset — so an events-only repair would silently
+    -- report 0. That is luck, not correctness, and it is not worth relying on.
+    if v_txt is distinct from r.combatants::text
+       or v_evt is distinct from r.events::text then
+      update encounters set combatants = v_txt::jsonb, events = v_evt::jsonb
+      where id = r.id;
+      v_encounters := v_encounters + 1;
     end if;
   end loop;
 
@@ -143,9 +151,17 @@ begin
     select en.id, en.entity_id, coalesce(c.ruleset, '2014') as ruleset
     from entity_notes en
     left join campaigns c on c.id = en.campaign_id
-    where en.entity_id like 'srd\_%'
+    -- entity_type is on the very row being selected and has to be honoured:
+    -- shared ids are text slugs in every library table, and #553 re-keyed
+    -- monsters only. Without this clause a note on a shared item or species
+    -- (`srd_longsword`, still a live library_items id) passes the filter and
+    -- gets rewritten to `srd_srd_longsword` whenever a monster of that name
+    -- exists — silently detaching the note from its item and reattaching it to
+    -- a creature. No such name collision exists today; the clause makes that
+    -- luck rather than correctness unnecessary.
+    where en.entity_type = 'monster'
+      and en.entity_id like 'srd\_%'
       and not exists (select 1 from library_monsters lm where lm.id = en.entity_id)
-      and not exists (select 1 from library_spells ls where ls.id = en.entity_id)
   loop
     v_new := case when r.ruleset = '2024' then 'srd_srd_2024_' else 'srd_srd_' end
              || substr(r.entity_id, 5);

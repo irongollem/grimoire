@@ -77,7 +77,7 @@ async function deleteItem(item: Item): Promise<void> {
   await deleteByPublicUrl(item.image_url, item.mundane_image_url);
 }
 
-async function fetchOpen5eItems(enabledSlugs: string[], ruleset: RulesetKey): Promise<Item[]> {
+async function fetchLibraryItems(enabledSlugs: string[], ruleset: RulesetKey): Promise<Item[]> {
   // Edition-neutral grimoire-bundled gear is always visible; enabled campaign
   // sources add to it. Array-form `.in()` (not a string-interpolated
   // `.or(...in.(...))`) keeps slug values from ever being parsed as PostgREST
@@ -149,7 +149,7 @@ export function useItems(getOptions?: () => UseItemsOptions) {
 
   const libraryQuery = useQuery({
     queryKey: computed(() => [LIBRARY_QUERY_KEY, enabledSlugs.value, ruleset.value]),
-    queryFn: () => fetchOpen5eItems(enabledSlugs.value!, ruleset.value),
+    queryFn: () => fetchLibraryItems(enabledSlugs.value!, ruleset.value),
     enabled: () => isEnabled() && enabledSlugs.value !== null,
     staleTime: Infinity,
   });
@@ -210,7 +210,7 @@ export function usePlayerVisibleItems(getOptions?: () => UseItemsOptions) {
 
   const libraryQuery = useQuery({
     queryKey: computed(() => [LIBRARY_QUERY_KEY, enabledSlugs.value, ruleset.value]),
-    queryFn: () => fetchOpen5eItems(enabledSlugs.value!, ruleset.value),
+    queryFn: () => fetchLibraryItems(enabledSlugs.value!, ruleset.value),
     enabled: () => enabledSlugs.value !== null,
     staleTime: Infinity,
   });

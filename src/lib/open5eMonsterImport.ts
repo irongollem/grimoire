@@ -195,7 +195,14 @@ export function mapOpen5eV2Monster(
     stat_block: statBlock,
     notes: null,
     image_url: null,
-    is_shared: monster.document.publisher?.key === "wizards-of-the-coast",
+    // Every row this mapper produces is destined for the shared library table,
+    // Kobold Press and EN Publishing included, so the flag is unconditional: it
+    // marks shared content, not SRD provenance. Real provenance is
+    // source_document_key -> content_sources. Deriving it from the publisher key
+    // would write `false` for 2,885 of 3,541 rows and strand every reference in
+    // discovered_monsters / pinned_forms, which key off `is_shared` to choose
+    // between the text library id column and the uuid homebrew one.
+    is_shared: true,
     open5e_import: true,
   };
 }

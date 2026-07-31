@@ -206,7 +206,7 @@ The Abilities compendium is the shared library of named features used by both cl
 
 **Feature types** (from `FEATURE_TYPES`): class feature, species trait, background feature, feat, fighting style, metamagic, maneuver, invocation, infusion, other.
 
-**"Sync from Open5e"** runs two operations: first imports SRD features (`useImportSrdFeatures`), then backfills descriptions for any system features that lack them (`useBackfillSystemFeatureDescriptions`). The button label reports `N added`, `M updated`, and `K descriptions filled`.
+**"Sync from Open5e"** runs two operations: first imports Open5e features (`useImportOpen5eFeatures`), then backfills descriptions for any system features that lack them (`useBackfillSystemFeatureDescriptions`). The button label reports `N added`, `M updated`, and `K descriptions filled`.
 
 Features are linked to classes/archetypes by UUID reference stored in the `features` JSONB column of `custom_classes` / `custom_subclasses`.
 

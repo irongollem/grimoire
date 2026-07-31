@@ -96,7 +96,9 @@ const activeTab = computed<TabId>(() => {
 
 const MANUAL_PAGE_BY_TAB: Partial<Record<TabId, string>> = {
   screen: "dm-screen",
-  compendium: "library-compendium",
+  // Manual page ids are slugify(frontmatter title), and this page is genuinely
+  // titled "SRD Compendium": library_rules holds only srd-2014/srd-2024 rows.
+  compendium: "srd-compendium",
   custom: "custom-rules-house-rules",
 };
 const manualPage = computed(() => MANUAL_PAGE_BY_TAB[activeTab.value]);

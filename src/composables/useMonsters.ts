@@ -70,7 +70,7 @@ async function deleteMonster(monster: Monster): Promise<void> {
 
 const LIBRARY_QUERY_KEY = "library-monsters";
 
-async function fetchOpen5eMonsters(enabledSlugs: string[], ruleset: RulesetKey): Promise<Monster[]> {
+async function fetchLibraryMonsters(enabledSlugs: string[], ruleset: RulesetKey): Promise<Monster[]> {
   if (enabledSlugs.length === 0) return [];
   const { data, error } = await supabase
     .from("library_monsters")
@@ -102,7 +102,7 @@ export function useAllMonsters() {
 
   const libraryQuery = useQuery({
     queryKey: computed(() => [LIBRARY_QUERY_KEY, enabledSlugs.value, ruleset.value]),
-    queryFn: () => fetchOpen5eMonsters(enabledSlugs.value!, ruleset.value),
+    queryFn: () => fetchLibraryMonsters(enabledSlugs.value!, ruleset.value),
     enabled: () => enabledSlugs.value !== null,
     staleTime: Infinity,
   });
@@ -157,7 +157,7 @@ export function usePlayerVisibleMonsters() {
 
   const libraryQuery = useQuery({
     queryKey: computed(() => [LIBRARY_QUERY_KEY, enabledSlugs.value, ruleset.value]),
-    queryFn: () => fetchOpen5eMonsters(enabledSlugs.value!, ruleset.value),
+    queryFn: () => fetchLibraryMonsters(enabledSlugs.value!, ruleset.value),
     enabled: () => enabledSlugs.value !== null,
     staleTime: Infinity,
   });

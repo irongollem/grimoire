@@ -4,7 +4,7 @@
  * (SRD 5.1 "srd-2014" + SRD 5.2 "srd-2024") — then backfills image_url +
  * image_focal_point from canonical library_art_defaults rows.
  *
- * Reuses src/lib/open5eSpellImport.ts's fetchLibrarySpells(), the single source
+ * Reuses src/lib/open5eSpellImport.ts's fetchOpen5eSpells(), the single source
  * of truth for the Open5e v2 → row mapping (shared with the in-app admin
  * import flow). This script only adds CLI plumbing, the Supabase upsert, and
  * the SRD art backfill — it does not re-implement any field mapping.
@@ -26,7 +26,7 @@
 
 import {
   fetchOpen5eDocuments,
-  fetchLibrarySpells,
+  fetchOpen5eSpells,
   planLibrarySpellImport,
   type ImportedLibrarySpell,
 } from "@/lib/open5eSpellImport";
@@ -177,7 +177,7 @@ async function main(): Promise<void> {
   assertRedistributableDocuments(documentKeys, await fetchOpen5eDocumentRefs());
 
   console.log("Step 1: Fetching + mapping spells from Open5e v2…");
-  const rows = await fetchLibrarySpells(documentKeys);
+  const rows = await fetchOpen5eSpells(documentKeys);
   console.log(`  Mapped ${rows.length} spells.\n`);
 
   if (parsed.dryRun) {

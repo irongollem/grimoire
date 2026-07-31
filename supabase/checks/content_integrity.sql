@@ -182,12 +182,26 @@ select check_name, cnt from (
 
   -- ---- notes --------------------------------------------------------------
   -- entity_notes.entity_id is polymorphic: a uuid for user-owned entities, a
-  -- shared library id when the note hangs off a library monster or spell, so it
-  -- has to resolve against either shared table.
-  union all select 'entity_notes.entity_id (slug) -> library_monsters/spells',
-    (select count(*) from entity_notes en where en.entity_id !~ '^[0-9a-f]{8}-'
-       and not exists (select 1 from library_monsters s where s.id = en.entity_id)
-       and not exists (select 1 from library_spells s where s.id = en.entity_id))
+  -- shared library id when the note hangs off shared content. `entity_type` on
+  -- the same row says which, and it MUST be honoured here. Shared ids are text
+  -- slugs across every library table (`srd_longsword`, `srd_elf` — stableSrdId
+  -- mints them for items and species too, and #553 re-keyed monsters only), so
+  -- a check that resolved every non-uuid id against library_monsters/spells
+  -- alone would count a perfectly good note on a shared item as dangling and
+  -- fail the production deploy of whatever migration happened to be in flight.
+  -- Only `monster` is shared-library-backed today (PlayerBestiaryView and
+  -- EncounterCombatantLightbox); the `spell` clause is there so the guard
+  -- already covers that surface if notes are ever added to it.
+  union all select 'entity_notes.entity_id (monster slug) -> library_monsters',
+    (select count(*) from entity_notes en
+       where en.entity_type = 'monster'
+         and en.entity_id !~ '^[0-9a-f]{8}-'
+         and not exists (select 1 from library_monsters s where s.id = en.entity_id))
+  union all select 'entity_notes.entity_id (spell slug) -> library_spells',
+    (select count(*) from entity_notes en
+       where en.entity_type = 'spell'
+         and en.entity_id !~ '^[0-9a-f]{8}-'
+         and not exists (select 1 from library_spells s where s.id = en.entity_id))
 ) checks
 where cnt > 0
 order by cnt desc;
