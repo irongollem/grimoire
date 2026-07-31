@@ -175,7 +175,7 @@ import {
   gridLinePositions,
   cellSizeInDisplay,
   gridOriginInDisplay,
-} from "@/lib/battleMapGeometry";
+} from "@/lib/battlemap/battleMapGeometry";
 import {
   applyBrush,
   cellBrushCells,
@@ -184,7 +184,7 @@ import {
   roundBrushCells,
   type BrushMode,
   type CellKey,
-} from "@/lib/fogMask";
+} from "@/lib/battlemap/fogMask";
 import { DEFAULT_GRID_OPACITY } from "@/types/location.types";
 
 const route = useRoute();

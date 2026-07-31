@@ -73,7 +73,7 @@
 
 <script setup lang="ts">
 import { IconChevronRight } from "@/lib/icons";
-import { GRADING_PRESETS, type ColourGradingOptions } from "@/lib/colourGrading";
+import { GRADING_PRESETS, type ColourGradingOptions } from "@/lib/illuminate/colourGrading";
 
 const {
   grading,

@@ -145,12 +145,12 @@ import IlluminateVignettePanel from "@/components/illuminate/IlluminateVignetteP
 import IlluminateTexturePanel from "@/components/illuminate/IlluminateTexturePanel.vue";
 import IlluminateDofPanel from "@/components/illuminate/IlluminateDofPanel.vue";
 import IlluminateEdgePanel from "@/components/illuminate/IlluminateEdgePanel.vue";
-import type { ColourGradingOptions } from "@/lib/colourGrading";
-import type { EdgeTreatmentOptions, EdgeOptions } from "@/lib/edgeTreatment";
-import type { VignetteOptions } from "@/lib/vignette";
-import type { DofBlurOptions, FalloffCurve } from "@/lib/dofBlur";
-import type { TextureOverlayOptions } from "@/lib/textureOverlay";
-import type { BrushState } from "@/lib/brushMask";
+import type { ColourGradingOptions } from "@/lib/illuminate/colourGrading";
+import type { EdgeTreatmentOptions, EdgeOptions } from "@/lib/illuminate/edgeTreatment";
+import type { VignetteOptions } from "@/lib/illuminate/vignette";
+import type { DofBlurOptions, FalloffCurve } from "@/lib/illuminate/dofBlur";
+import type { TextureOverlayOptions } from "@/lib/illuminate/textureOverlay";
+import type { BrushState } from "@/lib/illuminate/brushMask";
 
 type IlluminatorMode = 'auto' | 'brush';
 

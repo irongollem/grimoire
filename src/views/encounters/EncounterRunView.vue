@@ -12,7 +12,7 @@ import { computed, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useEncounter } from "@/composables/useEncounters";
 import { useAllMonsters } from "@/composables/useMonsters";
-import { sizeToFootprint } from "@/lib/tokenFootprint";
+import { sizeToFootprint } from "@/lib/battlemap/tokenFootprint";
 import { hitPointsToMax } from "@/lib/dice";
 import { useParty } from "@/composables/useParty";
 import { useCompanions } from "@/composables/useCompanions";

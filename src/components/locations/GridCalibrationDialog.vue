@@ -181,8 +181,8 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { calibrateGrid } from "@/lib/gridCalibration";
-import { gridLinePositions } from "@/lib/battleMapGeometry";
+import { calibrateGrid } from "@/lib/battlemap/gridCalibration";
+import { gridLinePositions } from "@/lib/battlemap/battleMapGeometry";
 import { DEFAULT_GRID_OPACITY, type GridCalibration } from "@/types/location.types";
 
 const { open, mapUrl, existing } = defineProps<{

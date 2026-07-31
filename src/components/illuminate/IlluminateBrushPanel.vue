@@ -84,7 +84,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconChevronRight } from "@/lib/icons";
-import type { BrushState, BrushType, PressureTarget } from "@/lib/brushMask";
+import type { BrushState, BrushType, PressureTarget } from "@/lib/illuminate/brushMask";
 
 const {
   brush,

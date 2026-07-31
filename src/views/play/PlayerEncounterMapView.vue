@@ -108,7 +108,7 @@ import { useMapCanvas } from "@/composables/useMapCanvas";
 import { useAuthStore } from "@/stores/auth";
 import BattleMapTokenLayer from "@/components/encounters/BattleMapTokenLayer.vue";
 import BattleMapFogLayer from "@/components/encounters/BattleMapFogLayer.vue";
-import { decodeFogMask } from "@/lib/fogMask";
+import { decodeFogMask } from "@/lib/battlemap/fogMask";
 import { DEFAULT_GRID_OPACITY } from "@/types/location.types";
 import { useCampaignStore } from "@/stores/campaign";
 import type { RunCombatant } from "@/types/encounter.types";
@@ -117,7 +117,7 @@ import {
   gridLinePositions,
   cellSizeInDisplay,
   gridOriginInDisplay,
-} from "@/lib/battleMapGeometry";
+} from "@/lib/battlemap/battleMapGeometry";
 
 const router = useRouter();
 

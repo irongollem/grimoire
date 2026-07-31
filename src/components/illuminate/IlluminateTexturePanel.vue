@@ -102,7 +102,7 @@ import {
   BLEND_MODE_LABELS,
   type TextureBlendMode,
   type TextureOverlayOptions,
-} from "@/lib/textureOverlay";
+} from "@/lib/illuminate/textureOverlay";
 
 type TextureState = Omit<TextureOverlayOptions, "enabled">;
 type TextureNumericField = "opacity" | "scale";

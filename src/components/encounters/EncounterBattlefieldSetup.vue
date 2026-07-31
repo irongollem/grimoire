@@ -108,13 +108,13 @@
 import { computed, watch } from "vue";
 import { useLocation } from "@/composables/useLocations";
 import { useMapCanvas } from "@/composables/useMapCanvas";
-import { sizeToFootprint } from "@/lib/tokenFootprint";
+import { sizeToFootprint } from "@/lib/battlemap/tokenFootprint";
 import { DEFAULT_GRID_OPACITY } from "@/types/location.types";
 import {
   cellSizeInDisplay,
   gridLinePositions,
   gridOriginInDisplay,
-} from "@/lib/battleMapGeometry";
+} from "@/lib/battlemap/battleMapGeometry";
 import BattleMapTokenLayer from "@/components/encounters/BattleMapTokenLayer.vue";
 import type { CombatantDef, FactionDef, RunCombatant } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";

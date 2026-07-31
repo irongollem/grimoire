@@ -96,7 +96,7 @@
 
 <script setup lang="ts">
 import { IconChevronRight } from "@/lib/icons";
-import type { DofBlurOptions, FalloffCurve } from "@/lib/dofBlur";
+import type { DofBlurOptions, FalloffCurve } from "@/lib/illuminate/dofBlur";
 
 type DofNumericField = "focusRadius" | "blurStrength" | "desaturation";
 

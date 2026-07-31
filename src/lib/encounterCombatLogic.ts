@@ -9,7 +9,7 @@
 import { rollDie } from "@/lib/dice";
 import { initiativeModifier } from "@/lib/combatantSort";
 import { hitPointsToMax } from "@/lib/dice";
-import { sizeToFootprint } from "@/lib/tokenFootprint";
+import { sizeToFootprint } from "@/lib/battlemap/tokenFootprint";
 import type { RunCombatant, EventTrigger } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
 import type { Npc } from "@/types/npc.types";

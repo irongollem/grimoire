@@ -90,7 +90,7 @@
 
 <script setup lang="ts">
 import { IconChevronRight } from "@/lib/icons";
-import type { VignetteOptions, VignetteMode } from "@/lib/vignette";
+import type { VignetteOptions, VignetteMode } from "@/lib/illuminate/vignette";
 
 type VignetteNumericField = "strength" | "softness";
 

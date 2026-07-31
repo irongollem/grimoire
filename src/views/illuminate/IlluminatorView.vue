@@ -133,33 +133,33 @@ import {
   DEFAULT_EDGE_TREATMENT,
   type EdgeTreatmentOptions,
   type EdgeOptions,
-} from "@/lib/edgeTreatment";
+} from "@/lib/illuminate/edgeTreatment";
 import {
   applyColourGrading,
   DEFAULT_COLOUR_GRADING,
   type ColourGradingOptions,
-} from "@/lib/colourGrading";
+} from "@/lib/illuminate/colourGrading";
 import {
   applyVignette,
   DEFAULT_VIGNETTE,
   type VignetteOptions,
-} from "@/lib/vignette";
+} from "@/lib/illuminate/vignette";
 import {
   applyDofBlur,
   drawFocalCrosshair,
   DEFAULT_DOF_BLUR,
   type DofBlurOptions,
-} from "@/lib/dofBlur";
+} from "@/lib/illuminate/dofBlur";
 import {
   applyTextureOverlay,
   DEFAULT_TEXTURE_OVERLAY,
   type TextureOverlayOptions,
-} from "@/lib/textureOverlay";
+} from "@/lib/illuminate/textureOverlay";
 import {
   createBrushMaskController,
   DEFAULT_BRUSH_STATE,
   type BrushState,
-} from "@/lib/brushMask";
+} from "@/lib/illuminate/brushMask";
 
 // ─── State ────────────────────────────────────────────────────────────────────
 

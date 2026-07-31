@@ -22,8 +22,8 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
 import { drawToken, type TokenEntity } from "@/lib/tokenRenderer";
-import { sizeToFootprint } from "@/lib/tokenFootprint";
-import { cellToPixel, snapPixelToCell } from "@/lib/tokenSnap";
+import { sizeToFootprint } from "@/lib/battlemap/tokenFootprint";
+import { cellToPixel, snapPixelToCell } from "@/lib/battlemap/tokenSnap";
 import {
   DEFAULT_FACTIONS,
   type FactionDef,

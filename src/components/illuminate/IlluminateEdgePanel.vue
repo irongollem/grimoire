@@ -80,7 +80,7 @@
 
 <script setup lang="ts">
 import { IconChevronRight } from "@/lib/icons";
-import type { EdgeTreatmentOptions } from "@/lib/edgeTreatment";
+import type { EdgeTreatmentOptions } from "@/lib/illuminate/edgeTreatment";
 
 const EDGE_KEYS = ["top", "right", "bottom", "left"] as const;
 type EdgeKey = typeof EDGE_KEYS[number];

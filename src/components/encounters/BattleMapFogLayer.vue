@@ -10,7 +10,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref, watch } from "vue";
-import type { CellKey } from "@/lib/fogMask";
+import type { CellKey } from "@/lib/battlemap/fogMask";
 
 const {
   hostW,
