@@ -383,7 +383,7 @@ import { useCampaigns } from "@/composables/useCampaigns";
 import { useCampaignStore } from "@/stores/campaign";
 import { storeToRefs } from "pinia";
 import { useCreateScriptoriumDocument } from "@/composables/useScriptorium";
-import { formatItemForScriptorium } from "@/lib/scriptoriumImport";
+import { formatItemForScriptorium } from "@/lib/scriptorium/scriptoriumImport";
 import WeightInput from "@/components/common/WeightInput.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";

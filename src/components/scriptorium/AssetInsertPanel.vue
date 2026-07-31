@@ -134,7 +134,7 @@ import {
   formatMonsterForScriptorium,
   formatSpellForScriptorium,
   formatLocationForScriptorium,
-} from "@/lib/scriptoriumImport";
+} from "@/lib/scriptorium/scriptoriumImport";
 import { SCHOOL_COLORS, spellLevelLabel } from "@/types/spell.types";
 import { LOCATION_TYPE_LABELS, LOCATION_TYPE_COLORS } from "@/types/location.types";
 import type { ScriptoriumTheme } from "@/types/scriptorium.types";

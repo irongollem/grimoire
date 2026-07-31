@@ -301,7 +301,7 @@ import { computed } from "vue";
 import { SKILLS, type PartyMember, type SkillProficiencies } from "@/types/party.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import { getCastingAbility } from "@/types/spell.types";
-import { tiptapToPlainText } from "@/lib/tiptapText";
+import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
 import type { SheetPageSize, SheetTheme } from "@/composables/useCharacterSheetPdf";
 
 // acBonus is passed in (not derived here) because this component is also

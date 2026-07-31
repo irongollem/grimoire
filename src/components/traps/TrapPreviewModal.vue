@@ -160,7 +160,7 @@
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import { IconClose, IconEdit } from '@/lib/icons';
-import { renderTiptapHtml } from "@/lib/renderTiptap";
+import { renderTiptapHtml } from "@/lib/tiptap/renderTiptap";
 import FocalImage from "@/components/common/FocalImage.vue";
 import { TRAP_TYPE_COLORS } from "@/types/trap.types";
 import { crToXp } from "@/types/encounter.types";

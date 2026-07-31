@@ -203,7 +203,7 @@ import ScriptoriumEditorToolbar from "@/components/scriptorium/ScriptoriumEditor
 import ScriptoriumPreviewPane from "@/components/scriptorium/ScriptoriumPreviewPane.vue";
 import { isQuotaExceeded } from "@/lib/quotaError";
 import { useTextEnhancement } from "@/ai/useTextEnhancement";
-import { parseMarkdown } from "@/lib/markdownToTiptap";
+import { parseMarkdown } from "@/lib/tiptap/markdownToTiptap";
 import type { JSONContent } from "@tiptap/core";
 import type { ScriptoriumTemplateSettings } from "@/data/scriptoriumTemplates/types";
 import type { PageFurnitureItem, FurnitureKind, FurnitureAnchor } from "@/types/scriptorium.types";

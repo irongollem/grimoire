@@ -39,7 +39,7 @@ registerAiGenerator({
 // Re-exported for the many generator panels that import it from here;
 // the implementation lives in the pure lib module so Node/tsx scripts can
 // use it without dragging in supabase/Pinia module side effects.
-export { toTiptapJson } from "@/lib/markdownToTiptap";
+export { toTiptapJson } from "@/lib/tiptap/markdownToTiptap";
 
 export function useNpcGeneration() {
   const { ruleset } = useRuleset();

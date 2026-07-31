@@ -185,7 +185,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { renderTiptapHtml } from "@/lib/renderTiptap";
+import { renderTiptapHtml } from "@/lib/tiptap/renderTiptap";
 import { IconCheckCircle, IconCloseCircle, IconDiceRoll, IconListView } from '@/lib/icons';
 import PageHeader from "@/components/common/PageHeader.vue";
 import CraftAttemptDialog from "@/components/crafting/CraftAttemptDialog.vue";

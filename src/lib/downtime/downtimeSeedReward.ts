@@ -6,7 +6,7 @@ import type {
   DowntimeSeedNote,
   DowntimeSeedNpc,
 } from "@/types/downtime.types";
-import { markdownToTiptapJson } from "@/lib/markdownToTiptap";
+import { markdownToTiptapJson } from "@/lib/tiptap/markdownToTiptap";
 
 /**
  * Turn a system seed into a real, private, editable campaign row (#486, Phase 2).

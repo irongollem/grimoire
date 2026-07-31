@@ -207,7 +207,7 @@ import type { DieSize, RollResult } from "@/lib/dice/roller";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import type { Spell as SpellType } from "@/types/spell.types";
 import { useAuthStore } from "@/stores/auth";
-import { renderTiptapHtml } from "@/lib/renderTiptap";
+import { renderTiptapHtml } from "@/lib/tiptap/renderTiptap";
 
 const props = defineProps<{
   selectedId: string | null;

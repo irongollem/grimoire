@@ -261,7 +261,7 @@ import type { Spell, SpellSchool } from "@/types/spell.types";
 import { useCreateSpell, useUpdateSpell, useDeleteSpell } from "@/composables/useSpells";
 import { useUpsertLibrarySpellArt } from "@/composables/useLibrarySpellArt";
 import { useCreateScriptoriumDocument } from "@/composables/useScriptorium";
-import { formatSpellForScriptorium } from "@/lib/scriptoriumImport";
+import { formatSpellForScriptorium } from "@/lib/scriptorium/scriptoriumImport";
 import {
   adviseLevelRange,
   REFERENCE_SPELLS,

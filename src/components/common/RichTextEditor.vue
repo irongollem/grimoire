@@ -391,7 +391,7 @@ const ResizableImage = Image.extend({
     };
   },
 });
-import { parseMarkdown, looksLikeMarkdown, sanitizePasteText } from "@/lib/markdownToTiptap";
+import { parseMarkdown, looksLikeMarkdown, sanitizePasteText } from "@/lib/tiptap/markdownToTiptap";
 import { useTextEnhancement } from "@/ai/useTextEnhancement";
 import { IconAlignCenter, IconAlignLeft, IconAlignRight, IconCalendarDays, IconColumns, IconDelete, IconHighlight, IconImage, IconInsertColumn, IconInsertRow, IconLink, IconList, IconListOrdered, IconListTodo, IconLoadingAlt, IconMinus, IconQuote, IconRedo, IconTable, IconUnderline, IconUndo, IconWand } from '@/lib/icons';
 import TextAlign from "@tiptap/extension-text-align";

@@ -229,7 +229,7 @@ import { useAllMonsters } from "@/composables/useMonsters";
 import { useItems } from "@/composables/useItems";
 import { useEncounters } from "@/composables/useEncounters";
 import { useCreateScriptoriumDocument } from "@/composables/useScriptorium";
-import { formatQuestForScriptorium } from "@/lib/scriptoriumImport";
+import { formatQuestForScriptorium } from "@/lib/scriptorium/scriptoriumImport";
 import EntityEditorActionBar from "@/components/common/EntityEditorActionBar.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import EncounterLoot from "@/components/encounters/EncounterLoot.vue";

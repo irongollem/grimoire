@@ -29,7 +29,7 @@
 
 <script setup lang="ts">
 import { parseExpression } from "@/lib/dice/dice";
-import { renderTiptapHtml } from "@/lib/renderTiptap";
+import { renderTiptapHtml } from "@/lib/tiptap/renderTiptap";
 
 export interface TraitEntry {
   name: string;

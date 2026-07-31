@@ -133,7 +133,7 @@ import {
   type ChroniclerTone,
 } from "@/ai/useChroniclerTextGeneration";
 import { useEntityMentionItems } from "@/composables/useEntityMentionItems";
-import { markdownToTiptapJson } from "@/lib/markdownToTiptap";
+import { markdownToTiptapJson } from "@/lib/tiptap/markdownToTiptap";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAiCredits } from "@/composables/useAiCredits";
 import { useProviderConfig } from "@/composables/useProviderConfig";

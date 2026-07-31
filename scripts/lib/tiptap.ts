@@ -19,12 +19,12 @@
  * The merge engine still compares plain text on both sides — see the
  * `import-chapter-npcs.ts` design note for why that's the right call.
  *
- * Reuses the app's existing `parseMarkdown` from `src/lib/markdownToTiptap.ts`
+ * Reuses the app's existing `parseMarkdown` from `src/lib/tiptap/markdownToTiptap.ts`
  * (same converter the paste-handling pipeline uses).
  */
 
 // Relative path — `@/` alias isn't resolved at runtime for value imports.
-import { parseMarkdown } from "../../src/lib/markdownToTiptap";
+import { parseMarkdown } from "../../src/lib/tiptap/markdownToTiptap";
 
 /**
  * The doc node attrs the existing UI saves. `twoColumn: false` is the editor's

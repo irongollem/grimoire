@@ -271,7 +271,7 @@ import {
 } from "@/composables/useMonsters";
 import { useUpsertLibraryMonsterArt } from "@/composables/useLibraryMonsterArt";
 import { useCreateScriptoriumDocument } from "@/composables/useScriptorium";
-import { formatMonsterForScriptorium } from "@/lib/scriptoriumImport";
+import { formatMonsterForScriptorium } from "@/lib/scriptorium/scriptoriumImport";
 import type {
   Monster,
   MonsterType,
