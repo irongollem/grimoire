@@ -3,8 +3,8 @@
 Curated history of shipped features and resolved bugs, chunked by subsystem. This
 is a **log**, not a tracker: open work lives in GitHub issues on `irongollem/grimoire`.
 
-- **Features** (556 entries) — what shipped, newest first per file.
-- **Fixes** (295 entries) — resolved bugs, newest first per file.
+- **Features** (557 entries) — what shipped, newest first per file.
+- **Fixes** (296 entries) — resolved bugs, newest first per file.
 
 When you finish work, append a `- [x]` line to the matching file below
 (`features/<subsystem>.md` for a feature, `fixes/<subsystem>.md` for a bug fix).
@@ -15,7 +15,7 @@ Pick the subsystem the change is primarily about; use `misc` only as a last reso
 | Subsystem | Count | File |
 | --- | ---: | --- |
 | Campaign | 26 | [features/campaign.md](features/campaign.md) |
-| Collaboration | 7 | [features/collaboration.md](features/collaboration.md) |
+| Collaboration | 8 | [features/collaboration.md](features/collaboration.md) |
 | Player Portal | 46 | [features/players.md](features/players.md) |
 | Rules Reliquary | 20 | [features/rules.md](features/rules.md) |
 | Content & Import | 10 | [features/content.md](features/content.md) |
@@ -65,6 +65,6 @@ Pick the subsystem the change is primarily about; use `misc` only as a last reso
 | Database & Security | 15 | [fixes/database.md](fixes/database.md) |
 | AI Generation | 10 | [fixes/ai.md](fixes/ai.md) |
 | Billing | 5 | [fixes/billing.md](fixes/billing.md) |
-| Infrastructure | 12 | [fixes/infra.md](fixes/infra.md) |
+| Infrastructure | 13 | [fixes/infra.md](fixes/infra.md) |
 | Soundboard | 19 | [fixes/soundboard.md](fixes/soundboard.md) |
 | Miscellaneous | 1 | [fixes/misc.md](fixes/misc.md) |

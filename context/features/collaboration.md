@@ -97,7 +97,83 @@ The Campaign Settings view (`/campaign/settings`, `src/views/campaign/CampaignSe
 | **Classes**           | Campaign-specific custom class/archetype settings                                                                                                                                                                                                                               |
 | **AI Assistant**      | AI-related campaign configuration                                                                                                                                                                                                                                               |
 | **Spotify**           | Spotify integration for ambient music                                                                                                                                                                                                                                           |
-| **Danger Zone**       | Delete campaign (requires typing the campaign name to confirm; cascades to remove memberships and invites but does not delete notes/NPCs/etc.)                                                                                                                                  |
+| **Danger Zone**       | Transfer ownership to another member, and delete campaign (both require typing the campaign name to confirm; delete cascades to remove memberships and invites but does not delete notes/NPCs/etc.)                                                                             |
+
+## Campaign Ownership Transfer
+
+A DM can hand a campaign to any other member from **Settings → Danger Zone**
+(`src/components/campaign/TransferOwnershipPanel.vue`). They pick the new DM from the
+member list, optionally tick *"Leave the campaign as well"*, and type the campaign name
+to confirm — the same gate the delete flow uses, shared via
+`src/components/common/ConfirmByNameInput.vue`.
+
+**Why this is an RPC and not an `update campaigns set user_id`.** `campaigns.user_id` is
+only half of what ownership means here. Roughly forty campaign-scoped tables gate their
+RLS on `auth.uid() = user_id` rather than on `private.is_campaign_dm(campaign_id)` —
+notes, npcs, quests, locations, items, encounters, sounds, homebrew. Swapping the owner
+column alone hands over an empty shell: the new DM passes `is_campaign_dm()` but cannot
+read a single note, while the old DM keeps full read/write on all of it. So
+`transfer_campaign_ownership(p_campaign_id, p_new_owner_id, p_leave_campaign)`
+(`supabase/migrations/20260731000001_transfer_campaign_ownership.sql`) does the whole
+thing in one `SECURITY DEFINER` transaction — a half-applied transfer would lock both
+DMs out of the same campaign at once.
+
+What the RPC does, in order:
+
+1. **Authorizes.** Re-derives identity from `auth.uid()`; only the current owner may
+   transfer, never to themselves, and **the recipient must already be a member** — that
+   membership is the consent step, so a campaign cannot be pushed onto a stranger's
+   account id.
+2. **Clones the personal-library rows the campaign hydrates from.** `monsters`, `traps`,
+   `backgrounds` and `scriptorium_documents` have no `campaign_id` — they are
+   cross-campaign personal libraries — but the encounter runner resolves
+   `combatants[].monster_id` against `monsters`, character sheets resolve
+   `background_id`, and so on. They are copied under fresh ids into the new owner's
+   library (never moved: the outgoing DM's *other* campaigns may use the same rows).
+3. **Repoints every reference at the clones**, including the jsonb ones. Monster ids nest
+   at three different depths (`encounters.combatants`, `encounters.events[].actions[].spawns[]`,
+   `party_members.wildshape_state`), so those are substituted inside the serialized
+   document — a v4 uuid is globally unique, so a match anywhere in the document *is* that
+   reference. Note that these fields also hold shared SRD keys like `srd_dire_wolf`; only
+   well-formed uuids are candidates, or the cast raises `invalid input syntax for type uuid`.
+4. **Moves the campaign's content** — `user_id` is re-stamped on every campaign-scoped
+   table plus the FK children that carry a `user_id` but no `campaign_id` (`faction_*`,
+   `quest_triggers`, `store_items`). Every update is filtered on
+   `user_id = <outgoing DM>`, which is what leaves players' own rows alone.
+5. **Swaps the roles.** Order matters: `campaign_members_guard_self_update` waves a row
+   through only while `is_campaign_dm()` holds for `auth.uid()`, so the new owner is
+   promoted *before* the outgoing DM is demoted — the reverse order makes the trigger
+   reject the promotion as an illegal self role change. The new DM's `party_member_id` is
+   cleared, or their character would read as "taken" in the member list forever.
+6. **Updates the campaign row** — new `user_id`, and the four `*_api_key` columns are
+   nulled. `spotify_client_id` travels with the campaign (it is a public OAuth client id).
+
+What deliberately does **not** move: credit-spend records (`ai_generation_jobs`,
+`image_generation_jobs`), chat authorship (`campaign_messages`), personal annotations
+(`entity_notes`, including private ones), purchased minis, and per-user personal state
+(`player_*`, `session_availability`). `locations.source_map_id` and
+`puzzle_rooms.dungeon_feature_id` are nulled rather than cloned — they are deep-links
+into the outgoing DM's Cartographer workspace, a multi-row graph of its own, and a link
+the new owner cannot open is worse than no link.
+
+`monsters` and `scriptorium_documents` carry `BEFORE INSERT` quota triggers, and
+`check_quota()` counts `where user_id = auth.uid()` — the *caller's* rows. Left alone, an
+outgoing DM sitting at their free-plan monster cap could not hand their campaign over at
+all. `enforce_quota()` therefore honours a transaction-local `grimoire.bypass_quota` flag
+that only this function sets; quotas gate creation, and a transfer creates nothing new.
+The flag is not reachable from a client (PostgREST exposes only `public`, and
+`set_config` lives in `pg_catalog`).
+
+Client side, `useTransferCampaignOwnership` invalidates the entire query cache — the
+caller just gave away read access to nearly every row they had cached — then the panel
+refreshes `auth.membership` before navigating, since the router guard reads the role that
+just changed underneath it. Staying on as a player lands on `/play`; leaving switches to
+another campaign (or clears the active one) and lands on `/dashboard`.
+
+**Co-DM is not supported**, and that is a scope decision rather than an oversight: making
+a second `role = 'dm'` actually see anything means adding `OR private.is_campaign_dm(campaign_id)`
+to roughly 160 policies across those ~40 owner-gated tables. Transfer sidesteps that
+entirely by re-stamping ownership instead. See #180.
 
 ## Join Flow (Player Experience)
 

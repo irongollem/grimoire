@@ -1,5 +1,7 @@
 <template>
-  <div class="max-w-lg">
+  <div class="max-w-lg space-y-6">
+    <TransferOwnershipPanel />
+
     <div class="border border-destructive/40 rounded-lg p-5 space-y-4">
       <p class="text-label-lg font-semibold text-destructive">DELETE CAMPAIGN</p>
       <p class="text-body text-muted-foreground">
@@ -50,16 +52,7 @@
         </div>
       </div>
 
-      <p class="text-eyebrow font-semibold text-muted-foreground">
-        TYPE <span class="text-foreground">{{ campaign?.name }}</span> TO CONFIRM
-      </p>
-      <input
-        v-model="deleteConfirmInput"
-        type="text"
-        autocomplete="off"
-        :placeholder="campaign?.name ?? ''"
-        class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-destructive"
-      />
+      <ConfirmByNameInput v-model="deleteConfirmInput" :name="campaign?.name ?? ''" />
       <button
         type="button"
         :disabled="!canDelete || isDeleting"
@@ -77,6 +70,8 @@ import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useCampaignStore } from "@/stores/campaign";
 import { useDeleteCampaign, useCampaigns, useCampaignScopedHomebrewCounts } from "@/composables/useCampaigns";
+import TransferOwnershipPanel from "@/components/campaign/TransferOwnershipPanel.vue";
+import ConfirmByNameInput from "@/components/common/ConfirmByNameInput.vue";
 import {
   hasScopedHomebrew,
   summarizeHomebrewCounts,

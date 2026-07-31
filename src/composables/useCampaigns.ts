@@ -127,6 +127,36 @@ export async function disposeHomebrewAndDeleteCampaign(
   if (error) throw error;
 }
 
+/**
+ * Hands a campaign to another of its members, permanently.
+ *
+ * Routed through the `transfer_campaign_ownership` SECURITY DEFINER RPC
+ * (see `supabase/migrations/20260731000001_transfer_campaign_ownership.sql`)
+ * because "who owns a campaign" is not one column. Roughly forty campaign-scoped
+ * tables gate their RLS on `auth.uid() = user_id` rather than on
+ * `is_campaign_dm(campaign_id)`, so a transfer has to re-stamp `user_id` across
+ * all of them, clone the personal-library rows the campaign hydrates from
+ * (monsters, traps, backgrounds, scriptorium docs), and swap the two
+ * `campaign_members` roles. Half of that applied is worse than none of it: the
+ * outgoing DM would keep read/write on content the new DM cannot see. One
+ * PL/pgSQL body = one transaction = all or nothing.
+ *
+ * `leaveCampaign` decides what happens to the outgoing DM: `false` demotes them
+ * to a player (they stay in the group), `true` removes their membership.
+ */
+export async function transferCampaignOwnership(
+  campaignId: string,
+  newOwnerId: string,
+  leaveCampaign: boolean,
+): Promise<void> {
+  const { error } = await supabase.rpc("transfer_campaign_ownership", {
+    p_campaign_id: campaignId,
+    p_new_owner_id: newOwnerId,
+    p_leave_campaign: leaveCampaign,
+  });
+  if (error) throw error;
+}
+
 /** Assigns all orphaned rows (campaign_id IS NULL) owned by the current user to the given campaign. */
 async function claimOrphanedData(campaignId: string): Promise<void> {
   const user = getCurrentUser();
@@ -218,6 +248,29 @@ export function useDeleteCampaign() {
       queryClient.invalidateQueries({ queryKey: ["custom_subclasses"] });
       queryClient.invalidateQueries({ queryKey: ["class_features"] });
     },
+    onError: (e) => toast.error(toast.fromError(e)),
+  });
+}
+
+/** Hands the campaign to another member — see {@link transferCampaignOwnership}. */
+export function useTransferCampaignOwnership() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: ({
+      campaignId,
+      newOwnerId,
+      leaveCampaign,
+    }: {
+      campaignId: string;
+      newOwnerId: string;
+      leaveCampaign: boolean;
+    }) => transferCampaignOwnership(campaignId, newOwnerId, leaveCampaign),
+    // The caller just gave away read access to nearly every row they had cached
+    // for this campaign. Naming the affected keys would mean naming ~40 of them
+    // and silently rotting the moment a new one is added, so drop the lot and
+    // let the post-transfer navigation refetch what the caller can still see.
+    onSuccess: () => queryClient.invalidateQueries(),
     onError: (e) => toast.error(toast.fromError(e)),
   });
 }

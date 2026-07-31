@@ -2,6 +2,8 @@
 
 Shipped features in the **Collaboration** area, newest first. Part of the Grimoire feature log — see the [log index](../index.md).
 
+- [x] **Campaign ownership transfer** — DM hands campaign to any member (Settings → Danger Zone), transfers all ~40 campaign-scoped tables + FK children, clones personal-library rows (monsters/traps/backgrounds/Scriptorium docs) with nested jsonb repointing, swaps campaign_members roles, clears BYOK keys — one SECURITY DEFINER transaction ensuring no half-state lockouts. Co-DM deferred as scope-out due to ~160-policy RLS rewrite needed.
+
 - [x] **Unified player sharing pattern** — refactored Atlas, Quests, Factions, and Workshop (Crafting) to use the same `PlayerVisibilityToggle` component and DB pattern (`shared_with_players` + `player_visible_to`); replaced Crafting's grant-table system with the per-player visibility column approach; NPCs already implemented this pattern
 
 - [x] **Entity notes** — generic `entity_notes` table keyed by `entity_type + entity_id`; private (author only) or party-shared notes on any entity; shown on faction detail board
