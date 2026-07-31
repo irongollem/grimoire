@@ -30,7 +30,7 @@
 
     <!-- Effect picker (visible while playing) -->
     <SoundEffectPicker
-      v-if="audioState.isPlaying"
+      v-if="audioState.isPlaying && !soundboardStore.directOutput"
       :model-value="soundboardStore.soundEffects?.[sound.id] ?? 'none'"
       @update:model-value="soundboardStore.setEffect(sound.id, sound.file_url, $event, sound.category)"
     />
@@ -40,6 +40,7 @@
       class="flex-1"
       wide
       show-percent
+      :disabled-reason="soundboardStore.volumeControlNote"
       :model-value="audioState.volume"
       @update:model-value="soundboardStore.setVolume(sound.id, $event)"
     />

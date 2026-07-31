@@ -8,6 +8,8 @@ import type {
   PlaylistType,
 } from "@/types/sound.types";
 import { getAudioEngine, type AudioBus } from "@/lib/audioEngine";
+import { isVolumeSettable } from "@/lib/audioDirectOutput";
+import { getDirectOutputEnabled, setDirectOutputEnabled } from "@/lib/audioOutputPrefs";
 import { createSceneGeneratorPool } from "@/lib/sceneGenerators";
 import {
   getInstance,
@@ -141,6 +143,73 @@ export const useSoundboardStore = defineStore("soundboard", () => {
   // behind a door"; this answers "the party is in a cave", where everything
   // audible should be in the cave rather than one selected track.
   const masterEffect = ref<AudioEffectPreset>("none");
+
+  // ── Output mode ─────────────────────────────────────────────────────────
+  //
+  // Direct output bypasses the Web Audio graph to dodge WebKit bug 221334,
+  // which drops audio out every few seconds over CarPlay and Bluetooth.
+  // `audioDirectOutput.ts` has the full reasoning and the trade.
+
+  const directOutput = ref(getDirectOutputEnabled());
+  engine.setDirectMode(directOutput.value);
+
+  /**
+   * Whether the faders in the UI actually do anything right now.
+   *
+   * False on iOS in direct output: Apple does not allow JS to set an element's
+   * volume there, so master, bus and per-sound levels are the device's to
+   * control. The UI reads this to say so rather than offering sliders that
+   * move and change nothing.
+   */
+  const volumeControlAvailable = computed(
+    () => !directOutput.value || isVolumeSettable(),
+  );
+
+  /**
+   * Why the faders are unavailable, or null when they work.
+   *
+   * The copy lives here rather than in each surface so the mixer, the scene
+   * layers and the sound cards all give the same explanation — there are four
+   * places showing a `VolumeSlider` and a DM should not get four answers.
+   */
+  const volumeControlNote = computed(() =>
+    volumeControlAvailable.value
+      ? null
+      : "Direct output is on and this device reserves volume for its hardware controls — use the car or device dial.",
+  );
+
+  /**
+   * Switch output modes, rebuilding every audio element on the way.
+   *
+   * The rebuild is not optional. `createMediaElementSource()` may only be
+   * called once per element and cannot be undone, so an element that has been
+   * through the graph can never be played directly again — the only way back
+   * is a fresh element. Everything stops first, because destroying an element
+   * mid-playback is how you get a stuck `isPlaying` and no way to clear it.
+   */
+  function setDirectOutput(enabled: boolean): void {
+    if (directOutput.value === enabled) return;
+
+    stopAll();
+    // Snapshot the ids first: destroyAudio deletes from the same map.
+    const ids: string[] = [];
+    forEachInstance((_el, id) => ids.push(id));
+    ids.forEach((id) => {
+      engine.detach(id);
+      destroyAudio(id);
+      forgetGeneration(id);
+    });
+
+    directOutput.value = enabled;
+    setDirectOutputEnabled(enabled);
+    engine.setDirectMode(enabled);
+
+    // The new mode starts at unity — hand it the levels the DM already set.
+    engine.setMasterVolume(masterVolume.value, 0);
+    (Object.keys(busVolumes.value) as AudioBus[]).forEach((bus) =>
+      engine.setBusVolume(bus, busVolumes.value[bus], 0),
+    );
+  }
 
   // Number of currently playing sounds — used for badge
   const playingCount = computed(
@@ -1154,6 +1223,10 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     masterVolume,
     busVolumes,
     masterEffect,
+    directOutput,
+    volumeControlAvailable,
+    volumeControlNote,
+    setDirectOutput,
     getState,
     play,
     restart,

@@ -8,6 +8,19 @@
       <span>Casting plays the original audio. Mixer levels, effects, fades, and ducking do not apply.</span>
     </p>
 
+    <!-- Same shape as the casting notice, and for the same reason: the mixer is
+         where a DM looks when the sound is not doing what the faders say. -->
+    <p
+      v-if="store.directOutput"
+      class="flex w-full items-start gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-2xs text-amber-500"
+    >
+      <IconWarning class="mt-0.5 h-3 w-3 shrink-0" />
+      <span>
+        Direct output is on to stop CarPlay and Bluetooth stuttering. Atmosphere presets and reverb
+        are unavailable{{ store.volumeControlAvailable ? "" : ", and this device keeps volume on its own hardware controls" }}.
+      </span>
+    </p>
+
     <!-- Collapsible header — only used in the floating widget, where space is tight. -->
     <button
       v-if="collapsible"
@@ -32,11 +45,15 @@
           label="Master"
           wide
           show-percent
+          :disabled-reason="store.volumeControlNote"
           :model-value="store.masterVolume"
           @update:model-value="store.setMasterVolume($event)"
         />
-        <!-- Puts the whole mix in a space, rather than one selected track. -->
+        <!-- Puts the whole mix in a space, rather than one selected track.
+             Direct output has no graph to put anything in, so the control goes
+             rather than sitting there doing nothing. -->
         <SoundEffectPicker
+          v-if="!store.directOutput"
           :model-value="store.masterEffect"
           @update:model-value="store.setMasterEffect($event)"
         />
@@ -57,6 +74,7 @@
         wide
         show-percent
         :muted="store.masterVolume === 0"
+        :disabled-reason="store.volumeControlNote"
         :model-value="store.busVolumes[bus.id]"
         @update:model-value="store.setBusVolume(bus.id, $event)"
       />
@@ -74,7 +92,10 @@
         @click="showSettings = true"
       >
         <IconSettings class="h-3 w-3 shrink-0" />
-        <span>Triggers {{ audioTriggersEnabled ? "on" : "off" }} · Sharing {{ broadcasting ? "on" : "off" }}</span>
+        <span>
+          Triggers {{ audioTriggersEnabled ? "on" : "off" }} · Sharing {{ broadcasting ? "on" : "off" }}
+          · Output {{ store.directOutput ? "direct" : "mixer" }}
+        </span>
       </button>
 
       <p v-if="broadcastError" class="w-full text-2xs text-destructive">

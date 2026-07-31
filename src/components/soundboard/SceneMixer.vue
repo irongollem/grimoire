@@ -62,6 +62,7 @@
             wide
             show-percent
             :accent="scene.generators[id] ? 'gold' : 'green'"
+            :disabled-reason="store.volumeControlNote"
             :model-value="layerVolume(scene, id)"
             @update:model-value="store.setLayerVolume(id, $event)"
           />

@@ -105,6 +105,34 @@
                 {{ broadcastError }}
               </p>
             </div>
+
+            <div class="space-y-1.5">
+              <label class="flex cursor-pointer select-none items-start gap-2.5">
+                <input
+                  type="checkbox"
+                  class="mt-0.5 h-4 w-4 shrink-0 accent-gold-500"
+                  :checked="store.directOutput"
+                  @change="store.setDirectOutput(($event.target as HTMLInputElement).checked)"
+                />
+                <span>
+                  <span class="block font-cinzel text-body-sm text-foreground">
+                    Direct output — fixes stuttering over CarPlay and Bluetooth
+                  </span>
+                  <span class="mt-0.5 block text-caption text-muted-foreground">
+                    Safari has an open bug that drops audio out every few seconds on wireless
+                    routes. Turning this on sends sound straight to the device instead of through
+                    our mixer, which sidesteps it. The cost: no atmosphere presets, no reverb, and
+                    on iPhone and iPad no faders or crossfades either — Apple reserves the volume
+                    for the hardware buttons, so the car's own dial becomes the only control.
+                    Worth it in the car, not at the table.
+                  </span>
+                </span>
+              </label>
+              <p class="pl-6.5 text-caption text-muted-foreground">
+                Switching stops everything that is playing — the audio has to be rebuilt to change
+                route.
+              </p>
+            </div>
           </div>
 
           <div class="flex justify-end border-t border-border px-5 py-3">
@@ -127,6 +155,7 @@ import { IconClose, IconSettings } from "@/lib/icons";
 import { useHotkeys } from "@/composables/useHotkeys";
 import { useAudioTriggerPrefs } from "@/composables/useAudioThemeTriggers";
 import { useSoundboardBroadcast } from "@/composables/useSoundboardBroadcast";
+import { useSoundboardStore } from "@/stores/soundboard";
 import { useUiStore } from "@/stores/ui";
 
 const PAD_SIZES = [
@@ -147,6 +176,7 @@ const { open } = defineProps<{ open: boolean }>();
 const emit = defineEmits<{ (e: "close"): void }>();
 
 const ui = useUiStore();
+const store = useSoundboardStore();
 const { audioTriggersEnabled, setAudioTriggersEnabled } = useAudioTriggerPrefs();
 const { broadcasting, broadcastError, setBroadcasting } = useSoundboardBroadcast();
 

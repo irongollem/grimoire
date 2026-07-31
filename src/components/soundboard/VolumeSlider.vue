@@ -12,17 +12,20 @@
       min="0"
       max="1"
       step="0.02"
-      class="h-1 shrink-0 min-w-0"
+      class="h-1 shrink-0 min-w-0 disabled:cursor-not-allowed disabled:opacity-40"
       :class="[wide ? 'flex-1' : compact ? 'w-10' : 'w-16', ACCENT_CLASS[accent]]"
       :value="modelValue"
       :aria-label="label ? `${label} volume` : 'Volume'"
+      :disabled="!!disabledReason"
+      :title="disabledReason || undefined"
       @input="onInput"
     />
     <span
       v-if="showPercent"
-      class="text-2xs text-muted-foreground tabular-nums shrink-0 w-8 text-right"
+      class="text-2xs tabular-nums shrink-0 w-8 text-right"
+      :class="disabledReason ? 'text-muted-foreground/40' : 'text-muted-foreground'"
     >
-      {{ Math.round(modelValue * 100) }}
+      {{ disabledReason ? "—" : Math.round(modelValue * 100) }}
     </span>
   </div>
 </template>
@@ -56,6 +59,7 @@ const {
   compact = false,
   muted = false,
   accent = "gold",
+  disabledReason = null,
 } = defineProps<{
   modelValue: number;
   /** Shown ahead of the track, and used as the accessible name. */
@@ -70,6 +74,15 @@ const {
   muted?: boolean;
   /** Category colour, or green for Spotify's own branding. */
   accent?: keyof typeof ACCENT_CLASS;
+  /**
+   * Why this level cannot be changed right now, or null when it can.
+   *
+   * Set for every fader that drives the audio engine, so direct output on iOS
+   * shows a disabled control with an explanation instead of one that slides
+   * and silently does nothing. Spotify's fader goes through its own Web API
+   * and keeps working, so it never passes this.
+   */
+  disabledReason?: string | null;
 }>();
 
 const emit = defineEmits<{ "update:modelValue": [value: number] }>();

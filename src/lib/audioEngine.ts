@@ -28,6 +28,7 @@
 // bound functions; there is only ever one graph per page.
 
 import { getAudioContext, resumeExistingAudioContext } from "@/lib/audioContext";
+import * as direct from "@/lib/audioDirectOutput";
 import type { AudioEffectPreset } from "@/types/sound.types";
 
 export type AudioBus = "music" | "ambient" | "effects";
@@ -35,6 +36,17 @@ export type AudioBus = "music" | "ambient" | "effects";
 export interface AudioEngine {
   /** False when Web Audio is unavailable (no AudioContext) — every other method is then a safe no-op. */
   readonly available: boolean;
+  /** True while playback bypasses the Web Audio graph entirely. See `audioDirectOutput.ts`. */
+  readonly directMode: boolean;
+  /**
+   * Switch between graph output and direct element output.
+   *
+   * Must be set before anything is attached: `createMediaElementSource()` may
+   * only ever be called once per element and is irreversible, so an element
+   * that has been through the graph can never be handed back to direct output.
+   * Callers switching mid-session have to destroy their elements and rebuild.
+   */
+  setDirectMode(enabled: boolean): void;
   /** Build (or idempotently reuse) a sound's chain and route it into `bus`. */
   attach(soundId: string, el: HTMLAudioElement, bus: AudioBus): void;
   /** Disconnect and forget a sound's chain. Safe to call even if never attached. */
@@ -264,6 +276,26 @@ function getImpulseResponse(ctx: AudioContext, seconds: number): AudioBuffer {
 
 let graph: BusGraph | null = null;
 
+/**
+ * When true every public method below delegates to `audioDirectOutput` and the
+ * bus graph is never built. Opt-in, because it trades the graph-only features
+ * away to dodge an open WebKit bug — that module's header has the full story.
+ */
+let directMode = false;
+
+function setDirectMode(enabled: boolean): void {
+  if (directMode === enabled) return;
+  directMode = enabled;
+  if (enabled) {
+    // Leaving the graph: drop the per-sound chains so a later switch back
+    // rebuilds them against whatever elements exist then.
+    chains.forEach(teardownChain);
+    chains.clear();
+  } else {
+    direct.reset();
+  }
+}
+
 // Remembers each ducked bus's gain from just before duck() ran, so unduck()
 // restores exactly (and so a duck() while already ducked doesn't compound).
 let preDuckGains: Partial<Record<AudioBus, number>> | null = null;
@@ -370,6 +402,7 @@ function buildChain(ctx: AudioContext, busGraph: BusGraph, soundId: string, el: 
 // ── Public API ──────────────────────────────────────────────────────────────
 
 function attach(soundId: string, el: HTMLAudioElement, bus: AudioBus): void {
+  if (directMode) return direct.attach(soundId, el, bus);
   const ctx = getAudioContext();
   if (!ctx) return;
   const busGraph = ensureGraph(ctx);
@@ -403,6 +436,7 @@ function attach(soundId: string, el: HTMLAudioElement, bus: AudioBus): void {
 }
 
 function detach(soundId: string): void {
+  if (directMode) return direct.detach(soundId);
   const chain = chains.get(soundId);
   if (!chain) return;
   teardownChain(chain);
@@ -410,6 +444,7 @@ function detach(soundId: string): void {
 }
 
 function setSoundVolume(soundId: string, volume: number, rampMs = 0): void {
+  if (directMode) return direct.setSoundVolume(soundId, volume, rampMs);
   const ctx = getAudioContext();
   if (!ctx) return;
   const chain = chains.get(soundId);
@@ -419,6 +454,7 @@ function setSoundVolume(soundId: string, volume: number, rampMs = 0): void {
 }
 
 function setSoundTrim(soundId: string, trim: number): void {
+  if (directMode) return direct.setSoundTrim(soundId, trim);
   const ctx = getAudioContext();
   if (!ctx) return;
   const chain = chains.get(soundId);
@@ -428,6 +464,7 @@ function setSoundTrim(soundId: string, trim: number): void {
 }
 
 function setBusVolume(bus: AudioBus, volume: number, rampMs = 0): void {
+  if (directMode) return direct.setBusVolume(bus, volume, rampMs);
   const ctx = getAudioContext();
   if (!ctx) return;
   const busGraph = ensureGraph(ctx);
@@ -435,6 +472,7 @@ function setBusVolume(bus: AudioBus, volume: number, rampMs = 0): void {
 }
 
 function setMasterVolume(volume: number, rampMs = 0): void {
+  if (directMode) return direct.setMasterVolume(volume, rampMs);
   const ctx = getAudioContext();
   if (!ctx) return;
   const busGraph = ensureGraph(ctx);
@@ -442,6 +480,7 @@ function setMasterVolume(volume: number, rampMs = 0): void {
 }
 
 function fadeIn(soundId: string, ms: number): void {
+  if (directMode) return direct.fadeIn(soundId, ms);
   const ctx = getAudioContext();
   if (!ctx) return;
   const chain = chains.get(soundId);
@@ -450,6 +489,7 @@ function fadeIn(soundId: string, ms: number): void {
 }
 
 function fadeOut(soundId: string, ms: number): Promise<void> {
+  if (directMode) return direct.fadeOut(soundId, ms);
   const ctx = getAudioContext();
   if (!ctx) return Promise.resolve();
   const chain = chains.get(soundId);
@@ -459,6 +499,7 @@ function fadeOut(soundId: string, ms: number): Promise<void> {
 }
 
 function duck(attackMs = DEFAULT_DUCK_ATTACK_MS, depth = DEFAULT_DUCK_DEPTH): void {
+  if (directMode) return direct.duck(attackMs, depth);
   const ctx = getAudioContext();
   if (!ctx) return;
   const busGraph = ensureGraph(ctx);
@@ -476,6 +517,7 @@ function duck(attackMs = DEFAULT_DUCK_ATTACK_MS, depth = DEFAULT_DUCK_DEPTH): vo
 }
 
 function unduck(releaseMs = DEFAULT_DUCK_RELEASE_MS): void {
+  if (directMode) return direct.unduck(releaseMs);
   const ctx = getAudioContext();
   if (!ctx) return;
   const busGraph = ensureGraph(ctx);
@@ -500,7 +542,13 @@ function setReverbDecay(ctx: AudioContext, busGraph: BusGraph, seconds: number):
   if (busGraph.convolver.buffer !== wanted) busGraph.convolver.buffer = wanted;
 }
 
+// Filters, reverb and pan have no direct-output counterpart — they only exist
+// as graph nodes. They no-op rather than approximate: dropping the gain of a
+// "through a door" preset without its lowpass would just make the track quiet,
+// which is not the effect and is harder to diagnose than nothing happening.
+// The UI hides these controls in direct mode so the no-op is never a surprise.
 function setEffect(soundId: string, preset: AudioEffectPreset, rampMs = EFFECT_RAMP_MS_DEFAULT): void {
+  if (directMode) return;
   const ctx = getAudioContext();
   if (!ctx) return;
   const chain = chains.get(soundId);
@@ -520,6 +568,7 @@ function setEffect(soundId: string, preset: AudioEffectPreset, rampMs = EFFECT_R
 }
 
 function setBusEffect(bus: AudioBus, preset: AudioEffectPreset, rampMs = EFFECT_RAMP_MS_DEFAULT): void {
+  if (directMode) return;
   const ctx = getAudioContext();
   if (!ctx) return;
   const busGraph = ensureGraph(ctx);
@@ -530,6 +579,7 @@ function setBusEffect(bus: AudioBus, preset: AudioEffectPreset, rampMs = EFFECT_
 }
 
 function setMasterEffect(preset: AudioEffectPreset, rampMs = EFFECT_RAMP_MS_DEFAULT): void {
+  if (directMode) return;
   const ctx = getAudioContext();
   if (!ctx) return;
   const busGraph = ensureGraph(ctx);
@@ -545,6 +595,7 @@ function setMasterEffect(preset: AudioEffectPreset, rampMs = EFFECT_RAMP_MS_DEFA
 }
 
 function setPan(soundId: string, pan: number): void {
+  if (directMode) return;
   const ctx = getAudioContext();
   if (!ctx) return;
   const chain = chains.get(soundId);
@@ -565,8 +616,15 @@ export function getAudioEngine(): AudioEngine {
   if (!engineSingleton) {
     engineSingleton = {
       get available() {
-        return getAudioContext() !== null;
+        // True in direct mode regardless of Web Audio: the store routes level
+        // changes through the engine whenever this is true, and direct mode
+        // needs exactly that so it can own the element's volume.
+        return directMode || getAudioContext() !== null;
       },
+      get directMode() {
+        return directMode;
+      },
+      setDirectMode,
       attach,
       detach,
       setSoundVolume,

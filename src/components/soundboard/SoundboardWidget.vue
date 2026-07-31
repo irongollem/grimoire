@@ -223,11 +223,13 @@
               <p class="font-cinzel text-xs font-medium text-foreground truncate flex-1 min-w-0">{{ sound.name }}</p>
               <!-- Volume -->
               <VolumeSlider
+                :disabled-reason="store.volumeControlNote"
                 :model-value="store.getState(sound.id).volume"
                 @update:model-value="store.setVolume(sound.id, $event)"
               />
               <!-- Effect picker -->
               <SoundEffectPicker
+                v-if="!store.directOutput"
                 :model-value="store.soundEffects?.[sound.id] ?? 'none'"
                 @update:model-value="store.setEffect(sound.id, sound.file_url, $event, sound.category)"
               />

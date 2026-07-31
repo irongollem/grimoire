@@ -22,14 +22,19 @@ const engineCalls = {
   setEffect: vi.fn(),
   setPan: vi.fn<(soundId: string, pan: number) => void>(),
   resume: vi.fn(),
+  setDirectMode: vi.fn<(enabled: boolean) => void>(),
 };
 
 let engineAvailable = true;
+let engineDirectMode = false;
 
 vi.mock("@/lib/audioEngine", () => ({
   getAudioEngine: () => ({
     get available() {
       return engineAvailable;
+    },
+    get directMode() {
+      return engineDirectMode;
     },
     ...engineCalls,
   }),

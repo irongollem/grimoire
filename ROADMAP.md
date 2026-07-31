@@ -26,11 +26,12 @@
 | [Items & Workshop](docs/log/features/items.md)         |      45 |     | [AI Generation](docs/log/features/ai.md)                |      24 |
 | [Spells](docs/log/features/spells.md)                  |      34 |     | [Billing](docs/log/features/billing.md)                 |      33 |
 | [Factions](docs/log/features/factions.md)              |      10 |     | [Infrastructure](docs/log/features/infra.md)            |      13 |
-| [Encounters & Combat](docs/log/features/encounters.md) |      29 |     | [Soundboard](docs/log/features/soundboard.md)           |      23 |
+| [Encounters & Combat](docs/log/features/encounters.md) |      29 |     | [Soundboard](docs/log/features/soundboard.md)           |      24 |
 | [Quests](docs/log/features/quests.md)                  |       7 |     | [Miscellaneous](docs/log/features/misc.md)              |       1 |
 
 ## Latest features
 
+- Direct output — an escape hatch for CarPlay and Bluetooth stuttering — WebKit bug 221334 underruns the element… — [Soundboard](docs/log/features/soundboard.md)
 - Campaign ownership transfer (#180) — a DM can hand a campaign to any member; the RPC re-stamps `user_id` acros… — [Collaboration](docs/log/features/collaboration.md)
 - The board answers live use: designer round 2 plus a session's worth of field reports (#572, red… — [Soundboard](docs/log/features/soundboard.md)
 - Perform and Arrange: the card becomes a fire target, and Spotify stops pretending to be one (#5… — [Soundboard](docs/log/features/soundboard.md)
@@ -40,7 +41,6 @@
 - Shared playback: the DM can stream the music slot to remote players (#572 phase 6) — the market… — [Soundboard](docs/log/features/soundboard.md)
 - Ambient scenes stack instead of replacing each other (#572, phase 2 leftover) — `activeAmbientP… — [Soundboard](docs/log/features/soundboard.md)
 - Encounters and locations drive the audio, bound by theme label (#572 phase 5) — encounter runne… — [Soundboard](docs/log/features/soundboard.md)
-- Fire-by-search palette and a real hotkey registry (#572 phase 4) — buttons you can hit without … — [Soundboard](docs/log/features/soundboard.md)
 
 ---
 
