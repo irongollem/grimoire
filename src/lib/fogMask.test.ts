@@ -5,7 +5,7 @@ import {
   roundBrushCells,
   cellBrushCells,
   applyBrush,
-} from "./fogMask";
+} from "@/lib/fogMask";
 
 describe("encode / decode fog mask", () => {
   it("round-trips an empty set", () => {

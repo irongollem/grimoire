@@ -82,8 +82,8 @@ export interface AdvisorResult {
 }
 
 // ── Dice parser ───────────────────────────────────────────────────────────────
-export { parseDiceAvg } from "./dice";
-import { parseDiceAvg } from "./dice";
+export { parseDiceAvg } from "@/lib/dice";
+import { parseDiceAvg } from "@/lib/dice";
 
 // ── Damage → base level mapping ───────────────────────────────────────────────
 // Based on the 2024 DMG "Typical Damage by Level" for single-target attack/save spells.

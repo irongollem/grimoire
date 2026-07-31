@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { supabase } from "@/lib/supabase";
 
 // Session-scoped cache: encrypted blob → decrypted plaintext.
 // Avoids a cold edge function call every time switchToCampaign() fires

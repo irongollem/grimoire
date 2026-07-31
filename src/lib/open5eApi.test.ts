@@ -10,8 +10,8 @@ import {
   LEGACY_DOCUMENT_KEY_ALIASES,
   REDISTRIBUTABLE_LICENSE_KEYS,
   rulesetForDocument,
-} from "./open5eApi";
-import type { Open5eDocumentRef } from "./open5eApi";
+} from "@/lib/open5eApi";
+import type { Open5eDocumentRef } from "@/lib/open5eApi";
 
 afterEach(() => vi.unstubAllGlobals());
 

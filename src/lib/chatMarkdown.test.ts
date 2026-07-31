@@ -3,7 +3,7 @@
 // strip ALL tags, so this file runs under jsdom — which matches real-browser
 // behaviour, the only place these sinks actually render.
 import { describe, it, expect } from "vitest";
-import { renderChatMessage } from "./chatMarkdown";
+import { renderChatMessage } from "@/lib/chatMarkdown";
 
 describe("renderChatMessage", () => {
   it("strips event-handler attributes from chat HTML (stored XSS guard)", () => {

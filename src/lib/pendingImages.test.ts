@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findPendingImages } from "./pendingImages";
+import { findPendingImages } from "@/lib/pendingImages";
 
 describe("findPendingImages", () => {
   it("finds a top-level pendingImage node", () => {

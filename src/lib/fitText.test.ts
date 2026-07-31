@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeFit, type FitChild } from "./fitText";
+import { computeFit, type FitChild } from "@/lib/fitText";
 
 const child = (top: number, height: number, lineHeight = 10): FitChild => ({
   top,

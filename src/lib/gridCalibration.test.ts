@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { calibrateGrid } from "./gridCalibration";
+import { calibrateGrid } from "@/lib/gridCalibration";
 
 describe("calibrateGrid", () => {
   it("computes cells_per_image_width from a horizontal calibration line", () => {

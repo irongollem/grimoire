@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sizeToFootprint } from "./tokenFootprint";
+import { sizeToFootprint } from "@/lib/tokenFootprint";
 
 describe("sizeToFootprint", () => {
   it("treats Tiny / Small / Medium as 1×1", () => {

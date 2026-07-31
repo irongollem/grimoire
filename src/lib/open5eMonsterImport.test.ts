@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mapOpen5eV2Monster } from "./open5eMonsterImport";
+import { mapOpen5eV2Monster } from "@/lib/open5eMonsterImport";
 
 const document2024 = {
   key: "srd-2024",

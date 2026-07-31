@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { crColor, crToNumber } from "./monsterDisplay";
+import { crColor, crToNumber } from "@/lib/monsterDisplay";
 
 describe("crToNumber", () => {
   it("treats CR 0 as zero", () => {

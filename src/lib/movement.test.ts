@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseSpeed } from "./movement";
+import { parseSpeed } from "@/lib/movement";
 
 describe("parseSpeed", () => {
   it("returns [] for nullish/empty", () => {

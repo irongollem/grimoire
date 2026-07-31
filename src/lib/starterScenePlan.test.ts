@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { planStarterScenes } from "./starterScenePlan";
+import { planStarterScenes } from "@/lib/starterScenePlan";
 import type { StarterScene } from "@/data/starterScenes";
 
 const SETTINGS = {

@@ -1,5 +1,5 @@
 import { marked } from "marked";
-import { sanitizeHtml } from "./sanitizeHtml";
+import { sanitizeHtml } from "@/lib/sanitizeHtml";
 
 /**
  * Render a chat message's INLINE markdown (bold / italic / code only — no block

@@ -3,7 +3,7 @@ import {
   gridLinePositions,
   cellSizeInDisplay,
   gridOriginInDisplay,
-} from "./battleMapGeometry";
+} from "@/lib/battleMapGeometry";
 
 describe("gridLinePositions", () => {
   it("returns evenly-spaced positions covering the viewport when origin is at 0", () => {

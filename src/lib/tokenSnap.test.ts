@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { snapPixelToCell, cellToPixel } from "./tokenSnap";
+import { snapPixelToCell, cellToPixel } from "@/lib/tokenSnap";
 
 describe("snapPixelToCell", () => {
   it("snaps to the nearest cell anchor when dropping at an arbitrary canvas point", () => {

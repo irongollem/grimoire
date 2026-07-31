@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildStructuredSpellEffects, effectsForCast, resolveSpellEffects } from "./spellEffects";
+import { buildStructuredSpellEffects, effectsForCast, resolveSpellEffects } from "@/lib/spellEffects";
 
 const base = {
   attack_roll: false,

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchBackgrounds } from "./open5eBackgroundImport";
+import { fetchBackgrounds } from "@/lib/open5eBackgroundImport";
 
 afterEach(() => vi.unstubAllGlobals());
 

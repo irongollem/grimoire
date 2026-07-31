@@ -1,6 +1,6 @@
 import { generateHTML } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
-import { sanitizeHtml } from "./sanitizeHtml";
+import { sanitizeHtml } from "@/lib/sanitizeHtml";
 
 function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) =>

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { Router } from "vue-router";
-import { isChunkLoadError, installStaleChunkRecovery } from "./staleChunkRecovery";
+import { isChunkLoadError, installStaleChunkRecovery } from "@/lib/staleChunkRecovery";
 
 // Captures the hooks installStaleChunkRecovery registers so tests can fire
 // them directly, standing in for a real router.

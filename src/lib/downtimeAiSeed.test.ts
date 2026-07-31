@@ -4,7 +4,7 @@ import {
   effectsFromAi,
   rewardFromAi,
   seedFromAiResult,
-} from "./downtimeAiSeed";
+} from "@/lib/downtimeAiSeed";
 
 // The model's JSON is untrusted input. These tests pin the airlock's policy:
 // drop what we cannot honour, throw only on what we cannot do without.

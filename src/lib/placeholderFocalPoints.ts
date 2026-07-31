@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase } from '@/lib/supabase';
 
 type FocalPoint = { x: number; y: number };
 type FocalPointMap = Record<string, FocalPoint>;

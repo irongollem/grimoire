@@ -5,7 +5,7 @@ import {
   isLocalCiphertext,
   encryptLocalKey,
   decryptLocalKey,
-} from "./localKeyVault";
+} from "@/lib/localKeyVault";
 
 describe("localKeyVault", () => {
   beforeEach(() => {

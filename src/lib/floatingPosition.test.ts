@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeAnchoredPosition, type Rect } from "./floatingPosition";
+import { computeAnchoredPosition, type Rect } from "@/lib/floatingPosition";
 
 function rect(partial: Partial<Rect> & { top: number; left: number; width: number; height: number }): Rect {
   return {

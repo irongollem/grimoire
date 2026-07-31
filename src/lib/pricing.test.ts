@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { resolveAmount, availableCurrencies, formatCents, taxNote } from "./pricing";
+import { resolveAmount, availableCurrencies, formatCents, taxNote } from "@/lib/pricing";
 
 describe("resolveAmount — Stripe-truth price resolution", () => {
   it("returns null when no base amount is configured (so the UI shows '—', never a fake price)", () => {

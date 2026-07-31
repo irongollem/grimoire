@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { isTextEntryActive, createReloadCoordinator } from "./swAutoUpdate";
+import { isTextEntryActive, createReloadCoordinator } from "@/lib/swAutoUpdate";
 
 // jsdom's document, with controllable visibility.
 function setVisibility(state: "visible" | "hidden"): void {

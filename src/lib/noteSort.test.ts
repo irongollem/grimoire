@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { compareEntities, sortEntities, type SortableEntity } from "./noteSort";
+import { compareEntities, sortEntities, type SortableEntity } from "@/lib/noteSort";
 
 function entity(p: Partial<SortableEntity>): SortableEntity {
   return {

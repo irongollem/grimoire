@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sortCombatantsByInitiative, compareCombatantsByInitiative, initiativeModifier } from "./combatantSort";
+import { sortCombatantsByInitiative, compareCombatantsByInitiative, initiativeModifier } from "@/lib/combatantSort";
 import type { RunCombatant } from "@/types/encounter.types";
 
 function c(partial: Partial<RunCombatant> & Pick<RunCombatant, "instance_id">): RunCombatant {

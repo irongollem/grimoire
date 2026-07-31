@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import type { AudioEngine } from "./audioEngine";
+import type { AudioEngine } from "@/lib/audioEngine";
 
 // ── Minimal fake Web Audio graph ────────────────────────────────────────────
 //
@@ -148,7 +148,7 @@ async function loadEngine(ctx: FakeAudioContext | null): Promise<AudioEngine> {
       if (ctx?.state === "suspended") void ctx.resume();
     },
   }));
-  const mod = await import("./audioEngine");
+  const mod = await import("@/lib/audioEngine");
   return mod.getAudioEngine();
 }
 

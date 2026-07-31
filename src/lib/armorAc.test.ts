@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseArmorClass, armorAcFor, equippedArmorByMember, resolveBaseAc } from "./armorAc";
+import { parseArmorClass, armorAcFor, equippedArmorByMember, resolveBaseAc } from "@/lib/armorAc";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
 

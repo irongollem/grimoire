@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatNpcForScriptorium } from "./scriptoriumImport";
+import { formatNpcForScriptorium } from "@/lib/scriptoriumImport";
 import type { Npc } from "@/types/npc.types";
 
 function npc(overrides: Partial<Npc> = {}): Npc {

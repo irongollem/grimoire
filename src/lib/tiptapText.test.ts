@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { tiptapToPlainText } from "./tiptapText";
+import { tiptapToPlainText } from "@/lib/tiptapText";
 
 describe("tiptapToPlainText", () => {
   it("returns empty string for null/undefined/empty", () => {

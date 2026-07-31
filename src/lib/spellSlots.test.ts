@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { availableSlotsForSpell, canCastWithSlot, deriveEffectiveSpellSlots, reconcileSpellSlotUsage, spellSlotsFromProgression } from "./spellSlots";
+import { availableSlotsForSpell, canCastWithSlot, deriveEffectiveSpellSlots, reconcileSpellSlotUsage, spellSlotsFromProgression } from "@/lib/spellSlots";
 
 describe("spell slot eligibility", () => {
   it("allows a higher-level slot when base-level slots are exhausted", () => {

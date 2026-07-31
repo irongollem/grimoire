@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeSpellcastingByClass } from "./spellcastingByClass";
+import { computeSpellcastingByClass } from "@/lib/spellcastingByClass";
 import type { CharacterClass } from "@/types/multiclass.types";
 
 function classEntry(overrides: Partial<CharacterClass> = {}): CharacterClass {

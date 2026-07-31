@@ -3,7 +3,7 @@ import {
   drawToken,
   type TokenEntity,
   DEFAULT_TOKEN_RING_COLOR,
-} from "./tokenRenderer";
+} from "@/lib/tokenRenderer";
 
 // happy-dom's canvas.getContext("2d") returns null, so every test stubs a
 // recording ctx and patches HTMLCanvasElement.prototype.getContext. The stub

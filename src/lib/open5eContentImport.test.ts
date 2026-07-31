@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { mapOpen5eV2Feat } from "./open5eFeatImport";
-import { mapOpen5eV2Monster } from "./open5eMonsterImport";
-import { mapOpen5eV2Armor, mapOpen5eV2MagicItem, mapOpen5eV2Weapon } from "./open5eImport";
+import { mapOpen5eV2Feat } from "@/lib/open5eFeatImport";
+import { mapOpen5eV2Monster } from "@/lib/open5eMonsterImport";
+import { mapOpen5eV2Armor, mapOpen5eV2MagicItem, mapOpen5eV2Weapon } from "@/lib/open5eImport";
 
 const revisedDocument = {
   key: "srd-2024",

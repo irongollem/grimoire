@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatCombo, isMacPlatform, isTextEntryTarget, matchesCombo, parseCombo } from "./hotkeys";
+import { formatCombo, isMacPlatform, isTextEntryTarget, matchesCombo, parseCombo } from "@/lib/hotkeys";
 
 describe("parseCombo", () => {
   it("parses a bare key with no modifiers", () => {

@@ -6,8 +6,8 @@ import {
   parseAsi,
   parseTags,
   buildImportedFields,
-} from "./open5eSpeciesImport";
-import type { Open5eRace } from "./open5eSpeciesImport";
+} from "@/lib/open5eSpeciesImport";
+import type { Open5eRace } from "@/lib/open5eSpeciesImport";
 
 const document = {
   name: "System Reference Document 5.2",

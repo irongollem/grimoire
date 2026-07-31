@@ -3,7 +3,7 @@ import {
   itemInsertFromSeed,
   noteInsertFromSeed,
   npcInsertFromSeed,
-} from "./downtimeSeedReward";
+} from "@/lib/downtimeSeedReward";
 import { DOWNTIME_ACTIVITIES } from "@/data/downtimeActivities";
 import { DOWNTIME_SEEDS, seedsForActivity } from "@/data/downtimeSeeds";
 import type {

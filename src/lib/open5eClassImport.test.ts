@@ -5,8 +5,8 @@ import {
   fetchOpen5eBaseClasses,
   subclassImportUpdateFields,
   subclassToInsert,
-} from "./open5eClassImport";
-import type { Open5eClassPreview, Open5eSubclassPreview } from "./open5eClassImport";
+} from "@/lib/open5eClassImport";
+import type { Open5eClassPreview, Open5eSubclassPreview } from "@/lib/open5eClassImport";
 
 // `licenses` is not decoration: fetchSupported5eDocumentKeys() refuses any
 // document that lists none, so a fixture without them is silently dropped and

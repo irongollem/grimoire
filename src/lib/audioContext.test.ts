@@ -23,7 +23,7 @@ class FakeAudioContext {
 async function freshModule() {
   vi.resetModules();
   vi.stubGlobal("AudioContext", FakeAudioContext);
-  const mod = await import("./audioContext");
+  const mod = await import("@/lib/audioContext");
   const ctx = mod.getAudioContext() as unknown as FakeAudioContext;
   return { mod, ctx };
 }

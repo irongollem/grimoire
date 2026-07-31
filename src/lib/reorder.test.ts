@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { toReorderEntries, toRpcArrays } from "./reorder";
+import { toReorderEntries, toRpcArrays } from "@/lib/reorder";
 
 describe("toReorderEntries", () => {
   it("assigns 0-based sort_order by position, preserving input order", () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { MetamagicOption } from "@/lib/metamagic";
 import type { Spell } from "@/types/spell.types";
-import { isMetamagicEligible, metamagicReminders, metamagicTargetBonus } from "./metamagicPolicy";
+import { isMetamagicEligible, metamagicReminders, metamagicTargetBonus } from "@/lib/metamagicPolicy";
 
 // Eligibility only keys on the option's identity; cost/description live in the
 // metamagic_options table seed (migration 20260720000043).

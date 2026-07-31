@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { createSceneGeneratorPool, type SceneGeneratorConfig } from "./sceneGenerators";
+import { createSceneGeneratorPool, type SceneGeneratorConfig } from "@/lib/sceneGenerators";
 
 /**
  * A generator is timers plus randomness, so both are pinned here: fake timers

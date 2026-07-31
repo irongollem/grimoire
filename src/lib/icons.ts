@@ -252,9 +252,9 @@ export { Layers as IconLayers }
 // repointing them never disturbs the shared Lucide icons used elsewhere. Source
 // art + pipeline live in art-src/nav-campaign/. Swap one by re-running the
 // generator and the matching NAV_GLYPHS entry updates here automatically.
-import { glyph } from "./glyph";
-import { NAV_GLYPHS } from "./navGlyphs.generated";
-import { NAV_GLYPHS as ASSET_GLYPHS } from "./navGlyphs.assets.generated";
+import { glyph } from "@/lib/glyph";
+import { NAV_GLYPHS } from "@/lib/navGlyphs.generated";
+import { NAV_GLYPHS as ASSET_GLYPHS } from "@/lib/navGlyphs.assets.generated";
 export const IconNavDashboard = glyph(NAV_GLYPHS.dashboard);
 export const IconNavNotes = glyph(NAV_GLYPHS.notes);
 export const IconNavCalendar = glyph(NAV_GLYPHS.calendar);
@@ -291,7 +291,7 @@ export const IconNavCartographer = glyph(ASSET_GLYPHS.cartographer);
 // Hand-drawn, vectorized icons for the Workshop's crafting disciplines, in the
 // same style as the nav glyphs. Source art + pipeline live in art-src/crafting/.
 // Wired into src/lib/crafting-disciplines.ts.
-import { CRAFTING_GLYPHS } from "./craftingGlyphs.generated";
+import { CRAFTING_GLYPHS } from "@/lib/craftingGlyphs.generated";
 export const IconCraftAlchemy = glyph(CRAFTING_GLYPHS.alchemy);
 export const IconCraftSmithing = glyph(CRAFTING_GLYPHS.smithing);
 export const IconCraftLeathercraft = glyph(CRAFTING_GLYPHS.leathercraft);
@@ -311,7 +311,7 @@ export const IconCraftPainting = glyph(CRAFTING_GLYPHS.painting);
 // Hand-drawn, vectorized dice in the same style as the nav/crafting glyphs.
 // Source art + pipeline live in art-src/dice/. The generic IconDice/IconDiceRoll
 // point at the iconic d20; per-die glyphs feed the DiceRoller grid.
-import { DICE_GLYPHS } from "./diceGlyphs.generated";
+import { DICE_GLYPHS } from "@/lib/diceGlyphs.generated";
 export const IconDie2 = glyph(DICE_GLYPHS.d2);
 export const IconDie4 = glyph(DICE_GLYPHS.d4);
 export const IconDie6 = glyph(DICE_GLYPHS.d6);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { combineModes } from "./roller";
+import { combineModes } from "@/lib/roller";
 
 describe("combineModes", () => {
   it("returns the other mode when one side is normal", () => {

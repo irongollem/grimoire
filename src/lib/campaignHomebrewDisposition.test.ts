@@ -5,7 +5,7 @@ import {
   planHomebrewDisposition,
   EMPTY_HOMEBREW_COUNTS,
   type HomebrewCounts,
-} from "./campaignHomebrewDisposition";
+} from "@/lib/campaignHomebrewDisposition";
 
 describe("hasScopedHomebrew", () => {
   it("is false when nothing is scoped to the campaign", () => {

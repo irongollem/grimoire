@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseShieldAcBonus, shieldAcBonusByMember } from "./shieldAc";
+import { parseShieldAcBonus, shieldAcBonusByMember } from "@/lib/shieldAc";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseSenses } from "./senses";
+import { parseSenses } from "@/lib/senses";
 
 describe("parseSenses", () => {
   it("returns [] for nullish/empty", () => {

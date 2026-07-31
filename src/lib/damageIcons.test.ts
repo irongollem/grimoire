@@ -5,7 +5,7 @@ import {
   damageTypesFromRolls,
   tokenizeDamage,
   tokenizeRich,
-} from "./damageIcons";
+} from "@/lib/damageIcons";
 
 describe("normalizeQualifier", () => {
   it("collapses the spellings of nonmagical to one token", () => {
