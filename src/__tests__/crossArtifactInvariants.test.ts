@@ -37,11 +37,20 @@ import { manualSections } from "@/lib/manualLoader";
 // project root.
 const REPO_ROOT = process.cwd();
 
+/** This file, repo-relative — see the filter in `trackedFiles`. */
+const SELF = "src/__tests__/crossArtifactInvariants.test.ts";
+
 /** Tracked files only — never node_modules, dist, or a stray local scratch file. */
 function trackedFiles(...globs: string[]): string[] {
   return execFileSync("git", ["ls-files", ...globs], { cwd: REPO_ROOT, encoding: "utf8" })
     .split("\n")
-    .filter(Boolean);
+    .filter(Boolean)
+    // ...and never this file. Every check below greps the repo for a pattern,
+    // and documents that pattern in a comment directly above the code that
+    // looks for it — `<ManualHelpLink page="literal" />`, `{ tab: "page-id" }`.
+    // Those examples are byte-for-byte indistinguishable from real call sites,
+    // so scanning ourselves reports our own documentation as dangling refs.
+    .filter((f) => f !== SELF);
 }
 
 function read(relativePath: string): string {
