@@ -135,14 +135,14 @@ export function buildCreateOnlyDefaults() {
 
 /**
  * Fetches every species record (subspecies included) from the given Open5e
- * v2 document keys. Unlike `fetchSrdMonsters` (which maps eagerly — monsters
+ * v2 document keys. Unlike `fetchOpen5eMonsters` (which maps eagerly — monsters
  * have no subspecies concept to filter on first), the raw `Open5eRace[]` is
  * returned as-is: a caller that wants importable rows must first decide
  * whether to keep subspecies (`race.is_subspecies`) before calling
  * `buildImportedFields`/`buildCreateOnlyDefaults` — see
- * `scripts/seed-srd-species.ts`, which keeps only non-subspecies rows for the
+ * `scripts/seed-library-species.ts`, which keeps only non-subspecies rows for the
  * shared table.
  */
-export async function fetchSrdSpecies(documentKeys: string[]): Promise<Open5eRace[]> {
+export async function fetchLibrarySpecies(documentKeys: string[]): Promise<Open5eRace[]> {
   return fetchAllFromDocuments<Open5eRace>("https://api.open5e.com/v2/species/", documentKeys);
 }

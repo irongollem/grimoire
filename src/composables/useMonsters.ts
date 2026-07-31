@@ -68,12 +68,12 @@ async function deleteMonster(monster: Monster): Promise<void> {
   await deleteByPublicUrl(monster.image_url);
 }
 
-const SRD_QUERY_KEY = "srd-monsters";
+const LIBRARY_QUERY_KEY = "library-monsters";
 
-async function fetchSrdMonsters(enabledSlugs: string[], ruleset: RulesetKey): Promise<Monster[]> {
+async function fetchOpen5eMonsters(enabledSlugs: string[], ruleset: RulesetKey): Promise<Monster[]> {
   if (enabledSlugs.length === 0) return [];
   const { data, error } = await supabase
-    .from("srd_monsters")
+    .from("library_monsters")
     .select("*")
     .in("source", enabledSlugs)
     .eq("ruleset", ruleset)
@@ -100,26 +100,26 @@ export function useAllMonsters() {
     enabledQuery.data.value?.map((e) => e.source_slug) ?? null,
   );
 
-  const srdQuery = useQuery({
-    queryKey: computed(() => [SRD_QUERY_KEY, enabledSlugs.value, ruleset.value]),
-    queryFn: () => fetchSrdMonsters(enabledSlugs.value!, ruleset.value),
+  const libraryQuery = useQuery({
+    queryKey: computed(() => [LIBRARY_QUERY_KEY, enabledSlugs.value, ruleset.value]),
+    queryFn: () => fetchOpen5eMonsters(enabledSlugs.value!, ruleset.value),
     enabled: () => enabledSlugs.value !== null,
     staleTime: Infinity,
   });
 
   const data = computed<Monster[]>(() => {
-    // Open5e imports in the monsters table are legacy — those now come from srd_monsters.
+    // Open5e imports in the monsters table are legacy — those now come from library_monsters.
     // Only surface truly custom-created monsters from the user's table.
     const custom  = (customQuery.data.value ?? []).filter((m) =>
       !m.open5e_import && (!m.ruleset || m.ruleset === ruleset.value),
     );
-    const srd     = srdQuery.data.value ?? [];
+    const srd     = libraryQuery.data.value ?? [];
     return [...srd, ...custom]
       .sort((a, b) => a.name.localeCompare(b.name));
   });
 
   const isLoading = computed(
-    () => customQuery.isLoading.value || enabledQuery.isLoading.value || srdQuery.isLoading.value,
+    () => customQuery.isLoading.value || enabledQuery.isLoading.value || libraryQuery.isLoading.value,
   );
   return { data, isLoading };
 }
@@ -155,9 +155,9 @@ export function usePlayerVisibleMonsters() {
     enabledQuery.data.value?.map((e) => e.source_slug) ?? null,
   );
 
-  const srdQuery = useQuery({
-    queryKey: computed(() => [SRD_QUERY_KEY, enabledSlugs.value, ruleset.value]),
-    queryFn: () => fetchSrdMonsters(enabledSlugs.value!, ruleset.value),
+  const libraryQuery = useQuery({
+    queryKey: computed(() => [LIBRARY_QUERY_KEY, enabledSlugs.value, ruleset.value]),
+    queryFn: () => fetchOpen5eMonsters(enabledSlugs.value!, ruleset.value),
     enabled: () => enabledSlugs.value !== null,
     staleTime: Infinity,
   });
@@ -180,11 +180,11 @@ export function usePlayerVisibleMonsters() {
 
   const data = computed<Monster[]>(() => {
     // Open5e imports are legacy in the monsters table — those surface via
-    // srd_monsters instead, so drop them from the custom side (same rule as
+    // library_monsters instead, so drop them from the custom side (same rule as
     // useAllMonsters).
     const custom = ((ui.dmPreviewMode ? baseQuery.data.value : projectionQuery.data.value) ?? [])
       .filter((m) => !m.open5e_import && (!m.ruleset || m.ruleset === ruleset.value));
-    const srd = srdQuery.data.value ?? [];
+    const srd = libraryQuery.data.value ?? [];
     return [...srd, ...custom]
       .sort((a, b) => a.name.localeCompare(b.name));
   });
@@ -192,19 +192,19 @@ export function usePlayerVisibleMonsters() {
   const isLoading = computed(
     () =>
       enabledQuery.isLoading.value ||
-      srdQuery.isLoading.value ||
+      libraryQuery.isLoading.value ||
       (ui.dmPreviewMode ? baseQuery.isLoading.value : projectionQuery.isLoading.value),
   );
   return { data, isLoading };
 }
 
-/** Looks up a single monster from the shared srd_monsters table by its slug ID. */
-export function useSrdMonster(id: Ref<string>) {
+/** Looks up a single monster from the shared library_monsters table by its slug ID. */
+export function useLibraryMonster(id: Ref<string>) {
   return useQuery({
-    queryKey: computed(() => [SRD_QUERY_KEY, id.value]),
+    queryKey: computed(() => [LIBRARY_QUERY_KEY, id.value]),
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("srd_monsters")
+        .from("library_monsters")
         .select("*")
         .eq("id", id.value)
         .single();
@@ -222,9 +222,9 @@ export function useResolvedMonster(id: Ref<string>) {
     queryKey: computed(() => ["resolved-monster", id.value]),
     queryFn: async () => {
       const { data: shared, error: sharedError } = await supabase
-        .from("srd_monsters").select("*").eq("id", id.value).maybeSingle();
+        .from("library_monsters").select("*").eq("id", id.value).maybeSingle();
       if (sharedError) throw sharedError;
-      if (shared) return { monster: { ...shared, user_id: "", is_srd: true } as Monster, isShared: true };
+      if (shared) return { monster: { ...shared, user_id: "", is_shared: true } as Monster, isShared: true };
       if (!isUuid(id.value)) throw new Error("Monster not found");
       return { monster: await fetchMonster(id.value), isShared: false };
     },
@@ -272,11 +272,11 @@ export function useDeleteMonster() {
 
 
 /** Clone an SRD monster into the user's own collection. Returns the new Monster. */
-export function useCloneSrdMonster() {
+export function useCloneLibraryMonster() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (srdMonster: Monster): Promise<Monster> => {
-      const { name, monster_type, size, alignment, habitat, source, tags, stat_block, notes, image_url } = srdMonster;
+    mutationFn: async (libraryMonster: Monster): Promise<Monster> => {
+      const { name, monster_type, size, alignment, habitat, source, tags, stat_block, notes, image_url } = libraryMonster;
       return createMonster({ name, monster_type, size, alignment, habitat, source: `${source ?? "SRD 5.1"} (customized)`, tags, stat_block, notes, image_url });
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),

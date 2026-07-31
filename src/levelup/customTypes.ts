@@ -49,7 +49,7 @@ export interface CustomSubclass extends VersionedContentMetadata {
   features: CustomFeatures;
   /**
    * Spells the subclass grants automatically (always prepared), keyed by the
-   * level gained — same shape as `features`. Ids reference srd_spells.id
+   * level gained — same shape as `features`. Ids reference library_spells.id
    * (srd_* slug) or spells.id (custom uuid). On level-up these are written to
    * character_spells with always_prepared = true and do not count toward the
    * prepared-spell limit.

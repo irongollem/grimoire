@@ -7,7 +7,7 @@ import {
   type Open5eListResponse,
   type Open5eV2Rule,
   type Open5eV2Ruleset,
-  type SrdRuleRow,
+  type LibraryRuleRow,
 } from "./rulesMapping.ts";
 
 // Open5e v2 `/v2/rulesets/` (sections/groupings, e.g. "Combat", "Exploration")
@@ -19,7 +19,7 @@ import {
 // that spells/monsters/items/species/classes/rules all carry an explicit
 // `ruleset` column (migration 20260720000018), the Compendium can — and
 // should — carry both editions too, scoped client-side via useRuleset()
-// (see src/composables/useRules.ts's useSrdRules()).
+// (see src/composables/useRules.ts's useLibraryRules()).
 //
 // v1 sections were a flat list with a free-text `parent` name; v2 splits that
 // into rulesets (the section/category) and rules (the entries within it),
@@ -61,7 +61,7 @@ async function fetchAll<T>(url: string): Promise<T[]> {
 
 Deno.serve(async (req) => {
   try {
-    // Admin-only: this triggers a full canonical srd_rules re-sync. The gateway
+    // Admin-only: this triggers a full canonical library_rules re-sync. The gateway
     // verifies the JWT (verify_jwt default), but any authenticated user would
     // otherwise reach this handler, so gate on the caller's verified admin
     // claim (app_metadata.role is server-controlled and signed), mirroring
@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
       fetchAll<Open5eV2Rule>(OPEN5E_RULES_URL),
     ]);
 
-    const rows: SrdRuleRow[] = [
+    const rows: LibraryRuleRow[] = [
       ...rulesets.map(buildRulesetRow),
       ...rules.map(buildRuleRow),
     ];
@@ -98,12 +98,12 @@ Deno.serve(async (req) => {
     // marker; everything else is legacy and goes. Idempotent: a no-op once
     // the table has fully transitioned.
     const { error: legacyDeleteError, count: legacyDeleted } = await supabase
-      .from("srd_rules")
+      .from("library_rules")
       .delete({ count: "exact" })
       .is("provenance->>endpoint", null);
     if (legacyDeleteError) throw legacyDeleteError;
     const { error: strayDeleteError, count: strayDeleted } = await supabase
-      .from("srd_rules")
+      .from("library_rules")
       .delete({ count: "exact" })
       .not("source_document_key", "in", `(${DOCUMENT_KEYS_PARAM})`);
     if (strayDeleteError) throw strayDeleteError;
@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
     for (let i = 0; i < rows.length; i += BATCH) {
       const batch = rows.slice(i, i + BATCH);
       const { error } = await supabase
-        .from("srd_rules")
+        .from("library_rules")
         .upsert(batch, { onConflict: "source_document_key,source_record_key" });
       if (error) throw error;
       upserted += batch.length;

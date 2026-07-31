@@ -1,11 +1,11 @@
 <template>
   <div class="space-y-6">
     <!-- SRD Art Repair -->
-    <SrdArtRepairPanel />
-    <SrdArtRepairPanel mode="spell" />
+    <LibraryArtRepairPanel />
+    <LibraryArtRepairPanel mode="spell" />
 
     <!-- SRD Art Defaults -->
-    <SrdArtPublishPanel />
+    <LibraryArtPublishPanel />
 
     <!-- Placeholder Art Focal Points -->
     <div class="rounded-lg border border-border bg-card p-4 space-y-4">
@@ -79,8 +79,8 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { IconCheck } from "@/lib/icons";
-import SrdArtRepairPanel from "@/components/admin/SrdArtRepairPanel.vue";
-import SrdArtPublishPanel from "@/components/admin/SrdArtPublishPanel.vue";
+import LibraryArtRepairPanel from "@/components/admin/LibraryArtRepairPanel.vue";
+import LibraryArtPublishPanel from "@/components/admin/LibraryArtPublishPanel.vue";
 import { useAdminPlaceholderFocalPoints } from "@/composables/useAdminPlaceholderFocalPoints";
 
 const PLACEHOLDER_ENTITIES = [

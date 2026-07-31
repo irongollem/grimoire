@@ -33,14 +33,14 @@
 import { ref, computed } from "vue";
 import { IconUpload } from "@/lib/icons";
 import {
-  useBulkPublishSrdArtDefaults,
-  useSrdArtDefaultStats,
-  useSyncSrdItemArtToSharedTable,
-  useSyncSrdSpellArtToSharedTable,
-  type SrdArtDefaultStats,
-} from "@/composables/useSrdArtDefaults";
-import { useBulkMarkSrdMonsterArtAsCanonical, useSyncSrdArtToSharedTable } from "@/composables/useSrdMonsterArt";
-import { useBulkMarkSrdSpellArtAsCanonical } from "@/composables/useSrdSpellArt";
+  useBulkPublishLibraryArtDefaults,
+  useLibraryArtDefaultStats,
+  useSyncLibraryItemArt,
+  useSyncLibrarySpellArt,
+  type LibraryArtDefaultStats,
+} from "@/composables/useLibraryArtDefaults";
+import { useBulkMarkLibraryMonsterArtAsCanonical, useSyncLibraryMonsterArt } from "@/composables/useLibraryMonsterArt";
+import { useBulkMarkLibrarySpellArtAsCanonical } from "@/composables/useLibrarySpellArt";
 
 // "card" = standalone bordered card (AdminContentTab's admin panel context).
 // "inline" = embedded section inside a parent panel that already has its own
@@ -59,14 +59,14 @@ const headingClass = computed(() =>
 );
 const successClass = computed(() => (variant === "card" ? "text-green-500" : "text-elven-green"));
 
-const statsQuery = useSrdArtDefaultStats();
-const bulkPublish = useBulkPublishSrdArtDefaults();
-const bulkMarkMonsters = useBulkMarkSrdMonsterArtAsCanonical();
-const bulkMarkSpells   = useBulkMarkSrdSpellArtAsCanonical();
-const syncArtToShared  = useSyncSrdArtToSharedTable();
-const syncSpellArt     = useSyncSrdSpellArtToSharedTable();
-const syncItemArt      = useSyncSrdItemArtToSharedTable();
-const publishResult = ref<SrdArtDefaultStats | null>(null);
+const statsQuery = useLibraryArtDefaultStats();
+const bulkPublish = useBulkPublishLibraryArtDefaults();
+const bulkMarkMonsters = useBulkMarkLibraryMonsterArtAsCanonical();
+const bulkMarkSpells   = useBulkMarkLibrarySpellArtAsCanonical();
+const syncArtToShared  = useSyncLibraryMonsterArt();
+const syncSpellArt     = useSyncLibrarySpellArt();
+const syncItemArt      = useSyncLibraryItemArt();
+const publishResult = ref<LibraryArtDefaultStats | null>(null);
 
 async function handlePublishArt() {
   publishResult.value = null;

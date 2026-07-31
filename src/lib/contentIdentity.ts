@@ -6,8 +6,8 @@ export function isUuid(value: string): boolean {
 /** Shared content is identified by explicit row metadata, never an ID/name convention. */
 export function isSharedContent(row: {
   user_id?: string | null;
-  is_srd?: boolean;
+  is_shared?: boolean;
   source_record_key?: string | null;
 }): boolean {
-  return row.is_srd === true || !row.user_id || !!row.source_record_key;
+  return row.is_shared === true || !row.user_id || !!row.source_record_key;
 }

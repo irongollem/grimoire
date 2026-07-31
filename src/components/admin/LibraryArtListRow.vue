@@ -13,8 +13,8 @@ import FocalPointPicker from "@/components/common/FocalPointPicker.vue";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-interface SrdEntityEntry {
-  srd_id: string;
+interface LibraryEntityEntry {
+  entry_id: string;
   name: string;
   subtitle: string;
   source: string;
@@ -36,7 +36,7 @@ const {
   focalPoint = null,
   uploadedUrl = null,
 } = defineProps<{
-  entity: SrdEntityEntry;
+  entity: LibraryEntityEntry;
   status?: RowStatus;
   errorMsg?: string;
   dragging?: boolean;

@@ -2,29 +2,29 @@ import { computed, toValue, type MaybeRefOrGetter } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
-import type { SrdRule, Rule, RuleInsert, RuleUpdate } from "@/types/rule.types";
+import type { LibraryRule, Rule, RuleInsert, RuleUpdate } from "@/types/rule.types";
 import { useRuleset } from "@/composables/useRuleset";
 import type { RulesetKey } from "@/types/ruleset.types";
 
 // ── SRD Rules ─────────────────────────────────────────────────────────────────
 
-const SRD_KEY = "srd_rules";
+const LIBRARY_KEY = "library_rules";
 
-async function fetchSrdRules(ruleset: RulesetKey): Promise<SrdRule[]> {
+async function fetchLibraryRules(ruleset: RulesetKey): Promise<LibraryRule[]> {
   const { data, error } = await supabase
-    .from("srd_rules")
+    .from("library_rules")
     .select("*")
     .eq("ruleset", ruleset)
     .order("name", { ascending: true });
   if (error) throw error;
-  return data as SrdRule[];
+  return data as LibraryRule[];
 }
 
-export function useSrdRules() {
+export function useLibraryRules() {
   const { ruleset } = useRuleset();
   return useQuery({
-    queryKey: computed(() => [SRD_KEY, ruleset.value]),
-    queryFn: () => fetchSrdRules(ruleset.value),
+    queryKey: computed(() => [LIBRARY_KEY, ruleset.value]),
+    queryFn: () => fetchLibraryRules(ruleset.value),
     staleTime: Infinity,
   });
 }

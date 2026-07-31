@@ -16,7 +16,7 @@
     <!-- ── Header actions ─────────────────────────────────────────────────── -->
     <SpellDetailHeader
       :has-spell="!!spell"
-      :is-srd="isSrd"
+      :is-shared="isShared"
       :is-ai-enabled="isAiEnabled"
       :is-saving="isSaving"
       :is-deleting="isDeleting"
@@ -69,7 +69,7 @@
 
         <!-- Campaign-only flag -->
         <div
-          v-if="!isSrd && campaignStore.activeCampaignId"
+          v-if="!isShared && campaignStore.activeCampaignId"
           class="rounded-md border border-border/60 bg-muted/20 p-3 space-y-1"
         >
           <label class="flex items-center gap-2 cursor-pointer">
@@ -89,7 +89,7 @@
       </div>
 
       <!-- ── Core spell fields ──────────────────────────────────────────── -->
-      <div v-if="!isSrd" class="flex flex-col gap-4">
+      <div v-if="!isShared" class="flex flex-col gap-4">
         <!-- Name -->
         <label>
           <span class="sr-only">Spell name</span>
@@ -203,7 +203,7 @@
       </div>
 
       <!-- ── Right: Classes + Advisor ────────────────────────────────────── -->
-      <div v-if="!isSrd" class="flex flex-col gap-4">
+      <div v-if="!isShared" class="flex flex-col gap-4">
         <!-- Class list -->
         <SpellClassesSection
           :classes="classes"
@@ -259,7 +259,7 @@ import TagInput from "@/components/common/TagInput.vue";
 import { SPELL_SCHOOLS, spellSourceLabel } from "@/types/spell.types";
 import type { Spell, SpellSchool } from "@/types/spell.types";
 import { useCreateSpell, useUpdateSpell, useDeleteSpell } from "@/composables/useSpells";
-import { useUpsertSrdSpellArt } from "@/composables/useSrdSpellArt";
+import { useUpsertLibrarySpellArt } from "@/composables/useLibrarySpellArt";
 import { useCreateScriptoriumDocument } from "@/composables/useScriptorium";
 import { formatSpellForScriptorium } from "@/lib/scriptoriumImport";
 import {
@@ -276,11 +276,11 @@ import type {
 } from "@/lib/spellAdvisor";
 import { parseDamageExpression, type DamageRoll } from "@/lib/dice";
 
-const props = defineProps<{ spell: Spell | null; isSrd?: boolean }>();
+const props = defineProps<{ spell: Spell | null; isShared?: boolean }>();
 const router = useRouter();
 
-const { mutateAsync: upsertSrdArt } = useUpsertSrdSpellArt();
-const isSrd = computed(() => !!props.isSrd);
+const { mutateAsync: upsertLibraryArt } = useUpsertLibrarySpellArt();
+const isShared = computed(() => !!props.isShared);
 
 // ── Core fields ───────────────────────────────────────────────────────────────
 const name = ref(props.spell?.name ?? "");
@@ -318,7 +318,7 @@ const campaignId = ref<string | null>(props.spell?.campaign_id ?? null);
 watch(
   () => props.spell,
   (s) => {
-    if (isSrd.value && s) {
+    if (isShared.value && s) {
       imageUrl.value = s.image_url ?? "";
       imageFocalPoint.value = s.image_focal_point ?? null;
     }
@@ -326,11 +326,11 @@ watch(
 );
 
 function onImageUrlUpdate(url: string | null) {
-  if (isSrd.value) upsertSrdArt({ srd_id: props.spell!.id, image_url: url });
+  if (isShared.value) upsertLibraryArt({ entry_id: props.spell!.id, image_url: url });
   else imageUrl.value = url ?? "";
 }
 function onImageFocalUpdate(pt: { x: number; y: number } | null) {
-  if (isSrd.value) upsertSrdArt({ srd_id: props.spell!.id, portrait_focal_point: pt });
+  if (isShared.value) upsertLibraryArt({ entry_id: props.spell!.id, portrait_focal_point: pt });
   else imageFocalPoint.value = pt;
 }
 

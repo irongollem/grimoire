@@ -88,7 +88,7 @@ export interface PageResult<T> {
 /**
  * Paginated Supabase read via `.range()` loops. PostgREST caps a plain
  * (unpaginated) GET at its `max-rows` setting — observed as ~1000 on this
- * project — so a table like srd_spells (~1400 rows) silently truncates
+ * project — so a table like library_spells (~1400 rows) silently truncates
  * under a single unpaginated query. Loops via `.range(from, to)` until a
  * short page (fewer than `READ_PAGE_SIZE` rows) signals the end,
  * concatenating every page's rows.
@@ -183,7 +183,7 @@ export function countByRuleset(rows: ReadonlyArray<{ ruleset: string }>): Record
  * a real upstream Open5e v2 document, or resolves to one whose license(s)
  * don't clear `isRedistributable` — an unknown/unreviewed license is always a
  * refusal, never a default-allow. This is the guard that makes an explicit
- * `npm run seed-srd-monsters some-unreviewed-key` fail just as firmly as
+ * `npm run seed-library-monsters some-unreviewed-key` fail just as firmly as
  * `--all` (which already only ever offers redistributable keys, via
  * `fetchSupported5eDocumentKeys`).
  *

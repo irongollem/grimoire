@@ -97,7 +97,7 @@ import {
   useEnabledSources,
   useEnableSource,
   useDisableSource,
-  type AvailableSrdSource,
+  type AvailableLibrarySource,
 } from "@/composables/useEnabledSources";
 
 // Popover: desktop trigger button (parent-supplied via #trigger slot) + a
@@ -116,7 +116,7 @@ const {
   title?: string;
   description: string;
   emptyMessage: string;
-  availableSources: AvailableSrdSource[] | undefined;
+  availableSources: AvailableLibrarySource[] | undefined;
   isLoading: boolean;
 }>();
 
@@ -139,7 +139,7 @@ const isMutating = computed(() => enableEnable.isPending.value || enableDisable.
 
 function isEnabled(slug: string) { return enabledSlugs.value.has(slug); }
 
-function toggleSource(src: AvailableSrdSource) {
+function toggleSource(src: AvailableLibrarySource) {
   if (isEnabled(src.source)) {
     enableDisable.mutate(src.source);
   } else {

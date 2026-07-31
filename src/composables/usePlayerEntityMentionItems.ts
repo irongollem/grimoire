@@ -15,7 +15,7 @@ export function usePlayerEntityMentionItems() {
 
   const mentionItems = computed<EntityMentionItem[]>(() => {
     const discoveredIds = new Set(
-      (playerDiscoveries.value ?? []).map((d) => d.srd_slug ?? d.monster_id),
+      (playerDiscoveries.value ?? []).map((d) => d.library_monster_id ?? d.monster_id),
     );
     const discoveredMonsters = (allMonsters.value ?? []).filter(
       (m) => discoveredIds.has(m.id),

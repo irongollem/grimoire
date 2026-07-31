@@ -331,7 +331,7 @@ const resolved = computed<BestiaryEntry[]>(() =>
   (discoveries.value ?? []).filter(isVisibleToPreviewMember).map((d) => {
     let monster: Monster | null = null;
     if (allMonsters.value) {
-      if (d.srd_slug)    monster = allMonsters.value.find((m) => m.id === d.srd_slug) ?? null;
+      if (d.library_monster_id)    monster = allMonsters.value.find((m) => m.id === d.library_monster_id) ?? null;
       else if (d.monster_id) monster = allMonsters.value.find((m) => m.id === d.monster_id) ?? null;
     }
     return { discovery: d, monster };
@@ -367,7 +367,7 @@ const pinnedFormMonsters = computed<FormEntry[]>(() => {
 
   return filteredPins.flatMap((pin) => {
     const monster = allMonsters.value?.find((m) =>
-      pin.srd_slug ? m.id === pin.srd_slug : m.id === pin.monster_id,
+      pin.library_monster_id ? m.id === pin.library_monster_id : m.id === pin.monster_id,
     ) ?? null;
     if (!monster) return [];
     return [{ monster, name: monster.name, imageUrl: monster.image_url ?? null }];
@@ -381,7 +381,7 @@ const discoveredMonsterKeys = computed<Set<string>>(() => {
   const s = new Set<string>();
   for (const d of (discoveries.value ?? []).filter(isVisibleToPreviewMember)) {
     if (d.monster_id) s.add(d.monster_id);
-    if (d.srd_slug)   s.add(d.srd_slug);
+    if (d.library_monster_id)   s.add(d.library_monster_id);
   }
   return s;
 });
@@ -431,7 +431,7 @@ function togglePin(monster: Monster) {
   const memberId = ui.dmPreviewPartyMemberId;
   if (!memberId) return;
   const existing = (playerPinnedForms.value ?? []).find((p) =>
-    monster.is_srd ? p.srd_slug === monster.id : p.monster_id === monster.id,
+    monster.is_shared ? p.library_monster_id === monster.id : p.monster_id === monster.id,
   );
   togglePinnedForm({ monster, partyMemberId: memberId, existing });
 }
@@ -455,7 +455,7 @@ function openLightbox(monster: Monster | null, discovery: DiscoveredMonster | nu
     name: monster?.name ?? "Unknown creature",
     imageUrl: monster?.image_url ?? null,
     revealStats: discovery?.reveal_stats ?? null,
-    entityId: discovery?.monster_id ?? discovery?.srd_slug ?? monster?.id ?? "",
+    entityId: discovery?.monster_id ?? discovery?.library_monster_id ?? monster?.id ?? "",
   };
 }
 

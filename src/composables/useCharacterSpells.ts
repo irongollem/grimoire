@@ -71,19 +71,19 @@ export function useCharacterSpellsWithDetails(
       const allIds = [...new Set(rows.map((r) => r.spell_id).filter(Boolean))];
       const customIds = allIds.filter(isUuid);
 
-      const [srdRes, customRes] = await Promise.all([
+      const [libraryRes, customRes] = await Promise.all([
         allIds.length > 0
-          ? supabase.from("srd_spells").select("*").in("id", allIds)
+          ? supabase.from("library_spells").select("*").in("id", allIds)
           : Promise.resolve({ data: [] }),
         customIds.length > 0
           ? supabase.from("spells").select("*").in("id", customIds)
           : Promise.resolve({ data: [] }),
       ]);
-      if ("error" in srdRes && srdRes.error) throw srdRes.error;
+      if ("error" in libraryRes && libraryRes.error) throw libraryRes.error;
       if ("error" in customRes && customRes.error) throw customRes.error;
 
       const spellMap = new Map<string, CharacterSpellEntry["spell"]>();
-      for (const s of srdRes.data ?? [])
+      for (const s of libraryRes.data ?? [])
         spellMap.set(s.id, {
           ...s,
           user_id: "",

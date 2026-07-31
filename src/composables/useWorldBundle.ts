@@ -378,7 +378,7 @@ export async function buildBundle(opts: BuildBundleOptions): Promise<GrimoireBun
     }
     const referenced = [...referencedSpellIds];
     const { data: sharedSpellRows, error: sharedSpellError } = referenced.length
-      ? await supabase.from("srd_spells").select("id").in("id", referenced)
+      ? await supabase.from("library_spells").select("id").in("id", referenced)
       : { data: [], error: null };
     if (sharedSpellError) throw sharedSpellError;
     const sharedSpellIds = new Set((sharedSpellRows ?? []).map((row) => row.id));
@@ -742,7 +742,7 @@ async function executeImport(opts: ImportBundleOptions): Promise<ImportResult> {
         .map((row) => row.spell_id as string | null)
         .filter((id): id is string => !!id))];
       const { data: sharedRows, error: sharedError } = referenced.length
-        ? await supabase.from("srd_spells").select("id").in("id", referenced)
+        ? await supabase.from("library_spells").select("id").in("id", referenced)
         : { data: [], error: null };
       if (sharedError) throw sharedError;
       const sharedIds = new Set((sharedRows ?? []).map((row) => row.id));

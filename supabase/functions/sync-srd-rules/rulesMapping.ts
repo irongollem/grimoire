@@ -2,7 +2,7 @@
  * Pure mapping layer for sync-srd-rules — NO Deno/network imports — so it can be
  * unit-tested by vitest (Node) AND imported by the Deno edge function. Turns
  * Open5e v2 `/v2/rulesets/` (sections/groupings, e.g. "Combat") and `/v2/rules/`
- * (glossary entries) into `srd_rules` rows for both the 2014 and 2024 editions.
+ * (glossary entries) into `library_rules` rows for both the 2014 and 2024 editions.
  *
  * Tree shape: a ruleset becomes a top-level (parent) row; each rule nests under
  * its parent via `parent_slug` = the ruleset's `key`. Verified against the live
@@ -11,7 +11,7 @@
  * Open5e `key` directly — it doubles as `source_record_key`.
  *
  * `slug` is only guaranteed unique WITHIN a source document (edition) — NOT
- * globally across all editions Open5e might ever expose. `srd_rules`' true row
+ * globally across all editions Open5e might ever expose. `library_rules`' true row
  * identity is the composite (`source_document_key`, `source_record_key`), not
  * `slug` alone; there is no global UNIQUE constraint on `slug` (the legacy
  * global constraint was dropped in favor of that composite identity index).
@@ -41,7 +41,7 @@ export interface Open5eV2Rule {
   index: number;
 }
 
-export interface SrdRuleRow {
+export interface LibraryRuleRow {
   slug: string;
   name: string;
   content: string;
@@ -104,7 +104,7 @@ export function slugifyName(name: string): string {
 
 /** A v2 ruleset ("Combat", "Exploration", …) becomes the Compendium sidebar's
  * top-level category node. */
-export function buildRulesetRow(ruleset: Open5eV2Ruleset): SrdRuleRow {
+export function buildRulesetRow(ruleset: Open5eV2Ruleset): LibraryRuleRow {
   const documentKey = ruleset.document.key;
   return {
     slug: ruleset.key,
@@ -123,7 +123,7 @@ export function buildRulesetRow(ruleset: Open5eV2Ruleset): SrdRuleRow {
 }
 
 /** A v2 rule (glossary entry) becomes a leaf row nested under its parent ruleset. */
-export function buildRuleRow(rule: Open5eV2Rule): SrdRuleRow {
+export function buildRuleRow(rule: Open5eV2Rule): LibraryRuleRow {
   const documentKey = rule.document;
   return {
     slug: rule.key,

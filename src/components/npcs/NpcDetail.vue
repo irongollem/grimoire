@@ -367,7 +367,7 @@ function onMonsterLinked(monsterId: string | null) {
   const m = (allMonsters.value ?? []).find(x => x.id === monsterId)
   if (!m) return
   // SRD monsters don't have UUID rows — import their data as a template but don't link
-  form.linked_monster_id = m.is_srd ? null : monsterId
+  form.linked_monster_id = m.is_shared ? null : monsterId
 
   if (!form.name)        form.name = m.name
   if (!form.alignment)   form.alignment = m.alignment ?? null

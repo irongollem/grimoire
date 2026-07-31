@@ -18,7 +18,7 @@
 
     SRD monsters are read-only: the Customize banner clones to an editable copy,
     portrait + focal point stay interactive (SRD art override via the parent's
-    onPortraitUrlUpdate / upsertSrdArt), and the rest is disabled via
+    onPortraitUrlUpdate / upsertLibraryArt), and the rest is disabled via
     fieldset[disabled], mirroring the desktop behaviour.
   -->
   <div class="flex min-h-dvh flex-col bg-background md:hidden">
@@ -37,7 +37,7 @@
         {{ title }}
       </h1>
       <button
-        v-if="!isNew && !isSrd"
+        v-if="!isNew && !isShared"
         type="button"
         class="flex size-10 shrink-0 items-center justify-center rounded-full text-muted-foreground active:bg-muted"
         aria-label="More actions"
@@ -57,7 +57,7 @@
     <main class="flex-1 space-y-3 overflow-y-auto p-3 pb-28">
       <!-- Read-only SRD banner (Customize clones to an editable copy) -->
       <section
-        v-if="isSrd"
+        v-if="isShared"
         class="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/50 px-4 py-3"
       >
         <p class="text-body italic text-muted-foreground">
@@ -91,7 +91,7 @@
       </section>
 
       <!-- Identity + Tags + stat block + lore — fieldset[disabled] for SRD -->
-      <fieldset :disabled="isSrd" class="contents">
+      <fieldset :disabled="isShared" class="contents">
         <!-- Identity card (fixed enums → native selects per existing pattern) -->
         <section class="space-y-2.5 rounded-xl border border-border bg-card p-4">
           <h3 class="text-heading-sm font-bold text-foreground">Identity</h3>
@@ -145,7 +145,7 @@
         <!-- Tags card (TagInput when editable, read-only chips for SRD) -->
         <section class="space-y-2.5 rounded-xl border border-border bg-card p-4">
           <h3 class="text-heading-sm font-bold text-foreground">Tags</h3>
-          <TagInput v-if="!isSrd" v-model="form.tags" />
+          <TagInput v-if="!isShared" v-model="form.tags" />
           <div v-else class="flex flex-wrap gap-1">
             <span
               v-for="tag in form.tags"
@@ -185,7 +185,7 @@
 
     <!-- ── 3. Fixed bottom save bar (editable monsters only) ──────────────── -->
     <footer
-      v-if="!isSrd"
+      v-if="!isShared"
       class="fixed inset-x-0 bottom-0 z-20 flex gap-3 border-t border-border bg-background/95 px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur"
     >
       <button
@@ -280,7 +280,7 @@ interface MonsterEditForm {
 const {
   form,
   monsterId = null,
-  isSrd = false,
+  isShared = false,
   isNew = false,
   isSaving = false,
   isCloning = false,
@@ -291,7 +291,7 @@ const {
   form: MonsterEditForm;
   sb: MonsterStatBlock;
   monsterId?: string | null;
-  isSrd?: boolean;
+  isShared?: boolean;
   isNew?: boolean;
   isSaving?: boolean;
   isCloning?: boolean;
@@ -358,7 +358,7 @@ const SIZES: MonsterSize[] = ["tiny", "small", "medium", "large", "huge", "garga
 const showMenu = ref(false);
 
 const title = computed(() => {
-  if (isSrd) return form.name?.trim() || "Monster";
+  if (isShared) return form.name?.trim() || "Monster";
   if (isNew) return "New Monster";
   return form.name?.trim() || "Edit Monster";
 });

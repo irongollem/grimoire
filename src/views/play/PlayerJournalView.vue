@@ -436,7 +436,7 @@ function getRefOptions(refType: string): { id: string; name: string }[] {
       const discoveries = playerDiscoveries.value ?? [];
       const monsters = allMonsters.value ?? [];
       return discoveries.flatMap((d) => {
-        const m = monsters.find((m) => d.srd_slug ? m.id === d.srd_slug : m.id === d.monster_id);
+        const m = monsters.find((m) => d.library_monster_id ? m.id === d.library_monster_id : m.id === d.monster_id);
         return m ? [{ id: m.id, name: m.name }] : [];
       });
     }

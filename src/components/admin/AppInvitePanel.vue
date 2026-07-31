@@ -28,7 +28,7 @@
 
         <div class="px-5 py-4 space-y-5 max-h-[70vh] overflow-y-auto">
           <!-- SRD Art Defaults -->
-          <SrdArtPublishPanel variant="inline" />
+          <LibraryArtPublishPanel variant="inline" />
 
           <div class="border-t border-border" />
 
@@ -212,7 +212,7 @@ import { IconAdd, IconCheck, IconCopy, IconDelete, IconShieldCheck } from '@/lib
 import { useAppInvites, useCreateAppInvite, useDeleteAppInvite } from "@/composables/useAppInvites";
 import type { AppInvite } from "@/composables/useAppInvites";
 import type { GrantedPlan } from "@/composables/useAppInvites";
-import SrdArtPublishPanel from "@/components/admin/SrdArtPublishPanel.vue";
+import LibraryArtPublishPanel from "@/components/admin/LibraryArtPublishPanel.vue";
 import { useAiUsageStats } from "@/composables/useAiUsageStats";
 
 const open = ref(false);

@@ -59,7 +59,7 @@ export interface Open5eDocument {
   license: string | null;
 }
 
-export interface ImportedSrdSpell extends SpellInsert {
+export interface ImportedLibrarySpell extends SpellInsert {
   id: string;
   conceptual_key: string;
   ruleset: SupportedRuleset;
@@ -202,7 +202,7 @@ function inferSaveEffect(spell: Open5eV2Spell): string | null {
 export function mapOpen5eV2Spell(
   spell: Open5eV2Spell,
   documentMetadata?: Open5eDocument,
-): ImportedSrdSpell | null {
+): ImportedLibrarySpell | null {
   const ruleset = rulesetForDocument(spell.document);
   if (!ruleset) return null;
   const { casting_time, casting_time_custom } = normalizeCastingTime(spell);
@@ -276,7 +276,7 @@ export function mapOpen5eV2Spell(
   };
 }
 
-export interface ExistingSrdSpellIdentity {
+export interface ExistingLibrarySpellIdentity {
   id: string;
   source_document_key: string;
   source_record_key: string;
@@ -284,15 +284,15 @@ export interface ExistingSrdSpellIdentity {
   mechanics_reviewed: boolean;
 }
 
-export interface SrdSpellImportPlan {
+export interface LibrarySpellImportPlan {
   /** Rows to upsert — new spells plus refreshed existing (unreviewed) ones. */
-  rows: ImportedSrdSpell[];
+  rows: ImportedLibrarySpell[];
   /** Existing rows left untouched because an admin already reviewed their mechanics. */
   skippedReviewed: number;
 }
 
 /**
- * Reconciles freshly-fetched Open5e spells against existing `srd_spells` rows
+ * Reconciles freshly-fetched Open5e spells against existing `library_spells` rows
  * keyed by (source_document_key, source_record_key). `mapOpen5eV2Spell`
  * always sets `mechanics_reviewed: false` on the mapped row — it has no way
  * to know an admin already checked the structured effects against the
@@ -302,15 +302,15 @@ export interface SrdSpellImportPlan {
  * plan entirely; everything else refreshes normally, carrying over the
  * existing row's id and any admin-set image_url.
  */
-export function planSrdSpellImport(
-  spells: ReadonlyArray<ImportedSrdSpell>,
-  existing: ReadonlyArray<ExistingSrdSpellIdentity>,
-): SrdSpellImportPlan {
+export function planLibrarySpellImport(
+  spells: ReadonlyArray<ImportedLibrarySpell>,
+  existing: ReadonlyArray<ExistingLibrarySpellIdentity>,
+): LibrarySpellImportPlan {
   const byIdentity = new Map(existing.map((row) => [
     `${row.source_document_key}::${row.source_record_key}`,
     row,
   ]));
-  const rows: ImportedSrdSpell[] = [];
+  const rows: ImportedLibrarySpell[] = [];
   let skippedReviewed = 0;
   for (const spell of spells) {
     const current = byIdentity.get(`${spell.source_document_key}::${spell.source_record_key}`);
@@ -323,7 +323,7 @@ export function planSrdSpellImport(
   return { rows, skippedReviewed };
 }
 
-export async function fetchSrdSpells(sourceKeys?: string[]): Promise<ImportedSrdSpell[]> {
+export async function fetchLibrarySpells(sourceKeys?: string[]): Promise<ImportedLibrarySpell[]> {
   const documents = await fetchOpen5eDocuments();
   const selected = sourceKeys?.length
     ? documents.filter((document) => sourceKeys.includes(document.slug))
@@ -337,5 +337,5 @@ export async function fetchSrdSpells(sourceKeys?: string[]): Promise<ImportedSrd
 
   return spells
     .map((spell) => mapOpen5eV2Spell(spell, metadata.get(spell.document.key)))
-    .filter((spell): spell is ImportedSrdSpell => spell !== null);
+    .filter((spell): spell is ImportedLibrarySpell => spell !== null);
 }

@@ -27,7 +27,7 @@ export function useMonsterVisibility(
     const m = monster.value;
     if (!m) return undefined;
     return discoveries.value?.find(
-      (d) => (m.is_srd ? d.srd_slug === m.id : d.monster_id === m.id),
+      (d) => (m.is_shared ? d.library_monster_id === m.id : d.monster_id === m.id),
     );
   });
 

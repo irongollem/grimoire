@@ -2,7 +2,7 @@ import type { VersionedContentMetadata } from "@/types/content.types";
 
 // ── SRD rules (shared, read-only from client) ─────────────────────────────────
 
-export interface SrdRule extends VersionedContentMetadata {
+export interface LibraryRule extends VersionedContentMetadata {
   id: string;
   slug: string;
   name: string;

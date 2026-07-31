@@ -40,7 +40,7 @@ describe("Open5e V2 rules content", () => {
       traits: [{ name: "Spellcasting", desc: "Casts spells." }],
     } as Parameters<typeof mapOpen5eV2Monster>[0]);
     expect(monster).toMatchObject({
-      ruleset: "2024", source_record_key: "srd-2024_mage", monster_type: "humanoid", is_srd: true,
+      ruleset: "2024", source_record_key: "srd-2024_mage", monster_type: "humanoid", is_shared: true,
       stat_block: {
         saving_throws: "Int +7",
         actions: [{ name: "Staff", description: "Melee attack." }],

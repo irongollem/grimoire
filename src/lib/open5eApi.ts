@@ -48,8 +48,17 @@ export function slugifyKey(value: string): string {
  * "srd"/"srd-2024"-prefixed themselves (e.g. "srd-2024_owlbear"), so
  * prefixing again yields a double `srd_srd_…` id — this is INTENTIONAL and
  * must not be "cleaned up": ids of this exact double-prefixed shape are live
- * in production (srd_spells, srd_monsters) and changing the format would
+ * in production (library_spells, library_monsters) and changing the format would
  * break every existing reference to them.
+ *
+ * The `srd_` here deliberately survived #583, which renamed the shared tables
+ * to `library_*` but left row ids alone. The name is kept for the same reason:
+ * this function's output IS an `srd_`-prefixed id, and calling it
+ * `stableLibraryId` would describe the ids as something they are not. Ids are
+ * never shown to users, so the misnomer costs nothing here — whereas re-keying
+ * 6,739 rows would mean remapping twelve referrer columns, five of them jsonb,
+ * with one id sitting inside user prose in `notes.content`. See
+ * supabase/checks/content_integrity.sql for what guards that blast radius.
  */
 export function stableSrdId(sourceRecordKey: string): string {
   return `srd_${slugifyKey(sourceRecordKey)}`;
@@ -84,7 +93,7 @@ export const REDISTRIBUTABLE_LICENSE_KEYS = ["ogl-10a", "cc-by-40", "cc0", "orc"
  * Maps OUR `source_document_key` values to the current Open5e v2 document
  * key, for the documents where the two differ. These are PRE-v2 Open5e
  * slugs that are still live as `source_document_key` on rows already in
- * production (srd_monsters, srd_spells, srd_items, srd_species) — they must
+ * production (library_monsters, library_spells, library_items, library_species) — they must
  * NEVER be "cleaned up" to match the upstream key, or every existing row
  * referencing them would silently orphan from its source document.
  *

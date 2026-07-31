@@ -64,7 +64,7 @@ export function mapOpen5eV2Feat(feat: Open5eV2Feat): ClassFeatureInsert {
 }
 
 /** Native V2 identity means equal names from different documents remain distinct. */
-export async function fetchSrdFeats(): Promise<ClassFeatureInsert[]> {
+export async function fetchOpen5eFeats(): Promise<ClassFeatureInsert[]> {
   const documentKeys = await fetchSupported5eDocumentKeys();
   const raw = await fetchAllFromDocuments<Open5eV2Feat>("https://api.open5e.com/v2/feats/", documentKeys);
   return raw.map(mapOpen5eV2Feat);

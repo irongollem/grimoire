@@ -15,7 +15,7 @@ const emit = defineEmits<{ close: [] }>();
 
 <template>
   <Teleport to="body">
-    <Transition name="srd-preview">
+    <Transition name="library-preview">
       <div
         class="fixed inset-0 z-200 flex items-center justify-center p-4"
         role="dialog"

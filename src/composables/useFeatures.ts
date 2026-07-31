@@ -102,12 +102,12 @@ export function useDeleteFeature() {
   });
 }
 
-export function useImportSrdFeatures() {
+export function useImportOpen5eFeatures() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (): Promise<ImportResult> => {
-      const { fetchSrdFeats } = await import("@/lib/open5eFeatImport");
-      const feats = await fetchSrdFeats();
+      const { fetchOpen5eFeats } = await import("@/lib/open5eFeatImport");
+      const feats = await fetchOpen5eFeats();
       const user = getCurrentUser();
 
       if (!user) throw new Error("Not authenticated");

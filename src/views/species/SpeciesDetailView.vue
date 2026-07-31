@@ -11,7 +11,7 @@
       </button>
       <DetailActions :detail-ref="detailRef" :exists="!!species" />
     </template>
-    <template v-else-if="isSrd && species" #actions>
+    <template v-else-if="isShared && species" #actions>
       <PageHeaderAction
         type="button"
         :disabled="cloning"
@@ -26,7 +26,7 @@
       <LoadingSpinner />
     </div>
     <SpeciesDetail v-else-if="isNew || isEditing" ref="detailRef" :species="species ?? null" />
-    <SpeciesSheet v-else-if="species" :species="species" :is-srd="isSrd" />
+    <SpeciesSheet v-else-if="species" :species="species" :is-shared="isShared" />
   </PageHeader>
 </template>
 
@@ -34,7 +34,7 @@
 import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconCopy } from '@/lib/icons';
-import { useSpecies, useIsSrdSpecies, useCloneSrdSpecies } from "@/composables/useSpecies";
+import { useSpecies, useIsLibrarySpecies, useCloneLibrarySpecies } from "@/composables/useSpecies";
 import PageHeader from "@/components/common/PageHeader.vue";
 import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -49,22 +49,22 @@ const router = useRouter();
 
 const isNew = computed(() => route.name === "species-new");
 const id = computed(() => (isNew.value ? "" : (route.params.id as string)));
-const isSrd = useIsSrdSpecies(id);
+const isShared = useIsLibrarySpecies(id);
 // An srd slug row has no owned editor — ignore a stray ?edit=true rather than
 // rendering the edit form against a row the user can't save.
-const isEditing = computed(() => route.query.edit === "true" && !isSrd.value);
+const isEditing = computed(() => route.query.edit === "true" && !isShared.value);
 
 const { data: species, isLoading } = useSpecies(id);
 const loading = computed(() => !isNew.value && isLoading.value);
 
-const { mutateAsync: cloneSrd } = useCloneSrdSpecies();
+const { mutateAsync: cloneLibrary } = useCloneLibrarySpecies();
 const cloning = ref(false);
 
 async function onClone() {
   if (!species.value) return;
   cloning.value = true;
   try {
-    const clone = await cloneSrd(species.value);
+    const clone = await cloneLibrary(species.value);
     router.replace(`/species/${clone.id}?edit=true`);
   } finally {
     cloning.value = false;

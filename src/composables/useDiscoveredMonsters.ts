@@ -26,14 +26,14 @@ export function useCampaignDiscoveries() {
   });
 }
 
-/** Returns a Set of monster keys (monster_id or srd_slug) that are discovered. */
+/** Returns a Set of monster keys (monster_id or library_monster_id) that are discovered. */
 export function useDiscoveredKeys() {
   const { data } = useCampaignDiscoveries();
   return computed<Set<string>>(() => {
     const s = new Set<string>();
     for (const d of data.value ?? []) {
       if (d.monster_id) s.add(d.monster_id);
-      if (d.srd_slug)   s.add(d.srd_slug);
+      if (d.library_monster_id)   s.add(d.library_monster_id);
     }
     return s;
   });
@@ -62,8 +62,8 @@ export function useToggleMonsterDiscovery() {
       } else {
         const insert: DiscoveredMonsterInsert = {
           campaign_id: campaignId,
-          monster_id:  monster.is_srd ? null : monster.id,
-          srd_slug:    monster.is_srd ? monster.id : null,
+          monster_id:  monster.is_shared ? null : monster.id,
+          library_monster_id:    monster.is_shared ? monster.id : null,
           visible_to:  visibleTo,
         };
         const { data, error } = await supabase.from("discovered_monsters").insert(insert).select().single();
@@ -83,8 +83,8 @@ export function useToggleMonsterDiscovery() {
         const optimistic: DiscoveredMonster = {
           id: "optimistic",
           campaign_id: campaign.activeCampaignId!,
-          monster_id: monster.is_srd ? null : monster.id,
-          srd_slug: monster.is_srd ? monster.id : null,
+          monster_id: monster.is_shared ? null : monster.id,
+          library_monster_id: monster.is_shared ? monster.id : null,
           visible_to: visibleTo,
           reveal_stats: false,
           discovered_at: new Date().toISOString(),
@@ -183,7 +183,7 @@ export function useAutoDiscoverMonsters() {
       monsters,
       partyMemberIds,
     }: {
-      monsters: Pick<Monster, "id" | "is_srd">[];
+      monsters: Pick<Monster, "id" | "is_shared">[];
       partyMemberIds: string[];
     }) => {
       const campaignId = campaign.activeCampaignId!;
@@ -191,21 +191,21 @@ export function useAutoDiscoverMonsters() {
       // Fetch existing discoveries to deduplicate
       const { data: existing } = await supabase
         .from("discovered_monsters")
-        .select("monster_id, srd_slug")
+        .select("monster_id, library_monster_id")
         .eq("campaign_id", campaignId);
 
       const existingMonsterIds = new Set((existing ?? []).map((d) => d.monster_id).filter(Boolean));
-      const existingSlugs = new Set((existing ?? []).map((d) => d.srd_slug).filter(Boolean));
+      const existingSlugs = new Set((existing ?? []).map((d) => d.library_monster_id).filter(Boolean));
 
       const toInsert: DiscoveredMonsterInsert[] = monsters
         .filter((m) => {
-          if (m.is_srd) return !existingSlugs.has(m.id);
+          if (m.is_shared) return !existingSlugs.has(m.id);
           return !existingMonsterIds.has(m.id);
         })
         .map((m) => ({
           campaign_id: campaignId,
-          monster_id: m.is_srd ? null : m.id,
-          srd_slug: m.is_srd ? m.id : null,
+          monster_id: m.is_shared ? null : m.id,
+          library_monster_id: m.is_shared ? m.id : null,
           visible_to: partyMemberIds.length > 0 ? partyMemberIds : null,
         }));
 

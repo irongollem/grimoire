@@ -72,7 +72,7 @@ export interface Monster extends VersionedContentMetadata {
   portrait_focal_point?: { x: number; y: number } | null;
   created_at: string;
   updated_at: string;
-  is_srd?: boolean;            // true for read-only SRD reference monsters (static file + wotc-srd imports)
+  is_shared?: boolean;            // true for read-only SRD reference monsters (static file + wotc-srd imports)
   open5e_import?: boolean;     // true when the row was upserted by Open5e sync
 }
 
@@ -83,7 +83,7 @@ export interface DiscoveredMonster {
   id: string;
   campaign_id: string;
   monster_id: string | null;   // custom monster FK
-  srd_slug: string | null;     // SRD monster stable ID e.g. "srd_aboleth"
+  library_monster_id: string | null;     // SRD monster stable ID e.g. "srd_aboleth"
   visible_to: string[] | null; // null = whole party (legacy); array = specific party_member_ids
   reveal_stats: boolean;       // false = name/art/CR only; true = full stat block
   discovered_at: string;

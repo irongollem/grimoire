@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tansta
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { Spell, SpellInsert, SpellUpdate } from "@/types/spell.types";
 import { removeStorageImages } from "@/composables/useImageUpload";
-import { useSrdArtDefaults } from "@/composables/useSrdArtDefaults";
+import { useLibraryArtDefaults } from "@/composables/useLibraryArtDefaults";
 import { useEnabledSources } from "@/composables/useEnabledSources";
 import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
@@ -12,7 +12,7 @@ import { isUuid } from "@/lib/contentIdentity";
 import { useRuleset } from "@/composables/useRuleset";
 import type { RulesetKey } from "@/types/ruleset.types";
 
-const SRD_QUERY_KEY = "srd-spells";
+const LIBRARY_QUERY_KEY = "library-spells";
 
 const QUERY_KEY = "spells";
 export const SPELLS_PAGE_SIZE = 50;
@@ -164,7 +164,7 @@ export function useOpen5eDocuments(enabled: Ref<boolean>) {
 
 export function useSpells() {
   const spellsQuery = useQuery({ queryKey: [QUERY_KEY], queryFn: fetchSpells, staleTime: Infinity });
-  const artDefaults = useSrdArtDefaults();
+  const artDefaults = useLibraryArtDefaults();
 
   const data = computed(() => {
     const spells = spellsQuery.data.value;
@@ -181,10 +181,10 @@ export function useSpells() {
   return { ...spellsQuery, data };
 }
 
-async function fetchSrdSpells(enabledSlugs: string[], ruleset: RulesetKey): Promise<Spell[]> {
+async function fetchLibrarySpells(enabledSlugs: string[], ruleset: RulesetKey): Promise<Spell[]> {
   if (enabledSlugs.length === 0) return [];
   const { data, error } = await supabase
-    .from("srd_spells")
+    .from("library_spells")
     .select("*")
     .in("source", enabledSlugs)
     .eq("ruleset", ruleset)
@@ -209,15 +209,15 @@ export function useAllSpells() {
     enabledQuery.data.value?.map((e) => e.source_slug) ?? null,
   );
 
-  const srdQuery = useQuery({
-    queryKey: computed(() => [SRD_QUERY_KEY, enabledSlugs.value, ruleset.value]),
-    queryFn: () => fetchSrdSpells(enabledSlugs.value!, ruleset.value),
+  const libraryQuery = useQuery({
+    queryKey: computed(() => [LIBRARY_QUERY_KEY, enabledSlugs.value, ruleset.value]),
+    queryFn: () => fetchLibrarySpells(enabledSlugs.value!, ruleset.value),
     enabled: () => enabledSlugs.value !== null,
     staleTime: Infinity,
   });
 
   const data = computed<Spell[]>(() => {
-    // Open5e imports in the spells table are legacy — those now come from srd_spells.
+    // Open5e imports in the spells table are legacy — those now come from library_spells.
     // Only surface truly custom-created spells from the user's table. Campaign-only
     // spells (campaign_id set) are hidden outside their owning campaign.
     const activeCampaignId = campaign.activeCampaignId;
@@ -226,13 +226,13 @@ export function useAllSpells() {
         && (!s.ruleset || s.ruleset === ruleset.value)
         && (!s.campaign_id || s.campaign_id === activeCampaignId),
     );
-    const srd    = srdQuery.data.value ?? [];
+    const srd    = libraryQuery.data.value ?? [];
     return [...srd, ...custom]
       .sort((a, b) => a.level - b.level || a.name.localeCompare(b.name));
   });
 
   const isLoading = computed(
-    () => customQuery.isLoading.value || enabledQuery.isLoading.value || srdQuery.isLoading.value,
+    () => customQuery.isLoading.value || enabledQuery.isLoading.value || libraryQuery.isLoading.value,
   );
 
   return { data, isLoading };
@@ -247,12 +247,12 @@ export function useSpell(id: string | Ref<string>) {
   });
 }
 
-export function useSrdSpell(id: Ref<string>) {
+export function useLibrarySpell(id: Ref<string>) {
   return useQuery({
-    queryKey: computed(() => [SRD_QUERY_KEY, id.value]),
+    queryKey: computed(() => [LIBRARY_QUERY_KEY, id.value]),
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("srd_spells")
+        .from("library_spells")
         .select("*")
         .eq("id", id.value)
         .single();
@@ -270,7 +270,7 @@ export function useResolvedSpell(id: Ref<string>) {
     queryKey: computed(() => ["resolved-spell", id.value]),
     queryFn: async () => {
       const { data: shared, error: sharedError } = await supabase
-        .from("srd_spells").select("*").eq("id", id.value).maybeSingle();
+        .from("library_spells").select("*").eq("id", id.value).maybeSingle();
       if (sharedError) throw sharedError;
       if (shared) return { spell: { ...shared, user_id: "" } as Spell, isShared: true };
       if (!isUuid(id.value)) throw new Error("Spell not found");

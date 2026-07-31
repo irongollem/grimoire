@@ -37,11 +37,11 @@ function shadowSets<T extends Shadowable>(custom: readonly T[]): { ids: Set<stri
 
 /** Returns the shared rows not shadowed by a custom row, followed by all custom
  *  rows, sorted by name. See the module doc for the shadow rule. */
-export function mergeSrdWithCustom<T extends Shadowable>(srd: readonly T[], custom: readonly T[]): T[] {
+export function mergeLibraryWithCustom<T extends Shadowable>(srd: readonly T[], custom: readonly T[]): T[] {
   const { ids, names } = shadowSets(custom);
-  const visibleSrd = srd.filter((s) =>
+  const visibleLibrary = srd.filter((s) =>
     !ids.has(`${s.source_document_key}::${s.source_record_key}`) &&
     !names.has(s.name.toLowerCase()),
   );
-  return [...visibleSrd, ...custom].sort((a, b) => a.name.localeCompare(b.name));
+  return [...visibleLibrary, ...custom].sort((a, b) => a.name.localeCompare(b.name));
 }

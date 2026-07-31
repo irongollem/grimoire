@@ -219,7 +219,7 @@ export function mapOpen5eV2MagicItem(
  * in-app import's behavior, unchanged); pass it explicitly to scope the
  * fetch (e.g. the seed script's `--dry-run`/explicit doc-key CLI flags).
  */
-export async function fetchSrdItems(documentKeys?: string[]): Promise<ItemInsert[]> {
+export async function fetchOpen5eItems(documentKeys?: string[]): Promise<ItemInsert[]> {
   const keys = documentKeys ?? (await fetchSupported5eDocumentKeys());
   // The embedded `document` ref on a weapon/armor/magicitem record never
   // carries `licenses` (verified against the live API) — only the full

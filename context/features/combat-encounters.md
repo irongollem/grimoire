@@ -27,7 +27,7 @@ The Bestiary (`/monsters`) is the DM's custom monster compendium. It is a union 
 2. **Open5e imported monsters** — the DM can sync monsters from any Open5e source document (Tome of Beasts, Creature Codex, etc.) via the "Sync from Open5e" button. Source selection is a persistent popover; leaving all sources unchecked imports everything. Deduplication rule: if a DB row exists with the same name as a static SRD entry, the DB row wins, so edits survive re-syncs.
 3. **Custom monsters** — created directly in the app.
 
-The shared `srd_monsters` table behind the Open5e-sourced content is seeded dual-edition by `npm run seed-srd-monsters` — 325 `srd-2014` + 331 `srd-2024` rows (see the SRD seed pipeline note in `items-spells-crafting.md`, #560).
+The shared `library_monsters` table behind the Open5e-sourced content is seeded dual-edition by `npm run seed-library-monsters` — 325 `srd-2014` + 331 `srd-2024` rows (see the SRD seed pipeline note in `items-spells-crafting.md`, #560).
 
 **List filters** (stored in `useUiStore`):
 
@@ -107,7 +107,7 @@ The builder (`EncounterDetail.vue`) is the pre-combat setup form. It has two mod
 - Companions are shown in a separate subsection
 - New encounters auto-select **all** party members and companions by default (`EncounterDetail.vue` watches `party`/`companions` once on load); the DM unchecks anyone not present rather than building the roster from scratch. Companion auto-select is #569 — a companion's `combat_ready` flag (see Data Model / Runner below) plays no part in the builder, it's a runtime-only gate applied at combat start
 - Each selected member/companion gets a faction assignment dropdown (colour-coded by faction colour)
-- Player initiative starts blank each encounter (no longer pre-seeded from `party_members.current_initiative`, which carried stale values between fights — see #504). Players roll their own from the player encounter panel; the runner ingests the value live via its `party_members` subscription. The DM's "Roll Initiative" still fills in anyone who hasn't rolled (it skips **every** combatant that already has a value, not just players)
+- Player initiative starts blank each encounter (no longer pre-seeded from `party_members.current_initiative`, which carried stale values between fights — see #504). Players roll their own from the player encounter panel; the runner ingests the value live via its `party_members` subscription. One residual case is knowingly accepted: DM closes the runner mid-live, a player rolls, DM reopens. Fixing it properly needs encounter-scoped initiative, which #504's fresh-roll design deliberately avoided — so it is left open rather than reintroducing the stale-seed behaviour that made #504 necessary in the first place. The DM's "Roll Initiative" still fills in anyone who hasn't rolled (it skips **every** combatant that already has a value, not just players)
 
 ### Combatants (`EncounterCombatants.vue`)
 
@@ -414,7 +414,7 @@ That last fallback matters: an enemy NPC the DM revealed only inside the encount
 
 10. **Difficulty calculator integrated into the builder.** The DMG XP budget calculation (with count multiplier, party size adjustment, ally offset, and trap XP) runs live as the DM adds combatants. Visual threshold bars and an enemy breakdown table make it immediately clear whether a planned encounter is worth balancing differently.
 
-11. **Re-import clobber protection (#560).** Re-syncing monsters from Open5e (into the shared `srd_monsters` table, or via the legacy per-user `useImportSrdMonsters` path) only refreshes fields Open5e actually supplies — name, type/size, source metadata, `stat_block`. DM-authored notes, portrait, description, habitat, and lair link are never touched by a re-run. Full field breakdown in [`docs/srd-reimport.md`](../../docs/srd-reimport.md).
+11. **Re-import clobber protection (#560).** Re-syncing monsters from Open5e (into the shared `library_monsters` table, or via the legacy per-user `useImportSrdMonsters` path) only refreshes fields Open5e actually supplies — name, type/size, source metadata, `stat_block`. DM-authored notes, portrait, description, habitat, and lair link are never touched by a re-run. Full field breakdown in [`docs/library-reimport.md`](../../docs/library-reimport.md).
 
 ---
 

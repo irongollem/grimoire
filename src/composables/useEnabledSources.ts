@@ -5,10 +5,10 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useRuleset } from "@/composables/useRuleset";
 
 const ENABLED_KEY          = "enabled-sources";
-const AVAILABLE_KEY        = "available-srd-sources";
-const AVAILABLE_SPELL_KEY  = "available-srd-spell-sources";
-const AVAILABLE_ITEM_KEY   = "available-srd-item-sources";
-const AVAILABLE_SPECIES_KEY = "available-srd-species-sources";
+const AVAILABLE_KEY        = "available-library-sources";
+const AVAILABLE_SPELL_KEY  = "available-library-spell-sources";
+const AVAILABLE_ITEM_KEY   = "available-library-item-sources";
+const AVAILABLE_SPECIES_KEY = "available-library-species-sources";
 
 export interface EnabledSource {
   id: string;
@@ -18,7 +18,7 @@ export interface EnabledSource {
   enabled_at: string;
 }
 
-export interface AvailableSrdSource {
+export interface AvailableLibrarySource {
   source: string;       // slug, e.g. "wotc-srd"
   source_title: string | null;
   count: number;
@@ -34,10 +34,10 @@ async function fetchEnabledSources(campaignId: string): Promise<EnabledSource[]>
   return data as EnabledSource[];
 }
 
-async function fetchAvailableSrdSources(ruleset: "2014" | "2024"): Promise<AvailableSrdSource[]> {
-  const { data, error } = await supabase.rpc("get_srd_monster_sources", { p_ruleset: ruleset });
+async function fetchAvailableLibrarySources(ruleset: "2014" | "2024"): Promise<AvailableLibrarySource[]> {
+  const { data, error } = await supabase.rpc("get_library_monster_sources", { p_ruleset: ruleset });
   if (error) throw error;
-  return (data ?? []) as AvailableSrdSource[];
+  return (data ?? []) as AvailableLibrarySource[];
 }
 
 async function enableSource(campaignId: string, source_slug: string, source_title: string | null): Promise<void> {
@@ -66,56 +66,56 @@ export function useEnabledSources() {
   });
 }
 
-export function useAvailableSrdSources() {
+export function useAvailableLibrarySources() {
   const { ruleset } = useRuleset();
   return useQuery({
     queryKey: computed(() => [AVAILABLE_KEY, ruleset.value]),
-    queryFn: () => fetchAvailableSrdSources(ruleset.value),
+    queryFn: () => fetchAvailableLibrarySources(ruleset.value),
     staleTime: Infinity,
   });
 }
 
-async function fetchAvailableSrdSpellSources(ruleset: "2014" | "2024"): Promise<AvailableSrdSource[]> {
-  const { data, error } = await supabase.rpc("get_srd_spell_sources", { p_ruleset: ruleset });
+async function fetchAvailableLibrarySpellSources(ruleset: "2014" | "2024"): Promise<AvailableLibrarySource[]> {
+  const { data, error } = await supabase.rpc("get_library_spell_sources", { p_ruleset: ruleset });
   if (error) throw error;
-  return (data ?? []) as AvailableSrdSource[];
+  return (data ?? []) as AvailableLibrarySource[];
 }
 
-export function useAvailableSrdSpellSources() {
+export function useAvailableLibrarySpellSources() {
   const { ruleset } = useRuleset();
   return useQuery({
     queryKey: computed(() => [AVAILABLE_SPELL_KEY, ruleset.value]),
-    queryFn: () => fetchAvailableSrdSpellSources(ruleset.value),
+    queryFn: () => fetchAvailableLibrarySpellSources(ruleset.value),
     staleTime: Infinity,
   });
 }
 
-async function fetchAvailableSrdItemSources(ruleset: "2014" | "2024"): Promise<AvailableSrdSource[]> {
-  const { data, error } = await supabase.rpc("get_srd_item_sources", { p_ruleset: ruleset });
+async function fetchAvailableLibraryItemSources(ruleset: "2014" | "2024"): Promise<AvailableLibrarySource[]> {
+  const { data, error } = await supabase.rpc("get_library_item_sources", { p_ruleset: ruleset });
   if (error) throw error;
-  return (data ?? []) as AvailableSrdSource[];
+  return (data ?? []) as AvailableLibrarySource[];
 }
 
-export function useAvailableSrdItemSources() {
+export function useAvailableLibraryItemSources() {
   const { ruleset } = useRuleset();
   return useQuery({
     queryKey: computed(() => [AVAILABLE_ITEM_KEY, ruleset.value]),
-    queryFn: () => fetchAvailableSrdItemSources(ruleset.value),
+    queryFn: () => fetchAvailableLibraryItemSources(ruleset.value),
     staleTime: Infinity,
   });
 }
 
-async function fetchAvailableSrdSpeciesSources(ruleset: "2014" | "2024"): Promise<AvailableSrdSource[]> {
-  const { data, error } = await supabase.rpc("get_srd_species_sources", { p_ruleset: ruleset });
+async function fetchAvailableLibrarySpeciesSources(ruleset: "2014" | "2024"): Promise<AvailableLibrarySource[]> {
+  const { data, error } = await supabase.rpc("get_library_species_sources", { p_ruleset: ruleset });
   if (error) throw error;
-  return (data ?? []) as AvailableSrdSource[];
+  return (data ?? []) as AvailableLibrarySource[];
 }
 
-export function useAvailableSrdSpeciesSources() {
+export function useAvailableLibrarySpeciesSources() {
   const { ruleset } = useRuleset();
   return useQuery({
     queryKey: computed(() => [AVAILABLE_SPECIES_KEY, ruleset.value]),
-    queryFn: () => fetchAvailableSrdSpeciesSources(ruleset.value),
+    queryFn: () => fetchAvailableLibrarySpeciesSources(ruleset.value),
     staleTime: Infinity,
   });
 }
@@ -128,10 +128,10 @@ export function useEnableSource() {
       enableSource(campaign.activeCampaignId!, source_slug, source_title),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [ENABLED_KEY] });
-      queryClient.invalidateQueries({ queryKey: ["srd-monsters"] });
-      queryClient.invalidateQueries({ queryKey: ["srd-spells"] });
-      queryClient.invalidateQueries({ queryKey: ["srd-items"] });
-      queryClient.invalidateQueries({ queryKey: ["srd-species"] });
+      queryClient.invalidateQueries({ queryKey: ["library-monsters"] });
+      queryClient.invalidateQueries({ queryKey: ["library-spells"] });
+      queryClient.invalidateQueries({ queryKey: ["library-items"] });
+      queryClient.invalidateQueries({ queryKey: ["library-species"] });
     },
   });
 }
@@ -144,10 +144,10 @@ export function useDisableSource() {
       disableSource(campaign.activeCampaignId!, source_slug),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [ENABLED_KEY] });
-      queryClient.invalidateQueries({ queryKey: ["srd-monsters"] });
-      queryClient.invalidateQueries({ queryKey: ["srd-spells"] });
-      queryClient.invalidateQueries({ queryKey: ["srd-items"] });
-      queryClient.invalidateQueries({ queryKey: ["srd-species"] });
+      queryClient.invalidateQueries({ queryKey: ["library-monsters"] });
+      queryClient.invalidateQueries({ queryKey: ["library-spells"] });
+      queryClient.invalidateQueries({ queryKey: ["library-items"] });
+      queryClient.invalidateQueries({ queryKey: ["library-species"] });
     },
   });
 }

@@ -1,22 +1,22 @@
 #!/usr/bin/env tsx
 /**
- * Seeds the shared srd_species table from Open5e v2 — dual-edition by
+ * Seeds the shared library_species table from Open5e v2 — dual-edition by
  * default (SRD 5.1 "srd-2014" + SRD 5.2 "srd-2024"), non-subspecies rows only.
  *
- * Reuses src/lib/open5eSpeciesImport.ts's fetchSrdSpecies(), buildImportedFields()
+ * Reuses src/lib/open5eSpeciesImport.ts's fetchLibrarySpecies(), buildImportedFields()
  * and buildCreateOnlyDefaults() — the single source of truth for the Open5e v2
  * → row mapping (shared with the in-app SpeciesOpen5ePanel.vue import flow).
  * This script only adds CLI plumbing, the non-subspecies filter, the
- * srd_species.id derivation (stableSrdId), the shared-table source/source_title
+ * library_species.id derivation (stableSrdId), the shared-table source/source_title
  * override (the Open5e document slug rather than its display name — needed for
  * campaign_enabled_sources gating, unlike the panel's per-user import which
  * keeps the display name), and the Supabase upsert. There is no art backfill
- * step — species have no canonical art source yet (unlike srd_monsters/
- * srd_spells, which backfill from srd_monster_art_canonical/srd_art_defaults).
+ * step — species have no canonical art source yet (unlike library_monsters/
+ * library_spells, which backfill from library_monster_art_canonical/library_art_defaults).
  *
  * Run (seeds both 2014 + 2024 by default):
- *   npx tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/seed-srd-species.ts
- *   npm run seed-srd-species
+ *   npx tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/seed-library-species.ts
+ *   npm run seed-library-species
  *
  * Optional flags:
  *   --all              Seed from every supported 5e-gamesystem document (2014, 2024, and any future ones)
@@ -30,7 +30,7 @@
  */
 
 import {
-  fetchSrdSpecies,
+  fetchLibrarySpecies,
   buildImportedFields,
   buildCreateOnlyDefaults,
 } from "@/lib/open5eSpeciesImport";
@@ -60,12 +60,12 @@ type ImportedFields = ReturnType<typeof buildImportedFields>;
 type CreateOnlyDefaults = ReturnType<typeof buildCreateOnlyDefaults>;
 
 /**
- * `srd_species` row: `buildImportedFields` + `buildCreateOnlyDefaults`, minus
+ * `library_species` row: `buildImportedFields` + `buildCreateOnlyDefaults`, minus
  * `notes` (that field is `species`-table-only — a DM-private note column that
- * `srd_species`, per the 20260724000002 migration, deliberately has no
+ * `library_species`, per the 20260724000002 migration, deliberately has no
  * equivalent of), plus the shared-table id and the source/source_title
  * override described above. `ruleset` is narrowed to non-null: like
- * `srd_monsters`, `srd_species.ruleset` is `NOT NULL` with a
+ * `library_monsters`, `library_species.ruleset` is `NOT NULL` with a
  * `('2014'|'2024')` check, so any row from a non-5e-2014/2024 document (e.g.
  * a5e) is filtered out — loudly — before upsert rather than silently coerced.
  */
@@ -78,7 +78,7 @@ type SeededSpecies = Omit<ImportedFields, "ruleset" | "source"> &
   };
 
 /**
- * Maps one non-subspecies Open5e race into a `srd_species` row, or `null` if
+ * Maps one non-subspecies Open5e race into a `library_species` row, or `null` if
  * its document doesn't resolve to a supported ruleset (see `SeededSpecies`'s
  * doc comment above).
  */
@@ -142,7 +142,7 @@ async function main(): Promise<void> {
       ? parsed.documentKeys
       : [...DEFAULT_SRD_DOCUMENT_KEYS];
 
-  console.log(`=== Seeding srd_species (sources: ${documentKeys.join(", ")}) ===\n`);
+  console.log(`=== Seeding library_species (sources: ${documentKeys.join(", ")}) ===\n`);
 
   console.log("Checking requested document(s) are licensed for hosted redistribution…");
   // The embedded `document` ref on a /v2/species/ record never carries
@@ -154,7 +154,7 @@ async function main(): Promise<void> {
   const documentMetadata = new Map(documents.map((document) => [document.key, document]));
 
   console.log("Step 1: Fetching + mapping species from Open5e v2…");
-  const races = await fetchSrdSpecies(documentKeys);
+  const races = await fetchLibrarySpecies(documentKeys);
   const coreRaces = races.filter((race) => !race.is_subspecies);
   const subspeciesSkipped = races.length - coreRaces.length;
   if (subspeciesSkipped > 0) {
@@ -177,8 +177,8 @@ async function main(): Promise<void> {
   const env = requireEnv();
   const supabase = createServiceClient(env);
 
-  console.log("Step 2: Upserting to srd_species table…");
-  await upsertBatch(supabase, "srd_species", rows, "source_document_key,source_record_key");
+  console.log("Step 2: Upserting to library_species table…");
+  await upsertBatch(supabase, "library_species", rows, "source_document_key,source_record_key");
   console.log(`  Done — ${rows.length} rows upserted.\n`);
 
   console.log("=== Seeding complete ===");

@@ -5,14 +5,14 @@ import { removeStorageImages } from "@/composables/useImageUpload";
 import type { Species, SpeciesInsert, SpeciesUpdate } from "@/types/species.types";
 import { useEnabledSources } from "@/composables/useEnabledSources";
 import { isUuid } from "@/lib/contentIdentity";
-import { mergeSrdWithCustom } from "@/lib/srdShadow";
+import { mergeLibraryWithCustom } from "@/lib/libraryShadow";
 import { useRuleset } from "@/composables/useRuleset";
 import { useCampaignStore } from "@/stores/campaign";
 import { allowedSpecies } from "@/lib/campaignContentGating";
 import type { RulesetKey } from "@/types/ruleset.types";
 
 const QUERY_KEY = "species";
-const SRD_QUERY_KEY = "srd-species";
+const LIBRARY_QUERY_KEY = "library-species";
 
 async function fetchAllSpecies(ruleset: RulesetKey): Promise<Species[]> {
   const { data, error } = await supabase
@@ -58,10 +58,10 @@ async function deleteSpecies(species: Species): Promise<void> {
   await removeStorageImages("asset-images", species.image_url);
 }
 
-async function fetchSrdSpecies(enabledSlugs: string[], ruleset: RulesetKey): Promise<Species[]> {
+async function fetchLibrarySpecies(enabledSlugs: string[], ruleset: RulesetKey): Promise<Species[]> {
   if (enabledSlugs.length === 0) return [];
   const { data, error } = await supabase
-    .from("srd_species")
+    .from("library_species")
     .select("*")
     .in("source", enabledSlugs)
     .eq("ruleset", ruleset)
@@ -92,19 +92,19 @@ export function useAllSpecies() {
     enabledQuery.data.value?.map((e) => e.source_slug) ?? null,
   );
 
-  const srdQuery = useQuery({
-    queryKey: computed(() => [SRD_QUERY_KEY, enabledSlugs.value, ruleset.value]),
-    queryFn: () => fetchSrdSpecies(enabledSlugs.value!, ruleset.value),
+  const libraryQuery = useQuery({
+    queryKey: computed(() => [LIBRARY_QUERY_KEY, enabledSlugs.value, ruleset.value]),
+    queryFn: () => fetchLibrarySpecies(enabledSlugs.value!, ruleset.value),
     enabled: () => enabledSlugs.value !== null,
     staleTime: Infinity,
   });
 
   const data = computed<Species[]>(() =>
-    mergeSrdWithCustom(srdQuery.data.value ?? [], customQuery.data.value ?? []),
+    mergeLibraryWithCustom(libraryQuery.data.value ?? [], customQuery.data.value ?? []),
   );
 
   const isLoading = computed(
-    () => customQuery.isLoading.value || enabledQuery.isLoading.value || srdQuery.isLoading.value,
+    () => customQuery.isLoading.value || enabledQuery.isLoading.value || libraryQuery.isLoading.value,
   );
 
   return { data, isLoading };
@@ -143,7 +143,7 @@ export function useSpeciesNameMap() {
 async function fetchResolvedSpecies(id: string): Promise<Species> {
   if (!isUuid(id)) {
     const { data, error } = await supabase
-      .from("srd_species")
+      .from("library_species")
       .select("*")
       .eq("id", id)
       .single();
@@ -154,7 +154,7 @@ async function fetchResolvedSpecies(id: string): Promise<Species> {
 }
 
 /** Resolves against BOTH stores — a text id may be a custom species uuid or a
- *  shared srd_species slug (party_members.species_id / disguise_species_id
+ *  shared library_species slug (party_members.species_id / disguise_species_id
  *  hold either, migration 20260724000003). Consumers (SpeciesDetail, player
  *  views) get transparent resolution with no signature change. */
 export function useSpecies(id: Ref<string>) {
@@ -166,9 +166,9 @@ export function useSpecies(id: Ref<string>) {
 }
 
 /** Trivial companion to {@link useSpecies}: whether `id` resolves against the
- *  shared srd_species table rather than the user's custom species table. Lets
+ *  shared library_species table rather than the user's custom species table. Lets
  *  UI gate a "Customize" affordance without a second query. */
-export function useIsSrdSpecies(id: Ref<string>) {
+export function useIsLibrarySpecies(id: Ref<string>) {
   return computed(() => !!id.value && !isUuid(id.value));
 }
 
@@ -202,20 +202,20 @@ export function useDeleteSpecies() {
 
 /** Clone an SRD species into the user's own collection, so a DM can enrich the
  *  Open5e-sourced defaults (subraces, granted spells, shapeshifting, art) with
- *  homebrew content. Mirrors {@link useCloneSrdMonster}: the clone carries the
+ *  homebrew content. Mirrors {@link useCloneLibraryMonster}: the clone carries the
  *  same source identity, so it shadows the shared row in every merged
  *  {@link useAllSpecies} list afterwards. */
-export function useCloneSrdSpecies() {
+export function useCloneLibrarySpecies() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (srdSpecies: Species): Promise<Species> => {
+    mutationFn: async (librarySpecies: Species): Promise<Species> => {
       const {
         name, description, size, avg_height, avg_weight, speed,
         ability_score_increases, traits, languages, tags, source, subraces,
         image_url, focal_point, is_shapeshifter, natural_armor_ac, granted_spells,
         ruleset, conceptual_key, source_document_key, source_record_key,
         source_revision, source_license, provenance,
-      } = srdSpecies;
+      } = librarySpecies;
       return createSpecies({
         name,
         description,

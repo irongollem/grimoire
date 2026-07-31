@@ -59,13 +59,13 @@ Each doc covers **both DM and player perspectives**, lists exact file paths, com
 
 ### Combat
 
-- **Bestiary** — custom monster builder; 12 SRD template presets; full stat block (all speeds, senses, saves, skills, resistances, actions, reactions, legendary/lair); dual-edition (2014/2024) `srd_monsters`, 2024 stat blocks carry their own initiative bonus; Open5e sync; AI generator; per-monster player discovery/visibility system
+- **Bestiary** — custom monster builder; 12 SRD template presets; full stat block (all speeds, senses, saves, skills, resistances, actions, reactions, legendary/lair); dual-edition (2014/2024) `library_monsters`, 2024 stat blocks carry their own initiative bonus; Open5e sync; AI generator; per-monster player discovery/visibility system
 - **Encounter Builder** — combatant roster (CombatantDef); faction system (4 defaults + custom); pre-scripted events (4 trigger types, 2 action types); boss mechanics (legendary + lair actions); difficulty calculator; loot + trap linking
 - **Encounter Runner** — live combat tracker; initiative order (ruleset-aware monster initiative modifier); HP flash animations; dual-edition conditions (2024 Exhaustion math); reaction tracking; surprised badge; DM detail panel (roll modes, chat modes, legendary action tracker); mid-encounter spawn; bidirectional HP sync with party_members
 
 ### Items, Spells & Crafting
 
-- **Item Vault** — dual-image identification system (mundane vs. identified portrait with focal point); weapon/armor stats; 2024 weapon mastery properties; magic properties (attunement, charges, recharge, arcane focus); container flag; bundle/pack auto-expansion; linked spells; shared dual-edition `srd_items` table with per-user shadowing + clone-to-customize (#303)
+- **Item Vault** — dual-image identification system (mundane vs. identified portrait with focal point); weapon/armor stats; 2024 weapon mastery properties; magic properties (attunement, charges, recharge, arcane focus); container flag; bundle/pack auto-expansion; linked spells; shared dual-edition `library_items` table with per-user shadowing + clone-to-customize (#303)
 - **Player Inventory** — paper doll with 11 anatomical slots; attunement 3-pip tracker; carry weight bar with 4-tier burden portraits; Powerful Build species doubling; extradimensional weight exclusion; drag-and-drop reordering; coin purse with chat drop; real-time sync
 - **Spellbook** — custom + Open5e import; Spell Level Advisor wizard; player view adapts to caster type (spellbook/prepared/known/none); multiclass-accurate slot computation
 - **Workshop** — crafting recipes with discipline, DC, time, tool proficiency check, critical fail ruins ingredient; per-player visibility; roll posts to campaign chat; cooking food variant

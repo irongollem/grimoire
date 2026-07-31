@@ -23,7 +23,7 @@
     <p v-else-if="error" class="text-destructive text-body">Failed to load spell.</p>
     <template v-else>
       <SpellSheet v-if="!isEditing && spell" :spell="spell" />
-      <SpellDetail v-else :spell="spell ?? null" :is-srd="isSrdId" />
+      <SpellDetail v-else :spell="spell ?? null" :is-shared="isLibrarySpell" />
     </template>
   </PageHeader>
 </template>
@@ -33,7 +33,7 @@ import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconDocument, IconEdit } from '@/lib/icons';
 import { useResolvedSpell } from "@/composables/useSpells";
-import { useSrdSpellArt } from "@/composables/useSrdSpellArt";
+import { useLibrarySpellArt } from "@/composables/useLibrarySpellArt";
 import { spellLevelLabel } from "@/types/spell.types";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
@@ -65,10 +65,10 @@ function stopEditing() {
 
 const lookupId = computed(() => isNew.value ? "" : (id.value ?? ""));
 const { data: resolved, isLoading, error } = useResolvedSpell(lookupId);
-const { data: artMap } = useSrdSpellArt();
-const isSrdId = computed(() => resolved.value?.isShared === true);
+const { data: artMap } = useLibrarySpellArt();
+const isLibrarySpell = computed(() => resolved.value?.isShared === true);
 
-const resolvedSrdSpell = computed(() => {
+const resolvedLibrarySpell = computed(() => {
   const s = resolved.value?.spell;
   if (!s) return null;
   const art = artMap.value?.[s.id];
@@ -76,7 +76,7 @@ const resolvedSrdSpell = computed(() => {
   return { ...s, image_url: art.image_url ?? s.image_url, image_focal_point: art.portrait_focal_point ?? s.image_focal_point };
 });
 
-const spell = computed(() => isSrdId.value ? resolvedSrdSpell.value : (resolved.value?.spell ?? null));
+const spell = computed(() => isLibrarySpell.value ? resolvedLibrarySpell.value : (resolved.value?.spell ?? null));
 
 const subtitle = computed(() => {
   const s = spell.value;

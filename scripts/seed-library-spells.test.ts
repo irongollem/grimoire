@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupIdsByLowerName } from "./seed-srd-spells";
+import { groupIdsByLowerName } from "./seed-library-spells";
 
 describe("groupIdsByLowerName", () => {
   it("returns an empty map for no rows", () => {

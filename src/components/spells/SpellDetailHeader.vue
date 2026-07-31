@@ -26,7 +26,7 @@
         <IconScrollText class="h-3.5 w-3.5" />
         {{ isSendingToScriptorium ? "Sending…" : "Send to Scriptorium" }}
       </button>
-      <template v-if="!isSrd">
+      <template v-if="!isShared">
         <button
           v-if="hasSpell"
           type="button"
@@ -58,7 +58,7 @@ import { IconDelete, IconGenerate, IconSave, IconScrollText } from "@/lib/icons"
 
 defineProps<{
   hasSpell: boolean;
-  isSrd: boolean;
+  isShared: boolean;
   isAiEnabled: boolean;
   isSaving: boolean;
   isDeleting: boolean;

@@ -1,31 +1,31 @@
 #!/usr/bin/env tsx
 /**
- * Seeds the shared srd_items table (issue #303) from two sources:
+ * Seeds the shared library_items table (issue #303) from two sources:
  *
  *   1. Open5e v2 weapons/armor/magicitems — dual-edition by default (SRD 5.1
  *      "srd-2014" + SRD 5.2 "srd-2024"), via src/lib/open5eImport.ts's
- *      fetchSrdItems(), the single source of truth for the Open5e v2 → row
+ *      fetchOpen5eItems(), the single source of truth for the Open5e v2 → row
  *      mapping (shared with the in-app admin import flow). These rows keep
  *      their mapped ruleset ('2014'/'2024').
  *   2. The grimoire-bundled mundane datasets (src/data/gear.ts,
  *      provisions.ts, services.ts, ammunition.ts) — ALWAYS included
  *      regardless of the requested document keys, since they're
  *      grimoire-owned, not Open5e-sourced. Unlike the per-user
- *      useImportSrdItems() import this seed replaces, these are stamped
+ *      useImportOpen5eItems() import this seed replaces, these are stamped
  *      `ruleset: null` (edition-neutral) rather than "2014" — mundane gear
  *      must show up in both 2014 and 2024 campaigns, not just 2014 ones.
  *
  * Then backfills image_url + image_focal_point from canonical
- * srd_art_defaults rows (content_type = 'item').
+ * library_art_defaults rows (content_type = 'item').
  *
- * This script only adds CLI plumbing, the srd_items.id derivation
+ * This script only adds CLI plumbing, the library_items.id derivation
  * (ItemInsert has no `id`), the bundled-dataset identity derivation, the
  * Supabase upsert, and the SRD art backfill — it does not re-implement the
  * Open5e → row field mapping (that lives in src/lib/open5eImport.ts).
  *
  * Run (seeds both 2014 + 2024, plus the bundled datasets, by default):
- *   npx tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/seed-srd-items.ts
- *   npm run seed-srd-items
+ *   npx tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/seed-library-items.ts
+ *   npm run seed-library-items
  *
  * Optional flags:
  *   --all              Seed Open5e items from every supported 5e-gamesystem document (2014, 2024, and any future ones)
@@ -41,7 +41,7 @@
  *   SUPABASE_SERVICE_ROLE_KEY — service-role key (bypasses RLS)
  */
 
-import { fetchSrdItems } from "@/lib/open5eImport";
+import { fetchOpen5eItems } from "@/lib/open5eImport";
 import { fetchAll, fetchOpen5eDocumentRefs, fetchSupported5eDocumentKeys, rulesetForDocument, slugifyKey, stableSrdId } from "@/lib/open5eApi";
 import type { Open5eDocumentRef } from "@/lib/open5eApi";
 import type { ItemInsert, StaticItemData } from "@/types/item.types";
@@ -81,7 +81,7 @@ async function fetchOpen5eDocumentSummaries(): Promise<DocumentSummary[]> {
 // ── row shape ─────────────────────────────────────────────────────────────────
 
 /**
- * srd_items row, seed-script side. `spell_ids` (not a srd_items column — see
+ * library_items row, seed-script side. `spell_ids` (not a library_items column — see
  * the migration), `campaign_id`, and `dm_notes` (per-user-only concerns, not
  * meaningful on a shared/admin-only table) are dropped from `ItemInsert`.
  * `ruleset` is narrowed to `RulesetKey | null` (never `undefined`): API rows
@@ -104,7 +104,7 @@ function isSupportedApiItem(item: ItemInsert): item is ItemInsert & { ruleset: R
  * Maps Open5e-sourced ItemInsert rows (already carrying full identity
  * metadata from open5eImport.ts's `metadata()`) to SeededItem rows. Drops
  * anything without a supported ruleset or a source_record_key (no stable id
- * derivable) — mirrors seed-srd-monsters.ts's non-5e-document handling.
+ * derivable) — mirrors seed-library-monsters.ts's non-5e-document handling.
  */
 function mapApiRows(items: readonly ItemInsert[]): { rows: SeededItem[]; skipped: number } {
   const supported = items.filter(isSupportedApiItem);
@@ -118,7 +118,7 @@ function mapApiRows(items: readonly ItemInsert[]): { rows: SeededItem[]; skipped
 /**
  * Maps the grimoire-bundled static datasets (GEAR/PROVISIONS/SERVICES/
  * AMMUNITION) to SeededItem rows. Identity fields are derived the same way
- * useImportSrdItems() (src/composables/useItems.ts) derives them for its
+ * useImportOpen5eItems() (src/composables/useItems.ts) derives them for its
  * per-user import — conceptual_key = slugified name, source_document_key =
  * "grimoire-bundled", source_record_key = "grimoire-bundled:<slug>",
  * source_revision = "bundled", provenance = { provider: "grimoire" } — with
@@ -161,20 +161,20 @@ async function loadBundledDatasets(): Promise<SeededItem[]> {
   return mapBundledRows([...GEAR, ...PROVISIONS, ...SERVICES, ...AMMUNITION]);
 }
 
-// ── art backfill from srd_art_defaults ───────────────────────────────────────
+// ── art backfill from library_art_defaults ───────────────────────────────────────
 
 interface ArtDefaultRow {
-  srd_slug: string;
+  content_name: string;
   image_url: string;
   image_focal_point: { x: number; y: number } | null;
 }
 
 /**
- * Groups srd_items row ids by lowercased name. srd_art_defaults keys art by
- * lower(name), and a name can match MULTIPLE srd_items rows — the same
+ * Groups library_items row ids by lowercased name. library_art_defaults keys art by
+ * lower(name), and a name can match MULTIPLE library_items rows — the same
  * weapon/armor appears once per ruleset (2014 + 2024) — so every matching
  * row must get the art, not just the first one found. Mirrors
- * seed-srd-spells.ts's groupIdsByLowerName.
+ * seed-library-spells.ts's groupIdsByLowerName.
  */
 export function groupIdsByLowerName(rows: ReadonlyArray<{ id: string; name: string }>): Map<string, string[]> {
   const map = new Map<string, string[]>();
@@ -190,8 +190,8 @@ export function groupIdsByLowerName(rows: ReadonlyArray<{ id: string; name: stri
 async function backfillArt(supabase: SupabaseClient, items: ReadonlyArray<{ id: string; name: string }>): Promise<void> {
   const art = await fetchAllRows<ArtDefaultRow>((from, to) =>
     supabase
-      .from("srd_art_defaults")
-      .select("srd_slug,image_url,image_focal_point")
+      .from("library_art_defaults")
+      .select("content_name,image_url,image_focal_point")
       .eq("content_type", "item")
       .not("image_url", "is", null)
       .range(from, to)
@@ -201,7 +201,7 @@ async function backfillArt(supabase: SupabaseClient, items: ReadonlyArray<{ id: 
     console.log("  No canonical item art found — skipping art backfill.");
     return;
   }
-  console.log(`  Found ${art.length} item art rows — backfilling srd_items…`);
+  console.log(`  Found ${art.length} item art rows — backfilling library_items…`);
 
   const idsByName = groupIdsByLowerName(items);
 
@@ -209,11 +209,11 @@ async function backfillArt(supabase: SupabaseClient, items: ReadonlyArray<{ id: 
   let patched = 0;
   for (let i = 0; i < art.length; i += PATCH_BATCH) {
     await Promise.all(
-      art.slice(i, i + PATCH_BATCH).flatMap(({ srd_slug, image_url, image_focal_point }) => {
-        const ids = idsByName.get(srd_slug) ?? [];
+      art.slice(i, i + PATCH_BATCH).flatMap(({ content_name, image_url, image_focal_point }) => {
+        const ids = idsByName.get(content_name) ?? [];
         return ids.map(async (id) => {
           const { error } = await supabase
-            .from("srd_items")
+            .from("library_items")
             .update({ image_url, image_focal_point })
             .eq("id", id);
           if (error) throw error;
@@ -277,7 +277,7 @@ async function main(): Promise<void> {
       ? parsed.documentKeys
       : [...DEFAULT_SRD_DOCUMENT_KEYS];
 
-  console.log(`=== Seeding srd_items (Open5e sources: ${documentKeys.join(", ")}; plus grimoire-bundled) ===\n`);
+  console.log(`=== Seeding library_items (Open5e sources: ${documentKeys.join(", ")}; plus grimoire-bundled) ===\n`);
 
   // Scoped to `documentKeys` (the Open5e sources) only — "grimoire-bundled" is
   // never an Open5e document and is never passed here; it's loaded separately
@@ -286,7 +286,7 @@ async function main(): Promise<void> {
   assertRedistributableDocuments(documentKeys, await fetchOpen5eDocumentRefs());
 
   console.log("Step 1: Fetching + mapping items from Open5e v2…");
-  const apiItems = await fetchSrdItems(documentKeys);
+  const apiItems = await fetchOpen5eItems(documentKeys);
   const { rows: apiRows, skipped } = mapApiRows(apiItems);
   if (skipped > 0) {
     console.log(`  Skipped ${skipped} item(s) with no supported ruleset or no source_record_key.`);
@@ -307,11 +307,11 @@ async function main(): Promise<void> {
   const env = requireEnv();
   const supabase = createServiceClient(env);
 
-  console.log("Step 3: Upserting to srd_items table…");
-  await upsertBatch(supabase, "srd_items", rows, "source_document_key,source_record_key");
+  console.log("Step 3: Upserting to library_items table…");
+  await upsertBatch(supabase, "library_items", rows, "source_document_key,source_record_key");
   console.log(`  Done — ${rows.length} rows upserted.\n`);
 
-  console.log("Step 4: Backfilling art from srd_art_defaults…");
+  console.log("Step 4: Backfilling art from library_art_defaults…");
   await backfillArt(supabase, rows);
   console.log("  Art backfill complete.\n");
 

@@ -53,7 +53,7 @@ insert into public.spells (
 
 update public.spells set ritual = true where id = '00000000-0000-4000-8000-000000000554';
 
-insert into public.srd_spells (
+insert into public.library_spells (
   id, name, level, school, casting_time, range, duration, description, classes,
   conceptual_key, ruleset, source_document_key, source_record_key, source_revision
 ) values

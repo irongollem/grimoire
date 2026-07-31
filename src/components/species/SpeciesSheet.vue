@@ -2,7 +2,7 @@
   <div class="flex flex-col gap-5 max-w-2xl">
     <!-- Action bar (owned species only — srd rows are read-only, the Clone
          action for those lives in the page header instead) -->
-    <div v-if="!props.isSrd" class="flex items-center justify-end gap-2">
+    <div v-if="!props.isShared" class="flex items-center justify-end gap-2">
       <button
         type="button"
         class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
@@ -149,7 +149,7 @@ import type { Species } from "@/types/species.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 
-const props = defineProps<{ species: Species; isSrd?: boolean }>();
+const props = defineProps<{ species: Species; isShared?: boolean }>();
 const route = useRoute();
 const router = useRouter();
 const { confirm } = useConfirm();

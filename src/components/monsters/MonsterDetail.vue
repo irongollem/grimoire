@@ -6,7 +6,7 @@
     :form="form"
     :sb="sb"
     :monster-id="props.monster?.id"
-    :is-srd="isSrd"
+    :is-shared="isShared"
     :is-new="!props.monster"
     :is-saving="saving"
     :is-cloning="cloning"
@@ -28,7 +28,7 @@
   <div v-else class="flex flex-col gap-5 min-w-0 max-w-full">
     <!-- Read-only SRD banner -->
     <div
-      v-if="isSrd"
+      v-if="isShared"
       class="flex items-center justify-between gap-3 rounded-md border border-border bg-muted/50 px-4 py-2.5"
     >
       <p class="text-body text-muted-foreground italic">
@@ -114,7 +114,7 @@
         <!-- Tags -->
         <div>
           <p class="field-label">Tags</p>
-          <TagInput v-if="!isSrd" v-model="form.tags" />
+          <TagInput v-if="!isShared" v-model="form.tags" />
           <div v-else class="flex flex-wrap gap-1 mt-1">
             <span
               v-for="tag in form.tags"
@@ -127,7 +127,7 @@
       </div>
 
       <!-- Right: Identity + stat block — fieldset[disabled] makes inputs read-only for SRD -->
-      <fieldset :disabled="isSrd" class="contents">
+      <fieldset :disabled="isShared" class="contents">
         <div class="flex flex-col gap-5">
           <!-- Identity grid -->
           <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -267,9 +267,9 @@ import {
   useCreateMonster,
   useUpdateMonster,
   useDeleteMonster,
-  useCloneSrdMonster,
+  useCloneLibraryMonster,
 } from "@/composables/useMonsters";
-import { useUpsertSrdMonsterArt } from "@/composables/useSrdMonsterArt";
+import { useUpsertLibraryMonsterArt } from "@/composables/useLibraryMonsterArt";
 import { useCreateScriptoriumDocument } from "@/composables/useScriptorium";
 import { formatMonsterForScriptorium } from "@/lib/scriptoriumImport";
 import type {
@@ -320,7 +320,7 @@ const SIZES: MonsterSize[] = [
 const props = defineProps<{ monster: Monster | null }>();
 const router = useRouter();
 
-const isSrd = computed(() => !!props.monster?.is_srd);
+const isShared = computed(() => !!props.monster?.is_shared);
 
 const aiContext = computed(() =>
   buildEntityContext([
@@ -347,7 +347,7 @@ function onCancel() {
   }
 }
 
-const { mutateAsync: upsertSrdArt } = useUpsertSrdMonsterArt();
+const { mutateAsync: upsertLibraryArt } = useUpsertLibraryMonsterArt();
 
 type LocationOption = Location & { depth: number };
 const { locationOptions } = useLocationTree();
@@ -371,7 +371,7 @@ const form = reactive({
 watch(
   () => props.monster,
   (m) => {
-    if (isSrd.value && m) {
+    if (isShared.value && m) {
       form.image_url = m.image_url ?? "";
       form.portrait_focal_point = m.portrait_focal_point ?? null;
     }
@@ -416,12 +416,12 @@ const sb = reactive<MonsterStatBlock>(
 
 // Image upload handlers
 function onPortraitUrlUpdate(url: string | null) {
-  if (isSrd.value) upsertSrdArt({ srd_id: props.monster!.id, image_url: url });
+  if (isShared.value) upsertLibraryArt({ entry_id: props.monster!.id, image_url: url });
   else form.image_url = url ?? "";
 }
 function onPortraitFocalUpdate(pt: { x: number; y: number } | null) {
-  if (isSrd.value)
-    upsertSrdArt({ srd_id: props.monster!.id, portrait_focal_point: pt });
+  if (isShared.value)
+    upsertLibraryArt({ entry_id: props.monster!.id, portrait_focal_point: pt });
   else form.portrait_focal_point = pt;
 }
 // AI generation
@@ -450,7 +450,7 @@ function onAiGenerated(result: MonsterAiGenerated) {
 const { mutateAsync: create } = useCreateMonster();
 const { mutateAsync: update } = useUpdateMonster();
 const { mutateAsync: del } = useDeleteMonster();
-const { mutateAsync: clone } = useCloneSrdMonster();
+const { mutateAsync: clone } = useCloneLibraryMonster();
 const { mutateAsync: createScriptoriumDoc } = useCreateScriptoriumDocument();
 const saving = ref(false);
 const showPaywall = ref(false);

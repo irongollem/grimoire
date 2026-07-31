@@ -348,10 +348,10 @@ const wildshapeForms = computed<Monster[]>(() => {
   const level = druidLevel.value;
   const maxCr = wildshapeMaxCr.value;
   const discoveredKeys = new Set<string>(
-    (discoveries.value ?? []).flatMap((d) => [d.monster_id, d.srd_slug].filter(Boolean) as string[]),
+    (discoveries.value ?? []).flatMap((d) => [d.monster_id, d.library_monster_id].filter(Boolean) as string[]),
   );
   const pinnedKeys = new Set<string>(
-    (pinnedForms.value ?? []).map((p) => p.monster_id ?? p.srd_slug ?? "").filter(Boolean),
+    (pinnedForms.value ?? []).map((p) => p.monster_id ?? p.library_monster_id ?? "").filter(Boolean),
   );
   return (allMonsters.value ?? [])
     .filter((m) =>

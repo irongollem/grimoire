@@ -26,7 +26,7 @@ const engineCalls = {
 };
 
 let engineAvailable = true;
-let engineDirectMode = false;
+const engineDirectMode = false;
 
 vi.mock("@/lib/audioEngine", () => ({
   getAudioEngine: () => ({

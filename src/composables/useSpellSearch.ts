@@ -23,7 +23,7 @@ export interface UseSpellSearchOptions {
 
 /**
  * Debounced (300ms) dual-table spell name search — the custom `spells` table
- * plus the shared `srd_spells` table, both scoped to the active campaign
+ * plus the shared `library_spells` table, both scoped to the active campaign
  * ruleset. Shared by AddInnateSpellDialog and SpeciesSpellGrants so both
  * spell-grant search forms fetch the same narrow column set instead of each
  * maintaining its own byte-identical `select("*")` queryFn.
@@ -41,7 +41,7 @@ export function useSpellSearch(search: MaybeRefOrGetter<string>, options: UseSpe
       const [custom, shared] = await Promise.all([
         supabase.from("spells").select(SEARCH_COLUMNS).ilike("name", `%${q}%`)
           .or(`ruleset.is.null,ruleset.eq.${ruleset.value}`).limit(limit),
-        supabase.from("srd_spells").select(SEARCH_COLUMNS).ilike("name", `%${q}%`)
+        supabase.from("library_spells").select(SEARCH_COLUMNS).ilike("name", `%${q}%`)
           .eq("ruleset", ruleset.value).limit(limit),
       ]);
       if (custom.error) throw custom.error;

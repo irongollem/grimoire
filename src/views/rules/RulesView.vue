@@ -96,7 +96,7 @@ const activeTab = computed<TabId>(() => {
 
 const MANUAL_PAGE_BY_TAB: Partial<Record<TabId, string>> = {
   screen: "dm-screen",
-  compendium: "srd-compendium",
+  compendium: "library-compendium",
   custom: "custom-rules-house-rules",
 };
 const manualPage = computed(() => MANUAL_PAGE_BY_TAB[activeTab.value]);

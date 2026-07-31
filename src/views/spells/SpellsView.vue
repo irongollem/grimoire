@@ -9,7 +9,7 @@
       <SourcesPickerPanel
         title="Spell Sources"
         description="Enabled sources appear in your Spellbook instantly — no download needed."
-        empty-message="No sources available yet. Ask your admin to seed the srd_spells table."
+        empty-message="No sources available yet. Ask your admin to seed the library_spells table."
         :available-sources="availableSourceData"
         :is-loading="sourcesLoading"
       >
@@ -95,7 +95,7 @@ import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import SpellList from "@/components/spells/SpellList.vue";
 import SourcesPickerPanel from "@/components/common/SourcesPickerPanel.vue";
 import { SPELL_SCHOOLS, SPELL_CLASSES } from "@/types/spell.types";
-import { useEnabledSources, useAvailableSrdSpellSources } from "@/composables/useEnabledSources";
+import { useEnabledSources, useAvailableLibrarySpellSources } from "@/composables/useEnabledSources";
 
 const ui = useUiStore();
 
@@ -111,5 +111,5 @@ const LEVEL_FILTERS = [
 // enabledSourceData also feeds the Source filter dropdown below; the enable/
 // disable wiring itself now lives inside SourcesPickerPanel.
 const { data: enabledSourceData } = useEnabledSources();
-const { data: availableSourceData, isLoading: sourcesLoading } = useAvailableSrdSpellSources();
+const { data: availableSourceData, isLoading: sourcesLoading } = useAvailableLibrarySpellSources();
 </script>

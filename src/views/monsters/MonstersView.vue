@@ -10,7 +10,7 @@
       <SourcesPickerPanel
         title="Monster Sources"
         description="Enabled sources appear in your Bestiary instantly — no download needed."
-        empty-message="No sources available yet. Ask your admin to seed the srd_monsters table."
+        empty-message="No sources available yet. Ask your admin to seed the library_monsters table."
         :available-sources="availableSourceData"
         :is-loading="sourcesLoading"
       >
@@ -231,7 +231,7 @@
       <SourcesPickerPanel
         variant="sheet"
         description="Enabled sources appear in your Bestiary instantly — no download needed."
-        empty-message="No sources available yet. Ask your admin to seed the srd_monsters table."
+        empty-message="No sources available yet. Ask your admin to seed the library_monsters table."
         :available-sources="availableSourceData"
         :is-loading="sourcesLoading"
       />
@@ -262,7 +262,7 @@ import { useRouter } from "vue-router";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useQuota } from "@/composables/useQuota";
 import { useAllMonsters } from "@/composables/useMonsters";
-import { useEnabledSources, useAvailableSrdSources } from "@/composables/useEnabledSources";
+import { useEnabledSources, useAvailableLibrarySources } from "@/composables/useEnabledSources";
 
 // IconSettings (sliders) reads as "filters". The overflow ⋮ has no kebab glyph
 // in the icon set, so it is rendered as an inline SVG in the template.
@@ -305,7 +305,7 @@ const TYPE_OPTIONS = [
 // enabledSourceData also feeds the Source filter dropdown below; the enable/
 // disable wiring itself now lives inside SourcesPickerPanel.
 const { data: enabledSourceData } = useEnabledSources();
-const { data: availableSourceData, isLoading: sourcesLoading } = useAvailableSrdSources();
+const { data: availableSourceData, isLoading: sourcesLoading } = useAvailableLibrarySources();
 
 // ── Mobile filter chrome ────────────────────────────────────────────────────
 
@@ -332,7 +332,7 @@ const activeFilterCount = computed(() =>
 // Live "Show N" count — mirrors MonsterList filtering.
 const matchCount = computed(() => {
   let list = allMonsters.value ?? [];
-  if (ui.monstersFilterSource === "custom") list = list.filter((m) => !m.is_srd);
+  if (ui.monstersFilterSource === "custom") list = list.filter((m) => !m.is_shared);
   else if (ui.monstersFilterSource !== "all") list = list.filter((m) => m.source === ui.monstersFilterSource);
   if (ui.monstersSearch.trim()) {
     const q = ui.monstersSearch.trim().toLowerCase();

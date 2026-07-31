@@ -111,7 +111,7 @@
             CR {{ monster.stat_block.challenge_rating }}
           </span>
           <span
-            v-if="monster.is_srd"
+            v-if="monster.is_shared"
             class="rounded bg-black/55 px-2 py-0.5 text-eyebrow font-bold text-white"
           >
             {{ monster.source_title ?? monster.source ?? "Reference" }}
@@ -218,7 +218,7 @@
 
       <!-- SRD monsters clone to an editable copy (Customize); custom monsters edit -->
       <button
-        v-if="monster.is_srd"
+        v-if="monster.is_shared"
         type="button"
         :disabled="cloning"
         class="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary px-4 py-3 font-cinzel text-sm font-bold tracking-wider text-primary-foreground active:opacity-90 disabled:opacity-50"
@@ -247,7 +247,7 @@
   <MobileSheet v-model:open="showMenu" :title="monster.name">
     <div class="flex flex-col gap-1 pb-2">
       <RouterLink
-        v-if="!monster.is_srd"
+        v-if="!monster.is_shared"
         :to="`/monsters/${monster.id}?edit=true`"
         class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-body text-foreground active:bg-muted/50"
         @click="showMenu = false"
@@ -262,7 +262,7 @@
         <IconScrollText class="size-4 shrink-0" /> Send to Scriptorium
       </RouterLink>
       <button
-        v-if="!monster.is_srd"
+        v-if="!monster.is_shared"
         type="button"
         class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-body text-destructive active:bg-destructive/10"
         @click="onDelete"
@@ -287,7 +287,7 @@ import NpcQuickFact from "@/components/npcs/NpcQuickFact.vue";
 import NpcAccordionSection from "@/components/npcs/NpcAccordionSection.vue";
 import MonsterRevealSheet from "@/components/monsters/MonsterRevealSheet.vue";
 import { IconCopy, IconDelete, IconEdit, IconHide, IconLocation, IconReveal, IconScrollText } from "@/lib/icons";
-import { useCloneSrdMonster, useDeleteMonster } from "@/composables/useMonsters";
+import { useCloneLibraryMonster, useDeleteMonster } from "@/composables/useMonsters";
 import { useLocationTree } from "@/composables/useLocations";
 import { useMonsterVisibility } from "@/composables/useMonsterVisibility";
 import { crColor } from "@/lib/monsterDisplay";
@@ -334,10 +334,10 @@ const showReveal = ref(false);
 const showMenu = ref(false);
 
 // ── Customize (SRD → editable clone) — mirrors MonsterDetail/MonsterSheet ───────
-const { mutateAsync: clone } = useCloneSrdMonster();
+const { mutateAsync: clone } = useCloneLibraryMonster();
 const cloning = ref(false);
 async function customize() {
-  if (!monster.is_srd) return;
+  if (!monster.is_shared) return;
   cloning.value = true;
   try {
     const copy = await clone(monster);

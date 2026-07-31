@@ -139,7 +139,7 @@ import { useRoute, useRouter } from "vue-router";
 import { useMediaQuery } from "@vueuse/core";
 import { IconChart, IconChevronLeft, IconEdit, IconHide, IconParty, IconReveal } from '@/lib/icons';
 import { useResolvedMonster } from "@/composables/useMonsters";
-import { useSrdMonsterArt } from "@/composables/useSrdMonsterArt";
+import { useLibraryMonsterArt } from "@/composables/useLibraryMonsterArt";
 import { useMonsterVisibility } from "@/composables/useMonsterVisibility";
 import PageHeader from "@/components/common/PageHeader.vue";
 import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
@@ -167,12 +167,12 @@ function startEditing() {
   router.replace({ query: { ...route.query, edit: "true" } });
 }
 
-// Own art (user-uploaded) can override the canonical art already in srd_monsters.image_url
-const { data: artMap } = useSrdMonsterArt();
+// Own art (user-uploaded) can override the canonical art already in library_monsters.image_url
+const { data: artMap } = useLibraryMonsterArt();
 const { data: resolvedData, isLoading: resolvedLoading } = useResolvedMonster(id);
-const isSrdId = computed(() => resolvedData.value?.isShared === true);
-const srdMonster = computed(() => {
-  if (!isSrdId.value || !resolvedData.value) return null;
+const isLibraryMonster = computed(() => resolvedData.value?.isShared === true);
+const libraryMonster = computed(() => {
+  if (!isLibraryMonster.value || !resolvedData.value) return null;
   const m = resolvedData.value.monster;
   const art = artMap.value?.[id.value];
   return art ? { ...m, image_url: art.image_url, portrait_focal_point: art.portrait_focal_point } : m;
@@ -184,7 +184,7 @@ const isLoading = computed(() =>
 
 const resolvedMonster = computed(() => {
   if (isNew.value) return null;
-  if (isSrdId.value) return srdMonster.value;
+  if (isLibraryMonster.value) return libraryMonster.value;
   return resolvedData.value?.monster ?? null;
 });
 
@@ -196,7 +196,7 @@ const pageTitle = computed(() => {
 const pageDescription = computed(() => {
   const m = resolvedMonster.value;
   if (!m) return "";
-  const sourceLabel = m.is_srd ? ` · ${m.source_title ?? m.source ?? "Reference"}` : "";
+  const sourceLabel = m.is_shared ? ` · ${m.source_title ?? m.source ?? "Reference"}` : "";
   return `${m.size} ${m.monster_type} · CR ${m.stat_block.challenge_rating}${sourceLabel}`;
 });
 

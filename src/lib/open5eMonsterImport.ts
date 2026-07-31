@@ -195,7 +195,7 @@ export function mapOpen5eV2Monster(
     stat_block: statBlock,
     notes: null,
     image_url: null,
-    is_srd: monster.document.publisher?.key === "wizards-of-the-coast",
+    is_shared: monster.document.publisher?.key === "wizards-of-the-coast",
     open5e_import: true,
   };
 }
@@ -207,7 +207,7 @@ export async function fetchOpen5eDocuments(): Promise<Open5eDocument[]> {
 }
 
 /** V2 native keys preserve equal-name creatures across books and editions. */
-export async function fetchSrdMonsters(sourceKeys?: string[]): Promise<MonsterInsert[]> {
+export async function fetchOpen5eMonsters(sourceKeys?: string[]): Promise<MonsterInsert[]> {
   const documentKeys = sourceKeys?.length ? sourceKeys : await fetchSupported5eDocumentKeys();
   // The embedded `monster.document` ref on a /v2/creatures/ record never
   // carries `licenses` (verified against the live API) — only the full

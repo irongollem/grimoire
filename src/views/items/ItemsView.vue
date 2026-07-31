@@ -9,7 +9,7 @@
       <SourcesPickerPanel
         title="Item Sources"
         description="Enabled sources appear in your Vault instantly — no download needed."
-        empty-message="No sources available yet. Ask your admin to seed the srd_items table."
+        empty-message="No sources available yet. Ask your admin to seed the library_items table."
         :available-sources="availableSourceData"
         :is-loading="sourcesLoading"
       >
@@ -83,7 +83,7 @@ import SourcesPickerPanel from "@/components/common/SourcesPickerPanel.vue";
 import { useItemSources } from "@/composables/useItems";
 import { ITEM_TYPES, ITEM_TYPE_LABELS, ITEM_RARITIES, ITEM_RARITY_LABELS, itemSourceLabel } from "@/types/item.types";
 import { useUiStore } from "@/stores/ui";
-import { useAvailableSrdItemSources } from "@/composables/useEnabledSources";
+import { useAvailableLibraryItemSources } from "@/composables/useEnabledSources";
 
 const ui = useUiStore();
 const search = computed({
@@ -114,5 +114,5 @@ const { data: sources } = useItemSources();
 
 // ── Sources panel ────────────────────────────────────────────────────────────
 // The enable/disable wiring (campaign-scoped) now lives inside SourcesPickerPanel.
-const { data: availableSourceData, isLoading: sourcesLoading } = useAvailableSrdItemSources();
+const { data: availableSourceData, isLoading: sourcesLoading } = useAvailableLibraryItemSources();
 </script>

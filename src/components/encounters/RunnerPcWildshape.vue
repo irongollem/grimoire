@@ -170,7 +170,7 @@ const wildshapeMaxCr = computed(() => calcWildshapeMaxCr(member.level ?? 1, isCi
 const wildshapeCrDisplay = computed(() => calcWildshapeCrDisplay(wildshapeMaxCr.value));
 
 const pinnedKeys = computed<Set<string>>(() =>
-  new Set((pinnedForms.value ?? []).map((p) => p.monster_id ?? p.srd_slug ?? "").filter(Boolean)),
+  new Set((pinnedForms.value ?? []).map((p) => p.monster_id ?? p.library_monster_id ?? "").filter(Boolean)),
 );
 
 /** Beasts that are legal wild shape forms for this druid, sorted by CR. */

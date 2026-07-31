@@ -20,7 +20,7 @@
         Failed to load rules. The database may need syncing — contact your DM.
       </p>
 
-      <p v-else-if="!srdRules?.length" class="text-caption text-muted-foreground italic px-1">
+      <p v-else-if="!libraryRules?.length" class="text-caption text-muted-foreground italic px-1">
         No rules loaded yet. The sync edge function may not have run.
       </p>
 
@@ -93,32 +93,32 @@
 import { ref, computed } from "vue";
 import { renderBasicMarkdown } from "@/lib/sanitizeHtml";
 import { IconSearch } from '@/lib/icons';
-import { useSrdRules } from "@/composables/useRules";
+import { useLibraryRules } from "@/composables/useRules";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import type { SrdRule } from "@/types/rule.types";
+import type { LibraryRule } from "@/types/rule.types";
 
-const { data: srdRules, isLoading, error } = useSrdRules();
+const { data: libraryRules, isLoading, error } = useLibraryRules();
 
 const search = ref("");
-const selected = ref<SrdRule | null>(null);
+const selected = ref<LibraryRule | null>(null);
 
 const rootRules = computed(() =>
-  (srdRules.value ?? []).filter((r) => !r.parent_slug)
+  (libraryRules.value ?? []).filter((r) => !r.parent_slug)
 );
 
-function childrenOf(slug: string): SrdRule[] {
-  return (srdRules.value ?? []).filter((r) => r.parent_slug === slug);
+function childrenOf(slug: string): LibraryRule[] {
+  return (libraryRules.value ?? []).filter((r) => r.parent_slug === slug);
 }
 
 const searchResults = computed(() => {
   const q = search.value.toLowerCase().trim();
   if (!q) return [];
-  return (srdRules.value ?? []).filter(
+  return (libraryRules.value ?? []).filter(
     (r) => r.name.toLowerCase().includes(q) || r.content.toLowerCase().includes(q)
   );
 });
 
-function selectRule(rule: SrdRule) {
+function selectRule(rule: LibraryRule) {
   selected.value = rule;
 }
 

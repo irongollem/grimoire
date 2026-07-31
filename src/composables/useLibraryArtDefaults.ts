@@ -1,10 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 
-const QUERY_KEY = "srd-art-defaults";
+const QUERY_KEY = "library-art-defaults";
 const STALE_TIME = 1000 * 60 * 30; // 30 minutes — art changes rarely
 
-type SrdContentType = "spell" | "item";
+type LibraryContentType = "spell" | "item";
 
 export interface ArtDefaultEntry {
   image_url: string | null;
@@ -14,14 +14,14 @@ export interface ArtDefaultEntry {
 // Keyed by "spell:fireball" or "item:ring of protection" (content_type:lower(name))
 export type ArtDefaultsMap = Record<string, ArtDefaultEntry>;
 
-async function fetchSrdArtDefaults(): Promise<ArtDefaultsMap> {
+async function fetchLibraryArtDefaults(): Promise<ArtDefaultsMap> {
   const { data, error } = await supabase
-    .from("srd_art_defaults")
-    .select("content_type, srd_slug, image_url, image_focal_point");
+    .from("library_art_defaults")
+    .select("content_type, content_name, image_url, image_focal_point");
   if (error) throw error;
   const map: ArtDefaultsMap = {};
   for (const row of data) {
-    map[`${row.content_type}:${row.srd_slug}`] = {
+    map[`${row.content_type}:${row.content_name}`] = {
       image_url: row.image_url,
       image_focal_point: row.image_focal_point ?? null,
     };
@@ -29,7 +29,7 @@ async function fetchSrdArtDefaults(): Promise<ArtDefaultsMap> {
   return map;
 }
 
-export interface SrdArtDefaultStats {
+export interface LibraryArtDefaultStats {
   monsters: number;
   spells: number;
   items: number;
@@ -42,19 +42,19 @@ export interface SrdArtDefaultStats {
  * count. The auth check just avoids four network calls for a signed-out
  * caller; RLS already requires auth.uid() on the canonical tables.
  */
-async function fetchSrdArtDefaultStats(): Promise<SrdArtDefaultStats> {
+async function fetchLibraryArtDefaultStats(): Promise<LibraryArtDefaultStats> {
   const user = getCurrentUser();
   if (!user) return { monsters: 0, spells: 0, items: 0 };
 
   const [monstersRes, spellsDefaultsRes, spellsArtRes, itemsRes] = await Promise.all([
-    supabase.from("srd_monster_art_canonical").select("*", { count: "exact", head: true }),
+    supabase.from("library_monster_art_canonical").select("*", { count: "exact", head: true }),
     supabase
-      .from("srd_art_defaults")
+      .from("library_art_defaults")
       .select("*", { count: "exact", head: true })
       .eq("content_type", "spell"),
-    supabase.from("srd_spell_art_canonical").select("*", { count: "exact", head: true }),
+    supabase.from("library_spell_art_canonical").select("*", { count: "exact", head: true }),
     supabase
-      .from("srd_art_defaults")
+      .from("library_art_defaults")
       .select("*", { count: "exact", head: true })
       .eq("content_type", "item"),
   ]);
@@ -111,23 +111,23 @@ async function fetchItemsWithArt(): Promise<ArtRow[]> {
   return all;
 }
 
-async function upsertArtDefaults(contentType: SrdContentType, rows: ArtRow[]): Promise<void> {
+async function upsertArtDefaults(contentType: LibraryContentType, rows: ArtRow[]): Promise<void> {
   const BATCH = 200;
   for (let i = 0; i < rows.length; i += BATCH) {
     const batch = rows.slice(i, i + BATCH).map((r) => ({
       content_type: contentType,
-      srd_slug: r.name.toLowerCase(),
+      content_name: r.name.toLowerCase(),
       image_url: r.image_url,
       image_focal_point: r.image_focal_point ?? null,
     }));
     const { error } = await supabase
-      .from("srd_art_defaults")
-      .upsert(batch, { onConflict: "content_type,srd_slug", ignoreDuplicates: false });
+      .from("library_art_defaults")
+      .upsert(batch, { onConflict: "content_type,content_name", ignoreDuplicates: false });
     if (error) throw error;
   }
 }
 
-async function bulkPublishSrdArtDefaults(): Promise<SrdArtDefaultStats> {
+async function bulkPublishLibraryArtDefaults(): Promise<LibraryArtDefaultStats> {
   const user = getCurrentUser();
   if (!user) throw new Error("Not authenticated");
 
@@ -141,56 +141,56 @@ async function bulkPublishSrdArtDefaults(): Promise<SrdArtDefaultStats> {
   return { monsters: 0, spells: allSpells.length, items: allItems.length };
 }
 
-export function useSrdArtDefaults() {
+export function useLibraryArtDefaults() {
   return useQuery({
     queryKey: [QUERY_KEY],
-    queryFn: fetchSrdArtDefaults,
+    queryFn: fetchLibraryArtDefaults,
     staleTime: STALE_TIME,
   });
 }
 
-export function useSrdArtDefaultStats() {
+export function useLibraryArtDefaultStats() {
   return useQuery({
     queryKey: [QUERY_KEY, "stats"],
-    queryFn: fetchSrdArtDefaultStats,
+    queryFn: fetchLibraryArtDefaultStats,
     staleTime: 0,
   });
 }
 
-export function useBulkPublishSrdArtDefaults() {
+export function useBulkPublishLibraryArtDefaults() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: bulkPublishSrdArtDefaults,
+    mutationFn: bulkPublishLibraryArtDefaults,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
     },
   });
 }
 
-export function useSyncSrdSpellArtToSharedTable() {
+export function useSyncLibrarySpellArt() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (): Promise<number> => {
-      const { data, error } = await supabase.rpc("sync_srd_spell_art_to_shared_table");
+      const { data, error } = await supabase.rpc("sync_library_spell_art");
       if (error) throw error;
       return data as number;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["srd-spells"] });
+      queryClient.invalidateQueries({ queryKey: ["library-spells"] });
     },
   });
 }
 
-export function useSyncSrdItemArtToSharedTable() {
+export function useSyncLibraryItemArt() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (): Promise<number> => {
-      const { data, error } = await supabase.rpc("sync_srd_item_art_to_shared_table");
+      const { data, error } = await supabase.rpc("sync_library_item_art");
       if (error) throw error;
       return data as number;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["srd-items"] });
+      queryClient.invalidateQueries({ queryKey: ["library-items"] });
     },
   });
 }

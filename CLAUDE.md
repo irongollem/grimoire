@@ -1,5 +1,30 @@
 # Grimoire — Claude Code Instructions
 
+## Leave the Plate Clean — read this before you report anything as done
+
+**If a check you ran surfaces a problem, you fix it. There is no second question.**
+
+This rule keeps getting broken, always the same way: a lint error, type error, failing test or broken reference shows up in output you asked for, and instead of the one-line fix it gets *explained*. That explanation is the violation. These phrasings are banned — not discouraged, banned:
+
+- "pre-existing" / "already failing on `main`" / "was there before my change"
+- "not mine" / "I never touched that file" / "unrelated to this work"
+- "out of scope" / "not part of this issue" / "worth a follow-up"
+
+**The tell to watch for in yourself:** the moment you start establishing *provenance* — running `git stash`, `git blame`, or diffing against `main` to work out whether the problem is yours — stop. That investigation costs more than the fix. Wanting to know whose fault it is means you have already decided to skip it. Just fix it.
+
+**"Green" means clean.** Never report a check as passing while narrating an exception to it. `lint: 1 error` is a failing lint run, whoever wrote the line. If your summary contains both "green" and a caveat about a warning, the work is not done.
+
+**The baseline is green, and it stays green.** Every push runs build, lint and the test suite, and they pass today. So a lint error, type error or failing test you find in this repo is not "the normal state of things" — it is an accident a previous worker left behind, and finding it makes it yours. Fix it and the baseline is clean again; explain it away and it becomes permanent, because the next worker will read it as pre-existing too. That is precisely how it survives.
+
+Same rule forward in time: no "we'll refactor later", no "we'll extract this when we do the next one", no knowingly-added technical debt, no deferring the hard part of a task because the easy part is finished.
+
+**The only two exits**, and both require saying so out loud:
+
+1. It is another agent's or the user's in-flight uncommitted work — leave it alone and name the file.
+2. The fix genuinely exceeds this change's blast radius (a real refactor, a schema change, a dependency bump). Then it gets its own commit or a GitHub issue **in this same session**, and you say which one you did.
+
+"I noticed it and left it" is never an option. If you are unsure which exit applies, fix it.
+
 ## Supabase Migration Rules
 
 **CRITICAL — updated_at trigger pattern:**
@@ -67,26 +92,34 @@ After any create, save, or delete operation, always navigate back to the list vi
 
 Never stay on the detail/editor page or navigate to the newly created resource's detail page. The list view is the success feedback. In the case of nested resources (e.g. locations), navigate to the parent resource's detail page instead unless its the top of the hierarchy.
 
-## Roadmap & Bug Tracking
+## Work Tracking
 
-Open work is tracked as GitHub issues on `irongollem/grimoire`. Do NOT add new `[ ]` items anywhere in the change log — open a GitHub issue instead.
+GitHub issues on `irongollem/grimoire` are the single source of truth for open work. When you finish something, close the corresponding issue with `mcp__github__update_issue` (`state: closed`).
 
-The completed-work history is a curated **log**, chunked by subsystem under `docs/log/`:
+There is no change log to update. The record of what shipped is the git history, and the record of *why* is a comment at the point of the decision — put it in the code, the migration, or the relevant `context/features/` doc, where the next person to touch that line will actually be standing.
 
-- `docs/log/features/<subsystem>.md` — shipped features
-- `docs/log/fixes/<subsystem>.md` — resolved bugs
-- `docs/log/index.md` — index + counts for every subsystem file
-- Root `ROADMAP.md` / `BUGS.md` are **thin pointers** (subsystem table + latest-10). Do NOT append full entries there; they'd grow unbounded again and blow read-size limits. `ROADMAP.md` also keeps the evergreen **AI Features** and **Monetization** reference sections in full.
+## Sanctioned Exceptions
 
-**CRITICAL — when you implement a feature or fix a bug, always do both:**
+Deliberate departures from the rules above and in the feature docs. They look like oversights, get "fixed", and regress — so they are written down.
 
-1. Prepend a `- [x]` entry (brief what + why) to the top of the matching subsystem file:
-   - `docs/log/features/<subsystem>.md` — for completed features
-   - `docs/log/fixes/<subsystem>.md` — for resolved bugs
-   - Pick the subsystem the change is primarily about (see the taxonomy at the top of `docs/log/index.md`); use `misc` only as a last resort. If a fitting subsystem file doesn't exist yet, create it and add it to `docs/log/index.md`.
-2. Close the corresponding GitHub issue (if one exists) using `mcp__github__update_issue` with `state: closed`
+- **Native `<textarea>` for AI-prompt fields.** The ~40 model-prompt boxes (`*GeneratorPanel`, `*GenerateDialog`, `AdminPromptsTab`) stay native rather than becoming `RichTextEditor`. Rich text in a prompt box is wrong — the model receives markup as content.
+- **px is kept** for borders and outlines, box/text/drop shadows, `@media` / `@container` breakpoints, `9999px` pills, hairline dividers, and SVG user-space `<text>`. Everything else is rem. These are the cases where a rem value scales into a visual bug.
+- **Crafting has no toast, on purpose.** `CraftAttemptDialog` already surfaces errors inline via `attemptError`; a toast would double up. An absence cannot self-document, hence this line.
+- **Supabase "unused index" advisor hits are a known false positive here.** The stats window spans ~7.5 months and 16.1M scans, and the largest table holding a zero-scan index is small enough that Postgres prefers a sequential scan regardless. Do not drop indexes on the advisor's say-so — check the table size and query shape first.
 
-GitHub issues are the source of truth for what needs doing; `docs/log/` is the curated history of what got done.
+## Shared-Content Naming — say `library`, never `srd`
+
+The shared/admin-provided content tables are `library_monsters`, `library_spells`, `library_items`, `library_species`, `library_rules`, plus the art tables `library_monster_art{,_canonical}`, `library_spell_art{,_canonical}`, `library_art_staging` and `library_art_defaults`.
+
+**Do not call any of this "SRD."** Only ~660 of 3,541 `library_monsters` rows are WotC SRD. The rest is Kobold Press (OGL 1.0a; Black Flag under ORC) and EN Publishing. Labelling another publisher's book "SRD" misdescribes its licence — that is what #567 and #583 fixed. Name new shared-content tables, columns, RPCs, composables and types `library_*` / `Library*`. Per-source truth (title, publisher, licence) lives in `content_sources`, never in a name.
+
+Three things still legitimately say "srd", and none of them is a mistake to fix:
+
+- **Row ids** — `srd_owlbear`, `srd_srd_2024_owlbear`, minted by `stableSrdId()`. #583 left these alone on purpose; re-keying them means remapping twelve referrer columns, five of them jsonb.
+- **The `srd/` storage prefix** and the storage policies keyed on it (see below).
+- **Genuine SRD references** — the `'srd-2014'` / `'srd-2024'` `content_sources` keys, `srdConditions2014/2024`, and Open5e's own upstream keys in `source_document_key` / `source_record_key` / `library_rules.slug`. Those are foreign identifiers; rewriting them corrupts the join to Open5e.
+
+**Adding a text-id reference to shared content?** It cannot be an FK (shared ids are text, user ids are uuid), so add a check for it to `supabase/checks/content_integrity.sql` in the same migration. That file gates production deploys, and it is the only thing standing between an id transition and another silent "Unknown creature" outage.
 
 ## Storage Path Convention — Shared vs. Private Entities
 
@@ -98,7 +131,9 @@ Images for entities that are **shared/canonical** (SRD content managed by admin)
 | DM personal override of SRD content | `{userId}/`    | `false`        | `monster-images/{userId}/{uuid}.webp` |
 | User-created private entity         | `{userId}/`    | n/a            | `monster-images/{userId}/{uuid}.webp` |
 
-A DM can replace a canonical SRD image with their own — that override lives in `srd_monster_art` / `srd_spell_art` under their `user_id` with `is_canonical: false`. It does **not** touch the `srd/` canonical file and does not affect other users.
+A DM can replace a canonical SRD image with their own — that override lives in `library_monster_art` / `library_spell_art` under their `user_id` with `is_canonical: false`. It does **not** touch the `srd/` canonical file and does not affect other users.
+
+**Note on the `srd/` storage prefix.** #583 renamed the shared-content tables from `srd_*` to `library_*` but deliberately left this storage prefix — and the storage policies keyed on it — alone: 1,193 objects across three buckets, 1,073 art-row `image_url`s, and public URLs already handed out. The mismatch between `library_*` tables and `srd/` folders is intentional. Do not "align" them without a migration that also moves the objects and rewrites the URLs.
 
 **Rules:**
 
@@ -126,7 +161,7 @@ If two pieces of UI share structure and differ only in a few values, the structu
 - If two files share >30% of their markup, the shared part belongs in a component
 - The parent (page/panel) wires data and config; the child owns layout and interaction
 - Never create two half-baked copies that will silently diverge — one component with props beats two files every time
-- We leave our plate clean. We never say "we'll refactor later" or "we'll extract this when we do the next one". We don't defer hard topics unless verified by the user as a preference. We don't knowingly add technical debt. We never say "this wasn't part of our work" and fix bugs we encounter instead
+- Extract the shared part now, not "when we do the next one" — see [Leave the Plate Clean](#leave-the-plate-clean--read-this-before-you-report-anything-as-done)
 
 ## Filter State Pattern
 

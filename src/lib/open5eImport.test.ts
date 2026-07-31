@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchSrdItems, mapOpen5eV2Weapon, mapOpen5eV2MagicItem } from "./open5eImport";
+import { fetchOpen5eItems, mapOpen5eV2Weapon, mapOpen5eV2MagicItem } from "./open5eImport";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -113,7 +113,7 @@ describe("source_license from a document-metadata map", () => {
   });
 });
 
-describe("fetchSrdItems document scoping", () => {
+describe("fetchOpen5eItems document scoping", () => {
   it("scopes weapons, armor, and magic items to supported 5e documents and excludes a5e content", async () => {
     const srdDocument = {
       key: "srd-2024",
@@ -155,7 +155,7 @@ describe("fetchSrdItems document scoping", () => {
       return new Response(JSON.stringify({ count: 0, next: null, results: [] }));
     }));
 
-    const items = await fetchSrdItems();
+    const items = await fetchOpen5eItems();
     expect(items).toHaveLength(1);
     expect(items[0]).toMatchObject({ name: "Battleaxe", source_document_key: "srd-2024" });
   });
@@ -191,6 +191,6 @@ describe("fetchSrdItems document scoping", () => {
       }));
     }));
 
-    await expect(fetchSrdItems()).rejects.toThrow(/a5e-srd/);
+    await expect(fetchOpen5eItems()).rejects.toThrow(/a5e-srd/);
   });
 });

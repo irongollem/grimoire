@@ -5,13 +5,13 @@ import { storeToRefs } from "pinia";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { Item, ItemInsert, ItemUpdate } from "@/types/item.types";
 import { deleteByPublicUrl } from "@/lib/storage";
-import { useSrdArtDefaults } from "@/composables/useSrdArtDefaults";
+import { useLibraryArtDefaults } from "@/composables/useLibraryArtDefaults";
 import { useEnabledSources } from "@/composables/useEnabledSources";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
 import { useToast } from "@/composables/useToast";
 import { isUuid } from "@/lib/contentIdentity";
-import { mergeSrdWithCustom } from "@/lib/srdShadow";
+import { mergeLibraryWithCustom } from "@/lib/libraryShadow";
 import { useRuleset } from "@/composables/useRuleset";
 import type { RulesetKey } from "@/types/ruleset.types";
 
@@ -21,7 +21,7 @@ interface ItemSource {
 }
 
 const QUERY_KEY = "items";
-const SRD_QUERY_KEY = "srd-items";
+const LIBRARY_QUERY_KEY = "library-items";
 const UNIQUE_VIOLATION = "23505";
 
 async function fetchItems(): Promise<Item[]> {
@@ -77,13 +77,13 @@ async function deleteItem(item: Item): Promise<void> {
   await deleteByPublicUrl(item.image_url, item.mundane_image_url);
 }
 
-async function fetchSrdItems(enabledSlugs: string[], ruleset: RulesetKey): Promise<Item[]> {
+async function fetchOpen5eItems(enabledSlugs: string[], ruleset: RulesetKey): Promise<Item[]> {
   // Edition-neutral grimoire-bundled gear is always visible; enabled campaign
   // sources add to it. Array-form `.in()` (not a string-interpolated
   // `.or(...in.(...))`) keeps slug values from ever being parsed as PostgREST
   // filter syntax, and a single-element list handles the no-enabled-sources case.
   const { data, error } = await supabase
-    .from("srd_items")
+    .from("library_items")
     .select("*")
     .in("source_document_key", ["grimoire-bundled", ...enabledSlugs])
     .or(`ruleset.is.null,ruleset.eq.${ruleset}`)
@@ -94,7 +94,7 @@ async function fetchSrdItems(enabledSlugs: string[], ruleset: RulesetKey): Promi
     user_id: "",
     campaign_id: null,
     dm_notes: null,
-    // srd_items carries no spell_ids column — the field only exists on
+    // library_items carries no spell_ids column — the field only exists on
     // user-authored items with linked spells (e.g. a homebrew staff).
     spell_ids: [],
   })) as Item[];
@@ -102,7 +102,7 @@ async function fetchSrdItems(enabledSlugs: string[], ruleset: RulesetKey): Promi
 
 
 /** Distinct item sources — derived from the merged {@link useItems} catalog so
- *  campaign-enabled srd_items sources surface in the Vault "Source" filter
+ *  campaign-enabled library_items sources surface in the Vault "Source" filter
  *  alongside any custom-item sources. */
 export function useItemSources() {
   const { data: items, isLoading } = useItems();
@@ -138,7 +138,7 @@ export function useItems(getOptions?: () => UseItemsOptions) {
     staleTime: Infinity,
     enabled: isEnabled,
   });
-  const artDefaults = useSrdArtDefaults();
+  const artDefaults = useLibraryArtDefaults();
   const { activeCampaignId } = storeToRefs(useCampaignStore());
   const { ruleset } = useRuleset();
   const enabledQuery = useEnabledSources();
@@ -147,9 +147,9 @@ export function useItems(getOptions?: () => UseItemsOptions) {
     enabledQuery.data.value?.map((e) => e.source_slug) ?? null,
   );
 
-  const srdQuery = useQuery({
-    queryKey: computed(() => [SRD_QUERY_KEY, enabledSlugs.value, ruleset.value]),
-    queryFn: () => fetchSrdItems(enabledSlugs.value!, ruleset.value),
+  const libraryQuery = useQuery({
+    queryKey: computed(() => [LIBRARY_QUERY_KEY, enabledSlugs.value, ruleset.value]),
+    queryFn: () => fetchOpen5eItems(enabledSlugs.value!, ruleset.value),
     enabled: () => isEnabled() && enabledSlugs.value !== null,
     staleTime: Infinity,
   });
@@ -159,14 +159,14 @@ export function useItems(getOptions?: () => UseItemsOptions) {
     const defaults = artDefaults.data.value;
     if (!items) return items;
     const opts = getOptions?.() ?? {};
-    // srd_items rows are already server-filtered by ruleset — this edition
+    // library_items rows are already server-filtered by ruleset — this edition
     // filter is only load-bearing for the custom side, but it's harmless to
     // re-apply once merged below.
     const editionFiltered = items.filter((item) => !item.ruleset || item.ruleset === ruleset.value);
     const scopeFiltered = opts.includeAllScopes
       ? editionFiltered
       : editionFiltered.filter((i) => i.campaign_id === null || i.campaign_id === activeCampaignId.value);
-    const merged = mergeSrdWithCustom(srdQuery.data.value ?? [], scopeFiltered);
+    const merged = mergeLibraryWithCustom(libraryQuery.data.value ?? [], scopeFiltered);
     if (!defaults) return merged;
     return merged.map((item) => {
       if (item.image_url || !item.source) return item;
@@ -177,7 +177,7 @@ export function useItems(getOptions?: () => UseItemsOptions) {
   });
 
   const isLoading = computed(
-    () => itemsQuery.isLoading.value || enabledQuery.isLoading.value || srdQuery.isLoading.value,
+    () => itemsQuery.isLoading.value || enabledQuery.isLoading.value || libraryQuery.isLoading.value,
   );
 
   return { ...itemsQuery, data, isLoading };
@@ -196,11 +196,11 @@ async function fetchPlayerVisibleItems(): Promise<Item[]> {
 
 export function usePlayerVisibleItems(getOptions?: () => UseItemsOptions) {
   const ui = useUiStore();
-  const artDefaults = useSrdArtDefaults();
+  const artDefaults = useLibraryArtDefaults();
   const { activeCampaignId } = storeToRefs(useCampaignStore());
   const { ruleset } = useRuleset();
   // Players can read campaign_enabled_sources directly (RLS allows any
-  // campaign member select), so the same enabled-sources → srd_items query
+  // campaign member select), so the same enabled-sources → library_items query
   // used by the DM catalog works unchanged here.
   const enabledQuery = useEnabledSources();
 
@@ -208,9 +208,9 @@ export function usePlayerVisibleItems(getOptions?: () => UseItemsOptions) {
     enabledQuery.data.value?.map((e) => e.source_slug) ?? null,
   );
 
-  const srdQuery = useQuery({
-    queryKey: computed(() => [SRD_QUERY_KEY, enabledSlugs.value, ruleset.value]),
-    queryFn: () => fetchSrdItems(enabledSlugs.value!, ruleset.value),
+  const libraryQuery = useQuery({
+    queryKey: computed(() => [LIBRARY_QUERY_KEY, enabledSlugs.value, ruleset.value]),
+    queryFn: () => fetchOpen5eItems(enabledSlugs.value!, ruleset.value),
     enabled: () => enabledSlugs.value !== null,
     staleTime: Infinity,
   });
@@ -236,7 +236,7 @@ export function usePlayerVisibleItems(getOptions?: () => UseItemsOptions) {
   );
   const isLoading = computed(() =>
     enabledQuery.isLoading.value ||
-    srdQuery.isLoading.value ||
+    libraryQuery.isLoading.value ||
     (ui.dmPreviewMode ? baseQuery.isLoading.value : projectionQuery.isLoading.value),
   );
 
@@ -249,7 +249,7 @@ export function usePlayerVisibleItems(getOptions?: () => UseItemsOptions) {
     const scopeFiltered = opts.includeAllScopes
       ? editionFiltered
       : editionFiltered.filter((i) => i.campaign_id === null || i.campaign_id === activeCampaignId.value);
-    const merged = mergeSrdWithCustom(srdQuery.data.value ?? [], scopeFiltered);
+    const merged = mergeLibraryWithCustom(libraryQuery.data.value ?? [], scopeFiltered);
     if (!defaults) return merged;
     return merged.map((item) => {
       if (item.image_url || !item.source) return item;
@@ -308,9 +308,9 @@ export function useResolvedItem(id: Ref<string>) {
   return useQuery({
     queryKey: computed(() => ["resolved-item", id.value]),
     queryFn: async () => {
-      // srd_items ids are text slugs, custom items are uuids — the two id
+      // library_items ids are text slugs, custom items are uuids — the two id
       // spaces are disjoint, so branch on the id shape and do a single lookup
-      // rather than always probing srd_items first (the common owned-item
+      // rather than always probing library_items first (the common owned-item
       // detail page is a uuid and would otherwise pay a guaranteed-miss query).
       if (isUuid(id.value)) {
         const item = await fetchItem(id.value);
@@ -318,7 +318,7 @@ export function useResolvedItem(id: Ref<string>) {
         return { item, isShared: false };
       }
       const { data: shared, error: sharedError } = await supabase
-        .from("srd_items").select("*").eq("id", id.value).maybeSingle();
+        .from("library_items").select("*").eq("id", id.value).maybeSingle();
       if (sharedError) throw sharedError;
       if (!shared) throw new Error("Item not found");
       return {
@@ -336,7 +336,7 @@ function isUniqueViolation(e: unknown): boolean {
 }
 
 /**
- * Bridges text-slug srd_items ids and the uuid FK columns that reference the
+ * Bridges text-slug library_items ids and the uuid FK columns that reference the
  * user's `items` table (store_items, party_inventory, recipes, npc_inventory,
  * loot tables, …): every FK-bearing write path must own a real `items` row, so
  * a picker calls this before persisting a reference. A uuid `Item` (already

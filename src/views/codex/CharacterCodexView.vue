@@ -239,7 +239,7 @@ import {
 } from "@/composables/useBackgrounds";
 import { useImportOpen5eClasses, useAllSystemClasses, useAllCustomClasses } from "@/composables/useCustomClasses";
 import { useImportOpen5eSubclasses } from "@/composables/useCustomSubclasses";
-import { useImportSrdFeatures, useBackfillSystemFeatureDescriptions } from "@/composables/useFeatures";
+import { useImportOpen5eFeatures, useBackfillSystemFeatureDescriptions } from "@/composables/useFeatures";
 import type { ImportResult } from "@/composables/useFeatures";
 import { FEATURE_TYPES, FEATURE_TYPE_LABELS } from "@/types/feature.types";
 
@@ -389,7 +389,7 @@ async function handleClassImport() {
 }
 
 // ── Abilities: import + description backfill ──────────────────────────────────
-const abilityImportMutation = useImportSrdFeatures();
+const abilityImportMutation = useImportOpen5eFeatures();
 const descBackfillMutation = useBackfillSystemFeatureDescriptions();
 const abilityImporting = ref(false);
 const abilityImportStatus = ref<"idle" | "done">("idle");

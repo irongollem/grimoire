@@ -26,12 +26,12 @@ describe("withOpen5eUserAgent", () => {
   });
 
   it("leaves non-Open5e requests untouched", () => {
-    const headers = withOpen5eUserAgent("https://example.test/rest/v1/srd_spells", { Accept: "application/json" });
+    const headers = withOpen5eUserAgent("https://example.test/rest/v1/library_spells", { Accept: "application/json" });
     expect(headers).toEqual({ Accept: "application/json" });
   });
 
   it("leaves undefined headers as undefined for non-Open5e requests", () => {
-    expect(withOpen5eUserAgent("https://example.test/rest/v1/srd_spells")).toBeUndefined();
+    expect(withOpen5eUserAgent("https://example.test/rest/v1/library_spells")).toBeUndefined();
   });
 });
 
@@ -212,11 +212,11 @@ describe("upsertBatch", () => {
     });
 
     const rows = Array.from({ length: 120 }, (_, i) => ({ id: `row-${i}` }));
-    await upsertBatch(supabase, "srd_spells", rows, "source_document_key,source_record_key");
+    await upsertBatch(supabase, "library_spells", rows, "source_document_key,source_record_key");
 
     expect(calls).toHaveLength(3);
     expect(calls.map((c) => c.rows.length)).toEqual([50, 50, 20]);
-    expect(calls.every((c) => c.table === "srd_spells")).toBe(true);
+    expect(calls.every((c) => c.table === "library_spells")).toBe(true);
     expect(calls.every((c) => c.onConflict === "source_document_key,source_record_key")).toBe(true);
   });
 
@@ -229,7 +229,7 @@ describe("upsertBatch", () => {
 
     const rows = Array.from({ length: 120 }, (_, i) => ({ id: `row-${i}` }));
     await expect(
-      upsertBatch(supabase, "srd_spells", rows, "source_document_key,source_record_key"),
+      upsertBatch(supabase, "library_spells", rows, "source_document_key,source_record_key"),
     ).rejects.toEqual(fakePostgrestError("conflict"));
     expect(callCount).toBe(1);
   });
@@ -242,7 +242,7 @@ describe("upsertBatch", () => {
     });
 
     const rows = Array.from({ length: 7 }, (_, i) => ({ id: `row-${i}` }));
-    await upsertBatch(supabase, "srd_monsters", rows, "source_document_key,source_record_key", 3);
+    await upsertBatch(supabase, "library_monsters", rows, "source_document_key,source_record_key", 3);
 
     expect(calls.map((c) => c.length)).toEqual([3, 3, 1]);
   });

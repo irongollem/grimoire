@@ -110,7 +110,7 @@
             </h3>
             <div class="flex items-center gap-1 shrink-0">
               <span
-                v-if="monster.is_srd"
+                v-if="monster.is_shared"
                 :title="monster.source_title ?? monster.source ?? 'Reference'"
                 class="max-w-22 truncate px-1 py-0.5 rounded text-label font-bold bg-muted text-muted-foreground border border-border"
               >
@@ -150,7 +150,7 @@
 
         <!-- Edit button (custom monsters only, floats over portrait top-left on hover) -->
         <RouterLink
-          v-if="!monster.is_srd"
+          v-if="!monster.is_shared"
           :to="`/monsters/${monster.id}?edit=true`"
           class="absolute top-2 left-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 text-label font-semibold text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
           title="Edit monster"
@@ -331,7 +331,7 @@ const {
 
 function getDiscovery(monster: Monster): DiscoveredMonster | undefined {
   return discoveries.value?.find(
-    (d) => monster.is_srd ? d.srd_slug === monster.id : d.monster_id === monster.id,
+    (d) => monster.is_shared ? d.library_monster_id === monster.id : d.monster_id === monster.id,
   );
 }
 
@@ -357,7 +357,7 @@ function unshare() {
 
 const filtered = computed(() => {
   let list = allMonsters.value ?? [];
-  if (sourceFilter.value === "custom") list = list.filter((m) => !m.is_srd);
+  if (sourceFilter.value === "custom") list = list.filter((m) => !m.is_shared);
   else if (sourceFilter.value !== "all") list = list.filter((m) => m.source === sourceFilter.value);
   if (search.value.trim()) {
     const q = search.value.trim().toLowerCase();
@@ -382,7 +382,7 @@ const lockedMonsterIds = computed((): Set<string> => {
   const q = monsterQuota.value;
   if (!q || q.unlimited || q.current <= q.limit) return new Set();
   const overCount = q.current - q.limit;
-  const customMonsters = (allMonsters.value ?? []).filter(m => !m.is_srd);
+  const customMonsters = (allMonsters.value ?? []).filter(m => !m.is_shared);
   const sorted = [...customMonsters].sort(
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
   );

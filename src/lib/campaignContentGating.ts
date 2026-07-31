@@ -4,7 +4,7 @@
  *
  * 1. **Blocklist** — `campaigns.disabled_species_ids` / `campaigns.disabled_class_names`
  *    hold what the DM switched off in Campaign Settings (SpeciesTab / ClassesTab).
- *    Species ids are text: a custom species uuid or an `srd_species` slug.
+ *    Species ids are text: a custom species uuid or an `library_species` slug.
  * 2. **Exclusivity** — a row with a non-null `campaign_id` belongs to that one
  *    campaign and must never surface in another.
  *
