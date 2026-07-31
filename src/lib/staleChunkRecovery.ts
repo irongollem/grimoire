@@ -5,11 +5,12 @@ import type { Router } from "vue-router";
  *
  * The service worker updates aggressively (skipWaiting + clients.claim), and
  * its activate handler deletes the previous build's cache. A tab or installed
- * PWA that was already open keeps running the OLD build's code — main.ts
- * deliberately does not force-reload it — so its next lazy route import asks
- * for a hashed chunk filename that no longer exists in the cache or on the
- * host. The import rejects, the navigation dies, and the view reads as
- * "failed to load" until the user refreshes by hand.
+ * PWA that was already open keeps running the OLD build's code — swAutoUpdate
+ * reloads it onto the new build, but that reload is deferred while the user
+ * is typing, saving, or playing audio — so in that window its next lazy route
+ * import asks for a hashed chunk filename that no longer exists in the cache
+ * or on the host. The import rejects, the navigation dies, and the view reads
+ * as "failed to load" until something reloads the page.
  *
  * This module does that refresh for them, exactly once: a chunk-load failure
  * triggers a hard navigation to the route the user was trying to reach, which

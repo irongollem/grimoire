@@ -6,6 +6,7 @@ import App from "./App.vue";
 import { vRollMode } from "./directives/vRollMode";
 import { routes, setupRouterGuard } from "./router/index";
 import { installStaleChunkRecovery } from "./lib/staleChunkRecovery";
+import { installSwAutoUpdate } from "./lib/swAutoUpdate";
 import { updateAvailable } from "./composables/useAppUpdate";
 import { captureInstallPrompt } from "./composables/usePwaInstall";
 import { pendingBundleFile } from "./composables/usePendingBundle";
@@ -52,7 +53,8 @@ setupRouterGuard(router);
 installStaleChunkRecovery(router);
 
 const app = createApp(App);
-app.use(createPinia());
+const pinia = createPinia();
+app.use(pinia);
 app.use(VueQueryPlugin, { queryClient });
 app.use(router);
 
@@ -90,28 +92,28 @@ if (lq) {
   });
 }
 
-// Service worker
-if ("serviceWorker" in navigator && import.meta.env.PROD) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch(() => {});
-  });
-  // Capture whether a SW was already controlling the page BEFORE we add
-  // the listener. controllerchange also fires on first install (when
-  // clients.claim() runs), which is not an update — only treat it as one
-  // if there was a previous controller.
-  const hadController = !!navigator.serviceWorker.controller;
-  navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (!hadController) return;
-    const p = window.location.pathname;
-    // Auth pages reload immediately — the user isn't mid-task and the
-    // fresh SW is needed to serve up-to-date login/signup assets.
-    if (p === "/login" || p === "/signup" || p.startsWith("/join/")) {
-      window.location.reload();
-      return;
-    }
-    // For all other pages, signal via updateAvailable so the More menus
-    // can surface a "Reload to update" action at the user's convenience.
-    updateAvailable.value = true;
+// Service worker — register, poll for new deploys, and reload onto them.
+// The table patches mid-session because a feature is wanted at the table NOW,
+// so open PWAs adopt a deploy immediately rather than parking it behind the
+// "Reload to update" menu action. The reload is deferred only while it would
+// visibly interrupt — active text entry, an in-flight save, or live
+// soundboard/Spotify audio — and catches up on backgrounding, once a minute,
+// or via the menu action (updateAvailable), whichever comes first.
+if (import.meta.env.PROD) {
+  installSwAutoUpdate({
+    isBusy: async () => {
+      if (queryClient.isMutating() > 0) return true;
+      // Lazy: the soundboard store pulls the whole audio stack, which must
+      // not ride into the entry chunk for a check that runs on deploys only.
+      const [{ useSoundboardStore }, { useSpotifyStore }] = await Promise.all([
+        import("./stores/soundboard"),
+        import("./stores/spotify"),
+      ]);
+      return useSoundboardStore(pinia).hasActiveAudio || useSpotifyStore(pinia).isPlaying;
+    },
+    onDeferred: () => {
+      updateAvailable.value = true;
+    },
   });
 }
 
