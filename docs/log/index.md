@@ -66,5 +66,5 @@ Pick the subsystem the change is primarily about; use `misc` only as a last reso
 | AI Generation | 10 | [fixes/ai.md](fixes/ai.md) |
 | Billing | 5 | [fixes/billing.md](fixes/billing.md) |
 | Infrastructure | 15 | [fixes/infra.md](fixes/infra.md) |
-| Soundboard | 19 | [fixes/soundboard.md](fixes/soundboard.md) |
+| Soundboard | 20 | [fixes/soundboard.md](fixes/soundboard.md) |
 | Miscellaneous | 1 | [fixes/misc.md](fixes/misc.md) |

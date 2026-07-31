@@ -8,6 +8,7 @@ import type {
   PlaylistType,
 } from "@/types/sound.types";
 import { getAudioEngine, type AudioBus } from "@/lib/audioEngine";
+import { setAutoResumeGate } from "@/lib/audioContext";
 import { createSceneGeneratorPool } from "@/lib/sceneGenerators";
 import {
   getInstance,
@@ -187,6 +188,12 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     if (mpl && !mpl.paused) return true;
     return activeAmbientPlaylists.value.some((s) => !s.paused);
   });
+
+  // With the screen locked (CarPlay, pocket), visibilitychange never fires, so
+  // an OS suspension of the AudioContext mid-play would otherwise go
+  // unresumed — heard as the track dropping 1–3 s chunks, since the element's
+  // clock keeps running while the graph's output is muted.
+  setAutoResumeGate(() => hasActiveAudio.value);
 
   function getState(soundId: string): SoundPlaybackState {
     if (!playbackStates.value[soundId]) {
