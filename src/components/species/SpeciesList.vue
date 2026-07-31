@@ -145,7 +145,7 @@ import { IconCheck, IconEdit } from '@/lib/icons';
 import type { Species } from "@/types/species.types";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignSpecies } from "@/composables/useSpecies";
-import { isUuid } from "@/lib/contentIdentity";
+import { isUuid } from "@/lib/library/contentIdentity";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";

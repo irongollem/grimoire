@@ -116,7 +116,7 @@ export function useOpen5eBackgroundDocuments(enabled: Ref<boolean>) {
   return useQuery({
     queryKey: [OPEN5E_DOCS_KEY],
     queryFn: async () => {
-      const { fetchOpen5eDocuments } = await import("@/lib/open5eBackgroundImport");
+      const { fetchOpen5eDocuments } = await import("@/lib/library/open5eBackgroundImport");
       return fetchOpen5eDocuments();
     },
     staleTime: Infinity,
@@ -137,7 +137,7 @@ export function useImportBackgrounds() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (sourceSlugs: string[]): Promise<BackgroundImportResult> => {
-      const { fetchBackgrounds: fetchFromOpen5e } = await import("@/lib/open5eBackgroundImport");
+      const { fetchBackgrounds: fetchFromOpen5e } = await import("@/lib/library/open5eBackgroundImport");
       const backgrounds = await fetchFromOpen5e(sourceSlugs.length > 0 ? sourceSlugs : undefined);
       const user = getCurrentUser();
       if (!user) throw new Error("Not authenticated");

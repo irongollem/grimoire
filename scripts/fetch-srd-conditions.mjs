@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Fetches 5e condition text from Open5e and (re)generates the per-edition
- * baked files consumed by src/lib/conditions.ts:
+ * baked files consumed by src/rules/conditions.ts:
  *
  *   --edition=2014 (default) -> src/data/srdConditions2014.ts
  *     Source: Open5e v1 /conditions/ (SRD 5.1, CC-BY 4.0).
@@ -89,7 +89,7 @@ const EDITIONS = {
       `// This is the 2014 (SRD 5.1) edition of the condition data. See`,
       `// \`srdConditions2024.ts\` for the 2024 (SRD 5.2) edition, and`,
       `// \`conditionPatches.ts\` for the per-edition override/fill-gap layer applied`,
-      `// on top of both by \`src/lib/conditions.ts\`'s resolver.`,
+      `// on top of both by \`src/rules/conditions.ts\`'s resolver.`,
     ],
     extract(raw) {
       return raw.map((c) => ({

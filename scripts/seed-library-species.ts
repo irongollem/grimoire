@@ -3,7 +3,7 @@
  * Seeds the shared library_species table from Open5e v2 — dual-edition by
  * default (SRD 5.1 "srd-2014" + SRD 5.2 "srd-2024"), non-subspecies rows only.
  *
- * Reuses src/lib/open5eSpeciesImport.ts's fetchOpen5eSpecies(), buildImportedFields()
+ * Reuses src/lib/library/open5eSpeciesImport.ts's fetchOpen5eSpecies(), buildImportedFields()
  * and buildCreateOnlyDefaults() — the single source of truth for the Open5e v2
  * → row mapping (shared with the in-app SpeciesOpen5ePanel.vue import flow).
  * This script only adds CLI plumbing, the non-subspecies filter, the
@@ -33,13 +33,13 @@ import {
   fetchOpen5eSpecies,
   buildImportedFields,
   buildCreateOnlyDefaults,
-} from "@/lib/open5eSpeciesImport";
+} from "@/lib/library/open5eSpeciesImport";
 // Generic Open5e v2 document lister — not species-specific, so reused as-is
 // rather than duplicated (only read/imported here, this file does not modify
-// src/lib/open5eMonsterImport.ts).
-import { fetchOpen5eDocuments } from "@/lib/open5eMonsterImport";
-import { fetchOpen5eDocumentRefs, fetchSupported5eDocumentKeys, stableSrdId } from "@/lib/open5eApi";
-import type { Open5eDocumentRef } from "@/lib/open5eApi";
+// src/lib/library/open5eMonsterImport.ts).
+import { fetchOpen5eDocuments } from "@/lib/library/open5eMonsterImport";
+import { fetchOpen5eDocumentRefs, fetchSupported5eDocumentKeys, stableSrdId } from "@/lib/library/open5eApi";
+import type { Open5eDocumentRef } from "@/lib/library/open5eApi";
 import type { RulesetKey } from "@/types/ruleset.types";
 import {
   requireEnv,

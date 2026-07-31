@@ -11,7 +11,7 @@ import type { SaveKey } from "@/types/party.types";
 import type { AbilityScoreKey, BackgroundOriginFeat } from "@/types/background.types";
 import type { ClassFeature } from "@/types/feature.types";
 import { ABILITY_KEYS } from "@/types/card.types";
-import { slugifyKey } from "@/lib/open5eApi";
+import { slugifyKey } from "@/lib/library/open5eApi";
 
 export type BackgroundAsiMode = "plus2plus1" | "plus1plus1plus1";
 

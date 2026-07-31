@@ -6,8 +6,8 @@ import type {
   CustomSubclassInsert,
   CustomSubclassUpdate,
 } from "@/levelup/customTypes";
-import { fetchOpen5eSubclasses, subclassToInsert, subclassImportUpdateFields } from "@/lib/open5eClassImport";
-import { classFeatureIdentity, collectFeatures, ensureClassFeatures } from "@/lib/classFeatureSync";
+import { fetchOpen5eSubclasses, subclassToInsert, subclassImportUpdateFields } from "@/lib/library/open5eClassImport";
+import { classFeatureIdentity, collectFeatures, ensureClassFeatures } from "@/lib/library/classFeatureSync";
 import { useRuleset } from "@/composables/useRuleset";
 import { useCampaignStore } from "@/stores/campaign";
 import { allowedCampaignScoped } from "@/lib/campaignContentGating";

@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { Campaign } from "@/types/campaign.types";
 import type { RulesetKey } from "@/types/ruleset.types";
-import { isUuid } from "@/lib/contentIdentity";
+import { isUuid } from "@/lib/library/contentIdentity";
 import {
   sortByHierarchy,
   buildIdMapFromArrays,

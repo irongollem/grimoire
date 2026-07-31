@@ -8,7 +8,7 @@ import { useLibraryArtDefaults } from "@/composables/useLibraryArtDefaults";
 import { useEnabledSources } from "@/composables/useEnabledSources";
 import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
-import { isUuid } from "@/lib/contentIdentity";
+import { isUuid } from "@/lib/library/contentIdentity";
 import { useRuleset } from "@/composables/useRuleset";
 import type { RulesetKey } from "@/types/ruleset.types";
 
@@ -154,7 +154,7 @@ export function useOpen5eDocuments(enabled: Ref<boolean>) {
   return useQuery({
     queryKey: [OPEN5E_DOCS_KEY],
     queryFn: async () => {
-      const { fetchOpen5eDocuments } = await import("@/lib/open5eSpellImport");
+      const { fetchOpen5eDocuments } = await import("@/lib/library/open5eSpellImport");
       return fetchOpen5eDocuments();
     },
     staleTime: Infinity,

@@ -4,7 +4,7 @@ import {
   groupSourcesByLicense,
   oglSection15Chain,
   unlicensedSources,
-} from "@/lib/contentLicenses";
+} from "@/lib/library/contentLicenses";
 import { OGL_1_0A_BASE_NOTICE } from "@/data/ogl";
 import type { ContentLicenseSource } from "@/types/license.types";
 

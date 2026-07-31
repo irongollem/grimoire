@@ -16,8 +16,8 @@ DM-driven ambient sound and music player for live sessions: a per-campaign libra
 
 Two mechanics live outside it because neither is reactive state and both are untestable from inside a store:
 
-- `src/lib/soundTransport.ts` — element registry, duck refcounting, transition generations, category→bus mapping.
-- `src/lib/sceneGenerators.ts` — the timers and randomness behind generator layers, as a pool with an injectable clock and RNG.
+- `src/lib/audio/soundTransport.ts` — element registry, duck refcounting, transition generations, category→bus mapping.
+- `src/lib/audio/sceneGenerators.ts` — the timers and randomness behind generator layers, as a pool with an injectable clock and RNG.
 
 ### Composables
 
@@ -34,15 +34,15 @@ Two mechanics live outside it because neither is reactive state and both are unt
 
 ### Spotify
 
-`src/stores/spotify.ts` (Pinia `useSpotifyStore`) wraps the Spotify Web Playback SDK, registering "Grimoire Soundboard" as a Connect device. `src/lib/spotifyAuth.ts` implements PKCE OAuth (no client secret) — tokens live in `localStorage`, not the DB. The Spotify Client ID is BYOK, stored in plaintext on `campaigns.spotify_client_id` (not the encrypted key vault) and configured by the DM in Campaign Settings → Spotify. `isEnabled` requires both a configured client ID **and** `auth.isDM` — Spotify never appears for players. Requires a Spotify **Premium** account (the Web Playback SDK rejects free accounts).
+`src/stores/spotify.ts` (Pinia `useSpotifyStore`) wraps the Spotify Web Playback SDK, registering "Grimoire Soundboard" as a Connect device. `src/lib/audio/spotifyAuth.ts` implements PKCE OAuth (no client secret) — tokens live in `localStorage`, not the DB. The Spotify Client ID is BYOK, stored in plaintext on `campaigns.spotify_client_id` (not the encrypted key vault) and configured by the DM in Campaign Settings → Spotify. `isEnabled` requires both a configured client ID **and** `auth.isDM` — Spotify never appears for players. Requires a Spotify **Premium** account (the Web Playback SDK rejects free accounts).
 
 ### Freesound
 
-`src/lib/freesound.ts` — pure license-normalisation (`normalizeLicense`) and attribution-building (`buildAttribution`) helpers. `supabase/functions/freesound-search/index.ts` duplicates these two functions (Deno can't import client-side TS) — **keep both copies in sync**, per the comment in both files. The edge function requires an authenticated user, filters results to `license:("Creative Commons 0" OR "Attribution")` (CC-BY-NC is explicitly excluded — Grimoire is a commercial product, see `feedback_licensing_spirit.md`), and rewrites `freesound.org/data/previews/…` URLs to the `cdn.freesound.org` host to save a redirect. Only preview clips are returned, not full-resolution source files — a fidelity/length ceiling inherited from the free API tier.
+`src/lib/audio/freesound.ts` — pure license-normalisation (`normalizeLicense`) and attribution-building (`buildAttribution`) helpers. `supabase/functions/freesound-search/index.ts` duplicates these two functions (Deno can't import client-side TS) — **keep both copies in sync**, per the comment in both files. The edge function requires an authenticated user, filters results to `license:("Creative Commons 0" OR "Attribution")` (CC-BY-NC is explicitly excluded — Grimoire is a commercial product, see `feedback_licensing_spirit.md`), and rewrites `freesound.org/data/previews/…` URLs to the `cdn.freesound.org` host to save a redirect. Only preview clips are returned, not full-resolution source files — a fidelity/length ceiling inherited from the free API tier.
 
 ### AI generation (Lyria)
 
-`src/lib/aiMusic.ts` exports `generateMusicWithLyria`, `structureMusicPrompt` (expands a plain description into a structured prompt via a text model first), `LYRIA_MODELS` (`lyria-3-clip-preview` / `lyria-3-pro-preview`), and `LYRICS_MAX_CHARS` (2200). `supabase/functions/generate-music/index.ts` is the server-mode path: validates campaign membership, resolves BYOK-vs-platform Gemini key (BYOK is Pro-only per `project_byok_pro_only.md`), reserves AI credits, creates an `ai_generation_jobs` row, and returns its id immediately. Its background worker uploads the audio to the `sounds` bucket and marks the job ready **before** recording billing; `SoundForm` waits on that row and creates the sound from the durable URL/path and original campaign/page metadata. The client-side `generateMusicWithLyria` path is used instead when the user has a **local-vault** BYOK key (`grimoire_key_local_mode === "local"` in `localStorage`); local-key work remains browser-owned and cannot survive a reload mid-generation.
+`src/lib/audio/aiMusic.ts` exports `generateMusicWithLyria`, `structureMusicPrompt` (expands a plain description into a structured prompt via a text model first), `LYRIA_MODELS` (`lyria-3-clip-preview` / `lyria-3-pro-preview`), and `LYRICS_MAX_CHARS` (2200). `supabase/functions/generate-music/index.ts` is the server-mode path: validates campaign membership, resolves BYOK-vs-platform Gemini key (BYOK is Pro-only per `project_byok_pro_only.md`), reserves AI credits, creates an `ai_generation_jobs` row, and returns its id immediately. Its background worker uploads the audio to the `sounds` bucket and marks the job ready **before** recording billing; `SoundForm` waits on that row and creates the sound from the durable URL/path and original campaign/page metadata. The client-side `generateMusicWithLyria` path is used instead when the user has a **local-vault** BYOK key (`grimoire_key_local_mode === "local"` in `localStorage`); local-key work remains browser-owned and cannot survive a reload mid-generation.
 
 ### Components (`src/components/soundboard/`)
 
@@ -76,16 +76,16 @@ Two mechanics live outside it because neither is reactive state and both are unt
 ## Audio Engine
 
 Rebuilt in #572 phase 1. Playback for everything except Spotify runs through a
-**Web Audio bus graph** in `src/lib/audioEngine.ts`, with `src/stores/soundboard.ts`
-orchestrating on top and `src/lib/soundTransport.ts` holding the non-reactive
+**Web Audio bus graph** in `src/lib/audio/audioEngine.ts`, with `src/stores/soundboard.ts`
+orchestrating on top and `src/lib/audio/soundTransport.ts` holding the non-reactive
 plumbing:
 
 ```
 MediaElementAudioSource → BiquadFilter → soundGain → bus(music|ambient|effects) → master → destination
 ```
 
-- **`src/lib/audioEngine.ts`** — owns the graph. `getAudioEngine()` returns a stable object; `engine.available` is false when no `AudioContext` exists, and every method is then a safe no-op so playback still works (just without fades or buses). Consumes the shared singleton in `src/lib/audioContext.ts` — the store no longer owns its own context.
-- **`src/lib/soundTransport.ts`** — the `HTMLAudioElement` registry, duck refcounting, transition generations, and `category → bus` mapping. Deliberately outside Pinia: Vue's Proxy wrapper breaks `HTMLAudioElement` (volume/loop mutations silently drop, `play()` calls fail unpredictably).
+- **`src/lib/audio/audioEngine.ts`** — owns the graph. `getAudioEngine()` returns a stable object; `engine.available` is false when no `AudioContext` exists, and every method is then a safe no-op so playback still works (just without fades or buses). Consumes the shared singleton in `src/lib/audio/audioContext.ts` — the store no longer owns its own context.
+- **`src/lib/audio/soundTransport.ts`** — the `HTMLAudioElement` registry, duck refcounting, transition generations, and `category → bus` mapping. Deliberately outside Pinia: Vue's Proxy wrapper breaks `HTMLAudioElement` (volume/loop mutations silently drop, `play()` calls fail unpredictably).
 - **Volume runs through `GainNode.gain`, not `audio.volume`.** That is the change that made everything else possible — `audio.volume` is pre-context and cannot be ramped as an `AudioParam`, so every transition used to be a hard cut. Elements are held wide open at `volume = 1` and the graph owns level. The fallback path still uses `audio.volume` when Web Audio is unavailable.
 - **Per-sound gain composes three factors** — user volume × `gain_trim` (persisted loudness normalisation) × the active effect's gain reduction. All three writers recompute the product against the same node rather than clobbering each other.
 - **Fades and crossfade.** Fade-in on play, fade-out before pause/stop (the fade-out promise resolves before the element is paused). Music-playlist advance is a real crossfade, triggered from `ontimeupdate` while the outgoing track is still audible — _not_ from `onended`, which would only give a fade-in after silence. The next element is pre-created so its fetch and decode precede the transition.
@@ -110,10 +110,10 @@ Audio binds to campaign events by **theme label**, never by a foreign key to one
 
 | Piece                                      | Role                                                                                    |
 | ------------------------------------------ | --------------------------------------------------------------------------------------- |
-| `src/lib/audioThemes.ts`                   | Pure resolution: `resolveAudioTheme`, `collectThemes`, `tagsIncludeTheme`               |
-| `src/lib/audioTriggers.ts`                 | The bus: `requestAudioTheme` / `releaseAudioTheme` / `onAudioTrigger`                   |
+| `src/lib/audio/audioThemes.ts`                   | Pure resolution: `resolveAudioTheme`, `collectThemes`, `tagsIncludeTheme`               |
+| `src/lib/audio/audioTriggers.ts`                 | The bus: `requestAudioTheme` / `releaseAudioTheme` / `onAudioTrigger`                   |
 | `src/composables/useAudioThemeTriggers.ts` | The only consumer. Mounted once in `DefaultLayout`. Also exports `useAudioTriggerPrefs` |
-| `src/lib/audioTriggerPrefs.ts`             | The DM's on/off switch, localStorage, default on                                        |
+| `src/lib/audio/audioTriggerPrefs.ts`             | The DM's on/off switch, localStorage, default on                                        |
 | `src/components/common/ThemeInput.vue`     | Free-text label with datalist suggestions, shared by the encounter and location editors |
 
 **Slots.** An encounter drives `music`; a location drives `ambient`. They compose deliberately — dungeon ambience keeps running underneath battle music — and neither can ever contend for the other's channel. `resolveAudioTheme` will not look in the other slot even when its own has no answer.
@@ -146,7 +146,7 @@ The overlay layer is a hard cutoff, not a precedence bump — an open palette mu
 
 **On `/soundboard`** (`useSoundboardHotkeys`): `1`-`9` fire the first nine cards in **rendered** order — after page filter, category filter and drag-reordering — and the card shows its number, because a shortcut nobody can see is a shortcut nobody uses. Plus `space` (pause/resume everything), `←`/`→` (track), `↑`/`↓` (master volume), `m` (mute), `x` (stop all). Space yields when a button has focus, since a focused button already answers to it.
 
-**Anywhere** (`GlobalHotkeys.vue`, mounted in `DefaultLayout`): `mod+shift+K` opens `SoundPalette`. Not plain `mod+K` — `GlobalSearch` owns that for entity navigation. The palette ranks via `src/lib/soundSearch.ts` (exact → prefix → word-prefix → substring, over name → tags → artist), deliberately not fuzzy: the DM has to be able to predict the top hit from the letters they typed. Playlists rank above loose sounds. Enter on a playing `effects` sound **re-fires from the top** rather than pausing; everything else toggles. The palette stays open after firing.
+**Anywhere** (`GlobalHotkeys.vue`, mounted in `DefaultLayout`): `mod+shift+K` opens `SoundPalette`. Not plain `mod+K` — `GlobalSearch` owns that for entity navigation. The palette ranks via `src/lib/audio/soundSearch.ts` (exact → prefix → word-prefix → substring, over name → tags → artist), deliberately not fuzzy: the DM has to be able to predict the top hit from the letters they typed. Playlists rank above loose sounds. Enter on a playing `effects` sound **re-fires from the top** rather than pausing; everything else toggles. The palette stays open after firing.
 
 `?` opens `HotkeyCheatSheet`, which renders `useActiveHotkeys()` directly — it lists what is actually bound rather than a hand-maintained list that goes stale the first time someone forgets to update it.
 
@@ -200,9 +200,9 @@ Free plan limits: **20 sounds, 1 soundboard page, 3 soundboard playlists.** Uplo
 | ---------------------------------------------------------- | --------------------------------------------------------------------------- |
 | Catalogue table                                            | `public.sound_library` — one row per sound, admin-write, authenticated-read |
 | Audio                                                      | `sounds` bucket under `library/<collection>/<name>.ogg`, admin-write prefix |
-| Provider adapter (default browser tab)                     | `src/lib/soundProviders/library.ts`                                         |
+| Provider adapter (default browser tab)                     | `src/lib/audio/providers/library.ts`                                         |
 | Scene recipes                                              | `src/data/starterScenes.ts`                                                 |
-| Add-scenes planner (pure) + executor                       | `src/lib/starterScenePlan.ts`, `src/composables/useStarterScenes.ts`        |
+| Add-scenes planner (pure) + executor                       | `src/lib/audio/starterScenePlan.ts`, `src/composables/useStarterScenes.ts`        |
 | The offer (board empty state + Playlists panel, `compact`) | `src/components/soundboard/StarterScenesCard.vue`                           |
 | In-app credits                                             | `/soundboard/credits` → `src/views/soundboard/SoundLibraryCreditsView.vue`  |
 | Ingest (source folder is gitignored)                       | `scripts/ingest-sound-library.ts` + `scripts/lib/*`                         |
@@ -231,7 +231,7 @@ A DM can share **the music slot only** with players in the portal. `soundboard_b
 
 | Piece                                        | Role                                                        |
 | -------------------------------------------- | ------------------------------------------------------------ |
-| `src/lib/broadcastOffset.ts`                 | Pure: anchor → current position, and the resync threshold      |
+| `src/lib/audio/broadcastOffset.ts`                 | Pure: anchor → current position, and the resync threshold      |
 | `src/composables/useSoundboardBroadcast.ts`  | DM side. Module-level `broadcasting` flag + the upsert         |
 | `src/composables/usePlayerAudioStream.ts`    | Player side. Realtime subscription and the element             |
 | `src/components/soundboard/PlayerAudioStream.vue` | Player UI, mounted in `PlayerLayout`                      |

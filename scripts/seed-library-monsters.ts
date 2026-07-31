@@ -4,7 +4,7 @@
  * default (SRD 5.1 "srd-2014" + SRD 5.2 "srd-2024") — then backfills
  * image_url + portrait_focal_point from library_monster_art_canonical.
  *
- * Reuses src/lib/open5eMonsterImport.ts's fetchOpen5eMonsters(), the single
+ * Reuses src/lib/library/open5eMonsterImport.ts's fetchOpen5eMonsters(), the single
  * source of truth for the Open5e v2 → row mapping (shared with the in-app
  * admin import flow). This script only adds CLI plumbing, the library_monsters.id
  * derivation (MonsterInsert has no `id`), the Supabase upsert, and the SRD
@@ -25,10 +25,10 @@
  *   SUPABASE_SERVICE_ROLE_KEY — service-role key (bypasses RLS)
  */
 
-import { fetchOpen5eDocuments, fetchOpen5eMonsters } from "@/lib/open5eMonsterImport";
+import { fetchOpen5eDocuments, fetchOpen5eMonsters } from "@/lib/library/open5eMonsterImport";
 import type { MonsterInsert } from "@/types/monster.types";
 import type { RulesetKey } from "@/types/ruleset.types";
-import { fetchOpen5eDocumentRefs, fetchSupported5eDocumentKeys, stableSrdId } from "@/lib/open5eApi";
+import { fetchOpen5eDocumentRefs, fetchSupported5eDocumentKeys, stableSrdId } from "@/lib/library/open5eApi";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   requireEnv,
@@ -49,7 +49,7 @@ import { pathToFileURL } from "node:url";
  * from the Open5e v2 source_record_key. MonsterInsert (from the shared mapper)
  * has no `id` — the table's `id text primary key` is a seed-only concern, unlike
  * library_spells where ImportedLibrarySpell already carries a stable `id` (also derived
- * from `stableSrdId`, in src/lib/open5eSpellImport.ts). Thin wrapper kept as its
+ * from `stableSrdId`, in src/lib/library/open5eSpellImport.ts). Thin wrapper kept as its
  * own named export for the test suite and call-site clarity. Open5e v2 record
  * keys are already document-prefixed (e.g. "srd-2024_owlbear" vs. "srd_owlbear"),
  * so this stays unique across editions without extra suffixing.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isSharedContent, isUuid } from "@/lib/contentIdentity";
+import { isSharedContent, isUuid } from "@/lib/library/contentIdentity";
 
 describe("content identity", () => {
   it("does not infer shared content from an ID prefix", () => {

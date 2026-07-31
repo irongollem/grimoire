@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Open5eDocumentRef } from "@/lib/open5eApi";
+import type { Open5eDocumentRef } from "@/lib/library/open5eApi";
 import { buildContentSourcePlan, deriveMachineFields, ourKeyFor, type ContentSourceRow } from "./seed-content-sources";
 
 const bfrdDocument: Open5eDocumentRef = {

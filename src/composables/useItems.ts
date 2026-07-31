@@ -10,8 +10,8 @@ import { useEnabledSources } from "@/composables/useEnabledSources";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
 import { useToast } from "@/composables/useToast";
-import { isUuid } from "@/lib/contentIdentity";
-import { mergeLibraryWithCustom } from "@/lib/libraryShadow";
+import { isUuid } from "@/lib/library/contentIdentity";
+import { mergeLibraryWithCustom } from "@/lib/library/libraryShadow";
 import { useRuleset } from "@/composables/useRuleset";
 import type { RulesetKey } from "@/types/ruleset.types";
 

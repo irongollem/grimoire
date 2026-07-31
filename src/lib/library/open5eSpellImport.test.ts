@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { effectsForCast } from "@/rules/spellEffects";
-import { mapOpen5eV2Spell, planLibrarySpellImport } from "@/lib/open5eSpellImport";
-import type { ExistingLibrarySpellIdentity, ImportedLibrarySpell } from "@/lib/open5eSpellImport";
+import { mapOpen5eV2Spell, planLibrarySpellImport } from "@/lib/library/open5eSpellImport";
+import type { ExistingLibrarySpellIdentity, ImportedLibrarySpell } from "@/lib/library/open5eSpellImport";
 
 const document = {
   name: "System Reference Document 5.2",

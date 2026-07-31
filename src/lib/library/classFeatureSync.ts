@@ -3,7 +3,7 @@
  * from different documents remain distinct records and can evolve separately.
  */
 import { supabase, getCurrentUser } from "@/lib/supabase";
-import type { Open5eClassFeaturePreview } from "@/lib/open5eClassImport";
+import type { Open5eClassFeaturePreview } from "@/lib/library/open5eClassImport";
 
 export function classFeatureIdentity(feature: Pick<Open5eClassFeaturePreview, "sourceDocumentKey" | "key">): string {
   return `${feature.sourceDocumentKey}::${feature.key}`;

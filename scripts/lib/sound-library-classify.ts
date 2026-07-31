@@ -54,7 +54,7 @@ export function boardCategory(collection: string, durationSeconds: number): Boar
 
 /**
  * Theme labels per collection, matching the vocabulary encounters and
- * locations already use (`src/lib/audioThemes.ts`).
+ * locations already use (`src/lib/audio/audioThemes.ts`).
  *
  * This is the whole reason the catalogue is worth shipping tagged: a DM who
  * adds the forest bed gets working location audio without tagging anything

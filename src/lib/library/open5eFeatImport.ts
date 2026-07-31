@@ -1,6 +1,6 @@
 import type { ClassFeatureInsert, FeatureType } from "@/types/feature.types";
-import { fetchAllFromDocuments, fetchSupported5eDocumentKeys, rulesetForDocument, slugifyKey } from "@/lib/open5eApi";
-import type { Open5eDocumentRef } from "@/lib/open5eApi";
+import { fetchAllFromDocuments, fetchSupported5eDocumentKeys, rulesetForDocument, slugifyKey } from "@/lib/library/open5eApi";
+import type { Open5eDocumentRef } from "@/lib/library/open5eApi";
 
 interface Open5eV2Feat {
   key: string;

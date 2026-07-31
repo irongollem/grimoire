@@ -49,7 +49,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconExternalLink } from "@/lib/icons";
-import { licenseDescriptor } from "@/lib/contentLicenses";
+import { licenseDescriptor } from "@/lib/library/contentLicenses";
 import type { ContentLicenseSource } from "@/types/license.types";
 
 const { source } = defineProps<{

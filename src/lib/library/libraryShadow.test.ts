@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mergeLibraryWithCustom, type Shadowable } from "@/lib/libraryShadow";
+import { mergeLibraryWithCustom, type Shadowable } from "@/lib/library/libraryShadow";
 
 function row(name: string, extra: Partial<Shadowable> = {}): Shadowable {
   return { name, source: null, source_document_key: null, source_record_key: null, ...extra };

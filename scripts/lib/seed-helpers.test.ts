@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
-import type { Open5eDocumentRef } from "@/lib/open5eApi";
+import type { Open5eDocumentRef } from "@/lib/library/open5eApi";
 import {
   assertRedistributableDocuments,
   countByRuleset,

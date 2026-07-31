@@ -187,7 +187,7 @@ import { SCHOOL_COLORS, spellLevelLabel } from "@/types/spell.types";
 import type { CasterType, Spell } from "@/types/spell.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
-import { isSharedContent } from "@/lib/contentIdentity";
+import { isSharedContent } from "@/lib/library/contentIdentity";
 import { useSpellReplacement } from "@/composables/useSpellReplacement";
 import { useRuleset } from "@/composables/useRuleset";
 import { getSpellPreparationPolicy, policyValueAtLevel } from "@/rules/spellPreparationPolicy";

@@ -1,5 +1,5 @@
-import { fetchAll, fetchAllFromDocuments, rulesetForDocument, slugifyKey } from "@/lib/open5eApi";
-import type { Open5eDocumentRef } from "@/lib/open5eApi";
+import { fetchAll, fetchAllFromDocuments, rulesetForDocument, slugifyKey } from "@/lib/library/open5eApi";
+import type { Open5eDocumentRef } from "@/lib/library/open5eApi";
 import type { AbilityScoreKey, BackgroundInsert } from "@/types/background.types";
 import { ABILITY_SCORE_KEYS } from "@/types/background.types";
 import type { RulesetKey } from "@/types/ruleset.types";

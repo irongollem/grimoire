@@ -134,7 +134,7 @@ export function isRedistributable(document: Open5eDocumentRef): boolean {
 /**
  * Comma-space joined license key list, matching the format already stored in
  * `source_license` on existing rows (e.g. `"cc-by-40, ogl-10a"`) — mirrors
- * `src/lib/open5eSpellImport.ts`'s `document.licenses?.map(...).join(", ")`
+ * `src/lib/library/open5eSpellImport.ts`'s `document.licenses?.map(...).join(", ")`
  * exactly so old and new rows agree. `null` for an empty list.
  */
 export function formatLicenseKeys(keys: readonly string[]): string | null {

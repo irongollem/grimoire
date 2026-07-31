@@ -8,7 +8,7 @@ import type {
   InnateResetsOn,
 } from "@/types/spell.types";
 import type { Species } from "@/types/species.types";
-import { isUuid } from "@/lib/contentIdentity";
+import { isUuid } from "@/lib/library/contentIdentity";
 import { useToast } from "@/composables/useToast";
 
 export interface SpellKnower {

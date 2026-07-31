@@ -7,7 +7,7 @@ import { useUiStore } from "@/stores/ui";
 import type { Monster, MonsterInsert, MonsterUpdate } from "@/types/monster.types";
 import { useToast } from "@/composables/useToast";
 import { deleteByPublicUrl } from "@/lib/storage";
-import { isUuid } from "@/lib/contentIdentity";
+import { isUuid } from "@/lib/library/contentIdentity";
 import { useRuleset } from "@/composables/useRuleset";
 import type { RulesetKey } from "@/types/ruleset.types";
 
@@ -313,7 +313,7 @@ export function useOpen5eMonsterDocuments(enabled: Ref<boolean>) {
   return useQuery({
     queryKey: [OPEN5E_DOCS_KEY],
     queryFn: async () => {
-      const { fetchOpen5eDocuments } = await import("@/lib/open5eMonsterImport");
+      const { fetchOpen5eDocuments } = await import("@/lib/library/open5eMonsterImport");
       return fetchOpen5eDocuments();
     },
     staleTime: Infinity,

@@ -87,8 +87,8 @@ import { IconClose, IconDownload, IconSearch } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import { useCreateSpecies, useUpdateSpecies, useAllSpecies } from "@/composables/useSpecies";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import { buildImportedFields, buildCreateOnlyDefaults } from "@/lib/open5eSpeciesImport";
-import type { Open5eRace } from "@/lib/open5eSpeciesImport";
+import { buildImportedFields, buildCreateOnlyDefaults } from "@/lib/library/open5eSpeciesImport";
+import type { Open5eRace } from "@/lib/library/open5eSpeciesImport";
 
 const ui = useUiStore();
 const router = useRouter();

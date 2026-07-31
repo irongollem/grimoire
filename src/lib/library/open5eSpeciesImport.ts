@@ -1,5 +1,5 @@
-import { fetchAllFromDocuments, licenseForDocumentKey, rulesetForDocument } from "@/lib/open5eApi";
-import type { Open5eDocumentRef } from "@/lib/open5eApi";
+import { fetchAllFromDocuments, licenseForDocumentKey, rulesetForDocument } from "@/lib/library/open5eApi";
+import type { Open5eDocumentRef } from "@/lib/library/open5eApi";
 import { markdownToTiptapJson, toTiptapJson } from "@/lib/markdownToTiptap";
 import type { SpeciesSize } from "@/types/species.types";
 

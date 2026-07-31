@@ -6,8 +6,8 @@ import {
   licenseForDocumentKey,
   rulesetForDocument,
   slugifyKey,
-} from "@/lib/open5eApi";
-import type { Open5eDocumentRef } from "@/lib/open5eApi";
+} from "@/lib/library/open5eApi";
+import type { Open5eDocumentRef } from "@/lib/library/open5eApi";
 import type { MonsterInsert, MonsterStatBlock, MonsterSize, MonsterType } from "@/types/monster.types";
 
 interface Open5eV2Action {

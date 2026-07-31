@@ -5,7 +5,7 @@
  */
 
 import { createClient, type SupabaseClient, type PostgrestError } from "@supabase/supabase-js";
-import { isRedistributable, licenseKeysFor, LEGACY_DOCUMENT_KEY_ALIASES, type Open5eDocumentRef } from "@/lib/open5eApi";
+import { isRedistributable, licenseKeysFor, LEGACY_DOCUMENT_KEY_ALIASES, type Open5eDocumentRef } from "@/lib/library/open5eApi";
 
 export interface SupabaseEnv {
   supabaseUrl: string;

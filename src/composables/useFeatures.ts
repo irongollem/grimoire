@@ -106,7 +106,7 @@ export function useImportOpen5eFeatures() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (): Promise<ImportResult> => {
-      const { fetchOpen5eFeats } = await import("@/lib/open5eFeatImport");
+      const { fetchOpen5eFeats } = await import("@/lib/library/open5eFeatImport");
       const feats = await fetchOpen5eFeats();
       const user = getCurrentUser();
 
@@ -179,7 +179,7 @@ export function useBackfillSystemFeatureDescriptions() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (): Promise<{ updated: number }> => {
-      const { fetchClassFeatureDescriptions } = await import("@/lib/open5eClassImport");
+      const { fetchClassFeatureDescriptions } = await import("@/lib/library/open5eClassImport");
       const descMap = await fetchClassFeatureDescriptions();
 
       // Fetch all system features that currently have no description

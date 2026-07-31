@@ -1,5 +1,5 @@
-import { fetchAllFromDocuments, fetchSupported5eDocumentKeys, rulesetForDocument, slugifyKey } from "@/lib/open5eApi";
-import type { Open5eDocumentRef } from "@/lib/open5eApi";
+import { fetchAllFromDocuments, fetchSupported5eDocumentKeys, rulesetForDocument, slugifyKey } from "@/lib/library/open5eApi";
+import type { Open5eDocumentRef } from "@/lib/library/open5eApi";
 import type { CustomClassInsert, CustomSubclassInsert, HitDie } from "@/levelup/customTypes";
 import type { RulesetKey } from "@/types/ruleset.types";
 

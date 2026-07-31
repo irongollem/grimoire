@@ -3,7 +3,7 @@
  * Seeds the shared library_items table (issue #303) from two sources:
  *
  *   1. Open5e v2 weapons/armor/magicitems — dual-edition by default (SRD 5.1
- *      "srd-2014" + SRD 5.2 "srd-2024"), via src/lib/open5eImport.ts's
+ *      "srd-2014" + SRD 5.2 "srd-2024"), via src/lib/library/open5eImport.ts's
  *      fetchOpen5eItems(), the single source of truth for the Open5e v2 → row
  *      mapping (shared with the in-app admin import flow). These rows keep
  *      their mapped ruleset ('2014'/'2024').
@@ -21,7 +21,7 @@
  * This script only adds CLI plumbing, the library_items.id derivation
  * (ItemInsert has no `id`), the bundled-dataset identity derivation, the
  * Supabase upsert, and the SRD art backfill — it does not re-implement the
- * Open5e → row field mapping (that lives in src/lib/open5eImport.ts).
+ * Open5e → row field mapping (that lives in src/lib/library/open5eImport.ts).
  *
  * Run (seeds both 2014 + 2024, plus the bundled datasets, by default):
  *   npx tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/seed-library-items.ts
@@ -41,9 +41,9 @@
  *   SUPABASE_SERVICE_ROLE_KEY — service-role key (bypasses RLS)
  */
 
-import { fetchOpen5eItems } from "@/lib/open5eImport";
-import { fetchAll, fetchOpen5eDocumentRefs, fetchSupported5eDocumentKeys, rulesetForDocument, slugifyKey, stableSrdId } from "@/lib/open5eApi";
-import type { Open5eDocumentRef } from "@/lib/open5eApi";
+import { fetchOpen5eItems } from "@/lib/library/open5eImport";
+import { fetchAll, fetchOpen5eDocumentRefs, fetchSupported5eDocumentKeys, rulesetForDocument, slugifyKey, stableSrdId } from "@/lib/library/open5eApi";
+import type { Open5eDocumentRef } from "@/lib/library/open5eApi";
 import type { ItemInsert, StaticItemData } from "@/types/item.types";
 import type { RulesetKey } from "@/types/ruleset.types";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -63,7 +63,7 @@ import {
 import { pathToFileURL } from "node:url";
 
 /**
- * Unlike the monster/spell/background importers, src/lib/open5eImport.ts
+ * Unlike the monster/spell/background importers, src/lib/library/open5eImport.ts
  * (items) has no `fetchOpen5eDocuments()` of its own — each of those files
  * independently duplicates the same "list 5e-gamesystem documents" query.
  * Rather than adding a fourth copy there (out of scope for this script) or

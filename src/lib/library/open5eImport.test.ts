@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchOpen5eItems, mapOpen5eV2Weapon, mapOpen5eV2MagicItem } from "@/lib/open5eImport";
+import { fetchOpen5eItems, mapOpen5eV2Weapon, mapOpen5eV2MagicItem } from "@/lib/library/open5eImport";
 
 afterEach(() => vi.unstubAllGlobals());
 

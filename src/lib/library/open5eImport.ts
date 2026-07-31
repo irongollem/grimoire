@@ -5,8 +5,8 @@ import {
   licenseForDocumentKey,
   rulesetForDocument,
   slugifyKey,
-} from "@/lib/open5eApi";
-import type { Open5eDocumentRef } from "@/lib/open5eApi";
+} from "@/lib/library/open5eApi";
+import type { Open5eDocumentRef } from "@/lib/library/open5eApi";
 import type { ItemInsert, ItemType, ItemRarity, WeaponProperty, WeaponMasteryProperty } from "@/types/item.types";
 import { WEAPON_PROPERTIES, WEAPON_MASTERY_PROPERTIES } from "@/types/item.types";
 

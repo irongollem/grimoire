@@ -4,7 +4,7 @@
  * (SRD 5.1 "srd-2014" + SRD 5.2 "srd-2024") — then backfills image_url +
  * image_focal_point from canonical library_art_defaults rows.
  *
- * Reuses src/lib/open5eSpellImport.ts's fetchOpen5eSpells(), the single source
+ * Reuses src/lib/library/open5eSpellImport.ts's fetchOpen5eSpells(), the single source
  * of truth for the Open5e v2 → row mapping (shared with the in-app admin
  * import flow). This script only adds CLI plumbing, the Supabase upsert, and
  * the SRD art backfill — it does not re-implement any field mapping.
@@ -29,8 +29,8 @@ import {
   fetchOpen5eSpells,
   planLibrarySpellImport,
   type ImportedLibrarySpell,
-} from "@/lib/open5eSpellImport";
-import { fetchOpen5eDocumentRefs, fetchSupported5eDocumentKeys } from "@/lib/open5eApi";
+} from "@/lib/library/open5eSpellImport";
+import { fetchOpen5eDocumentRefs, fetchSupported5eDocumentKeys } from "@/lib/library/open5eApi";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   requireEnv,
