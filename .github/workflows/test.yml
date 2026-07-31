@@ -31,6 +31,14 @@ jobs:
         run: supabase start
       - name: Direct API and transaction rules
         run: supabase test db
+      # The deploy gate is itself code, and it has been wrong in both
+      # directions: it missed nine live referrers (#553 stranded 33 references
+      # through that gap), and a later version counted a valid note on a shared
+      # item as dangling — a false positive there fails the release and strands
+      # every migration queued behind it. This plants damage and requires the
+      # gate to catch it, then plants valid rows and requires silence.
+      - name: Content integrity guard catches what it claims to
+        run: sh scripts/test-content-integrity.sh
       - name: Concurrent spell transactions
         run: scripts/test-spell-concurrency.sh
 
