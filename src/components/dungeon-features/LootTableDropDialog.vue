@@ -134,7 +134,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { IconClose, IconPackageOpen, IconWarning } from '@/lib/icons';
-import { formatCoinParts } from '@/lib/currency';
+import { formatCoinParts } from '@/rules/currency';
 import { useImageUpload } from '@/composables/useImageUpload';
 import FocalImage from '@/components/common/FocalImage.vue';
 import type { LootChestAtom } from '@/types/chat.types';

@@ -196,9 +196,9 @@ export type PartyMemberInsert = Omit<PartyMember, "id" | "user_id" | "owner_user
 };
 export type PartyMemberUpdate = Partial<PartyMemberInsert>;
 
-// Conditions + helpers now live in `@/lib/conditions`. Re-exported here so
+// Conditions + helpers now live in `@/rules/conditions`. Re-exported here so
 // existing imports from `@/types/party.types` keep working.
-export { CONDITIONS, ATTACK_DIS_CONDITIONS, CHECK_DIS_CONDITIONS } from "@/lib/conditions";
+export { CONDITIONS, ATTACK_DIS_CONDITIONS, CHECK_DIS_CONDITIONS } from "@/rules/conditions";
 
 // ── AC formula ───────────────────────────────────────────────────────────────
 // Encodes where a character's AC comes from. Stored in party_members.ac_formula.

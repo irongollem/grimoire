@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { skillCheckBonus, type SkillCheckSource } from "@/lib/skillCheck";
+import { skillCheckBonus, type SkillCheckSource } from "@/rules/skillCheck";
 
 function source(over: Partial<SkillCheckSource> = {}): SkillCheckSource {
   return {

@@ -215,7 +215,7 @@ import { useCompanions, useUpdateCompanion } from "@/composables/useCompanions";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { liveState } from "@/composables/useEncounterLive";
-import { sortCombatantsByInitiative } from "@/lib/combatantSort";
+import { sortCombatantsByInitiative } from "@/rules/combatantSort";
 import type { RunCombatant, HealthVisibility, EncounterEvent, EventAction } from "@/types/encounter.types";
 import type { PlayerNpc } from "@/types/npc.types";
 import type { Companion } from "@/types/companion.types";

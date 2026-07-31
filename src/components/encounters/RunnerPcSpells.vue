@@ -54,8 +54,8 @@ import { pickSpellcastingStats, type SpellcastingClassStats } from "@/types/mult
 import { signedNum } from "@/lib/utils";
 import { scaleExpression } from "@/lib/dice";
 import { cantripDiceMultiplier } from "@/types/spell.types";
-import { availableSlotsForSpell, slotPool } from "@/lib/spellSlots";
-import { grantAttackBonus, grantSaveDc } from "@/lib/spellGrantStats";
+import { availableSlotsForSpell, slotPool } from "@/rules/spellSlots";
+import { grantAttackBonus, grantSaveDc } from "@/rules/spellGrantStats";
 import { useCastCharacterSpell } from "@/composables/useParty";
 import { useConcentration } from "@/composables/useConcentration";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";

@@ -55,7 +55,7 @@ import {
   isValidAsiChoice,
   type BackgroundAsiChoice,
   type BackgroundAsiMode,
-} from "@/lib/backgroundAsi";
+} from "@/rules/backgroundAsi";
 import type { AbilityScoreKey } from "@/types/background.types";
 import type { SaveKey } from "@/types/party.types";
 

@@ -1,6 +1,6 @@
 import { SKILLS } from "@/types/party.types";
 import type { SkillProficiencies, SaveKey } from "@/types/party.types";
-import { abilityMod } from "@/lib/weaponAttack";
+import { abilityMod } from "@/rules/weaponAttack";
 
 /** The six ability scores a check can key off. */
 export type AbilityScores = Record<SaveKey, number>;

@@ -189,7 +189,7 @@ import { useShieldAcBonus } from "@/composables/useShieldAc";
 import { formatMulticlassLabel, totalLevel } from "@/types/multiclass.types";
 import { getHitDie } from "@/types/spell.types";
 import { useConcentration } from "@/composables/useConcentration";
-import { applyDamage as damagePools, applyHealing as healPools, betterTempHp } from "@/lib/hitPoints";
+import { applyDamage as damagePools, applyHealing as healPools, betterTempHp } from "@/rules/hitPoints";
 import { useRuleset } from "@/composables/useRuleset";
 import {
   CONDITIONS,
@@ -199,7 +199,7 @@ import {
   hasAttackDisadvantage,
   hasCheckDisadvantage,
   getExhaustionD20Penalty,
-} from "@/lib/conditions";
+} from "@/rules/conditions";
 import type { PartyMember, PartyMemberUpdate } from "@/types/party.types";
 import { xpForNextLevel, xpForLevel, levelForXp } from "@/types/party.types";
 import type { WildshapeState } from "@/types/encounter.types";

@@ -1,4 +1,4 @@
-import { CONDITIONS } from "@/lib/conditions";
+import { CONDITIONS } from "@/rules/conditions";
 import { ITEM_RARITIES, ITEM_TYPES } from "@/types/item.types";
 import type { ItemRarity, ItemType } from "@/types/item.types";
 import type { NoteCategory } from "@/types/notes.types";

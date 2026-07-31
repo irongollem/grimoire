@@ -310,7 +310,7 @@ import {
   type Quest,
   type QuestObjective,
 } from "@/types/quest.types";
-import { formatCoinParts } from "@/lib/currency";
+import { formatCoinParts } from "@/rules/currency";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 
 const props = defineProps<{ quest: Quest }>();

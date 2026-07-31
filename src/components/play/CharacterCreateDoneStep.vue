@@ -124,7 +124,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import FocalImage from "@/components/common/FocalImage.vue";
-import { ABILITY_STATS, SLOT_LEVEL_LABELS, type AbilityKey } from "@/lib/characterCreation";
+import { ABILITY_STATS, SLOT_LEVEL_LABELS, type AbilityKey } from "@/rules/characterCreation";
 import type { CharacterCreationForm } from "@/composables/useCharacterCreationForm";
 
 const { form } = defineProps<{ form: CharacterCreationForm }>();

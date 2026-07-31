@@ -351,7 +351,7 @@ import type { CampaignMember } from "@/types/campaign.types";
 import type { PartyMember } from "@/types/party.types";
 import type { DieSize, RollMode, RollResult } from "@/lib/dice";
 import { useItems, useEnsureOwnedItem } from "@/composables/useItems";
-import { COINS, type CoinKey, toCP } from "@/lib/currency";
+import { COINS, type CoinKey, toCP } from "@/rules/currency";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 

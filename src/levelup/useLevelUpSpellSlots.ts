@@ -8,7 +8,7 @@ import {
   getSpellPreparationPolicy,
   levelUpSpellChoiceCount,
   type SpellDefinitionKind,
-} from "@/lib/spellPreparationPolicy";
+} from "@/rules/spellPreparationPolicy";
 
 interface ClassDataRef {
   spell_slots?: number[][] | null;

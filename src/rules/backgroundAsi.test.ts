@@ -7,7 +7,7 @@ import {
   resolveOriginFeat,
   trioToSaveKeys,
   type BackgroundAsiChoice,
-} from "@/lib/backgroundAsi";
+} from "@/rules/backgroundAsi";
 import type { AbilityScoreKey } from "@/types/background.types";
 import type { ClassFeature } from "@/types/feature.types";
 

@@ -163,7 +163,7 @@ import {
 } from "@/composables/useBackgrounds";
 import type { AbilityScoreKey, Background, BackgroundInsert } from "@/types/background.types";
 import { ABILITY_SCORE_KEYS } from "@/types/background.types";
-import { parseOriginFeatText } from "@/lib/backgroundAsi";
+import { parseOriginFeatText } from "@/rules/backgroundAsi";
 
 const props = defineProps<{
   background: Background | null;

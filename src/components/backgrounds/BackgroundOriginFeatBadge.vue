@@ -32,7 +32,7 @@
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import { useAllFeatures } from "@/composables/useFeatures";
-import { resolveOriginFeat } from "@/lib/backgroundAsi";
+import { resolveOriginFeat } from "@/rules/backgroundAsi";
 import type { BackgroundOriginFeat } from "@/types/background.types";
 
 const { originFeat } = defineProps<{ originFeat: BackgroundOriginFeat | null }>();

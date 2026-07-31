@@ -7,7 +7,7 @@
  * the actual computation here.
  */
 import { rollDie } from "@/lib/dice";
-import { initiativeModifier } from "@/lib/combatantSort";
+import { initiativeModifier } from "@/rules/combatantSort";
 import { hitPointsToMax } from "@/lib/dice";
 import { sizeToFootprint } from "@/lib/battlemap/tokenFootprint";
 import type { RunCombatant, EventTrigger } from "@/types/encounter.types";

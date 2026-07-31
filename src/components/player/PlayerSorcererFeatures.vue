@@ -52,7 +52,7 @@ import {
   useEndInnateSorcery,
   useRestoreSorceryPoints,
 } from "@/composables/useParty";
-import { isInnateSorceryActive, sorcerousRestorationAmount } from "@/lib/sorcererFeatures";
+import { isInnateSorceryActive, sorcerousRestorationAmount } from "@/rules/sorcererFeatures";
 import { useToast } from "@/composables/useToast";
 
 const props = defineProps<{ member: PartyMember; level: number }>();

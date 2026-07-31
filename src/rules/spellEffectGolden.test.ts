@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildStructuredSpellEffects, effectsForCast, resolveSpellEffects } from "@/lib/spellEffects";
+import { buildStructuredSpellEffects, effectsForCast, resolveSpellEffects } from "@/rules/spellEffects";
 
 const fixtures = {
   "2014": {

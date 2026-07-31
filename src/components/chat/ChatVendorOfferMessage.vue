@@ -54,7 +54,7 @@
 
 <script setup lang="ts">
 import { IconShop } from '@/lib/icons';
-import { COINS } from '@/lib/currency';
+import { COINS } from '@/rules/currency';
 import type { VendorOfferMetadata } from '@/types/chat.types';
 
 const {

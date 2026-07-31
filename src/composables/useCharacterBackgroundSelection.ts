@@ -1,10 +1,10 @@
 import { ref, computed, type ComputedRef, type Ref } from "vue";
-import { parseBackgroundSkills, type SkillKey } from "@/lib/backgroundSkills";
+import { parseBackgroundSkills, type SkillKey } from "@/rules/backgroundSkills";
 import {
   isValidAsiChoice, parseBackgroundAsiChoice,
   type BackgroundAsiChoice,
-} from "@/lib/backgroundAsi";
-import type { CharacterFormState } from "@/lib/characterCreation";
+} from "@/rules/backgroundAsi";
+import type { CharacterFormState } from "@/rules/characterCreation";
 import type { Background } from "@/types/background.types";
 
 interface BackgroundSelectionDeps {

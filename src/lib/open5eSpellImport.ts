@@ -4,7 +4,7 @@ import { ARTIFICER_SPELL_DELTA } from "@/data/artificerSpellDelta";
 import { fetchAll, fetchAllFromDocuments, rulesetForDocument, slugifyKey, stableSrdId } from "@/lib/open5eApi";
 import type { Open5eDocumentRef } from "@/lib/open5eApi";
 import type { RulesetKey } from "@/types/ruleset.types";
-import { buildStructuredSpellEffects } from "@/lib/spellEffects";
+import { buildStructuredSpellEffects } from "@/rules/spellEffects";
 
 type SupportedRuleset = RulesetKey;
 

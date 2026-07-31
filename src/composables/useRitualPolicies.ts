@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { useRuleset } from "@/composables/useRuleset";
-import { defaultRitualStyle, type RitualStyle } from "@/lib/spellcastingPolicy";
+import { defaultRitualStyle, type RitualStyle } from "@/rules/spellcastingPolicy";
 import type { RulesetKey } from "@/types/ruleset.types";
 
 interface ClassRitualPolicyRow {

@@ -103,7 +103,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { IconCoins, IconPackage, IconPackageOpen } from '@/lib/icons';
-import { formatCoinParts } from '@/lib/currency';
+import { formatCoinParts } from '@/rules/currency';
 import FocalImage from '@/components/common/FocalImage.vue';
 import type { LootChestMetadata, LootChestClaim } from '@/types/chat.types';
 

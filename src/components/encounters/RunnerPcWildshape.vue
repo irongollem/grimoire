@@ -129,7 +129,7 @@ import type { Monster } from "@/types/monster.types";
 import { useDiscoveredKeys } from "@/composables/useDiscoveredMonsters";
 import { useDmPinnedForms, useTogglePinnedForm } from "@/composables/usePinnedForms";
 import { parseCr } from "@/lib/utils";
-import { wildshapeMaxCr as calcWildshapeMaxCr, wildshapeCrDisplay as calcWildshapeCrDisplay, isEligibleWildshapeForm } from "@/lib/wildshape";
+import { wildshapeMaxCr as calcWildshapeMaxCr, wildshapeCrDisplay as calcWildshapeCrDisplay, isEligibleWildshapeForm } from "@/rules/wildshape";
 import { useAnchoredPopover } from "@/composables/useAnchoredPopover";
 
 const { combatant, member, monsters } = defineProps<{

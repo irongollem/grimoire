@@ -30,8 +30,8 @@
 import { ref } from "vue";
 import { onClickOutside } from "@vueuse/core";
 import { useRuleset } from "@/composables/useRuleset";
-import { CONDITIONS, getExhaustionLevel, getConditionShort } from "@/lib/conditions";
-import type { ConditionName } from "@/lib/conditions";
+import { CONDITIONS, getExhaustionLevel, getConditionShort } from "@/rules/conditions";
+import type { ConditionName } from "@/rules/conditions";
 
 const props = defineProps<{
   /** Current active conditions for this combatant (the raw string[] from state). */

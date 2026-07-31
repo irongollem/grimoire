@@ -3,7 +3,7 @@ import type { Open5eDocumentRef } from "@/lib/open5eApi";
 import type { AbilityScoreKey, BackgroundInsert } from "@/types/background.types";
 import { ABILITY_SCORE_KEYS } from "@/types/background.types";
 import type { RulesetKey } from "@/types/ruleset.types";
-import { parseOriginFeatText } from "@/lib/backgroundAsi";
+import { parseOriginFeatText } from "@/rules/backgroundAsi";
 
 interface Open5eV2Document extends Open5eDocumentRef {
   publication_date?: string | null;

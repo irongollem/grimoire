@@ -317,18 +317,18 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import PlayerSpellModal from "@/components/spells/PlayerSpellModal.vue";
 import SpellUpcastPicker from "@/components/spells/SpellUpcastPicker.vue";
 import SpellEffectResolver from "@/components/spells/SpellEffectResolver.vue";
-import { availableSlotsForSpell, canCastWithSlot, spellSlotKey, slotPool, type SpellSlotPool } from "@/lib/spellSlots";
+import { availableSlotsForSpell, canCastWithSlot, spellSlotKey, slotPool, type SpellSlotPool } from "@/rules/spellSlots";
 import { useToast } from "@/composables/useToast";
 import { useRuleset } from "@/composables/useRuleset";
-import { canAutoRollSpellEffect, canCastAsRitual } from "@/lib/spellcastingPolicy";
+import { canAutoRollSpellEffect, canCastAsRitual } from "@/rules/spellcastingPolicy";
 import { useRitualStyles } from "@/composables/useRitualPolicies";
 import { useMetamagicOptions } from "@/composables/useMetamagic";
-import type { MetamagicOption } from "@/lib/metamagic";
-import { getSpellPreparationPolicy } from "@/lib/spellPreparationPolicy";
-import { grantAttackBonus, grantSaveDc } from "@/lib/spellGrantStats";
+import type { MetamagicOption } from "@/rules/metamagic";
+import { getSpellPreparationPolicy } from "@/rules/spellPreparationPolicy";
+import { grantAttackBonus, grantSaveDc } from "@/rules/spellGrantStats";
 import { useSpellReplacement } from "@/composables/useSpellReplacement";
-import { isInnateSorceryActive, metamagicLimit } from "@/lib/sorcererFeatures";
-import { isMetamagicEligible, TRANSMUTABLE_DAMAGE_TYPES } from "@/lib/metamagicPolicy";
+import { isInnateSorceryActive, metamagicLimit } from "@/rules/sorcererFeatures";
+import { isMetamagicEligible, TRANSMUTABLE_DAMAGE_TYPES } from "@/rules/metamagicPolicy";
 
 const SLOT_LEVEL_LABELS = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"] as const;
 

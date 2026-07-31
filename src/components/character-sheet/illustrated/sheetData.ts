@@ -15,7 +15,7 @@ import {
   weaponAttackMod,
   weaponDamageExpr,
   weaponDamageType,
-} from "@/lib/weaponAttack";
+} from "@/rules/weaponAttack";
 
 const ABIL = ["str", "dex", "con", "int", "wis", "cha"] as const;
 const ABNAME: Record<(typeof ABIL)[number], string> = {
@@ -123,7 +123,7 @@ export function toFront(
     hp: { max: m.max_hp },
     hitdice: { die: `d${die}`, total: `${m.level}d${die}` },
     portraitUrl: m.portrait_url ?? null,
-    // Same weapon math as PlayerCombatTab.vue (src/lib/weaponAttack.ts), so the
+    // Same weapon math as PlayerCombatTab.vue (src/rules/weaponAttack.ts), so the
     // exported sheet's numbers always agree with the live combat tab.
     // `bonus` uses this file's en-dash `signed()` convention (not the combat
     // tab's plain-hyphen `signedNum`) to match every other signed field on the plate.

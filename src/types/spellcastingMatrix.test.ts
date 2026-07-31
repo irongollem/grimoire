@@ -6,7 +6,7 @@ import {
   getMulticlassSpellSlots,
   SPELL_CLASSES,
 } from "./spell.types";
-import { SPELL_PREPARATION_2024, policyValueAtLevel } from "@/lib/spellPreparationPolicy";
+import { SPELL_PREPARATION_2024, policyValueAtLevel } from "@/rules/spellPreparationPolicy";
 
 const STANDARD_2024 = ["Bard", "Cleric", "Druid", "Paladin", "Ranger", "Sorcerer", "Warlock", "Wizard"] as const;
 

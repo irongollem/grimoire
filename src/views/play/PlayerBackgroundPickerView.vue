@@ -169,11 +169,11 @@ import {
   computeRemovals,
   removeBackgroundProfs,
   type BgRemovalState,
-} from "@/lib/backgroundProficiencies";
+} from "@/rules/backgroundProficiencies";
 import {
   abilityBonusesForChoice, isValidAsiChoice, parseBackgroundAsiChoice,
   type BackgroundAsiChoice,
-} from "@/lib/backgroundAsi";
+} from "@/rules/backgroundAsi";
 import { SKILLS } from "@/types/party.types";
 import type { SaveKey } from "@/types/party.types";
 import type { Background } from "@/types/background.types";

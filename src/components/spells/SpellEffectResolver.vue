@@ -61,12 +61,12 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
 import type { Spell, SpellOutcome, StructuredSpellEffect } from "@/types/spell.types";
-import { effectsForCast, resolveSpellEffects } from "@/lib/spellEffects";
+import { effectsForCast, resolveSpellEffects } from "@/rules/spellEffects";
 import { parseExpression } from "@/lib/dice";
 import { rollParsed } from "@/lib/roller";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { useToast } from "@/composables/useToast";
-import { metamagicReminders, metamagicTargetBonus } from "@/lib/metamagicPolicy";
+import { metamagicReminders, metamagicTargetBonus } from "@/rules/metamagicPolicy";
 import { useRuleset } from "@/composables/useRuleset";
 
 const props = withDefaults(defineProps<{

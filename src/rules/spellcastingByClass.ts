@@ -1,5 +1,5 @@
 import { computeSpellcastingPerClass, type AbilityScores, type CharacterClass, type SpellcastingClassStats } from "@/types/multiclass.types";
-import { getSpellPreparationPolicy } from "@/lib/spellPreparationPolicy";
+import { getSpellPreparationPolicy } from "@/rules/spellPreparationPolicy";
 import type { CasterType } from "@/types/spell.types";
 import type { RulesetKey } from "@/types/ruleset.types";
 

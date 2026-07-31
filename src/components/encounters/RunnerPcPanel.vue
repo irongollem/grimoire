@@ -122,9 +122,9 @@ import { useAllCustomClasses, useAllSystemClasses, useClassByName } from "@/comp
 import { useCharacterClasses } from "@/composables/useCharacterClasses";
 import { useShieldAcBonus } from "@/composables/useShieldAc";
 import { useRuleset } from "@/composables/useRuleset";
-import { getSpellPreparationPolicy } from "@/lib/spellPreparationPolicy";
+import { getSpellPreparationPolicy } from "@/rules/spellPreparationPolicy";
 import { pickSpellcastingStats } from "@/types/multiclass.types";
-import { computeSpellcastingByClass } from "@/lib/spellcastingByClass";
+import { computeSpellcastingByClass } from "@/rules/spellcastingByClass";
 
 const { combatant, member, monsters } = defineProps<{
   combatant: RunCombatant;

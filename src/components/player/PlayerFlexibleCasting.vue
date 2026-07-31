@@ -46,7 +46,7 @@
 import { computed, ref, watchEffect } from "vue";
 import { useConvertSorceryPoints } from "@/composables/useParty";
 import { useToast } from "@/composables/useToast";
-import { spellSlotKey, slotPool } from "@/lib/spellSlots";
+import { spellSlotKey, slotPool } from "@/rules/spellSlots";
 import type { SpellSlotEntry } from "@/types/party.types";
 
 const SLOT_COSTS: Record<number, number> = { 1: 2, 2: 3, 3: 5, 4: 6, 5: 7 };

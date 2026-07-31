@@ -1,5 +1,5 @@
 // Per-edition override/fill-gap layer applied last by the resolver in
-// `src/lib/conditions.ts` (`getConditions()` / `getCondition()`), on top of
+// `src/rules/conditions.ts` (`getConditions()` / `getCondition()`), on top of
 // the base `SRD_CONDITIONS_2014` / `SRD_CONDITIONS_2024` arrays.
 //
 // Open5e has no structured 2024 condition data yet (open5e-api#793) — see
@@ -32,7 +32,7 @@ export const CONDITION_PATCHES: Record<RulesetKey, ConditionPatchMap> = {
   // 2014 (SRD 5.1) text is already complete and accurate in
   // `srdConditions2014.ts`. The only patch is "Hidden" — not a formal SRD
   // condition but a tracking marker Grimoire surfaces for the Hide action
-  // (see `CONDITIONS` in `src/lib/conditions.ts`).
+  // (see `CONDITIONS` in `src/rules/conditions.ts`).
   "2014": {
     hidden: {
       id: "hidden",

@@ -5,7 +5,7 @@ import {
   isRangedWeaponItem,
   weaponUsesChargesAsAmmo,
   ANY_AMMO_TAG,
-} from "@/lib/ammunition";
+} from "@/rules/ammunition";
 
 type WeaponShape = Parameters<typeof weaponAmmoTag>[0];
 function weapon(overrides: Partial<WeaponShape>): WeaponShape {

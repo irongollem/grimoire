@@ -206,10 +206,10 @@ import type { Spell } from "@/types/spell.types";
 import { SPELL_SCHOOLS, getCasterType, computeMaxPrepared } from "@/types/spell.types";
 import { useCharacterClasses } from "@/composables/useCharacterClasses";
 import { useAllCustomClasses, useAllSystemClasses } from "@/composables/useCustomClasses";
-import { computeSpellcastingByClass } from "@/lib/spellcastingByClass";
+import { computeSpellcastingByClass } from "@/rules/spellcastingByClass";
 import { useRuleset } from "@/composables/useRuleset";
-import { getSpellPreparationPolicy, policyValueAtLevel } from "@/lib/spellPreparationPolicy";
-import { deriveEffectiveSpellSlots } from "@/lib/spellSlots";
+import { getSpellPreparationPolicy, policyValueAtLevel } from "@/rules/spellPreparationPolicy";
+import { deriveEffectiveSpellSlots } from "@/rules/spellSlots";
 import { useRulesetReviews, useAcknowledgeRulesetReviews } from "@/composables/useRulesetReviews";
 import { useToast } from "@/composables/useToast";
 

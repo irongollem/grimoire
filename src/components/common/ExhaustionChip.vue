@@ -36,7 +36,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { MAX_EXHAUSTION, getConditionDescription } from "@/lib/conditions";
+import { MAX_EXHAUSTION, getConditionDescription } from "@/rules/conditions";
 import { useRuleset } from "@/composables/useRuleset";
 
 const isTouch = typeof window !== "undefined" && window.matchMedia("(hover: none)").matches;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { validateCustomAttack, customAttackDamageExpression } from "@/lib/customAttack";
+import { validateCustomAttack, customAttackDamageExpression } from "@/rules/customAttack";
 import type { CustomAttack } from "@/types/party.types";
 
 describe("validateCustomAttack", () => {

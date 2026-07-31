@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { levelUpSpellChoiceCount } from "@/lib/spellPreparationPolicy";
+import { levelUpSpellChoiceCount } from "@/rules/spellPreparationPolicy";
 
 describe("levelUpSpellChoiceCount", () => {
   it.each(["2014", "2024"] as const)("requires the %s Wizard spellbook grants", (ruleset) => {

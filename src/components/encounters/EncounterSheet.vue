@@ -268,7 +268,7 @@ import { useItems } from "@/composables/useItems";
 import { useTraps } from "@/composables/useTraps";
 import { useAllLocations } from "@/composables/useLocations";
 import { useEncounterDifficulty } from "@/composables/useEncounterDifficulty";
-import { formatCoinParts } from "@/lib/currency";
+import { formatCoinParts } from "@/rules/currency";
 import { DIFFICULTY_COLORS } from "@/types/encounter.types";
 import type { Encounter } from "@/types/encounter.types";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";

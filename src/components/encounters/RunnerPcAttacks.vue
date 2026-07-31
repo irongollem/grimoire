@@ -172,9 +172,9 @@ import { useItems } from "@/composables/useItems";
 import { useAmmoConsumption } from "@/composables/useAmmoConsumption";
 import { useThrownWeapon } from "@/composables/useThrownWeapon";
 import { useUpdatePartyMember } from "@/composables/useParty";
-import { weaponAmmoTag, weaponUsesChargesAsAmmo, type WeaponAmmoTag } from "@/lib/ammunition";
-import { isThrownWeapon } from "@/lib/thrownWeapon";
-import { weaponAttackMod, weaponAbilityMod } from "@/lib/weaponAttack";
+import { weaponAmmoTag, weaponUsesChargesAsAmmo, type WeaponAmmoTag } from "@/rules/ammunition";
+import { isThrownWeapon } from "@/rules/thrownWeapon";
+import { weaponAttackMod, weaponAbilityMod } from "@/rules/weaponAttack";
 import { parseExpression } from "@/lib/dice";
 
 const { member, profBonus, abilityMod } = defineProps<{

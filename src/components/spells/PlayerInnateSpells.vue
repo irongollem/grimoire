@@ -172,9 +172,9 @@ import type { CharacterSpellEntry, Spell } from "@/types/spell.types";
 import type { ConcentrationState } from "@/types/party.types";
 import PlayerSpellModal from "@/components/spells/PlayerSpellModal.vue";
 import SpellEffectResolver from "@/components/spells/SpellEffectResolver.vue";
-import { canAutoRollSpellEffect } from "@/lib/spellcastingPolicy";
+import { canAutoRollSpellEffect } from "@/rules/spellcastingPolicy";
 import { useToast } from "@/composables/useToast";
-import { grantAttackBonus, grantSaveDc } from "@/lib/spellGrantStats";
+import { grantAttackBonus, grantSaveDc } from "@/rules/spellGrantStats";
 
 const SOURCE_TYPE_LABELS: Record<string, string> = {
   racial: "Racial",

@@ -1,4 +1,4 @@
-import type { MetamagicOption } from "@/lib/metamagic";
+import type { MetamagicOption } from "@/rules/metamagic";
 import type { Spell } from "@/types/spell.types";
 import type { RulesetKey } from "@/types/ruleset.types";
 

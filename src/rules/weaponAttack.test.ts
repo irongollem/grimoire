@@ -11,7 +11,7 @@ import {
   unarmedDamage,
   improvisedAttackMod,
   type WeaponLike,
-} from "@/lib/weaponAttack";
+} from "@/rules/weaponAttack";
 
 function weapon(overrides: Partial<WeaponLike> = {}): WeaponLike {
   return {

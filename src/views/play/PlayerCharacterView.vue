@@ -259,9 +259,9 @@ import {
   hasCheckDisadvantage,
   hasSaveDisadvantage,
   getExhaustionD20Penalty,
-} from "@/lib/conditions";
+} from "@/rules/conditions";
 import { parseCr } from "@/lib/utils";
-import { wildshapeMaxCr as calcWildshapeMaxCr, wildshapeCrDisplay as calcWildshapeCrDisplay, isEligibleWildshapeForm } from "@/lib/wildshape";
+import { wildshapeMaxCr as calcWildshapeMaxCr, wildshapeCrDisplay as calcWildshapeCrDisplay, isEligibleWildshapeForm } from "@/rules/wildshape";
 import { hitPointsToMax } from "@/lib/dice";
 import type { PartyMember } from "@/types/party.types";
 import { useRules, usePlayerVisibleRules } from "@/composables/useRules";

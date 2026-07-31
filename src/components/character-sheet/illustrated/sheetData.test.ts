@@ -240,7 +240,7 @@ describe("toFront — print-first blanks", () => {
 });
 
 describe("toFront — attacks derived from inventory", () => {
-  it("computes real atk bonus/damage for a vault-linked weapon using src/lib/weaponAttack.ts", () => {
+  it("computes real atk bonus/damage for a vault-linked weapon using src/rules/weaponAttack.ts", () => {
     // str 8 (-1 mod), pb 3, matches the default `member()` fixture.
     const longsword = item({ id: "item-longsword", damage_rolls: [{ dice: "1d8", type: "slashing" }], properties: [] });
     const vaultWeapon = inv({ id: "a", item_id: "item-longsword", name: "Longsword", slot: "main_hand" });

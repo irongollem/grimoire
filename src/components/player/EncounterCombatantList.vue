@@ -103,7 +103,7 @@
 import FocalImage from "@/components/common/FocalImage.vue";
 import type { RunCombatant, HealthVisibility } from "@/types/encounter.types";
 import type { PartyMember } from "@/types/party.types";
-import { displayTempHp as calcDisplayTempHp } from "@/lib/hitPoints";
+import { displayTempHp as calcDisplayTempHp } from "@/rules/hitPoints";
 
 const {
   visibleCombatants,

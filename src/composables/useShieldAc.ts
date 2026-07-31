@@ -2,8 +2,8 @@ import { computed } from "vue";
 import { createSharedComposable } from "@vueuse/core";
 import { usePartyInventory } from "@/composables/usePartyInventory";
 import { useItems, usePlayerVisibleItems } from "@/composables/useItems";
-import { shieldAcBonusByMember } from "@/lib/shieldAc";
-import { equippedArmorByMember, resolveBaseAc, type ParsedArmor } from "@/lib/armorAc";
+import { shieldAcBonusByMember } from "@/rules/shieldAc";
+import { equippedArmorByMember, resolveBaseAc, type ParsedArmor } from "@/rules/armorAc";
 
 /** The member fields the AC resolver needs — a `PartyMember` satisfies this. */
 type AcMember = { id: string; ac: number; ac_formula?: string | null; dex: number };
@@ -13,7 +13,7 @@ type AcMember = { id: string; ac: number; ac_formula?: string | null; dex: numbe
  *
  * A member's stored `ac` is their armor class WITHOUT shield. On top of it:
  *  - The base AC (before shield) is resolved from `ac_formula` + equipped body
- *    armor via `resolveBaseAc` (see `@/lib/armorAc` for the full rules table),
+ *    armor via `resolveBaseAc` (see `@/rules/armorAc` for the full rules table),
  *    so swapping armor updates every sheet instantly, exactly like shields.
  *  - Any equipped (non-ruined) shield in the paper doll adds its bonus.
  *
@@ -58,7 +58,7 @@ function useShieldAcBonusImpl() {
   }
 
   /** AC before the shield — thin delegate to the pure `resolveBaseAc` rules
-   *  table in `@/lib/armorAc`. */
+   *  table in `@/rules/armorAc`. */
   function baseAcFor(member: AcMember): number {
     return resolveBaseAc(member.ac_formula, member.ac, armorByMember.value[member.id] ?? null, member.dex);
   }

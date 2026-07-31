@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { wildshapeMaxCr, wildshapeCrDisplay, isEligibleWildshapeForm } from "@/lib/wildshape";
+import { wildshapeMaxCr, wildshapeCrDisplay, isEligibleWildshapeForm } from "@/rules/wildshape";
 import type { Monster } from "@/types/monster.types";
 
 function beast(overrides: Partial<Monster["stat_block"]> & { monster_type?: Monster["monster_type"] } = {}): Monster {

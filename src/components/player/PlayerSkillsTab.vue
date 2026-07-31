@@ -73,7 +73,7 @@ import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { useCampaignMembers } from "@/composables/useCampaignMembers";
 import { useCampaignStore } from "@/stores/campaign";
-import { skillCheckBonus } from "@/lib/skillCheck";
+import { skillCheckBonus } from "@/rules/skillCheck";
 import { SKILLS } from "@/types/party.types";
 import type { PartyMember, SkillProficiencies } from "@/types/party.types";
 
@@ -107,7 +107,7 @@ function skillProfClass(key: keyof SkillProficiencies) {
 }
 function skillBonusValue(skill: (typeof SKILLS)[number]) {
   // When wildshaped, use beast STR/DEX/CON; player keeps INT/WIS/CHA proficiency
-  // bonuses. Shared with the Hide action's Stealth roll via `@/lib/skillCheck`.
+  // bonuses. Shared with the Hide action's Stealth roll via `@/rules/skillCheck`.
   return skillCheckBonus(props.member, skill.key, props.overrideScores);
 }
 

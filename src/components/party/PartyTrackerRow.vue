@@ -253,7 +253,7 @@ import FocalImage from "@/components/common/FocalImage.vue";
 import CompanionCard from "./CompanionCard.vue";
 import PartyConditionsPanel from "./PartyConditionsPanel.vue";
 import PartyDeathSaves from "./PartyDeathSaves.vue";
-import { applyDamage, applyHealing, betterTempHp } from "@/lib/hitPoints";
+import { applyDamage, applyHealing, betterTempHp } from "@/rules/hitPoints";
 import type { PartyMember, PartyMemberUpdate, SkillProficiencies, SkillProfLevel } from "@/types/party.types";
 import type { Companion } from "@/types/companion.types";
 

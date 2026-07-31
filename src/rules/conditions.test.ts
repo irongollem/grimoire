@@ -13,7 +13,7 @@ import {
   setExhaustionLevel,
   isExhaustion,
   MAX_EXHAUSTION,
-} from "@/lib/conditions";
+} from "@/rules/conditions";
 
 describe("hasSaveDisadvantage", () => {
   it("gives no disadvantage with no relevant conditions", () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseBackgroundSkills } from "@/lib/backgroundSkills";
+import { parseBackgroundSkills } from "@/rules/backgroundSkills";
 
 describe("parseBackgroundSkills", () => {
   it("returns empty for null/empty input", () => {

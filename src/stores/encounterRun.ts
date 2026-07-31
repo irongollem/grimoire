@@ -6,8 +6,8 @@ import type { Npc } from "@/types/npc.types";
 import type { Trap } from "@/types/trap.types";
 import type { PartyMemberUpdate } from "@/types/party.types";
 import type { Companion } from "@/types/companion.types";
-import { sortCombatantsByInitiative } from "@/lib/combatantSort";
-import { applyDamage, applyHealing, betterTempHp, type HpPools } from "@/lib/hitPoints";
+import { sortCombatantsByInitiative } from "@/rules/combatantSort";
+import { applyDamage, applyHealing, betterTempHp, type HpPools } from "@/rules/hitPoints";
 import {
   rollInitiativeValue,
   rollAllInitiativeValues,
@@ -16,7 +16,7 @@ import {
   evaluateTrigger,
   buildMonsterCombatants,
   buildNpcCombatants,
-} from "@/lib/encounterCombatLogic";
+} from "@/rules/encounterCombatLogic";
 
 /** Persists a player-combatant change to party_members and invalidates the
  *  party query cache. The store stays UI-only — the actual DB write + cache

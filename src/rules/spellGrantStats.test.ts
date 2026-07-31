@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { grantAttackBonus, grantSaveDc } from "@/lib/spellGrantStats";
+import { grantAttackBonus, grantSaveDc } from "@/rules/spellGrantStats";
 
 const member = { proficiency_bonus: 3, int: 10, wis: 10, cha: 16 };
 const classStats = { attack: 7, dc: 15 };

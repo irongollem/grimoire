@@ -170,7 +170,7 @@ import { getHitDie } from "@/types/spell.types";
 import { useClassByName } from "@/composables/useCustomClasses";
 import { abilityModifier } from "@/lib/utils";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
-import { getExhaustionLevel, setExhaustionLevel } from "@/lib/conditions";
+import { getExhaustionLevel, setExhaustionLevel } from "@/rules/conditions";
 import type { DieSize } from "@/lib/dice";
 
 const props = defineProps<{

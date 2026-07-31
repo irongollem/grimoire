@@ -274,7 +274,7 @@
 import { computed, ref, reactive, watch } from "vue";
 import { IconAdd, IconClose, IconHide, IconMinus, IconReveal, IconShop, IconWand } from '@/lib/icons';
 import { useQuery } from "@tanstack/vue-query";
-import { COINS, type CoinKey, parseCoinText } from "@/lib/currency";
+import { COINS, type CoinKey, parseCoinText } from "@/rules/currency";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import ItemStatBlock from "@/components/inventory/ItemStatBlock.vue";

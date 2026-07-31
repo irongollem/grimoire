@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { metamagicCostLabel, toMetamagicOption, type MetamagicOptionRow } from "@/lib/metamagic";
+import { metamagicCostLabel, toMetamagicOption, type MetamagicOptionRow } from "@/rules/metamagic";
 
 const row = (overrides: Partial<MetamagicOptionRow> = {}): MetamagicOptionRow => ({
   ruleset: "2014",

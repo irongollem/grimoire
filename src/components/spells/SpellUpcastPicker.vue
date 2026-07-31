@@ -59,7 +59,7 @@
 import { ref, computed, watchEffect } from "vue";
 import { SCHOOL_COLORS } from "@/types/spell.types";
 import { scaleExpression } from "@/lib/dice";
-import { spellSlotKey, slotPool } from "@/lib/spellSlots";
+import { spellSlotKey, slotPool } from "@/rules/spellSlots";
 import type { CharacterSpellEntry } from "@/types/spell.types";
 import type { SpellSlotEntry } from "@/types/party.types";
 

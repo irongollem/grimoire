@@ -9,9 +9,9 @@ import {
   getExhaustionLevel,
   setExhaustionLevel,
   isExhaustion,
-} from "@/lib/conditions";
-import type { ConditionName } from "@/lib/conditions";
-import { applyDamage, displayTempHp as calcDisplayTempHp, type HpPools } from "@/lib/hitPoints";
+} from "@/rules/conditions";
+import type { ConditionName } from "@/rules/conditions";
+import { applyDamage, displayTempHp as calcDisplayTempHp, type HpPools } from "@/rules/hitPoints";
 import { CONCENTRATION_BREAKING_CONDITIONS } from "@/composables/useConcentration";
 import type { RunCombatant, RevealState } from "@/types/encounter.types";
 

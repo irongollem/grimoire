@@ -230,7 +230,7 @@ import type { StoreItem } from "@/composables/useStoreItems";
 import type { Item } from "@/types/item.types";
 import { ITEM_TYPE_LABELS, ITEM_RARITIES, ITEM_RARITY_LABELS, ITEM_TYPES, RARITY_PRICE_HINTS } from "@/types/item.types";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
-import { COINS, type CoinKey, parseCoinText } from "@/lib/currency";
+import { COINS, type CoinKey, parseCoinText } from "@/rules/currency";
 
 const props = defineProps<{ locationId: string; ownerNpcName?: string | null }>();
 

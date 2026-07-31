@@ -107,7 +107,7 @@ import { useNpcs } from "@/composables/useNpcs";
 import ChatPanelContent from "./ChatPanelContent.vue";
 import type { RollResult } from "@/lib/dice";
 import type { ItemDropMetadata, CurrencyDropMetadata, VendorOfferMetadata, PlayerOfferMetadata, LootChestMetadata } from "@/types/chat.types";
-import { toCP, fromCP } from "@/lib/currency";
+import { toCP, fromCP } from "@/rules/currency";
 
 const { contained = false, hideTab = false } = defineProps<{ contained?: boolean; hideTab?: boolean }>();
 

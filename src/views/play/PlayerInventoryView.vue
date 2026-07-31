@@ -118,7 +118,7 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive, nextTick } from "vue";
-import { COINS, type CoinKey } from "@/lib/currency";
+import { COINS, type CoinKey } from "@/rules/currency";
 import {
   parseWeightLb,
   hasPowerfulBuild,

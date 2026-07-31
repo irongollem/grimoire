@@ -166,7 +166,7 @@ import ConditionPicker from "@/components/encounters/ConditionPicker.vue";
 import RunnerInitiativeField from "@/components/encounters/RunnerInitiativeField.vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useRuleset } from "@/composables/useRuleset";
-import { getExhaustionLevel, getConditionDescription } from "@/lib/conditions";
+import { getExhaustionLevel, getConditionDescription } from "@/rules/conditions";
 import { useRunnerCombatant } from "@/composables/useRunnerCombatant";
 import type { RunCombatant } from "@/types/encounter.types";
 

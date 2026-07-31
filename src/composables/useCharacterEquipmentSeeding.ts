@@ -1,7 +1,7 @@
 import { ref, computed } from "vue";
 import { supabase } from "@/lib/supabase";
 import { CLASS_EQUIPMENT } from "@/data/classEquipment";
-import type { CharacterFormState } from "@/lib/characterCreation";
+import type { CharacterFormState } from "@/rules/characterCreation";
 import type { BundleItemEntry } from "@/types/item.types";
 import type { PartyInventoryInsert, PartyInventoryItem } from "@/types/inventory.types";
 

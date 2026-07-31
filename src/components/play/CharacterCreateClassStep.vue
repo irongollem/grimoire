@@ -192,7 +192,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { SAVE_STATS, PROF_LEVELS } from "@/lib/characterCreation";
+import { SAVE_STATS, PROF_LEVELS } from "@/rules/characterCreation";
 import { SKILLS } from "@/types/party.types";
 import { TOOL_PROFICIENCY_GROUPS, LANGUAGE_GROUPS } from "@/lib/proficiency-lists";
 import { CLASS_SKILL_CHOICES, FALLBACK_SKILL_DATA } from "@/data/classSkillChoices";

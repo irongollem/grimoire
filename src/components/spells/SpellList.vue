@@ -190,7 +190,7 @@ import EmptyState from "@/components/common/EmptyState.vue";
 import { isSharedContent } from "@/lib/contentIdentity";
 import { useSpellReplacement } from "@/composables/useSpellReplacement";
 import { useRuleset } from "@/composables/useRuleset";
-import { getSpellPreparationPolicy, policyValueAtLevel } from "@/lib/spellPreparationPolicy";
+import { getSpellPreparationPolicy, policyValueAtLevel } from "@/rules/spellPreparationPolicy";
 import { useToast } from "@/composables/useToast";
 
 const props = defineProps<{

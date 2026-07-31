@@ -19,12 +19,12 @@ import type { PartyInventoryInsert } from "@/types/inventory.types";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/composables/useToast";
 import { CLASS_EQUIPMENT, type EquipmentEntry } from "@/data/classEquipment";
-import { abilityBonusesForChoice } from "@/lib/backgroundAsi";
+import { abilityBonusesForChoice } from "@/rules/backgroundAsi";
 import {
   ABILITY_STATS, POINT_BUY_COSTS, POINT_BUY_TOTAL,
   type AbilityKey, type AsiMode, type ScoreMode,
   parseEquipmentList,
-} from "@/lib/characterCreation";
+} from "@/rules/characterCreation";
 import { useCharacterEquipmentSeeding, type VaultEntry } from "@/composables/useCharacterEquipmentSeeding";
 import { useCharacterBackgroundSelection } from "@/composables/useCharacterBackgroundSelection";
 

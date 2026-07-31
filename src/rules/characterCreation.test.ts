@@ -5,7 +5,7 @@ import {
   POINT_BUY_COSTS,
   POINT_BUY_TOTAL,
   STANDARD_ARRAY,
-} from "@/lib/characterCreation";
+} from "@/rules/characterCreation";
 
 describe("roll4d6DropLowest", () => {
   afterEach(() => {

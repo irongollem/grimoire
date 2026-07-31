@@ -155,7 +155,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useAutoDiscoverMonsters } from "@/composables/useDiscoveredMonsters";
 import { useAuthStore } from "@/stores/auth";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
-import { initiativeModifier } from "@/lib/combatantSort";
+import { initiativeModifier } from "@/rules/combatantSort";
 import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/useOptionalRules";
 import { useTurnTimerConfig } from "@/composables/useTurnTimerConfig";
 import { requestAudioTheme, releaseAudioTheme } from "@/lib/audioTriggers";

@@ -7,7 +7,7 @@ import {
   type HpPools,
   type TempHpCombatant,
   type TempHpPartyMember,
-} from "@/lib/hitPoints";
+} from "@/rules/hitPoints";
 
 function pools(over: Partial<HpPools> = {}): HpPools {
   return { current_hp: 30, max_hp: 40, temp_hp: 0, beast: null, ...over };

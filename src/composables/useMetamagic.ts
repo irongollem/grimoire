@@ -2,7 +2,7 @@ import { computed } from "vue";
 import { useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { useRuleset } from "@/composables/useRuleset";
-import { toMetamagicOption, type MetamagicOption, type MetamagicOptionRow } from "@/lib/metamagic";
+import { toMetamagicOption, type MetamagicOption, type MetamagicOptionRow } from "@/rules/metamagic";
 
 async function fetchMetamagicOptions(): Promise<MetamagicOptionRow[]> {
   const { data, error } = await supabase

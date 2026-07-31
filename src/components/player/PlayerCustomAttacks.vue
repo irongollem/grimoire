@@ -106,8 +106,8 @@ import { parsedToCounts } from "@/lib/dice";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { useUpdatePartyMember } from "@/composables/useParty";
-import { validateCustomAttack, customAttackDamageExpression } from "@/lib/customAttack";
-import { signedNum } from "@/lib/weaponAttack";
+import { validateCustomAttack, customAttackDamageExpression } from "@/rules/customAttack";
+import { signedNum } from "@/rules/weaponAttack";
 import type { PartyMember, CustomAttack } from "@/types/party.types";
 
 const { member, attackDisadvantage, attackPenalty } = defineProps<{

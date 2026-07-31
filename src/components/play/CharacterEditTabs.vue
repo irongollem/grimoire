@@ -180,9 +180,9 @@
 import { inject, computed, watch } from "vue";
 import { CHARACTER_FORM_KEY } from "@/composables/useCharacterCreationForm";
 import { useShieldAcBonus } from "@/composables/useShieldAc";
-import { armorAcFor } from "@/lib/armorAc";
+import { armorAcFor } from "@/rules/armorAc";
 import type { PartyMember } from "@/types/party.types";
-import { EDIT_TABS, ABILITY_STATS, SAVE_STATS, PROF_LEVELS, SLOT_LEVEL_LABELS } from "@/lib/characterCreation";
+import { EDIT_TABS, ABILITY_STATS, SAVE_STATS, PROF_LEVELS, SLOT_LEVEL_LABELS } from "@/rules/characterCreation";
 import { SKILLS } from "@/types/party.types";
 import { TOOL_PROFICIENCY_GROUPS, LANGUAGE_GROUPS } from "@/lib/proficiency-lists";
 import ImageUpload from "@/components/common/ImageUpload.vue";

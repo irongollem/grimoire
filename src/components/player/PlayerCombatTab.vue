@@ -230,13 +230,13 @@ import { usePartyInventory } from "@/composables/usePartyInventory";
 import { usePlayerVisibleItems } from "@/composables/useItems";
 import { useAmmoConsumption } from "@/composables/useAmmoConsumption";
 import { useThrownWeapon } from "@/composables/useThrownWeapon";
-import { weaponAmmoTag, weaponUsesChargesAsAmmo } from "@/lib/ammunition";
-import { isThrownWeapon } from "@/lib/thrownWeapon";
+import { weaponAmmoTag, weaponUsesChargesAsAmmo } from "@/rules/ammunition";
+import { isThrownWeapon } from "@/rules/thrownWeapon";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { useRuleset } from "@/composables/useRuleset";
 import { useUpdatePartyMember } from "@/composables/useParty";
-import { skillCheckBonus } from "@/lib/skillCheck";
+import { skillCheckBonus } from "@/rules/skillCheck";
 import { WEAPON_MASTERY_DEFINITIONS } from "@/data/weaponMastery";
 import PlayerLoadout from "@/components/player/PlayerLoadout.vue";
 import PlayerCustomAttacks from "@/components/player/PlayerCustomAttacks.vue";
@@ -254,7 +254,7 @@ import {
   unarmedAttackMod as libUnarmedAttackMod,
   unarmedDamage as libUnarmedDamage,
   improvisedAttackMod as libImprovisedAttackMod,
-} from "@/lib/weaponAttack";
+} from "@/rules/weaponAttack";
 
 const props = defineProps<{
   member: PartyMember;
@@ -276,7 +276,7 @@ const { promptRoll } = usePromptedRoll();
 
 // Badge next to each Attack button: "Dis" under 2014 exhaustion/conditions,
 // or the flat numeric penalty under 2024 exhaustion (never both at once —
-// see `hasAttackDisadvantage` / `getExhaustionD20Penalty` in `@/lib/conditions`).
+// see `hasAttackDisadvantage` / `getExhaustionD20Penalty` in `@/rules/conditions`).
 const attackBadgeLabel = computed(() => {
   if (props.attackDisadvantage) return "Dis";
   if (props.attackPenalty !== 0) return String(props.attackPenalty);
@@ -458,7 +458,7 @@ async function rollBeastAttack(name: string, bonus: number, override: RollMode |
   return rollAttackWith(bonus, name, override);
 }
 
-// Thin wrappers over src/lib/weaponAttack.ts, binding in this member's scores —
+// Thin wrappers over src/rules/weaponAttack.ts, binding in this member's scores —
 // keeps the template's existing call sites (`weaponAttackMod(item)`, etc.) unchanged.
 function memberScores() {
   return { str: props.member.str, dex: props.member.dex, proficiencyBonus: props.member.proficiency_bonus };

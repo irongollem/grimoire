@@ -263,7 +263,7 @@ import { IconClose, IconPin, IconSearch } from '@/lib/icons';
 import { usePlayerDiscoveries, useAutoDiscoverMonsters } from "@/composables/useDiscoveredMonsters";
 import { useReadItems, useMarkRead } from "@/composables/useReadItems";
 import { usePinnedForms, useTogglePinnedForm } from "@/composables/usePinnedForms";
-import { wildshapeMaxCr as calcWildshapeMaxCr, wildshapeCrDisplay as calcWildshapeCrDisplay, isEligibleWildshapeForm } from "@/lib/wildshape";
+import { wildshapeMaxCr as calcWildshapeMaxCr, wildshapeCrDisplay as calcWildshapeCrDisplay, isEligibleWildshapeForm } from "@/rules/wildshape";
 import { usePlayerVisibleMonsters } from "@/composables/useMonsters";
 import { useParty } from "@/composables/useParty";
 import { useUiStore } from "@/stores/ui";

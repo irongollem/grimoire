@@ -7,7 +7,7 @@ import {
   evaluateTrigger,
   buildMonsterCombatants,
   buildNpcCombatants,
-} from "@/lib/encounterCombatLogic";
+} from "@/rules/encounterCombatLogic";
 import type { RunCombatant } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
 import type { Npc } from "@/types/npc.types";

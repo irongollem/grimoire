@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canAutoRollSpellEffect, canCastAsRitual, defaultRitualStyle } from "@/lib/spellcastingPolicy";
+import { canAutoRollSpellEffect, canCastAsRitual, defaultRitualStyle } from "@/rules/spellcastingPolicy";
 
 const base = {
   ritualStyle: "prepared",

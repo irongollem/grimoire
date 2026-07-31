@@ -4,7 +4,7 @@ import {
   metamagicLimit,
   sorcerousRestorationAmount,
   sorceryPointMaximum,
-} from "@/lib/sorcererFeatures";
+} from "@/rules/sorcererFeatures";
 
 describe("2024 Sorcerer features", () => {
   it("starts Sorcery Points at level 2 and caps them at level 20", () => {

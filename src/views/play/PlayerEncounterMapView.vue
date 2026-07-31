@@ -112,7 +112,7 @@ import { decodeFogMask } from "@/lib/battlemap/fogMask";
 import { DEFAULT_GRID_OPACITY } from "@/types/location.types";
 import { useCampaignStore } from "@/stores/campaign";
 import type { RunCombatant } from "@/types/encounter.types";
-import { sortCombatantsByInitiative } from "@/lib/combatantSort";
+import { sortCombatantsByInitiative } from "@/rules/combatantSort";
 import {
   gridLinePositions,
   cellSizeInDisplay,

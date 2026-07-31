@@ -1,6 +1,6 @@
 import { computed, type Ref } from "vue";
 import { useUpdateInventoryItem, useRemoveInventoryItem } from "@/composables/usePartyInventory";
-import { AMMO_TAGS, ANY_AMMO_TAG, ammoTagFromName, type AmmoTag, type WeaponAmmoTag } from "@/lib/ammunition";
+import { AMMO_TAGS, ANY_AMMO_TAG, ammoTagFromName, type AmmoTag, type WeaponAmmoTag } from "@/rules/ammunition";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
 

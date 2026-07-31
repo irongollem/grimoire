@@ -190,7 +190,7 @@ import {
   getExhaustionLevel,
   setExhaustionLevel,
   isExhaustion,
-} from "@/lib/conditions";
+} from "@/rules/conditions";
 import ExhaustionChip from "@/components/common/ExhaustionChip.vue";
 import {
   COMPANION_TYPE_LABELS,

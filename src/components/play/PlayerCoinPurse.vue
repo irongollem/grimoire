@@ -78,7 +78,7 @@
 </template>
 
 <script setup lang="ts">
-import { COINS, type CoinKey } from '@/lib/currency';
+import { COINS, type CoinKey } from '@/rules/currency';
 import { IconMessage } from '@/lib/icons';
 import CoinRow from '@/components/inventory/CoinRow.vue';
 

@@ -54,7 +54,7 @@
 
 <script setup lang="ts">
 import { IconTag } from '@/lib/icons';
-import { COINS } from '@/lib/currency';
+import { COINS } from '@/rules/currency';
 import type { PlayerOfferMetadata } from '@/types/chat.types';
 
 const {

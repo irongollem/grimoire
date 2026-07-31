@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isThrownWeapon } from "@/lib/thrownWeapon";
+import { isThrownWeapon } from "@/rules/thrownWeapon";
 
 describe("isThrownWeapon", () => {
   it("trusts a vault item's thrown property", () => {

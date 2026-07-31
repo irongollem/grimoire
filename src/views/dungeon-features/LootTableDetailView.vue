@@ -322,7 +322,7 @@ import {
   ITEM_TYPE_LABELS,
   ITEM_RARITY_LABELS,
 } from "@/types/item.types";
-import { formatCoinParts } from "@/lib/currency";
+import { formatCoinParts } from "@/rules/currency";
 import type { LootChestAtom, LootChestMetadata } from "@/types/chat.types";
 import {
   rollLootTable,

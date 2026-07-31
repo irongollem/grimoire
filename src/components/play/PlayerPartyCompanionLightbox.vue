@@ -168,7 +168,7 @@ import {
   getExhaustionLevel,
   setExhaustionLevel,
   isExhaustion,
-} from "@/lib/conditions";
+} from "@/rules/conditions";
 import { COMPANION_TYPE_LABELS, COMPANION_TYPE_COLORS } from "@/types/companion.types";
 import type { Companion } from "@/types/companion.types";
 
