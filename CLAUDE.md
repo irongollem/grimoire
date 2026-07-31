@@ -148,16 +148,23 @@ A DM can replace a canonical SRD image with their own — that override lives in
 
 `src/lib/` is for genuinely cross-cutting infrastructure: `supabase`, `storage`, `utils`, `nav`, `icons`, `themes`, `hotkeys`, `sanitizeHtml`, `pricing`. If a module serves **one** feature, it does not go there.
 
-| What it is                                         | Where it goes        |
-| -------------------------------------------------- | -------------------- |
-| 5e rules computation (AC, HP, DCs, slots, attacks) | `src/rules/`         |
-| Logic owned by one feature                         | `src/lib/<feature>/` |
-| Static data tables with no logic                   | `src/data/`          |
-| Used by three or more unrelated features           | `src/lib/` root      |
+| What it is                                            | Where it goes        |
+| ----------------------------------------------------- | -------------------- |
+| 5e rules computation (AC, HP, DCs, slots, attacks)    | `src/rules/`         |
+| Logic owned by one feature                            | `src/lib/<feature>/` |
+| A multi-module subsystem, however many callers it has | `src/lib/<name>/`    |
+| Static data tables with no logic                      | `src/data/`          |
+| A lone utility used by three or more features         | `src/lib/` root      |
 
-Existing feature folders: `lib/audio/` (+ `audio/providers/`), `lib/battlemap/`, `lib/illuminate/`, `lib/library/` (Open5e import + shared-content identity), `lib/scriptorium/`, `lib/tiptap/`. Top-level `src/cartographer/` is the tile-pack **authoring** tool and is separate from `lib/battlemap/`, which is the live **encounter runner** — do not merge them.
+Existing folders: `lib/audio/` (+ `audio/providers/`), `lib/battlemap/`, `lib/campaignLiveSync/`, `lib/dice/`, `lib/downtime/`, `lib/illuminate/`, `lib/library/` (Open5e import + shared-content identity), `lib/scriptorium/`, `lib/tiptap/`. Top-level `src/cartographer/` is the tile-pack **authoring** tool and is separate from `lib/battlemap/`, which is the live **encounter runner** — do not merge them.
 
-**Name the folder after the consumer, not the vocabulary.** `lib/` grew to 136 flat modules because each one looked cross-cutting in isolation. Several were misfiled by name alone: `edgeTreatment` is photo edges (Illuminate), not map edges; `sceneGenerators` is an ambient soundscape, not a map scene; `staleChunkRecovery` is a service-worker concern, not audio. Before placing a module, check who actually imports it (`rg "lib/<name>\"" src/`) rather than what it sounds like.
+**Consumer count decides root vs folder only for single modules.** `dice/` has a folder despite `dice.ts` having 45+ consumers, because `dice` + `roller` + `diceAudio` wire into each other and form a subsystem with its own boundary — same as `tiptap/`. `supabase`, `storage` and `utils` stay in root because each is one module with no internal structure that everything happens to call. Popularity is not the test; internal cohesion is.
+
+**Name the folder after the consumer, not the vocabulary.** `lib/` grew to 136 flat modules because each one looked cross-cutting in isolation. Several were misfiled by name alone: `edgeTreatment` is photo edges (Illuminate), not map edges; `sceneGenerators` is an ambient soundscape, not a map scene; `staleChunkRecovery` is a service worker, not audio; `npcEncounterSync` is a pure encounter-state function, not realtime transport. Before placing a module, check who actually imports it (`rg "lib/<name>\"" src/`) rather than what it sounds like.
+
+**Never group by shape.** `senses`, `movement`, `damageIcons`, `monsterDisplay`, `npcDisplay`, `partyMemberDisplay` and `classChoices` are all "presentation parsers" and all stayed in root. They serve four different features; a `lib/statblock/` holding them would be a folder named after what they resemble rather than who uses them, which is the same error as the misnamed modules above.
+
+**Root must not import from a feature folder.** `craftingGlyphs.generated` is owned by crafting but stayed in root, because it reaches crafting only via re-export through `icons.ts` — moving it would make a 378-consumer root module depend on `lib/crafting/` and pull that folder into every bundle touching icons. When ownership and dependency direction disagree, dependency direction wins.
 
 Tests are colocated next to the module they cover — never a `__tests__/` directory.
 
