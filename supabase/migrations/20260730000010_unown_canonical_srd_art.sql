@@ -164,8 +164,36 @@ $move_spell_art$;
 -- Drop is_canonical (meaningless now — every remaining row is private) and
 -- simplify the write policies that used to special-case it.
 
+-- Policies first, column second. Postgres tracks a policy that references a
+-- column as a dependency of it, so `drop column is_canonical` errors with
+-- "cannot drop column is_canonical ... because other objects depend on it"
+-- while any of these six still exist. Six is the whole set: three per table
+-- (canonical_select reads it; insert/update gate `is_canonical = false OR
+-- is_app_admin()`), and no index references it.
+drop policy "srd_monster_art_canonical_select" on public.srd_monster_art;
+drop policy "srd_monster_art_insert" on public.srd_monster_art;
+drop policy "srd_monster_art_update" on public.srd_monster_art;
+
+drop policy "srd_spell_art_canonical_select" on public.srd_spell_art;
+drop policy "srd_spell_art_insert" on public.srd_spell_art;
+drop policy "srd_spell_art_update" on public.srd_spell_art;
+
 alter table public.srd_monster_art drop column is_canonical;
 alter table public.srd_spell_art drop column is_canonical;
+
+-- Recreated without the is_canonical special case — every remaining row is a
+-- private per-user override, so plain ownership is the whole rule.
+create policy "srd_monster_art_insert" on public.srd_monster_art
+  for insert with check ((select auth.uid()) = user_id);
+
+create policy "srd_monster_art_update" on public.srd_monster_art
+  for update using ((select auth.uid()) = user_id);
+
+create policy "srd_spell_art_insert" on public.srd_spell_art
+  for insert with check ((select auth.uid()) = user_id);
+
+create policy "srd_spell_art_update" on public.srd_spell_art
+  for update using ((select auth.uid()) = user_id);
 
 -- These tables now hold strictly-private, per-user content only — align the
 -- monster FK with the CASCADE the spell FK (and 60+ other private-content
@@ -176,26 +204,6 @@ alter table public.srd_monster_art
   drop constraint srd_monster_art_user_id_fkey,
   add constraint srd_monster_art_user_id_fkey
     foreign key (user_id) references auth.users (id) on delete cascade;
-
-drop policy "srd_monster_art_canonical_select" on public.srd_monster_art;
-drop policy "srd_monster_art_insert" on public.srd_monster_art;
-drop policy "srd_monster_art_update" on public.srd_monster_art;
-
-create policy "srd_monster_art_insert" on public.srd_monster_art
-  for insert with check ((select auth.uid()) = user_id);
-
-create policy "srd_monster_art_update" on public.srd_monster_art
-  for update using ((select auth.uid()) = user_id);
-
-drop policy "srd_spell_art_canonical_select" on public.srd_spell_art;
-drop policy "srd_spell_art_insert" on public.srd_spell_art;
-drop policy "srd_spell_art_update" on public.srd_spell_art;
-
-create policy "srd_spell_art_insert" on public.srd_spell_art
-  for insert with check ((select auth.uid()) = user_id);
-
-create policy "srd_spell_art_update" on public.srd_spell_art
-  for update using ((select auth.uid()) = user_id);
 
 -- srd_monster_art_select / srd_spell_art_select (own rows) and the
 -- *_campaign_member_select policies (a DM's private override visible to
@@ -209,8 +217,21 @@ create policy "srd_spell_art_update" on public.srd_spell_art
 create temporary table _srd_art_defaults_precheck as
 select count(*) as before_count from public.srd_art_defaults;
 
+-- Policies before the column, for the same dependency reason as section 4:
+-- all three gate on `contributed_by`, so the drop errors while they exist.
+drop policy "srd_art_defaults_insert" on public.srd_art_defaults;
+drop policy "srd_art_defaults_update" on public.srd_art_defaults;
+drop policy "srd_art_defaults_delete" on public.srd_art_defaults;
+
 alter table public.srd_art_defaults drop constraint srd_art_defaults_contributed_by_fkey;
 alter table public.srd_art_defaults drop column contributed_by;
+
+create policy "srd_art_defaults_insert" on public.srd_art_defaults
+  for insert with check (private.is_app_admin());
+create policy "srd_art_defaults_update" on public.srd_art_defaults
+  for update using (private.is_app_admin());
+create policy "srd_art_defaults_delete" on public.srd_art_defaults
+  for delete using (private.is_app_admin());
 
 do $check_defaults$
 declare
@@ -226,17 +247,6 @@ end;
 $check_defaults$;
 
 drop table _srd_art_defaults_precheck;
-
-drop policy "srd_art_defaults_insert" on public.srd_art_defaults;
-drop policy "srd_art_defaults_update" on public.srd_art_defaults;
-drop policy "srd_art_defaults_delete" on public.srd_art_defaults;
-
-create policy "srd_art_defaults_insert" on public.srd_art_defaults
-  for insert with check (private.is_app_admin());
-create policy "srd_art_defaults_update" on public.srd_art_defaults
-  for update using (private.is_app_admin());
-create policy "srd_art_defaults_delete" on public.srd_art_defaults
-  for delete using (private.is_app_admin());
 
 -- srd_art_defaults_select (any authenticated user) is untouched.
 

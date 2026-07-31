@@ -18,7 +18,7 @@
     "db:stop": "supabase stop",
     "db:status": "supabase status",
     "db:reset": "supabase db reset",
-    "db:pull": "supabase db dump --linked --data-only --schema auth,public -x public.abuse_guard_config -x public.ai_generation_credit_costs -x public.ai_model_pricing -x public.ai_system_prompts -x public.checkout_config -x public.credit_pack_config -x public.provider_config -x public.simulacrum_config -f supabase/seed.sql",
+    "db:pull": "supabase db dump --linked --data-only --schema auth,public -x public.abuse_guard_config -x public.ai_generation_credit_costs -x public.ai_model_pricing -x public.ai_system_prompts -x public.checkout_config -x public.credit_pack_config -x public.provider_config -x public.simulacrum_config -x public.class_choice_rest_resets -x public.class_ritual_policies -x public.class_spellcasting_policies -x public.content_sources -x public.disposable_email_domains -x public.metamagic_options -x public.system_classes -f supabase/seed.sql",
     "stripe:setup": "node --env-file=.env.local scripts/stripe-setup.mjs",
     "import-chapter-npcs": "tsx --env-file=.env.local scripts/import-chapter-npcs.ts",
     "import-faiths": "tsx --env-file=.env.local scripts/import-faiths.ts",

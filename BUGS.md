@@ -9,7 +9,7 @@
 > top of the matching [`docs/log/fixes/<subsystem>.md`](docs/log/fixes/) file, then
 > close the GitHub issue if one exists.
 
-## Fix log by subsystem  ·  296 resolved
+## Fix log by subsystem  ·  298 resolved
 
 | Subsystem | Fixes | | Subsystem | Fixes |
 | --- | ---: | --- | --- | ---: |
@@ -19,7 +19,7 @@
 | [Rules Reliquary](docs/log/fixes/rules.md) | 1 | | [Images & Art](docs/log/fixes/images.md) | 10 |
 | [Content & Import](docs/log/fixes/content.md) | 9 | | [Publishing & Export](docs/log/fixes/publishing.md) | 23 |
 | [Monsters & Bestiary](docs/log/fixes/monsters.md) | 12 | | [UI & Layout](docs/log/fixes/ui.md) | 12 |
-| [NPCs & Companions](docs/log/fixes/npcs.md) | 15 | | [Database & Security](docs/log/fixes/database.md) | 15 |
+| [NPCs & Companions](docs/log/fixes/npcs.md) | 15 | | [Database & Security](docs/log/fixes/database.md) | 17 |
 | [Items & Workshop](docs/log/fixes/items.md) | 26 | | [AI Generation](docs/log/fixes/ai.md) | 10 |
 | [Spells](docs/log/fixes/spells.md) | 6 | | [Billing](docs/log/fixes/billing.md) | 5 |
 | [Factions](docs/log/fixes/factions.md) | 3 | | [Infrastructure](docs/log/fixes/infra.md) | 13 |
@@ -29,6 +29,8 @@
 
 ## Latest fixes
 
+- `20260730000010` could never apply to a fresh database — it dropped columns before the policies that d… — [Database & Security](docs/log/fixes/database.md)
+- `db:pull` regenerated a seed that could not be loaded — its exclusion list missed migration-owned tabl… — [Database & Security](docs/log/fixes/database.md)
 - CI could never run the test suite — `.env.local` was a hidden prerequisite; Vitest now carries its o… — [Infrastructure](docs/log/fixes/infra.md)
 - `npm run seed-srd-monsters` would have broken on #584's migration — it still filtered on the dropped `is_canonical` column — [Content & Import](docs/log/fixes/content.md)
 - Deleting a campaign with campaign-scoped homebrew failed with a raw FK violation; the DM now chooses promote-vs-delete (#585) — [Campaign](docs/log/fixes/campaign.md)
@@ -38,5 +40,3 @@
 - Three views rendered a spell attack/save-DC override nothing could ever set (#589) — [Spells](docs/log/fixes/spells.md)
 - Deleted two pre-canonical SRD importers with no UI entry point (#589) — [Content & Import](docs/log/fixes/content.md)
 - Drag-to-reorder issued one UPDATE per row, and the same fan-out was copy-pasted into five composables (#588) — [Infrastructure](docs/log/fixes/infra.md)
-- NPC relevance rankings were browser-local, so clearing site data or switching devices erased a player's stars (#582) — [NPCs & Companions](docs/log/fixes/npcs.md)
-- Schema consolidation audit (#580): 9 unindexed FK/RLS columns, 20 per-row `auth.uid()` policies, 25 tables paying for a `REPLICA IDENTITY FULL` that RLS made useless, and account deletion failing on 16 FKs — [Database & Security](docs/log/fixes/database.md)
