@@ -9,7 +9,7 @@
 > top of the matching [`docs/log/fixes/<subsystem>.md`](docs/log/fixes/) file, then
 > close the GitHub issue if one exists.
 
-## Fix log by subsystem  ·  298 resolved
+## Fix log by subsystem  ·  300 resolved
 
 | Subsystem | Fixes | | Subsystem | Fixes |
 | --- | ---: | --- | --- | ---: |
@@ -22,13 +22,15 @@
 | [NPCs & Companions](docs/log/fixes/npcs.md) | 15 | | [Database & Security](docs/log/fixes/database.md) | 17 |
 | [Items & Workshop](docs/log/fixes/items.md) | 26 | | [AI Generation](docs/log/fixes/ai.md) | 10 |
 | [Spells](docs/log/fixes/spells.md) | 6 | | [Billing](docs/log/fixes/billing.md) | 5 |
-| [Factions](docs/log/fixes/factions.md) | 3 | | [Infrastructure](docs/log/fixes/infra.md) | 13 |
+| [Factions](docs/log/fixes/factions.md) | 3 | | [Infrastructure](docs/log/fixes/infra.md) | 15 |
 | [Encounters & Combat](docs/log/fixes/encounters.md) | 25 | | [Soundboard](docs/log/fixes/soundboard.md) | 19 |
 | [Quests](docs/log/fixes/quests.md) | 13 | | [Miscellaneous](docs/log/fixes/misc.md) | 1 |
 | [Party & Characters](docs/log/fixes/party.md) | 25 | | | |
 
 ## Latest fixes
 
+- Mid-session patches didn't reach the table — open PWAs now discover deploys within minutes and auto-reload onto them, deferring only around typing, saves, and live audio — [Infrastructure](docs/log/fixes/infra.md)
+- Every deploy could strand an already-open tab/PWA on a dead "failed to load" view — chunk-load failures now hard-reload once onto the fresh build — [Infrastructure](docs/log/fixes/infra.md)
 - `20260730000010` could never apply to a fresh database — it dropped columns before the policies that d… — [Database & Security](docs/log/fixes/database.md)
 - `db:pull` regenerated a seed that could not be loaded — its exclusion list missed migration-owned tabl… — [Database & Security](docs/log/fixes/database.md)
 - CI could never run the test suite — `.env.local` was a hidden prerequisite; Vitest now carries its o… — [Infrastructure](docs/log/fixes/infra.md)
@@ -38,5 +40,3 @@
 - 11 player notes were invisible since companion/party-member notes moved to `entity_notes` and never migrated (#587) — [Database & Security](docs/log/fixes/database.md)
 - `party_inventory_dm_all` permitted nothing its own member siblings didn't — provably redundant, dropped (#586) — [Database & Security](docs/log/fixes/database.md)
 - Three views rendered a spell attack/save-DC override nothing could ever set (#589) — [Spells](docs/log/fixes/spells.md)
-- Deleted two pre-canonical SRD importers with no UI entry point (#589) — [Content & Import](docs/log/fixes/content.md)
-- Drag-to-reorder issued one UPDATE per row, and the same fan-out was copy-pasted into five composables (#588) — [Infrastructure](docs/log/fixes/infra.md)
