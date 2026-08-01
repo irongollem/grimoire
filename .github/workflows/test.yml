@@ -87,6 +87,35 @@ jobs:
         with:
           version: 2.109.1
 
+      # Stripe's webhook configuration lives in Stripe, not in this repo, and
+      # test mode is a separate copy of it — so "it passed in test mode" says
+      # nothing about live. A missing event raises no error anywhere; it just
+      # means a handler never runs and a paying customer gets nothing. Three
+      # were missing on 2026-08-01, including the one that grants PRO.
+      #
+      # Deliberately before `db push`: a config mismatch should fail while
+      # production is still untouched, not after migrations have landed.
+      - uses: actions/setup-node@v4
+        if: ${{ secrets.STRIPE_SECRET_KEY != '' }}
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install deps for the Stripe check
+        if: ${{ secrets.STRIPE_SECRET_KEY != '' }}
+        run: npm ci
+      - name: Stripe webhook configuration matches the code
+        if: ${{ secrets.STRIPE_SECRET_KEY != '' }}
+        env:
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+        run: npm run stripe:check
+
+      # Loud rather than silent: a check that quietly does not run is worse than
+      # no check, because the release still looks green.
+      - name: Warn that the Stripe check was skipped
+        if: ${{ secrets.STRIPE_SECRET_KEY == '' }}
+        run: |
+          echo "::warning::STRIPE_SECRET_KEY is not set, so the Stripe webhook configuration was NOT verified. Add it to the repository secrets (a restricted key with read access to webhook endpoints is enough) so config drift fails the release instead of a customer's payment."
+
       - name: Link the production project
         run: supabase link --project-ref "$SUPABASE_PROJECT_ID"
 

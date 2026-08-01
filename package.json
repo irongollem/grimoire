@@ -16,6 +16,7 @@
     "test:watch": "vitest",
     "verify": "npm run lint && npm run test && npm run build",
     "verify:db": "npm run db:reset && supabase test db && npm run db:check && npm run db:check:test",
+    "stripe:check": "tsx --tsconfig tsconfig.node.json scripts/check-stripe-webhook.ts",
     "db:start": "supabase start",
     "db:stop": "supabase stop",
     "db:status": "supabase status",
