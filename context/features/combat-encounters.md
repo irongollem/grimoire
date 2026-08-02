@@ -187,6 +187,32 @@ Shown on the read-only encounter sheet and computed live in the editor. Implemen
 - Threshold bar visualisation with a net-XP marker dot
 - Enemy breakdown list: name, CR, XP per entry
 
+### AI Encounter Generator
+
+The "Generate" button on the Encounters list (`EncountersView.vue`) opens a right-side slide-in panel (`EncounterGeneratorPanel.vue`, mounted in `AiGeneratorPanels.vue`, toggled via `ui.encounterGeneratorOpen`) — the same pattern as every other AI generator panel in the app. The DM provides:
+
+- **Concept** — a free-text prompt (e.g. "Goblin ambush on the forest road, levels 3–5, a betrayal mid-fight")
+- **Difficulty** — Auto / Easy / Medium / Hard / Deadly
+
+Generation is dual-path like the other generators (`useEncounterGeneration.ts`): by default it calls the `generate-encounter` edge function; in local-vault BYOK mode (`grimoire_key_local_mode === "local"` in `localStorage`) it calls the model directly from the browser instead.
+
+**Server-side context building.** Rather than trusting a context payload from the request body, the edge function builds two pieces of context itself from the campaign's own data and passes them to the model as constraints alongside the difficulty:
+
+- **Party summary** — one line per party member, e.g. "Level 5 Fighter/Rogue". Multiclass characters use the sum of `character_classes.levels` (the authoritative level) and their class names joined with "/"; a character with no `character_classes` rows falls back to `party_members.level`/`class`. With no party members at all, the summary is "Party: unknown — assume 4 characters of level 3".
+- **Custom Monster Index** — the DM's own homebrew monsters, one per line as `Name|CR|type`, wrapped in `---BEGIN CUSTOM MONSTER INDEX---`/`---END---` markers and included only when at least one row exists. The system prompt instructs the model to prefer these by exact name when one fits thematically. `monsters` has no `campaign_id` column — the bestiary is user-scoped — so the index is filtered by the campaign owner's `user_id` and the campaign's ruleset, excludes Open5e-imported rows (the model already knows standard 5e monsters), and is capped at 200 rows (`MAX_CUSTOM_MONSTERS`).
+
+This is deliberately server-side rather than client-supplied as #337 originally specified: a client-supplied context payload could be inflated to drive up generation cost, or spoofed to steer the model toward monster names that don't actually exist in the DM's bestiary. **The local-key (BYOK) path cannot build either piece** — both are DB reads done with the edge function's service-role access, which the browser doesn't have. It generates from the campaign setting and the difficulty constraint alone; this is a deliberate parity gap, not an oversight.
+
+**Name resolution (`resolveGeneratedCombatants.ts`).** The AI returns monster names, not ids, so the app resolves each against the DM's full monster list (`useAllMonsters()`) through a three-tier cascade — exact name → case-insensitive → normalized (lowercased, alphanumeric-only, with a single trailing "s" dropped, so "Goblins" matches "Goblin" and "dire-wolf" matches "Direwolf") — stopping at the first tier that produces any candidate. Among tied candidates within that tier, the DM's own homebrew (non-empty `user_id`) is preferred over a same-named shared-library monster. A match becomes a `CombatantDef` with `faction_id: "enemy"` and, when the AI supplied a role, `custom_name` set to `"{Monster Name} ({Role})"`.
+
+`parseEncounterAiResult.ts` is the validation boundary for the raw model response before any of this runs — it drops any combatant entry with no usable name, defaults a missing/invalid `difficulty` to `medium` (the badge is cosmetic; the combatants are what matter), and throws if the combatants array ends up empty, which the panel shows as an error state with no encounter created.
+
+**Unmatched names are not turned into stub combatants.** `EncounterRunView.vue` builds run combatants with `if (entry.monster_id) … else if (entry.npc_id) …` and no `else` branch, so a `CombatantDef` with a null `monster_id` would render fine in the builder but be silently dropped the moment the DM runs the encounter. Unmatched entries are instead listed in the panel under "Not in your Bestiary — add these manually," and folded into the created encounter's description as an "Add manually: …" line alongside the AI's Environment/Tactics/Twist text, so they aren't lost once the panel closes.
+
+**Creating the encounter.** "Create Encounter" persists the result — name, matched combatants, default factions, and every current party member auto-selected (companions are not, unlike the manual builder's default described above) — and the button becomes "Open Encounter →", which navigates to the encounter sheet on click. It does not auto-navigate. This is a deliberate compromise between CLAUDE.md's post-mutation-navigation rule (which would send the DM back to the encounter list) and #337's original request to drop the DM straight into the editor: the Roll Table Generator's create-then-"View Table →" link is the established precedent that satisfies both, landing the DM on the create action's own success feedback while leaving the next step a click away.
+
+**Credit cost.** The system prompt is stored in `ai_system_prompts` (`generator_type = 'encounter'`); the credit cost is `encounter_generation` in `ai_generation_credit_costs` (1 credit). Both seeded in migration `20260802000002_encounter_generator_ai.sql`. Cost is multiplied by the active text provider's `text_multiplier`, same as every other text generator. BYOK generations are charged 0 credits but still recorded via `recordGeneration`, so generation history stays complete even when nothing was spent.
+
 ---
 
 ## Encounter Runner (Live Combat)
@@ -415,6 +441,8 @@ That last fallback matters: an enemy NPC the DM revealed only inside the encount
 10. **Difficulty calculator integrated into the builder.** The DMG XP budget calculation (with count multiplier, party size adjustment, ally offset, and trap XP) runs live as the DM adds combatants. Visual threshold bars and an enemy breakdown table make it immediately clear whether a planned encounter is worth balancing differently.
 
 11. **Re-import clobber protection (#560).** Re-syncing monsters from Open5e into the shared `library_monsters` table only refreshes fields Open5e actually supplies — name, type/size, source metadata, `stat_block`. DM-authored notes, portrait, description, habitat, and lair link are never touched by a re-run. Full field breakdown in [`docs/library-reimport.md`](../../docs/library-reimport.md).
+
+12. **Party-aware AI encounter suggester (#337).** One concept prompt plus a difficulty tier returns a themed encounter — name, environment, tactics, twist, and a combatant list resolved directly against the DM's own Bestiary, preferring their homebrew monsters by name over same-named library monsters. The party summary and custom-monster index that ground the suggestion are built server-side from the campaign's own data, never trusted from the client.
 
 ---
 

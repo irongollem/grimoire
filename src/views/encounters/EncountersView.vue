@@ -6,6 +6,11 @@
 
     <template #actions>
       <ListActionButton
+        :icon="IconGenerate"
+        label="Generate"
+        @click="ui.encounterGeneratorOpen = true"
+      />
+      <ListActionButton
         :icon="IconAdd"
         label="New Encounter"
         mobile-label="Encounter"
@@ -54,7 +59,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useRouter } from "vue-router";
-import { IconAdd, IconCheckDouble } from '@/lib/icons';
+import { IconAdd, IconCheckDouble, IconGenerate } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
