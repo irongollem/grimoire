@@ -2,6 +2,10 @@
  * Credit deduction helpers for server-side generation edge functions.
  * BYOK calls log delta=0 (user pays their own API bill).
  * Platform-key calls deduct from the user's credit balance.
+ * Platform-paid infrastructure calls (e.g. monster embedding) log delta=0 too,
+ * via recordFreeGeneration() — the user isn't charged, but real spend stays
+ * visible to cost reporting. See that function's doc comment for why neither
+ * of the other two paths can express this case.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { sizeMultiplier as sizeMultiplierMath } from "./credit-math.ts";
@@ -216,4 +220,36 @@ export async function recordGeneration(
     return;
   }
   await recordSpend(admin, userId, generationType, cost, logFields);
+}
+
+/**
+ * Record a platform-paid generation that costs the user nothing.
+ *
+ * Neither existing path can express this:
+ *  - recordGeneration(isByok=true) writes a row but stamps is_byok=true, which
+ *    means "the user paid their own provider bill". Platform-cost reporting
+ *    filters those out, so real spend of ours would vanish from the one report
+ *    it needs to appear in.
+ *  - recordGeneration(isByok=false, cost=0) writes nothing at all, because
+ *    spendCredits() short-circuits on cost <= 0.
+ *
+ * So: delta 0 (the user is not charged) with is_byok FALSE (we paid the
+ * provider), plus the real model/provider/token fields. Used by infrastructure
+ * calls such as monster embedding, whose cost has to stay visible so feature
+ * pricing can be set from measured spend rather than estimates.
+ */
+export async function recordFreeGeneration(
+  admin: SupabaseClient,
+  userId: string,
+  generationType: string,
+  logFields: CreditLogFields = {},
+): Promise<void> {
+  const { error } = await admin.from("ai_credit_ledger").insert({
+    user_id: userId,
+    delta: 0,
+    reason: generationType,
+    is_byok: false,
+    ...logFields,
+  });
+  if (error) console.error(`Failed to record free generation (${generationType}):`, error);
 }
