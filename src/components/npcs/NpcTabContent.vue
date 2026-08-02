@@ -81,6 +81,11 @@
       </template>
       <p v-else class="text-body text-muted-foreground italic">No stat block defined for this NPC.</p>
     </div>
+
+    <!-- Voice tab -->
+    <div v-else-if="activeTab === 'voice'">
+      <NpcVoiceCoach :npc="npc" />
+    </div>
   </div>
 </template>
 
@@ -93,6 +98,7 @@ import SpellcastingList from "@/components/common/SpellcastingList.vue";
 import NpcInventorySection from "@/components/npcs/NpcInventorySection.vue";
 import NpcRelationsSection from "@/components/npcs/NpcRelationsSection.vue";
 import NpcPcNotesSection from "@/components/npcs/NpcPcNotesSection.vue";
+import NpcVoiceCoach from "@/components/npcs/NpcVoiceCoach.vue";
 import type { Npc } from "@/types/npc.types";
 
 defineProps<{ npc: Npc }>();
@@ -102,6 +108,7 @@ const TABS = [
   { key: 'inventory', label: 'Inventory' },
   { key: 'relations', label: 'Relations' },
   { key: 'combat',    label: 'Combat' },
+  { key: 'voice',     label: 'Voice' },
 ] as const;
 type TabKey = typeof TABS[number]['key'];
 

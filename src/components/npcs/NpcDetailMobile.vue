@@ -202,6 +202,10 @@
         </div>
         <p v-else class="text-body italic text-muted-foreground">No stat block defined for this NPC.</p>
       </NpcAccordionSection>
+
+      <NpcAccordionSection v-model:open="openSections.voice" title="Voice Coach">
+        <NpcVoiceCoach :npc="npc" />
+      </NpcAccordionSection>
     </div>
 
     <!-- ── 6. Fixed bottom action bar ─────────────────────────────────────── -->
@@ -285,6 +289,7 @@ import NpcRelationsSection from "@/components/npcs/NpcRelationsSection.vue";
 import NpcQuickFact from "@/components/npcs/NpcQuickFact.vue";
 import NpcAccordionSection from "@/components/npcs/NpcAccordionSection.vue";
 import NpcRevealSheet from "@/components/npcs/NpcRevealSheet.vue";
+import NpcVoiceCoach from "@/components/npcs/NpcVoiceCoach.vue";
 import { IconDelete, IconEdit, IconGenerate, IconHide, IconReveal, IconScrollText, IconTag } from "@/lib/icons";
 import { useDeleteNpc } from "@/composables/useNpcs";
 import { useNpcFactions } from "@/composables/useFactions";
@@ -356,6 +361,7 @@ const openSections = reactive({
   inventory: false,
   relations: false,
   combat: false,
+  voice: false,
 });
 
 // ── Sheets ───────────────────────────────────────────────────────────────────

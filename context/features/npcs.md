@@ -2,7 +2,7 @@
 
 ## Overview
 
-The NPC Tracker is the DM's central registry for every person the party might encounter — allies, enemies, merchants, sages, mysterious strangers. Each NPC is a rich record combining identity fields, roleplaying content (appearance, personality, backstory), an optional full D&D 5e stat block, faction memberships, inter-NPC relationships, PC-specific connection notes, and a portrait with adjustable focal point.
+The NPC Tracker is the DM's central registry for every person the party might encounter — allies, enemies, merchants, sages, mysterious strangers. Each NPC is a rich record combining identity fields, roleplaying content (appearance, personality, backstory), an optional full D&D 5e stat block, faction memberships, inter-NPC relationships, PC-specific connection notes, a portrait with adjustable focal point, and an AI Voice Coach for improvising in-character dialogue at the table.
 
 The feature comprises four main surfaces:
 
@@ -115,7 +115,7 @@ Toggling between modes does not lose unsaved work because edit mode is URL-drive
 
 ### Tab Bar
 
-Three tabs in edit mode, four tabs in view mode:
+Three tabs in edit mode, five tabs in view mode:
 
 #### Lore Tab
 
@@ -159,6 +159,28 @@ Surfaces `NpcRelationsSection` in read-only mode so DMs can review — and manag
 | Actions            | Actions (`TraitSection`)                                                                                                                             |
 | Legendary          | Legendary Actions (`TraitSection`)                                                                                                                   |
 
+#### Voice Tab (view mode only)
+
+At the table, a player asks the NPC something the DM didn't prep for. The Voice Coach turns a one-line description of the situation into 2–3 short, in-character replies the DM can read aloud immediately (issue #336). Nothing is persisted — the situation text and the returned lines live only in the component's local state and vanish the moment the DM navigates away.
+
+**One shared component, not two surfaces.** The tab renders `NpcVoiceCoach.vue` directly, and it is the exact same component instance on desktop (`NpcTabContent.vue`'s "Voice" tab) and on mobile (`NpcDetailMobile.vue`'s "Voice Coach" accordion section, closed by default like the other sections). There is one implementation to keep correct, not two that can silently diverge — this repo has been bitten by that failure mode before, so it's worth stating explicitly rather than leaving it implicit.
+
+**What the AI receives.** The DM types the situation (capped at `AI_PROMPT_LIMIT_SHORT`, 500 characters). The edge function (`generate-npc-voice/index.ts`) loads the NPC row from the database itself by `npc_id` rather than trusting any client-supplied NPC facts, then builds a profile (`buildNpcProfile()`) containing: name, race, alignment, age, occupation, status, relationship toward the party, and Tiptap-flattened (`toPlainText()`) personality (≤800 chars), backstory (≤600 chars), and DM notes (≤600 chars) — each field omitted entirely, never emitted as an empty label, when absent. A campaign-setting context block is appended when the campaign has one configured. No party query, no monster index, and no ruleset-context fetch — this is pure dialogue with no rules content, so that context would be dead prompt weight on a call felt live at the table.
+
+**The disguise rule.** When the NPC has a `disguise_name` and `is_revealed` is `false`, the true name is not sent to the model at all — not masked, not flagged "do not reveal," simply absent from the profile. The model receives only the disguise name, plus an explicit instruction to stay in that persona. Handing a model a secret behind a "don't say this" instruction is a strictly weaker guarantee than withholding the secret outright, and the true name adds nothing to voice quality that personality, occupation, and backstory don't already supply — while the failure mode of getting it wrong is a DM reading a suggested line aloud at speed and blowing a reveal that's been built for months. The backstory is still sent even while disguised, since it's what makes the persona sound like a person, paired with an instruction not to surface any detail that would expose the cover. `buildNpcVoiceProfile.test.ts` carries a load-bearing `expect(profile).not.toContain(npc.name)` assertion guarding exactly this.
+
+**Three deliberate deviations from every other AI generator** (`useNpcVoiceCoach.ts`):
+
+- Not registered via `registerAiGenerator()` — this is ephemeral at-table assistance with no entity to route to, and nothing for the AI-generation badge to track.
+- Never gated on, and never sets, `isAnyAiGenerating` — a DM mid-session may have a portrait rendering in the background at the same time, and blocking the voice coach behind that flag would defeat the point of a feature whose whole value is speed.
+- Does not call `startAiQuotes()` / `stopAiQuotes()` — that loading-text carousel is a single global instance, and hijacking it would stomp the loading text of a concurrent real generation running elsewhere in the app. The component shows its own plain "Finding the words…" state instead.
+
+**Latency.** The feature is non-streaming — like every other AI generator in this codebase, it calls the shared `callText()` (`_shared/textGen.ts`), a single request/response round trip rather than a stream. Output is capped at 350 tokens, generous relative to the 2–3 short lines the prompt actually asks for; the cap exists to guard against runaway cost rather than to bound useful output, since OpenAI is called with `response_format: json_object` and a response truncated at the cap would come back as invalid JSON rather than merely a short answer. Streaming was not implemented here: fixed per-call overhead (cold start, auth, the NPC row read) makes up a meaningful share of the total round trip on a response this short, so the perceived-latency benefit of streaming would be modest set against the cost of reworking the credit ledger (`reserveCredits`/`recordGeneration` in `_shared/credits.ts`) to account for usage arriving with a streamed response instead of one synchronous one.
+
+**Credit cost.** 1 credit, `npc_voice_generation` in `ai_generation_credit_costs`, multiplied by the active text provider's `text_multiplier` — the same convention as every other text generator. The system prompt lives in `ai_system_prompts` under `generator_type = 'npc_voice'`. Both rows are seeded by migration `20260802000001_npc_voice_coach_ai.sql`. BYOK generations are charged 0 credits but still recorded via `recordGeneration` (server) / `logUsage` (client), so generation history stays complete even when nothing was spent.
+
+**Client-side (BYOK/local) mirror.** `src/lib/npcs/buildNpcVoiceProfile.ts` is a hand-kept client copy of the edge function's `buildNpcProfile()`, used when the DM is in local-vault BYOK mode (`grimoire_key_local_mode === "local"` in `localStorage`) so the NPC profile can be built in-browser without a server round trip that would leak the local key. Same precedent as `_shared/ai-prompt.ts` mirroring `src/ai/utils.ts` — there is no shared source of truth between edge and client for this logic, so the two must be changed together by hand.
+
 ### Revealed Fields Panel (shared NPCs)
 
 When a NPC is shared with at least one player, a panel appears at the top of the edit form. It contains:
@@ -177,7 +199,7 @@ The read-only sheet uses a two-column layout (portrait column fixed 208 px, cont
 
 Left column: portrait (portrait format), status + relationship badges, tags, faction links (clickable), alter-ego section with a quick Reveal/Conceal toggle (saves immediately, no edit-mode required; fires a chat event on reveal in Play mode).
 
-Right column: `NpcTabContent` with identity line (species · occupation · alignment · age), then Lore / Inventory / Relations / Combat tabs. The Relations tab embeds both `NpcRelationsSection` (NPC↔NPC) and `NpcPcNotesSection` (NPC↔party-member connections) so both are visible — and editable, since the sections own their CRUD — from view mode without flipping into the edit form (#168/#169).
+Right column: `NpcTabContent` with identity line (species · occupation · alignment · age), then Lore / Inventory / Relations / Combat / Voice tabs. The Relations tab embeds both `NpcRelationsSection` (NPC↔NPC) and `NpcPcNotesSection` (NPC↔party-member connections) so both are visible — and editable, since the sections own their CRUD — from view mode without flipping into the edit form (#168/#169).
 
 ### Alter Ego / Disguise System
 
@@ -334,6 +356,7 @@ Clicking a card opens a modal with:
 - **Setting population**: Faerûn campaigns can bulk-insert canonical NPCs (Hall of Heroes) in one click, with name-based deduplication and portrait back-fill.
 - **Bestiary bridge**: an NPC can link to a Bestiary monster (import stat block), or be promoted to a full Bestiary entry. Dual-direction linking: NPCs can also be exported to the Scriptorium as formatted documents.
 - **Player relevance ratings**: players can star-rate NPCs 1–5 in their portal to surface important characters; starred NPCs sort first and persist across browsers/devices via `player_npc_ratings`.
+- **AI Voice Coach for at-the-table dialogue**: a one-line situation prompt returns 2–3 short, ready-to-read in-character replies (issue #336), ephemeral and never persisted. One shared component renders identically on the desktop "Voice" tab and the mobile "Voice Coach" accordion. A disguised, unrevealed NPC's true name is withheld from the model entirely rather than merely instructed not to reveal it — a stronger guarantee against an accidental spoiler read aloud mid-session.
 
 ---
 
