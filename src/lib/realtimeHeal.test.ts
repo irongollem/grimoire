@@ -106,10 +106,55 @@ describe("createRealtimeHeal — throttling", () => {
 });
 
 describe("createRealtimeHeal — network and visibility", () => {
-  it("reconciles unconditionally when the network returns", () => {
+  it("reconciles when the network returns from a drop it never saw begin", () => {
     const onReconcile = vi.fn();
     track(createRealtimeHeal(onReconcile));
 
+    // No preceding `offline`: the machine slept or the tab was frozen through
+    // the outage, so its length is unknown and it always counts.
+    window.dispatchEvent(new Event("online"));
+
+    expect(onReconcile).toHaveBeenCalledTimes(1);
+  });
+
+  it("reconciles when the network returns after a measured outage", () => {
+    const c = clock();
+    const onReconcile = vi.fn();
+    track(createRealtimeHeal(onReconcile, { now: c.now, minOfflineMs: 5000 }));
+
+    window.dispatchEvent(new Event("offline"));
+    c.advance(5000);
+    window.dispatchEvent(new Event("online"));
+
+    expect(onReconcile).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores a brief offline flap", () => {
+    const c = clock();
+    const onReconcile = vi.fn();
+    track(createRealtimeHeal(onReconcile, { now: c.now, minOfflineMs: 5000 }));
+
+    // macOS reports a sub-second offline→online flap on tab focus and after
+    // sleep. Nothing was missed, so reconciling would be pure waste.
+    window.dispatchEvent(new Event("offline"));
+    c.advance(200);
+    window.dispatchEvent(new Event("online"));
+
+    expect(onReconcile).not.toHaveBeenCalled();
+  });
+
+  it("does not let a dismissed flap suppress the next real outage", () => {
+    const c = clock();
+    const onReconcile = vi.fn();
+    track(createRealtimeHeal(onReconcile, { now: c.now, minOfflineMs: 5000 }));
+
+    window.dispatchEvent(new Event("offline"));
+    c.advance(200);
+    window.dispatchEvent(new Event("online"));
+    expect(onReconcile).not.toHaveBeenCalled();
+
+    // The flap's timestamp must not linger and make this look like a long drop.
+    c.advance(60_000);
     window.dispatchEvent(new Event("online"));
 
     expect(onReconcile).toHaveBeenCalledTimes(1);

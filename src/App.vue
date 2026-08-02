@@ -27,7 +27,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useQueryClient } from "@tanstack/vue-query";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
@@ -47,6 +47,7 @@ import { useMediaSession } from "@/composables/useMediaSession";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCampaignById } from "@/composables/useCampaigns";
 import { usePullToRefresh } from "@/composables/usePullToRefresh";
+import { createRealtimeHeal } from "@/lib/realtimeHeal";
 
 const auth = useAuthStore();
 
@@ -118,32 +119,36 @@ watch(
   },
 );
 
-// refetchOnWindowFocus is disabled globally (main.ts) to prevent TanStack Query
-// from firing N concurrent queries behind the auth lock on tab wake.
-// Instead we manually invalidate after a long absence so components get fresh
-// data. singleTabLock (supabase.ts) queues auth and DB operations in order
-// without a timeout, so autoRefreshToken finishes before queries run — no
-// AbortError storms, no explicit session warm-up needed here.
+// Nothing in TanStack Query recovers this cache on its own. refetchOnWindowFocus
+// is off globally (main.ts) to stop N concurrent queries firing behind the auth
+// lock on tab wake, and `networkMode: "always"` — which is there because macOS
+// falsely reports offline on tab focus — makes query-core default
+// refetchOnReconnect to false as a side effect. So a query that failed while the
+// machine was offline stays failed: close the lid for a week and every
+// non-realtime view sits on stale or errored data until you navigate.
+//
+// That is the same event-gap problem createRealtimeHeal already solves for
+// Realtime channels, so it governs the query cache too: invalidate when the
+// network genuinely returns, or on coming back to a tab that was away long
+// enough to have missed something. Its throttle collapses the two signals that
+// arrive together on a real wake into one invalidation, which is what keeps this
+// from reintroducing the very refetch burst refetchOnWindowFocus was turned off
+// to prevent. No channel status is fed in — the wake signals are the whole input.
+//
+// singleTabLock (supabase.ts) queues auth and DB operations in order without a
+// timeout, so autoRefreshToken finishes before queries run — no AbortError
+// storms, no explicit session warm-up needed here.
 const queryClient = useQueryClient();
-let lastHidden = Date.now();
 
-function onVisibilityChange() {
-  if (document.visibilityState === "hidden") {
-    lastHidden = Date.now();
-    return;
-  }
-  const awayMs = Date.now() - lastHidden;
-  if (awayMs < 60_000) return;
-  if (!auth.isAuthenticated) return;
-  queryClient.invalidateQueries();
-}
+const queryHeal = createRealtimeHeal(
+  () => {
+    if (!auth.isAuthenticated) return;
+    void queryClient.invalidateQueries();
+  },
+  { hiddenReconcileMs: 60_000 },
+);
 
-onMounted(() =>
-  document.addEventListener("visibilitychange", onVisibilityChange),
-);
-onUnmounted(() =>
-  document.removeEventListener("visibilitychange", onVisibilityChange),
-);
+onUnmounted(() => queryHeal.detach());
 
 const route = useRoute();
 

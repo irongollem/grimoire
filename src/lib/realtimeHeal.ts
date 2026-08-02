@@ -13,8 +13,9 @@
  *   1. **A re-SUBSCRIBED after the initial join.** The channel rejoined, so
  *      whatever happened while it was away never arrived. The first SUBSCRIBED
  *      is skipped: the caller's own initial fetch already covers it.
- *   2. **`online`.** Coming back from a network loss always implies a gap, so
- *      this one reconciles unconditionally.
+ *   2. **`online` after a real outage.** Coming back from a network loss implies
+ *      a gap — but only a loss we either measured as longer than a browser
+ *      hiccup, or never saw begin at all (see `minOfflineMs`).
  *   3. **Returning to a visible tab** — but only when the channel actually
  *      reported a problem, or the tab was hidden long enough that the browser
  *      could have frozen the socket without ever telling us. Routine alt-tabbing
@@ -23,6 +24,12 @@
  * Extracted from `useCampaignLiveSync`, which was the only channel that had any
  * of this — the composables carrying the *player* experience had none, which is
  * why players were the ones reaching for refresh.
+ *
+ * Also drives query-cache recovery in `App.vue`, which feeds no channel status
+ * and relies purely on the two wake signals. TanStack Query cannot do this
+ * itself here: `networkMode: "always"` (main.ts, needed because macOS falsely
+ * reports offline on tab focus) makes query-core default `refetchOnReconnect`
+ * to false, and `refetchOnWindowFocus` is off for the same reason.
  *
  * Deliberately a plain factory rather than a composable: channels in this
  * codebase are created in three different lifecycles (module-level singletons
@@ -34,12 +41,21 @@
 const DEFAULT_HIDDEN_RECONCILE_MS = 5 * 60 * 1000;
 /** Minimum gap between reconciles, so overlapping wake signals fire once. */
 const DEFAULT_THROTTLE_MS = 2000;
+/**
+ * An offline stretch we watched start and end within this window was a browser
+ * hiccup, not an outage: macOS flaps offline→online on tab focus and after
+ * sleep, and nothing was actually missed. Long enough to cover the flap, short
+ * enough that any drop worth reconciling still counts.
+ */
+const DEFAULT_MIN_OFFLINE_MS = 5000;
 
 export interface RealtimeHealOptions {
   /** Override how long a hidden tab must stay hidden to force recovery. */
   hiddenReconcileMs?: number;
   /** Override the minimum gap between two reconciles. */
   throttleMs?: number;
+  /** Override how long a *measured* offline stretch must last to count. */
+  minOfflineMs?: number;
   /** Clock injection point — tests drive this instead of waiting. */
   now?: () => number;
 }
@@ -73,6 +89,7 @@ export function createRealtimeHeal(
 ): RealtimeHeal {
   const hiddenReconcileMs = options.hiddenReconcileMs ?? DEFAULT_HIDDEN_RECONCILE_MS;
   const throttleMs = options.throttleMs ?? DEFAULT_THROTTLE_MS;
+  const minOfflineMs = options.minOfflineMs ?? DEFAULT_MIN_OFFLINE_MS;
   const now = options.now ?? (() => Date.now());
 
   let lastReconcile = 0;
@@ -84,6 +101,8 @@ export function createRealtimeHeal(
   let hasJoined = false;
   /** When the tab went hidden, so a return can measure the blind window. */
   let hiddenAt: number | null = null;
+  /** When `offline` fired, so `online` can measure the outage. */
+  let offlineAt: number | null = null;
   let detached = false;
 
   const reconcile = (): void => {
@@ -109,7 +128,19 @@ export function createRealtimeHeal(
     hasJoined = true;
   };
 
-  const onOnline = (): void => reconcile();
+  const onOffline = (): void => {
+    offlineAt = now();
+  };
+
+  const onOnline = (): void => {
+    // A drop we never saw begin — the machine was asleep, or the tab was frozen
+    // through the whole outage — is of unknown and potentially enormous length,
+    // so it always counts. Only a stretch we watched from start to finish can be
+    // dismissed, and only when it was too short to have lost anything.
+    const downMs = offlineAt === null ? Infinity : now() - offlineAt;
+    offlineAt = null;
+    if (downMs >= minOfflineMs) reconcile();
+  };
 
   const onVisibilityChange = (): void => {
     if (document.visibilityState === "hidden") {
@@ -125,6 +156,7 @@ export function createRealtimeHeal(
   const canListen = typeof window !== "undefined" && typeof document !== "undefined";
   if (canListen) {
     window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
     document.addEventListener("visibilitychange", onVisibilityChange);
   }
 
@@ -136,8 +168,10 @@ export function createRealtimeHeal(
       detached = true;
       sawDrop = false;
       hiddenAt = null;
+      offlineAt = null;
       if (!canListen) return;
       window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     },
   };
