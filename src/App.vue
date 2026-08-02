@@ -8,7 +8,10 @@
     <ToastHost />
     <ManualRollPrompt />
     <RollModePicker />
-    <ImportBundleModal v-if="auth.isAuthenticated" v-model="bundleImportOpen" />
+    <ImportBundleModal
+      v-if="auth.isAuthenticated && bundleImportMounted"
+      v-model="bundleImportOpen"
+    />
   </template>
 
   <!-- Pull-to-refresh indicator (touch devices only) -->
@@ -27,7 +30,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onUnmounted, ref, watch } from "vue";
+import { computed, defineAsyncComponent, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useQueryClient } from "@tanstack/vue-query";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
@@ -37,8 +40,8 @@ import ConfirmDialog from "@/components/common/ConfirmDialog.vue";
 import ToastHost from "@/components/common/ToastHost.vue";
 import ManualRollPrompt from "@/components/common/ManualRollPrompt.vue";
 import RollModePicker from "@/components/common/RollModePicker.vue";
-import ImportBundleModal from "@/components/campaign/ImportBundleModal.vue";
 import { pendingBundleFile } from "@/composables/usePendingBundle";
+import { useLazyMount } from "@/composables/useLazyMount";
 import LoadingScreen from "@/components/auth/LoadingScreen.vue";
 import { useTheme } from "@/composables/useTheme";
 import { useAuthStore } from "@/stores/auth";
@@ -51,7 +54,15 @@ import { createRealtimeHeal } from "@/lib/realtimeHeal";
 
 const auth = useAuthStore();
 
+// Deferred: the .grimoire import dialog drags useWorldBundle (the whole
+// world-bundle serialiser) behind it, and it only ever opens when the OS hands
+// us a file or the user picks Import. Most sessions never do either.
+const ImportBundleModal = defineAsyncComponent(
+  () => import("@/components/campaign/ImportBundleModal.vue"),
+);
+
 const bundleImportOpen = ref(false);
+const bundleImportMounted = useLazyMount(bundleImportOpen);
 watch(pendingBundleFile, (f) => { if (f) bundleImportOpen.value = true; });
 const campaignStore = useCampaignStore();
 

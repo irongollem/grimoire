@@ -172,7 +172,7 @@
     <PlayerBottomNav :show-more="showMore" @open-more="showMore = true" />
   </div>
 
-  <BugReportModal v-model="bugReportOpen" />
+  <BugReportModal v-if="bugReportMounted" v-model="bugReportOpen" />
 
   <!-- Location quick-view opened from @location chips in rich text -->
   <PlayerLocationDialog />
@@ -281,7 +281,11 @@
     </Transition>
   </Teleport>
 
-  <NewCampaignModal v-model="showNewCampaignModal" @created="onCampaignCreated" />
+  <NewCampaignModal
+    v-if="newCampaignMounted"
+    v-model="showNewCampaignModal"
+    @created="onCampaignCreated"
+  />
   <PaywallModal v-model="showCampaignPaywall" resource="campaigns" />
 
   <!-- "More" panel -->
@@ -300,7 +304,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, defineAsyncComponent } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import { IconAdd, IconBug, IconCalendarDays, IconClose, IconEncounter, IconLogOut, IconMenu, IconMessage, IconPopulate, IconReveal, IconSettingsAlt } from '@/lib/icons';
@@ -320,9 +324,8 @@ import CampaignChat from "@/components/chat/CampaignChat.vue";
 import PlayerEncounterPanel from "@/components/player/PlayerEncounterPanel.vue";
 import PlayerBottomNav from "@/components/layout/PlayerBottomNav.vue";
 import PlayerNavGrid from "@/components/layout/PlayerNavGrid.vue";
-import BugReportModal from "@/components/common/BugReportModal.vue";
+import { useLazyMount } from "@/composables/useLazyMount";
 import PlayerLocationDialog from "@/components/play/PlayerLocationDialog.vue";
-import NewCampaignModal from "@/components/campaign/NewCampaignModal.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import PlayerAudioStream from "@/components/soundboard/PlayerAudioStream.vue";
 import { useQuota } from "@/composables/useQuota";
@@ -331,7 +334,15 @@ import type { Campaign } from "@/types/campaign.types";
 const auth = useAuthStore();
 const ui = useUiStore();
 const campaign = useCampaignStore();
+// Deferred — a dialog most sessions never open should not be entry-chunk
+// weight. Latched rather than mirrored so a half-typed report survives a
+// close/reopen, exactly as the always-mounted version did.
+const BugReportModal = defineAsyncComponent(
+  () => import("@/components/common/BugReportModal.vue"),
+);
+
 const bugReportOpen = ref(false);
+const bugReportMounted = useLazyMount(bugReportOpen);
 const route = useRoute();
 
 const membershipCampaignId = computed(() => auth.membership?.campaign_id ?? null);
@@ -436,7 +447,16 @@ const characterName = computed(() => {
 const showMore = ref(false);
 const showMenu = ref(false);
 const showCampaignSheet = ref(false);
+// Deferred here too, and it must stay that way: CampaignSwitcher also defers
+// this modal, and a single static importer anywhere drags it back into the
+// entry chunk for everyone — that is exactly the ineffective-dynamic-import
+// trap #593 was filed for.
+const NewCampaignModal = defineAsyncComponent(
+  () => import("@/components/campaign/NewCampaignModal.vue"),
+);
+
 const showNewCampaignModal = ref(false);
+const newCampaignMounted = useLazyMount(showNewCampaignModal);
 const showCampaignPaywall = ref(false);
 
 const { data: campaignList } = useCampaigns();

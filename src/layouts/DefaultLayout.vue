@@ -38,22 +38,12 @@
     <CampaignChat />
 
     <!--
-      Generator panels are always mounted here so that background generation
-      (started when the panel is open then dismissed) survives navigation.
-      Each panel renders nothing visually when its open flag is false.
-      To add a new generator: mount its panel here, register it in its
-      useXxxGeneration.ts via registerAiGenerator(), and that's it.
+      Generator panels are always mounted (see AiGeneratorPanels.vue) so that
+      background generation (started when the panel is open then dismissed)
+      survives navigation. Each renders nothing visually when its open flag
+      is false. To add a new generator, edit AiGeneratorPanels.vue.
     -->
-    <NpcGeneratorPanel />
-    <MonsterGeneratorPanel />
-    <ItemGeneratorPanel />
-    <PuzzleGeneratorPanel />
-    <SpellGeneratorPanel />
-    <QuestGeneratorPanel />
-    <TrapGeneratorPanel />
-    <FactionGeneratorPanel />
-    <LocationGeneratorPanel />
-    <RollTableGeneratorPanel />
+    <AiGeneratorPanels />
 
     <!-- Shows a pill for every active/completed/errored AI generation -->
     <AiGenerationBadge />
@@ -73,23 +63,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, defineAsyncComponent } from "vue";
 import { useRoute } from "vue-router";
 import { useMediaQuery } from "@vueuse/core";
 import AppSidebar from "@/components/layout/AppSidebar.vue";
 import AppTopBar from "@/components/layout/AppTopBar.vue";
 import DmBottomNav from "@/components/layout/DmBottomNav.vue";
 import CampaignChat from "@/components/chat/CampaignChat.vue";
-import NpcGeneratorPanel from "@/components/npcs/NpcGeneratorPanel.vue";
-import MonsterGeneratorPanel from "@/components/monsters/MonsterGeneratorPanel.vue";
-import ItemGeneratorPanel from "@/components/items/ItemGeneratorPanel.vue";
-import PuzzleGeneratorPanel from "@/components/puzzles/PuzzleGeneratorPanel.vue";
-import SpellGeneratorPanel from "@/components/spells/SpellGeneratorPanel.vue";
-import QuestGeneratorPanel from "@/components/quests/QuestGeneratorPanel.vue";
-import TrapGeneratorPanel from "@/components/traps/TrapGeneratorPanel.vue";
-import FactionGeneratorPanel from "@/components/factions/FactionGeneratorPanel.vue";
-import LocationGeneratorPanel from "@/components/locations/LocationGeneratorPanel.vue";
-import RollTableGeneratorPanel from "@/components/dungeon-features/RollTableGeneratorPanel.vue";
 import AiGenerationBadge from "@/components/common/AiGenerationBadge.vue";
 import SoundboardWidget from "@/components/soundboard/SoundboardWidget.vue";
 import GlobalHotkeys from "@/components/layout/GlobalHotkeys.vue";
@@ -103,6 +83,19 @@ import { useCampaigns } from "@/composables/useCampaigns";
 import { useSubscription } from "@/composables/useSubscription";
 import { usePlan } from "@/composables/usePlan";
 import { initPlaceholderFocalPoints } from "@/lib/placeholderFocalPoints";
+
+// Async, and it must stay async: statically importing the generator panels
+// dragged them — plus their forms, template data and PaywallModal — into the
+// entry chunk, which no cold page load can use. They still mount permanently
+// (the wrapper resolves moments after boot, long before a generation can be
+// started), so the always-mounted invariant that keeps a dismissed generation
+// alive across navigation is unchanged. Do NOT convert this to a `v-if` on the
+// open flag: generateAndCreate() lives in the panel component, so unmounting a
+// dismissed panel would strand an in-flight generation before it creates the
+// entity.
+const AiGeneratorPanels = defineAsyncComponent(
+  () => import("@/components/common/AiGeneratorPanels.vue"),
+);
 
 // Eagerly pre-fetch admin-configured placeholder focal points so FocalImage
 // has the data available before it runs smartcrop as a fallback.

@@ -78,16 +78,16 @@
       <IconBug class="h-4 w-4 shrink-0" />
       Report a bug
     </button>
-    <BugReportModal v-model="bugReportOpen" />
+    <BugReportModal v-if="bugReportMounted" v-model="bugReportOpen" />
   </MobileSheet>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, defineAsyncComponent } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import MobileSheet from "@/components/common/MobileSheet.vue";
 import CampaignSwitcher from "@/components/layout/CampaignSwitcher.vue";
-import BugReportModal from "@/components/common/BugReportModal.vue";
+import { useLazyMount } from "@/composables/useLazyMount";
 import DmModeToggle from "./DmModeToggle.vue";
 import { IconAdd, IconBug, IconRefresh } from "@/lib/icons";
 import { NAV_GROUPS, navItemHiddenByFlag, type NavItem } from "@/lib/nav";
@@ -108,7 +108,15 @@ const { open = false, barRoutes = [], create = null } = defineProps<{
 
 const emit = defineEmits<{ "update:open": [boolean] }>();
 
+// Deferred — a dialog most sessions never open should not be entry-chunk
+// weight. Latched rather than mirrored so a half-typed report survives a
+// close/reopen, exactly as the always-mounted version did.
+const BugReportModal = defineAsyncComponent(
+  () => import("@/components/common/BugReportModal.vue"),
+);
+
 const bugReportOpen = ref(false);
+const bugReportMounted = useLazyMount(bugReportOpen);
 
 const route = useRoute();
 const router = useRouter();

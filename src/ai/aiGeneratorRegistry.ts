@@ -6,7 +6,7 @@
  * generator without needing to be updated when new generators are added.
  */
 
-import { computed } from "vue";
+import { computed, shallowReactive } from "vue";
 import type { AiGenerationState } from "./aiGenerationState";
 
 export interface AiGeneratorRegistration extends AiGenerationState {
@@ -18,7 +18,17 @@ export interface AiGeneratorRegistration extends AiGenerationState {
   openPanel: () => void;
 }
 
-const _registry: AiGeneratorRegistration[] = [];
+/**
+ * Reactive in the array itself, not just in the entries — and it has to be.
+ * The generator panels are async-loaded (see DefaultLayout.vue), so these
+ * module-level `registerAiGenerator()` calls now run *after* AiGenerationBadge
+ * has already rendered. A plain array left the badge's `computed` evaluating
+ * against an empty registry, tracking zero reactive dependencies, and therefore
+ * caching an empty result forever. `shallowReactive` makes the push itself a
+ * tracked change; entries are not deep-proxied, so the `Ref`s inside each one
+ * are still the raw refs their generator writes to.
+ */
+const _registry = shallowReactive<AiGeneratorRegistration[]>([]);
 
 /**
  * Register an AI generator so the `AiGenerationBadge` can track it.
@@ -29,8 +39,9 @@ export function registerAiGenerator(entry: AiGeneratorRegistration): void {
 }
 
 /**
- * Read-only access to all registered generators.
- * The array itself is not reactive — the state refs *within* each entry are.
+ * Read-only access to all registered generators. Safe to call once and keep —
+ * the returned array is reactive, so a consumer that captures it before the
+ * async generator chunk has loaded still sees the entries appear.
  */
 export function getAiGeneratorRegistry(): readonly AiGeneratorRegistration[] {
   return _registry;

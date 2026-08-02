@@ -178,14 +178,14 @@
         <IconSort class="h-3 w-3 text-muted-foreground/60 shrink-0" />
       </button>
 
-      <BugReportModal v-model="bugReportOpen" />
+      <BugReportModal v-if="bugReportMounted" v-model="bugReportOpen" />
     </div>
 
   </aside>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, defineAsyncComponent } from "vue";
 import { useRouter } from "vue-router";
 import { IconBilling, IconBug, IconCheck, IconClose, IconDownload, IconEdit, IconLoading, IconLogOut, IconShieldCheck, IconSort } from '@/lib/icons';
 import { usePwaInstall } from "@/composables/usePwaInstall";
@@ -204,13 +204,21 @@ import NavItem from "./NavItem.vue";
 import CampaignSwitcher from "./CampaignSwitcher.vue";
 import GlobalSearch from "./GlobalSearch.vue";
 import DiceRoller from "@/components/common/DiceRoller.vue";
-import BugReportModal from "@/components/common/BugReportModal.vue";
+import { useLazyMount } from "@/composables/useLazyMount";
 import DmModeToggle from "./DmModeToggle.vue";
 
 const auth = useAuthStore();
 const router = useRouter();
 const { canInstall, hasNativePrompt, install } = usePwaInstall();
+// Deferred — a dialog most sessions never open should not be entry-chunk
+// weight. Latched rather than mirrored so a half-typed report survives a
+// close/reopen, exactly as the always-mounted version did.
+const BugReportModal = defineAsyncComponent(
+  () => import("@/components/common/BugReportModal.vue"),
+);
+
 const bugReportOpen = ref(false);
+const bugReportMounted = useLazyMount(bugReportOpen);
 const menuOpen = ref(false);
 const userMenuRef = ref<HTMLElement | null>(null);
 

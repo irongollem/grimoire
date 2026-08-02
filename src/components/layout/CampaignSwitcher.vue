@@ -186,19 +186,19 @@
   </div>
 
   <NewCampaignModal
+    v-if="newCampaignMounted"
     v-model="showModal"
     :show-claim-option="isFirstCampaign"
     @created="onCampaignCreated"
   />
   <PaywallModal v-model="showPaywall" resource="campaigns" />
-  <ImportBackupModal v-model="showImport" />
+  <ImportBackupModal v-if="importMounted" v-model="showImport" />
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
+import { ref, computed, defineAsyncComponent, watch } from "vue";
 import { IconAdd, IconArchive, IconChevronDown, IconDownload, IconNavCampaign, IconSettingsAlt, IconUploadCloud } from '@/lib/icons';
-import ImportBackupModal from "@/components/campaign/ImportBackupModal.vue";
-import NewCampaignModal from "@/components/campaign/NewCampaignModal.vue";
+import { useLazyMount } from "@/composables/useLazyMount";
 import { useCampaignPresence } from "@/composables/useCampaignPresence";
 import { useAuthStore } from "@/stores/auth";
 import {
@@ -235,9 +235,22 @@ const showArchived = ref(false);
 const isFirstCampaign = computed(() => campaigns.value.length === 0);
 
 const open = ref(false);
+// Deferred — the switcher sits in the always-mounted sidebar, so anything it
+// imports statically is entry-chunk weight on every cold load. NewCampaignModal
+// pulls CalendarEditor; ImportBackupModal pulls useCampaignBackup. Neither is
+// reachable without a click, and most sessions never click.
+const NewCampaignModal = defineAsyncComponent(
+  () => import("@/components/campaign/NewCampaignModal.vue"),
+);
+const ImportBackupModal = defineAsyncComponent(
+  () => import("@/components/campaign/ImportBackupModal.vue"),
+);
+
 const showModal = ref(false);
 const showPaywall = ref(false);
 const showImport = ref(false);
+const newCampaignMounted = useLazyMount(showModal);
+const importMounted = useLazyMount(showImport);
 
 const { canCreate: canCreateCampaign } = useQuota("campaigns");
 
