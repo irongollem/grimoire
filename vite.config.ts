@@ -119,6 +119,11 @@ export default defineConfig({
             // Shared dynamic-import helper — must never ride along with a
             // feature chunk (see above).
             { name: "preload-helper", test: /vite[\\/]preload-helper/ },
+            // Vue ecosystem core. Order and `@vue[\\/]` are both load-bearing:
+            // the runtime ships as @vue/*, so listed after tiptap (and without
+            // that alternative) it was absorbed into the editor chunk, forcing
+            // every chunk that needs Vue to import all 574 kB of tiptap.
+            { name: "vue-core", test: /node_modules[\\/](@vue[\\/]|vue|pinia|@tanstack)/ },
             // 3D model viewer — Simulacrum only, keep it out of the main bundle.
             { name: "model-viewer", test: /node_modules[\\/]@google[\\/]model-viewer/ },
             // Tiptap editor — loaded on any page with a rich text field
@@ -141,8 +146,6 @@ export default defineConfig({
               name: "ui",
               test: /node_modules[\\/](radix-vue|@vueuse|lucide-vue-next|class-variance-authority|clsx|tailwind-merge|tw-animate-css)/,
             },
-            // Vue ecosystem core
-            { name: "vue-core", test: /node_modules[\\/](vue|pinia|@tanstack)/ },
             // Everything else from node_modules
             { name: "vendor", test: /node_modules/ },
           ],
