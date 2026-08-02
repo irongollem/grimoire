@@ -33,9 +33,7 @@
 import { computed, defineAsyncComponent, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useQueryClient } from "@tanstack/vue-query";
-import DefaultLayout from "@/layouts/DefaultLayout.vue";
-import AuthLayout from "@/layouts/AuthLayout.vue";
-import PlayerLayout from "@/layouts/PlayerLayout.vue";
+import { layoutLoaders } from "@/layouts/layoutLoader";
 import ConfirmDialog from "@/components/common/ConfirmDialog.vue";
 import ToastHost from "@/components/common/ToastHost.vue";
 import ManualRollPrompt from "@/components/common/ManualRollPrompt.vue";
@@ -162,6 +160,13 @@ const queryHeal = createRealtimeHeal(
 onUnmounted(() => queryHeal.detach());
 
 const route = useRoute();
+
+// Async so a DM never ships the player portal and a player never ships the DM
+// sidebar/chat. The router preloads the right one during navigation, so by the
+// time this renders the chunk is already resolved — see layoutLoader.ts.
+const AuthLayout = defineAsyncComponent(layoutLoaders.auth);
+const PlayerLayout = defineAsyncComponent(layoutLoaders.player);
+const DefaultLayout = defineAsyncComponent(layoutLoaders.default);
 
 const layout = computed(() => {
   if (route.meta.layout === "auth") return AuthLayout;

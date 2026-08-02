@@ -1,6 +1,7 @@
 import type { Router } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
+import { preloadLayout } from "@/layouts/layoutLoader";
 
 export { routes } from "./routes";
 
@@ -36,6 +37,21 @@ export function setupRouterGuard(router: Router) {
     if (to.meta.requiresPlayer && auth.isDM && !ui.dmPreviewMode && !dmManagingMember) {
       return { name: "dashboard" };
     }
+
+    // Deliberately not awaited, and deliberately last. The shells are lazy
+    // (see layoutLoader.ts); firing the request here — past every redirect, so
+    // we never fetch a shell we are about to navigate away from — puts it in
+    // flight alongside the route component instead of one round trip behind
+    // it. beforeResolve below awaits the same promise.
+    void preloadLayout(to);
+  });
+
+  // The app mounts on router.isReady(), so the shell must be resolved before
+  // navigation confirms or the first paint is a blank frame. This awaits the
+  // request beforeEach already started, so it usually costs nothing.
+  router.beforeResolve(async (to) => {
+    if (import.meta.env.SSR) return;
+    await preloadLayout(to);
   });
 }
 
