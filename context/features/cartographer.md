@@ -1,6 +1,6 @@
 # Cartographer — Tile-Based Battle Map Builder
 
-> **Status:** M1–M6 + M8 implemented; M7 pending. The spec below is the source of truth for design intent. The "As-built" appendix at the bottom records actual file paths per milestone.
+> **Status:** M1–M6 + M8 implemented; **M7 deferred** (see below). Epic #377 closed 2 Aug 2026. The spec below is the source of truth for design intent. The "As-built" appendix at the bottom records actual file paths per milestone.
 
 ## Overview
 
@@ -712,10 +712,12 @@ Pure functions, fully unit-tested:
 
 #### Open items
 
-- Real WebP art for `wallRoundJoint` on Stone Dungeon and other packs — falls back to placeholder until the AI generation pipeline produces them.
+- Real WebP art for `wallRoundJoint` on Stone Dungeon and other packs — falls back to placeholder. This was to come from the M7 AI generation pipeline, which is now deferred, so the placeholder is the indefinite steady state rather than a temporary one. See "M7 — deferred" below.
 - Other bundled packs still ship `schema_version: 1` and lack `wallRoundJoint` slots; corners on those packs render as before (sharp wallJoint).
 
-### M7 — Community / custom packs (PRO)
+### M7 — Community / custom packs (PRO) — ⏸ deferred
+
+> **Source:** GitHub issue #384 — kept open, labelled `deferred`. Epic #377 was closed without it.
 
 - User-uploaded packs (private bucket, validated against schema).
 - Pack sharing within a campaign (DM uploads → campaign members see it).
@@ -723,6 +725,17 @@ Pure functions, fully unit-tested:
 - Marketplace TBD.
 
 Done = users own their aesthetic.
+
+**Why it is deferred, and what that means for anyone reading this later:**
+
+The milestone bundles two halves with very different cost and risk, and only one of them is actually blocked:
+
+- **Upload + campaign sharing** is unblocked. `validatePack()` already exists and already produces the missing-slot list the uploader needs. This half waits on *demand*, not on a technical problem — no user has asked to bring their own pack.
+- **The AI pack generator** is the blocked half. Generating 32 seamless, style-consistent slots per pack proved unreliable in practice — image generation failed often enough that per-tile generation was not a dependable pipeline. That is the concrete reason this milestone stalled.
+
+**Consequence — bundled packs render procedural placeholders, and this is deliberate.** Ten of the eleven packs under `public/cartographer/` ship a `manifest.json` and no WebP files at all; only `wood-interior` has partial real art (24 files). `packLoader.ts` falls back to `getPlaceholderTile()` per slot, so every pack is fully usable and palette-correct without a single asset. **Do not read the empty pack folders as a bug or a broken deploy.** Real per-tile art was always going to come from the M7 generator, and M8 largely removed the need for it: the DM bakes a geometrically-correct map with placeholder tiles and passes the whole image through the AI Map Styler, which reads layout rather than tile art quality. One styled image beats 32 individually-generated tiles that must also tile seamlessly against each other.
+
+**If this is picked up again:** ship the uploader alone first. It is the cheap half, it is independent of image generation, and it lets a DM supply art the generator could not.
 
 ### M8 — AI Map Styler ✅ shipped
 
