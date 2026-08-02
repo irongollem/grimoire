@@ -256,3 +256,26 @@ export interface RollTableAiResult {
   tags: string[];
   entries: RollTableEntryAiResult[];
 }
+
+export interface NpcVoiceAiResult {
+  /** 2–3 short, immediately speakable in-character replies. */
+  lines: string[];
+}
+
+export interface EncounterCombatantAiResult {
+  /** Monster name as the AI wrote it — resolved against the Bestiary by name. */
+  name: string;
+  count: number;
+  /** Tactical role label, e.g. "Leader", "Archer". */
+  role: string;
+}
+
+export interface EncounterAiResult {
+  name: string;
+  /** easy | medium | hard | deadly — the tier the AI actually built. */
+  difficulty: string;
+  environment: string;
+  tactics: string;
+  twist: string;
+  combatants: EncounterCombatantAiResult[];
+}
