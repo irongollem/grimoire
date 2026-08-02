@@ -4,7 +4,9 @@ import { supabase } from "@/lib/supabase";
 export interface ModelPricing {
   model: string;
   provider: string;
-  model_type: "text" | "image" | "audio";
+  // "embedding" models are input-token priced only (there is no completion),
+  // so their output cost is null rather than 0 — see migration 20260803000001.
+  model_type: "text" | "image" | "audio" | "embedding";
   input_cost_per_million_tokens: number | null;
   output_cost_per_million_tokens: number | null;
   image_input_cost_per_million_tokens: number | null;
@@ -34,7 +36,7 @@ export function useAdminModelPricing() {
     mutationFn: async (row: {
       model: string;
       provider: string;
-      model_type: "text" | "image" | "audio";
+      model_type: "text" | "image" | "audio" | "embedding";
       input_cost_per_million_tokens?: number | null;
       output_cost_per_million_tokens?: number | null;
       image_input_cost_per_million_tokens?: number | null;

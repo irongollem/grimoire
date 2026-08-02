@@ -275,18 +275,30 @@ async function savePack(pack: CreditPackConfig) {
 // What each generation_type charges for, so the admin can see at a glance which
 // rows are text vs image vs audio (and that some generators bill BOTH — e.g. a
 // trap is trap_generation [text] + entity_image [image] when illustrated).
-type CostCategory = "text" | "image" | "audio";
+// Keep this map complete. Every entry below must exist for each row in
+// ai_generation_credit_costs — the `?? "text"` fallback means a missing entry
+// renders as "text" instead of failing, which is how quest/roll-table/downtime
+// went unlabelled and how mini_sculpt (a 3D render) sat here reading "text".
+type CostCategory = "text" | "image" | "audio" | "3d" | "embedding";
 const COST_CATEGORY: Record<string, CostCategory> = {
   npc_text: "text", monster_stat_block: "text", item_generation: "text",
   spell_generation: "text", trap_generation: "text", location_generation: "text",
   faction_generation: "text", puzzle_generation: "text", chronicle_text: "text",
+  quest_generation: "text", roll_table_generation: "text", downtime_generation: "text",
+  npc_voice_generation: "text", encounter_generation: "text",
   portrait: "image", entity_image: "image", chronicle_image: "image", map_style_generation: "image",
   music_clip: "audio", music_full_song: "audio",
+  mini_sculpt: "3d",
+  // Charged 0 — infrastructure behind the encounter suggester. Listed so its
+  // real spend is attributable rather than invisible.
+  monster_embedding: "embedding",
 };
 const CATEGORY_CLASS: Record<CostCategory, string> = {
   text:  "bg-sky-500/15 text-sky-500",
   image: "bg-violet-500/15 text-violet-500",
   audio: "bg-amber-500/15 text-amber-500",
+  "3d":  "bg-emerald-500/15 text-emerald-500",
+  embedding: "bg-slate-500/15 text-slate-500",
 };
 function categoryOf(generationType: string): CostCategory {
   return COST_CATEGORY[generationType] ?? "text";

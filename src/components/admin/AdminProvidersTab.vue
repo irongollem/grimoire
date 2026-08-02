@@ -9,8 +9,29 @@
       </p>
     </div>
 
+    <!-- Multi-vendor embedding warning: vectors from different embedding models are
+         not comparable (different dimensions/semantics), so exactly one vendor may
+         be enabled at a time. The Embedding Vendor control below makes this
+         unreachable through normal use; this stays as a last-resort surface for a
+         config edited outside this UI (e.g. directly in the DB) -- the backend
+         resolver and the DB's unique index both still enforce it independently. -->
+    <div
+      v-if="embeddingEnabledLabels.length > 1"
+      class="rounded-lg border border-destructive/50 bg-destructive/10 p-4 space-y-1"
+    >
+      <p class="text-label-lg font-semibold text-destructive">Multiple embedding providers enabled</p>
+      <p class="text-caption text-destructive/90">
+        {{ embeddingEnabledLabels.join(', ') }} all have embedding search enabled. Only one may be active --
+        cosine distance between vectors from different models is meaningless, and a mixed index returns
+        near-random results with no error anywhere. Use the Embedding Vendor control below to set exactly one
+        vendor, which re-embeds every monster automatically.
+      </p>
+    </div>
+
     <SimulacrumConfig />
     <GithubIntegrationConfig />
+    <EmbeddingVendorControl :known-embedding-models="KNOWN_EMBEDDING_MODELS" />
+    <MonsterEmbeddingBackfill />
 
     <div v-if="providersQuery.isPending.value" class="text-muted-foreground text-body">Loading…</div>
     <div v-else-if="providersQuery.isError.value" class="text-destructive text-body">Failed to load provider config.</div>
@@ -34,6 +55,15 @@
           </button>
         </div>
 
+        <!-- Save error -- e.g. the DB's "at most one embedding vendor" unique index
+             (provider_config_single_embedding_vendor) rejecting a save that would
+             leave two providers enabled. The banner above should already have
+             warned before this is reachable, but a rejected save must never be
+             silent. -->
+        <p v-if="providerSaveError[row.provider]" class="text-caption text-destructive">
+          {{ providerSaveError[row.provider] }}
+        </p>
+
         <!-- Platform API Key -->
         <PlatformKeyField
           :provider="row.provider as KeyProvider"
@@ -43,86 +73,35 @@
         <!-- Model config + pricing: only shown once a key is set -->
         <template v-if="isKeySet(row.provider as KeyProvider)">
 
-        <!-- Model config: text / image / audio -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- Model config: text / image / audio. Embedding is deliberately absent
+             here -- it moved to the single-choice EmbeddingVendorControl above,
+             which is what makes the "at most one embedding vendor" invariant
+             unrepresentable in the UI instead of merely rejected on save. -->
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           <!-- Text generation -->
-          <div class="space-y-2 p-3 rounded-md bg-muted/40 border border-border">
-            <div class="flex items-center justify-between">
-              <span class="text-eyebrow font-semibold text-muted-foreground">Text</span>
-              <template v-if="draftProviders[row.provider]?.text_model !== null">
-                <button
-                  type="button"
-                  class="relative inline-flex h-4 w-7 shrink-0 rounded-full border-2 border-transparent transition-colors"
-                  :class="draftProviders[row.provider]?.text_enabled ? 'bg-emerald-500' : 'bg-muted-foreground/40'"
-                  @click="draftProviders[row.provider].text_enabled = !draftProviders[row.provider].text_enabled"
-                >
-                  <span
-                    class="pointer-events-none inline-block h-3 w-3 rounded-full bg-white shadow transition-transform"
-                    :class="draftProviders[row.provider]?.text_enabled ? 'translate-x-3' : 'translate-x-0'"
-                  />
-                </button>
-              </template>
-              <span v-else class="text-eyebrow text-muted-foreground/50">N/A</span>
-            </div>
-            <template v-if="draftProviders[row.provider]?.text_model !== null">
-              <div class="space-y-1">
-                <label class="block text-label text-muted-foreground">Model</label>
-                <input
-                  v-model="draftProviders[row.provider].text_model"
-                  :list="`text-models-${row.provider}`"
-                  type="text"
-                  class="w-full bg-background border border-border rounded px-2.5 py-1.5 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                  placeholder="e.g. gpt-4o-mini"
-                />
-                <datalist :id="`text-models-${row.provider}`">
-                  <option v-for="m in providerModelOptions[row.provider]" :key="m" :value="m" />
-                </datalist>
-              </div>
-              <div class="space-y-1">
-                <label class="block text-label text-muted-foreground">Multiplier</label>
-                <input
-                  v-model.number="draftProviders[row.provider].text_multiplier"
-                  type="number" step="0.1" min="0.1"
-                  class="w-full bg-background border border-border rounded px-2.5 py-1.5 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                  placeholder="1.0"
-                />
-              </div>
-            </template>
-          </div>
+          <ProviderCapabilityCell
+            v-model:model="draftProviders[row.provider].text_model"
+            v-model:enabled="draftProviders[row.provider].text_enabled"
+            v-model:multiplier="draftProviders[row.provider].text_multiplier"
+            label="Text"
+            :provider="row.provider"
+            capability="text"
+            :known-models="providerModelOptions[row.provider]"
+            placeholder="e.g. gpt-4o-mini"
+          />
 
           <!-- Image generation -->
-          <div class="space-y-2 p-3 rounded-md bg-muted/40 border border-border">
-            <div class="flex items-center justify-between">
-              <span class="text-eyebrow font-semibold text-muted-foreground">Image</span>
-              <template v-if="draftProviders[row.provider]?.image_model !== null">
-                <button
-                  type="button"
-                  class="relative inline-flex h-4 w-7 shrink-0 rounded-full border-2 border-transparent transition-colors"
-                  :class="draftProviders[row.provider]?.image_enabled ? 'bg-emerald-500' : 'bg-muted-foreground/40'"
-                  @click="draftProviders[row.provider].image_enabled = !draftProviders[row.provider].image_enabled"
-                >
-                  <span
-                    class="pointer-events-none inline-block h-3 w-3 rounded-full bg-white shadow transition-transform"
-                    :class="draftProviders[row.provider]?.image_enabled ? 'translate-x-3' : 'translate-x-0'"
-                  />
-                </button>
-              </template>
-              <span v-else class="text-eyebrow text-muted-foreground/50">N/A</span>
-            </div>
-            <template v-if="draftProviders[row.provider]?.image_model !== null">
-              <div class="space-y-1">
-                <label class="block text-label text-muted-foreground">Model</label>
-                <input
-                  v-model="draftProviders[row.provider].image_model"
-                  :list="`image-models-${row.provider}`"
-                  type="text"
-                  class="w-full bg-background border border-border rounded px-2.5 py-1.5 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                  placeholder="e.g. gpt-image-1.5"
-                />
-                <datalist :id="`image-models-${row.provider}`">
-                  <option v-for="m in providerModelOptions[row.provider]" :key="m" :value="m" />
-                </datalist>
-              </div>
+          <ProviderCapabilityCell
+            v-model:model="draftProviders[row.provider].image_model"
+            v-model:enabled="draftProviders[row.provider].image_enabled"
+            v-model:multiplier="draftProviders[row.provider].image_multiplier"
+            label="Image"
+            :provider="row.provider"
+            capability="image"
+            :known-models="providerModelOptions[row.provider]"
+            placeholder="e.g. gpt-image-1.5"
+          >
+            <template #extra>
               <div v-if="IMAGE_QUALITY_OPTIONS[row.provider]" class="space-y-1">
                 <label class="block text-label text-muted-foreground">Quality</label>
                 <div class="flex gap-1">
@@ -139,75 +118,21 @@
                 </div>
                 <p class="text-caption-sm text-muted-foreground/60 italic">Higher = more output tokens = higher real cost.</p>
               </div>
-              <div class="space-y-1">
-                <label class="block text-label text-muted-foreground">Multiplier</label>
-                <input
-                  v-model.number="draftProviders[row.provider].image_multiplier"
-                  type="number" step="0.1" min="0.1"
-                  class="w-full bg-background border border-border rounded px-2.5 py-1.5 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                  placeholder="1.0"
-                />
-              </div>
             </template>
-          </div>
+          </ProviderCapabilityCell>
 
           <!-- Audio generation -->
-          <div class="space-y-2 p-3 rounded-md bg-muted/40 border border-border">
-            <div class="flex items-center justify-between">
-              <span class="text-eyebrow font-semibold text-muted-foreground">Audio</span>
-              <template v-if="draftProviders[row.provider]?.audio_model !== null && draftProviders[row.provider]?.audio_model !== undefined">
-                <button
-                  type="button"
-                  class="relative inline-flex h-4 w-7 shrink-0 rounded-full border-2 border-transparent transition-colors"
-                  :class="draftProviders[row.provider]?.audio_enabled ? 'bg-emerald-500' : 'bg-muted-foreground/40'"
-                  @click="draftProviders[row.provider].audio_enabled = !draftProviders[row.provider].audio_enabled"
-                >
-                  <span
-                    class="pointer-events-none inline-block h-3 w-3 rounded-full bg-white shadow transition-transform"
-                    :class="draftProviders[row.provider]?.audio_enabled ? 'translate-x-3' : 'translate-x-0'"
-                  />
-                </button>
-              </template>
-              <span v-else class="text-eyebrow text-muted-foreground/50">N/A</span>
-            </div>
-            <template v-if="draftProviders[row.provider]?.audio_model !== null && draftProviders[row.provider]?.audio_model !== undefined">
-              <div class="space-y-1">
-                <label class="block text-label text-muted-foreground">Models</label>
-                <!-- Multiple known models: show as static list; user selects in the app UI -->
-                <template v-if="(KNOWN_AUDIO_MODELS[row.provider] ?? []).length > 1">
-                  <div class="space-y-0.5">
-                    <div
-                      v-for="m in KNOWN_AUDIO_MODELS[row.provider]"
-                      :key="m"
-                      class="font-mono text-2xs text-muted-foreground px-2 py-1 rounded bg-muted/30"
-                    >{{ m }}</div>
-                  </div>
-                </template>
-                <!-- Single configurable model -->
-                <template v-else>
-                  <input
-                    v-model="draftProviders[row.provider].audio_model"
-                    :list="`audio-models-${row.provider}`"
-                    type="text"
-                    class="w-full bg-background border border-border rounded px-2.5 py-1.5 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                    placeholder="e.g. lyria-3-clip-preview"
-                  />
-                  <datalist :id="`audio-models-${row.provider}`">
-                    <option v-for="m in KNOWN_AUDIO_MODELS[row.provider] ?? []" :key="m" :value="m" />
-                  </datalist>
-                </template>
-              </div>
-              <div class="space-y-1">
-                <label class="block text-label text-muted-foreground">Multiplier</label>
-                <input
-                  v-model.number="draftProviders[row.provider].audio_multiplier"
-                  type="number" step="0.1" min="0.1"
-                  class="w-full bg-background border border-border rounded px-2.5 py-1.5 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                  placeholder="1.0"
-                />
-              </div>
-            </template>
-          </div>
+          <ProviderCapabilityCell
+            v-model:model="draftProviders[row.provider].audio_model"
+            v-model:enabled="draftProviders[row.provider].audio_enabled"
+            v-model:multiplier="draftProviders[row.provider].audio_multiplier"
+            label="Audio"
+            :provider="row.provider"
+            capability="audio"
+            :known-models="KNOWN_AUDIO_MODELS[row.provider] ?? []"
+            curated
+            placeholder="e.g. lyria-3-clip-preview"
+          />
         </div>
 
         <!-- Model API Costs -->
@@ -227,6 +152,7 @@
                   'text-sky-400 bg-sky-400/10':    m.model_type === 'text',
                   'text-violet-400 bg-violet-400/10': m.model_type === 'image',
                   'text-amber-400 bg-amber-400/10':  m.model_type === 'audio',
+                  'text-slate-400 bg-slate-400/10':  m.model_type === 'embedding',
                 }"
               >{{ m.model_type.toUpperCase() }}</span>
 
@@ -285,7 +211,7 @@
                   <span class="font-cinzel text-2xs text-muted-foreground">/M</span>
                 </div>
               </template>
-              <template v-else>
+              <template v-else-if="m.model_type === 'audio'">
                 <!-- audio: flat per-generation cost -->
                 <div class="flex items-center gap-1 shrink-0">
                   <span class="font-cinzel text-2xs text-muted-foreground">PER GEN $</span>
@@ -297,6 +223,20 @@
                   />
                 </div>
                 <span class="font-cinzel text-2xs text-amber-400/60 shrink-0">est.</span>
+              </template>
+              <template v-else>
+                <!-- embedding: input-token-only, no completion -- see the migration's
+                     note on why output cost is left null rather than zero. -->
+                <div class="flex items-center gap-1 shrink-0">
+                  <span class="font-cinzel text-2xs text-muted-foreground">IN $</span>
+                  <input
+                    type="text" inputmode="decimal"
+                    :value="draftModelPricing[m.model].input_cost_per_million_tokens ?? ''"
+                    @blur="(e) => setDecimal(draftModelPricing[m.model], 'input_cost_per_million_tokens', e)"
+                    class="w-16 bg-background border border-border rounded px-1.5 py-0.5 font-mono text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
+                  />
+                  <span class="font-cinzel text-2xs text-muted-foreground">/M</span>
+                </div>
               </template>
 
               <!-- Usage (all-time) -->
@@ -343,7 +283,10 @@ import { useAiUsageStats } from "@/composables/useAiUsageStats";
 import type { ModelStat } from "@/composables/useAiUsageStats";
 import SimulacrumConfig from "@/components/admin/SimulacrumConfig.vue";
 import GithubIntegrationConfig from "@/components/admin/GithubIntegrationConfig.vue";
+import EmbeddingVendorControl from "@/components/admin/EmbeddingVendorControl.vue";
+import MonsterEmbeddingBackfill from "@/components/admin/MonsterEmbeddingBackfill.vue";
 import PlatformKeyField from "@/components/admin/PlatformKeyField.vue";
+import ProviderCapabilityCell from "@/components/admin/ProviderCapabilityCell.vue";
 
 // ── Keys ───────────────────────────────────────────────────────────────────
 const { keysQuery } = useAdminKeys();
@@ -358,6 +301,7 @@ const { query: providersQuery, update: updateProvider } = useAdminProviders();
 type ProviderDraft = Omit<ProviderConfig, "updated_at">;
 const draftProviders = reactive<Record<string, ProviderDraft>>({});
 const providerSaving = reactive<Record<string, boolean>>({});
+const providerSaveError = reactive<Record<string, string>>({});
 
 watch(
   () => providersQuery.data.value,
@@ -366,17 +310,19 @@ watch(
     for (const r of rows) {
       if (!(r.provider in draftProviders)) {
         draftProviders[r.provider] = {
-          provider:         r.provider,
-          text_model:       r.text_model,
-          image_model:      r.image_model,
-          image_quality:    r.image_quality,
-          audio_model:      r.audio_model,
-          text_multiplier:  r.text_multiplier,
-          image_multiplier: r.image_multiplier,
-          audio_multiplier: r.audio_multiplier,
-          text_enabled:     r.text_enabled,
-          image_enabled:    r.image_enabled,
-          audio_enabled:    r.audio_enabled,
+          provider:          r.provider,
+          text_model:        r.text_model,
+          image_model:       r.image_model,
+          image_quality:     r.image_quality,
+          audio_model:       r.audio_model,
+          embedding_model:   r.embedding_model,
+          text_multiplier:   r.text_multiplier,
+          image_multiplier:  r.image_multiplier,
+          audio_multiplier:  r.audio_multiplier,
+          text_enabled:      r.text_enabled,
+          image_enabled:     r.image_enabled,
+          audio_enabled:     r.audio_enabled,
+          embedding_enabled: r.embedding_enabled,
         };
       }
     }
@@ -386,8 +332,11 @@ watch(
 
 async function saveProvider(provider: string) {
   providerSaving[provider] = true;
+  providerSaveError[provider] = "";
   try {
     await updateProvider.mutateAsync(draftProviders[provider]);
+  } catch (err) {
+    providerSaveError[provider] = err instanceof Error ? err.message : "Save failed.";
   } finally {
     providerSaving[provider] = false;
   }
@@ -433,6 +382,33 @@ const KNOWN_AUDIO_MODELS: Record<string, string[]> = {
   gemini: ["lyria-3-clip-preview", "lyria-3-pro-preview"],
   openai: ["tts-1", "tts-1-hd", "gpt-4o-audio-preview"],
 };
+
+// ── Known embedding models per provider (issue #595) ─────────────────────
+// Only OpenAI and Gemini can embed at all -- Anthropic has no embeddings
+// endpoint and fal.ai is image-only -- so anthropic/falai are absent here.
+// Shared with EmbeddingVendorControl.vue (passed down as a prop) rather than
+// redefined there, so the two never drift: this file still needs it for the
+// Model API Costs section below, independent of the vendor-switch control.
+const KNOWN_EMBEDDING_MODELS: Record<string, string[]> = {
+  openai: ["text-embedding-3-small", "text-embedding-3-large"],
+  gemini: ["gemini-embedding-001"],
+};
+
+// ── Multi-vendor embedding guard ──────────────────────────────────────────
+// Vectors from different embedding models are never comparable (different
+// dimensions/semantics), so exactly one vendor may have embedding_enabled at
+// a time. EmbeddingVendorControl.vue's single-choice control (above) makes
+// this normally UNREACHABLE from this UI -- but the DB's unique index and the
+// backend resolver both still enforce it independently, so this banner stays
+// as a last-resort surface (e.g. a row edited directly in the DB) rather than
+// being removed as "dead code". A warning that never fires costs nothing;
+// one that was needed and absent is the #595 failure mode this whole feature
+// exists to prevent.
+const embeddingEnabledLabels = computed(() =>
+  Object.values(draftProviders)
+    .filter((d) => d.embedding_enabled)
+    .map((d) => PROVIDER_LABELS[d.provider] ?? d.provider),
+);
 
 // ── Model pricing ──────────────────────────────────────────────────────────
 const modelPricingQuery = useAdminModelPricing();
@@ -482,12 +458,30 @@ watch(
       } else {
         initModel(p.audio_model);
       }
+      // Same treatment for embedding: migration 20260803000001 seeds ai_model_pricing
+      // rows for every known embedding model (including gemini's, which is recorded
+      // but disabled) precisely so this panel can surface them for verification --
+      // "recorded so a vendor flip has pricing ready" per that migration's comment.
+      const knownEmbedding = KNOWN_EMBEDDING_MODELS[p.provider];
+      if (knownEmbedding?.length && p.embedding_model) {
+        knownEmbedding.forEach(initModel);
+      } else {
+        initModel(p.embedding_model);
+      }
     }
   },
   { immediate: true },
 );
 
-interface ModelConfigItem { model: string; model_type: "text" | "image" | "audio" }
+// Embedding models ARE included here, unlike the multiplier (see ProviderCapabilityCell's
+// showMultiplier prop, which embedding omits). The two are independent: #595 says
+// embedding is never separately CHARGED to users, which is a credits/multiplier
+// question -- it says nothing about hiding the real vendor spend from cost analytics.
+// Migration 20260803000001 seeds real $ rates for all three known embedding models and
+// widened useAdminModelPricing's ModelPricing.model_type to "embedding" specifically so
+// this panel could surface them ("the admin pricing tab surfaces unverified rows so
+// someone can check them" -- that tab is this one).
+interface ModelConfigItem { model: string; model_type: "text" | "image" | "audio" | "embedding" }
 
 const modelsByProvider = computed(() => {
   const map: Record<string, ModelConfigItem[]> = {};
@@ -501,6 +495,12 @@ const modelsByProvider = computed(() => {
       knownAudio.forEach((m) => items.push({ model: m, model_type: "audio" }));
     } else if (draft.audio_model) {
       items.push({ model: draft.audio_model, model_type: "audio" });
+    }
+    const knownEmbedding = KNOWN_EMBEDDING_MODELS[provider];
+    if (knownEmbedding?.length && draft.embedding_model) {
+      knownEmbedding.forEach((m) => items.push({ model: m, model_type: "embedding" }));
+    } else if (draft.embedding_model) {
+      items.push({ model: draft.embedding_model, model_type: "embedding" });
     }
     // Only show pricing rows for models that have been persisted (initialized in draftModelPricing).
     // This prevents a crash when the user is mid-type in a model name input.
@@ -516,7 +516,7 @@ function setDecimal(obj: Record<string, unknown>, key: string, e: Event): void {
   obj[key] = isNaN(v) ? null : v;
 }
 
-async function saveModelPricing(model: string, provider: string, model_type: "text" | "image" | "audio") {
+async function saveModelPricing(model: string, provider: string, model_type: "text" | "image" | "audio" | "embedding") {
   modelPricingSaving[model] = true;
   try {
     await modelPricingQuery.upsert.mutateAsync({
