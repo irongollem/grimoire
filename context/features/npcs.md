@@ -13,6 +13,8 @@ The feature comprises four main surfaces:
 
 Players access shared NPCs through the **Player Portal** at `/play/party` under the "People" section.
 
+Every NPC create/update also queues a fire-and-forget semantic-search embedding (`queueNpcEmbedding` in `useNpcs.ts` → `embed-content` edge function, #600) so retrieval-grounded generators — currently the quest-hook generator — can find the NPC by meaning. The embed text format and the full retrieval mechanism are documented in world-building.md's "Retrieval grounding" section; NPC `notes` is deliberately excluded from the embed text there.
+
 ---
 
 ## NPC List (DM)

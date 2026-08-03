@@ -4,5 +4,13 @@
   // their established structure (combat-encounters, dungeon-craft,
   // world-building, publishing-tools all use it). siblings_only permits
   // identical headings as long as they don't share a parent.
-  "MD024": { "siblings_only": true }
+  "MD024": { "siblings_only": true },
+  // The docs are written as one line per paragraph (soft-wrapped in editors),
+  // so an 80-char hard limit would flag virtually every paragraph in
+  // context/features/.
+  "MD013": false,
+  // Bold lead-ins ("**Faction detail modal**", "**Monster retrieval (#595).**")
+  // are the docs' established sub-heading idiom below the ###-level — real
+  // headings there would bloat the outline these files are skimmed by.
+  "MD036": false
 }
