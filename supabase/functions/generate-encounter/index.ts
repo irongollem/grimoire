@@ -290,6 +290,34 @@ serve(withCors(async (req: Request) => {
 
   const systemContent = promptRow.content + (rulesetContext ? `\n\n${rulesetContext}` : "") + buildCampaignContext(campaign.ai_setting_prompt) + INJECTION_GUARD_SUFFIX;
 
+  const textProvider = campaign.text_provider ?? "openai";
+  const textIsByok = textProvider === "anthropic" ? !!campaignAnthropic
+    : textProvider === "gemini"    ? !!campaignGemini
+    : !!campaignOpenai;
+
+  // ── Pre-flight credit check ────────────────────────────────────────────────
+  const baseCost = textIsByok ? 0 : await fetchCreditCost(admin, "encounter_generation");
+  const cost = applyMultiplier(baseCost, providerConfigs[textProvider as keyof typeof providerConfigs]?.text_multiplier);
+
+  // Throttle abusive burst volume before any paid provider work (issue #466).
+  //
+  // This MUST stay above the retrieval block below, not just above callText.
+  // Retrieval makes its own billed embedding request, and because that request
+  // is recorded at delta 0 it never touches the caller's balance — so the
+  // reservation is not a second line of defence for it. Gate first, embed
+  // after: otherwise any authenticated campaign member can loop this endpoint
+  // and run up unbounded platform spend that no throttle and no balance check
+  // ever sees.
+  if (!(await checkRateLimit(admin, user.id, "ai_generation"))) {
+    return new Response(
+      JSON.stringify({ error: "rate_limited" }),
+      { status: 429, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
+  const reservation = await reserveCredits(admin, user.id, cost, "encounter_generation");
+  if (!reservation.ok) return reservationFailureResponse(reservation);
+
   // ── Semantic retrieval (#595) ──────────────────────────────────────────────
   // An ENHANCEMENT over the compact index built above, which remains the
   // fallback. Retrieval must never be able to take encounter generation down:
@@ -310,12 +338,34 @@ serve(withCors(async (req: Request) => {
       gemini: platformKeys.gemini ?? null,
     });
     const { vectors, usage: embedUsage } = await embedProvider.embed([prompt]);
+
+    // Recorded HERE, not after the RPCs below — real provider spend was
+    // incurred the moment embed() returned, and everything after this point
+    // can throw into the catch. Recording later would mean a transient DB
+    // error silently converts real money into invisible spend, which is the
+    // exact failure recordFreeGeneration exists to prevent. embed-monsters
+    // makes the same call for the same reason.
+    //
+    // Platform-paid, charged to nobody: is_byok stays false because we, not
+    // the user, paid for it — see recordFreeGeneration's note.
+    await recordFreeGeneration(admin, user.id, "monster_embedding", {
+      model:        embedProvider.model,
+      provider:     embedUsage.provider,
+      input_tokens: embedUsage.input_tokens,
+    });
+
     const queryVector = toVectorLiteral(vectors[0]);
 
-    const { data: enabledSourceRows } = await admin
+    // Error checked rather than defaulted away: a failed fetch here is
+    // indistinguishable from "this campaign has enabled no sources", and the
+    // two mean opposite things — the latter is a legitimate config, the former
+    // would silently drop the entire library side of the search with nothing
+    // in the logs. This block exists to be diagnosable; let it be.
+    const { data: enabledSourceRows, error: enabledSourceError } = await admin
       .from("campaign_enabled_sources")
       .select("source_slug")
       .eq("campaign_id", campaign_id);
+    if (enabledSourceError) throw new Error(enabledSourceError.message);
     const enabledSlugs = (enabledSourceRows ?? []).map((r: { source_slug: string }) => r.source_slug);
 
     const customMatch = await admin.rpc("match_custom_monsters", {
@@ -344,35 +394,56 @@ serve(withCors(async (req: Request) => {
       libraryRows = (libraryMatch.data ?? []) as MatchRow[];
     }
 
-    const candidates = [
-      ...((customMatch.data ?? []) as MatchRow[]).map(toCandidate),
-      ...libraryRows.map(toCandidate),
-    ];
+    const customCandidates = ((customMatch.data ?? []) as MatchRow[]).map(toCandidate);
 
     // A custom monster with no embedding row cannot be retrieved — which is
     // exactly the DM's newest homebrew, during the backfill window or before
     // embed-on-write lands. Dropping those would be a visible regression
     // against the pre-retrieval behaviour, so they are appended explicitly.
+    //
+    // Queried fresh, ordered by RECENCY, rather than filtered out of the
+    // compact index above: that list is capped at 200 rows ordered by NAME, so
+    // slicing it would decide which homebrew survives by where its name sorts.
+    // A DM past either cap could then have the monster they wrote five minutes
+    // ago silently absent because it begins with "W". Recency is the only
+    // ordering that matches what this append is for.
+    const { data: recentRows, error: recentError } = await admin
+      .from("monsters")
+      .select("id, name, monster_type, stat_block")
+      .eq("user_id", campaign.user_id)
+      .or("open5e_import.is.null,open5e_import.eq.false")
+      .or(`ruleset.is.null,ruleset.eq.${ruleset}`)
+      .order("updated_at", { ascending: false })
+      .limit(MAX_UNEMBEDDED_APPEND * 2);
+    if (recentError) throw new Error(recentError.message);
+    const recent = (recentRows ?? []) as CustomMonsterRow[];
+
     const embeddedIds = new Set<string>();
-    if (customMonsters.length > 0) {
-      const { data: embeddedRows } = await admin
+    if (recent.length > 0) {
+      const { data: embeddedRows, error: embeddedError } = await admin
         .from("monster_embeddings")
         .select("monster_id")
         .eq("embedding_model", embedProvider.model)
-        .in("monster_id", customMonsters.map((m) => m.id));
+        .in("monster_id", recent.map((m) => m.id));
+      if (embeddedError) throw new Error(embeddedError.message);
       for (const row of (embeddedRows ?? []) as { monster_id: string }[]) {
         embeddedIds.add(row.monster_id);
       }
     }
-    const unembedded = customMonsters
+    const unembedded = recent
       .filter((m) => !embeddedIds.has(m.id))
       .slice(0, MAX_UNEMBEDDED_APPEND)
       .map(fromCustomRow);
 
-    const merged = [...candidates, ...unembedded];
+    // Order matters, because the dedup below keeps the FIRST occurrence of a
+    // name. The DM's own monsters — retrieved or not-yet-embedded — go ahead of
+    // library rows so that when both bestiaries hold a "Griffon", the DM sees
+    // their own. Appending `unembedded` last would hand the collision to the
+    // library copy and quietly drop the homebrew from the candidate block,
+    // which is the opposite of the guaranteed-share rule above and of the
+    // homebrew-wins tie-break resolveGeneratedCombatants applies downstream.
+    const merged = [...customCandidates, ...unembedded, ...libraryRows.map(toCandidate)];
     if (merged.length > 0) {
-      // De-duplicate by name: a monster can legitimately arrive from both the
-      // retrieved set and the unembedded append if its embedding is stale.
       const seen = new Set<string>();
       retrieved = merged.filter((c) => {
         const key = c.name.toLowerCase();
@@ -382,13 +453,6 @@ serve(withCors(async (req: Request) => {
       });
     }
 
-    // Platform-paid, charged to nobody — see recordFreeGeneration's note on why
-    // is_byok must stay false for spend that we, not the user, incurred.
-    await recordFreeGeneration(admin, user.id, "monster_embedding", {
-      model:        embedProvider.model,
-      provider:     embedUsage.provider,
-      input_tokens: embedUsage.input_tokens,
-    });
   } catch (e) {
     // Diagnosable, but never fatal.
     const why = e instanceof EmbeddingProviderConfigError
@@ -420,26 +484,6 @@ serve(withCors(async (req: Request) => {
     );
   }
   const userContent = `${wrapUserInput(prompt)}\n\nConstraints:\n${constraints.join("\n")}`;
-
-  const textProvider = campaign.text_provider ?? "openai";
-  const textIsByok = textProvider === "anthropic" ? !!campaignAnthropic
-    : textProvider === "gemini"    ? !!campaignGemini
-    : !!campaignOpenai;
-
-  // ── Pre-flight credit check ────────────────────────────────────────────────
-  const baseCost = textIsByok ? 0 : await fetchCreditCost(admin, "encounter_generation");
-  const cost = applyMultiplier(baseCost, providerConfigs[textProvider as keyof typeof providerConfigs]?.text_multiplier);
-
-  // Throttle abusive burst volume before any paid provider work (issue #466).
-  if (!(await checkRateLimit(admin, user.id, "ai_generation"))) {
-    return new Response(
-      JSON.stringify({ error: "rate_limited" }),
-      { status: 429, headers: { "Content-Type": "application/json" } },
-    );
-  }
-
-  const reservation = await reserveCredits(admin, user.id, cost, "encounter_generation");
-  if (!reservation.ok) return reservationFailureResponse(reservation);
 
   const textModel = providerConfigs[textProvider as keyof typeof providerConfigs]?.text_model;
 

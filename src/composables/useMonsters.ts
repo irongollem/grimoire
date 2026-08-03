@@ -299,7 +299,14 @@ export function useCloneLibraryMonster() {
       const { name, monster_type, size, alignment, habitat, source, tags, stat_block, notes, image_url } = libraryMonster;
       return createMonster({ name, monster_type, size, alignment, habitat, source: `${source ?? "SRD 5.1"} (customized)`, tags, stat_block, notes, image_url });
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+    onSuccess: (monster) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      // This path calls createMonster() directly rather than going through
+      // useCreateMonster(), so it does not inherit that mutation's embed hook.
+      // Without this line a cloned monster would be the one creation route
+      // that stays unretrievable until the next admin backfill.
+      queueMonsterEmbedding(monster.id);
+    },
   });
 }
 
