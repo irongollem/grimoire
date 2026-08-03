@@ -27,6 +27,7 @@ The loop:
 ## Files
 
 ### Data & types
+
 | File | Role |
 | --- | --- |
 | `src/types/downtime.types.ts` | Vocabularies (`DowntimeRewardType`, `DowntimeDrawStatus`), the `DowntimeEffect` discriminated union, DB row types, `DowntimeActivity`, `DowntimeSeed`, the polymorphic `DowntimeSeedReward` (`npc`/`item`/`note`), `DrawResult` |
@@ -34,6 +35,7 @@ The loop:
 | `src/data/downtimeSeeds.ts` | System seed content + vignettes and proposed effects, keyed by archetype. Each seed's `reward` is `npc`/`item`/`note`. `seedsForActivity(key)` |
 
 ### Logic (pure, unit-tested)
+
 | File | Role |
 | --- | --- |
 | `src/lib/downtime/downtimeDeck.ts` | `drawFromDeck(activityKey, backs, seeds, rng)` — prepped FIFO first, else weighted seed. **RNG is injected**; the function is pure. Also `nextPreppedBack`, `pickWeightedSeed` |
@@ -44,6 +46,7 @@ The loop:
 Tests: `downtimeDeck.test.ts` (21), `downtimeBalance.test.ts` (7), `downtimeEffects.test.ts` (24), `downtimeSeedReward.test.ts` (13, incl. deck-data invariants).
 
 ### Composable
+
 `src/composables/useDowntime.ts` — everything under a **single `"downtime"` query-key root**, so one `invalidate("downtime")` string in `useCampaignLiveSync` refreshes all four tables.
 
 - Queries: `useDowntimeGrants`, `useDowntimeDraws`, `useDowntimeOutcomes`, `useDeckBacks`, `useDowntimeBalance`
@@ -55,6 +58,7 @@ Tests: `downtimeDeck.test.ts` (21), `downtimeBalance.test.ts` (7), `downtimeEffe
 > `useDowntimeBalance` returns `number | null`. **Null means "not knowable yet"** — loading, or this user plays no character here. It is deliberately *not* zero, so the UI hides the board rather than rendering a misleading `0`.
 
 ### Components (`src/components/downtime/`)
+
 | File | Used by |
 | --- | --- |
 | `DowntimeActivityCard.vue` | Player board **and** DM prep panel — one component, props differ. Procedural card face from `accent` + `glyph` when `artUrl` is null |
@@ -64,6 +68,7 @@ Tests: `downtimeDeck.test.ts` (21), `downtimeBalance.test.ts` (7), `downtimeEffe
 | `GrantDowntimeButton.vue` | DM board + party list |
 
 ### Views
+
 - **Player** — `src/views/play/PlayerDowntimeView.vue`, route `/play/downtime`, nav in `src/lib/playerNav.ts`. Red unread dots via `useReadItems("downtime_outcome")` (the generic `player_read_items` table; no schema change).
 - **DM** — `src/views/downtime/DowntimeBoardView.vue`, route `/downtime`, nav in `src/lib/nav.ts`. Filter state in `useUiStore` (`downtimeFilterStatus`, `downtimeFilterCharacter`, `downtimeHasActiveFilters`, `resetDowntimeFilters`) + a **Clear** button.
 
@@ -85,14 +90,16 @@ All four: RLS on, 4 policies, `updated_at` trigger, in the realtime publication.
 **Polymorphic reward** is a `(reward_type, reward_id)` pair rather than six nullable FKs — mirrors `player_read_items(entity_type, entity_id)` and `quest_refs`. Cost: no referential integrity. A deleted target renders as the `"???"` absence marker, never coerced away.
 
 ### RLS helper
+
 `private.my_party_member_id(cid uuid)` — which character the caller plays in this campaign. Lives in **`private`** because RLS policies reference it (PostgREST does not expose `private`; `anon`/`authenticated` keep `EXECUTE` so policies resolve — do **not** revoke).
 
 ### RPCs
+
 - **`spend_downtime_draw(p_campaign_id, p_activity_key)`** — the only path a player spends a credit. `SECURITY DEFINER`; authorizes internally by deriving the character from `auth.uid()` (never a caller-supplied id), then re-checks the balance under `pg_advisory_xact_lock` before inserting. This closes the double-spend race a client-side check cannot.
 - **`resolve_downtime_draw(p_draw_id, p_title, p_vignette, p_reward_type, p_reward_id, p_effects, p_back_id)`** — DM-gated on `private.is_campaign_dm` against the *draw's own* campaign. Inserts the outcome, closes the draw, and consumes a one-shot back atomically.
 
 > Granting needs **no RPC** — a plain insert guarded by an RLS policy is sufficient and keeps the `SECURITY DEFINER` surface minimal.
-
+>
 > The reward entity (the cloned NPC) is created **before** `resolve_downtime_draw` as an ordinary RLS-checked insert, and its id passed in — so the definer function never creates entities on the caller's behalf.
 
 Both RPCs: `revoke execute from public, anon; grant execute to authenticated, service_role;`
@@ -133,6 +140,7 @@ DM Manual page: `src/manual/interlude-overview.md` (section "The Interlude", `se
 - **Phase 2 — shipped.** Polymorphic seed rewards (`npc`/`item`/`note`) with a per-kind clone→create dispatch in `useResolveDraw`; the deck filled to eight archetypes as pure data; automatic `gold`/`hp`/`condition` application via pure `downtimeEffects.ts` transforms; `DeckBacksPanel` prep generalised to `npc`/`item`/`note`. No migration — reward-type CHECKs and the `current_hp`/`conditions` columns already existed. Verified: typecheck clean, 65 unit tests, DB constraint/column confirmation.
 - **Phase 2 — deferred (the doc's "optional" branch, tracked for follow-up):** wire `loot_tables`/`roll_tables` behind `drawFromDeck()` (now safe: both rollers gained characterisation tests in `cc5cd6bc`, see [#487](https://github.com/irongollem/grimoire/issues/487) for the sharp edges) so `Pit Fighting → prize` rolls the live Vault; drop-chest delivery for multi-reward outcomes via `sendLootChest()`. The current item-reward path (mint a catalog item template) covers the loop without these.
 - **Phase 3 — AI outcome drafting: shipped.** Migration `20260713000001` adds the `downtime` system prompt + the `downtime_generation` credit cost (1 credit, `sort_order` 17). Edge function `supabase/functions/generate-downtime/` is a **text-only** clone of `generate-trap` — the cards render procedural faces, so there is no illustration, no `entity_image` charge, and no remote-image fetch (hence no SSRF surface). It is **owner-only** (not any campaign member, unlike `generate-trap`): only the DM resolves draws, so a player member must never be able to spend the owner's credits.
+- **Retrieval grounding (#600, fourth grounded generator).** `generate-downtime` injects the shared campaign-entity block (`_shared/campaignEntityRetrieval.ts` — see world-building.md's "Retrieval grounding" for the mechanism) so a vignette can name the DM's real shops, contacts and locations. Because the steer prompt is optional and usually empty, the semantic query composes `activity_title — character_name — steer` ("Carousing — Wilhelm" retrieves taverns and drinking companions with no steer at all). Grounding is input-side only, like the Chronicler: the vignette is prose and the reward entity is net-new by design (`npcInsertFromSeed`), so nothing resolves back to rows and there is no chip surface. Any retrieval failure degrades to the exact pre-#600 prompt. Downtime seed-reward NPCs/notes created via the resolve path queue their own embeddings (`useDowntime.ts` — direct `createNpc`/`createNote` calls bypass the mutation hooks' embed wiring).
   - Frontend: `src/ai/useDowntimeGeneration.ts` (registered so `isAnyAiGenerating` includes it; local/BYOK branch mirrors the trap generator), and a **Draft** button + optional steer inside `DowntimeResolvePanel`.
   - **A draft returns a `DowntimeSeed`, not a bespoke type** — so it replaces what the deck dealt and travels the *ordinary* resolve path, with zero parallel plumbing.
   - `src/lib/downtime/downtimeAiSeed.ts` is the **airlock**: the model's JSON is untrusted input. It invents effect kinds, hallucinates conditions ("Hungover"), and picks item types that don't exist. Policy: **drop what we can't honour, throw only on what we can't do without** — an unusable draft raises `DowntimeAiParseError` with a message the DM reads; a bogus rarity falls back to `mundane` (never to something powerful); `applied: true` from the model is never trusted. 24 unit tests.
