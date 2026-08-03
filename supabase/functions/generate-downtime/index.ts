@@ -6,11 +6,18 @@ import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
 import {
   fetchCreditCost,
+  recordFreeGeneration,
   recordGeneration,
   releaseCredits,
   reserveCredits,
   reservationFailureResponse,
 } from "../_shared/credits.ts";
+import {
+  resolveEmbeddingProvider,
+  toVectorLiteral,
+  EmbeddingProviderConfigError,
+} from "../_shared/embeddings.ts";
+import { retrieveCampaignEntities, formatEntityBlock } from "../_shared/campaignEntityRetrieval.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import {
   AI_PROMPT_LIMIT,
@@ -243,20 +250,75 @@ serve(withCors(async (req: Request) => {
   const reservation = await reserveCredits(admin, user.id, cost, "downtime_generation");
   if (!reservation.ok) return reservationFailureResponse(reservation);
 
+  // ── Semantic retrieval (#600 — the fourth grounded generator) ──────────────
+  // An ENHANCEMENT, not a requirement, same contract as generate-quest /
+  // generate-roll-table / generate-chronicle-text: any failure drops the
+  // block and the prompt degrades to exactly the pre-#600 behavior. Sits
+  // after the rate-limit + reservation gates for the same
+  // unbounded-embed-spend reason generate-quest documents.
+  //
+  // Grounding is INPUT-side only, like the Chronicler: the outcome's
+  // vignette is prose and its reward entity is net-new by design
+  // (npcInsertFromSeed creates a fresh NPC), so nothing resolves back to
+  // rows and no chip surface exists. Offering the campaign's real shops,
+  // contacts and locations lets the vignette weave them in by exact name.
+  //
+  // The DM's steer is optional and usually empty, so the semantic query is
+  // composed from what always exists: the activity archetype and character,
+  // plus the steer when present — "Carousing — Wilhelm" retrieves taverns
+  // and drinking companions even with no steer at all.
+  let entityBlock = "";
+  try {
+    const embedProvider = await resolveEmbeddingProvider(admin, {
+      openai: platformKeys.openai ?? null,
+      gemini: platformKeys.gemini ?? null,
+    });
+    const query = [activity_title, character_name, prompt].filter(Boolean).join(" — ");
+    const { vectors, usage: embedUsage } = await embedProvider.embed([query]);
+
+    // Recorded HERE — real provider spend was incurred the moment embed()
+    // returned; everything after this point can throw into the catch.
+    await recordFreeGeneration(admin, user.id, "entity_embedding", {
+      model:        embedProvider.model,
+      provider:     embedUsage.provider,
+      input_tokens: embedUsage.input_tokens,
+    });
+
+    const candidates = await retrieveCampaignEntities(admin, {
+      queryVector:    toVectorLiteral(vectors[0]),
+      campaignId:     campaign_id,
+      // Owner and caller are the same user here (owner-only gate above), so
+      // unlike the sibling generators there is no owner-vs-caller nuance.
+      ownerId:        campaign.user_id,
+      embeddingModel: embedProvider.model,
+    });
+    if (candidates.npcs.length + candidates.locations.length + candidates.factions.length > 0) {
+      entityBlock = formatEntityBlock(candidates, "drafting the outcome");
+    }
+  } catch (e) {
+    // Diagnosable, but never fatal.
+    const why = e instanceof EmbeddingProviderConfigError
+      ? `embedding provider not usable (${e.message})`
+      : e instanceof Error ? e.message : "unknown error";
+    console.warn(`Downtime retrieval unavailable for campaign ${campaign_id}, falling back to the ungrounded prompt: ${why}`);
+    entityBlock = "";
+  }
+  const groundedUserContent = `${userContent}${entityBlock}`;
+
   const textModel = providerConfigs[textProvider as keyof typeof providerConfigs]?.text_model;
 
   let textResult: TextResult;
   try {
     if (textProvider === "anthropic" && anthropicKey) {
-      textResult = await anthropicText(anthropicKey, textModel ?? "claude-haiku-3-20240307", systemContent, userContent);
+      textResult = await anthropicText(anthropicKey, textModel ?? "claude-haiku-3-20240307", systemContent, groundedUserContent);
     } else if (textProvider === "gemini" && geminiKey) {
-      textResult = await geminiText(geminiKey, textModel ?? "gemini-2.5-flash", systemContent, userContent);
+      textResult = await geminiText(geminiKey, textModel ?? "gemini-2.5-flash", systemContent, groundedUserContent);
     } else {
       if (!openaiKey) {
         await releaseCredits(admin, reservation.ids);
         return new Response("No OpenAI API key configured", { status: 422 });
       }
-      textResult = await openaiText(openaiKey, textModel ?? "gpt-4o-mini", systemContent, userContent);
+      textResult = await openaiText(openaiKey, textModel ?? "gpt-4o-mini", systemContent, groundedUserContent);
     }
   } catch (e) {
     await releaseCredits(admin, reservation.ids);
