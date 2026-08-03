@@ -12,5 +12,9 @@
   // Bold lead-ins ("**Faction detail modal**", "**Monster retrieval (#595).**")
   // are the docs' established sub-heading idiom below the ###-level — real
   // headings there would bloat the outline these files are skimmed by.
-  "MD036": false
+  "MD036": false,
+  // The docs' tables mix aligned and compact pipe styles per table; they
+  // render identically, and re-padding them to one style is pure diff churn
+  // on hand-maintained files.
+  "MD060": false
 }
