@@ -14,7 +14,7 @@ import {
 } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import {
-  AI_PROMPT_LIMIT,
+  AI_PROMPT_LIMIT_SHORT,
   INJECTION_GUARD_SUFFIX,
   validatePromptInput,
   wrapUserInput,
@@ -34,21 +34,20 @@ import {
 } from "../_shared/campaignEntityRetrieval.ts";
 
 /**
- * Retrieval-grounded AI quest-hook generator (#600).
+ * Retrieval-grounded AI roll-table generator (#600).
  *
- * Text-only, like generate-encounter and generate-downtime: there is no
+ * Text-only, like generate-quest and generate-encounter: there is no
  * illustration step, so no `entity_image` charge and no image provider to
  * resolve.
  *
- * Quest generation was, until now, entirely client-side BYOK-only
- * (src/ai/useQuestGeneration.ts): the same "quest" system prompt + ruleset
- * context + campaign setting as here, but with zero visibility into the DM's
- * own NPCs, factions and locations — the model could only invent generic
- * names that never resolve to anything in the campaign. This function is the
- * server path, grounding hook generation in the campaign's real entities via
- * the same embed → RPC-retrieve → candidate-block shape generate-encounter
- * established for the bestiary (#595), applied to three entity types instead
- * of one.
+ * Roll tables were, until now, entirely client-side BYOK-only
+ * (src/ai/useRollTableGeneration.ts): the same "roll_table" system prompt +
+ * ruleset context + campaign setting as here, but with zero visibility into
+ * the DM's own NPCs, factions and locations. This function is the server
+ * path, reusing the exact embed → RPC-retrieve → candidate-block machinery
+ * generate-quest established (and this repo's second consumer of the
+ * extracted _shared/campaignEntityRetrieval.ts module), so a table entry can
+ * reference a real campaign entity instead of always inventing one.
  */
 
 const admin = createClient(
@@ -62,35 +61,55 @@ function buildCampaignContext(setting: string | null | undefined): string {
   return `\n\nCampaign context provided by the DM (use it to ground tone, names, factions, and themes — but do not invent new facts that contradict it):\n\n## Setting\n${s}`;
 }
 
+// Local copy of src/types/rollTable.types.ts's ROLL_TABLE_DICE/ROLL_TABLE_DIE_MAX
+// — edge functions don't import from src/, so the seven supported dice and
+// each one's max face are duplicated here. Keep in sync if the client ever
+// adds an eighth die.
+const DIE_MAX: Record<string, number> = {
+  "1d4":   4,
+  "1d6":   6,
+  "1d8":   8,
+  "1d10":  10,
+  "1d12":  12,
+  "1d20":  20,
+  "1d100": 100,
+};
+
 // ── Text response contract ───────────────────────────────────────────────────
 
+/** One AI-generated roll-table entry — ranges are inclusive, no client `id` yet. */
+interface RollTableEntryAiResult {
+  min: number;
+  max: number;
+  label: string;
+  notes?: string | null;
+}
+
 /**
- * One AI-generated quest hook. This function does not validate individual
- * hook fields — only that `hooks` itself is a non-empty array (see the parse
- * guard in the handler) — so this interface documents the expected shape
- * without being enforced against it. `npcs`/`locations`/`factions` are the
- * schema extension this function adds server-side (see
- * SCHEMA_EXTENSION_INSTRUCTION below); they are OPTIONAL on purpose — a hook
- * that weaves in none of the offered entities is still a valid hook, and
- * downstream (the client's hook-to-record resolver) must tolerate a missing
- * array rather than reject the hook for lacking one.
+ * This function does not validate individual entry fields or range coverage
+ * — only that `entries` itself is a non-empty array (see the parse guard in
+ * the handler). Range/coverage validation (gaps, overlaps, out-of-bounds)
+ * deliberately stays CLIENT-side — validateEntryRanges in
+ * src/types/rollTable.types.ts runs there for both this server path and the
+ * local BYOK path, so there is exactly one place that decides what a valid
+ * table looks like. `npcs`/`locations`/`factions` are the schema extension
+ * this function adds server-side (see SCHEMA_EXTENSION_INSTRUCTION below);
+ * they are OPTIONAL on purpose — a table that weaves in none of the offered
+ * entities is still a valid table, and downstream (the client's
+ * entity-to-record resolver) must tolerate a missing array rather than
+ * reject the table for lacking one.
  */
-interface QuestHookAiResult {
-  title: string;
-  summary: string;
-  hook_description: string;
-  objectives: string[];
+interface RollTableGenerationResult {
+  name: string;
+  description: string;
   tags: string[];
+  entries: RollTableEntryAiResult[];
   npcs?: string[];
   locations?: string[];
   factions?: string[];
 }
 
-interface QuestGenerationResult {
-  hooks: QuestHookAiResult[];
-}
-
-// Appended to the system prompt server-side — the DB "quest" prompt row
+// Appended to the system prompt server-side — the DB "roll_table" prompt row
 // itself is not modified. Tells the model to extend its existing JSON schema
 // with the three entity-reference arrays that make the candidate block
 // (built in the handler below) actually useful downstream: without an
@@ -98,11 +117,12 @@ interface QuestGenerationResult {
 // block tends to get treated as flavor rather than as fields the model is
 // expected to echo back in a structured way the client can resolve by name.
 const SCHEMA_EXTENSION_INSTRUCTION =
-  "\n\nIn addition to the fields already described, each hook object must also include " +
+  "\n\nIn addition to the fields already described, the table object must also include " +
   '"npcs", "locations", and "factions" arrays — plain string arrays of the exact names of ' +
-  "every campaign entity that hook references. Use names from the offered entities below " +
-  "where applicable, plus any new minor characters, places, or groups you invent for that " +
-  "hook. Omit an array (or leave it empty) if a hook references nothing of that type.";
+  "every campaign entity referenced across the table's entries (their labels or notes). Use " +
+  "names from the offered entities below where applicable, plus any new minor characters, " +
+  "places, or groups you invent for an entry. Omit an array (or leave it empty) if no entry " +
+  "references anything of that type.";
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 
@@ -123,22 +143,31 @@ serve(withCors(async (req: Request) => {
   // Frozen accounts cannot generate — including BYOK, which skips the credit gate.
   if (await isAccountSuspended(admin, user.id)) return suspendedResponse();
 
-  let campaign_id: string, prompt: string;
+  let campaign_id: string, prompt: string, die: string;
 
   try {
     const body = await req.json();
     campaign_id = body.campaign_id;
     prompt      = body.prompt;
-    if (!campaign_id || !prompt) throw new Error("invalid");
+    die         = body.die;
+    if (!campaign_id || !prompt || !die) throw new Error("invalid");
   } catch {
-    return new Response("Invalid body — need { campaign_id, prompt }", { status: 400 });
+    return new Response("Invalid body — need { campaign_id, prompt, die }", { status: 400 });
   }
 
-  // AI_PROMPT_LIMIT (1000), not _SHORT (500): the panel composes several
-  // lines into this one string (party level, an optional giver/location
-  // constraint block, and up to a 500-char theme), so the ceiling has to fit
-  // the whole composition, not just the theme field alone.
-  const promptCheck = validatePromptInput(prompt, AI_PROMPT_LIMIT);
+  if (!(die in DIE_MAX)) {
+    return new Response(
+      `Invalid die — must be one of ${Object.keys(DIE_MAX).join(", ")}`,
+      { status: 400 },
+    );
+  }
+  const dieMax = DIE_MAX[die];
+
+  // The client sends the raw concept textarea (capped at AI_PROMPT_LIMIT_SHORT
+  // client-side already) — nothing else is composed into it, unlike
+  // generate-quest's prompt, which is why this checks against _SHORT (500)
+  // rather than the full AI_PROMPT_LIMIT (1000).
+  const promptCheck = validatePromptInput(prompt, AI_PROMPT_LIMIT_SHORT);
   if (!promptCheck.ok) return promptCheck.errorResponse;
 
   const { data: campaign } = await admin
@@ -161,8 +190,8 @@ serve(withCors(async (req: Request) => {
 
   const { data: promptRows } = await admin
     .from("ai_system_prompts").select("generator_type, content")
-    .in("generator_type", ["quest", `ruleset_context_${ruleset}`]);
-  const promptRow = promptRows?.find((r) => r.generator_type === "quest");
+    .in("generator_type", ["roll_table", `ruleset_context_${ruleset}`]);
+  const promptRow = promptRows?.find((r) => r.generator_type === "roll_table");
   // Missing row (older DBs that predate #564) is a silent skip, not an error.
   const rulesetContext =
     promptRows?.find((r) => r.generator_type === `ruleset_context_${ruleset}`)?.content ?? null;
@@ -198,7 +227,7 @@ serve(withCors(async (req: Request) => {
     : !!campaignOpenai;
 
   // ── Pre-flight credit check ────────────────────────────────────────────────
-  const baseCost = textIsByok ? 0 : await fetchCreditCost(admin, "quest_generation");
+  const baseCost = textIsByok ? 0 : await fetchCreditCost(admin, "roll_table_generation");
   const cost = applyMultiplier(baseCost, providerConfigs[textProvider as keyof typeof providerConfigs]?.text_multiplier);
 
   // Throttle abusive burst volume before any paid provider work (issue #466).
@@ -209,7 +238,8 @@ serve(withCors(async (req: Request) => {
   // so the reservation is not a second line of defence for it. Gate first,
   // embed after: otherwise any authenticated campaign member can loop this
   // endpoint and run up unbounded platform spend that no throttle and no
-  // balance check ever sees. See generate-encounter for the same reasoning.
+  // balance check ever sees. See generate-encounter/generate-quest for the
+  // same reasoning.
   if (!(await checkRateLimit(admin, user.id, "ai_generation"))) {
     return new Response(
       JSON.stringify({ error: "rate_limited" }),
@@ -217,17 +247,18 @@ serve(withCors(async (req: Request) => {
     );
   }
 
-  const reservation = await reserveCredits(admin, user.id, cost, "quest_generation");
+  const reservation = await reserveCredits(admin, user.id, cost, "roll_table_generation");
   if (!reservation.ok) return reservationFailureResponse(reservation);
 
   // ── Semantic retrieval (#600) ──────────────────────────────────────────────
   // An ENHANCEMENT, not a requirement: retrieval must never be able to take
-  // quest generation down. A missing vendor, a mid-flip config, a provider
-  // outage or an RPC error all cost grounding, not the feature — the whole
-  // block is one try/catch whose failure path leaves the candidate arrays
-  // empty and the prompt falls back to exactly what the client-side BYOK path
-  // already sends (see useQuestGeneration.ts): the "quest" system prompt +
-  // ruleset context + campaign setting, no entity block.
+  // roll-table generation down. A missing vendor, a mid-flip config, a
+  // provider outage or an RPC error all cost grounding, not the feature —
+  // the whole block is one try/catch whose failure path leaves the
+  // candidates empty and the prompt falls back to exactly what the
+  // client-side BYOK path already sends (see useRollTableGeneration.ts): the
+  // "roll_table" system prompt + ruleset context + campaign setting, no
+  // entity block.
   let candidates: { npcs: CandidateEntity[]; locations: CandidateEntity[]; factions: CandidateEntity[] } =
     { npcs: [], locations: [], factions: [] };
   let retrievalOk = false;
@@ -255,8 +286,9 @@ serve(withCors(async (req: Request) => {
       queryVector:    toVectorLiteral(vectors[0]),
       campaignId:     campaign_id,
       // The OWNER, not the caller — matching generate-encounter's bestiary
-      // scoping. A campaign member generating a quest sees the DM's NPCs,
-      // factions and locations, not their own (players don't have any).
+      // and generate-quest's entity scoping. A campaign member generating a
+      // roll table sees the DM's NPCs, factions and locations, not their own
+      // (players don't have any).
       ownerId:        campaign.user_id,
       embeddingModel: embedProvider.model,
     });
@@ -265,9 +297,9 @@ serve(withCors(async (req: Request) => {
     if (totalCandidates === 0) {
       // Not necessarily an error — a brand-new campaign legitimately has no
       // NPCs/locations/factions yet — but it means there is nothing to
-      // ground the hooks in, so it is worth a look if it happens for a
+      // ground the table in, so it is worth a look if it happens for a
       // long-running campaign that plainly has entities.
-      console.warn(`Quest retrieval found zero campaign entities for campaign ${campaign_id} — building the prompt without the entity block.`);
+      console.warn(`Roll table retrieval found zero campaign entities for campaign ${campaign_id} — building the prompt without the entity block.`);
     } else {
       retrievalOk = true;
     }
@@ -276,15 +308,23 @@ serve(withCors(async (req: Request) => {
     const why = e instanceof EmbeddingProviderConfigError
       ? `embedding provider not usable (${e.message})`
       : e instanceof Error ? e.message : "unknown error";
-    console.warn(`Quest retrieval unavailable for campaign ${campaign_id}, falling back to the client-equivalent prompt: ${why}`);
+    console.warn(`Roll table retrieval unavailable for campaign ${campaign_id}, falling back to the client-equivalent prompt: ${why}`);
     candidates = { npcs: [], locations: [], factions: [] };
   }
 
   // formatEntityBlock() only formats — whether to call it at all is decided
   // here, so a zero-candidate retrieval produces no prompt text at all
   // rather than an empty ---BEGIN/END--- shell.
-  const entityBlock = retrievalOk ? formatEntityBlock(candidates, "writing hooks") : "";
-  const userContent = `${wrapUserInput(prompt)}${entityBlock}`;
+  const entityBlock = retrievalOk ? formatEntityBlock(candidates, "writing table entries") : "";
+
+  // Constraint text is the client's exact current wording (useRollTableGeneration.ts)
+  // — kept identical so a table generated server-side reads the same as one
+  // generated via the local BYOK path.
+  const userContent =
+    `${wrapUserInput(prompt)}\n\nConstraints:\n` +
+    `Die: ${die}\n` +
+    `Entries must cover the full range 1–${dieMax} with no gaps and no overlaps.` +
+    entityBlock;
 
   const textModel = providerConfigs[textProvider as keyof typeof providerConfigs]?.text_model;
 
@@ -296,10 +336,11 @@ serve(withCors(async (req: Request) => {
       model: textModel,
       system: systemContent,
       user: userContent,
-      // Five hooks' worth of title/summary/hook_description/objectives/tags
-      // plus the npcs/locations/factions arrays this function adds to the
-      // schema — several times the payload of generate-encounter's single
-      // object, hence the larger budget than its 1200.
+      // A 1d100 table can run up to 100 entries, each with a label and
+      // optional notes, plus the npcs/locations/factions arrays this
+      // function adds to the schema — several times the payload of
+      // generate-encounter's single object, hence the larger budget than
+      // its 1200 (matches generate-quest's 3000).
       maxTokens: 3000,
     });
   } catch (e) {
@@ -307,40 +348,44 @@ serve(withCors(async (req: Request) => {
     if (e instanceof MissingTextKeyError) {
       return new Response("No OpenAI API key configured", { status: 422 });
     }
-    console.error("Quest text generation failed:", e);
+    console.error("Roll table text generation failed:", e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Text generation failed" }),
       { status: 502, headers: { "Content-Type": "application/json" } },
     );
   }
 
-  let questData: QuestGenerationResult;
+  let rollTableData: RollTableGenerationResult;
   try {
-    questData = JSON.parse(textResult.content) as QuestGenerationResult;
+    rollTableData = JSON.parse(textResult.content) as RollTableGenerationResult;
   } catch {
     await releaseCredits(admin, reservation.ids);
     return new Response(
-      JSON.stringify({ error: "AI returned malformed quest data — please try again." }),
+      JSON.stringify({ error: "AI returned malformed roll table data — please try again." }),
       { status: 502, headers: { "Content-Type": "application/json" } },
     );
   }
-  if (!Array.isArray(questData.hooks) || questData.hooks.length === 0) {
+  // Range/coverage validation (gaps, overlaps, out-of-bounds) deliberately
+  // stays CLIENT-side — validateEntryRanges runs there for both this server
+  // path and the local BYOK path. This guard only checks that the model
+  // returned a non-empty entries array at all.
+  if (!Array.isArray(rollTableData.entries) || rollTableData.entries.length === 0) {
     await releaseCredits(admin, reservation.ids);
     return new Response(
-      JSON.stringify({ error: "AI returned malformed quest data — please try again." }),
+      JSON.stringify({ error: "AI returned malformed roll table data — please try again." }),
       { status: 502, headers: { "Content-Type": "application/json" } },
     );
   }
 
   // Release the hold; record the real spend (delta 0 on BYOK).
   await releaseCredits(admin, reservation.ids);
-  await recordGeneration(admin, user.id, "quest_generation", textIsByok, cost, {
+  await recordGeneration(admin, user.id, "roll_table_generation", textIsByok, cost, {
     model: textResult.usage.model, provider: textResult.usage.provider,
     input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
   });
 
   return new Response(
-    JSON.stringify(questData),
+    JSON.stringify(rollTableData),
     { headers: { "Content-Type": "application/json" } },
   );
 }));
