@@ -19,6 +19,7 @@
  */
 
 import { toPlainText } from "./ai-prompt.ts";
+import { collapseWhitespace, sha256Hex, truncateAtWordBoundary } from "./embedTextUtil.ts";
 
 export interface EmbeddableMonster {
   name: string;
@@ -33,23 +34,6 @@ export interface EmbeddableMonster {
 // Keeps the embedded description bounded and matches the ~150 token/row cost
 // estimate in #595. Cut at a word boundary, never mid-word.
 const DESCRIPTION_CHAR_LIMIT = 500;
-
-/** Collapse any run of whitespace (spaces, tabs, newlines) to a single space and trim. */
-function collapseWhitespace(text: string): string {
-  return text.replace(/\s+/g, " ").trim();
-}
-
-/**
- * Truncate `text` to at most `maxLength` characters, backing off to the
- * previous space so a word is never cut in half. If no space is found within
- * the window (a single very long "word"), falls back to a hard cut.
- */
-function truncateAtWordBoundary(text: string, maxLength: number): string {
-  if (text.length <= maxLength) return text;
-  const window = text.slice(0, maxLength);
-  const lastSpace = window.lastIndexOf(" ");
-  return lastSpace > 0 ? window.slice(0, lastSpace) : window;
-}
 
 /**
  * Build the `size {type}, CR {cr}.` clause. Any of size/type/CR may be
@@ -124,14 +108,5 @@ export function buildMonsterEmbedText(monster: EmbeddableMonster): string {
 /**
  * Stable lowercase-hex SHA-256 of the embed text — stored as an embedding
  * row's `source_hash` so a backfill can skip rows whose text hasn't changed.
- * Uses Web Crypto (`crypto.subtle`), available as a global in both Deno (the
- * edge function runtime) and Node 18+ (vitest), so this one implementation
- * runs unmodified in both.
  */
-export async function monsterEmbedHash(text: string): Promise<string> {
-  const data = new TextEncoder().encode(text);
-  const digest = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
+export const monsterEmbedHash = sha256Hex;

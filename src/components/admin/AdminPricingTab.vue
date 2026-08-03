@@ -292,6 +292,11 @@ const COST_CATEGORY: Record<string, CostCategory> = {
   // Charged 0 — infrastructure behind the encounter suggester. Listed so its
   // real spend is attributable rather than invisible.
   monster_embedding: "embedding",
+  // Charged 0 — infrastructure behind the quest-hook generator's retrieval
+  // (#600): the query embedding generate-quest logs, plus every npc/faction/
+  // location row embed-content embeds. Same "attributable, not invisible"
+  // reasoning as monster_embedding above.
+  entity_embedding: "embedding",
 };
 const CATEGORY_CLASS: Record<CostCategory, string> = {
   text:  "bg-sky-500/15 text-sky-500",
