@@ -233,7 +233,7 @@ export interface QuestHookResult {
   tags: string[];
   /**
    * Names of campaign NPCs/locations/factions the hook references, resolved
-   * client-side (see resolveQuestEntities) against the DM's own campaign
+   * client-side (see resolveGeneratedEntities) against the DM's own campaign
    * data. Only the server (generate-quest) retrieval path populates these —
    * the local BYOK path and older responses lack them entirely, so all three
    * are optional and every consumer must tolerate absence.
@@ -265,6 +265,16 @@ export interface RollTableAiResult {
   description: string;
   tags: string[];
   entries: RollTableEntryAiResult[];
+  /**
+   * Names of campaign NPCs/locations/factions the table references, resolved
+   * client-side (see resolveGeneratedEntities) against the DM's own campaign
+   * data. Only the server (generate-roll-table) retrieval path populates
+   * these — the local BYOK path and older responses lack them entirely, so
+   * all three are optional and every consumer must tolerate absence.
+   */
+  npcs?: string[];
+  locations?: string[];
+  factions?: string[];
 }
 
 export interface NpcVoiceAiResult {

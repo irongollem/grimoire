@@ -83,6 +83,8 @@
               </li>
             </ul>
 
+            <GeneratedEntityChips :entities="resolvedEntities" @navigate="goToEntity" />
+
             <div v-if="result.tags.length" class="flex flex-wrap gap-1.5 pt-1">
               <span
                 v-for="tag in result.tags"
@@ -213,8 +215,13 @@ import { useRouter } from "vue-router";
 import { IconAdd, IconCheckCircle, IconClose, IconGenerate } from "@/lib/icons";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
+import { useNpcs } from "@/composables/useNpcs";
+import { useAllLocations } from "@/composables/useLocations";
+import { useAllFactions } from "@/composables/useFactions";
 import { useCreateRollTable } from "@/composables/useRollTables";
 import { useRollTableGeneration } from "@/ai/useRollTableGeneration";
+import { resolveGeneratedEntities, type ResolvedEntity } from "@/ai/resolveGeneratedEntities";
+import GeneratedEntityChips from "@/components/common/GeneratedEntityChips.vue";
 import { useSubscription } from "@/composables/useSubscription";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
@@ -230,6 +237,11 @@ const DIE_OPTIONS: RollTableDie[] = ["1d6", "1d8", "1d10", "1d12", "1d20"];
 const ui = useUiStore();
 const router = useRouter();
 const campaign = useCampaignStore();
+// Mounted on every DM page — only fetch the dropdown data once the panel opens.
+const panelOpen = () => ui.rollTableGeneratorOpen;
+const { data: npcs } = useNpcs(panelOpen);
+const { data: locations } = useAllLocations(panelOpen);
+const { data: factions } = useAllFactions(panelOpen);
 const { isPro } = useSubscription();
 const showPaywall = ref(false);
 
@@ -247,6 +259,33 @@ const {
 const { mutateAsync: createRollTable } = useCreateRollTable();
 
 const isAiEnabled = computed(() => campaign.isAiEnabled);
+
+// Same pools the comboboxes on other generator panels fetch — resolveGeneratedEntities
+// just needs the {id, name} shape.
+const entityPools = computed(() => ({
+  npcs: (npcs.value ?? []).map((n) => ({ id: n.id, name: n.name })),
+  locations: (locations.value ?? []).map((l) => ({ id: l.id, name: l.name })),
+  factions: (factions.value ?? []).map((f) => ({ id: f.id, name: f.name })),
+}));
+
+// Roll-table chips are display-only: RollTableEntry only carries an
+// `encounter_id` link (see rollTable.types.ts), no npc/location/faction
+// column, so nothing resolved here is persisted when the DM clicks Create Table.
+const resolvedEntities = computed<ResolvedEntity[]>(() =>
+  result.value ? resolveGeneratedEntities(result.value, entityPools.value) : [],
+);
+
+const ENTITY_CHIP_ROUTE: Record<ResolvedEntity["kind"], string> = {
+  npc: "/npcs",
+  location: "/locations",
+  faction: "/factions",
+};
+
+function goToEntity(entity: ResolvedEntity) {
+  if (!entity.id) return;
+  ui.rollTableGeneratorOpen = false;
+  router.push(`${ENTITY_CHIP_ROUTE[entity.kind]}/${entity.id}`);
+}
 
 const { costOf, affordable } = useAiCredits();
 const { textMultiplierFor } = useProviderConfig();

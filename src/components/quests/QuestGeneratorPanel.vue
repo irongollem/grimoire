@@ -91,29 +91,10 @@
               </span>
             </div>
 
-            <div v-if="resolvedEntitiesByHook[i]?.length" class="flex flex-wrap gap-1.5">
-              <template v-for="entity in resolvedEntitiesByHook[i]" :key="`${entity.kind}-${entity.name}`">
-                <button
-                  v-if="entity.id"
-                  type="button"
-                  class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-caption-sm transition-colors"
-                  :class="ENTITY_CHIP_CLASS[entity.kind]"
-                  @click="goToEntity(entity)"
-                >
-                  <component :is="ENTITY_CHIP_ICON[entity.kind]" class="h-3 w-3 shrink-0" />
-                  {{ entity.name }}
-                </button>
-                <span
-                  v-else
-                  title="Not in your campaign — the model introduced this"
-                  class="inline-flex items-center gap-1 rounded-full border border-dashed border-muted-foreground/40 px-2 py-0.5 text-caption-sm text-muted-foreground"
-                >
-                  <component :is="ENTITY_CHIP_ICON[entity.kind]" class="h-3 w-3 shrink-0" />
-                  {{ entity.name }}
-                  <span class="italic text-muted-foreground/60">new</span>
-                </span>
-              </template>
-            </div>
+            <GeneratedEntityChips
+              :entities="resolvedEntitiesByHook[i] ?? []"
+              @navigate="goToEntity"
+            />
 
             <div class="flex items-center gap-2 flex-wrap">
               <button
@@ -257,7 +238,7 @@ import { AI_PROMPT_LIMIT_SHORT } from "@/ai/utils";
 
 const THEME_LIMIT = AI_PROMPT_LIMIT_SHORT;
 import { useRouter } from "vue-router";
-import { IconAdd, IconCheckCircle, IconClose, IconGenerate, IconUser, IconLocation, IconFaction } from '@/lib/icons';
+import { IconAdd, IconCheckCircle, IconClose, IconGenerate } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { useParty } from "@/composables/useParty";
@@ -266,6 +247,7 @@ import { useAllLocations } from "@/composables/useLocations";
 import { useAllFactions } from "@/composables/useFactions";
 import { useCreateQuest, useCreateObjective, useCreateQuestRef } from "@/composables/useQuests";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import GeneratedEntityChips from "@/components/common/GeneratedEntityChips.vue";
 import { useQuestGeneration } from "@/ai/useQuestGeneration";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
 import { useSubscription } from "@/composables/useSubscription";
@@ -275,7 +257,7 @@ import PaywallModal from "@/components/common/PaywallModal.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import { useAiCredits } from "@/composables/useAiCredits";
 import { useProviderConfig } from "@/composables/useProviderConfig";
-import { resolveQuestEntities, type ResolvedQuestEntity } from "@/lib/quests/resolveQuestEntities";
+import { resolveGeneratedEntities, type ResolvedEntity } from "@/ai/resolveGeneratedEntities";
 import type { QuestHookResult } from "@/ai/types";
 
 const ui = useUiStore();
@@ -312,8 +294,8 @@ const { mutateAsync: createQuestRef } = useCreateQuestRef();
 
 const isAiEnabled = computed(() => campaign.isAiEnabled);
 
-// Same pools the comboboxes above already fetch — resolveQuestEntities just
-// needs the {id, name} shape.
+// Same pools the comboboxes above already fetch — resolveGeneratedEntities
+// just needs the {id, name} shape.
 const entityPools = computed(() => ({
   npcs: (npcs.value ?? []).map((n) => ({ id: n.id, name: n.name })),
   locations: (locations.value ?? []).map((l) => ({ id: l.id, name: l.name })),
@@ -321,29 +303,17 @@ const entityPools = computed(() => ({
 }));
 
 /** Chip data per hook, aligned by index with `hooks`. */
-const resolvedEntitiesByHook = computed<ResolvedQuestEntity[][]>(() =>
-  hooks.value.map((hook) => resolveQuestEntities(hook, entityPools.value)),
+const resolvedEntitiesByHook = computed<ResolvedEntity[][]>(() =>
+  hooks.value.map((hook) => resolveGeneratedEntities(hook, entityPools.value)),
 );
 
-const ENTITY_CHIP_ICON: Record<ResolvedQuestEntity["kind"], typeof IconUser> = {
-  npc: IconUser,
-  location: IconLocation,
-  faction: IconFaction,
-};
-
-const ENTITY_CHIP_CLASS: Record<ResolvedQuestEntity["kind"], string> = {
-  npc: "border-violet-400/40 bg-violet-400/10 text-violet-400 hover:bg-violet-400/20 hover:border-violet-400/60",
-  location: "border-emerald-400/40 bg-emerald-400/10 text-emerald-400 hover:bg-emerald-400/20 hover:border-emerald-400/60",
-  faction: "border-amber-400/40 bg-amber-400/10 text-amber-400 hover:bg-amber-400/20 hover:border-amber-400/60",
-};
-
-const ENTITY_CHIP_ROUTE: Record<ResolvedQuestEntity["kind"], string> = {
+const ENTITY_CHIP_ROUTE: Record<ResolvedEntity["kind"], string> = {
   npc: "/npcs",
   location: "/locations",
   faction: "/factions",
 };
 
-function goToEntity(entity: ResolvedQuestEntity) {
+function goToEntity(entity: ResolvedEntity) {
   if (!entity.id) return;
   ui.questGeneratorOpen = false;
   router.push(`${ENTITY_CHIP_ROUTE[entity.kind]}/${entity.id}`);
@@ -458,8 +428,8 @@ async function createFromHook(hook: QuestHookResult, index: number) {
     // which are already first-class FK columns on the quest row, and never
     // ref a faction: QuestRefType (quest.types.ts) has no "faction" member,
     // so a resolved faction stays chip-only in this panel.
-    const refTargets = resolveQuestEntities(hook, entityPools.value).filter(
-      (e): e is ResolvedQuestEntity & { kind: "npc" | "location"; id: string } =>
+    const refTargets = resolveGeneratedEntities(hook, entityPools.value).filter(
+      (e): e is ResolvedEntity & { kind: "npc" | "location"; id: string } =>
         e.id !== null &&
         (e.kind === "npc" || e.kind === "location") &&
         !(e.kind === "npc" && e.id === giverNpcId.value) &&

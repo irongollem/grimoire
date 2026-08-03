@@ -1,16 +1,15 @@
-import type { QuestHookResult } from "@/ai/types";
-
 /**
- * App-side half of #600: the AI returns campaign-entity *names* on a quest
- * hook, not ids. This resolves each name against the DM's own NPCs/
- * locations/factions to build real chip data for the generator panel.
+ * App-side half of #600: the AI returns campaign-entity *names* on a
+ * generated result (quest hooks, roll tables), not ids. This resolves each
+ * name against the DM's own NPCs/locations/factions to build real chip data
+ * for the generator panel.
  *
  * Mirrors the #337/#595 resolution-guard principle from
  * resolveGeneratedCombatants: an unmatched name is NEVER dropped. It comes
  * back with `id: null` so the panel can offer "create this" instead of
  * silently losing what the model wrote.
  */
-export interface ResolvedQuestEntity {
+export interface ResolvedEntity {
   kind: "npc" | "location" | "faction";
   name: string;
   id: string | null;
@@ -21,7 +20,7 @@ interface EntityPoolRow {
   name: string;
 }
 
-export interface QuestEntityPools {
+export interface EntityPools {
   npcs: EntityPoolRow[];
   locations: EntityPoolRow[];
   factions: EntityPoolRow[];
@@ -38,11 +37,11 @@ function buildNameIndex(pool: EntityPoolRow[]): Map<string, string> {
 }
 
 function resolveKind(
-  kind: ResolvedQuestEntity["kind"],
+  kind: ResolvedEntity["kind"],
   names: string[] | undefined,
   pool: EntityPoolRow[],
   seen: Set<string>,
-  out: ResolvedQuestEntity[],
+  out: ResolvedEntity[],
 ): void {
   if (!names || names.length === 0) return;
   const nameIndex = buildNameIndex(pool);
@@ -59,16 +58,16 @@ function resolveKind(
   }
 }
 
-export function resolveQuestEntities(
-  hook: Pick<QuestHookResult, "npcs" | "locations" | "factions">,
-  pools: QuestEntityPools,
-): ResolvedQuestEntity[] {
-  const out: ResolvedQuestEntity[] = [];
+export function resolveGeneratedEntities(
+  refs: { npcs?: string[]; locations?: string[]; factions?: string[] },
+  pools: EntityPools,
+): ResolvedEntity[] {
+  const out: ResolvedEntity[] = [];
   const seen = new Set<string>();
 
-  resolveKind("npc", hook.npcs, pools.npcs, seen, out);
-  resolveKind("location", hook.locations, pools.locations, seen, out);
-  resolveKind("faction", hook.factions, pools.factions, seen, out);
+  resolveKind("npc", refs.npcs, pools.npcs, seen, out);
+  resolveKind("location", refs.locations, pools.locations, seen, out);
+  resolveKind("faction", refs.factions, pools.factions, seen, out);
 
   return out;
 }
