@@ -1,12 +1,14 @@
 /**
- * Single source of truth for the text embedded into an NPC's, faction's, or
- * location's semantic-search vector (#600 — grounding the quest-hook
- * generator, and whatever generator follows it, in the DM's own content;
- * generalises the #595 monster mechanism).
+ * Single source of truth for the text embedded into an NPC's, faction's,
+ * location's, or note's semantic-search vector (#600 — grounding the
+ * quest-hook generator and the Chronicler recap generator, and whatever
+ * generator follows them, in the DM's own content; generalises the #595
+ * monster mechanism).
  *
  * Each entity gets its own side table (npc_embeddings / faction_embeddings /
- * location_embeddings — see the migration that creates them alongside this
- * story), and each one MUST be built from the corresponding function here.
+ * location_embeddings / note_embeddings — see the migrations that create them
+ * alongside these stories), and each one MUST be built from the corresponding
+ * function here.
  * `entityEmbedHash` feeds every row's `source_hash`, which lets the
  * backfill/embed-on-write path in embed-content skip rows whose text hasn't
  * changed. Because the hash is over a builder's *output*, changing anything
@@ -87,6 +89,21 @@ function buildPlainTextClause(content: string | null): string {
   const normalized = normalizeField(content);
   if (!normalized) return "";
   return truncateAtWordBoundary(normalized, FREE_TEXT_CHAR_LIMIT);
+}
+
+// A note-specific limit, deliberately 8x FREE_TEXT_CHAR_LIMIT: a session
+// note's substance IS its content — the 500-char field cap that fits an
+// NPC/faction/location descriptor (one clause among several) would drop the
+// events a recap actually needs to find. ~1k tokens is still negligible embed
+// cost. Chunking long notes into multiple vectors is #599's problem, not
+// this one's -- this builder always produces exactly one embedding per note.
+const NOTE_CONTENT_CHAR_LIMIT = 4000;
+
+/** Truncated clause from a note's Tiptap-JSON-or-plain-string content, flattened via `toPlainText` — uses NOTE_CONTENT_CHAR_LIMIT rather than FREE_TEXT_CHAR_LIMIT; see that constant's comment for why. */
+function buildNoteContentClause(content: string | null): string {
+  if (!content) return "";
+  const plain = collapseWhitespace(toPlainText(content));
+  return truncateAtWordBoundary(plain, NOTE_CONTENT_CHAR_LIMIT);
 }
 
 // ── NPC ───────────────────────────────────────────────────────────────────
@@ -230,6 +247,50 @@ export function buildLocationEmbedText(location: EmbeddableLocation): string {
 
   const description = buildRichTextClause(location.description);
   if (description) clauses.push(description);
+
+  return clauses.join(" ");
+}
+
+// ── Note ──────────────────────────────────────────────────────────────────
+
+export interface EmbeddableNote {
+  title: string;
+  // NOT NULL in the schema (default 'general') -- unlike the other optional
+  // string fields on this interface, this is never absent.
+  category: string;
+  session_num: number | null;
+  tags: string[];
+  content: string | null;
+}
+
+/**
+ * Deterministic natural-language summary of a note, used as the embedding
+ * input. Leads with the title, then a category/session clause (the session
+ * number rendered as "Session N" only when set), then tags, then the
+ * Tiptap-flattened, word-boundary-truncated content — each part omitted
+ * entirely when the source field is absent.
+ *
+ * Example (all fields present):
+ *   "The Sunken Vault. session, Session 7. dungeon, vault. The party
+ *   descended into the flooded ruins and found the vault door ajar..."
+ *
+ * Example (title and category only, no session number, no content):
+ *   "Loose thread: the merchant's ledger. general."
+ */
+export function buildNoteEmbedText(note: EmbeddableNote): string {
+  const clauses: string[] = [];
+
+  clauses.push(`${collapseWhitespace(note.title)}.`);
+
+  const sessionClause = note.session_num != null ? `Session ${note.session_num}` : null;
+  const categorySession = buildTwoPartClause(note.category, sessionClause);
+  if (categorySession) clauses.push(categorySession);
+
+  const tagsClause = buildTagsClause(note.tags);
+  if (tagsClause) clauses.push(tagsClause);
+
+  const content = buildNoteContentClause(note.content);
+  if (content) clauses.push(content);
 
   return clauses.join(" ");
 }

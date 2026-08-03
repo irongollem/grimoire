@@ -5,7 +5,7 @@ import { requireAdmin } from "../_shared/requireAdmin.ts";
 import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { recordFreeGeneration } from "../_shared/credits.ts";
-import { buildFactionEmbedText, buildLocationEmbedText, buildNpcEmbedText, entityEmbedHash } from "../_shared/entityEmbedText.ts";
+import { buildFactionEmbedText, buildLocationEmbedText, buildNoteEmbedText, buildNpcEmbedText, entityEmbedHash } from "../_shared/entityEmbedText.ts";
 import {
   EmbeddingProviderConfigError,
   isEmbeddingStale,
@@ -16,19 +16,23 @@ import {
 } from "../_shared/embeddings.ts";
 
 /**
- * Embedding endpoint for #600 (grounding the quest-hook generator, and
- * whatever follows it, in the DM's own NPCs/factions/locations) — the
- * three-entity generalisation of embed-monsters/index.ts (#595). Same two
- * modes, same reasons, retargeted at npc_embeddings / faction_embeddings /
- * location_embeddings (created by the migration alongside this story) via
- * the ENTITIES registry below instead of embed-monsters' library/custom
- * split:
+ * Embedding endpoint for #600 (grounding the quest-hook generator and the
+ * Chronicler recap generator, and whatever follows them, in the DM's own
+ * NPCs/factions/locations/notes) — the entity generalisation of
+ * embed-monsters/index.ts (#595). Same two modes, same reasons, retargeted at
+ * npc_embeddings / faction_embeddings / location_embeddings / note_embeddings
+ * (created by the migrations alongside these stories) via the ENTITIES
+ * registry below instead of embed-monsters' library/custom split. `note` was
+ * added by the Chronicler's story (20260804000001) on top of the npc/faction/
+ * location trio #600's quest-hook story introduced first (20260803000004) —
+ * everything below this registry (single-mode ownership check, batch admin
+ * scan) generalises across all four entity kinds without change:
  *
  *   mode: "batch"  — admin-gated backfill/repair for one entity kind at a
  *                    time, driven by repeated calls (see `remaining`).
  *   mode: "single" — embed-on-write for one of the caller's own npcs,
- *                    factions, or locations, called fire-and-forget after
- *                    create/save.
+ *                    factions, locations, or notes, called fire-and-forget
+ *                    after create/save.
  *
  * NOT CHARGED, BUT RECORDED: same accounting story as embed-monsters —
  * embedding is infrastructure for retrieval, not a user-facing generation in
@@ -45,13 +49,13 @@ import {
  *
  * NO checkRateLimit: same rationale as embed-monsters. The shared
  * `ai_generation` bucket throttles expensive, user-visible generations —
- * spending it here would let ordinary NPC/faction/location editing (mode:
- * "single" fires on every save) exhaust a DM's generation budget for
+ * spending it here would let ordinary NPC/faction/location/note editing
+ * (mode: "single" fires on every save) exhaust a DM's generation budget for
  * something they didn't ask for and never see. The guards that DO apply
  * instead: auth + ownership (mode: "single" verifies row.user_id ===
  * auth.uid()), the unchanged-hash/model short-circuit below (most saves make
  * no provider call at all), and the per-entity quota that already caps how
- * many NPCs/factions/locations a user can create.
+ * many NPCs/factions/locations/notes a user can create.
  */
 
 const admin = createClient(
@@ -65,22 +69,22 @@ function json(body: unknown, status = 200): Response {
 
 // ── Entity registry ──────────────────────────────────────────────────────
 
-type EntityKind = "npc" | "faction" | "location";
+type EntityKind = "npc" | "faction" | "location" | "note";
 
 interface EntityConfig {
-  table: "npcs" | "factions" | "locations";
+  table: "npcs" | "factions" | "locations" | "notes";
   // Only the columns the entity's builder reads, plus id/user_id/updated_at
   // -- a plain `select("*")` would pull stat_block/portrait_url/map_pins/etc
   // for nothing, on every row, on every batch scan.
   select: string;
-  sideTable: "npc_embeddings" | "faction_embeddings" | "location_embeddings";
+  sideTable: "npc_embeddings" | "faction_embeddings" | "location_embeddings" | "note_embeddings";
   /** FK column on the side table pointing back at the main table's id. */
-  idColumn: "npc_id" | "faction_id" | "location_id";
+  idColumn: "npc_id" | "faction_id" | "location_id" | "note_id";
   /**
    * Row -> embed text. Wraps the corresponding buildXEmbedText() with the
    * row->EmbeddableX field mapping, so every entry in this registry shares
-   * one signature (Record<string, unknown> -> string) despite the three
-   * builders taking three different, non-overlapping input shapes -- the
+   * one signature (Record<string, unknown> -> string) despite the four
+   * builders taking four different, non-overlapping input shapes -- the
    * same reason embed-monsters' TARGET_CONFIG routes both its targets
    * through one shared row shape rather than typing `build` per-target.
    */
@@ -133,10 +137,24 @@ const ENTITIES: Record<EntityKind, EntityConfig> = {
         description: (row.description as string | null) ?? null,
       }),
   },
+  note: {
+    table: "notes",
+    select: "id, user_id, updated_at, title, category, session_num, tags, content",
+    sideTable: "note_embeddings",
+    idColumn: "note_id",
+    build: (row) =>
+      buildNoteEmbedText({
+        title: row.title as string,
+        category: row.category as string,
+        session_num: (row.session_num as number | null) ?? null,
+        tags: row.tags as string[],
+        content: (row.content as string | null) ?? null,
+      }),
+  },
 };
 
 function isEntityKind(value: unknown): value is EntityKind {
-  return value === "npc" || value === "faction" || value === "location";
+  return value === "npc" || value === "faction" || value === "location" || value === "note";
 }
 
 const DEFAULT_BATCH_LIMIT = 100;
@@ -259,7 +277,7 @@ async function resolvePlatformProvider(): Promise<EmbeddingProvider | Response> 
 async function handleBatch(body: { entity?: unknown; limit?: unknown }, adminUserId: string): Promise<Response> {
   const entity = body.entity;
   if (!isEntityKind(entity)) {
-    return json({ error: "Invalid entity -- must be 'npc', 'faction', or 'location'" }, 400);
+    return json({ error: "Invalid entity -- must be 'npc', 'faction', 'location', or 'note'" }, 400);
   }
   const limit = clampBatchLimit(body.limit);
 
@@ -322,7 +340,7 @@ async function handleBatch(body: { entity?: unknown; limit?: unknown }, adminUse
 async function handleSingle(req: Request, body: { entity?: unknown; id?: unknown }): Promise<Response> {
   const entity = body.entity;
   if (!isEntityKind(entity)) {
-    return json({ error: "Invalid entity -- must be 'npc', 'faction', or 'location'" }, 400);
+    return json({ error: "Invalid entity -- must be 'npc', 'faction', 'location', or 'note'" }, 400);
   }
   const id = body.id;
   if (typeof id !== "string" || !id) return json({ error: "Missing id" }, 400);

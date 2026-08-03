@@ -3,10 +3,12 @@ import {
   buildNpcEmbedText,
   buildFactionEmbedText,
   buildLocationEmbedText,
+  buildNoteEmbedText,
   entityEmbedHash,
   type EmbeddableNpc,
   type EmbeddableFaction,
   type EmbeddableLocation,
+  type EmbeddableNote,
 } from "./entityEmbedText";
 
 // ── NPC ───────────────────────────────────────────────────────────────────
@@ -348,6 +350,109 @@ describe("buildLocationEmbedText", () => {
 
   it("is deterministic — the same input always produces byte-identical output", () => {
     expect(buildLocationEmbedText(makeLocation())).toBe(buildLocationEmbedText(makeLocation()));
+  });
+});
+
+// ── Note ──────────────────────────────────────────────────────────────────
+
+function makeNote(overrides: Partial<EmbeddableNote> = {}): EmbeddableNote {
+  return {
+    title: "The Sunken Vault",
+    category: "session",
+    session_num: 7,
+    tags: ["dungeon", "vault"],
+    content: "The party descended into the flooded ruins and found the vault door ajar.",
+    ...overrides,
+  };
+}
+
+const NOTE_TITLE_ONLY: EmbeddableNote = {
+  title: "Loose thread: the merchant's ledger",
+  category: "general",
+  session_num: null,
+  tags: [],
+  content: null,
+};
+
+describe("buildNoteEmbedText", () => {
+  it("builds the complete string for a fully-populated note", () => {
+    expect(buildNoteEmbedText(makeNote())).toBe(
+      "The Sunken Vault. session, Session 7. dungeon, vault. " +
+      "The party descended into the flooded ruins and found the vault door ajar.",
+    );
+  });
+
+  it("produces exactly the title and category clauses when everything else is absent", () => {
+    expect(buildNoteEmbedText(NOTE_TITLE_ONLY)).toBe("Loose thread: the merchant's ledger. general.");
+  });
+
+  it("omits the session-number clause when session_num is null (category-only clause)", () => {
+    const text = buildNoteEmbedText(makeNote({ session_num: null }));
+    expect(text).toContain("The Sunken Vault. session.");
+    expect(text).not.toContain("Session 7");
+  });
+
+  it("includes the session-number clause when session_num is set", () => {
+    const text = buildNoteEmbedText(makeNote({ session_num: 3 }));
+    expect(text).toContain("session, Session 3.");
+  });
+
+  it("never emits a dangling comma when session_num is missing", () => {
+    const text = buildNoteEmbedText(makeNote({ session_num: null }));
+    expect(text).not.toContain(", .");
+  });
+
+  it("omits the tags clause entirely when tags is an empty array", () => {
+    const text = buildNoteEmbedText(makeNote({ tags: [] }));
+    expect(text).toBe(
+      "The Sunken Vault. session, Session 7. " +
+      "The party descended into the flooded ruins and found the vault door ajar.",
+    );
+  });
+
+  it("preserves tag order as given, never re-sorted", () => {
+    const text = buildNoteEmbedText(makeNote({ tags: ["zebra", "gruff", "aardvark"] }));
+    expect(text).toContain("zebra, gruff, aardvark.");
+  });
+
+  it("omits the content clause entirely when it is missing", () => {
+    const text = buildNoteEmbedText(makeNote({ content: null }));
+    expect(text).toBe("The Sunken Vault. session, Session 7. dungeon, vault.");
+  });
+
+  it("flattens a Tiptap JSON content field to plain text", () => {
+    const tiptap = JSON.stringify({
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: "The vault door was ajar." }] }],
+    });
+    const text = buildNoteEmbedText(makeNote({ content: tiptap }));
+    expect(text).toContain("The vault door was ajar.");
+    expect(text).not.toContain("{");
+  });
+
+  it("truncates content longer than 4000 characters at a word boundary, never mid-word", () => {
+    const longContent = Array.from({ length: 900 }, () => "alpha").join(" "); // 5399 chars
+    const text = buildNoteEmbedText(makeNote({ content: longContent }));
+    const contentPart = text.split("dungeon, vault. ")[1]!;
+
+    expect(contentPart.length).toBeLessThanOrEqual(4000);
+    expect(contentPart.split(" ").every((word) => word === "alpha")).toBe(true);
+    expect(longContent.startsWith(contentPart)).toBe(true);
+  });
+
+  it("does NOT truncate content under the 4000-character limit", () => {
+    const shortContent = Array.from({ length: 50 }, () => "alpha").join(" "); // 299 chars
+    const text = buildNoteEmbedText(makeNote({ content: shortContent }));
+    expect(text).toContain(shortContent);
+  });
+
+  it("collapses runs of whitespace so output is stable regardless of source formatting", () => {
+    const text = buildNoteEmbedText(makeNote({ content: "The party\n\nfound   a\tdoor." }));
+    expect(text).not.toMatch(/\s{2,}/);
+  });
+
+  it("is deterministic — the same input always produces byte-identical output", () => {
+    expect(buildNoteEmbedText(makeNote())).toBe(buildNoteEmbedText(makeNote()));
   });
 });
 
