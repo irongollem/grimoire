@@ -3,10 +3,10 @@
     <div>
       <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">Embedding Vendor</h2>
       <p class="text-caption text-muted-foreground italic mt-0.5">
-        Exactly one vendor may power monster-embedding search (#595) — the database enforces this with a unique
-        index (<code class="font-mono text-2xs">provider_config_single_embedding_vendor</code>), so this is a
-        single choice rather than a toggle per provider. Applying a change re-embeds every monster automatically —
-        there is nothing else to remember afterward.
+        Exactly one vendor may power semantic-search embedding (#595, #600) — the database enforces this with a
+        unique index (<code class="font-mono text-2xs">provider_config_single_embedding_vendor</code>), so this is
+        a single choice rather than a toggle per provider. Applying a change re-embeds every monster, NPC, faction
+        and location automatically — there is nothing else to remember afterward.
       </p>
     </div>
 
@@ -73,7 +73,7 @@ import { ref, computed, watch } from "vue";
 import { Loader2Icon } from "lucide-vue-next";
 import { useAdminProviders, PROVIDER_LABELS } from "@/composables/useAdminProviders";
 import { useConfirm } from "@/composables/useConfirm";
-import { useMonsterEmbeddingBackfill } from "@/composables/useMonsterEmbeddingBackfill";
+import { useEmbeddingBackfill } from "@/composables/useEmbeddingBackfill";
 import EmbeddingBackfillStatus from "@/components/admin/EmbeddingBackfillStatus.vue";
 
 interface Props {
@@ -88,7 +88,7 @@ const embeddingVendors = computed(() => Object.keys(knownEmbeddingModels));
 
 const { query: providersQuery, setEmbeddingProvider } = useAdminProviders();
 const { confirm } = useConfirm();
-const backfill = useMonsterEmbeddingBackfill();
+const backfill = useEmbeddingBackfill();
 
 const savedProvider = computed<string | null>(
   () => providersQuery.data.value?.find((r) => r.embedding_enabled)?.provider ?? null,
@@ -149,8 +149,8 @@ async function apply() {
   // is deliberate, not an oversight.
   const ok = await confirm(
     `This sets the embedding provider to ${PROVIDER_LABELS[selectedProvider.value] ?? selectedProvider.value} ` +
-      `(${selectedModel.value}) and re-embeds every monster to match. Re-embedding takes a few minutes, and ` +
-      "until it finishes, encounter suggestions fall back to a smaller candidate list. Continue?",
+      `(${selectedModel.value}) and re-embeds every monster, NPC, faction and location to match. Re-embedding ` +
+      "takes a few minutes, and until it finishes, retrieval falls back to a smaller candidate list. Continue?",
     { title: "Change embedding provider", confirmLabel: "Apply & re-embed", danger: true },
   );
   if (!ok) return;
@@ -168,7 +168,7 @@ async function apply() {
 
   // Phase 2: run the backfill to completion immediately. This is the SAME
   // loop (and the same in-flight run) as MonsterEmbeddingBackfill.vue's
-  // standalone button -- see useMonsterEmbeddingBackfill.ts.
+  // standalone button -- see useEmbeddingBackfill.ts.
   await backfill.runBackfill();
 }
 </script>

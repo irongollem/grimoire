@@ -33,11 +33,11 @@
     <!--
       The vendor control keeps its own inline backfill, because re-embedding is
       part of the switch rather than a separate chore to remember. The
-      standalone "Re-embed monsters" card lives in the Content tab instead:
-      running it is a maintenance action on the bestiary, not a change to
-      provider configuration. Both drive the same run — useMonsterEmbeddingBackfill
-      is module-level singleton state — so progress shown here and there is one
-      operation, not two that can disagree.
+      standalone "Re-embed all content" card lives in the Content tab instead:
+      running it is a maintenance action on monsters/NPCs/factions/locations,
+      not a change to provider configuration. Both drive the same run —
+      useEmbeddingBackfill is module-level singleton state — so progress shown
+      here and there is one operation, not two that can disagree.
     -->
     <EmbeddingVendorControl :known-embedding-models="KNOWN_EMBEDDING_MODELS" />
 

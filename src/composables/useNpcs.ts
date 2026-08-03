@@ -132,13 +132,32 @@ export function useNpc(id: string | Ref<string>) {
   });
 }
 
+/**
+ * Queue this NPC for semantic-search embedding (#600) so retrieval can find it
+ * without waiting for the next admin backfill.
+ *
+ * Fire-and-forget on purpose: the NPC is already saved, so a failed embed
+ * is not worth a toast, a spinner or a delayed mutation — the row simply stays
+ * unembedded and the next backfill sweep collects it. The edge function
+ * short-circuits when the embed text's hash is unchanged, so a save that
+ * touched an unrelated field costs no API call at all.
+ */
+function queueNpcEmbedding(id: string): void {
+  void supabase.functions
+    .invoke("embed-content", { body: { mode: "single", entity: "npc", id } })
+    .catch(() => { /* non-fatal — see above */ });
+}
+
 export function useCreateNpc() {
   const queryClient = useQueryClient();
   const campaign = useCampaignStore();
   return useMutation({
     mutationFn: (npc: Omit<NpcInsert, "campaign_id">) =>
       createNpc({ ...npc, campaign_id: campaign.activeCampaignId! }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+    onSuccess: (npc) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      queueNpcEmbedding(npc.id);
+    },
   });
 }
 
@@ -154,6 +173,7 @@ export function useUpdateNpc() {
         (old: Npc[] | undefined) => old?.map((n) => (n.id === id ? updatedNpc : n)),
       );
       queryClient.setQueryData([QUERY_KEY, id], updatedNpc);
+      queueNpcEmbedding(id);
     },
   });
 }
@@ -356,6 +376,12 @@ export function usePopulateSettingNpcs() {
         .insert(toInsert.map((n) => ({ ...n, user_id: user!.id })))
         .select("id");
       if (insertError) throw insertError;
+
+      // Bulk insert bypasses useCreateNpc()'s mutation hook, so each new row
+      // needs its own embed call here -- otherwise these NPCs stay
+      // unretrievable until the next admin backfill (mirrors
+      // useCloneLibraryMonster's comment in useMonsters.ts).
+      for (const row of inserted ?? []) queueNpcEmbedding(row.id);
 
       return (inserted ?? []).length;
     },

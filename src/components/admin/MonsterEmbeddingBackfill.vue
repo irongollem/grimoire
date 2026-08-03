@@ -1,14 +1,14 @@
 <template>
   <div class="rounded-lg border border-border bg-card p-4 space-y-3">
     <div>
-      <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">Monster Embeddings</h2>
+      <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">Content Embeddings</h2>
       <p class="text-caption text-muted-foreground italic mt-0.5">
-        Drives the embed-monsters backfill (#595) in bounded batches of {{ BATCH_LIMIT }} — one call embeds
-        up to {{ BATCH_LIMIT }} stale rows and reports how many remain, so a full pass over the bestiary takes
-        dozens of calls. It is resumable by construction (the server recomputes "remaining" fresh each call),
-        so an interrupted run is always safe to restart. Changing the embedding vendor or model in the panel
-        above runs this automatically -- use the button below to resume an interrupted run, or to re-embed
-        without changing the vendor.
+        Drives the embed-monsters (#595) and embed-content (#600) backfills in bounded batches of {{ BATCH_LIMIT }}
+        — one call embeds up to {{ BATCH_LIMIT }} stale rows in one table and reports how many remain, so a full
+        pass over monsters, NPCs, factions and locations takes many calls. It is resumable by construction (the
+        server recomputes "remaining" fresh each call), so an interrupted run is always safe to restart. Changing
+        the embedding vendor or model in the panel above runs this automatically -- use the button below to resume
+        an interrupted run, or to re-embed without changing the vendor.
       </p>
     </div>
 
@@ -19,7 +19,7 @@
         :disabled="isRunning"
         @click="runBackfill"
       >
-        {{ isRunning ? 'Running…' : 'Re-embed monsters' }}
+        {{ isRunning ? 'Running…' : 'Re-embed all content' }}
       </button>
       <button
         v-if="isRunning"
@@ -37,13 +37,13 @@
 </template>
 
 <script setup lang="ts">
-// Admin driver for the embed-monsters batch backfill (#595). The actual loop
-// lives in useMonsterEmbeddingBackfill.ts (module-level singleton state) so
-// this button and EmbeddingVendorControl.vue's post-apply auto-backfill
-// share ONE implementation and ONE in-flight run instead of two copies of
-// the same loop.
-import { useMonsterEmbeddingBackfill, BATCH_LIMIT } from "@/composables/useMonsterEmbeddingBackfill";
+// Admin driver for the semantic-search batch backfill: monsters (#595) plus
+// NPCs, factions and locations (#600). The actual loop lives in
+// useEmbeddingBackfill.ts (module-level singleton state) so this button and
+// EmbeddingVendorControl.vue's post-apply auto-backfill share ONE
+// implementation and ONE in-flight run instead of two copies of the same loop.
+import { useEmbeddingBackfill, BATCH_LIMIT } from "@/composables/useEmbeddingBackfill";
 import EmbeddingBackfillStatus from "@/components/admin/EmbeddingBackfillStatus.vue";
 
-const { isRunning, stopRequested, runBackfill, stopBackfill } = useMonsterEmbeddingBackfill();
+const { isRunning, stopRequested, runBackfill, stopBackfill } = useEmbeddingBackfill();
 </script>

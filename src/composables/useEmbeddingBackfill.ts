@@ -1,29 +1,36 @@
 import { ref } from "vue";
 import { supabase } from "@/lib/supabase";
 
-// Shared driver for the embed-monsters batch backfill (#595). The edge
-// function itself only does ONE bounded batch per call (see
-// supabase/functions/embed-monsters/index.ts, handleBatch) -- someone has to
-// call it repeatedly until `remaining` hits zero, for both monster tables.
-// At 100 rows/call and ~3,600 total monsters that is dozens of round trips,
-// so this is a real feature, not a manual curl loop.
+// Shared driver for the semantic-search batch backfill: monsters (#595) and
+// campaign entities -- NPCs, factions, locations (#600). Each edge function
+// only does ONE bounded batch per call (see supabase/functions/embed-monsters
+// and embed-content, handleBatch) -- someone has to call it repeatedly until
+// `remaining` hits zero, for every target in turn.
 //
 // State is a MODULE-LEVEL singleton (same pattern as useConfirm.ts's dialog
 // ref) rather than per-composable-call refs: there is only ever one backfill
-// run at a time, and it can be started either from the standalone "Re-embed
-// monsters" button (MonsterEmbeddingBackfill.vue) or automatically after a
+// run at a time, and it can be started either from the standalone "Re-embed"
+// button (MonsterEmbeddingBackfill.vue) or automatically after a
 // vendor/model change (EmbeddingVendorControl.vue). Sharing the refs is what
-// makes "one continuous progress state across both phases" literally true --
+// makes "one continuous progress state across every target" literally true --
 // both components render the same run instead of two independent copies
 // that could drift or double-run.
 
-export type EmbedTarget = "library" | "custom";
+export type EmbedTarget = "library" | "custom" | "npc" | "faction" | "location";
 
-export const EMBED_TARGETS: readonly EmbedTarget[] = ["library", "custom"];
+export const EMBED_TARGETS: readonly EmbedTarget[] = ["library", "custom", "npc", "faction", "location"];
 export const EMBED_TARGET_LABELS: Record<EmbedTarget, string> = {
   library: "library monsters (shared bestiary)",
   custom: "custom monsters (per-user)",
+  npc: "NPCs",
+  faction: "factions",
+  location: "locations",
 };
+
+// The two monster targets go through embed-monsters (body param `target`);
+// the three campaign-entity targets share embed-content (body param
+// `entity`, #600) -- same batch response shape, different edge function.
+const MONSTER_TARGETS = new Set<EmbedTarget>(["library", "custom"]);
 
 export const BATCH_LIMIT = 100;
 
@@ -65,6 +72,13 @@ async function extractErrorMessage(err: unknown): Promise<string> {
   return body?.detail ?? body?.error ?? body?.message ?? fnError.message ?? "The request failed.";
 }
 
+/** One bounded batch call for `target`, routed to the edge function that owns it. */
+function invokeBatch(target: EmbedTarget, limit: number) {
+  return MONSTER_TARGETS.has(target)
+    ? supabase.functions.invoke("embed-monsters", { body: { mode: "batch", target, limit } })
+    : supabase.functions.invoke("embed-content", { body: { mode: "batch", entity: target, limit } });
+}
+
 function stopBackfill() {
   stopRequested.value = true;
 }
@@ -88,19 +102,17 @@ async function runBackfill(): Promise<void> {
       for (;;) {
         if (stopRequested.value) break;
 
-        const { data, error } = await supabase.functions.invoke("embed-monsters", {
-          body: { mode: "batch", target, limit: BATCH_LIMIT },
-        });
+        const { data, error } = await invokeBatch(target, BATCH_LIMIT);
         if (error) {
           // The config change (if any) that led here is already committed --
           // it is not rolled back by a backfill failure. Un-re-embedded rows
           // are simply ineligible for semantic search (they fall back to the
-          // compact candidate list, exactly like a monster that was never
+          // compact candidate list, exactly like a row that was never
           // embedded) until the backfill is retried, so this is degraded but
           // safe, not broken.
           errorMsg.value =
             `Failed on ${EMBED_TARGET_LABELS[target]}: ${await extractErrorMessage(error)}. ` +
-            "The provider config is already saved -- monsters not yet re-embedded are simply skipped by " +
+            "The provider config is already saved -- rows not yet re-embedded are simply skipped by " +
             "semantic search until you retry.";
           return;
         }
@@ -133,16 +145,16 @@ async function runBackfill(): Promise<void> {
       ? {
           kind: "stopped",
           text:
-            `Stopped after ${totalProcessed.value} monster${totalProcessed.value === 1 ? "" : "s"} re-embedded. ` +
-            "The provider config is already saved -- monsters not yet re-embedded are simply skipped by semantic " +
+            `Stopped after ${totalProcessed.value} row${totalProcessed.value === 1 ? "" : "s"} re-embedded. ` +
+            "The provider config is already saved -- rows not yet re-embedded are simply skipped by semantic " +
             "search (falling back to the compact candidate list) until you resume. Safe to resume any time -- " +
-            "click Re-embed monsters again.",
+            "click Re-embed again.",
         }
-      : { kind: "success", text: `Done -- ${totalProcessed.value} monster${totalProcessed.value === 1 ? "" : "s"} re-embedded across both tables.` };
+      : { kind: "success", text: `Done -- ${totalProcessed.value} row${totalProcessed.value === 1 ? "" : "s"} re-embedded across all five tables.` };
   } catch (err) {
     errorMsg.value =
       (err instanceof Error ? err.message : "Backfill failed.") +
-      " The provider config is already saved -- monsters not yet re-embedded are simply skipped by semantic " +
+      " The provider config is already saved -- rows not yet re-embedded are simply skipped by semantic " +
       "search until the backfill is retried.";
   } finally {
     isRunning.value = false;
@@ -150,7 +162,7 @@ async function runBackfill(): Promise<void> {
   }
 }
 
-export function useMonsterEmbeddingBackfill() {
+export function useEmbeddingBackfill() {
   return {
     isRunning,
     stopRequested,

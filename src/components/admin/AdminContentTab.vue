@@ -1,10 +1,11 @@
 <template>
   <div class="space-y-6">
-    <!-- Bestiary semantic-search index. Lives here rather than under Providers
-         because running it is maintenance on content, not a change to provider
-         configuration — the vendor switch has its own inline backfill for the
-         case where re-embedding is part of that action. Both share one run via
-         useMonsterEmbeddingBackfill's module-level state. -->
+    <!-- Semantic-search index for monsters, NPCs, factions and locations.
+         Lives here rather than under Providers because running it is
+         maintenance on content, not a change to provider configuration — the
+         vendor switch has its own inline backfill for the case where
+         re-embedding is part of that action. Both share one run via
+         useEmbeddingBackfill's module-level state. -->
     <MonsterEmbeddingBackfill />
 
     <!-- SRD Art Repair -->

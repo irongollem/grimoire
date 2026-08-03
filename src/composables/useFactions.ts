@@ -75,6 +75,22 @@ export function usePlayerVisibleFactions() {
   });
 }
 
+/**
+ * Queue this faction for semantic-search embedding (#600) so retrieval can
+ * find it without waiting for the next admin backfill.
+ *
+ * Fire-and-forget on purpose: the faction is already saved, so a failed embed
+ * is not worth a toast, a spinner or a delayed mutation — the row simply stays
+ * unembedded and the next backfill sweep collects it. The edge function
+ * short-circuits when the embed text's hash is unchanged, so a save that
+ * touched an unrelated field costs no API call at all.
+ */
+function queueFactionEmbedding(id: string): void {
+  void supabase.functions
+    .invoke("embed-content", { body: { mode: "single", entity: "faction", id } })
+    .catch(() => { /* non-fatal — see above */ });
+}
+
 export function useCreateFaction() {
   const qc = useQueryClient();
   const campaign = useCampaignStore();
@@ -91,7 +107,10 @@ export function useCreateFaction() {
       if (error) throw error;
       return data as Faction;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["factions", campaign.activeCampaignId] }),
+    onSuccess: (faction) => {
+      qc.invalidateQueries({ queryKey: ["factions", campaign.activeCampaignId] });
+      queueFactionEmbedding(faction.id);
+    },
   });
 }
 
@@ -112,7 +131,10 @@ export function useUpdateFaction() {
         .eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["factions", campaign.activeCampaignId] }),
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: ["factions", campaign.activeCampaignId] });
+      queueFactionEmbedding(id);
+    },
   });
 }
 
@@ -785,6 +807,12 @@ export function usePopulateFactions() {
         .insert(toInsert)
         .select("id");
       if (insertError) throw insertError;
+
+      // Bulk insert bypasses useCreateFaction()'s mutation hook, so each new
+      // row needs its own embed call here -- otherwise these factions stay
+      // unretrievable until the next admin backfill (mirrors
+      // useCloneLibraryMonster's comment in useMonsters.ts).
+      for (const row of inserted ?? []) queueFactionEmbedding(row.id);
 
       return (inserted ?? []).length;
     },

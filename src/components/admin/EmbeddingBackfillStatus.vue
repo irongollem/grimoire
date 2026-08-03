@@ -16,15 +16,16 @@
 </template>
 
 <script setup lang="ts">
-// Presentational status line for the embed-monsters backfill (#595), reading
-// directly off the shared useMonsterEmbeddingBackfill() singleton state.
-// Used by both MonsterEmbeddingBackfill.vue (the standalone "Re-embed
-// monsters" button) and EmbeddingVendorControl.vue (the post-apply
-// auto-backfill), so the run's progress renders identically -- and is
-// literally the SAME run -- no matter which component started it.
+// Presentational status line for the semantic-search backfill: monsters
+// (#595) plus NPCs, factions and locations (#600) -- reading directly off
+// the shared useEmbeddingBackfill() singleton state. Used by both
+// MonsterEmbeddingBackfill.vue (the standalone "Re-embed" button) and
+// EmbeddingVendorControl.vue (the post-apply auto-backfill), so the run's
+// progress renders identically -- and is literally the SAME run -- no matter
+// which component started it.
 import { Loader2Icon } from "lucide-vue-next";
-import { useMonsterEmbeddingBackfill, EMBED_TARGET_LABELS } from "@/composables/useMonsterEmbeddingBackfill";
+import { useEmbeddingBackfill, EMBED_TARGET_LABELS } from "@/composables/useEmbeddingBackfill";
 
 const { isRunning, currentTarget, processedThisTarget, remainingThisTarget, totalProcessed, errorMsg, resultMessage } =
-  useMonsterEmbeddingBackfill();
+  useEmbeddingBackfill();
 </script>
