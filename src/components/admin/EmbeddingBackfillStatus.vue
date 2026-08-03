@@ -17,7 +17,7 @@
 
 <script setup lang="ts">
 // Presentational status line for the semantic-search backfill: monsters
-// (#595) plus NPCs, factions and locations (#600) -- reading directly off
+// (#595) plus NPCs, factions, locations and notes (#600) -- reading directly off
 // the shared useEmbeddingBackfill() singleton state. Used by both
 // MonsterEmbeddingBackfill.vue (the standalone "Re-embed" button) and
 // EmbeddingVendorControl.vue (the post-apply auto-backfill), so the run's

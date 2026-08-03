@@ -74,13 +74,32 @@ export function useNote(id: Ref<string>) {
   });
 }
 
+/**
+ * Queue this note for semantic-search embedding (#600) so retrieval can find it
+ * without waiting for the next admin backfill.
+ *
+ * Fire-and-forget on purpose: the note is already saved, so a failed embed
+ * is not worth a toast, a spinner or a delayed mutation — the row simply stays
+ * unembedded and the next backfill sweep collects it. The edge function
+ * short-circuits when the embed text's hash is unchanged, so a save that
+ * touched an unrelated field costs no API call at all.
+ */
+export function queueNoteEmbedding(id: string): void {
+  void supabase.functions
+    .invoke("embed-content", { body: { mode: "single", entity: "note", id } })
+    .catch(() => { /* non-fatal — see above */ });
+}
+
 export function useCreateNote() {
   const queryClient = useQueryClient();
   const campaign = useCampaignStore();
   return useMutation({
     mutationFn: (note: Omit<NoteInsert, "campaign_id">) =>
       createNote({ ...note, campaign_id: campaign.activeCampaignId! }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+    onSuccess: (note) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      queueNoteEmbedding(note.id);
+    },
   });
 }
 
@@ -92,6 +111,7 @@ export function useUpdateNote() {
     onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, id] });
+      queueNoteEmbedding(id);
     },
   });
 }

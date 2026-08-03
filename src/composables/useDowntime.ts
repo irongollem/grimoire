@@ -2,9 +2,9 @@ import { computed, type Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
-import { createNpc } from "./useNpcs";
+import { createNpc, queueNpcEmbedding } from "./useNpcs";
 import { createItem } from "./useItems";
-import { createNote } from "./useNotes";
+import { createNote, queueNoteEmbedding } from "./useNotes";
 import { computeBalance } from "@/lib/downtime/downtimeBalance";
 import { drawFromDeck } from "@/lib/downtime/downtimeDeck";
 import {
@@ -260,6 +260,10 @@ export function useResolveDraw() {
             ...npcInsertFromSeed(reward.npc),
             campaign_id: campaignId,
           });
+          // Direct createNpc() bypasses useCreateNpc()'s embed hook — queue
+          // explicitly, or the reward NPC stays unretrievable until the next
+          // admin backfill (same gap useCloneLibraryMonster documents).
+          queueNpcEmbedding(npc.id);
           rewardType = "npc";
           rewardId = npc.id;
         } else if (reward.kind === "item") {
@@ -274,6 +278,7 @@ export function useResolveDraw() {
             ...noteInsertFromSeed(reward.note),
             campaign_id: campaignId,
           });
+          queueNoteEmbedding(note.id);
           rewardType = "note";
           rewardId = note.id;
         }

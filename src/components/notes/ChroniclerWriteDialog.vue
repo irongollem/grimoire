@@ -143,7 +143,12 @@ import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 
 const TONES = CHRONICLER_TONES;
 
-const props = defineProps<{ visible: boolean }>();
+const props = defineProps<{
+  visible: boolean;
+  /** The note being edited, so retrieval can exclude it from its own recap
+   *  (#600). null/undefined for a new, unsaved note. */
+  noteId?: string | null;
+}>();
 const emit = defineEmits<{
   close: [];
   insert: [markdown: string];
@@ -191,6 +196,7 @@ async function generate() {
       npcs: npcs.value,
       monsters: monsters.value,
       partyMembers: partyMembers.value,
+      excludeNoteId: props.noteId ?? undefined,
     });
     rawGeneratedMd.value  = raw;
     previewMarkdown.value = preprocessChronicleMarkdown(raw);

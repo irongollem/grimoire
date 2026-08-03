@@ -57,8 +57,12 @@ export function useChroniclerTextGeneration() {
     npcs: Npc[] | undefined;
     monsters: Monster[] | undefined;
     partyMembers: PartyMember[] | undefined;
+    /** The note this chronicle will be inserted into (undefined for a new,
+     *  unsaved note). Forwarded to the server so retrieval never returns the
+     *  very note the recap is about to be written into (#600). */
+    excludeNoteId?: string;
   }): Promise<string> {
-    const { rawText, tone, npcs, monsters, partyMembers } = params;
+    const { rawText, tone, npcs, monsters, partyMembers, excludeNoteId } = params;
     const entities = parseSceneEntities(rawText, npcs, monsters, partyMembers);
     const settingPrompt = campaign.activeCampaign?.ai_setting_prompt ?? "No setting configured.";
     const campaignId = campaign.activeCampaign?.id;
@@ -79,7 +83,7 @@ export function useChroniclerTextGeneration() {
         localStorage.getItem(LOCAL_MODE_KEY) === "local";
 
       if (!isLocalMode && campaignId) {
-        return await generateServerSide({ rawText, tone, entities, campaignId });
+        return await generateServerSide({ rawText, tone, entities, campaignId, excludeNoteId });
       }
       return await generateClientSide({ rawText, tone, entities, settingPrompt });
     } catch (e) {
@@ -95,8 +99,9 @@ export function useChroniclerTextGeneration() {
     tone: ChroniclerTone;
     entities: ResolvedEntity[];
     campaignId: string;
+    excludeNoteId?: string;
   }): Promise<string> {
-    const { rawText, tone, entities, campaignId } = params;
+    const { rawText, tone, entities, campaignId, excludeNoteId } = params;
 
     const tone_instruction = TONE_INSTRUCTIONS[tone];
     const entity_descriptions = entities
@@ -104,7 +109,13 @@ export function useChroniclerTextGeneration() {
       .filter(Boolean);
 
     const { data, error: fnError } = await supabase.functions.invoke("generate-chronicle-text", {
-      body: { campaign_id: campaignId, raw_text: rawText, tone_instruction, entity_descriptions },
+      body: {
+        campaign_id: campaignId,
+        raw_text: rawText,
+        tone_instruction,
+        entity_descriptions,
+        exclude_note_id: excludeNoteId,
+      },
     });
 
     if (fnError) throw new Error(await edgeErrorMessage(fnError));
@@ -120,6 +131,13 @@ export function useChroniclerTextGeneration() {
   }): Promise<string> {
     const { rawText, tone, entities, settingPrompt } = params;
 
+    // The local (BYOK) path can't retrieve the DM's notes -- that's a DB read
+    // the edge function does with service-role access the browser doesn't
+    // have, so there is no exclude_note_id concern here either. This parity
+    // gap is policy, not debt: local-key mode exists for early adopters who
+    // didn't want to hand over an API key, and it is not a target for new AI
+    // capabilities -- the server path is the product. Do not invest in
+    // closing this gap.
     const [basePrompt, rulesetContext] = await Promise.all([
       fetchSystemPrompt("chronicle_text"),
       fetchRulesetContext(ruleset.value),

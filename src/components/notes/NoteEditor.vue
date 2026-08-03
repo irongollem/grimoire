@@ -225,6 +225,7 @@
 
   <ChroniclerWriteDialog
     :visible="showChroniclerWrite"
+    :note-id="props.note?.id"
     @close="showChroniclerWrite = false"
     @insert="onChroniclerWrite"
   />

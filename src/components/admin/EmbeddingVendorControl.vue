@@ -5,8 +5,8 @@
       <p class="text-caption text-muted-foreground italic mt-0.5">
         Exactly one vendor may power semantic-search embedding (#595, #600) — the database enforces this with a
         unique index (<code class="font-mono text-2xs">provider_config_single_embedding_vendor</code>), so this is
-        a single choice rather than a toggle per provider. Applying a change re-embeds every monster, NPC, faction
-        and location automatically — there is nothing else to remember afterward.
+        a single choice rather than a toggle per provider. Applying a change re-embeds every monster, NPC, faction,
+        location and note automatically — there is nothing else to remember afterward.
       </p>
     </div>
 
@@ -149,7 +149,7 @@ async function apply() {
   // is deliberate, not an oversight.
   const ok = await confirm(
     `This sets the embedding provider to ${PROVIDER_LABELS[selectedProvider.value] ?? selectedProvider.value} ` +
-      `(${selectedModel.value}) and re-embeds every monster, NPC, faction and location to match. Re-embedding ` +
+      `(${selectedModel.value}) and re-embeds every monster, NPC, faction, location and note to match. Re-embedding ` +
       "takes a few minutes, and until it finishes, retrieval falls back to a smaller candidate list. Continue?",
     { title: "Change embedding provider", confirmLabel: "Apply & re-embed", danger: true },
   );

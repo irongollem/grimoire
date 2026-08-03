@@ -5,7 +5,7 @@
       <p class="text-caption text-muted-foreground italic mt-0.5">
         Drives the embed-monsters (#595) and embed-content (#600) backfills in bounded batches of {{ BATCH_LIMIT }}
         — one call embeds up to {{ BATCH_LIMIT }} stale rows in one table and reports how many remain, so a full
-        pass over monsters, NPCs, factions and locations takes many calls. It is resumable by construction (the
+        pass over monsters, NPCs, factions, locations and notes takes many calls. It is resumable by construction (the
         server recomputes "remaining" fresh each call), so an interrupted run is always safe to restart. Changing
         the embedding vendor or model in the panel above runs this automatically -- use the button below to resume
         an interrupted run, or to re-embed without changing the vendor.
@@ -38,7 +38,7 @@
 
 <script setup lang="ts">
 // Admin driver for the semantic-search batch backfill: monsters (#595) plus
-// NPCs, factions and locations (#600). The actual loop lives in
+// NPCs, factions, locations and notes (#600). The actual loop lives in
 // useEmbeddingBackfill.ts (module-level singleton state) so this button and
 // EmbeddingVendorControl.vue's post-apply auto-backfill share ONE
 // implementation and ONE in-flight run instead of two copies of the same loop.

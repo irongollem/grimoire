@@ -2,8 +2,8 @@ import { ref } from "vue";
 import { supabase } from "@/lib/supabase";
 
 // Shared driver for the semantic-search batch backfill: monsters (#595) and
-// campaign entities -- NPCs, factions, locations (#600). Each edge function
-// only does ONE bounded batch per call (see supabase/functions/embed-monsters
+// campaign entities -- NPCs, factions, locations and notes (#600). Each edge
+// function only does ONE bounded batch per call (see supabase/functions/embed-monsters
 // and embed-content, handleBatch) -- someone has to call it repeatedly until
 // `remaining` hits zero, for every target in turn.
 //
@@ -16,19 +16,20 @@ import { supabase } from "@/lib/supabase";
 // both components render the same run instead of two independent copies
 // that could drift or double-run.
 
-export type EmbedTarget = "library" | "custom" | "npc" | "faction" | "location";
+export type EmbedTarget = "library" | "custom" | "npc" | "faction" | "location" | "note";
 
-export const EMBED_TARGETS: readonly EmbedTarget[] = ["library", "custom", "npc", "faction", "location"];
+export const EMBED_TARGETS: readonly EmbedTarget[] = ["library", "custom", "npc", "faction", "location", "note"];
 export const EMBED_TARGET_LABELS: Record<EmbedTarget, string> = {
   library: "library monsters (shared bestiary)",
   custom: "custom monsters (per-user)",
   npc: "NPCs",
   faction: "factions",
   location: "locations",
+  note: "notes (sessions & chronicles)",
 };
 
 // The two monster targets go through embed-monsters (body param `target`);
-// the three campaign-entity targets share embed-content (body param
+// the four campaign-entity targets share embed-content (body param
 // `entity`, #600) -- same batch response shape, different edge function.
 const MONSTER_TARGETS = new Set<EmbedTarget>(["library", "custom"]);
 
@@ -150,7 +151,7 @@ async function runBackfill(): Promise<void> {
             "search (falling back to the compact candidate list) until you resume. Safe to resume any time -- " +
             "click Re-embed again.",
         }
-      : { kind: "success", text: `Done -- ${totalProcessed.value} row${totalProcessed.value === 1 ? "" : "s"} re-embedded across all five tables.` };
+      : { kind: "success", text: `Done -- ${totalProcessed.value} row${totalProcessed.value === 1 ? "" : "s"} re-embedded across all six tables.` };
   } catch (err) {
     errorMsg.value =
       (err instanceof Error ? err.message : "Backfill failed.") +

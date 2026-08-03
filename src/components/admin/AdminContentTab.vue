@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-6">
-    <!-- Semantic-search index for monsters, NPCs, factions and locations.
+    <!-- Semantic-search index for monsters, NPCs, factions, locations and notes.
          Lives here rather than under Providers because running it is
          maintenance on content, not a change to provider configuration — the
          vendor switch has its own inline backfill for the case where

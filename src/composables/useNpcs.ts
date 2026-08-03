@@ -142,7 +142,7 @@ export function useNpc(id: string | Ref<string>) {
  * short-circuits when the embed text's hash is unchanged, so a save that
  * touched an unrelated field costs no API call at all.
  */
-function queueNpcEmbedding(id: string): void {
+export function queueNpcEmbedding(id: string): void {
   void supabase.functions
     .invoke("embed-content", { body: { mode: "single", entity: "npc", id } })
     .catch(() => { /* non-fatal — see above */ });
