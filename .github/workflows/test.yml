@@ -80,6 +80,13 @@ jobs:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_DB_PASSWORD: ${{ secrets.PRODUCTION_DB_PASSWORD }}
       SUPABASE_PROJECT_ID: ${{ secrets.PRODUCTION_PROJECT_ID }}
+      # Lifted to job env so the steps below can branch on whether it is set.
+      # `secrets` is NOT a valid context inside `if:` — GitHub rejects the whole
+      # file with "Unrecognized named-value: 'secrets'", which does not fail the
+      # run so much as prevent it: zero jobs, zero logs, and a generic "workflow
+      # file issue". `env` IS valid in a step-level `if:`, so the skip-when-unset
+      # behaviour survives intact.
+      STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
     steps:
       - uses: actions/checkout@v4
 
@@ -96,23 +103,21 @@ jobs:
       # Deliberately before `db push`: a config mismatch should fail while
       # production is still untouched, not after migrations have landed.
       - uses: actions/setup-node@v4
-        if: ${{ secrets.STRIPE_SECRET_KEY != '' }}
+        if: env.STRIPE_SECRET_KEY != ''
         with:
           node-version: 24
           cache: npm
       - name: Install deps for the Stripe check
-        if: ${{ secrets.STRIPE_SECRET_KEY != '' }}
+        if: env.STRIPE_SECRET_KEY != ''
         run: npm ci
       - name: Stripe webhook configuration matches the code
-        if: ${{ secrets.STRIPE_SECRET_KEY != '' }}
-        env:
-          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+        if: env.STRIPE_SECRET_KEY != ''
         run: npm run stripe:check
 
       # Loud rather than silent: a check that quietly does not run is worse than
       # no check, because the release still looks green.
       - name: Warn that the Stripe check was skipped
-        if: ${{ secrets.STRIPE_SECRET_KEY == '' }}
+        if: env.STRIPE_SECRET_KEY == ''
         run: |
           echo "::warning::STRIPE_SECRET_KEY is not set, so the Stripe webhook configuration was NOT verified. Add it to the repository secrets (a restricted key with read access to webhook endpoints is enough) so config drift fails the release instead of a customer's payment."
 
