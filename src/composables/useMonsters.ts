@@ -240,11 +240,30 @@ export function useMonster(id: Ref<string>) {
   });
 }
 
+/**
+ * Queue this monster for semantic-search embedding (#595) so the encounter
+ * suggester can retrieve it without waiting for the next admin backfill.
+ *
+ * Fire-and-forget on purpose: the monster is already saved, so a failed embed
+ * is not worth a toast, a spinner or a delayed mutation — the row simply stays
+ * unembedded and the next backfill sweep collects it. The edge function
+ * short-circuits when the embed text's hash is unchanged, so a save that
+ * touched an unrelated field costs no API call at all.
+ */
+function queueMonsterEmbedding(id: string): void {
+  void supabase.functions
+    .invoke("embed-monsters", { body: { mode: "single", monster_id: id } })
+    .catch(() => { /* non-fatal — see above */ });
+}
+
 export function useCreateMonster() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: createMonster,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+    onSuccess: (monster) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      queueMonsterEmbedding(monster.id);
+    },
   });
 }
 
@@ -256,6 +275,7 @@ export function useUpdateMonster() {
     onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, id] });
+      queueMonsterEmbedding(id);
     },
   });
 }

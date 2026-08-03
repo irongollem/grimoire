@@ -21,6 +21,12 @@ import {
 import { withCors } from "../_shared/cors.ts";
 import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
 import { callText, MissingTextKeyError, type TextResult } from "../_shared/textGen.ts";
+import {
+  resolveEmbeddingProvider,
+  toVectorLiteral,
+  EmbeddingProviderConfigError,
+} from "../_shared/embeddings.ts";
+import { recordFreeGeneration } from "../_shared/credits.ts";
 
 /**
  * Party-aware AI encounter suggester (#337).
@@ -84,9 +90,46 @@ function formatPartyLine(member: PartyMemberRow, classes: CharacterClassRow[]): 
 }
 
 interface CustomMonsterRow {
+  id: string;
   name: string;
   monster_type: string;
   stat_block: { challenge_rating?: string } | null;
+}
+
+/** One line of the candidate block handed to the model, as `Name|CR|type`. */
+interface CandidateMonster {
+  name: string;
+  cr: string;
+  type: string;
+}
+
+/** Row shape returned by both match_* RPCs. */
+interface MatchRow {
+  name: string;
+  monster_type: string;
+  challenge_rating: string | null;
+}
+
+// How many rows each side contributes. Custom monsters get a guaranteed share
+// rather than competing in one merged ranking — 3,541 library rows would
+// otherwise crowd out all ~98 of the DM's homebrew, making the feature worst
+// at exactly the thing it should be best at.
+const RETRIEVAL_PER_SIDE = 15;
+// Cap on unembedded custom monsters appended after retrieval (see below).
+const MAX_UNEMBEDDED_APPEND = 25;
+
+function toCandidate(row: MatchRow): CandidateMonster {
+  // "?" is an explicit unknown marker, not a silenced null — a monster with no
+  // CR recorded is a real state the model should see rather than guess at.
+  return { name: row.name, cr: row.challenge_rating ?? "?", type: row.monster_type };
+}
+
+function fromCustomRow(row: CustomMonsterRow): CandidateMonster {
+  return {
+    name: row.name,
+    cr: row.stat_block?.challenge_rating ?? "?",
+    type: row.monster_type,
+  };
 }
 
 // ── Text response contract ───────────────────────────────────────────────────
@@ -195,7 +238,7 @@ serve(withCors(async (req: Request) => {
   // model already knows standard 5e monsters) and rows pinned to another ruleset.
   const { data: customMonsterRows, count: customMonsterTotal } = await admin
     .from("monsters")
-    .select("name, monster_type, stat_block", { count: "exact" })
+    .select("id, name, monster_type, stat_block", { count: "exact" })
     .eq("user_id", campaign.user_id)
     .or("open5e_import.is.null,open5e_import.eq.false")
     .or(`ruleset.is.null,ruleset.eq.${ruleset}`)
@@ -247,19 +290,133 @@ serve(withCors(async (req: Request) => {
 
   const systemContent = promptRow.content + (rulesetContext ? `\n\n${rulesetContext}` : "") + buildCampaignContext(campaign.ai_setting_prompt) + INJECTION_GUARD_SUFFIX;
 
+  // ── Semantic retrieval (#595) ──────────────────────────────────────────────
+  // An ENHANCEMENT over the compact index built above, which remains the
+  // fallback. Retrieval must never be able to take encounter generation down:
+  // a missing vendor, a mid-flip config, a provider outage or an RPC error all
+  // cost recall, not the feature. Hence the whole block is one try/catch whose
+  // failure path simply leaves `retrieved` null.
+  //
+  // Why it is worth doing: without it the model only knows the DM's custom
+  // monsters plus whatever 5e it learned in training. That covers the 656 SRD
+  // rows in library_monsters but not the other ~2,885 (Kobold Press, EN
+  // Publishing and friends) — it may know those concepts but not their exact
+  // names, and resolution is by name. Retrieval is what makes them reachable.
+  let retrieved: CandidateMonster[] | null = null;
+
+  try {
+    const embedProvider = await resolveEmbeddingProvider(admin, {
+      openai: platformKeys.openai ?? null,
+      gemini: platformKeys.gemini ?? null,
+    });
+    const { vectors, usage: embedUsage } = await embedProvider.embed([prompt]);
+    const queryVector = toVectorLiteral(vectors[0]);
+
+    const { data: enabledSourceRows } = await admin
+      .from("campaign_enabled_sources")
+      .select("source_slug")
+      .eq("campaign_id", campaign_id);
+    const enabledSlugs = (enabledSourceRows ?? []).map((r: { source_slug: string }) => r.source_slug);
+
+    const customMatch = await admin.rpc("match_custom_monsters", {
+      query_embedding:   queryVector,
+      p_user_id:         campaign.user_id,
+      p_ruleset:         ruleset,
+      p_embedding_model: embedProvider.model,
+      match_count:       RETRIEVAL_PER_SIDE,
+    });
+    if (customMatch.error) throw new Error(customMatch.error.message);
+
+    // Skip the library query entirely when the campaign has enabled no sources
+    // — calling it with an empty array would be a no-op at best and, if the
+    // predicate were ever loosened, would leak content from books this
+    // campaign has not turned on.
+    let libraryRows: MatchRow[] = [];
+    if (enabledSlugs.length > 0) {
+      const libraryMatch = await admin.rpc("match_library_monsters", {
+        query_embedding:   queryVector,
+        source_slugs:      enabledSlugs,
+        p_ruleset:         ruleset,
+        p_embedding_model: embedProvider.model,
+        match_count:       RETRIEVAL_PER_SIDE,
+      });
+      if (libraryMatch.error) throw new Error(libraryMatch.error.message);
+      libraryRows = (libraryMatch.data ?? []) as MatchRow[];
+    }
+
+    const candidates = [
+      ...((customMatch.data ?? []) as MatchRow[]).map(toCandidate),
+      ...libraryRows.map(toCandidate),
+    ];
+
+    // A custom monster with no embedding row cannot be retrieved — which is
+    // exactly the DM's newest homebrew, during the backfill window or before
+    // embed-on-write lands. Dropping those would be a visible regression
+    // against the pre-retrieval behaviour, so they are appended explicitly.
+    const embeddedIds = new Set<string>();
+    if (customMonsters.length > 0) {
+      const { data: embeddedRows } = await admin
+        .from("monster_embeddings")
+        .select("monster_id")
+        .eq("embedding_model", embedProvider.model)
+        .in("monster_id", customMonsters.map((m) => m.id));
+      for (const row of (embeddedRows ?? []) as { monster_id: string }[]) {
+        embeddedIds.add(row.monster_id);
+      }
+    }
+    const unembedded = customMonsters
+      .filter((m) => !embeddedIds.has(m.id))
+      .slice(0, MAX_UNEMBEDDED_APPEND)
+      .map(fromCustomRow);
+
+    const merged = [...candidates, ...unembedded];
+    if (merged.length > 0) {
+      // De-duplicate by name: a monster can legitimately arrive from both the
+      // retrieved set and the unembedded append if its embedding is stale.
+      const seen = new Set<string>();
+      retrieved = merged.filter((c) => {
+        const key = c.name.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+
+    // Platform-paid, charged to nobody — see recordFreeGeneration's note on why
+    // is_byok must stay false for spend that we, not the user, incurred.
+    await recordFreeGeneration(admin, user.id, "monster_embedding", {
+      model:        embedProvider.model,
+      provider:     embedUsage.provider,
+      input_tokens: embedUsage.input_tokens,
+    });
+  } catch (e) {
+    // Diagnosable, but never fatal.
+    const why = e instanceof EmbeddingProviderConfigError
+      ? `embedding provider not usable (${e.message})`
+      : e instanceof Error ? e.message : "unknown error";
+    console.warn(`Encounter retrieval unavailable for campaign ${campaign_id}, falling back to the compact index: ${why}`);
+  }
+
   const constraints: string[] = [`Difficulty: ${difficulty}`, partySummary];
-  if (customMonsters.length > 0) {
-    const monsterLines = customMonsters.map((m) => `${m.name}|${m.stat_block?.challenge_rating ?? "?"}|${m.monster_type}`);
-    const truncationNote = customMonsterTruncated
+
+  const candidateBlock: CandidateMonster[] = retrieved ?? customMonsters.map(fromCustomRow);
+  if (candidateBlock.length > 0) {
+    const monsterLines = candidateBlock.map((c) => `${c.name}|${c.cr}|${c.type}`);
+    // The truncation note only applies to the fallback path — the retrieved set
+    // is a relevance-ranked selection, not a partial alphabetical slice, so
+    // warning the model that it is "incomplete" would be misleading.
+    const truncationNote = retrieved === null && customMonsterTruncated
       ? ` NOTE: this is the first ${customMonsters.length} of ${customMonsterTotal} custom monsters, ordered by name — the DM has others not shown here.`
       : "";
     constraints.push(
-      "Custom Monster Index — the DM's own creations; prefer these when one fits the concept thematically. " +
-      "One per line as Name|CR|type. Use the exact name shown when picking from this list." +
+      "Monsters available in the DM's bestiary that fit this concept; prefer the DM's own creations " +
+      "when one works. One per line as Name|CR|type. Use the exact name shown — the app resolves these " +
+      "back to real bestiary entries by name, and a name that is not on this list and is not a standard " +
+      "5e monster becomes a manual chore for the DM." +
       truncationNote + "\n" +
-      "---BEGIN CUSTOM MONSTER INDEX---\n" +
+      "---BEGIN AVAILABLE MONSTERS---\n" +
       monsterLines.join("\n") +
-      "\n---END CUSTOM MONSTER INDEX---",
+      "\n---END AVAILABLE MONSTERS---",
     );
   }
   const userContent = `${wrapUserInput(prompt)}\n\nConstraints:\n${constraints.join("\n")}`;
