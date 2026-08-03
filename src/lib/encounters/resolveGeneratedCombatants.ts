@@ -14,8 +14,34 @@ import type { EncounterCombatantAiResult } from "@/ai/types";
  * silently dropped the moment the DM runs the encounter. Surfacing it as
  * "add manually" via `unmatched` is the honest option.
  */
+export interface GeneratedCombatantMatch {
+  def: CombatantDef;
+  /** The version `def.monster_id` points at. */
+  monster: Monster;
+  /** Every monster that tied at the winning match tier, in bestiary order.
+   *  Length > 1 means the name was ambiguous (#601): the same creature exists
+   *  in more than one enabled sourcebook — each with its own stat block,
+   *  because publishers rebalance — or the DM's homebrew shadows a library
+   *  row. Retrieval dedupes by concept server-side, so the client cannot know
+   *  which copy's CR the model budgeted against; the generator panel surfaces
+   *  these as a version picker so the DM decides which stat block actually
+   *  enters the encounter. */
+  candidates: Monster[];
+  /** Position of this entry in the AI result's combatants array. This is the
+   *  ONLY identity that survives a re-resolve: the resolver runs inside a
+   *  computed over the live Bestiary, so `def.id` is re-minted and matched
+   *  indices shift whenever a monster elsewhere in the app is created or
+   *  edited (the panel stays mounted in the background by design, and its
+   *  own "add these manually" list invites exactly that). The panel keys
+   *  both its rows and the DM's version picks on this. */
+  entryIndex: number;
+  /** The AI entry's trimmed role, kept so a version swap can rebuild
+   *  `custom_name` (the role suffix) around the newly chosen monster's name. */
+  role: string;
+}
+
 export interface ResolvedGeneratedCombatants {
-  matched: CombatantDef[];
+  matched: GeneratedCombatantMatch[];
   unmatched: EncounterCombatantAiResult[];
 }
 
@@ -55,6 +81,40 @@ function clampCount(count: number): number {
   return Math.min(MAX_COUNT, Math.max(MIN_COUNT, safe));
 }
 
+function buildDef(id: string, monster: Monster, role: string, count: number): CombatantDef {
+  return {
+    id,
+    monster_id: monster.id,
+    npc_id: null,
+    count: clampCount(count),
+    faction_id: "enemy",
+    // combatantLabel() renders `custom_name || monsterName`, so the role
+    // rides along as a DM-visible tactical hint on the combatant row.
+    custom_name: role.length > 0 ? `${monster.name} (${role})` : null,
+  };
+}
+
+/** Rebuilds a match around another of its candidates (#601) — the DM picked a
+ *  different sourcebook's version in the generator panel. Keeps the def's id
+ *  and rebuilds everything derived from the monster, including the
+ *  `custom_name` role suffix. An id that is not among the match's candidates
+ *  returns the match unchanged: it is a stale pick — e.g. the picked
+ *  version's sourcebook was disabled and it left the candidate set — and
+ *  silently attaching an arbitrary monster id would recreate the exact
+ *  mismatch this exists to close. */
+export function swapCombatantVersion(
+  match: GeneratedCombatantMatch,
+  monsterId: string,
+): GeneratedCombatantMatch {
+  const monster = match.candidates.find((m) => m.id === monsterId);
+  if (!monster || monster.id === match.monster.id) return match;
+  return {
+    ...match,
+    monster,
+    def: buildDef(match.def.id, monster, match.role, match.def.count),
+  };
+}
+
 export function resolveGeneratedCombatants(
   aiCombatants: EncounterCombatantAiResult[],
   monsters: Monster[],
@@ -70,10 +130,10 @@ export function resolveGeneratedCombatants(
     addToBucket(normalizedMap, normalizeMonsterName(monster.name), monster);
   }
 
-  const matched: CombatantDef[] = [];
+  const matched: GeneratedCombatantMatch[] = [];
   const unmatched: EncounterCombatantAiResult[] = [];
 
-  for (const entry of aiCombatants) {
+  for (const [entryIndex, entry] of aiCombatants.entries()) {
     // First hit wins: exact → case-insensitive → normalized.
     const candidates =
       exactMap.get(entry.name) ??
@@ -87,16 +147,12 @@ export function resolveGeneratedCombatants(
 
     const monster = pickBest(candidates);
     const role = entry.role.trim();
-
     matched.push({
-      id: crypto.randomUUID(),
-      monster_id: monster.id,
-      npc_id: null,
-      count: clampCount(entry.count),
-      faction_id: "enemy",
-      // combatantLabel() renders `custom_name || monsterName`, so the role
-      // rides along as a DM-visible tactical hint on the combatant row.
-      custom_name: role.length > 0 ? `${monster.name} (${role})` : null,
+      def: buildDef(crypto.randomUUID(), monster, role, entry.count),
+      monster,
+      candidates,
+      entryIndex,
+      role,
     });
   }
 

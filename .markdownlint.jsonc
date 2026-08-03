@@ -1,0 +1,8 @@
+{
+  // The feature docs in context/features/ deliberately repeat "### DM View" /
+  // "### Player View" headings under different parent sections — that split is
+  // their established structure (combat-encounters, dungeon-craft,
+  // world-building, publishing-tools all use it). siblings_only permits
+  // identical headings as long as they don't share a parent.
+  "MD024": { "siblings_only": true }
+}

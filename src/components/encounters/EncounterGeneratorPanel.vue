@@ -77,15 +77,35 @@
             </p>
           </div>
 
-          <div v-if="resolved.matched.length" class="space-y-1.5">
+          <div v-if="finalMatches.length" class="space-y-1.5">
             <p class="text-label-lg font-semibold text-muted-foreground">COMBATANTS</p>
+            <!-- #601: same-named creatures exist in several enabled sourcebooks,
+                 each with its own stat block, and name resolution had to pick
+                 one. The picker says which — and lets the DM swap. -->
+            <p v-if="hasAmbiguousMatches" class="text-caption text-muted-foreground italic">
+              Some of these exist in more than one of your sourcebooks — the version
+              shown is the one the encounter will use.
+            </p>
             <ul class="space-y-1">
+              <!-- Keyed on entryIndex, not def.id: def ids are re-minted on
+                   every `resolved` recompute, so keying on them would remount
+                   every row (destroying an open version picker mid-use)
+                   whenever any monster changes anywhere in the app. -->
               <li
-                v-for="c in resolved.matched"
-                :key="c.id"
+                v-for="m in finalMatches"
+                :key="m.entryIndex"
                 class="text-caption text-foreground"
               >
-                {{ c.count }}× {{ matchedLabel(c) }}
+                {{ m.def.count }}× {{ matchedLabel(m) }}
+                <div v-if="m.candidates.length > 1" class="mt-1 flex items-center gap-1.5">
+                  <span class="text-label text-muted-foreground shrink-0">Version</span>
+                  <EntityCombobox
+                    :model-value="m.monster.id"
+                    :options="versionOptions(m)"
+                    placeholder="Version…"
+                    @update:model-value="setVersionPick(m.entryIndex, $event)"
+                  />
+                </div>
               </li>
             </ul>
           </div>
@@ -231,7 +251,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { AI_PROMPT_LIMIT_SHORT } from "@/ai/utils";
 
 const CONCEPT_LIMIT = AI_PROMPT_LIMIT_SHORT;
@@ -246,16 +266,22 @@ import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
+import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { useAiCredits } from "@/composables/useAiCredits";
 import { useProviderConfig } from "@/composables/useProviderConfig";
 import { useAllMonsters } from "@/composables/useMonsters";
 import { useParty } from "@/composables/useParty";
 import { useCompanions } from "@/composables/useCompanions";
-import { resolveGeneratedCombatants } from "@/lib/encounters/resolveGeneratedCombatants";
+import {
+  resolveGeneratedCombatants,
+  swapCombatantVersion,
+  type GeneratedCombatantMatch,
+} from "@/lib/encounters/resolveGeneratedCombatants";
 import { toTiptapJson } from "@/lib/tiptap/markdownToTiptap";
+import { isSharedContent } from "@/lib/library/contentIdentity";
 import { isQuotaExceeded } from "@/lib/quotaError";
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";
-import type { CombatantDef } from "@/types/encounter.types";
+import type { Monster } from "@/types/monster.types";
 import type { EncounterCombatantAiResult } from "@/ai/types";
 
 type EncounterDifficultyOption = "auto" | "easy" | "medium" | "hard" | "deadly";
@@ -308,18 +334,60 @@ const createError = ref<string | null>(null);
 const createdEncounterId = ref<string | null>(null);
 
 const resolved = computed(() => {
-  if (!result.value) return { matched: [] as CombatantDef[], unmatched: [] as EncounterCombatantAiResult[] };
+  if (!result.value) return { matched: [] as GeneratedCombatantMatch[], unmatched: [] as EncounterCombatantAiResult[] };
   return resolveGeneratedCombatants(result.value.combatants, monsters.value);
 });
 
-function matchedLabel(c: CombatantDef): string {
-  if (c.custom_name) return c.custom_name;
-  const monster = monsters.value.find((m) => m.id === c.monster_id);
-  // custom_name is only null when the AI gave no role, and resolveGeneratedCombatants
-  // always builds a matched entry from a monster present in `monsters` — this lookup
-  // can't legitimately miss. "???" (this repo's unknown marker) only shows if that
-  // invariant is ever broken, rather than silently rendering a blank row.
-  return monster ? monster.name : "???";
+// The DM's version picks for ambiguous names (#601), keyed by the entry's
+// position in the AI result's combatants array (`entryIndex`) — NOT by
+// position in `matched`. `resolved` also recomputes when `monsters.value`
+// changes (this panel stays mounted in the background, and its own "add these
+// manually" list invites the DM to go create a missing monster, which
+// invalidates the monsters query), and such a recompute can flip entries
+// between matched and unmatched, shifting matched indices. entryIndex is
+// fixed for the lifetime of `result`, so a pick can never reattach to a
+// different combatant. Reset whenever a new generation lands.
+const versionPicks = ref<Record<number, string>>({});
+watch(result, () => {
+  versionPicks.value = {};
+});
+
+const finalMatches = computed(() =>
+  resolved.value.matched.map((m) => {
+    const pick = versionPicks.value[m.entryIndex];
+    return pick ? swapCombatantVersion(m, pick) : m;
+  }),
+);
+
+// Reads `resolved`, not `finalMatches`: whether a name was ambiguous is a
+// fact about resolution, fixed per generation — a swap never changes it.
+const hasAmbiguousMatches = computed(() =>
+  resolved.value.matched.some((m) => m.candidates.length > 1),
+);
+
+function setVersionPick(entryIndex: number, monsterId: string) {
+  // The combobox's × clear hands back "" — that means "back to the default
+  // pick", not "no monster".
+  if (monsterId) versionPicks.value[entryIndex] = monsterId;
+  else delete versionPicks.value[entryIndex];
+}
+
+/** Labels one version of an ambiguous name for the picker: where it comes
+ *  from, and its CR — the CR is the point, since same-named versions are
+ *  rebalanced across publishers and drive the XP budget. "???" is the repo's
+ *  unknown marker: a library row missing all source metadata is a data gap
+ *  worth seeing, not something to blank over. */
+function versionLabel(m: Monster): string {
+  const origin = isSharedContent(m) ? (m.source_title ?? m.source ?? "???") : "Your bestiary";
+  return `${origin} · CR ${m.stat_block.challenge_rating}`;
+}
+
+function versionOptions(match: GeneratedCombatantMatch): { id: string; name: string }[] {
+  return match.candidates.map((m) => ({ id: m.id, name: versionLabel(m) }));
+}
+
+function matchedLabel(m: GeneratedCombatantMatch): string {
+  return m.def.custom_name ?? m.monster.name;
 }
 
 function unmatchedLabel(entry: EncounterCombatantAiResult): string {
@@ -372,7 +440,7 @@ async function createEncounterFromResult() {
       // read as harder than the identical one built by hand.
       companion_ids: (companions.value ?? []).map((c) => c.id),
       party_member_factions: {},
-      combatants: resolved.value.matched,
+      combatants: finalMatches.value.map((m) => m.def),
       factions: [...DEFAULT_FACTIONS],
       item_ids: [],
       trap_ids: [],
