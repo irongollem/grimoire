@@ -30,8 +30,16 @@
 
     <SimulacrumConfig />
     <GithubIntegrationConfig />
+    <!--
+      The vendor control keeps its own inline backfill, because re-embedding is
+      part of the switch rather than a separate chore to remember. The
+      standalone "Re-embed monsters" card lives in the Content tab instead:
+      running it is a maintenance action on the bestiary, not a change to
+      provider configuration. Both drive the same run — useMonsterEmbeddingBackfill
+      is module-level singleton state — so progress shown here and there is one
+      operation, not two that can disagree.
+    -->
     <EmbeddingVendorControl :known-embedding-models="KNOWN_EMBEDDING_MODELS" />
-    <MonsterEmbeddingBackfill />
 
     <div v-if="providersQuery.isPending.value" class="text-muted-foreground text-body">Loading…</div>
     <div v-else-if="providersQuery.isError.value" class="text-destructive text-body">Failed to load provider config.</div>
@@ -284,7 +292,6 @@ import type { ModelStat } from "@/composables/useAiUsageStats";
 import SimulacrumConfig from "@/components/admin/SimulacrumConfig.vue";
 import GithubIntegrationConfig from "@/components/admin/GithubIntegrationConfig.vue";
 import EmbeddingVendorControl from "@/components/admin/EmbeddingVendorControl.vue";
-import MonsterEmbeddingBackfill from "@/components/admin/MonsterEmbeddingBackfill.vue";
 import PlatformKeyField from "@/components/admin/PlatformKeyField.vue";
 import ProviderCapabilityCell from "@/components/admin/ProviderCapabilityCell.vue";
 

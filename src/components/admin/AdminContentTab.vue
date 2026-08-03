@@ -1,5 +1,12 @@
 <template>
   <div class="space-y-6">
+    <!-- Bestiary semantic-search index. Lives here rather than under Providers
+         because running it is maintenance on content, not a change to provider
+         configuration — the vendor switch has its own inline backfill for the
+         case where re-embedding is part of that action. Both share one run via
+         useMonsterEmbeddingBackfill's module-level state. -->
+    <MonsterEmbeddingBackfill />
+
     <!-- SRD Art Repair -->
     <LibraryArtRepairPanel />
     <LibraryArtRepairPanel mode="spell" />
@@ -79,6 +86,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { IconCheck } from "@/lib/icons";
+import MonsterEmbeddingBackfill from "@/components/admin/MonsterEmbeddingBackfill.vue";
 import LibraryArtRepairPanel from "@/components/admin/LibraryArtRepairPanel.vue";
 import LibraryArtPublishPanel from "@/components/admin/LibraryArtPublishPanel.vue";
 import { useAdminPlaceholderFocalPoints } from "@/composables/useAdminPlaceholderFocalPoints";
