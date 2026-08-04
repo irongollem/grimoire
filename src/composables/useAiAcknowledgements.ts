@@ -63,7 +63,10 @@ export function useAiAcknowledgements() {
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: QUERY_KEY,
+    // Keep cached consent state scoped to the authenticated account. Without
+    // the user id, a same-tab account switch can briefly expose the previous
+    // account's rows while this query refetches.
+    queryKey: [...QUERY_KEY, user?.id ?? "signed-out"],
     queryFn: () => fetchMyAcknowledgements(user!.id),
     enabled: () => !!user,
   });

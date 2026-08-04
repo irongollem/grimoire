@@ -73,7 +73,12 @@ import { AI_USE_NOTICE_VERSION, AI_PRO_REOFFER_NOTICE_VERSION } from "@/lib/lega
 const campaign = useCampaignStore();
 const auth = useAuthStore();
 const { isPro } = useSubscription();
-const { hasAcknowledged, acknowledge } = useAiAcknowledgements();
+const {
+  acknowledgements,
+  isLoading: acknowledgementsLoading,
+  hasAcknowledged,
+  acknowledge,
+} = useAiAcknowledgements();
 const { dismissed, dismissForSession } = useAiUseNoticeDismissal();
 const { mutateAsync: updateCampaign } = useUpdateCampaign();
 
@@ -84,9 +89,18 @@ const proReoffer = ref(false);
 const mounted = useLazyMount(open);
 
 watch(
-  () => [campaign.activeCampaign, auth.user?.id, isPro.value] as const,
-  ([c, userId, pro]) => {
-    if (!c || dismissed.value) return;
+  () => [
+    campaign.activeCampaign,
+    auth.user?.id,
+    isPro.value,
+    acknowledgementsLoading.value,
+    acknowledgements.value,
+  ] as const,
+  ([c, userId, pro, loading]) => {
+    // `hasAcknowledged()` reads an async query. Do not interpret its initial
+    // empty value as an explicit "not acknowledged" result, and observe the
+    // rows themselves so this watcher reruns when the fetch completes.
+    if (!c || dismissed.value || loading) return;
     if (c.ai_enabled === null) {
       if (shouldOfferAiChoice(c, userId)) {
         mode.value = "choose";

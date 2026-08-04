@@ -139,7 +139,7 @@ const ENTITIES: Record<EntityKind, EntityConfig> = {
   },
   note: {
     table: "notes",
-    select: "id, user_id, updated_at, title, category, session_num, tags, content",
+    select: "id, user_id, campaign_id, updated_at, title, category, session_num, tags, content",
     sideTable: "note_embeddings",
     idColumn: "note_id",
     build: (row) =>
@@ -377,6 +377,20 @@ async function handleSingle(req: Request, body: { entity?: unknown; id?: unknown
   // caller-supplied user id -- identity comes only from the verified bearer
   // token.
   if ((row.user_id as string) !== user.id) return json({ error: "Forbidden" }, 403);
+
+  // Campaign notes feed the Chronicle's server-side retrieval corpus. Row
+  // ownership alone is insufficient here: the legacy notes policy allowed a
+  // player to attach their own row to any known campaign id. Require DM access
+  // before allowing that row into the campaign's embedding corpus. Global
+  // notes remain private to their owner and need no campaign-role check.
+  if (entity === "note" && typeof row.campaign_id === "string") {
+    const campaignId = row.campaign_id;
+    const [{ data: ownedCampaign }, { data: dmMembership }] = await Promise.all([
+      admin.from("campaigns").select("id").eq("id", campaignId).eq("user_id", user.id).maybeSingle(),
+      admin.from("campaign_members").select("id").eq("campaign_id", campaignId).eq("user_id", user.id).eq("role", "dm").maybeSingle(),
+    ]);
+    if (!ownedCampaign && !dmMembership) return json({ error: "Forbidden" }, 403);
+  }
 
   const provider = await resolvePlatformProvider();
   if (provider instanceof Response) return provider;
