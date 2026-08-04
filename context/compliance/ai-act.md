@@ -424,15 +424,17 @@ checked against the official participant database (active and inactive lists,
 with positive control queries) for OpenAI, fal.ai and Meshy; Anthropic's
 absence is corroborated by its own legal pages omitting the DPF (the registry
 UI is not machine-readable); Google's certification is per Google's own
-frameworks page (registry record not machine-read; eyeball
-dataprivacyframework.gov/participant/5780 before quoting an "active as of"
-date). Re-verify on material provider changes or at the quarterly review.
+frameworks page, and the registry record
+(dataprivacyframework.gov/participant/5780) was read manually by the owner on
+4 Aug 2026: Active for the EU-U.S. DPF, UK Extension and Swiss-U.S. DPF,
+certified since 22 Sep 2016, next recertification due 13 Sep 2026.
+Re-verify on material provider changes or at the quarterly review.
 
 | Provider | Role | Endpoints / models used | DPA / terms | EU transfer mechanism | Retention behavior | GPAI Code of Practice |
 |---|---|---|---|---|---|---|
 | OpenAI | Sub-processor — GPAI text, image, embedding models | Chat Completions (`gpt-4o-mini` default), Images generations/edits (`gpt-image-2`, `gpt-image-1.5`, `gpt-image-1-mini`), Embeddings (`text-embedding-3-small`) | DPA at openai.com/policies/data-processing-addendum, effective 1 Jan 2026; EEA customers contract with OpenAI Ireland Ltd | SCCs (2021/914) or EU adequacy per DPA §4.1; **not** DPF-certified (official DB, active + inactive, 4 Aug 2026). EU data residency exists (`eu.api.openai.com`, approval-gated, requires a Modified Retention amendment, 10% uplift on eligible models) — not currently used by Grimoire | API inputs/outputs not used for training by default (since 1 Mar 2023); abuse-monitoring logs up to 30 days; ZDR / Modified Abuse Monitoring are approval-gated | Signatory, no reservations (EC signatory list, 4 Aug 2026) |
 | Anthropic | Sub-processor — GPAI text model | Messages API (`claude-haiku-3-20240307` default) | DPA at anthropic.com/legal/data-processing-addendum, effective 24 Feb 2025 | SCCs Modules 2 and 3 (+ UK IDTA, Swiss addendum); not listed as DPF-certified — Anthropic's own legal pages omit the DPF entirely | Not used for training by default; API inputs/outputs auto-deleted within 30 days (newest "Covered Models" require the 30-day window; ZDR by arrangement). First-party API has no EU residency (us/global only) | Full signatory, no reservations (EC signatory list, 4 Aug 2026) |
-| Google | Sub-processor — GPAI text, image, embedding, and Lyria music models | Gemini API `generateContent` (`gemini-2.5-flash` text, `gemini-3.1-flash-image` image, `gemini-embedding-001` embeddings); Lyria (`lyria-3-clip-preview` / `lyria-3-pro-preview`) | Gemini API Additional ToS (effective 23 Mar 2026); paid tier runs under the "Google Data Processing Addendum for Products Where Google is a Data Processor" (v10, 7 May 2026, business.safety.google/processorterms — NOT the Cloud DPA; covered service entry "Gemini API Paid Services"); EEA contracting entity Google Ireland Ltd | Google LLC is **DPF-certified** (policies.google.com/privacy/frameworks) | Paid tier: prompts/outputs not used to improve products; abuse-monitoring logs kept 55 days; EEA/CH/UK users get paid-tier data terms on all tiers. SynthID confirmed in current docs for Lyria audio AND Gemini-generated images | Signatory (EC list, 4 Aug 2026); public concerns voiced at signing, no formal reservation recorded |
+| Google | Sub-processor — GPAI text, image, embedding, and Lyria music models | Gemini API `generateContent` (`gemini-2.5-flash` text, `gemini-3.1-flash-image` image, `gemini-embedding-001` embeddings); Lyria (`lyria-3-clip-preview` / `lyria-3-pro-preview`) | Gemini API Additional ToS (effective 23 Mar 2026); paid tier runs under the "Google Data Processing Addendum for Products Where Google is a Data Processor" (v10, 7 May 2026, business.safety.google/processorterms — NOT the Cloud DPA; covered service entry "Gemini API Paid Services"); EEA contracting entity Google Ireland Ltd | Google LLC is **DPF-certified** (policies.google.com/privacy/frameworks; registry record verified Active 4 Aug 2026, next recertification due 13 Sep 2026) | Paid tier: prompts/outputs not used to improve products; abuse-monitoring logs kept 55 days; EEA/CH/UK users get paid-tier data terms on all tiers. SynthID confirmed in current docs for Lyria audio AND Gemini-generated images | Signatory (EC list, 4 Aug 2026); public concerns voiced at signing, no formal reservation recorded |
 | fal.ai | Sub-processor — hosts a third-party model, is not its developer | `fal-ai/flux-2/flex` image generation endpoint (model page URL flattens to `flux-2-flex`) | Public DPA at fal.ai/legal/data-processing-addendum (last updated 31 Jul 2026), auto-incorporated into the online terms — applies to API customers without signature. Entity: fal – Features & Labels, Inc., San Francisco | SCCs Module 2, "incorporated and deemed executed by this reference" (DPA §5); **not** DPF-certified (official DB, 4 Aug 2026) | Request payloads stored 30 days by default (suppressible per-request via `X-Fal-Store-IO: 0`; media retention configurable via object-lifecycle header). API terms bar training on Client Content except models marked "Pending Enterprise Ready" — `flux-2-flex` is not so marked, so the no-training commitment and DPA apply; deidentified/usage-data carve-outs exist | Not applicable to fal (hosting layer). Black Forest Labs (FLUX developer) is a signatory, no reservations (EC list, 4 Aug 2026) |
 | Meshy | Sub-processor — image-to-3D generation | Image-to-3D task API (`_shared/mesh3d.ts`) | **No public DPA** — the terms reference a DPA only as an Order attachment (Enterprise channel); nothing to execute on the API tier. Entity: Meshy LLC, Sunnyvale CA; EU Art 27 rep: Instant EU GDPR Representative Ltd, Dublin | **Not** DPF-certified (official participant XLSX, zero rows, 4 Aug 2026); privacy policy commits generically to SCCs/BCRs — no executed instrument visible for API customers | Generated models auto-delete ~3 days after generation on non-Enterprise tiers (docs + ToS §2.5; `poll-meshy-jobs` re-hosts before the window closes; input-image retention unstated). **ToS §2.9: non-Enterprise Customer Inputs and Outputs may be used for training by default** — see the §9 watch item | No AI Act/GPAI claims anywhere on its site (ISO 27001 + SOC 2 only). Whether its narrow image-to-3D models meet the Art 3(63) GPAI threshold remains unresolved |
 
@@ -469,9 +471,17 @@ same three documents.
   derived from real people's likenesses, which makes this the register's
   weakest link. Current handling is disclosure: the public privacy policy
   states the training use plainly, notes the 3-day model auto-delete, and says
-  the mini step is skippable. If disclosure isn't judged enough: negotiate an
-  Order excluding training use, move to Enterprise terms, or gate/drop the
-  sculpt leg. Decide at (or before) the next register review.
+  the mini step is skippable.
+  **Decision (Jeffrey, 4 Aug 2026): stay on the API tier and warn at the point
+  of creation.** Grimoire is currently too small to negotiate an Order or
+  Enterprise terms; instead the sculpt step (`MiniSculptStep.vue`) carries an
+  always-visible inline notice naming Meshy, the stylized-image-only boundary,
+  and the training-use terms, linking to the privacy policy. Revisit if
+  Grimoire's scale changes or Meshy's API-tier terms improve.
+- **Google DPF recertification due 13 Sep 2026.** Recheck the registry record
+  (dataprivacyframework.gov/participant/5780) after that date; if the
+  certification lapses, the Google transfer basis in the privacy policy's
+  Chapter V table has to move to another safeguard.
 - **Omnibus follow-on guidance.** Both the Commission's Art 50 guidelines
   (20 Jul 2026) and the Omnibus Regulation (27 Jul 2026) are recent; further
   Commission/AI Office guidance on marking standards and on how the
