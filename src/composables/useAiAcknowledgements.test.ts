@@ -38,4 +38,12 @@ describe("findAcknowledgement", () => {
     ];
     expect(findAcknowledgement(rows, "ai_use", "2026-08-04")).toBe(true);
   });
+
+  it("matches an ai_pro_reoffer row — recorded whichever way the re-ask was answered", () => {
+    expect(findAcknowledgement([row({ kind: "ai_pro_reoffer" })], "ai_pro_reoffer", "2026-08-04")).toBe(true);
+  });
+
+  it("does not match ai_pro_reoffer against an ai_use row", () => {
+    expect(findAcknowledgement([row({ kind: "ai_use" })], "ai_pro_reoffer", "2026-08-04")).toBe(false);
+  });
 });

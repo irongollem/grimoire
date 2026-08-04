@@ -23,3 +23,13 @@ export const AI_USE_NOTICE_VERSION = "2026-08-04";
  * via `useLikenessGate`.
  */
 export const AI_LIKENESS_NOTICE_VERSION = "2026-08-04";
+
+/**
+ * Version of the one-time free->Pro AI re-offer, shown to a campaign owner
+ * who previously declined AI (`ai_enabled = false`) once they're on Pro
+ * (context/compliance/ai-act.md §4, owner decision 4 Aug 2026). Recorded
+ * once per account in `ai_acknowledgements` (kind: 'ai_pro_reoffer'),
+ * whichever way the owner answers — this is a UI courtesy re-ask, not a
+ * security gate, so there is no server-side enforcement to keep in step.
+ */
+export const AI_PRO_REOFFER_NOTICE_VERSION = "2026-08-04";

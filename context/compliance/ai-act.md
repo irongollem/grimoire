@@ -205,6 +205,33 @@ could not even see the switch to decline or accept). BYOK key storage,
 provider pickers and the campaign setting-prompt textarea remain Pro-gated;
 only the toggle and its existing consent-dialog flow are free.
 
+**Free->Pro one-time re-offer (Jeffrey, 4 Aug 2026).** When a campaign owner
+upgrades to Pro, campaigns they previously and explicitly declined AI on
+(`ai_enabled === false`, not `null` — that's the chooser's case above) get
+ONE re-ask: people pay for Pro expecting AI and may have forgotten an old
+"Not now". `AiUseNoticeGate.vue` gained a third branch — `ai_enabled ===
+false` AND current user is the campaign owner AND the account is Pro AND the
+`ai_pro_reoffer` kind hasn't been recorded yet — that reuses the existing
+chooser (`mode="choose"`) with Pro-aware lead copy
+(`AiNoticeDialog.vue`'s `proReoffer` prop swaps only the title/intro; bullets
+and both buttons are identical to the standard chooser, no guilt phrasing on
+decline). This never auto-flips `ai_enabled` — confirm records `ai_use` (if
+not already recorded) and `ai_pro_reoffer`, then sets `ai_enabled = true`;
+"Not now" records only `ai_pro_reoffer` and leaves `ai_enabled` false. The
+`ai_pro_reoffer` kind was added to `ai_acknowledgements.kind`'s check
+constraint (migration `20260804000008`).
+
+**Once-only semantics, and why it's user-level not campaign-level.** A single
+`ai_pro_reoffer` row means the re-ask was answered, whichever way — there is
+no version-bump-forever nuance here the way `ai_use`/`likeness` intentionally
+have; the decision (yes or no) is meant to be final. Recording is per-user
+(matching every other kind in this table), so the re-ask fires for whichever
+owned AI-off campaign the account opens first after upgrading, and answering
+it there silences it for every other AI-off campaign that account owns too —
+this is a "have you reconsidered" moment for the person, not a per-campaign
+setting, and re-declining on one campaign is read as a decision about AI in
+general, not about that campaign specifically.
+
 ## 5. Exemptions relied on
 
 **Obvious-from-context — Art 50(1).** The duty to inform a natural person

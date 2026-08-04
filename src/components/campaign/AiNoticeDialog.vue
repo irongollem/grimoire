@@ -73,7 +73,7 @@
 import { computed, ref } from "vue";
 import { IconInfo, IconClose, IconExternalLink } from "@/lib/icons";
 import { useAiAcknowledgements, type AiAcknowledgementKind } from "@/composables/useAiAcknowledgements";
-import { AI_USE_NOTICE_VERSION, AI_LIKENESS_NOTICE_VERSION } from "@/lib/legal";
+import { AI_USE_NOTICE_VERSION, AI_LIKENESS_NOTICE_VERSION, AI_PRO_REOFFER_NOTICE_VERSION } from "@/lib/legal";
 
 /**
  * Reusable EU AI Act Art 50(1) consent dialog for both acknowledgement kinds.
@@ -82,16 +82,21 @@ import { AI_USE_NOTICE_VERSION, AI_LIKENESS_NOTICE_VERSION } from "@/lib/legal";
  * "confirm records, cancel doesn't" behaviour for free.
  *
  * `mode: 'choose'` swaps the plain "AI is about to turn on" notice for the
- * inviting-but-honest opt-in chooser (kind 'ai_use' only) — used by
- * `AiUseNoticeGate` when a campaign's `ai_enabled` has never been chosen.
- * Confirm still records the `ai_use` acknowledgement exactly as in 'notice'
- * mode; what confirm/cancel additionally *do* to the campaign's `ai_enabled`
- * column is the caller's job (see AiUseNoticeGate.vue), not this dialog's —
- * it stays a pure acknowledgement-recorder either way.
+ * inviting-but-honest opt-in chooser — used by `AiUseNoticeGate` both when a
+ * campaign's `ai_enabled` has never been chosen (kind 'ai_use') and for the
+ * one-time free->Pro re-ask on a campaign the owner previously declined
+ * (kind 'ai_pro_reoffer', `proReoffer: true` — see
+ * context/compliance/ai-act.md §4). Confirm always records the acknowledgement
+ * for whichever `kind` was passed; what confirm/cancel additionally *do* to
+ * the campaign's `ai_enabled` column, and any second acknowledgement kind
+ * that also needs recording, is the caller's job (see AiUseNoticeGate.vue) —
+ * this dialog stays a pure single-kind acknowledgement-recorder either way.
  */
-const { kind, mode = "notice" } = defineProps<{
+const { kind, mode = "notice", proReoffer = false } = defineProps<{
   kind: AiAcknowledgementKind;
   mode?: "notice" | "choose";
+  /** Swaps the chooser's lead line for the Pro re-offer copy. Copy only — behavior differences live in AiUseNoticeGate.vue. */
+  proReoffer?: boolean;
 }>();
 
 const open = defineModel<boolean>({ required: true });
@@ -104,11 +109,13 @@ const emit = defineEmits<{
 const { acknowledge } = useAiAcknowledgements();
 const isSaving = ref(false);
 
-const version = computed(() =>
-  kind === "ai_use" ? AI_USE_NOTICE_VERSION : AI_LIKENESS_NOTICE_VERSION,
-);
+const version = computed(() => {
+  if (kind === "ai_use") return AI_USE_NOTICE_VERSION;
+  if (kind === "likeness") return AI_LIKENESS_NOTICE_VERSION;
+  return AI_PRO_REOFFER_NOTICE_VERSION;
+});
 
-const COPY: Record<AiAcknowledgementKind, { title: string; intro: string; bullets: string[] }> = {
+const BASE_COPY: Record<"ai_use" | "likeness", { title: string; intro: string; bullets: string[] }> = {
   ai_use: {
     title: "Before you turn on AI",
     intro: "This campaign is about to start using AI-generated content. A few things worth knowing:",
@@ -130,9 +137,9 @@ const COPY: Record<AiAcknowledgementKind, { title: string; intro: string; bullet
 
 // Inviting first, honest second — the copy this app's owner signed off on
 // 4 Aug 2026 for the first-open chooser (context/compliance/ai-act.md §4).
-// Deliberately not folded into COPY['ai_use'] above: the plain notice and the
-// chooser are shown at different moments (mid-toggle vs. first campaign open)
-// and read very differently on purpose.
+// Deliberately not folded into BASE_COPY['ai_use'] above: the plain notice
+// and the chooser are shown at different moments (mid-toggle vs. first
+// campaign open) and read very differently on purpose.
 const CHOOSE_COPY = {
   title: "Bring AI to this campaign?",
   intro: "Grimoire can help fill the world faster — NPCs, monsters, encounters, quests, traps, session recaps, artwork and soundscapes, drafted in seconds and grounded in this campaign's own content.",
@@ -144,7 +151,29 @@ const CHOOSE_COPY = {
   ],
 };
 
-const copy = computed(() => (mode === "choose" ? CHOOSE_COPY : COPY[kind]));
+// The free->Pro re-ask (context/compliance/ai-act.md §4, 4 Aug 2026) reuses
+// the chooser's honest bullets and both buttons verbatim — only the lead
+// (title + intro) changes, to acknowledge this account already declined AI
+// once rather than repeating the first-open pitch as if nothing happened.
+// No guilt phrasing on decline.
+const PRO_REOFFER_LEAD = {
+  title: "Your Pro plan includes AI assistance",
+  intro:
+    "You turned AI off on this campaign a while back. Pro includes AI generation — NPCs, encounters, recaps, artwork and more, grounded in your own campaign — so here's a fresh choice.",
+};
+
+// Full per-kind copy table, including a defensive 'ai_pro_reoffer' entry —
+// in practice this kind is only ever paired with mode="choose" (handled
+// below), so this entry is a fallback, not the primary path.
+const COPY: Record<AiAcknowledgementKind, { title: string; intro: string; bullets: string[] }> = {
+  ...BASE_COPY,
+  ai_pro_reoffer: { ...CHOOSE_COPY, ...PRO_REOFFER_LEAD },
+};
+
+const copy = computed(() => {
+  if (mode !== "choose") return COPY[kind];
+  return proReoffer ? { ...CHOOSE_COPY, ...PRO_REOFFER_LEAD } : CHOOSE_COPY;
+});
 
 const confirmLabel = computed(() => {
   if (mode !== "choose") return isSaving.value ? "Saving…" : "I understand";

@@ -47,3 +47,31 @@ export function shouldOfferAiChoice(
 ): boolean {
   return campaign.ai_enabled === null && !!currentUserId && campaign.user_id === currentUserId;
 }
+
+/**
+ * Whether `AiUseNoticeGate` should offer the one-time free->Pro AI re-ask
+ * (context/compliance/ai-act.md §4, owner decision 4 Aug 2026) for
+ * `campaign` right now: the owner previously declined AI explicitly
+ * (`ai_enabled === false` — not `null`, which is `shouldOfferAiChoice`'s
+ * case), `currentUserId` is the campaign's owner, the account is Pro, and
+ * the re-offer hasn't already been answered (`hasAcknowledgedReoffer`,
+ * whichever way — confirm and "Not now" both record it, see
+ * `AiUseNoticeGate.vue`). Never true for a `null` campaign — that's the
+ * plain chooser's case and takes precedence regardless of plan. Pure
+ * predicate, exported for testing without mounting `AiUseNoticeGate` or
+ * mocking Pinia/TanStack Query.
+ */
+export function shouldOfferProReoffer(
+  campaign: Pick<Campaign, "ai_enabled" | "user_id">,
+  currentUserId: string | null | undefined,
+  isPro: boolean,
+  hasAcknowledgedReoffer: boolean,
+): boolean {
+  return (
+    campaign.ai_enabled === false &&
+    !!currentUserId &&
+    campaign.user_id === currentUserId &&
+    isPro &&
+    !hasAcknowledgedReoffer
+  );
+}

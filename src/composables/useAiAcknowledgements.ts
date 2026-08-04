@@ -3,8 +3,12 @@ import { supabase, getCurrentUser } from "@/lib/supabase";
 
 const UNIQUE_VIOLATION = "23505";
 
-/** EU AI Act Art 50(1) consent gateway — see context/compliance/provenance-architecture.md §3. */
-export type AiAcknowledgementKind = "ai_use" | "likeness";
+/**
+ * EU AI Act Art 50(1) consent gateway — see context/compliance/provenance-architecture.md §3.
+ * `ai_pro_reoffer`: the one-time free->Pro re-ask for campaigns where the
+ * owner previously declined AI (context/compliance/ai-act.md §4, 4 Aug 2026).
+ */
+export type AiAcknowledgementKind = "ai_use" | "likeness" | "ai_pro_reoffer";
 
 export interface AiAcknowledgementRow {
   id: string;
