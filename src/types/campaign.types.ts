@@ -43,7 +43,10 @@ export interface Campaign {
   image_provider: string | null;
   ai_setting_prompt: string | null;
   allow_chronicle_promotion: boolean;
-  ai_enabled: boolean;
+  /** Tri-state EU AI Act consent (context/compliance/ai-act.md §4): true =
+   *  owner opted in, false = owner explicitly declined, null = not chosen
+   *  yet. New campaigns start null; only the owner may choose. */
+  ai_enabled: boolean | null;
   group_portrait_url: string | null;
   /** Provenance of group_portrait_url when set by the AI generator; null = not AI / unknown, or cleared by a manual upload that replaced the portrait (see useGroupPortrait). */
   group_portrait_ai_provenance: AiProvenance | null;
@@ -86,6 +89,7 @@ export type CampaignInsert = Omit<
   | "current_day"
   | "current_location_id"
   | "custom_calendar"
+  | "ai_enabled"
 > & {
   excluded_monster_ids?: string[];
   disabled_class_names?: string[];
@@ -102,6 +106,9 @@ export type CampaignInsert = Omit<
   image_provider?: string | null;
   ai_setting_prompt?: string | null;
   allow_chronicle_promotion?: boolean;
+  /** Omitted on create so new campaigns start unchosen (null) — see the
+   *  column comment on `campaigns.ai_enabled`. */
+  ai_enabled?: boolean | null;
   current_month?: number;
   current_day?: number;
   current_location_id?: string | null;

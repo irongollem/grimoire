@@ -144,7 +144,7 @@ serve(withCors(async (req: Request) => {
     .eq("id", campaign_id)
     .maybeSingle();
   if (!campaign) return new Response("Campaign not found", { status: 404 });
-  if (campaign.ai_enabled === false) return new Response("AI is disabled for this campaign", { status: 403 });
+  if (campaign.ai_enabled !== true) return new Response("AI is disabled for this campaign", { status: 403 });
 
   if (campaign.user_id !== user.id) {
     const { data: membership } = await admin

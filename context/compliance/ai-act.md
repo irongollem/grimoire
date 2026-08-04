@@ -163,6 +163,48 @@ Version constants are canonical in `_shared/provenance/consent.ts`, re-exported
 to the client via `src/lib/legal.ts`. The acknowledgement flows go live when
 the migrations are pushed (auto-apply on push-to-main).
 
+**Explicit choice replaces default-on (Jeffrey, 4 Aug 2026).** `ai_enabled`
+was `boolean not null default true` since migration `20260507000010` — AI was
+on for every campaign unless the owner found the toggle and turned it off,
+and free users never even saw that toggle (`AiTab.vue` was Pro-gated whole).
+That is opt-out, not the opt-in Art 50 consent gateway this section already
+claimed to be. Fixed in migration `20260804000007`: `ai_enabled` is now
+tri-state (`boolean | null`, no default) — `true` = owner opted in, `false` =
+owner explicitly declined, `null` = never chosen. New campaigns start `null`.
+Existing rows keep whatever `true`/`false` they already had; no data was
+touched, only the constraint. Every consumer of the column reads it the same
+way now: `=== true` means on, anything else (`false` *or* `null`) means off —
+`useCampaignStore().isAiEnabled`, all 14 generator edge functions
+(`campaign.ai_enabled !== true`, tightened from `!== false` so an unchosen
+campaign 403s exactly like a declined one — this also caught `forge-mini`,
+which had no `ai_enabled` check at all on either its stylize or sculpt/resculpt
+leg and is now the 14th gated function), and `AiTab.vue`'s form default.
+
+The `null` state is surfaced to the campaign **owner** (`campaigns.user_id`,
+not just any DM — co-DMs and players get nothing) via `AiUseNoticeGate.vue`:
+on first load of a never-chosen campaign it offers `AiNoticeDialog` in a new
+`mode="choose"`, an inviting-but-honest chooser instead of the plain
+pre-toggle notice. Copy: title "Bring AI to this campaign?"; lead pitches what
+AI can do (NPCs, monsters, encounters, quests, traps, recaps, art,
+soundscapes, grounded in the campaign's own content); an honest block states
+drafts can be wrong or resemble existing work, prompts/context go to the
+campaign's configured third-party provider, output carries an invisible AI
+marker, and the choice can change anytime in settings; primary button "Enable
+AI assistance", quiet secondary "Not now" — no pre-ticked state, no guilt
+copy on decline. Confirm records the `ai_use` acknowledgement (same as the
+plain notice) **and** sets `ai_enabled = true`; "Not now" sets `ai_enabled =
+false` directly with no acknowledgement and no re-prompt — one dialog, one
+decision, settings is the only way back in either way. Upgrade/downgrade
+paths were audited (`rg -n "ai_enabled" src/ supabase/functions/`, plus the
+Stripe webhook/checkout/portal functions specifically) and none of them write
+`ai_enabled` — a plan change never flips this choice.
+
+Free-tier accessibility: the master AI on/off toggle in `AiTab.vue` moved
+outside `ProFeatureGate` (it previously gated the entire tab, so free owners
+could not even see the switch to decline or accept). BYOK key storage,
+provider pickers and the campaign setting-prompt textarea remain Pro-gated;
+only the toggle and its existing consent-dialog flow are free.
+
 ## 5. Exemptions relied on
 
 **Obvious-from-context — Art 50(1).** The duty to inform a natural person

@@ -188,7 +188,7 @@ serve(withCors(async (req: Request) => {
   const { data: campaign } = await admin.from("campaigns")
     .select("id, user_id, ai_enabled, gemini_api_key").eq("id", campaignId).maybeSingle();
   if (!campaign) return new Response("Campaign not found", { status: 404 });
-  if (campaign.ai_enabled === false) return new Response("AI is disabled for this campaign", { status: 403 });
+  if (campaign.ai_enabled !== true) return new Response("AI is disabled for this campaign", { status: 403 });
   if (campaign.user_id !== user.id) {
     const { data: membership } = await admin.from("campaign_members").select("role")
       .eq("campaign_id", campaignId).eq("user_id", user.id).maybeSingle();

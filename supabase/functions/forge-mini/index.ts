@@ -255,7 +255,7 @@ async function handleStylize(
     ? `id, user_id, campaign_id, name, portrait:${cfg.portraitColumn}`
     : `id, user_id, name, portrait:${cfg.portraitColumn}`;
   const [{ data: campaign }, { data: sourceRaw }] = await Promise.all([
-    admin.from("campaigns").select("id, user_id").eq("id", campaignId).maybeSingle(),
+    admin.from("campaigns").select("id, user_id, ai_enabled").eq("id", campaignId).maybeSingle(),
     admin.from(sourceTable).select(selectCols).eq("id", sourceId).maybeSingle(),
   ]);
   if (!campaign) return json({ error: "not_found" }, 404);
@@ -265,6 +265,10 @@ async function handleStylize(
       .eq("campaign_id", campaignId).eq("user_id", userId).maybeSingle();
     if (!membership) return json({ error: "forbidden" }, 403);
   }
+  // Same ai_enabled gate every other generator enforces (mirrored here rather
+  // than shared because forge-mini fetches campaigns with a bespoke select
+  // list) — tri-state: null (never chosen) must block same as false.
+  if (campaign.ai_enabled !== true) return json({ error: "ai_disabled" }, 403);
 
   if (!sourceRaw) return json({ error: "not_found" }, 404);
   const source = sourceRaw as unknown as SourceRow;
@@ -436,12 +440,22 @@ async function handleSculptAction(
 
   const { data: existing } = await admin
     .from("minis")
-    .select("id, user_id, format, status, stylized_image_url, sculpt_count")
+    .select("id, user_id, campaign_id, format, status, stylized_image_url, sculpt_count")
     .eq("id", miniId)
     .maybeSingle();
   if (!existing) return json({ error: "not_found" }, 404);
-  const mini = existing as Pick<MiniRow, "id" | "user_id" | "format" | "status" | "stylized_image_url" | "sculpt_count">;
+  const mini = existing as Pick<MiniRow, "id" | "user_id" | "campaign_id" | "format" | "status" | "stylized_image_url" | "sculpt_count">;
   if (mini.user_id !== userId) return json({ error: "forbidden" }, 403);
+  // Same ai_enabled gate as handleStylize — sculpt/resculpt call Meshy (AI)
+  // regardless of `paid`, so both need the same tri-state check (null must
+  // block, same as false). The mini's own campaign_id (set at stylize time)
+  // is the source of truth here, not a request-supplied campaign id.
+  {
+    const { data: campaign } = mini.campaign_id
+      ? await admin.from("campaigns").select("ai_enabled").eq("id", mini.campaign_id).maybeSingle()
+      : { data: null };
+    if (campaign?.ai_enabled !== true) return json({ error: "ai_disabled" }, 403);
+  }
   const gate = paid ? canSculpt : canResculpt;
   if (!gate({ status: mini.status, sculpt_count: mini.sculpt_count })) return json({ error: "invalid_state" }, 409);
   if (!mini.stylized_image_url) return json({ error: "invalid_state" }, 409);

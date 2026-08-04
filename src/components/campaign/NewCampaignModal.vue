@@ -225,7 +225,8 @@ async function submit() {
       description: null,
       spotify_client_id: null,
       is_archived: false,
-      ai_enabled: true,
+      // ai_enabled deliberately omitted — new campaigns start unchosen
+      // (null); see the column comment on campaigns.ai_enabled.
       battle_map_show_tokens: true,
       custom_calendar: form.value.calendar_id === "custom" ? customCalendarDef.value : null,
     });

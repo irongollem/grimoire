@@ -1,13 +1,8 @@
 <template>
-  <ProFeatureGate
-    v-if="!isPro"
-    class="max-w-md"
-    message="AI generation — NPCs, monsters, spells, items, puzzles, and session artwork — is available on the Pro plan. Configure your own API keys or wait for Grimoire-managed credits."
-  />
+  <form class="max-w-md flex flex-col gap-6" @submit.prevent="save">
 
-  <form v-else class="max-w-md flex flex-col gap-6" @submit.prevent="save">
-
-    <!-- AI enabled toggle -->
+    <!-- AI enabled toggle — free users can turn this on/off; everything else
+         in this tab (BYOK keys, provider pickers, setting prompt) is Pro. -->
     <div class="rounded-lg border border-border bg-card p-4">
       <div class="flex items-center justify-between gap-4">
         <div>
@@ -34,7 +29,13 @@
          this account for the first time. Cancel leaves the toggle off. -->
     <AiNoticeDialog v-model="showAiNoticeDialog" kind="ai_use" @confirm="form.ai_enabled = true" />
 
-    <template v-if="form.ai_enabled">
+    <ProFeatureGate
+      v-if="!isPro"
+      class="max-w-md"
+      message="Bring your own API keys, choose specific providers, and customize this campaign's AI setting prompt — available on the Pro plan. Free campaigns still get AI generation billed to Grimoire-managed credits once the toggle above is on."
+    />
+
+    <template v-else-if="form.ai_enabled">
 
     <!-- Local Mode Toggle -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
@@ -303,7 +304,9 @@ function initialKeys(): Record<string, string> {
 }
 
 const form = ref({
-  ai_enabled:        campaign.activeCampaign?.ai_enabled ?? true,
+  // The toggle is binary; a campaign that hasn't chosen yet (null) starts it
+  // off, same as an explicit false — see context/compliance/ai-act.md §4.
+  ai_enabled:        campaign.activeCampaign?.ai_enabled === true,
   text_provider:    campaign.activeCampaign?.text_provider  ?? "openai",
   image_provider:   campaign.activeCampaign?.image_provider ?? "openai",
   ai_setting_prompt: campaign.activeCampaign?.ai_setting_prompt ?? "",
@@ -435,7 +438,7 @@ watch(
   () => campaign.activeCampaign,
   (c) => {
     if (c) {
-      form.value.ai_enabled       = c.ai_enabled ?? true;
+      form.value.ai_enabled       = c.ai_enabled === true;
       form.value.text_provider    = c.text_provider  ?? "openai";
       form.value.image_provider   = c.image_provider ?? "openai";
       form.value.ai_setting_prompt = c.ai_setting_prompt ?? "";

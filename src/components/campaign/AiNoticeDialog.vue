@@ -37,7 +37,7 @@
             </li>
           </ul>
           <RouterLink
-            v-if="kind === 'ai_use'"
+            v-if="kind === 'ai_use' && mode !== 'choose'"
             :to="{ name: 'campaign-settings', query: { tab: 'ai' } }"
             class="inline-flex items-center gap-1 text-caption text-primary hover:underline self-start"
             @click="cancel"
@@ -53,7 +53,7 @@
             class="px-4 py-1.5 rounded-md border border-border text-label-lg font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
             @click="cancel"
           >
-            Cancel
+            {{ cancelLabel }}
           </button>
           <button
             type="button"
@@ -61,7 +61,7 @@
             class="px-4 py-1.5 rounded-md text-label-lg font-semibold bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
             @click="confirm"
           >
-            {{ isSaving ? "Saving…" : "I understand" }}
+            {{ confirmLabel }}
           </button>
         </div>
       </div>
@@ -80,8 +80,19 @@ import { AI_USE_NOTICE_VERSION, AI_LIKENESS_NOTICE_VERSION } from "@/lib/legal";
  * See context/compliance/provenance-architecture.md §3. Recording happens
  * here (not in callers) so every gate that opens this dialog gets identical
  * "confirm records, cancel doesn't" behaviour for free.
+ *
+ * `mode: 'choose'` swaps the plain "AI is about to turn on" notice for the
+ * inviting-but-honest opt-in chooser (kind 'ai_use' only) — used by
+ * `AiUseNoticeGate` when a campaign's `ai_enabled` has never been chosen.
+ * Confirm still records the `ai_use` acknowledgement exactly as in 'notice'
+ * mode; what confirm/cancel additionally *do* to the campaign's `ai_enabled`
+ * column is the caller's job (see AiUseNoticeGate.vue), not this dialog's —
+ * it stays a pure acknowledgement-recorder either way.
  */
-const { kind } = defineProps<{ kind: AiAcknowledgementKind }>();
+const { kind, mode = "notice" } = defineProps<{
+  kind: AiAcknowledgementKind;
+  mode?: "notice" | "choose";
+}>();
 
 const open = defineModel<boolean>({ required: true });
 
@@ -117,7 +128,29 @@ const COPY: Record<AiAcknowledgementKind, { title: string; intro: string; bullet
   },
 };
 
-const copy = computed(() => COPY[kind]);
+// Inviting first, honest second — the copy this app's owner signed off on
+// 4 Aug 2026 for the first-open chooser (context/compliance/ai-act.md §4).
+// Deliberately not folded into COPY['ai_use'] above: the plain notice and the
+// chooser are shown at different moments (mid-toggle vs. first campaign open)
+// and read very differently on purpose.
+const CHOOSE_COPY = {
+  title: "Bring AI to this campaign?",
+  intro: "Grimoire can help fill the world faster — NPCs, monsters, encounters, quests, traps, session recaps, artwork and soundscapes, drafted in seconds and grounded in this campaign's own content.",
+  bullets: [
+    "Drafts can be inaccurate or resemble existing works — review before using.",
+    "Prompts and relevant campaign context are processed by the third-party AI provider this campaign uses (OpenAI, Anthropic, Google, or fal.ai).",
+    "Generated content carries an invisible AI marker, as EU law requires.",
+    "You can change this anytime in campaign settings.",
+  ],
+};
+
+const copy = computed(() => (mode === "choose" ? CHOOSE_COPY : COPY[kind]));
+
+const confirmLabel = computed(() => {
+  if (mode !== "choose") return isSaving.value ? "Saving…" : "I understand";
+  return isSaving.value ? "Enabling…" : "Enable AI assistance";
+});
+const cancelLabel = computed(() => (mode === "choose" ? "Not now" : "Cancel"));
 
 async function confirm() {
   isSaving.value = true;

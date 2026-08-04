@@ -174,7 +174,7 @@ serve(withCors(async (req: Request) => {
     .eq("id", campaign_id)
     .maybeSingle();
   if (!campaign) return new Response("Campaign not found", { status: 404 });
-  if (campaign.ai_enabled === false) return new Response("AI is disabled for this campaign", { status: 403 });
+  if (campaign.ai_enabled !== true) return new Response("AI is disabled for this campaign", { status: 403 });
 
   // Only the DM resolves draws, so drafting an outcome is a DM-only act. A player
   // who is merely a campaign member must not be able to spend the owner's credits

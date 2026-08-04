@@ -142,7 +142,10 @@ export const useCampaignStore = defineStore("campaign", () => {
     decryptedFalAiKey.value     = "";
   }
 
-  const isAiEnabled = computed(() => activeCampaign.value?.ai_enabled !== false);
+  // Tri-state: only an explicit `true` counts as on. `null` (never chosen)
+  // and `false` (explicitly declined) both hide AI UI — see
+  // context/compliance/ai-act.md §4.
+  const isAiEnabled = computed(() => activeCampaign.value?.ai_enabled === true);
 
   const todayYear  = computed(() => activeCampaign.value?.current_year ?? 1495);
   const todayMonth = computed(() => activeCampaign.value?.current_month ?? 1);

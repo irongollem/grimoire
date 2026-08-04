@@ -229,7 +229,7 @@ serve(withCors(async (req: Request) => {
     .maybeSingle();
 
   if (!campaign) return new Response("Campaign not found", { status: 404 });
-  if (campaign.ai_enabled === false) return new Response("AI is disabled for this campaign", { status: 403 });
+  if (campaign.ai_enabled !== true) return new Response("AI is disabled for this campaign", { status: 403 });
 
   // Ruleset-aware generation (#564) — anything other than "2024" resolves to "2014".
   const ruleset = campaign.ruleset === "2024" ? "2024" : "2014";
