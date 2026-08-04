@@ -285,7 +285,14 @@ canvas resize pipeline (`toWebP`, `resizeToWebP` variants, `backfillVariants`)
 re-embeds the original's XMP after every re-encode — canvas strips metadata,
 so re-embedding is what makes the mark survive. A C2PA spike (#605) remains
 pending and undecided — XMP is the shipped approach, and the permanent one
-unless C2PA adoption changes that calculus (§9).
+unless C2PA adoption changes that calculus (§9). **Production finding
+(4 Aug 2026):** the first post-deploy spot-check (job `9a468d81`, gpt-image-2
+webp) showed OpenAI now embeds its own C2PA manifest (`c2pa.created`,
+`digitalSourceType = trainedAlgorithmicMedia`) in gpt-image-2 output, and
+Grimoire's pipeline preserves it — those images carry the provider's C2PA
+*plus* our XMP. That weakens the case for building our own C2PA signing:
+provider-side C2PA is inherited where it exists, and our XMP covers every
+provider uniformly.
 
 **Audio — verified 4 Aug 2026 (#605).** Google's own Gemini API docs state
 plainly: "All generated audio includes a SynthID audio watermark for
@@ -406,23 +413,28 @@ overlaps the broader sub-processor list scoped (and deferred until the
 first B2B/DPA request) in #477 — cite that issue for the full processor
 list (Supabase, Stripe, Freesound, etc.) rather than duplicating it here.
 
-**Confidence note.** Endpoints and models are read directly off the code
+**Verification note.** Endpoints and models are read directly off the code
 (`_shared/textGen.ts`, `_shared/imageGen.ts`, `_shared/embeddings.ts`,
-`generate-music/index.ts`, `_shared/mesh3d.ts`) and are exact. DPA links,
-transfer mechanisms, retention terms, and GPAI Code of Practice status are
-drawn from each vendor's publicly stated policy as understood at time of
-writing and have **not** been independently re-verified against the live
-document for this register. Cells marked TBD are genuinely unconfirmed —
-verify all of them when writing the public privacy-policy section
-(grimoire-marketing#22 backfills these cells from the same research).
+`generate-music/index.ts`, `_shared/mesh3d.ts`) and are exact. The DPA,
+transfer, retention and GPAI cells below were verified against live vendor and
+Commission documents on **4 Aug 2026** (the grimoire-marketing#22 research
+sweep; the public privacy policy's transfer table was written from the same
+pass, so the two documents share a source of truth). DPF non-participation was
+checked against the official participant database (active and inactive lists,
+with positive control queries) for OpenAI, fal.ai and Meshy; Anthropic's
+absence is corroborated by its own legal pages omitting the DPF (the registry
+UI is not machine-readable); Google's certification is per Google's own
+frameworks page (registry record not machine-read; eyeball
+dataprivacyframework.gov/participant/5780 before quoting an "active as of"
+date). Re-verify on material provider changes or at the quarterly review.
 
 | Provider | Role | Endpoints / models used | DPA / terms | EU transfer mechanism | Retention behavior | GPAI Code of Practice |
 |---|---|---|---|---|---|---|
-| OpenAI | Sub-processor — GPAI text, image, embedding models | Chat Completions (`gpt-4o-mini` default), Images generations/edits (`gpt-image-2`, `gpt-image-1.5`, `gpt-image-1-mini`), Embeddings (`text-embedding-3-small`) | Standard API DPA published by OpenAI | SCCs per OpenAI's standard DPA (believed current, not re-checked today) | API inputs/outputs excluded from model training by default; short abuse-monitoring retention window. Exact current wording: **TBD** | Signed, per the EU AI Office's Jul 2025 signatory announcement — not re-confirmed for this register |
-| Anthropic | Sub-processor — GPAI text model | Messages API (`claude-haiku-3-20240307` default) | Standard DPA published by Anthropic | SCCs per Anthropic's standard DPA (believed current, not re-checked today) | API inputs/outputs not used to train models by default. Exact retention window: **TBD** | Signed, per the EU AI Office's Jul 2025 signatory announcement — not re-confirmed |
-| Google | Sub-processor — GPAI text, image, embedding, and Lyria music models | Gemini API `generateContent` (`gemini-2.5-flash` text, `gemini-3.1-flash-image` image, `gemini-embedding-001` embeddings); Lyria (`lyria-3-clip-preview` / `lyria-3-pro-preview`) | **TBD** — which terms apply (Gemini API/AI Studio consumer terms vs. Google Cloud/Vertex enterprise terms) depends on the API surface Grimoire authenticates against; not confirmed | **TBD** | **TBD** — retention is API-tier-dependent; confirm which tier Grimoire's key is provisioned on | Signed, with reported reservations on parts of the code's content — not re-confirmed |
-| fal.ai | Sub-processor — hosts a third-party model, is not its developer | `fal-ai/flux-2/flex` image generation endpoint | **TBD** | **TBD** | **TBD** | Not directly applicable — fal.ai hosts FLUX (developed by Black Forest Labs); GPAI Code of Practice signatory status, if any, would attach to Black Forest Labs, not the hosting layer. Black Forest Labs' status: **TBD** |
-| Meshy | Sub-processor — image-to-3D generation | Image-to-3D task API (`_shared/mesh3d.ts`) | **TBD** | **TBD** | Confirmed from Grimoire's own integration: Meshy auto-deletes task assets ~3 days after completion on the non-Enterprise tier; `poll-meshy-jobs` downloads and re-hosts assets before that window closes | **TBD** — Meshy's models are narrow/specialized (image-to-3D only); whether they meet the Art 3(63) "significant generality" threshold for GPAI status at all is itself unresolved, separate from the signatory question |
+| OpenAI | Sub-processor — GPAI text, image, embedding models | Chat Completions (`gpt-4o-mini` default), Images generations/edits (`gpt-image-2`, `gpt-image-1.5`, `gpt-image-1-mini`), Embeddings (`text-embedding-3-small`) | DPA at openai.com/policies/data-processing-addendum, effective 1 Jan 2026; EEA customers contract with OpenAI Ireland Ltd | SCCs (2021/914) or EU adequacy per DPA §4.1; **not** DPF-certified (official DB, active + inactive, 4 Aug 2026). EU data residency exists (`eu.api.openai.com`, approval-gated, requires a Modified Retention amendment, 10% uplift on eligible models) — not currently used by Grimoire | API inputs/outputs not used for training by default (since 1 Mar 2023); abuse-monitoring logs up to 30 days; ZDR / Modified Abuse Monitoring are approval-gated | Signatory, no reservations (EC signatory list, 4 Aug 2026) |
+| Anthropic | Sub-processor — GPAI text model | Messages API (`claude-haiku-3-20240307` default) | DPA at anthropic.com/legal/data-processing-addendum, effective 24 Feb 2025 | SCCs Modules 2 and 3 (+ UK IDTA, Swiss addendum); not listed as DPF-certified — Anthropic's own legal pages omit the DPF entirely | Not used for training by default; API inputs/outputs auto-deleted within 30 days (newest "Covered Models" require the 30-day window; ZDR by arrangement). First-party API has no EU residency (us/global only) | Full signatory, no reservations (EC signatory list, 4 Aug 2026) |
+| Google | Sub-processor — GPAI text, image, embedding, and Lyria music models | Gemini API `generateContent` (`gemini-2.5-flash` text, `gemini-3.1-flash-image` image, `gemini-embedding-001` embeddings); Lyria (`lyria-3-clip-preview` / `lyria-3-pro-preview`) | Gemini API Additional ToS (effective 23 Mar 2026); paid tier runs under the "Google Data Processing Addendum for Products Where Google is a Data Processor" (v10, 7 May 2026, business.safety.google/processorterms — NOT the Cloud DPA; covered service entry "Gemini API Paid Services"); EEA contracting entity Google Ireland Ltd | Google LLC is **DPF-certified** (policies.google.com/privacy/frameworks) | Paid tier: prompts/outputs not used to improve products; abuse-monitoring logs kept 55 days; EEA/CH/UK users get paid-tier data terms on all tiers. SynthID confirmed in current docs for Lyria audio AND Gemini-generated images | Signatory (EC list, 4 Aug 2026); public concerns voiced at signing, no formal reservation recorded |
+| fal.ai | Sub-processor — hosts a third-party model, is not its developer | `fal-ai/flux-2/flex` image generation endpoint (model page URL flattens to `flux-2-flex`) | Public DPA at fal.ai/legal/data-processing-addendum (last updated 31 Jul 2026), auto-incorporated into the online terms — applies to API customers without signature. Entity: fal – Features & Labels, Inc., San Francisco | SCCs Module 2, "incorporated and deemed executed by this reference" (DPA §5); **not** DPF-certified (official DB, 4 Aug 2026) | Request payloads stored 30 days by default (suppressible per-request via `X-Fal-Store-IO: 0`; media retention configurable via object-lifecycle header). API terms bar training on Client Content except models marked "Pending Enterprise Ready" — `flux-2-flex` is not so marked, so the no-training commitment and DPA apply; deidentified/usage-data carve-outs exist | Not applicable to fal (hosting layer). Black Forest Labs (FLUX developer) is a signatory, no reservations (EC list, 4 Aug 2026) |
+| Meshy | Sub-processor — image-to-3D generation | Image-to-3D task API (`_shared/mesh3d.ts`) | **No public DPA** — the terms reference a DPA only as an Order attachment (Enterprise channel); nothing to execute on the API tier. Entity: Meshy LLC, Sunnyvale CA; EU Art 27 rep: Instant EU GDPR Representative Ltd, Dublin | **Not** DPF-certified (official participant XLSX, zero rows, 4 Aug 2026); privacy policy commits generically to SCCs/BCRs — no executed instrument visible for API customers | Generated models auto-delete ~3 days after generation on non-Enterprise tiers (docs + ToS §2.5; `poll-meshy-jobs` re-hosts before the window closes; input-image retention unstated). **ToS §2.9: non-Enterprise Customer Inputs and Outputs may be used for training by default** — see the §9 watch item | No AI Act/GPAI claims anywhere on its site (ISO 27001 + SOC 2 only). Whether its narrow image-to-3D models meet the Art 3(63) GPAI threshold remains unresolved |
 
 ## 8. AI literacy (Art 4)
 
@@ -450,6 +462,16 @@ same three documents.
   Annex III area (biometric categorisation, employment/education/credit
   scoring, law-enforcement or migration use — none currently on the
   roadmap). A tripwire, not a standing action item.
+- **Meshy trains on API-tier data by default (found 4 Aug 2026).** ToS §2.9
+  grants Meshy training use of non-Enterprise Customer Inputs and Outputs, and
+  the API tier has no executed DPA or SCC instrument — the SCC language in its
+  privacy policy is aspirational. The stylized portraits Simulacrum sends are
+  derived from real people's likenesses, which makes this the register's
+  weakest link. Current handling is disclosure: the public privacy policy
+  states the training use plainly, notes the 3-day model auto-delete, and says
+  the mini step is skippable. If disclosure isn't judged enough: negotiate an
+  Order excluding training use, move to Enterprise terms, or gate/drop the
+  sculpt leg. Decide at (or before) the next register review.
 - **Omnibus follow-on guidance.** Both the Commission's Art 50 guidelines
   (20 Jul 2026) and the Omnibus Regulation (27 Jul 2026) are recent; further
   Commission/AI Office guidance on marking standards and on how the
