@@ -195,8 +195,11 @@ export async function startChroniclerImage(params: {
   entities: ResolvedEntity[];
   size: ChroniclerSize;
   kind?: ImageJobKind;
+  /** The saved note this render's anchor lives in — lets the server swap
+   * the anchor into the note's content on completion (#614). */
+  noteId?: string | null;
 }): Promise<{ jobId: string }> {
-  const { sceneText, entities, size, kind = "chronicler" } = params;
+  const { sceneText, entities, size, kind = "chronicler", noteId = null } = params;
   const imageContext = captureImageGenerationContext();
   return startCentralImageGeneration({
     ...imageContext,
@@ -205,6 +208,7 @@ export async function startChroniclerImage(params: {
     size,
     referenceUrls: entities.flatMap((entity) => entity.portraitUrl ? [entity.portraitUrl] : []),
     textDescriptions: entities.flatMap((entity) => entity.textDescription ? [entity.textDescription] : []),
+    noteId,
   });
 }
 

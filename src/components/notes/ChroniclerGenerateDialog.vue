@@ -126,7 +126,7 @@ import { useAiCredits } from "@/composables/useAiCredits";
 import { useProviderConfig } from "@/composables/useProviderConfig";
 import { useLikenessGate } from "@/composables/useLikenessGate";
 
-const props = defineProps<{ visible: boolean; initialPrompt?: string }>();
+const props = defineProps<{ visible: boolean; initialPrompt?: string; noteId?: string }>();
 
 const emit = defineEmits<{
   close: [];
@@ -209,6 +209,7 @@ async function generate() {
       sceneText: prompt,
       entities:  resolvedEntities.value,
       size:      size.value,
+      noteId:    props.noteId ?? null,
     });
     emit("started", { jobId, prompt, size: size.value });
     queuedCount.value += 1;

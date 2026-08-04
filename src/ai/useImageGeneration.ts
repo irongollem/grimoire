@@ -66,6 +66,11 @@ export interface ImageGenerationRequest {
   textDescriptions?: string[];
   /** A new browser-produced reference (currently the Cartographer canvas). */
   sourceImage?: Blob;
+  /** Chronicler only: the saved note holding this job's pendingImage anchor.
+   * The server records it as the job's completion target and swaps the
+   * anchor into the note's content when the render finishes (#614). Absent
+   * for unsaved notes — the client resolver alone handles those. */
+  noteId?: string | null;
 }
 
 export type ImageGenerationContext = Pick<
@@ -237,6 +242,7 @@ async function startServer(request: ImageGenerationRequest): Promise<string> {
       text_descriptions: request.textDescriptions ?? [],
       source_image_b64: request.sourceImage ? await blobToBase64(request.sourceImage) : null,
       image_model: request.imageModel,
+      note_id: request.noteId ?? null,
     },
   });
   if (error) throw new Error(await edgeErrorMessage(error));

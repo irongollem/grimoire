@@ -219,6 +219,7 @@
   <ChroniclerGenerateDialog
     :visible="showChroniclerGenerate"
     :initial-prompt="illustrationPrompt"
+    :note-id="props.note?.id"
     @close="showChroniclerGenerate = false; illustrationPrompt = ''"
     @started="onChroniclerStarted"
   />

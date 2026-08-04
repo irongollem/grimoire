@@ -207,7 +207,7 @@ serve(withCors(async (req: Request) => {
 
   let campaign_id: string, subject: string, portrait_urls: string[],
       text_descriptions: string[], size: string, image_model: string,
-      purpose: ImagePurpose, source_image_b64: string | null;
+      purpose: ImagePurpose, source_image_b64: string | null, note_id: string | null;
 
   try {
     const body = await req.json();
@@ -221,6 +221,7 @@ serve(withCors(async (req: Request) => {
     purpose           = (body.purpose as ImagePurpose | undefined)
       ?? ((body.kind as string | undefined) === "group_portrait" ? "group_portrait" : "chronicler");
     source_image_b64  = typeof body.source_image_b64 === "string" ? body.source_image_b64 : null;
+    note_id           = typeof body.note_id === "string" && body.note_id ? body.note_id : null;
     if (!campaign_id || !subject || !(purpose in PURPOSE_CONFIG)) throw new Error("invalid");
   } catch {
     return text("Invalid body — need { campaign_id, purpose, subject }", 400);
@@ -306,6 +307,30 @@ serve(withCors(async (req: Request) => {
   const imageBasePrompt = imageBaseRow?.content ?? "";
   const prompt = buildPurposePrompt(purpose, subject, text_descriptions, settingPrompt, imageBasePrompt);
 
+  // A chronicler job started from a saved note records the note as its
+  // completion target: completeImageJob then swaps the note's pendingImage
+  // anchor for the finished image server-side (#614), so shared-note viewers
+  // see it without waiting for the DM's next edit + save. The note must be
+  // the CALLER'S own note in THIS campaign — note_id is client-supplied and
+  // the completion rewrite runs with the service role, so a forged id must
+  // die here (dropped, not rejected: a stale id — note deleted since the
+  // editor opened — shouldn't block a generation the gallery still wants).
+  let noteTarget: { target_table: string; target_id: string; target_column: string } | null = null;
+  if (note_id && purpose === "chronicler") {
+    const { data: note } = await admin
+      .from("notes")
+      .select("id")
+      .eq("id", note_id)
+      .eq("user_id", user.id)
+      .eq("campaign_id", campaign_id)
+      .maybeSingle();
+    if (note) {
+      noteTarget = { target_table: "notes", target_id: note_id, target_column: "content" };
+    } else {
+      console.warn(`generate-chronicle-image: dropping note_id ${note_id} — not caller's note in this campaign`);
+    }
+  }
+
   // Insert pending job — client polls/subscribes by id
   const jobId = await createImageJob(admin, {
     user_id: user.id,
@@ -315,6 +340,7 @@ serve(withCors(async (req: Request) => {
     size,
     model,
     provider: img.provider,
+    ...noteTarget,
   });
 
   // Background-task pattern: return job_id immediately, OpenAI call continues

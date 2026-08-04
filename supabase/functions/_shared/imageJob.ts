@@ -8,6 +8,7 @@
  * to the job row for completion.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { resolveNotePendingImage } from "./notePendingImage.ts";
 
 export type ImageJobKind =
   | "chronicler"
@@ -30,8 +31,10 @@ export type ImageJobKind =
 // Allowlist of (table:column) pairs the async completion step may write to.
 // completeImageJob performs a DYNAMIC `.from(target_table).update({[target_column]})`
 // with the service-role client (RLS bypassed); without this gate a job row with
-// attacker-chosen target_* would be an arbitrary-table/column write. No caller
-// currently sets target_*; add a pair here when wiring a new target.
+// attacker-chosen target_* would be an arbitrary-table/column write. Add a
+// pair here when wiring a new target. `notes:content` is deliberately NOT
+// in this set: it is special-cased to an anchor rewrite below — a raw column
+// overwrite would replace the whole note body with a bare URL.
 const ALLOWED_IMAGE_TARGETS = new Set<string>([
   "npcs:portrait_url",
   "monsters:image_url",
@@ -92,7 +95,7 @@ export async function completeImageJob(
 ): Promise<void> {
   const { data: job, error: fetchErr } = await admin
     .from("image_generation_jobs")
-    .select("target_table, target_id, target_column")
+    .select("user_id, target_table, target_id, target_column")
     .eq("id", jobId)
     .maybeSingle();
   if (fetchErr || !job) {
@@ -114,8 +117,23 @@ export async function completeImageJob(
     throw new Error(`completeImageJob failed: ${error?.message ?? "job was not pending"}`);
   }
 
-  const j = job as { target_table: string | null; target_id: string | null; target_column: string | null } | null;
+  const j = job as { user_id: string; target_table: string | null; target_id: string | null; target_column: string | null } | null;
   if (j?.target_table && j.target_id && j.target_column) {
+    // Chronicle jobs target the owning note's Tiptap content: swap the
+    // job's pendingImage anchor for the image node (#614) instead of the
+    // generic column write. Best-effort by design — the job is already
+    // ready and the image persisted, so a lost race or deleted anchor
+    // must not flip the job to failed (throwing here would, via
+    // runGeneration's catch → failImageJob).
+    if (j.target_table === "notes" && j.target_column === "content") {
+      await resolveNotePendingImage(admin, {
+        noteId: j.target_id,
+        userId: j.user_id,
+        jobId,
+        imageUrl,
+      });
+      return;
+    }
     if (!ALLOWED_IMAGE_TARGETS.has(`${j.target_table}:${j.target_column}`)) {
       throw new Error(`completeImageJob rejected target ${j.target_table}.${j.target_column}`);
     }
