@@ -31,6 +31,14 @@
         <p v-if="isFirstSculpt" class="text-caption-sm text-muted-foreground/70 italic text-center max-w-xs">
           Includes up to {{ MAX_SCULPTS - 1 }} free re-sculpts if the first pass doesn't land.
         </p>
+        <!-- Meshy disclosure (register §9, decision 4 Aug 2026): its API-tier
+             terms allow training on submitted images, so every sculpt warns
+             at the point of creation rather than burying it in policy. -->
+        <p class="text-caption-sm text-muted-foreground/70 text-center max-w-xs">
+          Sculpting sends this stylized image (never your original photo) to Meshy, our 3D partner,
+          whose standard terms let it use submitted images to improve its service. Details in the
+          <a :href="privacyUrl" target="_blank" rel="noopener" class="underline hover:no-underline">privacy policy</a>.
+        </p>
       </div>
       <div class="flex justify-start pt-2 border-t border-border">
         <button
@@ -155,6 +163,7 @@ import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import MiniModelViewer from "@/components/simulacrum/MiniModelViewer.vue";
 import { useAiCredits } from "@/composables/useAiCredits";
 import { useMiniForge } from "@/ai/useMiniForge";
+import { legalUrl } from "@/lib/marketing";
 import { getPublicUrl } from "@/lib/storage";
 import { MINI_BASES, DEFAULT_BASE_ID } from "@/data/miniBases";
 import { MAX_SCULPTS, MINI_STATUS_LABELS } from "@/types/mini.types";
@@ -175,6 +184,7 @@ const { costOf, affordable } = useAiCredits();
 const { sculpt, resculpt, setBase, waitForSculpt, isRebasing } = useMiniForge();
 
 const sculptCost = computed(() => costOf("mini_sculpt"));
+const privacyUrl = legalUrl("privacy");
 const resculptsLeft = computed(() => MAX_SCULPTS - mini.sculpt_count);
 // Only the very first completed sculpt is paid — everything after rides the
 // free-retry cap, including sculpting a re-stylized image (plan §5).
