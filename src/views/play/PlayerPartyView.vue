@@ -27,7 +27,7 @@
         <!-- Group portrait card — spans 2 columns -->
         <div
           v-if="groupPortraitUrl"
-          class="col-span-2 rounded-lg border border-border bg-card overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
+          class="relative col-span-2 rounded-lg border border-border bg-card overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
           title="View group portrait"
           @click="lightboxSrc = groupPortraitUrl"
         >
@@ -36,6 +36,7 @@
             alt="Party group portrait"
             class="w-full h-full object-cover"
           />
+          <AiGeneratedBadge variant="chip" :provenance="groupPortraitAiProvenance" />
         </div>
         <template v-for="entry in sortedParty" :key="entry.data.id">
           <PlayerPartyMemberCard
@@ -164,6 +165,7 @@ import { useRoute, useRouter } from "vue-router";
 import { IconSearch, IconAdd } from "@/lib/icons";
 import ImageLightbox from "@/components/common/ImageLightbox.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import AiGeneratedBadge from "@/components/common/AiGeneratedBadge.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
@@ -195,6 +197,7 @@ const auth = useAuthStore();
 const ui = useUiStore();
 const campaign = useCampaignStore();
 const groupPortraitUrl = computed(() => campaign.activeCampaign?.group_portrait_url ?? null);
+const groupPortraitAiProvenance = computed(() => campaign.activeCampaign?.group_portrait_ai_provenance ?? null);
 const lightboxSrc      = ref<string | null>(null);
 const viewerMemberId = computed(() =>
   ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId

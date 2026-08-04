@@ -21,22 +21,30 @@ export function sizeMultiplier(size: string | null | undefined): number {
   return area / (1024 * 1024)
 }
 
-/** Log a BYOK generation for cost analytics. Fire-and-forget — never blocks the caller. */
-export function logUsage(params: {
-  reason: string;
-  textUsage?: TextUsage;
-  imageUsage?: ImageUsage;
-}): void {
+/**
+ * Log a BYOK/local-key generation for the AI usage record. Fire-and-forget —
+ * never blocks the caller. Every call site is a client-direct (BYOK or local
+ * key vault) provider call, so `is_byok: true` is always correct here — the
+ * platform-key path is logged server-side instead (recordGeneration() /
+ * spend_credits(), see `_shared/credits.ts`).
+ *
+ * #609: every generation logs a row, even when the provider didn't report
+ * token counts (fal.ai and some responses omit them — see `ImageUsage`).
+ * Token columns land NULL in that case; delta stays 0 and model/provider/
+ * reason are always present, so the usage record stays complete even where
+ * it can't estimate cost. This never sends prompt content — only the
+ * generator type (`reason`), provider, model and token/image counts — so
+ * local-key mode's "plaintext never reaches the server" promise holds for
+ * this beacon too (context/compliance/ai-act.md §6a).
+ */
+export function logUsage(params:
+  | { reason: string; textUsage: TextUsage; imageUsage?: never }
+  | { reason: string; imageUsage: ImageUsage; textUsage?: never }
+): void {
   const { reason, textUsage, imageUsage } = params
   const inputTokens      = textUsage?.input_tokens  ?? imageUsage?.input_tokens
   const inputImageTokens = imageUsage?.input_image_tokens
   const outputTokens     = textUsage?.output_tokens ?? imageUsage?.output_tokens
-
-  // Policy: only record BYOK usage when we actually know the token counts.
-  // A token-less BYOK row can't inform our cost prediction — it just muddies the
-  // analytics (and falls back to a flat per-image estimate), so we skip it.
-  const isNil = (v: number | null | undefined) => v === null || v === undefined
-  if (isNil(inputTokens) && isNil(inputImageTokens) && isNil(outputTokens)) return
 
   supabase.functions.invoke('deduct-ai-credit', {
     body: {

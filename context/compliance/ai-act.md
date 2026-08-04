@@ -149,14 +149,19 @@ this entry records the decision and its current build status.
   the campaign later switches AI off. "No AI" means no *new* AI and no AI
   features; it never means silently un-labelling history.
 
-**Implementation status, 4 Aug 2026:** `campaigns.ai_enabled` and the UI/server
-gates it already drives are live today. The `ai_acknowledgements` table
-(migration `20260804000003_ai_acknowledgements.sql`) exists as a written,
-not-yet-applied migration; the consent-dialog UI and the server-side
-`likeness` gate are wave-3 work (#607/#608) and are not built yet. Until that
-wave ships, `ai_enabled` gates access to AI features but no acknowledgement
-is actually recorded on enabling it — that gap is real, open, and tracked on
-#607/#608, not closed by this register existing.
+**Implementation status, 4 Aug 2026 (end of day) — built.** The
+`ai_acknowledgements` table (migration `20260804000003`), the `ai_use` dialog
+(`AiNoticeDialog.vue`, gated at the `AiTab.vue` toggle and once-per-session in
+both DM and player layouts via `AiUseNoticeGate`), and the `likeness` gate are
+all implemented. Likeness is enforced server-side (`forge-mini` stylize/sculpt;
+`generate-chronicle-image` whenever the request carries portrait references —
+request-shape, not purpose, so scenes/group portraits/disguise/trap-with-party
+references are all covered; it fails closed on DB errors) with client
+pre-flights (`useLikenessGate.ensureLikenessAck()`) in the Simulacrum wizard,
+chronicler scene dialog, group portrait, NPC alter-ego and trap generation.
+Version constants are canonical in `_shared/provenance/consent.ts`, re-exported
+to the client via `src/lib/legal.ts`. The acknowledgement flows go live when
+the migrations are pushed (auto-apply on push-to-main).
 
 ## 5. Exemptions relied on
 
@@ -195,35 +200,75 @@ content the system had no technical means to mark when it was created.
 
 ## 6. Marking techniques
 
-Status is per-modality below. Several rows are pending because wave 2 of the
-provenance build (server/client marking, text threading — see
-provenance-architecture.md §§4–6) has not landed; this table tracks reality,
-it does not pre-declare work done.
+Status is per-modality below; this table tracks reality, it does not
+pre-declare work done.
 
-**Images — designed, not yet built.** `_shared/provenance/` is specified
-(provenance-architecture.md §1) to embed an XMP packet — IPTC
-`DigitalSourceType = trainedAlgorithmicMedia`, `xmp:CreatorTool`, a custom
-`grimoire:` namespace for provider/model/generatedAt — into WebP/PNG/JPEG
-bytes immediately before upload. As of 4 Aug 2026 that module does not exist
-yet (`supabase/functions/_shared/provenance/` is empty); this is upcoming
-wave-1/2 work. A C2PA spike (#605) is pending and undecided — XMP is the
-interim approach, and the permanent one unless C2PA adoption changes that
-calculus (§9).
+**Images — shipped 4 Aug 2026 (#605).** `supabase/functions/_shared/provenance/`
+embeds an XMP packet — IPTC `DigitalSourceType = trainedAlgorithmicMedia`,
+`xmp:CreatorTool`, a custom `grimoire:` namespace for
+provider/model/generatedAt — into WebP/PNG/JPEG bytes (idempotent re-marking,
+pass-through on unknown formats, colocated tests). Server side: every
+generated image is marked before upload or inside the returned `image_b64`,
+using the provider's true output format (OpenAI webp, Gemini png, fal.ai
+jpeg). Client side: local-key-mode output is marked before upload, and the
+canvas resize pipeline (`toWebP`, `resizeToWebP` variants, `backfillVariants`)
+re-embeds the original's XMP after every re-encode — canvas strips metadata,
+so re-embedding is what makes the mark survive. A C2PA spike (#605) remains
+pending and undecided — XMP is the shipped approach, and the permanent one
+unless C2PA adoption changes that calculus (§9).
 
-**Audio — TBD, nothing wired yet.** Google Lyria output carries SynthID
-watermarking on Google's side; Grimoire has not implemented or verified
-extraction/checking of that watermark. `sounds.artist` (a column added for
-Media Session/CarPlay display, not AI-specific) is the intended carrier for
-a `'Grimoire AI'` attribution on generated tracks, but `generate-music` does
-not currently populate it. Both open, tracked on #605/#609.
+**Audio — verified 4 Aug 2026 (#605).** Google's own Gemini API docs state
+plainly: "All generated audio includes a SynthID audio watermark for
+identification. This watermark is imperceptible to the human ear and does
+not affect the listening experience" — and this is described as applying to
+API output generally, not only the Gemini-app UI surface
+([Generate music with Lyria 3](https://ai.google.dev/gemini-api/docs/music-generation),
+Google AI for Developers). Grimoire calls the same `generateContent` endpoint
+these docs describe (`generate-music/index.ts`), so every track this app
+produces is SynthID-watermarked by Google before Grimoire ever sees the
+bytes. Grimoire has not built (and does not need to build) its own
+extraction/verification tooling — the machine-readable mark is the upstream
+GPAI provider's, inherited by the system that calls it, the same relationship
+Grimoire has to any other sub-processor's output.
 
-**Text — data-model substrate written, not threaded.** The same
-`ai_provenance jsonb` column described under Images (migration
-`20260804000002_ai_provenance_columns.sql`, uncommitted as of this writing)
-is what generators write text-draft provenance into; a `data-ai-generated`
-HTML marker on chronicle-recap root elements (`sanitizeHtml` preserves it
-through sanitization) is the visible-marking half. Both are #606 scope; no
-generator threads a provenance block through yet.
+**Container-level marking: assessed, not added.** The same Google docs state
+the Lyria 3 models return `audio/mp3` by default, and that WAV is only
+returned when the caller explicitly sets `generationConfig.responseFormat`
+to request it. `generate-music/index.ts` never sets `responseFormat` — its
+request body is `{ contents, generationConfig: { responseModalities:
+["AUDIO", "TEXT"] } }` only — so both `lyria-3-clip-preview` and
+`lyria-3-pro-preview` come back as compressed MP3 in this app today (matching
+the function's own `audioExtension()` fallback, which defaults to `"mp3"`).
+The RIFF-chunk provenance embedder precedent in
+`_shared/provenance/embed.ts` embeds XMP into WebP/PNG/JPEG containers;
+MP3 has no equivalent lightweight "extra chunk" convention in this codebase
+(ID3v2 tag writing is a different, non-trivial format and would be new scope,
+not a small addition), so no container-level Grimoire mark was added. If
+`generate-music` is ever changed to request WAV output, this is worth
+revisiting — RIFF marking would become a small, safe addition at that point,
+per the same reasoning already applied to generated images.
+
+`sounds.artist = 'Grimoire AI'` is set on every generated track
+(`finalize_music_generation_job`, migration
+`20260730000002_ai_generation_jobs.sql`) — confirmed still true; the prior
+"`generate-music` does not currently populate it" note in this register was
+stale and is corrected here. Audio verification closed; the #605 pieces
+that remain open (C2PA feasibility spike) are image-side, not audio.
+
+**Text — shipped 4 Aug 2026 (#606).** All 8 server text generators return an
+`ai_provenance` block built from the actually-resolved provider/model, and
+every client accept-save persists it into the `ai_provenance jsonb` column
+(migration `20260804000002`) across all 13 content tables — including
+detail-page regenerate flows and the `resolve_downtime_draw` RPC path
+(migration `20260804000004`). Client-direct BYOK/local generators construct
+the same block via `src/ai/provenance.ts`. Chronicle-inserted rich text is
+additionally wrapped in a `data-ai-generated` / `data-ai-model` container — a
+dedicated TipTap node so the marker survives editor round-trips, and
+`sanitizeHtml` (DOMPurify `ALLOW_DATA_ATTR` default) preserves it through
+sanitization; both proven by colocated tests. Human edits flip
+`ai_provenance.edited` to `true` via `markEdited()` wired into all 12 entity
+editors with real content-diff dirty checks (`downtime_outcomes` is
+insert-only; nothing to wire). No backfill for pre-existing rows (§5).
 
 **3D — out of Art 50(2)'s literal scope (position, 4 Aug 2026).** Art 50(2)
 names image, audio, video and text as the marked media types. A Meshy
@@ -235,6 +280,54 @@ above; the mesh inherits disclosure by association with its marked source,
 and the user already understands the mesh is AI-made because "AI mini" is
 the entire pitch of the feature. Revisit if future guidance explicitly
 extends Art 50(2) to 3D assets.
+
+## 6a. Usage logging (#609, 4 Aug 2026)
+
+Voluntary hardening, not a legal duty (Art 50's marking/disclosure obligations
+above are separate from this) — #609 closes a gap and adds tamper-evidence in
+the AI usage record (`ai_credit_ledger`, `ai_generation_jobs`,
+`image_generation_jobs`), which is the evidence base for billing disputes and
+abuse investigation, and doubles as Art 50 supporting evidence if ever asked.
+See provenance-architecture.md §8 for the engineering summary.
+
+**Logging-gap decision.** `useAiCredits.ts` `logUsage()` previously skipped
+the `deduct-ai-credit` call entirely when the provider reported no token
+counts — silently dropping fal.ai image generations and any other
+token-less BYOK/local-key call from the record. Fixed: every client-direct
+(BYOK or local-key-vault) generation now logs a row unconditionally — delta 0,
+`is_byok: true`, token columns NULL when the provider didn't report them,
+`model`/`provider`/`reason` always present.
+
+**Local-key mode's privacy promise, explicitly checked.** Local-key mode's
+guarantee is that plaintext prompts and provider keys never reach Grimoire's
+server — not that the server hears nothing at all. `logUsage()` sends only
+`reason` (generator type), `provider`, `model`, `is_byok`, token counts and
+image count — never prompt/response content, never the key. That payload was
+already metadata-only before #609; the fix only removed the early-return that
+was dropping rows, it didn't add a new field. Decision: this metadata beacon
+does not contradict the local-mode promise, so it ships without a separate
+opt-out.
+
+**Tamper-evidence.** Migration `20260804000005_ai_log_tamper_evidence.sql`:
+`ai_credit_ledger` is now a trigger-enforced append-only table (an audit of
+every ledger-writing code path found no legitimate UPDATE transition at all —
+reservation settlement is insert-new-row + delete-the-pending-hold, never an
+in-place update — so the guard trigger blocks ALL updates, not a
+special-cased subset). `image_generation_jobs`'s unused owner-UPDATE RLS
+policy is dropped (no application code ever called it; it was a live
+tamper vector via a forged REST PATCH). Owner-DELETE stays on
+`image_generation_jobs` on purpose — deleting your own Gallery image is a
+real, shipped feature (`useDeleteGalleryImage`), not log falsification; see
+the migration header for the full boundary reasoning.
+
+**Retention.** `image_generation_jobs.prompt` and `ai_generation_jobs.request_json`
+are scrubbed (cleared, not row-deleted) 90 days after creation via a pg_cron
+job in the same migration, following the existing `fail-stale-*`/
+`release-stale-credit-holds` scheduling pattern. Billing/telemetry columns
+(delta, model, provider, tokens, status, timestamps) are kept indefinitely —
+they carry no prompt content and are the actual evidence base; only the
+free-text prompt/request fields carry the GDPR liability of indefinite
+retention, so only those are time-boxed.
 
 ## 7. Provider register
 

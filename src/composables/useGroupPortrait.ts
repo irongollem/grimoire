@@ -4,6 +4,9 @@ import { useUpdateCampaign } from "@/composables/useCampaigns";
 import { useParty } from "@/composables/useParty";
 import { useAllSpecies } from "@/composables/useSpecies";
 import { generateChroniclerImage } from "@/ai/useChroniclerImageGeneration";
+import { captureImageGenerationContext } from "@/ai/useImageGeneration";
+import { buildAiProvenance } from "@/ai/provenance";
+import { useLikenessGate } from "@/composables/useLikenessGate";
 import { uploadToBucket } from "@/lib/storage";
 import { getCurrentUser } from "@/lib/supabase";
 import { toWebP } from "@/lib/mediaConvert";
@@ -18,6 +21,7 @@ const SIZE_HEIGHT_DEFAULTS: Record<SpeciesSize, string> = {
 
 export function useGroupPortrait() {
   const store = useCampaignStore();
+  const { ensureLikenessAck } = useLikenessGate();
   const { data: partyMembers } = useParty();
   const { data: allSpecies }   = useAllSpecies();
   const { mutateAsync: updateCampaign } = useUpdateCampaign();
@@ -36,6 +40,7 @@ export function useGroupPortrait() {
 
   async function generateGroupPortrait() {
     if (!store.activeCampaignId || !store.activeCampaign) return;
+    if (!(await ensureLikenessAck())) return;
     const campaignId = store.activeCampaignId;
     generating.value = true;
     error.value      = "";
@@ -50,6 +55,11 @@ export function useGroupPortrait() {
         };
       });
 
+      // Captured before the generation await resolves, mirroring every other
+      // AI-image caller (e.g. useNpcGeneration) — it's the provider/model this
+      // call is actually resolved to use, not a re-read after the fact.
+      const imageContext = captureImageGenerationContext();
+
       const url = await generateChroniclerImage({
         sceneText: "A group portrait of the adventuring party together",
         entities,
@@ -59,7 +69,10 @@ export function useGroupPortrait() {
 
       const updated = await updateCampaign({
         id:     campaignId,
-        update: { group_portrait_url: url },
+        update: {
+          group_portrait_url:            url,
+          group_portrait_ai_provenance:  buildAiProvenance("group_portrait", imageContext.imageProvider ?? "openai", imageContext.imageModel),
+        },
       });
       store.switchToCampaign(updated);
     } catch (e: unknown) {
@@ -85,7 +98,10 @@ export function useGroupPortrait() {
       if (!url) throw new Error("Upload failed.");
       const updated = await updateCampaign({
         id:     store.activeCampaignId,
-        update: { group_portrait_url: url },
+        // A manual upload replaces the portrait outright — clearing the AI
+        // provenance record here is honest (the image is no longer that AI
+        // generation), not an unlabelling of history.
+        update: { group_portrait_url: url, group_portrait_ai_provenance: null },
       });
       store.switchToCampaign(updated);
     } catch (e: unknown) {

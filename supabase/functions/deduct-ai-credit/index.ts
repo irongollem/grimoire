@@ -56,6 +56,12 @@ serve(withCors(async (req: Request) => {
 
   if (is_byok) {
     // BYOK: user pays their own API cost — just log the generation for analytics, no credit deduction.
+    // #609: the client (useAiCredits.ts logUsage()) now calls this for EVERY
+    // BYOK/local-key generation, including ones where the provider reported no
+    // token counts (fal.ai, some responses) — input_tokens/input_image_tokens/
+    // output_tokens land undefined in that case and insert as NULL (all three
+    // columns are nullable). That's correct and expected: a token-less row still
+    // proves the generation happened, which is the point of closing the gap.
     const { error } = await admin.from("ai_credit_ledger").insert({
       user_id: user.id,
       delta: 0,

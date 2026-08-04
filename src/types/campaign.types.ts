@@ -1,5 +1,6 @@
 import type { SettingCalendarDef } from "@/settings/types";
 import type { RulesetKey } from "@/types/ruleset.types";
+import type { AiProvenance } from "@/ai/provenance";
 
 /** Per-campaign house-rule toggles. Shape is open-ended; known keys are typed. */
 export interface CampaignOptionalRules {
@@ -44,6 +45,8 @@ export interface Campaign {
   allow_chronicle_promotion: boolean;
   ai_enabled: boolean;
   group_portrait_url: string | null;
+  /** Provenance of group_portrait_url when set by the AI generator; null = not AI / unknown, or cleared by a manual upload that replaced the portrait (see useGroupPortrait). */
+  group_portrait_ai_provenance: AiProvenance | null;
   spotify_client_id: string | null;
   ical_token: string; // UUID; used as the shared secret for the iCal subscription URL
   current_location_id: string | null;
@@ -57,7 +60,7 @@ type ApiKeyFields =
   | "anthropic_api_key"
   | "gemini_api_key"
   | "falai_api_key";
-type PortraitFields = "group_portrait_url";
+type PortraitFields = "group_portrait_url" | "group_portrait_ai_provenance";
 type ProviderFields = "text_provider" | "image_provider";
 
 export type CampaignInsert = Omit<
@@ -109,6 +112,7 @@ export type CampaignUpdate = Partial<CampaignInsert> & {
   spotify_client_id?: string | null;
   is_archived?: boolean;
   group_portrait_url?: string | null;
+  group_portrait_ai_provenance?: AiProvenance | null;
 };
 
 export type CampaignRole = "dm" | "player";
