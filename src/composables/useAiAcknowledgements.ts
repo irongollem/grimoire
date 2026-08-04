@@ -1,5 +1,7 @@
+import { computed } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
-import { supabase, getCurrentUser } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
+import { useAuthStore } from "@/stores/auth";
 
 const UNIQUE_VIOLATION = "23505";
 
@@ -59,16 +61,22 @@ const QUERY_KEY = ["ai-acknowledgements", "mine"];
  * false again until the user re-confirms.
  */
 export function useAiAcknowledgements() {
-  const user = getCurrentUser();
+  const auth = useAuthStore();
+  const userId = computed(() => auth.user?.id ?? null);
   const queryClient = useQueryClient();
 
   const query = useQuery({
     // Keep cached consent state scoped to the authenticated account. Without
     // the user id, a same-tab account switch can briefly expose the previous
     // account's rows while this query refetches.
-    queryKey: [...QUERY_KEY, user?.id ?? "signed-out"],
-    queryFn: () => fetchMyAcknowledgements(user!.id),
-    enabled: () => !!user,
+    queryKey: computed(() => [...QUERY_KEY, userId.value ?? "signed-out"]),
+    queryFn: () => fetchMyAcknowledgements(userId.value!),
+    enabled: computed(() => !!userId.value),
+    // A failed read must not fan out into several identical requests from
+    // every acknowledgement observer. Gates handle this state explicitly and
+    // a later reconnect/refocus can try again.
+    retry: false,
+    retryOnMount: false,
   });
 
   function hasAcknowledged(kind: AiAcknowledgementKind, version: string): boolean {
@@ -77,8 +85,8 @@ export function useAiAcknowledgements() {
 
   const { mutateAsync } = useMutation({
     mutationFn: ({ kind, version }: { kind: AiAcknowledgementKind; version: string }) => {
-      if (!user) throw new Error("You must be signed in.");
-      return recordAcknowledgement(user.id, kind, version);
+      if (!userId.value) throw new Error("You must be signed in.");
+      return recordAcknowledgement(userId.value, kind, version);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
   });
@@ -90,6 +98,8 @@ export function useAiAcknowledgements() {
   return {
     acknowledgements: query.data,
     isLoading: query.isLoading,
+    isError: query.isError,
+    error: query.error,
     hasAcknowledged,
     acknowledge,
   };

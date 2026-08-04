@@ -76,6 +76,7 @@ const { isPro } = useSubscription();
 const {
   acknowledgements,
   isLoading: acknowledgementsLoading,
+  isError: acknowledgementsError,
   hasAcknowledged,
   acknowledge,
 } = useAiAcknowledgements();
@@ -94,13 +95,21 @@ watch(
     auth.user?.id,
     isPro.value,
     acknowledgementsLoading.value,
+    acknowledgementsError.value,
     acknowledgements.value,
   ] as const,
-  ([c, userId, pro, loading]) => {
+  ([c, userId, pro, loading, loadFailed]) => {
     // `hasAcknowledged()` reads an async query. Do not interpret its initial
     // empty value as an explicit "not acknowledged" result, and observe the
     // rows themselves so this watcher reruns when the fetch completes.
     if (!c || dismissed.value || loading) return;
+    // A backend/network failure is not evidence that the account has never
+    // acknowledged the notice. Suppress the gate until the read can succeed;
+    // otherwise the failure itself creates an undismissable popup loop.
+    if (loadFailed) {
+      open.value = false;
+      return;
+    }
     if (c.ai_enabled === null) {
       if (shouldOfferAiChoice(c, userId)) {
         mode.value = "choose";

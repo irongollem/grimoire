@@ -45,6 +45,13 @@
             Review this campaign's AI settings
             <IconExternalLink class="h-3 w-3" />
           </RouterLink>
+          <p
+            v-if="saveError"
+            role="alert"
+            class="text-caption text-destructive"
+          >
+            {{ saveError }}
+          </p>
         </div>
 
         <div class="flex justify-end gap-2 px-5 pb-5 pt-2">
@@ -108,6 +115,8 @@ const emit = defineEmits<{
 
 const { acknowledge } = useAiAcknowledgements();
 const isSaving = ref(false);
+const saveError = ref("");
+let saveAttempt = 0;
 
 const version = computed(() => {
   if (kind === "ai_use") return AI_USE_NOTICE_VERSION;
@@ -182,17 +191,31 @@ const confirmLabel = computed(() => {
 const cancelLabel = computed(() => (mode === "choose" ? "Not now" : "Cancel"));
 
 async function confirm() {
+  const attempt = ++saveAttempt;
+  saveError.value = "";
   isSaving.value = true;
   try {
     await acknowledge(kind, version.value);
+    // The user may close the dialog while a slow request is in flight. Do not
+    // apply the confirmed action after they have cancelled it.
+    if (attempt !== saveAttempt || !open.value) return;
     open.value = false;
     emit("confirm");
+  } catch {
+    if (attempt === saveAttempt && open.value) {
+      saveError.value = mode === "choose"
+        ? "We couldn't save this choice. Check your connection, then try again or choose Not now."
+        : "We couldn't save this acknowledgement. Check your connection, then try again or close this notice.";
+    }
   } finally {
-    isSaving.value = false;
+    if (attempt === saveAttempt) isSaving.value = false;
   }
 }
 
 function cancel() {
+  saveAttempt += 1;
+  isSaving.value = false;
+  saveError.value = "";
   open.value = false;
   emit("cancel");
 }
