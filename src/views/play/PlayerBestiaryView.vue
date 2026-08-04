@@ -164,23 +164,27 @@
         @click.self="lightbox = null"
       >
         <div class="relative bg-card border border-border rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-          <button class="absolute top-3 right-3 z-10 text-muted-foreground hover:text-foreground" @click="lightbox = null">
+          <!-- z-40 keeps this above the mini viewer's z-30 backdrop. -->
+          <button class="absolute top-3 right-3 z-40 text-muted-foreground hover:text-foreground" @click="lightbox = null">
             <IconClose class="h-4 w-4" />
           </button>
 
           <div class="relative h-48 bg-muted overflow-hidden rounded-t-xl">
-            <FocalImage
-              :src="lightbox.imageUrl"
-              :alt="lightbox.name"
-              format="landscape"
-              :focal-point="lightbox.monster?.portrait_focal_point"
-              placeholder="/assets/placeholders/monster.webp"
-            />
-            <span
-              v-if="lightbox.monster"
-              class="absolute bottom-2 right-2 px-2 py-0.5 rounded font-cinzel text-2xs md:text-sm font-bold text-white"
-              :style="{ backgroundColor: crColor(lightbox.monster.stat_block.challenge_rating) }"
-            >CR {{ lightbox.monster.stat_block.challenge_rating }}</span>
+            <MiniPortraitOverlay :source="{ table: 'monsters', id: lightboxMiniSourceId }" badge-position="bottom-right">
+              <FocalImage
+                :src="lightbox.imageUrl"
+                :alt="lightbox.name"
+                format="landscape"
+                :focal-point="lightbox.monster?.portrait_focal_point"
+                placeholder="/assets/placeholders/monster.webp"
+              />
+              <!-- Left, not right: the mini badge owns bottom-right here. -->
+              <span
+                v-if="lightbox.monster"
+                class="absolute bottom-2 left-2 px-2 py-0.5 rounded font-cinzel text-2xs md:text-sm font-bold text-white"
+                :style="{ backgroundColor: crColor(lightbox.monster.stat_block.challenge_rating) }"
+              >CR {{ lightbox.monster.stat_block.challenge_rating }}</span>
+            </MiniPortraitOverlay>
           </div>
 
           <div class="p-4 space-y-4">
@@ -281,6 +285,7 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 import MonsterFormCard from "@/components/monsters/MonsterFormCard.vue";
+import MiniPortraitOverlay from "@/components/simulacrum/MiniPortraitOverlay.vue";
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 interface BestiaryEntry { discovery: DiscoveredMonster; monster: Monster | null }
@@ -445,6 +450,14 @@ interface LightboxState {
   entityId: string;
 }
 const lightbox = ref<LightboxState | null>(null);
+
+// Shared library monsters carry text ids (`srd_owlbear`) while `minis.source_id`
+// is a uuid, so only a campaign-owned monster can ever have a mini. An empty id
+// leaves useMiniForSource disabled, which renders the portrait untouched.
+const lightboxMiniSourceId = computed(() => {
+  const m = lightbox.value?.monster;
+  return m && !m.is_shared ? m.id : "";
+});
 
 function openLightbox(monster: Monster | null, discovery: DiscoveredMonster | null) {
   if (!monster && !discovery) return;

@@ -72,6 +72,32 @@ export interface Mini {
   updated_at: string;
 }
 
+/**
+ * What a player is allowed to see of someone else's mini — the shape returned
+ * by the `get_player_visible_mini` RPC. The `minis` table itself is DM-only
+ * (see migration `20260805000001`), so this projection deliberately omits the
+ * job and credit columns; `label` also arrives null for an NPC whose name the
+ * DM has not shared, even when the portrait is shared.
+ */
+export type PlayerVisibleMini = Pick<
+  Mini,
+  | "id"
+  | "campaign_id"
+  | "source_table"
+  | "source_id"
+  | "format"
+  | "status"
+  | "provider"
+  | "glb_path"
+  | "stl_path"
+  | "thumbnail_url"
+  | "label"
+  | "base_id"
+  | "scale_mm"
+  | "created_at"
+  | "updated_at"
+>;
+
 // Creation only needs the source + format — everything else is server-managed
 // by the forge-mini pipeline (stylize → sculpt → download).
 export type MiniInsert = Omit<
