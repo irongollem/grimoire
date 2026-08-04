@@ -62,12 +62,13 @@ biometric categorisation of protected classes, no social scoring, no
 real-time remote biometric identification — nothing in Grimoire's feature
 set resembles any of the Art 5 categories.
 
-**⚠ Watch item — external legal review of this role analysis is deferred,
-not dropped.** Parked on 4 Aug 2026 by explicit decision (see
-provenance-architecture.md, "Deferred, not dropped") because it sits outside
-this ticket's blast radius, but it is in scope for pre-public-launch work.
-It must not quietly fall off the list because nothing in the code forces it
-back on.
+**Decision (Jeffrey, 4 Aug 2026, evening): no external legal review.** The
+role analysis above is a self-assessment and stays one — proportionate for a
+solo-operator product of this size, and the owner accepts that risk
+knowingly. This supersedes the earlier same-day "deferred, not dropped"
+position. Revisit only if circumstances materially change: a B2B/organisation
+customer requests a DPA (#477 territory), a competent authority makes
+contact, or Grimoire's scale or feature set shifts the risk calculus.
 
 ## 3. AI-system inventory
 
@@ -412,7 +413,8 @@ transfer mechanisms, retention terms, and GPAI Code of Practice status are
 drawn from each vendor's publicly stated policy as understood at time of
 writing and have **not** been independently re-verified against the live
 document for this register. Cells marked TBD are genuinely unconfirmed —
-verify all of them before the external legal review (§2, §9).
+verify all of them when writing the public privacy-policy section
+(grimoire-marketing#22 backfills these cells from the same research).
 
 | Provider | Role | Endpoints / models used | DPA / terms | EU transfer mechanism | Retention behavior | GPAI Code of Practice |
 |---|---|---|---|---|---|---|
@@ -457,8 +459,7 @@ same three documents.
   C2PA adoption becomes the de facto expectation — as it is trending toward
   elsewhere — XMP-only marking (§6) may need to be treated as an interim
   measure rather than the final answer. Revisit alongside #605.
-- **Deferred external legal review.** The role analysis in §2 (provider vs.
-  deployer split across all three key tiers) has not had external legal
-  sign-off. Parked deliberately on 4 Aug 2026; must happen before public
-  launch, and must not silently fall out of scope because nothing in the
-  code forces it back onto a list.
+- **External legal review: decided against (4 Aug 2026).** The §2 role
+  analysis remains a self-assessment by owner decision — see §2 for the
+  rationale and the three revisit triggers (B2B/DPA request, authority
+  contact, material change in scale or features).

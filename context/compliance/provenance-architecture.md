@@ -25,7 +25,8 @@ vitest: `_shared/credit-math.ts`; the vitest include glob already covers
   (single shape; DB jsonb, XMP packet and UI badge all derive from it)
 - `xmp.ts` — XMP packet builder: IPTC `DigitalSourceType = trainedAlgorithmicMedia`,
   `xmp:CreatorTool`, custom `grimoire:` namespace for provider/model/generatedAt
-- `embed.ts` — binary embedders: WebP (RIFF `XMP ` chunk + VP8X flag), PNG
+- `embed.ts` — binary embedders: WebP (RIFF XMP chunk — fourcc `XMP` plus a
+  trailing space — + VP8X flag), PNG
   (`iTXt` XML:com.adobe.xmp + CRC32), JPEG (APP1). Dispatcher
   `embedProvenance(bytes, contentType, prov)`; unknown formats pass through
   unchanged — marking must never corrupt an asset. Extractors (`readXmp*`)
@@ -107,7 +108,9 @@ mutations on settled ledger rows, retention policy. Not a legal duty
 | 3 | consent gateway UI + server gates · badges | `AiTab.vue`, dialogs, `forge-mini`, `generate-chronicle-image` · player-portal views |
 | 4 | log hardening · audio/SynthID | ledger migration + `useAiCredits.ts` · `generate-music` |
 
-## Deferred, not dropped
+## Decisions log
 
-External legal review of the role analysis before public launch (#610 carries
-it). Parked on 4 Aug 2026 by explicit decision; must not fall out of scope.
+External legal review of the role analysis: first deferred, then **decided
+against** later the same day (4 Aug 2026) — solo-operator proportionality,
+owner accepts the self-assessment risk. Revisit triggers live in
+ai-act.md §2.
