@@ -1,0 +1,25 @@
+/**
+ * Canonical EU AI Act Art 50(1) consent-notice versions (context/compliance/
+ * provenance-architecture.md §3). Pure TS, no Deno/Node/browser APIs — this
+ * file is imported both by edge functions (relative import) and by the
+ * browser via the `@edge-shared` alias (`src/lib/legal.ts` re-exports these
+ * two names), so a version bump can never drift between the two worlds.
+ */
+
+/**
+ * Version of the AI-use notice shown before a campaign's `ai_enabled` toggle
+ * is switched on. Recorded once per account in `ai_acknowledgements`
+ * (kind: 'ai_use').
+ */
+export const AI_USE_NOTICE_VERSION = "2026-08-04";
+
+/**
+ * Version of the likeness notice shown before a portrait is sent to an AI
+ * provider (Simulacrum stylize/sculpt, chronicle reference images, group
+ * portrait, NPC disguise). Recorded once per account in `ai_acknowledgements`
+ * (kind: 'likeness'). Enforced server-side in `forge-mini` (stylize/sculpt)
+ * and `generate-chronicle-image` (portrait-bearing requests) via
+ * `hasLikenessAcknowledgement` (./likeness-gate.ts); pre-flighted client-side
+ * via `useLikenessGate`.
+ */
+export const AI_LIKENESS_NOTICE_VERSION = "2026-08-04";

@@ -124,6 +124,7 @@ import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import { useEntityMentionItems } from "@/composables/useEntityMentionItems";
 import { useAiCredits } from "@/composables/useAiCredits";
 import { useProviderConfig } from "@/composables/useProviderConfig";
+import { useLikenessGate } from "@/composables/useLikenessGate";
 
 const props = defineProps<{ visible: boolean; initialPrompt?: string }>();
 
@@ -190,8 +191,15 @@ function shapeCost(s: ChroniclerSize): number {
 }
 const selectedCost = computed(() => (byok.value ? 0 : shapeCost(size.value)));
 
+const { ensureLikenessAck } = useLikenessGate();
+
 async function generate() {
   if (!activeCampaignId.value || !scenePrompt.value.trim() || !user.value) return;
+  // Only a scene with resolved @mentions actually sends portrait references
+  // (see startChroniclerImage's referenceUrls) — an unmentioned/plain scene
+  // needs no likeness ack, matching the server's portrait_urls-shaped gate.
+  const hasPortraitReferences = resolvedEntities.value.some((e) => e.portraitUrl);
+  if (hasPortraitReferences && !(await ensureLikenessAck())) return; // user declined — abort silently
   starting.value = true;
   error.value = "";
   queuedNotice.value = "";

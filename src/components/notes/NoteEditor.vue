@@ -272,7 +272,7 @@ import {
 } from "@/composables/useImageUpload";
 import type { Note, NoteCategory } from "@/types/notes.types";
 import type { CalendarEvent } from "@/types/calendar.types";
-import type { AiProvenance } from "@/ai/provenance";
+import { markEdited, type AiProvenance } from "@/ai/provenance";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCalendarStore } from "@/stores/calendar";
 import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
@@ -305,6 +305,12 @@ const tags = ref<string[]>(props.note?.tags ? [...props.note.tags] : []);
 // preserved across unrelated edits so re-saving a note doesn't erase a prior
 // generation's record — never cleared back to null once populated (#606).
 const aiProvenance = ref<AiProvenance | null>(props.note?.ai_provenance ?? null);
+// Body content as of the last known AI-authored state: the loaded content, or
+// (if the DM inserts a fresh Chronicle write this session) the body right
+// after that insert. Accepting an AI draft isn't itself a human edit — only a
+// further change beyond this baseline is, so `save()` diffs against this
+// rather than against `props.note.content` directly (#606).
+const aiContentSnapshot = ref<string | null>(props.note?.content ?? null);
 const saving = ref(false);
 const deleting = ref(false);
 const showPaywall = ref(false);
@@ -402,8 +408,15 @@ function onChroniclerSelect(url: string) {
 }
 
 function onChroniclerWrite(rawMarkdown: string, provenance: AiProvenance | null) {
-  rteRef.value?.insertChronicleContent(rawMarkdown);
-  if (provenance) aiProvenance.value = provenance;
+  rteRef.value?.insertChronicleContent(rawMarkdown, provenance?.model ?? null);
+  if (provenance) {
+    aiProvenance.value = provenance;
+    // insertChronicleContent() runs synchronously through Tiptap's onUpdate →
+    // emit("update:modelValue") → this component's v-model handler, so `body`
+    // already reflects the insert here. Accepting the AI draft as-is isn't a
+    // human edit, so move the baseline forward to match.
+    aiContentSnapshot.value = body.value;
+  }
 }
 
 const illustrationPrompt = ref("");
@@ -514,6 +527,15 @@ async function save() {
   const justShared = nowShared && !wasShared;
   try {
     if (props.note) {
+      // Material edit detection (#606): only the body counts — title,
+      // category, pin state, tags and visibility aren't AI-authored content.
+      // Diffed against the last known AI-authored snapshot, not the loaded
+      // content directly, so accepting a Chronicle draft as-is doesn't
+      // itself count as an edit (see aiContentSnapshot above).
+      if (body.value !== aiContentSnapshot.value) {
+        aiProvenance.value = markEdited(aiProvenance.value);
+      }
+
       const oldContent = props.note.content;
       await update({ id: props.note.id, update: buildPayload() });
       cleanupRemovedRichTextImages(oldContent, body.value);

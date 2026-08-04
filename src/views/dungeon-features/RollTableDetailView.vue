@@ -317,6 +317,8 @@ import {
   type RollTableInsert,
 } from "@/types/rollTable.types";
 import { rollOnTable, type RollTableRollResult } from "@/lib/rollTableRoll";
+import { markEdited } from "@/ai/provenance";
+import { deepEqual } from "@/lib/utils";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import TagInput from "@/components/common/TagInput.vue";
@@ -361,6 +363,7 @@ const form = ref<RollTableInsert>({
   entries: [],
   tags: [],
   notes: null,
+  ai_provenance: null,
 });
 
 // Hydrate from server when the row loads (existing table view)
@@ -374,6 +377,7 @@ watch(table, (t) => {
     entries:     t.entries.map((e) => ({ ...e })),
     tags:        [...t.tags],
     notes:       t.notes,
+    ai_provenance: t.ai_provenance ?? null,
   };
 }, { immediate: true });
 
@@ -472,6 +476,17 @@ async function onSave() {
     if (isNew.value) {
       await createTable({ ...form.value });
     } else {
+      // Material edit detection (#606): tags and the campaign scope are
+      // excluded per the "moves/tags" carve-outs.
+      const t = table.value;
+      const contentChanged = !!t && (
+        form.value.name !== t.name ||
+        !deepEqual(form.value.description, t.description) ||
+        form.value.dice !== t.dice ||
+        !deepEqual(form.value.entries, t.entries) ||
+        !deepEqual(form.value.notes, t.notes)
+      );
+      if (contentChanged) form.value.ai_provenance = markEdited(form.value.ai_provenance);
       await updateTable({ id: id.value, update: { ...form.value } });
     }
     editMode.value = false;

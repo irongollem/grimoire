@@ -152,6 +152,8 @@ import {
   useDeleteFaction,
 } from "@/composables/useFactions";
 import { FACTION_TYPES, FACTION_ALIGNMENTS, type Faction } from "@/types/faction.types";
+import { markEdited, type AiProvenance } from "@/ai/provenance";
+import { deepEqual } from "@/lib/utils";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
@@ -197,6 +199,7 @@ const form = ref({
   emblem_url: "" as string,
   alignment: null as string | null,
   player_visible_to: [] as string[],
+  ai_provenance: null as AiProvenance | null,
 });
 
 watch(
@@ -209,6 +212,7 @@ watch(
     form.value.emblem_url = f.emblem_url ?? "";
     form.value.alignment = f.alignment;
     form.value.player_visible_to = f.player_visible_to ?? [];
+    form.value.ai_provenance = f.ai_provenance ?? null;
     tags.value = [...f.tags];
   },
   { immediate: true },
@@ -218,6 +222,16 @@ async function handleSave() {
   if (!form.value.name.trim()) return;
   saving.value = true;
   try {
+    // Material edit detection (#606): the emblem, tags and player visibility
+    // are excluded per the "moves/tags/image/visibility" carve-outs.
+    const contentChanged = !!props.faction && (
+      form.value.name.trim() !== props.faction.name ||
+      form.value.faction_type !== props.faction.faction_type ||
+      !deepEqual(form.value.description, props.faction.description) ||
+      form.value.alignment !== props.faction.alignment
+    );
+    if (contentChanged) form.value.ai_provenance = markEdited(form.value.ai_provenance);
+
     const payload = {
       name: form.value.name.trim(),
       faction_type: form.value.faction_type,
@@ -226,6 +240,7 @@ async function handleSave() {
       alignment: form.value.alignment,
       player_visible_to: form.value.player_visible_to,
       tags: tags.value,
+      ai_provenance: form.value.ai_provenance,
     };
     if (props.isNew) {
       await createFaction.mutateAsync(payload);

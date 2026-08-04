@@ -252,7 +252,8 @@ import SpellTimingSection from "./SpellTimingSection.vue";
 import SpellDetailHeader from "./SpellDetailHeader.vue";
 import { spellInsertFromAi } from "@/ai/spellAiAdapter";
 import type { SpellAiGenerated } from "@/ai/types";
-import type { AiProvenance } from "@/ai/provenance";
+import { markEdited, type AiProvenance } from "@/ai/provenance";
+import { deepEqual } from "@/lib/utils";
 import { useCampaignStore } from "@/stores/campaign";
 import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
@@ -551,6 +552,36 @@ async function save() {
   saveError.value = "";
   try {
     if (props.spell) {
+      // Material edit detection (#606): tags, image art and the campaign-only
+      // scope toggle are excluded per the "moves/tags/image" carve-outs.
+      const contentChanged =
+        name.value !== props.spell.name ||
+        level.value !== props.spell.level ||
+        school.value !== props.spell.school ||
+        castingTime.value !== props.spell.casting_time ||
+        castingTimeCustom.value !== (props.spell.casting_time_custom ?? "") ||
+        range.value !== props.spell.range ||
+        rangeCustom.value !== (props.spell.range_custom ?? "") ||
+        duration.value !== props.spell.duration ||
+        durationCustom.value !== (props.spell.duration_custom ?? "") ||
+        concentration.value !== props.spell.concentration ||
+        ritual.value !== props.spell.ritual ||
+        !deepEqual(components.value, props.spell.components) ||
+        material.value !== (props.spell.material ?? "") ||
+        !deepEqual(description.value, props.spell.description) ||
+        higherLevels.value !== (props.spell.higher_levels ?? "") ||
+        !deepEqual(classes.value, props.spell.classes) ||
+        source.value !== (props.spell.source ?? "") ||
+        attackType.value !== (props.spell.attack_type ?? "") ||
+        saveAttribute.value !== (props.spell.save_attribute ?? "") ||
+        saveEffect.value !== (props.spell.save_effect ?? "") ||
+        !deepEqual(damageRolls.value, props.spell.damage_rolls ?? []) ||
+        healingDice.value !== (props.spell.healing_dice ?? "") ||
+        targetDescription.value !== (props.spell.target_description ?? "") ||
+        aoeShape.value !== (props.spell.aoe_shape ?? "") ||
+        aoeSize.value !== (props.spell.aoe_size ?? "") ||
+        conditionInflicted.value !== (props.spell.condition_inflicted ?? "");
+      if (contentChanged) aiProvenance.value = markEdited(aiProvenance.value);
       await update({ id: props.spell.id, update: buildPayload() });
       router.push("/spells");
     } else {

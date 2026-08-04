@@ -401,6 +401,8 @@ import {
 import type { Item, ItemType, ItemRarity, WeaponMasteryProperty } from "@/types/item.types";
 import type { DamageRoll } from "@/lib/dice/dice";
 import { buildEntityContext, toPlainText } from "@/ai/utils";
+import { markEdited, type AiProvenance } from "@/ai/provenance";
+import { deepEqual } from "@/lib/utils";
 
 const props = defineProps<{ item: Item | null; prefillName?: string }>();
 const router = useRouter();
@@ -426,6 +428,7 @@ const mundaneImageUrl = ref(props.item?.mundane_image_url ?? "");
 const mundaneImageFocalPoint = ref(props.item?.mundane_image_focal_point ?? null);
 const artTab = ref<'identified' | 'mundane'>('identified');
 const tags = ref<string[]>(props.item?.tags ?? []);
+const aiProvenance = ref<AiProvenance | null>(props.item?.ai_provenance ?? null);
 
 const aiContext = computed(() => {
   const base = [name.value, ITEM_TYPE_LABELS[itemType.value], ITEM_RARITY_LABELS[rarity.value]];
@@ -579,6 +582,7 @@ function buildPayload() {
       : null,
     campaign_id: campaignId.value,
     dm_notes: dmNotes.value.trim() ? dmNotes.value : null,
+    ai_provenance: aiProvenance.value,
   };
 }
 
@@ -588,6 +592,37 @@ async function save() {
   saveError.value = "";
   try {
     if (props.item) {
+      // Material edit detection (#606): tags, art, spell links, bundle
+      // contents, DM notes (never AI-authored) and campaign scope are
+      // excluded per the "moves/tags/image" carve-outs.
+      const contentChanged =
+        name.value.trim() !== props.item.name ||
+        itemType.value !== props.item.item_type ||
+        (subtype.value.trim() || null) !== props.item.subtype ||
+        rarity.value !== props.item.rarity ||
+        requiresAttunement.value !== props.item.requires_attunement ||
+        !deepEqual(
+          requiresAttunement.value ? attunementRequirements.value.trim() || null : null,
+          props.item.attunement_requirements,
+        ) ||
+        weight.value !== props.item.weight ||
+        (cost.value.trim() || null) !== props.item.cost ||
+        !deepEqual(isWeapon.value && damageRolls.value.length ? damageRolls.value : null, props.item.damage_rolls) ||
+        (isArmor.value ? armorClass.value.trim() || null : null) !== props.item.armor_class ||
+        !deepEqual(isWeapon.value ? properties.value : [], props.item.properties) ||
+        (isWeapon.value ? weaponRange.value.trim() || null : null) !== props.item.weapon_range ||
+        (isWeapon.value ? versatileDamage.value.trim() || null : null) !== props.item.versatile_damage ||
+        charges.value !== props.item.charges ||
+        (rechargeRoll.value
+          ? `${rechargeRoll.value} charges${rechargeWhen.value ? ` at ${rechargeWhen.value}` : ""}`.trim()
+          : null) !== props.item.recharge ||
+        !deepEqual(description.value, props.item.description) ||
+        !deepEqual(isMagic.value ? mundaneDescription.value || null : null, props.item.mundane_description) ||
+        (source.value.trim() || null) !== props.item.source ||
+        !deepEqual(isCursed.value ? curseDescription.value || null : null, props.item.curse_description) ||
+        isArcaneFocus.value !== props.item.is_arcane_focus;
+      if (contentChanged) aiProvenance.value = markEdited(aiProvenance.value);
+
       await updateItem({ id: props.item.id, update: buildPayload() });
       router.push("/vault");
     } else {

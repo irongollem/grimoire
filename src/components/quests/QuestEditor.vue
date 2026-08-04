@@ -247,6 +247,8 @@ import type {
   QuestObjective,
   QuestRef,
 } from "@/types/quest.types";
+import { markEdited, type AiProvenance } from "@/ai/provenance";
+import { deepEqual } from "@/lib/utils";
 
 const props = defineProps<{
   quest: Quest | null;
@@ -359,6 +361,7 @@ const sendingToScriptorium = ref(false);
 // ── Rich text fields ────────────────────────────────────────────────────────────
 const description = ref<string>(props.quest?.description ?? "");
 const notes = ref<string>(props.quest?.notes ?? "");
+const aiProvenance = ref<AiProvenance | null>(props.quest?.ai_provenance ?? null);
 
 // ── CRUD ───────────────────────────────────────────────────────────────────────
 const { mutateAsync: create } = useCreateQuest();
@@ -397,6 +400,7 @@ function buildPayload() {
     player_visible_to: playerVisibleTo.value,
     started_at: props.quest?.started_at ?? null,
     resolved_at: props.quest?.resolved_at ?? null,
+    ai_provenance: aiProvenance.value,
   };
 }
 
@@ -422,6 +426,15 @@ async function save() {
     playerVisibleTo.value.length > 0 && !(props.quest?.player_visible_to?.length ?? 0);
   try {
     if (props.quest) {
+      // Material edit detection (#606): status (workflow state), rewards,
+      // notes (never AI-authored), tags and the giver/location/parent links
+      // are excluded per the "moves/tags" carve-outs.
+      const contentChanged =
+        title.value.trim() !== (props.quest.title || "Untitled Quest") ||
+        !deepEqual(summary.value.trim() || null, props.quest.summary) ||
+        !deepEqual(description.value || null, props.quest.description);
+      if (contentChanged) aiProvenance.value = markEdited(aiProvenance.value);
+
       const wasCompleted = props.quest.status === "completed";
       await update({ id: props.quest.id, update: buildPayload() });
       if (!wasCompleted && status.value === "completed" && campaign.activeCampaignId) {

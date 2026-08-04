@@ -22,6 +22,7 @@ import {
   type ImageGenerationContext,
 } from "@/ai/useImageGeneration";
 import { buildAiProvenance } from "@/ai/provenance";
+import { useLikenessGate } from "@/composables/useLikenessGate";
 
 // ── Module-level singleton state ────────────────────────────────────────────
 const _state = createAiGenerationState();
@@ -44,12 +45,14 @@ export { toTiptapJson } from "@/lib/tiptap/markdownToTiptap";
 
 export function useNpcGeneration() {
   const { ruleset } = useRuleset();
+  const { ensureLikenessAck } = useLikenessGate();
 
   async function generate(
     userPrompt: string,
     options?: { generateAlterEgo?: boolean; generateImage?: boolean },
   ): Promise<NpcAiGenerated | null> {
     if (isAnyAiGenerating.value) return null;
+    if (options?.generateAlterEgo && !(await ensureLikenessAck())) return null;
     _state.isGenerating.value = true;
     _state.error.value = null;
     startAiQuotes();

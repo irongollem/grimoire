@@ -45,6 +45,7 @@ import { isSafeStorageUrl } from "../_shared/storage-url.ts";
 import { uploadWithRetry, fetchBytes } from "../_shared/storage-upload.ts";
 import { markGeneratedImage } from "../_shared/provenance/mark.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
+import { hasLikenessAcknowledgement } from "../_shared/provenance/likeness-gate.ts";
 import { canStylize, canSculpt, canResculpt, meshyParamsForFormat, type MiniStatusB } from "../_shared/simulacrum.ts";
 import { createImageTo3dTask, resolveMeshyKey } from "../_shared/mesh3d.ts";
 import { getMiniBase, BASE_STORAGE_PREFIX } from "../_shared/mini-bases.ts";
@@ -711,6 +712,17 @@ serve(withCors(async (req: Request) => {
   // the client, is the gate (hidden/teaser must not be bypassable for credits).
   const spends = body.action === "stylize" || body.action === "sculpt" || body.action === "resculpt";
   if (spends && !(await isLiveMode())) return json({ error: "feature_disabled" }, 403);
+
+  // EU AI Act Art 50(1) likeness backstop — stylize sends the source portrait
+  // to the provider, sculpt sends the stylized render to Meshy; both are
+  // portrait flows per context/compliance/provenance-architecture.md §3.
+  // resculpt/cancel/delete/set_base never send a NEW portrait, so they're
+  // exempt. Cheap, early, before any credit reservation. Client pre-flights
+  // the identical check via useLikenessGate — this rarely actually fires.
+  const needsLikenessAck = body.action === "stylize" || body.action === "sculpt";
+  if (needsLikenessAck && !(await hasLikenessAcknowledgement(admin, user.id))) {
+    return json({ error: "likeness_acknowledgement_required" }, 403);
+  }
 
   switch (body.action) {
     case "stylize":  return handleStylize(user.id, body, json);

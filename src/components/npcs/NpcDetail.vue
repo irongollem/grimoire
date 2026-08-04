@@ -204,6 +204,8 @@ import { useRouter } from 'vue-router'
 import { useMediaQuery } from '@vueuse/core'
 import NpcGenerateDialog from '@/ai/NpcGenerateDialog.vue'
 import { toTiptapJson } from '@/ai/useNpcGeneration'
+import { markEdited } from '@/ai/provenance'
+import { deepEqual } from '@/lib/utils'
 import type { NpcAiGenerated } from '@/ai/types'
 import { useCreateNpc, useUpdateNpc, useDeleteNpc } from '@/composables/useNpcs'
 import { useCampaignMessages } from '@/composables/useCampaignMessages'
@@ -548,6 +550,26 @@ function buildStatBlock(): StatBlock | null {
 }
 
 async function save() {
+  // Material edit detection (#606): only the fields a DM (or the AI generator)
+  // actually writes narrative/mechanical content into — tags, portraits, location
+  // and the monster link are excluded per the "moves/tags/image" carve-outs.
+  const contentChanged = !!props.npc && (
+    form.name !== props.npc.name ||
+    form.race !== props.npc.race ||
+    form.alignment !== props.npc.alignment ||
+    form.age !== props.npc.age ||
+    form.occupation !== props.npc.occupation ||
+    form.status !== props.npc.status ||
+    form.relationship !== props.npc.relationship ||
+    form.disguise_name !== props.npc.disguise_name ||
+    !deepEqual(form.appearance, props.npc.appearance) ||
+    !deepEqual(form.personality, props.npc.personality) ||
+    !deepEqual(form.backstory, props.npc.backstory) ||
+    !deepEqual(form.notes, props.npc.notes) ||
+    !deepEqual(buildStatBlock(), props.npc.stat_block)
+  );
+  if (contentChanged) form.ai_provenance = markEdited(form.ai_provenance);
+
   const payload: NpcInsert = {
     ...form,
     race: form.race || null,

@@ -214,7 +214,8 @@ async function awaitCompletion() {
 async function runSculpt() {
   error.value = null;
   try {
-    await sculpt(mini.id);
+    const started = await sculpt(mini.id);
+    if (!started) return; // user declined the likeness notice — abort silently
     await awaitCompletion();
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Failed to start the sculpt.";

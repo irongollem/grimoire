@@ -367,6 +367,8 @@ import {
   CR_LIST,
 } from "@/types/trap.types";
 import type { Trap, DamageEntry } from "@/types/trap.types";
+import { markEdited, type AiProvenance } from "@/ai/provenance";
+import { deepEqual } from "@/lib/utils";
 import { DAMAGE_TYPES } from "@/types/damage.types";
 import { CR_XP } from "@/types/encounter.types";
 import { adviseCr, CR_TRAP_BENCHMARKS } from "@/lib/trapAdvisor";
@@ -415,6 +417,7 @@ const blankForm = () => ({
   tags: [] as string[],
   description: null as string | null,
   notes: null as string | null,
+  ai_provenance: null as AiProvenance | null,
 });
 
 const form = ref(blankForm());
@@ -448,6 +451,7 @@ watch(
         notes: t.notes
           ? typeof t.notes === "string" ? t.notes : JSON.stringify(t.notes)
           : null,
+        ai_provenance: t.ai_provenance ?? null,
       });
   },
   { immediate: true },
@@ -466,6 +470,29 @@ async function save() {
     if (props.isNew) {
       await createMut.mutateAsync({ ...form.value } as Parameters<typeof createMut.mutateAsync>[0]);
     } else {
+      // Material edit detection (#606): damage immunities (a tag-style
+      // field), portrait art and tags are excluded per the
+      // "moves/tags/image" carve-outs.
+      const t = props.trap!;
+      const contentChanged =
+        form.value.name !== t.name ||
+        form.value.trap_type !== t.trap_type ||
+        form.value.cr !== t.cr ||
+        form.value.trigger_type !== t.trigger_type ||
+        form.value.detection_dc !== t.detection_dc ||
+        form.value.disarm_dc !== t.disarm_dc ||
+        form.value.effect_description !== t.effect_description ||
+        form.value.attack_bonus !== t.attack_bonus ||
+        form.value.save_type !== t.save_type ||
+        form.value.save_dc !== t.save_dc ||
+        !deepEqual(form.value.damage_entries, t.damage_entries) ||
+        form.value.reset_type !== t.reset_type ||
+        form.value.trap_hp !== t.trap_hp ||
+        form.value.trap_ac !== t.trap_ac ||
+        form.value.description !== t.description ||
+        form.value.notes !== t.notes;
+      if (contentChanged) form.value.ai_provenance = markEdited(form.value.ai_provenance);
+
       await updateMut.mutateAsync({ id: props.trap!.id, update: { ...form.value } as Parameters<typeof updateMut.mutateAsync>[0]["update"] });
     }
     router.push({ path: "/dungeon-craft", query: { tab: "traps" } });

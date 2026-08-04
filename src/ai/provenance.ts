@@ -27,3 +27,15 @@ export function buildAiProvenance(
     edited: false,
   };
 }
+
+/**
+ * The ONLY place client code flips `edited` true. Every DM editor that
+ * material-edits AI-generated content routes its save payload through this
+ * function instead of setting `edited` inline, so the "never reverts to
+ * false, never removed" rule (architecture doc §6) has one enforcement point.
+ */
+export function markEdited(prov: AiProvenance | null | undefined): AiProvenance | null {
+  if (prov == null) return null;
+  if (prov.edited) return prov;
+  return { ...prov, edited: true };
+}

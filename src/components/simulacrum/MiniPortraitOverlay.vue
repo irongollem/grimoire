@@ -13,8 +13,9 @@
   </button>
 
   <div v-if="mini && glbUrl && showMini" class="absolute inset-0 z-30 flex flex-col bg-black/95" @click.stop>
-    <div class="flex-1 min-h-0 flex items-center justify-center p-1">
+    <div class="relative flex-1 min-h-0 flex items-center justify-center p-1">
       <MiniModelViewer :src="glbUrl" :poster="mini.thumbnail_url ?? undefined" :alt="mini.label ?? undefined" class="w-full max-h-full" />
+      <AiGeneratedBadge variant="chip" :provenance="{ provider: mini.provider, generatedAt: mini.created_at }" />
     </div>
     <div class="flex items-center justify-between gap-1.5 px-2 py-1.5 bg-black/70 shrink-0">
       <div class="flex items-center gap-1.5">
@@ -45,6 +46,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import VitruvianIcon from "@/components/common/VitruvianIcon.vue";
+import AiGeneratedBadge from "@/components/common/AiGeneratedBadge.vue";
 import MiniModelViewer from "@/components/simulacrum/MiniModelViewer.vue";
 import { IconClose, IconDownload } from "@/lib/icons";
 import { useMiniForSource } from "@/composables/useMiniForSource";

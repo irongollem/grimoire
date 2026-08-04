@@ -14,6 +14,17 @@ export function sanitizeHtml(html: string): string {
   return DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
 }
 
+// Note for anyone tempted to add an explicit ALLOWED_ATTR entry for
+// `data-ai-generated` / `data-ai-model` (#606, provenance-architecture.md
+// §6): don't — it's redundant. DOMPurify's `ALLOW_DATA_ATTR` defaults to
+// `true` and is never overridden above, so every `data-*` attribute already
+// survives (matched against DOMPurify's own `/^data-[-\w.]+$/`-style check,
+// independent of the `USE_PROFILES` tag/attr list) — that's the existing,
+// deliberate policy this repo already relies on for `data-block-id`,
+// `data-type="columns"`, `data-prompt`, etc. `onclick` and friends are never
+// `data-*`, so they're unaffected and still stripped. See sanitizeHtml.test.ts
+// for the proof.
+
 function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!,

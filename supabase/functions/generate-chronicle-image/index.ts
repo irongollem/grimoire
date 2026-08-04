@@ -15,6 +15,7 @@ import { isSafeStorageUrl } from "../_shared/storage-url.ts";
 import { uploadWithRetry } from "../_shared/storage-upload.ts";
 import { markGeneratedImage } from "../_shared/provenance/mark.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
+import { hasLikenessAcknowledgement } from "../_shared/provenance/likeness-gate.ts";
 
 // Keep browser-supplied composition inputs bounded before req.json()/atob hold
 // both the encoded and decoded copies in the Edge isolate.
@@ -226,6 +227,21 @@ serve(withCors(async (req: Request) => {
   }
   if (source_image_b64 && source_image_b64.length > MAX_SOURCE_IMAGE_B64_CHARS) {
     return text("Source image too large", 413);
+  }
+
+  // EU AI Act Art 50(1) likeness backstop — gated on the REQUEST SHAPE (any
+  // portrait_urls supplied), not the purpose: this one endpoint serves
+  // chronicler scenes, group portraits, NPC disguise and trap scenes alike,
+  // all of which pass portrait_urls when they carry a reference; purposes
+  // that never do (species, map_style, a chronicler scene with no @mentions,
+  // ...) naturally skip this. Cheap, early, before any credit reservation.
+  // Client pre-flights the identical check via useLikenessGate — this rarely
+  // actually fires. See context/compliance/provenance-architecture.md §3.
+  if (portrait_urls.length > 0 && !(await hasLikenessAcknowledgement(admin, user.id))) {
+    return new Response(
+      JSON.stringify({ error: "likeness_acknowledgement_required" }),
+      { status: 403, headers: { "Content-Type": "application/json" } },
+    );
   }
 
   const { data: campaign } = await admin

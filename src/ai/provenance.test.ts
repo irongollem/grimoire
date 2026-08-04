@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildAiProvenance } from "./provenance";
+import { buildAiProvenance, markEdited } from "./provenance";
 
 describe("buildAiProvenance", () => {
   it("builds the AiProvenance shape from the given generator/provider/model", () => {
@@ -22,5 +22,38 @@ describe("buildAiProvenance", () => {
 
   it("always starts unedited", () => {
     expect(buildAiProvenance("quest_generation", "gemini", "gemini-2.5-flash").edited).toBe(false);
+  });
+});
+
+describe("markEdited", () => {
+  it("returns null for null", () => {
+    expect(markEdited(null)).toBeNull();
+  });
+
+  it("returns null for undefined", () => {
+    expect(markEdited(undefined)).toBeNull();
+  });
+
+  it("flips edited from false to true, preserving the rest of the record", () => {
+    const prov = buildAiProvenance("npc_text", "openai", "gpt-4.1");
+    const result = markEdited(prov);
+    expect(result).not.toBeNull();
+    expect(result?.edited).toBe(true);
+    expect(result?.generatorType).toBe(prov.generatorType);
+    expect(result?.provider).toBe(prov.provider);
+    expect(result?.model).toBe(prov.model);
+    expect(result?.generatedAt).toBe(prov.generatedAt);
+  });
+
+  it("returns the same object unchanged (no new identity) when already edited", () => {
+    const prov = { ...buildAiProvenance("npc_text", "openai", "gpt-4.1"), edited: true };
+    const result = markEdited(prov);
+    expect(result).toBe(prov);
+  });
+
+  it("never reverts edited back to false", () => {
+    const prov = { ...buildAiProvenance("npc_text", "openai", "gpt-4.1"), edited: true };
+    const result = markEdited(prov);
+    expect(result?.edited).toBe(true);
   });
 });

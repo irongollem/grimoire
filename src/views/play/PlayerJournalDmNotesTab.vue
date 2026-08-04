@@ -23,6 +23,7 @@
         <IconPin v-if="note.is_pinned" class="h-2.5 w-2.5 text-primary shrink-0" />
         <span v-if="note.category === 'session' && note.session_num != null" class="text-caption text-muted-foreground/70 italic">Session {{ note.session_num }}</span>
         <span class="text-caption text-muted-foreground/70 italic">by DM</span>
+        <AiGeneratedBadge variant="line" :provenance="note.ai_provenance" />
       </template>
       <div class="px-4 py-4">
         <RichTextViewer :content="note.content ?? ''" />
@@ -44,6 +45,7 @@ import JournalCard from '@/components/player/JournalCard.vue';
 import EntityNewDot from '@/components/common/EntityNewDot.vue';
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue';
 import RichTextViewer from '@/components/common/RichTextViewer.vue';
+import AiGeneratedBadge from '@/components/common/AiGeneratedBadge.vue';
 import type { NoteCategory } from '@/types/notes.types';
 import type { Note } from '@/types/notes.types';
 import type { Component } from 'vue';

@@ -252,6 +252,8 @@ import { IconCopy, IconGenerate, IconScrollText } from "@/lib/icons";
 import MonsterEditMobile from "@/components/monsters/MonsterEditMobile.vue";
 import MonsterGenerateDialog from "@/ai/MonsterGenerateDialog.vue";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
+import { markEdited } from "@/ai/provenance";
+import { deepEqual } from "@/lib/utils";
 import { buildEntityContext, toPlainText } from "@/ai/utils";
 import { useCampaignStore } from "@/stores/campaign";
 import type { MonsterAiGenerated } from "@/ai/types";
@@ -523,6 +525,23 @@ async function save() {
   saveError.value = "";
   try {
     if (props.monster) {
+      // Material edit detection (#606): tags, portrait art and the lair-location
+      // link are excluded per the "moves/tags/image" carve-outs.
+      const contentChanged =
+        form.name !== props.monster.name ||
+        form.monster_type !== props.monster.monster_type ||
+        form.size !== props.monster.size ||
+        form.alignment !== props.monster.alignment ||
+        form.habitat !== (props.monster.habitat ?? "") ||
+        form.source !== (props.monster.source ?? "") ||
+        !deepEqual(form.description, props.monster.description) ||
+        !deepEqual(form.notes, props.monster.notes) ||
+        // `sb` is always fully key-filled (defaultSb() merged in on load and
+        // on every template/link apply); imported/cloned SRD data often isn't,
+        // so compare against the same fill-in rather than the raw stored
+        // value — otherwise a merely-sparser DB shape reads as an edit.
+        !deepEqual(sb, { ...defaultSb(), ...props.monster.stat_block });
+      if (contentChanged) form.ai_provenance = markEdited(form.ai_provenance);
       await update({ id: props.monster.id, update: buildPayload() });
       router.push(`/monsters/${props.monster.id}`);
     } else {

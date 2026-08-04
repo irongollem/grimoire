@@ -22,6 +22,7 @@ import {
   type ImageGenerationContext,
 } from "@/ai/useImageGeneration";
 import { buildAiProvenance } from "@/ai/provenance";
+import { useLikenessGate } from "@/composables/useLikenessGate";
 
 const LOCAL_MODE_KEY = "grimoire_key_local_mode";
 // ── Module-level singleton state ────────────────────────────────────────────
@@ -48,12 +49,14 @@ export interface TrapGenerationOptions {
 
 export function useTrapGeneration() {
   const { ruleset } = useRuleset();
+  const { ensureLikenessAck } = useLikenessGate();
 
   async function generate(
     userPrompt: string,
     options?: TrapGenerationOptions,
   ): Promise<TrapAiGenerated | null> {
     if (isAnyAiGenerating.value) return null;
+    if (options?.groupPortraitUrl && !(await ensureLikenessAck())) return null;
     _state.isGenerating.value = true;
     _state.error.value = null;
     startAiQuotes();

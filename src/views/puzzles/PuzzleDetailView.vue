@@ -355,6 +355,8 @@ import { buildEntityContext, toPlainText } from "@/ai/utils";
 import { IconDelete, IconDungeon, IconEdit, IconHide, IconLocation, IconReveal } from '@/lib/icons';
 import { usePuzzle, useCreatePuzzle, useUpdatePuzzle, useDeletePuzzle } from "@/composables/usePuzzles";
 import { useCampaignStore } from "@/stores/campaign";
+import { markEdited, type AiProvenance } from "@/ai/provenance";
+import { deepEqual } from "@/lib/utils";
 import { PUZZLE_TYPES, PUZZLE_DIFFICULTIES } from "@/types/puzzle.types";
 import type { PuzzleHint, PuzzleSkillCheck } from "@/types/puzzle.types";
 import PageHeader from "@/components/common/PageHeader.vue";
@@ -404,6 +406,7 @@ const form = reactive({
   notes:               null as string | null,
   location_id:         null as string | null,
   dungeon_feature_id:  null as string | null,
+  ai_provenance:       null as AiProvenance | null,
 });
 
 type LocationOption = Location & { depth: number };
@@ -446,6 +449,7 @@ watch(puzzle, (p) => {
   form.notes               = p.notes;
   form.location_id         = p.location_id;
   form.dungeon_feature_id  = p.dungeon_feature_id;
+  form.ai_provenance       = p.ai_provenance ?? null;
 }, { immediate: true });
 
 // ── Share state (view mode, autosaved) ──────────────────────────────────────
@@ -553,6 +557,22 @@ async function save() {
   if (!form.name.trim()) return;
   saving.value = true;
   try {
+    // Material edit detection (#606): tags, image art and the location/dungeon-
+    // feature links are excluded per the "moves/tags/image" carve-outs.
+    const contentChanged = !!puzzle.value && (
+      form.name.trim() !== puzzle.value.name ||
+      form.puzzle_type !== puzzle.value.puzzle_type ||
+      form.difficulty !== puzzle.value.difficulty ||
+      !deepEqual(form.description || null, puzzle.value.description) ||
+      !deepEqual(form.solution || null, puzzle.value.solution) ||
+      !deepEqual([...form.hints].sort((a, b) => a.order - b.order), [...puzzle.value.hints].sort((a, b) => a.order - b.order)) ||
+      !deepEqual(form.skill_checks, puzzle.value.skill_checks) ||
+      !deepEqual(form.success_outcome || null, puzzle.value.success_outcome) ||
+      !deepEqual(form.failure_consequence || null, puzzle.value.failure_consequence) ||
+      !deepEqual(form.notes || null, puzzle.value.notes)
+    );
+    if (contentChanged) form.ai_provenance = markEdited(form.ai_provenance);
+
     const payload = {
       name:                form.name.trim(),
       puzzle_type:         form.puzzle_type,
@@ -569,6 +589,7 @@ async function save() {
       notes:               form.notes || null,
       location_id:         form.location_id,
       dungeon_feature_id:  form.dungeon_feature_id,
+      ai_provenance:       form.ai_provenance,
     };
     if (isNew.value) {
       await createMutation.mutateAsync({ ...payload, campaign_id: null, is_shared: false, shared_hints: [], read_aloud: null });

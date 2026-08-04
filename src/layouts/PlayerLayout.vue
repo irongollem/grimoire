@@ -177,6 +177,15 @@
   <!-- Location quick-view opened from @location chips in rich text -->
   <PlayerLocationDialog />
 
+  <!-- EU AI Act Art 50(1) consent gate — once-per-account notice for
+       campaigns where AI was already on before this account acknowledged it -->
+  <AiUseNoticeGate />
+
+  <!-- EU AI Act Art 50(1) likeness consent gate — opened by useLikenessGate
+       before any portrait-bearing generation (Simulacrum, chronicle scene
+       references, group portrait, NPC disguise) -->
+  <LikenessNoticeGate />
+
   <!-- Hamburger dropdown -->
   <Teleport to="body">
     <div v-if="showMenu" class="fixed inset-0 z-50" @click="showMenu = false">
@@ -326,6 +335,8 @@ import PlayerBottomNav from "@/components/layout/PlayerBottomNav.vue";
 import PlayerNavGrid from "@/components/layout/PlayerNavGrid.vue";
 import { useLazyMount } from "@/composables/useLazyMount";
 import PlayerLocationDialog from "@/components/play/PlayerLocationDialog.vue";
+import AiUseNoticeGate from "@/components/campaign/AiUseNoticeGate.vue";
+import LikenessNoticeGate from "@/components/campaign/LikenessNoticeGate.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import PlayerAudioStream from "@/components/soundboard/PlayerAudioStream.vue";
 import { useQuota } from "@/composables/useQuota";

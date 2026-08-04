@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@/lib/edgeError";
 import { waitForImageJob } from "@/ai/useImageJob";
 import { waitForRow } from "@/ai/waitForRow";
+import { useLikenessGate } from "@/composables/useLikenessGate";
 import type { Mini, MiniFormat, MiniSourceTable, MiniStatus } from "@/types/mini.types";
 
 export interface StylizeInput {
@@ -91,6 +92,7 @@ function friendlyError(error: string): string {
 /** Thin client for the forge-mini edge function (stylize/sculpt/resculpt/cancel/delete). */
 export function useMiniForge() {
   const queryClient = useQueryClient();
+  const { ensureLikenessAck } = useLikenessGate();
 
   const isStylizing = ref(false);
   const isSculpting = ref(false);
@@ -102,8 +104,16 @@ export function useMiniForge() {
     void queryClient.invalidateQueries({ queryKey: ["minis"] });
   }
 
-  /** Kicks off (or re-rolls) the stylized 2D render and waits for the image job to settle. */
-  async function stylize(input: StylizeInput): Promise<Mini> {
+  /**
+   * Kicks off (or re-rolls) the stylized 2D render and waits for the image
+   * job to settle. Resolves `null` — without ever calling the endpoint — if
+   * the caller declines the likeness pre-flight (see useLikenessGate); the
+   * server enforces the same rule regardless (EU AI Act Art 50(1), context/
+   * compliance/provenance-architecture.md §3). Callers must treat `null` as
+   * a silent abort, not an error.
+   */
+  async function stylize(input: StylizeInput): Promise<Mini | null> {
+    if (!(await ensureLikenessAck())) return null;
     isStylizing.value = true;
     try {
       const { data, error } = await supabase.functions.invoke("forge-mini", {
@@ -121,8 +131,17 @@ export function useMiniForge() {
     }
   }
 
-  /** Fires a sculpt-flavored request — does NOT wait for completion. Call waitForSculpt separately. */
-  async function runSculptAction(action: "sculpt" | "resculpt", miniId: string): Promise<ActionResponse> {
+  /**
+   * Fires a sculpt-flavored request — does NOT wait for completion. Call
+   * waitForSculpt separately. Only "sculpt" is likeness-gated: it sends the
+   * stylized render to Meshy for the first time, whereas "resculpt" retries
+   * an already-consented-for render (see the matching server-side condition
+   * in forge-mini/index.ts). Resolves `null` — without calling the endpoint
+   * — if the caller declines a required likeness pre-flight; callers must
+   * treat that as a silent abort, not an error.
+   */
+  async function runSculptAction(action: "sculpt" | "resculpt", miniId: string): Promise<ActionResponse | null> {
+    if (action === "sculpt" && !(await ensureLikenessAck())) return null;
     isSculpting.value = true;
     try {
       const { data, error } = await supabase.functions.invoke("forge-mini", {

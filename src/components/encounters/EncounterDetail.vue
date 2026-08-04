@@ -284,6 +284,8 @@ import type {
   CombatantDef,
   EncounterEvent,
 } from "@/types/encounter.types";
+import { markEdited, type AiProvenance } from "@/ai/provenance";
+import { deepEqual } from "@/lib/utils";
 import EntityCalendarSection from "@/components/calendar/EntityCalendarSection.vue";
 import EncounterMetadata from "@/components/encounters/EncounterMetadata.vue";
 import EncounterCombatants from "@/components/encounters/EncounterCombatants.vue";
@@ -412,6 +414,7 @@ const form = reactive({
   lair_enabled: props.encounter?.lair_enabled ?? false,
   lair_owner_def_id: props.encounter?.lair_owner_def_id ?? (null as string | null),
   audio_theme: props.encounter?.audio_theme ?? (null as string | null),
+  ai_provenance: props.encounter?.ai_provenance ?? (null as AiProvenance | null),
 });
 
 // Theme suggestions come from what the DM has already labelled, but the field
@@ -472,6 +475,7 @@ watch(
     form.art_objects = [...(enc.art_objects ?? [])];
     form.location_id = enc.location_id ?? null;
     form.events = [...(enc.events ?? [])];
+    form.ai_provenance = enc.ai_provenance ?? null;
   },
 );
 
@@ -535,10 +539,21 @@ async function buildPayload() {
     // the resolver treats a blank theme as no request at all either way, but the
     // column should say what it means.
     audio_theme: form.audio_theme === null || form.audio_theme.trim() === "" ? null : form.audio_theme.trim(),
+    ai_provenance: form.ai_provenance,
   };
 }
 
 async function handleSave(): Promise<string | null> {
+  if (props.encounter) {
+    // Material edit detection (#606): only the fields the AI encounter
+    // generator actually writes — logistics (roster, location, loot, audio
+    // theme, lair mechanics) are DM configuration, not generated content.
+    const contentChanged =
+      form.name !== props.encounter.name ||
+      !deepEqual(form.description || null, props.encounter.description) ||
+      !deepEqual(form.combatants, props.encounter.combatants);
+    if (contentChanged) form.ai_provenance = markEdited(form.ai_provenance);
+  }
   const payload = await buildPayload();
   if (props.encounter) {
     try {

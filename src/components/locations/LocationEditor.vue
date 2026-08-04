@@ -290,6 +290,8 @@ import type {
   LocationType,
   MapPin as MapPinType,
 } from "@/types/location.types";
+import { markEdited, type AiProvenance } from "@/ai/provenance";
+import { deepEqual } from "@/lib/utils";
 
 const props = defineProps<{
   location: Location | null;
@@ -410,6 +412,7 @@ const themeOptions = computed(() =>
   ),
 );
 const imageUrl = ref<string | null>(props.location?.image_url ?? null);
+const aiProvenance = ref<AiProvenance | null>(props.location?.ai_provenance ?? null);
 const saving = ref(false);
 const deleting = ref(false);
 const saveError = ref("");
@@ -521,6 +524,7 @@ function buildPayload() {
     related_location_ids: relatedLocationIds.value,
     source_map_id: props.location?.source_map_id ?? null,
     grid_calibration: props.location?.grid_calibration ?? null,
+    ai_provenance: aiProvenance.value,
   };
 }
 
@@ -530,6 +534,16 @@ async function save() {
   saveError.value = "";
   try {
     if (props.location) {
+      // Material edit detection (#606): tags, sigil art, era bounds, ambient
+      // theme and hierarchy/sharing fields are excluded per the
+      // "moves/tags/image/visibility" carve-outs.
+      const contentChanged =
+        name.value.trim() !== props.location.name ||
+        locationType.value !== props.location.location_type ||
+        !deepEqual(description.value, props.location.description) ||
+        !deepEqual(playerSummary.value || null, props.location.player_summary);
+      if (contentChanged) aiProvenance.value = markEdited(aiProvenance.value);
+
       await update({ id: props.location.id, update: buildPayload() });
       router.push(`/locations/${props.location.id}`);
     } else {

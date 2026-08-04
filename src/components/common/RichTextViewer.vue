@@ -45,6 +45,7 @@ import { CalendarEventRef } from "@/lib/tiptap/CalendarEventRef";
 import { createEntityMentionExtension } from "@/lib/tiptap/EntityMention";
 import { IllustrationSuggestion } from "@/lib/tiptap/IllustrationSuggestion";
 import { PendingImage } from "@/lib/tiptap/PendingImage";
+import { AiGenerated } from "@/lib/tiptap/AiGenerated";
 
 const EntityMentionViewer = createEntityMentionExtension({});
 
@@ -87,6 +88,7 @@ const editor = useEditor({
     EntityMentionViewer,
     IllustrationSuggestion,
     PendingImage,
+    AiGenerated,
   ],
 });
 

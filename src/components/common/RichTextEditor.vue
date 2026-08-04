@@ -402,6 +402,7 @@ import { createEntityMentionExtension } from "@/lib/tiptap/EntityMention";
 import type { EntityMentionItem, EntityMentionAttrs, EntityType } from "@/lib/tiptap/EntityMention";
 import { IllustrationSuggestion } from "@/lib/tiptap/IllustrationSuggestion";
 import { PendingImage } from "@/lib/tiptap/PendingImage";
+import { AiGenerated } from "@/lib/tiptap/AiGenerated";
 import { usePendingImageResolver } from "@/composables/usePendingImageResolver";
 
 const CustomDocument = Node.create({
@@ -600,6 +601,7 @@ const editor = useEditor({
       onPromptClick: (prompt) => emit("illustration-click", prompt),
     }),
     PendingImage,
+    AiGenerated,
   ],
   editorProps: {
     handlePaste(view, event) {
@@ -721,18 +723,25 @@ defineExpose({
       .insertContentAt(pos, nodes, { parseOptions: { preserveWhitespace: false } })
       .run();
   },
-  insertChronicleContent(md: string): void {
-    const content: object[] = [];
+  /** Insert the Chronicler's generated markdown, wrapped in an `aiGenerated`
+   *  node so `data-ai-generated`/`data-ai-model` land on the root element of
+   *  the inserted content and survive Tiptap's schema round trip (#606,
+   *  provenance-architecture.md §6). `aiModel` comes from the flow's
+   *  `ai_provenance.model` — omitted (not "unknown") when provenance wasn't
+   *  returned, since the wrapper itself is the "this is AI content" marker. */
+  insertChronicleContent(md: string, aiModel?: string | null): void {
+    const blocks: object[] = [];
     let last = 0;
     for (const m of md.matchAll(/^\[\[scene:\s*(.+?)\]\]\s*$/gm)) {
       const textBefore = md.slice(last, m.index!);
-      if (textBefore.trim()) content.push(...parseMarkdown(textBefore));
-      content.push({ type: "illustrationSuggestion", attrs: { prompt: m[1].trim() } });
+      if (textBefore.trim()) blocks.push(...parseMarkdown(textBefore));
+      blocks.push({ type: "illustrationSuggestion", attrs: { prompt: m[1].trim() } });
       last = m.index! + m[0].length;
     }
     const textAfter = md.slice(last);
-    if (textAfter.trim()) content.push(...parseMarkdown(textAfter));
-    if (!content.length) return;
+    if (textAfter.trim()) blocks.push(...parseMarkdown(textAfter));
+    if (!blocks.length) return;
+    const content = [{ type: "aiGenerated", attrs: { model: aiModel ?? null }, content: blocks }];
     const pos = editor.value?.state.selection.to ?? editor.value?.state.doc.content.size ?? 0;
     editor.value
       ?.chain()

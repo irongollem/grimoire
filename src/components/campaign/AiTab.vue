@@ -20,7 +20,7 @@
           type="button"
           class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border-2 border-transparent transition-colors focus:outline-none"
           :class="form.ai_enabled ? 'bg-primary' : 'bg-muted'"
-          @click="form.ai_enabled = !form.ai_enabled"
+          @click="toggleAi"
         >
           <span
             class="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"
@@ -29,6 +29,10 @@
         </button>
       </div>
     </div>
+
+    <!-- EU AI Act Art 50(1) consent gate — shown before AI is switched on for
+         this account for the first time. Cancel leaves the toggle off. -->
+    <AiNoticeDialog v-model="showAiNoticeDialog" kind="ai_use" @confirm="form.ai_enabled = true" />
 
     <template v-if="form.ai_enabled">
 
@@ -257,10 +261,14 @@ import { getSetting } from "@/settings/index";
 import { useSubscription } from "@/composables/useSubscription";
 import { useProviderConfig, PROVIDER_DISPLAY } from "@/composables/useProviderConfig";
 import { useAiCredits } from "@/composables/useAiCredits";
+import { useAiAcknowledgements } from "@/composables/useAiAcknowledgements";
+import { AI_USE_NOTICE_VERSION } from "@/lib/legal";
 import AiUsageStatsPanel from "@/components/common/AiUsageStatsPanel.vue";
+import AiNoticeDialog from "@/components/campaign/AiNoticeDialog.vue";
 import ProFeatureGate from "@/components/common/ProFeatureGate.vue";
 
 const { isPro } = useSubscription();
+const { hasAcknowledged } = useAiAcknowledgements();
 
 const LOCAL_MODE_KEY = "grimoire_key_local_mode";
 
@@ -302,6 +310,26 @@ const form = ref({
   allow_chronicle_promotion: campaign.activeCampaign?.allow_chronicle_promotion ?? false,
   keys: initialKeys(),
 });
+
+const showAiNoticeDialog = ref(false);
+
+/**
+ * Turning AI on is the opt-in moment (EU AI Act Art 50(1)) — see
+ * context/compliance/provenance-architecture.md §3. Once per account: if
+ * this account already acknowledged the current notice version, the toggle
+ * flips immediately, same as turning it off.
+ */
+function toggleAi() {
+  if (form.value.ai_enabled) {
+    form.value.ai_enabled = false;
+    return;
+  }
+  if (hasAcknowledged("ai_use", AI_USE_NOTICE_VERSION)) {
+    form.value.ai_enabled = true;
+    return;
+  }
+  showAiNoticeDialog.value = true;
+}
 
 const showKeys     = reactive<Record<string, boolean>>(Object.fromEntries(providerDefs.map((p) => [p.id, false])));
 // Staged removal: a provider whose stored key should be deleted on save, so the

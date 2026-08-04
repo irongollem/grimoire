@@ -123,6 +123,7 @@ async function runStylize() {
       mini_id: mini?.id,
       instructions: instructions.value.trim() || undefined,
     });
+    if (!updated) return; // user declined the likeness notice — abort silently
     instructions.value = "";
     emit("stylized", updated);
   } catch (e) {
