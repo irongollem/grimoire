@@ -49,6 +49,25 @@ function isCriticalAsset(path) {
   return path === "/index.html" || /\.(js|css)$/i.test(path);
 }
 
+// The SPA rewrite can answer a not-yet-provisioned asset URL with the app's
+// index.html and status 200. Caching that response under a .js/.css key makes
+// the install look complete, then the browser rejects it under `nosniff` and
+// the freshly claimed page white-screens. Validate the MIME type as well as
+// the status for every file the browser must execute or parse.
+function hasExpectedContentType(path, response) {
+  const type = (response.headers.get("content-type") || "").toLowerCase();
+  if (path === "/index.html") return type.includes("text/html");
+  if (/\.js$/i.test(path)) {
+    return type.includes("javascript") || type.includes("ecmascript");
+  }
+  if (/\.css$/i.test(path)) return type.includes("text/css");
+  return true;
+}
+
+function isUsableResponse(path, response) {
+  return response.ok && hasExpectedContentType(path, response);
+}
+
 // Vite writes all content-hashed output under /assets/ — same filename means
 // same bytes, so those entries can be copied forward from the previous
 // deploy's cache instead of re-downloaded. Everything else (index.html,
@@ -72,14 +91,14 @@ self.addEventListener("install", (event) => {
           // can only hit an old cache.
           if (isImmutableAsset(path)) {
             const previous = await caches.match(path);
-            if (previous) {
+            if (previous && isUsableResponse(path, previous)) {
               await cache.put(path, previous);
               return;
             }
           }
           try {
             const response = await fetch(new Request(path, { cache: "reload" }));
-            if (response.ok) {
+            if (isUsableResponse(path, response)) {
               await cache.put(path, response);
               return;
             }
