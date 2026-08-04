@@ -29,6 +29,11 @@ Each doc covers **both DM and player perspectives**, lists exact file paths, com
 | [collaboration.md](collaboration.md)                     | Multi-user invite system, campaign members, DM/player roles, live sync, RLS security model                                                       |
 | [soundboard.md](soundboard.md)                           | Soundboard: HTML/Web Audio engine, pages/playlists, five sound sources, Spotify/Cast/Media Session, free-tier quotas — DM-only, no player access |
 
+Adding or changing an AI generator? Read
+[../compliance/ai-act.md](../compliance/ai-act.md) first — the AI Act
+transparency register (roles, system inventory, exemptions, provider
+due-diligence) that every AI-touching feature needs to stay in step with.
+
 ---
 
 ## Full Feature List (marketing reference)
