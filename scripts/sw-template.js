@@ -7,14 +7,25 @@
 //                     file's hash changes, forcing a fresh cache on deploy
 //
 // Behaviour:
-//   install   — put every precached path into `__CACHE_NAME__`, skip waiting
-//               so the new worker activates immediately (matches the
-//               old plugin's autoUpdate mode).
+//   install   — populate `__CACHE_NAME__`, reusing unchanged hashed assets
+//               from the previous deploy's cache, then skip waiting so the
+//               new worker activates immediately (matches the old plugin's
+//               autoUpdate mode). The install is ATOMIC for the app shell:
+//               if index.html or any JS/CSS fails to cache, the install
+//               rejects and the browser keeps the old worker AND its
+//               complete cache — a flaky connection can only delay an
+//               update, never trade a working cache for a partial one.
+//               (registration.update() is polled by swAutoUpdate, so a
+//               failed install retries within minutes.)
 //   activate  — claim clients, then delete every cache whose name doesn't
-//               match __CACHE_NAME__ (garbage-collects old deploys).
+//               match __CACHE_NAME__ (garbage-collects old deploys). Runs
+//               only after a fully successful install, so the old cache is
+//               never deleted before the new one is complete.
 //   fetch     — same-origin GETs only:
-//                 • navigations (mode: 'navigate') → cached /index.html, with
-//                   a network fallback, so SPA routes work offline.
+//                 • navigations (mode: 'navigate') → network raced against a
+//                   short timeout; on timeout or failure serve the cached
+//                   /index.html, so a slow connection never means staring at
+//                   a white screen while fetch() decides to give up.
 //                 • everything else → cache-first, with network fallback.
 //               Cross-origin and non-GET requests are passed through to the
 //               network untouched (we never cache Supabase / OpenAI calls).
@@ -25,26 +36,76 @@
 const CACHE_NAME = "__CACHE_NAME__";
 const PRECACHE = /** @type {string[]} */ (__PRECACHE__);
 
+// How long a navigation waits on the network before falling back to the
+// cached shell. Freshness is guaranteed by the update poll + cache-name bust,
+// so the only cost of losing the race is adopting a deploy one reload later.
+const NAV_TIMEOUT_MS = 2500;
+
+// The app cannot start without these — index.html and every JS/CSS chunk.
+// Anything else (icons, webp art, webmanifest) is nice-to-have: it may
+// legitimately 404 (e.g. manifest.webmanifest behind Vercel Deployment
+// Protection on previews) and the runtime network fetch covers it.
+function isCriticalAsset(path) {
+  return path === "/index.html" || /\.(js|css)$/i.test(path);
+}
+
+// Vite writes all content-hashed output under /assets/ — same filename means
+// same bytes, so those entries can be copied forward from the previous
+// deploy's cache instead of re-downloaded. Everything else (index.html,
+// public/ files copied verbatim) can change without a rename and must be
+// refetched.
+function isImmutableAsset(path) {
+  return path.startsWith("/assets/");
+}
+
 self.addEventListener("install", (event) => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) =>
-      // Use fetch + conditional put instead of cache.add so that 4xx
-      // responses (e.g. manifest.webmanifest on a Vercel preview deployment
-      // with Deployment Protection) are silently skipped rather than
-      // propagated as console errors.  cache.add() rejects on non-ok
-      // responses and the browser logs the error even when we .catch() it.
-      Promise.all(
+    (async () => {
+      const cache = await caches.open(CACHE_NAME);
+      const failedCritical = [];
+      await Promise.all(
         PRECACHE.map(async (path) => {
+          // Copy forward from the previous deploy's cache when the content
+          // hash in the filename guarantees the bytes are identical. At this
+          // point the new cache doesn't contain `path` yet, so caches.match
+          // can only hit an old cache.
+          if (isImmutableAsset(path)) {
+            const previous = await caches.match(path);
+            if (previous) {
+              await cache.put(path, previous);
+              return;
+            }
+          }
           try {
             const response = await fetch(new Request(path, { cache: "reload" }));
-            if (response.ok) await cache.put(path, response);
+            if (response.ok) {
+              await cache.put(path, response);
+              return;
+            }
           } catch {
-            // Silently skip — non-critical; the network fetch will serve it
+            // fall through to the critical check below
           }
+          // Non-ok or network failure. Use fetch + conditional put instead of
+          // cache.add throughout so 4xx responses on non-critical files are
+          // skipped without console errors (cache.add rejects on non-ok and
+          // the browser logs it even when caught).
+          if (isCriticalAsset(path)) failedCritical.push(path);
         }),
-      ),
-    ),
+      );
+      if (failedCritical.length > 0) {
+        // Reject the install so this worker is discarded and the previous
+        // worker keeps serving its complete cache. Drop the partial cache —
+        // activate (which would garbage-collect into it) will never run, and
+        // the retry rebuilds it from copy-forward + HTTP cache cheaply.
+        await caches.delete(CACHE_NAME);
+        throw new Error(
+          `precache failed for ${failedCritical.length} critical asset(s): ${failedCritical
+            .slice(0, 5)
+            .join(", ")}`,
+        );
+      }
+    })(),
   );
 });
 
@@ -66,17 +127,27 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
-  // SPA navigation — serve cached /index.html (or fall back to the network,
-  // then the cached copy). Ensures deep links work offline after first visit.
+  // SPA navigation — network-first, but only for NAV_TIMEOUT_MS: on a slow
+  // connection fetch() can hang for tens of seconds before failing, and the
+  // user would stare at a white screen with a perfectly good shell in the
+  // cache. Lose the race → serve cached /index.html immediately. No cached
+  // copy (first ever visit) → keep waiting on the original network fetch.
   if (req.mode === "navigate") {
     event.respondWith(
       (async () => {
+        const network = fetch(req);
+        const fresh = await Promise.race([
+          network.catch(() => undefined),
+          new Promise((resolve) => setTimeout(() => resolve(undefined), NAV_TIMEOUT_MS)),
+        ]);
+        if (fresh) return fresh;
+        const cache = await caches.open(CACHE_NAME);
+        const cached = await cache.match("/index.html");
+        if (cached) return cached;
         try {
-          const fresh = await fetch(req);
-          return fresh;
+          return await network;
         } catch {
-          const cache = await caches.open(CACHE_NAME);
-          return (await cache.match("/index.html")) ?? Response.error();
+          return Response.error();
         }
       })(),
     );
