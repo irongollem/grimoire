@@ -97,6 +97,9 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      // Canonical AI-provenance core is pure TS shared verbatim with the Deno
+      // edge functions (context/compliance/provenance-architecture.md §1).
+      "@edge-shared": path.resolve(__dirname, "./supabase/functions/_shared"),
     },
   },
   build: {

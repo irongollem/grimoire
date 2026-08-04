@@ -16,7 +16,8 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@edge-shared/*": ["./supabase/functions/_shared/*"]
     },
     "types": ["node"]
   },

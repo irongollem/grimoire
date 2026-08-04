@@ -6,7 +6,8 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@edge-shared/*": ["./supabase/functions/_shared/*"]
     }
   },
   "files": [],

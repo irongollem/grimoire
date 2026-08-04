@@ -10,7 +10,7 @@
     "dev:portless": "portless grimoire vite",
     "build": "vue-tsc -b && vite build",
     "preview": "vite preview",
-    "lint": "oxlint --config oxlint.json src/",
+    "lint": "oxlint --config oxlint.json src/ supabase/functions/",
     "lint:fix": "oxlint --config oxlint.json --fix src/",
     "test": "vitest run",
     "test:watch": "vitest",

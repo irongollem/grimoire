@@ -4,7 +4,7 @@
   "rules": {
     "no-unused-vars": "warn",
     "no-console": ["warn", { "allow": ["warn", "error"] }],
-    "eqeqeq": "error",
+    "eqeqeq": ["error", "always", { "null": "ignore" }],
     "no-var": "error",
     "prefer-const": "error",
     "typescript/no-explicit-any": "warn",
