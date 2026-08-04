@@ -272,6 +272,7 @@ import {
 } from "@/composables/useImageUpload";
 import type { Note, NoteCategory } from "@/types/notes.types";
 import type { CalendarEvent } from "@/types/calendar.types";
+import type { AiProvenance } from "@/ai/provenance";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCalendarStore } from "@/stores/calendar";
 import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
@@ -300,6 +301,10 @@ const sessionNum = ref<number | null>(props.note?.session_num ?? null);
 const isPinned = ref(props.note?.is_pinned ?? false);
 const playerVisibleTo = ref<string[]>(props.note?.player_visible_to ?? []);
 const tags = ref<string[]>(props.note?.tags ? [...props.note.tags] : []);
+// Set when a Chronicle write is inserted (see onChroniclerWrite below);
+// preserved across unrelated edits so re-saving a note doesn't erase a prior
+// generation's record — never cleared back to null once populated (#606).
+const aiProvenance = ref<AiProvenance | null>(props.note?.ai_provenance ?? null);
 const saving = ref(false);
 const deleting = ref(false);
 const showPaywall = ref(false);
@@ -396,8 +401,9 @@ function onChroniclerSelect(url: string) {
   rteRef.value?.insertImageAtCursor(url);
 }
 
-function onChroniclerWrite(rawMarkdown: string) {
+function onChroniclerWrite(rawMarkdown: string, provenance: AiProvenance | null) {
   rteRef.value?.insertChronicleContent(rawMarkdown);
+  if (provenance) aiProvenance.value = provenance;
 }
 
 const illustrationPrompt = ref("");
@@ -440,6 +446,7 @@ function buildPayload() {
     player_visible_to: playerVisibleTo.value,
     tags: tags.value,
     content: body.value ?? null,
+    ai_provenance: aiProvenance.value,
     user_id: user?.id,
     session_start_year:  isSession ? (sessionStartYear.value ?? null) : null,
     session_start_month: isSession ? (sessionStartMonth.value ?? null) : null,

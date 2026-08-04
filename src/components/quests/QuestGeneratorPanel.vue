@@ -284,6 +284,7 @@ const {
   completedEntityId,
   clearCompleted,
   hooks,
+  provenance,
   generate,
   clearHooks,
 } = useQuestGeneration();
@@ -409,6 +410,7 @@ async function createFromHook(hook: QuestHookResult, index: number) {
       player_visible_to: [],
       started_at: null,
       resolved_at: null,
+      ai_provenance: provenance.value,
     });
 
     await Promise.all(

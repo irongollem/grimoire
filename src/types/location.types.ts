@@ -1,3 +1,5 @@
+import type { AiProvenance } from "@/ai/provenance";
+
 export type LocationType =
   | "world"
   | "plane"
@@ -142,6 +144,7 @@ export interface Location {
    * alone.
    */
   audio_theme: string | null;
+  ai_provenance?: AiProvenance | null;
   created_at: string;
   updated_at: string;
 }

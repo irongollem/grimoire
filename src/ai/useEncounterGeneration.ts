@@ -16,6 +16,7 @@ import { logUsage } from "@/composables/useAiCredits";
 import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
 import { useRuleset } from "@/composables/useRuleset";
 import { useCampaignStore } from "@/stores/campaign";
+import { buildAiProvenance, type AiProvenance } from "@/ai/provenance";
 
 const LOCAL_MODE_KEY = "grimoire_key_local_mode";
 
@@ -91,7 +92,8 @@ export function useEncounterGeneration() {
     if (error) throw new Error(await edgeErrorMessage(error));
     if (data?.error) throw new Error(data.error);
 
-    return parseEncounterAiResult(data);
+    const ai_provenance = (data as { ai_provenance?: AiProvenance })?.ai_provenance;
+    return { ...parseEncounterAiResult(data), ai_provenance };
   }
 
   async function generateClientSide(
@@ -135,7 +137,8 @@ export function useEncounterGeneration() {
     const result = parseEncounterAiResult(raw);
 
     logUsage({ reason: "encounter_generation", textUsage });
-    return result;
+    const ai_provenance = buildAiProvenance("encounter_generation", textUsage.provider, textUsage.model);
+    return { ...result, ai_provenance };
   }
 
   function clearResult() {

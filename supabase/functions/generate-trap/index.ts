@@ -18,6 +18,8 @@ import { buildSimpleImagePrompt } from "../_shared/image-prompt.ts";
 import { withCors } from "../_shared/cors.ts";
 import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
 import { isSafeStorageUrl } from "../_shared/storage-url.ts";
+import { markGeneratedImageB64 } from "../_shared/provenance/mark.ts";
+import type { AiProvenance } from "../_shared/provenance/types.ts";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -298,7 +300,17 @@ serve(withCors(async (req: Request) => {
         provider: img.provider, model: img.model, apiKey: img.apiKey,
         prompt: finalPrompt, size: "1024x1536", quality: img.imageQuality, boostStyle: true, sourceImages,
       });
-      image_b64 = imgResult.b64;
+      // EU AI Act Art 50(2) — mark before the bytes leave this pipeline. No
+      // server-side upload here (the client uploads image_b64), so this is
+      // the last point the resolved provider/model are known.
+      const imageProv: AiProvenance = {
+        generatorType: "trap",
+        provider: imgResult.usage.provider,
+        model: img.model,
+        generatedAt: new Date().toISOString(),
+        edited: false,
+      };
+      image_b64 = markGeneratedImageB64(imgResult.b64, imgResult.contentType, imageProv);
     } catch (e) {
       console.error("Trap image generation failed (non-fatal):", e);
     }
@@ -323,8 +335,16 @@ serve(withCors(async (req: Request) => {
     });
   }
 
+  const ai_provenance: AiProvenance = {
+    generatorType: "trap_generation",
+    provider: textResult.usage.provider,
+    model: textResult.usage.model,
+    generatedAt: new Date().toISOString(),
+    edited: false,
+  };
+
   return new Response(
-    JSON.stringify({ ...trapData, image_b64 }),
+    JSON.stringify({ ...trapData, image_b64, ai_provenance }),
     { headers: { "Content-Type": "application/json" } },
   );
 }));

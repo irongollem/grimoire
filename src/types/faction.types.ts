@@ -1,3 +1,5 @@
+import type { AiProvenance } from "@/ai/provenance";
+
 export const FACTION_TYPES = [
   "Guild",
   "Government",
@@ -85,6 +87,7 @@ export interface Faction {
   alignment: string | null;
   player_visible_to: string[];
   tags: string[];
+  ai_provenance?: AiProvenance | null;
   created_at: string;
   updated_at: string;
 }

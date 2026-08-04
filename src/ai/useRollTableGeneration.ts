@@ -17,6 +17,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { logUsage } from "@/composables/useAiCredits";
 import { ROLL_TABLE_DIE_MAX, validateEntryRanges } from "@/types/rollTable.types";
 import type { RollTableDie, RollTableEntry } from "@/types/rollTable.types";
+import { buildAiProvenance } from "@/ai/provenance";
 
 const LOCAL_MODE_KEY = "grimoire_key_local_mode";
 
@@ -146,6 +147,7 @@ export function useRollTableGeneration() {
       userContent,
     );
     const result = JSON.parse(content) as RollTableAiResult;
+    result.ai_provenance = buildAiProvenance("roll_table_generation", textUsage.provider, textUsage.model);
 
     logUsage({ reason: "roll_table_generation", textUsage });
     return result;

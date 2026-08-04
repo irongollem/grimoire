@@ -17,6 +17,8 @@ import {
 import { buildSimpleImagePrompt } from "../_shared/image-prompt.ts";
 import { withCors } from "../_shared/cors.ts";
 import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
+import { markGeneratedImageB64 } from "../_shared/provenance/mark.ts";
+import type { AiProvenance } from "../_shared/provenance/types.ts";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -295,11 +297,36 @@ serve(withCors(async (req: Request) => {
         : Promise.resolve(null),
     ]);
 
-    if (imgSettled.status === "fulfilled" && imgSettled.value) { sceneImgResult = imgSettled.value; image_b64 = imgSettled.value.b64; }
-    else if (imgSettled.status === "rejected") console.error("Location scene image failed (non-fatal):", imgSettled.reason);
+    // EU AI Act Art 50(2) — mark before the bytes leave this pipeline. No
+    // server-side upload here (the client uploads image_b64/map_b64), so this
+    // is the last point the resolved provider/model are known.
+    if (imgSettled.status === "fulfilled" && imgSettled.value) {
+      sceneImgResult = imgSettled.value;
+      const prov: AiProvenance = {
+        generatorType: "location",
+        provider: imgSettled.value.usage.provider,
+        model: img.model,
+        generatedAt: new Date().toISOString(),
+        edited: false,
+      };
+      image_b64 = markGeneratedImageB64(imgSettled.value.b64, imgSettled.value.contentType, prov);
+    } else if (imgSettled.status === "rejected") {
+      console.error("Location scene image failed (non-fatal):", imgSettled.reason);
+    }
 
-    if (mapSettled.status === "fulfilled" && mapSettled.value) { mapImgResult = mapSettled.value; map_b64 = mapSettled.value.b64; }
-    else if (mapSettled.status === "rejected") console.error("Location map image failed (non-fatal):", mapSettled.reason);
+    if (mapSettled.status === "fulfilled" && mapSettled.value) {
+      mapImgResult = mapSettled.value;
+      const prov: AiProvenance = {
+        generatorType: "location_map",
+        provider: mapSettled.value.usage.provider,
+        model: img.model,
+        generatedAt: new Date().toISOString(),
+        edited: false,
+      };
+      map_b64 = markGeneratedImageB64(mapSettled.value.b64, mapSettled.value.contentType, prov);
+    } else if (mapSettled.status === "rejected") {
+      console.error("Location map image failed (non-fatal):", mapSettled.reason);
+    }
   }
 
   // Release the hold; record the real spend below (text always, each image if it rendered).
@@ -329,8 +356,16 @@ serve(withCors(async (req: Request) => {
     });
   }
 
+  const ai_provenance: AiProvenance = {
+    generatorType: "location_generation",
+    provider: textResult.usage.provider,
+    model: textResult.usage.model,
+    generatedAt: new Date().toISOString(),
+    edited: false,
+  };
+
   return new Response(
-    JSON.stringify({ ...locationData, image_b64, map_b64 }),
+    JSON.stringify({ ...locationData, image_b64, map_b64, ai_provenance }),
     { headers: { "Content-Type": "application/json" } },
   );
 }));

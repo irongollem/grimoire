@@ -268,6 +268,7 @@ async function generateAndCreate() {
     scriptorium_doc_id: null,
     player_visible_to: [],
     player_visible_fields: [],
+    ai_provenance: result.ai_provenance ?? null,
   };
 
   const created = await createNpc(payload);

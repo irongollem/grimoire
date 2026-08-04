@@ -365,6 +365,7 @@ const form = reactive({
   notes: props.monster?.notes ?? "",
   image_url: props.monster?.image_url ?? "",
   portrait_focal_point: props.monster?.portrait_focal_point ?? null,
+  ai_provenance: props.monster?.ai_provenance ?? null,
 });
 
 // When SRD art loads asynchronously, sync art fields from the updated prop
@@ -444,6 +445,7 @@ function onAiGenerated(result: MonsterAiGenerated) {
     form.image_url = result.image_url;
     form.portrait_focal_point = null;
   }
+  form.ai_provenance = result.ai_provenance ?? null;
   Object.assign(sb, defaultSb(), result.stat_block);
 }
 
@@ -511,6 +513,7 @@ function buildPayload() {
     image_url: form.image_url || null,
     portrait_focal_point: form.portrait_focal_point ?? null,
     stat_block: { ...sb },
+    ai_provenance: form.ai_provenance,
   };
 }
 

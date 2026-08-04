@@ -1,3 +1,5 @@
+import type { AiProvenance } from "@/ai/provenance";
+
 export const PUZZLE_TYPES = ["Logic", "Physical", "Arcane", "Social", "Environmental"] as const;
 export type PuzzleType = typeof PUZZLE_TYPES[number];
 
@@ -77,6 +79,7 @@ export interface PuzzleRoom {
   location_id: string | null;
   /** Dungeon feature that hosts this puzzle (DM-only; nulled in the player projection) */
   dungeon_feature_id: string | null;
+  ai_provenance?: AiProvenance | null;
   created_at: string;
   updated_at: string;
 }

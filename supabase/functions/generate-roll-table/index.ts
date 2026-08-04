@@ -32,6 +32,7 @@ import {
   formatEntityBlock,
   type CandidateEntity,
 } from "../_shared/campaignEntityRetrieval.ts";
+import type { AiProvenance } from "../_shared/provenance/types.ts";
 
 /**
  * Retrieval-grounded AI roll-table generator (#600).
@@ -384,8 +385,16 @@ serve(withCors(async (req: Request) => {
     input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
   });
 
+  const ai_provenance: AiProvenance = {
+    generatorType: "roll_table_generation",
+    provider: textResult.usage.provider,
+    model: textResult.usage.model,
+    generatedAt: new Date().toISOString(),
+    edited: false,
+  };
+
   return new Response(
-    JSON.stringify(rollTableData),
+    JSON.stringify({ ...rollTableData, ai_provenance }),
     { headers: { "Content-Type": "application/json" } },
   );
 }));

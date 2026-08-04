@@ -13,6 +13,8 @@ import { withCors } from "../_shared/cors.ts";
 import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
 import { isSafeStorageUrl } from "../_shared/storage-url.ts";
 import { uploadWithRetry } from "../_shared/storage-upload.ts";
+import { markGeneratedImage } from "../_shared/provenance/mark.ts";
+import type { AiProvenance } from "../_shared/provenance/types.ts";
 
 // Keep browser-supplied composition inputs bounded before req.json()/atob hold
 // both the encoded and decoded copies in the Edge isolate.
@@ -88,14 +90,26 @@ function buildPurposePrompt(
   return buildSimpleImagePrompt({ base: imageBasePrompt, setting: settingPrompt, subject });
 }
 
-async function uploadResult(b64: string, userId: string, purpose: ImagePurpose): Promise<string> {
+async function uploadResult(
+  b64: string,
+  contentType: string,
+  userId: string,
+  purpose: ImagePurpose,
+  provider: string,
+  model: string,
+): Promise<string> {
   const bin = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
   const config = PURPOSE_CONFIG[purpose];
   const path = `${userId}/${config.prefix}-${crypto.randomUUID()}.webp`;
+  // EU AI Act Art 50(2) — mark before upload, using the provider's true byte
+  // format (contentType), not the ".webp" this pipeline requests but doesn't
+  // always get back (see imageGen.ts's ImageGenResult.contentType).
+  const prov: AiProvenance = { generatorType: purpose, provider, model, generatedAt: new Date().toISOString(), edited: false };
+  const marked = markGeneratedImage(bin, contentType, prov);
   // The generated image is already in memory and re-running the OpenAI call
   // is expensive, so uploadWithRetry's backoff protects a transient storage
   // hiccup from wasting the generation. This caller wants the public URL.
-  await uploadWithRetry(admin, config.bucket, path, bin, "image/webp");
+  await uploadWithRetry(admin, config.bucket, path, marked, "image/webp");
   const { data } = admin.storage.from(config.bucket).getPublicUrl(path);
   return data.publicUrl;
 }
@@ -141,12 +155,15 @@ async function runGeneration(args: {
       portraitBlobs.push(new Blob([bytes], { type: "image/png" }));
     }
 
-    const { b64, usage } = await generateImage({
+    const { b64, contentType, usage } = await generateImage({
       provider, model, apiKey, prompt, size, quality, boostStyle: PURPOSE_CONFIG[purpose].boostStyle,
       sourceImages: portraitBlobs.length > 0 ? portraitBlobs : undefined,
     });
 
-    const imageUrl = await uploadResult(b64, userId, purpose);
+    // provider/model here mirror what recordGeneration logs below: usage.provider
+    // is the actual responding provider (openai-mini resolves to "openai"),
+    // model is the resolved model this call was made with.
+    const imageUrl = await uploadResult(b64, contentType, userId, purpose, usage.provider, model);
     await completeImageJob(admin, jobId, imageUrl);
 
     // Release the hold and record the real spend (one cost row, with analytics).

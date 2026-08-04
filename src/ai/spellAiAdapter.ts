@@ -126,5 +126,6 @@ export function spellInsertFromAi(ai: SpellAiGenerated): SpellInsert {
     open5e_import: false,
     image_url: ai.image_url ?? null,
     image_focal_point: null,
+    ai_provenance: ai.ai_provenance ?? null,
   };
 }

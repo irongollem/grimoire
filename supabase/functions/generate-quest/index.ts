@@ -32,6 +32,7 @@ import {
   formatEntityBlock,
   type CandidateEntity,
 } from "../_shared/campaignEntityRetrieval.ts";
+import type { AiProvenance } from "../_shared/provenance/types.ts";
 
 /**
  * Retrieval-grounded AI quest-hook generator (#600).
@@ -339,8 +340,16 @@ serve(withCors(async (req: Request) => {
     input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
   });
 
+  const ai_provenance: AiProvenance = {
+    generatorType: "quest_generation",
+    provider: textResult.usage.provider,
+    model: textResult.usage.model,
+    generatedAt: new Date().toISOString(),
+    edited: false,
+  };
+
   return new Response(
-    JSON.stringify(questData),
+    JSON.stringify({ ...questData, ai_provenance }),
     { headers: { "Content-Type": "application/json" } },
   );
 }));

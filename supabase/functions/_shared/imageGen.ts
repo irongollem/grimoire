@@ -18,6 +18,16 @@ export interface ImageGenUsage {
 
 export interface ImageGenResult {
   b64: string;
+  /**
+   * The image's true, provider-reported byte format (e.g. "image/webp",
+   * "image/jpeg", "image/png") — NOT necessarily what this pipeline
+   * requested. Callers that mark the bytes with provenance (embedProvenance/
+   * markGeneratedImage) must use this, not an assumed "image/webp": OpenAI
+   * honors the explicit output_format below, but fal.ai and Gemini are asked
+   * for no format at all and return their own defaults (jpeg / png
+   * respectively) — marking those bytes as webp would silently no-op.
+   */
+  contentType: string;
   usage: ImageGenUsage;
 }
 
@@ -28,6 +38,12 @@ async function blobToBase64(blob: Blob): Promise<string> {
   let binary = "";
   for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
   return btoa(binary);
+}
+
+/** Strips a `; charset=...`-style suffix and normalizes case, so downstream `switch (contentType)` matches stay exact. Falls back when the provider omits the field entirely. */
+function normalizeContentType(raw: string | null | undefined, fallback: string): string {
+  const value = raw?.split(";")[0]?.trim().toLowerCase();
+  return value || fallback;
 }
 
 /** Parse a "WxH" size string into pixel dimensions (defaults to 1024²). */
@@ -91,7 +107,9 @@ async function openaiGenerate(apiKey: string, model: string, prompt: string, siz
     });
     if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error?.message ?? `OpenAI image edit error ${res.status}`);
     const data = await res.json();
-    return { b64: data.data[0].b64_json as string, usage: openaiUsage(data, model) };
+    // Both OpenAI calls below explicitly request output_format: "webp" — the
+    // response is reliably webp, unlike fal.ai/Gemini which get no such ask.
+    return { b64: data.data[0].b64_json as string, contentType: "image/webp", usage: openaiUsage(data, model) };
   }
   const res = await fetch("https://api.openai.com/v1/images/generations", {
     method: "POST",
@@ -100,7 +118,7 @@ async function openaiGenerate(apiKey: string, model: string, prompt: string, siz
   });
   if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error?.message ?? `OpenAI image error ${res.status}`);
   const data = await res.json();
-  return { b64: data.data[0].b64_json as string, usage: openaiUsage(data, model) };
+  return { b64: data.data[0].b64_json as string, contentType: "image/webp", usage: openaiUsage(data, model) };
 }
 
 // ── fal.ai (generate-only; no reference/edit support) ──────────────────────────
@@ -116,7 +134,15 @@ async function falaiGenerate(apiKey: string, model: string, prompt: string, size
   const { images } = await res.json();
   const imgRes = await fetch(images[0].url);
   if (!imgRes.ok) throw new Error(`fal.ai image fetch error ${imgRes.status}`);
-  return { b64: await blobToBase64(await imgRes.blob()), usage: { model, provider: "falai", image_count: 1 } };
+  const blob = await imgRes.blob();
+  // No output_format is requested above, so fal.ai/FLUX returns its own
+  // default (jpeg) — trust the response's own content_type field over an
+  // assumed format; the fetched blob's Content-Type is the fallback.
+  const contentType = normalizeContentType(
+    (images[0] as { content_type?: string }).content_type ?? blob.type,
+    "image/jpeg",
+  );
+  return { b64: await blobToBase64(blob), contentType, usage: { model, provider: "falai", image_count: 1 } };
 }
 
 // ── Gemini ("Nano Banana") — supports reference images via inline_data ─────────
@@ -141,13 +167,23 @@ async function geminiGenerate(apiKey: string, model: string, prompt: string, siz
   if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error?.message ?? `Gemini image error ${res.status}`);
   const data = await res.json();
   const outParts = data?.candidates?.[0]?.content?.parts ?? [];
-  const imgPart = outParts.find((p: { inlineData?: { data?: string }; inline_data?: { data?: string } }) =>
-    p?.inlineData?.data ?? p?.inline_data?.data);
+  interface GeminiImagePart {
+    inlineData?: { data?: string; mimeType?: string };
+    inline_data?: { data?: string; mime_type?: string };
+  }
+  const imgPart = (outParts as GeminiImagePart[]).find((p) => p?.inlineData?.data ?? p?.inline_data?.data);
   const b64 = imgPart?.inlineData?.data ?? imgPart?.inline_data?.data;
   if (!b64) throw new Error("Gemini returned no image");
+  // No output format is requested above, so Gemini returns its own default
+  // (png) — inlineData.mimeType carries whatever it actually rendered.
+  const contentType = normalizeContentType(
+    imgPart?.inlineData?.mimeType ?? imgPart?.inline_data?.mime_type,
+    "image/png",
+  );
   const meta = data.usageMetadata ?? {};
   return {
     b64,
+    contentType,
     usage: {
       model, provider: "gemini", image_count: 1,
       input_tokens:  meta.promptTokenCount ?? 0,

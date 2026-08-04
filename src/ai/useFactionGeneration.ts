@@ -16,6 +16,7 @@ import { wrapUserInput } from "./utils";
 import { logUsage } from "@/composables/useAiCredits";
 import type { TextUsage } from "./providers/types";
 import { captureImageGenerationContext, generateImage } from "./useImageGeneration";
+import { buildAiProvenance } from "@/ai/provenance";
 
 // ── Module-level singleton state ────────────────────────────────────────────
 const _state = createAiGenerationState();
@@ -89,6 +90,7 @@ export function useFactionGeneration() {
       const { content, usage: _textUsage } = await textProvider.complete(systemContent, userContent);
       textUsage = _textUsage;
       const factionData = JSON.parse(content) as FactionAiResult;
+      factionData.ai_provenance = buildAiProvenance("faction_generation", _textUsage.provider, _textUsage.model);
 
       // ── Emblem ─────────────────────────────────────────────────────────────
       let image_url: string | null = null;

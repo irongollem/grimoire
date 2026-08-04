@@ -15,6 +15,7 @@ import { wrapUserInput } from "./utils";
 import { logUsage } from "@/composables/useAiCredits";
 import type { TextUsage } from "./providers/types";
 import { captureImageGenerationContext, generateImage } from "./useImageGeneration";
+import { buildAiProvenance } from "@/ai/provenance";
 
 export interface ItemGenerationOptions {
   item_type?: string;
@@ -86,6 +87,7 @@ export function useItemGeneration() {
       const { content, usage: _textUsage } = await textProvider.complete(systemContent, userContent);
       textUsage = _textUsage;
       const result = JSON.parse(content) as ItemAiResult;
+      result.ai_provenance = buildAiProvenance("item_generation", _textUsage.provider, _textUsage.model);
 
       // Merge game_benefits into description as a separate paragraph
       if (result.game_benefits) {

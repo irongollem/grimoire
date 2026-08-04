@@ -17,6 +17,7 @@ import type { SpellSchool } from "@/types/spell.types";
 import { logUsage } from "@/composables/useAiCredits";
 import type { TextUsage } from "./providers/types";
 import { captureImageGenerationContext, generateImage } from "./useImageGeneration";
+import { buildAiProvenance } from "@/ai/provenance";
 
 export interface SpellGenerationOptions {
   /** Lock the spell level (0 = cantrip). AI fills the rest around it. */
@@ -95,6 +96,7 @@ export function useSpellGeneration() {
       const { content, usage: _textUsage } = await textProvider.complete(systemContent, userContent);
       textUsage = _textUsage;
       const result = JSON.parse(content) as SpellAiResult;
+      result.ai_provenance = buildAiProvenance("spell_generation", _textUsage.provider, _textUsage.model);
 
       // Honour explicit overrides (in case the model drifts)
       if (options?.level !== undefined) result.level = options.level;

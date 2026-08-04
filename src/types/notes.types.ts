@@ -1,3 +1,5 @@
+import type { AiProvenance } from "@/ai/provenance";
+
 export type NoteCategory =
   | "general"
   | "session"
@@ -27,6 +29,7 @@ export interface Note {
   session_real_date: string | null; // real-world date "YYYY-MM-DD"
   linked_calendar_event_id: string | null;
   sort_order: number | null; // manual drag order; null until the user reorders
+  ai_provenance?: AiProvenance | null;
   created_at: string;
   updated_at: string;
 }

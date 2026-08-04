@@ -336,6 +336,7 @@ async function createTable() {
       })),
       tags: result.value.tags,
       notes: null,
+      ai_provenance: result.value.ai_provenance ?? null,
     });
     createdTableId.value = table.id;
     completedEntityId.value = table.id;

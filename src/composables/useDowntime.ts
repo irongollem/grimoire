@@ -19,6 +19,7 @@ import {
   hasApplicableMemberEffect,
 } from "@/lib/downtime/downtimeEffects";
 import { DOWNTIME_SEEDS } from "@/data/downtimeSeeds";
+import type { AiProvenance } from "@/ai/provenance";
 import type {
   CoinKey,
   DowntimeDeckBack,
@@ -219,6 +220,9 @@ export interface ResolveDrawPayload {
   effects: DowntimeEffect[];
   /** What the deck yielded. Null means the DM resolves with no reward attached. */
   result: DrawResult | null;
+  /** Set when the title/vignette came from an AI draft (#606). Null for a
+   *  prepped back, a system-deck seed, or a hand-written resolution. */
+  ai_provenance?: AiProvenance | null;
 }
 
 /**
@@ -237,7 +241,7 @@ export function useResolveDraw() {
 
   return useMutation({
     mutationFn: async (payload: ResolveDrawPayload): Promise<DowntimeOutcome> => {
-      const { draw, title, vignette, effects, result } = payload;
+      const { draw, title, vignette, effects, result, ai_provenance } = payload;
 
       let rewardType: string | null = null;
       let rewardId: string | null = null;
@@ -292,6 +296,7 @@ export function useResolveDraw() {
         p_reward_id: rewardId,
         p_effects: effects,
         p_back_id: backId,
+        p_ai_provenance: ai_provenance ?? null,
       });
       if (error) throw error;
       return data as DowntimeOutcome;

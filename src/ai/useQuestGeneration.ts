@@ -15,12 +15,14 @@ import { useUiStore } from "@/stores/ui";
 import { getTextProvider } from "./providers";
 import { useCampaignStore } from "@/stores/campaign";
 import { logUsage } from "@/composables/useAiCredits";
+import { buildAiProvenance, type AiProvenance } from "@/ai/provenance";
 
 const LOCAL_MODE_KEY = "grimoire_key_local_mode";
 
 // ── Module-level singleton state ────────────────────────────────────────────
 const _state = createAiGenerationState();
 const _hooks = ref<QuestHookResult[]>([]);
+const _provenance = ref<AiProvenance | null>(null);
 
 registerAiGenerator({
   ..._state,
@@ -42,6 +44,7 @@ export function useQuestGeneration() {
     _state.isGenerating.value = true;
     _state.error.value = null;
     _hooks.value = [];
+    _provenance.value = null;
     startAiQuotes();
 
     try {
@@ -49,12 +52,13 @@ export function useQuestGeneration() {
         typeof localStorage !== "undefined" &&
         localStorage.getItem(LOCAL_MODE_KEY) === "local";
 
-      const hooks = isLocalMode
+      const draft = isLocalMode
         ? await generateClientSide(userPrompt)
         : await generateServerSide(userPrompt);
 
-      _hooks.value = hooks;
-      return hooks;
+      _hooks.value = draft.hooks;
+      _provenance.value = draft.ai_provenance ?? null;
+      return draft.hooks;
     } catch (e) {
       _state.error.value = e instanceof Error ? e.message : "Generation failed";
       return null;
@@ -64,7 +68,7 @@ export function useQuestGeneration() {
     }
   }
 
-  async function generateServerSide(userPrompt: string): Promise<QuestHookResult[]> {
+  async function generateServerSide(userPrompt: string): Promise<QuestHooksAiResult> {
     const campaignId = campaign.activeCampaignId;
     if (!campaignId) throw new Error("No active campaign selected.");
 
@@ -84,10 +88,10 @@ export function useQuestGeneration() {
 
     // The server bills credits itself as part of the retrieval+generation call,
     // so — unlike generateClientSide below — there is no client-side logUsage here.
-    return data.hooks as QuestHookResult[];
+    return data as QuestHooksAiResult;
   }
 
-  async function generateClientSide(userPrompt: string): Promise<QuestHookResult[]> {
+  async function generateClientSide(userPrompt: string): Promise<QuestHooksAiResult> {
     const textProvider = getTextProvider();
     const [basePrompt, rulesetContext] = await Promise.all([
       fetchSystemPrompt("quest"),
@@ -116,17 +120,20 @@ export function useQuestGeneration() {
     }
 
     logUsage({ reason: "quest_generation", textUsage });
-    return result.hooks;
+    result.ai_provenance = buildAiProvenance("quest_generation", textUsage.provider, textUsage.model);
+    return result;
   }
 
   function clearHooks() {
     _hooks.value = [];
+    _provenance.value = null;
     _state.error.value = null;
   }
 
   return {
     ..._state,
     hooks: _hooks,
+    provenance: _provenance,
     generate,
     clearHooks,
   };

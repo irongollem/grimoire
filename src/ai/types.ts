@@ -4,6 +4,7 @@ import type { ItemType, ItemRarity } from "@/types/item.types";
 import type { SpellSchool } from "@/types/spell.types";
 import type { DamageRoll } from "@/lib/dice/dice";
 import type { TrapType, TrapTrigger, TrapResetType, TrapSaveType, DamageEntry } from "@/types/trap.types";
+import type { AiProvenance } from "@/ai/provenance";
 
 export interface NpcAiResult {
   name: string;
@@ -25,6 +26,8 @@ export interface NpcAiResult {
   disguise_image_prompt?: string;
   /** AI-suggested name for the NPC's disguise */
   disguise_name?: string;
+  /** Present when the server (or the local BYOK path) attached provenance to the draft. */
+  ai_provenance?: AiProvenance;
 }
 
 export interface NpcAiGenerated extends NpcAiResult {
@@ -47,6 +50,8 @@ export interface MonsterAiResult {
   stat_block: MonsterStatBlock;
   /** Subject description for image generation */
   image_prompt: string;
+  /** Attached by buildAiProvenance() — monster generation is client-direct BYOK, no server draft. */
+  ai_provenance?: AiProvenance;
 }
 
 export interface MonsterAiGenerated extends MonsterAiResult {
@@ -82,6 +87,8 @@ export interface ItemAiResult {
   tags: string[];
   /** Subject description for image generation */
   image_prompt: string;
+  /** Attached by buildAiProvenance() — item generation is client-direct BYOK, no server draft. */
+  ai_provenance?: AiProvenance;
 }
 
 export interface ItemAiGenerated extends ItemAiResult {
@@ -105,6 +112,8 @@ export interface PuzzleAiResult {
   notes: string;
   /** Room illustration description for image generation */
   image_prompt: string;
+  /** Attached by buildAiProvenance() — puzzle generation is client-direct BYOK, no server draft. */
+  ai_provenance?: AiProvenance;
 }
 
 export interface PuzzleAiGenerated extends PuzzleAiResult {
@@ -154,6 +163,8 @@ export interface SpellAiResult {
   tags: string[];
   /** Effect-in-flight description for image generation */
   image_prompt: string;
+  /** Attached by buildAiProvenance() — spell generation is client-direct BYOK, no server draft. */
+  ai_provenance?: AiProvenance;
 }
 
 export interface SpellAiGenerated extends SpellAiResult {
@@ -182,6 +193,8 @@ export interface TrapAiResult {
   notes: string;
   /** Subject description for image generation */
   image_prompt: string;
+  /** Present when the server (or the local BYOK path) attached provenance to the draft. */
+  ai_provenance?: AiProvenance;
 }
 
 export interface TrapAiGenerated extends TrapAiResult {
@@ -197,6 +210,8 @@ export interface FactionAiResult {
   tags: string[];
   /** Square emblem description for image generation */
   image_prompt: string;
+  /** Attached by buildAiProvenance() — faction generation is client-direct BYOK, no server draft. */
+  ai_provenance?: AiProvenance;
 }
 
 export interface FactionAiGenerated extends FactionAiResult {
@@ -216,6 +231,8 @@ export interface LocationAiResult {
   image_prompt: string;
   /** Top-down spatial description for map generation */
   map_prompt: string;
+  /** Present when the server (or the local BYOK path) attached provenance to the draft. */
+  ai_provenance?: AiProvenance;
 }
 
 export interface LocationAiGenerated extends LocationAiResult {
@@ -245,6 +262,8 @@ export interface QuestHookResult {
 
 export interface QuestHooksAiResult {
   hooks: QuestHookResult[];
+  /** One provenance record for the whole batch — every hook in `hooks` came from the same call. */
+  ai_provenance?: AiProvenance;
 }
 
 /** One AI-generated roll-table entry — ranges are inclusive, no client `id` yet. */
@@ -275,6 +294,8 @@ export interface RollTableAiResult {
   npcs?: string[];
   locations?: string[];
   factions?: string[];
+  /** Present when the server (or the local BYOK path) attached provenance to the draft. */
+  ai_provenance?: AiProvenance;
 }
 
 export interface NpcVoiceAiResult {
@@ -298,4 +319,6 @@ export interface EncounterAiResult {
   tactics: string;
   twist: string;
   combatants: EncounterCombatantAiResult[];
+  /** Present when the server (or the local BYOK path) attached provenance to the draft. */
+  ai_provenance?: AiProvenance;
 }

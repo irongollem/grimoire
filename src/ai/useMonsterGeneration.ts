@@ -14,6 +14,7 @@ import { wrapUserInput } from "./utils";
 import { logUsage } from "@/composables/useAiCredits";
 import type { TextUsage } from "./providers/types";
 import { captureImageGenerationContext, generateImage } from "./useImageGeneration";
+import { buildAiProvenance } from "@/ai/provenance";
 
 export interface MonsterGenerationOptions {
   challenge_rating?: string;
@@ -85,6 +86,7 @@ export function useMonsterGeneration() {
       const { content, usage: _textUsage } = await textProvider.complete(systemContent, userContent);
       textUsage = _textUsage;
       const result = JSON.parse(content) as MonsterAiResult;
+      result.ai_provenance = buildAiProvenance("monster_generation", _textUsage.provider, _textUsage.model);
 
       // 2014 monster stat blocks never carry an initiative bonus — only 2024
       // separates initiative from the DEX modifier this way (#564).

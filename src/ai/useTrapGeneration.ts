@@ -21,6 +21,7 @@ import {
   generateImage,
   type ImageGenerationContext,
 } from "@/ai/useImageGeneration";
+import { buildAiProvenance } from "@/ai/provenance";
 
 const LOCAL_MODE_KEY = "grimoire_key_local_mode";
 // ── Module-level singleton state ────────────────────────────────────────────
@@ -141,6 +142,7 @@ export function useTrapGeneration() {
 
     const { content, usage: textUsage } = await textProvider.complete(systemContent, userContent);
     const trapData = JSON.parse(content) as TrapAiResult;
+    trapData.ai_provenance = buildAiProvenance("trap_generation", textUsage.provider, textUsage.model);
 
     logUsage({ reason: "trap_generation", textUsage });
     return { ...trapData, image_url: await generateTrapImage(trapData, options, imageContext) };

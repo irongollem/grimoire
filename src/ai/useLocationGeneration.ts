@@ -21,6 +21,7 @@ import {
   generateImage,
   type ImageGenerationContext,
 } from "@/ai/useImageGeneration";
+import { buildAiProvenance } from "@/ai/provenance";
 
 const LOCAL_MODE_KEY = "grimoire_key_local_mode";
 
@@ -144,6 +145,7 @@ export function useLocationGeneration() {
 
     const { content, usage: textUsage } = await textProvider.complete(systemContent, userContent);
     const locationData = JSON.parse(content) as LocationAiResult;
+    locationData.ai_provenance = buildAiProvenance("location_generation", textUsage.provider, textUsage.model);
 
     if (options?.generateImage !== false || options?.generateMap) {
       startAiQuotes("image");

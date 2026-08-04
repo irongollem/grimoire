@@ -1,6 +1,7 @@
 import type { NpcInsert } from "./npc.types";
 import type { ItemInsert } from "./item.types";
 import type { NoteInsert } from "./notes.types";
+import type { AiProvenance } from "@/ai/provenance";
 
 // ── Reward + status vocabularies ──────────────────────────────────────────────
 // Mirrors the CHECK constraints in migration 20260710000001.
@@ -211,6 +212,7 @@ export interface DowntimeOutcome {
   reward_type: DowntimeRewardType | null;
   reward_id: string | null;
   proposed_effects: DowntimeEffect[];
+  ai_provenance?: AiProvenance | null;
   created_at: string;
   updated_at: string;
 }

@@ -252,6 +252,7 @@ import SpellTimingSection from "./SpellTimingSection.vue";
 import SpellDetailHeader from "./SpellDetailHeader.vue";
 import { spellInsertFromAi } from "@/ai/spellAiAdapter";
 import type { SpellAiGenerated } from "@/ai/types";
+import type { AiProvenance } from "@/ai/provenance";
 import { useCampaignStore } from "@/stores/campaign";
 import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
@@ -302,6 +303,7 @@ const classes = ref<string[]>(props.spell?.classes ?? []);
 const source = ref(props.spell?.source ?? "");
 const imageUrl = ref(props.spell?.image_url ?? "");
 const imageFocalPoint = ref(props.spell?.image_focal_point ?? null);
+const aiProvenance = ref<AiProvenance | null>(props.spell?.ai_provenance ?? null);
 
 const aiContext = computed(() =>
   buildEntityContext([
@@ -539,6 +541,7 @@ function buildPayload() {
     condition_inflicted: conditionInflicted.value || null,
     higher_level_damage: props.spell?.higher_level_damage ?? null,
     higher_level_healing: props.spell?.higher_level_healing ?? null,
+    ai_provenance: aiProvenance.value,
   };
 }
 
@@ -619,6 +622,7 @@ function onAiGenerated(result: SpellAiGenerated) {
     imageUrl.value = ins.image_url;
     imageFocalPoint.value = null;
   }
+  aiProvenance.value = ins.ai_provenance ?? null;
   // Skip the level advisor wizard when AI populated us — DM can re-open it.
   advisorModalOpen.value = false;
 }

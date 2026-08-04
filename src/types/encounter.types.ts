@@ -1,4 +1,5 @@
 import type { RewardCurrencyPool } from "@/types/quest.types";
+import type { AiProvenance } from "@/ai/provenance";
 export type { RewardCurrencyPool };
 
 export interface ArtObject {
@@ -69,6 +70,7 @@ export interface Encounter {
    * matched against music playlists tagged with it. Null = leave audio alone.
    */
   audio_theme: string | null;
+  ai_provenance?: AiProvenance | null;
   created_at: string;
   updated_at: string;
 }

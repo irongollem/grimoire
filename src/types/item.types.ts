@@ -1,6 +1,7 @@
 import type { DamageRoll } from "@/lib/dice/dice";
 import type { VersionedContentMetadata } from "@/types/content.types";
 import { OPEN5E_SOURCE_LABELS } from "@/types/spell.types";
+import type { AiProvenance } from "@/ai/provenance";
 
 // Prefer the stored title from the DB; fall back to our hardcoded map, then the raw slug.
 export function itemSourceLabel(
@@ -191,6 +192,7 @@ export interface Item extends VersionedContentMetadata {
   campaign_id: string | null;
   /** DM-only rich-text notes never shown to players. */
   dm_notes: string | null;
+  ai_provenance?: AiProvenance | null;
   created_at: string;
   updated_at: string;
 }

@@ -282,6 +282,7 @@ async function generateAndCreate() {
     source_map_id:         null,
     is_battle_map:         false,
     grid_calibration:      null,
+    ai_provenance:         result.ai_provenance ?? null,
   });
 
   // Log generated scene + map to the Gallery, linked back to the new location.

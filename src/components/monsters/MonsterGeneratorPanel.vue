@@ -234,6 +234,7 @@ async function generateAndCreate() {
     image_url: result.image_url ?? null,
     portrait_focal_point: null,
     stat_block: result.stat_block,
+    ai_provenance: result.ai_provenance ?? null,
   });
 
   if (ui.monsterGeneratorOpen) {

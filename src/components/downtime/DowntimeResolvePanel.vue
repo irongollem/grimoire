@@ -10,6 +10,7 @@ import { useDowntimeGeneration } from "@/ai/useDowntimeGeneration";
 import { useAiCredits } from "@/composables/useAiCredits";
 import { useProviderConfig } from "@/composables/useProviderConfig";
 import { useCampaignStore } from "@/stores/campaign";
+import type { AiProvenance } from "@/ai/provenance";
 import type { DowntimeDeckBack, DowntimeDraw, DowntimeEffect, DrawResult } from "@/types/downtime.types";
 
 const { draw, memberName, backs } = defineProps<{
@@ -29,6 +30,9 @@ const title = ref("");
 const vignette = ref<string | null>(null);
 const effects = ref<DowntimeEffect[]>([]);
 const errorMessage = ref<string | null>(null);
+// Set only when `result` came from an AI draft (onDraft below) — a prepped or
+// system-deck seed never carries provenance, so this stays null for those.
+const draftProvenance = ref<AiProvenance | null>(null);
 
 onMounted(() => {
   const drawn = previewDraw(draw.activity_key, backs);
@@ -116,17 +120,18 @@ const creditLine = computed(() => {
 async function onDraft() {
   if (!activity.value) return;
   errorMessage.value = null;
-  const seed = await generate({
+  const draft = await generate({
     activity: activity.value,
     characterName: memberName,
     steer: steer.value.trim() || undefined,
   });
-  if (!seed) return; // the composable surfaced the reason in `draftError`
+  if (!draft) return; // the composable surfaced the reason in `draftError`
 
-  result.value = { source: "seed", seed };
-  title.value = seed.title;
-  vignette.value = markdownToTiptapJson(seed.vignette);
-  effects.value = seed.proposedEffects.map((e) => ({ ...e }));
+  result.value = { source: "seed", seed: draft.seed };
+  title.value = draft.seed.title;
+  vignette.value = markdownToTiptapJson(draft.seed.vignette);
+  effects.value = draft.seed.proposedEffects.map((e) => ({ ...e }));
+  draftProvenance.value = draft.ai_provenance ?? null;
 }
 
 const canResolve = computed(() => title.value.trim() !== "");
@@ -140,6 +145,7 @@ async function onResolve() {
       vignette: vignette.value,
       effects: effects.value,
       result: result.value,
+      ai_provenance: draftProvenance.value,
     });
     await applyEffects.mutateAsync({
       partyMemberId: draw.party_member_id,

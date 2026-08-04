@@ -271,6 +271,7 @@ async function generateAndCreate() {
     emblem_url:        result.image_url,
     player_visible_to: [],
     tags:              result.tags,
+    ai_provenance:     result.ai_provenance ?? null,
   });
 
   await Promise.all([

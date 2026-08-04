@@ -15,6 +15,9 @@ import {
 import { getImageProvider, OPENAI_IMAGE_MODEL_KEY } from "@/ai/providers";
 import { logUsage } from "@/composables/useAiCredits";
 import { waitForImageJob } from "@/ai/useImageJob";
+import { buildAiProvenance } from "@/ai/provenance";
+import { markGeneratedImageB64 } from "@edge-shared/provenance/mark.ts";
+import { sniffImageFormat } from "@edge-shared/provenance/sniff.ts";
 
 export type ImagePurpose =
   | "chronicler" | "group_portrait" | "npc_portrait" | "npc_disguise"
@@ -118,6 +121,27 @@ async function blobToBase64(blob: Blob): Promise<string> {
   return btoa(binary);
 }
 
+/**
+ * Marks a local (BYOK) generation result before it's ever uploaded — EU AI
+ * Act Art 50(2), write point B (context/compliance/provenance-architecture.md
+ * §5). This is the ONLY place these bytes are marked: `runLocal` never
+ * touches the server, so unlike the server-backed generators there is no
+ * edge function to do it first. The provider's true byte format is sniffed
+ * from the decoded bytes rather than assumed — OpenAI honors an explicit
+ * `output_format: "webp"`, but Gemini returns PNG and fal.ai returns JPEG,
+ * and marking with the wrong format-specific embedder silently no-ops.
+ */
+async function markLocalResult(
+  purpose: ImagePurpose,
+  b64: string,
+  usage: { provider: string; model: string },
+): Promise<string> {
+  const bytes = new Uint8Array(await b64ToBlob(b64).arrayBuffer());
+  const contentType = sniffImageFormat(bytes) ?? "image/webp";
+  const prov = buildAiProvenance(purpose, usage.provider, usage.model);
+  return markGeneratedImageB64(b64, contentType, prov);
+}
+
 async function uploadLocalResult(purpose: ImagePurpose, b64: string): Promise<{ url: string; userId: string }> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("You must be signed in to store generated art.");
@@ -181,7 +205,8 @@ async function runLocal(request: ImageGenerationRequest): Promise<string> {
   const { b64, usage } = references.some(Boolean) && provider.edit
     ? await provider.edit(references.filter((entry): entry is Blob => !!entry), prompt, request.size ?? config.size)
     : await provider.generate(prompt, request.size ?? config.size);
-  const { url, userId } = await uploadLocalResult(request.purpose, b64);
+  const markedB64 = await markLocalResult(request.purpose, b64, usage);
+  const { url, userId } = await uploadLocalResult(request.purpose, markedB64);
   if (request.purpose === "chronicler") {
     await recordLocalChroniclerImage({
       campaignId: request.campaignId,

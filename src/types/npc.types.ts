@@ -1,3 +1,5 @@
+import type { AiProvenance } from "@/ai/provenance";
+
 export type NpcStatus = "alive" | "dead" | "missing" | "unknown";
 export type NpcRelationship =
   | "hostile"
@@ -196,6 +198,7 @@ export interface Npc {
   scriptorium_doc_id: string | null; // links to a ScriptoriumDocument (e.g. stat block sheet)
   player_visible_to: string[]; // [] = hidden; uuid[] = visible to those party_member_ids
   player_visible_fields: string[]; // subset of: portrait | name | status | race | occupation | relationship | location
+  ai_provenance?: AiProvenance | null;
   created_at: string;
   updated_at: string;
 }

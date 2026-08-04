@@ -10,6 +10,10 @@ import { buildCampaignContext, b64ToBlob, wrapUserInput } from "./utils";
 import { startAiQuotes, stopAiQuotes } from "./aiGenerationState";
 import { logUsage } from "@/composables/useAiCredits";
 import { useImageGenerationLog, type ImageGenKind } from "@/composables/useImageGenerationLog";
+import { buildAiProvenance, type AiProvenance } from "@/ai/provenance";
+import { markGeneratedImage } from "@edge-shared/provenance/mark.ts";
+import { sniffImageFormat } from "@edge-shared/provenance/sniff.ts";
+import { readXmpFromWebp, readXmpFromPng, readXmpFromJpeg } from "@edge-shared/provenance/embed.ts";
 
 const LOCAL_MODE_KEY = "grimoire_key_local_mode";
 const IMAGE_SIZE = "1024x1536";
@@ -19,6 +23,22 @@ const CONTEXT_LIMIT = 2000;
 interface GenerateEntityImageResponse {
   image_b64: string | null;
   error?: string;
+}
+
+const EXT_BY_CONTENT_TYPE: Record<string, string> = {
+  "image/webp": "webp",
+  "image/png":  "png",
+  "image/jpeg": "jpeg",
+};
+
+/** Reads an XMP packet out of `bytes`, if any, for the sniffed `contentType`. Used to detect a server-marked round-trip so the local path never marks over it. */
+function readEmbeddedXmp(bytes: Uint8Array, contentType: string): string | null {
+  switch (contentType) {
+    case "image/webp": return readXmpFromWebp(bytes);
+    case "image/png":  return readXmpFromPng(bytes);
+    case "image/jpeg": return readXmpFromJpeg(bytes);
+    default:           return null;
+  }
 }
 
 export interface GenerateEntityImageOptions {
@@ -49,8 +69,24 @@ export function useEntityImageGeneration(bucketId: string) {
   const isGenerating = ref(false);
   const error = ref<string | null>(null);
 
-  async function uploadB64(b64: string): Promise<string | null> {
-    const file = new File([b64ToBlob(b64)], "ai-art.webp", { type: "image/webp" });
+  /**
+   * `localProv` is only ever passed by the local (BYOK) path — the server
+   * path's `image_b64` already carries an XMP mark embedded server-side
+   * (generate-entity-image, before the response leaves the edge function),
+   * so it's never re-marked here. The real content type is sniffed from the
+   * decoded bytes, never assumed to be webp — Gemini returns PNG, fal.ai
+   * returns JPEG, and marking with the wrong format-specific embedder would
+   * silently no-op.
+   */
+  async function uploadB64(b64: string, localProv: AiProvenance | null = null): Promise<string | null> {
+    const bytes = new Uint8Array(await b64ToBlob(b64).arrayBuffer());
+    const contentType = sniffImageFormat(bytes) ?? "image/webp";
+    const alreadyMarked = readEmbeddedXmp(bytes, contentType) !== null;
+    // Re-wrapped via the ArrayLike<number> constructor overload: mark.ts's
+    // markGeneratedImage has a bare `Uint8Array` return annotation, which
+    // widens to `Uint8Array<ArrayBufferLike>` — not assignable to `BlobPart`.
+    const finalBytes = new Uint8Array(localProv && !alreadyMarked ? markGeneratedImage(bytes, contentType, localProv) : bytes);
+    const file = new File([finalBytes], `ai-art.${EXT_BY_CONTENT_TYPE[contentType] ?? "webp"}`, { type: contentType });
     const url = await upload(file);
     if (!url) throw new Error("Failed to upload the generated image.");
     return url;
@@ -162,7 +198,8 @@ export function useEntityImageGeneration(bucketId: string) {
     const { b64, usage: imageUsage } = await imageProvider.generate(imagePrompt, IMAGE_SIZE);
     logUsage({ reason: "entity_image", imageUsage });
 
-    return await uploadB64(b64);
+    const prov = buildAiProvenance(options.kind, imageUsage.provider, imageUsage.model);
+    return await uploadB64(b64, prov);
   }
 
   return { isGenerating, error, generate };

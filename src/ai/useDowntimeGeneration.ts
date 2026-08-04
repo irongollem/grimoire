@@ -9,6 +9,7 @@ import { logUsage } from "@/composables/useAiCredits";
 import { useCampaignStore } from "@/stores/campaign";
 import { useRuleset } from "@/composables/useRuleset";
 import { seedFromAiResult } from "@/lib/downtime/downtimeAiSeed";
+import { buildAiProvenance, type AiProvenance } from "@/ai/provenance";
 import type { DowntimeActivity, DowntimeSeed } from "@/types/downtime.types";
 
 /**
@@ -50,11 +51,18 @@ export interface DowntimeDraftArgs {
   steer?: string;
 }
 
+/** What `generate()` resolves to — the drafted seed plus (when available) the
+ *  provenance record for whoever resolves the draw and saves the outcome. */
+export interface DowntimeDraftResult {
+  seed: DowntimeSeed;
+  ai_provenance?: AiProvenance;
+}
+
 export function useDowntimeGeneration() {
   const campaign = useCampaignStore();
   const { ruleset } = useRuleset();
 
-  async function generate(args: DowntimeDraftArgs): Promise<DowntimeSeed | null> {
+  async function generate(args: DowntimeDraftArgs): Promise<DowntimeDraftResult | null> {
     if (isAnyAiGenerating.value) return null;
     _state.isGenerating.value = true;
     _state.error.value = null;
@@ -79,7 +87,9 @@ export function useDowntimeGeneration() {
 
       // The airlock: anything the model invented that we can't honour is dropped
       // here, and a genuinely unusable draft throws with a message the DM reads.
-      return seedFromAiResult(raw, args.activity.key, args.activity.rewardType);
+      const seed = seedFromAiResult(raw, args.activity.key, args.activity.rewardType);
+      const ai_provenance = (raw as { ai_provenance?: AiProvenance } | null)?.ai_provenance;
+      return { seed, ai_provenance };
     } catch (e) {
       _state.error.value = e instanceof Error ? e.message : "Drafting failed";
       return null;
@@ -131,7 +141,9 @@ export function useDowntimeGeneration() {
 
     const { content, usage: textUsage } = await textProvider.complete(systemContent, userContent);
     logUsage({ reason: "downtime_generation", textUsage });
-    return JSON.parse(content);
+    const raw = JSON.parse(content) as Record<string, unknown>;
+    raw.ai_provenance = buildAiProvenance("downtime_generation", textUsage.provider, textUsage.model);
+    return raw;
   }
 
   return { ..._state, generate };

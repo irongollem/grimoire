@@ -294,6 +294,7 @@ async function generateAndCreate() {
     image_focal_point: null,
     curse_description: result.curse_description ?? null,
     is_arcane_focus: false,
+    ai_provenance: result.ai_provenance ?? null,
   });
 
   if (ui.itemGeneratorOpen) {

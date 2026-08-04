@@ -451,6 +451,7 @@ async function createEncounterFromResult() {
       is_finished: false,
       lair_enabled: false,
       lair_owner_def_id: null,
+      ai_provenance: result.value.ai_provenance ?? null,
     });
     createdEncounterId.value = encounter.id;
     completedEntityId.value = encounter.id;

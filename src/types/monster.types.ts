@@ -1,5 +1,6 @@
 import type { SpellcastingBlock } from "@/types/npc.types";
 import type { VersionedContentMetadata } from "@/types/content.types";
+import type { AiProvenance } from "@/ai/provenance";
 
 export type MonsterType =
   | "aberration"
@@ -70,6 +71,7 @@ export interface Monster extends VersionedContentMetadata {
   notes: string | null;
   image_url: string | null;    // portrait / profile image (tall)
   portrait_focal_point?: { x: number; y: number } | null;
+  ai_provenance?: AiProvenance | null;
   created_at: string;
   updated_at: string;
   is_shared?: boolean;            // true for read-only shared library_monsters rows, whatever the publisher

@@ -132,6 +132,7 @@ import {
   CHRONICLER_TONES,
   type ChroniclerTone,
 } from "@/ai/useChroniclerTextGeneration";
+import type { AiProvenance } from "@/ai/provenance";
 import { useEntityMentionItems } from "@/composables/useEntityMentionItems";
 import { markdownToTiptapJson } from "@/lib/tiptap/markdownToTiptap";
 import { useCampaignStore } from "@/stores/campaign";
@@ -151,13 +152,14 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{
   close: [];
-  insert: [markdown: string];
+  insert: [markdown: string, aiProvenance: AiProvenance | null];
 }>();
 
 const rawText          = ref("");
 const tone             = ref<ChroniclerTone>("dramatic");
 const rawGeneratedMd   = ref<string | null>(null); // AI output before preprocessing
 const previewMarkdown  = ref<string | null>(null); // preprocessed for RichTextViewer
+const aiProvenance     = ref<AiProvenance | null>(null);
 const error            = ref("");
 
 const { isGenerating, generate: generateChronicle } = useChroniclerTextGeneration();
@@ -177,6 +179,7 @@ watch(() => props.visible, (v) => {
     rawText.value        = "";
     rawGeneratedMd.value = null;
     previewMarkdown.value = null;
+    aiProvenance.value   = null;
     error.value          = "";
   }
 });
@@ -190,7 +193,7 @@ async function generate() {
   if (!rawText.value.trim()) return;
   error.value = "";
   try {
-    const raw = await generateChronicle({
+    const result = await generateChronicle({
       rawText: rawText.value,
       tone: tone.value,
       npcs: npcs.value,
@@ -198,8 +201,9 @@ async function generate() {
       partyMembers: partyMembers.value,
       excludeNoteId: props.noteId ?? undefined,
     });
-    rawGeneratedMd.value  = raw;
-    previewMarkdown.value = preprocessChronicleMarkdown(raw);
+    rawGeneratedMd.value  = result.chronicle;
+    previewMarkdown.value = preprocessChronicleMarkdown(result.chronicle);
+    aiProvenance.value    = result.ai_provenance ?? null;
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Generation failed.";
   }
@@ -208,12 +212,13 @@ async function generate() {
 function resetToInput() {
   rawGeneratedMd.value  = null;
   previewMarkdown.value = null;
+  aiProvenance.value    = null;
   error.value = "";
 }
 
 function insertChronicle() {
   if (!rawGeneratedMd.value) return;
-  emit("insert", rawGeneratedMd.value);
+  emit("insert", rawGeneratedMd.value, aiProvenance.value);
   emit("close");
 }
 </script>

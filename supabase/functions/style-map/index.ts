@@ -9,6 +9,8 @@ import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { generateImage, resolveImageProvider } from "../_shared/imageGen.ts";
 import { withCors } from "../_shared/cors.ts";
 import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
+import { markGeneratedImageB64 } from "../_shared/provenance/mark.ts";
+import type { AiProvenance } from "../_shared/provenance/types.ts";
 
 // ~9 MB binary once base64-decoded — caps the client-supplied source map image.
 const MAX_SOURCE_IMAGE_B64_CHARS = 12_000_000;
@@ -174,8 +176,6 @@ serve(withCors(async (req: Request) => {
     );
   }
 
-  const result_b64 = imgResult.b64;
-
   await releaseCredits(admin, reservation.ids);
   await recordGeneration(admin, user.id, "map_style_generation", isByok, cost, {
     model: img.model,
@@ -186,8 +186,19 @@ serve(withCors(async (req: Request) => {
     output_tokens:      imgResult.usage.output_tokens      || undefined,
   });
 
+  // EU AI Act Art 50(2) — mark before the bytes leave this pipeline. This
+  // endpoint has no server-side upload (the client uploads image_b64), so
+  // the response is the last point the resolved provider/model are known.
+  const prov: AiProvenance = {
+    generatorType: "map_style",
+    provider: imgResult.usage.provider,
+    model: img.model,
+    generatedAt: new Date().toISOString(),
+    edited: false,
+  };
+
   return new Response(
-    JSON.stringify({ image_b64: result_b64 }),
+    JSON.stringify({ image_b64: markGeneratedImageB64(imgResult.b64, imgResult.contentType, prov) }),
     { headers: { "Content-Type": "application/json" } },
   );
 }));

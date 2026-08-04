@@ -30,6 +30,8 @@ import {
 } from "../_shared/image-prompt.ts";
 import { withCors } from "../_shared/cors.ts";
 import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
+import { markGeneratedImageB64 } from "../_shared/provenance/mark.ts";
+import type { AiProvenance } from "../_shared/provenance/types.ts";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -447,7 +449,7 @@ serve(withCors(async (req: Request) => {
     });
 
     try {
-      const { b64, usage } = await generateImage({
+      const { b64, contentType, usage } = await generateImage({
         provider: img.provider,
         model: img.model,
         apiKey: img.apiKey,
@@ -456,12 +458,22 @@ serve(withCors(async (req: Request) => {
         quality: img.imageQuality,
         boostStyle: true,
       });
-      portrait_b64 = b64;
       totalImageCount++;
       imgResultProvider = usage.provider;
       imgInputTokens += usage.input_tokens ?? 0;
       imgInputImageTokens += usage.input_image_tokens ?? 0;
       imgOutputTokens += usage.output_tokens ?? 0;
+      // EU AI Act Art 50(2) — mark before the bytes leave this pipeline. No
+      // server-side upload here (the client uploads portrait_b64), so the
+      // response is the last point the resolved provider/model are known.
+      const prov: AiProvenance = {
+        generatorType: "npc_portrait",
+        provider: usage.provider,
+        model: img.model,
+        generatedAt: new Date().toISOString(),
+        edited: false,
+      };
+      portrait_b64 = markGeneratedImageB64(b64, contentType, prov);
     } catch (e) {
       console.error("Portrait generation failed:", e);
       // non-fatal — continue without portrait
@@ -480,7 +492,7 @@ serve(withCors(async (req: Request) => {
           c.charCodeAt(0),
         );
         const seedBlob = new Blob([seedBytes], { type: "image/webp" });
-        const { b64, usage } = await generateImage({
+        const { b64, contentType, usage } = await generateImage({
           provider: img.provider,
           model: img.model,
           apiKey: img.apiKey,
@@ -490,12 +502,20 @@ serve(withCors(async (req: Request) => {
           boostStyle: true,
           sourceImages: [seedBlob],
         });
-        disguise_portrait_b64 = b64;
         totalImageCount++;
         imgResultProvider = usage.provider;
         imgInputTokens += usage.input_tokens ?? 0;
         imgInputImageTokens += usage.input_image_tokens ?? 0;
         imgOutputTokens += usage.output_tokens ?? 0;
+        // EU AI Act Art 50(2) — mark before the bytes leave this pipeline.
+        const disguiseProv: AiProvenance = {
+          generatorType: "npc_disguise",
+          provider: usage.provider,
+          model: img.model,
+          generatedAt: new Date().toISOString(),
+          edited: false,
+        };
+        disguise_portrait_b64 = markGeneratedImageB64(b64, contentType, disguiseProv);
       } catch (e) {
         console.error("Disguise portrait generation failed (non-fatal):", e);
       }
@@ -534,9 +554,17 @@ serve(withCors(async (req: Request) => {
   }
   await Promise.allSettled(recordPromises);
 
+  const ai_provenance: AiProvenance = {
+    generatorType: "npc_text",
+    provider: textResult.usage.provider,
+    model: textResult.usage.model,
+    generatedAt: new Date().toISOString(),
+    edited: false,
+  };
+
   // ── Return result ───────────────────────────────────────────────────────────
   return new Response(
-    JSON.stringify({ ...npcData, portrait_b64, disguise_portrait_b64 }),
+    JSON.stringify({ ...npcData, portrait_b64, disguise_portrait_b64, ai_provenance }),
     { headers: { "Content-Type": "application/json" } },
   );
 }));

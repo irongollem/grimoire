@@ -43,6 +43,8 @@ import { withCors } from "../_shared/cors.ts";
 import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
 import { isSafeStorageUrl } from "../_shared/storage-url.ts";
 import { uploadWithRetry, fetchBytes } from "../_shared/storage-upload.ts";
+import { markGeneratedImage } from "../_shared/provenance/mark.ts";
+import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { canStylize, canSculpt, canResculpt, meshyParamsForFormat, type MiniStatusB } from "../_shared/simulacrum.ts";
 import { createImageTo3dTask, resolveMeshyKey } from "../_shared/mesh3d.ts";
 import { getMiniBase, BASE_STORAGE_PREFIX } from "../_shared/mini-bases.ts";
@@ -112,10 +114,22 @@ async function isLiveMode(): Promise<boolean> {
 
 // ── Storage upload ───────────────────────────────────────────────────────────
 
-async function uploadStyleImage(b64: string, userId: string, miniId: string): Promise<string> {
+async function uploadStyleImage(
+  b64: string,
+  contentType: string,
+  userId: string,
+  miniId: string,
+  provider: string,
+  model: string,
+): Promise<string> {
   const bin = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
   const path = `${userId}/${miniId}/style.webp`;
-  await uploadWithRetry(admin, "mini-models", path, bin, "image/webp");
+  // EU AI Act Art 50(2) — mark before upload, using the provider's true byte
+  // format (contentType), not the ".webp" this pipeline requests but doesn't
+  // always get back (see imageGen.ts's ImageGenResult.contentType).
+  const prov: AiProvenance = { generatorType: "mini_style", provider, model, generatedAt: new Date().toISOString(), edited: false };
+  const marked = markGeneratedImage(bin, contentType, prov);
+  await uploadWithRetry(admin, "mini-models", path, marked, "image/webp");
   const { data } = admin.storage.from("mini-models").getPublicUrl(path);
   return data.publicUrl;
 }
@@ -159,11 +173,11 @@ async function runStylize(args: {
     // boostStyle is deliberately OFF here (unlike scene/portrait generators):
     // its dramatic-lighting/chiaroscuro push fights the flat, evenly-lit,
     // plain-background render every mini format requires.
-    const { b64, usage } = await generateImage({
+    const { b64, contentType, usage } = await generateImage({
       provider, model, apiKey, prompt, size: "1024x1024", quality, boostStyle: false, sourceImages,
     });
 
-    const imageUrl = await uploadStyleImage(b64, userId, miniId);
+    const imageUrl = await uploadStyleImage(b64, contentType, userId, miniId, usage.provider, model);
     // Flip the mini BEFORE completing the image job: completeImageJob is the
     // client's unblock signal, and the post-wait refetch must never observe
     // status still "stylizing" (it would offer a sculpt the backend 409s).

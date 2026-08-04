@@ -21,6 +21,7 @@ import {
   generateImage,
   type ImageGenerationContext,
 } from "@/ai/useImageGeneration";
+import { buildAiProvenance } from "@/ai/provenance";
 
 // ── Module-level singleton state ────────────────────────────────────────────
 const _state = createAiGenerationState();
@@ -141,6 +142,7 @@ export function useNpcGeneration() {
     logUsage({ reason: "npc_generation", textUsage });
 
     const npcData = JSON.parse(content) as NpcAiResult;
+    npcData.ai_provenance = buildAiProvenance("npc_text", textUsage.provider, textUsage.model);
 
     if (
       options?.generateAlterEgo &&

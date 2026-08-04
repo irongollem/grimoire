@@ -1,4 +1,5 @@
 import type { RulesetKey } from "@/types/ruleset.types";
+import type { AiProvenance } from "@/ai/provenance";
 
 export const SPELL_SCHOOLS = [
   "abjuration",
@@ -245,6 +246,7 @@ export interface Spell {
   mechanics_reviewed?: boolean;
   image_url: string | null; // optional art for card printing
   image_focal_point?: { x: number; y: number } | null;
+  ai_provenance?: AiProvenance | null;
   created_at: string;
   updated_at: string;
 }

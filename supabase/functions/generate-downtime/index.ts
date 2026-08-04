@@ -27,6 +27,7 @@ import {
 } from "../_shared/ai-prompt.ts";
 import { withCors } from "../_shared/cors.ts";
 import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
+import type { AiProvenance } from "../_shared/provenance/types.ts";
 
 /**
  * Drafts the outcome of one downtime draw (#486, Phase 3).
@@ -329,9 +330,9 @@ serve(withCors(async (req: Request) => {
     );
   }
 
-  let outcome: unknown;
+  let outcome: Record<string, unknown>;
   try {
-    outcome = JSON.parse(textResult.content);
+    outcome = JSON.parse(textResult.content) as Record<string, unknown>;
   } catch {
     await releaseCredits(admin, reservation.ids);
     return new Response(
@@ -347,8 +348,16 @@ serve(withCors(async (req: Request) => {
     input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
   });
 
+  const ai_provenance: AiProvenance = {
+    generatorType: "downtime_generation",
+    provider: textResult.usage.provider,
+    model: textResult.usage.model,
+    generatedAt: new Date().toISOString(),
+    edited: false,
+  };
+
   return new Response(
-    JSON.stringify(outcome),
+    JSON.stringify({ ...outcome, ai_provenance }),
     { headers: { "Content-Type": "application/json" } },
   );
 }));

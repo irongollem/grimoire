@@ -236,6 +236,7 @@ async function generateAndCreate() {
     is_shared:           false,
     shared_hints:        [],
     read_aloud:          null,
+    ai_provenance:       result.ai_provenance ?? null,
   });
 
   completedEntityId.value = puzzle.id;

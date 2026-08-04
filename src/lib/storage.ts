@@ -22,6 +22,8 @@
 
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { resizeToWebP } from "@/lib/mediaConvert";
+import { sniffImageFormat } from "@edge-shared/provenance/sniff.ts";
+import { readXmpFromWebp, readXmpFromPng, readXmpFromJpeg, embedXmpInWebp } from "@edge-shared/provenance/embed.ts";
 
 // ── Config ───────────────────────────────────────────────────────────────
 
@@ -276,12 +278,59 @@ export interface UploadWithVariantsParams {
 }
 
 /**
+ * Reads an XMP packet out of `blob`'s bytes, if any — format is sniffed from
+ * magic bytes (never `blob.type`, which b64-derived AI-generated blobs
+ * routinely mislabel; see `sniffImageFormat`'s own doc). Returns null for an
+ * unrecognised format, no embedded packet, or a parse failure — the read
+ * functions already treat all three as "nothing to report."
+ */
+export async function readEmbeddedXmp(blob: Blob): Promise<string | null> {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  switch (sniffImageFormat(bytes)) {
+    case "image/webp": return readXmpFromWebp(bytes);
+    case "image/png":  return readXmpFromPng(bytes);
+    case "image/jpeg": return readXmpFromJpeg(bytes);
+    default:           return null;
+  }
+}
+
+/**
+ * Re-embeds `xmpPacket` (as read from the original via `readEmbeddedXmp`)
+ * into a freshly-resized variant blob. `resizeToWebP` always canvas-encodes
+ * its output — canvas never preserves embedded metadata — so a variant of a
+ * marked original otherwise silently loses the mark. Variants are always
+ * webp regardless of the original's format (`resizeToWebP`'s own contract),
+ * so `embedXmpInWebp` is always the right embedder here. A null `xmpPacket`
+ * (nothing to inherit — e.g. a plain user photo upload) leaves the variant
+ * untouched; a malformed variant blob (shouldn't happen — see above) falls
+ * back to the unmarked variant rather than failing the upload.
+ */
+export async function inheritXmpIntoVariant(variantBlob: Blob, xmpPacket: string | null): Promise<Blob> {
+  if (!xmpPacket) return variantBlob;
+  try {
+    const bytes = new Uint8Array(await variantBlob.arrayBuffer());
+    // Re-wrapped in a fresh Uint8Array: embed.ts's bare `Uint8Array` return
+    // annotation widens to `Uint8Array<ArrayBufferLike>`, which BlobPart
+    // rejects — the ArrayLike<number> constructor overload always yields
+    // an ArrayBuffer-backed array regardless of the source's type parameter.
+    return new Blob([new Uint8Array(embedXmpInWebp(bytes, xmpPacket))], { type: variantBlob.type });
+  } catch {
+    return variantBlob;
+  }
+}
+
+/**
  * Upload an image and pre-generate all 4 size variants in parallel.
  *
  * The original is stored at the canonical path (returned as the public URL and
  * saved in the DB). Variants are stored alongside it at e.g. `{uuid}_w400.webp`.
  * Variant upload failures are non-fatal — FocalImage falls back to the original
  * via @error.
+ *
+ * If the original carries an XMP provenance packet (EU AI Act Art 50(2) —
+ * AI-generated originals are marked before they ever reach this function),
+ * every variant inherits the same packet — otherwise only the original stays
+ * disclosed and every resized copy silently loses the mark.
  */
 export async function uploadWithVariants({
   bucket,
@@ -292,12 +341,16 @@ export async function uploadWithVariants({
   const ext = blob.type === "image/jpeg" ? "jpeg" : "webp";
   const originalPath = `${folderPrefix ?? userId}/${crypto.randomUUID()}.${ext}`;
 
-  const originalUrl = await uploadToBucket({ bucket, blob, path: originalPath, contentType: blob.type });
+  const [originalUrl, xmpPacket] = await Promise.all([
+    uploadToBucket({ bucket, blob, path: originalPath, contentType: blob.type }),
+    readEmbeddedXmp(blob),
+  ]);
   if (!originalUrl) return null;
 
   await Promise.allSettled(
     VARIANT_WIDTHS.map(async (width) => {
-      const variantBlob = await resizeToWebP(blob, width, 0.8);
+      const resized = await resizeToWebP(blob, width, 0.8);
+      const variantBlob = await inheritXmpIntoVariant(resized, xmpPacket);
       await uploadToBucket({ bucket, blob: variantBlob, path: variantPath(originalPath, width) });
     }),
   );
@@ -390,6 +443,8 @@ export async function backfillVariants(originalUrl: string): Promise<void> {
       return;
     }
     const blob = await resp.blob();
+    // Same original → every variant should carry the same disclosure mark, if any.
+    const xmpPacket = await readEmbeddedXmp(blob);
 
     // Generate and upload all variants. Do NOT upsert — several image buckets
     // (asset-images in particular) have no UPDATE storage policy, and
@@ -399,7 +454,8 @@ export async function backfillVariants(originalUrl: string): Promise<void> {
     const bucket = bucketKey;
     const results = await Promise.allSettled(
       VARIANT_WIDTHS.map(async (width) => {
-        const variantBlob = await resizeToWebP(blob, width, 0.8);
+        const resized = await resizeToWebP(blob, width, 0.8);
+        const variantBlob = await inheritXmpIntoVariant(resized, xmpPacket);
         const url = await uploadToBucket({ bucket, blob: variantBlob, path: variantPath(path, width) });
         if (!url) throw new Error(`upload returned null for width ${width}`);
       }),

@@ -29,6 +29,7 @@ import {
   EmbeddingProviderConfigError,
 } from "../_shared/embeddings.ts";
 import { retrieveCampaignEntities, formatEntityBlock } from "../_shared/campaignEntityRetrieval.ts";
+import type { AiProvenance } from "../_shared/provenance/types.ts";
 
 /**
  * Retrieval-grounded Chronicler recap generator (#600, third grounded
@@ -491,8 +492,16 @@ serve(withCors(async (req: Request) => {
     if (parsed && typeof parsed.chronicle === "string") chronicle = parsed.chronicle;
   } catch { /* plain markdown — use as-is */ }
 
+  const ai_provenance: AiProvenance = {
+    generatorType: "chronicle_text",
+    provider: textResult.usage.provider,
+    model: textResult.usage.model,
+    generatedAt: new Date().toISOString(),
+    edited: false,
+  };
+
   return new Response(
-    JSON.stringify({ chronicle }),
+    JSON.stringify({ chronicle, ai_provenance }),
     { headers: { ...cors, "Content-Type": "application/json" } },
   );
 }));

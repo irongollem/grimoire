@@ -16,6 +16,7 @@ import { wrapUserInput } from "./utils";
 import { logUsage } from "@/composables/useAiCredits";
 import type { TextUsage } from "./providers/types";
 import { captureImageGenerationContext, generateImage } from "./useImageGeneration";
+import { buildAiProvenance } from "@/ai/provenance";
 
 // ── Module-level singleton state ────────────────────────────────────────────
 const _state = createAiGenerationState();
@@ -87,6 +88,7 @@ export function usePuzzleGeneration() {
       const { content, usage: _textUsage } = await textProvider.complete(systemContent, userContent);
       textUsage = _textUsage;
       const puzzleData = JSON.parse(content) as PuzzleAiResult;
+      puzzleData.ai_provenance = buildAiProvenance("puzzle_generation", _textUsage.provider, _textUsage.model);
 
       // ── 2. Generate room illustration ─────────────────────────────────
       let image_url: string | null = null;

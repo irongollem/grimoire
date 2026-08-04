@@ -27,6 +27,7 @@ import {
   EmbeddingProviderConfigError,
 } from "../_shared/embeddings.ts";
 import { recordFreeGeneration } from "../_shared/credits.ts";
+import type { AiProvenance } from "../_shared/provenance/types.ts";
 
 /**
  * Party-aware AI encounter suggester (#337).
@@ -534,8 +535,16 @@ serve(withCors(async (req: Request) => {
     input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
   });
 
+  const ai_provenance: AiProvenance = {
+    generatorType: "encounter_generation",
+    provider: textResult.usage.provider,
+    model: textResult.usage.model,
+    generatedAt: new Date().toISOString(),
+    edited: false,
+  };
+
   return new Response(
-    JSON.stringify(encounterData),
+    JSON.stringify({ ...encounterData, ai_provenance }),
     { headers: { "Content-Type": "application/json" } },
   );
 }));

@@ -1,3 +1,5 @@
+import type { AiProvenance } from "@/ai/provenance";
+
 export const TRAP_TYPES = ["Mechanical", "Magical", "Hybrid", "Environmental"] as const;
 export type TrapType = typeof TRAP_TYPES[number];
 
@@ -61,6 +63,7 @@ export interface Trap {
   image_focal_point: { x: number; y: number } | null;
   tags: string[];
   notes: string | null;
+  ai_provenance?: AiProvenance | null;
   created_at: string;
   updated_at: string;
 }

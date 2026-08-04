@@ -274,6 +274,7 @@ async function generateAndCreate() {
     tags:               result.tags,
     image_url:          result.image_url,
     image_focal_point:  null,
+    ai_provenance:      result.ai_provenance ?? null,
   });
 
   // Log the generated illustration to the Gallery, linked back to the new trap.

@@ -9,6 +9,8 @@
 // table — most tables have 4–20 entries, JSONB keeps reordering/batch edits
 // a single update, and we don't need to query into individual entries.
 
+import type { AiProvenance } from "@/ai/provenance";
+
 export const ROLL_TABLE_DICE = ["1d4", "1d6", "1d8", "1d10", "1d12", "1d20", "1d100"] as const;
 export type RollTableDie = (typeof ROLL_TABLE_DICE)[number];
 
@@ -51,6 +53,7 @@ export interface RollTable {
   entries: RollTableEntry[];
   tags: string[];
   notes: string | null;
+  ai_provenance?: AiProvenance | null;
   created_at: string;
   updated_at: string;
 }

@@ -308,6 +308,7 @@ function onAiGenerated(result: NpcAiGenerated) {
   if (result.disguise_name) {
     form.disguise_name = result.disguise_name
   }
+  form.ai_provenance = result.ai_provenance ?? null
   // Jump to Lore tab so the DM can see the filled fields
   activeTab.value = 'lore'
 }
@@ -432,6 +433,7 @@ const form = reactive<NpcInsert>({
   portrait_focal_point: props.npc?.portrait_focal_point ?? null,
   player_visible_fields: [...(props.npc?.player_visible_fields ?? [])],
   player_visible_to: props.npc?.player_visible_to ?? [],
+  ai_provenance: props.npc?.ai_provenance ?? null,
 })
 
 const aiContext = computed(() =>

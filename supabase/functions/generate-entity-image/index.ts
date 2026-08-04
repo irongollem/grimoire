@@ -17,6 +17,8 @@ import {
 import { buildImagePromptAuthorSystem, buildSimpleImagePrompt } from "../_shared/image-prompt.ts";
 import { withCors } from "../_shared/cors.ts";
 import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
+import { markGeneratedImageB64 } from "../_shared/provenance/mark.ts";
+import type { AiProvenance } from "../_shared/provenance/types.ts";
 
 // Entity portraits always render portrait-orientation.
 const ENTITY_IMAGE_SIZE = "1024x1536";
@@ -291,8 +293,19 @@ serve(withCors(async (req: Request) => {
     input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
   }).catch(console.error);
 
+  // EU AI Act Art 50(2) — mark before the bytes leave this pipeline. This
+  // endpoint has no server-side upload (the client uploads image_b64), so
+  // the response is the last point the resolved provider/model are known.
+  const prov: AiProvenance = {
+    generatorType: kind,
+    provider: imgResult.usage.provider,
+    model: img.model,
+    generatedAt: new Date().toISOString(),
+    edited: false,
+  };
+
   return new Response(
-    JSON.stringify({ image_b64: imgResult.b64 }),
+    JSON.stringify({ image_b64: markGeneratedImageB64(imgResult.b64, imgResult.contentType, prov) }),
     { headers: { "Content-Type": "application/json" } },
   );
 }));

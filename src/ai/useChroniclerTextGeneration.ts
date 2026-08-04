@@ -11,6 +11,7 @@ import type { PartyMember } from "@/types/party.types";
 import { logUsage } from "@/composables/useAiCredits";
 import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
 import { useRuleset } from "@/composables/useRuleset";
+import { buildAiProvenance, type AiProvenance } from "@/ai/provenance";
 
 export type ChroniclerTone = "dramatic" | "humorous" | "mysterious" | "epic";
 
@@ -45,6 +46,13 @@ export function preprocessChronicleMarkdown(md: string): string {
   );
 }
 
+/** What `generate()` resolves to — the recap markdown plus (when available)
+ *  the provenance record for whoever ends up saving it into a note. */
+export interface ChroniclerTextResult {
+  chronicle: string;
+  ai_provenance?: AiProvenance;
+}
+
 export function useChroniclerTextGeneration() {
   const isGenerating = ref(false);
   const error = ref<string | null>(null);
@@ -61,7 +69,7 @@ export function useChroniclerTextGeneration() {
      *  unsaved note). Forwarded to the server so retrieval never returns the
      *  very note the recap is about to be written into (#600). */
     excludeNoteId?: string;
-  }): Promise<string> {
+  }): Promise<ChroniclerTextResult> {
     const { rawText, tone, npcs, monsters, partyMembers, excludeNoteId } = params;
     const entities = parseSceneEntities(rawText, npcs, monsters, partyMembers);
     const settingPrompt = campaign.activeCampaign?.ai_setting_prompt ?? "No setting configured.";
@@ -100,7 +108,7 @@ export function useChroniclerTextGeneration() {
     entities: ResolvedEntity[];
     campaignId: string;
     excludeNoteId?: string;
-  }): Promise<string> {
+  }): Promise<ChroniclerTextResult> {
     const { rawText, tone, entities, campaignId, excludeNoteId } = params;
 
     const tone_instruction = TONE_INSTRUCTIONS[tone];
@@ -120,7 +128,8 @@ export function useChroniclerTextGeneration() {
 
     if (fnError) throw new Error(await edgeErrorMessage(fnError));
     if (data?.error) throw new Error(data.error);
-    return (data as { chronicle: string }).chronicle;
+    const body = data as { chronicle: string; ai_provenance?: AiProvenance };
+    return { chronicle: body.chronicle, ai_provenance: body.ai_provenance };
   }
 
   async function generateClientSide(params: {
@@ -128,7 +137,7 @@ export function useChroniclerTextGeneration() {
     tone: ChroniclerTone;
     entities: ResolvedEntity[];
     settingPrompt: string;
-  }): Promise<string> {
+  }): Promise<ChroniclerTextResult> {
     const { rawText, tone, entities, settingPrompt } = params;
 
     // The local (BYOK) path can't retrieve the DM's notes -- that's a DB read
@@ -154,14 +163,15 @@ export function useChroniclerTextGeneration() {
     const provider = getTextProvider();
     const { content, usage: textUsage } = await provider.complete(systemPrompt, wrapUserInput(rawText));
     logUsage({ reason: "chronicler_text", textUsage });
+    const ai_provenance = buildAiProvenance("chronicle_text", textUsage.provider, textUsage.model);
     // Plain markdown since the JSON wrapper was dropped (an unescaped quote in
     // the narrative could legally terminate the JSON string and silently
     // truncate the chronicle); tolerate the legacy wrapper if a model emits it.
     try {
       const parsed = JSON.parse(content) as { chronicle?: string };
-      if (parsed && typeof parsed.chronicle === "string") return parsed.chronicle;
+      if (parsed && typeof parsed.chronicle === "string") return { chronicle: parsed.chronicle, ai_provenance };
     } catch { /* plain markdown — use as-is */ }
-    return content;
+    return { chronicle: content, ai_provenance };
   }
 
   return { isGenerating, error, generate };
