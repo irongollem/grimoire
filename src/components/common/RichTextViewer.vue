@@ -46,6 +46,7 @@ import { createEntityMentionExtension } from "@/lib/tiptap/EntityMention";
 import { IllustrationSuggestion } from "@/lib/tiptap/IllustrationSuggestion";
 import { PendingImage } from "@/lib/tiptap/PendingImage";
 import { AiGenerated } from "@/lib/tiptap/AiGenerated";
+import { usePendingImageResolver } from "@/composables/usePendingImageResolver";
 
 const EntityMentionViewer = createEntityMentionExtension({});
 
@@ -92,11 +93,22 @@ const editor = useEditor({
   ],
 });
 
+// Chronicle-image anchors resolve here too, not only in the editor: a note
+// saved while its render job was still in flight keeps the anchor in its
+// persisted content, and the read-only view swaps it for the finished image
+// in-memory the moment the job settles (persistence stays edit-save's job —
+// ready job rows survive as the gallery, so nothing is lost by not writing).
+const pendingImageResolver = usePendingImageResolver(() => editor.value);
+watch(editor, (e) => { if (e) pendingImageResolver.scan(); }, { immediate: true });
+
 watch(
   () => props.content,
   (v) => {
     const parsed = parseContent(v);
-    if (editor.value && parsed) editor.value.commands.setContent(parsed);
+    if (editor.value && parsed) {
+      editor.value.commands.setContent(parsed);
+      pendingImageResolver.scan();
+    }
   },
 );
 

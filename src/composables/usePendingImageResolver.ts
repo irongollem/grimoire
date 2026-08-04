@@ -15,8 +15,16 @@
  * `scan()` is idempotent and safe to call on every editor update — a
  * module-level set tracks jobIds already being resolved so re-scanning
  * mid-flight doesn't start a second wait for the same job.
+ *
+ * Instances are wired into both RichTextEditor and the read-only
+ * RichTextViewer, so an anchor can be waited on by one instance while its
+ * document is open in another (view a note → click Edit mid-wait). When a
+ * job settles, every live instance is asked to re-scan: the instance whose
+ * editor still holds the anchor re-tracks the now-settled job and resolves
+ * it immediately, so the handoff never strands an anchor as "pending".
  */
 
+import { getCurrentScope, onScopeDispose } from "vue";
 import type { Editor } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { findPendingImages } from "@/lib/pendingImages";
@@ -27,6 +35,14 @@ import { useToast } from "@/composables/useToast";
 // Module-level so multiple resolver instances (or repeated scan() calls)
 // never race to resolve the same job twice.
 const trackedJobIds = new Set<string>();
+
+// Live instances' scan functions, notified when any job settles so the
+// instance that still holds the anchor picks the result up (see header).
+const liveScanners = new Set<() => void>();
+
+function notifyScanners(): void {
+  for (const scanFn of liveScanners) scanFn();
+}
 
 interface PendingImageNodeMatch {
   pos: number;
@@ -111,6 +127,12 @@ async function resolveOne(
     handleFailure(getEditor, jobId, e);
   } finally {
     trackedJobIds.delete(jobId);
+    // The anchor may live in a different instance's document by now (e.g.
+    // the wait started in the read-only viewer and the user opened the
+    // editor mid-wait). Their re-scan re-tracks the settled job and gets an
+    // immediate answer. Termination: a resolved anchor is gone from the doc,
+    // and findPendingImages skips status "failed", so re-scans converge.
+    notifyScanners();
   }
 }
 
@@ -130,6 +152,9 @@ export function usePendingImageResolver(
       void resolveOne(getEditor, jobId);
     }
   }
+
+  liveScanners.add(scan);
+  if (getCurrentScope()) onScopeDispose(() => liveScanners.delete(scan));
 
   return { scan };
 }
