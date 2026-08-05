@@ -28,11 +28,12 @@ export const CDN_BUCKET_IDS = [
   "loot-images",
   "sound-images",
   "chronicle",
+  "sounds",
 ] as const;
 
-// Excluded on purpose, with the reasons recorded at the bucket in
-// src/lib/storage.ts: `sounds` (bulk non-HTML through a proxied zone) and
-// `mini-models` (goes straight to R2 in stage 2). `bug-reports` and
+// Excluded on purpose, with the reason recorded at the bucket in
+// src/lib/storage.ts: `mini-models` (genuinely large files, and it goes straight
+// to R2 in stage 2 while the bucket is still empty). `bug-reports` and
 // `downtime-images` are not in the registry at all — see that file.
 
 export function isCdnBucket(bucketId: string): boolean {

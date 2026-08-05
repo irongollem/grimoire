@@ -173,12 +173,18 @@ export const BUCKETS = {
     mimeTypes: AUDIO_MIMES,
     public: true,
     generateVariants: false,
-    // Stays on the Supabase origin during stage 1. Cloudflare's Free/Pro terms
-    // restrict serving large volumes of non-HTML content through a proxied
-    // zone, and audio is exactly that shape — same reasoning that sends
-    // mini-models straight to R2. Flip to true only on a plan that permits it,
-    // or when this bucket moves to R2 in stage 2.
-    cdn: false,
+    // CDN-fronted, and the bucket with the strongest case for it: usePlayerAudioStream
+    // has every client pull its own copy during shared playback, so origin egress
+    // multiplies by party size.
+    //
+    // Cloudflare's service terms let them limit "video or a disproportionate
+    // percentage of pictures, audio files, or other large files" served without the
+    // paid Developer Platform. That clause names pictures too, so it never justified
+    // treating audio differently from the image buckets — and we serve through a
+    // Worker, which is the sanctioned path. ~180 MB of library audio at a 20 MB
+    // per-file cap is not disproportionate by any reading. mini-models is the real
+    // "large files" case, and it stays off.
+    cdn: true,
   },
   soundImages: {
     id: "sound-images",

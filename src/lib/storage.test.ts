@@ -138,11 +138,13 @@ describe("CDN bucket registry", () => {
     expect(fromRegistry).toEqual([...CDN_BUCKET_IDS].sort());
   });
 
-  it("keeps sounds and mini-models off the CDN", () => {
-    // sounds: bulk non-HTML through a proxied Free/Pro zone.
-    // mini-models: goes straight to R2 in stage 2 while the bucket is empty.
-    expect(BUCKETS.sounds.cdn).toBe(false);
+  it("keeps mini-models off the CDN but not sounds", () => {
+    // mini-models: genuinely large files (50 MB cap), and it goes straight to R2
+    // in stage 2 while the bucket is still empty.
     expect(BUCKETS.miniModels.cdn).toBe(false);
+    // sounds is CDN-fronted: shared playback has every client fetch its own copy,
+    // so it is the bucket where origin egress scales worst.
+    expect(BUCKETS.sounds.cdn).toBe(true);
   });
 });
 
@@ -170,8 +172,8 @@ describe("assetCdnUrl", () => {
   });
 
   it("returns null for a bucket that is not CDN-fronted", () => {
-    expect(assetCdnUrl("sounds", "u/a.ogg", base)).toBeNull();
     expect(assetCdnUrl("mini-models", "u/m/model.stl", base)).toBeNull();
+    expect(assetCdnUrl("downtime-images", "srd/carouse.webp", base)).toBeNull();
   });
 
   it("returns null when no CDN is configured", () => {
@@ -258,15 +260,16 @@ describe("getPublicUrl", () => {
     );
   });
 
-  it("still uses the origin for sounds and mini-models when the CDN is set", async () => {
+  it("still uses the origin for mini-models when the CDN is set", async () => {
     vi.stubEnv("VITE_ASSET_CDN_URL", "https://cdn.example.com");
     vi.resetModules();
     const fresh = await import("./storage");
-    expect(fresh.getPublicUrl("sounds", "u1/a.ogg")).toContain(
-      "/storage/v1/object/public/sounds/u1/a.ogg",
-    );
     expect(fresh.getPublicUrl("miniModels", "u1/m/model.stl")).toContain(
       "/storage/v1/object/public/mini-models/u1/m/model.stl",
+    );
+    // sounds opted in — shared playback multiplies origin egress by party size.
+    expect(fresh.getPublicUrl("sounds", "u1/a.ogg")).toBe(
+      "https://cdn.example.com/sounds/u1/a.ogg",
     );
   });
 });
