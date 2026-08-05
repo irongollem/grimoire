@@ -70,6 +70,7 @@ import { IconCalendarCheck, IconCheck, IconClose } from "@/lib/icons";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { useSessionProposals, useAllSessionAvailability, useUpsertAvailability } from "@/composables/useScheduling";
+import { useLocalToday } from "@/composables/useLocalToday";
 import type { SessionProposal } from "@/types/scheduling.types";
 
 const auth = useAuthStore();
@@ -79,17 +80,17 @@ const { data: proposals } = useSessionProposals();
 const { data: allAvailability } = useAllSessionAvailability();
 const { mutateAsync: upsertAvailability } = useUpsertAvailability();
 
-const today = new Date().toISOString().slice(0, 10);
+const today = useLocalToday();
 
 const confirmedSessions = computed(() =>
   (proposals.value ?? [])
-    .filter(p => p.status === "confirmed" && p.proposed_date >= today)
+    .filter(p => p.status === "confirmed" && p.proposed_date >= today.value)
     .sort((a, b) => a.proposed_date.localeCompare(b.proposed_date))
 );
 
 const proposedSessions = computed(() =>
   (proposals.value ?? [])
-    .filter(p => p.status === "proposed" && p.proposed_date >= today)
+    .filter(p => p.status === "proposed" && p.proposed_date >= today.value)
     .sort((a, b) => a.proposed_date.localeCompare(b.proposed_date))
 );
 

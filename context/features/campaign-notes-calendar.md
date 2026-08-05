@@ -151,7 +151,7 @@ All note creation and editing happens here. Key integrations:
 
 2. **`InlineCalendarEventModal`** (`src/components/calendar/InlineCalendarEventModal.vue`) — triggered by the calendar toolbar button; on `@event-created` calls `rteRef.value?.insertCalendarEventRef(...)` to embed a `CalendarEventRef` chip in the note body
 
-3. **`PlayerVisibilityToggle`** (`src/components/common/PlayerVisibilityToggle.vue`) — controls `player_visible_to: string[]` (party member IDs). When a note is newly shared on save, `sendCampaignAnnouncement` from `src/composables/useCampaignBroadcast.ts` broadcasts a message to players
+3. **`PlayerVisibilityToggle`** (`src/components/common/PlayerVisibilityToggle.vue`) — controls `player_visible_to: string[]` (party member IDs). When a note is newly shared on save, `sendCampaignAnnouncement` from `src/composables/useCampaignBroadcast.ts` broadcasts a message to players, and `notifyNoteShared` from `src/composables/useEmailNotify.ts` emails the newly added players (see [notifications.md](notifications.md))
 
 4. **Session date sync — `syncSessionCalendarEvent(noteId)`** — called after every save when `category === "session"`:
    - If start date is present: creates or updates a `session`-type calendar event (colour `#C9920A`) linked to the note via `linked_note_id`; patches note's `linked_calendar_event_id`
