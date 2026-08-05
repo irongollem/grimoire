@@ -9,6 +9,7 @@
   <div v-else class="flex flex-col gap-2">
     <JournalCard
       v-for="note in dmNotes"
+      :id="`dm-note-${note.id}`"
       :key="note.id"
       :color="NOTE_CATEGORIES[note.category]?.color ?? '#6b7280'"
       :icon="NOTE_CATEGORIES[note.category]?.icon ?? IconPopulate"

@@ -40,20 +40,12 @@
           <template v-else>Not supported on this browser. Try Chrome or Safari 16.4+.</template>
         </p>
       </div>
-      <button
+      <ToggleSwitch
         v-if="wakeLockSupported"
-        type="button"
-        class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200"
-        :class="wakeLockEnabled ? 'bg-primary' : 'bg-muted'"
-        role="switch"
-        :aria-checked="wakeLockEnabled"
-        @click="toggleWakeLock"
-      >
-        <span
-          class="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200"
-          :class="wakeLockEnabled ? 'translate-x-5' : 'translate-x-0'"
-        />
-      </button>
+        :model-value="wakeLockEnabled"
+        aria-label="Keep screen awake"
+        @update:model-value="toggleWakeLock"
+      />
       <span v-else class="text-label md:text-sm text-muted-foreground px-2 py-1 rounded border border-border">
         Unavailable
       </span>
@@ -76,6 +68,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import SettingsSection from "@/components/common/SettingsSection.vue";
+import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { IconReset } from "@/lib/icons";
 import { useTheme } from "@/composables/useTheme";

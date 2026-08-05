@@ -329,6 +329,9 @@ import {
 import { useCampaignMembers } from "@/composables/useCampaignMembers";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
+import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
+import { notifyProposalCreated } from "@/composables/useEmailNotify";
+import { useLocalToday } from "@/composables/useLocalToday";
 import type { SessionProposal } from "@/types/scheduling.types";
 
 const { activeThemeId } = useTheme();
@@ -368,16 +371,16 @@ const players = computed(() =>
 );
 const playerCount = computed(() => players.value.length);
 
-const today = new Date().toISOString().slice(0, 10);
+const today = useLocalToday();
 
 const confirmed = computed(() =>
   (proposals.value ?? [])
-    .filter((p) => p.status === "confirmed" && p.proposed_date >= today)
+    .filter((p) => p.status === "confirmed" && p.proposed_date >= today.value)
     .sort((a, b) => a.proposed_date.localeCompare(b.proposed_date)),
 );
 const proposed = computed(() =>
   (proposals.value ?? [])
-    .filter((p) => p.status === "proposed" && p.proposed_date >= today)
+    .filter((p) => p.status === "proposed" && p.proposed_date >= today.value)
     .sort((a, b) => a.proposed_date.localeCompare(b.proposed_date)),
 );
 const cancelled = computed(() =>
@@ -468,7 +471,7 @@ async function addProposal() {
   const pad = (n: number) => String(n).padStart(2, "0");
   const proposed_date = `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`;
   const proposed_time = `${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
-  await createProposal({
+  const created = await createProposal({
     campaign_id: campaign.activeCampaignId,
     proposed_date,
     proposed_time,
@@ -478,6 +481,11 @@ async function addProposal() {
     duration_minutes: Math.round(form.value.duration_hours * 60),
     min_attendance: form.value.min_attendance,
   });
+  void sendCampaignAnnouncement(
+    campaign.activeCampaignId,
+    `📅 Session date proposed: ${created.title} — ${formatDate(created.proposed_date, created.proposed_time)}`,
+  );
+  notifyProposalCreated(created.id);
   resetForm();
 }
 

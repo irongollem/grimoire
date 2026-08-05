@@ -201,7 +201,7 @@
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
-import { ref, computed } from "vue";
+import { ref, computed, watch, nextTick } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconAdd, IconCalendarDays, IconDocument, IconFeather, IconLoading, IconLocation, IconLock, IconMessage, IconPopulate, IconReveal, IconSave, IconScrollText, IconSearch, IconShield, IconStar } from '@/lib/icons';
 import TabBar from "@/components/common/TabBar.vue";
@@ -352,6 +352,24 @@ const TABS = computed(() => [
   { id: "puzzles"   as const, label: "Puzzles",       count: puzzles.value?.length ?? 0 },
   { id: "dm-notes"  as const, label: "DM Notes",      count: dmNotes.value.length },
 ]);
+
+// Deep link from note-share emails: /play/journal?tab=dm-notes&note=<id>
+// expands that note and scrolls to it. Watches dmNotes too because on a cold
+// load the target card doesn't exist until the notes query resolves. The
+// param is dropped afterwards so collapse/refresh behaves normally.
+watch(
+  [() => route.query.note, dmNotes],
+  async ([noteId]) => {
+    if (typeof noteId !== "string" || activeTab.value !== "dm-notes") return;
+    if (!dmNotes.value.some((n) => n.id === noteId)) return;
+    markRead({ entityType: "note", entityId: noteId });
+    selectedNote.value = noteId;
+    await nextTick();
+    document.getElementById(`dm-note-${noteId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    void router.replace({ query: { tab: "dm-notes" } });
+  },
+  { immediate: true },
+);
 
 // Statuses that render in a Quest Log group — the badge counts exactly these.
 const QUEST_LOG_STATUSES: readonly string[] = ["active", "rumor", "completed", "failed"];

@@ -28,6 +28,7 @@ Each doc covers **both DM and player perspectives**, lists exact file paths, com
 | [player-portal.md](player-portal.md)                     | The full player experience: all /play/\* views, layout, nav, live encounter panel, DM Preview Mode                                               |
 | [collaboration.md](collaboration.md)                     | Multi-user invite system, campaign members, DM/player roles, live sync, RLS security model                                                       |
 | [soundboard.md](soundboard.md)                           | Soundboard: HTML/Web Audio engine, pages/playlists, five sound sources, Spotify/Cast/Media Session, free-tier quotas — DM-only, no player access |
+| [notifications.md](notifications.md)                     | Player email notifications (note shared, session date proposed), per-user opt-out, send-notification-email edge function + Resend setup          |
 
 Adding or changing an AI generator? Read
 [../compliance/ai-act.md](../compliance/ai-act.md) first — the AI Act

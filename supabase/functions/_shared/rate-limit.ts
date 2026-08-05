@@ -15,6 +15,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export const RATE_LIMITS = {
   ai_generation: { action: "ai_generation", limit: 30, windowSeconds: 60 },
   bug_report:    { action: "bug_report",    limit: 15, windowSeconds: 86_400 },
+  // One event per notify invocation (which may email a whole party). Bounds a
+  // compromised or misbehaving DM account to 30 email bursts an hour.
+  email_notify:  { action: "email_notify",  limit: 30, windowSeconds: 3_600 },
 } as const;
 
 export type RateLimitKey = keyof typeof RATE_LIMITS;
