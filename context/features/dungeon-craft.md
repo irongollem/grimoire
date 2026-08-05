@@ -291,7 +291,29 @@ Loot tables support three kinds of entry in any mix:
 
 ### CR Tier
 
-Tables carry an optional CR tier for filtering: `Any`, `CR 0–4`, `CR 5–10`, `CR 11–16`, `CR 17+`.
+Tables carry an optional CR tier for filtering: `Any`, `CR 0–4`, `CR 5–10`, `CR 11–16`, `CR 17+`. It does not affect roll logic, but it IS the constraint band for the AI generator below — `LOOT_TIER_RARITIES` (`lootTable.types.ts`) maps each tier to the rarities retrieval is allowed to offer.
+
+### AI loot generator (#602)
+
+**Panel:** `LootTableGeneratorPanel.vue`, opened from the Loot Tables tab's **Generate** action (`ui.lootTableGeneratorOpen`), mounted with the rest in `AiGeneratorPanels.vue`. Inputs: concept (500 chars), tier, and a "skip items that require attunement" toggle. Pro-gated and `ai_enabled`-gated like every other generator.
+
+**Server-path only.** `supabase/functions/generate-loot/index.ts` — no client-side BYOK twin, unlike every sibling in `src/ai/`. Those carry one because they predate retrieval; this generator was grounded from day one and its whole value is a candidate block built from vectors only the service-role client can read. Local-key mode gets an explicit error, not a silent downgrade (BYOK-local is a legacy tier, not a parity target — see `useQuestGeneration.ts`).
+
+**Retrieval grounding — the first generator with a constraint band.** The mechanism is the #595/#600 shape (read combat-encounters.md's "Monster retrieval" for the full rationale), with one structural addition documented here because no other generator has needed it:
+
+- **Corpora**: two, like monsters — `item_embeddings` (uuid) and `library_item_embeddings` (text id), migration `20260805000002`. Embed format is `buildItemEmbedText` in `_shared/entityEmbedText.ts` (name, rarity/type/subtype, attunement clause, cost, tags, description at 500 chars). The attunement clause carries the requirement **text**, not just the boolean, and that is load-bearing: all 16 library items attuned "by a Druid" mention druids nowhere else — not in the name, description or tags — so embedding the boolean alone makes "a hoard of druidic items" unanswerable. Two shapes exist in the data (677 of 685 rows are full sentences, 8 custom rows are fragments like "Druid or Ranger"); the builder detects the prefix rather than blindly concatenating — deliberately ONE format for both corpora so a homebrew sword and a library sword rank against the same query on the same terms. `dm_notes` is excluded on purpose: `library_items` has no such column, and including it would make a custom item's vector drift from its shared twin's for reasons unrelated to what the item is.
+- **The band**: "loot for a level 7 party" is a _constraint_ query wearing a semantic query's clothes — cosine similarity ranks a Vorpal Sword top for "impressive treasure", and a model handed that candidate uses it. So `match_custom_items`/`match_library_items` take `p_rarities` + `p_exclude_attunement` and apply them in the `WHERE` **before** ranking, exactly like the enabled-sources gate; retrieval then ranks thematically _inside_ the band. The rarities are derived server-side from `cr_tier` (`RARITIES_BY_TIER` in the edge function, mirrored for display only by `LOOT_TIER_RARITIES`) — never taken from the request, or the gate would be caller-controlled. The unembedded-append path in `_shared/itemRetrieval.ts` re-applies the same predicates, or it would be a hole straight through the gate.
+- **Sources gate**: the library RPC filters on `source_document_key` (not `source`) because that is what `fetchLibraryItems()` filters on client-side — the two must agree or the generator offers books the Vault itself doesn't show. `'grimoire-bundled'` is always included, matching that query's `.in()` list exactly.
+- **Offer**: `item|Name|rarity|type` lines in a `---BEGIN VAULT ITEMS---` block, custom rows first so a DM's own copy wins a name collision with a library row.
+- **Fallback**: identical contract to the other generators — any retrieval failure drops the block and generates ungrounded. The response carries `grounded: boolean` so the panel can explain unresolved names as "ran without your Vault" rather than letting them read as a resolution bug.
+
+**Resolution guard** (`src/ai/resolveGeneratedLoot.ts` + tests): the model returns item _names_; every entry is resolved against the merged `useItems` catalogue. Resolved item entries route through `useEnsureOwnedItem` at create time (a library slug id is not a valid `LootEntry.item_id` uuid — the clone is the same one the manual picker performs). Unresolved names are surfaced struck-through with a reason and left out of the created table: never dropped silently, never written as stub item rows (#337). Duplicate item entries are surfaced rather than merged. Malformed-but-recoverable values are repaired, not rejected (drop chance clamped to 1–100, dice wins over `fixed_qty`, unknown `item_type_filter` dropped while the entry survives) — entry validation itself stays in `validateEntries`, the single client-side validation point.
+
+**Embed-on-write**: `queueItemEmbedding` (`useItems.ts`) fires `embed-content` (`mode: "single"`, entity `item`) after create/update, after the downtime seed-reward mint, and after a library→owned clone. The clone is embedded despite being byte-identical to its already-embedded library twin, because the twin is only retrievable while its source stays enabled — without it, an item visible in the Vault would be invisible to loot retrieval. `library_item` is **batch-only** (`supportsSingle: false`): shared content has no `user_id` to authorize a single-mode call against, and it only changes on an admin import.
+
+**Storage**: measured before building, per #599's multiplier — `library_monster_embeddings` is 52 MB across 3,541 rows (~15 KB/row incl. HNSW), so 1,717 library items + 2,015 items ≈ 56 MB on a 211 MB database. Both new targets are in `useEmbeddingBackfill`'s `EMBED_TARGETS`; **the backfill must be run once after deploy** or retrieval finds nothing and every generation falls back to ungrounded.
+
+The system prompt is `ai_system_prompts.generator_type = 'loot'`; the credit cost is `loot_generation` (1 credit); `loot_tables.ai_provenance` was added by the same migration (the table was not in EPIC #611's original 13 because no loot generator existed then).
 
 ### Monster linking
 
@@ -327,6 +349,7 @@ The editor blocks saving when any entry has a drop_chance outside 1–100, an It
 - **Tiered hint reveal for puzzles** — DMs gate player access per hint rather than all-or-nothing; players receive realtime push updates as hints are unlocked mid-session.
 - **Read-Aloud text** — DMs write a short scripted narration block that players see in their portal exactly as written, framed distinctly.
 - **AI puzzle generator** — generates complete puzzle definitions (all fields, including hints and solution) from a free-text concept prompt.
+- **Vault-grounded loot generator** — the hoard is built from items the DM actually owns or has enabled, filtered to the requested tier before the model ever sees a candidate; every entry resolves to a real item rather than a name the app has to invent a row for.
 - **Roll panel on both table types** — DMs roll live during play directly from the detail view without switching context.
 - **Drop chest in chat** — loot tables integrate with campaign chat: one button rolls the table, builds claimable atoms, and posts an interactive chest message that players can pick items from in real time.
 - **Random loot entries** — loot tables can include "pick N random items of rarity X" entries that draw from the live Vault, so adding new items to the Vault automatically expands future hoards.
@@ -427,3 +450,4 @@ The editor blocks saving when any entry has a drop_chance outside 1–100, an It
 | `campaign_id` | string\|null | Global if null                 |
 | `tags`        | string[]     |                                |
 | `notes`       | string\|null | DM-only                        |
+| `ai_provenance` | jsonb\|null | Set by the AI loot generator (#602); null on hand-authored tables |

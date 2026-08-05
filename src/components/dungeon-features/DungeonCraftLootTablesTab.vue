@@ -17,6 +17,14 @@
         <option value="">All Tiers</option>
         <option v-for="t in LOOT_CR_TIERS" :key="t" :value="t">{{ LOOT_CR_TIER_LABELS[t] }}</option>
       </select>
+      <button
+        v-if="ui.lootTablesHasActiveFilters"
+        type="button"
+        class="text-caption text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+        @click="ui.resetLootTablesFilters()"
+      >
+        Clear
+      </button>
     </div>
     <p v-if="!filteredLootTables.length" class="text-center text-body text-muted-foreground italic py-8">
       No loot tables match your filter.
@@ -48,17 +56,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { computed } from "vue";
+import { storeToRefs } from "pinia";
 import { RouterLink, useRouter } from "vue-router";
 import { useLootTables } from "@/composables/useLootTables";
+import { useUiStore } from "@/stores/ui";
 import { LOOT_CR_TIERS, LOOT_CR_TIER_LABELS } from "@/types/lootTable.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 
 const router = useRouter();
+const ui = useUiStore();
 const { data: lootTables, isLoading: lootTablesLoading } = useLootTables();
-const lootTablesSearch     = ref("");
-const lootTablesTierFilter = ref("");
+// Filter state lives in the UI store, not local refs, so it survives
+// navigating into a table and back without outliving the session.
+const { lootTablesSearch, lootTablesTierFilter } = storeToRefs(ui);
 
 const filteredLootTables = computed(() => {
   let list = lootTables.value ?? [];

@@ -83,7 +83,7 @@ due-diligence) that every AI-touching feature needs to stay in step with.
 - **Traps** — full trigger/effect/detection/disable fields; interactive CR Advisor calculator (5 dimensions → CR range + XP + reference benchmarks)
 - **Puzzles** — DM controls hint reveals per-hint; `read_aloud` field; player portal receives realtime updates via Supabase Realtime; `shared_hints[]` array with per-hint Eye toggle
 - **Roll Tables** — range-based entries; overlap validation; optional Encounter entity link
-- **Loot Tables** — 3 entry types (specific item, currency pool, random-by-rarity); drop chance per entry; "Drop chest in chat" posts claimable loot atoms with claims cap
+- **Loot Tables** — 3 entry types (specific item, currency pool, random-by-rarity); drop chance per entry; "Drop chest in chat" posts claimable loot atoms with claims cap; AI generator grounded in the DM's own vault with a tier-derived rarity band (#602)
 - **Cartographer** _(spec, not yet built)_ — tile-based battle map editor on an infinite canvas; versioned WebP tile packs with schema-validated category slots; per-brush theme switching; **edge-based walls** (thin partitions) coexisting with a **`solidBlock` layer** (thick masonry) so the builder controls wall thickness; cell-level entity links (traps, encounters, NPCs); bakes to Atlas location maps; data preserved for a future in-app VTT
 
 ### Publishing & Output Tools (desktop-only)

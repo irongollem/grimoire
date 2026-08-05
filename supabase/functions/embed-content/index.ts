@@ -5,7 +5,7 @@ import { requireAdmin } from "../_shared/requireAdmin.ts";
 import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { recordFreeGeneration } from "../_shared/credits.ts";
-import { buildFactionEmbedText, buildLocationEmbedText, buildNoteEmbedText, buildNpcEmbedText, entityEmbedHash } from "../_shared/entityEmbedText.ts";
+import { buildFactionEmbedText, buildItemEmbedText, buildLocationEmbedText, buildNoteEmbedText, buildNpcEmbedText, entityEmbedHash } from "../_shared/entityEmbedText.ts";
 import {
   EmbeddingProviderConfigError,
   isEmbeddingStale,
@@ -21,18 +21,21 @@ import {
  * NPCs/factions/locations/notes) — the entity generalisation of
  * embed-monsters/index.ts (#595). Same two modes, same reasons, retargeted at
  * npc_embeddings / faction_embeddings / location_embeddings / note_embeddings
- * (created by the migrations alongside these stories) via the ENTITIES
- * registry below instead of embed-monsters' library/custom split. `note` was
- * added by the Chronicler's story (20260804000001) on top of the npc/faction/
- * location trio #600's quest-hook story introduced first (20260803000004) —
+ * / item_embeddings / library_item_embeddings (created by the migrations
+ * alongside these stories) via the ENTITIES registry below instead of
+ * embed-monsters' library/custom split. `note` was added by the Chronicler's
+ * story (20260804000001) on top of the npc/faction/location trio #600's
+ * quest-hook story introduced first (20260803000004); `item` and
+ * `library_item` by the loot-table generator (#602, 20260805000002) —
  * everything below this registry (single-mode ownership check, batch admin
- * scan) generalises across all four entity kinds without change:
+ * scan) generalises across every entity kind without change:
  *
  *   mode: "batch"  — admin-gated backfill/repair for one entity kind at a
- *                    time, driven by repeated calls (see `remaining`).
+ *                    time, driven by repeated calls (see `remaining`). The
+ *                    only mode shared-content kinds support.
  *   mode: "single" — embed-on-write for one of the caller's own npcs,
- *                    factions, locations, or notes, called fire-and-forget
- *                    after create/save.
+ *                    factions, locations, notes or items, called
+ *                    fire-and-forget after create/save.
  *
  * NOT CHARGED, BUT RECORDED: same accounting story as embed-monsters —
  * embedding is infrastructure for retrieval, not a user-facing generation in
@@ -69,17 +72,29 @@ function json(body: unknown, status = 200): Response {
 
 // ── Entity registry ──────────────────────────────────────────────────────
 
-type EntityKind = "npc" | "faction" | "location" | "note";
+type EntityKind = "npc" | "faction" | "location" | "note" | "item" | "library_item";
 
 interface EntityConfig {
-  table: "npcs" | "factions" | "locations" | "notes";
+  table: "npcs" | "factions" | "locations" | "notes" | "items" | "library_items";
   // Only the columns the entity's builder reads, plus id/user_id/updated_at
   // -- a plain `select("*")` would pull stat_block/portrait_url/map_pins/etc
   // for nothing, on every row, on every batch scan.
   select: string;
-  sideTable: "npc_embeddings" | "faction_embeddings" | "location_embeddings" | "note_embeddings";
+  sideTable:
+    | "npc_embeddings" | "faction_embeddings" | "location_embeddings"
+    | "note_embeddings" | "item_embeddings" | "library_item_embeddings";
   /** FK column on the side table pointing back at the main table's id. */
-  idColumn: "npc_id" | "faction_id" | "location_id" | "note_id";
+  idColumn: "npc_id" | "faction_id" | "location_id" | "note_id" | "item_id" | "library_item_id";
+  /**
+   * False for shared/admin-owned content that has no `user_id` column, which
+   * makes mode: "single" (embed-on-write, authorized by row.user_id ===
+   * auth.uid()) inapplicable -- there is no owner to compare against, and
+   * "any authenticated user may embed shared content on demand" is not a
+   * trade worth making for a corpus that only changes on an admin import.
+   * Those kinds are batch-only: the admin backfill covers them, exactly as it
+   * does for library monsters via embed-monsters. Defaults to true.
+   */
+  supportsSingle?: boolean;
   /**
    * Row -> embed text. Wraps the corresponding buildXEmbedText() with the
    * row->EmbeddableX field mapping, so every entry in this registry shares
@@ -151,10 +166,51 @@ const ENTITIES: Record<EntityKind, EntityConfig> = {
         content: (row.content as string | null) ?? null,
       }),
   },
+  // The DM's own vault (#602). Same builder as library_item below -- one
+  // format across both corpora so loot retrieval ranks a homebrew sword and a
+  // library sword against the same query on the same terms.
+  item: {
+    table: "items",
+    select: "id, user_id, updated_at, name, item_type, rarity, subtype, requires_attunement, attunement_requirements, cost, tags, description",
+    sideTable: "item_embeddings",
+    idColumn: "item_id",
+    build: (row) => buildItemEmbedText(toEmbeddableItem(row)),
+  },
+  // Shared content: no user_id, so batch-only (see supportsSingle). 1,717 rows
+  // today, changed only by an admin import, so a nightly-ish backfill is the
+  // right cadence for it -- there is no "the DM just saved this" moment to
+  // hook.
+  library_item: {
+    table: "library_items",
+    select: "id, updated_at, name, item_type, rarity, subtype, requires_attunement, attunement_requirements, cost, tags, description",
+    sideTable: "library_item_embeddings",
+    idColumn: "library_item_id",
+    supportsSingle: false,
+    build: (row) => buildItemEmbedText(toEmbeddableItem(row)),
+  },
 };
 
+const ENTITY_KINDS = Object.keys(ENTITIES) as EntityKind[];
+
 function isEntityKind(value: unknown): value is EntityKind {
-  return value === "npc" || value === "faction" || value === "location" || value === "note";
+  return typeof value === "string" && (ENTITY_KINDS as string[]).includes(value);
+}
+
+/** Shared row -> EmbeddableItem mapping: `items` and `library_items` carry the
+ * same column names for every field the builder reads, so one mapper serves
+ * both registry entries. */
+function toEmbeddableItem(row: Record<string, unknown>): Parameters<typeof buildItemEmbedText>[0] {
+  return {
+    name: row.name as string,
+    item_type: row.item_type as string,
+    rarity: row.rarity as string,
+    subtype: (row.subtype as string | null) ?? null,
+    requires_attunement: row.requires_attunement === true,
+    attunement_requirements: (row.attunement_requirements as string | null) ?? null,
+    cost: (row.cost as string | null) ?? null,
+    tags: row.tags as string[],
+    description: (row.description as string | null) ?? null,
+  };
 }
 
 const DEFAULT_BATCH_LIMIT = 100;
@@ -274,11 +330,15 @@ async function resolvePlatformProvider(): Promise<EmbeddingProvider | Response> 
 
 // ── Batch mode ────────────────────────────────────────────────────────────
 
+/** Shared 400 body for an unknown `entity`, listing what IS accepted so the
+ * message never drifts from the registry as kinds are added. */
+function invalidEntityResponse(): Response {
+  return json({ error: `Invalid entity -- must be one of ${ENTITY_KINDS.join(", ")}` }, 400);
+}
+
 async function handleBatch(body: { entity?: unknown; limit?: unknown }, adminUserId: string): Promise<Response> {
   const entity = body.entity;
-  if (!isEntityKind(entity)) {
-    return json({ error: "Invalid entity -- must be 'npc', 'faction', 'location', or 'note'" }, 400);
-  }
+  if (!isEntityKind(entity)) return invalidEntityResponse();
   const limit = clampBatchLimit(body.limit);
 
   const provider = await resolvePlatformProvider();
@@ -339,8 +399,13 @@ async function handleBatch(body: { entity?: unknown; limit?: unknown }, adminUse
 
 async function handleSingle(req: Request, body: { entity?: unknown; id?: unknown }): Promise<Response> {
   const entity = body.entity;
-  if (!isEntityKind(entity)) {
-    return json({ error: "Invalid entity -- must be 'npc', 'faction', 'location', or 'note'" }, 400);
+  if (!isEntityKind(entity)) return invalidEntityResponse();
+  // Shared content has no owner to authorize against -- see EntityConfig's
+  // supportsSingle. Rejected rather than silently no-op'd so a future
+  // embed-on-write wiring mistake surfaces as a 400 in the caller's console
+  // instead of as quietly missing vectors.
+  if (ENTITIES[entity].supportsSingle === false) {
+    return json({ error: `Entity '${entity}' is batch-only -- it has no per-user write path` }, 400);
   }
   const id = body.id;
   if (typeof id !== "string" || !id) return json({ error: "Missing id" }, 400);

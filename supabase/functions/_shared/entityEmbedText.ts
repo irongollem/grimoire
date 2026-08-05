@@ -1,14 +1,18 @@
 /**
  * Single source of truth for the text embedded into an NPC's, faction's,
- * location's, or note's semantic-search vector (#600 — grounding the
+ * location's, note's or item's semantic-search vector (#600 — grounding the
  * quest-hook generator and the Chronicler recap generator, and whatever
  * generator follows them, in the DM's own content; generalises the #595
- * monster mechanism).
+ * monster mechanism. #602 added items for the loot-table generator).
  *
  * Each entity gets its own side table (npc_embeddings / faction_embeddings /
- * location_embeddings / note_embeddings — see the migrations that create them
- * alongside these stories), and each one MUST be built from the corresponding
- * function here.
+ * location_embeddings / note_embeddings / item_embeddings — see the migrations
+ * that create them alongside these stories), and each one MUST be built from
+ * the corresponding function here. Items are the one kind with TWO side
+ * tables — `item_embeddings` for the DM's own rows and
+ * `library_item_embeddings` for shared content (20260805000002) — both built
+ * from `buildItemEmbedText`, deliberately, so a homebrew item and a library
+ * item are ranked against a loot query on identical terms.
  * `entityEmbedHash` feeds every row's `source_hash`, which lets the
  * backfill/embed-on-write path in embed-content skip rows whose text hasn't
  * changed. Because the hash is over a builder's *output*, changing anything
@@ -291,6 +295,104 @@ export function buildNoteEmbedText(note: EmbeddableNote): string {
 
   const content = buildNoteContentClause(note.content);
   if (content) clauses.push(content);
+
+  return clauses.join(" ");
+}
+
+// ── Item ──────────────────────────────────────────────────────────────────
+
+export interface EmbeddableItem {
+  name: string;
+  // NOT NULL in both `items` and `library_items` -- never absent, unlike the
+  // optional string fields below.
+  item_type: string;
+  rarity: string;
+  subtype: string | null;
+  requires_attunement: boolean;
+  // Load-bearing, not decoration. This is where an item's CLASS identity
+  // actually lives: all 16 library items attuned "by a Druid" mention druids
+  // nowhere else -- not in the name, not in the description, not in the tags
+  // (measured 5 Aug 2026). Embedding the boolean alone would make "a hoard of
+  // druidic items" unable to retrieve Staff of the Woodlands or Staff of
+  // Healing, which is the single most obvious thing a DM would ask this
+  // generator for.
+  attunement_requirements: string | null;
+  cost: string | null;
+  tags: string[];
+  description: string | null;
+  // `dm_notes` is deliberately NOT a field here. It's DM-only scratch that
+  // library_items does not even have a column for -- including it would make
+  // a custom item's vector drift away from its shared twin's for reasons that
+  // have nothing to do with what the item IS, and loot retrieval compares the
+  // two corpora against the same query.
+}
+
+/**
+ * Attunement clause, carrying the requirement TEXT whenever there is one.
+ *
+ * Two shapes exist in the data (measured across both tables, 5 Aug 2026): 677
+ * of 685 rows are full sentences already — "Requires Attunement by a Druid" —
+ * and 8 custom rows are bare fragments — "Druid or Ranger", "Spellcaster",
+ * "humanoid". Detecting the prefix keeps the first group verbatim instead of
+ * emitting "Requires attunement. Requires Attunement by a Druid.", and the
+ * colon form gives the second group a sentence without inventing grammar for
+ * fragments like "humanoid".
+ *
+ * The requirement text wins even when `requires_attunement` is false: a row
+ * carrying one has attunement semantics whatever the boolean says, and losing
+ * the class words is the expensive half of that disagreement. The boolean
+ * still drives the RPC band — this only decides what goes in the vector.
+ */
+function buildAttunementClause(requiresAttunement: boolean, requirements: string | null): string {
+  const requirement = normalizeField(requirements);
+  if (!requirement) return requiresAttunement ? "Requires attunement." : "";
+  const sentence = /^requires attunement/i.test(requirement)
+    ? requirement
+    : `Requires attunement: ${requirement}`;
+  return sentence.endsWith(".") ? sentence : `${sentence}.`;
+}
+
+/**
+ * Deterministic natural-language summary of an item, used as the embedding
+ * input for BOTH `items` and `library_items` (one format, so a homebrew sword
+ * and a library sword are ranked on the same terms). Leads with the name,
+ * then a rarity/type/subtype clause, then attunement, then cost, then tags,
+ * then the description — each part omitted entirely when the source field is
+ * absent.
+ *
+ * Attunement is spelled out as a phrase rather than left implicit, and carries
+ * its requirement text: see buildAttunementClause for why dropping that text
+ * would make a whole category of loot prompt ("druidic items") unanswerable.
+ *
+ * Description is plain text in both tables (never Tiptap JSON, unlike an
+ * NPC's appearance), so it takes the plain-text clause builder.
+ *
+ * Example (all fields present):
+ *   "Staff of the Woodlands. Rare staff, quarterstaff. Requires Attunement by
+ *   a Druid. 5,000 gp. nature. This staff has 6 charges and can be wielded..."
+ *
+ * Example (name only, plus the two NOT NULL columns):
+ *   "Rusty Nail. Mundane gear."
+ */
+export function buildItemEmbedText(item: EmbeddableItem): string {
+  const clauses: string[] = [];
+
+  clauses.push(`${collapseWhitespace(item.name)}.`);
+
+  const rarityTypeSubtype = buildTwoPlusOneClause(item.rarity, item.item_type, item.subtype);
+  if (rarityTypeSubtype) clauses.push(rarityTypeSubtype);
+
+  const attunement = buildAttunementClause(item.requires_attunement, item.attunement_requirements);
+  if (attunement) clauses.push(attunement);
+
+  const cost = normalizeField(item.cost);
+  if (cost) clauses.push(`${cost}.`);
+
+  const tagsClause = buildTagsClause(item.tags);
+  if (tagsClause) clauses.push(tagsClause);
+
+  const description = buildPlainTextClause(item.description);
+  if (description) clauses.push(description);
 
   return clauses.join(" ");
 }

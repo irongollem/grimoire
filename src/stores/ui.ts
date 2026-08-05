@@ -132,6 +132,20 @@ export const useUiStore = defineStore("ui", () => {
   // Roll table generator
   const rollTableGeneratorOpen = ref(false);
 
+  // Loot table generator + Loot Tables tab filters
+  const lootTableGeneratorOpen = ref(false);
+  const lootTablesSearch = ref("");
+  const lootTablesTierFilter = ref("");
+
+  const lootTablesHasActiveFilters = computed(
+    () => lootTablesSearch.value !== "" || lootTablesTierFilter.value !== "",
+  );
+
+  function resetLootTablesFilters() {
+    lootTablesSearch.value = "";
+    lootTablesTierFilter.value = "";
+  }
+
   // Encounter generator
   const encounterGeneratorOpen = ref(false);
 
@@ -706,6 +720,11 @@ export const useUiStore = defineStore("ui", () => {
     factionGeneratorOpen,
     locationGeneratorOpen,
     rollTableGeneratorOpen,
+    lootTableGeneratorOpen,
+    lootTablesSearch,
+    lootTablesTierFilter,
+    lootTablesHasActiveFilters,
+    resetLootTablesFilters,
     encounterGeneratorOpen,
 
     // Quests

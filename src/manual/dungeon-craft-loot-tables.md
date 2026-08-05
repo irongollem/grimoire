@@ -3,8 +3,8 @@ title: Dungeon Craft — Loot Tables
 section: Dungeon Craft
 section_order: 8
 order: 4
-summary: Build drop tables for items and currency, roll for loot, and drop it directly to chat.
-keywords: loot table, loot, drop, chest, currency, item, rarity, random, roll, chat, claim
+summary: Build drop tables for items and currency, generate a hoard with AI, roll for loot, and drop it directly to chat.
+keywords: loot table, loot, drop, chest, currency, item, rarity, random, roll, chat, claim, AI, generate, hoard
 ---
 
 Loot tables let you define what monsters drop and distribute the results directly to players via the campaign chat.
@@ -14,7 +14,7 @@ Loot tables let you define what monsters drop and distribute the results directl
 Click **New Loot Table**. Set:
 
 - **Name** — required.
-- **CR Tier** — Any, CR 0–4, CR 5–10, CR 11–16, or CR 17+. Used for organisation and filtering — doesn't affect the roll logic.
+- **CR Tier** — Any, CR 0–4, CR 5–10, CR 11–16, or CR 17+. Used for organisation and filtering; it doesn't affect the roll logic, but the AI generator uses it to decide which item rarities to draw from.
 - **Monster links** — link specific monsters from the bestiary. Linked tables appear in a "Loot Table" section on the monster's sheet.
 
 ## Entry types
@@ -45,6 +45,18 @@ A rarity-filtered random pick:
 - **Item Type filter** — optionally restrict to a specific type (weapon, potion, ring, etc.).
 - **Quantity** — fixed or dice expression.
 - **Drop Chance** — 1–100%.
+
+## AI loot generator
+
+Click **Generate** on the Loot Tables tab, describe the hoard ("the smugglers' vault beneath the Rusty Anchor"), pick a **Tier**, and optionally tick **Skip items that require attunement**.
+
+What makes this different from a generic AI table: Grimoire searches **your own Item Vault** — your homebrew items plus the library items your campaign's enabled sources make visible — and offers the AI only items that actually exist and fit the tier you picked. The hoard comes back built from real items, not invented names, so every entry drops something the party can actually pick up.
+
+The preview shows each entry with its drop chance. Entries the AI named but Grimoire couldn't match to a real item are listed struck through with the reason — they're left out of the created table rather than saved as broken entries. Add those items to your Vault (or enable the source they come from) and regenerate to include them.
+
+Click **Create Table** to save. The table is tagged as AI-generated, and any library item it references is copied into your Vault automatically, exactly as if you'd picked it by hand.
+
+Loot generation needs the server, so it isn't available in local-key mode — searching your Vault is something only Grimoire's backend can do.
 
 ## Live roll panel
 

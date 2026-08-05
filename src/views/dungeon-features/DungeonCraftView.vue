@@ -77,6 +77,11 @@
       <!-- Loot Tables tab actions -->
       <template v-else-if="activeTab === 'loot-tables'">
         <ListActionButton
+          :icon="IconGenerate"
+          label="Generate"
+          @click="ui.lootTableGeneratorOpen = true"
+        />
+        <ListActionButton
           :icon="IconAdd"
           label="New Loot Table"
           mobile-label="Loot Table"

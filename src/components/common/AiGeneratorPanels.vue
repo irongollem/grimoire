@@ -17,6 +17,7 @@
   <FactionGeneratorPanel />
   <LocationGeneratorPanel />
   <RollTableGeneratorPanel />
+  <LootTableGeneratorPanel />
   <EncounterGeneratorPanel />
 </template>
 
@@ -35,5 +36,6 @@ import TrapGeneratorPanel from "@/components/traps/TrapGeneratorPanel.vue";
 import FactionGeneratorPanel from "@/components/factions/FactionGeneratorPanel.vue";
 import LocationGeneratorPanel from "@/components/locations/LocationGeneratorPanel.vue";
 import RollTableGeneratorPanel from "@/components/dungeon-features/RollTableGeneratorPanel.vue";
+import LootTableGeneratorPanel from "@/components/dungeon-features/LootTableGeneratorPanel.vue";
 import EncounterGeneratorPanel from "@/components/encounters/EncounterGeneratorPanel.vue";
 </script>

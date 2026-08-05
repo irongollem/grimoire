@@ -270,11 +270,36 @@ export function useItem(id: Ref<string> | ComputedRef<string> | string) {
   });
 }
 
+/**
+ * Queue this item for semantic-search embedding (#602) so the loot-table
+ * generator's retrieval can find it without waiting for the next admin
+ * backfill.
+ *
+ * Fire-and-forget on purpose, exactly like queueNpcEmbedding: the item is
+ * already saved, so a failed embed is not worth a toast, a spinner or a
+ * delayed mutation — the row simply stays unembedded and the next backfill
+ * sweep collects it. The edge function short-circuits when the embed text's
+ * hash is unchanged, so a save that only touched art or dm_notes costs no API
+ * call at all.
+ *
+ * Custom items only. `library_items` is embedded by the admin batch
+ * (embed-content, entity "library_item"), which is why there is no
+ * queueLibraryItemEmbedding — shared content has no per-user write path.
+ */
+export function queueItemEmbedding(id: string): void {
+  void supabase.functions
+    .invoke("embed-content", { body: { mode: "single", entity: "item", id } })
+    .catch(() => { /* non-fatal — see above */ });
+}
+
 export function useCreateItem() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: createItem,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+    onSuccess: (item) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      queueItemEmbedding(item.id);
+    },
   });
 }
 
@@ -285,6 +310,7 @@ export function useUpdateItem() {
     onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, id] });
+      queueItemEmbedding(id);
     },
   });
 }
@@ -416,6 +442,15 @@ export function useEnsureOwnedItem() {
 
     try {
       const created = await createItem(payload);
+      // Embed the clone even though its library twin is already embedded and
+      // the text is byte-identical (#602). The two are not interchangeable for
+      // retrieval: the library row is only reachable while its source stays
+      // enabled for the campaign, and a DM who disables that book afterwards
+      // keeps the clone in their vault. Without this the item would be visible
+      // in the Vault but invisible to loot retrieval. Duplicate names across
+      // the two corpora are handled by the custom-wins dedup in
+      // _shared/itemRetrieval.ts.
+      queueItemEmbedding(created.id);
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
       return created;
     } catch (e) {

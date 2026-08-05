@@ -298,6 +298,52 @@ export interface RollTableAiResult {
   ai_provenance?: AiProvenance;
 }
 
+/**
+ * One AI-generated loot-table entry (#602). Deliberately the AI-facing shape,
+ * not `LootEntry`: the model returns an item NAME, which the client resolves
+ * to a real `items` row before anything is persisted (see
+ * resolveGeneratedLoot). Fields are optional per `type` — an item entry has no
+ * coin amounts, a currency entry has no item_name — and the model is not
+ * trusted to get that right, so every consumer validates rather than assumes.
+ */
+export interface LootEntryAiResult {
+  type: "item" | "currency" | "random";
+  /** type "item": the exact name of a vault item. Resolved by name, never an id. */
+  item_name?: string;
+  /** type "random": required rarity filter for the roll-time pick. */
+  rarity?: string;
+  /** type "random": optional item-type narrowing. */
+  item_type_filter?: string | null;
+  /** type "currency": optional label shown in chat (e.g. "Belt pouch"). */
+  currency_label?: string | null;
+  /** 1–100. Each entry is checked independently — this is not a d100 range. */
+  drop_chance: number;
+  /** Quantity dice ("2d4"); mutually exclusive with fixed_qty. */
+  dice?: string | null;
+  /** Fixed quantity; used when `dice` is absent. */
+  fixed_qty?: number | null;
+  notes?: string | null;
+  pp?: number; gp?: number; ep?: number; sp?: number; cp?: number;
+}
+
+export interface LootTableAiResult {
+  name: string;
+  /** One-sentence description of whose hoard this is — plain text. */
+  description: string;
+  tags: string[];
+  entries: LootEntryAiResult[];
+  /** Echoed back by the server so the created table carries the tier the DM asked for. */
+  cr_tier?: string;
+  /**
+   * False when retrieval was unavailable (no embedding vendor, backfill not
+   * run, provider outage) and the model generated without the vault block.
+   * The panel uses it to explain unresolved names as "not grounded" rather
+   * than letting them read as a resolution bug.
+   */
+  grounded?: boolean;
+  ai_provenance?: AiProvenance;
+}
+
 export interface NpcVoiceAiResult {
   /** 2–3 short, immediately speakable in-character replies. */
   lines: string[];

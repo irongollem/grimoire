@@ -85,6 +85,7 @@ Verified against `supabase/functions/` and `src/ai/` on 4 Aug 2026.
 | `generate-encounter` | text | same | |
 | `generate-downtime` | text | same | downtime-outcome vignette/title text |
 | `generate-roll-table` | text | same | |
+| `generate-loot` | text | same | loot-table hoards, grounded in the DM's own item vault (#602); server-path only, no client-direct twin |
 | `generate-chronicle-text` | text | same | session recap text |
 | `generate-npc-voice` | text | same | "NPC Voice Coach" — generates speakable-as-is lines only; ephemeral, nothing persisted |
 | `generate-chronicle-image` | image | OpenAI (gpt-image-2 / gpt-image-1.5 / gpt-image-1-mini), Gemini (gemini-3.1-flash-image, "Nano Banana"), fal.ai (flux-2/flex) via `_shared/imageGen.ts` | also the promotional-reuse surface (§2) |
@@ -94,7 +95,7 @@ Verified against `supabase/functions/` and `src/ai/` on 4 Aug 2026.
 | `forge-mini` (sculpt/resculpt leg) | 3D | Meshy image-to-3D | paid task *creation* only |
 | `poll-meshy-jobs` | 3D | Meshy | cron-driven job poller; finishes the Meshy task and downloads assets before Meshy's ~3-day auto-delete |
 | `generate-music` | audio | Google Lyria (`lyria-3-clip-preview` / `lyria-3-pro-preview`) | |
-| `embed-content` | embedding | OpenAI text-embedding-3-small / Google gemini-embedding-001 (`_shared/embeddings.ts`) | notes/generic retrieval corpora (#600) |
+| `embed-content` | embedding | OpenAI text-embedding-3-small / Google gemini-embedding-001 (`_shared/embeddings.ts`) | npc/faction/location/note retrieval corpora (#600), plus both item corpora (#602) |
 | `embed-monsters` | embedding | same | monster retrieval corpus |
 | `api-key-vault` | infra | n/a | stores/decrypts BYOK keys; not itself a generator, but part of every BYOK pipeline |
 | `list-provider-models` | infra | queries provider APIs for model lists | not generation |

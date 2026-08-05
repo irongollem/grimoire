@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { createNpc, queueNpcEmbedding } from "./useNpcs";
-import { createItem } from "./useItems";
+import { createItem, queueItemEmbedding } from "./useItems";
 import { createNote, queueNoteEmbedding } from "./useNotes";
 import { computeBalance } from "@/lib/downtime/downtimeBalance";
 import { drawFromDeck } from "@/lib/downtime/downtimeDeck";
@@ -275,6 +275,9 @@ export function useResolveDraw() {
             ...itemInsertFromSeed(reward.item),
             campaign_id: campaignId,
           });
+          // Same bypass as the NPC branch above — direct createItem() skips
+          // useCreateItem()'s embed hook (#602).
+          queueItemEmbedding(item.id);
           rewardType = "item";
           rewardId = item.id;
         } else if (reward.kind === "note") {

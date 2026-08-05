@@ -4,11 +4,13 @@ import {
   buildFactionEmbedText,
   buildLocationEmbedText,
   buildNoteEmbedText,
+  buildItemEmbedText,
   entityEmbedHash,
   type EmbeddableNpc,
   type EmbeddableFaction,
   type EmbeddableLocation,
   type EmbeddableNote,
+  type EmbeddableItem,
 } from "./entityEmbedText";
 
 // ── NPC ───────────────────────────────────────────────────────────────────
@@ -453,6 +455,112 @@ describe("buildNoteEmbedText", () => {
 
   it("is deterministic — the same input always produces byte-identical output", () => {
     expect(buildNoteEmbedText(makeNote())).toBe(buildNoteEmbedText(makeNote()));
+  });
+});
+
+// ── Item ──────────────────────────────────────────────────────────────────
+
+function makeItem(overrides: Partial<EmbeddableItem> = {}): EmbeddableItem {
+  return {
+    name: "Flame Tongue",
+    item_type: "weapon",
+    rarity: "rare",
+    subtype: "longsword",
+    requires_attunement: true,
+    attunement_requirements: null,
+    cost: "5,000 gp",
+    tags: ["fire", "flashy"],
+    description: "While holding this magic sword you can use a bonus action to ignite it.",
+    ...overrides,
+  };
+}
+
+describe("buildItemEmbedText", () => {
+  it("builds the full clause sequence in order", () => {
+    expect(buildItemEmbedText(makeItem())).toBe(
+      "Flame Tongue. rare weapon, longsword. Requires attunement. 5,000 gp. fire, flashy. " +
+      "While holding this magic sword you can use a bonus action to ignite it.",
+    );
+  });
+
+  it("omits the subtype from the clause without leaving a dangling comma", () => {
+    expect(buildItemEmbedText(makeItem({ subtype: null }))).toContain("Flame Tongue. rare weapon. Requires");
+  });
+
+  it("omits the attunement phrase entirely when the item needs no attunement", () => {
+    const text = buildItemEmbedText(makeItem({ requires_attunement: false }));
+    expect(text).not.toContain("attunement");
+  });
+
+  // The class words in `attunement_requirements` are the ONLY place a druid
+  // item says "druid" for 16 of the 16 library items attuned by one — see the
+  // field's comment on EmbeddableItem.
+  it("carries the attunement requirement text verbatim when it is already a sentence", () => {
+    const text = buildItemEmbedText(makeItem({
+      name: "Staff of the Woodlands",
+      attunement_requirements: "Requires Attunement by a Druid",
+    }));
+    expect(text).toContain("Requires Attunement by a Druid.");
+    expect(text).not.toContain("Requires attunement. Requires");
+  });
+
+  it("turns a bare requirement fragment into a sentence without losing the words", () => {
+    const text = buildItemEmbedText(makeItem({ attunement_requirements: "Druid or Ranger" }));
+    expect(text).toContain("Requires attunement: Druid or Ranger.");
+  });
+
+  it("does not double the full stop when the requirement text already ends in one", () => {
+    const text = buildItemEmbedText(makeItem({
+      attunement_requirements: "the user must be a member of one of the Reghed tribes.",
+    }));
+    expect(text).toContain("Requires attunement: the user must be a member of one of the Reghed tribes.");
+    expect(text).not.toContain("tribes..");
+  });
+
+  it("keeps the requirement text even when the boolean disagrees with it", () => {
+    const text = buildItemEmbedText(makeItem({
+      requires_attunement: false,
+      attunement_requirements: "Requires Attunement by a Druid",
+    }));
+    expect(text).toContain("Requires Attunement by a Druid.");
+  });
+
+  it("degrades to name plus the two NOT NULL columns when everything optional is absent", () => {
+    expect(buildItemEmbedText({
+      name: "Rusty Nail",
+      item_type: "gear",
+      rarity: "mundane",
+      subtype: null,
+      requires_attunement: false,
+      attunement_requirements: null,
+      cost: null,
+      tags: [],
+      description: null,
+    })).toBe("Rusty Nail. mundane gear.");
+  });
+
+  it("truncates a description longer than 500 characters at a word boundary", () => {
+    const longDescription = Array.from({ length: 200 }, () => "alpha").join(" "); // 1199 chars
+    const text = buildItemEmbedText(makeItem({ description: longDescription }));
+    const descriptionPart = text.split("fire, flashy. ")[1]!;
+
+    expect(descriptionPart.length).toBeLessThanOrEqual(500);
+    expect(descriptionPart.split(" ").every((word) => word === "alpha")).toBe(true);
+  });
+
+  it("treats a blank description as absent rather than emitting an empty clause", () => {
+    expect(buildItemEmbedText(makeItem({ description: "   " }))).toBe(
+      "Flame Tongue. rare weapon, longsword. Requires attunement. 5,000 gp. fire, flashy.",
+    );
+  });
+
+  it("collapses runs of whitespace so output is stable regardless of source formatting", () => {
+    const text = buildItemEmbedText(makeItem({ description: "A blade\n\nthat   burns." }));
+    expect(text).not.toMatch(/\s{2,}/);
+  });
+
+  it("is deterministic — the same input always produces byte-identical output", () => {
+    expect(buildItemEmbedText(makeItem())).toBe(buildItemEmbedText(makeItem()));
   });
 });
 

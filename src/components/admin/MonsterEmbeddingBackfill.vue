@@ -3,9 +3,9 @@
     <div>
       <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">Content Embeddings</h2>
       <p class="text-caption text-muted-foreground italic mt-0.5">
-        Drives the embed-monsters (#595) and embed-content (#600) backfills in bounded batches of {{ BATCH_LIMIT }}
+        Drives the embed-monsters (#595) and embed-content (#600, #602) backfills in bounded batches of {{ BATCH_LIMIT }}
         — one call embeds up to {{ BATCH_LIMIT }} stale rows in one table and reports how many remain, so a full
-        pass over monsters, NPCs, factions, locations and notes takes many calls. It is resumable by construction (the
+        pass over monsters, NPCs, factions, locations, notes and items takes many calls. It is resumable by construction (the
         server recomputes "remaining" fresh each call), so an interrupted run is always safe to restart. Changing
         the embedding vendor or model in the panel above runs this automatically -- use the button below to resume
         an interrupted run, or to re-embed without changing the vendor.
