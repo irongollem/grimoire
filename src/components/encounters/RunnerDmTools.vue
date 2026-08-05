@@ -1,10 +1,32 @@
 <template>
-  <!-- Events panel (shown if any events exist) -->
-  <div v-if="store.events.length" class="events-panel">
+  <!-- Events panel: always mounted while a run is on screen (RunnerDmTools only
+       renders inside an active EncounterRunner) — the generator buttons need to
+       be reachable before any event exists, which is the common mid-fight case. -->
+  <div class="events-panel">
     <div class="events-header">
       <span class="events-title">EVENTS</span>
+      <div class="events-actions">
+        <button
+          type="button"
+          class="gen-btn"
+          title="Generate a mid-fight complication"
+          @click="openGenerator('complication')"
+        >
+          <IconWarning class="h-3 w-3" />
+          Complication
+        </button>
+        <button
+          type="button"
+          class="gen-btn"
+          title="Generate reinforcements"
+          @click="openGenerator('reinforcements')"
+        >
+          <IconMonster class="h-3 w-3" />
+          Reinforce
+        </button>
+      </div>
     </div>
-    <div class="events-list">
+    <div v-if="store.events.length" class="events-list">
       <div
         v-for="event in store.events"
         :key="event.id"
@@ -25,6 +47,25 @@
           :title="event.trigger.type === 'manual' ? 'Fire this event' : 'Force fire'"
           @click="store.fireEvent(event.id)"
         >▶</button>
+      </div>
+    </div>
+    <p v-else class="events-empty">No events yet.</p>
+
+    <!-- Standing hazards from fired environment_effect actions (#604) — derived,
+         see store.activeEnvironmentEffects. -->
+    <div v-if="store.activeEnvironmentEffects.length" class="hazards-panel">
+      <div class="hazards-header">
+        <span class="hazards-title">⚠ IN PLAY</span>
+      </div>
+      <div class="hazards-list">
+        <div
+          v-for="(effect, i) in store.activeEnvironmentEffects"
+          :key="i"
+          class="hazard-row"
+        >
+          <span class="hazard-label">{{ effect.label }}</span>
+          <span class="hazard-desc">{{ effect.description }}</span>
+        </div>
       </div>
     </div>
   </div>
@@ -57,15 +98,29 @@
       </div>
     </div>
   </div>
+
+  <ComplicationGeneratorDialog v-model="generatorOpen" :mode="generatorMode" />
 </template>
 
 <script setup lang="ts">
+import { ref } from "vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { TRAP_TYPE_COLORS } from "@/types/trap.types";
+import { IconMonster, IconWarning } from "@/lib/icons";
+import ComplicationGeneratorDialog from "./ComplicationGeneratorDialog.vue";
+import type { ComplicationMode } from "@/ai/useComplicationGeneration";
 
 const selectedTrapId = defineModel<string | null>("selectedTrapId", { required: true });
 
 const store = useEncounterRunStore();
+
+const generatorOpen = ref(false);
+const generatorMode = ref<ComplicationMode>("complication");
+
+function openGenerator(mode: ComplicationMode) {
+  generatorMode.value = mode;
+  generatorOpen.value = true;
+}
 
 function triggerLabel(trigger: import("@/types/encounter.types").EventTrigger): string {
   if (trigger.type === "round_start") return `Round ${trigger.round} start`;
@@ -97,6 +152,9 @@ function toggleTrapDetail(id: string) {
   overflow: hidden;
 }
 .events-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
   padding: 0.5rem 0.75rem;
   border-bottom: 1px solid theme(colors.border / 100%);
   background: theme(colors.muted / 20%);
@@ -108,11 +166,45 @@ function toggleTrapDetail(id: string) {
   color: theme(colors.muted-foreground / 100%);
   letter-spacing: 0.1em;
 }
+.events-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+.gen-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  font-family: var(--font-cinzel, serif);
+  font-size: 0.5625rem;
+  font-weight: 600;
+  padding: 0.1875rem 0.25rem;
+  border-radius: 0.1875rem;
+  border: 1px solid theme(colors.border / 100%);
+  background: transparent;
+  color: theme(colors.muted-foreground / 100%);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.gen-btn:hover {
+  border-color: theme(colors.primary / 50%);
+  color: theme(colors.primary / 100%);
+}
 .events-list {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+}
+.events-empty {
+  padding: 0.75rem;
+  font-family: var(--font-fell, serif);
+  font-size: 0.625rem;
+  color: theme(colors.muted-foreground / 70%);
+  font-style: italic;
 }
 .event-row {
   display: flex;
@@ -175,6 +267,49 @@ function toggleTrapDetail(id: string) {
 .fire-btn:hover {
   border-color: theme(colors.primary / 50%);
   color: theme(colors.primary / 100%);
+}
+
+/* ── Standing hazards ("IN PLAY") ─────────────────────────────────────────── */
+
+.hazards-panel {
+  flex-shrink: 0;
+  max-height: 8rem;
+  overflow-y: auto;
+  border-top: 1px solid theme(colors.border / 100%);
+}
+.hazards-header {
+  padding: 0.375rem 0.75rem;
+  background: rgba(202, 138, 4, 0.08);
+}
+.hazards-title {
+  font-family: var(--font-cinzel, serif);
+  font-size: 0.5625rem;
+  font-weight: 700;
+  color: #ca8a04;
+  letter-spacing: 0.1em;
+}
+.hazards-list {
+  display: flex;
+  flex-direction: column;
+}
+.hazard-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.0625rem;
+  padding: 0.375rem 0.75rem;
+  border-bottom: 1px solid theme(colors.border / 60%);
+}
+.hazard-row:last-child { border-bottom: none; }
+.hazard-label {
+  font-family: var(--font-cinzel, serif);
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: theme(colors.foreground / 100%);
+}
+.hazard-desc {
+  font-family: var(--font-fell, serif);
+  font-size: 0.625rem;
+  color: theme(colors.muted-foreground / 100%);
 }
 
 /* ── Traps panel ──────────────────────────────────────────────────────────── */

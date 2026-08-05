@@ -206,11 +206,17 @@ import type {
   EventAction,
 } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
+import type { Npc } from "@/types/npc.types";
 
 const events = defineModel<EncounterEvent[]>("events", { required: true });
 const props = defineProps<{
   combatants: CombatantDef[];
   monsters: Monster[];
+  /** Needed only to name NPC spawns in an event's summary line. This editor
+   *  cannot author one — NPC reinforcements come from the runner's
+   *  complication generator (#604) — but it does have to describe them
+   *  honestly once they exist on the encounter. */
+  npcs: Npc[];
   factions: FactionDef[];
 }>();
 
@@ -234,6 +240,13 @@ const monsterMap = computed(() => new Map(props.monsters.map((m) => [m.id, m])))
 function monsterName(monsterId: string | null): string {
   if (!monsterId) return "Unknown";
   return monsterMap.value.get(monsterId)?.name ?? "Unknown";
+}
+
+const npcMap = computed(() => new Map(props.npcs.map((n) => [n.id, n])));
+
+function npcName(npcId: string | null): string {
+  if (!npcId) return "Unknown";
+  return npcMap.value.get(npcId)?.name ?? "Unknown";
 }
 
 function combatantLabel(entry: CombatantDef): string {
@@ -271,9 +284,10 @@ function eventSummary(event: EncounterEvent): string {
     .map((a) => {
       if (a.type === "spawn_combatants") {
         return a.spawns
-          .map((s) => `Spawn ${s.count}× ${monsterName(s.monster_id)}`)
+          .map((s) => `Spawn ${s.count}× ${s.kind === "npc" ? npcName(s.monster_id) : monsterName(s.monster_id)}`)
           .join(", ");
       }
+      if (a.type === "environment_effect") return `Hazard: ${a.label}`;
       return `Broadcast: "${a.message}"`;
     })
     .join("; ");

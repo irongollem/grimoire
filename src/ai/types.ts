@@ -344,6 +344,33 @@ export interface LootTableAiResult {
   ai_provenance?: AiProvenance;
 }
 
+/**
+ * A PROPOSED mid-fight complication (#604) — never an applied one. Everything
+ * here is resolved and clamped by resolveGeneratedComplication before the DM
+ * sees it, and nothing reaches the encounter until they approve the preview.
+ *
+ * `reinforcements` and `environment` are both optional and both routinely
+ * absent: a complication can be pure narration. Consumers must tolerate
+ * either being missing rather than treating the shape as guaranteed.
+ */
+export interface ComplicationAiResult {
+  /** Event name for the runner's EVENTS list. */
+  name: string;
+  /** Read-aloud text. The one field the server insists on. */
+  narration: string;
+  reinforcements?: { name: string; count?: number; side?: string; role?: string | null }[];
+  environment?: { label: string; description: string } | null;
+  /** Echoed by the server so the panel knows which button produced this. */
+  mode?: "complication" | "reinforcements";
+  /**
+   * False when bestiary retrieval was unavailable, so creature names are the
+   * model guessing rather than a real roster. Lets the panel distinguish "your
+   * campaign doesn't have that creature" from "the index isn't built yet".
+   */
+  grounded?: boolean;
+  ai_provenance?: AiProvenance;
+}
+
 export interface NpcVoiceAiResult {
   /** 2–3 short, immediately speakable in-character replies. */
   lines: string[];

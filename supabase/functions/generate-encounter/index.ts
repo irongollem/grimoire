@@ -27,6 +27,7 @@ import {
   EmbeddingProviderConfigError,
 } from "../_shared/embeddings.ts";
 import { recordFreeGeneration } from "../_shared/credits.ts";
+import { retrieveMonsterCandidates, type CandidateMonster } from "../_shared/monsterRetrieval.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 
 /**
@@ -97,20 +98,6 @@ interface CustomMonsterRow {
   stat_block: { challenge_rating?: string } | null;
 }
 
-/** One line of the candidate block handed to the model, as `Name|CR|type`. */
-interface CandidateMonster {
-  name: string;
-  cr: string;
-  type: string;
-}
-
-/** Row shape returned by both match_* RPCs. */
-interface MatchRow {
-  name: string;
-  monster_type: string;
-  challenge_rating: string | null;
-}
-
 // How many rows each side contributes. Custom monsters get a guaranteed share
 // rather than competing in one merged ranking — 3,541 library rows would
 // otherwise crowd out all ~98 of the DM's homebrew, making the feature worst
@@ -119,14 +106,12 @@ const RETRIEVAL_PER_SIDE = 15;
 // Cap on unembedded custom monsters appended after retrieval (see below).
 const MAX_UNEMBEDDED_APPEND = 25;
 
-function toCandidate(row: MatchRow): CandidateMonster {
-  // "?" is an explicit unknown marker, not a silenced null — a monster with no
-  // CR recorded is a real state the model should see rather than guess at.
-  return { name: row.name, cr: row.challenge_rating ?? "?", type: row.monster_type };
-}
-
+/** Compact-index fallback row → candidate. The retrieval path's equivalent
+ *  mapping lives in _shared/monsterRetrieval.ts; this one stays because the
+ *  fallback (which that module deliberately does not own) still needs it. */
 function fromCustomRow(row: CustomMonsterRow): CandidateMonster {
   return {
+    id: row.id,
     name: row.name,
     cr: row.stat_block?.challenge_rating ?? "?",
     type: row.monster_type,
@@ -355,104 +340,21 @@ serve(withCors(async (req: Request) => {
       input_tokens: embedUsage.input_tokens,
     });
 
-    const queryVector = toVectorLiteral(vectors[0]);
-
-    // Error checked rather than defaulted away: a failed fetch here is
-    // indistinguishable from "this campaign has enabled no sources", and the
-    // two mean opposite things — the latter is a legitimate config, the former
-    // would silently drop the entire library side of the search with nothing
-    // in the logs. This block exists to be diagnosable; let it be.
-    const { data: enabledSourceRows, error: enabledSourceError } = await admin
-      .from("campaign_enabled_sources")
-      .select("source_slug")
-      .eq("campaign_id", campaign_id);
-    if (enabledSourceError) throw new Error(enabledSourceError.message);
-    const enabledSlugs = (enabledSourceRows ?? []).map((r: { source_slug: string }) => r.source_slug);
-
-    const customMatch = await admin.rpc("match_custom_monsters", {
-      query_embedding:   queryVector,
-      p_user_id:         campaign.user_id,
-      p_ruleset:         ruleset,
-      p_embedding_model: embedProvider.model,
-      match_count:       RETRIEVAL_PER_SIDE,
+    // Two-corpus bestiary retrieval, extracted to _shared/monsterRetrieval.ts
+    // when generate-complication (#604) became its second consumer. The
+    // compact-index fallback below is NOT part of that module and stays here:
+    // encounter building must always offer creatures, which is this
+    // function's duty alone.
+    const candidates = await retrieveMonsterCandidates(admin, {
+      queryVector:    toVectorLiteral(vectors[0]),
+      ownerId:        campaign.user_id,
+      campaignId:     campaign_id,
+      ruleset,
+      embeddingModel: embedProvider.model,
+      perSide:        RETRIEVAL_PER_SIDE,
+      unembeddedCap:  MAX_UNEMBEDDED_APPEND,
     });
-    if (customMatch.error) throw new Error(customMatch.error.message);
-
-    // Skip the library query entirely when the campaign has enabled no sources
-    // — calling it with an empty array would be a no-op at best and, if the
-    // predicate were ever loosened, would leak content from books this
-    // campaign has not turned on.
-    let libraryRows: MatchRow[] = [];
-    if (enabledSlugs.length > 0) {
-      const libraryMatch = await admin.rpc("match_library_monsters", {
-        query_embedding:   queryVector,
-        source_slugs:      enabledSlugs,
-        p_ruleset:         ruleset,
-        p_embedding_model: embedProvider.model,
-        match_count:       RETRIEVAL_PER_SIDE,
-      });
-      if (libraryMatch.error) throw new Error(libraryMatch.error.message);
-      libraryRows = (libraryMatch.data ?? []) as MatchRow[];
-    }
-
-    const customCandidates = ((customMatch.data ?? []) as MatchRow[]).map(toCandidate);
-
-    // A custom monster with no embedding row cannot be retrieved — which is
-    // exactly the DM's newest homebrew, during the backfill window or before
-    // embed-on-write lands. Dropping those would be a visible regression
-    // against the pre-retrieval behaviour, so they are appended explicitly.
-    //
-    // Queried fresh, ordered by RECENCY, rather than filtered out of the
-    // compact index above: that list is capped at 200 rows ordered by NAME, so
-    // slicing it would decide which homebrew survives by where its name sorts.
-    // A DM past either cap could then have the monster they wrote five minutes
-    // ago silently absent because it begins with "W". Recency is the only
-    // ordering that matches what this append is for.
-    const { data: recentRows, error: recentError } = await admin
-      .from("monsters")
-      .select("id, name, monster_type, stat_block")
-      .eq("user_id", campaign.user_id)
-      .or("open5e_import.is.null,open5e_import.eq.false")
-      .or(`ruleset.is.null,ruleset.eq.${ruleset}`)
-      .order("updated_at", { ascending: false })
-      .limit(MAX_UNEMBEDDED_APPEND * 2);
-    if (recentError) throw new Error(recentError.message);
-    const recent = (recentRows ?? []) as CustomMonsterRow[];
-
-    const embeddedIds = new Set<string>();
-    if (recent.length > 0) {
-      const { data: embeddedRows, error: embeddedError } = await admin
-        .from("monster_embeddings")
-        .select("monster_id")
-        .eq("embedding_model", embedProvider.model)
-        .in("monster_id", recent.map((m) => m.id));
-      if (embeddedError) throw new Error(embeddedError.message);
-      for (const row of (embeddedRows ?? []) as { monster_id: string }[]) {
-        embeddedIds.add(row.monster_id);
-      }
-    }
-    const unembedded = recent
-      .filter((m) => !embeddedIds.has(m.id))
-      .slice(0, MAX_UNEMBEDDED_APPEND)
-      .map(fromCustomRow);
-
-    // Order matters, because the dedup below keeps the FIRST occurrence of a
-    // name. The DM's own monsters — retrieved or not-yet-embedded — go ahead of
-    // library rows so that when both bestiaries hold a "Griffon", the DM sees
-    // their own. Appending `unembedded` last would hand the collision to the
-    // library copy and quietly drop the homebrew from the candidate block,
-    // which is the opposite of the guaranteed-share rule above and of the
-    // homebrew-wins tie-break resolveGeneratedCombatants applies downstream.
-    const merged = [...customCandidates, ...unembedded, ...libraryRows.map(toCandidate)];
-    if (merged.length > 0) {
-      const seen = new Set<string>();
-      retrieved = merged.filter((c) => {
-        const key = c.name.toLowerCase();
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-    }
+    if (candidates.length > 0) retrieved = candidates;
 
   } catch (e) {
     // Diagnosable, but never fatal.

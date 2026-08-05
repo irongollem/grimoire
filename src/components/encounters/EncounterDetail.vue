@@ -198,6 +198,7 @@
           v-model:events="form.events"
           :combatants="form.combatants"
           :monsters="monsters ?? []"
+          :npcs="npcs ?? []"
           :factions="form.factions"
         />
 

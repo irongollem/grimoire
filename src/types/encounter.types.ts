@@ -92,7 +92,18 @@ export type RevealState = "hidden" | "unseen" | "revealed";
 
 // Spawn definition for event actions
 export interface SpawnDef {
+  /** The bestiary monster, or — when `kind` is "npc" — the NPC to bring in.
+   *  Named `monster_id` rather than `entity_id` because every pre-#604 row in
+   *  `encounters.events` already uses that key and these live in JSONB: a
+   *  rename would need a data migration over every encounter ever saved, to
+   *  buy nothing. */
   monster_id: string;
+  /** Which roster the id points at. ABSENT MEANS "monster" — every event
+   *  authored before #604 predates this field, and the runner reads it with
+   *  that default, so old rows keep working untouched. The runner could
+   *  always bring in an NPC mid-fight (`addNpc`); only the event action had
+   *  no way to say so. */
+  kind?: "monster" | "npc";
   count: number;
   faction_id: string;
   custom_name?: string;
@@ -106,7 +117,21 @@ export type EventTrigger =
 
 export type EventAction =
   | { type: "spawn_combatants"; spawns: SpawnDef[] }
-  | { type: "broadcast_message"; message: string };
+  | { type: "broadcast_message"; message: string }
+  /**
+   * A hazard or terrain change that stays in play once fired (#604) — a
+   * collapsing floor, rising water, choking smoke.
+   *
+   * It deliberately carries no mechanical payload: no conditions, no damage,
+   * no forced movement. Firing it posts the description and pins a hazard
+   * entry in the runner for the rest of the fight; WHICH creatures the
+   * collapsing floor actually restrains stays a DM decision made with the
+   * ConditionPicker that already exists. An AI button that silently applies
+   * conditions to combatants is the failure mode this design exists to avoid
+   * — the DM asked for a complication, not for the app to start playing their
+   * encounter for them.
+   */
+  | { type: "environment_effect"; label: string; description: string };
 
 export interface EncounterEvent {
   id: string;

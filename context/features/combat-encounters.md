@@ -146,13 +146,34 @@ Pre-scripted automation that fires automatically or on demand during the run. Ea
 
 **Actions** (one per event):
 
-- `spawn_combatants` — adds N monsters of a chosen type to a chosen faction, with automatic initiative if combat is already started
+- `spawn_combatants` — adds N combatants of a chosen faction, with automatic initiative if combat is already started. Each spawn (`SpawnDef`) carries an optional `kind: "monster" | "npc"` (#604) selecting which roster its id resolves against — absent means `"monster"`, so every event authored before #604 keeps working untouched. The builder's own Add/Edit form only offers a monster picker for this action; an NPC spawn can currently only be produced by the complication generator below, though the summary line for an existing event renders either kind correctly
 - `broadcast_message` — posts a system message to the campaign chat
+- `environment_effect` — pins a hazard or terrain change (label + description) that stays "in play" for the rest of the fight once fired (#604). Carries no mechanical payload on purpose — no conditions, no damage, no forced movement. Firing it only posts the description to chat; which creatures a collapsing floor actually restrains stays a DM call made with the existing condition picker. Not authorable in the builder form — generator-only, same as an NPC spawn
 
 **Options:**
 
 - `fire_once` — if checked, the event is greyed out after firing and won't repeat
 - `is_player_visible` — when set, fired events appear as parchment-style narrative beat callouts in the player's combat panel (`PlayerEncounterPanel`). If the event has a `broadcast_message` action, that message text is shown prominently; the event name is shown as a smaller label below it. Events appear in the order they were defined and remain visible for the rest of the encounter.
+
+### Mid-fight Complication / Reinforcement Generator (#604)
+
+Mid-fight, a DM can ask for one of two things without leaving the runner: a **complication** — something that changes the shape of the fight without just adding more HP to grind through — or **reinforcements** — pressure to restore when the party is winning too easily. Both are proposals, never applied automatically: the whole point of this feature is that nothing happens in the fight the DM did not explicitly approve — the model is never asked for a trigger, the client never reads one from it, and a generated proposal only joins the encounter as an unfired event the DM still has to press ▶ on.
+
+**One edge function, two modes.** `supabase/functions/generate-complication/index.ts` picks between the `complication` and `complication_reinforcements` rows in `ai_system_prompts` by the `mode` the client sends. Two rows rather than one prompt with a mode switch, so an admin tuning the reinforcement wording can't break complications by accident (seeded in migration `20260805000004_complication_generator_ai.sql`, alongside the `complication_generation` credit cost — 1 credit for either mode, sharing the `ai_generation` rate-limit bucket rather than a higher per-press price, because a DM pressing the button several times hunting for a complication they like is expected use, not abuse). Server-path only, like `generate-loot` — the candidate blocks below come from service-role reads the browser can't make, and `useComplicationGeneration.ts` throws immediately in local-key mode rather than attempting a weaker client-direct path.
+
+**The fight, as sent by the client.** Rather than reading `encounter_state` server-side, the edge function takes an `EncounterSnapshot` (name, round, faction names, and up to 30 combatants as name/side/HP%) built by `useComplicationGeneration.buildSnapshot()` from the live `useEncounterRunStore`. This is deliberate: the store is the live truth, while the DB row lags behind it by up to the 300ms `useEncounterLive` debounce, and a DM who hasn't gone live yet has no row at all. Trusting the client here costs nothing — it's the DM's own encounter, the snapshot grants no privilege, and it only flavors a proposal the DM must still approve. HP is sent as a rounded percentage rather than exact numbers: the model needs "badly hurt" vs. "untouched," not DM-side bookkeeping detail.
+
+**Grounding.** One embedding query — the DM's typed steer if they gave one, else the encounter name plus up to 10 combatants' names, else the literal string "a mid-combat complication" — feeds both `retrieveCampaignEntities` (npcs/locations/factions, #600) and `retrieveMonsterCandidates` (bestiary, #595) in parallel, in one try/catch: a proposal with real NPCs but hallucinated creatures is a worse failure than a fully ungrounded one, so retrieval failing degrades both corpora together rather than one silently. Reinforcements lean harder on the bestiary than complications do (`MONSTERS_PER_SIDE`: 12/side vs. 6/side), since a complication is as likely to be a hostage or a collapsing exit as a creature.
+
+**Bestiary retrieval, shared.** `retrieveMonsterCandidates` moved out of `generate-encounter` into `supabase/functions/_shared/monsterRetrieval.ts` when this generator became its second consumer — the alternative was a second copy of the custom/library merge-and-dedupe that would have drifted the first time either the tie-break or the unembedded window changed. `generate-encounter`'s compact-index fallback (a name-ordered slice of the whole bestiary used when retrieval is unavailable) deliberately did _not_ move: encounter _building_ must always offer some creatures, but a mid-fight complication has no such duty — if retrieval is down it just generates narration with no creature candidates.
+
+**Resolution (`src/ai/resolveGeneratedComplication.ts`).** The model returns creature _names_, not ids. Each name is checked against the runner's own loaded rosters (`store.availableMonsters` first, then `store.availableNpcs` — a name in both is almost always a homebrew stat block written for that NPC, and combat needs the stat block); an unmatched name is never dropped or turned into a stub — it comes back as `{ kind: "unmatched", name, reason }` so the preview can show the DM exactly what the model asked for and why it can't land. `side` resolves against the encounter's _own_ factions (never trusted as an id from the model) by name or id, falling back to the `enemy` faction when unspecified or unrecognised. Every count is clamped to 8 per entry and every proposal to 6 entries (`MAX_COUNT_PER_ENTRY` / `MAX_REINFORCEMENT_ENTRIES`) regardless of what the model asked for, and anything the clamp or the resolution silently changed is surfaced in a `warnings[]` list rather than just quietly happening — a proposal that lost half its content on the way through must not look complete.
+
+**The event this becomes.** `buildComplicationEvent()` always produces `trigger: { type: "manual" }` and `fire_once: true`. `checkEvents()` only auto-fires non-manual triggers, so a generated event physically cannot go off on a round boundary while the DM is still deciding about it — it can only fire from the ▶ button, exactly like a hand-authored manual event. Confirming a proposal calls `store.addGeneratedEvent()`, which pushes the event onto `store.events` **unfired**, identical to a hand-authored one.
+
+**Store support for what the event carries.** `spawnFromDef()` now branches on `SpawnDef.kind`: absent (every pre-#604 event) means monster, `"npc"` calls `addNpc()` instead. `executeEvent()` handles the new `environment_effect` action by posting its label + description to the pending-broadcast queue, the same path `broadcast_message` uses. `activeEnvironmentEffects` is a computed derived from `eventsFired` ∩ each fired event's `environment_effect` actions — no new persisted field, so there is nothing extra to add to live-sync: the hazard list falls out of state (`events`, `eventsFired`) that already syncs.
+
+**DM-facing surface.** `RunnerDmTools.vue`'s EVENTS panel carries two header buttons — **Complication** and **Reinforce** — which open `ComplicationGeneratorDialog.vue` in the matching mode. The panel now always renders while a run is active (it used to be hidden until an event existed, which would have put the buttons out of reach in exactly the common mid-fight case: an encounter with no pre-scripted events). The dialog is a preview-then-confirm gate, and that gate is the feature's whole safety story: it shows the narration, every resolved reinforcement with its side, the hazard, every `warnings[]` line, and the unmatched names struck through — and only on **Add to Events** does anything reach the encounter. Regenerate and Discard cost nothing but a credit.
 
 ### Boss Mechanics
 
@@ -363,6 +384,7 @@ A 200px-wide panel on the right edge of the runner. Appears only when the encoun
 - Manual events and multi-fire events always show a ▶ fire button
 - Auto-triggered events are greyed out after firing (if fire_once); they still show the button so the DM can force re-fire
 - `checkEvents()` is called after every HP change and turn advancement; auto-triggers are evaluated against current state
+- Firing an `environment_effect` action (#604) posts its label + description to the same pending-broadcast queue a `broadcast_message` action uses (`store.executeEvent`), and the hazard then stands in the **⚠ IN PLAY** list under the events — rendered from `store.activeEnvironmentEffects`, the computed over fired events' `environment_effect` actions, so it survives a reload without a field of its own. The two generator buttons live in this panel's header — see Mid-fight Complication / Reinforcement Generator above
 
 **Traps sidebar:**
 
@@ -526,9 +548,19 @@ type EventTrigger =
   | { type: "combatant_dies"; combatant_def_id: string }
   | { type: "manual" };
 
+interface SpawnDef {
+  monster_id: string; // bestiary monster, or (kind: "npc") the NPC to bring in
+  kind?: "monster" | "npc"; // absent = "monster" (#604) — every pre-#604 row has no kind field
+  count: number;
+  faction_id: string;
+  custom_name?: string;
+}
+
 type EventAction =
   | { type: "spawn_combatants"; spawns: SpawnDef[] }
-  | { type: "broadcast_message"; message: string };
+  | { type: "broadcast_message"; message: string }
+  // #604 — a hazard/terrain change that stays in play once fired; no mechanical payload
+  | { type: "environment_effect"; label: string; description: string };
 
 interface EncounterEvent {
   id: string;

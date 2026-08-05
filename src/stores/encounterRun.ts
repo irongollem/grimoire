@@ -79,6 +79,23 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
   // Sorted by initiative desc, players-first on tie, dex_mod desc (shared comparator)
   const sortedCombatants = computed(() => sortCombatantsByInitiative(combatants.value));
 
+  /**
+   * Hazards and terrain changes currently in play (#604): every
+   * `environment_effect` action belonging to an event that has fired.
+   *
+   * DERIVED, never stored. `eventsFired` already syncs to `encounter_state`
+   * and the event definitions already live on the encounter row, so the
+   * standing hazard list falls out of state that exists — the same way the
+   * player panel derives its narrative beats. A separate ref would be a third
+   * copy to keep in step across a reload, a live-sync push and a DM who fires
+   * an event from a second window.
+   */
+  const activeEnvironmentEffects = computed(() =>
+    events.value
+      .filter((e) => eventsFired.value.includes(e.id))
+      .flatMap((e) => e.actions.filter((a) => a.type === "environment_effect")),
+  );
+
   const activeCombatant = computed(() => sortedCombatants.value[activeIndex.value] ?? null);
 
   /** Falls back to an automatic d20 + modifier when no roller is registered —
@@ -398,6 +415,12 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
   /** Mid-combat event spawns intentionally don't seed a legendary-action pool
    *  (unlike `addMonster`) — matches prior behavior, see buildMonsterCombatants. */
   function spawnFromDef(spawn: SpawnDef) {
+    // Absent `kind` means monster — every event authored before #604 predates
+    // the field. See SpawnDef.
+    if (spawn.kind === "npc") {
+      addNpc(spawn.monster_id, spawn.faction_id, spawn.count, spawn.custom_name);
+      return;
+    }
     const monster = availableMonsters.value.find((m) => m.id === spawn.monster_id);
     if (!monster) return;
     combatants.value.push(
@@ -460,6 +483,13 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
         for (const spawn of action.spawns) spawnFromDef(spawn);
       } else if (action.type === "broadcast_message") {
         pendingBroadcasts.value.push(action.message);
+      } else if (action.type === "environment_effect") {
+        // Broadcast the same way a message action does — the table hears about
+        // the collapsing floor — and that is the whole of it. The hazard's
+        // continuing presence is DERIVED from `eventsFired`, not stored, so
+        // there is no third piece of state to sync, persist or get out of step
+        // with the fired list (see activeEnvironmentEffects).
+        pendingBroadcasts.value.push(`${action.label} — ${action.description}`);
       }
     }
   }
@@ -468,6 +498,20 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     const event = events.value.find((e) => e.id === eventId);
     if (!event) return;
     executeEvent(event);
+  }
+
+  /**
+   * Add an AI-generated event to the running encounter (#604), UNFIRED.
+   *
+   * Nothing executes here: the event joins the EVENTS list exactly as a
+   * hand-authored one does, and waits for the DM to press ▶. Generated events
+   * are always `manual` + `fire_once` — the generator never proposes a trigger
+   * and the model is never asked for one — so `checkEvents`, which only
+   * auto-fires non-manual triggers, cannot pick this up on a round boundary
+   * and surprise the DM with reinforcements they were still deciding about.
+   */
+  function addGeneratedEvent(event: EncounterEvent) {
+    events.value.push(event);
   }
 
   function checkEvents() {
@@ -594,6 +638,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     started,
     events,
     eventsFired,
+    activeEnvironmentEffects,
     traps,
     availableMonsters,
     availableNpcs,
@@ -635,6 +680,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     removeCombatant,
     addCompanionCombatant,
     fireEvent,
+    addGeneratedEvent,
     checkEvents,
     clearPendingBroadcast,
     reset,

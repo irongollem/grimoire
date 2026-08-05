@@ -72,7 +72,7 @@ contact, or Grimoire's scale or feature set shifts the risk calculus.
 
 ## 3. AI-system inventory
 
-Verified against `supabase/functions/` and `src/ai/` on 4 Aug 2026.
+Verified against `supabase/functions/` and `src/ai/` on 5 Aug 2026.
 
 ### Server-side edge functions (platform-credit and BYOK-cloud paths)
 
@@ -86,6 +86,7 @@ Verified against `supabase/functions/` and `src/ai/` on 4 Aug 2026.
 | `generate-downtime` | text | same | downtime-outcome vignette/title text |
 | `generate-roll-table` | text | same | |
 | `generate-loot` | text | same | loot-table hoards, grounded in the DM's own item vault (#602); server-path only, no client-direct twin |
+| `generate-complication` | text | same | mid-fight complication/reinforcement proposals for the encounter runner, grounded in the DM's own bestiary and campaign entities (#604); server-path only, no client-direct twin |
 | `generate-chronicle-text` | text | same | session recap text |
 | `generate-npc-voice` | text | same | "NPC Voice Coach" — generates speakable-as-is lines only; ephemeral, nothing persisted |
 | `generate-chronicle-image` | image | OpenAI (gpt-image-2 / gpt-image-1.5 / gpt-image-1-mini), Gemini (gemini-3.1-flash-image, "Nano Banana"), fal.ai (flux-2/flex) via `_shared/imageGen.ts` | also the promotional-reuse surface (§2) |
