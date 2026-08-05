@@ -30,20 +30,39 @@ This skill:
 
 ## Step 1 — Determine next sequence number
 
-Check both local files **and** `origin/main` to avoid branch divergence collisions:
+Check local files, `origin/main`, **and every unmerged remote branch**. The
+third one is not optional: a migration sitting on an open PR branch is invisible
+to the first two, and the collision only appears after that PR merges and your
+work rebases on top of it — by which point both files are in `main` with the
+same version and `supabase db push` dies on
+`duplicate key value violates unique constraint "schema_migrations_pkey"`.
+That is not hypothetical; it happened on 5 Aug 2026 when #602's migration and
+PR #615's `notification_preferences` both claimed `20260805000002`, and it took
+a red CI plus a rename-and-fix-every-reference commit to undo.
 
 ```bash
 today=$(date +%Y%m%d)
+git fetch --all --quiet 2>/dev/null
 # Local sequences for today
 local_max=$(ls supabase/migrations/ | grep "^${today}" | sed "s/^${today}//" | cut -c1-6 | sort -n | tail -1)
-# origin/main sequences for today (catches migrations merged to main while on a branch)
-main_max=$(git ls-tree -r origin/main --name-only -- supabase/migrations/ 2>/dev/null | grep "^supabase/migrations/${today}" | sed "s|supabase/migrations/${today}||" | cut -c1-6 | sort -n | tail -1)
-# Take the higher of the two
-echo -e "${local_max}\n${main_max}" | sort -n | tail -1
+# Every remote branch, not just main — catches migrations on open PR branches
+# that have not merged yet. `git ls-tree` per branch is the only way to see a
+# file that exists on a ref you have not checked out.
+remote_max=$(for ref in $(git for-each-ref --format='%(refname)' refs/remotes/ 2>/dev/null); do
+    git ls-tree -r "$ref" --name-only -- supabase/migrations/ 2>/dev/null
+  done | grep "^supabase/migrations/${today}" | sed "s|supabase/migrations/${today}||" | cut -c1-6 | sort -n | tail -1)
+# Take the highest of them all
+printf '%s\n%s\n' "${local_max}" "${remote_max}" | sort -n | tail -1
 ```
 
-If no files exist for today in either location, the sequence starts at `000001`.
+If no files exist for today anywhere, the sequence starts at `000001`.
 If the highest is e.g. `000003`, use `000004`.
+
+**Skipping a number is free; reusing one is not.** When in doubt, take the next
+number after the highest you saw anywhere — gaps in the sequence are harmless
+(nothing reads them as consecutive), while a duplicate blocks every deploy until
+someone renames a file and chases down every reference to it in comments, docs
+and closed issues.
 
 ## Step 2 — Construct filename
 
