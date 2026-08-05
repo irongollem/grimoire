@@ -126,7 +126,7 @@ interface LootGenerationResult {
 // NOTE: no SCHEMA_EXTENSION_INSTRUCTION here, unlike generate-quest and
 // generate-roll-table. Those two retrofitted entity references onto prompts
 // that predated retrieval, so the extra fields had to be bolted on
-// server-side. The 'loot' prompt (20260805000002) was written for a grounded
+// server-side. The 'loot' prompt (20260805000005) was written for a grounded
 // generator from the start and already declares item_name as a first-class
 // field, so the only thing this function appends is the candidate block
 // itself.

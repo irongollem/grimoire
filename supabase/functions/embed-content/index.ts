@@ -26,7 +26,7 @@ import {
  * embed-monsters' library/custom split. `note` was added by the Chronicler's
  * story (20260804000001) on top of the npc/faction/location trio #600's
  * quest-hook story introduced first (20260803000004); `item` and
- * `library_item` by the loot-table generator (#602, 20260805000002) —
+ * `library_item` by the loot-table generator (#602, 20260805000005) —
  * everything below this registry (single-mode ownership check, batch admin
  * scan) generalises across every entity kind without change:
  *

@@ -10,7 +10,7 @@
  * that create them alongside these stories), and each one MUST be built from
  * the corresponding function here. Items are the one kind with TWO side
  * tables — `item_embeddings` for the DM's own rows and
- * `library_item_embeddings` for shared content (20260805000002) — both built
+ * `library_item_embeddings` for shared content (20260805000005) — both built
  * from `buildItemEmbedText`, deliberately, so a homebrew item and a library
  * item are ranked against a loot query on identical terms.
  * `entityEmbedHash` feeds every row's `source_hash`, which lets the

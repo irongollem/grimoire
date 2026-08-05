@@ -15,7 +15,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * "Loot for a level 7 party" is a constraint query wearing a semantic query's
  * clothes: cosine similarity ranks a Vorpal Sword top for "impressive
  * treasure", and a model handed that candidate will use it. So rarity and
- * attunement are WHERE predicates inside the match RPCs (20260805000002),
+ * attunement are WHERE predicates inside the match RPCs (20260805000005),
  * applied BEFORE ranking — exactly like the enabled-sources gate — and
  * retrieval then ranks thematically *within* the band the DM asked for. The
  * same predicates are re-applied to the unembedded append below, or that
