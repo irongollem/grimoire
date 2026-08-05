@@ -66,22 +66,33 @@ end $$;
 --
 -- NOTE FOR THE NEXT `match_*` RPC: pin it `SET search_path = public, extensions`
 -- from the start. `= public` alone will not find `<=>`.
+--
+-- The argument type MUST be written `extensions.vector`, not bare `vector`.
+-- The DO block above has just moved the type out of `public`, and this
+-- migration's own session search_path does not include `extensions` — so a bare
+-- `vector` fails to resolve while Postgres is looking up the function to alter:
+--     ERROR: type "vector" does not exist (SQLSTATE 42704)
+-- That aborted the production deploy on 2026-08-05 and, because
+-- `production-release` gates on it, stranded every later migration behind it.
+-- Qualifying is correct in both environments: after the move the type is
+-- `extensions.vector`, and on a fresh database where pgvector was created there
+-- directly the guard above is a no-op and the type is already `extensions.vector`.
 
-alter function public.match_library_monsters(vector, text[], text, text, integer)
+alter function public.match_library_monsters(extensions.vector, text[], text, text, integer)
   set search_path = public, extensions;
-alter function public.match_custom_monsters(vector, uuid, text, text, integer)
+alter function public.match_custom_monsters(extensions.vector, uuid, text, text, integer)
   set search_path = public, extensions;
-alter function public.match_library_items(vector, text[], text, text[], boolean, text, integer)
+alter function public.match_library_items(extensions.vector, text[], text, text[], boolean, text, integer)
   set search_path = public, extensions;
-alter function public.match_custom_items(vector, uuid, uuid, text[], boolean, text, integer)
+alter function public.match_custom_items(extensions.vector, uuid, uuid, text[], boolean, text, integer)
   set search_path = public, extensions;
-alter function public.match_campaign_npcs(vector, uuid, uuid, text, integer)
+alter function public.match_campaign_npcs(extensions.vector, uuid, uuid, text, integer)
   set search_path = public, extensions;
-alter function public.match_campaign_factions(vector, uuid, uuid, text, integer)
+alter function public.match_campaign_factions(extensions.vector, uuid, uuid, text, integer)
   set search_path = public, extensions;
-alter function public.match_campaign_locations(vector, uuid, uuid, text, integer)
+alter function public.match_campaign_locations(extensions.vector, uuid, uuid, text, integer)
   set search_path = public, extensions;
-alter function public.match_campaign_notes(vector, uuid, uuid, text, uuid, text[], integer)
+alter function public.match_campaign_notes(extensions.vector, uuid, uuid, text, uuid, text[], integer)
   set search_path = public, extensions;
 
 -- ── Fail loudly here rather than quietly in production ─────────────────────
