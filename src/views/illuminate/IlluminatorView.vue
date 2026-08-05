@@ -126,7 +126,7 @@ import IlluminatePreviewPanel from "@/components/illuminate/IlluminatePreviewPan
 import IlluminateControlsPanel from "@/components/illuminate/IlluminateControlsPanel.vue";
 import { getCurrentUser } from "@/lib/supabase";
 import { toWebP } from "@/lib/mediaConvert";
-import { uploadToBucket } from "@/lib/storage";
+import { uploadToBucket, isBucketUrl } from "@/lib/storage";
 import {
   applyEdgeTreatmentToCtx,
   processImage,
@@ -183,8 +183,10 @@ const returnDocId = typeof route.query.returnTo === "string" ? route.query.retur
 const returnOldSrc = typeof route.query.oldSrc === "string" ? decodeURIComponent(route.query.oldSrc) : null;
 
 function isValidAssetImageUrl(url: string): boolean {
-  const base = (import.meta.env.VITE_SUPABASE_URL as string) + "/storage/v1/object/public/asset-images/";
-  return url.startsWith(base);
+  // Registry-based, not a prefix match on the Supabase origin: this gates what
+  // the Illuminator will load, so a stale prefix would reject every CDN-served
+  // asset-images URL and break the feature outright once #577 lands.
+  return isBucketUrl("assetImages", url);
 }
 
 onMounted(() => {

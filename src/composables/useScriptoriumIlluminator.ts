@@ -17,9 +17,7 @@ import { computed, watch, type Ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import type { Editor } from "@tiptap/core";
 
-const ASSET_IMAGE_URL_BASE =
-  (import.meta.env.VITE_SUPABASE_URL as string) +
-  "/storage/v1/object/public/asset-images/";
+import { isBucketUrl } from "@/lib/storage";
 
 export function useScriptoriumIlluminator(
   editor: Ref<Editor | undefined>,
@@ -31,13 +29,13 @@ export function useScriptoriumIlluminator(
   const selectedImageIsSupabase = computed(() => {
     if (!editor.value?.isActive("image")) return false;
     const src = editor.value.getAttributes("image").src;
-    return typeof src === "string" && src.startsWith(ASSET_IMAGE_URL_BASE);
+    return isBucketUrl("assetImages", typeof src === "string" ? src : null);
   });
 
   function editInIlluminator() {
     if (!editor.value || !docId.value) return;
     const src = editor.value.getAttributes("image").src as string | undefined;
-    if (!src || !src.startsWith(ASSET_IMAGE_URL_BASE)) return;
+    if (!isBucketUrl("assetImages", src)) return;
     const params = new URLSearchParams({
       src,
       returnTo: docId.value,

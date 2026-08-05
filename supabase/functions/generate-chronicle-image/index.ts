@@ -13,6 +13,7 @@ import { withCors } from "../_shared/cors.ts";
 import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
 import { isSafeStorageUrl } from "../_shared/storage-url.ts";
 import { uploadWithRetry } from "../_shared/storage-upload.ts";
+import { assetCdnUrl } from "../_shared/cdn-buckets.ts";
 import { markGeneratedImage } from "../_shared/provenance/mark.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { hasLikenessAcknowledgement } from "../_shared/provenance/likeness-gate.ts";
@@ -111,6 +112,12 @@ async function uploadResult(
   // is expensive, so uploadWithRetry's backoff protects a transient storage
   // hiccup from wasting the generation. This caller wants the public URL.
   await uploadWithRetry(admin, config.bucket, path, marked, "image/webp");
+  // Must agree with the browser client's getPublicUrl (#577): nine of the ten
+  // buckets above are CDN-fronted, so persisting an origin URL here would leave
+  // every server-generated image permanently off the CDN, even after the
+  // one-time rewrite of existing rows.
+  const cdnUrl = assetCdnUrl(config.bucket, path, Deno.env.get("ASSET_CDN_URL") ?? null);
+  if (cdnUrl) return cdnUrl;
   const { data } = admin.storage.from(config.bucket).getPublicUrl(path);
   return data.publicUrl;
 }

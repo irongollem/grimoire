@@ -6,8 +6,16 @@
 // arbitrary host (which would let a caller probe internal services / metadata
 // endpoints) and never a private/link-local address.
 //
-// Allowed shape: `${SUPABASE_URL}/storage/v1/object/public/...` over https,
-// same origin as the project's SUPABASE_URL.
+// Allowed shapes, both over https:
+//   1. `${SUPABASE_URL}/storage/v1/object/public/...` — the origin shape.
+//   2. `${ASSET_CDN_URL}/<bucket>/<path>` — the asset CDN shape (#577), when
+//      ASSET_CDN_URL is set. That hostname is a dedicated storage front with
+//      nothing else behind it, so any path on it is a storage object; the
+//      exact-origin match is what keeps this a guard rather than an open proxy.
+//
+// Both shapes stay allowed permanently: rows written before the CDN existed,
+// rows written by these functions, and rows written after a stage-2 origin
+// swap all coexist, and a client can legitimately hand back any of them.
 
 const STORAGE_PUBLIC_PREFIX = "/storage/v1/object/public/";
 
@@ -51,11 +59,25 @@ export function isSafeStorageUrl(url: string): boolean {
   }
 
   if (parsed.protocol !== "https:") return false;
-  if (parsed.origin !== projectOrigin) return false;
-  if (!parsed.pathname.startsWith(STORAGE_PUBLIC_PREFIX)) return false;
   if (isPrivateHostLiteral(parsed.hostname)) return false;
 
-  return true;
+  if (parsed.origin === projectOrigin) {
+    return parsed.pathname.startsWith(STORAGE_PUBLIC_PREFIX);
+  }
+
+  // A malformed ASSET_CDN_URL must not widen the guard, so it is parsed
+  // rather than string-compared — an unparseable value simply matches nothing.
+  const cdnUrl = Deno.env.get("ASSET_CDN_URL");
+  if (!cdnUrl) return false;
+  let cdnOrigin: string;
+  try {
+    cdnOrigin = new URL(cdnUrl).origin;
+  } catch {
+    return false;
+  }
+  if (cdnOrigin === "null" || !cdnOrigin.startsWith("https:")) return false;
+
+  return parsed.origin === cdnOrigin;
 }
 
 /**

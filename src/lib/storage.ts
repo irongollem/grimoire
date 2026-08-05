@@ -24,6 +24,7 @@ import { supabase, getCurrentUser } from "@/lib/supabase";
 import { resizeToWebP } from "@/lib/mediaConvert";
 import { sniffImageFormat } from "@edge-shared/provenance/sniff.ts";
 import { readXmpFromWebp, readXmpFromPng, readXmpFromJpeg, embedXmpInWebp } from "@edge-shared/provenance/embed.ts";
+import { assetCdnUrl } from "@edge-shared/cdn-buckets.ts";
 
 // ── Config ───────────────────────────────────────────────────────────────
 
@@ -42,6 +43,15 @@ export interface BucketConfig {
    * Scriptorium rich-text embeds (assetImages) and sounds do NOT.
    */
   readonly generateVariants: boolean;
+  /**
+   * Whether this bucket's public URLs are served through the asset CDN
+   * (`VITE_ASSET_CDN_URL`) rather than the Supabase origin. Per-bucket so
+   * buckets can move one at a time behind a single seam — see #577.
+   *
+   * `false` is not "not done yet"; each `false` below is a deliberate call
+   * with its reason recorded at the bucket.
+   */
+  readonly cdn: boolean;
 }
 
 const FIVE_MB   =  5 * 1024 * 1024;
@@ -75,6 +85,7 @@ export const BUCKETS = {
     mimeTypes: IMAGE_MIMES,
     public: true,
     generateVariants: true,
+    cdn: true,
   },
   assetImages: {
     id: "asset-images",
@@ -82,6 +93,7 @@ export const BUCKETS = {
     mimeTypes: IMAGE_MIMES,
     public: true,
     generateVariants: false, // Scriptorium rich-text embeds — never displayed via FocalImage
+    cdn: true,
   },
   spellImages: {
     id: "spell-images",
@@ -89,6 +101,7 @@ export const BUCKETS = {
     mimeTypes: IMAGE_MIMES,
     public: true,
     generateVariants: true,
+    cdn: true,
   },
   puzzleImages: {
     id: "puzzle-images",
@@ -96,6 +109,7 @@ export const BUCKETS = {
     mimeTypes: IMAGE_MIMES,
     public: true,
     generateVariants: true,
+    cdn: true,
   },
   itemImages: {
     id: "item-images",
@@ -103,6 +117,7 @@ export const BUCKETS = {
     mimeTypes: IMAGE_MIMES,
     public: true,
     generateVariants: true,
+    cdn: true,
   },
   monsterImages: {
     id: "monster-images",
@@ -110,6 +125,7 @@ export const BUCKETS = {
     mimeTypes: IMAGE_MIMES,
     public: true,
     generateVariants: true,
+    cdn: true,
   },
   trapImages: {
     id: "trap-images",
@@ -117,6 +133,7 @@ export const BUCKETS = {
     mimeTypes: IMAGE_MIMES,
     public: true,
     generateVariants: true,
+    cdn: true,
   },
   locationImages: {
     id: "location-images",
@@ -124,6 +141,7 @@ export const BUCKETS = {
     mimeTypes: IMAGE_MIMES,
     public: true,
     generateVariants: true,
+    cdn: true,
   },
   factionImages: {
     id: "faction-images",
@@ -131,6 +149,7 @@ export const BUCKETS = {
     mimeTypes: IMAGE_MIMES,
     public: true,
     generateVariants: true,
+    cdn: true,
   },
   pantheonEmblems: {
     id: "pantheon-emblems",
@@ -138,6 +157,7 @@ export const BUCKETS = {
     mimeTypes: IMAGE_MIMES,
     public: true,
     generateVariants: true,
+    cdn: true,
   },
   lootImages: {
     id: "loot-images",
@@ -145,6 +165,7 @@ export const BUCKETS = {
     mimeTypes: IMAGE_MIMES,
     public: true,
     generateVariants: true,
+    cdn: true,
   },
   sounds: {
     id: "sounds",
@@ -152,6 +173,12 @@ export const BUCKETS = {
     mimeTypes: AUDIO_MIMES,
     public: true,
     generateVariants: false,
+    // Stays on the Supabase origin during stage 1. Cloudflare's Free/Pro terms
+    // restrict serving large volumes of non-HTML content through a proxied
+    // zone, and audio is exactly that shape — same reasoning that sends
+    // mini-models straight to R2. Flip to true only on a plan that permits it,
+    // or when this bucket moves to R2 in stage 2.
+    cdn: false,
   },
   soundImages: {
     id: "sound-images",
@@ -159,6 +186,7 @@ export const BUCKETS = {
     mimeTypes: IMAGE_MIMES,
     public: true,
     generateVariants: false, // Displayed as small thumbnails; no FocalImage variants needed
+    cdn: true,
   },
   chronicle: {
     id: "chronicle",
@@ -166,6 +194,7 @@ export const BUCKETS = {
     mimeTypes: IMAGE_MIMES,
     public: true,
     generateVariants: false, // Displayed as thumbnails via CSS; no FocalImage variants needed
+    cdn: true,
   },
   miniModels: {
     id: "mini-models",
@@ -173,10 +202,30 @@ export const BUCKETS = {
     mimeTypes: MINI_MODEL_MIMES,
     public: true,
     generateVariants: false, // 3D models — no width variants
+    // Skips stage 1 entirely and goes straight to R2 in stage 2 (#577): the
+    // bucket is still empty, so routing it direct means no copy window and no
+    // dual-read phase for our largest objects (50 MB cap).
+    cdn: false,
   },
 } as const satisfies Record<string, BucketConfig>;
 
 export type BucketKey = keyof typeof BUCKETS;
+
+const BUCKET_ENTRIES = Object.entries(BUCKETS) as [BucketKey, BucketConfig][];
+
+/**
+ * Origin of the asset CDN (e.g. `https://cdn.dungeongrimoire.com`), or null
+ * when unset — in which case every bucket resolves against the Supabase
+ * origin exactly as before. Deploying this file without the env var is a
+ * deliberate no-op, so the code can land before the DNS zone exists.
+ *
+ * Null rather than `""`: "no CDN configured" is a real state we branch on,
+ * not an absence to paper over.
+ */
+const ASSET_CDN_BASE: string | null = (() => {
+  const raw = import.meta.env.VITE_ASSET_CDN_URL?.trim();
+  return raw ? raw.replace(/\/+$/, "") : null;
+})();
 
 // ── Variant widths ────────────────────────────────────────────────────────
 
@@ -266,7 +315,10 @@ export async function uploadToBucket({
   }
 
   if (!cfg.public) return storagePath;
-  return supabase.storage.from(cfg.id).getPublicUrl(storagePath).data.publicUrl;
+  // Via getPublicUrl, not the raw client call, so uploads and reads share one
+  // seam — otherwise a CDN-fronted bucket would be read from the CDN but keep
+  // persisting origin URLs.
+  return getPublicUrl(bucket, storagePath);
 }
 
 export interface UploadWithVariantsParams {
@@ -358,9 +410,90 @@ export async function uploadWithVariants({
   return originalUrl;
 }
 
-/** Get a public URL for an existing object (no fetch — pure URL builder). */
+// ── Public URL construction + parsing ─────────────────────────────────────
+
+/**
+ * Get a public URL for an existing object (no fetch — pure URL builder).
+ *
+ * Two shapes exist, and both are permanently supported by `parsePublicUrl`:
+ *
+ *   origin: `https://<ref>.supabase.co/storage/v1/object/public/<bucket>/<path>`
+ *   CDN:    `https://cdn.example.com/<bucket>/<path>`
+ *
+ * The CDN shape drops Supabase's routing prefix deliberately. `<bucket>/<path>`
+ * is exactly the R2 object key we want in stage 2, so the stage-2 cutover is an
+ * origin swap with no stored-URL rewrite (#577). Stage 1 reinstates the prefix
+ * at the edge with a Cloudflare URL-rewrite rule.
+ */
 export function getPublicUrl(bucket: BucketKey, path: string): string {
-  return supabase.storage.from(BUCKETS[bucket].id).getPublicUrl(path).data.publicUrl;
+  const cfg = BUCKETS[bucket];
+  return (
+    assetCdnUrl(cfg.id, path, ASSET_CDN_BASE) ??
+    supabase.storage.from(cfg.id).getPublicUrl(path).data.publicUrl
+  );
+}
+
+export interface ParsedPublicUrl {
+  readonly bucket: BucketKey;
+  readonly path: string;
+}
+
+/** Path portion of a URL, with any query string and fragment removed. */
+function pathnameOf(url: string): string {
+  try {
+    return new URL(url).pathname;
+  } catch {
+    // Not absolute — still strip `?v=…` cache-busters by hand so a relative or
+    // malformed value degrades to a best-effort parse rather than to garbage.
+    return url.split(/[?#]/)[0];
+  }
+}
+
+/**
+ * Resolve a stored public URL back to its bucket + storage path, accepting
+ * **either** URL shape regardless of how this client is configured.
+ *
+ * Host-agnostic on purpose. Rows written before the CDN existed, rows written
+ * by Edge Functions, and rows written after a stage-2 origin swap all coexist
+ * indefinitely; a parser keyed on the current hostname would stop matching the
+ * others and deletes would start silently no-oping — the failure mode #577
+ * calls out for `removeByPublicUrl`.
+ *
+ * Returns null when the URL belongs to no registered bucket (external images
+ * pasted into rich text, `downtime-images`, `bug-reports`).
+ */
+/**
+ * True when `url` points at an object in `bucket`, in either URL shape.
+ *
+ * Prefer this over `url.startsWith(<some base>)` or `url.includes("/object/public/…")`:
+ * those match only the origin shape, so they quietly turn into "always false"
+ * the day the bucket moves to the CDN — taking whatever they gate (a cleanup
+ * sweep, an edit affordance, a validity check) with them.
+ */
+export function isBucketUrl(bucket: BucketKey, url: string | null | undefined): url is string {
+  return !!url && parsePublicUrl(url)?.bucket === bucket;
+}
+
+export function parsePublicUrl(url: string): ParsedPublicUrl | null {
+  const pathname = pathnameOf(url);
+
+  // Origin shape — the bucket id follows Supabase's routing prefix.
+  for (const [key, cfg] of BUCKET_ENTRIES) {
+    const marker = `/object/public/${cfg.id}/`;
+    const at = pathname.indexOf(marker);
+    if (at !== -1) {
+      return { bucket: key, path: decodeURIComponent(pathname.slice(at + marker.length)) };
+    }
+  }
+
+  // CDN shape — the bucket id is the first path segment.
+  const rest = pathname.replace(/^\/+/, "");
+  const slash = rest.indexOf("/");
+  if (slash === -1) return null;
+  const bucketId = rest.slice(0, slash);
+  const entry = BUCKET_ENTRIES.find(([, cfg]) => cfg.id === bucketId);
+  if (!entry) return null;
+  return { bucket: entry[0], path: decodeURIComponent(rest.slice(slash + 1)) };
 }
 
 /** Remove one or more objects by storage path. */
@@ -383,11 +516,11 @@ export async function removeByPublicUrl(
   bucket: BucketKey,
   ...urls: (string | null | undefined)[]
 ): Promise<void> {
-  const bucketId = BUCKETS[bucket].id;
-  const marker = `/object/public/${bucketId}/`;
   const paths = urls
-    .filter((u): u is string => !!u && u.includes(marker))
-    .map((u) => decodeURIComponent(u.slice(u.indexOf(marker) + marker.length)));
+    .filter((u): u is string => !!u)
+    .map(parsePublicUrl)
+    .filter((r): r is ParsedPublicUrl => r?.bucket === bucket)
+    .map((r) => r.path);
   await deleteFromBucket(bucket, pathsWithVariants(paths));
 }
 
@@ -417,19 +550,13 @@ export async function backfillVariants(originalUrl: string): Promise<void> {
   try {
     // Identify which bucket owns this URL.
     // Limit to image buckets only — audio (sounds) has no visual variants.
-    let bucketKey: BucketKey | null = null;
-    let storagePath: string | null = null;
-    for (const [key, cfg] of Object.entries(BUCKETS) as [BucketKey, BucketConfig][]) {
-      const isImageBucket = (cfg.mimeTypes as readonly string[]).some((m) => m.startsWith("image/"));
-      if (!isImageBucket) continue;
-      const marker = `/object/public/${cfg.id}/`;
-      if (originalUrl.includes(marker)) {
-        bucketKey = key;
-        storagePath = decodeURIComponent(originalUrl.slice(originalUrl.indexOf(marker) + marker.length));
-        break;
-      }
-    }
-    if (!bucketKey || !storagePath) return;
+    const parsed = parsePublicUrl(originalUrl);
+    if (!parsed) return;
+    const isImageBucket = (BUCKETS[parsed.bucket].mimeTypes as readonly string[]).some((m) =>
+      m.startsWith("image/"),
+    );
+    if (!isImageBucket) return;
+    const { bucket: bucketKey, path: storagePath } = parsed;
 
     // Only upload if the current user owns this path (first segment = userId).
     // Players loading DM-owned images would get RLS 400s — skip silently.
@@ -475,12 +602,17 @@ export async function backfillVariants(originalUrl: string): Promise<void> {
  * when a record may have URLs in different buckets (e.g. after a bucket rename).
  */
 export async function deleteByPublicUrl(...urls: (string | null | undefined)[]): Promise<void> {
-  for (const [key, cfg] of Object.entries(BUCKETS) as [BucketKey, BucketConfig][]) {
-    const marker = `/object/public/${cfg.id}/`;
-    const paths = urls
-      .filter((u): u is string => !!u && u.includes(marker))
-      .map((u) => decodeURIComponent(u.slice(u.indexOf(marker) + marker.length)));
-    if (paths.length) await deleteFromBucket(key, pathsWithVariants(paths));
+  const byBucket = new Map<BucketKey, string[]>();
+  for (const url of urls) {
+    if (!url) continue;
+    const parsed = parsePublicUrl(url);
+    if (!parsed) continue;
+    const paths = byBucket.get(parsed.bucket);
+    if (paths) paths.push(parsed.path);
+    else byBucket.set(parsed.bucket, [parsed.path]);
+  }
+  for (const [bucket, paths] of byBucket) {
+    await deleteFromBucket(bucket, pathsWithVariants(paths));
   }
 }
 

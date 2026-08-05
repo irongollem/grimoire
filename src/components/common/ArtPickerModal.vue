@@ -118,7 +118,7 @@ import {
 } from "@/lib/icons";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/auth";
-import { BUCKETS, variantPath, VARIANT_WIDTHS, type BucketKey } from "@/lib/storage";
+import { BUCKETS, variantPath, VARIANT_WIDTHS, getPublicUrl, type BucketKey } from "@/lib/storage";
 
 // Variant files are anything containing `_w{width}` before either an extension (`.`)
 // or another variant suffix (`_`). Catches `_w200.webp`, `_w200.png`, and historical
@@ -194,10 +194,11 @@ async function selectCategory(cat: ArtCategory) {
     });
     images.value = originals.map((f) => {
       const path = userId + "/" + f.name;
-      const url = supabase.storage.from(cfg.id).getPublicUrl(path).data.publicUrl;
-      const thumbUrl = cfg.generateVariants
-        ? supabase.storage.from(cfg.id).getPublicUrl(variantPath(path, 200)).data.publicUrl
-        : url;
+      // Through the registry seam, not the raw client: the picker renders a
+      // grid of thumbnails, which is exactly the traffic the CDN exists to
+      // absorb (#577).
+      const url = getPublicUrl(cat.bucketKey, path);
+      const thumbUrl = cfg.generateVariants ? getPublicUrl(cat.bucketKey, variantPath(path, 200)) : url;
       return { name: f.name, url, thumbUrl };
     });
   } finally {

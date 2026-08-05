@@ -2,7 +2,7 @@
 import { ref, computed, watch } from "vue";
 import { useQuery, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
-import { uploadWithVariants } from "@/lib/storage";
+import { uploadWithVariants, getPublicUrl, BUCKETS } from "@/lib/storage";
 import { toWebP } from "@/lib/mediaConvert";
 import LibraryArtStagingCard from "@/components/admin/LibraryArtStagingCard.vue";
 import LibraryArtUploadPanel from "@/components/admin/LibraryArtUploadPanel.vue";
@@ -67,7 +67,10 @@ interface StagingItem {
 type RowStatus = "idle" | "uploading" | "done" | "error";
 type AssignStatus = "idle" | "assigning" | "done" | "error";
 
-const STAGING_BUCKET = "monster-images"; // staging always lives here regardless of mode
+// Staging always lives here regardless of mode. Keyed off the registry so the
+// raw storage calls and the public-URL builder cannot disagree about the id.
+const STAGING_BUCKET_KEY = "monsterImages" as const;
+const STAGING_BUCKET = BUCKETS[STAGING_BUCKET_KEY].id;
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
@@ -180,9 +183,7 @@ const { data: stagingItems, isPending: stagingPending } = useQuery({
       id: row.id as string,
       storage_path: row.storage_path as string,
       created_at: row.created_at as string,
-      image_url: supabase.storage
-        .from(STAGING_BUCKET)
-        .getPublicUrl(row.storage_path as string).data.publicUrl,
+      image_url: getPublicUrl(STAGING_BUCKET_KEY, row.storage_path as string),
     }));
   },
   staleTime: 0,

@@ -6,6 +6,7 @@ import {
   uploadToBucket,
   uploadWithVariants,
   removeByPublicUrl,
+  isBucketUrl,
   type BucketKey,
 } from "@/lib/storage";
 
@@ -28,7 +29,6 @@ export async function removeStorageImages(bucket: string, ...urls: (string | nul
 }
 
 export const ASSET_IMAGES_BUCKET = "asset-images";
-const RTE_IMAGE_MARKER = `/object/public/${ASSET_IMAGES_BUCKET}/`;
 
 /**
  * Walk a serialised Tiptap JSON string and return all asset-images URLs
@@ -42,7 +42,10 @@ export function extractRichTextImageUrls(json: string | null | undefined): strin
   function walk(node: Record<string, unknown>) {
     if (node.type === "image" && node.attrs) {
       const src = (node.attrs as Record<string, unknown>).src;
-      if (typeof src === "string" && src.includes(RTE_IMAGE_MARKER)) urls.push(src);
+      // Registry-based rather than a URL-prefix match, so embeds keep being
+      // collected once asset-images is served from the CDN (#577) — otherwise
+      // this returns [] and rich-text image cleanup silently stops deleting.
+      if (typeof src === "string" && isBucketUrl("assetImages", src)) urls.push(src);
     }
     if (Array.isArray(node.content)) {
       (node.content as Record<string, unknown>[]).forEach(walk);

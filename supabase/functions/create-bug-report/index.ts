@@ -160,6 +160,13 @@ Deno.serve(withCors(async (req: Request) => {
       const safeName = (screenshotName ?? "screenshot").replace(/[^a-z0-9._-]/gi, "_");
       const path = `${Date.now()}-${safeName}.${ext}`;
 
+      // #577 audit: `bug-reports` is deliberately outside the BUCKETS registry
+      // in src/lib/storage.ts and outside CDN_BUCKET_IDS. It is created here at
+      // runtime, is never read by the app (the URL is emailed to us), and holds
+      // no user-visible art — so it carries no egress worth caching and gains
+      // nothing from the CDN. Registry-driven storage migrations skip it by
+      // design, not by oversight. Same call for `downtime-images`, which builds
+      // URLs straight from the env var in src/data/downtimeArt.ts.
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from("bug-reports")
         .upload(path, byteArray, { contentType: mimeType, upsert: false });
