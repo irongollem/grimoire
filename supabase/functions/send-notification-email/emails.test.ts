@@ -34,6 +34,7 @@ describe("noteSharedEmail", () => {
     campaignName: "Curse of <Strahd>",
     dmName: "Jeffrey & co",
     noteTitle: 'Session 12: "The Amber Temple"',
+    noteId: "11111111-2222-3333-4444-555555555555",
   });
 
   it("names the DM and note in the subject", () => {
@@ -49,9 +50,11 @@ describe("noteSharedEmail", () => {
     expect(email.html).not.toContain("<Strahd>");
   });
 
-  it("links the player notes page and the opt-out settings page", () => {
-    expect(email.html).toContain("https://app.dungeongrimoire.com/play/notes");
-    expect(email.text).toContain("https://app.dungeongrimoire.com/play/notes");
+  it("deep-links the exact note on the DM Notes tab, plus the opt-out settings page", () => {
+    const deepLink =
+      "https://app.dungeongrimoire.com/play/journal?tab=dm-notes&note=11111111-2222-3333-4444-555555555555";
+    expect(email.html).toContain(deepLink);
+    expect(email.text).toContain(deepLink);
     expect(email.text).toContain("https://app.dungeongrimoire.com/play/settings");
   });
 });

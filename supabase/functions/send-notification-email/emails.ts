@@ -66,8 +66,12 @@ export function noteSharedEmail(args: {
   campaignName: string;
   dmName: string;
   noteTitle: string;
+  noteId: string;
 }): EmailContent {
-  const { campaignName, dmName, noteTitle } = args;
+  const { campaignName, dmName, noteTitle, noteId } = args;
+  // Deep link straight to the note: PlayerJournalView expands + scrolls to
+  // the card named by the `note` query param on its DM Notes tab.
+  const notePath = `/play/journal?tab=dm-notes&note=${encodeURIComponent(noteId)}`;
   return {
     subject: `${dmName} shared a session note with you — ${campaignName}`,
     html: layout(
@@ -77,9 +81,9 @@ export function noteSharedEmail(args: {
     <strong>“${escapeHtml(noteTitle)}”</strong> with you.
   </p>`,
       "Read the note",
-      "/play/notes",
+      notePath,
     ),
-    text: `${dmName} shared the note "${noteTitle}" with you.\n\nRead it: ${APP_ORIGIN}/play/notes\n\n${OPT_OUT_TEXT}`,
+    text: `${dmName} shared the note "${noteTitle}" with you.\n\nRead it: ${APP_ORIGIN}${notePath}\n\n${OPT_OUT_TEXT}`,
   };
 }
 

@@ -51,6 +51,13 @@ the accepted cost — do not "fix" this by adding a trigger.
 Emails contain the note/session **title only**, never note content — no
 TipTap-JSON rendering server-side, and nothing sensitive in inboxes.
 
+Note emails **deep-link the exact note**:
+`/play/journal?tab=dm-notes&note=<id>`. `PlayerJournalView.vue` watches the
+`note` query param on the DM Notes tab, expands that card, scrolls to it
+(`dm-note-<id>` element ids in `PlayerJournalDmNotesTab.vue`), marks it read,
+and then drops the param. Proposal emails link `/play/settings` (the RSVP
+toggles).
+
 ## Configuration (production)
 
 Without configuration the function is deployed but inert (`{ configured:

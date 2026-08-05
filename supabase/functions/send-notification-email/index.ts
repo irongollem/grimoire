@@ -180,7 +180,9 @@ serve(withCors(async (req: Request) => {
       .map((m) => m.user_id);
     prefColumn = "email_shared_notes";
     const noteTitle = (note.title as string) || "Untitled Note";
-    buildEmail = (campaign, dmName) => noteSharedEmail({ campaignName: campaign, dmName, noteTitle });
+    const noteId = note.id as string;
+    buildEmail = (campaign, dmName) =>
+      noteSharedEmail({ campaignName: campaign, dmName, noteTitle, noteId });
   } else if (body.type === "proposal_created") {
     if (!body.proposal_id) return json({ error: "proposal_created needs { proposal_id }" }, 400);
     const { data: proposal, error } = await admin
