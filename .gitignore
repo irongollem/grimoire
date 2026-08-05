@@ -59,3 +59,5 @@ src/views/play/TEMPSHIT.ts
 # are working files, not build inputs — keeping 17MB of raw PNGs out of a public
 # repo. Back them up outside git if you want the originals.
 art-src/
+.vercel
+.env*
