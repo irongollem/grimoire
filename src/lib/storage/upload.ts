@@ -10,6 +10,7 @@ import { supabase, getCurrentUser } from "@/lib/supabase";
 import { resizeToWebP } from "@/lib/mediaConvert";
 import { sniffImageFormat } from "@edge-shared/provenance/sniff.ts";
 import { readXmpFromWebp, readXmpFromPng, readXmpFromJpeg, embedXmpInWebp } from "@edge-shared/provenance/embed.ts";
+import { bucketWritePolicy } from "@edge-shared/storage-policy.ts";
 import { BUCKETS, VARIANT_WIDTHS, variantPath, type BucketKey } from "./buckets";
 import { getPublicUrl, parsePublicUrl } from "./urls";
 import { usesR2, uploadToR2, uploadAllToR2, R2UnavailableError, type PreparedUpload } from "./r2";
@@ -247,6 +248,22 @@ export async function uploadWithVariants({
 
 // ── Variant backfill ──────────────────────────────────────────────────────
 
+/**
+ * May `userId` write variants for `storagePath` in `bucket`?
+ *
+ * The same rule the server's write policy enforces, asked client-side first so
+ * a backfill that would only bounce off RLS / r2-sign-upload never fires:
+ * your own folder always, a shared admin prefix (`srd/`, `library/`) only when
+ * you are an admin. Exported for its test.
+ */
+export function canBackfill(bucket: BucketKey, storagePath: string, userId: string, isAdmin: boolean): boolean {
+  const firstSegment = storagePath.split("/")[0];
+  if (firstSegment === userId) return true;
+  if (!isAdmin) return false;
+  const policy = bucketWritePolicy(BUCKETS[bucket].id);
+  return !!policy?.clientWrites && policy.adminPrefixes.includes(firstSegment);
+}
+
 // Tracks URLs already attempted this session so we don't retry on every render.
 const _backfillAttempted = new Set<string>();
 
@@ -279,10 +296,14 @@ export async function backfillVariants(originalUrl: string): Promise<void> {
     if (!isImageBucket) return;
     const { bucket, path: storagePath } = parsed;
 
-    // Only upload if the current user owns this path (first segment = userId).
-    // Players loading DM-owned images would get RLS 400s — skip silently.
-    const userId = getCurrentUser()?.id;
-    if (!userId || !storagePath.startsWith(userId + "/")) return;
+    // Only upload when the current user may write this path: their own folder,
+    // or — for admins — a shared prefix like srd/. Players loading DM-owned
+    // images would get RLS 400s, so everyone else skips silently. The admin
+    // clause is what lets canonical art self-heal at all: srd/ matches nobody's
+    // uuid, and before it existed 94 of the 97 srd spell originals sat at zero
+    // variants forever, with FocalImage silently serving full-size images.
+    const user = getCurrentUser();
+    if (!user || !canBackfill(bucket, storagePath, user.id, user.app_metadata?.role === "admin")) return;
 
     // Download the original.
     const resp = await fetch(originalUrl);

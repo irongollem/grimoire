@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { readEmbeddedXmp, inheritXmpIntoVariant } from "./upload";
+import { readEmbeddedXmp, inheritXmpIntoVariant, canBackfill } from "./upload";
 import { embedXmpInWebp, embedXmpInPng, readXmpFromWebp } from "@edge-shared/provenance/embed.ts";
 
 // Minimal fixture builders — independently transcribed (not imported from
@@ -120,5 +120,34 @@ describe("inheritXmpIntoVariant", () => {
     const result = await inheritXmpIntoVariant(variant, "some-packet");
     const bytes = new Uint8Array(await result.arrayBuffer());
     expect(bytes).toEqual(new Uint8Array([1, 2, 3, 4]));
+  });
+});
+
+describe("canBackfill", () => {
+  const USER = "11111111-1111-4111-8111-111111111111";
+
+  it("always allows the owner's own folder", () => {
+    expect(canBackfill("spellImages", `${USER}/a.webp`, USER, false)).toBe(true);
+  });
+
+  it("refuses other users' folders, admin or not", () => {
+    const other = "22222222-2222-4222-8222-222222222222";
+    expect(canBackfill("spellImages", `${other}/a.webp`, USER, false)).toBe(false);
+    expect(canBackfill("spellImages", `${other}/a.webp`, USER, true)).toBe(false);
+  });
+
+  it("lets only admins backfill the shared srd/ prefix", () => {
+    // This is what lets canonical art self-heal: 94 of 97 srd spell originals
+    // shipped with zero variants, and the owner-only rule locked them out of
+    // backfill permanently — srd/ matches nobody's uuid.
+    expect(canBackfill("spellImages", "srd/fireball.webp", USER, true)).toBe(true);
+    expect(canBackfill("spellImages", "srd/fireball.webp", USER, false)).toBe(false);
+    expect(canBackfill("sounds", "library/rain.ogg", USER, true)).toBe(true);
+  });
+
+  it("never opens a prefix the bucket does not declare", () => {
+    expect(canBackfill("itemImages", "srd/x.webp", USER, true)).toBe(false);
+    // mini-models is service-managed: clientWrites false blocks even bases/.
+    expect(canBackfill("miniModels", "bases/round25.stl", USER, true)).toBe(false);
   });
 });
