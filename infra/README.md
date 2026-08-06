@@ -49,9 +49,10 @@ from Supabase Storage — deploying ahead of the bucket is a no-op, not an outag
 
 ## Stage 2 runbook — moving a bucket's bytes to R2
 
-Everything below needs Cloudflare credentials. Nothing in the app changes
-behaviour until step 3, and `mini-models` is the only bucket currently listed for
-R2 (`R2_BUCKET_IDS`), so steps 1–2 are a one-time setup.
+Everything below needs Cloudflare credentials. **Every registry bucket is
+R2-listed** (`R2_BUCKET_IDS` is derived from the write policy), so once the
+secrets in step 2 exist, all new uploads land in R2; steps 1–2 are a one-time
+setup, and step 3 moves the historical bytes at your pace.
 
 ### 1. Create the bucket and credentials (once)
 
@@ -167,23 +168,35 @@ the costing comment on #577). It is operational, not a deploy, and can be run at
 any time after step 2, one bucket at a time:
 
 ```bash
-npm run r2:copy -- --bucket <id> --dry-run   # what would move
-npm run r2:copy -- --bucket <id>             # move it (resumable, re-runnable)
-npm run r2:copy -- --bucket <id> --verify    # exits non-zero if anything differs
+npm run r2:copy -- --bucket <id> --dry-run        # what would move
+npm run r2:copy -- --bucket <id>                  # move it (resumable, re-runnable)
+npm run r2:copy -- --bucket <id> --verify         # exits non-zero if anything differs
+npm run r2:copy -- --bucket <id> --verify --deep  # additionally SHA-256-compares both copies
 ```
+
+Plain `--verify` compares byte length only, which a same-size corruption would
+pass; `--deep` downloads both copies of every size-matched object and compares
+hashes. Use `--deep` at least once per bucket before trusting it for #617's
+deletion decision — it is the gate between "the copy ran" and "the copy is
+provably byte-identical".
 
 Safe against a live bucket: the Worker serves from either store, so a half-copied
 bucket is not a broken bucket, and nothing is deleted from Supabase. Re-run after
 a verify failure — it skips everything already present at the same size, so a
 second pass only catches writes that landed during the first.
 
-`mini-models` needs no copy: it went straight to R2 while it held nothing but the
-admin-seeded `bases/` plinths, which is why #577 chose it to go first. Re-run the
-ingest once, to seat those in R2:
+`mini-models` holds only the admin-seeded `bases/` plinths. Note that
+`npm run ingest-mini-bases` writes to **Supabase Storage only** (it uploads via a
+raw REST call, not the R2-aware path), so re-running it does NOT seat the bases
+in R2 — copy them like any other bucket:
 
 ```bash
-npm run ingest-mini-bases
+npm run r2:copy -- --bucket mini-models
 ```
+
+Until that runs, the bases keep serving through the Worker's Supabase fallback,
+which is invisible today but becomes a 404 the day the fallback retires (#617) —
+so do it with the other buckets, not "eventually".
 
 Suggested order — smallest and least painful to re-do first, so any surprise
 surfaces cheaply: `sound-images`, `pantheon-emblems`, `loot-images`, then the

@@ -31,10 +31,34 @@ function fakeBucket(objects) {
       if (typeof entry === "function") return entry(options);
       return entry;
     }),
+    head: vi.fn(async (key) => {
+      const entry = objects[key];
+      if (!entry || typeof entry === "function") return null;
+      return entry;
+    }),
   };
 }
 
+/** Fake edge cache (caches.default) recording matches and puts. */
+function fakeEdgeCache(store = new Map()) {
+  return {
+    store,
+    match: vi.fn(async (request) => store.get(request.url) ?? undefined),
+    put: vi.fn(async (request, response) => {
+      store.set(request.url, response);
+    }),
+  };
+}
+
+/** ctx stub whose waitUntil resolves promises inline so tests can await them. */
+function fakeCtx() {
+  const pending = [];
+  return { pending, waitUntil: vi.fn((p) => pending.push(p)) };
+}
+
 let fetchMock;
+
+let edgeCache;
 
 beforeEach(() => {
   fetchMock = vi.fn(async () =>
@@ -44,6 +68,8 @@ beforeEach(() => {
     }),
   );
   vi.stubGlobal("fetch", fetchMock);
+  edgeCache = fakeEdgeCache();
+  vi.stubGlobal("caches", { default: edgeCache });
 });
 
 afterEach(() => {
@@ -195,10 +221,82 @@ describe("R2 dual-read", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("serves HEAD from R2 with the size but no body", async () => {
+  it("serves HEAD from R2 via bucket.head — metadata only, never the body", async () => {
+    // bucket.get() would pull a 50 MB model out of R2 to answer a request that
+    // carries no body at all.
     const env = { ASSETS: fakeBucket({ "chronicle/u1/a.webp": r2Object({ key: "chronicle/u1/a.webp", body: "1234" }) }) };
     const res = await worker.fetch(get("/chronicle/u1/a.webp", { method: "HEAD" }), env);
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Length")).toBe("4");
+    expect(res.body).toBeNull();
+    expect(env.ASSETS.head).toHaveBeenCalledOnce();
+    expect(env.ASSETS.get).not.toHaveBeenCalled();
+  });
+
+  it("answers 304, not 412, to an If-Modified-Since-only revalidation", async () => {
+    // If-None-Match / If-Modified-Since are the cache-revalidation family; a
+    // client validating by Last-Modified alone must get 304 ("use your copy"),
+    // not 412 ("hard error"). R2 signals both the same way — a body-less object.
+    const env = {
+      ASSETS: fakeBucket({
+        "npc-portraits/u1/a.webp": {
+          key: "npc-portraits/u1/a.webp",
+          size: 4,
+          httpEtag: '"abc"',
+          body: undefined,
+          range: null,
+          writeHttpMetadata: (h) => h.set("content-type", "image/webp"),
+        },
+      }),
+    };
+    const res = await worker.fetch(
+      get("/npc-portraits/u1/a.webp", { headers: { "if-modified-since": "Wed, 05 Aug 2026 00:00:00 GMT" } }),
+      env,
+    );
+    expect(res.status).toBe(304);
+  });
+});
+
+describe("edge cache", () => {
+  it("stores a full R2-served 200 and serves the repeat from the edge", async () => {
+    // A Worker-built Response is NOT auto-cached by Cloudflare regardless of its
+    // Cache-Control — without an explicit put(), every view of an R2-backed
+    // asset would be a fresh Worker invocation + R2 read, reinstating the
+    // per-request cost stage 2 exists to remove.
+    const env = { ASSETS: fakeBucket({ "chronicle/u1/a.webp": r2Object({ key: "chronicle/u1/a.webp" }) }) };
+    const ctx = fakeCtx();
+
+    const first = await worker.fetch(get("/chronicle/u1/a.webp"), env, ctx);
+    expect(first.status).toBe(200);
+    await Promise.all(ctx.pending);
+    expect(edgeCache.put).toHaveBeenCalledOnce();
+
+    const second = await worker.fetch(get("/chronicle/u1/a.webp"), env, fakeCtx());
+    expect(await second.text()).toBe("bytes");
+    expect(env.ASSETS.get).toHaveBeenCalledOnce(); // only the first request hit R2
+  });
+
+  it("never caches Range responses or HEADs", async () => {
+    const env = {
+      ASSETS: fakeBucket({
+        "sounds/u1/a.ogg": (options) =>
+          r2Object({ key: "sounds/u1/a.ogg", body: "part", size: 100, contentType: "audio/ogg", range: { offset: 0, length: 4 } }),
+      }),
+    };
+    const ctx = fakeCtx();
+    await worker.fetch(get("/sounds/u1/a.ogg", { headers: { range: "bytes=0-3" } }), env, ctx);
+    await worker.fetch(get("/sounds/u1/a.ogg", { method: "HEAD" }), env, ctx);
+    await Promise.all(ctx.pending);
+    expect(edgeCache.put).not.toHaveBeenCalled();
+  });
+
+  it("still works with no caches global at all", async () => {
+    // The guard exists for test environments and API drift — a missing Cache
+    // API must degrade to uncached serving, never throw.
+    vi.unstubAllGlobals();
+    vi.stubGlobal("fetch", fetchMock);
+    const env = { ASSETS: fakeBucket({ "chronicle/u1/a.webp": r2Object({ key: "chronicle/u1/a.webp" }) }) };
+    const res = await worker.fetch(get("/chronicle/u1/a.webp"), env, fakeCtx());
+    expect(res.status).toBe(200);
   });
 });

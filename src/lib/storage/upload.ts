@@ -12,7 +12,7 @@ import { sniffImageFormat } from "@edge-shared/provenance/sniff.ts";
 import { readXmpFromWebp, readXmpFromPng, readXmpFromJpeg, embedXmpInWebp } from "@edge-shared/provenance/embed.ts";
 import { BUCKETS, VARIANT_WIDTHS, variantPath, type BucketKey } from "./buckets";
 import { getPublicUrl, parsePublicUrl } from "./urls";
-import { usesR2, uploadToR2, R2UnavailableError, type PreparedUpload } from "./r2";
+import { usesR2, uploadToR2, uploadAllToR2, R2UnavailableError, type PreparedUpload } from "./r2";
 
 export interface UploadParams {
   bucket: BucketKey;
@@ -209,11 +209,15 @@ export async function uploadWithVariants({
 }: UploadWithVariantsParams): Promise<string | null> {
   const ext = blob.type === "image/jpeg" ? "jpeg" : "webp";
   const originalPath = `${folderPrefix ?? userId}/${crypto.randomUUID()}.${ext}`;
+  const mime = validate(bucket, blob, blob.type);
+
+  // Variants are resized exactly once, whichever store ends up holding them.
+  // The R2 fallback below reuses this array — an earlier revision rebuilt it,
+  // paying a second full resizeToWebP pass in precisely the degraded case.
+  const xmpPacket = await readEmbeddedXmp(blob);
+  const variants = await buildVariants(blob, originalPath, xmpPacket);
 
   if (usesR2(bucket)) {
-    const mime = validate(bucket, blob, blob.type);
-    const xmpPacket = await readEmbeddedXmp(blob);
-    const variants = await buildVariants(blob, originalPath, xmpPacket);
     try {
       // One authorization + presign call covers the original and all four
       // variants; uploadToR2 still writes the original first, so a failed
@@ -225,24 +229,20 @@ export async function uploadWithVariants({
         console.warn(`[uploadWithVariants] ${BUCKETS[bucket].id}/${originalPath}:`, err);
         return null;
       }
-      // Fall through to the Supabase path below.
+      // Fall through to Supabase below — via the direct helper, NOT
+      // uploadToBucket, whose own usesR2 branch would re-attempt the R2 flow
+      // we just watched fail and double every round trip in an outage.
     }
   }
 
-  const [originalUrl, xmpPacket] = await Promise.all([
-    uploadToBucket({ bucket, blob, path: originalPath, contentType: blob.type }),
-    readEmbeddedXmp(blob),
-  ]);
-  if (!originalUrl) return null;
+  const stored = await uploadToSupabase(bucket, originalPath, blob, mime, false);
+  if (!stored) return null;
 
-  const variants = await buildVariants(blob, originalPath, xmpPacket);
   await Promise.allSettled(
-    variants.map((variant) =>
-      uploadToBucket({ bucket, blob: variant.blob, path: variant.path }),
-    ),
+    variants.map((variant) => uploadToSupabase(bucket, variant.path, variant.blob, "image/webp", false)),
   );
 
-  return originalUrl;
+  return getPublicUrl(bucket, originalPath);
 }
 
 // ── Variant backfill ──────────────────────────────────────────────────────
@@ -296,12 +296,21 @@ export async function backfillVariants(originalUrl: string): Promise<void> {
     const variants = await buildVariants(blob, storagePath, xmpPacket);
 
     if (usesR2(bucket)) {
-      const [first, ...rest] = variants;
-      const outcome = await uploadToR2(bucket, first, rest);
-      if (outcome.failed.length) {
-        console.warn(`[backfillVariants] ${outcome.failed.length}/${variants.length} variant uploads failed for`, originalUrl);
+      // uploadAllToR2, not uploadToR2: these four are peers, and the review
+      // caught two bugs in the earlier shape — the fatal-first contract let one
+      // transient failure abort the other three, and an R2UnavailableError
+      // skipped the Supabase fallback both sibling paths implement.
+      try {
+        const outcome = await uploadAllToR2(bucket, variants);
+        if (outcome.failed.length) {
+          console.warn(`[backfillVariants] ${outcome.failed.length}/${variants.length} variant uploads failed for`, originalUrl);
+        }
+        return;
+      } catch (err) {
+        if (!(err instanceof R2UnavailableError)) throw err;
+        // R2 down or unconfigured — backfill into Supabase Storage instead,
+        // exactly as the pre-R2 code did; the Worker serves either store.
       }
-      return;
     }
 
     // Generate and upload all variants. Do NOT upsert — several image buckets

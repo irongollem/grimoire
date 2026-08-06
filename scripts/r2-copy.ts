@@ -22,9 +22,10 @@
  * `R2_BUCKET_IDS` after a verify run comes back clean.
  */
 
+import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
-import { r2ConfigFrom, r2ObjectKey } from "../supabase/functions/_shared/r2/config.ts";
-import { putObject, headObject } from "../supabase/functions/_shared/r2/client.ts";
+import { r2ConfigFrom, r2ObjectKey, IMMUTABLE_CACHE_CONTROL } from "../supabase/functions/_shared/r2/config.ts";
+import { putObject, headObject, getObject } from "../supabase/functions/_shared/r2/client.ts";
 import { STORAGE_WRITE_POLICY } from "../supabase/functions/_shared/storage-policy.ts";
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
@@ -34,6 +35,8 @@ interface Options {
   bucket: string;
   dryRun: boolean;
   verify: boolean;
+  /** With --verify: also download both copies and compare SHA-256, not just size. */
+  deep: boolean;
   concurrency: number;
 }
 
@@ -45,7 +48,7 @@ function parseArgs(argv: string[]): Options {
   const bucket = get("--bucket");
   if (!bucket) {
     console.error(
-      "Usage: npm run r2:copy -- --bucket <id> [--dry-run] [--verify] [--concurrency N]\n" +
+      "Usage: npm run r2:copy -- --bucket <id> [--dry-run] [--verify [--deep]] [--concurrency N]\n" +
       `Known buckets: ${STORAGE_WRITE_POLICY.map((p) => p.id).join(", ")}`,
     );
     process.exit(1);
@@ -58,13 +61,15 @@ function parseArgs(argv: string[]): Options {
     bucket,
     dryRun: argv.includes("--dry-run"),
     verify: argv.includes("--verify"),
+    deep: argv.includes("--deep"),
     concurrency: Number(get("--concurrency") ?? 8),
   };
 }
 
 interface StorageEntry {
   path: string;
-  size: number;
+  /** Null when Supabase's listing carries no size — "unknown", never "0 bytes". */
+  size: number | null;
 }
 
 /**
@@ -96,7 +101,11 @@ async function* walk(
       if (entry.id === null) {
         yield* walk(storage, bucket, path);
       } else {
-        yield { path, size: entry.metadata?.size ?? 0 };
+        // Explicit null for an unpopulated size, not `?? 0`: a coerced zero
+        // would make the resume check treat "size unknown" as "0-byte file"
+        // and silently mis-skip or mis-flag the object.
+        const size = entry.metadata?.size;
+        yield { path, size: typeof size === "number" ? size : null };
       }
     }
     if (data.length < PAGE) return;
@@ -150,18 +159,42 @@ async function main(): Promise<void> {
   let skipped = 0;
   const problems: string[] = [];
 
+  const sha256 = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
+
   await pooled(objects, options.concurrency, async (entry) => {
     const key = r2ObjectKey(options.bucket, entry.path);
     const existing = await headObject(r2, key);
 
-    if (existing && existing.size === entry.size) {
+    // A known, matching size counts as copied. An UNKNOWN Supabase size never
+    // does — it re-downloads and re-puts (idempotent) rather than guessing.
+    if (existing && entry.size !== null && existing.size === entry.size) {
+      if (options.verify && options.deep) {
+        // Size equality is necessary but not sufficient: same-size wrong bytes
+        // (a corrupted earlier copy) pass the cheap check forever. --deep
+        // downloads both copies and compares SHA-256 before trusting the skip.
+        const [{ data: supabaseCopy, error: downloadError }, r2Bytes] = await Promise.all([
+          supabase.storage.from(options.bucket).download(entry.path),
+          getObject(r2, key),
+        ]);
+        if (downloadError || !supabaseCopy || !r2Bytes) {
+          problems.push(`deep verify could not read both copies of ${key}`);
+          return;
+        }
+        const supabaseHash = sha256(new Uint8Array(await supabaseCopy.arrayBuffer()));
+        if (supabaseHash !== sha256(r2Bytes)) {
+          problems.push(`content mismatch ${key}: same size, different bytes (sha256 differs)`);
+          return;
+        }
+      }
       skipped++;
       return;
     }
     if (options.verify) {
       problems.push(
         existing
-          ? `size mismatch ${key}: supabase ${entry.size} vs r2 ${existing.size}`
+          ? entry.size === null || existing.size === null
+            ? `unknown size for ${key} (supabase ${entry.size ?? "?"}, r2 ${existing.size ?? "?"}) — cannot verify by size; use --deep`
+            : `size mismatch ${key}: supabase ${entry.size} vs r2 ${existing.size}`
           : `missing from r2: ${key}`,
       );
       return;
@@ -186,7 +219,7 @@ async function main(): Promise<void> {
         // than guessing from the extension — a wrong Content-Type is served to
         // every future reader, and octet-stream at least fails honestly.
         contentType: data.type || "application/octet-stream",
-        cacheControl: "public, max-age=2678400, immutable",
+        cacheControl: IMMUTABLE_CACHE_CONTROL,
       });
       copied++;
       if (copied % 100 === 0) console.log(`  ${copied} copied…`);

@@ -18,8 +18,12 @@ import { usesR2, deleteFromR2 } from "./r2";
 /** Remove one or more objects by storage path. */
 export async function deleteFromBucket(bucket: BucketKey, paths: string[]): Promise<void> {
   if (!paths.length) return;
-  if (usesR2(bucket)) await deleteFromR2(bucket, paths);
-  await supabase.storage.from(BUCKETS[bucket].id).remove(paths);
+  // Concurrently — the two stores are independent, and this runs on
+  // user-facing delete actions where the latencies would otherwise add.
+  await Promise.all([
+    usesR2(bucket) ? deleteFromR2(bucket, paths) : Promise.resolve(),
+    supabase.storage.from(BUCKETS[bucket].id).remove(paths),
+  ]);
 }
 
 /**

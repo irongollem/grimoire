@@ -23,7 +23,7 @@ describe("authorizePath — owner prefix", () => {
   });
 
   it("allows nested paths under the owner prefix", () => {
-    expect(authorizePath(asUser("mini-models", `${USER}/mini-7/model.stl`)).allowed).toBe(true);
+    expect(authorizePath(asUser("chronicle", `${USER}/mini-7/preview.webp`)).allowed).toBe(true);
   });
 
   it("refuses another user's prefix", () => {
@@ -80,8 +80,16 @@ describe("authorizePath — admin-only shared prefixes", () => {
     expect(authorizePath(asUser("sounds", "library/rain.ogg")).allowed).toBe(false);
   });
 
-  it("guards the shared mini plinth meshes under mini-models/bases/", () => {
-    expect(authorizePath(asAdmin("mini-models", "bases/round25.stl")).allowed).toBe(true);
+  it("refuses mini-models to everyone — the bucket is service-managed", () => {
+    // The original RLS has SELECT-only policies for mini-models, on purpose:
+    // every write goes through the service-role forge pipeline, which is what
+    // enforces the mini_sculpt credit charge. The generic {userId}/ rule must
+    // never apply here, and neither must the admin bases/ prefix — bases are
+    // seeded by a script running with service credentials, not through the
+    // client-facing edge functions.
+    expect(authorizePath(asUser("mini-models", `${USER}/mini-7/model.stl`)).allowed).toBe(false);
+    expect(authorizePath(asAdmin("mini-models", `${USER}/mini-7/model.stl`)).allowed).toBe(false);
+    expect(authorizePath(asAdmin("mini-models", "bases/round25.stl")).allowed).toBe(false);
     expect(authorizePath(asUser("mini-models", "bases/round25.stl")).allowed).toBe(false);
   });
 });
@@ -140,8 +148,9 @@ describe("authorizeUpload — MIME and size", () => {
     expect(upload("npc-portraits", "image/webp", 5 * 1024 * 1024 + 1).allowed).toBe(false);
     expect(upload("sounds", "audio/mpeg", 20 * 1024 * 1024).allowed).toBe(true);
     expect(upload("sounds", "audio/mpeg", 20 * 1024 * 1024 + 1).allowed).toBe(false);
-    expect(upload("mini-models", "model/stl", 50 * 1024 * 1024).allowed).toBe(true);
-    expect(upload("mini-models", "model/stl", 50 * 1024 * 1024 + 1).allowed).toBe(false);
+    // mini-models is service-managed, so its 50 MB cap is asserted on the
+    // policy record itself — no client upload can reach the size check.
+    expect(bucketWritePolicy("mini-models")?.maxBytes).toBe(50 * 1024 * 1024);
   });
 
   it("refuses a zero, negative, fractional or non-finite size", () => {

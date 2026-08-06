@@ -11,7 +11,8 @@
  *   urls.ts     building and parsing public URLs (origin shape + CDN shape)
  *   upload.ts   uploads, size variants, XMP provenance inheritance, backfill
  *   remove.ts   deletes, by path and by public URL
- *   r2.ts       the R2 transport: presigned PUTs and authorized deletes
+ *   list.ts     merged both-stores enumeration of a user's own objects
+ *   r2.ts       the R2 transport: presigned PUTs, deletes and listing
  */
 
 export {
@@ -45,3 +46,5 @@ export {
   removeByPublicUrl,
   deleteByPublicUrl,
 } from "./remove";
+
+export { listOwnedPaths } from "./list";

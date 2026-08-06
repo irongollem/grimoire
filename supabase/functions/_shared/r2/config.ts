@@ -9,64 +9,63 @@
 // need a Worker redeploy — for no isolation benefit, since a single credential
 // reaches all of them either way.
 //
-// ROLLOUT IS PER STORAGE BUCKET, via R2_BUCKET_IDS below. The issue's sequence is
-// copy → dual-read → flip origin → drop fallback, one bucket at a time; this list
-// is the "flip origin" step. A bucket only belongs here once its bytes are in R2.
+// R2_BUCKET_IDS below is the write flip. It covers every registry bucket at
+// once — see its doc comment for why the flip does not wait for the byte copy.
+
+import { STORAGE_WRITE_POLICY } from "../storage-policy.ts";
 
 /**
- * Storage buckets whose **writes** go to R2.
+ * Storage buckets whose **writes** go to R2 — every bucket in the write policy.
+ *
+ * Derived, not hand-typed. This used to be a fifteen-item literal held equal to
+ * `STORAGE_WRITE_POLICY` by a test; the review of stage 2 pointed out that a
+ * list provably equal to another list is just the other list. One registry
+ * (the write policy, which carries each bucket's rules and reasoning) now feeds
+ * this, `CDN_BUCKET_IDS`, and the edge functions alike — onboarding bucket #16
+ * means one policy entry plus the client BUCKETS record, nothing else.
  *
  * WHY EVERY BUCKET, RATHER THAN ONE AT A TIME:
  * #577 sequences this as "copy → dual-read → flip origin", which reads as though
  * a bucket cannot flip until its bytes have been copied. That coupling does not
- * actually exist, because stage 1's Worker arrived early and already serves
- * both stores. Flipping a bucket's *writes* only decides where the next object
- * lands; every object written before the flip keeps resolving through the
- * Worker's Supabase fallback, indefinitely and with no rewritten rows.
+ * exist: stage 1's Worker arrived early and already serves both stores. Flipping
+ * a bucket's *writes* only decides where the next object lands; every object
+ * written before the flip keeps resolving through the Worker's Supabase
+ * fallback, indefinitely and with no rewritten rows. A registry where some
+ * buckets write to one store and some to another is the split-brain the issue
+ * set out to avoid — and the blast radius of the flip is bounded, because an
+ * upload that cannot reach R2 falls back to Supabase Storage (see
+ * R2UnavailableError in src/lib/storage/r2.ts).
  *
- * So the flip and the copy are independent:
- *   flip  — new writes go to R2. Safe now, for every bucket.
- *   copy  — historical bytes move, which is what stops paying Supabase egress
- *           on the long tail. Operational, run per bucket via `npm run r2:copy`,
- *           and re-runnable at any point after the flip.
- *
- * Doing the flip everywhere at once also avoids a split-brain the issue
- * explicitly set out to prevent: a registry where some buckets write to one
- * store and some to another is a two-path problem for every future change.
- *
- * The blast radius of getting this wrong is bounded by design — an upload that
- * cannot reach R2 falls back to Supabase Storage rather than failing (see
- * R2UnavailableError in src/lib/storage/r2.ts), so a misconfiguration degrades
- * to yesterday's behaviour instead of breaking uploads app-wide.
- *
- * `bug-reports` and `downtime-images` are absent because they are not in the
- * bucket registry at all — see src/lib/storage/buckets.ts.
+ * `bug-reports` and `downtime-images` are absent because they are outside the
+ * bucket registry entirely — see src/lib/storage/buckets.ts.
  */
-export const R2_BUCKET_IDS = [
-  "npc-portraits",
-  "asset-images",
-  "spell-images",
-  "puzzle-images",
-  "item-images",
-  "monster-images",
-  "trap-images",
-  "location-images",
-  "faction-images",
-  "pantheon-emblems",
-  "loot-images",
-  "sound-images",
-  "chronicle",
-  "sounds",
-  // Never needed a copy window at all, exactly as #577 planned: the bucket held
-  // nothing but the admin-seeded `bases/` plinths when this shipped, and its
-  // 50 MB objects are the ones Cloudflare's non-HTML clause actually points at
-  // the Developer Platform (Workers + R2) to serve.
-  "mini-models",
-] as const;
+export const R2_BUCKET_IDS: readonly string[] = STORAGE_WRITE_POLICY.map((p) => p.id);
 
 export function isR2Bucket(bucketId: string): boolean {
-  return (R2_BUCKET_IDS as readonly string[]).includes(bucketId);
+  return R2_BUCKET_IDS.includes(bucketId);
 }
+
+/**
+ * The one predicate for "should a write to this bucket go to R2 right now":
+ * the bucket is R2-backed AND an asset CDN origin is configured. The second
+ * clause is load-bearing — an R2 object is reachable only through the Worker,
+ * so writing to R2 with no CDN hostname would store bytes no buildable URL
+ * points at. Both runtimes call this with their own env's CDN value (the
+ * browser's compile-time VITE_ASSET_CDN_URL, the edge functions' ASSET_CDN_URL)
+ * so the rule itself cannot drift between them.
+ */
+export function r2WritesEnabled(bucketId: string, cdnBase: string | null | undefined): boolean {
+  return isR2Bucket(bucketId) && !!cdnBase?.trim();
+}
+
+/**
+ * Objects are immutable — art changes by getting a new UUID, never by mutating
+ * a key — so a month at the edge and in browsers is safe. One definition,
+ * imported by the server upload path and the copy script; the Worker
+ * (a separate JS runtime with no shared import path) carries the same value
+ * as its own constant.
+ */
+export const IMMUTABLE_CACHE_CONTROL = "public, max-age=2678400, immutable";
 
 /** `<storageBucketId>/<path>` — identical to the CDN URL's pathname, by design. */
 export function r2ObjectKey(bucketId: string, path: string): string {

@@ -2,7 +2,7 @@
 import { ref, computed, watch } from "vue";
 import { useQuery, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
-import { uploadWithVariants, getPublicUrl, BUCKETS } from "@/lib/storage";
+import { uploadWithVariants, getPublicUrl, uploadToBucket, deleteFromBucket } from "@/lib/storage";
 import { toWebP } from "@/lib/mediaConvert";
 import LibraryArtStagingCard from "@/components/admin/LibraryArtStagingCard.vue";
 import LibraryArtUploadPanel from "@/components/admin/LibraryArtUploadPanel.vue";
@@ -70,7 +70,6 @@ type AssignStatus = "idle" | "assigning" | "done" | "error";
 // Staging always lives here regardless of mode. Keyed off the registry so the
 // raw storage calls and the public-URL builder cannot disagree about the id.
 const STAGING_BUCKET_KEY = "monsterImages" as const;
-const STAGING_BUCKET = BUCKETS[STAGING_BUCKET_KEY].id;
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
@@ -344,10 +343,17 @@ async function uploadStagingFiles(files: FileList | File[]) {
       try {
         const webpFile = await toWebP(file);
         const path = `${userId}/staging/${crypto.randomUUID()}.webp`;
-        const { error: storageErr } = await supabase.storage
-          .from(STAGING_BUCKET)
-          .upload(path, webpFile, { contentType: "image/webp" });
-        if (storageErr) throw storageErr;
+        // Through the registry seam, not supabase.storage directly — staging
+        // lives in an R2-backed bucket (#577 stage 2), and a direct client call
+        // would pin these objects to Supabase Storage no matter where the
+        // bucket's writes have moved.
+        const uploadedUrl = await uploadToBucket({
+          bucket: STAGING_BUCKET_KEY,
+          blob: webpFile,
+          path,
+          contentType: "image/webp",
+        });
+        if (!uploadedUrl) throw new Error("staging upload failed");
         const { error: dbErr } = await supabase
           .from("library_art_staging")
           .insert({ user_id: userId, storage_path: path, entity_type: mode });
@@ -430,7 +436,7 @@ async function assignStagedToSelected(item: StagingItem) {
     );
 
     await supabase.from("library_art_staging").delete().eq("id", item.id);
-    await supabase.storage.from(STAGING_BUCKET).remove([item.storage_path]);
+    await deleteFromBucket(STAGING_BUCKET_KEY, [item.storage_path]);
 
     queryClient.invalidateQueries({ queryKey: [cfg.stagingQueryKey] });
     queryClient.invalidateQueries({ queryKey: [artQueryKey] });
@@ -444,7 +450,7 @@ async function assignStagedToSelected(item: StagingItem) {
 
 async function discardStaged(item: StagingItem) {
   await supabase.from("library_art_staging").delete().eq("id", item.id);
-  await supabase.storage.from(STAGING_BUCKET).remove([item.storage_path]);
+  await deleteFromBucket(STAGING_BUCKET_KEY, [item.storage_path]);
   queryClient.invalidateQueries({ queryKey: [cfg.stagingQueryKey] });
 }
 </script>

@@ -116,9 +116,8 @@ import {
   IconLocation, IconFaction, IconTrap, IconPuzzle,
   IconNote, IconScriptorium, IconStar, IconLoot,
 } from "@/lib/icons";
-import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/auth";
-import { BUCKETS, variantPath, VARIANT_WIDTHS, getPublicUrl, type BucketKey } from "@/lib/storage";
+import { BUCKETS, variantPath, VARIANT_WIDTHS, getPublicUrl, type BucketKey, listOwnedPaths } from "@/lib/storage";
 
 // Variant files are anything containing `_w{width}` before either an extension (`.`)
 // or another variant suffix (`_`). Catches `_w200.webp`, `_w200.png`, and historical
@@ -185,21 +184,23 @@ async function selectCategory(cat: ArtCategory) {
     if (!userId) { isLoading.value = false; return; }
 
     const cfg = BUCKETS[cat.bucketKey];
-    const { data, error } = await supabase.storage.from(cfg.id).list(userId, { limit: 1000 });
-    if (error) { loadError.value = error.message; return; }
+    // Merged across Supabase Storage AND R2 (#577 stage 2): after a bucket's
+    // writes flip to R2, a raw supabase.storage.list() no longer sees new
+    // uploads — the picker would silently omit exactly the images the user
+    // most recently added.
+    const paths = await listOwnedPaths(cat.bucketKey, userId);
 
-    const originals = (data ?? []).filter((f) => {
-      if (!f.name || f.name.startsWith('.')) return false; // placeholders / hidden
-      return !VARIANT_FILE_RE.test(f.name); // exclude _w200.webp etc.
-    });
-    images.value = originals.map((f) => {
-      const path = userId + "/" + f.name;
+    const originals = paths
+      .map((path) => path.slice(userId.length + 1))
+      .filter((name) => name && !name.includes("/") && !VARIANT_FILE_RE.test(name));
+    images.value = originals.map((name) => {
+      const path = userId + "/" + name;
       // Through the registry seam, not the raw client: the picker renders a
       // grid of thumbnails, which is exactly the traffic the CDN exists to
       // absorb (#577).
       const url = getPublicUrl(cat.bucketKey, path);
       const thumbUrl = cfg.generateVariants ? getPublicUrl(cat.bucketKey, variantPath(path, 200)) : url;
-      return { name: f.name, url, thumbUrl };
+      return { name, url, thumbUrl };
     });
   } finally {
     isLoading.value = false;

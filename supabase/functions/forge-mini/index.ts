@@ -577,24 +577,35 @@ async function handleDelete(userId: string, body: Record<string, unknown>, json:
   const mini = existing as { id: string; user_id: string; reservation_ids: string[] | null; credits_spent: number };
   if (mini.user_id !== userId) return json({ error: "forbidden" }, 403);
 
-  // Deleting mid-sculpt must not strand the credit hold — but it SETTLES, not
-  // refunds: destroying an in-flight paid task is the user's choice, and
-  // credits only come back when the failure is ours (refund policy).
-  if (mini.reservation_ids?.length) {
-    await releaseCredits(admin, mini.reservation_ids);
-    await recordGeneration(admin, userId, "mini_sculpt", false, mini.credits_spent).catch(console.error);
-  }
-
   // Service-role-only cleanup: clients have no storage write/delete policy on
   // mini-models (SIMULACRUM_PLAN.md §3), so this is the only deletion path.
   //
   // Via deleteByPrefix because mini-models bytes live in R2 (#577 stage 2):
   // listing Supabase alone returns nothing for an R2-stored mini, so this would
   // report a clean delete while orphaning every file the user just paid for.
+  //
+  // Ordering matters twice here:
+  //   1. Cleanup runs BEFORE credit settlement, so a failed cleanup can return
+  //      an error and be retried without settling twice — recordGeneration is
+  //      an analytics append, and a retry that re-ran it would double-count.
+  //   2. A cleanup failure FAILS the request rather than being logged past —
+  //      deleteByPrefix throws precisely so the row (the only thing that still
+  //      names `{userId}/{miniId}/`) survives to drive the retry. Swallowing it
+  //      and deleting the row would orphan up to 50 MB per format in R2 with
+  //      nothing left pointing at it.
   try {
     await deleteByPrefix(admin, "mini-models", `${userId}/${miniId}`);
   } catch (err) {
     console.error("forge-mini delete: storage cleanup failed", err);
+    return json({ error: "storage_cleanup_failed" }, 502);
+  }
+
+  // Deleting mid-sculpt must not strand the credit hold — but it SETTLES, not
+  // refunds: destroying an in-flight paid task is the user's choice, and
+  // credits only come back when the failure is ours (refund policy).
+  if (mini.reservation_ids?.length) {
+    await releaseCredits(admin, mini.reservation_ids);
+    await recordGeneration(admin, userId, "mini_sculpt", false, mini.credits_spent).catch(console.error);
   }
 
   const { error: deleteErr } = await admin.from("minis").delete().eq("id", miniId);

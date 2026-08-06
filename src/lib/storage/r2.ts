@@ -17,7 +17,7 @@
  */
 
 import { supabase } from "@/lib/supabase";
-import { isR2Bucket } from "@edge-shared/r2/config.ts";
+import { r2WritesEnabled } from "@edge-shared/r2/config.ts";
 import { MAX_DELETE_PATHS } from "@edge-shared/r2/api.ts";
 import { ASSET_CDN_BASE, BUCKETS, type BucketKey } from "./buckets";
 
@@ -35,7 +35,9 @@ interface SignedUpload {
 
 /** True when writes for this bucket should go to R2 rather than Supabase Storage. */
 export function usesR2(bucket: BucketKey): boolean {
-  return isR2Bucket(BUCKETS[bucket].id) && ASSET_CDN_BASE !== null;
+  // The rule itself lives once, in _shared/r2/config.ts, called with this
+  // runtime's CDN value — the server passes its own env; neither copy can drift.
+  return r2WritesEnabled(BUCKETS[bucket].id, ASSET_CDN_BASE);
 }
 
 /**
@@ -144,6 +146,32 @@ export interface R2UploadOutcome {
   readonly failed: string[];
 }
 
+/** Best-effort PUT of a signed set; per-path outcomes, never throws. */
+async function putAllSettled(
+  bucket: BucketKey,
+  uploads: readonly PreparedUpload[],
+  byPath: Map<string, SignedUpload>,
+): Promise<R2UploadOutcome> {
+  const uploaded: string[] = [];
+  const failed: string[] = [];
+  const results = await Promise.allSettled(
+    uploads.map(async (upload) => {
+      const target = byPath.get(upload.path);
+      if (!target) throw new Error(`no signed URL returned for ${upload.path}`);
+      await putSigned(target, upload.blob);
+      return upload.path;
+    }),
+  );
+  for (const [index, result] of results.entries()) {
+    if (result.status === "fulfilled") uploaded.push(result.value);
+    else {
+      failed.push(uploads[index].path);
+      console.warn(`[uploadToR2] ${BUCKETS[bucket].id}/${uploads[index].path}:`, result.reason);
+    }
+  }
+  return { uploaded, failed };
+}
+
 /**
  * Authorize the whole set, then upload `first` before the rest.
  *
@@ -168,25 +196,28 @@ export async function uploadToR2(
   // orphan variants in R2.
   await putSigned(signedFirst, first.blob);
 
-  const uploaded = [first.path];
-  const failed: string[] = [];
-  const results = await Promise.allSettled(
-    rest.map(async (upload) => {
-      const target = byPath.get(upload.path);
-      if (!target) throw new Error(`no signed URL returned for ${upload.path}`);
-      await putSigned(target, upload.blob);
-      return upload.path;
-    }),
-  );
-  for (const [index, result] of results.entries()) {
-    if (result.status === "fulfilled") uploaded.push(result.value);
-    else {
-      failed.push(rest[index].path);
-      console.warn(`[uploadToR2] ${BUCKETS[bucket].id}/${rest[index].path}:`, result.reason);
-    }
-  }
+  const outcome = await putAllSettled(bucket, rest, byPath);
+  return { uploaded: [first.path, ...outcome.uploaded], failed: outcome.failed };
+}
 
-  return { uploaded, failed };
+/**
+ * Authorize and upload a set of **peer** objects, each best-effort.
+ *
+ * The counterpart to `uploadToR2` for callers with no "original": variant
+ * backfill uploads four equally-optional widths, and routing those through the
+ * fatal-first contract meant one transient failure on the arbitrarily-first
+ * width aborted the other three (the review caught this — the pre-R2 code was
+ * `Promise.allSettled` across all four). Signing can still throw
+ * (`R2RefusedError` / `R2UnavailableError`); after that, failures are per-path.
+ */
+export async function uploadAllToR2(
+  bucket: BucketKey,
+  uploads: readonly PreparedUpload[],
+): Promise<R2UploadOutcome> {
+  if (!uploads.length) return { uploaded: [], failed: [] };
+  const signed = await signUploads(bucket, uploads);
+  const byPath = new Map(signed.map((s) => [s.path, s]));
+  return putAllSettled(bucket, uploads, byPath);
 }
 
 /**
@@ -202,13 +233,18 @@ export async function deleteFromR2(bucket: BucketKey, paths: string[]): Promise<
   // each URL to five keys (original + four variants), so a multi-image cleanup
   // clears that ceiling easily, and the function rejects the whole batch rather
   // than truncating it.
+  const chunks: string[][] = [];
   for (let i = 0; i < paths.length; i += MAX_DELETE_PATHS) {
-    const chunk = paths.slice(i, i + MAX_DELETE_PATHS);
-    const { error } = await supabase.functions.invoke("r2-delete", {
-      body: { bucket: BUCKETS[bucket].id, paths: chunk },
-    });
-    if (error) {
-      console.warn(`[deleteFromR2] ${BUCKETS[bucket].id}:`, error.message);
-    }
+    chunks.push(paths.slice(i, i + MAX_DELETE_PATHS));
   }
+  await Promise.all(
+    chunks.map(async (chunk) => {
+      const { error } = await supabase.functions.invoke("r2-delete", {
+        body: { bucket: BUCKETS[bucket].id, paths: chunk },
+      });
+      if (error) {
+        console.warn(`[deleteFromR2] ${BUCKETS[bucket].id}:`, error.message);
+      }
+    }),
+  );
 }

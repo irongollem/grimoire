@@ -6,7 +6,7 @@
 // pure function with no Deno, no network and no Supabase client, and can be
 // tested exhaustively. The handlers are then thin enough to read in one go.
 
-import { authorizePath, authorizeUpload, type AuthzResult } from "../storage-policy.ts";
+import { authorizePath, authorizeUpload, bucketWritePolicy, type AuthzResult } from "../storage-policy.ts";
 import { isR2Bucket } from "./config.ts";
 
 /**
@@ -153,6 +153,49 @@ export function authorizeDeletes(request: DeleteRequest, caller: Caller): AuthzR
       isAdmin: caller.isAdmin,
     });
     if (!result.allowed) return result;
+  }
+  return { allowed: true };
+}
+
+export interface ListRequest {
+  readonly bucket: string;
+  /** Folder prefix WITHOUT a trailing slash — `"<userId>"` or `"<userId>/sub"`. */
+  readonly prefix: string;
+}
+
+export function parseListRequest(body: unknown): Parsed<ListRequest> {
+  const record = asRecord(body);
+  if (!record) return fail("body must be a JSON object");
+
+  const bucket = parseBucket(record.bucket);
+  if (!bucket.ok) return bucket;
+
+  const { prefix } = record;
+  if (typeof prefix !== "string" || !prefix) return fail("prefix is required");
+  if (prefix.includes("//") || prefix.startsWith("/") || prefix.endsWith("/")) {
+    return fail("prefix must be a plain folder path with no leading, trailing or doubled slashes");
+  }
+  return { ok: true, value: { bucket: bucket.value, prefix } };
+}
+
+/**
+ * Listing is read-shaped but authorized like a write: the objects themselves
+ * are public, but *enumeration* is not — `storage.objects` SELECT policies
+ * gate listing to the owner's folder (`(storage.foldername(name))[1] =
+ * auth.uid()::text`), and this is that rule for R2. Only the caller's own
+ * prefix; service-managed buckets are refused outright like everywhere else.
+ */
+export function authorizeList(request: ListRequest, caller: Caller): AuthzResult {
+  const policy = bucketWritePolicy(request.bucket);
+  if (!policy) return { allowed: false, reason: `unknown bucket "${request.bucket}"` };
+  if (!policy.clientWrites) {
+    return { allowed: false, reason: `${policy.id} is service-managed — clients cannot list it` };
+  }
+  if (!caller.userId) return { allowed: false, reason: "no authenticated user" };
+
+  const firstSegment = request.prefix.split("/")[0];
+  if (firstSegment !== caller.userId) {
+    return { allowed: false, reason: `prefix must start with "${caller.userId}"` };
   }
   return { allowed: true };
 }

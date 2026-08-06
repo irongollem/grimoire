@@ -16,13 +16,13 @@
  * would only add a round trip and a bearer credential with a lifetime.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { r2ConfigFrom, r2ObjectKey, isR2Bucket } from "./r2/config.ts";
+import { r2ConfigFrom, r2ObjectKey, r2WritesEnabled, IMMUTABLE_CACHE_CONTROL } from "./r2/config.ts";
 import { putObject } from "./r2/client.ts";
 import { publicAssetUrl } from "./cdn-buckets.ts";
 
 /**
  * The public URL of a stored object — the server-side counterpart of the
- * browser's `getPublicUrl` in src/lib/storage.ts.
+ * browser's `getPublicUrl` in src/lib/storage/urls.ts.
  *
  * Every edge function that persists or re-fetches an asset URL should use this
  * rather than `admin.storage.from(...).getPublicUrl(...)`. Calling Supabase's
@@ -46,13 +46,6 @@ export async function fetchBytes(url: string): Promise<Uint8Array> {
   return new Uint8Array(await res.arrayBuffer());
 }
 
-/**
- * Objects are immutable — a new image means a new UUID, never a mutated key —
- * so the CDN is told it may keep them for a month. Matches the Worker's own
- * override; stored here too so the value survives a direct R2 read.
- */
-const IMMUTABLE_CACHE_CONTROL = "public, max-age=2678400, immutable";
-
 export async function uploadWithRetry(
   admin: SupabaseClient,
   bucket: string,
@@ -60,23 +53,27 @@ export async function uploadWithRetry(
   bytes: Uint8Array | Blob,
   contentType: string,
 ): Promise<void> {
-  // ASSET_CDN_URL is part of the condition, not an afterthought: an R2 object is
-  // only reachable through the Worker, so writing to R2 without a CDN hostname
-  // configured would store bytes that no URL we can build points at. Falling back
-  // to Supabase Storage in that state keeps a half-configured deploy working
-  // exactly as it did before — the same no-op-until-configured rule as stage 1.
   const r2 =
-    isR2Bucket(bucket) && Deno.env.get("ASSET_CDN_URL")?.trim()
+    r2WritesEnabled(bucket, Deno.env.get("ASSET_CDN_URL"))
       ? r2ConfigFrom((key) => Deno.env.get(key))
       : null;
 
+  // Converted once, outside the retry loop — a 50 MB mini model re-read from
+  // its Blob on every attempt would multiply memory churn by the retry count
+  // for bytes that cannot change between attempts.
+  const body = bytes instanceof Uint8Array ? bytes : new Uint8Array(await bytes.arrayBuffer());
+
   let lastErr = "";
   for (let attempt = 1; attempt <= 4; attempt++) {
-    if (r2) {
-      // R2 answers with an HTTP status, not a Supabase error object, so failure
-      // arrives as a throw; catch it into the same retry shape as below.
+    // Same rule as the browser path (src/lib/storage/r2.ts): R2 trouble is
+    // infrastructure, not permission, and must degrade to Supabase Storage
+    // rather than fail the caller — the Worker's dual-read serves either store.
+    // Two attempts against R2, then the remaining attempts go to Supabase; an
+    // R2 outage therefore costs two extra round trips, never a failed
+    // generation. (There is no refusal case to preserve here: this path runs
+    // with the service role, which the write policy does not constrain.)
+    if (r2 && attempt <= 2) {
       try {
-        const body = bytes instanceof Uint8Array ? bytes : new Uint8Array(await bytes.arrayBuffer());
         await putObject(r2, {
           key: r2ObjectKey(bucket, path),
           body,
@@ -86,9 +83,12 @@ export async function uploadWithRetry(
         return;
       } catch (err) {
         lastErr = err instanceof Error ? err.message : String(err);
+        if (attempt === 2) {
+          console.warn(`uploadWithRetry: R2 unreachable for ${bucket}/${path}, falling back to Supabase Storage: ${lastErr}`);
+        }
       }
     } else {
-      const { error } = await admin.storage.from(bucket).upload(path, bytes, {
+      const { error } = await admin.storage.from(bucket).upload(path, body, {
         contentType,
         upsert: true,
       });

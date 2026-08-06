@@ -111,11 +111,27 @@ export function amzDates(date: Date): { amzDate: string; dateStamp: string } {
  * the previous result. The chain is what scopes a leaked signature to one day,
  * one region and one service.
  */
+const signingKeyCache = new Map<string, Promise<Uint8Array>>();
+
 async function signingKey(creds: SigV4Credentials, dateStamp: string): Promise<Uint8Array> {
-  const kDate = await hmac(encoder.encode(`AWS4${creds.secretAccessKey}`), dateStamp);
-  const kRegion = await hmac(kDate, creds.region);
-  const kService = await hmac(kRegion, creds.service);
-  return hmac(kService, "aws4_request");
+  // The chain only changes when the UTC date or the credentials do, so it is
+  // derived once per (day, key id, scope) rather than per request — the copy
+  // script signs thousands of requests inside one date. Keyed WITHOUT the
+  // secret (a Map keyed by secret material would pin it in more places than
+  // necessary); the access key id identifies the credential set.
+  const cacheKey = `${dateStamp}/${creds.accessKeyId}/${creds.region}/${creds.service}`;
+  let key = signingKeyCache.get(cacheKey);
+  if (!key) {
+    key = (async () => {
+      const kDate = await hmac(encoder.encode(`AWS4${creds.secretAccessKey}`), dateStamp);
+      const kRegion = await hmac(kDate, creds.region);
+      const kService = await hmac(kRegion, creds.service);
+      return hmac(kService, "aws4_request");
+    })();
+    signingKeyCache.clear(); // at most one live entry — yesterday's key is dead weight
+    signingKeyCache.set(cacheKey, key);
+  }
+  return key;
 }
 
 function canonicalQuery(params: Iterable<[string, string]>): string {

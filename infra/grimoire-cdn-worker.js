@@ -42,7 +42,7 @@ const TTL = 2678400;
 const CACHE_CONTROL = `public, max-age=${TTL}, immutable`;
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     if (request.method !== "GET" && request.method !== "HEAD") {
       return new Response("Method not allowed", { status: 405 });
     }
@@ -54,6 +54,20 @@ export default {
     const segments = url.pathname.split("/").filter(Boolean);
     if (segments.length < 2) {
       return new Response("Not found", { status: 404 });
+    }
+
+    // EDGE CACHE, explicitly. The origin path gets edge caching for free via its
+    // subrequest's `cf.cacheEverything`, but a Response a Worker builds itself
+    // (the R2 path) is NOT cached by Cloudflare no matter what Cache-Control it
+    // carries — without this block, moving a bucket's bytes to R2 would trade
+    // "edge cache hit" for "Worker + R2 read on every single view", quietly
+    // reinstating the per-request cost stage 2 exists to remove. Plain full
+    // GETs only: the Cache API refuses 206es, and HEADs are not cacheable keys.
+    const cacheable = request.method === "GET" && !request.headers.get("range");
+    const edgeCache = typeof caches !== "undefined" ? caches.default : null;
+    if (cacheable && edgeCache) {
+      const hit = await edgeCache.match(request);
+      if (hit) return hit;
     }
 
     // The R2 key is the pathname minus its leading slash — decoded, because R2 keys
@@ -73,7 +87,14 @@ export default {
       // Without this, one bad R2 call 500s every image and sound in the app.
       try {
         const fromR2 = await serveFromR2(env.ASSETS, key, request);
-        if (fromR2) return fromR2;
+        if (fromR2) {
+          if (cacheable && edgeCache && fromR2.status === 200 && ctx) {
+            // Stored after responding; the clone is what keeps the body
+            // streamable to both the client and the cache.
+            ctx.waitUntil(edgeCache.put(request, fromR2.clone()));
+          }
+          return fromR2;
+        }
       } catch (err) {
         console.error("R2 read failed, falling back to origin:", key, err);
       }
@@ -93,6 +114,21 @@ export default {
 async function serveFromR2(bucket, key, request) {
   const range = request.headers.get("range");
 
+  // HEAD reads metadata only — bucket.get() would pull the whole body out of
+  // R2 (50 MB for a mini model) to answer a request that carries none.
+  if (request.method === "HEAD") {
+    const head = await bucket.head(key);
+    if (head === null) return null;
+    const headHeaders = new Headers();
+    head.writeHttpMetadata(headHeaders);
+    headHeaders.set("etag", head.httpEtag);
+    headHeaders.set("Cache-Control", CACHE_CONTROL);
+    headHeaders.set("Accept-Ranges", "bytes");
+    headHeaders.set("Access-Control-Allow-Origin", "*");
+    headHeaders.set("Content-Length", String(head.size));
+    return new Response(null, { status: 200, headers: headHeaders });
+  }
+
   const object = await bucket.get(key, {
     // Handing R2 the Range header directly lets it serve a partial read without
     // pulling the whole object. Audio players seek constantly; without this every
@@ -110,11 +146,18 @@ async function serveFromR2(bucket, key, request) {
   headers.set("Accept-Ranges", "bytes");
   headers.set("Access-Control-Allow-Origin", "*");
 
-  // An object with no body is R2's way of answering a precondition: either the
-  // client's etag still matches (304) or it explicitly did not (412).
+  // An object with no body is R2 answering a precondition. Which *status* that
+  // means depends on which precondition family the request used: If-None-Match /
+  // If-Modified-Since are cache revalidation ("you already have it" → 304),
+  // If-Match / If-Unmodified-Since are guarded writes ("your copy is stale" →
+  // 412). Keying this on if-none-match alone — as an earlier revision did —
+  // answered 412 to a Last-Modified-only revalidation, which clients treat as a
+  // hard error instead of a cache hit.
   if (!("body" in object) || object.body === undefined) {
-    const matched = request.headers.get("if-none-match") !== null;
-    return new Response(null, { status: matched ? 304 : 412, headers });
+    const revalidation =
+      request.headers.get("if-none-match") !== null ||
+      request.headers.get("if-modified-since") !== null;
+    return new Response(null, { status: revalidation ? 304 : 412, headers });
   }
 
   if (object.range && range) {

@@ -70,10 +70,31 @@ export async function putObject(config: R2Config, input: PutObjectInput): Promis
   }
 }
 
+/**
+ * Fetch an object's bytes with a signed GET. Exists for the copy script's
+ * `--verify --deep` (byte-level comparison) — the serving path never uses it,
+ * that is what the Worker binding is for.
+ */
+export async function getObject(config: R2Config, key: string): Promise<Uint8Array | null> {
+  const url = objectUrl(config, key);
+  const headers = await signRequest(r2Credentials(config), {
+    method: "GET",
+    url,
+    payloadHash: await sha256Hex(new Uint8Array()),
+    date: new Date(),
+  });
+
+  const response = await fetch(url, { method: "GET", headers });
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    throw new Error(`R2 GET ${key} failed (${response.status}): ${await safeText(response)}`);
+  }
+  return new Uint8Array(await response.arrayBuffer());
+}
+
 export interface HeadResult {
-  readonly size: number;
-  readonly etag: string | null;
-  readonly contentType: string | null;
+  /** Null when the response carried no Content-Length — "unknown", never 0. */
+  readonly size: number | null;
 }
 
 /** Null when the object does not exist — the "already copied?" check. */
@@ -91,11 +112,11 @@ export async function headObject(config: R2Config, key: string): Promise<HeadRes
   if (!response.ok) {
     throw new Error(`R2 HEAD ${key} failed (${response.status})`);
   }
-  return {
-    size: Number(response.headers.get("content-length") ?? 0),
-    etag: response.headers.get("etag"),
-    contentType: response.headers.get("content-type"),
-  };
+  // Absence stays null rather than coercing to 0 — the copy script compares
+  // this against the source size to decide "already copied", and a fake zero
+  // would turn "unknown" into "mismatched", or worse, match a real empty file.
+  const contentLength = response.headers.get("content-length");
+  return { size: contentLength === null ? null : Number(contentLength) };
 }
 
 /**
