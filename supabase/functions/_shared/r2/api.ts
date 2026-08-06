@@ -194,8 +194,14 @@ export function authorizeList(request: ListRequest, caller: Caller): AuthzResult
   if (!caller.userId) return { allowed: false, reason: "no authenticated user" };
 
   const firstSegment = request.prefix.split("/")[0];
-  if (firstSegment !== caller.userId) {
-    return { allowed: false, reason: `prefix must start with "${caller.userId}"` };
+  if (firstSegment === caller.userId) return { allowed: true };
+  // Admins may also enumerate a bucket's shared prefixes (srd/, library/) —
+  // the variant-backfill sweep has to find canonical originals to heal, and
+  // after #617 removes the Supabase copies this is the only listing that can.
+  if (policy.adminPrefixes.includes(firstSegment)) {
+    return caller.isAdmin
+      ? { allowed: true }
+      : { allowed: false, reason: `"${firstSegment}/" in ${policy.id} is admin-only` };
   }
-  return { allowed: true };
+  return { allowed: false, reason: `prefix must start with "${caller.userId}"` };
 }

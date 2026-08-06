@@ -219,6 +219,22 @@ describe("r2-list parsing and authorization", () => {
     }
   });
 
+  it("lets only admins list a bucket's shared admin prefixes", () => {
+    // The variant-backfill sweep enumerates srd/ to find canonical originals
+    // to heal; a non-admin enumerating it learns nothing secret (objects are
+    // public) but has no business with the listing surface.
+    const srd = parseListRequest({ bucket: "spell-images", prefix: "srd" });
+    expect(srd.ok).toBe(true);
+    if (srd.ok) {
+      expect(authorizeList(srd.value, ADMIN).allowed).toBe(true);
+      expect(authorizeList(srd.value, CALLER).allowed).toBe(false);
+    }
+    // Undeclared prefixes stay closed even to admins.
+    const foreign = parseListRequest({ bucket: "item-images", prefix: "srd" });
+    expect(foreign.ok).toBe(true);
+    if (foreign.ok) expect(authorizeList(foreign.value, ADMIN).allowed).toBe(false);
+  });
+
   it("refuses listing a service-managed bucket", () => {
     const parsed = parseListRequest({ bucket: "mini-models", prefix: USER });
     expect(parsed.ok).toBe(true);
