@@ -198,9 +198,123 @@ Until that runs, the bases keep serving through the Worker's Supabase fallback,
 which is invisible today but becomes a 404 the day the fallback retires (#617) —
 so do it with the other buckets, not "eventually".
 
-Suggested order — smallest and least painful to re-do first, so any surprise
-surfaces cheaply: `sound-images`, `pantheon-emblems`, `loot-images`, then the
-remaining image buckets, then `sounds` (the largest, ~180 MB).
+#### Per-bucket checklist — all fifteen, in order
+
+One line per bucket: copy, then deep-verify. Each line only prints `done: <bucket>`
+if BOTH steps succeeded — the verify exits non-zero on any mismatch, so a failed
+bucket is loud, not skipped. Tick the box in this file as each one finishes;
+the list below IS the full registry (`STORAGE_WRITE_POLICY`), so an unticked box
+is a bucket that has not moved.
+
+Ordered smallest/least painful first, so any surprise surfaces cheaply;
+`sounds` (~180 MB) second-last, `mini-models` last.
+
+- [x] `sound-images` — done 6 Aug 2026 (bucket was empty; verified vacuously)
+
+  ```bash
+  npm run r2:copy -- --bucket sound-images && npm run r2:copy -- --bucket sound-images --verify --deep && echo "done: sound-images"
+  ```
+
+- [x] `pantheon-emblems` — done 6 Aug 2026 (66 objects, `--verify --deep` clean)
+
+  ```bash
+  npm run r2:copy -- --bucket pantheon-emblems && npm run r2:copy -- --bucket pantheon-emblems --verify --deep && echo "done: pantheon-emblems"
+  ```
+
+- [ ] `loot-images`
+
+  ```bash
+  npm run r2:copy -- --bucket loot-images && npm run r2:copy -- --bucket loot-images --verify --deep && echo "done: loot-images"
+  ```
+
+- [ ] `puzzle-images`
+
+  ```bash
+  npm run r2:copy -- --bucket puzzle-images && npm run r2:copy -- --bucket puzzle-images --verify --deep && echo "done: puzzle-images"
+  ```
+
+- [ ] `trap-images`
+
+  ```bash
+  npm run r2:copy -- --bucket trap-images && npm run r2:copy -- --bucket trap-images --verify --deep && echo "done: trap-images"
+  ```
+
+- [ ] `faction-images`
+
+  ```bash
+  npm run r2:copy -- --bucket faction-images && npm run r2:copy -- --bucket faction-images --verify --deep && echo "done: faction-images"
+  ```
+
+- [ ] `spell-images`
+
+  ```bash
+  npm run r2:copy -- --bucket spell-images && npm run r2:copy -- --bucket spell-images --verify --deep && echo "done: spell-images"
+  ```
+
+- [ ] `item-images`
+
+  ```bash
+  npm run r2:copy -- --bucket item-images && npm run r2:copy -- --bucket item-images --verify --deep && echo "done: item-images"
+  ```
+
+- [ ] `npc-portraits`
+
+  ```bash
+  npm run r2:copy -- --bucket npc-portraits && npm run r2:copy -- --bucket npc-portraits --verify --deep && echo "done: npc-portraits"
+  ```
+
+- [ ] `location-images`
+
+  ```bash
+  npm run r2:copy -- --bucket location-images && npm run r2:copy -- --bucket location-images --verify --deep && echo "done: location-images"
+  ```
+
+- [ ] `monster-images`
+
+  ```bash
+  npm run r2:copy -- --bucket monster-images && npm run r2:copy -- --bucket monster-images --verify --deep && echo "done: monster-images"
+  ```
+
+- [ ] `asset-images`
+
+  ```bash
+  npm run r2:copy -- --bucket asset-images && npm run r2:copy -- --bucket asset-images --verify --deep && echo "done: asset-images"
+  ```
+
+- [ ] `chronicle`
+
+  ```bash
+  npm run r2:copy -- --bucket chronicle && npm run r2:copy -- --bucket chronicle --verify --deep && echo "done: chronicle"
+  ```
+
+- [ ] `sounds` — largest (~180 MB); run it when the copy can sit undisturbed for a while
+
+  ```bash
+  npm run r2:copy -- --bucket sounds && npm run r2:copy -- --bucket sounds --verify --deep && echo "done: sounds"
+  ```
+
+- [ ] `mini-models` — the `bases/` plinths (see the ingest note above)
+
+  ```bash
+  npm run r2:copy -- --bucket mini-models && npm run r2:copy -- --bucket mini-models --verify --deep && echo "done: mini-models"
+  ```
+
+#### Final sweep — prove nothing was missed
+
+After the last box is ticked, one loop re-verifies every bucket and names any
+that fail. This is the line to run again before #617 ever deletes anything:
+
+```bash
+for b in sound-images pantheon-emblems loot-images puzzle-images trap-images \
+         faction-images spell-images item-images npc-portraits location-images \
+         monster-images asset-images chronicle sounds mini-models; do
+  npm run r2:copy -- --bucket "$b" --verify --deep || { echo "FAILED: $b"; exit 1; }
+done && echo "all 15 buckets verified byte-identical"
+```
+
+Interrupted at any point? Just re-run the bucket's line — the copy skips
+everything already present and verified sizes, so a second pass only moves what
+the first one missed.
 
 ### 4. Do NOT delete the Supabase copies
 
