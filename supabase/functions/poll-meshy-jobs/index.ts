@@ -17,7 +17,7 @@ import { withCors } from "../_shared/cors.ts";
 import { releaseCredits, recordGeneration } from "../_shared/credits.ts";
 import { getImageTo3dTask, resolveMeshyKey, type MeshFormat } from "../_shared/mesh3d.ts";
 import { resolveSculptOutcome, isStale, sculptPhaseStartedAt, type MiniStatusB } from "../_shared/simulacrum.ts";
-import { uploadWithRetry, fetchBytes } from "../_shared/storage-upload.ts";
+import { uploadWithRetry, fetchBytes, publicUrlFor } from "../_shared/storage-upload.ts";
 import { composeStl, figureScaleFor } from "../_shared/mesh-compose.ts";
 import { composeGlb, figureScaleForGlb } from "../_shared/glb-compose.ts";
 import { parseBinaryStl, stlBounds } from "../_shared/stl.ts";
@@ -137,7 +137,7 @@ async function composeMiniModel(
   if (!figureBytes.glb) return null; // every format fetches glb — nothing to seat if it's missing
 
   const basePublicUrl = (ext: "stl" | "glb") =>
-    admin.storage.from("mini-models").getPublicUrl(`${BASE_STORAGE_PREFIX}/${DEFAULT_BASE_ID}.${ext}`).data.publicUrl;
+    publicUrlFor(admin, "mini-models", `${BASE_STORAGE_PREFIX}/${DEFAULT_BASE_ID}.${ext}`);
 
   const [baseGlbBytes, baseStlBytes] = await Promise.all([
     fetchBytes(basePublicUrl("glb")).catch(() => null),
@@ -248,7 +248,7 @@ async function processMini(mini: MiniRow, meshyKey: string): Promise<void> {
       const bytes = await fetchBytes(task.thumbnailUrl);
       const path = await uploadModelFile(`${mini.user_id}/${mini.id}/thumb.webp`, bytes, CONTENT_TYPES.thumb);
       // The thumbnail is rendered raw by <img> tags — store its full URL.
-      return admin.storage.from("mini-models").getPublicUrl(path).data.publicUrl;
+      return publicUrlFor(admin, "mini-models", path);
     })(),
   ]);
 

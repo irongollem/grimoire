@@ -46,10 +46,14 @@ export default defineConfig({
     environment: "happy-dom",
     // supabase/functions/**: edge functions are Deno, but their PURE logic modules
     // (no Deno/https imports — e.g. _shared/credit-math.ts) are unit-tested here.
+    // infra/**: the Cloudflare Worker is plain JS with no build step and no
+    // staging environment — a mistake in it is a site-wide broken-asset event,
+    // so it is unit-tested here against fakes for the R2 binding and the origin.
     include: [
       "src/**/*.{test,spec}.ts",
       "scripts/**/*.{test,spec}.ts",
       "supabase/functions/**/*.{test,spec}.ts",
+      "infra/**/*.{test,spec}.js",
     ],
     exclude: ["node_modules", "dist", ".vercel"],
     // Explicit imports from "vitest" — no `globals: true` so TypeScript

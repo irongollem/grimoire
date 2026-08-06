@@ -16,7 +16,7 @@ import {
   persistGenerationArtifact,
   type GenerationJob,
 } from "../_shared/aiGenerationJob.ts";
-import { uploadWithRetry } from "../_shared/storage-upload.ts";
+import { uploadWithRetry, publicUrlFor } from "../_shared/storage-upload.ts";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -117,12 +117,16 @@ async function runMusicGeneration(jobId: string, request: MusicRuntimeRequest): 
     const bytes = Uint8Array.from(atob(encodedAudio), (char) => char.charCodeAt(0));
     const storagePath = `${request.userId}/ai/${jobId}.${audioExtension(mimeType)}`;
     await uploadWithRetry(admin, "sounds", storagePath, bytes, mimeType);
-    const { data: publicUrl } = admin.storage.from("sounds").getPublicUrl(storagePath);
+    // publicUrlFor, not getPublicUrl: `sounds` is CDN-fronted (#577), and
+    // building the origin URL here kept every generated track off the CDN — the
+    // one bucket where egress multiplies by party size, because each client pulls
+    // its own copy during shared playback.
+    const publicUrl = publicUrlFor(admin, "sounds", storagePath);
 
     // This is deliberately before the sound row and charge. A later crash can
     // resume finalization without another paid Lyria request.
     await persistGenerationArtifact(admin, jobId, {
-      url: publicUrl.publicUrl,
+      url: publicUrl,
       storage_path: storagePath,
       mime_type: mimeType,
       metadata: { model: request.model, provider: "google" },

@@ -42,7 +42,8 @@ import { buildMiniStylizePrompt } from "../_shared/image-prompt.ts";
 import { withCors } from "../_shared/cors.ts";
 import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
 import { isSafeStorageUrl } from "../_shared/storage-url.ts";
-import { uploadWithRetry, fetchBytes } from "../_shared/storage-upload.ts";
+import { uploadWithRetry, fetchBytes, publicUrlFor } from "../_shared/storage-upload.ts";
+import { deleteByPrefix } from "../_shared/storage-delete.ts";
 import { markGeneratedImage } from "../_shared/provenance/mark.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { hasLikenessAcknowledgement } from "../_shared/provenance/likeness-gate.ts";
@@ -131,8 +132,7 @@ async function uploadStyleImage(
   const prov: AiProvenance = { generatorType: "mini_style", provider, model, generatedAt: new Date().toISOString(), edited: false };
   const marked = markGeneratedImage(bin, contentType, prov);
   await uploadWithRetry(admin, "mini-models", path, marked, "image/webp");
-  const { data } = admin.storage.from("mini-models").getPublicUrl(path);
-  return data.publicUrl;
+  return publicUrlFor(admin, "mini-models", path);
 }
 
 // ── stylize ──────────────────────────────────────────────────────────────────
@@ -587,11 +587,14 @@ async function handleDelete(userId: string, body: Record<string, unknown>, json:
 
   // Service-role-only cleanup: clients have no storage write/delete policy on
   // mini-models (SIMULACRUM_PLAN.md §3), so this is the only deletion path.
-  const { data: objects } = await admin.storage.from("mini-models").list(`${userId}/${miniId}`);
-  if (objects?.length) {
-    const paths = objects.map((o: { name: string }) => `${userId}/${miniId}/${o.name}`);
-    const { error: removeErr } = await admin.storage.from("mini-models").remove(paths);
-    if (removeErr) console.error("forge-mini delete: storage cleanup failed", removeErr);
+  //
+  // Via deleteByPrefix because mini-models bytes live in R2 (#577 stage 2):
+  // listing Supabase alone returns nothing for an R2-stored mini, so this would
+  // report a clean delete while orphaning every file the user just paid for.
+  try {
+    await deleteByPrefix(admin, "mini-models", `${userId}/${miniId}`);
+  } catch (err) {
+    console.error("forge-mini delete: storage cleanup failed", err);
   }
 
   const { error: deleteErr } = await admin.from("minis").delete().eq("id", miniId);
@@ -650,7 +653,9 @@ async function handleSetBase(userId: string, body: Record<string, unknown>, json
   const figureStlPath = extraPaths.raw_stl ?? mini.stl_path;
   if (!figureGlbPath) return json({ error: "invalid_state" }, 409); // nothing to recompose from
 
-  const toPublicUrl = (path: string) => admin.storage.from("mini-models").getPublicUrl(path).data.publicUrl;
+  // publicUrlFor, not getPublicUrl: mini-models is R2-backed (#577 stage 2), so
+  // the origin URL these bytes are re-fetched from would 404.
+  const toPublicUrl = (path: string) => publicUrlFor(admin, "mini-models", path);
 
   try {
     const [figureGlbBytes, figureStlBytes, baseGlbBytes, baseStlBytes] = await Promise.all([

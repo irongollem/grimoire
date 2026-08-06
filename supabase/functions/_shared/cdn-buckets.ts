@@ -14,6 +14,8 @@
 // The two are held in sync by a test in src/lib/storage.test.ts that fails on
 // any divergence — update both, or that test will say so.
 
+import { isR2Bucket } from "./r2/config.ts";
+
 export const CDN_BUCKET_IDS = [
   "npc-portraits",
   "asset-images",
@@ -29,12 +31,18 @@ export const CDN_BUCKET_IDS = [
   "sound-images",
   "chronicle",
   "sounds",
+  // Joined the CDN in stage 2, when it moved to R2 (#577). It had to: an R2
+  // object is reachable only through the Worker, so "R2-backed" and "served from
+  // cdn." are the same statement. The stage-1 reason for holding it back — the
+  // Cloudflare clause about bulk non-HTML content — is answered rather than
+  // ignored, because that clause points you at the Developer Platform, and
+  // Workers + R2 *is* the Developer Platform.
+  "mini-models",
 ] as const;
 
-// Excluded on purpose, with the reason recorded at the bucket in
-// src/lib/storage.ts: `mini-models` (genuinely large files, and it goes straight
-// to R2 in stage 2 while the bucket is still empty). `bug-reports` and
-// `downtime-images` are not in the registry at all — see that file.
+// Not in the registry at all, so a registry-driven migration will miss them:
+// `bug-reports` (create-bug-report edge function) and `downtime-images`
+// (src/data/downtimeArt.ts). See src/lib/storage.ts.
 
 export function isCdnBucket(bucketId: string): boolean {
   return (CDN_BUCKET_IDS as readonly string[]).includes(bucketId);
@@ -60,4 +68,35 @@ export function encodeStoragePath(path: string): string {
 export function assetCdnUrl(bucketId: string, path: string, cdnBase: string | null): string | null {
   if (!cdnBase || !isCdnBucket(bucketId)) return null;
   return `${cdnBase.replace(/\/+$/, "")}/${bucketId}/${encodeStoragePath(path)}`;
+}
+
+/**
+ * The public URL for an object, choosing between the CDN and the Supabase origin.
+ *
+ * Every caller that persists a URL should go through this rather than reaching
+ * for `getPublicUrl` directly — that is how `generate-music` ended up writing
+ * origin URLs for `sounds` after stage 1 shipped, quietly keeping the noisiest
+ * bucket in the registry off the CDN for every newly generated track.
+ *
+ * Throws when a bucket whose bytes live in R2 has no CDN base configured. That
+ * combination cannot produce a working URL — an R2 object is reachable only
+ * through the Worker — and the alternative to throwing is persisting a URL that
+ * 404s forever. Unreachable if the runbook order is followed (CDN first, then
+ * R2), and `uploadWithRetry` refuses to write to R2 in that state for the same
+ * reason.
+ */
+export function publicAssetUrl(
+  bucketId: string,
+  path: string,
+  cdnBase: string | null,
+  supabasePublicUrl: () => string,
+): string {
+  const cdn = assetCdnUrl(bucketId, path, cdnBase);
+  if (cdn) return cdn;
+  if (isR2Bucket(bucketId)) {
+    throw new Error(
+      `${bucketId} is served from R2 but no asset CDN is configured — refusing to build an unreachable URL`,
+    );
+  }
+  return supabasePublicUrl();
 }

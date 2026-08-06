@@ -1,0 +1,33 @@
+# Cloudflare Worker config for the asset CDN (#577).
+#
+# Vendored so the deploy is `wrangler deploy` from this directory rather than a
+# sequence of dashboard clicks nobody can diff. The Worker itself was created by
+# hand during stage 1; this file describes the same deployment, plus the stage-2
+# R2 binding.
+#
+#   cd infra && wrangler deploy
+#
+# The route already exists on the zone. Redeploying with this config is safe and
+# idempotent; it does not touch DNS.
+
+name = "grimoire-cdn"
+main = "grimoire-cdn-worker.js"
+compatibility_date = "2026-08-06"
+
+# `cdn.` is the only proxied record on the zone — apex/www/app are grey-cloud
+# CNAMEs to Vercel and must stay that way.
+routes = [
+  { pattern = "cdn.dungeongrimoire.com/*", zone_name = "dungeongrimoire.com" }
+]
+
+# ONE bucket for every storage bucket, keyed `<storageBucket>/<path>`.
+# That key is exactly the request pathname minus its leading slash, which is why
+# moving bytes to R2 rewrites no stored URLs. See
+# supabase/functions/_shared/r2/config.ts for the same reasoning in code.
+#
+# The binding name `ASSETS` is what the Worker reads; if it is missing the Worker
+# falls back to Supabase Storage for everything, so deploying this before the
+# bucket exists is harmless.
+[[r2_buckets]]
+binding = "ASSETS"
+bucket_name = "grimoire-assets"
