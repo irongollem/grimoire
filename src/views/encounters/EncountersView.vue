@@ -5,16 +5,12 @@
     </template>
 
     <template #actions>
-      <AppButton
-        size="md"
-        collapse-label-on-mobile
+      <ListActionButton
         :icon="IconGenerate"
         label="Generate"
         @click="ui.encounterGeneratorOpen = true"
       />
-      <AppButton
-        size="md"
-        collapse-label-on-mobile
+      <ListActionButton
         variant="primary"
         :icon="IconAdd"
         label="New Encounter"
@@ -65,6 +61,7 @@ import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { IconAdd, IconCheckDouble, IconGenerate } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
+import ListActionButton from "@/components/common/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";

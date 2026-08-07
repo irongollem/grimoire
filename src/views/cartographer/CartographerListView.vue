@@ -8,21 +8,16 @@
     </template>
 
     <template #actions>
-      <AppButton
+      <ListActionButton
         v-if="ui.cartographerHasActiveFilters"
-        size="md"
-        variant="outline"
         label="Clear"
-        collapse-label-on-mobile
         @click="ui.resetCartographerFilters"
       />
-      <AppButton
-        size="md"
+      <ListActionButton
         variant="primary"
         :icon="IconAdd"
         label="New Map"
         mobile-label="Map"
-        collapse-label-on-mobile
         @click="router.push('/cartographer/new')"
       />
     </template>
@@ -112,6 +107,7 @@ import { useUiStore } from "@/stores/ui";
 import type { DungeonMap } from "@/types/dungeonMap.types";
 
 import PageHeader from "@/components/common/PageHeader.vue";
+import ListActionButton from "@/components/common/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";

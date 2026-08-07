@@ -5,18 +5,13 @@
     </template>
 
     <template v-if="isAppAdmin" #actions>
-      <AppButton
-        size="md"
-        collapse-label-on-mobile
-        variant="outline"
+      <ListActionButton
         :icon="IconGenerate"
         :label="populateLabel"
         :disabled="populateMutation.isPending.value"
         @click="handlePopulate"
       />
-      <AppButton
-        size="md"
-        collapse-label-on-mobile
+      <ListActionButton
         variant="primary"
         :icon="IconAdd"
         label="New Hero"
@@ -167,8 +162,8 @@ import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
+import ListActionButton from "@/components/common/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import AppButton from "@/components/common/AppButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";

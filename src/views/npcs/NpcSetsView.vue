@@ -8,10 +8,9 @@
     </template>
 
     <template #actions>
-      <AppButton size="md" collapse-label-on-mobile variant="outline" :icon="IconChevronLeft" label="NPCs" to="/npcs" />
-      <AppButton
-        size="md"
-        collapse-label-on-mobile
+      <ListActionButton :icon="IconChevronLeft" label="NPCs" to="/npcs"
+/>
+      <ListActionButton
         variant="primary"
         :icon="IconAdd"
         label="New Set"
@@ -61,6 +60,7 @@ import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import { IconAdd, IconChevronLeft, IconLayers } from "@/lib/icons";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
+import ListActionButton from "@/components/common/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";

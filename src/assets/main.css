@@ -502,6 +502,45 @@
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
+   Native <select> chrome (#561)
+
+   Safari on macOS renders an unstyled <select> with the OS `menulist` look — a
+   grey gradient pill with its own ⇕ glyph — and ignores background, border and
+   font entirely, so a select sat in an app-styled row looked like a pasted-in
+   system widget. `appearance: none` is the whole fix.
+
+   This is deliberately NOT a reason to replace <select> with a custom listbox.
+   `appearance` only governs how the CLOSED control renders: tapping it on iOS or
+   Android still opens the native OS picker, which is the better control on a
+   phone and the reason ListFilterSelect was written around the native element.
+   So one property buys a consistent look on desktop while keeping the mobile
+   picker, keyboard typeahead and accessibility that come free with the real tag.
+   Reach for a custom listbox only when you need what <select> genuinely cannot
+   do — option icons, type-to-filter, grouped rendering, multi-select chips.
+
+   Because `appearance: none` also removes the space the browser reserved for its
+   arrow, this rule owns the caret and the padding that clears it. Both are in
+   `em` so they track the control's font size, from `text-label` filter pickers up
+   to `text-sm` field rows. The caret is drawn with two gradients rather than an
+   SVG data URI so it can use `currentColor` and follow every theme.
+
+   Unlayered on purpose: Tailwind utilities live in `@layer utilities`, and layer
+   order beats specificity, so a base-layer rule would lose its padding to any
+   `px-*` at the call site and the caret would overlap the label.
+───────────────────────────────────────────────────────────────────────────── */
+select:not([multiple]):not([size]) {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-inline-end: 1.65em;
+  background-image:
+    linear-gradient(45deg, transparent 50%, color-mix(in oklab, currentColor 70%, transparent) 50%),
+    linear-gradient(135deg, color-mix(in oklab, currentColor 70%, transparent) 50%, transparent 50%);
+  background-position: right 0.85em center, right 0.55em center;
+  background-size: 0.3em 0.3em;
+  background-repeat: no-repeat;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
    Hide number input spinners globally
 ───────────────────────────────────────────────────────────────────────────── */
 input[type="number"]::-webkit-inner-spin-button,

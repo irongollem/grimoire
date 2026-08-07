@@ -8,29 +8,21 @@
     </template>
 
     <template #actions>
-      <AppButton
+      <ListActionButton
         v-if="auth.isDM && playerIds.length"
-        variant="outline"
-        size="md"
-        collapse-label-on-mobile
         :icon="revealAllPending ? IconLoading : IconReveal"
         label="Reveal All"
         :disabled="revealAllPending"
         @click="revealAllRecipes"
       />
-      <AppButton
-        variant="outline"
-        size="md"
-        collapse-label-on-mobile
+      <ListActionButton
         :icon="importMutation.isPending.value ? IconLoading : IconDownload"
         :label="importStatusLabel"
         :disabled="importMutation.isPending.value"
         @click="handleImport"
       />
-      <AppButton
+      <ListActionButton
         variant="primary"
-        size="md"
-        collapse-label-on-mobile
         :icon="IconAdd"
         label="New Recipe"
         to="/crafting/new"
@@ -154,8 +146,8 @@ import { computed, ref } from "vue";
 
 import { IconAdd, IconAward, IconDelete, IconDownload, IconEdit, IconListView, IconLoading, IconNavWorkshop, IconReveal, IconTool } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
+import ListActionButton from "@/components/common/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import AppButton from "@/components/common/AppButton.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import PlayerVisibilityToggle from "@/components/common/PlayerVisibilityToggle.vue";
 import { CRAFTING_DISCIPLINES, getDiscipline } from "@/lib/crafting-disciplines";

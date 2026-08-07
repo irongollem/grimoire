@@ -26,16 +26,12 @@
         </template>
       </SourcesPickerPanel>
 
-      <AppButton
-        size="md"
-        collapse-label-on-mobile
+      <ListActionButton
         :icon="IconGenerate"
         label="Generate"
         @click="ui.itemGeneratorOpen = true"
       />
-      <AppButton
-        size="md"
-        collapse-label-on-mobile
+      <ListActionButton
         variant="primary"
         :icon="IconAdd"
         label="New Item"
@@ -77,8 +73,8 @@
 import { computed } from "vue";
 import { IconAdd, IconGenerate, IconLibrary } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
+import ListActionButton from "@/components/common/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import AppButton from "@/components/common/AppButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";

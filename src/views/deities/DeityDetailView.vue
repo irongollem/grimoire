@@ -6,22 +6,14 @@
     <template #actions>
       <!-- View / Edit toggle (existing deities only) -->
       <template v-if="!isNew">
-        <AppButton
+        <PageHeaderAction
           v-if="!isEditing"
-          size="md"
-          collapse-below="lg"
-          collapse-label-on-mobile
-          variant="subtle"
           label="Edit"
           :icon="IconEdit"
           @click="startEditing"
         />
-        <AppButton
+        <PageHeaderAction
           v-else
-          size="md"
-          collapse-below="lg"
-          collapse-label-on-mobile
-          variant="subtle"
           label="View"
           :icon="IconDocument"
           @click="stopEditing"
@@ -37,23 +29,19 @@
 
       <!-- Edit-mode actions -->
       <template v-if="isEditing && deityEditor">
-        <AppButton
+        <PageHeaderAction
           v-if="deity?.id"
-          size="md"
-          collapse-below="lg"
-          collapse-label-on-mobile
           label="Delete"
           :icon="IconDelete"
           variant="destructive"
           @click="deityEditor.handleDelete()"
         />
-        <AppButton
-          size="md"
-          collapse-below="lg"
+        <PageHeaderAction
           :disabled="deityEditor.isSaving"
           :label="deityEditor.isSaving ? 'Saving…' : isNew ? 'Create Deity' : 'Save Changes'"
           :mobile-label="deityEditor.isSaving ? 'Saving…' : isNew ? 'Create' : 'Save'"
           variant="primary"
+          :collapse-label-on-mobile="false"
           @click="deityEditor.handleSave()"
         />
       </template>
@@ -86,7 +74,7 @@ import { useRoute, useRouter } from "vue-router";
 import { IconDelete, IconDocument, IconEdit } from '@/lib/icons';
 import { useDeity, useUpdateDeity } from "@/composables/useDeities";
 import PageHeader from "@/components/common/PageHeader.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import DeityEditor from "@/components/deities/DeityEditor.vue";
 import DeitySheet from "@/components/deities/DeitySheet.vue";

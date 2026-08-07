@@ -51,8 +51,8 @@ export function levenshtein(a: string, b: string): number {
     t = tmp;
   }
 
-  const prev = new Array<number>(s.length + 1);
-  const curr = new Array<number>(s.length + 1);
+  const prev: number[] = Array.from({ length: s.length + 1 }, () => 0);
+  const curr: number[] = Array.from({ length: s.length + 1 }, () => 0);
   for (let i = 0; i <= s.length; i++) prev[i] = i;
 
   for (let j = 1; j <= t.length; j++) {

@@ -21,22 +21,14 @@
     <template #actions>
       <!-- View / Edit toggle (existing NPCs only) -->
       <template v-if="!isNewNpc">
-        <AppButton
+        <PageHeaderAction
           v-if="!isEditing"
-          size="md"
-          collapse-below="lg"
-          collapse-label-on-mobile
-          variant="subtle"
           label="Edit"
           :icon="IconEdit"
           @click="startEditing"
         />
-        <AppButton
+        <PageHeaderAction
           v-else
-          size="md"
-          collapse-below="lg"
-          collapse-label-on-mobile
-          variant="subtle"
           label="View"
           :icon="IconDocument"
           @click="stopEditing"
@@ -45,22 +37,15 @@
 
       <!-- Edit-mode actions (only when editing and NpcDetail is mounted) -->
       <template v-if="isEditing && npcDetail">
-        <AppButton
+        <PageHeaderAction
           v-if="npc?.id"
-          size="md"
-          collapse-below="lg"
-          collapse-label-on-mobile
           label="Delete"
           :icon="IconDelete"
           variant="destructive"
           @click="npcDetail.confirmDelete()"
         />
-        <AppButton
+        <PageHeaderAction
           v-if="npc?.id"
-          size="md"
-          collapse-below="lg"
-          collapse-label-on-mobile
-          variant="subtle"
           :label="npcDetail.isSendingToScriptorium ? 'Exporting…' : 'Scriptorium'"
           :tooltip="npcDetail.isSendingToScriptorium ? 'Exporting…' : 'Send to Scriptorium'"
           :disabled="npcDetail.isSendingToScriptorium"
@@ -72,37 +57,28 @@
           :visible-to="npcDetail.form.player_visible_to"
           @update:visible-to="npcDetail.form.player_visible_to = $event"
         />
-        <AppButton
+        <PageHeaderAction
           v-if="npc?.id && (npcDetail.form.disguise_name || npcDetail.form.disguise_portrait_url)"
-          size="md"
-          collapse-below="lg"
-          collapse-label-on-mobile
-          variant="subtle"
           :label="npcDetail.form.is_revealed ? 'Revealed' : 'Concealed'"
           :tooltip="npcDetail.form.is_revealed ? 'Revealed' : 'Concealed'"
           :icon="npcDetail.form.is_revealed ? IconReveal : IconHide"
           @click="npcDetail.form.is_revealed = !npcDetail.form.is_revealed"
         />
-        <AppButton
+        <PageHeaderAction
           v-if="npcDetail.isAiEnabled"
-          size="md"
-          collapse-below="lg"
-          collapse-label-on-mobile
-          variant="subtle"
           label="Generate"
           :icon="IconGenerate"
           @click="npcDetail.showGenerateDialog = true"
         />
         <!-- form= attribute submits the NpcDetail form from outside it -->
-        <AppButton
+        <PageHeaderAction
           type="submit"
           form="npc-detail-form"
-          size="md"
-          collapse-below="lg"
           :disabled="npcDetail.isSaving"
           :label="npcDetail.isSaving ? 'Saving…' : (npc?.id ? 'Save Changes' : 'Create NPC')"
           :mobile-label="npcDetail.isSaving ? 'Saving…' : (npc?.id ? 'Save' : 'Create')"
           variant="primary"
+          :collapse-label-on-mobile="false"
         />
       </template>
     </template>
@@ -130,7 +106,7 @@ import { IconDelete, IconDocument, IconEdit, IconGenerate, IconHide, IconReveal,
 import { useNpc } from "@/composables/useNpcs";
 import { useRecentNpcs } from "@/composables/useRecentNpcs";
 import PageHeader from "@/components/common/PageHeader.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import NpcDetail from "@/components/npcs/NpcDetail.vue";
 import NpcSheet from "@/components/npcs/NpcSheet.vue";

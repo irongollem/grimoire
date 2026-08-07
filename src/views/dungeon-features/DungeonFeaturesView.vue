@@ -1,18 +1,13 @@
 <template>
   <PageHeader title="Dungeon Craft" description="Secret doors, hidden passages & concealed treasures">
     <template #actions>
-      <AppButton
-        size="md"
-        collapse-label-on-mobile
-        variant="outline"
+      <ListActionButton
         :icon="populateMutation.isPending.value ? IconLoading : IconPopulate"
         :label="populateStatusLabel"
         :disabled="populateMutation.isPending.value"
         @click="handlePopulate"
       />
-      <AppButton
-        size="md"
-        collapse-label-on-mobile
+      <ListActionButton
         variant="primary"
         :icon="IconAdd"
         label="New Feature"
@@ -114,6 +109,7 @@ import { IconAdd, IconLoading, IconPopulate } from '@/lib/icons';
 import { useDungeonFeatures, usePopulateDungeonFeatures } from "@/composables/useDungeonFeatures";
 import { DUNGEON_FEATURE_TYPES, DUNGEON_FEATURE_TYPE_COLORS } from "@/types/dungeonFeature.types";
 import PageHeader from "@/components/common/PageHeader.vue";
+import ListActionButton from "@/components/common/ListActionButton.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import EmptyState from "@/components/common/EmptyState.vue";

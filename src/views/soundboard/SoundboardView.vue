@@ -75,23 +75,19 @@
       />
 
       <SoundboardWidgetToggle />
-      <AppButton
+      <ListActionButton
         v-if="ui.soundboardViewMode === 'sounds'"
-        size="md"
         variant="primary"
         :icon="IconAdd"
         :label="soundQuota?.unlimited === false ? `Add Sound (${soundQuota.current}/${soundQuota.limit})` : 'Add Sound'"
-        collapse-label-on-mobile
         @click="openAddSound()"
       />
       <!-- Same convention, same corner, whichever peer is showing. -->
-      <AppButton
+      <ListActionButton
         v-else
-        size="md"
         variant="primary"
         :icon="IconAdd"
         :label="newPlaylistLabel"
-        collapse-label-on-mobile
         @click="createPlaylistSignal++"
       />
     </template>
@@ -318,6 +314,7 @@ import { storeToRefs } from "pinia";
 import { useCampaignStore } from "@/stores/campaign";
 import type { Sound } from "@/types/sound.types";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
+import ListActionButton from "@/components/common/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";

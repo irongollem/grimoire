@@ -24,9 +24,9 @@
  * Run:  node scripts/fetch-srd-conditions.mjs [--edition=2014|2024]
  */
 
-import { writeFileSync } from "fs";
-import { resolve, dirname } from "path";
-import { fileURLToPath } from "url";
+import { writeFileSync } from "node:fs";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 

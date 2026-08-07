@@ -11,10 +11,7 @@
       <DetailActions :detail-ref="detailRef" :exists="!!species" />
     </template>
     <template v-else-if="isShared && species" #actions>
-      <AppButton
-        size="md"
-        collapse-below="lg"
-        collapse-label-on-mobile
+      <PageHeaderAction
         variant="primary"
         :disabled="cloning"
         :label="cloning ? 'Copying…' : 'Clone to customize'"
@@ -37,6 +34,7 @@ import { useRoute, useRouter } from "vue-router";
 import { IconCopy } from '@/lib/icons';
 import { useSpecies, useIsLibrarySpecies, useCloneLibrarySpecies } from "@/composables/useSpecies";
 import PageHeader from "@/components/common/PageHeader.vue";
+import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import DetailActions from "@/components/common/DetailActions.vue";

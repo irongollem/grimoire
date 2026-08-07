@@ -8,17 +8,12 @@
     </template>
 
     <template #actions>
-      <AppButton
-        size="md"
-        collapse-label-on-mobile
-        variant="outline"
+      <ListActionButton
         :icon="IconGenerate"
         label="Generate"
         @click="ui.questGeneratorOpen = true"
       />
-      <AppButton
-        size="md"
-        collapse-label-on-mobile
+      <ListActionButton
         variant="primary"
         :icon="IconAdd"
         label="New Quest"
@@ -63,6 +58,7 @@
 <script setup lang="ts">
 import { IconAdd, IconColumns, IconGenerate, IconListView } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
+import ListActionButton from "@/components/common/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";

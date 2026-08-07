@@ -7,18 +7,13 @@
     <template #actions>
       <!-- Features tab actions -->
       <template v-if="activeTab === 'features'">
-        <AppButton
-          size="md"
-          collapse-label-on-mobile
-          variant="outline"
+        <ListActionButton
           :icon="featuresPopulate.isPending.value ? IconLoading : IconPopulate"
           :label="featuresPopulateLabel"
           :disabled="featuresPopulate.isPending.value"
           @click="handleFeaturesPopulate"
         />
-        <AppButton
-          size="md"
-          collapse-label-on-mobile
+        <ListActionButton
           variant="primary"
           :icon="IconAdd"
           label="New Feature"
@@ -29,26 +24,18 @@
 
       <!-- Traps tab actions -->
       <template v-else-if="activeTab === 'traps'">
-        <AppButton
-          size="md"
-          collapse-label-on-mobile
-          variant="outline"
+        <ListActionButton
           :icon="trapsPopulate.isPending.value ? IconLoading : IconPopulate"
           :label="trapsPopulateLabel"
           :disabled="trapsPopulate.isPending.value"
           @click="handleTrapsPopulate"
         />
-        <AppButton
-          size="md"
-          collapse-label-on-mobile
-          variant="outline"
+        <ListActionButton
           :icon="IconGenerate"
           label="Generate"
           @click="ui.trapGeneratorOpen = true"
         />
-        <AppButton
-          size="md"
-          collapse-label-on-mobile
+        <ListActionButton
           variant="primary"
           :icon="IconAdd"
           label="New Trap"
@@ -60,26 +47,18 @@
       <!-- Roll Tables tab actions -->
       <template v-else-if="activeTab === 'roll-tables'">
         <template v-if="!rollTablesTabRef?.selectedRollTableId && !rollTablesTabRef?.inlineNewRollTable">
-          <AppButton
-            size="md"
-            collapse-label-on-mobile
-            variant="outline"
+          <ListActionButton
             :icon="rollTablesPopulate.isPending.value ? IconLoading : IconPopulate"
             :label="rollTablesPopulateLabel"
             :disabled="rollTablesPopulate.isPending.value"
             @click="handleRollTablesPopulate"
           />
-          <AppButton
-            size="md"
-            collapse-label-on-mobile
-            variant="outline"
+          <ListActionButton
             :icon="IconGenerate"
             label="Generate"
             @click="ui.rollTableGeneratorOpen = true"
           />
-          <AppButton
-            size="md"
-            collapse-label-on-mobile
+          <ListActionButton
             variant="primary"
             :icon="IconAdd"
             label="New Roll Table"
@@ -98,17 +77,12 @@
 
       <!-- Loot Tables tab actions -->
       <template v-else-if="activeTab === 'loot-tables'">
-        <AppButton
-          size="md"
-          collapse-label-on-mobile
-          variant="outline"
+        <ListActionButton
           :icon="IconGenerate"
           label="Generate"
           @click="ui.lootTableGeneratorOpen = true"
         />
-        <AppButton
-          size="md"
-          collapse-label-on-mobile
+        <ListActionButton
           variant="primary"
           :icon="IconAdd"
           label="New Loot Table"
@@ -119,9 +93,7 @@
 
       <!-- Cartographer tab actions -->
       <template v-else-if="activeTab === 'cartographer'">
-        <AppButton
-          size="md"
-          collapse-label-on-mobile
+        <ListActionButton
           variant="primary"
           :icon="IconAdd"
           label="New Map"
@@ -132,26 +104,18 @@
 
       <!-- Puzzles tab actions -->
       <template v-else>
-        <AppButton
-          size="md"
-          collapse-label-on-mobile
-          variant="outline"
+        <ListActionButton
           :icon="puzzlesPopulate.isPending.value ? IconLoading : IconPopulate"
           :label="puzzlesPopulateLabel"
           :disabled="puzzlesPopulate.isPending.value"
           @click="handlePuzzlesPopulate"
         />
-        <AppButton
-          size="md"
-          collapse-label-on-mobile
-          variant="outline"
+        <ListActionButton
           :icon="IconGenerate"
           label="Generate"
           @click="ui.puzzleGeneratorOpen = true"
         />
-        <AppButton
-          size="md"
-          collapse-label-on-mobile
+        <ListActionButton
           variant="primary"
           :icon="IconAdd"
           label="New Puzzle"
@@ -186,6 +150,7 @@ import { usePopulateRollTables } from "@/composables/useRollTables";
 
 import { useUiStore } from "@/stores/ui";
 import PageHeader from "@/components/common/PageHeader.vue";
+import ListActionButton from "@/components/common/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import TabBar from "@/components/common/TabBar.vue";

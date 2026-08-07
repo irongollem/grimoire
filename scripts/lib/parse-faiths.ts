@@ -156,7 +156,7 @@ export function parseClericDomains(body: string): { domains: ClericDomain[]; unk
 
   // Tokenize aggressively
   const tokens = line
-    .split(/[,;:.—\-]| and /i)
+    .split(/[,;:.—-]| and /i)
     .map((t) => t.trim())
     .filter(Boolean);
 

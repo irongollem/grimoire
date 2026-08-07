@@ -1,20 +1,14 @@
 <template>
   <PageHeader :title="spell?.name ?? 'New Spell'" :description="subtitle">
     <template v-if="!isNew && canEdit" #actions>
-      <AppButton
+      <PageHeaderAction
         v-if="!isEditing"
-        size="md"
-        collapse-below="lg"
-        collapse-label-on-mobile
         label="Edit"
         :icon="IconEdit"
         @click="startEditing"
       />
-      <AppButton
+      <PageHeaderAction
         v-else
-        size="md"
-        collapse-below="lg"
-        collapse-label-on-mobile
         label="View"
         :icon="IconDocument"
         @click="stopEditing"
@@ -42,7 +36,7 @@ import { spellLevelLabel } from "@/types/spell.types";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import PageHeader from "@/components/common/PageHeader.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import SpellDetail from "@/components/spells/SpellDetail.vue";
 import SpellSheet from "@/components/spells/SpellSheet.vue";

@@ -7,10 +7,7 @@
       <!-- SRD/shared items are strictly read-only in the vault; cloning mints
            an owned, editable copy that shadows the shared row afterwards. -->
       <template v-if="!isNewItem && isShared">
-        <AppButton
-          size="md"
-          collapse-below="lg"
-          collapse-label-on-mobile
+        <PageHeaderAction
           variant="primary"
           :label="isCloning ? 'Cloning…' : 'Clone to customize'"
           :disabled="isCloning"
@@ -22,10 +19,7 @@
       <!-- View-mode controls (existing, owned items only) -->
       <template v-if="!isNewItem && !isShared && !isEditing">
         <ItemSendMenu v-if="item" :item="item" />
-        <AppButton
-          size="md"
-          collapse-below="lg"
-          collapse-label-on-mobile
+        <PageHeaderAction
           label="Edit"
           :icon="IconEdit"
           @click="startEditing"
@@ -34,55 +28,42 @@
 
       <!-- Edit-mode actions (owned items only; shared rows never enter edit mode) -->
       <template v-if="isEditing && itemDetail">
-        <AppButton
+        <PageHeaderAction
           v-if="!isNewItem"
-          size="md"
-          collapse-below="lg"
-          collapse-label-on-mobile
           label="View"
           :icon="IconDocument"
           @click="stopEditing"
         />
-        <AppButton
+        <PageHeaderAction
           v-if="item"
-          size="md"
-          collapse-below="lg"
-          collapse-label-on-mobile
           :label="itemDetail.isSendingToScriptorium ? 'Sending…' : 'Scriptorium'"
           :tooltip="itemDetail.isSendingToScriptorium ? 'Sending…' : 'Send to Scriptorium'"
           :disabled="itemDetail.isSendingToScriptorium"
           :icon="IconScrollText"
           @click="itemDetail.sendToScriptorium()"
         />
-        <AppButton
+        <PageHeaderAction
           v-if="item"
-          size="md"
-          collapse-below="lg"
-          collapse-label-on-mobile
           :label="itemDetail.isCloning ? 'Cloning…' : 'Clone'"
           :disabled="itemDetail.isCloning"
           :icon="IconCopy"
           @click="itemDetail.cloneItem()"
         />
-        <AppButton
+        <PageHeaderAction
           v-if="item"
-          size="md"
-          collapse-below="lg"
-          collapse-label-on-mobile
           variant="destructive"
           :label="itemDetail.isDeleting ? 'Deleting…' : 'Delete'"
           :disabled="itemDetail.isDeleting"
           :icon="IconDelete"
           @click="itemDetail.confirmDelete()"
         />
-        <AppButton
-          size="md"
-          collapse-below="lg"
+        <PageHeaderAction
           variant="primary"
           :disabled="itemDetail.isSaving || !itemDetail.canSave"
           :label="itemDetail.isSaving ? 'Saving…' : item ? 'Save' : 'Create'"
           :mobile-label="itemDetail.isSaving ? 'Saving…' : item ? 'Save' : 'Create'"
           :icon="IconSave"
+          :collapse-label-on-mobile="false"
           @click="itemDetail.save()"
         />
       </template>
@@ -112,7 +93,7 @@ import { useResolvedItem, useEnsureOwnedItem } from "@/composables/useItems";
 import { useToast } from "@/composables/useToast";
 import { ITEM_TYPE_LABELS, ITEM_RARITY_LABELS } from "@/types/item.types";
 import PageHeader from "@/components/common/PageHeader.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import ItemDetail from "@/components/items/ItemDetail.vue";
 import ItemSheet from "@/components/items/ItemSheet.vue";

@@ -3,11 +3,7 @@
     <template #actions>
       <!-- View mode actions -->
       <template v-if="mode === 'view' && !isNew">
-        <AppButton
-          size="md"
-          collapse-below="lg"
-          collapse-label-on-mobile
-          variant="subtle"
+        <PageHeaderAction
           label="Edit"
           :icon="IconEdit"
           @click="mode = 'edit'"
@@ -16,11 +12,8 @@
 
       <!-- Edit mode actions -->
       <template v-else-if="mode === 'edit' || isNew">
-        <AppButton
+        <PageHeaderAction
           v-if="isEdit"
-          size="md"
-          collapse-below="lg"
-          collapse-label-on-mobile
           variant="destructive"
           label="Delete"
           :icon="IconDelete"
@@ -34,12 +27,11 @@
           class="border-border bg-card text-muted-foreground hover:text-foreground"
           @click="mode = 'view'"
         />
-        <AppButton
-          size="md"
-          collapse-below="lg"
+        <PageHeaderAction
           variant="primary"
           :disabled="saving || !form.name.trim()"
           :label="saving ? 'Saving…' : isNew ? 'Create' : 'Save'"
+          :collapse-label-on-mobile="false"
           @click="save"
         />
       </template>
@@ -362,6 +354,7 @@ import { deepEqual } from "@/lib/utils";
 import { PUZZLE_TYPES, PUZZLE_DIFFICULTIES } from "@/types/puzzle.types";
 import type { PuzzleHint, PuzzleSkillCheck } from "@/types/puzzle.types";
 import PageHeader from "@/components/common/PageHeader.vue";
+import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";

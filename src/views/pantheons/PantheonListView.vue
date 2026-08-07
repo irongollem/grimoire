@@ -1,18 +1,13 @@
 <template>
   <ListPageLayout title="Pantheons" description="Named groups of deities and their divine hierarchies">
     <template #actions>
-      <AppButton
-        size="md"
-        collapse-label-on-mobile
-        variant="outline"
+      <ListActionButton
         :icon="IconSun"
         label="All Deities"
         mobile-label="Deities"
         to="/deities"
       />
-      <AppButton
-        size="md"
-        collapse-label-on-mobile
+      <ListActionButton
         variant="primary"
         :icon="IconAdd"
         label="New Pantheon"
@@ -86,7 +81,7 @@ import { computed } from "vue";
 import { IconAdd, IconChevronRight, IconFire, IconNavPantheon, IconReveal, IconSun } from '@/lib/icons';
 import { useAllPantheons, useAllDeities } from "@/composables/useDeities";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import ListActionButton from "@/components/common/ListActionButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";

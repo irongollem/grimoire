@@ -18,20 +18,15 @@
     <template #actions>
       <template v-if="isDM">
         <!-- Species tab -->
-        <AppButton
+        <ListActionButton
           v-if="activeTab === 'species'"
-          variant="outline"
-          size="md"
-          collapse-label-on-mobile
           :icon="IconDownload"
           label="Import Open5e"
           @click="ui.speciesOpen5ePanelOpen = true"
         />
-        <AppButton
+        <ListActionButton
           v-if="activeTab === 'species'"
           variant="primary"
-          size="md"
-          collapse-label-on-mobile
           :icon="IconAdd"
           label="New Species"
           mobile-label="Species"
@@ -75,19 +70,14 @@
               </div>
             </div>
           </div>
-          <AppButton
-            variant="outline"
-            size="md"
-            collapse-label-on-mobile
+          <ListActionButton
             :icon="bgImportMutation.isPending.value ? IconLoading : IconDownload"
             :label="bgImportStatusLabel"
             :disabled="bgImportMutation.isPending.value"
             @click="handleBgImport"
           />
-          <AppButton
+          <ListActionButton
             variant="primary"
-            size="md"
-            collapse-label-on-mobile
             :icon="IconAdd"
             label="New Background"
             mobile-label="Background"
@@ -97,19 +87,14 @@
 
         <!-- Classes tab -->
         <template v-if="activeTab === 'classes'">
-          <AppButton
-            variant="outline"
-            size="md"
-            collapse-label-on-mobile
+          <ListActionButton
             :icon="classImportMutation.isPending.value ? IconLoading : IconDownload"
             :label="classImportLabel"
             :disabled="classImportMutation.isPending.value"
             @click="handleClassImport"
           />
-          <AppButton
+          <ListActionButton
             variant="primary"
-            size="md"
-            collapse-label-on-mobile
             :icon="IconAdd"
             label="New Class"
             mobile-label="Class"
@@ -119,19 +104,14 @@
 
         <!-- Archetypes tab -->
         <template v-if="activeTab === 'archetypes'">
-          <AppButton
-            variant="outline"
-            size="md"
-            collapse-label-on-mobile
+          <ListActionButton
             :icon="archetypeImportMutation.isPending.value ? IconLoading : IconDownload"
             :label="archetypeImportLabel"
             :disabled="archetypeImportMutation.isPending.value"
             @click="handleArchetypeImport"
           />
-          <AppButton
+          <ListActionButton
             variant="primary"
-            size="md"
-            collapse-label-on-mobile
             :icon="IconAdd"
             label="New Archetype"
             mobile-label="Archetype"
@@ -141,19 +121,14 @@
 
         <!-- Abilities tab -->
         <template v-if="activeTab === 'abilities'">
-          <AppButton
-            variant="outline"
-            size="md"
-            collapse-label-on-mobile
+          <ListActionButton
             :icon="abilityImporting ? IconLoading : IconDownload"
             :label="abilityImportLabel"
             :disabled="abilityImporting"
             @click="handleAbilityImport"
           />
-          <AppButton
+          <ListActionButton
             variant="primary"
-            size="md"
-            collapse-label-on-mobile
             :icon="IconAdd"
             label="New Ability"
             mobile-label="Ability"
@@ -255,6 +230,7 @@ import { useAuthStore } from "@/stores/auth";
 import { onClickOutside } from "@vueuse/core";
 import { IconAdd, IconBookUser, IconDownload, IconLevel, IconLightning, IconLoading, IconPopulate, IconSettings, IconSpecies } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
+import ListActionButton from "@/components/common/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";

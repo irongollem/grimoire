@@ -3,20 +3,14 @@
     <template #actions>
       <!-- View mode -->
       <template v-if="!isNew && !isEditing">
-        <AppButton
-          size="md"
-          collapse-below="lg"
-          collapse-label-on-mobile
+        <PageHeaderAction
           variant="destructive"
           :disabled="isDeleting"
           :label="isDeleting ? 'Deleting…' : 'Delete'"
           :icon="IconDelete"
           @click="onDelete"
         />
-        <AppButton
-          size="md"
-          collapse-below="lg"
-          collapse-label-on-mobile
+        <PageHeaderAction
           variant="primary"
           label="Edit"
           :icon="IconEdit"
@@ -32,13 +26,12 @@
           label="Cancel"
           @click="isEditing = false"
         />
-        <AppButton
-          size="md"
-          collapse-below="lg"
+        <PageHeaderAction
           variant="primary"
           :disabled="saving || !form.name.trim() || entriesError !== null"
           :tooltip="entriesError ?? undefined"
           :label="saving ? 'Saving…' : isNew ? 'Create' : 'Save'"
+          :collapse-label-on-mobile="false"
           @click="onSave"
         />
       </template>
@@ -336,6 +329,7 @@ import {
 } from "@/lib/lootTableRoll";
 import { parseExpression, rollExpression } from "@/lib/dice/dice";
 import PageHeader from "@/components/common/PageHeader.vue";
+import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
