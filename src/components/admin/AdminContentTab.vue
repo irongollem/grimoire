@@ -12,6 +12,9 @@
     <LibraryArtRepairPanel />
     <LibraryArtRepairPanel mode="spell" />
 
+    <!-- Variant Sweep (#619) -->
+    <VariantSweepPanel />
+
     <!-- SRD Art Defaults -->
     <LibraryArtPublishPanel />
 
@@ -89,6 +92,7 @@ import { ref, computed } from "vue";
 import { IconCheck } from "@/lib/icons";
 import MonsterEmbeddingBackfill from "@/components/admin/MonsterEmbeddingBackfill.vue";
 import LibraryArtRepairPanel from "@/components/admin/LibraryArtRepairPanel.vue";
+import VariantSweepPanel from "@/components/admin/VariantSweepPanel.vue";
 import LibraryArtPublishPanel from "@/components/admin/LibraryArtPublishPanel.vue";
 import { useAdminPlaceholderFocalPoints } from "@/composables/useAdminPlaceholderFocalPoints";
 

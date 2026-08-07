@@ -44,9 +44,21 @@ async function listFromR2(bucket: BucketKey, prefix: string): Promise<string[]> 
  * yet deleted from Supabase) appears once.
  */
 export async function listOwnedPaths(bucket: BucketKey, userId: string): Promise<string[]> {
+  return listPathsUnder(bucket, userId);
+}
+
+/**
+ * Every storage path under an arbitrary folder `prefix`, merged across both
+ * stores. `listOwnedPaths` fixes the prefix to the caller's uuid; this variant
+ * exists for the admin variant sweep, which also scans shared prefixes
+ * (`srd/`) — `r2-list` authorizes those for admins only, and the Supabase
+ * SELECT policies already gate them the same way, so a non-admin calling this
+ * for a shared prefix just gets the empty halves back.
+ */
+export async function listPathsUnder(bucket: BucketKey, prefix: string): Promise<string[]> {
   const [fromSupabase, fromR2] = await Promise.all([
-    listFromSupabase(bucket, userId),
-    usesR2(bucket) ? listFromR2(bucket, userId) : Promise.resolve([]),
+    listFromSupabase(bucket, prefix),
+    usesR2(bucket) ? listFromR2(bucket, prefix) : Promise.resolve([]),
   ]);
   return [...new Set([...fromSupabase, ...fromR2])];
 }

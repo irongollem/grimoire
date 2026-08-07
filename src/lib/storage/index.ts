@@ -37,6 +37,8 @@ export {
   readEmbeddedXmp,
   inheritXmpIntoVariant,
   backfillVariants,
+  healVariants,
+  type HealResult,
   type UploadParams,
   type UploadWithVariantsParams,
 } from "./upload";
@@ -47,4 +49,5 @@ export {
   deleteByPublicUrl,
 } from "./remove";
 
-export { listOwnedPaths } from "./list";
+export { listOwnedPaths, listPathsUnder } from "./list";
+export { planVariantSweep, sweepTargets, targetLabel, type SweepPlan, type SweepTarget, type MissingVariants } from "./sweep";

@@ -312,43 +312,67 @@ export async function backfillVariants(originalUrl: string): Promise<void> {
       return;
     }
     const blob = await resp.blob();
-    // Same original → every variant should carry the same disclosure mark, if any.
-    const xmpPacket = await readEmbeddedXmp(blob);
-    const variants = await buildVariants(blob, storagePath, xmpPacket);
-
-    if (usesR2(bucket)) {
-      // uploadAllToR2, not uploadToR2: these four are peers, and the review
-      // caught two bugs in the earlier shape — the fatal-first contract let one
-      // transient failure abort the other three, and an R2UnavailableError
-      // skipped the Supabase fallback both sibling paths implement.
-      try {
-        const outcome = await uploadAllToR2(bucket, variants);
-        if (outcome.failed.length) {
-          console.warn(`[backfillVariants] ${outcome.failed.length}/${variants.length} variant uploads failed for`, originalUrl);
-        }
-        return;
-      } catch (err) {
-        if (!(err instanceof R2UnavailableError)) throw err;
-        // R2 down or unconfigured — backfill into Supabase Storage instead,
-        // exactly as the pre-R2 code did; the Worker serves either store.
-      }
-    }
-
-    // Generate and upload all variants. Do NOT upsert — several image buckets
-    // (asset-images in particular) have no UPDATE storage policy, and
-    // INSERT ... ON CONFLICT DO UPDATE requires both INSERT and UPDATE to pass RLS
-    // even for new rows. The variants don't exist yet so plain INSERT is correct.
-    const results = await Promise.allSettled(
-      variants.map(async (variant) => {
-        const url = await uploadToBucket({ bucket, blob: variant.blob, path: variant.path });
-        if (!url) throw new Error(`upload returned null for ${variant.path}`);
-      }),
-    );
-    const failures = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
-    if (failures.length) {
-      console.warn(`[backfillVariants] ${failures.length}/${results.length} variant uploads failed for`, originalUrl, failures.map((f) => f.reason));
+    const { failed, total } = await healVariants(bucket, storagePath, blob);
+    if (failed) {
+      console.warn(`[backfillVariants] ${failed}/${total} variant uploads failed for`, originalUrl);
     }
   } catch (err) {
     console.warn("[backfillVariants] unexpected error for", originalUrl, err);
   }
+}
+
+export interface HealResult {
+  /** Variants attempted (always `VARIANT_WIDTHS.length`). */
+  readonly total: number;
+  readonly failed: number;
+}
+
+/**
+ * Regenerate and upload every size variant for an existing original.
+ *
+ * The one heal implementation, shared by the organic path (`backfillVariants`,
+ * fired by FocalImage 404s) and the deliberate one (the admin sweep, #619) —
+ * split so the two can never drift. Caller supplies the original's bytes when
+ * it already has them; otherwise they are fetched via the public URL.
+ *
+ * All four variants are peers: best-effort each, R2 first with the standard
+ * Supabase fallback on R2 unavailability. XMP provenance is re-read from the
+ * original so AI-disclosure marks survive into every variant (Art 50(2)).
+ */
+export async function healVariants(bucket: BucketKey, storagePath: string, original?: Blob): Promise<HealResult> {
+  let blob = original;
+  if (!blob) {
+    const resp = await fetch(getPublicUrl(bucket, storagePath));
+    if (!resp.ok) throw new Error(`could not fetch original (${resp.status}): ${storagePath}`);
+    blob = await resp.blob();
+  }
+
+  const xmpPacket = await readEmbeddedXmp(blob);
+  const variants = await buildVariants(blob, storagePath, xmpPacket);
+
+  if (usesR2(bucket)) {
+    try {
+      const outcome = await uploadAllToR2(bucket, variants);
+      return { total: variants.length, failed: outcome.failed.length };
+    } catch (err) {
+      if (!(err instanceof R2UnavailableError)) throw err;
+      // R2 down or unconfigured — heal into Supabase Storage instead; the
+      // Worker serves either store.
+    }
+  }
+
+  // Do NOT upsert — several image buckets (asset-images in particular) have no
+  // UPDATE storage policy, and INSERT ... ON CONFLICT DO UPDATE requires both
+  // INSERT and UPDATE to pass RLS even for new rows. The variants don't exist
+  // yet so plain INSERT is correct.
+  const results = await Promise.allSettled(
+    variants.map(async (variant) => {
+      const stored = await uploadToSupabase(bucket, variant.path, variant.blob, "image/webp", false);
+      if (!stored) throw new Error(`upload returned null for ${variant.path}`);
+    }),
+  );
+  return {
+    total: variants.length,
+    failed: results.filter((r) => r.status === "rejected").length,
+  };
 }
