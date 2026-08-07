@@ -102,3 +102,30 @@ export const buttonVariants = cva(
 export type ButtonVariants = VariantProps<typeof buttonVariants>;
 export type ButtonVariant = NonNullable<ButtonVariants["variant"]>;
 export type ButtonSize = NonNullable<ButtonVariants["size"]>;
+
+/* ── Enumerations for the component catalogue (#622) ──────────────────────────
+   `cva` does not expose its own config, so the catalogue at /dev/components
+   cannot read the variant and size keys back off `buttonVariants`. Listing them
+   here would normally rot the moment someone adds a variant — which is exactly
+   the failure the catalogue exists to prevent — so the two assertions below make
+   that a compile error instead of a silently missing column. */
+
+type Assert<T extends true> = T;
+
+export const BUTTON_VARIANTS = [
+  "primary", "outline", "subtle", "ghost", "link", "destructive", "chip", "tinted",
+] as const satisfies readonly ButtonVariant[];
+
+export const BUTTON_SIZES = [
+  "inline-xs", "inline", "xs", "sm", "md", "lg", "icon-xs", "icon-sm",
+] as const satisfies readonly ButtonSize[];
+
+// `[X] extends [never]` rather than `X extends never`: a naked conditional
+// distributes over `never` and collapses to `never`, which would make the guard
+// vacuously pass.
+export type AssertVariantsListed = Assert<
+  [Exclude<ButtonVariant, (typeof BUTTON_VARIANTS)[number]>] extends [never] ? true : false
+>;
+export type AssertSizesListed = Assert<
+  [Exclude<ButtonSize, (typeof BUTTON_SIZES)[number]>] extends [never] ? true : false
+>;

@@ -171,6 +171,10 @@ Tests are colocated next to the module they cover — never a `__tests__/` direc
 
 ## Component Granularity
 
+**The shared control primitives are catalogued at `/dev/components`** (dev-only route, stripped from production). It renders every variant and size of `AppButton`, `SegmentedControl`, `AppSelect`, `AppInput` and the two action-row wrappers, in any theme via `?theme=<id>`.
+
+Add a variant or size and you must add it to `BUTTON_VARIANTS` / `BUTTON_SIZES` in `appButtonVariants.ts` — a compile-time assertion there fails otherwise, so the catalogue cannot silently omit it. Check the page at a narrow width too: label collapse is invisible to lint, typecheck and unit tests, and has regressed twice.
+
 **CRITICAL — extract shared UI, never duplicate it:**
 
 If two pieces of UI share structure and differ only in a few values, the structure becomes a component and the diff becomes props. Identify this *before* writing a second copy, not after.

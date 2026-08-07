@@ -877,6 +877,15 @@ export const routes: RouteRecordRaw[] = [
           component: () => import("@/views/dev/SheetCalibrationView.vue"),
           meta: { requiresAuth: false, title: "Sheet Calibration" },
         },
+        {
+          path: "/dev/components",
+          name: "component-catalogue",
+          // No auth, same reason as above: a headless pass screenshots the
+          // primitives per theme via ?theme=<id> to catch visual drift that
+          // lint, typecheck and unit tests cannot see (#622).
+          component: () => import("@/views/dev/ComponentCatalogueView.vue"),
+          meta: { requiresAuth: false, title: "Component Catalogue" },
+        },
       ]
     : []),
 
