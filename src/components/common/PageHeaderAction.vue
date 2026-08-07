@@ -3,6 +3,7 @@
     v-bind="$attrs"
     :variant="variant"
     :collapse-label-on-mobile="collapseLabelOnMobile"
+    class="shrink-0"
     size="md"
     collapse-below="lg"
   >

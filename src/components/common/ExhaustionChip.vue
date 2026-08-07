@@ -38,8 +38,9 @@
 import { computed } from "vue";
 import { MAX_EXHAUSTION, getConditionDescription } from "@/rules/conditions";
 import { useRuleset } from "@/composables/useRuleset";
+import { useIsTouch } from "@/composables/useBreakpoint";
 
-const isTouch = typeof window !== "undefined" && window.matchMedia("(hover: none)").matches;
+const isTouch = useIsTouch();
 
 type Variant = "amber" | "destructive";
 

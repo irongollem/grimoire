@@ -15,7 +15,7 @@
 /**
  * Native <select> with the app's chrome on it (#561) — the ~49 sites that each
  * re-declared `bg-card border border-border rounded-md … font-cinzel` inline.
- * Generalises ListFilterSelect, which now wraps this.
+ * ListFilterSelect wraps this and names the filter-row size.
  *
  * The picker stays native on purpose. reka-ui ships a Select primitive, but
  * swapping to it replaces the OS picker — which is the better control on mobile,
@@ -31,6 +31,9 @@
  */
 import { computed, useTemplateRef, type HTMLAttributes } from "vue";
 import { cn } from "@/lib/utils";
+
+/** Vue stashes a bound `<option :value="x">` on the element as `_value`. */
+type OptionWithValue = HTMLOptionElement & { _value?: unknown };
 
 /**
  * `v-model.number` is common on level/count pickers, and a component that ignored
@@ -62,9 +65,10 @@ const sizeClass = computed(() => {
   switch (size) {
     case "xs":
       return "rounded px-1.5 py-0.5 text-label";
-    // min-h-11 is a ≥44px tap target on touch; ≥md reverts so desktop is unchanged.
+    // `sm` with a ≥44px tap target on touch; ≥md reverts so desktop is identical
+    // to `sm`. This is the filter-row size — see ListFilterSelect.
     case "md":
-      return "rounded-md px-2 py-2 min-h-11 md:min-h-0 text-label-lg";
+      return "rounded-md px-2 py-1.5 min-h-11 md:min-h-0 text-label-lg";
     // Matches AppInput's `lg`: the 14px step, for pickers sitting in a field row
     // next to body text rather than in a dense filter bar.
     case "lg":
@@ -76,10 +80,15 @@ const sizeClass = computed(() => {
 });
 
 function onChange(event: Event) {
-  const raw = (event.target as HTMLSelectElement).value;
-  // A native <select> only ever yields a string; the cast is the one place that
-  // widening is unavoidable, and it is confined here rather than at every call site.
-  model.value = (modifiers.number ? Number(raw) : raw) as T;
+  const el = event.target as HTMLSelectElement;
+  const option = el.selectedOptions[0] as OptionWithValue | undefined;
+  // `select.value` is always a string, and for `<option :value="null">` Vue removes
+  // the value attribute entirely so it degrades to the option's TEXT. Vue's own
+  // v-model avoids that by reading the `_value` it stashes for bound option values;
+  // do the same, or `:value="null"` yields "— pick one —" and `:value="7"` yields "7".
+  const raw = option && "_value" in option ? option._value : el.value;
+  const coerced = modifiers.number && typeof raw === "string" ? Number(raw) : raw;
+  model.value = coerced as T;
 }
 
 // A bare `ref` on this component would resolve to the component instance, so

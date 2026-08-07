@@ -97,9 +97,13 @@ const emit = defineEmits<{ (e: "update:modelValue", value: T): void }>();
 const gapClass = computed(() => (gap === "loose" ? "gap-2" : "gap-1"));
 
 // ToggleGroup allows deselecting the active item, which for a segmented picker
-// would leave no option chosen. Ignore the empty payload and keep the selection.
+// would leave no option chosen. Recognising that by testing the payload for
+// emptiness is wrong: `""` is a legitimate option value here — "General — all
+// campaigns", "All subraces" — and treating it as a deselect makes those options
+// permanently unreachable. Accepting only payloads that match a real option
+// rejects the deselect without ever rejecting a value the caller declared.
 function onUpdate(value: unknown) {
-  if (value === undefined || value === null || value === "") return;
+  if (!options.some(option => option.value === value)) return;
   emit("update:modelValue", value as T);
 }
 </script>

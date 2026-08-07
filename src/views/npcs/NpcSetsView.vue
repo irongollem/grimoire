@@ -8,8 +8,7 @@
     </template>
 
     <template #actions>
-      <ListActionButton :icon="IconChevronLeft" label="NPCs" to="/npcs"
-/>
+      <ListActionButton :icon="IconChevronLeft" label="NPCs" to="/npcs" />
       <ListActionButton
         variant="primary"
         :icon="IconAdd"

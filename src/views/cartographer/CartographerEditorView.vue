@@ -26,10 +26,8 @@
           class="px-3 py-1.5 text-label-lg font-semibold border border-primary/40 text-primary rounded-md hover:bg-primary/10 transition-colors disabled:opacity-50"
           @click="showAtlasModal = true"
         >{{ baking ? "Baking…" : "Save to Atlas" }}</button>
-        <ListActionButton label="Edit"  @click="onEdit"
-/>
-        <ListActionButton variant="primary" label="Done"  @click="onDone"
-/>
+        <ListActionButton label="Edit" @click="onEdit" />
+        <ListActionButton variant="primary" label="Done" @click="onDone" />
       </template>
       <!-- Edit mode -->
       <template v-else>
@@ -40,8 +38,7 @@
           class="px-3 py-1.5 text-label-lg font-semibold text-destructive border border-destructive/40 rounded-md hover:bg-destructive/10 transition-colors disabled:opacity-50"
           @click="onDelete"
         >{{ deleting ? "Deleting…" : "Delete" }}</button>
-        <ListActionButton label="Cancel"  @click="onCancel"
-/>
+        <ListActionButton label="Cancel" @click="onCancel" />
         <ListActionButton
           variant="primary"
           :icon="IconSave"

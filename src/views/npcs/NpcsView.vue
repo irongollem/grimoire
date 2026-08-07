@@ -10,10 +10,8 @@
     </template>
 
     <template #actions>
-      <ListActionButton :icon="IconLayers" label="Sets" to="/npcs/sets"
-/>
-      <ListActionButton :icon="IconNetwork" label="Web" to="/npcs/web"
-/>
+      <ListActionButton :icon="IconLayers" label="Sets" to="/npcs/sets" />
+      <ListActionButton :icon="IconNetwork" label="Web" to="/npcs/web" />
       <ListActionButton
         v-if="hasSetting"
         :icon="populateMutation.isPending.value ? IconLoading : IconPopulate"

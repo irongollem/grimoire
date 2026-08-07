@@ -99,7 +99,7 @@
             <AppButton
               variant="ghost"
               size="sm"
-              class="text-sm"
+              class="font-cinzel text-sm"
               :disabled="grantForm.usesCount <= 1"
               label="−"
               @click="grantForm.usesCount = Math.max(1, grantForm.usesCount - 1); grantForm.usesPerDay = grantForm.usesCount"
@@ -108,7 +108,7 @@
             <AppButton
               variant="ghost"
               size="sm"
-              class="text-sm"
+              class="font-cinzel text-sm"
               label="+"
               @click="grantForm.usesCount++; grantForm.usesPerDay = grantForm.usesCount"
             />

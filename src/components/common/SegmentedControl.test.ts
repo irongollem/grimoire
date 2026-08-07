@@ -18,10 +18,20 @@ afterEach(() => {
 });
 
 function mountControl(modelValue = "url", extra: Record<string, unknown> = {}) {
+  return mountWith(modelValue, [...OPTIONS], extra);
+}
+
+function mountWith(
+  modelValue: string,
+  options: ReadonlyArray<{ value: string; label: string; disabled?: boolean }>,
+  extra: Record<string, unknown> = {},
+) {
   const w = mount(SegmentedControl, {
-    props: { modelValue, options: [...OPTIONS], ...extra },
+    props: { modelValue, options: [...options], ...extra },
     attachTo: document.body,
   });
+  // Every mount goes through here so the afterEach teardown above can reach it —
+  // a wrapper that skips the array survives into the next test and steals focus.
   mounted.push(w);
   return w;
 }
@@ -58,17 +68,24 @@ describe("SegmentedControl", () => {
   });
 
   it("does not emit for a disabled option", async () => {
-    const w = mount(SegmentedControl, {
-      props: {
-        modelValue: "url",
-        options: [
-          { value: "url", label: "URL" },
-          { value: "upload", label: "Upload", disabled: true },
-        ],
-      },
-    });
+    const w = mountWith("url", [
+      { value: "url", label: "URL" },
+      { value: "upload", label: "Upload", disabled: true },
+    ]);
     await w.findAll("button")[1].trigger("click");
     expect(w.emitted("update:modelValue")).toBeUndefined();
+  });
+
+  // An option may legitimately BE the empty string — "General — all campaigns",
+  // "All subraces". Treating an empty payload as ToggleGroup's deselect made those
+  // options permanently unreachable: once you left them you could never come back.
+  it("can select an option whose value is the empty string", async () => {
+    const w = mountWith("campaign", [
+      { value: "", label: "General — all campaigns" },
+      { value: "campaign", label: "This campaign" },
+    ]);
+    await w.findAll("button")[0].trigger("click");
+    expect(w.emitted("update:modelValue")).toEqual([[""]]);
   });
 
   // The reason for taking the reka-ui dependency: none of the hand-rolled toggle

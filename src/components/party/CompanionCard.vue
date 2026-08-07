@@ -84,7 +84,7 @@
 
       <!-- Combat-ready toggle: whether this companion auto-joins new encounters (#569) -->
       <AppButton
-        variant="subtle"
+        variant="tinted"
         size="xs"
         role="switch"
         :aria-checked="companion.combat_ready"

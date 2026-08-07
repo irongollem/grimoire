@@ -42,6 +42,23 @@ describe("buttonVariants", () => {
     expect(buttonVariants({ active: true })).toContain("bg-primary/10");
     expect(buttonVariants({ active: false })).not.toContain("bg-primary/10");
   });
+
+  // `border-primary` on a variant with no border *width* paints nothing, and adding
+  // the width would make a ghost toggle jump 1px when selected.
+  it("only colours the selected border on variants that have one", () => {
+    expect(buttonVariants({ variant: "subtle", active: true })).toContain("border-primary");
+    expect(buttonVariants({ variant: "outline", active: true })).toContain("border-primary");
+    expect(buttonVariants({ variant: "ghost", active: true })).not.toContain("border-primary");
+    expect(buttonVariants({ variant: "link", active: true })).not.toContain("border-primary");
+    expect(buttonVariants({ variant: "chip", active: true })).not.toContain("border-primary");
+  });
+
+  // Flex behaviour belongs to the row, not the button: a base `shrink-0` and a
+  // call-site `flex-1` are different tailwind-merge groups, so both survive and the
+  // button refuses to shrink. The action-row wrappers add it back where it belongs.
+  it("does not force shrink-0 on every button", () => {
+    expect(buttonVariants({})).not.toContain("shrink-0");
+  });
 });
 
 describe("AppButton", () => {
@@ -153,9 +170,26 @@ describe("AppButton", () => {
     expect(w.text()).not.toContain("ignored");
   });
 
-  it("uses the tooltip for aria-label when the visible label names state", () => {
+  // WCAG 2.5.3 (Label in Name): the accessible name must contain the visible text.
+  // A descriptive tooltip supplements via `title`; it must not replace the name, or
+  // a voice-control user asking for the button by what it says gets no match.
+  it("keeps the visible label as the accessible name and puts the tooltip in title", () => {
     const w = mount(AppButton, {
-      props: { label: "Kanban", tooltip: "Switch to list view" },
+      props: { label: "With Party", tooltip: "With the party — joins new encounters." },
+      global,
+    });
+    expect(w.attributes("aria-label")).toBe("With Party");
+    expect(w.attributes("title")).toBe("With the party — joins new encounters.");
+  });
+
+  it("falls back to the tooltip only when there is no visible label", () => {
+    const w = mount(AppButton, { props: { tooltip: "Delete this row" }, global });
+    expect(w.attributes("aria-label")).toBe("Delete this row");
+  });
+
+  it("lets an explicit ariaLabel win over both", () => {
+    const w = mount(AppButton, {
+      props: { label: "Kanban", tooltip: "Switch to list view", ariaLabel: "Switch to list view" },
       global,
     });
     expect(w.attributes("aria-label")).toBe("Switch to list view");

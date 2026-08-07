@@ -14,7 +14,7 @@
     :aria-disabled="!isNativeButton && isInert ? true : undefined"
     :class="cn(buttonVariants({ variant, size, active, block }), className)"
     :title="isTouch ? undefined : (tooltip ?? label)"
-    :aria-label="ariaLabel ?? tooltip ?? label"
+    :aria-label="ariaLabel ?? label ?? tooltip"
     @click="onClick"
   >
     <slot name="icon">
@@ -65,11 +65,15 @@ import { computed, useAttrs, type Component, type HTMLAttributes } from "vue";
 import { RouterLink, type RouteLocationRaw } from "vue-router";
 import { Primitive, useForwardExpose } from "reka-ui";
 import { cn } from "@/lib/utils";
+import { useIsTouch } from "@/composables/useBreakpoint";
 import { buttonVariants, type ButtonVariants } from "./appButtonVariants";
 
 // Hover-less pointers get no tooltip: on touch a `title` never appears but does
-// hijack long-press. Same trade-off ListActionButton made before it was folded in.
-const isTouch = typeof window !== "undefined" && window.matchMedia("(hover: none)").matches;
+// hijack long-press. Reactive rather than read once at import, so a hybrid device
+// that gains or loses a hover-capable pointer (an iPad picking up a keyboard, a
+// laptop docked to a touchscreen) is not stuck with whichever answer was true when
+// the module first loaded.
+const isTouch = useIsTouch();
 
 const {
   variant,
@@ -129,8 +133,16 @@ const {
    * need `lg`, which is what PageHeaderAction used before it was folded in.
    */
   collapseBelow?: "sm" | "lg";
-  /** Overrides `title`. Use when the label names state but the tooltip names the action. */
+  /**
+   * Supplementary hover text. It must NOT become the accessible name: a button
+   * reading "With Party" with the tooltip "With the party — joins new encounters"
+   * would stop matching its own visible text, and a voice-control user asking for
+   * "With Party" would get no match (WCAG 2.5.3, Label in Name). The tooltip goes
+   * to `title`; the accessible name stays the label. Pass `ariaLabel` to override
+   * it deliberately.
+   */
   tooltip?: string;
+  /** Explicit accessible name. Needed when the button has no label at all. */
   ariaLabel?: string;
   class?: HTMLAttributes["class"];
 }>();

@@ -35,6 +35,7 @@
         v-model="ui.workshopActiveTab"
         :options="workshopTabOptions"
         size="sm"
+        wrap
       />
     </div>
 

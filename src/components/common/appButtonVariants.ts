@@ -18,8 +18,14 @@ import { cva, type VariantProps } from "class-variance-authority";
  * Lives outside the SFC because `<script setup>` cannot export, and because a pure
  * class map is worth testing without mounting anything.
  */
+// No `shrink-0` here on purpose. Flex behaviour belongs to whoever owns the row,
+// not to the button: `shrink-0` and a call-site `flex-1` are different
+// tailwind-merge groups, so cn() keeps both and `flex-shrink: 0` wins — a button
+// told to grow and share space silently refuses to shrink and pushes the row past
+// its container. ListActionButton and PageHeaderAction add it back, because an
+// action row overflowing a phone is the case it was written for.
 export const buttonVariants = cva(
-  "inline-flex items-center justify-center shrink-0 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed aria-disabled:opacity-50 aria-disabled:cursor-not-allowed",
+  "inline-flex items-center justify-center font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed aria-disabled:opacity-50 aria-disabled:cursor-not-allowed",
   {
     variants: {
       variant: {
@@ -70,13 +76,25 @@ export const buttonVariants = cva(
        * Selected state for toggles and segmented pickers. One treatment replaces the
        * four that had grown in the wild (`bg-primary`, `bg-primary/15 ring-1`,
        * `border-primary bg-primary/10`, `bg-muted`).
+       *
+       * Deliberately carries no `border-primary`: `ghost`, `link` and `chip` set no
+       * border *width*, so a border colour on them paints nothing, and adding the
+       * width unconditionally would make every ghost toggle jump 1px when selected.
+       * The bordered variants pick the colour up through the compound rules below.
        */
       active: {
-        true: "border-primary bg-primary/10 text-primary hover:text-primary",
+        true: "bg-primary/10 text-primary hover:text-primary",
         false: "",
       },
       block: { true: "w-full", false: "" },
     },
+    // Only the variants that already draw a border get the selected border colour.
+    compoundVariants: [
+      { variant: "outline", active: true, class: "border-primary" },
+      { variant: "subtle", active: true, class: "border-primary" },
+      { variant: "destructive", active: true, class: "border-primary" },
+      { variant: "tinted", active: true, class: "border-primary" },
+    ],
     defaultVariants: { variant: "subtle", size: "sm", active: false, block: false },
   },
 );
