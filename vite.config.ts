@@ -144,10 +144,10 @@ export default defineConfig({
             { name: "viz", test: /node_modules[\\/](d3|v-network-graph)/ },
             // Supabase client
             { name: "supabase", test: /node_modules[\\/]@supabase/ },
-            // UI primitives (radix + vueuse + icons + tw utils)
+            // UI primitives (reka-ui + vueuse + icons + tw utils)
             {
               name: "ui",
-              test: /node_modules[\\/](radix-vue|@vueuse|lucide-vue-next|class-variance-authority|clsx|tailwind-merge|tw-animate-css)/,
+              test: /node_modules[\\/](reka-ui|@vueuse|lucide-vue-next|class-variance-authority|clsx|tailwind-merge|tw-animate-css)/,
             },
             // Everything else from node_modules
             { name: "vendor", test: /node_modules/ },

@@ -1,5 +1,28 @@
 import { describe, it, expect } from "vitest";
-import { deepEqual } from "./utils";
+import { cn, deepEqual } from "./utils";
+
+describe("cn", () => {
+  // The #552 typography roles are custom `@utility` classes, so stock
+  // tailwind-merge does not recognise them as font sizes and would let a
+  // component default and a call-site override both survive. AppButton's
+  // `class` passthrough depends on these winning cleanly.
+  it("lets a call-site font size replace a semantic typography role", () => {
+    expect(cn("text-label-lg px-3", "text-sm")).toBe("px-3 text-sm");
+  });
+
+  it("resolves one typography role against another", () => {
+    expect(cn("text-label", "text-label-lg")).toBe("text-label-lg");
+    expect(cn("text-body", "text-caption-sm")).toBe("text-caption-sm");
+  });
+
+  it("leaves non-conflicting classes alone", () => {
+    expect(cn("text-label-lg px-3", "px-4")).toBe("text-label-lg px-4");
+  });
+
+  it("still resolves ordinary Tailwind conflicts", () => {
+    expect(cn("bg-primary", "bg-muted")).toBe("bg-muted");
+  });
+});
 
 describe("deepEqual", () => {
   it("treats identical primitives as equal", () => {
