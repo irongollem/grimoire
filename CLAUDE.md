@@ -105,6 +105,7 @@ Deliberate departures from the rules above and in the feature docs. They look li
 - **Native `<textarea>` for AI-prompt fields.** The ~40 model-prompt boxes (`*GeneratorPanel`, `*GenerateDialog`, `AdminPromptsTab`) stay native rather than becoming `RichTextEditor`. Rich text in a prompt box is wrong — the model receives markup as content.
 - **px is kept** for borders and outlines, box/text/drop shadows, `@media` / `@container` breakpoints, `9999px` pills, hairline dividers, and SVG user-space `<text>`. Everything else is rem. These are the cases where a rem value scales into a visual bug.
 - **Crafting has no toast, on purpose.** `CraftAttemptDialog` already surfaces errors inline via `attemptError`; a toast would double up. An absence cannot self-document, hence this line.
+- **Native `<select>` is kept for small fixed option sets** — sort order, 3–5 choices that never change. It is not a styling oversight: one unlayered `select:not([multiple]):not([size])` rule in `main.css` sets `appearance: none` and draws the caret, because `appearance` governs only the *closed* control, so mobile still opens the native OS picker. That, plus free keyboard typeahead and accessibility, is why it beats a custom listbox here. Reach for `EntityCombobox` when the options are dynamic, numerous, or need search — not because a `<select>` looked wrong on macOS. See #561/#620.
 - **Supabase "unused index" advisor hits are a known false positive here.** The stats window spans ~7.5 months and 16.1M scans, and the largest table holding a zero-scan index is small enough that Postgres prefers a sequential scan regardless. Do not drop indexes on the advisor's say-so — check the table size and query shape first.
 
 ## Shared-Content Naming — say `library`, never `srd`
@@ -172,7 +173,7 @@ Tests are colocated next to the module they cover — never a `__tests__/` direc
 
 **CRITICAL — extract shared UI, never duplicate it:**
 
-If two pieces of UI share structure and differ only in a few values, the structure becomes a component and the diff becomes props. Identify this _before_ writing a second copy, not after.
+If two pieces of UI share structure and differ only in a few values, the structure becomes a component and the diff becomes props. Identify this *before* writing a second copy, not after.
 
 - A list row with an image and action buttons → component
 - A staging card with preview + search + checkboxes → component
