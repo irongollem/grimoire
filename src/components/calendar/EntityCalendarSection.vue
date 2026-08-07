@@ -22,14 +22,15 @@
           </div>
         </template>
         <span v-else-if="!entityId || (!pins?.length && !showForm)" class="text-caption text-muted-foreground italic">None</span>
-        <button
+        <AppButton
           v-if="entityId"
-          type="button"
-          class="inline-flex items-center gap-1 font-cinzel text-xs text-primary hover:opacity-80 transition-opacity ml-auto shrink-0"
+          variant="link"
+          size="sm"
+          :icon="IconAdd"
+          label="Pin date"
+          class="ml-auto shrink-0"
           @click="showForm = !showForm"
-        >
-          <IconAdd class="h-3.5 w-3.5" />Pin date
-        </button>
+        />
       </div>
     </div>
     <!-- Expandable form -->
@@ -71,10 +72,14 @@
         </div>
       </div>
       <div class="flex items-center gap-2 justify-end">
-        <button type="button" class="font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors" @click="showForm = false">Cancel</button>
-        <button type="button" :disabled="creating" class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 font-cinzel text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity" @click="pinDate">
-          {{ creating ? "Pinning…" : "Pin" }}
-        </button>
+        <AppButton variant="ghost" size="sm" label="Cancel" @click="showForm = false" />
+        <AppButton
+          variant="primary"
+          size="sm"
+          :label="creating ? 'Pinning…' : 'Pin'"
+          :disabled="creating"
+          @click="pinDate"
+        />
       </div>
     </div>
   </div>
@@ -86,15 +91,14 @@
         <IconCalendarDays class="h-4 w-4 text-muted-foreground" />
         Calendar Pins
       </h2>
-      <button
+      <AppButton
         v-if="entityId"
-        type="button"
-        class="inline-flex items-center gap-1 font-cinzel text-xs text-primary hover:opacity-80 transition-opacity"
+        variant="link"
+        size="sm"
+        :icon="IconAdd"
+        label="Pin date"
         @click="showForm = !showForm"
-      >
-        <IconAdd class="h-3.5 w-3.5" />
-        Pin date
-      </button>
+      />
     </div>
 
     <p v-if="!entityId" class="text-body text-muted-foreground italic">
@@ -141,10 +145,14 @@
           </div>
         </div>
         <div class="flex items-center gap-2 justify-end">
-          <button type="button" class="font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors" @click="showForm = false">Cancel</button>
-          <button type="button" :disabled="creating" class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 font-cinzel text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity" @click="pinDate">
-            {{ creating ? "Pinning…" : "Pin" }}
-          </button>
+          <AppButton variant="ghost" size="sm" label="Cancel" @click="showForm = false" />
+          <AppButton
+            variant="primary"
+            size="sm"
+            :label="creating ? 'Pinning…' : 'Pin'"
+            :disabled="creating"
+            @click="pinDate"
+          />
         </div>
       </div>
 
@@ -153,7 +161,7 @@
         <div v-for="pin in pins" :key="pin.id" class="flex items-center gap-2 rounded-md border border-border bg-muted/50 px-3 py-2">
           <span :style="{ backgroundColor: pin.color }" class="w-2 h-2 rounded-full shrink-0" />
           <span class="text-body text-foreground flex-1">{{ formatPin(pin) }}</span>
-          <RouterLink :to="calendarRoute(pin)" class="font-cinzel text-2xs text-primary hover:opacity-80 transition-opacity shrink-0">View</RouterLink>
+          <AppButton variant="link" size="inline-xs" label="View" :to="calendarRoute(pin)" class="shrink-0" />
           <button type="button" class="text-muted-foreground hover:text-destructive transition-colors" @click="removePin(pin.id)">
             <IconClose class="h-3.5 w-3.5" />
           </button>
@@ -169,6 +177,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { IconAdd, IconCalendarDays, IconClose } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
 import { useCalendarStore } from "@/stores/calendar";
 import {
   useEntityCalendarEvents,

@@ -12,15 +12,18 @@ import { setTooltipText } from "@/lib/tooltip";
  *   <Icon v-tooltip="t.label" />
  */
 
-const isTouch = typeof window !== "undefined" && window.matchMedia("(hover: none)").matches;
+// Evaluated per hook rather than once at import: a directive has no component
+// scope to hang a reactive media query on, but reading it at mount/update time is
+// enough to track a device that gains or loses a hover-capable pointer.
+const isTouch = () => typeof window !== "undefined" && window.matchMedia("(hover: none)").matches;
 
 export const tooltip: Directive<HTMLElement, string | undefined | null> = {
   mounted(el, binding) {
-    if (isTouch) return;
+    if (isTouch()) return;
     setTooltipText(el, binding.value);
   },
   updated(el, binding) {
-    if (isTouch) return;
+    if (isTouch()) return;
     if (binding.value !== binding.oldValue) {
       setTooltipText(el, binding.value);
     }

@@ -3,15 +3,14 @@
     <!-- Transparent click-outside overlay -->
     <div v-if="open" class="fixed inset-0 z-10" @click="open = false" />
 
-    <button
-      type="button"
-      class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
+    <AppButton
+      variant="subtle"
+      size="md"
+      :icon="IconSend"
+      :icon-right="IconChevronDown"
+      label="Send to…"
       @click="open = !open"
-    >
-      <IconSend class="h-3.5 w-3.5" />
-      Send to…
-      <IconChevronDown class="h-3 w-3" />
-    </button>
+    />
 
     <div
       v-if="open"
@@ -85,6 +84,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { IconArchive, IconChevronDown, IconChevronRight, IconComment, IconSend, IconUser } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
 import { useUiStore } from "@/stores/ui";
 import { useParty } from "@/composables/useParty";
 import { useAddInventoryItem } from "@/composables/usePartyInventory";

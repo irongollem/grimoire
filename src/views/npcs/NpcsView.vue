@@ -25,10 +25,10 @@
         @click="ui.npcGeneratorOpen = true"
       />
       <ListActionButton
+        variant="primary"
         :icon="IconAdd"
         label="New NPC"
         mobile-label="NPC"
-        variant="primary"
         @click="handleNew"
       />
     </template>
@@ -301,8 +301,8 @@ import {
   IconNetwork, IconPopulate, IconSearch, IconSettings,
 } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
-import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
+import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterGroup from "@/components/common/ListFilterGroup.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";

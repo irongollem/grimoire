@@ -2,13 +2,13 @@
   <div>
     <!-- Top action bar -->
     <div class="flex flex-wrap items-center gap-2 mb-6">
-      <RouterLink
+      <AppButton
         to="/encounters"
-        class="inline-flex items-center gap-1 font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <IconChevronLeft class="h-3.5 w-3.5" />
-        All Encounters
-      </RouterLink>
+        variant="ghost"
+        size="inline"
+        :icon="IconChevronLeft"
+        label="All Encounters"
+      />
 
       <div class="ml-auto flex items-center gap-2">
         <!-- In-progress badge -->
@@ -20,68 +20,57 @@
         </span>
 
         <!-- Mark finished / reopen -->
-        <button
+        <AppButton
           v-if="props.encounter"
-          type="button"
+          size="md"
+          :variant="props.encounter.is_finished ? 'subtle' : 'outline'"
+          :class="props.encounter.is_finished ? '' : 'border-primary/40 text-primary hover:bg-primary/10 hover:text-primary'"
           :disabled="updateEncounterMutation.isPending.value"
-          class="inline-flex items-center gap-1.5 rounded-md border px-3 py-2 font-cinzel text-xs font-semibold transition-colors disabled:opacity-50"
-          :class="
-            props.encounter.is_finished
-              ? 'border-border text-muted-foreground hover:text-foreground'
-              : 'border-primary/40 text-primary hover:bg-primary/10'
-          "
+          :icon="IconCheckDouble"
+          :label="props.encounter.is_finished ? 'Reopen' : 'Mark Done'"
           @click="toggleFinished"
-        >
-          <IconCheckDouble class="h-3.5 w-3.5" />
-          {{ props.encounter.is_finished ? "Reopen" : "Mark Done" }}
-        </button>
+        />
 
-        <button
+        <AppButton
           v-if="props.encounter"
-          type="button"
-          class="inline-flex items-center gap-1.5 rounded-md border border-destructive/40 px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+          size="md"
+          variant="destructive"
           :disabled="deleting"
+          :icon="IconClose"
+          label="Delete"
           @click="handleDelete"
-        >
-          <IconClose class="h-3.5 w-3.5" />
-          Delete
-        </button>
-        <button
+        />
+        <AppButton
           v-if="props.encounter"
-          type="button"
-          class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-muted-foreground/50 transition-colors"
+          size="md"
+          variant="subtle"
+          label="Cancel"
           @click="onCancel"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-foreground hover:border-primary/50 transition-colors"
+        />
+        <AppButton
+          size="md"
+          variant="outline"
           :disabled="isSaving"
+          :label="isSaving ? 'Saving…' : 'Save'"
           @click="handleSaveAndReturn"
-        >
-          <span v-if="isSaving">Saving…</span>
-          <span v-else>Save</span>
-        </button>
+        />
 
         <!-- This encounter is live: Resume / Restart / Stop -->
         <template v-if="thisIsLive">
-          <button
-            type="button"
-            class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-foreground hover:border-primary/50 transition-colors"
+          <AppButton
+            size="md"
+            variant="outline"
+            :icon="IconReset"
+            label="Restart"
             @click="handleRestart"
-          >
-            <IconReset class="h-3.5 w-3.5" />
-            Restart
-          </button>
-          <button
-            type="button"
-            class="inline-flex items-center gap-1.5 rounded-md border border-destructive/40 px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
+          />
+          <AppButton
+            size="md"
+            variant="destructive"
+            :icon="IconStop"
+            label="Stop"
             @click="handleStop"
-          >
-            <IconStop class="h-3.5 w-3.5" />
-            Stop
-          </button>
+          />
           <button
             type="button"
             class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
@@ -287,6 +276,7 @@ import type {
 } from "@/types/encounter.types";
 import { markEdited, type AiProvenance } from "@/ai/provenance";
 import { deepEqual } from "@/lib/utils";
+import AppButton from "@/components/common/AppButton.vue";
 import EntityCalendarSection from "@/components/calendar/EntityCalendarSection.vue";
 import EncounterMetadata from "@/components/encounters/EncounterMetadata.vue";
 import EncounterCombatants from "@/components/encounters/EncounterCombatants.vue";

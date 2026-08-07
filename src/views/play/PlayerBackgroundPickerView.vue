@@ -8,12 +8,7 @@
           {{ headerDescription }}
         </p>
       </div>
-      <RouterLink
-        to="/play"
-        class="shrink-0 inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
-      >
-        ← Back
-      </RouterLink>
+      <AppButton to="/play" variant="subtle" size="sm" label="← Back" />
     </div>
 
     <!-- Filter bar -->
@@ -102,22 +97,21 @@
               <li v-for="l in pendingRemovals.languages" :key="l">{{ l }}</li>
             </ul>
             <div class="flex gap-2 pt-1">
-              <button
-                type="button"
-                class="px-3 py-1.5 rounded-md font-cinzel text-xs font-semibold border transition-colors"
-                :class="removeOld ? 'bg-amber-600 text-white border-amber-600' : 'border-border text-muted-foreground hover:text-foreground'"
+              <AppButton
+                variant="subtle"
+                size="sm"
+                :active="removeOld"
+                label="Yes, remove them"
+                :class="removeOld ? 'border-amber-600 bg-amber-600 text-white hover:bg-amber-600 hover:text-white' : ''"
                 @click="removeOld = true"
-              >
-                Yes, remove them
-              </button>
-              <button
-                type="button"
-                class="px-3 py-1.5 rounded-md font-cinzel text-xs font-semibold border transition-colors"
-                :class="!removeOld ? 'bg-card text-foreground border-primary' : 'border-border text-muted-foreground hover:text-foreground'"
+              />
+              <AppButton
+                variant="subtle"
+                size="sm"
+                :active="!removeOld"
+                label="Keep all"
                 @click="removeOld = false"
-              >
-                Keep all
-              </button>
+              />
             </div>
           </div>
 
@@ -126,21 +120,15 @@
             Finish the ability score choice above, or clear it, before confirming.
           </p>
           <div class="flex gap-3 pt-2">
-            <button
-              type="button"
-              class="flex-1 px-4 py-2 font-cinzel text-xs font-semibold border border-border rounded-md text-muted-foreground hover:text-foreground transition-colors"
-              @click="cancel"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
+            <AppButton variant="subtle" size="md" class="flex-1" label="Cancel" @click="cancel" />
+            <AppButton
+              variant="primary"
+              size="md"
+              class="flex-1"
+              :label="saving ? 'Saving…' : 'Confirm & Apply'"
               :disabled="saving || asiChoiceIncomplete"
-              class="flex-1 px-4 py-2 font-cinzel text-xs font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
               @click="confirm"
-            >
-              {{ saving ? "Saving…" : "Confirm & Apply" }}
-            </button>
+            />
           </div>
         </div>
       </div>
@@ -161,6 +149,7 @@ import { useRulesetReviews, useAcknowledgeRulesetReviews } from "@/composables/u
 import BackgroundList from "@/components/backgrounds/BackgroundList.vue";
 import BackgroundAsiPicker from "@/components/backgrounds/BackgroundAsiPicker.vue";
 import BackgroundOriginFeatBadge from "@/components/backgrounds/BackgroundOriginFeatBadge.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import ListFilterGroup from "@/components/common/ListFilterGroup.vue";

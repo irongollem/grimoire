@@ -22,10 +22,10 @@
         to="/pantheons"
       />
       <ListActionButton
+        variant="primary"
         :icon="IconAdd"
         label="New Deity"
         mobile-label="Deity"
-        variant="primary"
         @click="handleNew"
       />
     </template>

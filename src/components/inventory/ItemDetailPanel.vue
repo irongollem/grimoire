@@ -105,17 +105,23 @@
           </div>
 
           <div class="flex gap-2">
-            <button
-              class="flex-1 py-1.5 rounded-md border border-border font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40"
+            <AppButton
+              variant="subtle"
+              size="sm"
+              class="flex-1"
               :disabled="currentCharges <= 0 || isUpdating"
+              label="Spend Charge"
               @click="spendCharge"
-            >Spend Charge</button>
-            <button
+            />
+            <AppButton
               v-if="vaultItem.recharge"
-              class="flex-1 py-1.5 rounded-md bg-primary text-primary-foreground font-cinzel text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-40"
+              variant="primary"
+              size="sm"
+              class="flex-1"
               :disabled="currentCharges >= vaultItem.charges || isUpdating"
+              label="Recharge"
               @click="recharge"
-            >Recharge</button>
+            />
           </div>
 
           <p v-if="vaultItem.recharge" class="text-caption text-muted-foreground italic">
@@ -255,10 +261,7 @@
                 class="flex-1 py-1 bg-amber-600/80 text-white rounded text-label hover:opacity-90 transition-opacity disabled:opacity-40"
                 @click="confirmSell"
               >Post to Chat</button>
-              <button
-                class="px-2 py-1 border border-border rounded font-cinzel text-2xs text-muted-foreground hover:text-foreground transition-colors"
-                @click="sellOpen = false"
-              >Cancel</button>
+              <AppButton variant="subtle" size="xs" label="Cancel" @click="sellOpen = false" />
             </div>
           </div>
         </div>
@@ -275,6 +278,7 @@ import { computed, ref, reactive, watch } from "vue";
 import { IconAdd, IconClose, IconHide, IconMinus, IconReveal, IconShop, IconWand } from '@/lib/icons';
 import { useQuery } from "@tanstack/vue-query";
 import { COINS, type CoinKey, parseCoinText } from "@/rules/currency";
+import AppButton from "@/components/common/AppButton.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import ItemStatBlock from "@/components/inventory/ItemStatBlock.vue";

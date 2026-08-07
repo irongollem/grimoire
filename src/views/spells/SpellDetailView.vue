@@ -3,14 +3,12 @@
     <template v-if="!isNew && canEdit" #actions>
       <PageHeaderAction
         v-if="!isEditing"
-        type="button"
         label="Edit"
         :icon="IconEdit"
         @click="startEditing"
       />
       <PageHeaderAction
         v-else
-        type="button"
         label="View"
         :icon="IconDocument"
         @click="stopEditing"

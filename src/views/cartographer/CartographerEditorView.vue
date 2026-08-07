@@ -27,7 +27,7 @@
           @click="showAtlasModal = true"
         >{{ baking ? "Baking…" : "Save to Atlas" }}</button>
         <ListActionButton label="Edit" @click="onEdit" />
-        <ListActionButton label="Done" variant="primary" @click="onDone" />
+        <ListActionButton variant="primary" label="Done" @click="onDone" />
       </template>
       <!-- Edit mode -->
       <template v-else>
@@ -40,9 +40,9 @@
         >{{ deleting ? "Deleting…" : "Delete" }}</button>
         <ListActionButton label="Cancel" @click="onCancel" />
         <ListActionButton
+          variant="primary"
           :icon="IconSave"
           label="Save"
-          variant="primary"
           :disabled="saving"
           @click="onSave"
         />
@@ -232,8 +232,8 @@ import {
 } from "@/lib/icons";
 
 import PageHeader from "@/components/common/PageHeader.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
+import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import CartographerSaveAtlasModal from "@/components/cartographer/CartographerSaveAtlasModal.vue";
 import CartographerAiStyleModal from "@/components/cartographer/CartographerAiStyleModal.vue";
 import CartographerToolPalette from "@/components/cartographer/CartographerToolPalette.vue";

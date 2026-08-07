@@ -52,31 +52,19 @@
     </p>
     <div class="flex items-center justify-between pt-2 border-t border-border">
       <!-- Back / Cancel -->
-      <button v-if="wizardStep > 0" type="button"
-        class="px-4 py-2 font-cinzel text-xs font-semibold text-muted-foreground border border-border rounded-md hover:text-foreground transition-colors"
-        @click="wizardStep--">
-        ← Back
-      </button>
-      <button v-else type="button"
-        class="px-4 py-2 font-cinzel text-xs font-semibold text-muted-foreground border border-border rounded-md hover:text-foreground transition-colors"
-        @click="router.push(backRoute)">
-        Cancel
-      </button>
+      <AppButton v-if="wizardStep > 0" variant="subtle" size="md" label="← Back" @click="wizardStep--" />
+      <AppButton v-else variant="subtle" size="md" label="Cancel" @click="router.push(backRoute)" />
 
       <!-- Next / Skip (hidden on Done step) -->
       <div v-if="wizardStep < activeSteps.length - 1" class="flex items-center gap-2">
-        <button type="button"
-          :disabled="blockedByAsiChoice"
-          class="px-4 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-          @click="wizardStep++">
-          Skip
-        </button>
-        <button type="button"
+        <AppButton variant="ghost" size="md" label="Skip" :disabled="blockedByAsiChoice" @click="wizardStep++" />
+        <AppButton
+          variant="primary"
+          size="md"
+          label="Next →"
           :disabled="(wizardStep === 0 && !f.name.trim()) || blockedByAsiChoice"
-          class="px-4 py-2 font-cinzel text-xs font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
-          @click="wizardStep++">
-          Next →
-        </button>
+          @click="wizardStep++"
+        />
       </div>
     </div>
 
@@ -87,6 +75,7 @@
 import { inject, computed } from "vue";
 import { CHARACTER_FORM_KEY } from "@/composables/useCharacterCreationForm";
 import { WIZARD_STEPS, WIZARD_STEPS_EDIT } from "@/rules/characterCreation";
+import AppButton from "@/components/common/AppButton.vue";
 import CharacterCreateBasicsStep from "@/components/play/CharacterCreateBasicsStep.vue";
 import CharacterCreateAbilitiesStep from "@/components/play/CharacterCreateAbilitiesStep.vue";
 import CharacterCreateBackgroundStep from "@/components/play/CharacterCreateBackgroundStep.vue";

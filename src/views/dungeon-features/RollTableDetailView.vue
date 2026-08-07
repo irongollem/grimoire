@@ -25,13 +25,12 @@
         </template>
         <!-- Edit mode actions -->
         <template v-else-if="!isNew">
-          <button
-            type="button"
-            class="font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors"
+          <AppButton
+            variant="ghost"
+            size="inline"
+            label="Cancel"
             @click="editMode = false"
-          >
-            Cancel
-          </button>
+          />
           <button
             type="button"
             :disabled="saving || !form.name.trim() || rangeError !== null"
@@ -93,13 +92,14 @@
                 </span>
                 <div class="flex-1 min-w-0 flex flex-col gap-1">
                   <span class="text-body text-foreground">{{ entry.label || '—' }}</span>
-                  <RouterLink
+                  <AppButton
                     v-if="entry.encounter_id"
+                    variant="link"
+                    size="inline"
+                    label="Open encounter →"
+                    class="self-start"
                     :to="`/encounters/${entry.encounter_id}`"
-                    class="inline-flex items-center gap-1 font-cinzel text-xs font-semibold text-primary hover:underline self-start"
-                  >
-                    Open encounter →
-                  </RouterLink>
+                  />
                   <p v-if="entry.notes" class="text-caption text-muted-foreground italic">{{ entry.notes }}</p>
                 </div>
               </div>
@@ -157,14 +157,14 @@
           <div class="space-y-2">
             <div class="flex items-center justify-between">
               <h2 class="font-cinzel text-sm font-bold text-foreground">Entries ({{ form.entries.length }})</h2>
-              <button
-                type="button"
-                class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+              <AppButton
+                variant="tinted"
+                size="sm"
+                :icon="IconAdd"
+                label="Add row"
+                class="border-border bg-card text-muted-foreground hover:text-foreground hover:border-primary/50"
                 @click="addEntry"
-              >
-                <IconAdd class="size-3.5" />
-                Add row
-              </button>
+              />
             </div>
 
             <p v-if="rangeError" class="text-caption text-destructive italic">{{ rangeError }}</p>
@@ -275,13 +275,13 @@
             </div>
             <template v-if="lastRoll.entry">
               <div class="font-cinzel text-sm text-foreground font-bold">{{ lastRoll.entry.label }}</div>
-              <RouterLink
+              <AppButton
                 v-if="lastRoll.entry.encounter_id"
+                variant="link"
+                size="inline"
+                label="Open encounter →"
                 :to="`/encounters/${lastRoll.entry.encounter_id}`"
-                class="inline-flex items-center gap-1 font-cinzel text-xs font-semibold text-primary hover:underline"
-              >
-                Open encounter →
-              </RouterLink>
+              />
               <p v-if="lastRoll.entry.notes" class="text-caption text-muted-foreground italic mt-1">{{ lastRoll.entry.notes }}</p>
             </template>
             <p v-else class="text-caption text-muted-foreground italic">No entry covers this result.</p>
@@ -298,7 +298,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { useRoute, useRouter, RouterLink } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { IconAdd, IconDelete, IconDiceRoll, IconEdit } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import {
@@ -322,6 +322,7 @@ import { deepEqual } from "@/lib/utils";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import TagInput from "@/components/common/TagInput.vue";
+import AppButton from "@/components/common/AppButton.vue";
 
 const props = defineProps<{
   /** ID of an existing table to edit. Omit for new-table mode. */

@@ -11,10 +11,10 @@
         @click="ui.encounterGeneratorOpen = true"
       />
       <ListActionButton
+        variant="primary"
         :icon="IconAdd"
         label="New Encounter"
         mobile-label="Encounter"
-        variant="primary"
         @click="handleNew"
       />
     </template>
@@ -39,12 +39,12 @@
           information. Tooltip describes the action the next tap would take.
           Primary variant when filtering-to-active so it reads as "on".
         -->
-        <ListActionButton
+        <AppButton
+          size="md"
           :icon="IconCheckDouble"
           :label="ui.encountersHideFinished ? 'Active' : 'All'"
-          :collapse-on-mobile="false"
           :tooltip="ui.encountersHideFinished ? 'Show all encounters' : 'Hide finished encounters'"
-          :variant="ui.encountersHideFinished ? 'primary' : 'ghost'"
+          :variant="ui.encountersHideFinished ? 'primary' : 'subtle'"
           @click="ui.encountersHideFinished = !ui.encountersHideFinished"
         />
       </ListFilterBar>
@@ -61,8 +61,9 @@ import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { IconAdd, IconCheckDouble, IconGenerate } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
-import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
+import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";

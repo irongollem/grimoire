@@ -6,9 +6,9 @@
 
     <template #actions>
       <ListActionButton
+        variant="primary"
         :icon="IconAdd"
         label="New Note"
-        variant="primary"
         @click="handleNew"
       />
     </template>
@@ -24,8 +24,8 @@ import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { IconAdd } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
-import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
+import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import NotesList from "@/components/notes/NotesList.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useQuota } from "@/composables/useQuota";

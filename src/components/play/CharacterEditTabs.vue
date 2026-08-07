@@ -39,11 +39,9 @@
         <div>
           <span class="field-label">Species</span>
           <p v-if="!!f.species_id" class="text-body text-foreground inline">
-            {{ currentSpeciesName }}&ensp;<RouterLink to="/play/species" class="font-cinzel text-xs text-primary hover:underline">Change</RouterLink>
+            {{ currentSpeciesName }}&ensp;<AppButton to="/play/species" variant="link" size="inline" label="Change" />
           </p>
-          <RouterLink v-else to="/play/species" class="font-cinzel text-xs font-semibold text-primary hover:underline">
-            Browse &amp; Pick a Species
-          </RouterLink>
+          <AppButton v-else to="/play/species" variant="link" size="inline" label="Browse & Pick a Species" />
         </div>
         <div>
           <span class="field-label">Class</span>
@@ -58,11 +56,9 @@
         <div>
           <span class="field-label">Background</span>
           <p v-if="currentBgName" class="text-body text-foreground inline">
-            {{ currentBgName }}&ensp;<RouterLink to="/play/background" class="font-cinzel text-xs text-primary hover:underline">Change</RouterLink>
+            {{ currentBgName }}&ensp;<AppButton to="/play/background" variant="link" size="inline" label="Change" />
           </p>
-          <RouterLink v-else to="/play/background" class="font-cinzel text-xs font-semibold text-primary hover:underline">
-            Browse &amp; Pick a Background
-          </RouterLink>
+          <AppButton v-else to="/play/background" variant="link" size="inline" label="Browse & Pick a Background" />
         </div>
       </div>
 
@@ -167,11 +163,15 @@
     </div>
 
     <div class="flex items-center justify-end gap-3 pt-2 border-t border-border">
-      <button type="button" class="px-4 py-2 font-cinzel text-xs font-semibold text-muted-foreground border border-border rounded-md hover:text-foreground transition-colors" @click="router.push(backRoute)">Cancel</button>
-      <button type="button" :disabled="!f.name.trim() || saving"
-        class="min-w-28 px-4 py-2 font-cinzel text-xs font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50" @click="save()">
-        {{ saving ? "Saving…" : "Save Changes" }}
-      </button>
+      <AppButton variant="subtle" size="md" label="Cancel" @click="router.push(backRoute)" />
+      <AppButton
+        variant="primary"
+        size="md"
+        class="min-w-28"
+        :label="saving ? 'Saving…' : 'Save Changes'"
+        :disabled="!f.name.trim() || saving"
+        @click="save()"
+      />
     </div>
   </div>
 </template>
@@ -185,6 +185,7 @@ import type { PartyMember } from "@/types/party.types";
 import { EDIT_TABS, ABILITY_STATS, SAVE_STATS, PROF_LEVELS, SLOT_LEVEL_LABELS } from "@/rules/characterCreation";
 import { SKILLS } from "@/types/party.types";
 import { TOOL_PROFICIENCY_GROUPS, LANGUAGE_GROUPS } from "@/lib/proficiency-lists";
+import AppButton from "@/components/common/AppButton.vue";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import TagPickerInput from "@/components/common/TagPickerInput.vue";

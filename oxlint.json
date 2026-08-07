@@ -14,5 +14,13 @@
   "env": {
     "browser": true,
     "es2022": true
-  }
+  },
+  "overrides": [
+    {
+      "files": ["scripts/**"],
+      "rules": {
+        "no-console": "off"
+      }
+    }
+  ]
 }

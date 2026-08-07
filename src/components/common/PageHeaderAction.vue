@@ -1,49 +1,44 @@
 <template>
-  <button
-    :type="type"
-    :title="title ?? label"
-    :disabled="disabled"
-    :class="[
-      'inline-flex min-w-0 items-center justify-center gap-1.5 rounded-md border text-label-lg font-semibold transition-colors disabled:opacity-50',
-      compact ? 'px-2.5 py-2 lg:px-3 lg:py-1.5' : 'px-3 py-2',
-      variantClasses,
-    ]"
+  <AppButton
+    v-bind="$attrs"
+    :variant="variant"
+    :collapse-label-on-mobile="collapseLabelOnMobile"
+    class="shrink-0"
+    size="md"
+    collapse-below="lg"
   >
-    <component v-if="icon" :is="icon" class="h-3.5 w-3.5 shrink-0" />
-    <span v-if="mobileLabel" class="lg:hidden">{{ mobileLabel }}</span>
-    <span :class="mobileLabel || hideLabelOnMobile ? 'hidden lg:inline' : ''">
-      {{ label }}
-    </span>
-  </button>
+    <template v-if="$slots.default" #default><slot /></template>
+  </AppButton>
 </template>
 
 <script setup lang="ts">
-import { computed, type Component } from "vue";
+/**
+ * An action in a detail page's PageHeader `#actions` slot — Edit, Delete, Save,
+ * Send to Scriptorium (#561).
+ *
+ * This is the one bundle AppButton cannot express as a default: `size="md"`
+ * plus `collapse-below="lg"`. Detail-page header rows are tighter than list-page
+ * action rows, so their labels have to collapse at `lg` rather than the `sm` that
+ * list actions use. Restating that trio at all 35 call sites is exactly the
+ * approximate-the-UI-everywhere problem this refactor exists to remove, so it
+ * lives here instead.
+ *
+ * Everything else — `label`, `icon`, `to`, `disabled`, `mobileLabel`, `tooltip`,
+ * `type`, `@click`, `class` — falls through to AppButton untouched.
+ */
+import AppButton from "./AppButton.vue";
+import type { ButtonVariants } from "./appButtonVariants";
 
-const {
-  variant = "default",
-  type = "button",
-  hideLabelOnMobile = true,
-  compact = true,
-} = defineProps<{
-  label: string;
-  mobileLabel?: string;
-  title?: string;
-  icon?: Component;
-  variant?: "default" | "primary" | "destructive";
-  type?: "button" | "submit" | "reset";
-  disabled?: boolean;
-  hideLabelOnMobile?: boolean;
-  compact?: boolean;
+// $attrs is bound explicitly onto AppButton, so it must not also be auto-applied.
+defineOptions({ inheritAttrs: false });
+
+const { variant = "subtle", collapseLabelOnMobile = true } = defineProps<{
+  /** Defaults to `subtle` — the resting look for a header action. */
+  variant?: ButtonVariants["variant"];
+  /**
+   * Header rows are tight; the label hides below `lg` by default and the icon
+   * carries the meaning. Pass `false` where the icon alone is ambiguous.
+   */
+  collapseLabelOnMobile?: boolean;
 }>();
-
-const variantClasses = computed(() => {
-  if (variant === "primary") {
-    return "border-primary bg-primary text-primary-foreground hover:opacity-90";
-  }
-  if (variant === "destructive") {
-    return "border-destructive/40 text-destructive hover:bg-destructive/10";
-  }
-  return "border-border text-muted-foreground hover:text-foreground hover:border-foreground/40 hover:bg-muted/40";
-});
 </script>

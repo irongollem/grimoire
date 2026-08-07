@@ -60,14 +60,15 @@
           <p v-if="member.player_name" class="text-caption text-muted-foreground">
             {{ member.player_name }}
           </p>
-          <RouterLink
+          <AppButton
             v-if="member.current_location_id"
+            variant="ghost"
+            size="inline-xs"
             :to="`/locations/${member.current_location_id}`"
-            class="inline-flex items-center gap-0.5 font-cinzel text-2xs text-muted-foreground hover:text-primary transition-colors"
-          >
-            <IconLocation class="h-2.5 w-2.5 shrink-0" />
-            {{ locationNameMap.get(member.current_location_id) ?? '…' }}
-          </RouterLink>
+            :icon="IconLocation"
+            :label="locationNameMap.get(member.current_location_id) ?? '…'"
+            class="hover:text-primary"
+          />
           <span
             v-else
             class="inline-flex items-center gap-0.5 font-cinzel text-2xs text-muted-foreground/40 italic"
@@ -124,21 +125,27 @@
               placeholder="Amt"
               class="w-16 bg-muted border border-border rounded px-2 py-1 text-body text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
             />
-            <button
-              type="button"
-              class="px-2.5 py-1 rounded bg-destructive/10 border border-destructive/30 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/20 transition-colors"
+            <AppButton
+              variant="destructive"
+              size="sm"
+              label="Damage"
+              class="bg-destructive/10 border-destructive/30 hover:bg-destructive/20"
               @click="dealDamage"
-            >Damage</button>
-            <button
-              type="button"
-              class="px-2.5 py-1 rounded bg-green-500/10 border border-green-500/30 font-cinzel text-xs font-semibold text-green-500 hover:bg-green-500/20 transition-colors"
+            />
+            <AppButton
+              variant="tinted"
+              size="sm"
+              label="Heal"
+              class="bg-green-500/10 border-green-500/30 text-green-500 hover:bg-green-500/20"
               @click="heal"
-            >Heal</button>
-            <button
-              type="button"
-              class="px-2.5 py-1 rounded bg-blue-500/10 border border-blue-500/30 font-cinzel text-xs font-semibold text-blue-400 hover:bg-blue-500/20 transition-colors"
+            />
+            <AppButton
+              variant="tinted"
+              size="sm"
+              label="+Temp"
+              class="bg-blue-500/10 border-blue-500/30 text-blue-400 hover:bg-blue-500/20"
               @click="addTemp"
-            >+Temp</button>
+            />
           </div>
         </div>
 
@@ -202,11 +209,12 @@
     <div v-if="companions.length" class="border-t border-border bg-muted/10 px-4 py-3 flex flex-col gap-2">
       <div class="flex items-center justify-between">
         <span class="text-eyebrow font-semibold text-muted-foreground">Companions</span>
-        <button
-          type="button"
-          class="font-cinzel text-2xs text-primary hover:opacity-80 transition-opacity"
+        <AppButton
+          variant="link"
+          size="inline-xs"
+          label="+ Add"
           @click="emit('open-companion-form', { companion: null, ownerId: member.id })"
-        >+ Add</button>
+        />
       </div>
       <CompanionCard
         v-for="comp in companions"
@@ -220,11 +228,13 @@
     </div>
     <div v-else class="border-t border-border bg-muted/10 px-4 py-2 flex items-center justify-between">
       <span class="text-caption text-muted-foreground italic">No companions</span>
-      <button
-        type="button"
-        class="font-cinzel text-2xs text-muted-foreground hover:text-primary transition-colors"
+      <AppButton
+        variant="ghost"
+        size="inline-xs"
+        label="+ Add Companion"
+        class="hover:text-primary"
         @click="emit('open-companion-form', { companion: null, ownerId: member.id })"
-      >+ Add Companion</button>
+      />
     </div>
   </div>
 
@@ -240,6 +250,7 @@
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { IconGenerate, IconLocation, IconReveal, IconScrollText } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
 import { useUpdatePartyMember } from "@/composables/useParty";
 import { useShieldAcBonus } from "@/composables/useShieldAc";
 import { useReadItems } from "@/composables/useReadItems";

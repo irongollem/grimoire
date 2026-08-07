@@ -2,15 +2,13 @@
   <div class="space-y-4">
 
     <!-- Score method tabs -->
-    <div class="flex items-center gap-2 p-1 rounded-lg bg-muted w-fit flex-wrap">
-      <button type="button" v-for="mode in SCORE_MODES" :key="mode.id"
-        class="px-3 py-1.5 rounded-md font-cinzel text-xs font-semibold transition-colors"
-        :class="scoreMode === mode.id
-          ? 'bg-card text-foreground shadow-sm'
-          : 'text-muted-foreground hover:text-foreground'"
-        @click="onScoreModeChange(mode.id)">
-        {{ mode.label }}
-      </button>
+    <div class="p-1 rounded-lg bg-muted w-fit">
+      <SegmentedControl
+        :model-value="scoreMode"
+        :options="scoreModeOptions"
+        size="sm"
+        @update:model-value="onScoreModeChange"
+      />
     </div>
 
     <!-- Point Buy -->
@@ -31,15 +29,23 @@
           :class="asiMode === 'bonus' && racialBonusMap[stat.key] ? 'border-primary/40 bg-primary/2' : 'border-border'">
           <span class="text-label font-semibold text-muted-foreground">{{ stat.label }}</span>
           <div class="flex items-center gap-2">
-            <button type="button"
-              class="w-6 h-6 rounded-full border border-border font-cinzel text-sm font-bold transition-colors hover:border-primary hover:text-primary disabled:opacity-30"
+            <AppButton
+              variant="outline"
+              size="icon-xs"
+              class="rounded-full"
+              label="−"
               :disabled="f[stat.key] <= 8"
-              @click="f[stat.key]--">−</button>
+              @click="f[stat.key]--"
+            />
             <span class="text-heading font-bold w-8 text-center">{{ displayScore(stat.key) }}</span>
-            <button type="button"
-              class="w-6 h-6 rounded-full border border-border font-cinzel text-sm font-bold transition-colors hover:border-primary hover:text-primary disabled:opacity-30"
+            <AppButton
+              variant="outline"
+              size="icon-xs"
+              class="rounded-full"
+              label="+"
               :disabled="f[stat.key] >= 15 || pointsRemaining <= 0 || (pointsRemaining < (POINT_BUY_COSTS[f[stat.key] + 1] ?? 99) - POINT_BUY_COSTS[f[stat.key]])"
-              @click="f[stat.key]++">+</button>
+              @click="f[stat.key]++"
+            />
           </div>
           <span v-if="asiMode === 'bonus' && racialBonusMap[stat.key]"
             class="font-cinzel text-2xs font-bold text-primary leading-none">
@@ -199,6 +205,10 @@ import {
   type AbilityKey,
 } from "@/rules/characterCreation";
 import type { CharacterCreationForm } from "@/composables/useCharacterCreationForm";
+import AppButton from "@/components/common/AppButton.vue";
+import SegmentedControl from "@/components/common/SegmentedControl.vue";
+
+const scoreModeOptions = SCORE_MODES.map((mode) => ({ value: mode.id, label: mode.label }));
 
 const { form } = defineProps<{ form: CharacterCreationForm }>();
 

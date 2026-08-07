@@ -21,11 +21,12 @@
     <!-- Value -->
     <div>
       <label class="text-label-lg font-semibold text-muted-foreground mb-2 block">Centre Value</label>
-      <input
-        :value="coin.value"
+      <AppInput
+        :model-value="coin.value"
+        size="lg"
+        tone="muted"
         placeholder="e.g. 10"
-        class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-cinzel text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        @input="emit('update:coin', { ...coin, value: ($event.target as HTMLInputElement).value })"
+        @update:model-value="emit('update:coin', { ...coin, value: $event as string })"
       />
     </div>
 
@@ -33,42 +34,42 @@
     <div>
       <p class="text-label-lg font-semibold text-muted-foreground mb-2">Emblem</p>
       <div class="flex flex-wrap gap-2">
-        <button
+        <AppButton
           v-for="m in COIN_MOTIFS"
           :key="m.id"
-          type="button"
-          :title="m.label"
-          class="h-8 min-w-8 px-2 rounded-md font-cinzel text-sm border transition-colors flex items-center justify-center"
-          :class="coin.motif === m.id
-            ? 'bg-primary/15 text-primary border-primary/40'
-            : 'text-muted-foreground border-border hover:border-foreground/30'"
+          variant="subtle"
+          size="sm"
+          :active="coin.motif === m.id"
+          :tooltip="m.label"
           @click="emit('update:coin', { ...coin, motif: m.id })"
         >
           <span v-if="m.symbol" class="text-base leading-none">{{ m.symbol }}</span>
           <span v-else class="text-label">None</span>
-        </button>
+        </AppButton>
       </div>
     </div>
 
     <!-- Denomination -->
     <div>
       <label class="text-label-lg font-semibold text-muted-foreground mb-2 block">Denomination Label</label>
-      <input
-        :value="coin.denomination"
+      <AppInput
+        :model-value="coin.denomination"
+        size="lg"
+        tone="muted"
         placeholder="e.g. GP"
-        class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-cinzel text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        @input="emit('update:coin', { ...coin, denomination: ($event.target as HTMLInputElement).value })"
+        @update:model-value="emit('update:coin', { ...coin, denomination: $event as string })"
       />
     </div>
 
     <!-- Rim text -->
     <div>
       <label class="text-label-lg font-semibold text-muted-foreground mb-2 block">Rim Text</label>
-      <input
-        :value="coin.rimText"
+      <AppInput
+        :model-value="coin.rimText"
+        size="lg"
+        tone="muted"
         placeholder="e.g. Kingdom of Arendor"
-        class="w-full bg-muted border border-border rounded-md px-3 py-1.5 font-cinzel text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        @input="emit('update:coin', { ...coin, rimText: ($event.target as HTMLInputElement).value })"
+        @update:model-value="emit('update:coin', { ...coin, rimText: $event as string })"
       />
     </div>
 
@@ -97,6 +98,8 @@
 <script setup lang="ts">
 import { COIN_METALS, COIN_MOTIFS, COIN_PRINT_SIZES } from "@/types/coin.types";
 import type { CoinDesign } from "@/types/coin.types";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 
 const { coin } = defineProps<{
   coin: CoinDesign;

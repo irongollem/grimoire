@@ -22,37 +22,21 @@
         @click="handleImport"
       />
       <ListActionButton
+        variant="primary"
         :icon="IconAdd"
         label="New Recipe"
-        variant="primary"
         to="/crafting/new"
       />
     </template>
 
     <!-- Discipline tabs (body content) -->
     <div class="flex flex-wrap gap-1 mb-6 rounded-md border border-border p-1 bg-muted w-fit max-w-full overflow-x-auto">
-      <button
-        class="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-cinzel tracking-wide transition-colors shrink-0"
-        :class="ui.workshopActiveTab === 'all'
-          ? 'bg-card text-foreground shadow-sm'
-          : 'text-muted-foreground hover:text-foreground'"
-        @click="ui.workshopActiveTab = 'all'"
-      >
-        <IconListView class="h-3.5 w-3.5" />
-        All
-      </button>
-      <button
-        v-for="d in CRAFTING_DISCIPLINES"
-        :key="d.id"
-        class="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-cinzel tracking-wide transition-colors shrink-0"
-        :class="ui.workshopActiveTab === d.id
-          ? 'bg-card text-foreground shadow-sm'
-          : 'text-muted-foreground hover:text-foreground'"
-        @click="ui.workshopActiveTab = d.id"
-      >
-        <component :is="d.icon" class="h-3.5 w-3.5" />
-        {{ d.label }}
-      </button>
+      <SegmentedControl
+        v-model="ui.workshopActiveTab"
+        :options="workshopTabOptions"
+        size="sm"
+        wrap
+      />
     </div>
 
     <!-- Recipes for active discipline -->
@@ -163,8 +147,9 @@ import { computed, ref } from "vue";
 
 import { IconAdd, IconAward, IconDelete, IconDownload, IconEdit, IconListView, IconLoading, IconNavWorkshop, IconReveal, IconTool } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
-import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
+import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
+import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import PlayerVisibilityToggle from "@/components/common/PlayerVisibilityToggle.vue";
 import { CRAFTING_DISCIPLINES, getDiscipline } from "@/lib/crafting-disciplines";
 import { useCraftingRecipes, useDeleteRecipe, useImportStarterRecipes, useUpdateRecipe, useRevealAllRecipes } from "@/composables/useCrafting";
@@ -180,6 +165,11 @@ const auth = useAuthStore();
 const activeDiscipline = computed(() =>
   ui.workshopActiveTab === "all" ? null : getDiscipline(ui.workshopActiveTab),
 );
+
+const workshopTabOptions = computed(() => [
+  { value: "all" as const, label: "All", icon: IconListView },
+  ...CRAFTING_DISCIPLINES.map((d) => ({ value: d.id, label: d.label, icon: d.icon })),
+]);
 
 const { data: recipes, isLoading } = useCraftingRecipes();
 const { mutateAsync: deleteRecipe } = useDeleteRecipe();

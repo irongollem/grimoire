@@ -16,7 +16,7 @@
  * Safe to re-run after partial failures.
  */
 
-import { createRequire } from "module";
+import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 let sharp;
 try {
@@ -117,8 +117,9 @@ async function run() {
   console.log(`Found ${candidates.length} faction(s) with non-WebP storage images.`);
   if (!candidates.length) { console.log("Nothing to do."); return; }
 
+  // Everything the filter dropped — external URLs and already-WebP images.
+  const skipped = factions.length - candidates.length;
   let ok = 0;
-  let skipped = 0;
   let errors = 0;
 
   for (const faction of candidates) {

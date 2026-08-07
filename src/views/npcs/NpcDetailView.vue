@@ -47,7 +47,7 @@
         <PageHeaderAction
           v-if="npc?.id"
           :label="npcDetail.isSendingToScriptorium ? 'Exporting…' : 'Scriptorium'"
-          :title="npcDetail.isSendingToScriptorium ? 'Exporting…' : 'Send to Scriptorium'"
+          :tooltip="npcDetail.isSendingToScriptorium ? 'Exporting…' : 'Send to Scriptorium'"
           :disabled="npcDetail.isSendingToScriptorium"
           :icon="IconScrollText"
           @click="npcDetail.sendToScriptorium()"
@@ -60,7 +60,7 @@
         <PageHeaderAction
           v-if="npc?.id && (npcDetail.form.disguise_name || npcDetail.form.disguise_portrait_url)"
           :label="npcDetail.form.is_revealed ? 'Revealed' : 'Concealed'"
-          :title="npcDetail.form.is_revealed ? 'Revealed' : 'Concealed'"
+          :tooltip="npcDetail.form.is_revealed ? 'Revealed' : 'Concealed'"
           :icon="npcDetail.form.is_revealed ? IconReveal : IconHide"
           @click="npcDetail.form.is_revealed = !npcDetail.form.is_revealed"
         />
@@ -78,7 +78,7 @@
           :label="npcDetail.isSaving ? 'Saving…' : (npc?.id ? 'Save Changes' : 'Create NPC')"
           :mobile-label="npcDetail.isSaving ? 'Saving…' : (npc?.id ? 'Save' : 'Create')"
           variant="primary"
-          :hide-label-on-mobile="false"
+          :collapse-label-on-mobile="false"
         />
       </template>
     </template>

@@ -18,7 +18,7 @@ const text = readFileSync(inputPath, "utf8");
 const lines = text.split("\n");
 
 // Skip everything before the first ### entry header.
-let firstHeader = lines.findIndex((l) => /^### /.test(l));
+const firstHeader = lines.findIndex((l) => l.startsWith("### "));
 if (firstHeader === -1) {
   console.error("no ### headers found");
   process.exit(1);
@@ -29,10 +29,10 @@ const entries = [];
 let current = null;
 for (let i = firstHeader; i < lines.length; i++) {
   const line = lines[i];
-  if (/^### /.test(line)) {
+  if (line.startsWith("### ")) {
     if (current) entries.push(current);
     current = { name: line.replace(/^### /, "").trim(), body: [] };
-  } else if (/^## /.test(line) || /^# /.test(line)) {
+  } else if (line.startsWith("## ") || line.startsWith("# ")) {
     // New top-level section ends current entry; we still keep going to find next ###
     if (current) entries.push(current);
     current = null;
@@ -77,7 +77,7 @@ function inferRarity(body) {
 }
 
 // Item type: most are gear (keepsakes). A few clear cases.
-function inferItemType(name, body) {
+function inferItemType(name) {
   const n = name.toLowerCase();
   if (/\b(lantern|knocker|cup|saucer|compass|nail|knife|whistle|bell|key)\b/.test(n)) return "wondrous_item";
   if (/\b(potion|brew|tincture)\b/.test(n)) return "potion";
@@ -111,12 +111,12 @@ const chapterMap = {};
   let chap = null;
   let section = null;
   for (const line of lines) {
-    if (/^# /.test(line) && !/^## /.test(line) && !/^### /.test(line)) {
+    if (line.startsWith("# ") && !line.startsWith("## ") && !line.startsWith("### ")) {
       section = line.replace(/^# /, "").trim();
       chap = null;
-    } else if (/^## /.test(line) && !/^### /.test(line)) {
+    } else if (line.startsWith("## ") && !line.startsWith("### ")) {
       chap = line.replace(/^## /, "").trim().split("—")[0].trim();
-    } else if (/^### /.test(line)) {
+    } else if (line.startsWith("### ")) {
       const name = line.replace(/^### /, "").trim();
       // First-write-wins so spine items keep "I. The Campaign-Carry Spine" instead of
       // being overwritten by their chapter callback in Section II.
@@ -160,7 +160,7 @@ for (const entry of byName.values()) {
 
   const tags = inferTags(entry.name, body, chapter);
   const rarity = inferRarity(body);
-  const item_type = inferItemType(entry.name, body);
+  const item_type = inferItemType(entry.name);
 
   const out = {
     name: entry.name,

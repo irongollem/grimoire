@@ -5,14 +5,12 @@
       <template v-if="!isNew">
         <PageHeaderAction
           v-if="!isEditing"
-          type="button"
           label="Edit"
           :icon="IconEdit"
           @click="startEditing"
         />
         <PageHeaderAction
           v-else
-          type="button"
           label="View"
           :icon="IconDocument"
           @click="stopEditing"
@@ -30,19 +28,17 @@
       <template v-if="isEditing && pantheonEditor">
         <PageHeaderAction
           v-if="pantheon?.id"
-          type="button"
           label="Delete"
           :icon="IconDelete"
           variant="destructive"
           @click="pantheonEditor.handleDelete()"
         />
         <PageHeaderAction
-          type="button"
           :disabled="pantheonEditor.isSaving"
           :label="pantheonEditor.isSaving ? 'Saving…' : isNew ? 'Create Pantheon' : 'Save Changes'"
           :mobile-label="pantheonEditor.isSaving ? 'Saving…' : isNew ? 'Create' : 'Save'"
           variant="primary"
-          :hide-label-on-mobile="false"
+          :collapse-label-on-mobile="false"
           @click="pantheonEditor.handleSave()"
         />
       </template>

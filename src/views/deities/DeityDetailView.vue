@@ -8,14 +8,12 @@
       <template v-if="!isNew">
         <PageHeaderAction
           v-if="!isEditing"
-          type="button"
           label="Edit"
           :icon="IconEdit"
           @click="startEditing"
         />
         <PageHeaderAction
           v-else
-          type="button"
           label="View"
           :icon="IconDocument"
           @click="stopEditing"
@@ -33,19 +31,17 @@
       <template v-if="isEditing && deityEditor">
         <PageHeaderAction
           v-if="deity?.id"
-          type="button"
           label="Delete"
           :icon="IconDelete"
           variant="destructive"
           @click="deityEditor.handleDelete()"
         />
         <PageHeaderAction
-          type="button"
           :disabled="deityEditor.isSaving"
           :label="deityEditor.isSaving ? 'Saving…' : isNew ? 'Create Deity' : 'Save Changes'"
           :mobile-label="deityEditor.isSaving ? 'Saving…' : isNew ? 'Create' : 'Save'"
           variant="primary"
-          :hide-label-on-mobile="false"
+          :collapse-label-on-mobile="false"
           @click="deityEditor.handleSave()"
         />
       </template>

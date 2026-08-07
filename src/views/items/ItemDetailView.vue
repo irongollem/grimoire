@@ -8,11 +8,10 @@
            an owned, editable copy that shadows the shared row afterwards. -->
       <template v-if="!isNewItem && isShared">
         <PageHeaderAction
-          type="button"
+          variant="primary"
           :label="isCloning ? 'Cloning…' : 'Clone to customize'"
           :disabled="isCloning"
           :icon="IconCopy"
-          variant="primary"
           @click="cloneToCustomize"
         />
       </template>
@@ -21,7 +20,6 @@
       <template v-if="!isNewItem && !isShared && !isEditing">
         <ItemSendMenu v-if="item" :item="item" />
         <PageHeaderAction
-          type="button"
           label="Edit"
           :icon="IconEdit"
           @click="startEditing"
@@ -32,23 +30,20 @@
       <template v-if="isEditing && itemDetail">
         <PageHeaderAction
           v-if="!isNewItem"
-          type="button"
           label="View"
           :icon="IconDocument"
           @click="stopEditing"
         />
         <PageHeaderAction
           v-if="item"
-          type="button"
           :label="itemDetail.isSendingToScriptorium ? 'Sending…' : 'Scriptorium'"
-          :title="itemDetail.isSendingToScriptorium ? 'Sending…' : 'Send to Scriptorium'"
+          :tooltip="itemDetail.isSendingToScriptorium ? 'Sending…' : 'Send to Scriptorium'"
           :disabled="itemDetail.isSendingToScriptorium"
           :icon="IconScrollText"
           @click="itemDetail.sendToScriptorium()"
         />
         <PageHeaderAction
           v-if="item"
-          type="button"
           :label="itemDetail.isCloning ? 'Cloning…' : 'Clone'"
           :disabled="itemDetail.isCloning"
           :icon="IconCopy"
@@ -56,21 +51,19 @@
         />
         <PageHeaderAction
           v-if="item"
-          type="button"
+          variant="destructive"
           :label="itemDetail.isDeleting ? 'Deleting…' : 'Delete'"
           :disabled="itemDetail.isDeleting"
           :icon="IconDelete"
-          variant="destructive"
           @click="itemDetail.confirmDelete()"
         />
         <PageHeaderAction
-          type="button"
+          variant="primary"
           :disabled="itemDetail.isSaving || !itemDetail.canSave"
           :label="itemDetail.isSaving ? 'Saving…' : item ? 'Save' : 'Create'"
           :mobile-label="itemDetail.isSaving ? 'Saving…' : item ? 'Save' : 'Create'"
           :icon="IconSave"
-          variant="primary"
-          :hide-label-on-mobile="false"
+          :collapse-label-on-mobile="false"
           @click="itemDetail.save()"
         />
       </template>

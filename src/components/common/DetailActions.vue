@@ -2,20 +2,17 @@
   <template v-if="detailRef">
     <PageHeaderAction
       v-if="exists"
-      type="button"
       label="Delete"
       :icon="IconDelete"
       variant="destructive"
       @click="detailRef.remove()"
     />
     <PageHeaderAction
-      type="button"
       :disabled="!detailRef.canSave"
       :label="detailRef.saving ? 'Saving…' : exists ? 'Save' : 'Create'"
-      :mobile-label="detailRef.saving ? 'Saving…' : exists ? 'Save' : 'Create'"
       :icon="IconSave"
       variant="primary"
-      :hide-label-on-mobile="false"
+      :collapse-label-on-mobile="false"
       @click="detailRef.save()"
     />
   </template>

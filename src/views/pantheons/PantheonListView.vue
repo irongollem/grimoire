@@ -8,10 +8,10 @@
         to="/deities"
       />
       <ListActionButton
+        variant="primary"
         :icon="IconAdd"
         label="New Pantheon"
         mobile-label="Pantheon"
-        variant="primary"
         @click="handleNew"
       />
     </template>

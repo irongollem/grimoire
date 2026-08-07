@@ -45,79 +45,82 @@
     <div class="space-y-2">
       <label class="text-caption text-muted-foreground">Audio Source</label>
       <div class="flex gap-2 flex-wrap">
-        <button
-          type="button"
-          class="flex-1 py-1.5 rounded-md border text-xs font-cinzel tracking-wide transition-colors"
-          :class="
+        <AppButton
+          variant="tinted"
+          size="sm"
+          label="URL"
+          :class="[
+            'flex-1',
             activeSourceTab === 'url'
               ? 'bg-gold-500/20 border-gold-500/60 text-gold-300'
-              : 'border-border text-muted-foreground hover:text-foreground'
-          "
+              : 'border-border text-muted-foreground hover:text-foreground',
+          ]"
           @click="activeSourceTab = 'url'"
-        >
-          URL
-        </button>
-        <button
-          type="button"
-          class="flex-1 py-1.5 rounded-md border text-xs font-cinzel tracking-wide transition-colors relative"
-          :class="
+        />
+        <AppButton
+          variant="tinted"
+          size="sm"
+          :tooltip="isPro ? undefined : 'Pro feature — upgrade to upload your own audio files'"
+          :class="[
+            'flex-1 relative',
             activeSourceTab === 'upload'
               ? 'bg-gold-500/20 border-gold-500/60 text-gold-300'
               : isPro
                 ? 'border-border text-muted-foreground hover:text-foreground'
-                : 'border-border text-muted-foreground/40 cursor-not-allowed'
-          "
-          :title="isPro ? undefined : 'Pro feature — upgrade to upload your own audio files'"
+                : 'border-border text-muted-foreground/40 cursor-not-allowed',
+          ]"
           @click="isPro ? onUploadTabClick() : undefined"
         >
           Upload
           <span v-if="!isPro" class="absolute -top-1.5 -right-1.5 px-1 rounded text-2xs font-cinzel bg-amber-500 text-black leading-4">PRO</span>
-        </button>
-        <button
+        </AppButton>
+        <AppButton
           v-if="spotifyStore.isEnabled"
-          type="button"
-          class="flex-1 py-1.5 rounded-md border text-xs font-cinzel tracking-wide transition-colors"
-          :class="
+          variant="tinted"
+          size="sm"
+          label="Spotify"
+          :class="[
+            'flex-1',
             activeSourceTab === 'spotify'
               ? 'bg-green-500/20 border-green-500/60 text-green-400'
-              : 'border-border text-muted-foreground hover:text-foreground'
-          "
+              : 'border-border text-muted-foreground hover:text-foreground',
+          ]"
           @click="activeSourceTab = 'spotify'"
-        >
-          Spotify
-        </button>
-        <button
+        />
+        <AppButton
           v-if="geminiApiKey || campaignId"
-          type="button"
-          class="flex-1 py-1.5 rounded-md border text-xs font-cinzel tracking-wide transition-colors relative"
-          :class="
+          variant="tinted"
+          size="sm"
+          :tooltip="isPro ? undefined : 'Pro feature — upgrade to generate AI music'"
+          :class="[
+            'flex-1 relative',
             activeSourceTab === 'generate'
               ? 'bg-violet-500/20 border-violet-500/60 text-violet-300'
               : isPro
                 ? 'border-border text-muted-foreground hover:text-foreground'
-                : 'border-border text-muted-foreground/40 cursor-not-allowed'
-          "
-          :title="isPro ? undefined : 'Pro feature — upgrade to generate AI music'"
+                : 'border-border text-muted-foreground/40 cursor-not-allowed',
+          ]"
           @click="isPro ? (activeSourceTab = 'generate') : undefined"
         >
           Generate
           <span v-if="!isPro" class="absolute -top-1.5 -right-1.5 px-1 rounded text-2xs font-cinzel bg-amber-500 text-black leading-4">PRO</span>
-        </button>
-        <button
-          type="button"
-          class="flex-1 py-1.5 rounded-md border text-xs font-cinzel tracking-wide transition-colors"
-          :class="
+        </AppButton>
+        <AppButton
+          variant="tinted"
+          size="sm"
+          :class="[
+            'flex-1',
             activeSourceTab === 'browse'
               ? 'bg-sky-500/20 border-sky-500/60 text-sky-300'
-              : 'border-border text-muted-foreground hover:text-foreground'
-          "
+              : 'border-border text-muted-foreground hover:text-foreground',
+          ]"
           @click="activeSourceTab = 'browse'"
         >
           <!-- Not "Browse SFX" any more: this tab now leads with our own
                catalogue, which is free and quota-exempt, and a DM should be able
                to tell that from the label rather than by opening it. -->
           Library
-        </button>
+        </AppButton>
       </div>
 
       <!-- URL input -->
@@ -188,23 +191,24 @@
         <div class="space-y-1">
           <label class="text-caption text-muted-foreground">Length</label>
           <div class="flex gap-2">
-            <button
+            <AppButton
               v-for="m in LYRIA_MODELS"
               :key="m.id"
-              type="button"
-              class="flex-1 flex flex-col items-center py-1.5 px-2 rounded-md border text-xs font-cinzel tracking-wide transition-colors"
-              :class="
+              variant="tinted"
+              size="sm"
+              :class="[
+                'flex-1 flex-col',
                 generateModel === m.id
                   ? 'bg-violet-500/20 border-violet-500/60 text-violet-300'
-                  : 'border-border text-muted-foreground hover:text-foreground'
-              "
+                  : 'border-border text-muted-foreground hover:text-foreground',
+              ]"
               @click="generateModel = m.id"
             >
               <span>{{ m.label }}</span>
               <span class="text-caption-sm opacity-70 normal-case tracking-normal">
                 {{ geminiApiKey ? 'BYOK' : `${costOf(m.generationType)} cr` }} · {{ m.hint }}
               </span>
-            </button>
+            </AppButton>
           </div>
         </div>
 
@@ -264,26 +268,25 @@
 
     <!-- Actions -->
     <div class="flex gap-2 justify-end pt-1">
-      <button
-        type="button"
-        class="px-3 py-1.5 rounded-md border border-border text-xs font-cinzel text-muted-foreground hover:text-foreground transition-colors"
+      <AppButton
+        variant="subtle"
+        size="sm"
+        :label="activeSourceTab === 'browse' ? 'Done' : 'Cancel'"
         @click="$emit('cancel')"
-      >
-        {{ activeSourceTab === "browse" ? "Done" : "Cancel" }}
-      </button>
-      <button
+      />
+      <AppButton
         v-if="activeSourceTab !== 'browse'"
         type="submit"
+        variant="tinted"
+        size="sm"
+        :label="submitLabel"
         :disabled="submitDisabled"
-        class="px-3 py-1.5 rounded-md border text-xs font-cinzel transition-colors disabled:opacity-50"
         :class="
           activeSourceTab === 'generate'
             ? 'bg-violet-500/20 border-violet-500/40 text-violet-300 hover:bg-violet-500/30'
             : 'bg-gold-500/20 border-gold-500/40 text-gold-300 hover:bg-gold-500/30'
         "
-      >
-        {{ submitLabel }}
-      </button>
+      />
     </div>
   </form>
 </template>
@@ -291,6 +294,7 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, onMounted, onUnmounted } from "vue";
 import { useQueryClient } from "@tanstack/vue-query";
+import AppButton from "@/components/common/AppButton.vue";
 import { useCreateSound, useSoundUpload } from "@/composables/useSounds";
 import { useSpotifyStore } from "@/stores/spotify";
 import { useSubscription } from "@/composables/useSubscription";

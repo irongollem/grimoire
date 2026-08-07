@@ -8,91 +8,86 @@
       <!-- Perform vs Arrange lives in the page head with the title: it decides
            what the whole page below is for, so it does not belong among the
            per-view furniture. -->
-      <div
+      <SegmentedControl
         v-if="ui.soundboardViewMode === 'sounds'"
-        class="flex shrink-0 gap-1 rounded-lg border border-border/50 bg-muted/40 p-1"
-      >
-        <button
-          v-for="board in BOARD_MODES"
-          :key="board.id"
-          class="rounded-md px-2.5 py-1 font-cinzel text-xs tracking-wide transition-colors"
-          :class="ui.soundboardBoardMode === board.id
-            ? 'bg-card shadow-sm text-foreground'
-            : 'text-muted-foreground hover:text-foreground'"
-          :title="board.hint"
-          @click="ui.soundboardBoardMode = board.id"
-        >
-          {{ board.label }}
-        </button>
-      </div>
+        v-model="ui.soundboardBoardMode"
+        :options="BOARD_MODE_OPTIONS"
+        variant="ghost"
+        size="sm"
+        class="shrink-0 rounded-lg border border-border/50 bg-muted/40 p-1"
+      />
 
       <!-- The mixer drawer toggle — same idea as the chat toggle. -->
-      <button
-        class="hidden items-center gap-1.5 rounded-md border px-3 py-1.5 font-cinzel text-xs tracking-wide transition-colors lg:flex"
-        :class="ui.soundboardMixerOpen
-          ? 'border-gold-500/40 bg-gold-500/10 text-gold-400'
-          : 'border-border text-muted-foreground hover:text-foreground'"
-        :title="ui.soundboardMixerOpen ? 'Close the mixer' : 'Open the mixer'"
+      <AppButton
+        variant="tinted"
+        size="sm"
+        :icon="IconMixer"
+        label="Mixer"
+        :tooltip="ui.soundboardMixerOpen ? 'Close the mixer' : 'Open the mixer'"
+        :class="[
+          'hidden lg:flex',
+          ui.soundboardMixerOpen
+            ? 'border-gold-500/40 bg-gold-500/10 text-gold-400'
+            : 'border-border text-muted-foreground hover:text-foreground',
+        ]"
         @click="ui.soundboardMixerOpen = !ui.soundboardMixerOpen"
-      >
-        <IconMixer class="h-3.5 w-3.5 shrink-0" />
-        Mixer
-      </button>
+      />
 
       <!-- Spotify connect/disconnect (only for the owner user) -->
       <template v-if="spotifyStore.isEnabled">
-        <button
+        <AppButton
           v-if="spotifyStore.isConnected"
-          class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-cinzel tracking-wide transition-colors"
+          variant="tinted"
+          size="sm"
+          :icon="IconMusicNote"
+          :label="spotifyStore.isReady ? 'Spotify' : 'Connecting…'"
+          :tooltip="spotifyStore.isReady ? 'Spotify connected — click to disconnect' : 'Connecting to Spotify…'"
           :class="
             spotifyStore.isReady
               ? 'border-green-500/40 text-green-400 hover:text-green-300 hover:border-green-500/60'
               : 'border-border text-muted-foreground'
           "
-          :title="spotifyStore.isReady ? 'Spotify connected — click to disconnect' : 'Connecting to Spotify…'"
           @click="spotifyStore.isReady ? spotifyStore.disconnect() : undefined"
-        >
-          <IconMusicNote class="h-3.5 w-3.5 shrink-0" />
-          {{ spotifyStore.isReady ? "Spotify" : "Connecting…" }}
-        </button>
-        <button
+        />
+        <AppButton
           v-else
-          class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border text-xs font-cinzel tracking-wide text-muted-foreground hover:text-foreground transition-colors"
-          title="Connect your Spotify account"
+          variant="subtle"
+          size="sm"
+          :icon="IconMusicNote"
+          label="Connect Spotify"
+          tooltip="Connect your Spotify account"
           @click="spotifyStore.connect()"
-        >
-          <IconMusicNote class="h-3.5 w-3.5 shrink-0" />
-          Connect Spotify
-        </button>
+        />
       </template>
 
       <!-- Spotify is per-campaign BYOK. Without a Client ID the whole control
            vanished, so a DM on a campaign that has not been configured saw no
            trace of the feature and no way to find it. Point at the setting. -->
-      <RouterLink
+      <AppButton
         v-else-if="auth.isDM"
+        variant="subtle"
+        size="sm"
+        :icon="IconMusicNote"
+        label="Set up Spotify"
+        tooltip="Spotify needs a Client ID on this campaign before it can be connected"
         :to="{ name: 'campaign-settings', query: { tab: 'spotify' } }"
-        class="flex items-center gap-1.5 rounded-md border border-dashed border-border px-3 py-1.5 font-cinzel text-xs tracking-wide text-muted-foreground transition-colors hover:text-foreground"
-        title="Spotify needs a Client ID on this campaign before it can be connected"
-      >
-        <IconMusicNote class="h-3.5 w-3.5 shrink-0" />
-        Set up Spotify
-      </RouterLink>
+        class="border-dashed"
+      />
 
       <SoundboardWidgetToggle />
       <ListActionButton
         v-if="ui.soundboardViewMode === 'sounds'"
+        variant="primary"
         :icon="IconAdd"
         :label="soundQuota?.unlimited === false ? `Add Sound (${soundQuota.current}/${soundQuota.limit})` : 'Add Sound'"
-        variant="primary"
         @click="openAddSound()"
       />
       <!-- Same convention, same corner, whichever peer is showing. -->
       <ListActionButton
         v-else
+        variant="primary"
         :icon="IconAdd"
         :label="newPlaylistLabel"
-        variant="primary"
         @click="createPlaylistSignal++"
       />
     </template>
@@ -144,18 +139,17 @@
         />
       </div>
       <div class="flex w-fit shrink-0 gap-1 rounded-lg border border-border/50 bg-muted/40 p-1">
-        <button
+        <AppButton
           v-for="mode in VIEW_MODES"
           :key="mode.id"
-          class="flex items-center gap-1.5 rounded-md px-2.5 py-1 font-cinzel text-xs tracking-wide transition-colors"
-          :class="ui.soundboardViewMode === mode.id
-            ? 'bg-card shadow-sm text-foreground'
-            : 'text-muted-foreground hover:text-foreground'"
+          variant="ghost"
+          size="sm"
+          :icon="mode.icon"
+          :label="mode.label"
+          collapse-label-on-mobile
+          :active="ui.soundboardViewMode === mode.id"
           @click="ui.soundboardViewMode = mode.id"
-        >
-          <component :is="mode.icon" class="h-3.5 w-3.5 shrink-0" />
-          <span class="hidden sm:inline">{{ mode.label }}</span>
-        </button>
+        />
       </div>
     </div>
 
@@ -320,8 +314,10 @@ import { storeToRefs } from "pinia";
 import { useCampaignStore } from "@/stores/campaign";
 import type { Sound } from "@/types/sound.types";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
-import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
+import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
@@ -346,6 +342,8 @@ const BOARD_MODES = [
   { id: "arrange", label: "Arrange", hint: "Every control, for setting the board up" },
   { id: "perform", label: "Perform", hint: "Fire targets only, for running a session" },
 ] as const;
+
+const BOARD_MODE_OPTIONS = BOARD_MODES.map((b) => ({ value: b.id, label: b.label, tooltip: b.hint }));
 
 import SoundboardMixer from "@/components/soundboard/SoundboardMixer.vue";
 import SpotifyErrorBanner from "@/components/soundboard/SpotifyErrorBanner.vue";

@@ -16,7 +16,6 @@
   <PageHeader v-else :title="pageTitle" :description="pageDescription">
     <template v-if="!isNew" #actions>
       <PageHeaderAction
-        type="button"
         label="Back"
         :icon="IconChevronLeft"
         @click="router.push('/monsters')"
@@ -40,7 +39,6 @@
 
       <PageHeaderAction
         v-if="!isEditing"
-        type="button"
         label="Edit"
         :icon="IconEdit"
         @click="startEditing"

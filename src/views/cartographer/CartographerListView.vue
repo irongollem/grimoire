@@ -14,10 +14,10 @@
         @click="ui.resetCartographerFilters"
       />
       <ListActionButton
+        variant="primary"
         :icon="IconAdd"
         label="New Map"
         mobile-label="Map"
-        variant="primary"
         @click="router.push('/cartographer/new')"
       />
     </template>
@@ -86,13 +86,12 @@
         <IconNavCartographer class="h-16 w-16" />
       </template>
       <template #action>
-        <button
-          type="button"
-          class="bg-primary text-primary-foreground rounded-md px-4 py-2 font-cinzel text-sm tracking-wider hover:bg-primary/90 transition-colors"
+        <AppButton
+          variant="primary"
+          size="lg"
+          label="Create your first map"
           @click="router.push('/cartographer/new')"
-        >
-          Create your first map
-        </button>
+        />
       </template>
     </EmptyState>
   </PageHeader>
@@ -108,10 +107,11 @@ import { useUiStore } from "@/stores/ui";
 import type { DungeonMap } from "@/types/dungeonMap.types";
 
 import PageHeader from "@/components/common/PageHeader.vue";
+import ListActionButton from "@/components/common/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
-import ListActionButton from "@/components/common/ListActionButton.vue";
+import AppButton from "@/components/common/AppButton.vue";
 
 const router = useRouter();
 const ui = useUiStore();

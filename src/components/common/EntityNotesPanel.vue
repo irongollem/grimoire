@@ -18,16 +18,16 @@
             <span v-if="note.user_id !== myUserId" class="italic"> · from DM/party</span>
           </span>
           <template v-if="note.user_id === myUserId">
-            <button
-              type="button"
-              class="text-label text-muted-foreground hover:text-foreground transition-colors"
-              @click="startEdit(note)"
-            >Edit</button>
-            <button
-              type="button"
-              class="text-label text-destructive hover:opacity-70 transition-opacity"
+            <AppButton variant="ghost" size="inline-xs" label="Edit" @click="startEdit(note)" />
+            <!-- The `destructive` variant is the bordered one; this is a bare
+                 text action, so it borrows ghost and states the colour. -->
+            <AppButton
+              variant="ghost"
+              size="inline-xs"
+              label="Delete"
+              class="text-destructive hover:text-destructive/70"
               @click="deleteNote(note)"
-            >Delete</button>
+            />
           </template>
         </div>
 
@@ -39,8 +39,8 @@
               <input type="checkbox" v-model="editPrivate" class="rounded" />
               <span class="text-label text-muted-foreground">Private</span>
             </label>
-            <button type="button" class="ml-auto font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors" @click="cancelEdit">Cancel</button>
-            <button type="button" :disabled="saving" class="font-cinzel text-xs text-primary hover:opacity-80 transition-opacity disabled:opacity-50" @click="saveEdit(note)">Save</button>
+            <AppButton variant="ghost" size="inline" label="Cancel" class="ml-auto" @click="cancelEdit" />
+            <AppButton variant="link" size="inline" label="Save" :disabled="saving" @click="saveEdit(note)" />
           </div>
         </div>
         <!-- View mode -->
@@ -62,21 +62,23 @@
             <input type="checkbox" v-model="newPrivate" class="rounded" />
             <span class="text-label text-muted-foreground">Private (only you)</span>
           </label>
-          <button type="button" class="ml-auto font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors" @click="composing = false">Cancel</button>
-          <button type="button" :disabled="saving" class="font-cinzel text-xs text-primary hover:opacity-80 transition-opacity disabled:opacity-50" @click="create">Save</button>
+          <AppButton variant="ghost" size="inline" label="Cancel" class="ml-auto" @click="composing = false" />
+          <AppButton variant="link" size="inline" label="Save" :disabled="saving" @click="create" />
         </div>
       </div>
     </div>
 
-    <button
+    <!-- Dashed border marks this as an "add" affordance; the variants have no
+         dashed treatment, so it stays a call-site class. -->
+    <AppButton
       v-if="!composing"
-      type="button"
-      class="self-start inline-flex items-center gap-1.5 rounded-md border border-dashed border-border px-3 py-1.5 font-cinzel text-xs text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors"
+      variant="subtle"
+      size="sm"
+      label="Add note"
+      :icon="IconAdd"
+      class="self-start border-dashed hover:border-border/80"
       @click="composing = true"
-    >
-      <IconAdd class="h-3 w-3" />
-      Add note
-    </button>
+    />
   </div>
 </template>
 
@@ -91,6 +93,7 @@ import {
   useDeleteEntityNote,
 } from "@/composables/useEntityNotes";
 import type { EntityNote } from "@/types/faction.types";
+import AppButton from "@/components/common/AppButton.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 

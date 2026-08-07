@@ -32,10 +32,10 @@
         @click="ui.spellGeneratorOpen = true"
       />
       <ListActionButton
+        variant="primary"
         :icon="IconAdd"
         label="New Spell"
         mobile-label="Spell"
-        variant="primary"
         to="/spells/new"
       />
     </template>
@@ -86,8 +86,8 @@
 import { IconAdd, IconGenerate, IconLibrary } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
-import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
+import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterGroup from "@/components/common/ListFilterGroup.vue";
 import ListFilterSelect from "@/components/common/ListFilterSelect.vue";

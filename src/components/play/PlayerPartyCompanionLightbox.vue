@@ -50,18 +50,22 @@
             placeholder="HP"
             class="w-12 bg-card border border-border rounded px-1.5 py-0.5 text-caption text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
           />
-          <button
-            type="button"
-            class="px-1.5 py-0.5 rounded bg-red-500/10 border border-red-500/30 font-cinzel text-2xs font-semibold text-red-400 hover:bg-red-500/20 transition-colors"
-            title="Deal damage"
+          <AppButton
+            variant="tinted"
+            size="xs"
+            label="DMG"
+            tooltip="Deal damage"
+            class="border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20"
             @click="damage"
-          >DMG</button>
-          <button
-            type="button"
-            class="px-1.5 py-0.5 rounded bg-green-500/10 border border-green-500/30 font-cinzel text-2xs font-semibold text-green-400 hover:bg-green-500/20 transition-colors"
-            title="Heal"
+          />
+          <AppButton
+            variant="tinted"
+            size="xs"
+            label="HEAL"
+            tooltip="Heal"
+            class="border-green-500/30 bg-green-500/10 text-green-400 hover:bg-green-500/20"
             @click="heal"
-          >HEAL</button>
+          />
         </div>
       </div>
       <div class="rounded-md bg-muted p-2.5 flex items-center gap-2">
@@ -119,37 +123,25 @@
           <option value="">Pick condition…</option>
           <option v-for="c in availableConditions" :key="c" :value="c">{{ c }}</option>
         </select>
-        <button type="button" class="text-primary hover:opacity-80 font-cinzel text-xs px-2" @click="addCondition">Add</button>
-        <button type="button" class="text-muted-foreground hover:text-foreground font-cinzel text-xs px-1" @click="addingCondition = false; newCondition = ''">✕</button>
+        <AppButton variant="link" size="inline" label="Add" @click="addCondition" />
+        <AppButton variant="ghost" size="inline" label="✕" @click="addingCondition = false; newCondition = ''" />
       </div>
-      <button
+      <AppButton
         v-else
-        type="button"
-        class="px-1.5 py-0.5 rounded border border-dashed border-border font-cinzel text-2xs text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors"
+        variant="subtle"
+        size="xs"
+        class="border-dashed"
+        label="+ Condition"
         @click="addingCondition = true"
-      >+ Condition</button>
+      />
     </div>
 
     <PlayerNotesWidget v-if="companion" entity-type="companion" :entity-id="companion.id" placeholder="Your thoughts on this companion…" />
 
     <template v-if="isOwner" #footer>
       <div class="flex items-center justify-end gap-2 p-4 pt-0">
-        <button
-          type="button"
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
-          @click="handleEdit"
-        >
-          <IconEdit class="h-3.5 w-3.5" />
-          Edit
-        </button>
-        <button
-          type="button"
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-destructive/40 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
-          @click="handleDelete"
-        >
-          <IconClose class="h-3.5 w-3.5" />
-          Delete
-        </button>
+        <AppButton variant="subtle" size="sm" label="Edit" :icon="IconEdit" @click="handleEdit" />
+        <AppButton variant="destructive" size="sm" label="Delete" :icon="IconClose" @click="handleDelete" />
       </div>
     </template>
   </EntityLightbox>
@@ -158,6 +150,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { IconShield, IconEdit, IconClose } from "@/lib/icons";
+import AppButton from "@/components/common/AppButton.vue";
 import EntityLightbox from "@/components/common/EntityLightbox.vue";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 import ExhaustionChip from "@/components/common/ExhaustionChip.vue";

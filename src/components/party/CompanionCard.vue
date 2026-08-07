@@ -83,21 +83,20 @@
       </span>
 
       <!-- Combat-ready toggle: whether this companion auto-joins new encounters (#569) -->
-      <button
-        type="button"
+      <AppButton
+        variant="tinted"
+        size="xs"
         role="switch"
         :aria-checked="companion.combat_ready"
-        class="shrink-0 px-1.5 py-0.5 rounded font-cinzel text-2xs font-semibold border transition-colors"
-        :class="companion.combat_ready
-          ? 'bg-green-500/10 border-green-500/30 text-green-400 hover:bg-green-500/20'
-          : 'bg-muted border-border text-muted-foreground hover:bg-muted/70'"
-        :title="companion.combat_ready
+        :label="companion.combat_ready ? 'With Party' : 'Elsewhere'"
+        :tooltip="companion.combat_ready
           ? 'With the party — joins new encounters. Click to bench.'
           : 'Elsewhere — sits out new encounters. Click to bring back.'"
+        :class="companion.combat_ready
+          ? 'border border-green-500/30 bg-green-500/10 text-green-400 hover:bg-green-500/20'
+          : 'border border-border bg-muted text-muted-foreground hover:bg-muted/70'"
         @click="toggleCombatReady"
-      >
-        {{ companion.combat_ready ? "With Party" : "Elsewhere" }}
-      </button>
+      />
 
       <!-- Damage -->
       <div class="flex items-center gap-1 ml-auto">
@@ -108,22 +107,22 @@
           placeholder="HP"
           class="w-12 bg-muted border border-border rounded px-1.5 py-0.5 text-caption text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
         />
-        <button
-          type="button"
-          class="px-1.5 py-0.5 rounded bg-red-500/10 border border-red-500/30 font-cinzel text-2xs font-semibold text-red-400 hover:bg-red-500/20 transition-colors"
-          title="Deal damage"
+        <AppButton
+          variant="tinted"
+          size="xs"
+          label="DMG"
+          tooltip="Deal damage"
+          class="bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20"
           @click="damage"
-        >
-          DMG
-        </button>
-        <button
-          type="button"
-          class="px-1.5 py-0.5 rounded bg-green-500/10 border border-green-500/30 font-cinzel text-2xs font-semibold text-green-400 hover:bg-green-500/20 transition-colors"
-          title="Heal"
+        />
+        <AppButton
+          variant="tinted"
+          size="xs"
+          label="HEAL"
+          tooltip="Heal"
+          class="bg-green-500/10 border-green-500/30 text-green-400 hover:bg-green-500/20"
           @click="heal"
-        >
-          HEAL
-        </button>
+        />
       </div>
     </div>
 
@@ -143,14 +142,14 @@
         {{ cond }}
         <button type="button" class="leading-none hover:opacity-70" @click="removeCondition(cond)">×</button>
       </span>
-      <button
+      <AppButton
         v-if="!addingCondition"
-        type="button"
-        class="px-1.5 py-0.5 rounded border border-dashed border-border font-cinzel text-2xs text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors"
+        variant="subtle"
+        size="xs"
+        label="+ Condition"
+        class="border-dashed hover:border-border/80"
         @click="addingCondition = true"
-      >
-        + Condition
-      </button>
+      />
     </div>
 
     <!-- Add condition inline input -->
@@ -162,19 +161,19 @@
         <option value="">Pick condition…</option>
         <option v-for="c in availableConditions" :key="c" :value="c">{{ c }}</option>
       </select>
-      <button type="button" class="text-primary hover:opacity-80 font-cinzel text-xs px-2" @click="addCondition">Add</button>
-      <button type="button" class="text-muted-foreground hover:text-foreground font-cinzel text-xs px-1" @click="addingCondition = false; newCondition = ''">✕</button>
+      <AppButton variant="link" size="sm" label="Add" @click="addCondition" />
+      <AppButton variant="ghost" size="sm" label="✕" @click="addingCondition = false; newCondition = ''" />
     </div>
 
     <!-- Add condition button when no conditions yet -->
     <div v-else-if="!companion.conditions.length">
-      <button
-        type="button"
-        class="px-1.5 py-0.5 rounded border border-dashed border-border font-cinzel text-2xs text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors"
+      <AppButton
+        variant="subtle"
+        size="xs"
+        label="+ Condition"
+        class="border-dashed hover:border-border/80"
         @click="addingCondition = true"
-      >
-        + Condition
-      </button>
+      />
     </div>
   </div>
 </template>
@@ -182,6 +181,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { IconClose, IconEdit } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
 import { useUpdateCompanion } from "@/composables/useCompanions";
 import { useRuleset } from "@/composables/useRuleset";
 import {

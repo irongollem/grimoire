@@ -1,5 +1,5 @@
 import { type ClassValue, clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
+import { extendTailwindMerge } from "tailwind-merge";
 
 // ── Stat block helpers ─────────────────────────────────────────────────────────
 
@@ -27,6 +27,32 @@ export function skillsToRecord(s: string): Record<string, string> {
   });
   return rec;
 }
+
+/**
+ * The semantic typography roles from #552 (`@utility text-eyebrow` and friends in
+ * `src/assets/main.css`). tailwind-merge only knows Tailwind's own generated class
+ * names, so without registering these it treats `text-label-lg` as an unrelated
+ * class and happily emits `text-label-lg text-sm` — two competing font sizes, last
+ * one in the stylesheet wins. Registering them in the `font-size` group makes a
+ * call-site override actually replace the component's default.
+ *
+ * `text-eyebrow` also sets tracking and uppercase, but font-size is the property
+ * that conflicts; the other two are additive and need no group of their own.
+ */
+const TYPOGRAPHY_ROLE_CLASSES = [
+  "text-eyebrow", "text-label", "text-label-lg",
+  "text-heading-sm", "text-heading", "text-heading-lg",
+  "text-title", "text-display",
+  "text-body", "text-caption", "text-caption-sm",
+] as const;
+
+const twMerge = extendTailwindMerge({
+  extend: {
+    classGroups: {
+      "font-size": [...TYPOGRAPHY_ROLE_CLASSES],
+    },
+  },
+});
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));

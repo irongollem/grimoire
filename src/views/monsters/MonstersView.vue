@@ -33,10 +33,10 @@
         @click="ui.monsterGeneratorOpen = true"
       />
       <ListActionButton
+        variant="primary"
         :icon="IconAdd"
         label="New Monster"
         mobile-label="Monster"
-        variant="primary"
         @click="handleNew"
       />
     </template>
@@ -249,8 +249,8 @@ import {
   IconSearch, IconSettings,
 } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
-import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
+import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";

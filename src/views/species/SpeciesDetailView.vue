@@ -1,23 +1,21 @@
 <template>
   <PageHeader :title="pageTitle" :description="pageDescription">
     <template v-if="isNew || isEditing" #actions>
-      <button
+      <AppButton
         v-if="!isNew"
-        type="button"
-        class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-muted-foreground/50 transition-colors"
+        variant="subtle"
+        size="md"
+        label="Cancel"
         @click="onCancel"
-      >
-        Cancel
-      </button>
+      />
       <DetailActions :detail-ref="detailRef" :exists="!!species" />
     </template>
     <template v-else-if="isShared && species" #actions>
       <PageHeaderAction
-        type="button"
+        variant="primary"
         :disabled="cloning"
         :label="cloning ? 'Copying…' : 'Clone to customize'"
         :icon="IconCopy"
-        variant="primary"
         @click="onClone"
       />
     </template>
@@ -37,6 +35,7 @@ import { IconCopy } from '@/lib/icons';
 import { useSpecies, useIsLibrarySpecies, useCloneLibrarySpecies } from "@/composables/useSpecies";
 import PageHeader from "@/components/common/PageHeader.vue";
 import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import DetailActions from "@/components/common/DetailActions.vue";
 import SpeciesDetail from "@/components/species/SpeciesDetail.vue";

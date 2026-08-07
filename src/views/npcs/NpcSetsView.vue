@@ -10,10 +10,10 @@
     <template #actions>
       <ListActionButton :icon="IconChevronLeft" label="NPCs" to="/npcs" />
       <ListActionButton
+        variant="primary"
         :icon="IconAdd"
         label="New Set"
         mobile-label="Set"
-        variant="primary"
         @click="openCreate"
       />
     </template>
@@ -29,9 +29,7 @@
     >
       <template #icon><IconLayers class="h-16 w-16" /></template>
       <template #action>
-        <button type="button" class="empty-action" @click="openCreate">
-          Create your first set
-        </button>
+        <AppButton variant="primary" size="lg" label="Create your first set" @click="openCreate" />
       </template>
     </EmptyState>
 
@@ -61,8 +59,9 @@ import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import { IconAdd, IconChevronLeft, IconLayers } from "@/lib/icons";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
-import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
+import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import NpcSetCard from "@/components/npcs/NpcSetCard.vue";
@@ -139,8 +138,5 @@ function exportToForge(set: NpcSet) {
 .sets-grid {
   @apply grid gap-4;
   grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
-}
-.empty-action {
-  @apply inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-sm font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity;
 }
 </style>

@@ -36,22 +36,24 @@
       <!-- Add trigger form -->
       <div class="border-t border-border mt-1 pt-2 flex flex-col gap-2">
         <div class="grid grid-cols-2 gap-1.5">
-          <select
+          <AppSelect
             v-model="newTrigger.trigger_type"
-            class="bg-background border border-border rounded px-2 py-1 font-cinzel text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring col-span-2"
+            size="sm"
+            class="col-span-2"
             @change="newTrigger.objective_id = null"
           >
             <option value="quest_complete">When quest completes</option>
             <option value="objective_done">When objective is done</option>
-          </select>
-          <select
+          </AppSelect>
+          <AppSelect
             v-if="newTrigger.trigger_type === 'objective_done'"
             v-model="newTrigger.objective_id"
-            class="bg-background border border-border rounded px-2 py-1 font-cinzel text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring col-span-2"
+            size="sm"
+            class="col-span-2"
           >
             <option :value="null">— pick objective —</option>
             <option v-for="obj in objectives" :key="obj.id" :value="obj.id">{{ obj.description }}</option>
-          </select>
+          </AppSelect>
           <div class="flex items-center gap-1 col-span-2">
             <input
               v-model.number="newTrigger.offset_days"
@@ -61,25 +63,27 @@
             />
             <span class="text-caption text-muted-foreground">days later →</span>
           </div>
-          <select
+          <AppSelect
             v-model="newTrigger.action_type"
-            class="bg-background border border-border rounded px-2 py-1 font-cinzel text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring col-span-2"
+            size="sm"
+            class="col-span-2"
           >
             <option value="create_calendar_event">Create calendar event</option>
             <option value="send_broadcast">Send broadcast</option>
-          </select>
+          </AppSelect>
           <template v-if="newTrigger.action_type === 'create_calendar_event'">
             <input
               v-model="newTriggerCalTitle"
               placeholder="Event title…"
               class="bg-background border border-border rounded px-2 py-1 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring col-span-2"
             />
-            <select
+            <AppSelect
               v-model="newTriggerCalType"
-              class="bg-background border border-border rounded px-2 py-1 font-cinzel text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring col-span-2"
+              size="sm"
+              class="col-span-2"
             >
               <option v-for="t in CALENDAR_EVENT_TYPES" :key="t" :value="t">{{ t }}</option>
-            </select>
+            </AppSelect>
           </template>
           <template v-else>
             <input
@@ -89,15 +93,16 @@
             />
           </template>
         </div>
-        <button
-          type="button"
+        <AppButton
+          variant="tinted"
+          size="sm"
+          block
           :disabled="!canAddTrigger || adding"
-          class="w-full rounded-md border border-dashed border-border px-3 py-1.5 font-cinzel text-xs text-muted-foreground hover:text-primary hover:border-primary transition-colors disabled:opacity-40"
+          :icon="IconAdd"
+          :label="adding ? 'Adding…' : 'Add Consequence'"
+          class="border-dashed border-border text-muted-foreground hover:text-primary hover:border-primary"
           @click="addTrigger"
-        >
-          <IconAdd class="h-3 w-3 inline mr-1" />
-          {{ adding ? 'Adding…' : 'Add Consequence' }}
-        </button>
+        />
       </div>
     </div>
   </div>
@@ -108,6 +113,8 @@ import { ref, computed } from "vue";
 import { IconAdd, IconClose, IconLightning } from "@/lib/icons";
 import { useCreateQuestTrigger } from "@/composables/useQuests";
 import type { QuestObjective } from "@/types/quest.types";
+import AppSelect from "@/components/common/AppSelect.vue";
+import AppButton from "@/components/common/AppButton.vue";
 
 const CALENDAR_EVENT_TYPES = [
   "quest", "world", "campaign", "discovery", "deadline",

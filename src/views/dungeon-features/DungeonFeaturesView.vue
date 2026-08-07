@@ -8,10 +8,10 @@
         @click="handlePopulate"
       />
       <ListActionButton
+        variant="primary"
         :icon="IconAdd"
         label="New Feature"
         mobile-label="Feature"
-        variant="primary"
         @click="router.push('/dungeon-features/new')"
       />
     </template>
@@ -36,14 +36,14 @@
           <option value="">All Types</option>
           <option v-for="t in DUNGEON_FEATURE_TYPES" :key="t" :value="t">{{ t }}</option>
         </select>
-        <button
+        <AppButton
           v-if="ui.dungeonFeaturesHasActiveFilters"
-          type="button"
-          class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors shrink-0"
+          variant="tinted"
+          size="sm"
+          label="Clear"
+          class="border-border bg-card text-muted-foreground hover:text-foreground hover:border-foreground/40"
           @click="ui.resetDungeonFeaturesFilters()"
-        >
-          Clear
-        </button>
+        />
       </div>
 
       <p v-if="!filtered.length" class="text-center text-body text-muted-foreground italic py-8">
@@ -109,10 +109,11 @@ import { IconAdd, IconLoading, IconPopulate } from '@/lib/icons';
 import { useDungeonFeatures, usePopulateDungeonFeatures } from "@/composables/useDungeonFeatures";
 import { DUNGEON_FEATURE_TYPES, DUNGEON_FEATURE_TYPE_COLORS } from "@/types/dungeonFeature.types";
 import PageHeader from "@/components/common/PageHeader.vue";
+import ListActionButton from "@/components/common/ListActionButton.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
-import ListActionButton from "@/components/common/ListActionButton.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import { useUiStore } from "@/stores/ui";
 
 const router = useRouter();

@@ -4,23 +4,21 @@
     description="Design your custom class — features, proficiencies, and level progression"
   >
     <template v-if="isNew || isEditing" #actions>
-      <button
+      <AppButton
         v-if="!isNew"
-        type="button"
-        class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-muted-foreground/50 transition-colors"
+        variant="subtle"
+        size="md"
+        label="Cancel"
         @click="onCancel"
-      >
-        Cancel
-      </button>
-      <button
+      />
+      <AppButton
         v-if="!isNew"
-        type="button"
-        class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
+        variant="destructive"
+        size="md"
+        label="Delete"
+        :icon="IconDelete"
         @click="remove"
-      >
-        <IconDelete class="h-3.5 w-3.5" />
-        Delete
-      </button>
+      />
       <button
         type="button"
         :disabled="saving || !canSave"
@@ -126,22 +124,18 @@
         </div>
 
         <div class="flex items-center gap-2">
-          <select
-            v-model="addAsiLevel"
-            class="bg-card border border-border rounded-md px-2 py-1.5 font-cinzel text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          >
+          <AppSelect v-model="addAsiLevel" size="sm">
             <option value="" disabled>Level…</option>
             <option v-for="n in 20" :key="n" :value="n" :disabled="form.asi_levels.includes(n)">{{ n }}</option>
-          </select>
-          <button
-            type="button"
+          </AppSelect>
+          <AppButton
+            variant="outline"
+            size="sm"
+            label="Add Ability Score Increase level"
+            :icon="IconAdd"
             :disabled="!addAsiLevel"
-            class="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 font-cinzel text-xs text-foreground hover:bg-muted/40 transition-colors disabled:opacity-40"
             @click="addAsi"
-          >
-            <IconAdd class="h-3 w-3" />
-            Add Ability Score Increase level
-          </button>
+          />
         </div>
       </section>
 
@@ -185,6 +179,8 @@
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import PageHeader from "@/components/common/PageHeader.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import { IconAdd, IconDelete, IconSave } from '@/lib/icons';
 import { useCustomClass, useCreateCustomClass, useUpdateCustomClass, useDeleteCustomClass } from "@/composables/useCustomClasses";
 import CustomClassSheet from "@/components/levelup/CustomClassSheet.vue";

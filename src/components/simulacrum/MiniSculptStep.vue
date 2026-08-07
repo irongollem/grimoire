@@ -41,13 +41,7 @@
         </p>
       </div>
       <div class="flex justify-start pt-2 border-t border-border">
-        <button
-          type="button"
-          class="px-4 py-2 font-cinzel text-xs font-semibold text-muted-foreground border border-border rounded-md hover:text-foreground transition-colors"
-          @click="emit('back')"
-        >
-          ← Back to stylize
-        </button>
+        <AppButton variant="subtle" size="md" label="← Back to stylize" @click="emit('back')" />
       </div>
     </template>
 
@@ -109,30 +103,17 @@
       </div>
 
       <div class="flex flex-wrap items-center justify-center gap-2 pt-2">
-        <button
-          type="button"
-          class="px-4 py-2 font-cinzel text-xs font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity"
-          @click="accept"
-        >
-          Accept
-        </button>
-        <button
-          type="button"
+        <AppButton variant="primary" size="md" label="Accept" @click="accept" />
+        <AppButton
+          variant="subtle"
+          size="md"
+          :label="`Re-sculpt (${resculptsLeft} left) · free`"
           :disabled="resculptsLeft <= 0"
-          class="px-4 py-2 font-cinzel text-xs font-semibold border border-border rounded-md hover:text-foreground text-muted-foreground disabled:opacity-40 transition-colors"
           @click="runResculpt"
-        >
-          Re-sculpt ({{ resculptsLeft }} left) · free
-        </button>
+        />
       </div>
       <div class="flex justify-start pt-2 border-t border-border">
-        <button
-          type="button"
-          class="px-4 py-2 font-cinzel text-xs font-semibold text-muted-foreground border border-border rounded-md hover:text-foreground transition-colors"
-          @click="emit('back')"
-        >
-          ← Back to stylize (paid tweak)
-        </button>
+        <AppButton variant="subtle" size="md" label="← Back to stylize (paid tweak)" @click="emit('back')" />
       </div>
     </template>
 
@@ -141,13 +122,12 @@
       <div class="flex flex-col items-center gap-3 py-6 text-center">
         <IconWarning class="h-6 w-6 text-destructive" />
         <p class="text-body text-destructive">{{ mini.error ?? 'The sculpt failed.' }}</p>
-        <button
-          type="button"
-          class="px-4 py-2 font-cinzel text-xs font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity"
+        <AppButton
+          variant="primary"
+          size="md"
+          :label="mini.sculpt_count === 0 ? 'Try again' : 'Re-sculpt (free)'"
           @click="retry"
-        >
-          {{ mini.sculpt_count === 0 ? 'Try again' : 'Re-sculpt (free)' }}
-        </button>
+        />
       </div>
     </template>
 
@@ -159,6 +139,7 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { IconLoading, IconWarning } from "@/lib/icons";
+import AppButton from "@/components/common/AppButton.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import MiniModelViewer from "@/components/simulacrum/MiniModelViewer.vue";
 import { useAiCredits } from "@/composables/useAiCredits";

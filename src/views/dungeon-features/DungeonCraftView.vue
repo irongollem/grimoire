@@ -14,10 +14,10 @@
           @click="handleFeaturesPopulate"
         />
         <ListActionButton
+          variant="primary"
           :icon="IconAdd"
           label="New Feature"
           mobile-label="Feature"
-          variant="primary"
           @click="router.push('/dungeon-features/new')"
         />
       </template>
@@ -36,10 +36,10 @@
           @click="ui.trapGeneratorOpen = true"
         />
         <ListActionButton
+          variant="primary"
           :icon="IconAdd"
           label="New Trap"
           mobile-label="Trap"
-          variant="primary"
           @click="router.push('/traps/new')"
         />
       </template>
@@ -59,17 +59,18 @@
             @click="ui.rollTableGeneratorOpen = true"
           />
           <ListActionButton
+            variant="primary"
             :icon="IconAdd"
             label="New Roll Table"
             mobile-label="Roll Table"
-            variant="primary"
             @click="rollTablesTabRef?.closeInlineRollTable(); rollTablesTabRef && (rollTablesTabRef.inlineNewRollTable = true)"
           />
         </template>
-        <ListActionButton
+        <AppButton
           v-else
+          size="md"
+          variant="outline"
           label="← All Tables"
-          :collapse-on-mobile="false"
           @click="rollTablesTabRef?.closeInlineRollTable()"
         />
       </template>
@@ -82,10 +83,10 @@
           @click="ui.lootTableGeneratorOpen = true"
         />
         <ListActionButton
+          variant="primary"
           :icon="IconAdd"
           label="New Loot Table"
           mobile-label="Loot Table"
-          variant="primary"
           @click="router.push('/loot-tables/new')"
         />
       </template>
@@ -93,10 +94,10 @@
       <!-- Cartographer tab actions -->
       <template v-else-if="activeTab === 'cartographer'">
         <ListActionButton
+          variant="primary"
           :icon="IconAdd"
           label="New Map"
           mobile-label="Map"
-          variant="primary"
           @click="router.push('/cartographer/new')"
         />
       </template>
@@ -115,10 +116,10 @@
           @click="ui.puzzleGeneratorOpen = true"
         />
         <ListActionButton
+          variant="primary"
           :icon="IconAdd"
           label="New Puzzle"
           mobile-label="Puzzle"
-          variant="primary"
           @click="router.push('/puzzles/new')"
         />
       </template>
@@ -149,8 +150,9 @@ import { usePopulateRollTables } from "@/composables/useRollTables";
 
 import { useUiStore } from "@/stores/ui";
 import PageHeader from "@/components/common/PageHeader.vue";
-import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
+import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import TabBar from "@/components/common/TabBar.vue";
 
 import DungeonCraftFeaturesTab from "@/components/dungeon-features/DungeonCraftFeaturesTab.vue";
