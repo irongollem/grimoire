@@ -161,7 +161,7 @@ async function main(): Promise<void> {
 
   const sha256 = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 
-  await pooled(objects, options.concurrency, async (entry) => {
+  const handleEntry = async (entry: StorageEntry): Promise<void> => {
     const key = r2ObjectKey(options.bucket, entry.path);
     const existing = await headObject(r2, key);
 
@@ -225,6 +225,21 @@ async function main(): Promise<void> {
       if (copied % 100 === 0) console.log(`  ${copied} copied…`);
     } catch (err) {
       problems.push(`upload failed ${key}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
+  // The ENTIRE body is fenced: download/upload failures were always recorded
+  // per object, but a flaked HEAD or deep-verify fetch threw straight through
+  // the pool and killed the whole run — over an unreliable connection, with
+  // thousands of objects, one ECONNRESET is a statistical certainty. A
+  // network blip is a problem row and a re-run, never a crash.
+  await pooled(objects, options.concurrency, async (entry) => {
+    try {
+      await handleEntry(entry);
+    } catch (err) {
+      problems.push(
+        `unexpected failure ${entry.path}: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   });
 

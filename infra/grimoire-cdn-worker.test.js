@@ -279,7 +279,7 @@ describe("edge cache", () => {
   it("never caches Range responses or HEADs", async () => {
     const env = {
       ASSETS: fakeBucket({
-        "sounds/u1/a.ogg": (options) =>
+        "sounds/u1/a.ogg": (_options) =>
           r2Object({ key: "sounds/u1/a.ogg", body: "part", size: 100, contentType: "audio/ogg", range: { offset: 0, length: 4 } }),
       }),
     };
