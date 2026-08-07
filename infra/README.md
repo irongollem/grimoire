@@ -221,79 +221,79 @@ Ordered smallest/least painful first, so any surprise surfaces cheaply;
   npm run r2:copy -- --bucket pantheon-emblems && npm run r2:copy -- --bucket pantheon-emblems --verify --deep && echo "done: pantheon-emblems"
   ```
 
-- [ ] `loot-images`
+- [x] `loot-images` — done 7 Aug 2026 (empty, `--verify --deep` clean)
 
   ```bash
   npm run r2:copy -- --bucket loot-images && npm run r2:copy -- --bucket loot-images --verify --deep && echo "done: loot-images"
   ```
 
-- [ ] `puzzle-images`
+- [x] `puzzle-images` — done 7 Aug 2026 (empty, `--verify --deep` clean)
 
   ```bash
   npm run r2:copy -- --bucket puzzle-images && npm run r2:copy -- --bucket puzzle-images --verify --deep && echo "done: puzzle-images"
   ```
 
-- [ ] `trap-images`
+- [x] `trap-images` — done 7 Aug 2026 (80 objects, `--verify --deep` clean)
 
   ```bash
   npm run r2:copy -- --bucket trap-images && npm run r2:copy -- --bucket trap-images --verify --deep && echo "done: trap-images"
   ```
 
-- [ ] `faction-images`
+- [x] `faction-images` — done 7 Aug 2026 (5 objects, `--verify --deep` clean)
 
   ```bash
   npm run r2:copy -- --bucket faction-images && npm run r2:copy -- --bucket faction-images --verify --deep && echo "done: faction-images"
   ```
 
-- [ ] `spell-images`
+- [x] `spell-images` — done 7 Aug 2026 (109 objects, `--verify --deep` clean)
 
   ```bash
   npm run r2:copy -- --bucket spell-images && npm run r2:copy -- --bucket spell-images --verify --deep && echo "done: spell-images"
   ```
 
-- [ ] `item-images`
+- [x] `item-images` — done 7 Aug 2026 (25 objects, `--verify --deep` clean)
 
   ```bash
   npm run r2:copy -- --bucket item-images && npm run r2:copy -- --bucket item-images --verify --deep && echo "done: item-images"
   ```
 
-- [ ] `npc-portraits`
+- [x] `npc-portraits` — done 7 Aug 2026 (2,858 objects, `--verify --deep` clean)
 
   ```bash
   npm run r2:copy -- --bucket npc-portraits && npm run r2:copy -- --bucket npc-portraits --verify --deep && echo "done: npc-portraits"
   ```
 
-- [ ] `location-images`
+- [x] `location-images` — done 7 Aug 2026 (203 objects, `--verify --deep` clean)
 
   ```bash
   npm run r2:copy -- --bucket location-images && npm run r2:copy -- --bucket location-images --verify --deep && echo "done: location-images"
   ```
 
-- [ ] `monster-images`
+- [x] `monster-images` — done 7 Aug 2026 (1,638 objects, `--verify --deep` clean)
 
   ```bash
   npm run r2:copy -- --bucket monster-images && npm run r2:copy -- --bucket monster-images --verify --deep && echo "done: monster-images"
   ```
 
-- [ ] `asset-images`
+- [x] `asset-images` — done 7 Aug 2026 (3,261 objects, `--verify --deep` clean)
 
   ```bash
   npm run r2:copy -- --bucket asset-images && npm run r2:copy -- --bucket asset-images --verify --deep && echo "done: asset-images"
   ```
 
-- [ ] `chronicle`
+- [x] `chronicle` — done 7 Aug 2026 (116 objects, `--verify --deep` clean)
 
   ```bash
   npm run r2:copy -- --bucket chronicle && npm run r2:copy -- --bucket chronicle --verify --deep && echo "done: chronicle"
   ```
 
-- [ ] `sounds` — largest (~180 MB); run it when the copy can sit undisturbed for a while
+- [x] `sounds` — done 7 Aug 2026 (853 objects, `--verify --deep` clean) — largest (~180 MB); run it when the copy can sit undisturbed for a while
 
   ```bash
   npm run r2:copy -- --bucket sounds && npm run r2:copy -- --bucket sounds --verify --deep && echo "done: sounds"
   ```
 
-- [ ] `mini-models` — the `bases/` plinths (see the ingest note above)
+- [x] `mini-models` — done 7 Aug 2026 (4 objects (bases), `--verify --deep` clean) — the `bases/` plinths (see the ingest note above)
 
   ```bash
   npm run r2:copy -- --bucket mini-models && npm run r2:copy -- --bucket mini-models --verify --deep && echo "done: mini-models"
