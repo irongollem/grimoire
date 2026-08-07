@@ -7,8 +7,13 @@
         v-model="query"
         type="text"
         :placeholder="selectedLabel || placeholder"
-        class="w-full bg-card border border-border rounded-md px-3 py-1.5 pr-14 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        :class="selectedLabel && !query ? 'placeholder:text-foreground' : ''"
+        :class="cn(
+          fieldVariants({ tone: 'card', size: 'body', control: 'input' }),
+          // pr-14 clears the overlaid clear button and chevron; w-full is the
+          // caller's layout. Everything else is the shared field recipe.
+          'w-full pr-14',
+          selectedLabel && !query ? 'placeholder:text-foreground' : '',
+        )"
         @focus="onFocus"
         @click="onFocus"
         @input="open = true"
@@ -54,6 +59,8 @@
 
 <script setup lang="ts" generic="T extends { id: string; name: string }">
 import { ref, computed, watch, nextTick, onUnmounted } from "vue";
+import { cn } from "@/lib/utils";
+import { fieldVariants } from "./fieldVariants";
 import { IconChevronDown } from '@/lib/icons';
 
 const selectedId = defineModel<string>({ required: true });

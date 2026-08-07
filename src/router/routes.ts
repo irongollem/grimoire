@@ -856,10 +856,11 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, requiresAdmin: true, title: "Admin" },
   },
 
-  // Dev-only: Paged.js spike harness for the Scriptorium re-architecture
-  // Phase B go/no-go (SCRIPTORIUM_PLAN.md §3 / issue #330). Not registered
-  // in production builds.
-  ...(import.meta.env.DEV
+  // Dev-only: the Paged.js spike harness (SCRIPTORIUM_PLAN.md §3 / issue #330),
+  // sheet calibration, and the component catalogue (#622). Registered in dev and
+  // in Vercel preview builds — so a PR's preview can be used to review them — but
+  // never in production.
+  ...(import.meta.env.DEV || __PREVIEW_BUILD__
     ? [
         {
           path: "/spike/pagedjs",

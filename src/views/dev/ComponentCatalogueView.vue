@@ -120,10 +120,10 @@
 
     <CatalogueSection
       title="AppSelect"
-      note="Native picker with appearance:none — the caret is drawn by the base rule in main.css and follows the theme. Opening one still gives the OS menu, which is the point on mobile."
+      note="Shares fieldVariants with AppInput. Native picker with appearance:none — the caret is drawn by the base rule in main.css and follows the theme. Opening one still gives the OS menu, which is the point on mobile."
     >
       <div class="flex flex-wrap items-end gap-3">
-        <label v-for="size in SELECT_SIZES" :key="size" class="flex flex-col gap-1">
+        <label v-for="size in FIELD_SIZES" :key="size" class="flex flex-col gap-1">
           <span class="text-eyebrow font-semibold text-muted-foreground">{{ size }}</span>
           <AppSelect v-model="selectValue" :size="size" :aria-label="`Select ${size}`">
             <option value="a">Created</option>
@@ -140,11 +140,11 @@
       </div>
     </CatalogueSection>
 
-    <CatalogueSection title="AppInput" note="size × tone, plus centre alignment for numeric steppers.">
+    <CatalogueSection title="AppInput" note="size × tone from fieldVariants — the same recipe AppSelect and EntityCombobox use. An input and a select at the same size must line up; the day/month/year row on the Dashboard is the case that matters.">
       <div class="flex flex-col gap-3">
-        <div v-for="tone in INPUT_TONES" :key="tone" class="flex flex-wrap items-end gap-3">
+        <div v-for="tone in FIELD_TONES" :key="tone" class="flex flex-wrap items-end gap-3">
           <span class="text-label text-muted-foreground w-16 shrink-0 self-center">{{ tone }}</span>
-          <label v-for="size in INPUT_SIZES" :key="size" class="flex flex-col gap-1">
+          <label v-for="size in FIELD_SIZES" :key="size" class="flex flex-col gap-1">
             <span class="text-eyebrow font-semibold text-muted-foreground">{{ size }}</span>
             <AppInput
               v-model="inputValue"
@@ -191,6 +191,7 @@ import {
   BUTTON_SIZES,
   type ButtonSize,
 } from "@/components/common/appButtonVariants";
+import { FIELD_SIZES, FIELD_TONES } from "@/components/common/fieldVariants";
 
 const SEGMENT_OPTIONS = [
   { value: "url", label: "URL" },
@@ -210,9 +211,6 @@ const MANY_OPTIONS = Array.from({ length: 9 }, (_, i) => ({
 
 const isIconSize = (size: ButtonSize) => size.startsWith("icon-");
 
-const SELECT_SIZES = ["xs", "sm", "md", "lg"] as const;
-const INPUT_SIZES = ["xs", "sm", "md", "lg"] as const;
-const INPUT_TONES = ["default", "muted", "bare"] as const;
 
 const segment = ref<string>("url");
 const emptyable = ref<string>("campaign");
