@@ -19,17 +19,14 @@
 
       <!-- The mixer drawer toggle — same idea as the chat toggle. -->
       <AppButton
-        variant="tinted"
+        :variant="ui.soundboardMixerOpen ? 'tinted' : 'subtle'"
+        tone="primary"
+        emphasis="soft"
         size="sm"
         :icon="IconMixer"
         label="Mixer"
         :tooltip="ui.soundboardMixerOpen ? 'Close the mixer' : 'Open the mixer'"
-        :class="[
-          'hidden lg:flex',
-          ui.soundboardMixerOpen
-            ? 'border-gold-500/40 bg-gold-500/10 text-gold-400'
-            : 'border-border text-muted-foreground hover:text-foreground',
-        ]"
+        class="hidden lg:flex"
         @click="ui.soundboardMixerOpen = !ui.soundboardMixerOpen"
       />
 
@@ -37,16 +34,13 @@
       <template v-if="spotifyStore.isEnabled">
         <AppButton
           v-if="spotifyStore.isConnected"
-          variant="tinted"
+          :variant="spotifyStore.isReady ? 'tinted' : 'subtle'"
+          tone="success"
+          emphasis="outline"
           size="sm"
           :icon="IconMusicNote"
           :label="spotifyStore.isReady ? 'Spotify' : 'Connecting…'"
           :tooltip="spotifyStore.isReady ? 'Spotify connected — click to disconnect' : 'Connecting to Spotify…'"
-          :class="
-            spotifyStore.isReady
-              ? 'border-green-500/40 text-green-400 hover:text-green-300 hover:border-green-500/60'
-              : 'border-border text-muted-foreground'
-          "
           @click="spotifyStore.isReady ? spotifyStore.disconnect() : undefined"
         />
         <AppButton

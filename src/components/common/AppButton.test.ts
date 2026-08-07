@@ -3,7 +3,7 @@ import { mount } from "@vue/test-utils";
 import { h } from "vue";
 import { RouterLinkStub } from "@vue/test-utils";
 import AppButton from "./AppButton.vue";
-import { buttonVariants } from "./appButtonVariants";
+import { buttonVariants, BUTTON_TONES, BUTTON_EMPHASES } from "./appButtonVariants";
 
 const global = { stubs: { RouterLink: RouterLinkStub } };
 
@@ -193,5 +193,42 @@ describe("AppButton", () => {
       global,
     });
     expect(w.attributes("aria-label")).toBe("Switch to list view");
+  });
+});
+
+describe("tinted tones (#623)", () => {
+  // The whole point of naming these semantically: the colour is one indirection
+  // away, so a future theme repaints every damage/heal/arcane control by
+  // reassigning `--tone-*` rather than editing 35 call sites.
+  it("resolves every tone through a --color-tone-* token, never a raw hue", () => {
+    for (const tone of BUTTON_TONES) {
+      for (const emphasis of BUTTON_EMPHASES) {
+        const cls = buttonVariants({ variant: "tinted", tone, emphasis });
+        expect(cls, `${tone}/${emphasis}`).toContain(`tone-${tone}`);
+        // No Tailwind palette hue may leak in — that would pin the colour.
+        expect(cls, `${tone}/${emphasis}`).not.toMatch(
+          /\b(?:bg|border|text)-(?:red|green|blue|sky|violet|amber|emerald|rose|gold)-\d{3}/,
+        );
+      }
+    }
+  });
+
+  it("gives each emphasis a distinct weight of the same tone", () => {
+    const soft = buttonVariants({ variant: "tinted", tone: "danger", emphasis: "soft" });
+    const strong = buttonVariants({ variant: "tinted", tone: "danger", emphasis: "strong" });
+    const outline = buttonVariants({ variant: "tinted", tone: "danger", emphasis: "outline" });
+
+    expect(soft).toContain("bg-tone-danger/10");
+    expect(soft).toContain("hover:bg-tone-danger/20");
+    expect(strong).toContain("bg-tone-danger/25");
+    // `outline` is transparent until hovered — that is what separates it from soft.
+    expect(outline).not.toMatch(/(?<!hover:)bg-tone-danger/);
+    expect(outline).toContain("hover:bg-tone-danger/10");
+  });
+
+  it("leaves non-tinted variants untouched by tone", () => {
+    const a = buttonVariants({ variant: "subtle", tone: "danger", emphasis: "strong" });
+    const b = buttonVariants({ variant: "subtle" });
+    expect(a).toBe(b);
   });
 });

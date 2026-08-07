@@ -76,11 +76,11 @@
           </div>
           <AppButton
             v-if="!tracker"
-            variant="tinted"
+            variant="subtle"
             size="sm"
             :icon="IconAdd"
             label="Add Tracker"
-            class="border-dashed border-border text-muted-foreground hover:text-foreground hover:border-primary/50"
+            class="border-dashed"
             @click="addTracker"
           />
           <button

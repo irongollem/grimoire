@@ -262,12 +262,13 @@
           <div v-if="!isNew" class="border-t border-border pt-3 flex flex-col gap-2">
             <AppButton
               variant="tinted"
+              tone="primary"
+              emphasis="outline"
               size="md"
               :disabled="!form.entries.length || entriesError !== null"
               :tooltip="entriesError ?? 'Roll the table and post a chest in chat'"
               :icon="IconPackageOpen"
               label="Drop chest in chat"
-              class="border-primary/40 text-primary hover:bg-primary/10"
               @click="dropDialogOpen = true"
             />
           </div>

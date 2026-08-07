@@ -136,14 +136,16 @@
               variant="tinted"
               size="sm"
               label="Heal"
-              class="bg-green-500/10 border-green-500/30 text-green-500 hover:bg-green-500/20"
+              tone="success"
+              emphasis="soft"
               @click="heal"
             />
             <AppButton
               variant="tinted"
               size="sm"
               label="+Temp"
-              class="bg-blue-500/10 border-blue-500/30 text-blue-400 hover:bg-blue-500/20"
+              tone="info"
+              emphasis="soft"
               @click="addTemp"
             />
           </div>

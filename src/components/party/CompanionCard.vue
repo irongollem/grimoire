@@ -82,19 +82,22 @@
         {{ companion.speed }} ft
       </span>
 
-      <!-- Combat-ready toggle: whether this companion auto-joins new encounters (#569) -->
+      <!-- Combat-ready toggle: whether this companion auto-joins new encounters (#569).
+           Off state is `chip` (filled, muted) rather than `subtle`, which is what it
+           looked like before; `chip` draws no border, so the explicit one below keeps
+           the button from shifting a pixel as it flips. -->
       <AppButton
-        variant="tinted"
+        :variant="companion.combat_ready ? 'tinted' : 'chip'"
         size="xs"
         role="switch"
         :aria-checked="companion.combat_ready"
+        tone="success"
+        emphasis="soft"
         :label="companion.combat_ready ? 'With Party' : 'Elsewhere'"
         :tooltip="companion.combat_ready
           ? 'With the party — joins new encounters. Click to bench.'
           : 'Elsewhere — sits out new encounters. Click to bring back.'"
-        :class="companion.combat_ready
-          ? 'border border-green-500/30 bg-green-500/10 text-green-400 hover:bg-green-500/20'
-          : 'border border-border bg-muted text-muted-foreground hover:bg-muted/70'"
+        class="border border-border"
         @click="toggleCombatReady"
       />
 
@@ -112,7 +115,8 @@
           size="xs"
           label="DMG"
           tooltip="Deal damage"
-          class="bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20"
+          tone="danger"
+          emphasis="soft"
           @click="damage"
         />
         <AppButton
@@ -120,7 +124,8 @@
           size="xs"
           label="HEAL"
           tooltip="Heal"
-          class="bg-green-500/10 border-green-500/30 text-green-400 hover:bg-green-500/20"
+          tone="success"
+          emphasis="soft"
           @click="heal"
         />
       </div>

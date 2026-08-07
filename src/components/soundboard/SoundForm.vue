@@ -46,28 +46,23 @@
       <label class="text-caption text-muted-foreground">Audio Source</label>
       <div class="flex gap-2 flex-wrap">
         <AppButton
-          variant="tinted"
+          :variant="activeSourceTab === 'url' ? 'tinted' : 'subtle'"
+          tone="primary"
+          emphasis="strong"
           size="sm"
           label="URL"
-          :class="[
-            'flex-1',
-            activeSourceTab === 'url'
-              ? 'bg-gold-500/20 border-gold-500/60 text-gold-300'
-              : 'border-border text-muted-foreground hover:text-foreground',
-          ]"
+          class="flex-1"
           @click="activeSourceTab = 'url'"
         />
         <AppButton
-          variant="tinted"
+          :variant="activeSourceTab === 'upload' ? 'tinted' : 'subtle'"
+          tone="primary"
+          emphasis="strong"
           size="sm"
           :tooltip="isPro ? undefined : 'Pro feature — upgrade to upload your own audio files'"
           :class="[
             'flex-1 relative',
-            activeSourceTab === 'upload'
-              ? 'bg-gold-500/20 border-gold-500/60 text-gold-300'
-              : isPro
-                ? 'border-border text-muted-foreground hover:text-foreground'
-                : 'border-border text-muted-foreground/40 cursor-not-allowed',
+            activeSourceTab !== 'upload' && !isPro ? 'text-muted-foreground/40 cursor-not-allowed' : '',
           ]"
           @click="isPro ? onUploadTabClick() : undefined"
         >
@@ -76,29 +71,24 @@
         </AppButton>
         <AppButton
           v-if="spotifyStore.isEnabled"
-          variant="tinted"
+          :variant="activeSourceTab === 'spotify' ? 'tinted' : 'subtle'"
+          tone="success"
+          emphasis="strong"
           size="sm"
           label="Spotify"
-          :class="[
-            'flex-1',
-            activeSourceTab === 'spotify'
-              ? 'bg-green-500/20 border-green-500/60 text-green-400'
-              : 'border-border text-muted-foreground hover:text-foreground',
-          ]"
+          class="flex-1"
           @click="activeSourceTab = 'spotify'"
         />
         <AppButton
           v-if="geminiApiKey || campaignId"
-          variant="tinted"
+          :variant="activeSourceTab === 'generate' ? 'tinted' : 'subtle'"
+          tone="arcane"
+          emphasis="strong"
           size="sm"
           :tooltip="isPro ? undefined : 'Pro feature — upgrade to generate AI music'"
           :class="[
             'flex-1 relative',
-            activeSourceTab === 'generate'
-              ? 'bg-violet-500/20 border-violet-500/60 text-violet-300'
-              : isPro
-                ? 'border-border text-muted-foreground hover:text-foreground'
-                : 'border-border text-muted-foreground/40 cursor-not-allowed',
+            activeSourceTab !== 'generate' && !isPro ? 'text-muted-foreground/40 cursor-not-allowed' : '',
           ]"
           @click="isPro ? (activeSourceTab = 'generate') : undefined"
         >
@@ -106,14 +96,11 @@
           <span v-if="!isPro" class="absolute -top-1.5 -right-1.5 px-1 rounded text-2xs font-cinzel bg-amber-500 text-black leading-4">PRO</span>
         </AppButton>
         <AppButton
-          variant="tinted"
+          :variant="activeSourceTab === 'browse' ? 'tinted' : 'subtle'"
+          tone="info"
+          emphasis="strong"
           size="sm"
-          :class="[
-            'flex-1',
-            activeSourceTab === 'browse'
-              ? 'bg-sky-500/20 border-sky-500/60 text-sky-300'
-              : 'border-border text-muted-foreground hover:text-foreground',
-          ]"
+          class="flex-1"
           @click="activeSourceTab = 'browse'"
         >
           <!-- Not "Browse SFX" any more: this tab now leads with our own
@@ -194,14 +181,11 @@
             <AppButton
               v-for="m in LYRIA_MODELS"
               :key="m.id"
-              variant="tinted"
+              :variant="generateModel === m.id ? 'tinted' : 'subtle'"
+              tone="arcane"
+              emphasis="strong"
               size="sm"
-              :class="[
-                'flex-1 flex-col',
-                generateModel === m.id
-                  ? 'bg-violet-500/20 border-violet-500/60 text-violet-300'
-                  : 'border-border text-muted-foreground hover:text-foreground',
-              ]"
+              class="flex-1 flex-col"
               @click="generateModel = m.id"
             >
               <span>{{ m.label }}</span>
@@ -278,14 +262,11 @@
         v-if="activeSourceTab !== 'browse'"
         type="submit"
         variant="tinted"
+        :tone="activeSourceTab === 'generate' ? 'arcane' : 'primary'"
+        emphasis="strong"
         size="sm"
         :label="submitLabel"
         :disabled="submitDisabled"
-        :class="
-          activeSourceTab === 'generate'
-            ? 'bg-violet-500/20 border-violet-500/40 text-violet-300 hover:bg-violet-500/30'
-            : 'bg-gold-500/20 border-gold-500/40 text-gold-300 hover:bg-gold-500/30'
-        "
       />
     </div>
   </form>

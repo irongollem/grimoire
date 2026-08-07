@@ -78,6 +78,32 @@
     </CatalogueSection>
 
     <CatalogueSection
+      title="AppButton — tinted tone × emphasis"
+      note="Semantic tones, not hues: each resolves through a --color-tone-* custom property, so a future theme repaints every damage/heal/arcane control by reassigning six variables. Replaces 35 hand-written opacity ladders that had drifted into 14 different class shapes."
+    >
+      <table class="border-separate border-spacing-3">
+        <thead>
+          <tr>
+            <th class="text-eyebrow font-semibold text-muted-foreground text-left">tone</th>
+            <th
+              v-for="emphasis in BUTTON_EMPHASES"
+              :key="emphasis"
+              class="text-eyebrow font-semibold text-muted-foreground text-left"
+            >{{ emphasis }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="tone in BUTTON_TONES" :key="tone">
+            <th class="text-label font-semibold text-foreground text-left">{{ tone }}</th>
+            <td v-for="emphasis in BUTTON_EMPHASES" :key="emphasis">
+              <AppButton variant="tinted" :tone="tone" :emphasis="emphasis" :label="tone" />
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </CatalogueSection>
+
+    <CatalogueSection
       title="AppButton — label collapse"
       note="Resize the window across the sm (40rem) and lg (64rem) breakpoints. This is the behaviour that has regressed twice: a label that should stay visible silently disappearing, or an inline link gaining a box."
     >
@@ -189,6 +215,8 @@ import CatalogueSection from "./CatalogueSection.vue";
 import {
   BUTTON_VARIANTS,
   BUTTON_SIZES,
+  BUTTON_TONES,
+  BUTTON_EMPHASES,
   type ButtonSize,
 } from "@/components/common/appButtonVariants";
 import { FIELD_SIZES, FIELD_TONES } from "@/components/common/fieldVariants";

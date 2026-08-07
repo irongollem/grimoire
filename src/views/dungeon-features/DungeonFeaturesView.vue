@@ -38,10 +38,9 @@
         </select>
         <AppButton
           v-if="ui.dungeonFeaturesHasActiveFilters"
-          variant="tinted"
+          variant="subtle"
           size="sm"
           label="Clear"
-          class="border-border bg-card text-muted-foreground hover:text-foreground hover:border-foreground/40"
           @click="ui.resetDungeonFeaturesFilters()"
         />
       </div>

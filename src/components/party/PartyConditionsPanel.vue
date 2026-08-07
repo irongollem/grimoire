@@ -39,7 +39,9 @@
         variant="tinted"
         size="xs"
         label="Add"
-        class="rounded-full border-violet-500/50 text-violet-400 hover:bg-violet-500/20"
+        tone="arcane"
+        emphasis="outline"
+        class="rounded-full"
         @click="addCurse"
       />
     </template>

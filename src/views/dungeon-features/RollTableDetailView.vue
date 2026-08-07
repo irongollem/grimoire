@@ -158,11 +158,10 @@
             <div class="flex items-center justify-between">
               <h2 class="font-cinzel text-sm font-bold text-foreground">Entries ({{ form.entries.length }})</h2>
               <AppButton
-                variant="tinted"
+                variant="subtle"
                 size="sm"
                 :icon="IconAdd"
                 label="Add row"
-                class="border-border bg-card text-muted-foreground hover:text-foreground hover:border-primary/50"
                 @click="addEntry"
               />
             </div>

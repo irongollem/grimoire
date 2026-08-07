@@ -58,6 +58,24 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
+  /* ── Semantic tones (#623) ───────────────────────────────────────────────
+     What a coloured control *means*, not which hue it happens to be. AppButton's
+     `tinted` variant is built entirely from these, so 35 call sites say
+     `tone="danger"` instead of `bg-red-500/10 border-red-500/30 text-red-400`.
+
+     Declared the same way as the shadcn tokens above — `var(--tone-*)`, resolved
+     at runtime rather than inlined — so `applyTheme()` can reassign them per
+     theme exactly as it does `--primary`. That is the whole point: a future theme
+     beyond light/dark repaints every damage, heal and arcane control by setting
+     six variables, with no component change. Naming these for the hue would have
+     hardcoded the decision at every call site. */
+  --color-tone-primary: var(--tone-primary);
+  --color-tone-danger: var(--tone-danger);
+  --color-tone-success: var(--tone-success);
+  --color-tone-info: var(--tone-info);
+  --color-tone-arcane: var(--tone-arcane);
+  --color-tone-caution: var(--tone-caution);
+
   /* Border radius */
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 0.125rem);
@@ -138,6 +156,17 @@
   --popover-foreground: hsl(222 40% 14%);
 
   --primary: hsl(42 90% 35%);
+
+  /* Tone defaults. Deliberately the hues the tinted controls already used, so
+     #623 is a refactor rather than a repaint; switching `danger` to
+     `var(--color-dragon-red)`, `success` to `--color-elven-green` and `arcane` to
+     `--color-arcane-purple-light` is now a one-line change per tone. */
+  --tone-primary: var(--primary);
+  --tone-danger: hsl(0 84% 60%);
+  --tone-success: hsl(142 71% 45%);
+  --tone-info: hsl(217 91% 60%);
+  --tone-arcane: hsl(258 90% 66%);
+  --tone-caution: hsl(38 92% 50%);
   --primary-foreground: hsl(0 0% 100%);
 
   --secondary: hsl(340 30% 88%);
