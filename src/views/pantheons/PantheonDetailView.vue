@@ -3,16 +3,22 @@
     <template #actions>
       <!-- View / Edit toggle (existing pantheons only) -->
       <template v-if="!isNew">
-        <PageHeaderAction
+        <AppButton
           v-if="!isEditing"
-          type="button"
+          size="md"
+          collapse-below="lg"
+          collapse-label-on-mobile
+          variant="subtle"
           label="Edit"
           :icon="IconEdit"
           @click="startEditing"
         />
-        <PageHeaderAction
+        <AppButton
           v-else
-          type="button"
+          size="md"
+          collapse-below="lg"
+          collapse-label-on-mobile
+          variant="subtle"
           label="View"
           :icon="IconDocument"
           @click="stopEditing"
@@ -28,21 +34,23 @@
 
       <!-- Edit-mode actions -->
       <template v-if="isEditing && pantheonEditor">
-        <PageHeaderAction
+        <AppButton
           v-if="pantheon?.id"
-          type="button"
+          size="md"
+          collapse-below="lg"
+          collapse-label-on-mobile
           label="Delete"
           :icon="IconDelete"
           variant="destructive"
           @click="pantheonEditor.handleDelete()"
         />
-        <PageHeaderAction
-          type="button"
+        <AppButton
+          size="md"
+          collapse-below="lg"
           :disabled="pantheonEditor.isSaving"
           :label="pantheonEditor.isSaving ? 'Saving…' : isNew ? 'Create Pantheon' : 'Save Changes'"
           :mobile-label="pantheonEditor.isSaving ? 'Saving…' : isNew ? 'Create' : 'Save'"
           variant="primary"
-          :hide-label-on-mobile="false"
           @click="pantheonEditor.handleSave()"
         />
       </template>
@@ -75,7 +83,7 @@ import { useRoute, useRouter } from "vue-router";
 import { IconDelete, IconDocument, IconEdit } from '@/lib/icons';
 import { usePantheon, useUpdatePantheon } from "@/composables/useDeities";
 import PageHeader from "@/components/common/PageHeader.vue";
-import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import PantheonEditor from "@/components/pantheons/PantheonEditor.vue";
 import PantheonSheet from "@/components/pantheons/PantheonSheet.vue";

@@ -1,21 +1,22 @@
 <template>
   <template v-if="detailRef">
-    <PageHeaderAction
+    <AppButton
       v-if="exists"
-      type="button"
       label="Delete"
       :icon="IconDelete"
       variant="destructive"
+      size="md"
+      collapse-below="lg"
+      collapse-label-on-mobile
       @click="detailRef.remove()"
     />
-    <PageHeaderAction
-      type="button"
+    <AppButton
       :disabled="!detailRef.canSave"
       :label="detailRef.saving ? 'Saving…' : exists ? 'Save' : 'Create'"
-      :mobile-label="detailRef.saving ? 'Saving…' : exists ? 'Save' : 'Create'"
       :icon="IconSave"
       variant="primary"
-      :hide-label-on-mobile="false"
+      size="md"
+      collapse-below="lg"
       @click="detailRef.save()"
     />
   </template>
@@ -23,7 +24,7 @@
 
 <script setup lang="ts">
 import { IconDelete, IconSave } from '@/lib/icons';
-import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
+import AppButton from "@/components/common/AppButton.vue";
 
 interface ExposedDetail {
   saving: boolean;

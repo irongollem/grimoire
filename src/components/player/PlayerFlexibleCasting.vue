@@ -5,35 +5,35 @@
     </div>
     <div class="grid gap-3 p-3 sm:grid-cols-2">
       <div class="flex items-center gap-2">
-        <select
-          v-model.number="createLevel"
-          class="min-w-0 flex-1 rounded border border-border bg-card px-2 py-1.5 font-cinzel text-xs text-foreground"
-        >
+        <AppSelect v-model.number="createLevel" size="sm" class="min-w-0 flex-1">
           <option v-for="level in creatableLevels" :key="level" :value="level">
             Level {{ level }} — {{ SLOT_COSTS[level] }} SP
           </option>
-        </select>
-        <button
-          class="rounded border border-violet-500/30 bg-violet-500/10 px-3 py-1.5 font-cinzel text-xs text-violet-500 disabled:opacity-40"
+        </AppSelect>
+        <AppButton
+          variant="tinted"
+          size="sm"
+          label="Create slot"
           :disabled="pending || creatableLevels.length === 0"
+          class="border-violet-500/30 bg-violet-500/10 text-violet-500 hover:bg-violet-500/10"
           @click="convert('points_to_slot')"
-        >Create slot</button>
+        />
       </div>
 
       <div class="flex items-center gap-2">
-        <select
-          v-model="sacrificeKey"
-          class="min-w-0 flex-1 rounded border border-border bg-card px-2 py-1.5 font-cinzel text-xs text-foreground"
-        >
+        <AppSelect v-model="sacrificeKey" size="sm" class="min-w-0 flex-1">
           <option v-for="slot in sacrificableSlots" :key="spellSlotKey(slot)" :value="spellSlotKey(slot)">
             {{ poolLabel(slot) }} level {{ slot.level }} — +{{ slot.level }} SP
           </option>
-        </select>
-        <button
-          class="rounded border border-violet-500/30 bg-violet-500/10 px-3 py-1.5 font-cinzel text-xs text-violet-500 disabled:opacity-40"
+        </AppSelect>
+        <AppButton
+          variant="tinted"
+          size="sm"
+          label="Convert slot"
           :disabled="pending || sacrificableSlots.length === 0"
+          class="border-violet-500/30 bg-violet-500/10 text-violet-500 hover:bg-violet-500/10"
           @click="convert('slot_to_points')"
-        >Convert slot</button>
+        />
       </div>
     </div>
     <p class="px-3 pb-3 text-caption text-muted-foreground italic">
@@ -44,6 +44,8 @@
 
 <script setup lang="ts">
 import { computed, ref, watchEffect } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import { useConvertSorceryPoints } from "@/composables/useParty";
 import { useToast } from "@/composables/useToast";
 import { spellSlotKey, slotPool } from "@/rules/spellSlots";

@@ -3,8 +3,11 @@
     <template #actions>
       <!-- View mode actions -->
       <template v-if="mode === 'view' && !isNew">
-        <PageHeaderAction
-          type="button"
+        <AppButton
+          size="md"
+          collapse-below="lg"
+          collapse-label-on-mobile
+          variant="subtle"
           label="Edit"
           :icon="IconEdit"
           @click="mode = 'edit'"
@@ -13,29 +16,30 @@
 
       <!-- Edit mode actions -->
       <template v-else-if="mode === 'edit' || isNew">
-        <PageHeaderAction
+        <AppButton
           v-if="isEdit"
-          type="button"
+          size="md"
+          collapse-below="lg"
+          collapse-label-on-mobile
+          variant="destructive"
           label="Delete"
           :icon="IconDelete"
-          variant="destructive"
           @click="handleDelete"
         />
-        <button
+        <AppButton
           v-if="isEdit"
-          type="button"
-          class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+          variant="tinted"
+          size="sm"
+          label="Cancel"
+          class="border-border bg-card text-muted-foreground hover:text-foreground"
           @click="mode = 'view'"
-        >
-          Cancel
-        </button>
-        <PageHeaderAction
-          type="button"
+        />
+        <AppButton
+          size="md"
+          collapse-below="lg"
+          variant="primary"
           :disabled="saving || !form.name.trim()"
           :label="saving ? 'Saving…' : isNew ? 'Create' : 'Save'"
-          :mobile-label="saving ? 'Saving…' : isNew ? 'Create' : 'Save'"
-          variant="primary"
-          :hide-label-on-mobile="false"
           @click="save"
         />
       </template>
@@ -54,20 +58,22 @@
 
         <!-- Anchor links — where this puzzle lives in the world -->
         <div v-if="anchorLocation || anchorFeature" class="flex flex-wrap gap-1.5">
-          <RouterLink
+          <AppButton
             v-if="anchorLocation"
+            variant="chip"
+            size="xs"
+            :icon="IconLocation"
+            :label="anchorLocation.name"
             :to="`/locations/${anchorLocation.id}`"
-            class="inline-flex items-center gap-1 font-cinzel text-2xs px-2 py-1 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
-          >
-            <IconLocation class="h-3 w-3 shrink-0" />{{ anchorLocation.name }}
-          </RouterLink>
-          <RouterLink
+          />
+          <AppButton
             v-if="anchorFeature"
+            variant="chip"
+            size="xs"
+            :icon="IconDungeon"
+            :label="anchorFeature.name"
             :to="`/dungeon-features/${anchorFeature.id}`"
-            class="inline-flex items-center gap-1 font-cinzel text-2xs px-2 py-1 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
-          >
-            <IconDungeon class="h-3 w-3 shrink-0" />{{ anchorFeature.name }}
-          </RouterLink>
+          />
         </div>
 
         <!-- Share panel -->
@@ -195,11 +201,7 @@
             <div class="flex-1 grid grid-cols-2 gap-3">
               <div class="col-span-2">
                 <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Name</label>
-                <input
-                  v-model="form.name"
-                  placeholder="Puzzle name…"
-                  class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-cinzel text-sm font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                />
+                <AppInput v-model="form.name" size="lg" placeholder="Puzzle name…" class="font-bold" />
               </div>
               <div>
                 <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Type</label>
@@ -360,7 +362,8 @@ import { deepEqual } from "@/lib/utils";
 import { PUZZLE_TYPES, PUZZLE_DIFFICULTIES } from "@/types/puzzle.types";
 import type { PuzzleHint, PuzzleSkillCheck } from "@/types/puzzle.types";
 import PageHeader from "@/components/common/PageHeader.vue";
-import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
 import TagInput from "@/components/common/TagInput.vue";

@@ -78,22 +78,13 @@
       <!-- Subrace (only if species has subraces) -->
       <div v-if="subraceNames.length > 0">
         <label class="text-eyebrow font-semibold text-muted-foreground">APPLIES TO SUBRACE</label>
-        <div class="mt-1 flex flex-wrap gap-1.5">
-          <button
-            type="button"
-            class="px-2.5 py-1 rounded font-cinzel text-2xs font-semibold border transition-colors"
-            :class="grantForm.subrace === null ? 'bg-primary text-primary-foreground border-primary' : 'bg-card text-muted-foreground border-border hover:text-foreground'"
-            @click="grantForm.subrace = null"
-          >All subraces</button>
-          <button
-            v-for="name in subraceNames"
-            :key="name"
-            type="button"
-            class="px-2.5 py-1 rounded font-cinzel text-2xs font-semibold border transition-colors"
-            :class="grantForm.subrace === name ? 'bg-primary text-primary-foreground border-primary' : 'bg-card text-muted-foreground border-border hover:text-foreground'"
-            @click="grantForm.subrace = name"
-          >{{ name }}</button>
-        </div>
+        <SegmentedControl
+          v-model="subraceValue"
+          size="xs"
+          wrap
+          class="mt-1"
+          :options="subraceOptions"
+        />
       </div>
 
       <!-- Uses + min level row -->
@@ -105,9 +96,22 @@
             <button type="button" class="flex-1 px-2 py-1.5 transition-colors" :class="grantForm.usesPerDay !== null ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'" @click="grantForm.usesPerDay = grantForm.usesCount">{{ grantForm.usesPerDay !== null ? `${grantForm.usesCount}/day` : 'N/day' }}</button>
           </div>
           <div v-if="grantForm.usesPerDay !== null" class="mt-1 flex items-center border border-border rounded-md overflow-hidden">
-            <button type="button" class="px-2 py-1.5 font-cinzel text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors" :disabled="grantForm.usesCount <= 1" @click="grantForm.usesCount = Math.max(1, grantForm.usesCount - 1); grantForm.usesPerDay = grantForm.usesCount">−</button>
+            <AppButton
+              variant="ghost"
+              size="sm"
+              class="text-sm"
+              :disabled="grantForm.usesCount <= 1"
+              label="−"
+              @click="grantForm.usesCount = Math.max(1, grantForm.usesCount - 1); grantForm.usesPerDay = grantForm.usesCount"
+            />
             <span class="flex-1 text-center font-cinzel text-xs font-semibold">{{ grantForm.usesCount }}</span>
-            <button type="button" class="px-2 py-1.5 font-cinzel text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors" @click="grantForm.usesCount++; grantForm.usesPerDay = grantForm.usesCount">+</button>
+            <AppButton
+              variant="ghost"
+              size="sm"
+              class="text-sm"
+              label="+"
+              @click="grantForm.usesCount++; grantForm.usesPerDay = grantForm.usesCount"
+            />
           </div>
         </div>
         <div v-if="grantForm.usesPerDay !== null" class="flex-1">
@@ -138,19 +142,25 @@
       </div>
 
       <div class="flex gap-2 pt-1">
-        <button type="button" class="font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors" @click="cancel">Cancel</button>
-        <button type="button" class="font-cinzel text-xs font-semibold text-primary hover:opacity-80 transition-opacity disabled:opacity-40" :disabled="!grantForm.isFreePick && !grantForm.spell" @click="confirm">Add Grant</button>
+        <AppButton variant="ghost" size="inline" label="Cancel" @click="cancel" />
+        <AppButton
+          variant="link"
+          size="inline"
+          :disabled="!grantForm.isFreePick && !grantForm.spell"
+          label="Add Grant"
+          @click="confirm"
+        />
       </div>
     </div>
 
-    <button v-else type="button" class="font-cinzel text-xs font-semibold text-primary hover:opacity-80 transition-opacity" @click="adding = true">
-      + Add Spell Grant
-    </button>
+    <AppButton v-else variant="link" size="sm" label="+ Add Spell Grant" @click="adding = true" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
+import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import type { SpeciesSpellGrant } from "@/types/species.types";
 import type { Spell, InnateResetsOn } from "@/types/spell.types";
 import { useSpellSearch } from "@/composables/useSpellSearch";
@@ -183,6 +193,17 @@ function makeGrantForm() {
 }
 
 const grantForm = reactive(makeGrantForm());
+
+// SegmentedControl needs string|number values — "" stands in for the null
+// (all-subraces) option.
+const subraceValue = computed<string>({
+  get: () => grantForm.subrace ?? "",
+  set: (v) => { grantForm.subrace = v === "" ? null : v; },
+});
+const subraceOptions = computed(() => [
+  { value: "", label: "All subraces" },
+  ...subraceNames.map((name) => ({ value: name, label: name })),
+]);
 
 const { results: spellResults } = useSpellSearch(
   computed(() => grantForm.spellSearch),

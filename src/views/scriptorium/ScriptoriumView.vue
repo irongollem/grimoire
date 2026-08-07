@@ -5,10 +5,12 @@
     </template>
 
     <template #actions>
-      <ListActionButton
+      <AppButton
+        size="md"
+        collapse-label-on-mobile
+        variant="primary"
         :icon="IconAdd"
         label="New Document"
-        variant="primary"
         @click="handleNew"
       />
     </template>
@@ -25,7 +27,7 @@ import { useRouter } from "vue-router";
 import { IconAdd } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import ListActionButton from "@/components/common/ListActionButton.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import ScriptoriumDocumentList from "@/components/scriptorium/ScriptoriumDocumentList.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useQuota } from "@/composables/useQuota";

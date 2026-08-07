@@ -4,14 +4,13 @@
     description="Custom rule, system, or table"
   >
     <template v-if="isNew || isEditing" #actions>
-      <button
+      <AppButton
         v-if="!isNew"
-        type="button"
-        class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-muted-foreground/50 transition-colors"
+        variant="subtle"
+        size="md"
+        label="Cancel"
         @click="onCancel"
-      >
-        Cancel
-      </button>
+      />
     </template>
 
     <div v-if="isLoading" class="flex justify-center py-16">
@@ -75,14 +74,15 @@
               Attach a per-player track (like Corruption, Hunger, Sanity) with named levels and DM controls.
             </p>
           </div>
-          <button
+          <AppButton
             v-if="!tracker"
-            type="button"
-            class="inline-flex items-center gap-1 rounded-md border border-dashed border-border px-2.5 py-1 font-cinzel text-xs text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+            variant="tinted"
+            size="sm"
+            :icon="IconAdd"
+            label="Add Tracker"
+            class="border-dashed border-border text-muted-foreground hover:text-foreground hover:border-primary/50"
             @click="addTracker"
-          >
-            <IconAdd class="size-3" /> Add Tracker
-          </button>
+          />
           <button
             v-else
             type="button"
@@ -144,13 +144,13 @@
           <div v-if="tracker.type === 'level'" class="space-y-2">
             <div class="flex items-center justify-between">
               <label class="text-eyebrow font-semibold text-muted-foreground">LEVELS</label>
-              <button
-                type="button"
-                class="inline-flex items-center gap-1 font-cinzel text-2xs text-muted-foreground hover:text-foreground transition-colors"
+              <AppButton
+                variant="ghost"
+                size="inline-xs"
+                :icon="IconAdd"
+                label="Add Level"
                 @click="addLevel"
-              >
-                <IconAdd class="size-3" /> Add Level
-              </button>
+              />
             </div>
 
             <div
@@ -294,13 +294,13 @@
           <div class="space-y-2">
             <div class="flex items-center justify-between">
               <label class="text-eyebrow font-semibold text-muted-foreground">TRACKER BUTTONS</label>
-              <button
-                type="button"
-                class="inline-flex items-center gap-1 font-cinzel text-2xs text-muted-foreground hover:text-foreground transition-colors"
+              <AppButton
+                variant="ghost"
+                size="inline-xs"
+                :icon="IconAdd"
+                label="Add Button"
                 @click="addButton"
-              >
-                <IconAdd class="size-3" /> Add Button
-              </button>
+              />
             </div>
             <p class="text-caption text-muted-foreground italic">
               Controls shown in the party panel. "Δ change by" adjusts the current value; "= set to" snaps to an exact value. Toggle "Players" to also show the button in the player portal.
@@ -325,26 +325,16 @@
                 class="flex-1 min-w-0 bg-background border border-border rounded px-2.5 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
               <!-- Mode toggle: Δ change by / = set to -->
-              <div class="flex rounded border border-border overflow-hidden shrink-0">
-                <button
-                  type="button"
-                  :class="[
-                    'px-2 py-1.5 font-cinzel text-2xs transition-colors',
-                    (!btn.mode || btn.mode === 'delta') ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:text-foreground',
-                  ]"
-                  @click="btn.mode = 'delta'"
-                  title="Change by amount"
-                >Δ</button>
-                <button
-                  type="button"
-                  :class="[
-                    'px-2 py-1.5 font-cinzel text-2xs transition-colors',
-                    btn.mode === 'set' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:text-foreground',
-                  ]"
-                  @click="btn.mode = 'set'"
-                  title="Set to exact value"
-                >=</button>
-              </div>
+              <SegmentedControl
+                :model-value="btn.mode ?? 'delta'"
+                :options="[
+                  { value: 'delta', label: 'Δ', tooltip: 'Change by amount' },
+                  { value: 'set', label: '=', tooltip: 'Set to exact value' },
+                ]"
+                size="xs"
+                class="shrink-0"
+                @update:model-value="btn.mode = $event"
+              />
               <!-- Value input -->
               <input
                 v-if="!btn.mode || btn.mode === 'delta'"
@@ -422,6 +412,8 @@ import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import TagInput from "@/components/common/TagInput.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import SegmentedControl from "@/components/common/SegmentedControl.vue";
 
 const SAVE_ABILITIES = [
   { value: "STR", label: "STR" },

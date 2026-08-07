@@ -14,15 +14,16 @@
     <template #actions>
       <!-- In-game Today chip with inline date editor -->
       <div v-if="campaignStore.activeCampaignId" class="relative shrink-0">
-        <button
-          class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 font-cinzel text-xs font-semibold text-foreground hover:border-primary/50 transition-colors"
+        <AppButton
+          variant="outline"
+          size="sm"
           :class="showTodayEditor ? 'border-primary/60 bg-primary/5' : ''"
           @click="toggleTodayEditor"
         >
           <IconCalendarDays class="h-3.5 w-3.5 text-primary shrink-0" />
           <span class="hidden sm:inline">Today: </span>
           <span>{{ todayLabel }}</span>
-        </button>
+        </AppButton>
 
         <!-- Inline editor popover -->
         <div
@@ -61,21 +62,15 @@
             </div>
           </div>
           <div class="flex items-center gap-2 pt-0.5">
-            <button
-              type="button"
+            <AppButton
+              variant="primary"
+              size="sm"
+              class="flex-1"
+              :label="settingToday ? 'Saving…' : 'Set Today'"
               :disabled="settingToday"
-              class="flex-1 rounded-md bg-primary px-3 py-1.5 font-cinzel text-xs font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
               @click="saveToday"
-            >
-              {{ settingToday ? 'Saving…' : 'Set Today' }}
-            </button>
-            <button
-              type="button"
-              class="rounded-md border border-border px-3 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
-              @click="showTodayEditor = false"
-            >
-              Cancel
-            </button>
+            />
+            <AppButton variant="subtle" size="sm" label="Cancel" @click="showTodayEditor = false" />
           </div>
           <p
             v-if="triggersFireMessage"
@@ -111,15 +106,16 @@
       </div>
 
       <!-- Setting bundle import -->
-      <button
+      <AppButton
         v-if="hasBundleForCurrentCalendar"
-        class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 font-cinzel text-xs font-semibold text-foreground hover:border-primary/50 transition-colors shrink-0"
+        variant="outline"
+        size="sm"
+        :icon="IconPopulate"
+        label="Setting Events"
+        mobile-label="Import"
+        class="shrink-0"
         @click="bundleModalOpen = true"
-      >
-        <IconPopulate class="h-3.5 w-3.5" />
-        <span class="hidden sm:inline">Setting Events</span>
-        <span class="sm:hidden">Import</span>
-      </button>
+      />
 
       <!-- Add event -->
       <button
@@ -156,6 +152,7 @@ import { useQueryClient } from "@tanstack/vue-query";
 import { SETTING_BUNDLES } from "@/data/bundles/index";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import CalendarGrid from "@/components/calendar/CalendarGrid.vue";
 import CalendarTimeline from "@/components/calendar/CalendarTimeline.vue";
 import EventModal from "@/components/calendar/EventModal.vue";

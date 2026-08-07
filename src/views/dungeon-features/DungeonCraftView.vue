@@ -7,39 +7,52 @@
     <template #actions>
       <!-- Features tab actions -->
       <template v-if="activeTab === 'features'">
-        <ListActionButton
+        <AppButton
+          size="md"
+          collapse-label-on-mobile
+          variant="outline"
           :icon="featuresPopulate.isPending.value ? IconLoading : IconPopulate"
           :label="featuresPopulateLabel"
           :disabled="featuresPopulate.isPending.value"
           @click="handleFeaturesPopulate"
         />
-        <ListActionButton
+        <AppButton
+          size="md"
+          collapse-label-on-mobile
+          variant="primary"
           :icon="IconAdd"
           label="New Feature"
           mobile-label="Feature"
-          variant="primary"
           @click="router.push('/dungeon-features/new')"
         />
       </template>
 
       <!-- Traps tab actions -->
       <template v-else-if="activeTab === 'traps'">
-        <ListActionButton
+        <AppButton
+          size="md"
+          collapse-label-on-mobile
+          variant="outline"
           :icon="trapsPopulate.isPending.value ? IconLoading : IconPopulate"
           :label="trapsPopulateLabel"
           :disabled="trapsPopulate.isPending.value"
           @click="handleTrapsPopulate"
         />
-        <ListActionButton
+        <AppButton
+          size="md"
+          collapse-label-on-mobile
+          variant="outline"
           :icon="IconGenerate"
           label="Generate"
           @click="ui.trapGeneratorOpen = true"
         />
-        <ListActionButton
+        <AppButton
+          size="md"
+          collapse-label-on-mobile
+          variant="primary"
           :icon="IconAdd"
           label="New Trap"
           mobile-label="Trap"
-          variant="primary"
           @click="router.push('/traps/new')"
         />
       </template>
@@ -47,78 +60,102 @@
       <!-- Roll Tables tab actions -->
       <template v-else-if="activeTab === 'roll-tables'">
         <template v-if="!rollTablesTabRef?.selectedRollTableId && !rollTablesTabRef?.inlineNewRollTable">
-          <ListActionButton
+          <AppButton
+            size="md"
+            collapse-label-on-mobile
+            variant="outline"
             :icon="rollTablesPopulate.isPending.value ? IconLoading : IconPopulate"
             :label="rollTablesPopulateLabel"
             :disabled="rollTablesPopulate.isPending.value"
             @click="handleRollTablesPopulate"
           />
-          <ListActionButton
+          <AppButton
+            size="md"
+            collapse-label-on-mobile
+            variant="outline"
             :icon="IconGenerate"
             label="Generate"
             @click="ui.rollTableGeneratorOpen = true"
           />
-          <ListActionButton
+          <AppButton
+            size="md"
+            collapse-label-on-mobile
+            variant="primary"
             :icon="IconAdd"
             label="New Roll Table"
             mobile-label="Roll Table"
-            variant="primary"
             @click="rollTablesTabRef?.closeInlineRollTable(); rollTablesTabRef && (rollTablesTabRef.inlineNewRollTable = true)"
           />
         </template>
-        <ListActionButton
+        <AppButton
           v-else
+          size="md"
+          variant="outline"
           label="← All Tables"
-          :collapse-on-mobile="false"
           @click="rollTablesTabRef?.closeInlineRollTable()"
         />
       </template>
 
       <!-- Loot Tables tab actions -->
       <template v-else-if="activeTab === 'loot-tables'">
-        <ListActionButton
+        <AppButton
+          size="md"
+          collapse-label-on-mobile
+          variant="outline"
           :icon="IconGenerate"
           label="Generate"
           @click="ui.lootTableGeneratorOpen = true"
         />
-        <ListActionButton
+        <AppButton
+          size="md"
+          collapse-label-on-mobile
+          variant="primary"
           :icon="IconAdd"
           label="New Loot Table"
           mobile-label="Loot Table"
-          variant="primary"
           @click="router.push('/loot-tables/new')"
         />
       </template>
 
       <!-- Cartographer tab actions -->
       <template v-else-if="activeTab === 'cartographer'">
-        <ListActionButton
+        <AppButton
+          size="md"
+          collapse-label-on-mobile
+          variant="primary"
           :icon="IconAdd"
           label="New Map"
           mobile-label="Map"
-          variant="primary"
           @click="router.push('/cartographer/new')"
         />
       </template>
 
       <!-- Puzzles tab actions -->
       <template v-else>
-        <ListActionButton
+        <AppButton
+          size="md"
+          collapse-label-on-mobile
+          variant="outline"
           :icon="puzzlesPopulate.isPending.value ? IconLoading : IconPopulate"
           :label="puzzlesPopulateLabel"
           :disabled="puzzlesPopulate.isPending.value"
           @click="handlePuzzlesPopulate"
         />
-        <ListActionButton
+        <AppButton
+          size="md"
+          collapse-label-on-mobile
+          variant="outline"
           :icon="IconGenerate"
           label="Generate"
           @click="ui.puzzleGeneratorOpen = true"
         />
-        <ListActionButton
+        <AppButton
+          size="md"
+          collapse-label-on-mobile
+          variant="primary"
           :icon="IconAdd"
           label="New Puzzle"
           mobile-label="Puzzle"
-          variant="primary"
           @click="router.push('/puzzles/new')"
         />
       </template>
@@ -150,7 +187,7 @@ import { usePopulateRollTables } from "@/composables/useRollTables";
 import { useUiStore } from "@/stores/ui";
 import PageHeader from "@/components/common/PageHeader.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import ListActionButton from "@/components/common/ListActionButton.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import TabBar from "@/components/common/TabBar.vue";
 
 import DungeonCraftFeaturesTab from "@/components/dungeon-features/DungeonCraftFeaturesTab.vue";

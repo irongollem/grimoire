@@ -1,18 +1,12 @@
 <template>
   <div class="space-y-4 pb-8">
     <!-- Tabs — only show Forms tab if the character qualifies -->
-    <div class="flex gap-1 border-b border-border">
-      <button
-        v-for="tab in visibleTabs"
-        :key="tab.id"
-        type="button"
-        class="px-4 py-2 font-cinzel text-xs tracking-wide border-b-2 -mb-px transition-colors"
-        :class="activeTab === tab.id
-          ? 'border-primary text-foreground'
-          : 'border-transparent text-muted-foreground hover:text-foreground'"
-        @click="activeTab = tab.id as 'bestiary' | 'forms'"
-      >{{ tab.label }}</button>
-    </div>
+    <SegmentedControl
+      :model-value="activeTab"
+      :options="visibleTabOptions"
+      size="md"
+      @update:model-value="(v) => (activeTab = v as 'bestiary' | 'forms')"
+    />
 
     <!-- ── BESTIARY TAB ──────────────────────────────────────────── -->
     <template v-if="activeTab === 'bestiary'">
@@ -36,12 +30,13 @@
               class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
-          <button
+          <AppButton
             v-if="ui.playerBestiaryHasActiveFilters"
-            type="button"
-            class="px-3 py-1.5 font-cinzel text-xs tracking-wide text-muted-foreground hover:text-foreground border border-border rounded-md hover:border-foreground/30 transition-colors shrink-0"
+            variant="subtle"
+            size="sm"
+            label="Clear"
             @click="ui.resetPlayerBestiaryFilters()"
-          >Clear</button>
+          />
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
@@ -224,18 +219,22 @@
                     <div class="flex items-start gap-2 flex-wrap">
                       <p class="font-cinzel text-xs font-semibold text-foreground shrink-0">{{ t.name }}.</p>
                       <div class="flex gap-1.5 flex-wrap">
-                        <button
+                        <AppButton
                           v-if="parseAttackBonus(t.description) !== null"
-                          type="button"
-                          class="font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded border border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 transition-colors"
                           v-roll-mode="{ enabled: true, on: (m: RollMode | null, ev: Event) => { ev.stopPropagation(); rollAttack(parseAttackBonus(t.description) ?? 0, t.name, m); } }"
-                        >⚔ {{ (parseAttackBonus(t.description) ?? 0) >= 0 ? '+' : '' }}{{ parseAttackBonus(t.description) ?? 0 }}</button>
-                        <button
+                          variant="tinted"
+                          size="xs"
+                          class="border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 md:text-sm"
+                          :label="`⚔ ${(parseAttackBonus(t.description) ?? 0) >= 0 ? '+' : ''}${parseAttackBonus(t.description) ?? 0}`"
+                        />
+                        <AppButton
                           v-if="hasRollableDice(t.description)"
-                          type="button"
-                          class="font-cinzel text-2xs md:text-sm px-1.5 py-0.5 rounded border border-rose-500/40 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                          variant="tinted"
+                          size="xs"
+                          class="border-rose-500/40 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 md:text-sm"
+                          :label="`🎲 ${actionDiceLabel(t.description)}`"
                           @click.stop="rollActionDamage(t.description, t.name)"
-                        >🎲 {{ actionDiceLabel(t.description) }}</button>
+                        />
                       </div>
                     </div>
                     <p class="text-caption text-muted-foreground leading-relaxed mt-0.5">{{ t.description }}</p>
@@ -280,6 +279,8 @@ import { rollParsed } from "@/lib/dice/roller";
 import type { RollMode } from "@/lib/dice/roller";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import type { DiscoveredMonster, Monster } from "@/types/monster.types";
+import AppButton from "@/components/common/AppButton.vue";
+import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
@@ -323,6 +324,8 @@ const visibleTabs = computed(() => {
   }
   return tabs;
 });
+
+const visibleTabOptions = computed(() => visibleTabs.value.map((tab) => ({ value: tab.id, label: tab.label })));
 
 const activeTab = ref<"bestiary" | "forms">("bestiary");
 

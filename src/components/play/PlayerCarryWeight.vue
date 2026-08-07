@@ -38,41 +38,38 @@
             class="flex items-center gap-1"
             @submit.prevent="$emit('save-capacity', capacityDraft)"
           >
-            <input
-              :value="capacityDraft"
-              type="text"
+            <AppInput
+              v-model="capacityDraftModel"
+              size="xs"
+              tone="muted"
+              align="center"
               placeholder="*2 / +30 / 150"
-              class="w-20 bg-muted/30 border border-border rounded px-1 py-0 font-cinzel text-2xs md:text-sm text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
               autofocus
-              @input="$emit('update-capacity-draft', ($event.target as HTMLInputElement).value)"
+              class="w-20 md:text-sm"
               @keydown.escape="$emit('cancel-capacity')"
             />
-            <button
-              type="submit"
-              class="font-cinzel text-2xs md:text-sm text-primary hover:opacity-70"
-            >✓</button>
-            <button
+            <AppButton type="submit" variant="link" size="inline-xs" class="md:text-sm" label="✓" />
+            <AppButton
               v-if="hasCapacityOverride"
-              type="button"
-              class="font-cinzel text-2xs md:text-sm text-muted-foreground hover:text-foreground"
-              title="Reset to STR×15"
+              variant="ghost"
+              size="inline-xs"
+              class="md:text-sm"
+              label="↺"
+              tooltip="Reset to STR×15"
               @click="$emit('reset-capacity')"
-            >↺</button>
-            <button
-              type="button"
-              class="font-cinzel text-2xs md:text-sm text-muted-foreground hover:text-foreground"
-              @click="$emit('cancel-capacity')"
-            >✕</button>
+            />
+            <AppButton variant="ghost" size="inline-xs" class="md:text-sm" label="✕" @click="$emit('cancel-capacity')" />
           </form>
-          <button
+          <AppButton
             v-else
-            class="font-cinzel text-2xs md:text-sm hover:text-primary transition-colors flex items-center gap-0.5"
-            :class="hasCapacityOverride ? 'text-amber-400' : 'text-muted-foreground/60'"
+            variant="ghost"
+            size="inline-xs"
+            :class="['md:text-sm', hasCapacityOverride ? 'text-amber-400 hover:text-amber-400' : '']"
             @click="$emit('open-capacity')"
           >
             {{ formatWeightLb(effectiveCapacity) }}
-            <span v-if="hasCapacityOverride" class="text-2xs md:text-sm opacity-60">({{ capacityOverride }})</span>
-          </button>
+            <span v-if="hasCapacityOverride" class="opacity-60">({{ capacityOverride }})</span>
+          </AppButton>
         </div>
       </div>
 
@@ -111,7 +108,10 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import { formatWeightLb } from '@/lib/utils';
+import AppButton from '@/components/common/AppButton.vue';
+import AppInput from '@/components/common/AppInput.vue';
 
 type BurdenLevel = 'unencumbered' | 'encumbered' | 'heavily_encumbered' | 'over_encumbered';
 
@@ -156,11 +156,19 @@ const {
   capacityOverride: string | null;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   'open-capacity': [];
   'save-capacity': [draft: string];
   'reset-capacity': [];
   'cancel-capacity': [];
   'update-capacity-draft': [value: string];
 }>();
+
+// AppInput needs a v-model; capacityDraft is a prop owned by the parent (form
+// state lives there so Enter/Escape/blur can all resolve it), so this just
+// re-routes v-model's get/set through the existing update-capacity-draft emit.
+const capacityDraftModel = computed({
+  get: () => capacityDraft,
+  set: (value: string) => emit('update-capacity-draft', value),
+});
 </script>

@@ -8,16 +8,21 @@
     </template>
 
     <template #actions>
-      <ListActionButton
+      <AppButton
         v-if="ui.cartographerHasActiveFilters"
+        size="md"
+        variant="outline"
         label="Clear"
+        collapse-label-on-mobile
         @click="ui.resetCartographerFilters"
       />
-      <ListActionButton
+      <AppButton
+        size="md"
+        variant="primary"
         :icon="IconAdd"
         label="New Map"
         mobile-label="Map"
-        variant="primary"
+        collapse-label-on-mobile
         @click="router.push('/cartographer/new')"
       />
     </template>
@@ -86,13 +91,12 @@
         <IconNavCartographer class="h-16 w-16" />
       </template>
       <template #action>
-        <button
-          type="button"
-          class="bg-primary text-primary-foreground rounded-md px-4 py-2 font-cinzel text-sm tracking-wider hover:bg-primary/90 transition-colors"
+        <AppButton
+          variant="primary"
+          size="lg"
+          label="Create your first map"
           @click="router.push('/cartographer/new')"
-        >
-          Create your first map
-        </button>
+        />
       </template>
     </EmptyState>
   </PageHeader>
@@ -111,7 +115,7 @@ import PageHeader from "@/components/common/PageHeader.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
-import ListActionButton from "@/components/common/ListActionButton.vue";
+import AppButton from "@/components/common/AppButton.vue";
 
 const router = useRouter();
 const ui = useUiStore();

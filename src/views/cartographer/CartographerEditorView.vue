@@ -26,8 +26,8 @@
           class="px-3 py-1.5 text-label-lg font-semibold border border-primary/40 text-primary rounded-md hover:bg-primary/10 transition-colors disabled:opacity-50"
           @click="showAtlasModal = true"
         >{{ baking ? "Baking…" : "Save to Atlas" }}</button>
-        <ListActionButton label="Edit" @click="onEdit" />
-        <ListActionButton label="Done" variant="primary" @click="onDone" />
+        <AppButton size="md" variant="outline" label="Edit" collapse-label-on-mobile @click="onEdit" />
+        <AppButton size="md" variant="primary" label="Done" collapse-label-on-mobile @click="onDone" />
       </template>
       <!-- Edit mode -->
       <template v-else>
@@ -38,12 +38,14 @@
           class="px-3 py-1.5 text-label-lg font-semibold text-destructive border border-destructive/40 rounded-md hover:bg-destructive/10 transition-colors disabled:opacity-50"
           @click="onDelete"
         >{{ deleting ? "Deleting…" : "Delete" }}</button>
-        <ListActionButton label="Cancel" @click="onCancel" />
-        <ListActionButton
+        <AppButton size="md" variant="outline" label="Cancel" collapse-label-on-mobile @click="onCancel" />
+        <AppButton
+          size="md"
+          variant="primary"
           :icon="IconSave"
           label="Save"
-          variant="primary"
           :disabled="saving"
+          collapse-label-on-mobile
           @click="onSave"
         />
       </template>
@@ -233,7 +235,7 @@ import {
 
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import ListActionButton from "@/components/common/ListActionButton.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import CartographerSaveAtlasModal from "@/components/cartographer/CartographerSaveAtlasModal.vue";
 import CartographerAiStyleModal from "@/components/cartographer/CartographerAiStyleModal.vue";
 import CartographerToolPalette from "@/components/cartographer/CartographerToolPalette.vue";

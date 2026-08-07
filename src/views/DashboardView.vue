@@ -139,39 +139,49 @@
               <template v-if="!editingDate">
                 <p class="text-heading-sm font-semibold text-foreground">{{ todayFormatted }}</p>
                 <div class="flex items-center gap-1.5">
-                  <button
-                    class="px-2.5 py-1 rounded border border-border font-cinzel text-2xs text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors disabled:opacity-40"
+                  <AppButton
+                    variant="subtle"
+                    size="xs"
+                    label="− Day"
                     :disabled="setToday.isPending.value"
                     @click="advanceDay(-1)"
-                  >− Day</button>
-                  <button
-                    class="px-2.5 py-1 rounded border border-border font-cinzel text-2xs text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors disabled:opacity-40"
+                  />
+                  <AppButton
+                    variant="subtle"
+                    size="xs"
+                    label="+ Day"
                     :disabled="setToday.isPending.value"
                     @click="advanceDay(1)"
-                  >+ Day</button>
-                  <button
-                    class="ml-auto font-cinzel text-2xs text-primary hover:opacity-70 transition-opacity"
+                  />
+                  <AppButton
+                    variant="link"
+                    size="inline-xs"
+                    label="Edit…"
+                    class="ml-auto"
                     @click="openDateEdit"
-                  >Edit…</button>
+                  />
                 </div>
               </template>
               <template v-else>
                 <div class="flex items-center gap-1">
-                  <input
+                  <AppInput
                     v-model.number="dateForm.day"
-                    type="number" min="1" :max="maxDayInSelectedMonth"
-                    class="w-14 rounded border border-border bg-background px-2 py-1 font-cinzel text-sm text-center text-foreground focus:outline-none focus:border-primary/70"
+                    type="number"
+                    min="1"
+                    :max="maxDayInSelectedMonth"
+                    size="lg"
+                    align="center"
+                    class="w-14"
                   />
-                  <select
-                    v-model.number="dateForm.month"
-                    class="flex-1 min-w-0 rounded border border-border bg-background px-2 py-1 font-cinzel text-sm text-foreground focus:outline-none focus:border-primary/70"
-                  >
+                  <AppSelect v-model.number="dateForm.month" size="lg" class="flex-1 min-w-0">
                     <option v-for="(m, i) in calendarMonths" :key="i" :value="i + 1">{{ m.name }}</option>
-                  </select>
-                  <input
+                  </AppSelect>
+                  <AppInput
                     v-model.number="dateForm.year"
                     type="number"
-                    class="w-20 rounded border border-border bg-background px-2 py-1 font-cinzel text-sm text-center text-foreground focus:outline-none focus:border-primary/70"
+                    size="lg"
+                    align="center"
+                    class="w-20"
                   />
                 </div>
                 <div class="flex gap-1.5">
@@ -180,10 +190,12 @@
                     :disabled="setToday.isPending.value"
                     @click="saveDate"
                   >Save</button>
-                  <button
-                    class="px-3 py-1 rounded border border-border font-cinzel text-2xs text-muted-foreground hover:text-foreground transition-colors"
+                  <AppButton
+                    variant="subtle"
+                    size="xs"
+                    label="Cancel"
                     @click="editingDate = false"
-                  >Cancel</button>
+                  />
                 </div>
               </template>
             </div>
@@ -350,6 +362,9 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import DmTrackerButtons from "@/components/rules/DmTrackerButtons.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import { extractTiptapText } from "@/lib/utils";
 import type { Note } from "@/types/notes.types";
 import type { Quest } from "@/types/quest.types";

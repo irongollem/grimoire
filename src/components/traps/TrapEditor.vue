@@ -2,23 +2,21 @@
   <div>
     <!-- Action bar -->
     <div class="flex flex-wrap items-center justify-end gap-2 mb-4">
-      <button
+      <AppButton
         v-if="!isNew"
-        type="button"
-        class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
+        variant="destructive"
+        size="md"
+        label="Delete"
+        :icon="IconDelete"
         @click="deleteTrap"
-      >
-        <IconDelete class="h-3.5 w-3.5" />
-        Delete
-      </button>
-      <button
+      />
+      <AppButton
         v-if="!isNew"
-        type="button"
-        class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-muted-foreground/50 transition-colors"
+        variant="subtle"
+        size="md"
+        label="Cancel"
         @click="onCancel"
-      >
-        Cancel
-      </button>
+      />
       <button
         type="button"
         :disabled="saving || !form.name.trim()"
@@ -51,11 +49,7 @@
           <div class="flex-1 grid grid-cols-2 gap-3">
             <div class="col-span-2">
               <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Name</label>
-              <input
-                v-model="form.name"
-                placeholder="Trap name…"
-                class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-cinzel text-sm font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              />
+              <AppInput v-model="form.name" size="lg" placeholder="Trap name…" class="font-bold" />
             </div>
             <div>
               <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Type</label>

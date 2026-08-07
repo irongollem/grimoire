@@ -5,17 +5,22 @@
     </template>
 
     <template v-if="isAppAdmin" #actions>
-      <ListActionButton
+      <AppButton
+        size="md"
+        collapse-label-on-mobile
+        variant="outline"
         :icon="IconGenerate"
         :label="populateLabel"
         :disabled="populateMutation.isPending.value"
         @click="handlePopulate"
       />
-      <ListActionButton
+      <AppButton
+        size="md"
+        collapse-label-on-mobile
+        variant="primary"
         :icon="IconAdd"
         label="New Hero"
         mobile-label="Hero"
-        variant="primary"
         to="/hall-of-heroes/new"
       />
     </template>
@@ -163,7 +168,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import ListActionButton from "@/components/common/ListActionButton.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";

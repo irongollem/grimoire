@@ -8,28 +8,39 @@
     </template>
 
     <template #actions>
-      <ListActionButton
+      <AppButton
+        size="md"
+        collapse-label-on-mobile
+        variant="outline"
         :icon="planarMutation.isPending.value ? IconLoading : IconFaction"
         :label="planarStatusLabel"
         :disabled="planarMutation.isPending.value"
         @click="handlePopulatePlanes"
       />
-      <ListActionButton
+      <AppButton
+        size="md"
+        collapse-label-on-mobile
+        variant="outline"
         :icon="populateMutation.isPending.value ? IconLoading : IconPopulate"
         :label="populateStatusLabel"
         :disabled="populateMutation.isPending.value"
         @click="handlePopulate"
       />
-      <ListActionButton
+      <AppButton
+        size="md"
+        collapse-label-on-mobile
+        variant="outline"
         :icon="IconGenerate"
         label="Generate"
         @click="ui.locationGeneratorOpen = true"
       />
-      <ListActionButton
+      <AppButton
+        size="md"
+        collapse-label-on-mobile
+        variant="primary"
         :icon="IconAdd"
         label="New Location"
         mobile-label="Location"
-        variant="primary"
         @click="handleNew"
       />
     </template>
@@ -57,7 +68,7 @@ import { ref, computed } from "vue";
 import { IconAdd, IconFaction, IconGenerate, IconLoading, IconPopulate } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import ListActionButton from "@/components/common/ListActionButton.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";

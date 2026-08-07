@@ -83,19 +83,8 @@
           >{{ tab.label }}</button>
         </div>
         <div v-if="!hidePlayerActions && member" class="flex items-center gap-2 ml-auto">
-          <RouterLink
-            v-if="!ui.dmPreviewMode"
-            to="/play/champions"
-            class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-muted-foreground/50 transition-colors"
-          >
-            My Characters
-          </RouterLink>
-          <RouterLink
-            :to="{ name: 'play-character-sheet' }"
-            class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-muted-foreground/50 transition-colors"
-          >
-            Export Sheet
-          </RouterLink>
+          <AppButton v-if="!ui.dmPreviewMode" to="/play/champions" variant="subtle" size="sm" label="My Characters" />
+          <AppButton :to="{ name: 'play-character-sheet' }" variant="subtle" size="sm" label="Export Sheet" />
         </div>
       </div>
 
@@ -160,16 +149,20 @@
           <div class="flex items-center justify-between px-4 py-2.5 bg-primary/10 border-b border-border">
             <span class="font-cinzel text-sm font-bold text-primary">🐺 {{ activeWildshape.beast_name }}</span>
             <div class="flex items-center gap-1.5">
-              <button
-                type="button"
-                class="font-cinzel text-2xs md:text-sm px-2 py-1 rounded border border-border hover:border-primary hover:text-primary transition-colors"
+              <AppButton
+                variant="outline"
+                size="xs"
+                class="md:text-sm"
+                :label="showWildshapePicker ? 'Cancel' : 'Change'"
                 @click="showWildshapePicker = !showWildshapePicker"
-              >{{ showWildshapePicker ? 'Cancel' : 'Change' }}</button>
-              <button
-                type="button"
-                class="font-cinzel text-2xs md:text-sm px-2 py-1 rounded border border-border hover:border-destructive hover:text-destructive transition-colors"
+              />
+              <AppButton
+                variant="outline"
+                size="xs"
+                class="md:text-sm"
+                label="Revert"
                 @click="doRevertWildshape(); showWildshapePicker = false"
-              >Revert</button>
+              />
             </div>
           </div>
           <div class="flex gap-6 px-4 py-2.5">
@@ -192,14 +185,15 @@
         <div v-if="!activeWildshape || showWildshapePicker" class="rounded-lg border border-border bg-card overflow-hidden">
           <div class="flex items-center justify-between px-4 py-2.5 border-b border-border">
             <span class="font-cinzel text-xs font-semibold">Choose Beast Form</span>
-            <button
+            <AppButton
               v-if="!activeWildshape"
-              type="button"
-              class="font-cinzel text-2xs md:text-sm px-2 py-1 rounded border border-border hover:border-primary hover:text-primary transition-colors"
+              variant="outline"
+              size="xs"
+              class="md:text-sm"
+              :label="showWildshapePicker ? 'Cancel' : '🐺 Choose Form'"
               :disabled="!canWildshape"
-              :class="!canWildshape ? 'opacity-40 cursor-not-allowed' : ''"
               @click="showWildshapePicker = !showWildshapePicker"
-            >{{ showWildshapePicker ? 'Cancel' : '🐺 Choose Form' }}</button>
+            />
           </div>
           <template v-if="showWildshapePicker || !activeWildshape">
             <p v-if="!wildshapeForms.length" class="text-caption text-muted-foreground italic px-4 py-3">
@@ -265,6 +259,7 @@ import { wildshapeMaxCr as calcWildshapeMaxCr, wildshapeCrDisplay as calcWildsha
 import { hitPointsToMax } from "@/lib/dice/dice";
 import type { PartyMember } from "@/types/party.types";
 import { useRules, usePlayerVisibleRules } from "@/composables/useRules";
+import AppButton from "@/components/common/AppButton.vue";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
 import RollToast from "@/components/common/RollToast.vue";
 import type { RollResult } from "@/components/common/RollToast.vue";

@@ -25,29 +25,34 @@
     </span>
 
     <template v-if="curseInputOpen">
-      <input
-        :ref="(el) => { if (el) curseInputEl = el as HTMLInputElement }"
+      <AppInput
+        ref="curseInputEl"
         v-model="curseInputText"
+        size="xs"
+        tone="bare"
         placeholder="Curse name…"
-        class="px-2 py-0.5 rounded-full border border-violet-500/50 bg-violet-500/10 font-cinzel text-2xs text-violet-400 placeholder:text-violet-400/40 focus:outline-none w-32"
+        class="rounded-full border border-violet-500/50 bg-violet-500/10 text-violet-400 placeholder:text-violet-400/40 focus:ring-0 w-32"
         @keydown.enter.prevent="addCurse"
         @keydown.escape="curseInputOpen = false"
       />
-      <button
-        type="button"
-        class="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full border border-violet-500/50 font-cinzel text-2xs text-violet-400 hover:bg-violet-500/20 transition-colors"
+      <AppButton
+        variant="tinted"
+        size="xs"
+        label="Add"
+        class="rounded-full border-violet-500/50 text-violet-400 hover:bg-violet-500/20"
         @click="addCurse"
-      >Add</button>
+      />
     </template>
 
     <div class="relative">
-      <button
-        type="button"
-        class="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full border border-dashed border-muted-foreground/40 font-cinzel text-2xs text-muted-foreground hover:border-primary/50 hover:text-primary transition-colors"
+      <AppButton
+        variant="subtle"
+        size="xs"
+        :icon="IconAdd"
+        label="Condition"
+        class="rounded-full border-dashed border-muted-foreground/40 hover:text-primary"
         @click="toggleDropdown"
-      >
-        <IconAdd class="h-2.5 w-2.5" /> Condition
-      </button>
+      />
       <div v-if="conditionOpen" class="fixed inset-0 z-10" @click="conditionOpen = false" />
       <div
         v-if="conditionOpen"
@@ -77,6 +82,8 @@
 <script setup lang="ts">
 import { ref, computed, nextTick } from "vue";
 import { IconAdd } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import { useUpdatePartyMember } from "@/composables/useParty";
 import { useRuleset } from "@/composables/useRuleset";
 import {
@@ -97,7 +104,7 @@ const conditionOpen = ref(false);
 const conditionOpenUp = ref(false);
 const curseInputOpen = ref(false);
 const curseInputText = ref("");
-const curseInputEl = ref<HTMLInputElement | null>(null);
+const curseInputEl = ref<InstanceType<typeof AppInput> | null>(null);
 
 const nonExhaustionConditions = computed(() => member.conditions.filter((c) => !isExhaustion(c)));
 

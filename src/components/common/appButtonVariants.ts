@@ -36,8 +36,28 @@ export const buttonVariants = cva(
         destructive: "border border-destructive/40 text-destructive hover:bg-destructive/10",
         /** Filled pill — tags, counts, secondary navigation chips. */
         chip: "bg-muted text-muted-foreground hover:bg-muted/70 hover:text-foreground",
+        /**
+         * Persistent tinted pill whose colour carries meaning that differs per
+         * site — DMG red, HEAL green, +Temp blue, ATT amber, Create-slot violet.
+         * The call site owns the colour triplet
+         * (`bg-green-500/10 border-green-500/30 text-green-400 hover:bg-green-500/20`);
+         * Tailwind v4 emits nothing for `bg-current/10`, so a tint cannot be
+         * derived from `currentColor` and there is genuinely nothing to
+         * centralise here beyond the box. It exists so these buttons can be named
+         * for what they are instead of borrowing `destructive` for its shape —
+         * a HEAL button tagged `variant="destructive"` reads as a bug.
+         */
+        tinted: "border",
       },
       size: {
+        /**
+         * No padding, no radius — a word of text that happens to be clickable
+         * ("Cancel", "Save", "Add", "Open →") sitting inline in a row. Dozens of
+         * `ghost` and `link` sites have no box at all, and giving them one would
+         * change the layout around them.
+         */
+        "inline-xs": "gap-1 text-label",
+        inline: "gap-1 text-label-lg",
         xs: "gap-1 rounded px-2 py-0.5 text-label",
         sm: "gap-1.5 rounded-md px-3 py-1.5 text-label-lg",
         /** min-h-11 is a ≥44px tap target on touch; ≥md reverts to py-2 so desktop is unchanged. */

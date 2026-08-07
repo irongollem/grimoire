@@ -4,19 +4,20 @@
        rail out of line with its row-mates. -->
   <div class="flex min-w-0 items-center gap-1">
     <!-- "All" virtual tab (pinned — stays visible while named tabs scroll) -->
-    <button
+    <AppButton
       data-page-drop=""
-      class="shrink-0 px-3 py-1 rounded-md text-xs font-cinzel tracking-wide transition-colors"
+      variant="tinted"
+      size="sm"
+      label="All"
       :class="[
+        'shrink-0',
         activePageId === null
-          ? 'bg-gold-500/20 border border-gold-500/40 text-gold-300'
-          : 'border border-transparent text-muted-foreground hover:text-foreground hover:border-border',
+          ? 'border-gold-500/40 bg-gold-500/20 text-gold-300'
+          : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border',
         dropRing(''),
       ]"
       @click="activePageId = null"
-    >
-      All
-    </button>
+    />
 
     <!-- Named page tabs (draggable) — scrolls horizontally when they overflow.
          Edge fades + chevron buttons cue (and trigger) the hidden tabs. -->
@@ -66,32 +67,32 @@
         </div>
 
         <!-- Tab button or inline rename input -->
-        <input
+        <AppInput
           v-if="editingId === page.id"
           ref="renameInput"
           v-model="nameDraft"
-          type="text"
-          class="w-28 rounded border border-gold-500/50 bg-background px-2 py-0.5 font-cinzel text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-gold-500"
+          size="xs"
+          class="w-28 border-gold-500/50 focus:ring-gold-500"
           @keydown.enter="saveRename(page.id)"
           @keydown.escape="cancelRename"
           @blur="saveRename(page.id)"
         />
-        <button
+        <AppButton
           v-else
           :data-page-drop="page.id"
-          class="px-3 py-1 rounded-md text-xs font-cinzel tracking-wide transition-colors"
+          variant="tinted"
+          size="sm"
+          :label="page.name"
+          :tooltip="page.name + ' — double-click to rename'"
           :class="[
             activePageId === page.id
-              ? 'bg-gold-500/20 border border-gold-500/40 text-gold-300'
-              : 'border border-transparent text-muted-foreground hover:text-foreground hover:border-border',
+              ? 'border-gold-500/40 bg-gold-500/20 text-gold-300'
+              : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border',
             dropRing(page.id),
           ]"
           @click="activePageId = page.id"
           @dblclick="startRename(page)"
-          :title="page.name + ' — double-click to rename'"
-        >
-          {{ page.name }}
-        </button>
+        />
 
         <!-- Delete button (visible on hover, hidden for active page while only 1 exists) -->
         <button
@@ -106,15 +107,17 @@
     </div>
 
     <!-- Add page button -->
-    <button
-      class="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md border border-dashed border-border text-xs font-cinzel text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors relative"
-      :title="canCreatePage ? 'Add page' : 'Pro feature — upgrade to create multiple soundboard pages'"
+    <AppButton
+      variant="subtle"
+      size="sm"
+      :icon="IconAdd"
+      :tooltip="canCreatePage ? 'Add page' : 'Pro feature — upgrade to create multiple soundboard pages'"
+      class="shrink-0 border-dashed relative"
       @click="addPage"
     >
-      <IconAdd class="h-3 w-3" />
       Add Page
       <span v-if="!canCreatePage" class="absolute -top-1.5 -right-1.5 px-1 rounded text-2xs font-cinzel bg-amber-500 text-black leading-4">PRO</span>
-    </button>
+    </AppButton>
   </div>
 
   <PaywallModal v-model="showPagePaywall" resource="soundboard_pages" />
@@ -125,6 +128,8 @@ import { ref, watch, nextTick, onMounted, onBeforeUnmount } from "vue";
 import type { ComponentPublicInstance } from "vue";
 import { IconAdd, IconChevronLeft, IconChevronRight, IconClose, IconDrag } from '@/lib/icons';
 import { VueDraggable } from "vue-draggable-plus";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import {
   useCreateSoundboardPage,
   useUpdateSoundboardPage,
@@ -254,7 +259,9 @@ function addPage() {
 
 const editingId = ref<string | null>(null);
 const nameDraft = ref("");
-const renameInput = ref<HTMLInputElement | null>(null);
+// AppInput exposes { el, focus, select } rather than the raw element, since a
+// bare component ref resolves to the public instance, not the DOM node.
+const renameInput = ref<{ focus: () => void; select: () => void } | null>(null);
 const awaitingFocusId = ref<string | null>(null);
 
 function focusRenameInput() {

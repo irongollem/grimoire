@@ -15,8 +15,10 @@
 
   <PageHeader v-else :title="pageTitle" :description="pageDescription">
     <template v-if="!isNew" #actions>
-      <PageHeaderAction
-        type="button"
+      <AppButton
+        size="md"
+        collapse-below="lg"
+        collapse-label-on-mobile
         label="Back"
         :icon="IconChevronLeft"
         @click="router.push('/monsters')"
@@ -38,9 +40,11 @@
         <IconHide v-else class="h-3.5 w-3.5" />
       </button>
 
-      <PageHeaderAction
+      <AppButton
         v-if="!isEditing"
-        type="button"
+        size="md"
+        collapse-below="lg"
+        collapse-label-on-mobile
         label="Edit"
         :icon="IconEdit"
         @click="startEditing"
@@ -142,7 +146,7 @@ import { useResolvedMonster } from "@/composables/useMonsters";
 import { useLibraryMonsterArt } from "@/composables/useLibraryMonsterArt";
 import { useMonsterVisibility } from "@/composables/useMonsterVisibility";
 import PageHeader from "@/components/common/PageHeader.vue";
-import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import MonsterDetail from "@/components/monsters/MonsterDetail.vue";
 import MonsterSheet from "@/components/monsters/MonsterSheet.vue";

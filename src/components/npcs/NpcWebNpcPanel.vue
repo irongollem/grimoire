@@ -33,12 +33,13 @@
       <p class="text-caption leading-snug">Shift+click another node to define a relationship directly from this panel.</p>
     </div>
 
-    <RouterLink
+    <AppButton
+      variant="primary"
+      size="sm"
+      label="Open Sheet"
       :to="`/npcs/${npc.id}`"
-      class="block text-center px-3 py-1.5 rounded-md bg-primary text-primary-foreground font-cinzel text-xs font-semibold hover:opacity-90 transition-opacity"
-    >
-      Open Sheet
-    </RouterLink>
+      block
+    />
   </div>
 
   <!-- Connected to this NPC -->
@@ -53,21 +54,9 @@
           </select>
           <input :value="editRelNotes" placeholder="Notes…" class="field-input text-xs" @input="$emit('update:editRelNotes', ($event.target as HTMLInputElement).value)" />
           <div class="flex items-center gap-1.5">
-            <button
-              type="button"
-              class="flex-1 px-2 py-1 font-cinzel text-2xs font-semibold bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50 transition-opacity"
-              @click="$emit('saveEditRel', conn)"
-            >Save</button>
-            <button
-              type="button"
-              class="px-2 py-1 font-cinzel text-2xs font-semibold border border-border rounded text-muted-foreground hover:text-foreground transition-colors"
-              @click="$emit('cancelEditRel')"
-            >Cancel</button>
-            <button
-              type="button"
-              class="px-2 py-1 font-cinzel text-2xs font-semibold text-destructive hover:opacity-80 transition-opacity"
-              @click="$emit('deleteRel', conn.id)"
-            >Delete</button>
+            <AppButton variant="primary" size="xs" label="Save" class="flex-1" @click="$emit('saveEditRel', conn)" />
+            <AppButton variant="subtle" size="xs" label="Cancel" @click="$emit('cancelEditRel')" />
+            <AppButton variant="destructive" size="xs" label="Delete" @click="$emit('deleteRel', conn.id)" />
           </div>
         </div>
 
@@ -91,8 +80,8 @@
 </template>
 
 <script setup lang="ts">
-import { RouterLink } from 'vue-router';
 import { IconClose, IconEdit, IconInfo } from '@/lib/icons';
+import AppButton from '@/components/common/AppButton.vue';
 import FocalImage from '@/components/common/FocalImage.vue';
 import {
   NPC_RELATIONSHIP_COLORS,

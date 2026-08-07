@@ -18,32 +18,36 @@
     <template #actions>
       <template v-if="isDM">
         <!-- Species tab -->
-        <ListActionButton
+        <AppButton
           v-if="activeTab === 'species'"
+          variant="outline"
+          size="md"
+          collapse-label-on-mobile
           :icon="IconDownload"
           label="Import Open5e"
           @click="ui.speciesOpen5ePanelOpen = true"
         />
-        <ListActionButton
+        <AppButton
           v-if="activeTab === 'species'"
+          variant="primary"
+          size="md"
+          collapse-label-on-mobile
           :icon="IconAdd"
           label="New Species"
           mobile-label="Species"
-          variant="primary"
           to="/species/new"
         />
 
         <!-- Backgrounds tab -->
         <template v-if="activeTab === 'backgrounds'">
           <div ref="sourcePickerRef" class="relative shrink-0">
-            <button
-              type="button"
-              class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors shrink-0"
-              :title="selectedSources.length === 0 ? 'All sources selected' : `${selectedSources.length} source(s) selected`"
+            <AppButton
+              variant="subtle"
+              size="md"
+              :icon="IconSettings"
+              :tooltip="selectedSources.length === 0 ? 'All sources selected' : `${selectedSources.length} source(s) selected`"
               @click="showSourcePicker = !showSourcePicker"
-            >
-              <IconSettings class="size-3.5 shrink-0" />
-            </button>
+            />
             <div
               v-show="showSourcePicker"
               class="absolute right-0 top-full mt-1 z-50 min-w-64 max-h-80 overflow-y-auto rounded-md border border-border bg-popover shadow-lg"
@@ -67,62 +71,94 @@
                 </label>
               </div>
               <div v-if="selectedSources.length > 0" class="p-2 border-t border-border">
-                <button
-                  type="button"
-                  class="w-full text-center font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors py-1"
-                  @click="selectedSources = []"
-                >
-                  Clear selection
-                </button>
+                <AppButton variant="ghost" size="sm" block label="Clear selection" @click="selectedSources = []" />
               </div>
             </div>
           </div>
-          <ListActionButton
+          <AppButton
+            variant="outline"
+            size="md"
+            collapse-label-on-mobile
             :icon="bgImportMutation.isPending.value ? IconLoading : IconDownload"
             :label="bgImportStatusLabel"
             :disabled="bgImportMutation.isPending.value"
             @click="handleBgImport"
           />
-          <ListActionButton
+          <AppButton
+            variant="primary"
+            size="md"
+            collapse-label-on-mobile
             :icon="IconAdd"
             label="New Background"
             mobile-label="Background"
-            variant="primary"
             to="/backgrounds/new"
           />
         </template>
 
         <!-- Classes tab -->
         <template v-if="activeTab === 'classes'">
-          <ListActionButton
+          <AppButton
+            variant="outline"
+            size="md"
+            collapse-label-on-mobile
             :icon="classImportMutation.isPending.value ? IconLoading : IconDownload"
             :label="classImportLabel"
             :disabled="classImportMutation.isPending.value"
             @click="handleClassImport"
           />
-          <ListActionButton :icon="IconAdd" label="New Class" mobile-label="Class" variant="primary" to="/levelup/classes/new" />
+          <AppButton
+            variant="primary"
+            size="md"
+            collapse-label-on-mobile
+            :icon="IconAdd"
+            label="New Class"
+            mobile-label="Class"
+            to="/levelup/classes/new"
+          />
         </template>
 
         <!-- Archetypes tab -->
         <template v-if="activeTab === 'archetypes'">
-          <ListActionButton
+          <AppButton
+            variant="outline"
+            size="md"
+            collapse-label-on-mobile
             :icon="archetypeImportMutation.isPending.value ? IconLoading : IconDownload"
             :label="archetypeImportLabel"
             :disabled="archetypeImportMutation.isPending.value"
             @click="handleArchetypeImport"
           />
-          <ListActionButton :icon="IconAdd" label="New Archetype" mobile-label="Archetype" variant="primary" to="/levelup/custom/new" />
+          <AppButton
+            variant="primary"
+            size="md"
+            collapse-label-on-mobile
+            :icon="IconAdd"
+            label="New Archetype"
+            mobile-label="Archetype"
+            to="/levelup/custom/new"
+          />
         </template>
 
         <!-- Abilities tab -->
         <template v-if="activeTab === 'abilities'">
-          <ListActionButton
+          <AppButton
+            variant="outline"
+            size="md"
+            collapse-label-on-mobile
             :icon="abilityImporting ? IconLoading : IconDownload"
             :label="abilityImportLabel"
             :disabled="abilityImporting"
             @click="handleAbilityImport"
           />
-          <ListActionButton :icon="IconAdd" label="New Ability" mobile-label="Ability" variant="primary" to="/features/new" />
+          <AppButton
+            variant="primary"
+            size="md"
+            collapse-label-on-mobile
+            :icon="IconAdd"
+            label="New Ability"
+            mobile-label="Ability"
+            to="/features/new"
+          />
         </template>
       </template>
     </template>
@@ -220,7 +256,7 @@ import { onClickOutside } from "@vueuse/core";
 import { IconAdd, IconBookUser, IconDownload, IconLevel, IconLightning, IconLoading, IconPopulate, IconSettings, IconSpecies } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import ListActionButton from "@/components/common/ListActionButton.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterGroup from "@/components/common/ListFilterGroup.vue";
 import ListFilterSelect from "@/components/common/ListFilterSelect.vue";

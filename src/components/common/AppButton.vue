@@ -62,7 +62,7 @@
  * strings stay static literals so Tailwind picks them up verbatim.
  */
 import { computed, useAttrs, type Component, type HTMLAttributes } from "vue";
-import { RouterLink } from "vue-router";
+import { RouterLink, type RouteLocationRaw } from "vue-router";
 import { Primitive, useForwardExpose } from "reka-ui";
 import { cn } from "@/lib/utils";
 import { buttonVariants, type ButtonVariants } from "./appButtonVariants";
@@ -99,8 +99,12 @@ const {
   label?: string;
   icon?: Component;
   iconRight?: Component;
-  /** Renders a <RouterLink>. Mutually exclusive with `href` / `as`. */
-  to?: string;
+  /**
+   * Renders a <RouterLink>. Mutually exclusive with `href` / `as`. Takes anything
+   * RouterLink takes, including named-route objects — several call sites navigate
+   * by `{ name, query }` rather than a path string.
+   */
+  to?: RouteLocationRaw;
   /** Renders an <a>. Mutually exclusive with `to` / `as`. */
   href?: string;
   /** Escape hatch for any other tag or component. */

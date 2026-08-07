@@ -26,16 +26,20 @@
         </template>
       </SourcesPickerPanel>
 
-      <ListActionButton
+      <AppButton
+        size="md"
+        collapse-label-on-mobile
         :icon="IconGenerate"
         label="Generate"
         @click="ui.spellGeneratorOpen = true"
       />
-      <ListActionButton
+      <AppButton
+        size="md"
+        collapse-label-on-mobile
+        variant="primary"
         :icon="IconAdd"
         label="New Spell"
         mobile-label="Spell"
-        variant="primary"
         to="/spells/new"
       />
     </template>
@@ -87,7 +91,7 @@ import { IconAdd, IconGenerate, IconLibrary } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import ListActionButton from "@/components/common/ListActionButton.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterGroup from "@/components/common/ListFilterGroup.vue";
 import ListFilterSelect from "@/components/common/ListFilterSelect.vue";

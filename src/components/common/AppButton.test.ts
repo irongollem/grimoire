@@ -22,6 +22,16 @@ describe("buttonVariants", () => {
     expect(buttonVariants({ size: "lg" })).toContain("text-sm");
   });
 
+  // Bare text actions sit inline in a row; giving them a box would shift the
+  // layout around them.
+  it("gives the inline sizes no padding or radius", () => {
+    for (const size of ["inline", "inline-xs"] as const) {
+      const cls = buttonVariants({ size });
+      expect(cls).not.toMatch(/\bp[xy]?-/);
+      expect(cls).not.toContain("rounded");
+    }
+  });
+
   it("keeps the ≥44px touch target on md and drops it from md up", () => {
     const cls = buttonVariants({ size: "md" });
     expect(cls).toContain("min-h-11");

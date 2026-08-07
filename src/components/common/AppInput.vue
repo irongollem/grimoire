@@ -1,5 +1,6 @@
 <template>
   <input
+    ref="el"
     :value="model"
     :type="type"
     :disabled="disabled"
@@ -23,7 +24,7 @@
  * modifiers are read off defineModel and applied in `onInput`, because a component
  * that ignores them would silently hand a numeric field a string.
  */
-import { computed, type HTMLAttributes } from "vue";
+import { computed, useTemplateRef, type HTMLAttributes } from "vue";
 import { cn } from "@/lib/utils";
 
 const [model, modifiers] = defineModel<string | number | null, "number" | "trim">({
@@ -95,4 +96,15 @@ function onInput(event: Event) {
   }
   model.value = modifiers.trim ? raw.trim() : raw;
 }
+
+// A bare `ref` on this component would resolve to the component instance, so the
+// very common `nextTick(() => inputRef.value?.focus())` after revealing an inline
+// editor would silently do nothing. Expose the element and the methods callers
+// actually reach for.
+const el = useTemplateRef<HTMLInputElement>("el");
+defineExpose({
+  el,
+  focus: (options?: FocusOptions) => el.value?.focus(options),
+  select: () => el.value?.select(),
+});
 </script>

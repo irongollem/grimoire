@@ -10,25 +10,33 @@
     </template>
 
     <template #actions>
-      <ListActionButton :icon="IconLayers" label="Sets" to="/npcs/sets" />
-      <ListActionButton :icon="IconNetwork" label="Web" to="/npcs/web" />
-      <ListActionButton
+      <AppButton size="md" collapse-label-on-mobile variant="outline" :icon="IconLayers" label="Sets" to="/npcs/sets" />
+      <AppButton size="md" collapse-label-on-mobile variant="outline" :icon="IconNetwork" label="Web" to="/npcs/web" />
+      <AppButton
         v-if="hasSetting"
+        size="md"
+        collapse-label-on-mobile
+        variant="outline"
         :icon="populateMutation.isPending.value ? IconLoading : IconPopulate"
         :label="populateStatusLabel"
         :disabled="populateMutation.isPending.value"
         @click="handlePopulate"
       />
-      <ListActionButton
+      <AppButton
+        size="md"
+        collapse-label-on-mobile
+        variant="outline"
         :icon="IconGenerate"
         label="Generate"
         @click="ui.npcGeneratorOpen = true"
       />
-      <ListActionButton
+      <AppButton
+        size="md"
+        collapse-label-on-mobile
+        variant="primary"
         :icon="IconAdd"
         label="New NPC"
         mobile-label="NPC"
-        variant="primary"
         @click="handleNew"
       />
     </template>
@@ -302,7 +310,7 @@ import {
 } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import ListActionButton from "@/components/common/ListActionButton.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterGroup from "@/components/common/ListFilterGroup.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";

@@ -5,14 +5,13 @@
         Events
         <span v-if="localEvents.length" class="font-fell font-normal">({{ localEvents.length }})</span>
       </span>
-      <button
-        type="button"
-        class="inline-flex items-center gap-1 font-cinzel text-xs text-primary hover:opacity-80 transition-opacity"
+      <AppButton
+        variant="link"
+        size="inline"
+        :icon="IconAdd"
+        label="Add"
         @click="showEventForm = !showEventForm; editingEventId = null"
-      >
-        <IconAdd class="h-3.5 w-3.5" />
-        Add
-      </button>
+      />
     </div>
 
     <div class="p-3 flex flex-col gap-2">
@@ -84,8 +83,8 @@
           </div>
           <p v-if="editEventError" class="text-caption text-destructive">{{ editEventError }}</p>
           <div class="flex gap-2 justify-end pt-1">
-            <button type="button" class="font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5" @click="cancelEditEvent">Cancel</button>
-            <button type="button" class="font-cinzel text-xs font-semibold text-primary-foreground bg-primary px-3 py-1.5 rounded hover:opacity-90 transition-opacity" @click="saveEditEvent">Save</button>
+            <AppButton variant="ghost" size="sm" label="Cancel" @click="cancelEditEvent" />
+            <AppButton variant="primary" size="sm" label="Save" @click="saveEditEvent" />
           </div>
         </div>
 
@@ -186,8 +185,8 @@
         </div>
         <p v-if="eventFormError" class="text-caption text-destructive">{{ eventFormError }}</p>
         <div class="flex gap-2 justify-end pt-1">
-          <button type="button" class="font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5" @click="showEventForm = false; eventFormError = ''">Cancel</button>
-          <button type="button" class="font-cinzel text-xs font-semibold text-primary-foreground bg-primary px-3 py-1.5 rounded hover:opacity-90 transition-opacity" @click="addEvent">Add Event</button>
+          <AppButton variant="ghost" size="sm" label="Cancel" @click="showEventForm = false; eventFormError = ''" />
+          <AppButton variant="primary" size="sm" label="Add Event" @click="addEvent" />
         </div>
       </div>
     </div>
@@ -197,6 +196,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { IconAdd, IconClose, IconEdit, IconHide, IconMinus, IconReveal } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import type {
   CombatantDef,

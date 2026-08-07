@@ -21,7 +21,7 @@
       - DiceRoller auto-mount in the action row (every list page had this)
 
     What callers still own:
-      - The actual buttons (use ListActionButton)
+      - The actual buttons (use AppButton, size="md" collapse-label-on-mobile)
       - The filter controls (free-form; wrap your own markup)
       - The list rendering
 

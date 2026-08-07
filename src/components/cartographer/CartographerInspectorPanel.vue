@@ -69,31 +69,35 @@
       </div>
       <div class="flex flex-wrap items-center gap-1">
         <span class="text-eyebrow text-muted-foreground w-full">Rotate</span>
-        <button
-          type="button"
-          title="–1° ([)"
-          class="rounded px-1.5 py-0.5 font-cinzel text-2xs bg-muted hover:bg-muted/80 text-foreground"
+        <AppButton
+          variant="chip"
+          size="xs"
+          label="–1°"
+          tooltip="–1° ([)"
           @click="$emit('update:stampRotation', (stampRotation + 359) % 360)"
-        >–1°</button>
-        <button
-          type="button"
-          title="Rotate CCW 90° (Q)"
-          class="rounded px-1.5 py-0.5 font-cinzel text-2xs bg-muted hover:bg-muted/80 text-foreground"
+        />
+        <AppButton
+          variant="chip"
+          size="xs"
+          label="↺ Q"
+          tooltip="Rotate CCW 90° (Q)"
           @click="$emit('update:stampRotation', (stampRotation + 270) % 360)"
-        >↺ Q</button>
+        />
         <span class="text-caption text-foreground w-9 text-center">{{ stampRotation }}°</span>
-        <button
-          type="button"
-          title="Rotate CW 90° (E)"
-          class="rounded px-1.5 py-0.5 font-cinzel text-2xs bg-muted hover:bg-muted/80 text-foreground"
+        <AppButton
+          variant="chip"
+          size="xs"
+          label="↻ E"
+          tooltip="Rotate CW 90° (E)"
           @click="$emit('update:stampRotation', (stampRotation + 90) % 360)"
-        >↻ E</button>
-        <button
-          type="button"
-          title="+1° (])"
-          class="rounded px-1.5 py-0.5 font-cinzel text-2xs bg-muted hover:bg-muted/80 text-foreground"
+        />
+        <AppButton
+          variant="chip"
+          size="xs"
+          label="+1°"
+          tooltip="+1° (])"
           @click="$emit('update:stampRotation', (stampRotation + 1) % 360)"
-        >+1°</button>
+        />
       </div>
     </div>
 
@@ -175,18 +179,14 @@
       <label class="block text-eyebrow text-muted-foreground mb-1">
         Brush size
       </label>
-      <div class="flex gap-1 mb-2">
-        <button
-          v-for="size in [3, 5, 7, 9]"
-          :key="size"
-          type="button"
-          class="flex-1 rounded-md py-1 font-cinzel text-2xs font-semibold transition-colors"
-          :class="caveRadius === size
-            ? 'bg-primary/15 text-foreground ring-1 ring-inset ring-primary/40'
-            : 'hover:bg-muted text-muted-foreground'"
-          @click="$emit('update:caveRadius', size)"
-        >{{ size }}</button>
-      </div>
+      <SegmentedControl
+        :model-value="caveRadius"
+        :options="CAVE_RADIUS_OPTIONS"
+        size="xs"
+        block
+        class="mb-2"
+        @update:model-value="$emit('update:caveRadius', $event)"
+      />
       <p class="text-caption-sm text-muted-foreground">Each stroke uses a different noise seed — repaint to vary the organic shape.</p>
     </div>
   </aside>
@@ -195,6 +195,10 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import SegmentedControl from "@/components/common/SegmentedControl.vue";
+
+const CAVE_RADIUS_OPTIONS = [3, 5, 7, 9].map((size) => ({ value: size, label: String(size) }));
 
 interface BundledPack {
   pack_id: string;

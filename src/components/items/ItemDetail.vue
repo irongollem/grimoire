@@ -52,12 +52,9 @@
         <div class="grid gap-3" :class="isArtObject ? 'grid-cols-1' : 'grid-cols-3'">
           <label class="flex flex-col gap-1">
             <span class="text-label-lg text-muted-foreground uppercase">Type</span>
-            <select
-              v-model="itemType"
-              class="bg-card border border-border rounded-md px-3 py-2 font-cinzel text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            >
+            <AppSelect v-model="itemType" size="lg">
               <option v-for="t in ITEM_TYPES" :key="t" :value="t">{{ ITEM_TYPE_LABELS[t] }}</option>
-            </select>
+            </AppSelect>
           </label>
           <template v-if="!isArtObject">
             <label class="flex flex-col gap-1">
@@ -70,13 +67,13 @@
             </label>
             <label class="flex flex-col gap-1">
               <span class="text-label-lg text-muted-foreground uppercase">Rarity</span>
-              <select
+              <AppSelect
                 v-model="rarity"
-                class="bg-card border border-border rounded-md px-3 py-2 font-cinzel text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                size="lg"
                 :style="{ borderColor: rarityColor + '66' }"
               >
                 <option v-for="r in ITEM_RARITIES" :key="r" :value="r">{{ ITEM_RARITY_LABELS[r] }}</option>
-              </select>
+              </AppSelect>
             </label>
           </template>
         </div>
@@ -193,10 +190,13 @@
               :key="idx"
               class="flex items-center gap-2"
             >
-              <input
+              <AppInput
                 v-model.number="entry.quantity"
                 type="number" min="1"
-                class="w-14 bg-muted border border-border rounded-md px-2 py-1.5 font-cinzel text-xs text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+                size="sm"
+                tone="muted"
+                align="center"
+                class="w-14"
               />
               <span class="text-body text-foreground flex-1">{{ entry.name }}</span>
               <button
@@ -213,11 +213,7 @@
               class="flex-1 bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               @keydown.enter.prevent="addBundleItem"
             />
-            <button
-              type="button"
-              class="px-3 py-1.5 rounded-md border border-border font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-              @click="addBundleItem"
-            >Add</button>
+            <AppButton variant="subtle" size="sm" label="Add" @click="addBundleItem" />
           </div>
         </div>
 
@@ -316,25 +312,12 @@
         <!-- Scope -->
         <div class="flex flex-col gap-2">
           <span class="text-label-lg text-muted-foreground uppercase">Scope</span>
-          <div class="flex gap-2">
-            <button
-              type="button"
-              class="flex-1 py-2 rounded-md border text-xs font-cinzel tracking-wide transition-colors"
-              :class="campaignId === null
-                ? 'bg-primary/15 border-primary/60 text-primary'
-                : 'border-border text-muted-foreground hover:text-foreground'"
-              @click="campaignId = null"
-            >General — all campaigns</button>
-            <button
-              type="button"
-              :disabled="!activeCampaignId && !campaignId"
-              class="flex-1 py-2 rounded-md border text-xs font-cinzel tracking-wide transition-colors disabled:opacity-40"
-              :class="campaignId !== null
-                ? 'bg-primary/15 border-primary/60 text-primary'
-                : 'border-border text-muted-foreground hover:text-foreground'"
-              @click="campaignId = campaignId ?? activeCampaignId"
-            >Campaign{{ scopeCampaignName ? ` — ${scopeCampaignName}` : '' }}</button>
-          </div>
+          <SegmentedControl
+            v-model="scopeValue"
+            size="md"
+            block
+            :options="scopeOptions"
+          />
         </div>
 
         <!-- Source -->
@@ -374,6 +357,10 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm, notify } = useConfirm();
 import { ref, computed } from "vue";
 import { useRouter, useRoute } from "vue-router";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
+import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
 import ItemWeaponBlock from "@/components/items/ItemWeaponBlock.vue";
 import ItemArmorBlock from "@/components/items/ItemArmorBlock.vue";
@@ -490,6 +477,23 @@ const scopeCampaignName = computed(() => {
   if (campaignId.value === activeCampaignId.value) return activeCampaign.value?.name ?? null;
   return allCampaigns.value?.find((c) => c.id === campaignId.value)?.name ?? null;
 });
+
+// SegmentedControl needs string|number values — "" stands in for the null
+// (general/all-campaigns) scope so the two-state toggle can drive campaignId.
+const scopeValue = computed<string>({
+  get: () => (campaignId.value === null ? "" : "campaign"),
+  set: (v) => {
+    campaignId.value = v === "" ? null : (campaignId.value ?? activeCampaignId.value);
+  },
+});
+const scopeOptions = computed(() => [
+  { value: "", label: "General — all campaigns" },
+  {
+    value: "campaign",
+    label: `Campaign${scopeCampaignName.value ? ` — ${scopeCampaignName.value}` : ""}`,
+    disabled: !activeCampaignId.value && !campaignId.value,
+  },
+]);
 
 // ── Magic fields ──────────────────────────────────────────────────────────────
 const requiresAttunement = ref(props.item?.requires_attunement ?? false);

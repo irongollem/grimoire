@@ -24,17 +24,18 @@
       <slot />
 
       <!--
-        Clear is an lose icon — on mobile it collapses to just the IconClose (via
-        ListActionButton's default `collapseOnMobile: true`), on desktop it
-        shows "Close Clear". Keeps the row tight on narrow screens where the
-        "Clear" label doesn't fit alongside search + filters.
+        On mobile Clear collapses to just the IconClose, on desktop it shows the
+        label too. Keeps the row tight on narrow screens where "Clear" doesn't fit
+        alongside search + filters.
       -->
-      <ListActionButton
+      <AppButton
         v-if="hasActiveFilters"
         :icon="IconClose"
         label="Clear"
         tooltip="Clear filters"
-        variant="ghost"
+        variant="subtle"
+        size="md"
+        collapse-label-on-mobile
         @click="emit('clear')"
       />
     </div>
@@ -44,7 +45,7 @@
 <script setup lang="ts">
 import { computed, useSlots } from "vue";
 import { IconClose } from "@/lib/icons";
-import ListActionButton from "@/components/common/ListActionButton.vue";
+import AppButton from "@/components/common/AppButton.vue";
 
 defineProps<{
   /** Controls whether the Clear button renders in the bar. */

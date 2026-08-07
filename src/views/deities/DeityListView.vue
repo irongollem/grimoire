@@ -1,31 +1,42 @@
 <template>
   <ListPageLayout title="Pantheon" description="Gods, deities, and divine beings of your campaign world">
     <template #actions>
-      <ListActionButton
+      <AppButton
         v-if="hasSetting"
+        size="md"
+        collapse-label-on-mobile
+        variant="outline"
         :icon="populateMutation.isPending.value ? IconLoading : IconPopulate"
         :label="populateStatusLabel"
         :disabled="populateMutation.isPending.value"
         @click="handlePopulate"
       />
-      <ListActionButton
+      <AppButton
         v-if="deities?.length"
+        size="md"
+        collapse-label-on-mobile
+        variant="outline"
         :icon="IconReveal"
         :label="revealStatus === 'done' ? 'All Revealed' : 'Reveal All'"
         :disabled="revealMutation.isPending.value"
         @click="handleRevealAll"
       />
-      <ListActionButton
+      <AppButton
+        size="md"
+        collapse-label-on-mobile
+        variant="outline"
         :icon="IconFire"
         label="Pantheons"
         mobile-label="Pantheons"
         to="/pantheons"
       />
-      <ListActionButton
+      <AppButton
+        size="md"
+        collapse-label-on-mobile
+        variant="primary"
         :icon="IconAdd"
         label="New Deity"
         mobile-label="Deity"
-        variant="primary"
         @click="handleNew"
       />
     </template>
@@ -128,7 +139,7 @@ import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { getSetting } from "@/settings/index";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
-import ListActionButton from "@/components/common/ListActionButton.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";

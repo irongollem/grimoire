@@ -4,7 +4,13 @@
     type="single"
     :disabled="disabled"
     :orientation="orientation"
-    :class="cn('inline-flex items-center', block ? 'w-full' : '', gapClass, className)"
+    :class="cn(
+      wrap ? 'flex flex-wrap' : 'inline-flex',
+      'items-center',
+      block ? 'w-full' : '',
+      gapClass,
+      className,
+    )"
     @update:model-value="onUpdate"
   >
     <ToggleGroupItem
@@ -61,6 +67,7 @@ const {
   variant = "subtle",
   size = "sm",
   block = false,
+  wrap = false,
   disabled = false,
   orientation = "horizontal",
   gap = "tight",
@@ -72,6 +79,12 @@ const {
   size?: ButtonVariants["size"];
   /** Stretches the group and divides the width evenly between options. */
   block?: boolean;
+  /**
+   * Lets the options wrap onto a second line. Needed wherever the option count is
+   * data-driven (subrace pickers, tag rows) — the default `inline-flex` would
+   * overflow its container instead.
+   */
+  wrap?: boolean;
   disabled?: boolean;
   orientation?: "horizontal" | "vertical";
   /** `tight` butts the options together; `loose` spaces them like a toolbar. */

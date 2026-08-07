@@ -27,21 +27,17 @@
           :options="availableTargets"
           placeholder="Add faction…"
         />
-        <select
-          v-model="newRelationType"
-          class="bg-card border border-border rounded-md px-2 py-1.5 font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring shrink-0"
-        >
+        <AppSelect v-model="newRelationType" size="sm">
           <option v-for="r in RELATION_TYPES" :key="r.value" :value="r.value">{{ r.label }}</option>
-        </select>
-        <button
-          type="button"
+        </AppSelect>
+        <AppButton
+          variant="primary"
+          size="sm"
+          label="Add"
+          :icon="IconAdd"
           :disabled="!newTargetId || adding"
-          class="shrink-0 inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 font-cinzel text-xs font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
           @click="add"
-        >
-          <IconAdd class="h-3 w-3" />
-          Add
-        </button>
+        />
       </div>
     </div>
 
@@ -77,6 +73,8 @@ import {
 import { useAllFactions } from "@/composables/useFactions";
 import { RELATION_TYPES, relationMeta } from "@/types/faction.types";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 
 const props = defineProps<{ factionId: string }>();
 

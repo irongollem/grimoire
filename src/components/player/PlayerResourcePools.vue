@@ -21,12 +21,15 @@
         <template v-if="res.key === 'lay_on_hands'">
           <span class="font-cinzel text-sm text-foreground shrink-0">{{ res.current }} / {{ res.max }}</span>
           <template v-if="pendingSpendKey === res.key">
-            <input
+            <AppInput
               v-model.number="pendingSpendAmount"
               type="number"
+              size="xs"
+              tone="muted"
+              align="center"
               min="1"
               :max="res.current"
-              class="w-14 rounded border border-border bg-muted/40 px-2 py-0.5 font-cinzel text-xs text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-14"
             />
             <span class="text-caption text-muted-foreground shrink-0">HP</span>
             <button
@@ -34,40 +37,45 @@
               :disabled="pendingSpendAmount < 1 || pendingSpendAmount > res.current"
               @click="confirmSpend(res.key)"
             >✓</button>
-            <button
-              class="h-6 px-2 rounded border border-border font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors"
-              @click="cancelSpend"
-            >✗</button>
+            <AppButton variant="subtle" size="sm" label="✗" @click="cancelSpend" />
           </template>
           <template v-else>
-            <button
-              class="h-6 rounded border border-border font-cinzel text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 px-2 transition-colors disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+            <AppButton
+              variant="subtle"
+              size="sm"
+              label="Spend"
               :disabled="res.current <= 0"
               @click="openSpendInput(res.key)"
-            >Spend</button>
-            <button
-              class="h-6 w-6 rounded border border-border font-cinzel text-sm text-muted-foreground hover:text-foreground hover:border-primary/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            />
+            <AppButton
+              variant="subtle"
+              size="icon-xs"
+              label="+"
               :disabled="res.current >= res.max"
               @click="emit('restore', res.key)"
-            >+</button>
+            />
           </template>
         </template>
 
         <!-- Standard ±1 resource -->
         <div v-else class="flex items-center gap-1.5 shrink-0">
-          <button
-            class="h-6 w-6 rounded border border-border font-cinzel text-sm text-muted-foreground hover:text-foreground hover:border-primary/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          <AppButton
+            variant="subtle"
+            size="icon-xs"
+            label="−"
             :disabled="res.current <= 0"
             @click="emit('spend', res.key)"
-          >−</button>
+          />
           <span class="font-cinzel text-sm text-foreground w-10 text-center">
             {{ res.current }} / {{ res.max }}
           </span>
-          <button
-            class="h-6 w-6 rounded border border-border font-cinzel text-sm text-muted-foreground hover:text-foreground hover:border-primary/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          <AppButton
+            variant="subtle"
+            size="icon-xs"
+            label="+"
             :disabled="res.current >= res.max"
             @click="emit('restore', res.key)"
-          >+</button>
+          />
         </div>
       </div>
     </div>
@@ -76,6 +84,8 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 
 export interface ResourceRow {
   key: string;

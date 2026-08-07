@@ -5,23 +5,31 @@
     </template>
 
     <template #actions>
-      <ListActionButton
+      <AppButton
         v-if="hasSetting"
+        size="md"
+        collapse-label-on-mobile
+        variant="outline"
         :icon="populateMutation.isPending.value ? IconLoading : IconPopulate"
         :label="populateStatusLabel"
         :disabled="populateMutation.isPending.value"
         @click="handlePopulate"
       />
-      <ListActionButton
+      <AppButton
+        size="md"
+        collapse-label-on-mobile
+        variant="outline"
         :icon="IconGenerate"
         label="Generate"
         @click="ui.factionGeneratorOpen = true"
       />
-      <ListActionButton
+      <AppButton
+        size="md"
+        collapse-label-on-mobile
+        variant="primary"
         :icon="IconAdd"
         label="New Faction"
         mobile-label="Faction"
-        variant="primary"
         @click="handleNew"
       />
     </template>
@@ -100,7 +108,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { getSetting } from "@/settings/index";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import ListActionButton from "@/components/common/ListActionButton.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";

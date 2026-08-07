@@ -135,39 +135,52 @@
               v-roll-mode="{ enabled: true, on: (m: RollMode | null, ev: Event) => { ev.stopPropagation(); rollSpellAttack(entry, m); } }"
             >Atk {{ signedNum(attackBonusFor(entry)!) }}</button>
             <!-- Saving-throw prompt — announces DC + ability to the table -->
-            <button
+            <AppButton
               v-else-if="isCastable(entry) && saveDcFor(entry) !== null && entry.spell.attack_type === 'save'"
-              class="shrink-0 font-cinzel text-2xs rounded border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 transition-colors hover:bg-amber-500/20"
-              :title="`Announce DC ${saveDcFor(entry)} ${entry.spell.save_attribute ?? ''} saving throw`"
+              variant="tinted"
+              size="xs"
+              class="border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20"
+              :tooltip="`Announce DC ${saveDcFor(entry)} ${entry.spell.save_attribute ?? ''} saving throw`"
+              :label="`DC ${saveDcFor(entry)}`"
               @click.stop="promptSpellSave(entry)"
-            >DC {{ saveDcFor(entry) }}</button>
+            />
 
-            <button
+            <AppButton
               v-if="isCastable(entry) && entry.spell.damage_rolls?.length && entry.spell.mechanics_reviewed !== false"
-              class="shrink-0 font-cinzel text-2xs rounded border border-red-500/30 bg-red-500/10 text-red-500 px-1.5 py-0.5 transition-colors hover:bg-red-500/20"
-              title="Roll damage after resolving the spell attack or target saving throw"
+              variant="tinted"
+              size="xs"
+              class="border-red-500/30 bg-red-500/10 text-red-500 hover:bg-red-500/20"
+              tooltip="Roll damage after resolving the spell attack or target saving throw"
+              :label="entry.spell.effects?.length ? 'Resolve' : 'Damage'"
               @click.stop="entry.spell.effects?.length ? openEffectResolution(entry, lastCastLevel(entry)) : rollSpellDamage(entry, lastCastLevel(entry), transmutedDamageType[entry.id])"
-            >{{ entry.spell.effects?.length ? "Resolve" : "Damage" }}</button>
+            />
             <!-- Post-roll Metamagic (Empowered/Seeking) — set and costs come from the metamagic_options table -->
-            <button
+            <AppButton
               v-for="option in eligiblePostRollMetamagic(entry)"
               :key="option.name"
-              class="shrink-0 font-cinzel text-2xs rounded border border-violet-500/30 bg-violet-500/10 text-violet-500 px-1.5 py-0.5 transition-colors hover:bg-violet-500/20"
-              :title="`After the roll, spend ${option.sp_cost} SP — ${option.description}`"
+              variant="tinted"
+              size="xs"
+              class="border-violet-500/30 bg-violet-500/10 text-violet-500 hover:bg-violet-500/20"
+              :tooltip="`After the roll, spend ${option.sp_cost} SP — ${option.description}`"
+              :label="option.name.replace(' Spell', '')"
               @click.stop="applyReactiveMetamagic(entry, option.name)"
-            >{{ option.name.replace(" Spell", "") }}</button>
-            <button
+            />
+            <AppButton
               v-if="isCastable(entry) && entry.spell.healing_dice && entry.spell.mechanics_reviewed !== false"
-              class="shrink-0 font-cinzel text-2xs rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-500 px-1.5 py-0.5 transition-colors hover:bg-emerald-500/20"
-              title="Roll healing"
+              variant="tinted"
+              size="xs"
+              class="border-emerald-500/30 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20"
+              tooltip="Roll healing"
+              :label="entry.spell.effects?.length ? 'Resolve' : 'Healing'"
               @click.stop="entry.spell.effects?.length ? openEffectResolution(entry, lastCastLevel(entry)) : rollSpellHealing(entry, lastCastLevel(entry))"
-            >{{ entry.spell.effects?.length ? "Resolve" : "Healing" }}</button>
+            />
             <span v-if="entry.spell.mechanics_reviewed === false" class="shrink-0 rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 font-cinzel text-2xs text-amber-500" title="Imported mechanics have not been reviewed; resolve from the spell text">Manual</span>
 
-            <select
+            <AppSelect
               v-if="eligibleMetamagic(entry).length"
               v-model="selectedMetamagic[entry.id]"
-              class="max-w-28 shrink-0 rounded border border-violet-500/30 bg-violet-500/10 px-1.5 py-0.5 font-cinzel text-2xs text-violet-500"
+              size="xs"
+              class="max-w-28 shrink-0 border-violet-500/30 bg-violet-500/10 text-violet-500"
               title="Apply Metamagic to this casting"
               aria-label="Metamagic option"
               @click.stop
@@ -176,24 +189,26 @@
               <option v-for="option in eligibleMetamagic(entry)" :key="option.name" :value="option.name">
                 {{ option.name }} ({{ option.sp_cost }} SP)
               </option>
-            </select>
+            </AppSelect>
 
-            <select
+            <AppSelect
               v-if="selectedMetamagicNames(entry).includes('Transmuted Spell')"
               v-model="transmutedDamageType[entry.id]"
-              class="max-w-24 shrink-0 rounded border border-violet-500/30 bg-violet-500/10 px-1.5 py-0.5 font-cinzel text-2xs text-violet-500"
+              size="xs"
+              class="max-w-24 shrink-0 border-violet-500/30 bg-violet-500/10 text-violet-500"
               title="Choose the new damage type"
               aria-label="Transmuted damage type"
               @click.stop
             >
               <option value="">New type…</option>
               <option v-for="type in transmutedChoices(entry)" :key="type" :value="type">{{ type }}</option>
-            </select>
+            </AppSelect>
 
-            <select
+            <AppSelect
               v-if="canCombineMetamagic && eligibleSecondaryMetamagic(entry).length"
               v-model="selectedSecondMetamagic[entry.id]"
-              class="max-w-28 shrink-0 rounded border border-violet-500/30 bg-violet-500/10 px-1.5 py-0.5 font-cinzel text-2xs text-violet-500"
+              size="xs"
+              class="max-w-28 shrink-0 border-violet-500/30 bg-violet-500/10 text-violet-500"
               title="Sorcery Incarnate: apply a second Metamagic option"
               aria-label="Second Metamagic option"
               @click.stop
@@ -202,7 +217,7 @@
               <option v-for="option in eligibleSecondaryMetamagic(entry)" :key="option.name" :value="option.name">
                 {{ option.name }} ({{ option.sp_cost }} SP)
               </option>
-            </select>
+            </AppSelect>
 
             <!-- Cast button (castable spells) -->
             <button
@@ -313,6 +328,8 @@ import { cantripDiceMultiplier } from "@/types/spell.types";
 import type { CasterType, CharacterSpellEntry, Spell } from "@/types/spell.types";
 import type { ConcentrationState, SpellSlotEntry } from "@/types/party.types";
 import { pickSpellcastingStats, type SpellcastingClassStats } from "@/types/multiclass.types";
+import AppButton from "@/components/common/AppButton.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import PlayerSpellModal from "@/components/spells/PlayerSpellModal.vue";
 import SpellUpcastPicker from "@/components/spells/SpellUpcastPicker.vue";

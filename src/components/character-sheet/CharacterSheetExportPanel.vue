@@ -13,64 +13,42 @@
     <div class="flex flex-wrap items-center gap-3">
       <slot name="back" />
 
-      <select
-        v-model="mode"
-        class="bg-card border border-border rounded px-2.5 py-1.5 font-cinzel text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        aria-label="Export style"
-      >
+      <AppSelect v-model="mode" size="sm" aria-label="Export style">
         <option value="clean">Clean</option>
         <option value="illustrated">Illustrated</option>
-      </select>
+      </AppSelect>
 
-      <select
-        v-model="pageSize"
-        class="bg-card border border-border rounded px-2.5 py-1.5 font-cinzel text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        aria-label="Page size"
-      >
+      <AppSelect v-model="pageSize" size="sm" aria-label="Page size">
         <option value="A4">A4</option>
         <option value="Letter">Letter</option>
-      </select>
+      </AppSelect>
 
-      <select
-        v-if="mode === 'clean'"
-        v-model="theme"
-        class="bg-card border border-border rounded px-2.5 py-1.5 font-cinzel text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        aria-label="Theme"
-      >
+      <AppSelect v-if="mode === 'clean'" v-model="theme" size="sm" aria-label="Theme">
         <option v-for="t in SHEET_THEMES" :key="t.id" :value="t.id">{{ t.label }}</option>
-      </select>
+      </AppSelect>
 
-      <select
-        v-else
-        v-model="illustratedTheme"
-        class="bg-card border border-border rounded px-2.5 py-1.5 font-cinzel text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        aria-label="Illustrated theme"
-      >
+      <AppSelect v-else v-model="illustratedTheme" size="sm" aria-label="Illustrated theme">
         <option v-for="t in ILLUSTRATED_THEMES" :key="t.id" :value="t.id">{{ t.label }}</option>
-      </select>
+      </AppSelect>
 
       <!-- Calibration overlay toggle — preview only; never affects the exported PDF. -->
-      <button
+      <AppButton
         v-if="mode === 'illustrated'"
-        type="button"
+        variant="subtle"
+        size="sm"
+        label="Boxes"
+        :active="showBoxes"
         :aria-pressed="showBoxes"
-        class="rounded border px-2.5 py-1.5 font-cinzel text-xs tracking-wide transition-colors"
-        :class="showBoxes
-          ? 'border-primary bg-primary/15 text-foreground'
-          : 'border-border bg-card text-muted-foreground hover:text-foreground'"
         @click="showBoxes = !showBoxes"
-      >
-        Boxes
-      </button>
+      />
 
-      <button
-        type="button"
+      <AppButton
+        variant="primary"
+        size="md"
+        :label="isGenerating ? 'Generating PDF…' : 'Export PDF'"
         :disabled="isGenerating"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-xs font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
         @click="doExport"
-      >
-        {{ isGenerating ? "Generating PDF…" : "Export PDF" }}
-      </button>
+      />
     </div>
 
     <!-- Preview (scaled-down rendition of the sheet).
@@ -107,6 +85,8 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import CharacterSheetRenderer from "@/components/character-sheet/CharacterSheetRenderer.vue";
 import IllustratedSheetDocument from "@/components/character-sheet/illustrated/IllustratedSheetDocument.vue";
 import type { PartyMember } from "@/types/party.types";

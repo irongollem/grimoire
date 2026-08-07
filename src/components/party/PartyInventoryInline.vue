@@ -4,11 +4,7 @@
       <span class="text-label-lg font-semibold text-muted-foreground uppercase flex items-center gap-1.5">
         <IconInventory class="h-3.5 w-3.5" /> Party Inventory
       </span>
-      <button
-        type="button"
-        class="font-cinzel text-2xs text-primary hover:opacity-80 transition-opacity"
-        @click="openAddItem"
-      >+ Add Item</button>
+      <AppButton variant="link" size="inline-xs" label="+ Add Item" @click="openAddItem" />
     </div>
 
     <form v-if="addItemOpen" class="flex flex-wrap gap-2 px-4 py-3 border-b border-border bg-muted/10" @submit.prevent="submitAddItem">
@@ -76,18 +72,16 @@
         class="flex-1 min-w-32 bg-background border border-border rounded px-2 py-1.5 text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
       />
       <div class="flex gap-1.5 ml-auto">
-        <button type="button" class="px-3 py-1.5 rounded border border-border font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors" @click="addItemOpen = false">Cancel</button>
-        <button
-          type="button"
+        <AppButton variant="subtle" size="sm" label="Cancel" @click="addItemOpen = false" />
+        <AppButton
+          variant="tinted"
+          size="sm"
+          label="Drop in Chat"
           :disabled="!newItem.selectedItemId && !newItem.name.trim()"
-          class="px-3 py-1.5 rounded border border-amber-500/40 bg-amber-500/10 text-amber-400 font-cinzel text-xs font-semibold hover:bg-amber-500/20 transition-colors disabled:opacity-50"
+          class="border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
           @click="dropNewItemToChat"
-        >Drop in Chat</button>
-        <button
-          type="submit"
-          :disabled="addingItem"
-          class="px-3 py-1.5 rounded bg-primary text-primary-foreground font-cinzel text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
-        >Add</button>
+        />
+        <AppButton type="submit" variant="primary" size="sm" label="Add" :disabled="addingItem" />
       </div>
     </form>
 
@@ -131,15 +125,16 @@
           <option value="">— party</option>
           <option v-for="m in party" :key="m.id" :value="m.id">{{ m.name }}</option>
         </select>
-        <button
-          type="button"
-          class="shrink-0 font-cinzel text-2xs px-1.5 py-0.5 rounded border transition-colors"
+        <AppButton
+          variant="tinted"
+          size="xs"
+          label="ATT"
+          tooltip="Toggle attunement"
           :class="item.is_attuned
-            ? 'border-amber-400/50 bg-amber-400/10 text-amber-400'
-            : 'border-border text-muted-foreground/40 hover:text-muted-foreground'"
-          title="Toggle attunement"
+            ? 'border-amber-400/50 bg-amber-400/10 text-amber-400 hover:text-amber-400 hover:border-amber-400/50'
+            : 'border-border text-muted-foreground/40 hover:text-muted-foreground hover:border-border'"
           @click="toggleAttuned(item)"
-        >ATT</button>
+        />
         <button
           type="button"
           class="shrink-0 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 rounded flex items-center justify-center text-muted-foreground/40 hover:text-amber-400 hover:bg-amber-400/10"
@@ -168,6 +163,7 @@
 import { ref, computed, reactive, nextTick } from "vue";
 import { useRouter } from "vue-router";
 import { IconArrowUp, IconDelete, IconExternalLink, IconInventory } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
 import { usePartyInventory, useAddInventoryItem, useUpdateInventoryItem, useRemoveInventoryItem } from "@/composables/usePartyInventory";
 import { useItems, useEnsureOwnedItem } from "@/composables/useItems";
 import type { Item } from "@/types/item.types";
