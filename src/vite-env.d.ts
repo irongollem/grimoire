@@ -19,3 +19,10 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+/**
+ * True only in Vercel preview builds — see the `define` block in vite.config.ts.
+ * Gates the dev-only routes so they can be reviewed on a PR preview without ever
+ * shipping to production.
+ */
+declare const __PREVIEW_BUILD__: boolean;

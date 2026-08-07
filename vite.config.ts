@@ -75,6 +75,16 @@ function swPlugin(): Plugin {
 }
 
 export default defineConfig({
+  define: {
+    /**
+     * Dev-only routes (the Paged.js spike, sheet calibration, the component
+     * catalogue) also build for Vercel *preview* deployments, so a PR's preview
+     * can be used to review them. Gated on VERCEL_ENV rather than on "not
+     * production", so a local `npm run build` — where VERCEL_ENV is unset — still
+     * strips them, and a production deploy never sees them.
+     */
+    __PREVIEW_BUILD__: JSON.stringify(process.env.VERCEL_ENV === "preview"),
+  },
   plugins: [
     vue({
       template: {

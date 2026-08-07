@@ -4,7 +4,7 @@
     :value="model"
     :disabled="disabled"
     :aria-label="ariaLabel"
-    :class="cn(base, sizeClass, block ? 'w-full' : 'shrink-0', className)"
+    :class="cn(fieldVariants({ tone: 'card', size, control: 'select', weight: 'semibold' }), block ? 'w-full' : 'shrink-0', className)"
     @change="onChange"
   >
     <slot />
@@ -29,8 +29,9 @@
  * (`"quest_complete" | "objective_done"`) keeps that type through `v-model`
  * instead of widening to `string` and forcing a cast at the call site.
  */
-import { computed, useTemplateRef, type HTMLAttributes } from "vue";
+import { useTemplateRef, type HTMLAttributes } from "vue";
 import { cn } from "@/lib/utils";
+import { fieldVariants, type FieldSize } from "./fieldVariants";
 
 /** Vue stashes a bound `<option :value="x">` on the element as `_value`. */
 type OptionWithValue = HTMLOptionElement & { _value?: unknown };
@@ -50,7 +51,7 @@ const {
   ariaLabel,
   class: className,
 } = defineProps<{
-  size?: "xs" | "sm" | "md" | "lg";
+  size?: FieldSize;
   /** Stretches to the full width of the parent instead of hugging its content. */
   block?: boolean;
   disabled?: boolean;
@@ -58,26 +59,6 @@ const {
   class?: HTMLAttributes["class"];
 }>();
 
-const base =
-  "bg-card border border-border text-foreground font-semibold transition-colors focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed";
-
-const sizeClass = computed(() => {
-  switch (size) {
-    case "xs":
-      return "rounded px-1.5 py-0.5 text-label";
-    // `sm` with a ≥44px tap target on touch; ≥md reverts so desktop is identical
-    // to `sm`. This is the filter-row size — see ListFilterSelect.
-    case "md":
-      return "rounded-md px-2 py-1.5 min-h-11 md:min-h-0 text-label-lg";
-    // Matches AppInput's `lg`: the 14px step, for pickers sitting in a field row
-    // next to body text rather than in a dense filter bar.
-    case "lg":
-      return "rounded-md px-2 py-1.5 text-sm tracking-wider";
-    case "sm":
-    default:
-      return "rounded-md px-2 py-1.5 text-label-lg";
-  }
-});
 
 function onChange(event: Event) {
   const el = event.target as HTMLSelectElement;
