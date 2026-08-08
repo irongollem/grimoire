@@ -1,18 +1,12 @@
 import { cva, type VariantProps } from "class-variance-authority";
 
 /**
- * The class matrix behind the app's form fields (#621).
- *
- * `AppInput`, `AppSelect` and `EntityCombobox` each used to spell out the same box
- * — `border border-border rounded-md px-3 py-1.5 focus:outline-none focus:ring-1
- * focus:ring-ring` — independently. Three copies of one recipe is the debt #561
- * removed from buttons, reproduced one level up: change the focus ring and you had
- * to remember all three.
+ * Shared by AppInput, AppSelect and EntityCombobox, so the focus ring and the box
+ * are changed in one place rather than three.
  *
  * `size` names a #552 typography role rather than a raw font size, which is why the
- * body-faced combobox is a size here rather than a separate `font` axis: in this
- * app the role already carries the family (`text-label-lg` is Cinzel 12px,
- * `text-body` is Crimson 14px).
+ * body-faced combobox is a size here rather than a separate `font` axis — in this
+ * app the role already carries the family.
  */
 export const fieldVariants = cva(
   "text-foreground placeholder:text-muted-foreground transition-colors focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed",

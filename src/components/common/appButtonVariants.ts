@@ -1,19 +1,11 @@
 import { cva, type VariantProps } from "class-variance-authority";
 
 /**
- * The class matrix behind AppButton (#561).
+ * Variants and sizes are derived from what the call sites were already doing, so
+ * adding one means finding a real cluster rather than inventing a look.
  *
- * Every interactive control in the app used to hand-roll `font-cinzel` + a size
- * class plus its own padding, radius, border, hover and disabled states — 262
- * distinct class strings across 410 buttons. The variants below are derived from
- * what those sites actually did, not invented:
- *
- *   outline/subtle 149 · ghost 97 · primary 68 · chip 56 · destructive 41
- *   text-xs 281 · text-2xs 80 · text-sm 50
- *
- * Sizes reuse the #552 typography roles (`text-label`, `text-label-lg`) instead of
- * re-declaring the Cinzel recipe. Those roles carry `tracking-wider`, so sites that
- * previously had none gain it — the deliberate normalisation this refactor exists for.
+ * Sizes reuse the #552 typography roles, which carry `tracking-wider` — that is
+ * where a button's letter-spacing comes from, not from the call site.
  *
  * Lives outside the SFC because `<script setup>` cannot export, and because a pure
  * class map is worth testing without mounting anything.
@@ -43,14 +35,9 @@ export const buttonVariants = cva(
         /** Filled pill — tags, counts, secondary navigation chips. */
         chip: "bg-muted text-muted-foreground hover:bg-muted/70 hover:text-foreground",
         /**
-         * A pill whose colour carries meaning — DMG red, HEAL green, +Temp blue,
-         * ATT amber, Create-slot violet, the soundboard's source tabs.
-         *
-         * Pair with `tone` (which colour) and `emphasis` (how loud). It used to
-         * resolve to bare `border` with every call site writing its own opacity
-         * ladder, and 35 sites had already drifted into 14 different class shapes
-         * — the exact "next one invents its own ladder" failure #561 exists to
-         * stop. The table below is now the only place a tint is spelled out.
+         * A pill whose colour carries meaning. Pair with `tone` and `emphasis`;
+         * the table below is the only place a tint is spelled out, so a new one
+         * does not get to invent its own opacity ladder.
          */
         tinted: "border",
       },
@@ -72,9 +59,7 @@ export const buttonVariants = cva(
         "icon-sm": "h-8 w-8 rounded-md text-label-lg",
       },
       /**
-       * Selected state for toggles and segmented pickers. One treatment replaces the
-       * four that had grown in the wild (`bg-primary`, `bg-primary/15 ring-1`,
-       * `border-primary bg-primary/10`, `bg-muted`).
+       * Selected state for toggles and segmented pickers.
        *
        * Deliberately carries no `border-primary`: `ghost`, `link` and `chip` set no
        * border *width*, so a border colour on them paints nothing, and adding the
@@ -87,11 +72,10 @@ export const buttonVariants = cva(
       },
       block: { true: "w-full", false: "" },
       /**
-       * What a `tinted` button *means*. Semantic rather than hue-named so the
-       * palette stays changeable: each maps to a `--color-tone-*` custom property
-       * in main.css, which a future theme can reassign on `:root` to repaint every
-       * damage/heal/arcane control at once. `tone="red"` would have hardcoded that
-       * decision at 35 call sites. Ignored by every variant except `tinted`.
+       * What a `tinted` button means. Semantic rather than hue-named so the palette
+       * stays changeable: each maps to a `--color-tone-*` custom property a theme
+       * can reassign, whereas `tone="red"` would pin the colour here. Ignored by
+       * every variant except `tinted`.
        */
       tone: {
         /** The theme's accent — soundboard source tabs, "Drop chest in chat". */
@@ -117,10 +101,9 @@ export const buttonVariants = cva(
     },
     compoundVariants: [
       // ── tinted × tone × emphasis ──────────────────────────────────────────
-      // Tailwind extracts classes statically, so each cell is spelled out; a tone
-      // cannot be composed at runtime. But the *colour* is one indirection away —
-      // each `tone-*` resolves through a `--color-tone-*` custom property — so
-      // repainting a tone is a one-line change in main.css, not 35 call sites.
+      // Spelled out cell by cell because Tailwind extracts classes statically and
+      // `bg-tone-<x>/10` cannot be composed at runtime. The colour itself still is
+      // not pinned here — each `tone-*` resolves through a custom property.
       { variant: "tinted", tone: "primary", emphasis: "soft", class: "bg-tone-primary/10 border-tone-primary/30 text-tone-primary hover:bg-tone-primary/20" },
       { variant: "tinted", tone: "primary", emphasis: "strong", class: "bg-tone-primary/25 border-tone-primary/60 text-tone-primary" },
       { variant: "tinted", tone: "primary", emphasis: "outline", class: "border-tone-primary/40 text-tone-primary hover:bg-tone-primary/10" },

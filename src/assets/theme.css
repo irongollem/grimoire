@@ -48,16 +48,13 @@
   --color-ring: var(--ring);
 
   /* ── Semantic tones (#623) ───────────────────────────────────────────────
-     What a coloured control *means*, not which hue it happens to be. AppButton's
-     `tinted` variant is built entirely from these, so 35 call sites say
-     `tone="danger"` instead of `bg-red-500/10 border-red-500/30 text-red-400`.
+     What a coloured control means, not which hue it happens to be — naming these
+     for the hue would pin the decision at every call site instead of here.
 
-     Declared the same way as the shadcn tokens above — `var(--tone-*)`, resolved
-     at runtime rather than inlined — so `applyTheme()` can reassign them per
-     theme exactly as it does `--primary`. That is the whole point: a future theme
-     beyond light/dark repaints every damage, heal and arcane control by setting
-     six variables, with no component change. Naming these for the hue would have
-     hardcoded the decision at every call site. */
+     Declared like the shadcn tokens above (`var(--tone-*)`, resolved at runtime
+     rather than inlined) so `applyTheme()` can reassign them per theme exactly as
+     it does `--primary`: a theme beyond light/dark repaints every damage, heal
+     and arcane control by setting these six. */
   --color-tone-primary: var(--tone-primary);
   --color-tone-danger: var(--tone-danger);
   --color-tone-success: var(--tone-success);
