@@ -114,6 +114,16 @@
             <span class="font-fell">Edit display name</span>
           </button>
 
+          <!-- Account -->
+          <RouterLink
+            to="/account"
+            class="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+            @click="menuOpen = false"
+          >
+            <IconUserCircle class="h-3.5 w-3.5 shrink-0" />
+            <span class="font-fell">Account</span>
+          </RouterLink>
+
           <!-- Billing (DM only) -->
           <RouterLink
             v-if="auth.isDM"
@@ -187,7 +197,7 @@
 <script setup lang="ts">
 import { ref, computed, defineAsyncComponent } from "vue";
 import { useRouter } from "vue-router";
-import { IconBilling, IconBug, IconCheck, IconClose, IconDownload, IconEdit, IconLoading, IconLogOut, IconShieldCheck, IconSort } from '@/lib/icons';
+import { IconBilling, IconBug, IconCheck, IconClose, IconDownload, IconEdit, IconLoading, IconLogOut, IconShieldCheck, IconSort, IconUserCircle } from '@/lib/icons';
 import { usePwaInstall } from "@/composables/usePwaInstall";
 import { onClickOutside } from "@vueuse/core";
 import { isAnyAiGenerating, getAiGeneratorRegistry } from "@/ai/aiGeneratorRegistry";

@@ -9,7 +9,21 @@
       <PlayerSettingsNavigation />
       <PlayerSettingsNotifications />
       <PlayerSettingsAppearance />
-      <PlayerSettingsAccount />
+
+      <SettingsSection title="Account">
+        <div class="space-y-3">
+          <div class="flex items-center gap-2">
+            <span class="text-caption text-muted-foreground w-16">Email</span>
+            <span class="text-body text-foreground">{{ auth.userEmail ?? '—' }}</span>
+          </div>
+          <RouterLink
+            to="/account"
+            class="inline-block text-label font-semibold text-primary hover:opacity-80 transition-opacity"
+          >
+            Manage account & billing →
+          </RouterLink>
+        </div>
+      </SettingsSection>
 
       <!-- Legal -->
       <div class="flex items-center gap-5 pt-2 pb-6">
@@ -38,6 +52,7 @@
 <script setup lang="ts">
 import { legalUrl } from "@/lib/marketing";
 import PageHeader from "@/components/common/PageHeader.vue";
+import SettingsSection from "@/components/common/SettingsSection.vue";
 import PlayerSettingsDisplayName from "@/components/play/PlayerSettingsDisplayName.vue";
 import PlayerSettingsInstall from "@/components/play/PlayerSettingsInstall.vue";
 import PlayerSettingsCharacterClaim from "@/components/play/PlayerSettingsCharacterClaim.vue";
@@ -46,5 +61,7 @@ import PlayerSettingsCalendar from "@/components/play/PlayerSettingsCalendar.vue
 import PlayerSettingsNavigation from "@/components/play/PlayerSettingsNavigation.vue";
 import PlayerSettingsNotifications from "@/components/play/PlayerSettingsNotifications.vue";
 import PlayerSettingsAppearance from "@/components/play/PlayerSettingsAppearance.vue";
-import PlayerSettingsAccount from "@/components/play/PlayerSettingsAccount.vue";
+import { useAuthStore } from "@/stores/auth";
+
+const auth = useAuthStore();
 </script>

@@ -1,16 +1,16 @@
 <template>
   <SettingsSection title="Account">
-    <div class="space-y-2">
+    <div class="space-y-3">
       <div class="flex items-center gap-2">
         <span class="text-caption text-muted-foreground w-16">Email</span>
         <span class="text-body text-foreground">{{ auth.userEmail ?? '—' }}</span>
       </div>
-      <div class="flex items-center gap-2">
-        <span class="text-caption text-muted-foreground w-16">Role</span>
-        <span class="text-label-lg px-1.5 py-0.5 rounded bg-primary/15 text-primary">
-          {{ auth.currentRole ?? '—' }}
-        </span>
-      </div>
+      <RouterLink
+        to="/billing"
+        class="inline-block text-label font-semibold text-primary hover:opacity-80 transition-opacity"
+      >
+        Billing & Subscription →
+      </RouterLink>
     </div>
   </SettingsSection>
 
