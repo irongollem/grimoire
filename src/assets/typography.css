@@ -1,0 +1,107 @@
+/* Semantic typography roles (#552). Each bundles the properties that are uniform
+   for that role, so the recipe lives in one place instead of at every call site. */
+
+/* ── Semantic typography roles (#552) ──────────────────────────────────────
+   Role-keyed text styles that bundle the properties uniform for that role, so
+   the recipe lives in one place instead of being re-declared at every call
+   site. Compose font-weight and text-<color> separately (those vary per use).
+
+   text-eyebrow — the app's most common micro-label: Cinzel, tiny, wide-tracked,
+   uppercase. Equivalent to `font-cinzel text-2xs tracking-wider uppercase`. */
+@utility text-eyebrow {
+  font-family: var(--font-cinzel);
+  font-size: 0.625rem;
+  /* mirrors how the built-in text-* utilities resolve leading, so an explicit
+     leading-* class still wins regardless of rule order */
+  line-height: var(--tw-leading, 1);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* text-label — the mixed-case sibling of text-eyebrow: the same tiny wide-
+   tracked Cinzel recipe WITHOUT forced uppercase, for action/field labels
+   ("Save", "Resume →", "Detection DC"). Equivalent to
+   `font-cinzel text-2xs tracking-wider`. */
+@utility text-label {
+  font-family: var(--font-cinzel);
+  font-size: 0.625rem;
+  line-height: var(--tw-leading, 1);
+  letter-spacing: 0.05em;
+}
+
+/* text-label-lg — the 12px step of the label family: section and field headings
+   ("Description", "DM Notes", "Proficiencies"). Uppercase is the minority at
+   this size (89 of 822 sites), so it is NOT bundled — keep `uppercase` explicit
+   where wanted. Equivalent to `font-cinzel text-xs tracking-wider`. */
+@utility text-label-lg {
+  font-family: var(--font-cinzel);
+  font-size: 0.75rem;
+  line-height: var(--tw-leading, calc(1 / 0.75));
+  letter-spacing: 0.05em;
+}
+
+/* ── Heading tiers (Cinzel) ───────────────────────────────────────────────
+   Display type carries NO letter-spacing — tracking belongs to the small
+   uppercase label roles above, not to headings. Sizes map 1:1 onto the scale
+   these headings already used, so adopting them changes nothing visually. */
+
+/* = `font-cinzel text-base` */
+@utility text-heading-sm {
+  font-family: var(--font-cinzel);
+  font-size: 1rem;
+  line-height: var(--tw-leading, calc(1.5 / 1));
+}
+
+/* = `font-cinzel text-lg` */
+@utility text-heading {
+  font-family: var(--font-cinzel);
+  font-size: 1.125rem;
+  line-height: var(--tw-leading, calc(1.75 / 1.125));
+}
+
+/* = `font-cinzel text-xl` */
+@utility text-heading-lg {
+  font-family: var(--font-cinzel);
+  font-size: 1.25rem;
+  line-height: var(--tw-leading, calc(1.75 / 1.25));
+}
+
+/* = `font-cinzel text-2xl` */
+@utility text-title {
+  font-family: var(--font-cinzel);
+  font-size: 1.5rem;
+  line-height: var(--tw-leading, calc(2 / 1.5));
+}
+
+/* = `font-cinzel text-3xl` */
+@utility text-display {
+  font-family: var(--font-cinzel);
+  font-size: 1.875rem;
+  line-height: var(--tw-leading, calc(2.25 / 1.875));
+}
+
+/* ── Body tiers (Crimson Pro / "fell") ────────────────────────────────────
+   The reading family. No letter-spacing at any tier (body text carries none in
+   this app), and `italic` stays a separate class — it varies per call site
+   (~40% of captions, ~20% of body) and is emphasis, not part of the role. */
+
+/* text-body — default reading text. = `font-fell text-sm` */
+@utility text-body {
+  font-family: var(--font-fell);
+  font-size: 0.875rem;
+  line-height: var(--tw-leading, calc(1.25 / 0.875));
+}
+
+/* text-caption — fine print / secondary copy. = `font-fell text-xs` */
+@utility text-caption {
+  font-family: var(--font-fell);
+  font-size: 0.75rem;
+  line-height: var(--tw-leading, calc(1 / 0.75));
+}
+
+/* text-caption-sm — the densest body tier. = `font-fell text-2xs` */
+@utility text-caption-sm {
+  font-family: var(--font-fell);
+  font-size: 0.625rem;
+  line-height: var(--tw-leading, 1);
+}
