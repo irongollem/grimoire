@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(8);
+select plan(9);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 values
@@ -55,7 +55,7 @@ $$, 'P0001', null, 'settled ledger rows remain protected from direct deletion');
 select lives_ok($$
   delete from auth.users
   where id = '68000000-0000-4000-8000-000000000003'
-$$, 'account deletion may cascade through settled ledger rows');
+$$, 'account deletion may proceed despite settled ledger rows');
 
 select is(
   (select count(*)::integer from auth.users where id = '68000000-0000-4000-8000-000000000003'),
@@ -66,7 +66,14 @@ select is(
 select is(
   (select count(*)::integer from public.ai_credit_ledger where user_id = '68000000-0000-4000-8000-000000000003'),
   0,
-  'the account cascade removes its ledger rows'
+  'no ledger row remains linked to the deleted account'
+);
+
+select is(
+  (select count(*)::integer from public.ai_credit_ledger
+   where id = '68000000-0000-4000-8000-000000000030' and user_id is null and delta = 10),
+  1,
+  'the settled row survives erasure anonymized — billing evidence is retained, not cascaded away'
 );
 
 select * from finish();

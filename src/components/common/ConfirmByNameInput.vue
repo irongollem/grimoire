@@ -8,7 +8,8 @@
       type="text"
       autocomplete="off"
       :placeholder="name"
-      class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1"
+      :disabled="disabled"
+      class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 disabled:opacity-50 disabled:cursor-not-allowed"
       :class="accent === 'destructive' ? 'focus:ring-destructive' : 'focus:ring-primary'"
     />
   </div>
@@ -27,5 +28,6 @@ const { accent = "destructive" } = defineProps<{
   name: string;
   /** Focus-ring colour; `primary` for actions that are permanent but not deletions. */
   accent?: "destructive" | "primary";
+  disabled?: boolean;
 }>();
 </script>

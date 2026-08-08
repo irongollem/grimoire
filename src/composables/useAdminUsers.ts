@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { supabase } from '@/lib/supabase'
+import { invokeDeleteAccount } from '@/composables/useAccountDeletion'
 import type { PlanId } from '@/types/subscription.types'
 
 export interface AdminUser {
@@ -87,5 +88,12 @@ export function useAdminUsers() {
     onSettled: () => qc.invalidateQueries({ queryKey: ['admin', 'users'] }),
   })
 
-  return { ...query, setPlan, grantCredits, setSuspended, setBanned }
+  // GDPR erasure (#631) — permanent, cascades owned campaigns, rejects admin targets
+  // server-side (cannot_delete_admin). See useAccountDeletion.ts for the shared invoke.
+  const deleteUser = useMutation({
+    mutationFn: (userId: string) => invokeDeleteAccount(userId),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['admin', 'users'] }),
+  })
+
+  return { ...query, setPlan, grantCredits, setSuspended, setBanned, deleteUser }
 }

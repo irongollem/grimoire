@@ -14,6 +14,7 @@
       Failed to load users.
     </div>
     <div v-else class="space-y-2">
+      <p v-if="deleteError" class="text-caption-sm text-destructive">{{ deleteError }}</p>
       <div
         v-for="user in filteredUsers"
         :key="user.user_id"
@@ -79,6 +80,15 @@
           >
             {{ user.banned ? 'Unlock' : 'Lock out' }}
           </button>
+
+          <!-- Permanent erasure (#631) -->
+          <button
+            class="px-2 py-0.5 text-label font-semibold border border-destructive rounded bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
+            :disabled="usersQuery.deleteUser.isPending.value"
+            @click="deleteUserAccount(user)"
+          >
+            Delete
+          </button>
         </div>
       </div>
       <p v-if="filteredUsers.length === 0" class="text-body text-muted-foreground text-center py-8">
@@ -91,11 +101,13 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useAdminUsers, type AdminUser } from "@/composables/useAdminUsers";
+import { accountDeletionErrorMessage } from "@/composables/useAccountDeletion";
 import { useConfirm } from "@/composables/useConfirm";
 import type { PlanId } from "@/types/subscription.types";
 
 const usersQuery = useAdminUsers();
 const { confirm } = useConfirm();
+const deleteError = ref("");
 
 async function toggleFreeze(user: AdminUser) {
   const suspend = !user.suspended_at;
@@ -124,6 +136,21 @@ async function toggleBan(user: AdminUser) {
   );
   if (!ok) return;
   usersQuery.setBanned.mutate({ userId: user.user_id, banned: ban });
+}
+
+async function deleteUserAccount(user: AdminUser) {
+  const ok = await confirm(
+    `Permanently delete ${user.email}? This deletes their auth account immediately: campaigns they own — and everything in them — are erased, and content they created in other campaigns is removed. Billing ledger rows are kept, anonymized, as legally required. This cannot be undone.`,
+    { title: "Delete account", confirmLabel: "Delete permanently", danger: true },
+  );
+  if (!ok) return;
+  deleteError.value = "";
+  try {
+    await usersQuery.deleteUser.mutateAsync(user.user_id);
+  } catch (err) {
+    const code = err instanceof Error ? err.message : String(err);
+    deleteError.value = accountDeletionErrorMessage(code);
+  }
 }
 
 const PLAN_IDS: PlanId[] = ["free", "tester", "pro"];
