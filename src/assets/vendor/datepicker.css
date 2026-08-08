@@ -1,24 +1,17 @@
-/* VueDatePicker (@vuepic/vue-datepicker) theme overrides.
+/* Loaded by the components that render a datepicker, not by the global manifest:
+   most visitors never open one, and this plus the library's own stylesheet is a
+   tenth of the critical-path CSS. Importing a .css file from a component is still
+   global, not scoped — which this needs, since the calendar menu teleports to
+   <body>. Only the loading is deferred.
 
-   Vendor CSS, not app CSS — kept out of main.css because it is ~140 lines of
-   `!important` fighting the library's own stylesheet.
-
-   Imported by the two components that render a datepicker (NoteEditor,
-   SchedulingTab) rather than by the global manifest, so this and the library's own
-   24 kB stay off the critical path for the majority of visitors who never open one.
-   Importing a plain .css file from a component is still GLOBAL, not scoped — which
-   matters, because the calendar menu teleports to <body> and could not be reached
-   by scoped styles. It is only the *loading* that is deferred, not the scope. */
-
-/* The library's own stylesheet, imported here rather than by each consumer so
-   the two always land in the same chunk in this order — some overrides below
-   are not `!important` and would lose if the vendor CSS happened to load after. */
+   The library's stylesheet is pulled in here rather than beside this file at each
+   call site so the two share a chunk: some overrides below are not `!important`
+   and would lose if the vendor CSS happened to load second. */
 @import "@vuepic/vue-datepicker/dist/main.css";
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   VueDatePicker theme — maps --dp-* vars to app theme vars so the datepicker
-   respects both light and dark mode automatically. The calendar menu teleports
-   to <body>, so overrides must live here in the global stylesheet (not scoped).
+   --dp-* mapped onto the app's theme vars, so the picker follows a theme change
+   rather than needing a dark/light variant of its own.
 ───────────────────────────────────────────────────────────────────────────── */
 :root {
   --dp-background-color: var(--card);
