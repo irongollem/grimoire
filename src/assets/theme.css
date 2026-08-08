@@ -1,0 +1,173 @@
+/* Design tokens: Tailwind variants, the @theme map, and the :root theme
+   fallback. Canonical theme colours live in src/lib/themes.ts. */
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Tailwind v4: @theme maps CSS variables to utility classes.
+   @theme inline defers color resolution so hsl(var(--x)) works at runtime.
+───────────────────────────────────────────────────────────────────────────── */
+@custom-variant dark (&:is(.dark *));
+
+/* Nav-surface variants (issue #575). The bottom bar serves touch-first
+   devices — primary pointer coarse: phones, tablets, a Surface with the
+   keyboard detached — plus any window too narrow for the sidebar; the
+   sidebar serves everything else. Pointer type, not width, is what tells an
+   iPad Pro in landscape (1366px) apart from a same-width laptop, and it
+   re-evaluates live when a convertible's keyboard detaches.
+   JS mirror: useIsBarNav() in composables/useBreakpoint.ts — keep in sync. */
+@custom-variant barnav {
+  @media (pointer: coarse) or (width < 48rem) {
+    @slot;
+  }
+}
+@custom-variant sidenav {
+  @media not ((pointer: coarse) or (width < 48rem)) {
+    @slot;
+  }
+}
+
+@theme inline {
+  /* Shadcn-compatible semantic tokens */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* ── Semantic tones (#623) ───────────────────────────────────────────────
+     What a coloured control *means*, not which hue it happens to be. AppButton's
+     `tinted` variant is built entirely from these, so 35 call sites say
+     `tone="danger"` instead of `bg-red-500/10 border-red-500/30 text-red-400`.
+
+     Declared the same way as the shadcn tokens above — `var(--tone-*)`, resolved
+     at runtime rather than inlined — so `applyTheme()` can reassign them per
+     theme exactly as it does `--primary`. That is the whole point: a future theme
+     beyond light/dark repaints every damage, heal and arcane control by setting
+     six variables, with no component change. Naming these for the hue would have
+     hardcoded the decision at every call site. */
+  --color-tone-primary: var(--tone-primary);
+  --color-tone-danger: var(--tone-danger);
+  --color-tone-success: var(--tone-success);
+  --color-tone-info: var(--tone-info);
+  --color-tone-arcane: var(--tone-arcane);
+  --color-tone-caution: var(--tone-caution);
+
+  /* Border radius */
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 0.125rem);
+  --radius-sm: calc(var(--radius) - 0.25rem);
+
+  /* Sub-xs text size for dense player UI — rem-based so it scales with user font prefs */
+  --text-2xs: 0.625rem;
+  --text-2xs--line-height: 1;
+
+  /* Fonts */
+  --font-cinzel: "Cinzel", Georgia, serif;
+  --font-fell: "Crimson Pro", Georgia, serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-stat: "Source Sans 3", Roboto, Helvetica, sans-serif;
+
+  /* Grimoire DnD custom palette */
+  --color-parchment: #f5e6c8;
+  --color-parchment-dark: #d4b896;
+
+  --color-gold-50: #fdf8e8;
+  --color-gold-100: #faf0c8;
+  --color-gold-300: #f0c74a;
+  --color-gold-400: #e8b422;
+  --color-gold-500: #c9920a;
+  --color-gold-600: #a67708;
+  --color-gold-700: #7d5a06;
+
+  --color-burgundy-900: #1a0a0e;
+  --color-burgundy-800: #2c0f18;
+  --color-burgundy-700: #3e1422;
+  --color-burgundy-600: #5c1a30;
+  --color-burgundy-500: #7a2040;
+  --color-burgundy-400: #9b3055;
+
+  --color-navy-950: #060b14;
+  --color-navy-900: #0b1525;
+  --color-navy-800: #111f38;
+  --color-navy-700: #182b4e;
+  --color-navy-600: #1f3666;
+
+  --color-dragon-red: #c0392b;
+  --color-elven-green: #2e7d32;
+  --color-arcane-purple: #6a1b9a;
+  /* Soundboard's fourth category hue. `arcane-purple` itself is too dark to
+     read as a category spine against navy; this is the same hue, lightened.
+     Misc had no colour at all before, which left one of the four categories
+     unreadable from the spine alone. */
+  --color-arcane-purple-light: #9b7fc4;
+
+  /* Soundboard "this is audible" bars. Named here so the utility is
+     `animate-eq` rather than a per-component style block. */
+  --animate-eq: eq 1.1s ease-in-out infinite;
+}
+
+@keyframes eq {
+  0%, 100% { transform: scaleY(0.28); }
+  50%      { transform: scaleY(1); }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Default theme fallback — prevents flash on first load before JS applies the
+   active theme. Canonical values live in src/lib/themes.ts (the "grimoire" entry).
+   Do NOT edit colors here; edit themes.ts instead.
+───────────────────────────────────────────────────────────────────────────── */
+:root {
+  --background: hsl(40 30% 95%);
+  --foreground: hsl(222 40% 14%);
+
+  --card: hsl(0 0% 100%);
+  --card-foreground: hsl(222 40% 14%);
+
+  --popover: hsl(0 0% 100%);
+  --popover-foreground: hsl(222 40% 14%);
+
+  --primary: hsl(42 90% 35%);
+
+  /* Tone defaults. Deliberately the hues the tinted controls already used, so
+     #623 is a refactor rather than a repaint; switching `danger` to
+     `var(--color-dragon-red)`, `success` to `--color-elven-green` and `arcane` to
+     `--color-arcane-purple-light` is now a one-line change per tone. */
+  --tone-primary: var(--primary);
+  --tone-danger: hsl(0 84% 60%);
+  --tone-success: hsl(142 71% 45%);
+  --tone-info: hsl(217 91% 60%);
+  --tone-arcane: hsl(258 90% 66%);
+  --tone-caution: hsl(38 92% 50%);
+  --primary-foreground: hsl(0 0% 100%);
+
+  --secondary: hsl(340 30% 88%);
+  --secondary-foreground: hsl(222 40% 14%);
+
+  --muted: hsl(38 15% 90%);
+  --muted-foreground: hsl(222 20% 42%);
+
+  --accent: hsl(42 90% 35%);
+  --accent-foreground: hsl(0 0% 100%);
+
+  --destructive: hsl(0 72% 45%);
+  --destructive-foreground: hsl(0 0% 100%);
+
+  --border: hsl(38 15% 78%);
+  --input: hsl(38 15% 78%);
+  --ring: hsl(42 90% 35%);
+
+  --radius: 0.5rem;
+}

@@ -1,0 +1,47 @@
+/* Standalone utilities: safe-area insets, scrollbar hiding, screen shake. */
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Safe-area utilities — register as Tailwind v4 utilities so they compose with
+   variants (`sm:pb-safe`) and arbitrary modifiers where needed. The numeric
+   helpers add a fixed amount *on top of* the inset, which is the common case
+   for content sitting above a fixed bottom nav on notched phones.
+───────────────────────────────────────────────────────────────────────────── */
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+@utility pl-safe {
+  padding-left: env(safe-area-inset-left);
+}
+@utility pr-safe {
+  padding-right: env(safe-area-inset-right);
+}
+/* Hide the native scrollbar while keeping the element scrollable (used by the
+   soundboard page tabs, which cue overflow with edge fades + chevrons). */
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+/* ─────────────────────────────────────────────────────────────────────────────
+   Screen shake — triggered by .shake class (see useScreenShake composable)
+───────────────────────────────────────────────────────────────────────────── */
+@keyframes screen-shake {
+  0%,  100% { transform: translate(0, 0) rotate(0deg); }
+  10%        { transform: translate(-4px, -2px) rotate(-0.3deg); }
+  20%        { transform: translate(4px, 2px) rotate(0.3deg); }
+  30%        { transform: translate(-3px, 2px) rotate(-0.2deg); }
+  40%        { transform: translate(3px, -2px) rotate(0.2deg); }
+  50%        { transform: translate(-2px, 2px) rotate(-0.1deg); }
+  60%        { transform: translate(2px, -1px) rotate(0.1deg); }
+  70%        { transform: translate(-1px, 1px) rotate(0deg); }
+  80%        { transform: translate(1px, -1px); }
+  90%        { transform: translate(-1px, 0); }
+}
+
+.shake {
+  animation: screen-shake 0.6s ease-out;
+}
