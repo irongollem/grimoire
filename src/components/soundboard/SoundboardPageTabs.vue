@@ -6,14 +6,16 @@
     <!-- "All" virtual tab (pinned — stays visible while named tabs scroll) -->
     <AppButton
       data-page-drop=""
-      variant="tinted"
+      :variant="activePageId === null ? 'tinted' : 'subtle'"
+      tone="primary"
+      emphasis="strong"
       size="sm"
       label="All"
       :class="[
         'shrink-0',
-        activePageId === null
-          ? 'border-gold-500/40 bg-gold-500/20 text-gold-300'
-          : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border',
+        // An inactive tab shows no box until hovered — `subtle`'s solid border
+        // would turn the whole row into a strip of outlined buttons.
+        activePageId === null ? '' : 'border-transparent hover:border-border',
         dropRing(''),
       ]"
       @click="activePageId = null"
@@ -80,14 +82,14 @@
         <AppButton
           v-else
           :data-page-drop="page.id"
-          variant="tinted"
+          :variant="activePageId === page.id ? 'tinted' : 'subtle'"
+          tone="primary"
+          emphasis="strong"
           size="sm"
           :label="page.name"
           :tooltip="page.name + ' — double-click to rename'"
           :class="[
-            activePageId === page.id
-              ? 'border-gold-500/40 bg-gold-500/20 text-gold-300'
-              : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border',
+            activePageId === page.id ? '' : 'border-transparent hover:border-border',
             dropRing(page.id),
           ]"
           @click="activePageId = page.id"

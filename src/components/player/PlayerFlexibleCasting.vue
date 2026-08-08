@@ -15,7 +15,8 @@
           size="sm"
           label="Create slot"
           :disabled="pending || creatableLevels.length === 0"
-          class="border-violet-500/30 bg-violet-500/10 text-violet-500 hover:bg-violet-500/10"
+          tone="arcane"
+          emphasis="soft"
           @click="convert('points_to_slot')"
         />
       </div>
@@ -31,7 +32,8 @@
           size="sm"
           label="Convert slot"
           :disabled="pending || sacrificableSlots.length === 0"
-          class="border-violet-500/30 bg-violet-500/10 text-violet-500 hover:bg-violet-500/10"
+          tone="arcane"
+          emphasis="soft"
           @click="convert('slot_to_points')"
         />
       </div>

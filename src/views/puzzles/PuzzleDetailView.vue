@@ -21,10 +21,9 @@
         />
         <AppButton
           v-if="isEdit"
-          variant="tinted"
+          variant="subtle"
           size="sm"
           label="Cancel"
-          class="border-border bg-card text-muted-foreground hover:text-foreground"
           @click="mode = 'view'"
         />
         <PageHeaderAction

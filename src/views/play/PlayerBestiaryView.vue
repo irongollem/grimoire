@@ -224,14 +224,18 @@
                           v-roll-mode="{ enabled: true, on: (m: RollMode | null, ev: Event) => { ev.stopPropagation(); rollAttack(parseAttackBonus(t.description) ?? 0, t.name, m); } }"
                           variant="tinted"
                           size="xs"
-                          class="border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 md:text-sm"
+                          tone="caution"
+                          emphasis="outline"
+                          class="md:text-sm"
                           :label="`⚔ ${(parseAttackBonus(t.description) ?? 0) >= 0 ? '+' : ''}${parseAttackBonus(t.description) ?? 0}`"
                         />
                         <AppButton
                           v-if="hasRollableDice(t.description)"
                           variant="tinted"
                           size="xs"
-                          class="border-rose-500/40 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 md:text-sm"
+                          tone="danger"
+                          emphasis="outline"
+                          class="md:text-sm"
                           :label="`🎲 ${actionDiceLabel(t.description)}`"
                           @click.stop="rollActionDamage(t.description, t.name)"
                         />

@@ -55,7 +55,8 @@
             size="xs"
             label="DMG"
             tooltip="Deal damage"
-            class="border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20"
+            tone="danger"
+            emphasis="soft"
             @click="damage"
           />
           <AppButton
@@ -63,7 +64,8 @@
             size="xs"
             label="HEAL"
             tooltip="Heal"
-            class="border-green-500/30 bg-green-500/10 text-green-400 hover:bg-green-500/20"
+            tone="success"
+            emphasis="soft"
             @click="heal"
           />
         </div>

@@ -94,13 +94,13 @@
           </template>
         </div>
         <AppButton
-          variant="tinted"
+          variant="subtle"
           size="sm"
           block
           :disabled="!canAddTrigger || adding"
           :icon="IconAdd"
           :label="adding ? 'Adding…' : 'Add Consequence'"
-          class="border-dashed border-border text-muted-foreground hover:text-primary hover:border-primary"
+          class="border-dashed"
           @click="addTrigger"
         />
       </div>

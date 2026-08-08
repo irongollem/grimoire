@@ -43,15 +43,14 @@ export const buttonVariants = cva(
         /** Filled pill — tags, counts, secondary navigation chips. */
         chip: "bg-muted text-muted-foreground hover:bg-muted/70 hover:text-foreground",
         /**
-         * Persistent tinted pill whose colour carries meaning that differs per
-         * site — DMG red, HEAL green, +Temp blue, ATT amber, Create-slot violet.
-         * The call site owns the colour triplet
-         * (`bg-green-500/10 border-green-500/30 text-green-400 hover:bg-green-500/20`);
-         * Tailwind v4 emits nothing for `bg-current/10`, so a tint cannot be
-         * derived from `currentColor` and there is genuinely nothing to
-         * centralise here beyond the box. It exists so these buttons can be named
-         * for what they are instead of borrowing `destructive` for its shape —
-         * a HEAL button tagged `variant="destructive"` reads as a bug.
+         * A pill whose colour carries meaning — DMG red, HEAL green, +Temp blue,
+         * ATT amber, Create-slot violet, the soundboard's source tabs.
+         *
+         * Pair with `tone` (which colour) and `emphasis` (how loud). It used to
+         * resolve to bare `border` with every call site writing its own opacity
+         * ladder, and 35 sites had already drifted into 14 different class shapes
+         * — the exact "next one invents its own ladder" failure #561 exists to
+         * stop. The table below is now the only place a tint is spelled out.
          */
         tinted: "border",
       },
@@ -87,21 +86,83 @@ export const buttonVariants = cva(
         false: "",
       },
       block: { true: "w-full", false: "" },
+      /**
+       * What a `tinted` button *means*. Semantic rather than hue-named so the
+       * palette stays changeable: each maps to a `--color-tone-*` custom property
+       * in main.css, which a future theme can reassign on `:root` to repaint every
+       * damage/heal/arcane control at once. `tone="red"` would have hardcoded that
+       * decision at 35 call sites. Ignored by every variant except `tinted`.
+       */
+      tone: {
+        /** The theme's accent — soundboard source tabs, "Drop chest in chat". */
+        primary: "",
+        /** Damage, destructive rolls. */
+        danger: "",
+        /** Healing, "with party", a connected integration. */
+        success: "",
+        /** Temporary HP, a browsable library — informational, not an outcome. */
+        info: "",
+        /** Magic and AI: spell slots, metamagic, generation. */
+        arcane: "",
+        /** Attunement, save DCs — noteworthy without being an outcome. */
+        caution: "",
+      },
+      /**
+       * How loud a `tinted` button is.
+       *   soft    — resting pill, tints further on hover (DMG, HEAL, +Temp)
+       *   strong  — selected/active, already at full tint (soundboard source tabs)
+       *   outline — outlined until hovered (Drop chest in chat, roll actions)
+       */
+      emphasis: { soft: "", strong: "", outline: "" },
     },
-    // Only the variants that already draw a border get the selected border colour.
     compoundVariants: [
+      // ── tinted × tone × emphasis ──────────────────────────────────────────
+      // Tailwind extracts classes statically, so each cell is spelled out; a tone
+      // cannot be composed at runtime. But the *colour* is one indirection away —
+      // each `tone-*` resolves through a `--color-tone-*` custom property — so
+      // repainting a tone is a one-line change in main.css, not 35 call sites.
+      { variant: "tinted", tone: "primary", emphasis: "soft", class: "bg-tone-primary/10 border-tone-primary/30 text-tone-primary hover:bg-tone-primary/20" },
+      { variant: "tinted", tone: "primary", emphasis: "strong", class: "bg-tone-primary/25 border-tone-primary/60 text-tone-primary" },
+      { variant: "tinted", tone: "primary", emphasis: "outline", class: "border-tone-primary/40 text-tone-primary hover:bg-tone-primary/10" },
+
+      { variant: "tinted", tone: "danger", emphasis: "soft", class: "bg-tone-danger/10 border-tone-danger/30 text-tone-danger hover:bg-tone-danger/20" },
+      { variant: "tinted", tone: "danger", emphasis: "strong", class: "bg-tone-danger/25 border-tone-danger/60 text-tone-danger" },
+      { variant: "tinted", tone: "danger", emphasis: "outline", class: "border-tone-danger/40 text-tone-danger hover:bg-tone-danger/10" },
+
+      { variant: "tinted", tone: "success", emphasis: "soft", class: "bg-tone-success/10 border-tone-success/30 text-tone-success hover:bg-tone-success/20" },
+      { variant: "tinted", tone: "success", emphasis: "strong", class: "bg-tone-success/25 border-tone-success/60 text-tone-success" },
+      { variant: "tinted", tone: "success", emphasis: "outline", class: "border-tone-success/40 text-tone-success hover:bg-tone-success/10" },
+
+      { variant: "tinted", tone: "info", emphasis: "soft", class: "bg-tone-info/10 border-tone-info/30 text-tone-info hover:bg-tone-info/20" },
+      { variant: "tinted", tone: "info", emphasis: "strong", class: "bg-tone-info/25 border-tone-info/60 text-tone-info" },
+      { variant: "tinted", tone: "info", emphasis: "outline", class: "border-tone-info/40 text-tone-info hover:bg-tone-info/10" },
+
+      { variant: "tinted", tone: "arcane", emphasis: "soft", class: "bg-tone-arcane/10 border-tone-arcane/30 text-tone-arcane hover:bg-tone-arcane/20" },
+      { variant: "tinted", tone: "arcane", emphasis: "strong", class: "bg-tone-arcane/25 border-tone-arcane/60 text-tone-arcane" },
+      { variant: "tinted", tone: "arcane", emphasis: "outline", class: "border-tone-arcane/40 text-tone-arcane hover:bg-tone-arcane/10" },
+
+      { variant: "tinted", tone: "caution", emphasis: "soft", class: "bg-tone-caution/10 border-tone-caution/30 text-tone-caution hover:bg-tone-caution/20" },
+      { variant: "tinted", tone: "caution", emphasis: "strong", class: "bg-tone-caution/25 border-tone-caution/60 text-tone-caution" },
+      { variant: "tinted", tone: "caution", emphasis: "outline", class: "border-tone-caution/40 text-tone-caution hover:bg-tone-caution/10" },
+
+      // Only the variants that already draw a border get the selected border colour.
       { variant: "outline", active: true, class: "border-primary" },
       { variant: "subtle", active: true, class: "border-primary" },
       { variant: "destructive", active: true, class: "border-primary" },
       { variant: "tinted", active: true, class: "border-primary" },
     ],
-    defaultVariants: { variant: "subtle", size: "sm", active: false, block: false },
+    defaultVariants: {
+      variant: "subtle", size: "sm", active: false, block: false,
+      tone: "primary", emphasis: "soft",
+    },
   },
 );
 
 export type ButtonVariants = VariantProps<typeof buttonVariants>;
 export type ButtonVariant = NonNullable<ButtonVariants["variant"]>;
 export type ButtonSize = NonNullable<ButtonVariants["size"]>;
+export type ButtonTone = NonNullable<ButtonVariants["tone"]>;
+export type ButtonEmphasis = NonNullable<ButtonVariants["emphasis"]>;
 
 /* ── Enumerations for the component catalogue (#622) ──────────────────────────
    `cva` does not expose its own config, so the catalogue at /dev/components
@@ -128,4 +189,17 @@ export type AssertVariantsListed = Assert<
 >;
 export type AssertSizesListed = Assert<
   [Exclude<ButtonSize, (typeof BUTTON_SIZES)[number]>] extends [never] ? true : false
+>;
+
+export const BUTTON_TONES = [
+  "primary", "danger", "success", "info", "arcane", "caution",
+] as const satisfies readonly ButtonTone[];
+
+export const BUTTON_EMPHASES = ["soft", "strong", "outline"] as const satisfies readonly ButtonEmphasis[];
+
+export type AssertTonesListed = Assert<
+  [Exclude<ButtonTone, (typeof BUTTON_TONES)[number]>] extends [never] ? true : false
+>;
+export type AssertEmphasesListed = Assert<
+  [Exclude<ButtonEmphasis, (typeof BUTTON_EMPHASES)[number]>] extends [never] ? true : false
 >;

@@ -12,7 +12,7 @@
     :type="isNativeButton ? type : undefined"
     :disabled="isNativeButton ? isInert : undefined"
     :aria-disabled="!isNativeButton && isInert ? true : undefined"
-    :class="cn(buttonVariants({ variant, size, active, block }), className)"
+    :class="cn(buttonVariants({ variant, size, active, block, tone, emphasis }), className)"
     :title="isTouch ? undefined : (tooltip ?? label)"
     :aria-label="ariaLabel ?? label ?? tooltip"
     @click="onClick"
@@ -80,6 +80,8 @@ const {
   size,
   active = false,
   block = false,
+  tone = "primary",
+  emphasis = "soft",
   type = "button",
   label,
   icon,
@@ -123,6 +125,10 @@ const {
   active?: boolean;
   /** Stretches to the full width of the parent. */
   block?: boolean;
+  /** `tinted` only — which colour the pill carries. */
+  tone?: ButtonVariants["tone"];
+  /** `tinted` only — how loud: resting `soft`, selected `strong`, or `outline`. */
+  emphasis?: ButtonVariants["emphasis"];
   /** Short label shown below sm instead of the full one. */
   mobileLabel?: string;
   /** Hides the label below the `collapseBelow` breakpoint entirely, leaving the icon. */

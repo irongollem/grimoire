@@ -78,7 +78,8 @@
           size="sm"
           label="Drop in Chat"
           :disabled="!newItem.selectedItemId && !newItem.name.trim()"
-          class="border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
+          tone="caution"
+          emphasis="soft"
           @click="dropNewItemToChat"
         />
         <AppButton type="submit" variant="primary" size="sm" label="Add" :disabled="addingItem" />
@@ -126,13 +127,13 @@
           <option v-for="m in party" :key="m.id" :value="m.id">{{ m.name }}</option>
         </select>
         <AppButton
-          variant="tinted"
+          :variant="item.is_attuned ? 'tinted' : 'subtle'"
+          :class="item.is_attuned ? '' : 'text-muted-foreground/40 hover:text-muted-foreground'"
           size="xs"
           label="ATT"
           tooltip="Toggle attunement"
-          :class="item.is_attuned
-            ? 'border-amber-400/50 bg-amber-400/10 text-amber-400 hover:text-amber-400 hover:border-amber-400/50'
-            : 'border-border text-muted-foreground/40 hover:text-muted-foreground hover:border-border'"
+          tone="caution"
+          emphasis="soft"
           @click="toggleAttuned(item)"
         />
         <button
