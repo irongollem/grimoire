@@ -79,7 +79,7 @@
 
     <CatalogueSection
       title="AppButton — tinted tone × emphasis"
-      note="Semantic tones, not hues: each resolves through a --color-tone-* custom property, so a future theme repaints every damage/heal/arcane control by reassigning six variables. Replaces 35 hand-written opacity ladders that had drifted into 14 different class shapes."
+      note="Semantic tones, not hues: each resolves through a --color-tone-* custom property, so a future theme repaints every damage/heal/arcane control by reassigning six variables."
     >
       <table class="border-separate border-spacing-3">
         <thead>

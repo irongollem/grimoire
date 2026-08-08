@@ -19,9 +19,7 @@
  * This is the one bundle AppButton cannot express as a default: `size="md"`
  * plus `collapse-below="lg"`. Detail-page header rows are tighter than list-page
  * action rows, so their labels have to collapse at `lg` rather than the `sm` that
- * list actions use. Restating that trio at all 35 call sites is exactly the
- * approximate-the-UI-everywhere problem this refactor exists to remove, so it
- * lives here instead.
+ * list actions use. That trio lives here rather than at every header action.
  *
  * Everything else — `label`, `icon`, `to`, `disabled`, `mobileLabel`, `tooltip`,
  * `type`, `@click`, `class` — falls through to AppButton untouched.

@@ -197,9 +197,8 @@ describe("AppButton", () => {
 });
 
 describe("tinted tones (#623)", () => {
-  // The whole point of naming these semantically: the colour is one indirection
-  // away, so a future theme repaints every damage/heal/arcane control by
-  // reassigning `--tone-*` rather than editing 35 call sites.
+  // The colour must stay one indirection away, or a theme can no longer repaint
+  // these by reassigning `--tone-*`.
   it("resolves every tone through a --color-tone-* token, never a raw hue", () => {
     for (const tone of BUTTON_TONES) {
       for (const emphasis of BUTTON_EMPHASES) {
