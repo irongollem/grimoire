@@ -269,7 +269,12 @@ const isNew = computed(() => !props.quest);
 // ── External data ──────────────────────────────────────────────────────────────
 const { data: npcs } = useNpcs();
 const { data: locations } = useAllLocations();
-const { data: allMonsters } = useAllMonsters();
+// Two lists of the same bestiary, and the difference matters: `allMonsters`
+// names creatures this quest already links — including one since scoped to
+// another campaign, which would otherwise show as a bare uuid — while
+// `pickableMonsters` offers only what belongs in this campaign to link next.
+const { data: allMonsters } = useAllMonsters(() => ({ includeAllScopes: true }));
+const { data: pickableMonsters } = useAllMonsters();
 const { data: allQuests } = useAllQuests();
 const { data: allItems } = useItems();
 const { data: allEncounters } = useEncounters();
@@ -330,7 +335,7 @@ const availableLocations = computed(() =>
   (locations.value ?? []).filter((l) => !linkedLocationIds.value.has(l.id)),
 );
 const availableMonsters = computed(() =>
-  (allMonsters.value ?? []).filter((m) => !linkedMonsterIds.value.has(m.id)),
+  (pickableMonsters.value ?? []).filter((m) => !linkedMonsterIds.value.has(m.id)),
 );
 
 // ── Form state ─────────────────────────────────────────────────────────────────

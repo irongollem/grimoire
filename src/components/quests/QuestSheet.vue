@@ -325,7 +325,9 @@ const { data: triggers } = useQuestTriggers(questId);
 // ── Linked data ─────────────────────────────────────────────────────────────
 const { data: npcs }       = useNpcs();
 const { data: allLocs }    = useAllLocations();
-const { data: allMonsters } = useMonsters();
+// linkedMonsters resolves the quest's stored monster reference ids, so a
+// monster scoped elsewhere later must still surface here.
+const { data: allMonsters } = useMonsters(() => ({ includeAllScopes: true }));
 const { data: allItems }   = useItems();
 const { data: allEncs }    = useEncounters();
 const { data: allQuests }  = useQuests();

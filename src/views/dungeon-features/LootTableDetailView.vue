@@ -388,14 +388,19 @@ const itemOptions = computed(() =>
 );
 
 // ── Monsters ───────────────────────────────────────────────────────────────
-const monstersQuery = useMonsters();
+// Naming a monster this table already drops for has to work whatever campaign
+// that monster now belongs to, or the chip falls back to a raw uuid; adding a
+// new one should only offer this campaign's. Hence the two queries — they
+// share a cache, so the second costs nothing.
+const monstersQuery = useMonsters(() => ({ includeAllScopes: true }));
+const pickableMonstersQuery = useMonsters();
 const monstersById = computed(() => {
   const m = new Map<string, NonNullable<typeof monstersQuery.data.value>[number]>();
   for (const mo of monstersQuery.data.value ?? []) m.set(mo.id, mo);
   return m;
 });
 const availableMonsterOptions = computed(() =>
-  (monstersQuery.data.value ?? [])
+  (pickableMonstersQuery.data.value ?? [])
     .filter((mo) => !form.value.monster_ids.includes(mo.id))
     .map((mo) => ({ id: mo.id, name: mo.name })),
 );

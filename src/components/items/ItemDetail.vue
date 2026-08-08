@@ -310,15 +310,7 @@
         </div>
 
         <!-- Scope -->
-        <div class="flex flex-col gap-2">
-          <span class="text-label-lg text-muted-foreground uppercase">Scope</span>
-          <SegmentedControl
-            v-model="scopeValue"
-            size="md"
-            block
-            :options="scopeOptions"
-          />
-        </div>
+        <CampaignScopeField v-model="campaignId" />
 
         <!-- Source -->
         <div class="flex flex-col gap-1">
@@ -360,13 +352,12 @@ import { useRouter, useRoute } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
+import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
 import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
 import ItemWeaponBlock from "@/components/items/ItemWeaponBlock.vue";
 import ItemArmorBlock from "@/components/items/ItemArmorBlock.vue";
 import { useCreateItem, useUpdateItem, useDeleteItem } from "@/composables/useItems";
 import { useSpells } from "@/composables/useSpells";
-import { useCampaigns } from "@/composables/useCampaigns";
 import { useCampaignStore } from "@/stores/campaign";
 import { storeToRefs } from "pinia";
 import { useCreateScriptoriumDocument } from "@/composables/useScriptorium";
@@ -467,33 +458,9 @@ const isCursed = ref(!!(props.item?.curse_description));
 const curseDescription = ref(props.item?.curse_description ?? "");
 
 // ── Scope + DM notes ──────────────────────────────────────────────────────────
-const campaignStore = useCampaignStore();
-const { activeCampaign, activeCampaignId } = storeToRefs(campaignStore);
-const { data: allCampaigns } = useCampaigns();
+const { activeCampaignId } = storeToRefs(useCampaignStore());
 const campaignId = ref<string | null>(props.item?.campaign_id ?? activeCampaignId.value ?? null);
 const dmNotes = ref(props.item?.dm_notes ?? "");
-const scopeCampaignName = computed(() => {
-  if (!campaignId.value) return null;
-  if (campaignId.value === activeCampaignId.value) return activeCampaign.value?.name ?? null;
-  return allCampaigns.value?.find((c) => c.id === campaignId.value)?.name ?? null;
-});
-
-// SegmentedControl needs string|number values — "" stands in for the null
-// (general/all-campaigns) scope so the two-state toggle can drive campaignId.
-const scopeValue = computed<string>({
-  get: () => (campaignId.value === null ? "" : "campaign"),
-  set: (v) => {
-    campaignId.value = v === "" ? null : (campaignId.value ?? activeCampaignId.value);
-  },
-});
-const scopeOptions = computed(() => [
-  { value: "", label: "General — all campaigns" },
-  {
-    value: "campaign",
-    label: `Campaign${scopeCampaignName.value ? ` — ${scopeCampaignName.value}` : ""}`,
-    disabled: !activeCampaignId.value && !campaignId.value,
-  },
-]);
 
 // ── Magic fields ──────────────────────────────────────────────────────────────
 const requiresAttunement = ref(props.item?.requires_attunement ?? false);

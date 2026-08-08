@@ -1,7 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { computed, type Ref } from "vue";
+import { storeToRefs } from "pinia";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useEnabledSources } from "@/composables/useEnabledSources";
+import { allowedCampaignScoped } from "@/lib/campaignContentGating";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
 import type { Monster, MonsterInsert, MonsterUpdate } from "@/types/monster.types";
@@ -79,11 +81,40 @@ async function fetchLibraryMonsters(enabledSlugs: string[], ruleset: RulesetKey)
     .eq("ruleset", ruleset)
     .order("name", { ascending: true });
   if (error) throw error;
-  return (data ?? []).map((row) => ({ ...row, user_id: "" })) as Monster[];
+  // Shared rows belong to no user and no campaign — which campaigns may see
+  // them is decided by enabled sources, not by this column.
+  return (data ?? []).map((row) => ({ ...row, user_id: "", campaign_id: null })) as Monster[];
 }
 
-export function useMonsters() {
+export interface UseMonstersOptions {
+  /** When true, return every custom monster regardless of campaign scope.
+   *  Required by any caller that resolves an ALREADY-STORED monster id —
+   *  an encounter's combatants, a quest ref, a wildshape form. Those
+   *  references outlive the scoping decision, and a scoped-away monster must
+   *  still resolve or the combatant silently disappears mid-fight (#597).
+   *  Default false: scoped to general + active campaign, for browsing and
+   *  picking. */
+  includeAllScopes?: boolean;
+}
+
+/** The unfiltered cache every list below derives from. Private: a caller that
+ *  wants all scopes says so with `includeAllScopes`, which reads as a decision
+ *  at the call site where the reviewer needs it. */
+function useMonstersQuery() {
   return useQuery({ queryKey: [QUERY_KEY], queryFn: fetchMonsters, staleTime: Infinity });
+}
+
+/** The DM's own custom monsters only — no library rows. See
+ *  {@link useAllMonsters} for the merged bestiary. */
+export function useMonsters(getOptions?: () => UseMonstersOptions) {
+  const query = useMonstersQuery();
+  const { activeCampaignId } = storeToRefs(useCampaignStore());
+  const data = computed(() => {
+    const monsters = query.data.value;
+    if (!monsters || getOptions?.().includeAllScopes) return monsters;
+    return allowedCampaignScoped(monsters, activeCampaignId.value);
+  });
+  return { ...query, data };
 }
 
 /** Returns SRD monsters filtered by the campaign's enabled sources + the user's
@@ -91,10 +122,11 @@ export function useMonsters() {
  *
  *  Dedupe rule: if a user-owned monster has the same name as an SRD row,
  *  the user row wins — preserving any edits or custom art. */
-export function useAllMonsters() {
-  const customQuery  = useMonsters();
+export function useAllMonsters(getOptions?: () => UseMonstersOptions) {
+  const customQuery  = useMonstersQuery();
   const enabledQuery = useEnabledSources();
   const { ruleset } = useRuleset();
+  const { activeCampaignId } = storeToRefs(useCampaignStore());
 
   const enabledSlugs = computed(() =>
     enabledQuery.data.value?.map((e) => e.source_slug) ?? null,
@@ -113,8 +145,11 @@ export function useAllMonsters() {
     const custom  = (customQuery.data.value ?? []).filter((m) =>
       !m.open5e_import && (!m.ruleset || m.ruleset === ruleset.value),
     );
+    const scoped  = getOptions?.().includeAllScopes
+      ? custom
+      : allowedCampaignScoped(custom, activeCampaignId.value);
     const srd     = libraryQuery.data.value ?? [];
-    return [...srd, ...custom]
+    return [...srd, ...scoped]
       .sort((a, b) => a.name.localeCompare(b.name));
   });
 
@@ -143,7 +178,13 @@ async function fetchPlayerVisibleMonsters(campaignId: string): Promise<Monster[]
  *  mode the DM owns the rows and needs the full list (including undiscovered
  *  beasts for the "share all eligible" affordance), so it reads the base table
  *  directly instead — mirroring the visibility handling the player views already
- *  do client-side. */
+ *  do client-side.
+ *
+ *  No campaign-scope filter on either branch, deliberately. The projection is
+ *  already gated on this campaign's `discovered_monsters`, so a row reaching a
+ *  player is one the DM revealed here — re-filtering it by `campaign_id` would
+ *  only hide a creature the party has already met, which is the same silent
+ *  disappearance {@link UseMonstersOptions.includeAllScopes} exists to prevent. */
 export function usePlayerVisibleMonsters() {
   const ui = useUiStore();
   const campaign = useCampaignStore();
@@ -294,10 +335,13 @@ export function useDeleteMonster() {
 /** Clone an SRD monster into the user's own collection. Returns the new Monster. */
 export function useCloneLibraryMonster() {
   const queryClient = useQueryClient();
+  const { activeCampaignId } = storeToRefs(useCampaignStore());
   return useMutation({
     mutationFn: async (libraryMonster: Monster): Promise<Monster> => {
       const { name, monster_type, size, alignment, habitat, source, tags, stat_block, notes, image_url } = libraryMonster;
-      return createMonster({ name, monster_type, size, alignment, habitat, source: `${source ?? "SRD 5.1"} (customized)`, tags, stat_block, notes, image_url });
+      // Scoped to the campaign the DM cloned it in, like any other new
+      // creation — the shared original stays available everywhere regardless.
+      return createMonster({ name, monster_type, size, alignment, habitat, source: `${source ?? "SRD 5.1"} (customized)`, tags, stat_block, notes, image_url, campaign_id: activeCampaignId.value });
     },
     onSuccess: (monster) => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });

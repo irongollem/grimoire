@@ -169,6 +169,9 @@ export function mapOpen5eV2Monster(
   };
   return {
     ruleset,
+    // Imported reference material, not authored for a table — global, whichever
+    // campaign the import happened to be run from.
+    campaign_id: null,
     conceptual_key: slugifyKey(monster.name),
     source_document_key: monster.document.key,
     source_record_key: monster.key,

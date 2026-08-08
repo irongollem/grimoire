@@ -304,7 +304,8 @@ const { isNew: isJournalNew } = useReadItems("player_journal");
 const unreadJournalCount = computed(() =>
   dmSharedJournal.filter((e) => isJournalNew(e.id, e.updated_at)).length,
 );
-const { data: allMonsters } = useAllMonsters();
+// Resolves a companion's stored source_monster_id — same reason as PartyTracker.
+const { data: allMonsters } = useAllMonsters(() => ({ includeAllScopes: true }));
 const { data: allNpcs } = useNpcs();
 
 const hpInput = ref(0);

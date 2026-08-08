@@ -180,6 +180,7 @@
                 placeholder="Monster Manual"
               />
             </label>
+            <CampaignScopeField v-model="form.campaign_id" />
             <label class="block">
               <span class="field-label">Habitat</span>
               <input
@@ -248,6 +249,7 @@ const { confirm } = useConfirm();
 import { ref, reactive, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useMediaQuery } from "@vueuse/core";
+import { storeToRefs } from "pinia";
 import { IconCopy, IconGenerate, IconScrollText } from "@/lib/icons";
 import MonsterEditMobile from "@/components/monsters/MonsterEditMobile.vue";
 import MonsterGenerateDialog from "@/ai/MonsterGenerateDialog.vue";
@@ -259,6 +261,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import type { MonsterAiGenerated } from "@/ai/types";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import TagInput from "@/components/common/TagInput.vue";
+import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { useLocationTree } from "@/composables/useLocations";
 import type { Location } from "@/types/location.types";
@@ -354,6 +357,9 @@ const { mutateAsync: upsertLibraryArt } = useUpsertLibraryMonsterArt();
 type LocationOption = Location & { depth: number };
 const { locationOptions } = useLocationTree();
 
+const campaignStore = useCampaignStore();
+const { activeCampaignId } = storeToRefs(campaignStore);
+
 const form = reactive({
   name: props.monster?.name ?? "",
   monster_type: (props.monster?.monster_type ?? "humanoid") as MonsterType,
@@ -362,6 +368,9 @@ const form = reactive({
   habitat: props.monster?.habitat ?? "",
   lair_location_id: (props.monster?.lair_location_id ?? null) as string | null,
   source: props.monster?.source ?? "",
+  // New monsters default to the active campaign; existing ones keep whatever
+  // scope they already have (#597).
+  campaign_id: (props.monster?.campaign_id ?? activeCampaignId.value ?? null) as string | null,
   tags: props.monster?.tags ? [...props.monster.tags] : [],
   description: props.monster?.description ?? "",
   notes: props.monster?.notes ?? "",
@@ -428,7 +437,6 @@ function onPortraitFocalUpdate(pt: { x: number; y: number } | null) {
   else form.portrait_focal_point = pt;
 }
 // AI generation
-const campaignStore = useCampaignStore();
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 const showGenerateDialog = ref(false);
 
@@ -509,6 +517,7 @@ function buildPayload() {
     habitat: form.habitat || null,
     lair_location_id: form.lair_location_id,
     source: form.source || null,
+    campaign_id: form.campaign_id,
     tags: form.tags,
     description: form.description || null,
     notes: form.notes || null,
@@ -525,8 +534,8 @@ async function save() {
   saveError.value = "";
   try {
     if (props.monster) {
-      // Material edit detection (#606): tags, portrait art and the lair-location
-      // link are excluded per the "moves/tags/image" carve-outs.
+      // Material edit detection (#606): tags, portrait art, the lair-location
+      // link and campaign scope are excluded per the "moves/tags/image" carve-outs.
       const contentChanged =
         form.name !== props.monster.name ||
         form.monster_type !== props.monster.monster_type ||

@@ -51,7 +51,7 @@
             <template v-if="editEventData.actionType === 'spawn_combatants'">
               <EntityCombobox
                 :model-value="editEventData.spawnMonster"
-                :options="props.monsters"
+                :options="props.pickableMonsters"
                 placeholder="— select monster —"
                 @update:model-value="editEventData.spawnMonster = $event"
               />
@@ -153,7 +153,7 @@
           <template v-if="newEvent.actionType === 'spawn_combatants'">
             <EntityCombobox
               :model-value="newEvent.spawnMonster"
-              :options="props.monsters"
+              :options="props.pickableMonsters"
               placeholder="— select monster —"
               @update:model-value="newEvent.spawnMonster = $event"
             />
@@ -212,6 +212,7 @@ const events = defineModel<EncounterEvent[]>("events", { required: true });
 const props = defineProps<{
   combatants: CombatantDef[];
   monsters: Monster[];
+  pickableMonsters: Monster[];
   /** Needed only to name NPC spawns in an event's summary line. This editor
    *  cannot author one — NPC reinforcements come from the runner's
    *  complication generator (#604) — but it does have to describe them

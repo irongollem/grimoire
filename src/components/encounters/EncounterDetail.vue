@@ -130,6 +130,7 @@
           v-model:combatants="form.combatants"
           :factions="form.factions"
           :monsters="monsters ?? []"
+          :pickable-monsters="pickableMonsters ?? []"
           :npcs="npcs ?? []"
           :excluded-monster-ids="excludedMonsterIds"
           @hide-monster="toggleHideMonster"
@@ -187,6 +188,7 @@
           v-model:events="form.events"
           :combatants="form.combatants"
           :monsters="monsters ?? []"
+          :pickable-monsters="pickableMonsters ?? []"
           :npcs="npcs ?? []"
           :factions="form.factions"
         />
@@ -215,6 +217,7 @@
         <EncounterTraps
           :trap-ids="form.trap_ids"
           :all-traps="allTraps ?? []"
+          :pickable-traps="pickableTraps ?? []"
           @update:trap-ids="form.trap_ids = $event"
         />
 
@@ -310,7 +313,13 @@ function onCancel() {
   router.push({ query: rest });
 }
 const campaign = useCampaignStore();
-const { data: monsters } = useAllMonsters();
+// Two lists per entity, deliberately not one: `monsters`/`allTraps` resolve
+// combatants and trap refs the encounter already stores, which must survive
+// even after the DM rescopes them to another campaign (#597) — so those stay
+// unscoped. `pickableMonsters`/`pickableTraps` back the "add new" search
+// panels, which should only ever offer this campaign's own creatures.
+const { data: monsters } = useAllMonsters(() => ({ includeAllScopes: true }));
+const { data: pickableMonsters } = useAllMonsters();
 
 /** Combatants eligible as lair owners — any monster/NPC slot in this encounter.
  *  Shows an indicator next to entries whose stat block already has lair_actions. */
@@ -332,7 +341,8 @@ const speciesNameMap = useSpeciesNameMap();
 const { data: companions } = useCompanions();
 const { data: npcs } = useNpcs();
 const { data: allItems } = useItems();
-const { data: allTraps } = useTraps();
+const { data: allTraps } = useTraps(() => ({ includeAllScopes: true }));
+const { data: pickableTraps } = useTraps();
 const { sendCurrencyDrop, sendItemDrop } = useCampaignMessages();
 const { data: allLocations } = useAllLocations();
 const { data: linkedQuests } = useQuestsForEncounter(

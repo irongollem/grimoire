@@ -1,7 +1,8 @@
 import type { TrapInsert } from "@/types/trap.types";
 
-/** Classic dungeon trap presets based on PHB/DMG archetypes. */
-export const TRAP_TEMPLATES: Omit<TrapInsert, "image_url" | "image_focal_point">[] = [
+/** Classic dungeon trap presets based on PHB/DMG archetypes. Campaign scope is
+ *  not a property of a template — `usePopulateTraps` seeds them global. */
+export const TRAP_TEMPLATES: Omit<TrapInsert, "image_url" | "image_focal_point" | "campaign_id">[] = [
   {
     name: "Hidden Pit",
     description: null,

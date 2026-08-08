@@ -337,6 +337,9 @@ async function promoteToMonster() {
   try {
     const sb = props.npc.stat_block
     const monster = await createMonster({
+      // The NPC it was promoted from belongs to this campaign, so the stat
+      // block does too.
+      campaign_id: campaign.activeCampaignId,
       name: props.npc.name,
       monster_type: 'humanoid',
       size: 'medium',

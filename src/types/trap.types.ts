@@ -43,6 +43,9 @@ export const CR_LIST = [
 export interface Trap {
   id: string;
   user_id: string;
+  /** NULL = available in every campaign; set = only visible when that campaign
+   *  is active. */
+  campaign_id: string | null;
   name: string;
   description: string | null;
   trap_type: TrapType;

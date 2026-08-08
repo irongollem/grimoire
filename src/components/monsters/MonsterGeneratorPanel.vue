@@ -222,6 +222,9 @@ async function generateAndCreate() {
   if (!result) return;
 
   const created = await createMonster({
+    // Scoped to the campaign it was generated for; the DM can widen it to all
+    // campaigns from the monster's Scope control.
+    campaign_id: campaign.activeCampaignId,
     name: result.name,
     monster_type: result.monster_type,
     size: result.size,

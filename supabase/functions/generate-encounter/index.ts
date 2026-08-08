@@ -219,13 +219,18 @@ serve(withCors(async (req: Request) => {
     ? `Party:\n${partyMembers.map((m) => formatPartyLine(m, classesByMember.get(m.id) ?? [])).join("\n")}`
     : "Party: unknown — assume 4 characters of level 3";
 
-  // monsters has no campaign_id column — the bestiary is user-scoped, so it is
-  // filtered by the campaign owner instead. Excludes Open5e-imported rows (the
-  // model already knows standard 5e monsters) and rows pinned to another ruleset.
+  // The compact-index FALLBACK, used when retrieval (below) is unavailable. It
+  // carries the same campaign scope #597 put on match_custom_monsters, or every
+  // creature that path now excludes leaks back in the moment retrieval has a bad
+  // day — the failure being invisible by design (see the catch below). Owner-eq
+  // is kept alongside for the reason monsterRetrieval.ts gives. Also excludes
+  // Open5e-imported rows (the model already knows standard 5e monsters) and rows
+  // pinned to another ruleset.
   const { data: customMonsterRows, count: customMonsterTotal } = await admin
     .from("monsters")
     .select("id, name, monster_type, stat_block", { count: "exact" })
     .eq("user_id", campaign.user_id)
+    .or(`campaign_id.eq.${campaign_id},and(campaign_id.is.null,user_id.eq.${campaign.user_id})`)
     .or("open5e_import.is.null,open5e_import.eq.false")
     .or(`ruleset.is.null,ruleset.eq.${ruleset}`)
     .order("name")

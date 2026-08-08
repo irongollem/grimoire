@@ -5,7 +5,9 @@ import { removeStorageImages } from "@/composables/useImageUpload";
 import { PUZZLE_TEMPLATES } from "@/data/puzzleTemplates";
 import type { Ref } from "vue";
 import { computed, isRef, ref } from "vue";
+import { storeToRefs } from "pinia";
 import { useCampaignStore } from "@/stores/campaign";
+import { allowedCampaignScoped } from "@/lib/campaignContentGating";
 
 const QUERY_KEY = "puzzle_rooms";
 
@@ -56,8 +58,29 @@ async function deletePuzzle(puzzle: PuzzleRoom): Promise<void> {
   await removeStorageImages("asset-images", puzzle.image_url);
 }
 
-export function usePuzzles() {
-  return useQuery({ queryKey: [QUERY_KEY], queryFn: fetchPuzzles });
+export interface UsePuzzlesOptions {
+  /** When true, return every puzzle regardless of campaign scope. Default
+   *  false: scoped to general + active campaign, for browsing (#597). */
+  includeAllScopes?: boolean;
+}
+
+/** The DM's puzzles, scoped to general + the active campaign.
+ *
+ *  `campaign_id` carries one meaning here, not two: the campaign this puzzle
+ *  belongs to. Sharing sets it (a puzzle cannot be shown to players without a
+ *  campaign to show it in) and the Scope control sets it directly — so a
+ *  shared puzzle is a scoped puzzle, and stops appearing in the DM's other
+ *  campaigns. `is_shared` remains the separate question of whether the players
+ *  in that campaign can see it. */
+export function usePuzzles(getOptions?: () => UsePuzzlesOptions) {
+  const query = useQuery({ queryKey: [QUERY_KEY], queryFn: fetchPuzzles });
+  const { activeCampaignId } = storeToRefs(useCampaignStore());
+  const data = computed(() => {
+    const puzzles = query.data.value;
+    if (!puzzles || getOptions?.().includeAllScopes) return puzzles;
+    return allowedCampaignScoped(puzzles, activeCampaignId.value);
+  });
+  return { ...query, data };
 }
 
 export function usePuzzle(id: string | Ref<string>) {
@@ -165,6 +188,10 @@ export function usePopulatePuzzles() {
         (existing ?? []).map((p: { id: string; name: string }) => p.name.toLowerCase()),
       );
 
+      // campaign_id stays null: these are generic templates, and the
+      // not-already-present check below spans the DM's whole collection —
+      // scope them and a second campaign's "Populate" would find the names
+      // taken and seed nothing.
       const toInsert = PUZZLE_TEMPLATES
         .filter((p) => !existingNames.has(p.name.toLowerCase()))
         .map((p) => ({ ...p, user_id: user.id, image_focal_point: null, campaign_id: null, is_shared: false, shared_hints: [], read_aloud: null, location_id: null, dungeon_feature_id: null }));

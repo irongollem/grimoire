@@ -176,7 +176,9 @@ const { isLive, goLive, schedulePush, endLive } = useEncounterLive(encounterId.v
 const goingLive = ref(false);
 const auth = useAuthStore();
 
-const { data: monsters } = useAllMonsters();
+// The runner resolves combatants' stored monster_id (detail panel, auto-discover
+// on go-live) rather than letting the DM pick, so scoping must stay off here.
+const { data: monsters } = useAllMonsters(() => ({ includeAllScopes: true }));
 const { data: partyMembers } = useParty();
 const { data: companions } = useCompanions();
 const { data: encounter } = useEncounter(encounterId);

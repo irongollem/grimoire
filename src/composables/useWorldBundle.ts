@@ -164,7 +164,11 @@ export function useEntityPickerItems(
 // ── Export ───────────────────────────────────────────────────────────────────
 
 const CAMPAIGN_STRIP = ["user_id", "campaign_id", "created_at", "updated_at"];
-const LIBRARY_STRIP = ["user_id", "created_at", "updated_at"];
+// campaign_id goes too: a library row's scope is a fact about the exporter's
+// campaigns, meaningless in the importer's account, and import rewrites it
+// anyway. Shipping it only risks a stale uuid surviving into a future code
+// path that trusts it.
+const LIBRARY_STRIP = ["user_id", "campaign_id", "created_at", "updated_at"];
 
 function stripCampaignRow(row: Row): Row {
   const copy = { ...row };
@@ -518,23 +522,27 @@ export interface ImportRemapCtx {
   stripClassDefinitionPins?: boolean;
 }
 
-export function remapSpeciesForImport(sp: Row, ctx: ImportRemapCtx): Row {
+/**
+ * Fresh id, importing user, importing campaign — for the user-library rows
+ * (species, spells, monsters, items) that carry a nullable `campaign_id`.
+ *
+ * The campaign is REWRITTEN rather than carried. A bundle's `campaign_id`
+ * names a campaign in the exporter's account, which does not exist in the
+ * importer's: kept, a monster's would violate its FK and fail the whole import
+ * (#597), and an item's — no FK there — would import fine and then never show
+ * up anywhere, because its scope matches none of this DM's campaigns.
+ */
+export function remapLibraryRowForImport(row: Row, ctx: ImportRemapCtx): Row {
   return {
-    ...sp,
-    id: freshId(sp.id, ctx.idMap),
+    ...row,
+    id: freshId(row.id, ctx.idMap),
     campaign_id: ctx.campaignId,
     user_id: ctx.userId,
   };
 }
 
-export function remapSpellForImport(sp: Row, ctx: ImportRemapCtx): Row {
-  return {
-    ...sp,
-    id: freshId(sp.id, ctx.idMap),
-    campaign_id: ctx.campaignId,
-    user_id: ctx.userId,
-  };
-}
+export const remapSpeciesForImport = remapLibraryRowForImport;
+export const remapSpellForImport = remapLibraryRowForImport;
 
 /** Imported characters land unassigned (DM characters): owner_user_id null. */
 export function remapPartyMemberForImport(pm: Row, ctx: ImportRemapCtx): Row {
@@ -886,19 +894,11 @@ async function executeImport(opts: ImportBundleOptions): Promise<ImportResult> {
   // ── User-library entities ─────────────────────────────────────────────────
 
   if (includeTypes.has("monsters") && bundle.monsters?.length) {
-    await batchInsert("monsters", bundle.monsters.map((m) => ({
-      ...m,
-      id: idMap.get(m.id as string) ?? crypto.randomUUID(),
-      user_id: userId,
-    })));
+    await batchInsert("monsters", bundle.monsters.map((m) => remapLibraryRowForImport(m, ctx)));
   }
 
   if (includeTypes.has("items") && bundle.items?.length) {
-    await batchInsert("items", bundle.items.map((item) => ({
-      ...item,
-      id: idMap.get(item.id as string) ?? crypto.randomUUID(),
-      user_id: userId,
-    })));
+    await batchInsert("items", bundle.items.map((item) => remapLibraryRowForImport(item, ctx)));
   }
 
   // Imported whenever characters import, even if not explicitly toggled —

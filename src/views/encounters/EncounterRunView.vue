@@ -12,16 +12,15 @@ import { computed, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useEncounter } from "@/composables/useEncounters";
 import { useAllMonsters } from "@/composables/useMonsters";
-import { sizeToFootprint } from "@/lib/battlemap/tokenFootprint";
-import { hitPointsToMax } from "@/lib/dice/dice";
 import { useParty } from "@/composables/useParty";
 import { useCompanions } from "@/composables/useCompanions";
 import { useNpcs } from "@/composables/useNpcs";
 import { useTraps } from "@/composables/useTraps";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useEncounterLive } from "@/composables/useEncounterLive";
+import { buildRunCombatants, legendaryActionCaps } from "@/lib/encounters/buildRunCombatants";
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";
-import type { RunCombatant, Encounter } from "@/types/encounter.types";
+import type { Encounter } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
 import type { PartyMember } from "@/types/party.types";
 import type { Npc } from "@/types/npc.types";
@@ -33,11 +32,14 @@ const route = useRoute();
 const id = computed(() => route.params.id as string);
 
 const { data: encounter } = useEncounter(id);
-const { data: monsters } = useAllMonsters();
+// Unscoped, both of them: this view resolves ids the encounter stored earlier,
+// and a monster or trap the DM has since scoped to another campaign must still
+// come to the fight it was written into. See buildRunCombatants.
+const { data: monsters } = useAllMonsters(() => ({ includeAllScopes: true }));
 const { data: party } = useParty();
 const { data: companions } = useCompanions();
 const { data: npcs } = useNpcs();
-const { data: allTraps } = useTraps();
+const { data: allTraps } = useTraps(() => ({ includeAllScopes: true }));
 const store = useEncounterRunStore();
 const { liveState, liveStateLoaded } = useEncounterLive(id);
 
@@ -104,143 +106,13 @@ function initStore(enc: Encounter, mons: Monster[], par: PartyMember[], npcList:
   store.encounterName = enc.name;
   store.factions = enc.factions.length ? enc.factions : [...DEFAULT_FACTIONS];
 
-  const combatants: RunCombatant[] = [];
-
-  // Party members
-  for (const memberId of enc.party_member_ids) {
-    const member = par.find((m) => m.id === memberId);
-    if (!member) continue;
-    combatants.push({
-      instance_id: `p-${member.id}`,
-      type: "player",
-      name: member.name,
-      faction_id: enc.party_member_factions?.[member.id] ?? "players",
-      // Start every encounter with a blank initiative so players roll fresh each
-      // time (and the DM can roll for any who don't). We deliberately no longer
-      // seed from the persistent party_members.current_initiative, which carried
-      // stale values between encounters. See #504.
-      initiative: null,
-      hp: member.current_hp,
-      max_hp: member.max_hp,
-      // Temp HP the character walked in with (Aid, Inspiring Leader, a fiend
-      // warlock's kills) has to come along, or the runner shows none and the
-      // first HP write persists temp_hp: 0 back over it.
-      temp_hp: member.temp_hp > 0 ? member.temp_hp : undefined,
-      ac: String(member.ac),
-      conditions: [...(member.conditions ?? [])],
-      curses: [...(member.curses ?? [])],
-      death_saves: {
-        successes: member.death_save_successes ?? 0,
-        failures: member.death_save_failures ?? 0,
-      },
-      party_member_id: member.id,
-      dex_mod: Math.floor(((member.dex ?? 10) - 10) / 2),
-      portrait_url: member.portrait_url ?? null,
-      portrait_focal_point: null, // party members don't store focal_point yet
-    });
-  }
-
-  // Companions
-  for (const compId of enc.companion_ids ?? []) {
-    const comp = (companions.value ?? []).find((c) => c.id === compId);
-    if (!comp) continue;
-    // Benched ("elsewhere") companions sit out combat entirely until the DM or
-    // player flips them back to "with the party" (#569).
-    if (comp.combat_ready === false) continue;
-    combatants.push({
-      instance_id: `c-${comp.id}`,
-      type: "player",
-      name: comp.name,
-      faction_id: enc.party_member_factions?.[comp.id] ?? "players",
-      initiative: null,
-      hp: comp.current_hp,
-      max_hp: comp.max_hp,
-      ac: String(comp.ac),
-      conditions: [...comp.conditions],
-      curses: [],
-      death_saves: { successes: 0, failures: 0 },
-      dex_mod: 0,
-      portrait_url: comp.portrait_url ?? null,
-      portrait_focal_point: comp.portrait_focal_point ?? null,
-      companion_id: comp.id,
-    });
-  }
-
-  // Monsters and NPCs
-  for (const entry of enc.combatants) {
-    if (entry.monster_id) {
-      const monster = mons.find((m) => m.id === entry.monster_id);
-      if (!monster) continue;
-      const sb = monster.stat_block;
-      const maxHp = hitPointsToMax(sb?.hit_points, 1);
-      const dex = Number(sb?.dex ?? 10);
-      const dexMod = Math.floor((dex - 10) / 2);
-      const ac = String(sb?.armor_class ?? 10);
-      for (let i = 0; i < entry.count; i++) {
-        const displayName =
-          entry.count > 1
-            ? `${entry.custom_name || monster.name} ${i + 1}`
-            : entry.custom_name || monster.name;
-        combatants.push({
-          instance_id: `m-${entry.id}-${i}`,
-          type: "monster",
-          name: displayName,
-          faction_id: entry.faction_id,
-          initiative: null,
-          hp: maxHp,
-          max_hp: maxHp,
-          ac,
-          conditions: [],
-          curses: [],
-          death_saves: { successes: 0, failures: 0 },
-          monster_id: monster.id,
-          def_id: entry.id,
-          dex_mod: dexMod,
-          initiative_bonus: sb?.initiative_bonus ?? null,
-          reveal_state: "hidden",
-          portrait_url: monster.image_url ?? null,
-          portrait_focal_point: monster.portrait_focal_point ?? null,
-          position: entry.starting_positions?.[i] ?? null,
-          footprint: sizeToFootprint(monster.size),
-        });
-      }
-    } else if (entry.npc_id) {
-      const npc = npcList.find((n) => n.id === entry.npc_id);
-      if (!npc) continue;
-      const sb = npc.stat_block;
-      const maxHp = hitPointsToMax(sb?.hit_points, 10);
-      const dex = Number(sb?.dex ?? 10);
-      const dexMod = Math.floor((dex - 10) / 2);
-      const ac = String(sb?.armor_class ?? 10);
-      for (let i = 0; i < entry.count; i++) {
-        const displayName =
-          entry.count > 1
-            ? `${entry.custom_name || npc.name} ${i + 1}`
-            : entry.custom_name || npc.name;
-        combatants.push({
-          instance_id: `n-${entry.id}-${i}`,
-          type: "monster",
-          name: displayName,
-          faction_id: entry.faction_id,
-          initiative: null,
-          hp: maxHp,
-          max_hp: maxHp,
-          ac,
-          conditions: [],
-          curses: [],
-          death_saves: { successes: 0, failures: 0 },
-          npc_id: npc.id,
-          def_id: entry.id,
-          dex_mod: dexMod,
-          reveal_state: "hidden",
-          portrait_url: npc.portrait_url ?? null,
-          portrait_focal_point: npc.portrait_focal_point ?? null,
-          position: entry.starting_positions?.[i] ?? null,
-          footprint: 1,
-        });
-      }
-    }
-  }
+  const combatants = buildRunCombatants({
+    encounter: enc,
+    party: par,
+    companions: companions.value ?? [],
+    monsters: mons,
+    npcs: npcList,
+  });
 
   store.combatants = combatants;
   store.availableMonsters = mons;
@@ -249,18 +121,7 @@ function initStore(enc: Encounter, mons: Monster[], par: PartyMember[], npcList:
   store.eventsFired = [];
   store.traps = traps;
 
-  // Boss mechanics: prime legendary action caps on any monster whose stat
-  // block declares legendary_actions. Default cap is 3 per 5e RAW. If a
-  // stat block declares `legendary_action_uses` in future, we'd read that
-  // — for now the hard default keeps things simple.
-  const legendaryCaps: Record<string, number> = {};
-  for (const c of combatants) {
-    if (!c.monster_id) continue;
-    const monster = mons.find((m) => m.id === c.monster_id);
-    if (monster?.stat_block?.legendary_actions?.length) {
-      legendaryCaps[c.instance_id] = 3;
-    }
-  }
+  const legendaryCaps = legendaryActionCaps(combatants, mons);
   if (Object.keys(legendaryCaps).length > 0) {
     store.primeLegendaryActions(legendaryCaps);
   }

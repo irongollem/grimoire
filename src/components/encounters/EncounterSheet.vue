@@ -287,10 +287,12 @@ const otherIsLive  = computed(() => firstRunning.value !== null && !thisIsLive.v
 const { data: linkedQuests } = useQuestsForEncounter(props.encounter.id);
 const { data: party }        = useParty();
 const { data: companions }   = useCompanions();
-const { data: monsters }     = useAllMonsters();
+// Difficulty below resolves the encounter's stored combatant.monster_id and
+// trap_ids, so neither list may be scoped away from what was saved.
+const { data: monsters }     = useAllMonsters(() => ({ includeAllScopes: true }));
 const { data: npcs }         = useNpcs();
 const { data: allItems }     = useItems();
-const { data: traps }        = useTraps();
+const { data: traps }        = useTraps(() => ({ includeAllScopes: true }));
 const { data: allLocs }      = useAllLocations();
 
 // ── Difficulty ─────────────────────────────────────────────────────────────

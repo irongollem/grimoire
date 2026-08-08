@@ -104,7 +104,8 @@ export async function retrieveMonsterCandidates(
 
   const customMatch = await admin.rpc("match_custom_monsters", {
     query_embedding:   args.queryVector,
-    p_user_id:         args.ownerId,
+    p_campaign_id:     args.campaignId,
+    p_owner_id:        args.ownerId,
     p_ruleset:         args.ruleset,
     p_embedding_model: args.embeddingModel,
     match_count:       args.perSide,
@@ -136,6 +137,14 @@ export async function retrieveMonsterCandidates(
     .from("monsters")
     .select("id, name, monster_type, stat_block")
     .eq("user_id", args.ownerId)
+    // Same predicate as match_custom_monsters' WHERE, reapplied because this
+    // path bypasses the RPC entirely: campaign rows plus the owner's global
+    // (null-campaign) rows. The .eq("user_id", ...) above is redundant with it
+    // today -- "monsters: owner full access" RLS means a campaign-scoped
+    // monster's user_id is always that campaign's owner -- kept anyway so this
+    // fallback still can't surface another user's row if that invariant ever
+    // loosens.
+    .or(`campaign_id.eq.${args.campaignId},and(campaign_id.is.null,user_id.eq.${args.ownerId})`)
     .or("open5e_import.is.null,open5e_import.eq.false")
     .or(`ruleset.is.null,ruleset.eq.${args.ruleset}`)
     .order("updated_at", { ascending: false })

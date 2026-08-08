@@ -38,7 +38,7 @@ create extension if not exists pgtap with schema extensions;
 -- `public` is still needed for the tables and the RPCs under test.
 set local search_path = public, extensions;
 
-select plan(9);
+select plan(11);
 
 -- ── Fixture helpers ─────────────────────────────────────────────────────────
 -- A 1536-dimension vector with only its first two components set. Cosine
@@ -138,9 +138,16 @@ select is(
   'deleting a library monster cascades to its embedding -- no orphan vector matching a monster that no longer exists'
 );
 
--- ── Custom monsters: scoped by owner, never by source ───────────────────────
+-- ── Custom monsters: scoped by campaign, then by owner, never by source ────
 -- Custom monsters are deliberately NOT source-gated: they are the DM's own
--- rows. The boundary that matters here is ownership.
+-- rows. #597 added monsters.campaign_id (NULL = every campaign the owner
+-- runs; set = only that one), so match_custom_monsters now takes p_campaign_id
+-- alongside p_owner_id and its WHERE mirrors match_custom_items' exactly
+-- (20260805000005): campaign rows plus the campaign OWNER's global
+-- (null-campaign) rows. Two boundaries are asserted below: ownership (as
+-- before #597) and, new here, that scoping to one of the SAME owner's OTHER
+-- campaigns is not enough to be retrieved -- ownership alone no longer
+-- suffices once a row is scoped.
 set local grimoire.bypass_quota = 'on';
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
@@ -148,20 +155,34 @@ values
   ('59500000-0000-4000-8000-000000000001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'issue595-dm@example.invalid',    '', '{}'::jsonb, '{}'::jsonb),
   ('59500000-0000-4000-8000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'issue595-other@example.invalid', '', '{}'::jsonb, '{}'::jsonb);
 
+-- Two campaigns owned by the SAME DM, so the campaign-B exclusion below can't
+-- be explained by the ownership check alone -- only the campaign scope does it.
+insert into public.campaigns (id, user_id, name)
+values
+  ('59700000-0000-4000-8000-0000000000a0', '59500000-0000-4000-8000-000000000001', 'T597 Campaign A'),
+  ('59700000-0000-4000-8000-0000000000b0', '59500000-0000-4000-8000-000000000001', 'T597 Campaign B');
+
 insert into public.monsters (id, user_id, name, monster_type, ruleset, stat_block)
 values
   ('59500000-0000-4000-8000-000000000010', '59500000-0000-4000-8000-000000000001', 'T595 Homebrew Horror',  'aberration', '2014', '{"challenge_rating":"7"}'::jsonb),
   ('59500000-0000-4000-8000-000000000011', '59500000-0000-4000-8000-000000000002', 'T595 Other User Beast', 'beast',      '2014', '{"challenge_rating":"7"}'::jsonb);
 
+insert into public.monsters (id, user_id, campaign_id, name, monster_type, ruleset, stat_block)
+values
+  ('59700000-0000-4000-8000-000000000010', '59500000-0000-4000-8000-000000000001', '59700000-0000-4000-8000-0000000000a0', 'T597 Campaign A Beast', 'beast', '2014', '{"challenge_rating":"2"}'::jsonb),
+  ('59700000-0000-4000-8000-000000000011', '59500000-0000-4000-8000-000000000001', '59700000-0000-4000-8000-0000000000b0', 'T597 Campaign B Beast', 'beast', '2014', '{"challenge_rating":"2"}'::jsonb);
+
 insert into public.monster_embeddings (monster_id, embedding, embedding_model, source_hash)
 values
   ('59500000-0000-4000-8000-000000000010', pg_temp.vec(1, 0), 'test-model-595', 'h'),
-  ('59500000-0000-4000-8000-000000000011', pg_temp.vec(1, 0), 'test-model-595', 'h');
+  ('59500000-0000-4000-8000-000000000011', pg_temp.vec(1, 0), 'test-model-595', 'h'),
+  ('59700000-0000-4000-8000-000000000010', pg_temp.vec(1, 0), 'test-model-595', 'h'),
+  ('59700000-0000-4000-8000-000000000011', pg_temp.vec(1, 0), 'test-model-595', 'h');
 
 select is(
   (select count(*)::integer
    from public.match_custom_monsters(
-     pg_temp.vec(1, 0), '59500000-0000-4000-8000-000000000001'::uuid, '2014', 'test-model-595', 10)
+     pg_temp.vec(1, 0), '59700000-0000-4000-8000-0000000000a0'::uuid, '59500000-0000-4000-8000-000000000001'::uuid, '2014', 'test-model-595', 10)
    where name = 'T595 Other User Beast'),
   0,
   'another DM''s homebrew is never retrieved, however close its vector'
@@ -170,10 +191,28 @@ select is(
 select is(
   (select count(*)::integer
    from public.match_custom_monsters(
-     pg_temp.vec(1, 0), '59500000-0000-4000-8000-000000000001'::uuid, '2014', 'test-model-595', 10)
+     pg_temp.vec(1, 0), '59700000-0000-4000-8000-0000000000a0'::uuid, '59500000-0000-4000-8000-000000000001'::uuid, '2014', 'test-model-595', 10)
    where name = 'T595 Homebrew Horror'),
   1,
-  'the campaign owner''s own homebrew is retrieved'
+  'the campaign owner''s own NULL-campaign (global) homebrew is retrieved for any of their campaigns'
+);
+
+select is(
+  (select count(*)::integer
+   from public.match_custom_monsters(
+     pg_temp.vec(1, 0), '59700000-0000-4000-8000-0000000000a0'::uuid, '59500000-0000-4000-8000-000000000001'::uuid, '2014', 'test-model-595', 10)
+   where name = 'T597 Campaign B Beast'),
+  0,
+  'a monster scoped to a DIFFERENT campaign is never retrieved, even when that campaign has the same owner'
+);
+
+select is(
+  (select count(*)::integer
+   from public.match_custom_monsters(
+     pg_temp.vec(1, 0), '59700000-0000-4000-8000-0000000000a0'::uuid, '59500000-0000-4000-8000-000000000001'::uuid, '2014', 'test-model-595', 10)
+   where name = 'T597 Campaign A Beast'),
+  1,
+  'a monster scoped to the CURRENT campaign is retrieved'
 );
 
 select * from finish();

@@ -1,9 +1,11 @@
 /**
- * `class_features.campaign_id`, `custom_classes.campaign_id`, and
- * `custom_subclasses.campaign_id` are FKs to `campaigns` left as the default
- * `NO ACTION` — deliberately, unlike every other campaign-scoped table (#585).
+ * Six tables hold DM-authored homebrew whose `campaign_id` FK to `campaigns`
+ * is left as the default `NO ACTION` — deliberately, unlike every other
+ * campaign-scoped table. Classes, subclasses and class features since #585;
+ * monsters, traps and puzzles since #597, which gave the first two the column
+ * and brought the third under the same rule.
  *
- * For these three tables `campaign_id IS NULL` is *meaningful*: it means
+ * For these tables `campaign_id IS NULL` is *meaningful*: it means
  * "available in every campaign" (see `campaignContentGating.ts`'s
  * `allowedCampaignScoped`). That rules out both natural FK defaults:
  * - `ON DELETE SET NULL` would silently *promote* campaign-exclusive
@@ -16,8 +18,14 @@
  * future code path can silently promote or destroy homebrew by skipping it.
  */
 
-/** The three homebrew kinds with a `campaign_id` FK to `campaigns`. */
-export type HomebrewKind = "classes" | "subclasses" | "features";
+/** The homebrew kinds whose `campaign_id` FK to `campaigns` is `NO ACTION`. */
+export type HomebrewKind =
+  | "classes"
+  | "subclasses"
+  | "features"
+  | "monsters"
+  | "traps"
+  | "puzzles";
 
 /** What happens to homebrew scoped exclusively to a campaign that's being
  *  deleted:
@@ -30,20 +38,29 @@ export const HOMEBREW_TABLES: Record<HomebrewKind, string> = {
   classes: "custom_classes",
   subclasses: "custom_subclasses",
   features: "class_features",
+  monsters: "monsters",
+  traps: "traps",
+  puzzles: "puzzle_rooms",
 };
 
-export interface HomebrewCounts {
-  classes: number;
-  subclasses: number;
-  features: number;
-}
+export type HomebrewCounts = Record<HomebrewKind, number>;
 
-export const EMPTY_HOMEBREW_COUNTS: HomebrewCounts = { classes: 0, subclasses: 0, features: 0 };
+export const EMPTY_HOMEBREW_COUNTS: HomebrewCounts = {
+  classes: 0,
+  subclasses: 0,
+  features: 0,
+  monsters: 0,
+  traps: 0,
+  puzzles: 0,
+};
 
 const HOMEBREW_LABELS: Record<HomebrewKind, { singular: string; plural: string }> = {
   classes: { singular: "class", plural: "classes" },
   subclasses: { singular: "subclass", plural: "subclasses" },
   features: { singular: "feature", plural: "features" },
+  monsters: { singular: "monster", plural: "monsters" },
+  traps: { singular: "trap", plural: "traps" },
+  puzzles: { singular: "puzzle", plural: "puzzles" },
 };
 
 const HOMEBREW_KINDS = Object.keys(HOMEBREW_TABLES) as HomebrewKind[];
@@ -56,8 +73,8 @@ export function hasScopedHomebrew(counts: HomebrewCounts): boolean {
 }
 
 /** "2 classes, 1 subclass, 4 features" — only kinds with a non-zero count,
- *  each pluralized correctly, comma-joined in `classes, subclasses, features`
- *  order. Empty string when nothing is scoped. */
+ *  each pluralized correctly, comma-joined in `HOMEBREW_TABLES` key order.
+ *  Empty string when nothing is scoped. */
 export function summarizeHomebrewCounts(counts: HomebrewCounts): string {
   return HOMEBREW_KINDS
     .filter((kind) => counts[kind] > 0)
