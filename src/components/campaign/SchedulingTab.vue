@@ -313,6 +313,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { VueDatePicker } from "@vuepic/vue-datepicker";
+import "@/assets/vendor/datepicker.css";
 import { useTheme } from "@/composables/useTheme";
 import { IconAdd, IconAddEvent, IconCalendar, IconCalendarCheck, IconCheck, IconClose, IconCopy, IconDelete, IconDownload, IconEdit, IconRefresh, IconRemoveEvent } from '@/lib/icons';
 import {

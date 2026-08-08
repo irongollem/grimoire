@@ -6,7 +6,6 @@
 @import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800;900&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Cardo:ital@0;1&family=UnifrakturCook:wght@700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400;1,600;1,700&family=Alegreya:ital,wght@0,400;0,500;0,700;1,400;1,700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Shippori+Mincho:wght@500;600;700&family=Inter:wght@400;500;600;700;800&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap");
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "@vuepic/vue-datepicker/dist/main.css";
 @import "./scriptorium/theme-base.css";
 @import "./scriptorium/theme-onednd2024.css";
 @import "./scriptorium/theme-phb2014.css";
@@ -15,10 +14,14 @@
 
 /* App stylesheet manifest. Order matters: fonts and Tailwind first, then tokens,
    then everything built on them. Several rules in base.css are unlayered on
-   purpose — read the note there before moving anything. */
+   purpose — read the note there before moving anything.
+
+   The VueDatePicker stylesheets are deliberately absent: they are imported by the
+   two components that use a datepicker, so their ~30 kB does not sit on the
+   critical path for the majority of visitors who never open one. See
+   vendor/datepicker.css. */
 @import "./theme.css";
 @import "./typography.css";
 @import "./utilities.css";
 @import "./components.css";
 @import "./base.css";
-@import "./vendor/datepicker.css";

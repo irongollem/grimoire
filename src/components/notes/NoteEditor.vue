@@ -247,6 +247,7 @@ const { confirm } = useConfirm();
 import { ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { VueDatePicker } from "@vuepic/vue-datepicker";
+import "@/assets/vendor/datepicker.css";
 import RichTextEditor from "../common/RichTextEditor.vue";
 import InlineCalendarEventModal from "@/components/calendar/InlineCalendarEventModal.vue";
 import ChroniclerGenerateDialog from "./ChroniclerGenerateDialog.vue";
