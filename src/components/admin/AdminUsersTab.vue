@@ -58,37 +58,37 @@
           </div>
 
           <!-- Soft freeze (paid actions) -->
-          <button
-            class="px-2 py-0.5 text-label font-semibold border rounded transition-colors"
-            :class="user.suspended_at
-              ? 'border-amber-500/40 text-amber-400 hover:bg-amber-500/10'
-              : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'"
+          <AppButton
+            size="xs"
+            :variant="user.suspended_at ? 'tinted' : 'subtle'"
+            :tone="user.suspended_at ? 'caution' : undefined"
+            :emphasis="user.suspended_at ? 'outline' : undefined"
+            :label="user.suspended_at ? 'Unfreeze' : 'Freeze'"
             :disabled="usersQuery.setSuspended.isPending.value"
             @click="toggleFreeze(user)"
-          >
-            {{ user.suspended_at ? 'Unfreeze' : 'Freeze' }}
-          </button>
+          />
 
           <!-- Hard lock-out (login ban) -->
-          <button
-            class="px-2 py-0.5 text-label font-semibold border rounded transition-colors"
-            :class="user.banned
-              ? 'border-elven-green/40 text-elven-green hover:bg-elven-green/10'
-              : 'border-destructive/40 text-destructive hover:bg-destructive/10'"
+          <AppButton
+            size="xs"
+            :variant="user.banned ? 'tinted' : 'destructive'"
+            :tone="user.banned ? 'success' : undefined"
+            :emphasis="user.banned ? 'outline' : undefined"
+            :label="user.banned ? 'Unlock' : 'Lock out'"
             :disabled="usersQuery.setBanned.isPending.value"
             @click="toggleBan(user)"
-          >
-            {{ user.banned ? 'Unlock' : 'Lock out' }}
-          </button>
+          />
 
           <!-- Permanent erasure (#631) -->
-          <button
-            class="px-2 py-0.5 text-label font-semibold border border-destructive rounded bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
+          <AppButton
+            size="xs"
+            variant="tinted"
+            tone="danger"
+            emphasis="soft"
+            label="Delete"
             :disabled="usersQuery.deleteUser.isPending.value"
             @click="deleteUserAccount(user)"
-          >
-            Delete
-          </button>
+          />
         </div>
       </div>
       <p v-if="filteredUsers.length === 0" class="text-body text-muted-foreground text-center py-8">
@@ -103,6 +103,7 @@ import { ref, computed } from "vue";
 import { useAdminUsers, type AdminUser } from "@/composables/useAdminUsers";
 import { accountDeletionErrorMessage } from "@/composables/useAccountDeletion";
 import { useConfirm } from "@/composables/useConfirm";
+import AppButton from "@/components/common/AppButton.vue";
 import type { PlanId } from "@/types/subscription.types";
 
 const usersQuery = useAdminUsers();
