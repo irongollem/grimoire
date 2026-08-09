@@ -401,11 +401,19 @@ the migration header for the full boundary reasoning.
 **Retention.** `image_generation_jobs.prompt` and `ai_generation_jobs.request_json`
 are scrubbed (cleared, not row-deleted) 90 days after creation via a pg_cron
 job in the same migration, following the existing `fail-stale-*`/
-`release-stale-credit-holds` scheduling pattern. Billing/telemetry columns
-(delta, model, provider, tokens, status, timestamps) are kept indefinitely —
-they carry no prompt content and are the actual evidence base; only the
-free-text prompt/request fields carry the GDPR liability of indefinite
-retention, so only those are time-boxed.
+`release-stale-credit-holds` scheduling pattern. The free-text prompt is the
+field carrying the GDPR liability, which is why it is time-boxed first and
+separately from the row around it.
+
+The rows themselves were kept indefinitely until #639 (`20260810000004`), on the
+reasoning that billing/telemetry columns carry no prompt content and are the
+evidence base. That held for the columns and not for the rows: `user_id` and a
+timestamp are personal data whether or not a prompt sits beside them, and
+Art. 5(1)(e) applies to the record, not only to its most sensitive field. The
+periods now live in `context/compliance/retention.md` — 7 years for the ledger
+(the actual financial evidence), 90 days for image jobs that produced nothing,
+365 for AI generation receipts, and **indefinite for `ready` image jobs**, which
+are not a log at all but the user's Gallery.
 
 ## 7. Provider register
 

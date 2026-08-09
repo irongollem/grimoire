@@ -21,7 +21,7 @@ when they ask "what happens to X when an account is erased?"
 | Erasure | 17 | **Shipped** (Aug 2026) | #631 |
 | Access / portability | 15, 20 | Not built | #632 |
 | DSR request log (30-day clock evidence) | 12(3) | Not built | #643 |
-| Retention periods defined + enforced | 5(1)(e) | Partial — the 90-day AI-prompt scrub (`20260804000005`) and bug-report screenshots/rows at 90/365 days (`20260809000002`) | #639 |
+| Retention periods defined + enforced | 5(1)(e) | **Shipped** (Aug 2026) — register in `context/compliance/retention.md` | #639 |
 | Admin action audit log | 5(2) | **Shipped** (Aug 2026) — see §4d | #642 |
 
 The privacy policy §5 promises deletion within 30 days. The implementation is
@@ -46,6 +46,12 @@ amounts, reasons and timestamps — its evidentiary value — and loses only the
 to a person. `anonymized_at` records *that this happened and when*, which is what
 makes the retention defensible: an auditor sees an erased row, not an
 unattributable one.
+
+The seven years now have a far end as well as a near one: `20260810000004` gives
+both evidence tables a purge at the close of the financial year plus seven, via
+the only sanctioned exception the append-only guards have ever been given. See
+`context/compliance/retention.md` §2 for why the boundary is the year end rather
+than the row's anniversary.
 
 **What is deliberately not kept:** no email, no display name, no IP. The only
 identifier surviving erasure is the raw uuid on the `admin_audit_log` entry, kept
@@ -278,11 +284,13 @@ Invariants:
   *requests the operator received* — so a deletion is evidenced, but an access or
   portability request arriving by email leaves no trace of when the 30-day clock
   started. The two logs are not substitutes for each other.
-- **Retention (#639).** Two enforced periods exist — AI prompt text at 90 days,
-  and bug-report screenshots/rows at 90/365 — out of the many categories that
-  need one. The 7-year bookkeeping retention on the evidence tables is asserted
-  here and honoured by keeping the rows, but nothing yet *deletes* them at the
-  end of it — retention is a maximum as well as a minimum.
+- **The waitlist is outside erasure's reach.** `pro_waitlist` holds a bare
+  address with no FK to `auth.users`, so someone who joined it, signed up, and
+  later erased their account keeps an address in that table. It is bounded (365
+  days, `retention.md`) and the privacy policy offers an email route, but it is
+  not the automatic path every other category gets. The fix means matching on an
+  identifier the erasure path deliberately does not otherwise touch, which is
+  why it is its own decision rather than a line in #639.
 - **Self-serve erasure is irreversible and immediate.** There is no grace period
   or soft-delete window. That is a deliberate reading of "without undue delay";
   revisit only with a decision recorded here, because a recovery window means
@@ -313,3 +321,6 @@ Invariants:
 | Audit entries for actions outside Postgres (§4d) | `supabase/functions/_shared/adminAudit.ts` |
 | Admin viewer + the pinned action vocabulary | `src/components/admin/AdminAuditTab.vue`, `src/composables/useAdminAuditLog.ts` |
 | §4d invariant tests | `supabase/tests/admin_audit_writers.test.sql` |
+| Retention periods — the register | `context/compliance/retention.md` |
+| Retention horizon, guard exceptions, the purge, the schedule | `supabase/migrations/20260810000004_retention_periods.sql` |
+| Retention invariant tests | `supabase/tests/retention_periods.test.sql` |
