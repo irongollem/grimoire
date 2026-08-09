@@ -134,6 +134,49 @@ Three positions worth not re-deriving:
    Any future user-generated file that is *not* stored under `{userId}/` has the
    same hole; the storage path is load-bearing for §3 step 3.
 
+## 4b. Identity — the email is not a name
+
+Closed 9 Aug 2026 by `20260809143243` (#636, #635, #637). Where §4a was about what
+leaves for the open internet, this is about what other *users* see: the address
+had become the app's fallback answer to "what is this person called".
+
+Five surfaces, one defect. `profiles.username` defaulted to
+`split_part(email, '@', 1)` and `profiles_select` is
+`USING (auth.uid() IS NOT NULL)`, so a fragment of every address was readable by
+every signed-in account — 6 of 16. `create_dm_membership()` and
+`join_campaign_via_invite()` ended their display-name chain at
+`auth.users.email`, putting 2 full addresses into member lists. Chat sender
+names, presence and the world-bundle/PDF `author` field each independently wrote
+`display_name ?? userEmail`.
+
+Three things worth not rediscovering:
+
+1. **Order was load-bearing, and the issues had it backwards.** #635's stated fix
+   is "fall back to `profiles.username`" — but both affected members were
+   accounts whose username *was* their email local-part, so applying it alone
+   would have rewritten `someone@example.com` to `someone` and looked finished.
+   The username had to stop being derived in the same migration, before anything
+   copied it into a party-visible field.
+2. **Stripping the domain is not a fix.** `CampaignChat.resolveClaimerName` did
+   `dn.split('@')[0]` before rendering. That is the same laundering as (1),
+   written by hand. `auth.publicName` is now the single answer to "what do others
+   see me as" so there is one place to get this right; `userEmail` remains, and
+   remains correct, for showing a user their *own* address.
+3. **The rename of the 6 existing handles was silent, deliberately.**
+   `profiles.username` is read in exactly one place on the client and rendered by
+   no component, and there is no UI to change it — nobody has ever been shown
+   their own username, so nobody can be attached to it. If a username editor ever
+   ships, that reasoning expires and a rename needs consent.
+
+**A related discovery, fixed in `20260809143816`:** `on_auth_user_created` and
+`on_auth_user_created_subscription` existed *only in production*. Both functions
+are created by migrations; the bindings were made by hand and never captured, so
+a fresh database created neither a profile nor a free subscription on signup —
+and no local or CI run had ever executed either function. `seed.sql` supplying
+profiles as data is what hid it. Both bindings are now asserted by
+`supabase/tests/identity_not_from_email.test.sql`, so deleting them fails the
+suite instead of silently testing nothing.
+
 ## 5. Known gaps
 
 - **Export (#632).** No Art. 15/20 export exists. A user can erase their data but
@@ -165,3 +208,7 @@ Three positions worth not re-deriving:
 | What reaches the public issue | `supabase/functions/create-bug-report/index.ts` |
 | Maintainer's view of reporter + screenshot | `src/components/admin/AdminReportsTab.vue` |
 | §4a invariant tests (RLS, retention, cascade) | `supabase/tests/bug_report_privacy.test.sql` |
+| Identity defaults + membership name chains (§4b) | `supabase/migrations/20260809143243_stop_deriving_identity_from_email.sql` |
+| auth.users trigger bindings (§4b) | `supabase/migrations/20260809143816_capture_auth_user_triggers.sql` |
+| The one answer to "what do others see me as" | `auth.publicName` in `src/stores/auth.ts` |
+| §4b invariant tests | `supabase/tests/identity_not_from_email.test.sql` |

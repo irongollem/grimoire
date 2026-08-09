@@ -211,9 +211,7 @@ function resolveClaimerName(): string {
     const character = (party.value ?? []).find(p => p.id === auth.linkedPartyMemberId);
     if (character?.name) return character.name;
   }
-  const dn = auth.membership?.display_name ?? auth.userEmail;
-  if (dn) return dn.includes('@') ? dn.split('@')[0] : dn;
-  return 'Someone';
+  return auth.publicName ?? 'Someone';
 }
 
 async function handleClaim({ messageId, intoStash }: { messageId: string; intoStash: boolean }) {

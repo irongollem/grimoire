@@ -316,6 +316,24 @@ import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 const campaignStore = useCampaignStore();
 const authStore = useAuthStore();
 
+/**
+ * Who a bundle or PDF says it came from (#637).
+ *
+ * This used to be `authStore.user?.email`. A `.grimoire` bundle and a
+ * Scriptorium PDF are files built to be handed to other people, so that put the
+ * exporter's address in every recipient's copy — and in a published PDF's
+ * metadata, where it outlives any conversation about it.
+ *
+ * `publicName` is the shared answer to "what do other people see me as", so a
+ * bundle is credited with the same name the party already reads in chat.
+ * Undefined rather than a placeholder when it resolves to nothing: `author` is
+ * optional in the manifest, and an absent field is honest where "(unknown)"
+ * would be noise in someone else's file.
+ */
+function exportAuthor(): string | undefined {
+  return authStore.publicName ?? undefined;
+}
+
 // ── Wizard state ─────────────────────────────────────────────────────────────
 
 type Phase = "categories" | "pick" | "metadata";
@@ -495,7 +513,7 @@ async function doExport() {
       campaignId,
       name: bundleName.value.trim(),
       description: bundleDescription.value.trim(),
-      author: authStore.user?.email ?? undefined,
+      author: exportAuthor(),
       selection: currentSelectionMap(),
     });
   } catch (err) {
@@ -521,7 +539,7 @@ async function onAttachPdf(event: Event) {
       campaignId,
       name: bundleName.value.trim(),
       description: bundleDescription.value.trim(),
-      author: authStore.user?.email ?? undefined,
+      author: exportAuthor(),
       selection: currentSelectionMap(),
     });
     const { attachBundleToPdf } = await import("@/lib/scriptorium/campaignBundlePdf");

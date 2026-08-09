@@ -14,6 +14,27 @@ export const useAuthStore = defineStore("auth", () => {
 
   const isAuthenticated = computed(() => !!user.value);
   const userEmail = computed(() => user.value?.email ?? null);
+
+  /**
+   * What to call this user in front of *other people* — chat messages, presence,
+   * member lists, exported bundles. Null when nothing suitable is known; each
+   * call site picks its own placeholder, because "Unknown", "Someone" and an
+   * empty presence slot are genuinely different answers.
+   *
+   * Never the email (#635). Four surfaces had independently written
+   * `membership?.display_name ?? userEmail`, and one of them
+   * (CampaignChat.resolveClaimerName) even split the address at `@` first — which
+   * publishes the local part rather than fixing anything, the same laundering
+   * #636 made possible by defaulting usernames to that local part. Anything that
+   * answers "what do the others see me as" resolves it here, so there is one
+   * place to be wrong.
+   *
+   * `userEmail` stays available and is still correct for showing a user their
+   * *own* address — the account page and the sidebar do exactly that.
+   */
+  const publicName = computed<string | null>(
+    () => membership.value?.display_name?.trim() || username.value?.trim() || null,
+  );
   const isAppAdmin = computed(
     () => user.value?.app_metadata?.["role"] === "admin",
   );
@@ -50,20 +71,30 @@ export const useAuthStore = defineStore("auth", () => {
     const { data } = await query.maybeSingle();
     membership.value = data ?? null;
 
-    // Backfill display_name on first login: prefer the username stored in
-    // auth metadata (set at signup), fall back to email only as a last resort.
+    // Backfill display_name on first login, from the display name supplied at
+    // signup or the profile handle — never the email (#635).
+    //
+    // This is the third writer of campaign_members.display_name, alongside
+    // create_dm_membership() and join_campaign_via_invite(). The issue named
+    // only the two SQL ones; fixing those and leaving this would have let the
+    // address back in on the next login of any member whose row has no display
+    // name, which is exactly the row this branch exists to catch.
     if (data && !data.display_name) {
       const u = user.value ?? session.value?.user;
-      const fallback =
-        (u?.user_metadata?.display_name as string | undefined)?.trim() ||
-        u?.email;
-      if (fallback) {
-        await supabase
-          .from("campaign_members")
-          .update({ display_name: fallback })
-          .eq("id", data.id);
-        membership.value = { ...data, display_name: fallback };
-      }
+      const metaName = (
+        u?.user_metadata?.display_name as string | undefined
+      )?.trim();
+      // initialize() runs loadUsername alongside this function, so username.value
+      // is not reliably populated yet — resolve it here rather than racing it and
+      // silently settling for the placeholder. Only on the rare branch where a
+      // membership has no display name at all, so the common path stays parallel.
+      if (!metaName && !username.value) await loadUsername(userId);
+      const fallback = metaName || username.value || "(unnamed player)";
+      await supabase
+        .from("campaign_members")
+        .update({ display_name: fallback })
+        .eq("id", data.id);
+      membership.value = { ...data, display_name: fallback };
     }
   }
 
@@ -237,6 +268,7 @@ export const useAuthStore = defineStore("auth", () => {
     isAuthenticated,
     isAppAdmin,
     userEmail,
+    publicName,
     currentRole,
     isDM,
     isPlayer,

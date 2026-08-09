@@ -66,7 +66,7 @@ function ensureWatcher() {
     () => [
       campaign.activeCampaignId,
       auth.user?.id,
-      auth.membership?.display_name ?? auth.userEmail ?? null,
+      auth.publicName,
     ] as const,
     ([campaignId, userId, displayName]) => {
       disconnect();

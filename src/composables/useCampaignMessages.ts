@@ -268,7 +268,7 @@ export function useCampaignMessages() {
       const character = partyMembers.value.find(m => m.id === memberId);
       if (character?.name) return character.name;
     }
-    return auth.membership?.display_name ?? auth.userEmail ?? "Unknown";
+    return auth.publicName ?? "Unknown";
   }
 
   // In preview mode the DM sees only what the previewed player would see:
