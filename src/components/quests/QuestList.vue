@@ -11,78 +11,23 @@
     >
       <template #icon><IconNavQuests class="h-16 w-16" /></template>
       <template #action>
-        <RouterLink
+        <AppButton
           to="/quests/new"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-sm font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
-        >
-          Add your first quest
-        </RouterLink>
+          variant="primary"
+          size="lg"
+          label="Add your first quest"
+        />
       </template>
     </EmptyState>
 
-    <!-- Kanban board -->
-    <template v-else-if="isKanban">
-      <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <div
-          v-for="col in kanbanColumns"
-          :key="col.status"
-          class="flex flex-col gap-2"
-          @dragover.prevent="dragOverCol = col.status"
-          @dragleave="onColDragLeave(col.status, $event)"
-          @drop.prevent="onDrop(col.status)"
-        >
-          <!-- Column header -->
-          <div
-            class="flex items-center gap-2 px-1 pb-1 border-b-2 transition-colors"
-            :style="{ borderColor: col.color }"
-          >
-            <span class="h-2 w-2 rounded-full shrink-0" :style="{ backgroundColor: col.color }" />
-            <span class="text-label-lg font-bold text-foreground">{{ col.label }}</span>
-            <span class="ml-auto text-caption text-muted-foreground">{{ col.quests.length }}</span>
-          </div>
-
-          <!-- Drop zone -->
-          <div
-            class="flex flex-col gap-2 min-h-16 rounded-md transition-colors"
-            :class="dragOverCol === col.status && dragQuestId ? 'bg-primary/5 ring-1 ring-primary/30' : ''"
-          >
-            <p v-if="!col.quests.length" class="text-caption text-muted-foreground italic text-center py-6">
-              None
-            </p>
-
-            <div
-              v-for="quest in col.quests"
-              :key="quest.id"
-              draggable="true"
-              class="group relative flex flex-col gap-2 rounded-lg border border-border bg-card p-3 overflow-hidden cursor-grab active:cursor-grabbing transition-opacity"
-              :class="dragQuestId === quest.id ? 'opacity-40' : 'hover:border-primary/50'"
-              @dragstart="onDragStart(quest.id)"
-              @dragend="onDragEnd"
-              @click="router.push(`/quests/${quest.id}`)"
-            >
-              <!-- Status bar -->
-              <div class="absolute top-0 left-0 right-0 h-0.5" :style="{ backgroundColor: col.color }" />
-              <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight line-clamp-2">
-                {{ quest.title || "Untitled Quest" }}
-              </h3>
-              <p v-if="quest.summary" class="text-caption text-muted-foreground italic line-clamp-2">
-                {{ quest.summary }}
-              </p>
-              <div v-if="quest.tags.length" class="flex flex-wrap gap-1">
-                <span
-                  v-for="tag in quest.tags.slice(0, 2)"
-                  :key="tag"
-                  class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground"
-                >{{ tag }}</span>
-              </div>
-              <span class="text-caption-sm text-muted-foreground italic ml-auto">
-                {{ timeAgo(quest.updated_at) }}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </template>
+    <!-- The board is a presentational/mutation boundary of its own. Beat-only
+         summaries are optional until #658 lands, so legacy quests stay useful. -->
+    <QuestKanbanBoard
+      v-else-if="isKanban"
+      :quests="filtered"
+      :party="party ?? []"
+      @move="onMove"
+    />
 
     <!-- List view -->
     <template v-else>
@@ -151,29 +96,30 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
-import { useRouter } from "vue-router";
+import { computed } from "vue";
 import { IconNavQuests, IconScrollText } from '@/lib/icons';
 import { useAllQuests, useUpdateQuest, scheduleQuestTriggers } from "@/composables/useQuests";
+import { useParty } from "@/composables/useParty";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import QuestKanbanBoard from "@/components/quests/QuestKanbanBoard.vue";
 import { timeAgo } from "@/lib/utils";
 import {
-  QUEST_STATUSES,
   QUEST_STATUS_LABELS,
   QUEST_STATUS_COLORS,
   type QuestStatus,
 } from "@/types/quest.types";
 
-const router = useRouter();
 const ui = useUiStore();
 const campaign = useCampaignStore();
 const search = computed(() => ui.questsSearch);
 const isKanban = computed(() => ui.questsIsKanban);
 
 const { data: allQuests, isLoading } = useAllQuests();
+const { data: party } = useParty(() => isKanban.value);
 const { mutateAsync: updateQuest } = useUpdateQuest();
 
 const filtered = computed(() => {
@@ -189,42 +135,7 @@ const filtered = computed(() => {
   return list;
 });
 
-const kanbanColumns = computed(() =>
-  QUEST_STATUSES.map((status) => ({
-    status,
-    label: QUEST_STATUS_LABELS[status],
-    color: QUEST_STATUS_COLORS[status],
-    quests: filtered.value.filter((q) => q.status === status),
-  })),
-);
-
-// ── Drag & drop ───────────────────────────────────────────────────────────────
-const dragQuestId = ref<string | null>(null);
-const dragOverCol = ref<QuestStatus | null>(null);
-
-function onDragStart(id: string) {
-  dragQuestId.value = id;
-}
-
-function onDragEnd() {
-  dragQuestId.value = null;
-  dragOverCol.value = null;
-}
-
-function onColDragLeave(status: QuestStatus, e: DragEvent) {
-  // Only clear if leaving the column entirely (not entering a child element)
-  const related = e.relatedTarget as HTMLElement | null;
-  if (!e.currentTarget || !(e.currentTarget as HTMLElement).contains(related)) {
-    if (dragOverCol.value === status) dragOverCol.value = null;
-  }
-}
-
-async function onDrop(targetStatus: QuestStatus) {
-  const id = dragQuestId.value;
-  dragQuestId.value = null;
-  dragOverCol.value = null;
-  if (!id) return;
-
+async function onMove({ id, status: targetStatus }: { id: string; status: QuestStatus }) {
   const quest = allQuests.value?.find((q) => q.id === id);
   if (!quest || quest.status === targetStatus) return;
 

@@ -111,7 +111,7 @@ Route: `/quests` (list), `/quests/new`, `/quests/:id`, `/quests/:id?edit=true`
 - Filter bar: text search (title, summary, tags) with a **Clear** button (only shown when filters are active, state in `useUiStore`)
 - **View toggle**: list view ↔ Kanban board (preference stored in `ui.questsIsKanban`, persists session)
 - **List view**: responsive card grid (1–4 columns), status colour bar at top of each card, summary excerpt, tags (up to 2), time-ago stamp
-- **Kanban board**: 4 columns (Undiscovered, Active, On Hold, Completed, Failed). Cards are draggable — drag to a column header drop zone updates `status` immediately via `useUpdateQuest`. Columns show quest count and a per-card status colour top bar.
+- **Kanban board**: five horizontally scrollable status lanes (Undiscovered, Rumor, Active, Completed, Failed), implemented by `QuestKanbanBoard.vue`. Cards are draggable between lanes and also carry a native status picker as the keyboard/touch alternative; either route updates `status` through `useUpdateQuest`, and moving to Completed still schedules quest-completion consequences. Empty non-terminal lanes include a New Quest action. `QuestBoardCard.vue` is the atomic card boundary: today it renders title, hook, tags, player-sharing faces and last-touched time; its optional `QuestBoardSummary` prop is the deliberate seam for the beat redesign to add current/live beat, progress spine, prep gaps and loot counts without inventing those values for legacy quests. The old list view remains unchanged.
 
 **Quest editor fields** (two-column layout on desktop):
 _Left column:_
