@@ -1,10 +1,11 @@
 <template>
   <div class="space-y-4">
-    <input
+    <AppInput
       v-model="userSearch"
       type="search"
+      size="body"
+      tone="muted"
       placeholder="Search by email or name…"
-      class="w-full bg-muted border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
     />
 
     <div v-if="usersQuery.isPending.value" class="text-muted-foreground text-body">
@@ -14,6 +15,7 @@
       Failed to load users.
     </div>
     <div v-else class="space-y-2">
+      <p v-if="deleteError" class="text-caption-sm text-destructive">{{ deleteError }}</p>
       <div
         v-for="user in filteredUsers"
         :key="user.user_id"
@@ -40,45 +42,52 @@
           </span>
           <span class="text-caption text-muted-foreground">{{ user.ai_credits }} cr</span>
           <div class="flex gap-1">
-            <button
+            <!-- The current plan is the `active` one; AppButton blocks the click
+                 while disabled, so the guard the raw handler carried is gone. -->
+            <AppButton
               v-for="pid in PLAN_IDS"
               :key="pid"
-              class="px-2 py-0.5 text-label font-semibold border rounded transition-colors"
-              :class="
-                user.plan_id === pid
-                  ? 'border-primary/40 text-primary bg-primary/10 cursor-default'
-                  : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
-              "
+              variant="subtle"
+              size="xs"
+              :active="user.plan_id === pid"
+              :label="pid"
               :disabled="user.plan_id === pid || usersQuery.setPlan.isPending.value"
-              @click="user.plan_id !== pid && usersQuery.setPlan.mutate({ userId: user.user_id, planId: pid })"
-            >
-              {{ pid }}
-            </button>
+              @click="usersQuery.setPlan.mutate({ userId: user.user_id, planId: pid })"
+            />
           </div>
 
           <!-- Soft freeze (paid actions) -->
-          <button
-            class="px-2 py-0.5 text-label font-semibold border rounded transition-colors"
-            :class="user.suspended_at
-              ? 'border-amber-500/40 text-amber-400 hover:bg-amber-500/10'
-              : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'"
+          <AppButton
+            size="xs"
+            :variant="user.suspended_at ? 'tinted' : 'subtle'"
+            :tone="user.suspended_at ? 'caution' : undefined"
+            :emphasis="user.suspended_at ? 'outline' : undefined"
+            :label="user.suspended_at ? 'Unfreeze' : 'Freeze'"
             :disabled="usersQuery.setSuspended.isPending.value"
             @click="toggleFreeze(user)"
-          >
-            {{ user.suspended_at ? 'Unfreeze' : 'Freeze' }}
-          </button>
+          />
 
           <!-- Hard lock-out (login ban) -->
-          <button
-            class="px-2 py-0.5 text-label font-semibold border rounded transition-colors"
-            :class="user.banned
-              ? 'border-elven-green/40 text-elven-green hover:bg-elven-green/10'
-              : 'border-destructive/40 text-destructive hover:bg-destructive/10'"
+          <AppButton
+            size="xs"
+            :variant="user.banned ? 'tinted' : 'destructive'"
+            :tone="user.banned ? 'success' : undefined"
+            :emphasis="user.banned ? 'outline' : undefined"
+            :label="user.banned ? 'Unlock' : 'Lock out'"
             :disabled="usersQuery.setBanned.isPending.value"
             @click="toggleBan(user)"
-          >
-            {{ user.banned ? 'Unlock' : 'Lock out' }}
-          </button>
+          />
+
+          <!-- Permanent erasure (#631) -->
+          <AppButton
+            size="xs"
+            variant="tinted"
+            tone="danger"
+            emphasis="soft"
+            label="Delete"
+            :disabled="usersQuery.deleteUser.isPending.value"
+            @click="deleteUserAccount(user)"
+          />
         </div>
       </div>
       <p v-if="filteredUsers.length === 0" class="text-body text-muted-foreground text-center py-8">
@@ -91,11 +100,15 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useAdminUsers, type AdminUser } from "@/composables/useAdminUsers";
+import { accountDeletionErrorMessage } from "@/composables/useAccountDeletion";
 import { useConfirm } from "@/composables/useConfirm";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import type { PlanId } from "@/types/subscription.types";
 
 const usersQuery = useAdminUsers();
 const { confirm } = useConfirm();
+const deleteError = ref("");
 
 async function toggleFreeze(user: AdminUser) {
   const suspend = !user.suspended_at;
@@ -124,6 +137,21 @@ async function toggleBan(user: AdminUser) {
   );
   if (!ok) return;
   usersQuery.setBanned.mutate({ userId: user.user_id, banned: ban });
+}
+
+async function deleteUserAccount(user: AdminUser) {
+  const ok = await confirm(
+    `Permanently delete ${user.email}? This deletes their auth account immediately: campaigns they own — and everything in them — are erased, and content they created in other campaigns is removed. Billing ledger rows are kept, anonymized, as legally required. This cannot be undone.`,
+    { title: "Delete account", confirmLabel: "Delete permanently", danger: true },
+  );
+  if (!ok) return;
+  deleteError.value = "";
+  try {
+    await usersQuery.deleteUser.mutateAsync(user.user_id);
+  } catch (err) {
+    const code = err instanceof Error ? err.message : String(err);
+    deleteError.value = accountDeletionErrorMessage(code);
+  }
 }
 
 const PLAN_IDS: PlanId[] = ["free", "tester", "pro"];

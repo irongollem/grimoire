@@ -3,12 +3,14 @@
     <p class="text-eyebrow font-semibold text-muted-foreground">
       TYPE <span class="text-foreground">{{ name }}</span> TO CONFIRM
     </p>
-    <input
+    <AppInput
       v-model="typed"
       type="text"
+      size="body"
+      tone="muted"
       autocomplete="off"
       :placeholder="name"
-      class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1"
+      :disabled="disabled"
       :class="accent === 'destructive' ? 'focus:ring-destructive' : 'focus:ring-primary'"
     />
   </div>
@@ -20,6 +22,8 @@
  * ownership). The parent owns the "does it match" decision so it can fold that
  * into whatever other preconditions the action has.
  */
+import AppInput from "./AppInput.vue";
+
 const typed = defineModel<string>({ required: true });
 
 const { accent = "destructive" } = defineProps<{
@@ -27,5 +31,6 @@ const { accent = "destructive" } = defineProps<{
   name: string;
   /** Focus-ring colour; `primary` for actions that are permanent but not deletions. */
   accent?: "destructive" | "primary";
+  disabled?: boolean;
 }>();
 </script>

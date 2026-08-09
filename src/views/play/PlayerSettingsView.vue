@@ -9,7 +9,8 @@
       <PlayerSettingsNavigation />
       <PlayerSettingsNotifications />
       <PlayerSettingsAppearance />
-      <PlayerSettingsAccount />
+
+      <AccountSummarySection link-to="/account" link-label="Manage account &amp; billing →" />
 
       <!-- Legal -->
       <div class="flex items-center gap-5 pt-2 pb-6">
@@ -38,6 +39,7 @@
 <script setup lang="ts">
 import { legalUrl } from "@/lib/marketing";
 import PageHeader from "@/components/common/PageHeader.vue";
+import AccountSummarySection from "@/components/account/AccountSummarySection.vue";
 import PlayerSettingsDisplayName from "@/components/play/PlayerSettingsDisplayName.vue";
 import PlayerSettingsInstall from "@/components/play/PlayerSettingsInstall.vue";
 import PlayerSettingsCharacterClaim from "@/components/play/PlayerSettingsCharacterClaim.vue";
@@ -46,5 +48,4 @@ import PlayerSettingsCalendar from "@/components/play/PlayerSettingsCalendar.vue
 import PlayerSettingsNavigation from "@/components/play/PlayerSettingsNavigation.vue";
 import PlayerSettingsNotifications from "@/components/play/PlayerSettingsNotifications.vue";
 import PlayerSettingsAppearance from "@/components/play/PlayerSettingsAppearance.vue";
-import PlayerSettingsAccount from "@/components/play/PlayerSettingsAccount.vue";
 </script>
