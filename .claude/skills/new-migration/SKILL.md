@@ -1,6 +1,6 @@
 ---
 name: new-migration
-description: Create a new Supabase migration file with the correct next sequence number for today, avoiding timestamp collisions when multiple migrations are written on the same day.
+description: Create a Supabase migration file with a collision-free version, using the CLI's own UTC timestamp format. Use whenever a schema or data change needs a migration.
 user-invocable: true
 allowed-tools:
   - Bash
@@ -14,79 +14,65 @@ Arguments: `<name>` (required) — a short snake_case description of what the mi
 
 ---
 
-## What this skill does
+## The format is `YYYYMMDDHHMMSS`, and it is not ours
 
-Migration files use the format `YYYYMMDDNNNNNN_name.sql` where `NNNNNN` is a 6-digit sequence padded to 6 digits. When multiple migrations are created on the same day, collisions happen if the sequence isn't incremented.
+`supabase migration new` stamps a **14-digit UTC timestamp to the second**. That is the format this repo now uses, because it is the one the CLI, the docs and `schema_migrations` all assume.
 
-This skill:
+It replaced a hand-picked `YYYYMMDD` + 6-digit counter. Same width, so old files sort correctly against new ones and none of them needed renaming — but a counter has to be *chosen*, and choosing it means reading the current state of a repo that several sessions are writing to at once. Two agents reading the same state pick the same number. A timestamp to the second is not chosen, so it does not collide.
 
-1. Reads today's date in `YYYYMMDD` format
-2. Scans `supabase/migrations/` for files matching today's date prefix
-3. Picks the next available sequence number (max existing + 1, starting at `000001`)
-4. Creates the file at `supabase/migrations/<timestamp>_<name>.sql` with a standard template
-5. Reports the full filename so you can immediately start writing SQL into it
+## Step 1 — Create the file
 
----
-
-## Step 1 — Determine next sequence number
-
-Check local files, `origin/main`, **and every unmerged remote branch**. The
-third one is not optional: a migration sitting on an open PR branch is invisible
-to the first two, and the collision only appears after that PR merges and your
-work rebases on top of it — by which point both files are in `main` with the
-same version and `supabase db push` dies on
-`duplicate key value violates unique constraint "schema_migrations_pkey"`.
-That is not hypothetical; it happened on 5 Aug 2026 when #602's migration and
-PR #615's `notification_preferences` both claimed `20260805000002`, and it took
-a red CI plus a rename-and-fix-every-reference commit to undo.
+Let the CLI do it:
 
 ```bash
-today=$(date +%Y%m%d)
-git fetch --all --quiet 2>/dev/null
-# Local sequences for today
-local_max=$(ls supabase/migrations/ | grep "^${today}" | sed "s/^${today}//" | cut -c1-6 | sort -n | tail -1)
-# Every remote branch, not just main — catches migrations on open PR branches
-# that have not merged yet. `git ls-tree` per branch is the only way to see a
-# file that exists on a ref you have not checked out.
-remote_max=$(for ref in $(git for-each-ref --format='%(refname)' refs/remotes/ 2>/dev/null); do
-    git ls-tree -r "$ref" --name-only -- supabase/migrations/ 2>/dev/null
-  done | grep "^supabase/migrations/${today}" | sed "s|supabase/migrations/${today}||" | cut -c1-6 | sort -n | tail -1)
-# Take the highest of them all
-printf '%s\n%s\n' "${local_max}" "${remote_max}" | sort -n | tail -1
+supabase migration new <name>
 ```
 
-If no files exist for today anywhere, the sequence starts at `000001`.
-If the highest is e.g. `000003`, use `000004`.
+It prints the path it created. If the CLI is unavailable, the equivalent is:
 
-**Skipping a number is free; reusing one is not.** When in doubt, take the next
-number after the highest you saw anywhere — gaps in the sequence are harmless
-(nothing reads them as consecutive), while a duplicate blocks every deploy until
-someone renames a file and chases down every reference to it in comments, docs
-and closed issues.
-
-## Step 2 — Construct filename
-
-```
-<YYYYMMDD><NNNNNN>_<name>.sql
+```bash
+printf 'supabase/migrations/%s_%s.sql\n' "$(date -u +%Y%m%d%H%M%S)" "<name>"
 ```
 
-Example: if today is 2026-04-11, 3 migrations already exist for today, and name is `add_quest_tags`:
-→ `20260411000004_add_quest_tags.sql`
+`date -u` matters — a local-time stamp from a machine behind UTC can land *before* a migration written earlier elsewhere.
 
-## Step 3 — Write the template
+## Step 2 — Check it lands after main
 
-Create the file at `supabase/migrations/<filename>` with this content:
+A unique version is not sufficient. `supabase db push` also refuses any migration dated **before the newest one already applied**, with:
+
+```text
+Found local migration files to be inserted before the last migration on remote database.
+```
+
+That is not a theoretical failure: it killed the #649 release on 9 Aug 2026. The migration had been authored a day earlier, something else merged and deployed in between, and by the time it landed its version was in the past. The release failed *after* Vercel had already shipped the frontend, leaving production running new code against a schema that never got the change.
+
+So a migration that has sat on a branch for a while must be **renamed forward before merging**, not merged and hoped for. Verify with:
+
+```bash
+sh scripts/check-migration-versions.sh
+```
+
+It checks both failure modes — duplicate versions, and versions at or below the newest on `origin/main` — and runs in CI's `spell-database` job, so a mistake fails the PR rather than the release. Run it yourself before opening the PR; it is instant.
+
+## Step 3 — Write the body
+
+Start the file with:
 
 ```sql
 -- Migration: <name>
 -- <one-line description of what this migration does>
-
 ```
 
-Leave the body empty after the header comment — the user will fill in the SQL.
+Then the SQL. Follow the repo's rules in `CLAUDE.md` — `update_updated_at()` triggers, RLS policies, `SECURITY DEFINER` placement, and the advisor check afterwards.
 
 ## Step 4 — Report
 
-Tell the user the exact filename that was created so they can navigate to it and start writing.
+Tell the user the exact filename created.
 
-Do NOT run `supabase db push` — that's the user's job after they've written the SQL.
+Do NOT run `supabase db push` — migrations auto-apply on push to main.
+
+---
+
+## If you rename a migration
+
+Grep the repo for the old version string first. Migrations, feature docs and function comments all cite version numbers, and a rename that leaves those pointing at a file that no longer exists is worse than the collision it fixed.

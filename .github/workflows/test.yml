@@ -24,6 +24,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        # Full history: the version guard below compares this branch's
+        # migrations against origin/main, and the default shallow clone has no
+        # origin/main to compare against — it would skip its most important
+        # check and pass in silence.
+        with:
+          fetch-depth: 0
+      # Cheap, and it runs BEFORE the database starts: both failures it catches
+      # are filename arithmetic, and there is no reason to spend two minutes on
+      # Postgres to find out a version number collides. See the script for the
+      # two production incidents that justify it.
+      - name: Migration versions are unique and land after main
+        run: sh scripts/check-migration-versions.sh
       - uses: supabase/setup-cli@v1
         with:
           version: 2.109.1

@@ -52,7 +52,7 @@ create policy "<table>_update" on <table> for update using (auth.uid() = user_id
 create policy "<table>_delete" on <table> for delete using (auth.uid() = user_id);
 ```
 
-Migration files live in `supabase/migrations/` with timestamp prefix `YYYYMMDDNNNNNN_name.sql`.
+Migration files live in `supabase/migrations/` with the Supabase CLI's own prefix, `YYYYMMDDHHMMSS_name.sql` (14-digit UTC timestamp to the second).
 
 **CRITICAL — `SECURITY DEFINER` functions (avoid re-introducing the security-advisor warnings):**
 
@@ -70,17 +70,22 @@ Also: trigger functions never need an `EXECUTE` grant (the trigger system bypass
 
 NEVER use `mcp__supabase__apply_migration` for schema changes. It auto-generates its own timestamp that will never match the local file's timestamp, causing `supabase db push` to diverge every time.
 
-**CRITICAL — always use `/new-migration` to create migration files (prevents sequence collisions):**
+**CRITICAL — never pick a migration version by hand:**
 
-NEVER pick a migration sequence number manually. Always invoke the `/new-migration` skill first to get the correct next filename — it checks both local files and `origin/main` to avoid collisions when working on branches.
+Use `/new-migration <name>`, or `supabase migration new <name>` directly. Both stamp a UTC `YYYYMMDDHHMMSS`. A timestamp to the second is not *chosen*, so two sessions cannot land on the same one — which a hand-picked counter did twice in a week, because choosing it means reading the state of a repo that several sessions are writing to at once.
 
-Always follow this exact workflow:
+Two things go wrong with versions, and CI now catches both (`scripts/check-migration-versions.sh`, run in the `spell-database` job):
 
-1. Invoke `/new-migration <name>` — this creates the file with the correct collision-free timestamp
+1. **Two files, one version** → `duplicate key value violates unique constraint "schema_migrations_pkey"`, and every migration queued behind it is stranded.
+2. **A version at or below the newest already applied** → `db push` refuses it: *"Found local migration files to be inserted before the last migration on remote database."* This is the nastier one, because Vercel deploys the frontend off the same push through a different pipeline, so the app ships against a schema that never got the change. It killed the #649 release on 9 Aug 2026.
+
+Mode 2 is why a migration that has sat on a branch while other work merged must be **renamed forward before it merges**. Run the script yourself before opening the PR — it is instant, and it is far cheaper than a red release. If you do rename one, grep the repo for the old version string first: migrations, feature docs and function comments all cite version numbers.
+
+Workflow:
+
+1. Invoke `/new-migration <name>`
 2. Write the SQL body into the created file
-3. Apply it to the remote DB via Bash: `supabase db push`
-
-This ensures a single timestamp (the filename) is used for both local tracking and remote history.
+3. Push to main — **migrations auto-apply from CI**. Do NOT run `supabase db push` by hand: it applies every pending migration in your working tree, including other sessions' unmerged ones.
 
 ## Post-Mutation Navigation
 
