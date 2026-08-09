@@ -98,7 +98,12 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconNavQuests, IconScrollText } from '@/lib/icons';
-import { useAllQuests, useUpdateQuest, scheduleQuestTriggers } from "@/composables/useQuests";
+import {
+  useAllQuests,
+  useCampaignQuestRefs,
+  useUpdateQuest,
+  scheduleQuestTriggers,
+} from "@/composables/useQuests";
 import { useParty } from "@/composables/useParty";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
@@ -107,6 +112,7 @@ import EmptyState from "@/components/common/EmptyState.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import QuestKanbanBoard from "@/components/quests/QuestKanbanBoard.vue";
 import { timeAgo } from "@/lib/utils";
+import { filterQuestBoard } from "@/lib/quests/board";
 import {
   QUEST_STATUS_LABELS,
   QUEST_STATUS_COLORS,
@@ -120,20 +126,20 @@ const isKanban = computed(() => ui.questsIsKanban);
 
 const { data: allQuests, isLoading } = useAllQuests();
 const { data: party } = useParty(() => isKanban.value);
+const { data: campaignRefs } = useCampaignQuestRefs();
 const { mutateAsync: updateQuest } = useUpdateQuest();
 
-const filtered = computed(() => {
-  let list = [...(allQuests.value ?? [])];
-  if (search.value.trim()) {
-    const q = search.value.trim().toLowerCase();
-    list = list.filter((quest) =>
-      quest.title.toLowerCase().includes(q) ||
-      quest.summary?.toLowerCase().includes(q) ||
-      quest.tags.some((t) => t.toLowerCase().includes(q)),
-    );
-  }
-  return list;
-});
+const filtered = computed(() => filterQuestBoard(
+  allQuests.value ?? [],
+  {
+    search: search.value,
+    partyOnly: ui.questsPartyFilter,
+    entity: ui.questsEntityFilter,
+    prepGapsOnly: ui.questsPrepGapsFilter,
+    pendingLootOnly: ui.questsLootFilter,
+  },
+  { refs: campaignRefs.value ?? [] },
+));
 
 async function onMove({ id, status: targetStatus }: { id: string; status: QuestStatus }) {
   const quest = allQuests.value?.find((q) => q.id === id);

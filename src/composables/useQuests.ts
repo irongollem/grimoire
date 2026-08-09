@@ -29,6 +29,12 @@ const OBJECTIVES_KEY = "quest_objectives";
 const REFS_KEY       = "quest_refs";
 const TRIGGERS_KEY   = "quest_triggers";
 const SCHEDULED_KEY  = "quest_trigger_scheduled";
+const QUEST_FILTER_ENTITIES_KEY = "quest_filter_entities";
+
+export interface QuestFilterEntityOption {
+  id: string;
+  name: string;
+}
 
 // All Harptos months have 30 days; intercalary days are ignored for offset math
 function addHarptoDays(year: number, month: number, day: number, offsetDays: number) {
@@ -145,6 +151,18 @@ async function fetchRefs(questId: string): Promise<QuestRef[]> {
     .eq("quest_id", questId);
   if (error) throw error;
   return data as QuestRef[];
+}
+
+async function fetchCampaignRefs(campaignId: string): Promise<QuestRef[]> {
+  // Join through quests so one request returns exactly the active campaign's
+  // facets. Fetching useQuestRefs once per card would turn the board into N+1
+  // queries and make filter cost grow with campaign history.
+  const { data, error } = await supabase
+    .from("quest_refs")
+    .select("id, quest_id, ref_type, ref_id, is_player_visible, quests!inner(campaign_id)")
+    .eq("quests.campaign_id", campaignId);
+  if (error) throw error;
+  return (data ?? []) as unknown as QuestRef[];
 }
 
 async function createRef(ref: QuestRefInsert): Promise<QuestRef> {
@@ -331,6 +349,40 @@ export function useQuestRefs(questId: string | Ref<string>) {
     queryKey: computed(() => [REFS_KEY, idRef.value]),
     queryFn: () => fetchRefs(idRef.value),
     enabled: () => !!idRef.value,
+  });
+}
+
+/** One campaign-scoped query for board filters and summary facets. */
+export function useCampaignQuestRefs(enabled?: () => boolean) {
+  const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
+  return useQuery({
+    queryKey: computed(() => [REFS_KEY, "campaign", campaignId.value]),
+    queryFn: () => fetchCampaignRefs(campaignId.value!),
+    enabled: () => !!campaignId.value && (enabled?.() ?? true),
+  });
+}
+
+/** Minimal id/name rows for the quest entity facet — deliberately not useNpcs(),
+ * which would download every NPC's prose and stat block just to label a filter. */
+export function useQuestFilterEntities(enabled?: () => boolean) {
+  const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
+  return useQuery({
+    queryKey: computed(() => [QUEST_FILTER_ENTITIES_KEY, campaignId.value]),
+    queryFn: async (): Promise<QuestFilterEntityOption[]> => {
+      const [npcs, locations] = await Promise.all([
+        supabase.from("npcs").select("id, name").eq("campaign_id", campaignId.value!).order("name"),
+        supabase.from("locations").select("id, name").eq("campaign_id", campaignId.value!).order("name"),
+      ]);
+      if (npcs.error) throw npcs.error;
+      if (locations.error) throw locations.error;
+      return [
+        ...(npcs.data ?? []).map((row) => ({ id: `npc:${row.id}`, name: `NPC · ${row.name}` })),
+        ...(locations.data ?? []).map((row) => ({ id: `location:${row.id}`, name: `Location · ${row.name}` })),
+      ];
+    },
+    enabled: () => !!campaignId.value && (enabled?.() ?? true),
   });
 }
 
@@ -660,4 +712,3 @@ export function usePendingTriggerCount() {
     enabled: () => !!campaignId.value,
   });
 }
-
