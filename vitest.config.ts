@@ -25,6 +25,11 @@ export default defineConfig({
     },
   },
   test: {
+    // Node 26 exposes an incomplete process-level localStorage unless a backing
+    // file is configured. Tests use happy-dom's isolated implementation, so
+    // disable Node's experimental copy in workers instead of emitting one
+    // warning per pool process or sharing mutable storage between tests.
+    execArgv: ["--no-experimental-webstorage"],
     // `src/lib/supabase.ts` throws at module-import time when VITE_SUPABASE_URL /
     // VITE_SUPABASE_ANON_KEY are missing — a deliberate guardrail so the app never
     // boots half-configured. Tests import it transitively all over the place (any
