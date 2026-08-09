@@ -7,23 +7,25 @@
         class="text-label rounded px-2 py-0.5 font-semibold text-white"
         :style="{ backgroundColor: QUEST_STATUS_COLORS[quest.status] }"
       >{{ QUEST_STATUS_LABELS[quest.status] }}</span>
-      <button
-        type="button"
+      <AppButton
+        :icon="IconNetwork"
+        label="Build flow"
+        variant="subtle"
+        @click="router.push({ query: { mode: 'build' } })"
+      />
+      <AppButton
+        :icon="IconDelete"
+        label="Delete"
+        variant="destructive"
         :disabled="isDeleting"
-        class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
         @click="onDelete"
-      >
-        <IconDelete class="h-3.5 w-3.5" />
-        Delete
-      </button>
-      <button
-        type="button"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
+      />
+      <AppButton
+        :icon="IconEdit"
+        label="Edit"
+        variant="primary"
         @click="router.push({ query: { ...route.query, edit: 'true' } })"
-      >
-        <IconEdit class="h-3.5 w-3.5" />
-        Edit
-      </button>
+      />
     </div>
 
     <!-- Summary -->
@@ -286,7 +288,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useRoute, useRouter, RouterLink } from "vue-router";
-import { IconCheck, IconChevronRight, IconDelete, IconEdit, IconEncounter, IconHide, IconLightning, IconLocation, IconMonster, IconPackage, IconReveal, IconScrollText, IconUserRound } from '@/lib/icons';
+import { IconCheck, IconChevronRight, IconDelete, IconEdit, IconEncounter, IconHide, IconLightning, IconLocation, IconMonster, IconNetwork, IconPackage, IconReveal, IconScrollText, IconUserRound } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import {
   useQuestObjectives,
@@ -312,6 +314,7 @@ import {
 } from "@/types/quest.types";
 import { formatCoinParts } from "@/rules/currency";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import AppButton from "@/components/common/AppButton.vue";
 
 const props = defineProps<{ quest: Quest }>();
 const route  = useRoute();

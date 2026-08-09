@@ -19,4 +19,11 @@ describe("QuestGraphOutline", () => {
     expect(commands).toContainEqual({ type: "link", sourceBeatId: "a", targetBeatId: "b" });
     expect(commands).toContainEqual({ type: "delete-beat", beatId: "a" });
   });
+
+  it("keeps selection available while hiding later authoring actions in read mode", () => {
+    const wrapper = mount(QuestGraphOutline, { props: { beats: [beat("a")], selectedBeatId: "a", editable: false } });
+    expect(wrapper.text()).not.toContain("Add beat");
+    expect(wrapper.text()).not.toContain("Delete");
+    expect(wrapper.text()).toContain("a");
+  });
 });

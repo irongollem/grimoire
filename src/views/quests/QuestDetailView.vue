@@ -9,6 +9,12 @@
 
     <!-- `?edit=true` flips into the form; new quests skip the sheet.
          Matches the NPC / Monster / Item / Spell / Location convention (#168). -->
+    <QuestGraphDesigner
+      v-else-if="quest && isBuilding"
+      :key="`build-${quest.id}`"
+      :quest-id="quest.id"
+      :focus-current-on-open="route.query.focus === 'current'"
+    />
     <QuestEditor
       v-else-if="isNew || isEditing"
       :key="id || 'new'"
@@ -30,12 +36,14 @@ import { useQuest } from "@/composables/useQuests";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import QuestEditor from "@/components/quests/QuestEditor.vue";
+import QuestGraphDesigner from "@/components/quests/QuestGraphDesigner.vue";
 import QuestSheet from "@/components/quests/QuestSheet.vue";
 import { QUEST_STATUS_LABELS } from "@/types/quest.types";
 
 const route     = useRoute();
 const isNew     = computed(() => route.name === "quest-new");
 const isEditing = computed(() => route.query.edit === "true");
+const isBuilding = computed(() => route.query.mode === "build");
 const id        = computed(() => (isNew.value ? "" : (route.params.id as string)));
 const parentId  = computed(() => (route.query.parent as string | undefined));
 

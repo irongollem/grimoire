@@ -119,6 +119,8 @@ Route: `/quests` (list), `/quests/new`, `/quests/:id`, `/quests/:id?edit=true`
 
 **Graph adapter** (`lib/quests/flow.ts`, `QuestFlowCanvas.vue`, `QuestGraphOutline.vue`): Build mode uses `@vue-flow/core` 1.48.2 (MIT, Vue 3.3+; no plugin packages) behind domain mapping and command types, so persistence never receives library nodes. Core provides pan/zoom, touch dragging, selection, connection ports, and fit-on-open; the custom beat node and edge styling use Grimoire tokens. Narrow screens default to the ordered outline, which exposes equivalent create/open/link/delete actions and remains the screen-reader/keyboard fallback. Canvas motion respects reduced-motion preferences. Dependency review on 2026-08-10: package last updated 2026-01-28, unpacked core size ~1.29 MB; it remains isolated to the lazy-loaded quest designer path.
 
+**Build graph state** (`QuestGraphDesigner.vue`, `lib/quests/presentation.ts`): `?mode=build` loads beats, edges, typed attachment summaries, the campaign cursor, and quest history in a bounded set of queries. One shared presentation selector derives readiness, visibility-adjacent display, visited/current emphasis, route history, and disconnected staging state for reuse by Build, board, and Run; it accepts beat-loot counts from #661 without inventing a second loot state machine. Node positions save to authoritative beat coordinates after a short debounce with optimistic query-cache rollback. Viewport is a per-browser, per-quest preference: first open fits the graph, later opens restore it, and `?focus=current` recenters when returning from Run.
+
 **Quest editor fields** (two-column layout on desktop):
 _Left column:_
 

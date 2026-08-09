@@ -198,7 +198,7 @@ const hasSummaryChips = computed(() => props.summary !== undefined);
 const showAction = computed(() => !["completed", "failed"].includes(props.quest.status));
 const actionTo = computed(() => props.summary?.isLive
   ? { path: `/quests/${props.quest.id}`, query: { mode: "run" } }
-  : { path: `/quests/${props.quest.id}`, query: { edit: "true" } });
+  : { path: `/quests/${props.quest.id}`, query: { mode: "build" } });
 
 const lootLabel = computed(() => {
   if (!props.summary) return "";

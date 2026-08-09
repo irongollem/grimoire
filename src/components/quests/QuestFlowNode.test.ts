@@ -16,4 +16,31 @@ describe("QuestFlowNode", () => {
     expect(wrapper.emitted("open")).toHaveLength(1);
     expect(wrapper.emitted("delete")).toHaveLength(1);
   });
+
+  it("announces readiness, history, visibility, handouts, loot and disconnected staging", () => {
+    const wrapper = mount(QuestFlowNode, {
+      props: {
+        title: "A quiet bargain",
+        kind: "social",
+        visibility: "revealed",
+        presentation: {
+          prepGapCount: 2,
+          handoutCount: 1,
+          loot: { total: 3, undispatched: 2, unclaimed: 1 },
+          isReady: false,
+          isCurrent: false,
+          isVisited: true,
+          isDisconnected: true,
+        },
+      },
+      global: { stubs: { Handle: true } },
+    });
+
+    expect(wrapper.get("article").attributes("aria-label")).toContain("revealed");
+    expect(wrapper.get("article").attributes("aria-label")).toContain("disconnected staging beat");
+    expect(wrapper.text()).toContain("2 prep gaps");
+    expect(wrapper.text()).toContain("1 handout");
+    expect(wrapper.text()).toContain("2 loot held");
+    expect(wrapper.text()).toContain("Visited");
+  });
 });

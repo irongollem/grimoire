@@ -27,6 +27,17 @@ function asRef(value: string | Ref<string>): Ref<string> {
   return isRef(value) ? value : ref(value);
 }
 
+export function prepareQuestBeatOptimisticUpdate(
+  rows: QuestBeat[] | undefined,
+  id: string,
+  update: QuestBeatUpdate,
+) {
+  return {
+    previous: rows,
+    optimistic: rows?.map((beat) => beat.id === id ? { ...beat, ...update } : beat),
+  };
+}
+
 async function fetchBeats(questId: string): Promise<QuestBeat[]> {
   const { data, error } = await supabase
     .from("quest_beats")
@@ -217,7 +228,22 @@ export function useUpdateQuestBeat() {
       if (error) throw error;
       return data as QuestBeat;
     },
-    onSuccess: (_beat, input) => {
+    onMutate: async (input) => {
+      const key = [BEATS_KEY, input.questId];
+      await queryClient.cancelQueries({ queryKey: key });
+      const snapshot = prepareQuestBeatOptimisticUpdate(
+        queryClient.getQueryData<QuestBeat[]>(key),
+        input.id,
+        input.update,
+      );
+      const previous = snapshot.previous;
+      queryClient.setQueryData<QuestBeat[]>(key, snapshot.optimistic);
+      return { key, previous };
+    },
+    onError: (_error, _input, context) => {
+      if (context?.previous !== undefined) queryClient.setQueryData(context.key, context.previous);
+    },
+    onSettled: (_beat, _error, input) => {
       queryClient.invalidateQueries({ queryKey: [BEATS_KEY, input.questId] });
     },
   });
@@ -298,6 +324,25 @@ export function useQuestBeatTransitions(limit = 100) {
       return (data ?? []) as QuestBeatTransition[];
     },
     enabled: () => !!campaignId.value,
+  });
+}
+
+/** Full authored-quest history for Build/Run context. This is one quest-scoped
+ * query and does not truncate old visits as the campaign-wide activity feed does. */
+export function useQuestBeatTransitionsForQuest(questId: string | Ref<string>) {
+  const id = asRef(questId);
+  return useQuery({
+    queryKey: computed(() => [TRANSITIONS_KEY, "quest", id.value]),
+    queryFn: async (): Promise<QuestBeatTransition[]> => {
+      const { data, error } = await supabase
+        .from("quest_beat_transitions")
+        .select("*")
+        .or(`from_quest_id.eq.${id.value},to_quest_id.eq.${id.value}`)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as QuestBeatTransition[];
+    },
+    enabled: () => !!id.value,
   });
 }
 
