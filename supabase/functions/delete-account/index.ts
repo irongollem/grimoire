@@ -163,7 +163,14 @@ serve(withCors(async (req: Request) => {
     return json({ error: "storage_purge_failed" }, 500);
   }
 
-  const { error: prepareError } = await admin.rpc("prepare_user_erasure", { p_user_id: target.id });
+  // The actor is re-derived here from the verified caller, never from the body:
+  // it is the only record of who erased this account, so a caller-supplied
+  // value would let an admin pin their own deletions on someone else.
+  const { error: prepareError } = await admin.rpc("prepare_user_erasure", {
+    p_user_id: target.id,
+    p_actor_id: caller.id,
+    p_actor_kind: isSelfServe ? "self" : "admin",
+  });
   if (prepareError) {
     console.error("delete-account: prepare_user_erasure failed for user", target.id, prepareError);
     return json({ error: "erasure_preparation_failed" }, 500);
