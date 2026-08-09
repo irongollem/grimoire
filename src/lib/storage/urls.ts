@@ -63,7 +63,7 @@ export function isBucketUrl(bucket: BucketKey, url: string | null | undefined): 
  * calls out for `removeByPublicUrl`.
  *
  * Returns null when the URL belongs to no registered bucket (external images
- * pasted into rich text, `downtime-images`, `bug-reports`).
+ * pasted into rich text, `downtime-images`).
  */
 export function parsePublicUrl(url: string): ParsedPublicUrl | null {
   const pathname = pathnameOf(url);

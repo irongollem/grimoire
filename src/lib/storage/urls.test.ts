@@ -87,7 +87,7 @@ describe("parsePublicUrl", () => {
   });
 
   it("returns null for buckets outside the registry and for foreign URLs", () => {
-    // downtime-images and bug-reports are deliberately unregistered.
+    // downtime-images is deliberately unregistered.
     expect(parsePublicUrl("https://cdn.example.com/downtime-images/srd/carouse.webp")).toBeNull();
     expect(parsePublicUrl("https://images.example.com/some/external.png")).toBeNull();
     expect(parsePublicUrl("not a url")).toBeNull();

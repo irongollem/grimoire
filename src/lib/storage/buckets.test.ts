@@ -50,8 +50,10 @@ describe("R2 rollout (#577 stage 2)", () => {
   });
 
   it("does not claim buckets outside the registry", () => {
-    // bug-reports (create-bug-report) and downtime-images (src/data/downtimeArt.ts)
-    // are written outside BUCKETS entirely, so nothing here manages their bytes.
+    // downtime-images (src/data/downtimeArt.ts) is written outside BUCKETS
+    // entirely, so nothing here manages its bytes. bug-reports was too, until
+    // 20260809000002 retired it — it stays asserted so a future createBucket
+    // call cannot quietly bring it back inside the registry.
     expect(isR2Bucket("bug-reports")).toBe(false);
     expect(isR2Bucket("downtime-images")).toBe(false);
     expect(isR2Bucket("tile-packs")).toBe(false);

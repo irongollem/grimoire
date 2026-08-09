@@ -42,9 +42,10 @@ describe("parseSignUploadRequest", () => {
   });
 
   it("refuses a bucket that is not R2-backed", () => {
-    // bug-reports and downtime-images are written outside the bucket registry.
-    // Signing an R2 PUT for one would write bytes no read path looks at, and the
-    // caller would persist a URL pointing at nothing.
+    // downtime-images is written outside the bucket registry; bug-reports is
+    // outside it and retired besides. Signing an R2 PUT for either would write
+    // bytes no read path looks at, and the caller would persist a URL pointing
+    // at nothing.
     for (const bucket of ["bug-reports", "downtime-images", "tile-packs"]) {
       const result = parseSignUploadRequest({ bucket, objects: [object(`${USER}/a.webp`)] });
       expect(result).toEqual({ ok: false, error: expect.stringContaining("not served from R2") });

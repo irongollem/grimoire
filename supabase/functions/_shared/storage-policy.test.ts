@@ -47,8 +47,9 @@ describe("authorizePath — owner prefix", () => {
   });
 
   it("refuses an unknown bucket", () => {
-    // bug-reports and downtime-images are deliberately outside the registry;
-    // tile-packs has a bucket but no code. None of them may be written here.
+    // downtime-images is deliberately outside the registry and bug-reports is
+    // retired (20260809000002); tile-packs has a bucket but no code. None of
+    // them may be written here.
     for (const id of ["bug-reports", "downtime-images", "tile-packs", ""]) {
       expect(authorizePath(asAdmin(id, `${USER}/a.webp`)).allowed).toBe(false);
     }

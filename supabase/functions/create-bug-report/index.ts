@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { withCors } from "../_shared/cors.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
+import { validateScreenshot } from "./screenshot.ts";
 
 // Authenticated endpoint. `verify_jwt = false` in config.toml so we can return
 // CORS-friendly errors, but auth is enforced in code below: a valid Supabase
@@ -10,15 +11,14 @@ import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 // irongollem/grimoire, stored encrypted in platform_api_keys (provider
 // "github") and managed from the admin panel — it has an expiry date on
 // GitHub's side, so it gets rotated there periodically without a redeploy.
-
-// Cap decoded screenshot size at ~5MB and only accept image uploads.
-const MAX_SCREENSHOT_BYTES = 5 * 1024 * 1024;
-const ALLOWED_IMAGE_TYPES = new Set([
-  "image/png",
-  "image/jpeg",
-  "image/webp",
-  "image/gif",
-]);
+//
+// PRIVACY (#633, #634): irongollem/grimoire is a PUBLIC repo, so everything
+// written into an issue body is published to the open internet. Nothing that
+// identifies the reporter may go in it — not their email, not their display
+// name, not a URL to their screenshot. Identity and screenshot live on the
+// `bug_reports` row instead (migration 20260809000002), readable by the
+// reporter and by admins, and the maintainer reads them from Admin → Reports.
+// Before changing what goes into `body` below, read that migration's header.
 
 interface BugReportPayload {
   // Defaults to "bug" when omitted (back-compat with older clients).
@@ -32,8 +32,12 @@ interface BugReportPayload {
   summary?: string;
   problem?: string;
   screenshot?: string; // base64 data URL
-  screenshotName?: string;
-  submittedBy?: string;
+  // NOTE: `submittedBy` and `screenshotName` are absent on purpose. Clients
+  // shipped before #633 still send both — `submittedBy` carrying the reporter's
+  // email when they had no campaign display name — and a stale SPA tab can keep
+  // sending them for as long as it stays open. Not destructuring them is what
+  // makes this fix effective the moment the function deploys, rather than
+  // whenever the last old tab is closed. Do not re-add either field.
 }
 
 // User-supplied fields are untrusted. Render each as a fenced code block so the
@@ -43,7 +47,7 @@ function fenced(s: string): string {
   return "```text\n" + s.trim().replace(/```/g, "ʼʼʼ") + "\n```";
 }
 
-// Single-line, mention-safe rendering for inline use (titles, the submitter line).
+// Single-line, mention-safe rendering for inline use (the issue title).
 function inlineSafe(s: string): string {
   return s.replace(/[\r\n]+/g, " ").replace(/[`@<>]/g, "").trim();
 }
@@ -69,13 +73,17 @@ Deno.serve(withCors(async (req: Request) => {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  // Cap per-user issue creation (issue #466) so the reporter can't be used to
-  // spam the GitHub repo. Service-role client gates via the rate-limit RPC.
-  const rateAdmin = createClient(
+  // Service role: the rate-limit RPC, and the bug_reports write below. That
+  // table has no INSERT/UPDATE policy by design — the reporter is recorded from
+  // the verified JWT here, never from anything the caller sent.
+  const admin = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
-  if (!(await checkRateLimit(rateAdmin, user.id, "bug_report"))) {
+
+  // Cap per-user issue creation (issue #466) so the reporter can't be used to
+  // spam the GitHub repo.
+  if (!(await checkRateLimit(admin, user.id, "bug_report"))) {
     return new Response("Too many bug reports — please try again later.", { status: 429 });
   }
 
@@ -86,7 +94,7 @@ Deno.serve(withCors(async (req: Request) => {
     return new Response("Invalid JSON", { status: 400 });
   }
 
-  const { kind: rawKind, where, action, expected, actual, summary, problem, screenshot, screenshotName, submittedBy } = payload;
+  const { kind: rawKind, where, action, expected, actual, summary, problem, screenshot } = payload;
   const kind = rawKind === "feature" ? "feature" : "bug";
   const isBug = kind === "bug";
 
@@ -99,7 +107,7 @@ Deno.serve(withCors(async (req: Request) => {
     return new Response("Missing required fields", { status: 400 });
   }
 
-  const { github: githubToken } = await fetchPlatformKeys(rateAdmin, ["github"]);
+  const { github: githubToken } = await fetchPlatformKeys(admin, ["github"]);
   if (!githubToken) {
     console.error("No github platform key configured (set it in the admin panel)");
     return new Response("Server misconfigured", { status: 500 });
@@ -123,68 +131,26 @@ Deno.serve(withCors(async (req: Request) => {
   });
   // 422 = label already exists — ignored intentionally.
 
-  // Upload screenshot to Supabase Storage if provided.
-  let screenshotUrl: string | null = null;
-  if (screenshot?.startsWith("data:")) {
-    try {
-      const supabase = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-      );
+  // Record the report before filing the issue, so the body can state truthfully
+  // whether a maintainer will find a screenshot waiting in the admin panel. The
+  // issue number is not known yet and is patched in below.
+  //
+  // A failure here is not fatal: the user's report is still worth filing, and a
+  // GitHub issue with no matching row degrades to "we know what broke but not
+  // who reported it" — annoying, not lost. The reverse order would be worse:
+  // it could promise a screenshot that was never stored.
+  const { data: report, error: reportError } = await admin
+    .from("bug_reports")
+    .insert({ user_id: user.id, kind, screenshot: validateScreenshot(screenshot) })
+    .select("id, screenshot")
+    .single();
 
-      // Ensure bucket exists (no-op if already present).
-      await supabase.storage.createBucket("bug-reports", { public: true }).catch(() => {});
-
-      const base64Data = screenshot.split(",")[1];
-      const mimeType = screenshot.split(";")[0].split(":")[1] ?? "image/jpeg";
-
-      // Restrict to images and cap decoded size (~5MB) — defense against
-      // arbitrary/oversized uploads. Non-fatal: skip the screenshot on reject.
-      if (!ALLOWED_IMAGE_TYPES.has(mimeType)) {
-        throw new Error(`Unsupported screenshot type: ${mimeType}`);
-      }
-      // base64 decodes to ~3/4 of its length; check before atob to avoid
-      // materializing an oversized buffer.
-      const approxBytes = Math.floor((base64Data?.length ?? 0) * 3 / 4);
-      if (approxBytes > MAX_SCREENSHOT_BYTES) {
-        throw new Error("Screenshot exceeds 5MB limit");
-      }
-
-      const byteCharacters = atob(base64Data);
-      const byteArray = new Uint8Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteArray[i] = byteCharacters.charCodeAt(i);
-      }
-
-      const ext = mimeType.split("/")[1]?.replace("jpeg", "jpg") ?? "jpg";
-      const safeName = (screenshotName ?? "screenshot").replace(/[^a-z0-9._-]/gi, "_");
-      const path = `${Date.now()}-${safeName}.${ext}`;
-
-      // #577 audit: `bug-reports` is deliberately outside the BUCKETS registry
-      // in src/lib/storage.ts and outside CDN_BUCKET_IDS. It is created here at
-      // runtime, is never read by the app (the URL is emailed to us), and holds
-      // no user-visible art — so it carries no egress worth caching and gains
-      // nothing from the CDN. Registry-driven storage migrations skip it by
-      // design, not by oversight. Same call for `downtime-images`, which builds
-      // URLs straight from the env var in src/data/downtimeArt.ts.
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from("bug-reports")
-        .upload(path, byteArray, { contentType: mimeType, upsert: false });
-
-      if (!uploadError && uploadData) {
-        const { data: pub } = supabase.storage.from("bug-reports").getPublicUrl(uploadData.path);
-        screenshotUrl = pub.publicUrl;
-      } else if (uploadError) {
-        console.error("Screenshot upload error:", uploadError);
-      }
-    } catch (e) {
-      console.error("Screenshot upload failed:", e);
-      // Non-fatal — continue without screenshot.
-    }
+  if (reportError) {
+    console.error("bug_reports insert failed:", reportError);
   }
+  const hasScreenshot = Boolean(report?.screenshot);
 
   const timestamp = new Date().toISOString().replace("T", " ").slice(0, 19) + " UTC";
-  const submitter = inlineSafe(submittedBy ?? "").slice(0, 80) || "Anonymous";
 
   const banner = [
     "> [!IMPORTANT]",
@@ -222,15 +188,19 @@ Deno.serve(withCors(async (req: Request) => {
       where?.trim() ? fenced(where) : "*Not specified*",
     ];
 
+  // No reporter, and no screenshot URL — see the privacy note at the top of the
+  // file. Both are looked up in Admin → Reports by the issue number below.
   const body = [
     ...banner,
     ...details,
     "",
     "### Screenshot",
-    screenshotUrl ? `![Screenshot](${screenshotUrl})` : "*None provided*",
+    hasScreenshot
+      ? "*Attached by the reporter — open it in Admin → Reports (screenshots are kept 90 days).*"
+      : "*None provided*",
     "",
     "---",
-    `*Submitted by: ${submitter} · ${timestamp}*`,
+    `*Submitted via the in-app reporter · ${timestamp}*`,
   ].join("\n");
 
   // Bugs are titled by location; feature requests by their summary.
@@ -260,6 +230,18 @@ Deno.serve(withCors(async (req: Request) => {
   }
 
   const issue = await ghResponse.json() as { number: number; html_url: string };
+
+  if (report) {
+    const { error: linkError } = await admin
+      .from("bug_reports")
+      .update({ issue_number: issue.number })
+      .eq("id", report.id);
+    // The row keeps its reporter and screenshot without the link; Admin →
+    // Reports still lists it, just unmatched to an issue.
+    if (linkError) {
+      console.error("bug_reports issue link failed for report", report.id, linkError);
+    }
+  }
 
   return new Response(
     JSON.stringify({ issueNumber: issue.number, issueUrl: issue.html_url }),

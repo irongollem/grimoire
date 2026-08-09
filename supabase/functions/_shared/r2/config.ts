@@ -36,8 +36,9 @@ import { STORAGE_WRITE_POLICY } from "../storage-policy.ts";
  * upload that cannot reach R2 falls back to Supabase Storage (see
  * R2UnavailableError in src/lib/storage/r2.ts).
  *
- * `bug-reports` and `downtime-images` are absent because they are outside the
- * bucket registry entirely — see src/lib/storage/buckets.ts.
+ * `downtime-images` is absent because it is outside the bucket registry
+ * entirely — see src/lib/storage/buckets.ts. So is `bug-reports`, which is
+ * additionally retired (20260809000002) and holds nothing.
  */
 export const R2_BUCKET_IDS: readonly string[] = STORAGE_WRITE_POLICY.map((p) => p.id);
 

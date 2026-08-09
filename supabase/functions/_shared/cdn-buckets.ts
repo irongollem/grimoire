@@ -26,9 +26,11 @@ import { isR2Bucket, R2_BUCKET_IDS } from "./r2/config.ts";
  */
 export const CDN_BUCKET_IDS: readonly string[] = R2_BUCKET_IDS;
 
-// Not in the registry at all, so a registry-driven migration will miss them:
-// `bug-reports` (create-bug-report edge function) and `downtime-images`
-// (src/data/downtimeArt.ts). See src/lib/storage/buckets.ts.
+// Not in the registry at all, so a registry-driven migration will miss it:
+// `downtime-images` (src/data/downtimeArt.ts). See src/lib/storage/buckets.ts.
+// `bug-reports` used to belong on that list; it is retired and empty as of
+// 20260809000002 — bug-report screenshots live on the bug_reports row now, so
+// nothing writes a storage object there to miss.
 
 export function isCdnBucket(bucketId: string): boolean {
   return (CDN_BUCKET_IDS as readonly string[]).includes(bucketId);

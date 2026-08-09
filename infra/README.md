@@ -390,7 +390,7 @@ fall, or check the R2 bucket's object count against the source bucket's.
 | `403 SignatureDoesNotMatch` on PUT | Body length differs from the signed `Content-Length`, or the URL expired (15 min) |
 | Preflight failure on upload | R2 CORS missing the app origin or `content-type` |
 | Everything falls back to Supabase | One of the four `R2_*` secrets missing — `r2ConfigFrom` returns null on a partial config, by design |
-| `"<bucket>" is not served from R2` | Client asked to presign a bucket not in `R2_BUCKET_IDS` — `bug-reports` / `downtime-images` live outside the registry, so this is a correct refusal, not a bug |
+| `"<bucket>" is not served from R2` | Client asked to presign a bucket not in `R2_BUCKET_IDS` — `downtime-images` lives outside the registry (and `bug-reports` is retired), so this is a correct refusal, not a bug |
 
 Note the shape of the first and fourth rows: an upload that cannot reach R2 —
 unconfigured, CORS wrong, network down, signature expired — **falls back to

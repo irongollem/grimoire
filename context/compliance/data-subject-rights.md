@@ -21,7 +21,7 @@ when they ask "what happens to X when an account is erased?"
 | Erasure | 17 | **Shipped** (Aug 2026) | #631 |
 | Access / portability | 15, 20 | Not built | #632 |
 | DSR request log (30-day clock evidence) | 12(3) | Not built | #643 |
-| Retention periods defined + enforced | 5(1)(e) | Partial — only the 90-day AI-prompt scrub (`20260804000005`) | #639 |
+| Retention periods defined + enforced | 5(1)(e) | Partial — the 90-day AI-prompt scrub (`20260804000005`) and bug-report screenshots/rows at 90/365 days (`20260809000002`) | #639 |
 | Admin action audit log | 5(2) | Table + erasure entry shipped; other writers pending | #642 |
 
 The privacy policy §5 promises deletion within 30 days. The implementation is
@@ -102,16 +102,49 @@ Each of these has already cost a bug once. They are enforced by pgTAP in
    `prepare_user_erasure` additionally refuses `actor_kind = 'self'` unless the
    actor really is the target.
 
+## 4a. Publication — the boundary erasure cannot reach
+
+Erasure controls what the system *holds*. It has no reach over what the system
+has already *published*, and the in-app bug reporter published to
+`irongollem/grimoire`, which is a public repo. Two leaks, both closed 9 Aug 2026
+by `20260809000002`:
+
+- **The reporter's identity in the issue footer (#633).** Built client-side as
+  `display_name || email`, so an account with no campaign display name — a new
+  one — would have put an email address on the open internet. Audited: none of
+  the 15 reports filed since April hit the fallback, so nothing needs scrubbing.
+- **Screenshots in a `public: true` bucket (#634), linked by permanent URL from
+  the issue.** Verified fetchable with no credential before the single stored
+  object was deleted.
+
+Three positions worth not re-deriving:
+
+1. **A signed URL is not a fix when the page holding it is public.** It is only
+   an expiry on the leak. Anything a maintainer needs but the world may not see
+   has to leave the issue body entirely, which is why the screenshot moved onto
+   `bug_reports` and the maintainer reads it from Admin → Reports.
+2. **`profiles.username` is not a safe substitute for the email.** The default
+   username *is* the email local-part (#636), so publishing it publishes a piece
+   of the address. Attribution stays out of the issue entirely, which also makes
+   this fix independent of whether #636 ever lands.
+3. **Screenshots were also invisible to erasure.** They were stored at
+   `bug-reports/{timestamp}-{name}` with no user prefix, and `delete-account`
+   finds objects by listing each bucket's `{userId}/` folder — so a screenshot
+   outlived the account that produced it. On the row, the FK cascade covers it.
+   Any future user-generated file that is *not* stored under `{userId}/` has the
+   same hole; the storage path is load-bearing for §3 step 3.
+
 ## 5. Known gaps
 
 - **Export (#632).** No Art. 15/20 export exists. A user can erase their data but
   cannot obtain a copy of it first, which is the more commonly exercised right.
 - **DSR log (#643).** Erasures are logged (`admin_audit_log`); other request types
   are not, so there is no evidence of the 30-day clock for anything but deletion.
-- **Retention (#639).** Only AI prompt text has an enforced period. The 7-year
-  bookkeeping retention on the evidence tables is asserted here and honoured by
-  keeping the rows, but nothing yet *deletes* them at the end of it — retention is
-  a maximum as well as a minimum.
+- **Retention (#639).** Two enforced periods exist — AI prompt text at 90 days,
+  and bug-report screenshots/rows at 90/365 — out of the many categories that
+  need one. The 7-year bookkeeping retention on the evidence tables is asserted
+  here and honoured by keeping the rows, but nothing yet *deletes* them at the
+  end of it — retention is a maximum as well as a minimum.
 - **Self-serve erasure is irreversible and immediate.** There is no grace period
   or soft-delete window. That is a deliberate reading of "without undue delay";
   revisit only with a decision recorded here, because a recovery window means
@@ -128,3 +161,7 @@ Each of these has already cost a bug once. They are enforced by pgTAP in
 | Self-serve UI | `src/components/account/AccountSettings.vue` (route `/account`) |
 | Admin UI | `src/components/admin/AdminUsersTab.vue` |
 | Invariant tests | `supabase/tests/ai_compliance_regressions.test.sql` |
+| Bug-report table, retention job, bucket lockdown (§4a) | `supabase/migrations/20260809000002_bug_report_privacy.sql` |
+| What reaches the public issue | `supabase/functions/create-bug-report/index.ts` |
+| Maintainer's view of reporter + screenshot | `src/components/admin/AdminReportsTab.vue` |
+| §4a invariant tests (RLS, retention, cascade) | `supabase/tests/bug_report_privacy.test.sql` |

@@ -318,7 +318,6 @@ import {
   IconLightbulb,
   IconLoading,
 } from "@/lib/icons";
-import { useAuthStore } from "@/stores/auth";
 import { supabase } from "@/lib/supabase";
 
 type ReportKind = "bug" | "feature";
@@ -329,8 +328,6 @@ const KIND_OPTIONS = [
 ] as const;
 
 const open = defineModel<boolean>({ required: true });
-
-const auth = useAuthStore();
 
 const kind = ref<ReportKind>("bug");
 const isBug = computed(() => kind.value === "bug");
@@ -343,7 +340,6 @@ const form = ref({
   summary: "",
   problem: "",
 });
-const screenshotFile = ref<File | null>(null);
 const screenshotPreview = ref<string | null>(null);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const submitting = ref(false);
@@ -366,7 +362,6 @@ function reset() {
     summary: "",
     problem: "",
   };
-  screenshotFile.value = null;
   screenshotPreview.value = null;
   submitting.value = false;
   submitted.value = false;
@@ -377,14 +372,12 @@ function reset() {
 function handleFileChange(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (!file) return;
-  screenshotFile.value = file;
   compressImage(file).then((dataUrl) => {
     screenshotPreview.value = dataUrl;
   });
 }
 
 function clearScreenshot() {
-  screenshotFile.value = null;
   screenshotPreview.value = null;
   if (fileInputRef.value) fileInputRef.value.value = "";
 }
@@ -418,8 +411,10 @@ async function submit() {
   error.value = "";
   submitting.value = true;
   try {
-    const submittedBy =
-      auth.membership?.display_name || auth.userEmail || undefined;
+    // No identity is sent: the issue this becomes is filed on a public repo, and
+    // the reporter is recorded server-side from the JWT instead (#633). The
+    // filename went with it — it only ever named a storage object, and the
+    // screenshot no longer becomes one (#634).
     const body = isBug.value
       ? {
           kind: "bug" as const,
@@ -428,8 +423,6 @@ async function submit() {
           expected: form.value.expected,
           actual: form.value.actual,
           screenshot: screenshotPreview.value ?? undefined,
-          screenshotName: screenshotFile.value?.name,
-          submittedBy,
         }
       : {
           kind: "feature" as const,
@@ -437,8 +430,6 @@ async function submit() {
           summary: form.value.summary,
           problem: form.value.problem,
           screenshot: screenshotPreview.value ?? undefined,
-          screenshotName: screenshotFile.value?.name,
-          submittedBy,
         };
     const { data, error: fnError } = await supabase.functions.invoke(
       "create-bug-report",
