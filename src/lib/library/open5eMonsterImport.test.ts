@@ -122,3 +122,14 @@ describe("mapOpen5eV2Monster — speed", () => {
     expect(monster.stat_block.speed).toBe("30 ft., swim 15 ft.");
   });
 });
+
+describe("mapOpen5eV2Monster — library_monsters row shape", () => {
+  it("emits no campaign_id: the seed script spreads this row into library_monsters, which has no such column", () => {
+    // #597 gave the DM's own `monsters` table a campaign_id. These rows are
+    // shared reference material bound for `library_monsters`, so carrying one
+    // here fails the whole seed batch with PGRST204 — invisibly, until someone
+    // runs `npm run seed-library-monsters`. The Omit on the return type is the
+    // primary guard; this pins the runtime shape the bare spread depends on.
+    expect(Object.prototype.hasOwnProperty.call(mapOpen5eV2Monster(record()), "campaign_id")).toBe(false);
+  });
+});

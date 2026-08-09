@@ -369,8 +369,15 @@ const form = reactive({
   lair_location_id: (props.monster?.lair_location_id ?? null) as string | null,
   source: props.monster?.source ?? "",
   // New monsters default to the active campaign; existing ones keep whatever
-  // scope they already have (#597).
-  campaign_id: (props.monster?.campaign_id ?? activeCampaignId.value ?? null) as string | null,
+  // scope they already have (#597) — including null, which means "available in
+  // every campaign" and is NOT an unset value. Folding this into one `??` chain
+  // reads a pre-#597 row's null as "unset" and silently re-scopes it to the
+  // active campaign on the next save, which is exactly the backfill the
+  // migration refuses to do.
+  // A shared library row has no campaign_id at all, so it takes the default too.
+  campaign_id: (props.monster && !props.monster.is_shared
+    ? props.monster.campaign_id ?? null
+    : activeCampaignId.value ?? null) as string | null,
   tags: props.monster?.tags ? [...props.monster.tags] : [],
   description: props.monster?.description ?? "",
   notes: props.monster?.notes ?? "",

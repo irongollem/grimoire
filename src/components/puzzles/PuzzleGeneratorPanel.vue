@@ -230,7 +230,7 @@ async function generateAndCreate() {
     tags:                result.tags,
     image_url:           result.image_url,
     image_focal_point:   null,
-    campaign_id:         null,
+    campaign_id:         campaign.activeCampaignId,
     location_id:         null,
     dungeon_feature_id:  null,
     is_shared:           false,

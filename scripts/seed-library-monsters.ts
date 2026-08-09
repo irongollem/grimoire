@@ -67,7 +67,10 @@ export function libraryMonsterId(sourceRecordKey: string): string {
  * upsert rather than silently coerced. In practice this only bites explicit
  * non-5e document-key args; the default and --all paths never hit it.
  */
-type SeededMonster = Omit<MonsterInsert, "ruleset"> & { id: string; ruleset: RulesetKey };
+// `campaign_id` is excluded because library_monsters has no such column — see
+// mapOpen5eV2Monster. These rows are upserted with a bare spread, so anything
+// the mapper produces reaches PostgREST verbatim.
+type SeededMonster = Omit<MonsterInsert, "ruleset" | "campaign_id"> & { id: string; ruleset: RulesetKey };
 
 // ── art backfill from library_monster_art_canonical ───────────────────────────────
 // Reads the dedicated canonical table, not library_monster_art. Canonical art was
@@ -162,7 +165,8 @@ async function main(): Promise<void> {
   console.log("Step 1: Fetching + mapping monsters from Open5e v2…");
   const mapped = await fetchOpen5eMonsters(documentKeys);
   const supported = mapped.filter(
-    (monster): monster is MonsterInsert & { ruleset: RulesetKey } => monster.ruleset != null,
+    (monster): monster is Omit<MonsterInsert, "campaign_id"> & { ruleset: RulesetKey } =>
+      monster.ruleset != null,
   );
   const unsupported = mapped.length - supported.length;
   if (unsupported > 0) {
