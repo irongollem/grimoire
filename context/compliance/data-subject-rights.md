@@ -177,6 +177,50 @@ profiles as data is what hid it. Both bindings are now asserted by
 `supabase/tests/identity_not_from_email.test.sql`, so deleting them fails the
 suite instead of silently testing nothing.
 
+## 4c. The local seed — the other copy erasure cannot reach
+
+`npm run db:pull` dumps production `auth` + `public` data into
+`supabase/seed.sql` so local dev has realistic content. That file is gitignored
+and has never been tracked, so this was never a publication question (§4a) — it
+is about **copies at rest**. A dump held 13 real addresses, and a laptop is
+outside every control that applies to production: no retention period, and no
+reach for `delete-account`, which cannot follow someone into a file on a
+machine it has never heard of. A user who exercises Art. 17 was erased from
+production and still present in every `seed.sql` ever pulled.
+
+Fixed in `scripts/anonymize-seed.ts` (#652), which `db:pull` chains onto the
+dump. Every address becomes `user-<n>@example.invalid` — RFC 2606 reserves the
+TLD so it can never resolve. The reasoning worth keeping:
+
+1. **Anonymize, do not pseudonymize.** Placeholders are assigned by order of
+   first appearance, not derived from the address. A hash would be stable across
+   pulls, which is convenient, and reversible by brute-force over a guessed
+   address list, which makes it still personal data. The convenience is not
+   worth the category change.
+2. **One address maps to one placeholder across the whole file.** `auth.users.
+   email`, its copies in `auth.identities.identity_data` and
+   `raw_user_meta_data`, and the `campaign_members.display_name` /
+   `party_members.player_name` rows that pre-date §4b all keep agreeing. That is
+   not tidiness: the unique index on `auth.users.email` requires distinct
+   inputs to stay distinct, and a seed whose member rows *still* demonstrate the
+   §4b defect is the seed you want for reproducing it locally.
+3. **One address is kept — your own.** The seeded account has to remain one you
+   can sign into, so `git config user.email` survives (override with
+   `SEED_KEEP_EMAILS`). Defaulting to the git identity avoids hard-coding a
+   maintainer's address into a public repo to protect it from disclosure.
+4. **The greedy pattern is deliberate.** It scrambles any address anywhere in
+   the dump, not just the four tables holding one today. A table list stops
+   covering the case where an address lands in a note body or an NPC backstory.
+5. **`db:reset` re-checks before seeding.** The chained step is bypassed by
+   anyone running `supabase db dump` by hand, which the README shows people
+   doing, so the gate is at the point of use rather than only at the point of
+   creation.
+
+**This does not make local dumps free.** They still hold campaign content,
+usernames and every non-email column. Anonymization removes the identifier that
+made the file a roster of real people; delete your `seed.sql` when you stop
+working on the project.
+
 ## 5. Known gaps
 
 - **Export (#632).** No Art. 15/20 export exists. A user can erase their data but
@@ -212,3 +256,5 @@ suite instead of silently testing nothing.
 | auth.users trigger bindings (§4b) | `supabase/migrations/20260809143816_capture_auth_user_triggers.sql` |
 | The one answer to "what do others see me as" | `auth.publicName` in `src/stores/auth.ts` |
 | §4b invariant tests | `supabase/tests/identity_not_from_email.test.sql` |
+| Local-seed anonymizer + its gate (§4c) | `scripts/anonymize-seed.ts`, chained from `db:pull` and re-checked by `db:reset` |
+| §4c unit tests | `scripts/anonymize-seed.test.ts` |

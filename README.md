@@ -139,13 +139,40 @@ npm run db:pull      # dumps remote auth+public data → supabase/seed.sql (giti
 npm run db:reset     # rebuilds the local DB and loads seed.sql
 ```
 
+**The dump is anonymized before it lands (#652).** `db:pull` chains
+`scripts/anonymize-seed.ts`, which rewrites every email address in `seed.sql` to
+`user-<n>@example.invalid`. The reason to pull remote data is its volume and
+shape, not its identities — and an address copied onto a laptop is outside every
+control that applies to production: no retention period, and out of reach of
+account erasure, which cannot follow someone into a local file.
+
+One address is kept so the seeded account is still yours to sign into: your
+`git config user.email`. Export `SEED_KEEP_EMAILS` (comma-separated) if the
+account you log in with locally is not your git identity. `db:reset` re-checks
+the file first and refuses to seed a dump that still holds real addresses —
+which is what you want if you ever run `supabase db dump` by hand and bypass the
+chained step. To fix one up after the fact:
+
+```bash
+npm run db:anonymize          # rewrite in place (idempotent)
+npm run db:anonymize -- --check   # just report; exit 1 if any real address survives
+```
+
 `db:pull` needs the remote DB password (the CLI prompts, or set
 `SUPABASE_DB_PASSWORD`). It **excludes the config/reference tables that migrations
-already seed** (`abuse_guard_config`, `ai_generation_credit_costs`,
-`ai_model_pricing`, `ai_system_prompts`, `checkout_config`, `credit_pack_config`,
-`provider_config`) — those are populated identically by migrations on both sides,
-so dumping them too would collide on primary keys at `db:reset`. If you add a new
-migration-seeded config table, add it to the `-x` list in the `db:pull` script.
+already seed** — the `-x` flags in the script are the list; it has grown past
+what is worth restating here, so read it there. Those tables are populated
+identically by migrations on both sides, so dumping them too would collide on
+primary keys at `db:reset`. If you add a new migration-seeded config table, add
+it to the `-x` list. If you already hold a dump taken *before* a table joined
+that list, delete its `INSERT INTO "public"."<table>"` statement or re-pull —
+otherwise the next `db:reset` fails on the duplicate key.
+
+`plans` is the newest entry and the reason the rule matters: it was reference
+data with no migration behind it, so a fresh database had an empty plan
+catalogue and the first signup died on
+`user_subscriptions_plan_id_fkey`. Seeded by
+`20260809151956_seed_plan_catalogue.sql` and excluded from the dump since.
 If the `auth` portion of the dump errors, narrow it to `--schema public` and create
 tester accounts locally instead (local signup confirmation emails land in Mailpit
 at <http://127.0.0.1:54324>).
