@@ -123,6 +123,7 @@
             <span class="field-label">Source</span>
             <input v-model="form.source" class="field-input w-full" placeholder="Monster Manual" />
           </label>
+          <CampaignScopeField v-model="form.campaign_id" />
           <label class="block">
             <span class="field-label">Habitat</span>
             <input v-model="form.habitat" class="field-input w-full" placeholder="Forest, underground…" />
@@ -254,6 +255,7 @@ import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import StatBlockEditor from "@/components/common/StatBlockEditor.vue";
 import MobileSheet from "@/components/common/MobileSheet.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
 import { useLocationTree } from "@/composables/useLocations";
 import type { Location } from "@/types/location.types";
 import { IconCopy, IconDelete, IconGenerate, IconScrollText } from "@/lib/icons";
@@ -270,6 +272,7 @@ interface MonsterEditForm {
   habitat: string;
   lair_location_id: string | null;
   source: string;
+  campaign_id: string | null;
   tags: string[];
   description: string;
   notes: string;

@@ -32,7 +32,7 @@
         <label class="text-label-lg font-semibold text-muted-foreground">Monster</label>
         <EntityCombobox
           :model-value="selectedMonsterId"
-          :options="monsters ?? []"
+          :options="monsterOptions"
           placeholder="Search monsters…"
           @update:model-value="selectedMonsterId = $event; onMonsterSelected()"
         />
@@ -180,7 +180,7 @@
           <label class="text-label-lg font-semibold text-muted-foreground">Load from bestiary</label>
           <EntityCombobox
             model-value=""
-            :options="monsters ?? []"
+            :options="pickableMonsters ?? []"
             placeholder="Search monsters…"
             @update:model-value="onLoadFromBestiary($event)"
           />
@@ -289,7 +289,7 @@ import {
   COMPANION_TYPE_LABELS,
 } from "@/types/companion.types";
 import type { Companion, CompanionType, CompanionSourceType } from "@/types/companion.types";
-import type { MonsterStatBlock } from "@/types/monster.types";
+import type { Monster, MonsterStatBlock } from "@/types/monster.types";
 import type { StatBlock } from "@/types/npc.types";
 import type { PartyMember } from "@/types/party.types";
 import FocalImage from "@/components/common/FocalImage.vue";
@@ -329,7 +329,14 @@ const emit = defineEmits<{
 
 const isEdit = !!props.companion;
 
-const { data: monsters } = useAllMonsters();
+// Picker vs. resolver, the #597 split. `pickableMonsters` is scoped to general +
+// the active campaign — what belongs in this campaign to attach next.
+// `allMonsters` is unscoped, because `companions.source_monster_id` is an
+// already-stored reference that outlives any later re-scoping: resolving it
+// against the scoped list blanks the field for a companion whose source monster
+// now lives in another campaign.
+const { data: pickableMonsters } = useAllMonsters();
+const { data: allMonsters }      = useAllMonsters(() => ({ includeAllScopes: true }));
 
 // NPC source — role-gated. DMs browse the raw `npcs` table (full stat blocks,
 // true identities); players get the player-visible projection only, so a
@@ -367,6 +374,16 @@ const { isUploading, upload } = useImageUpload("npc-portraits");
 const sourceType        = ref<CompanionSourceType>(props.companion?.source_type ?? "custom");
 const selectedMonsterId = ref(props.companion?.source_monster_id ?? "");
 const selectedNpcId     = ref(props.companion?.source_npc_id ?? "");
+
+// The source combobox both picks and displays, so it offers the scoped list plus
+// whatever this companion already points at — otherwise EntityCombobox has no
+// option to render the stored id against and the field renders blank.
+const monsterOptions = computed<Monster[]>(() => {
+  const pickable = pickableMonsters.value ?? [];
+  if (!selectedMonsterId.value || pickable.some((m) => m.id === selectedMonsterId.value)) return pickable;
+  const stored = (allMonsters.value ?? []).find((m) => m.id === selectedMonsterId.value);
+  return stored ? [stored, ...pickable] : pickable;
+});
 const name              = ref(props.companion?.name ?? "");
 const companionType     = ref<CompanionType>(props.companion?.companion_type ?? "ally");
 const ownerMemberId     = ref(props.lockedOwnerId ?? props.companion?.owner_party_member_id ?? "");
@@ -404,7 +421,7 @@ const sb = reactive({
 
 function onLoadFromBestiary(monsterId: string) {
   if (!monsterId) return;
-  const m = (monsters.value ?? []).find(x => x.id === monsterId);
+  const m = (allMonsters.value ?? []).find(x => x.id === monsterId);
   if (!m) return;
   applyStatBlockFromMonster(m.stat_block);
 }
@@ -455,7 +472,7 @@ function parseSpeedNum(speedStr: string): number {
 }
 
 function onMonsterSelected() {
-  const m = (monsters.value ?? []).find((x) => x.id === selectedMonsterId.value);
+  const m = (allMonsters.value ?? []).find((x) => x.id === selectedMonsterId.value);
   if (!m) return;
   name.value      = m.name;
   maxHp.value     = parseHpNum(m.stat_block.hit_points);

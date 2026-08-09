@@ -122,10 +122,19 @@ function displayResistance(monster: Open5eV2Monster, key: string): string | unde
   return typeof value === "string" && value ? value : undefined;
 }
 
+/** Maps one Open5e v2 creature to a `library_monsters` row.
+ *
+ *  `campaign_id` is omitted, not nulled: these rows are seeded into
+ *  `library_monsters`, which has no such column — the campaign scope #597 added
+ *  belongs to the DM's own `monsters` table. Shared reference material is global
+ *  by construction, so there is nothing to express here. Spreading a stray
+ *  `campaign_id` into the seed upsert fails the whole batch with PGRST204, and
+ *  `MonsterInsert` is hand-written rather than generated, so only this Omit
+ *  keeps the typechecker on the hook for it. */
 export function mapOpen5eV2Monster(
   monster: Open5eV2Monster,
   documentMetadata?: ReadonlyMap<string, Open5eDocumentRef>,
-): MonsterInsert {
+): Omit<MonsterInsert, "campaign_id"> {
   const traits = monster.traits?.map(trait => ({ name: trait.name, description: trait.desc }));
   const legendaryResistance = monster.traits?.find(trait => /legendary resistance/i.test(trait.name));
   const count = legendaryResistance?.name.match(/\((\d+)\s*\/\s*day/i)?.[1];
@@ -169,9 +178,6 @@ export function mapOpen5eV2Monster(
   };
   return {
     ruleset,
-    // Imported reference material, not authored for a table — global, whichever
-    // campaign the import happened to be run from.
-    campaign_id: null,
     conceptual_key: slugifyKey(monster.name),
     source_document_key: monster.document.key,
     source_record_key: monster.key,
@@ -217,7 +223,9 @@ export async function fetchOpen5eDocuments(): Promise<Open5eDocument[]> {
 }
 
 /** V2 native keys preserve equal-name creatures across books and editions. */
-export async function fetchOpen5eMonsters(sourceKeys?: string[]): Promise<MonsterInsert[]> {
+export async function fetchOpen5eMonsters(
+  sourceKeys?: string[],
+): Promise<Array<Omit<MonsterInsert, "campaign_id">>> {
   const documentKeys = sourceKeys?.length ? sourceKeys : await fetchSupported5eDocumentKeys();
   // The embedded `monster.document` ref on a /v2/creatures/ record never
   // carries `licenses` (verified against the live API) — only the full
