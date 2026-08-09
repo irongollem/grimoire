@@ -70,7 +70,7 @@ Traps are dangerous mechanisms placed in dungeons. They carry full D&D 5e combat
 
 ### How DMs use them
 
-- Browse the Traproom tab (filtered by type and/or keyword).
+- Browse the Traproom tab (filtered by type and/or keyword). The list is also implicitly scoped by campaign — general traps plus the active campaign's own, same as the Bestiary (`combat-encounters.md`) — with no "show all campaigns" override.
 - Tap any card to open `/traps/:id`.
 - The detail view renders a **TrapSheet** in view mode and a **TrapEditor** in edit mode (`?edit=true`).
 - New traps open at `/traps/new`.
@@ -89,6 +89,7 @@ Traps are dangerous mechanisms placed in dungeons. They carry full D&D 5e combat
 | **Trap HP**           | Hit points (if the trap can be destroyed)                                       |
 | **Trap AC**           | Armour class                                                                    |
 | **Damage Immunities** | TagInput with damage-type suggestions; defaults: poison, psychic                |
+| **Scope**             | `CampaignScopeField` — General (all campaigns) vs. the active campaign; new traps default to the active campaign |
 
 ### Effect fields
 
@@ -112,6 +113,10 @@ The trap editor includes a **CR Advisor** modal triggered by a "Suggest" button 
 
 The advisor computes a **Suggested CR** with range and a bullet list of contributing factors, plus five reference benchmarks. The DM can accept with "Use CR X" which writes the value into the form.
 
+### Campaign scope
+
+Traps gained a nullable `campaign_id` alongside monsters (#597, migration `20260808000002`) — the same null-is-global rule as the Bestiary (`combat-encounters.md`): unset is available in every campaign, a set value only while that campaign is active. The `CampaignScopeField` control in the Identity card sets it directly; new traps default to the active campaign, and a trap created via the AI generator (`TrapGeneratorPanel.vue`) is scoped the same way. Existing rows were deliberately not backfilled, for the same reason as monsters — a trap's original campaign can't be recovered from the data, and a wrong guess (hiding it from the campaign it was actually written for) is worse than leaving it visible everywhere until the DM re-scopes it by hand. `usePopulateTraps`'s seeded templates stay global regardless of the active campaign: its not-already-present check spans every trap the DM owns, not just the active campaign's, so scoping the seeded rows would make a second campaign's "Populate Examples" re-seed names that check would otherwise see as already taken. An encounter's `trap_ids` resolve against the unscoped trap list, so a trap doesn't drop out of an encounter that already references it after a later re-scope — see combat-encounters.md's Traps section.
+
 ---
 
 ## Puzzles
@@ -131,7 +136,7 @@ Both are colour-coded; the card thumbnail shows the type badge top-left and the 
 
 #### Creating and editing puzzles
 
-- Browse the Enigmarium tab (filterable by type, difficulty, and keyword).
+- Browse the Enigmarium tab (filterable by type, difficulty, and keyword). The list is also implicitly scoped by campaign — general puzzles plus the active campaign's own, same as the Bestiary and Traproom — with no "show all campaigns" override.
 - Tap any card to open `/puzzles/:id`.
 - The detail view has an inline **view/edit toggle** — existing puzzles open in view mode.
 - New puzzles open at `/puzzles/new`.
@@ -141,7 +146,7 @@ Both are colour-coded; the card thumbnail shows the type badge top-left and the 
 
 | Section          | Fields                                                                         |
 | ---------------- | ------------------------------------------------------------------------------ |
-| **Identity**     | Name, puzzle_type, difficulty, tags, optional image (square, with focal point) |
+| **Identity**     | Name, puzzle_type, difficulty, tags, Scope (`CampaignScopeField`), optional image (square, with focal point) |
 | **Setup**        | Rich-text description — what players see/experience when they enter            |
 | **Skill Checks** | Multiple skill+DC pairs (any of 15 standard skills)                            |
 | **Hints**        | Ordered list of rich-text hints; hints can be reordered with up/down buttons   |
@@ -163,11 +168,15 @@ The generator produces a complete puzzle pre-filled into the editor.
 
 In view mode a **Player Share** card lets the DM:
 
-1. **Toggle sharing on/off** — when shared the puzzle becomes visible to all players in the active campaign (written to `is_shared` + `campaign_id`).
+1. **Toggle sharing on/off** — when shared the puzzle becomes visible to all players in the campaign it's scoped to (written to `is_shared`; `campaign_id` is auto-assigned to the active campaign only if the puzzle isn't already scoped — see Campaign scope below).
 2. **Write a Read-Aloud text** — a short spoken passage the DM reads as players enter; saved on blur.
 3. **Reveal/hide individual hints** — each numbered hint has an Eye/EyeOff toggle; the set of revealed hint order numbers is stored in `shared_hints[]`. The share panel shows "Revealed hints: N / total" at a glance.
 
-Turning sharing off clears all revealed hints.
+Turning sharing off clears all revealed hints but leaves `campaign_id` untouched.
+
+#### Campaign scope
+
+`puzzle_rooms` already had `campaign_id`; #597 is what made it actually drive DM-side visibility, not just player sharing (migration `20260808000002`). It carries one meaning, not two: which campaign the puzzle belongs to. The Identity card's Scope control (`CampaignScopeField`) sets it directly — general vs. the active campaign, defaulting new puzzles to the active one, and a puzzle created via the AI generator (`PuzzleGeneratorPanel.vue`) is scoped the same way — and sharing sets it too, but only as a fallback when it isn't already set, so the Scope control's own choice always wins over the sharing auto-assign. A shared puzzle is therefore always a scoped puzzle, and it stops appearing in the DM's other campaigns' Enigmarium lists. Existing rows were deliberately not backfilled, for the same reason as monsters and traps — a puzzle's original campaign can't be recovered from the data, and a wrong guess is worse than leaving it visible everywhere until the DM re-scopes it.
 
 ---
 
@@ -317,7 +326,7 @@ The system prompt is `ai_system_prompts.generator_type = 'loot'`; the credit cos
 
 ### Monster linking
 
-A table can be associated with one or more monsters (`monster_ids[]`). This populates the "Linked Monsters" section visible from both the table detail and monster detail pages.
+A table can be associated with one or more monsters (`monster_ids[]`). This populates the "Linked Monsters" section visible from both the table detail and monster detail pages. Naming an already-linked monster resolves against an unscoped bestiary query (`useMonsters(() => ({ includeAllScopes: true }))`), so a monster the DM later scopes to a different campaign (#597, combat-encounters.md) still shows its real name here instead of a raw uuid; the picker used to add a new link only offers the active campaign's own monsters (a second, scoped `useMonsters()` call — the two share a cache, so this costs nothing extra).
 
 ### Live roll panel
 
@@ -382,6 +391,7 @@ The editor blocks saving when any entry has a drop_chance outside 1–100, an It
 | Field                | Type                               | Notes                                         |
 | -------------------- | ---------------------------------- | --------------------------------------------- |
 | `name`               | string                             | Required                                      |
+| `campaign_id`        | uuid\|null                         | NULL = every campaign, set = only that campaign; never backfilled (#597) |
 | `trap_type`          | TrapType                           | Mechanical / Magical / Hybrid / Environmental |
 | `cr`                 | string\|null                       | 0–30 incl. fractions                          |
 | `trigger_type`       | TrapTrigger\|null                  |                                               |
@@ -415,7 +425,7 @@ The editor blocks saving when any entry has a drop_chance outside 1–100, an It
 | `skill_checks`        | PuzzleSkillCheck[] | {skill: string, dc: number}                                                              |
 | `success_outcome`     | Tiptap JSON\|null  |                                                                                          |
 | `failure_consequence` | Tiptap JSON\|null  |                                                                                          |
-| `campaign_id`         | string\|null       | Set when `is_shared` = true                                                              |
+| `campaign_id`         | string\|null       | NULL = every campaign, set = only that campaign; Scope control or sharing sets it (#597) |
 | `is_shared`           | boolean            | Controls player visibility                                                               |
 | `shared_hints`        | number[]           | Orders of revealed hints                                                                 |
 | `read_aloud`          | string\|null       | Scripted narration for players                                                           |

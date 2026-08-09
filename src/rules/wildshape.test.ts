@@ -7,6 +7,7 @@ function beast(overrides: Partial<Monster["stat_block"]> & { monster_type?: Mons
   return {
     id: "m1",
     user_id: "u1",
+    campaign_id: null,
     name: "Test Beast",
     monster_type,
     size: "medium",

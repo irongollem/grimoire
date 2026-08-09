@@ -238,6 +238,9 @@
                 <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Tags</label>
                 <TagInput v-model="form.tags" />
               </div>
+              <div class="col-span-2">
+                <CampaignScopeField v-model="form.campaign_id" />
+              </div>
             </div>
           </div>
         </div>
@@ -359,6 +362,7 @@ import AppInput from "@/components/common/AppInput.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
 import TagInput from "@/components/common/TagInput.vue";
+import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import PuzzleIdentityCard from "@/components/puzzles/PuzzleIdentityCard.vue";
@@ -402,6 +406,9 @@ const form = reactive({
   location_id:         null as string | null,
   dungeon_feature_id:  null as string | null,
   ai_provenance:       null as AiProvenance | null,
+  // New puzzles default to the active campaign; existing ones keep whatever
+  // scope they already have (#597) — overwritten below once `puzzle` loads.
+  campaign_id:         campaign.activeCampaignId as string | null,
 });
 
 type LocationOption = Location & { depth: number };
@@ -445,6 +452,7 @@ watch(puzzle, (p) => {
   form.location_id         = p.location_id;
   form.dungeon_feature_id  = p.dungeon_feature_id;
   form.ai_provenance       = p.ai_provenance ?? null;
+  form.campaign_id         = p.campaign_id;
 }, { immediate: true });
 
 // ── Share state (view mode, autosaved) ──────────────────────────────────────
@@ -472,7 +480,11 @@ async function saveShareState() {
       is_shared:    shareState.is_shared,
       shared_hints: shareState.shared_hints,
       read_aloud:   shareState.read_aloud || null,
-      // auto-assign campaign when sharing
+      // Sharing a general puzzle scopes it here, and that is not a side effect
+      // to design away: get_player_visible_puzzles finds a puzzle by its
+      // campaign_id, so there is no such thing as "shared with everyone's
+      // players". Un-sharing leaves the scope alone — the DM chose it, and the
+      // Scope control is where they change it back.
       campaign_id: shareState.is_shared
         ? (puzzle.value?.campaign_id ?? campaign.activeCampaignId ?? null)
         : (puzzle.value?.campaign_id ?? null),
@@ -552,8 +564,9 @@ async function save() {
   if (!form.name.trim()) return;
   saving.value = true;
   try {
-    // Material edit detection (#606): tags, image art and the location/dungeon-
-    // feature links are excluded per the "moves/tags/image" carve-outs.
+    // Material edit detection (#606): tags, image art, the location/dungeon-
+    // feature links and campaign scope are excluded per the "moves/tags/image"
+    // carve-outs.
     const contentChanged = !!puzzle.value && (
       form.name.trim() !== puzzle.value.name ||
       form.puzzle_type !== puzzle.value.puzzle_type ||
@@ -585,9 +598,16 @@ async function save() {
       location_id:         form.location_id,
       dungeon_feature_id:  form.dungeon_feature_id,
       ai_provenance:       form.ai_provenance,
+      campaign_id:         form.campaign_id,
+      // Widening a shared puzzle back to "all campaigns" un-shares it. Sharing
+      // is a promise to one campaign's players, and get_player_visible_puzzles
+      // finds a puzzle by its campaign_id — so a null campaign with is_shared
+      // still set is a puzzle the DM believes is on the table and no player can
+      // see. Narrowing the state beats leaving that lie in the row.
+      ...(form.campaign_id === null ? { is_shared: false, shared_hints: [] } : {}),
     };
     if (isNew.value) {
-      await createMutation.mutateAsync({ ...payload, campaign_id: null, is_shared: false, shared_hints: [], read_aloud: null });
+      await createMutation.mutateAsync({ ...payload, is_shared: false, shared_hints: [], read_aloud: null });
       router.push({ path: "/dungeon-craft", query: { tab: "puzzles" } });
     } else {
       await updateMutation.mutateAsync({ id: id.value!, update: payload });

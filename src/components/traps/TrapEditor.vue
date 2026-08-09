@@ -86,6 +86,9 @@
               <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Tags</label>
               <TagInput v-model="form.tags" />
             </div>
+            <div class="col-span-2">
+              <CampaignScopeField v-model="form.campaign_id" />
+            </div>
           </div>
         </div>
       </div>
@@ -350,9 +353,11 @@
 <script setup lang="ts">
 import { ref, computed, reactive, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { storeToRefs } from "pinia";
 import { IconCheck, IconClose, IconDelete, IconGenerate, IconSave } from '@/lib/icons';
 import { useCreateTrap, useUpdateTrap, useDeleteTrap } from "@/composables/useTraps";
 import { useConfirm } from "@/composables/useConfirm";
+import { useCampaignStore } from "@/stores/campaign";
 import {
   TRAP_TYPES,
   TRAP_TRIGGERS,
@@ -374,6 +379,7 @@ import type {
 } from "@/lib/trapAdvisor";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import TagInput from "@/components/common/TagInput.vue";
+import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import DiceExprInput from "@/components/common/DiceExprInput.vue";
 
@@ -382,6 +388,7 @@ const props = defineProps<{ trap: Trap | null; isNew: boolean }>();
 const route  = useRoute();
 const router = useRouter();
 const { confirm } = useConfirm();
+const { activeCampaignId } = storeToRefs(useCampaignStore());
 
 const createMut = useCreateTrap();
 const updateMut = useUpdateTrap();
@@ -394,6 +401,10 @@ const blankForm = () => ({
   name: "",
   trap_type: "Mechanical" as const,
   cr: null as string | null,
+  // New traps default to the active campaign; existing ones keep whatever
+  // scope they already have (#597) — this only matters for the pre-load
+  // (isNew) case, since the watch below overwrites it from `t.campaign_id`.
+  campaign_id: (activeCampaignId.value ?? null) as string | null,
   trigger_type: null as string | null,
   detection_dc: null as number | null,
   disarm_dc: null as number | null,
@@ -424,6 +435,7 @@ watch(
         name: t.name,
         trap_type: t.trap_type,
         cr: t.cr,
+        campaign_id: t.campaign_id,
         trigger_type: t.trigger_type,
         detection_dc: t.detection_dc,
         disarm_dc: t.disarm_dc,
@@ -465,7 +477,7 @@ async function save() {
       await createMut.mutateAsync({ ...form.value } as Parameters<typeof createMut.mutateAsync>[0]);
     } else {
       // Material edit detection (#606): damage immunities (a tag-style
-      // field), portrait art and tags are excluded per the
+      // field), portrait art, tags and campaign scope are excluded per the
       // "moves/tags/image" carve-outs.
       const t = props.trap!;
       const contentChanged =

@@ -51,7 +51,7 @@
           :image-url="monster.image_url"
           :focal-point="monster.portrait_focal_point"
           placeholder="/assets/placeholders/monster.webp"
-          :badge-text="`CR ${monster.stat_block.challenge_rating}`"
+          :badge-text="crLabel(monster.stat_block.challenge_rating)"
           :badge-color="crColor(monster.stat_block.challenge_rating)"
           :location="monster.habitat || undefined"
           :shared="isDiscovered(monster)"
@@ -120,7 +120,7 @@
                 class="min-w-8 text-center px-1.5 py-0.5 rounded text-label font-bold text-white"
                 :style="{ backgroundColor: crColor(monster.stat_block.challenge_rating) }"
               >
-                CR {{ monster.stat_block.challenge_rating }}
+                CR {{ crText(monster.stat_block.challenge_rating) }}
               </span>
             </div>
           </div>
@@ -279,7 +279,7 @@ import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";
 import { useAllMonsters } from "@/composables/useMonsters";
 import { useMonsterVisibility } from "@/composables/useMonsterVisibility";
-import { crColor } from "@/lib/monsterDisplay";
+import { crColor, crLabel, crText } from "@/lib/monsterDisplay";
 import type { Monster, DiscoveredMonster } from "@/types/monster.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";

@@ -187,7 +187,9 @@ function dmPlayerNameFor(memberId: string): string {
 
 // Companions
 const { data: companions } = useCompanions();
-const { data: allMonsters } = useAllMonsters();
+// companionSourceName() resolves a companion's stored source_monster_id, so a
+// monster later scoped to another campaign must still be found here.
+const { data: allMonsters } = useAllMonsters(() => ({ includeAllScopes: true }));
 const { data: allNpcs } = useNpcs();
 const { mutateAsync: deleteComp } = useDeleteCompanion();
 

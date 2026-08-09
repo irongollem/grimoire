@@ -205,6 +205,7 @@ const combatants = defineModel<CombatantDef[]>("combatants", { required: true })
 const props = defineProps<{
   factions: FactionDef[];
   monsters: Monster[];
+  pickableMonsters: Monster[];
   npcs: Npc[];
   excludedMonsterIds: Set<string>;
 }>();
@@ -353,7 +354,7 @@ const monsterSearch = ref("");
 
 const filteredMonsters = computed(() => {
   const q = monsterSearch.value.toLowerCase().trim();
-  const all = props.monsters.filter((m) => !props.excludedMonsterIds.has(m.id));
+  const all = props.pickableMonsters.filter((m) => !props.excludedMonsterIds.has(m.id));
   if (!q) return all.slice(0, 10);
   return all.filter((m) => m.name.toLowerCase().includes(q)).slice(0, 10);
 });

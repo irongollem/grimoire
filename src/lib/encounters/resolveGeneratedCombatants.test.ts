@@ -6,6 +6,7 @@ import type { EncounterCombatantAiResult } from "@/ai/types";
 function makeMonster(overrides: Partial<Monster> & { id: string; name: string }): Monster {
   return {
     user_id: "",
+    campaign_id: null,
     monster_type: "beast",
     size: "medium",
     alignment: "unaligned",

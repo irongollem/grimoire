@@ -56,6 +56,10 @@ export interface MonsterStatBlock {
 export interface Monster extends VersionedContentMetadata {
   id: string;
   user_id: string;
+  /** NULL = available in every campaign; set = only visible when that campaign
+   *  is active. Shared library_monsters rows are always null — they are gated
+   *  by the campaign's enabled sources instead. */
+  campaign_id: string | null;
   name: string;
   monster_type: MonsterType;
   size: MonsterSize;

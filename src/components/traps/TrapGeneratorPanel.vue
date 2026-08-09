@@ -254,6 +254,9 @@ async function generateAndCreate() {
   if (!result) return;
 
   const trap = await createTrap({
+    // Scoped to the campaign it was generated for; widened from the trap's
+    // own Scope control if the DM wants it everywhere.
+    campaign_id:        campaign.activeCampaignId,
     name:               result.name,
     trap_type:          result.trap_type,
     trigger_type:       result.trigger_type ?? null,

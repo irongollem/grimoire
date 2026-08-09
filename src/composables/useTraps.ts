@@ -5,6 +5,9 @@ import { deleteByPublicUrl } from "@/lib/storage";
 import { TRAP_TEMPLATES } from "@/data/trapTemplates";
 import type { Ref } from "vue";
 import { computed, isRef, ref } from "vue";
+import { storeToRefs } from "pinia";
+import { allowedCampaignScoped } from "@/lib/campaignContentGating";
+import { useCampaignStore } from "@/stores/campaign";
 
 const QUERY_KEY = "traps";
 
@@ -46,8 +49,24 @@ async function deleteTrap(trap: Trap): Promise<void> {
   await deleteByPublicUrl(trap.image_url);
 }
 
-export function useTraps() {
-  return useQuery({ queryKey: [QUERY_KEY], queryFn: fetchTraps });
+export interface UseTrapsOptions {
+  /** When true, return every trap regardless of campaign scope. Required by
+   *  any caller resolving an ALREADY-STORED trap id — `encounters.trap_ids`
+   *  outlives the scoping decision, and a scoped-away trap must still resolve
+   *  or it vanishes from an encounter that was built around it (#597).
+   *  Default false: scoped to general + active campaign, for browsing. */
+  includeAllScopes?: boolean;
+}
+
+export function useTraps(getOptions?: () => UseTrapsOptions) {
+  const query = useQuery({ queryKey: [QUERY_KEY], queryFn: fetchTraps });
+  const { activeCampaignId } = storeToRefs(useCampaignStore());
+  const data = computed(() => {
+    const traps = query.data.value;
+    if (!traps || getOptions?.().includeAllScopes) return traps;
+    return allowedCampaignScoped(traps, activeCampaignId.value);
+  });
+  return { ...query, data };
 }
 
 export function useTrap(id: string | Ref<string>) {
@@ -106,9 +125,13 @@ export function usePopulateTraps() {
         (existing ?? []).map((t: { id: string; name: string }) => [t.name.toLowerCase(), t.id]),
       );
 
+      // Global (null), not the active campaign, unlike a hand-authored trap:
+      // these are generic 5e templates, and the not-already-present check
+      // below spans the DM's whole collection. Scope them and a second
+      // campaign's "Populate" would find the names taken and seed nothing.
       const toInsert = TRAP_TEMPLATES
         .filter((t) => !existingByName.has(t.name.toLowerCase()))
-        .map((t) => ({ ...t, user_id: user.id, image_url: null, image_focal_point: null }));
+        .map((t) => ({ ...t, user_id: user.id, campaign_id: null, image_url: null, image_focal_point: null }));
 
       const toUpdate = TRAP_TEMPLATES
         .filter((t) => existingByName.has(t.name.toLowerCase()))

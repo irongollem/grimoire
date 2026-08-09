@@ -23,7 +23,9 @@ import type { RunCombatant, RevealState } from "@/types/encounter.types";
 export function useRunnerCombatant(getCombatant: MaybeRefOrGetter<RunCombatant>) {
   const store = useEncounterRunStore();
   const { data: partyList } = useParty();
-  const { data: monsters } = useAllMonsters();
+  // Auto-discover resolves this combatant's stored monster_id, so a monster
+  // scoped elsewhere later must still be found here.
+  const { data: monsters } = useAllMonsters(() => ({ includeAllScopes: true }));
   const { mutateAsync: autoDiscover } = useAutoDiscoverMonsters();
   const { rollConcentrationSave, endConcentration } = useConcentration();
   const { acFor } = useShieldAcBonus();

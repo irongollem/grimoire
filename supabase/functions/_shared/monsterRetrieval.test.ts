@@ -140,6 +140,27 @@ describe("retrieveMonsterCandidates — the enabled-sources boundary", () => {
   });
 });
 
+describe("retrieveMonsterCandidates — #597 campaign scoping", () => {
+  it("hands match_custom_monsters the campaign id alongside the owner id, not the owner id alone", async () => {
+    // This is the JS-side half of the #597 guarantee: that another campaign's
+    // homebrew is never retrieved. The RPC is the one that actually excludes
+    // it (asserted against a real Postgres in
+    // supabase/tests/monster_retrieval.test.sql) — what this test can prove is
+    // that the campaign id it needs to do that is the one actually sent, the
+    // same division of labour as the enabled-slugs test above.
+    const { client, rpcCalls } = makeClient({
+      tables: { campaign_enabled_sources: { data: [] } },
+    });
+
+    await retrieveMonsterCandidates(client, BASE_ARGS);
+
+    const customCall = rpcCalls.find((c) => c.name === "match_custom_monsters");
+    expect(customCall?.args.p_campaign_id).toBe(BASE_ARGS.campaignId);
+    expect(customCall?.args.p_owner_id).toBe(BASE_ARGS.ownerId);
+    expect(customCall?.args).not.toHaveProperty("p_user_id");
+  });
+});
+
 describe("retrieveMonsterCandidates — merging the two corpora", () => {
   it("keeps the DM's own copy when both bestiaries hold the same name", async () => {
     const { client } = makeClient({

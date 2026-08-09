@@ -164,7 +164,9 @@ const hideFinished = computed(() => ui.encountersHideFinished);
 const questFilter = computed(() => ui.encountersFilterQuestId);
 
 const { data: encounters, isLoading } = useEncounters();
-const { data: monsters } = useAllMonsters();
+// Difficulty labels resolve each encounter's already-stored combatant.monster_id,
+// so a monster scoped elsewhere must still be found here.
+const { data: monsters } = useAllMonsters(() => ({ includeAllScopes: true }));
 const { data: questLinks } = useEncounterQuestLinks();
 const { isEncounterRunning } = useRunningEncounters();
 const rollTableEncounterIds = useEncountersInRollTables();

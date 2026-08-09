@@ -298,7 +298,9 @@ const resolvedMemberId = computed(() =>
 
 // ── Wild Shape ─────────────────────────────────────────────────────────────────
 const { mutateAsync: updateMember } = useUpdatePartyMember();
-const { data: allMonsters } = useAllMonsters();
+// Wildshape resolves stored discovery/pinned-form/wildshape_state monster ids
+// against this list, so it must not filter by campaign scope.
+const { data: allMonsters } = useAllMonsters(() => ({ includeAllScopes: true }));
 const { data: discoveries } = usePlayerDiscoveries();
 const { data: pinnedForms } = usePinnedForms();
 

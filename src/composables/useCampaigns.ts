@@ -4,7 +4,8 @@ import { supabase, getCurrentUser } from "@/lib/supabase";
 import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
 import type { Campaign, CampaignInsert, CampaignUpdate } from "@/types/campaign.types";
 import { useToast } from "@/composables/useToast";
-import type { HomebrewCounts, HomebrewDisposition } from "@/lib/campaignHomebrewDisposition";
+import type { HomebrewCounts, HomebrewDisposition, HomebrewKind } from "@/lib/campaignHomebrewDisposition";
+import { HOMEBREW_TABLES, EMPTY_HOMEBREW_COUNTS } from "@/lib/campaignHomebrewDisposition";
 
 // All campaign-scoped tables whose orphaned rows (campaign_id IS NULL) can be claimed
 const CAMPAIGN_SCOPED_TABLES = [
@@ -70,26 +71,33 @@ async function updateCampaign(id: string, update: CampaignUpdate): Promise<Campa
 }
 
 /**
- * Rows in `custom_classes` / `custom_subclasses` / `class_features` scoped
- * exclusively to `campaignId` — never rows with `campaign_id IS NULL`
- * (already universal, see `allowedCampaignScoped`) and never another
- * campaign's rows. Used to tell the DM what a campaign delete would affect
- * before they choose a disposition (#585).
+ * Rows scoped exclusively to `campaignId` in each homebrew table — never rows
+ * with `campaign_id IS NULL` (already universal, see `allowedCampaignScoped`)
+ * and never another campaign's rows. Used to tell the DM what a campaign
+ * delete would affect before they choose a disposition (#585, widened to
+ * monsters/traps/puzzles by #597).
+ *
+ * Driven off `HOMEBREW_TABLES` rather than a hand-written list: the count, the
+ * RPC's disposition branches and the FK are three places that must agree, and
+ * a kind missing from this one is the quiet failure — the DM is never asked,
+ * so the delete hits the `NO ACTION` constraint and reports a raw FK error.
  */
 async function countScopedHomebrew(campaignId: string): Promise<HomebrewCounts> {
-  const [classesResult, subclassesResult, featuresResult] = await Promise.all([
-    supabase.from("custom_classes").select("id", { count: "exact", head: true }).eq("campaign_id", campaignId),
-    supabase.from("custom_subclasses").select("id", { count: "exact", head: true }).eq("campaign_id", campaignId),
-    supabase.from("class_features").select("id", { count: "exact", head: true }).eq("campaign_id", campaignId),
-  ]);
-  if (classesResult.error) throw classesResult.error;
-  if (subclassesResult.error) throw subclassesResult.error;
-  if (featuresResult.error) throw featuresResult.error;
-  return {
-    classes: classesResult.count ?? 0,
-    subclasses: subclassesResult.count ?? 0,
-    features: featuresResult.count ?? 0,
-  };
+  const kinds = Object.keys(HOMEBREW_TABLES) as HomebrewKind[];
+  const results = await Promise.all(
+    kinds.map((kind) =>
+      supabase
+        .from(HOMEBREW_TABLES[kind])
+        .select("id", { count: "exact", head: true })
+        .eq("campaign_id", campaignId),
+    ),
+  );
+  const counts = { ...EMPTY_HOMEBREW_COUNTS };
+  results.forEach((result, i) => {
+    if (result.error) throw result.error;
+    counts[kinds[i]] = result.count ?? 0;
+  });
+  return counts;
 }
 
 /**
@@ -249,10 +257,13 @@ export function useDeleteCampaign() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
       // The disposition may have promoted or deleted homebrew rows — refresh
-      // every list that could contain them.
-      queryClient.invalidateQueries({ queryKey: ["custom_classes"] });
-      queryClient.invalidateQueries({ queryKey: ["custom_subclasses"] });
-      queryClient.invalidateQueries({ queryKey: ["class_features"] });
+      // every list that could contain them. Each of these tables happens to be
+      // cached under its own name, so the table list doubles as the key list;
+      // a key that stops matching costs a stale list until the next refetch,
+      // not correctness.
+      for (const table of Object.values(HOMEBREW_TABLES)) {
+        queryClient.invalidateQueries({ queryKey: [table] });
+      }
     },
     onError: (e) => toast.error(toast.fromError(e)),
   });

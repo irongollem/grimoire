@@ -108,7 +108,7 @@
             class="rounded px-2 py-0.5 text-eyebrow font-bold text-white"
             :style="{ backgroundColor: crColor(monster.stat_block.challenge_rating) }"
           >
-            CR {{ monster.stat_block.challenge_rating }}
+            CR {{ crText(monster.stat_block.challenge_rating) }}
           </span>
           <span
             v-if="monster.is_shared"
@@ -290,7 +290,7 @@ import { IconCopy, IconDelete, IconEdit, IconHide, IconLocation, IconReveal, Ico
 import { useCloneLibraryMonster, useDeleteMonster } from "@/composables/useMonsters";
 import { useLocationTree } from "@/composables/useLocations";
 import { useMonsterVisibility } from "@/composables/useMonsterVisibility";
-import { crColor } from "@/lib/monsterDisplay";
+import { crColor, crText } from "@/lib/monsterDisplay";
 import type { Monster } from "@/types/monster.types";
 
 const { monster } = defineProps<{ monster: Monster }>();

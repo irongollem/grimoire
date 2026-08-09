@@ -230,7 +230,10 @@ async function generateAndCreate() {
     tags:                result.tags,
     image_url:           result.image_url,
     image_focal_point:   null,
-    campaign_id:         null,
+    // Scoped to the campaign it was generated for, like every other new
+    // puzzle (#597) — the Scope control widens it if the DM wants it in all
+    // of them. This was the one creation path still hardcoding null.
+    campaign_id:         campaign.activeCampaignId,
     location_id:         null,
     dungeon_feature_id:  null,
     is_shared:           false,

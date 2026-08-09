@@ -67,7 +67,7 @@
       >
         <EntityCombobox
           v-model="selectedId"
-          :options="allTraps"
+          :options="pickableTraps"
           placeholder="Add trap or hazard…"
         />
         <button
@@ -96,6 +96,7 @@ import type { Trap } from "@/types/trap.types";
 const trapIds = defineModel<string[]>("trapIds", { required: true });
 const props = defineProps<{
   allTraps: Trap[];
+  pickableTraps: Trap[];
 }>();
 
 const selectedId = ref("");
