@@ -35,9 +35,9 @@ alter table public.monsters add column campaign_id uuid references public.campai
 alter table public.traps    add column campaign_id uuid references public.campaigns(id);
 
 comment on column public.monsters.campaign_id is
-  'NULL = available in every campaign; set = visible only when that campaign is active. Never backfilled -- see 20260808000002.';
+  'NULL = available in every campaign; set = visible only when that campaign is active. Never backfilled -- see 20260809000003.';
 comment on column public.traps.campaign_id is
-  'NULL = available in every campaign; set = visible only when that campaign is active. Never backfilled -- see 20260808000002.';
+  'NULL = available in every campaign; set = visible only when that campaign is active. Never backfilled -- see 20260809000003.';
 
 -- Both columns are filtered on by the list composables and joined by
 -- match_custom_monsters, and an unindexed FK also makes every campaign DELETE

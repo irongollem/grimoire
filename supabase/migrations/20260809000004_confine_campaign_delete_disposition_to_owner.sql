@@ -6,7 +6,7 @@
 -- That was safe only while a campaign's scoped rows could only ever belong to
 -- the campaign's owner, and transfer_campaign_ownership (20260731000001) breaks
 -- exactly that assumption: it hands a campaign to a new DM while the OUTGOING
--- DM's rows keep pointing at it. Before 20260808000002 that could not bite
+-- DM's rows keep pointing at it. Before 20260809000003 that could not bite
 -- monsters or traps, because they had no campaign_id to point with -- which is
 -- also why 20260731000001's header still says they have none. It is out of date
 -- as of the previous migration; see the function comment restated at the bottom
@@ -25,7 +25,7 @@
 --   * null means "available in every campaign", so the row stays visible in its
 --     owner's library instead of being stranded behind a campaign id that no
 --     longer resolves to anything;
---   * and the NO ACTION foreign keys from 20260808000002 would otherwise abort
+--   * and the NO ACTION foreign keys from 20260809000003 would otherwise abort
 --     the delete on the constraint, leaving the campaign undeletable with a raw
 --     FK error and no way forward from the UI.
 --
@@ -39,7 +39,7 @@
 -- (#630) and a 370-line function to rewrite. This migration only removes the
 -- destructive outcome that question currently leads to.
 
--- Unchanged from 20260808000002 except for the two predicates and the promote
+-- Unchanged from 20260809000003 except for the two predicates and the promote
 -- sweep. Same authorization (re-derived from auth.uid(), never a caller-supplied
 -- id) and the same one-transaction guarantee: disposition and delete either both
 -- commit or neither does.
@@ -130,4 +130,4 @@ grant  execute on function public.delete_campaign_with_homebrew(uuid, text) to a
 -- history and is not edited to say so; this comment is attached to the live
 -- object instead, where \df+ and the next reader will find it.
 comment on function public.transfer_campaign_ownership(uuid, uuid, boolean) is
-  'Hands a campaign to another member. NOTE: monsters and traps gained a campaign_id in 20260808000002, so the personal-library rows this function clones now carry the source row''s scope verbatim, and the outgoing DM''s originals keep pointing at a campaign they no longer own. Whether either should be re-scoped at handover is #630. delete_campaign_with_homebrew no longer deletes those left-behind rows -- see 20260809000002.';
+  'Hands a campaign to another member. NOTE: monsters and traps gained a campaign_id in 20260809000003, so the personal-library rows this function clones now carry the source row''s scope verbatim, and the outgoing DM''s originals keep pointing at a campaign they no longer own. Whether either should be re-scoped at handover is #630. delete_campaign_with_homebrew no longer deletes those left-behind rows -- see 20260809000004.';

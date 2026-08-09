@@ -133,14 +133,14 @@ What the RPC does, in order:
    same rows).
 
    **Stale as of #597**, and knowingly so. `monsters` and `traps` gained a `campaign_id`
-   in `20260808000002`, and the clone is a whole-row `jsonb_populate_record` copy, so it
+   in `20260809000003`, and the clone is a whole-row `jsonb_populate_record` copy, so it
    now carries the source row's scope verbatim — a clone made for *this* campaign can
    land scoped to one the new owner isn't in, and the outgoing DM's originals keep
    pointing at a campaign they no longer own. Whether either should be re-scoped at
    handover is a policy call tracked in **#630**, not settled yet. What *was* settled:
    `delete_campaign_with_homebrew` used to dispose of those left-behind rows with an
    owner-less `where campaign_id = …`, so the new owner deleting the campaign could take
-   the previous DM's authored homebrew with it. `20260809000002` confines each
+   the previous DM's authored homebrew with it. `20260809000004` confines each
    disposition to the caller's own rows and promotes anyone else's to global rather than
    deleting them.
 3. **Repoints every reference at the clones**, including the jsonb ones. Monster ids nest
