@@ -81,6 +81,82 @@ export type QuestObjectiveUpdate = Partial<
   Omit<QuestObjective, "id" | "quest_id">
 >;
 
+export type QuestBeatVisibility = "hidden" | "rumored" | "revealed";
+export type QuestBeatKind = "combat" | "social" | "explore" | "discovery" | "neutral" | (string & {});
+
+export interface QuestBeat {
+  id: string;
+  quest_id: string;
+  campaign_id: string;
+  title: string;
+  dm_content: string | null;
+  rumor_text: string | null;
+  reveal_text: string | null;
+  visibility: QuestBeatVisibility;
+  kind: QuestBeatKind;
+  presentation_hint: string | null;
+  canvas_x: number;
+  canvas_y: number;
+  is_improvised: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type QuestBeatInsert = Omit<QuestBeat, "id" | "created_by" | "created_at" | "updated_at"> & {
+  id?: string;
+};
+export type QuestBeatUpdate = Partial<Omit<QuestBeatInsert, "quest_id" | "campaign_id">>;
+
+export interface QuestBeatEdge {
+  id: string;
+  quest_id: string;
+  campaign_id: string;
+  source_beat_id: string;
+  target_beat_id: string;
+  label: string;
+  created_by: string | null;
+  created_at: string;
+}
+
+export type QuestBeatEdgeInsert = Omit<QuestBeatEdge, "id" | "created_by" | "created_at">;
+
+export interface QuestRuntimeState {
+  campaign_id: string;
+  current_quest_id: string | null;
+  current_beat_id: string | null;
+  return_stack: Array<{ quest_id: string; beat_id: string }>;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type QuestTransitionKind = "enter" | "forward" | "previous" | "jump" | "return" | "improv";
+
+export interface QuestBeatTransition {
+  id: string;
+  campaign_id: string;
+  from_quest_id: string | null;
+  from_beat_id: string | null;
+  to_quest_id: string;
+  to_beat_id: string;
+  transition_kind: QuestTransitionKind;
+  provenance: Record<string, unknown>;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface PlayerQuestBeat {
+  id: string;
+  quest_id: string;
+  campaign_id: string;
+  visibility: Exclude<QuestBeatVisibility, "hidden">;
+  kind: QuestBeatKind;
+  presentation_hint: string | null;
+  player_text: string | null;
+  updated_at: string;
+}
+
 export interface RewardCurrencyPool {
   id: string;
   label: string;
