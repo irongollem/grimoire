@@ -202,3 +202,51 @@ $$;
 
 revoke execute on function public.match_custom_monsters(extensions.vector, uuid, uuid, text, text, int) from public, anon, authenticated;
 grant  execute on function public.match_custom_monsters(extensions.vector, uuid, uuid, text, text, int) to service_role;
+
+-- ── Repair the player projection this column would otherwise break ─────────
+-- `get_player_visible_monsters` is `returns setof monsters` with a positional
+-- column list, so widening `monsters` invalidates it. PostgreSQL validates a
+-- SQL function's row shape only when it EXECUTES, so nothing above would have
+-- failed here -- it would have failed for every real player, at read time,
+-- with `42P13 return type mismatch`. That is not hypothetical: it is exactly
+-- how the "Unknown creature" outage happened (20260720000018 widened the table,
+-- 20260724000005 repaired it four days later), which is why
+-- supabase/tests/player_projections.test.sql now executes every setof-table
+-- function in CI. It caught this one.
+--
+-- This MUST stay in the same migration as the `add column` above. Split across
+-- two, every player read is broken in between.
+--
+-- Patch-by-replace rather than a rewrite, following 20260804000010: the body
+-- carries a secrecy gate per column (stat_block nulled unless the discovery
+-- revealed stats, notes/description/lair_location_id DM-only), and
+-- transcribing 60 lines of that to append one column is how a gate gets
+-- dropped by accident. The anchor is asserted, so a drifted body fails the
+-- migration instead of silently not patching.
+--
+-- campaign_id is nulled, not passed through, for the same reason
+-- lair_location_id is: it is DM-side library organisation with no player-facing
+-- meaning. Passing it through would additionally hand a player the uuid of a
+-- campaign they are not in, whenever a monster discovered here happens to be
+-- scoped elsewhere.
+do $recreate$
+declare
+  definition text;
+  patched    text;
+begin
+  definition := pg_get_functiondef('public.get_player_visible_monsters(uuid)'::regprocedure);
+  patched := replace(
+    definition,
+    E'    m.ai_provenance\n  from monsters m',
+    E'    m.ai_provenance,\n    null::uuid                                                        -- campaign_id (DM-only scope)\n  from monsters m'
+  );
+  if patched = definition then raise exception 'Could not patch get_player_visible_monsters'; end if;
+  execute patched;
+end
+$recreate$;
+
+-- CREATE OR REPLACE preserves grants; restated for the same reason
+-- 20260804000010 restates them -- the login-only boundary on a SECURITY
+-- DEFINER function should be visible in every migration that recreates it.
+revoke execute on function public.get_player_visible_monsters(uuid) from public, anon;
+grant  execute on function public.get_player_visible_monsters(uuid) to authenticated, service_role;
