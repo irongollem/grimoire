@@ -117,6 +117,8 @@ Route: `/quests` (list), `/quests/new`, `/quests/:id`, `/quests/:id?edit=true`
 
 **Beat attachments** (`quest_beat_attachments`; `lib/quests/attachments.ts`): typed placements point at existing encounters, objectives, quest refs, Atlas location/room sets, NPCs, factions, sounds/playlists, notes, and Scriptorium handouts. The adapter contract supplies compact summary data and the route back to each full editor. Required links whose polymorphic target was deleted resolve as prep gaps instead of throwing; optional missing links remain informational. Summaries batch once per attachment type, never once per beat/card. Server validation rejects cross-quest objectives and cross-campaign material. Encounter/NPC/faction/location placements also create the normal quest-level ref, preserving existing filters and reverse lookups; changing or removing a beat placement never deletes the authoritative entity or broader quest ref.
 
+**Graph adapter** (`lib/quests/flow.ts`, `QuestFlowCanvas.vue`, `QuestGraphOutline.vue`): Build mode uses `@vue-flow/core` 1.48.2 (MIT, Vue 3.3+; no plugin packages) behind domain mapping and command types, so persistence never receives library nodes. Core provides pan/zoom, touch dragging, selection, connection ports, and fit-on-open; the custom beat node and edge styling use Grimoire tokens. Narrow screens default to the ordered outline, which exposes equivalent create/open/link/delete actions and remains the screen-reader/keyboard fallback. Canvas motion respects reduced-motion preferences. Dependency review on 2026-08-10: package last updated 2026-01-28, unpacked core size ~1.29 MB; it remains isolated to the lazy-loaded quest designer path.
+
 **Quest editor fields** (two-column layout on desktop):
 _Left column:_
 
