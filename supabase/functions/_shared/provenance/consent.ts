@@ -10,6 +10,12 @@
  * Version of the AI-use notice shown before a campaign's `ai_enabled` toggle
  * is switched on. Recorded once per account in `ai_acknowledgements`
  * (kind: 'ai_use').
+ *
+ * Deliberately NOT bumped when #641 dropped fal.ai from the notice's list of
+ * recipients. Re-acknowledgement exists so nobody's consent silently comes to
+ * cover processing they never agreed to; striking a recipient narrows what was
+ * already disclosed and cannot do that. Bump it when the disclosure WIDENS —
+ * a new provider, a new data category, a new purpose.
  */
 export const AI_USE_NOTICE_VERSION = "2026-08-04";
 

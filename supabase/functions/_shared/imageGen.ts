@@ -1,11 +1,11 @@
 /**
- * Unified image-generation across providers (OpenAI gpt-image, fal.ai FLUX,
- * Google Gemini "Nano Banana"). One generateImage() the edge functions call so
- * a campaign's chosen image_provider applies everywhere — and adding a provider
- * is a single switch arm instead of edits in six functions.
+ * Unified image-generation across providers (OpenAI gpt-image, Google Gemini
+ * "Nano Banana"). One generateImage() the edge functions call so a campaign's
+ * chosen image_provider applies everywhere — and adding a provider is a single
+ * switch arm instead of edits in six functions.
  */
 
-export type ImageProviderKey = "openai" | "openai-mini" | "falai" | "gemini";
+export type ImageProviderKey = "openai" | "openai-mini" | "gemini";
 
 export interface ImageGenUsage {
   model: string;
@@ -23,9 +23,9 @@ export interface ImageGenResult {
    * "image/jpeg", "image/png") — NOT necessarily what this pipeline
    * requested. Callers that mark the bytes with provenance (embedProvenance/
    * markGeneratedImage) must use this, not an assumed "image/webp": OpenAI
-   * honors the explicit output_format below, but fal.ai and Gemini are asked
-   * for no format at all and return their own defaults (jpeg / png
-   * respectively) — marking those bytes as webp would silently no-op.
+   * honors the explicit output_format below, but Gemini is asked for no format
+   * at all and returns its own default (png) — marking those bytes as webp
+   * would silently no-op.
    */
   contentType: string;
   usage: ImageGenUsage;
@@ -108,7 +108,7 @@ async function openaiGenerate(apiKey: string, model: string, prompt: string, siz
     if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error?.message ?? `OpenAI image edit error ${res.status}`);
     const data = await res.json();
     // Both OpenAI calls below explicitly request output_format: "webp" — the
-    // response is reliably webp, unlike fal.ai/Gemini which get no such ask.
+    // response is reliably webp, unlike Gemini which gets no such ask.
     return { b64: data.data[0].b64_json as string, contentType: "image/webp", usage: openaiUsage(data, model) };
   }
   const res = await fetch("https://api.openai.com/v1/images/generations", {
@@ -119,30 +119,6 @@ async function openaiGenerate(apiKey: string, model: string, prompt: string, siz
   if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error?.message ?? `OpenAI image error ${res.status}`);
   const data = await res.json();
   return { b64: data.data[0].b64_json as string, contentType: "image/webp", usage: openaiUsage(data, model) };
-}
-
-// ── fal.ai (generate-only; no reference/edit support) ──────────────────────────
-
-async function falaiGenerate(apiKey: string, model: string, prompt: string, size: string): Promise<ImageGenResult> {
-  const { w, h } = sizeDims(size);
-  const res = await fetch(`https://fal.run/${model}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Key ${apiKey}` },
-    body: JSON.stringify({ prompt, image_size: { width: w, height: h } }),
-  });
-  if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error?.message ?? `fal.ai error ${res.status}`);
-  const { images } = await res.json();
-  const imgRes = await fetch(images[0].url);
-  if (!imgRes.ok) throw new Error(`fal.ai image fetch error ${imgRes.status}`);
-  const blob = await imgRes.blob();
-  // No output_format is requested above, so fal.ai/FLUX returns its own
-  // default (jpeg) — trust the response's own content_type field over an
-  // assumed format; the fetched blob's Content-Type is the fallback.
-  const contentType = normalizeContentType(
-    (images[0] as { content_type?: string }).content_type ?? blob.type,
-    "image/jpeg",
-  );
-  return { b64: await blobToBase64(blob), contentType, usage: { model, provider: "falai", image_count: 1 } };
 }
 
 // ── Gemini ("Nano Banana") — supports reference images via inline_data ─────────
@@ -196,7 +172,7 @@ async function geminiGenerate(apiKey: string, model: string, prompt: string, siz
 
 /**
  * Generate (or, with `sourceImages`, compose/edit) one image with the given
- * provider. fal.ai ignores sourceImages (generate-only); openai + gemini compose.
+ * provider. Both openai and gemini compose from sourceImages.
  */
 export async function generateImage(opts: {
   provider: ImageProviderKey;
@@ -216,7 +192,6 @@ export async function generateImage(opts: {
 }): Promise<ImageGenResult> {
   const { provider, model, apiKey, prompt, size, quality, boostStyle, sourceImages } = opts;
   switch (provider) {
-    case "falai":  return falaiGenerate(apiKey, model, prompt, size);
     case "gemini": {
       const geminiPrompt = boostStyle ? `${prompt} — ${GEMINI_STYLE_BOOSTER}` : prompt;
       return geminiGenerate(apiKey, model, geminiPrompt, size, quality, sourceImages);
@@ -229,14 +204,13 @@ export async function generateImage(opts: {
 
 const DEFAULT_MODEL: Record<string, string> = {
   openai: "gpt-image-2",
-  falai:  "fal-ai/flux-2/flex",
   gemini: "gemini-3.1-flash-image",
 };
 
 export interface ResolvedImageProvider {
   provider: ImageProviderKey;
   /** Underlying provider whose key/config/pricing applies (openai-mini → openai). */
-  base: "openai" | "falai" | "gemini";
+  base: "openai" | "gemini";
   model: string;
   apiKey: string;
   isByok: boolean;
@@ -249,18 +223,18 @@ export interface ResolvedImageProvider {
 /**
  * Resolve the campaign's chosen image provider into a concrete model + API key.
  * `campaignKeys`/`platformKeys` are decrypted keys keyed by underlying provider
- * (openai/falai/gemini). Returns null when no usable key exists.
+ * (openai/gemini). Returns null when no usable key exists.
  */
 export function resolveImageProvider(args: {
   imageProvider: string | null | undefined;
-  campaignKeys: Partial<Record<"openai" | "falai" | "gemini", string | null>>;
-  platformKeys: Partial<Record<"openai" | "falai" | "gemini", string | null>>;
+  campaignKeys: Partial<Record<"openai" | "gemini", string | null>>;
+  platformKeys: Partial<Record<"openai" | "gemini", string | null>>;
   providerConfigs: Partial<Record<string, { image_model?: string | null; image_multiplier?: number | null; image_quality?: string | null } | undefined>>;
   /** Client-requested OpenAI sub-model (gpt-image-1.5/2). Honored only for plain "openai". */
   requestedModel?: string | null;
 }): ResolvedImageProvider | null {
   const choice = (args.imageProvider ?? "openai") as ImageProviderKey;
-  const base: "openai" | "falai" | "gemini" = choice === "openai-mini" ? "openai" : (choice as "openai" | "falai" | "gemini");
+  const base: "openai" | "gemini" = choice === "openai-mini" ? "openai" : (choice as "openai" | "gemini");
 
   const campaignKey = args.campaignKeys[base] ?? null;
   const apiKey = campaignKey ?? args.platformKeys[base] ?? null;

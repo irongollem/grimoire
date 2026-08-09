@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 // "meshy" is managed from the Simulacrum panel (SimulacrumConfig.vue), and
 // "github" from GithubIntegrationConfig.vue — neither is an AI provider, so
 // both are deliberately absent from PROVIDERS below.
-export type KeyProvider = "openai" | "anthropic" | "gemini" | "falai" | "meshy" | "github";
+export type KeyProvider = "openai" | "anthropic" | "gemini" | "meshy" | "github";
 
 export interface PlatformKeyRow {
   provider: KeyProvider;
@@ -15,7 +15,6 @@ export const PROVIDERS: { id: KeyProvider; label: string; hint: string }[] = [
   { id: "openai",    label: "OpenAI",    hint: "sk-…" },
   { id: "anthropic", label: "Anthropic", hint: "sk-ant-…" },
   { id: "gemini",    label: "Google Gemini", hint: "AIza…" },
-  { id: "falai",     label: "Fal.ai",    hint: "…" },
 ];
 
 export function useAdminKeys() {

@@ -5,7 +5,7 @@
  * by whoever constructed them rather than sniffed from the bytes — and that
  * label is often wrong. `b64ToBlob` (src/ai/utils.ts) defaults every decoded
  * provider response to "image/webp" regardless of what the provider actually
- * returned (Gemini: PNG, fal.ai: JPEG, OpenAI: WebP), and a canvas round-trip
+ * returned (Gemini: PNG, OpenAI: WebP), and a canvas round-trip
  * can relabel bytes without changing them. Anything that needs to pick the
  * correct format-specific XMP reader/embedder (embed.ts) must sniff the real
  * format rather than trust that label.

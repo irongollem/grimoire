@@ -363,13 +363,12 @@ const providerModelOptions = computed<Record<string, string[]>>(() => ({
   openai:    openaiModelList.data.value    ?? [],
   anthropic: anthropicModelList.data.value ?? [],
   gemini:    geminiModelList.data.value    ?? [],
-  falai:     [],
 }));
 
 // ── Image quality options per provider ───────────────────────────────────
 // Vocabulary is provider-specific (see _shared/imageGen.ts): OpenAI sends these
 // as `quality`; Gemini sends them as imageConfig.imageSize. Higher = more output
-// tokens = higher real cost. fal.ai is flat-priced, so no quality lever.
+// tokens = higher real cost.
 const IMAGE_QUALITY_OPTIONS: Record<string, { value: string; label: string }[]> = {
   openai: [
     { value: "auto",   label: "Auto" },
@@ -392,7 +391,7 @@ const KNOWN_AUDIO_MODELS: Record<string, string[]> = {
 
 // ── Known embedding models per provider (issue #595) ─────────────────────
 // Only OpenAI and Gemini can embed at all -- Anthropic has no embeddings
-// endpoint and fal.ai is image-only -- so anthropic/falai are absent here.
+// endpoint -- so anthropic is absent here.
 // Shared with EmbeddingVendorControl.vue (passed down as a prop) rather than
 // redefined there, so the two never drift: this file still needs it for the
 // Model API Costs section below, independent of the vendor-switch control.

@@ -41,7 +41,6 @@ const admin = createClient(
 // Portrait render size per image provider — drives the area-based cost multiplier.
 const PORTRAIT_SIZE_BY_PROVIDER: Record<string, string> = {
   openai: "1024x1536",
-  falai: "768x1152",
   gemini: "1024x1536",
 };
 
@@ -223,7 +222,7 @@ serve(withCors(async (req: Request) => {
   const { data: campaign } = await admin
     .from("campaigns")
     .select(
-      "id, user_id, ai_enabled, text_provider, image_provider, ai_setting_prompt, ruleset, openai_api_key, anthropic_api_key, gemini_api_key, falai_api_key",
+      "id, user_id, ai_enabled, text_provider, image_provider, ai_setting_prompt, ruleset, openai_api_key, anthropic_api_key, gemini_api_key",
     )
     .eq("id", campaign_id)
     .maybeSingle();
@@ -271,7 +270,7 @@ serve(withCors(async (req: Request) => {
   }
 
   const [
-    [campaignOpenai, campaignAnthropic, campaignGemini, campaignFalai],
+    [campaignOpenai, campaignAnthropic, campaignGemini],
     platformKeys,
     providerConfigs,
   ] = await Promise.all([
@@ -279,26 +278,23 @@ serve(withCors(async (req: Request) => {
       decryptKey(campaign.openai_api_key),
       decryptKey(campaign.anthropic_api_key),
       decryptKey(campaign.gemini_api_key),
-      decryptKey(campaign.falai_api_key),
     ]),
-    fetchPlatformKeys(admin, ["openai", "anthropic", "gemini", "falai"]),
-    fetchProviderConfigs(admin, ["openai", "anthropic", "gemini", "falai"]),
+    fetchPlatformKeys(admin, ["openai", "anthropic", "gemini"]),
+    fetchProviderConfigs(admin, ["openai", "anthropic", "gemini"]),
   ]);
   const openaiKey = campaignOpenai ?? platformKeys.openai ?? null;
   const anthropicKey = campaignAnthropic ?? platformKeys.anthropic ?? null;
   const geminiKey = campaignGemini ?? platformKeys.gemini ?? null;
 
-  // Resolve the campaign's chosen image provider (openai / openai-mini / falai / gemini).
+  // Resolve the campaign's chosen image provider (openai / openai-mini / gemini).
   const img = resolveImageProvider({
     imageProvider: campaign.image_provider,
     campaignKeys: {
       openai: campaignOpenai,
-      falai: campaignFalai,
       gemini: campaignGemini,
     },
     platformKeys: {
       openai: platformKeys.openai,
-      falai: platformKeys.falai,
       gemini: platformKeys.gemini,
     },
     providerConfigs,
@@ -435,7 +431,6 @@ serve(withCors(async (req: Request) => {
   //   • input_image_tokens — seed-image tokens on edit calls (image-input rate; the
   //     disguise edit feeds the generated portrait back in, which drives input up)
   //   • output_tokens      — generated-image tokens (image-output rate, dominant)
-  // (fal.ai is flat-priced and reports no tokens — left at 0 → flat fallback.)
   let imgInputTokens = 0;
   let imgInputImageTokens = 0;
   let imgOutputTokens = 0;
@@ -479,8 +474,7 @@ serve(withCors(async (req: Request) => {
       // non-fatal — continue without portrait
     }
 
-    // Alter-ego disguise edits off the true-form portrait. fal.ai has no edit
-    // endpoint and degrades to plain generate (loosely matches the prior skip).
+    // Alter-ego disguise edits off the true-form portrait.
     if (generateAlterEgo && portrait_b64 && npcData.disguise_image_prompt) {
       const disguisePrompt = buildSimpleImagePrompt({
         base: imageBasePrompt,

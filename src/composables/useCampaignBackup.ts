@@ -100,7 +100,6 @@ const CAMPAIGN_STRIP_FIELDS = [
   "openai_api_key",
   "anthropic_api_key",
   "gemini_api_key",
-  "falai_api_key",
   "spotify_client_id",
   "ical_token",
 ];
@@ -396,7 +395,6 @@ async function executeImport(
     openai_api_key: null,
     anthropic_api_key: null,
     gemini_api_key: null,
-    falai_api_key: null,
     spotify_client_id: null,
   };
   const { data: createdCampaign, error: campErr } = await supabase

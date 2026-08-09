@@ -10,7 +10,7 @@ export interface ImageUsage {
   provider: string;
   image_count: number;
   // Token usage for token-priced image models (OpenAI gpt-image). Optional —
-  // flat-priced providers (fal.ai) and older responses omit them.
+  // flat-priced providers and older responses omit them.
   input_tokens?: number;       // text-prompt tokens (text-input rate)
   input_image_tokens?: number; // reference/seed-image tokens on edits (image-input rate)
   output_tokens?: number;      // generated-image tokens (image-output rate, dominant)
@@ -25,7 +25,7 @@ export interface ImageProvider {
   /**
    * Compose one or more reference images into a new image (e.g. character
    * portraits into a scene). Providers that support only a single reference use
-   * the first blob; generate-only providers (fal.ai) omit `edit` entirely.
+   * the first blob; generate-only providers omit `edit` entirely.
    */
   edit?(sources: Blob[], prompt: string, size: string): Promise<{ b64: string; usage: ImageUsage }>;
 }

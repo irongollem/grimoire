@@ -160,9 +160,9 @@ async function runStylize(args: {
 
   try {
     // The portrait is the mini's likeness reference — fed to the provider as
-    // a source image (openai edits / gemini inline both accept references;
-    // fal.ai is generate-only, which is exactly why it's excluded from the
-    // provider choice in handleStylize below).
+    // a source image (openai edits / gemini inline both accept references).
+    // A generate-only provider could never serve this path, which is why
+    // handleStylize below picks from the reference-capable providers only.
     let sourceImages: Blob[] | undefined;
     if (isSafeStorageUrl(portraitUrl)) {
       const res = await fetch(portraitUrl);
@@ -326,8 +326,9 @@ async function handleStylize(
   }
 
   // Choose the platform image provider — openai first (matches the app-wide
-  // default), gemini as fallback. fal.ai is never eligible: it's generate-only
-  // and can't accept the source portrait as a reference.
+  // default), gemini as fallback. Both accept the source portrait as a
+  // reference, which this path requires: a generate-only provider is never
+  // eligible here.
   const [platformKeys, providerConfigs] = await Promise.all([
     fetchPlatformKeys(admin, ["openai", "gemini"]),
     fetchProviderConfigs(admin, ["openai", "gemini"]),

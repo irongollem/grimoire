@@ -13,7 +13,6 @@ const LOCAL_KEYS: Record<string, string> = {
   openai:    "grimoire_openai_key",
   anthropic: "grimoire_anthropic_key",
   gemini:    "grimoire_gemini_key",
-  falai:     "grimoire_falai_key",
 };
 
 // DB field name → provider slug
@@ -21,8 +20,13 @@ const DB_KEY_FIELDS: Record<string, keyof Campaign> = {
   openai:    "openai_api_key",
   anthropic: "anthropic_api_key",
   gemini:    "gemini_api_key",
-  falai:     "falai_api_key",
 };
+
+// #641 dropped fal.ai. A BYOK-local user can still be holding its key on this
+// device, and nothing reads that entry any more — so purge it rather than leave
+// a live credential on disk for a provider we no longer talk to. Server-stored
+// keys went with the falai_api_key column (20260809145858).
+if (typeof localStorage !== "undefined") localStorage.removeItem("grimoire_falai_key");
 
 export const useCampaignStore = defineStore("campaign", () => {
   const activeCampaignId = ref<string | null>(
@@ -34,13 +38,11 @@ export const useCampaignStore = defineStore("campaign", () => {
   const decryptedOpenAiKey    = ref<string>("");
   const decryptedAnthropicKey = ref<string>("");
   const decryptedGeminiKey    = ref<string>("");
-  const decryptedFalAiKey     = ref<string>("");
 
   const providerKeyRefs: Record<string, ReturnType<typeof ref<string>>> = {
     openai:    decryptedOpenAiKey,
     anthropic: decryptedAnthropicKey,
     gemini:    decryptedGeminiKey,
-    falai:     decryptedFalAiKey,
   };
 
   // Backward-compat computed used by generator panels to gate the AI button
@@ -139,7 +141,6 @@ export const useCampaignStore = defineStore("campaign", () => {
     decryptedOpenAiKey.value    = "";
     decryptedAnthropicKey.value = "";
     decryptedGeminiKey.value    = "";
-    decryptedFalAiKey.value     = "";
   }
 
   // Tri-state: only an explicit `true` counts as on. `null` (never chosen)
@@ -159,7 +160,6 @@ export const useCampaignStore = defineStore("campaign", () => {
     decryptedOpenAiKey,
     decryptedAnthropicKey,
     decryptedGeminiKey,
-    decryptedFalAiKey,
     switchToCampaign,
     clearActiveCampaign,
     todayYear,

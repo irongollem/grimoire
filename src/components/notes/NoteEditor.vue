@@ -376,7 +376,7 @@ const showAiPaywall          = ref(false);
 const campaignStore = useCampaignStore();
 // Image generation runs through the shared provider abstraction on both the
 // server-side and BYOK local-vault paths, and both support every provider we
-// expose (OpenAI, Google Gemini, fal.ai). The button only needs a configured
+// expose (OpenAI, Google Gemini). The button only needs a configured
 // image provider — not specifically OpenAI.
 const hasImageProvider = computed(() => !!(campaignStore.activeCampaign?.image_provider ?? "openai"));
 // Text generation works on both BYOK and platform keys via the edge function,

@@ -25,7 +25,6 @@ const CAMPAIGN_KEY_COLUMNS = [
   "openai_api_key",
   "anthropic_api_key",
   "gemini_api_key",
-  "falai_api_key",
 ] as const;
 
 async function encryptValue(plaintext: string): Promise<string> {

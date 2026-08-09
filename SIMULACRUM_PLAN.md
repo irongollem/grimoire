@@ -80,7 +80,7 @@ fine-detailed for a 1em glyph.
 
 2. **Stylize** (image credits, normal flow) — portrait sent as `sourceImages` through
    the existing `generateImage()` engine (OpenAI edits / Gemini inline both accept
-   source images; fal.ai is generate-only → excluded for this kind). Reuses the
+   source images; a generate-only provider could never serve this kind). Reuses the
    `image_generation_jobs` async pattern + `waitForImageJob`. Preview → **re-roll /
    tweak** freely; each roll charges the standard `entity_image` cost via
    reserve-then-settle. The accepted image is stored in the `mini-models` bucket

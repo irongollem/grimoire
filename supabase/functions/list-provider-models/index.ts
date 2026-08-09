@@ -74,7 +74,7 @@ serve(withCors(async (req: Request) => {
     return new Response("Invalid body — need { provider }", { status: 400 });
   }
 
-  const keys = await fetchPlatformKeys(admin, [provider as "openai" | "anthropic" | "gemini" | "falai"]);
+  const keys = await fetchPlatformKeys(admin, [provider as "openai" | "anthropic" | "gemini"]);
   const apiKey = keys[provider as keyof typeof keys];
   if (!apiKey) {
     return new Response(

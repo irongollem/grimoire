@@ -164,8 +164,10 @@ const { textMultiplierFor, imageMultiplierFor } = useProviderConfig();
 const textProvider  = computed(() => campaign.activeCampaign?.text_provider  ?? "openai");
 const imageProvider = computed(() => campaign.activeCampaign?.image_provider ?? "openai");
 const textIsByok    = computed(() => !!campaign.decryptedApiKey);
+// BYOK only if THAT provider's own key is present. openai-mini bills against
+// the OpenAI key, so it resolves to the same one.
 const imageIsByok   = computed(() =>
-  imageProvider.value === "falai" ? !!campaign.decryptedFalAiKey : !!campaign.decryptedOpenAiKey,
+  imageProvider.value === "gemini" ? !!campaign.decryptedGeminiKey : !!campaign.decryptedOpenAiKey,
 );
 
 const effectiveCreditCost = computed(() => {

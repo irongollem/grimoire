@@ -285,8 +285,9 @@ interface ProviderDef {
 const providerDefs: ProviderDef[] = [
   { id: "openai",    label: "OpenAI",          placeholder: "sk-…",     dbField: "openai_api_key",    localKey: "grimoire_openai_key",    link: "https://platform.openai.com/api-keys" },
   { id: "gemini",    label: "Google Gemini",    placeholder: "AIza…",    dbField: "gemini_api_key",    localKey: "grimoire_gemini_key",    link: "https://aistudio.google.com/app/apikey" },
-  // Anthropic + fal.ai temporarily not offered (no platform contract/key yet) —
-  // backend providers + key fields retained so they can be re-enabled here.
+  // Anthropic is temporarily not offered (no platform contract/key yet) — its
+  // backend provider + key field are retained so it can be re-enabled here.
+  // fal.ai is not a "temporarily": it was removed outright in #641.
 ];
 
 const campaign = useCampaignStore();
@@ -361,7 +362,6 @@ const IMAGE_PROVIDER_INFO: Record<string, { speed: string }> = {
   openai:        { speed: "1–3 min" },
   "openai-mini": { speed: "1–3 min" },
   gemini:        { speed: "~8–15 s" },
-  falai:         { speed: "speed varies" },
 };
 function imageSpeed(provider: string): string {
   return IMAGE_PROVIDER_INFO[provider]?.speed ?? "speed varies";
@@ -519,7 +519,6 @@ async function save() {
         openai_api_key:    encryptedKeys["openai_api_key"],
         anthropic_api_key: encryptedKeys["anthropic_api_key"],
         gemini_api_key:    encryptedKeys["gemini_api_key"],
-        falai_api_key:     encryptedKeys["falai_api_key"],
         text_provider:     form.value.text_provider  || null,
         image_provider:    form.value.image_provider || null,
         ai_setting_prompt: form.value.ai_setting_prompt.trim() || null,

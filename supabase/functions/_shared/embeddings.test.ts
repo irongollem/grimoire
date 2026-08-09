@@ -299,7 +299,7 @@ describe("resolveEmbeddingProvider", () => {
       .rejects.toThrow(EmbeddingProviderConfigError);
   });
 
-  it("throws for a vendor with no embedding adapter (e.g. anthropic/falai enabled by mistake)", async () => {
+  it("throws for a vendor with no embedding adapter (e.g. anthropic enabled by mistake)", async () => {
     const admin = providerConfigClient({
       data: [{ provider: "anthropic", embedding_model: "claude-embed", embedding_enabled: true }],
     });

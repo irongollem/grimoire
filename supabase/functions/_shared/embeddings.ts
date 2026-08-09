@@ -13,8 +13,8 @@
  *
  * 1. Embedding vectors from different models are NOT interchangeable.
  *    Cosine distance between an OpenAI vector and a Gemini vector is
- *    meaningless, and Anthropic has no embedding endpoint at all (fal.ai is
- *    image-only). So which provider produces embeddings is a PLATFORM-WIDE
+ *    meaningless, and Anthropic has no embedding endpoint at all. So which
+ *    provider produces embeddings is a PLATFORM-WIDE
  *    choice, configured once in `provider_config` (see `resolveEmbeddingProvider`),
  *    never per-campaign or per-user the way text/image generation is — and
  *    never BYOK. Two rows embedded by different vendors would silently

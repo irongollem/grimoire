@@ -16,7 +16,6 @@ export const PROVIDER_DISPLAY: Record<string, string> = {
   openai:    "OpenAI",
   anthropic: "Anthropic — Claude Haiku 3",
   gemini:    "Google Gemini",
-  falai:     "fal.ai — FLUX",
 };
 
 /**
@@ -26,7 +25,7 @@ export const PROVIDER_DISPLAY: Record<string, string> = {
  */
 export const PORTRAIT_SIZE_BY_PROVIDER: Record<string, string> = {
   openai: "1024x1536",
-  falai:  "768x1152",
+  gemini: "1024x1536",
 };
 
 export function useProviderConfig() {

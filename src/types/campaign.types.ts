@@ -37,7 +37,6 @@ export interface Campaign {
   openai_api_key: string | null;
   anthropic_api_key: string | null;
   gemini_api_key: string | null;
-  falai_api_key: string | null;
   // Active provider selection
   text_provider: string | null;
   image_provider: string | null;
@@ -61,8 +60,7 @@ export interface Campaign {
 type ApiKeyFields =
   | "openai_api_key"
   | "anthropic_api_key"
-  | "gemini_api_key"
-  | "falai_api_key";
+  | "gemini_api_key";
 type PortraitFields = "group_portrait_url" | "group_portrait_ai_provenance";
 type ProviderFields = "text_provider" | "image_provider";
 
@@ -101,7 +99,6 @@ export type CampaignInsert = Omit<
   openai_api_key?: string | null;
   anthropic_api_key?: string | null;
   gemini_api_key?: string | null;
-  falai_api_key?: string | null;
   text_provider?: string | null;
   image_provider?: string | null;
   ai_setting_prompt?: string | null;

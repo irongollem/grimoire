@@ -24,7 +24,6 @@ export const PROVIDER_LABELS: Record<string, string> = {
   openai:    "OpenAI",
   anthropic: "Anthropic",
   gemini:    "Google Gemini",
-  falai:     "fal.ai",
 };
 
 export function useAdminProviders() {

@@ -89,7 +89,6 @@ export function captureImageGenerationContext(): ImageGenerationContext {
     openai: store.decryptedOpenAiKey,
     "openai-mini": store.decryptedOpenAiKey,
     gemini: store.decryptedGeminiKey,
-    falai: store.decryptedFalAiKey,
   } as Record<string, string | null | undefined>)[imageProvider] ?? null;
   return {
     campaignId: campaign.id,
@@ -133,8 +132,8 @@ async function blobToBase64(blob: Blob): Promise<string> {
  * touches the server, so unlike the server-backed generators there is no
  * edge function to do it first. The provider's true byte format is sniffed
  * from the decoded bytes rather than assumed — OpenAI honors an explicit
- * `output_format: "webp"`, but Gemini returns PNG and fal.ai returns JPEG,
- * and marking with the wrong format-specific embedder silently no-ops.
+ * `output_format: "webp"`, but Gemini returns PNG, and marking with the wrong
+ * format-specific embedder silently no-ops.
  */
 async function markLocalResult(
   purpose: ImagePurpose,

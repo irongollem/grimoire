@@ -250,7 +250,7 @@ serve(withCors(async (req: Request) => {
 
   const { data: campaign } = await admin
     .from("campaigns")
-    .select("id, user_id, ai_enabled, ai_setting_prompt, image_provider, openai_api_key, gemini_api_key, falai_api_key")
+    .select("id, user_id, ai_enabled, ai_setting_prompt, image_provider, openai_api_key, gemini_api_key")
     .eq("id", campaign_id)
     .maybeSingle();
   if (!campaign) return text("Campaign not found", 404);
@@ -266,15 +266,15 @@ serve(withCors(async (req: Request) => {
   // BYOK is Pro-only: ignore stored campaign keys unless the owner is currently Pro.
   const ownerIsPro = await isUserPro(admin, campaign.user_id);
   const decryptKey = (enc: string | null) => (enc && ownerIsPro) ? decryptValue(enc).catch(() => null) : Promise.resolve(null);
-  const [[campaignOpenai, campaignGemini, campaignFalai], platformKeys, providerConfigs] = await Promise.all([
-    Promise.all([decryptKey(campaign.openai_api_key), decryptKey(campaign.gemini_api_key), decryptKey(campaign.falai_api_key)]),
-    fetchPlatformKeys(admin, ["openai", "gemini", "falai"]),
-    fetchProviderConfigs(admin, ["openai", "gemini", "falai"]),
+  const [[campaignOpenai, campaignGemini], platformKeys, providerConfigs] = await Promise.all([
+    Promise.all([decryptKey(campaign.openai_api_key), decryptKey(campaign.gemini_api_key)]),
+    fetchPlatformKeys(admin, ["openai", "gemini"]),
+    fetchProviderConfigs(admin, ["openai", "gemini"]),
   ]);
   const img = resolveImageProvider({
     imageProvider: campaign.image_provider,
-    campaignKeys: { openai: campaignOpenai, falai: campaignFalai, gemini: campaignGemini },
-    platformKeys: { openai: platformKeys.openai, falai: platformKeys.falai, gemini: platformKeys.gemini },
+    campaignKeys: { openai: campaignOpenai, gemini: campaignGemini },
+    platformKeys: { openai: platformKeys.openai, gemini: platformKeys.gemini },
     providerConfigs,
     requestedModel: image_model,
   });

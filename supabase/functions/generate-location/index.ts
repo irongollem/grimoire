@@ -146,7 +146,7 @@ serve(withCors(async (req: Request) => {
 
   const { data: campaign } = await admin
     .from("campaigns")
-    .select("id, user_id, ai_enabled, text_provider, image_provider, ai_setting_prompt, ruleset, openai_api_key, anthropic_api_key, gemini_api_key, falai_api_key")
+    .select("id, user_id, ai_enabled, text_provider, image_provider, ai_setting_prompt, ruleset, openai_api_key, anthropic_api_key, gemini_api_key")
     .eq("id", campaign_id)
     .maybeSingle();
   if (!campaign) return new Response("Campaign not found", { status: 404 });
@@ -179,25 +179,24 @@ serve(withCors(async (req: Request) => {
     try { return await decryptValue(enc); } catch { return null; }
   }
 
-  const [[campaignOpenai, campaignAnthropic, campaignGemini, campaignFalai], platformKeys, providerConfigs] = await Promise.all([
+  const [[campaignOpenai, campaignAnthropic, campaignGemini], platformKeys, providerConfigs] = await Promise.all([
     Promise.all([
       decryptKey(campaign.openai_api_key),
       decryptKey(campaign.anthropic_api_key),
       decryptKey(campaign.gemini_api_key),
-      decryptKey(campaign.falai_api_key),
     ]),
-    fetchPlatformKeys(admin, ["openai", "anthropic", "gemini", "falai"]),
-    fetchProviderConfigs(admin, ["openai", "anthropic", "gemini", "falai"]),
+    fetchPlatformKeys(admin, ["openai", "anthropic", "gemini"]),
+    fetchProviderConfigs(admin, ["openai", "anthropic", "gemini"]),
   ]);
   const openaiKey    = campaignOpenai    ?? platformKeys.openai    ?? null;
   const anthropicKey = campaignAnthropic ?? platformKeys.anthropic ?? null;
   const geminiKey    = campaignGemini    ?? platformKeys.gemini    ?? null;
 
-  // Resolve the campaign's chosen image provider (openai / openai-mini / falai / gemini).
+  // Resolve the campaign's chosen image provider (openai / openai-mini / gemini).
   const img = resolveImageProvider({
     imageProvider: campaign.image_provider,
-    campaignKeys: { openai: campaignOpenai, falai: campaignFalai, gemini: campaignGemini },
-    platformKeys: { openai: platformKeys.openai, falai: platformKeys.falai, gemini: platformKeys.gemini },
+    campaignKeys: { openai: campaignOpenai, gemini: campaignGemini },
+    platformKeys: { openai: platformKeys.openai, gemini: platformKeys.gemini },
     providerConfigs,
   });
 

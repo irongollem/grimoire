@@ -74,9 +74,8 @@ export function useEntityImageGeneration(bucketId: string) {
    * path's `image_b64` already carries an XMP mark embedded server-side
    * (generate-entity-image, before the response leaves the edge function),
    * so it's never re-marked here. The real content type is sniffed from the
-   * decoded bytes, never assumed to be webp — Gemini returns PNG, fal.ai
-   * returns JPEG, and marking with the wrong format-specific embedder would
-   * silently no-op.
+   * decoded bytes, never assumed to be webp — Gemini returns PNG, and marking
+   * with the wrong format-specific embedder would silently no-op.
    */
   async function uploadB64(b64: string, localProv: AiProvenance | null = null): Promise<string | null> {
     const bytes = new Uint8Array(await b64ToBlob(b64).arrayBuffer());

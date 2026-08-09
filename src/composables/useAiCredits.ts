@@ -29,7 +29,7 @@ export function sizeMultiplier(size: string | null | undefined): number {
  * spend_credits(), see `_shared/credits.ts`).
  *
  * #609: every generation logs a row, even when the provider didn't report
- * token counts (fal.ai and some responses omit them — see `ImageUsage`).
+ * token counts (some responses omit them — see `ImageUsage`).
  * Token columns land NULL in that case; delta stays 0 and model/provider/
  * reason are always present, so the usage record stays complete even where
  * it can't estimate cost. This never sends prompt content — only the

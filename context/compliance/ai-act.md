@@ -32,7 +32,7 @@ recording, not a target date.
 ## 2. Role analysis
 
 **Grimoire is a *provider* of generative AI systems** built on general-purpose
-AI models (OpenAI, Anthropic, Google, fal.ai, Meshy) and placed on the market
+AI models (OpenAI, Anthropic, Google, Meshy) and placed on the market
 under Grimoire's own name and branding. This holds across all three AI
 access tiers — platform-credit, BYOK-cloud, and local-key — because in every
 tier the system doing the generating is Grimoire's: our prompts, our UI, our
@@ -89,7 +89,7 @@ Verified against `supabase/functions/` and `src/ai/` on 5 Aug 2026.
 | `generate-complication` | text | same | mid-fight complication/reinforcement proposals for the encounter runner, grounded in the DM's own bestiary and campaign entities (#604); server-path only, no client-direct twin |
 | `generate-chronicle-text` | text | same | session recap text |
 | `generate-npc-voice` | text | same | "NPC Voice Coach" — generates speakable-as-is lines only; ephemeral, nothing persisted |
-| `generate-chronicle-image` | image | OpenAI (gpt-image-2 / gpt-image-1.5 / gpt-image-1-mini), Gemini (gemini-3.1-flash-image, "Nano Banana"), fal.ai (flux-2/flex) via `_shared/imageGen.ts` | also the promotional-reuse surface (§2) |
+| `generate-chronicle-image` | image | OpenAI (gpt-image-2 / gpt-image-1.5 / gpt-image-1-mini), Gemini (gemini-3.1-flash-image, "Nano Banana") via `_shared/imageGen.ts` | also the promotional-reuse surface (§2) |
 | `generate-entity-image` | image | same | |
 | `style-map` | image | same | |
 | `forge-mini` (stylize leg) | image | same | Simulacrum: portrait → stylized source image |
@@ -106,7 +106,7 @@ Verified against `supabase/functions/` and `src/ai/` on 5 Aug 2026.
 `useMonsterGeneration.ts`, `useItemGeneration.ts`, `useFactionGeneration.ts`,
 `usePuzzleGeneration.ts`, `useSpellGeneration.ts` (via `spellAiAdapter.ts`),
 and `useTextEnhancement.ts` all call `getTextProvider()` from
-`src/ai/providers/` (`openai.ts`, `anthropic.ts`, `gemini.ts`, `falai.ts`)
+`src/ai/providers/` (`openai.ts`, `anthropic.ts`, `gemini.ts`)
 directly from the browser, using the campaign's configured key (BYOK-cloud)
 or a locally-vaulted key (local-key tier) — never touching an edge function.
 As §2 states, this is still a Grimoire AI system: the prompts, panel UI, and
@@ -281,8 +281,7 @@ embeds an XMP packet — IPTC `DigitalSourceType = trainedAlgorithmicMedia`,
 provider/model/generatedAt — into WebP/PNG/JPEG bytes (idempotent re-marking,
 pass-through on unknown formats, colocated tests). Server side: every
 generated image is marked before upload or inside the returned `image_b64`,
-using the provider's true output format (OpenAI webp, Gemini png, fal.ai
-jpeg). Client side: local-key-mode output is marked before upload, and the
+using the provider's true output format (OpenAI webp, Gemini png). Client side: local-key-mode output is marked before upload, and the
 canvas resize pipeline (`toWebP`, `resizeToWebP` variants, `backfillVariants`)
 re-embeds the original's XMP after every re-encode — canvas strips metadata,
 so re-embedding is what makes the mark survive. A C2PA spike (#605) remains
@@ -371,8 +370,8 @@ See provenance-architecture.md §8 for the engineering summary.
 
 **Logging-gap decision.** `useAiCredits.ts` `logUsage()` previously skipped
 the `deduct-ai-credit` call entirely when the provider reported no token
-counts — silently dropping fal.ai image generations and any other
-token-less BYOK/local-key call from the record. Fixed: every client-direct
+counts — silently dropping any token-less BYOK/local-key call from the
+record. Fixed: every client-direct
 (BYOK or local-key-vault) generation now logs a row unconditionally — delta 0,
 `is_byok: true`, token columns NULL when the provider didn't report them,
 `model`/`provider`/`reason` always present.
@@ -423,7 +422,7 @@ Commission documents on **4 Aug 2026** (the grimoire-marketing#22 research
 sweep; the public privacy policy's transfer table was written from the same
 pass, so the two documents share a source of truth). DPF non-participation was
 checked against the official participant database (active and inactive lists,
-with positive control queries) for OpenAI, fal.ai and Meshy; Anthropic's
+with positive control queries) for OpenAI and Meshy; Anthropic's
 absence is corroborated by its own legal pages omitting the DPF (the registry
 UI is not machine-readable); Google's certification is per Google's own
 frameworks page, and the registry record
@@ -437,8 +436,21 @@ Re-verify on material provider changes or at the quarterly review.
 | OpenAI | Sub-processor — GPAI text, image, embedding models | Chat Completions (`gpt-4o-mini` default), Images generations/edits (`gpt-image-2`, `gpt-image-1.5`, `gpt-image-1-mini`), Embeddings (`text-embedding-3-small`) | DPA at openai.com/policies/data-processing-addendum, effective 1 Jan 2026; EEA customers contract with OpenAI Ireland Ltd | SCCs (2021/914) or EU adequacy per DPA §4.1; **not** DPF-certified (official DB, active + inactive, 4 Aug 2026). EU data residency exists (`eu.api.openai.com`, approval-gated, requires a Modified Retention amendment, 10% uplift on eligible models) — not currently used by Grimoire | API inputs/outputs not used for training by default (since 1 Mar 2023); abuse-monitoring logs up to 30 days; ZDR / Modified Abuse Monitoring are approval-gated | Signatory, no reservations (EC signatory list, 4 Aug 2026) |
 | Anthropic | Sub-processor — GPAI text model | Messages API (`claude-haiku-3-20240307` default) | DPA at anthropic.com/legal/data-processing-addendum, effective 24 Feb 2025 | SCCs Modules 2 and 3 (+ UK IDTA, Swiss addendum); not listed as DPF-certified — Anthropic's own legal pages omit the DPF entirely | Not used for training by default; API inputs/outputs auto-deleted within 30 days (newest "Covered Models" require the 30-day window; ZDR by arrangement). First-party API has no EU residency (us/global only) | Full signatory, no reservations (EC signatory list, 4 Aug 2026) |
 | Google | Sub-processor — GPAI text, image, embedding, and Lyria music models | Gemini API `generateContent` (`gemini-2.5-flash` text, `gemini-3.1-flash-image` image, `gemini-embedding-001` embeddings); Lyria (`lyria-3-clip-preview` / `lyria-3-pro-preview`) | Gemini API Additional ToS (effective 23 Mar 2026); paid tier runs under the "Google Data Processing Addendum for Products Where Google is a Data Processor" (v10, 7 May 2026, business.safety.google/processorterms — NOT the Cloud DPA; covered service entry "Gemini API Paid Services"); EEA contracting entity Google Ireland Ltd | Google LLC is **DPF-certified** (policies.google.com/privacy/frameworks; registry record verified Active 4 Aug 2026, next recertification due 13 Sep 2026) | Paid tier: prompts/outputs not used to improve products; abuse-monitoring logs kept 55 days; EEA/CH/UK users get paid-tier data terms on all tiers. SynthID confirmed in current docs for Lyria audio AND Gemini-generated images | Signatory (EC list, 4 Aug 2026); public concerns voiced at signing, no formal reservation recorded |
-| fal.ai | Sub-processor — hosts a third-party model, is not its developer | `fal-ai/flux-2/flex` image generation endpoint (model page URL flattens to `flux-2-flex`) | Public DPA at fal.ai/legal/data-processing-addendum (last updated 31 Jul 2026), auto-incorporated into the online terms — applies to API customers without signature. Entity: fal – Features & Labels, Inc., San Francisco | SCCs Module 2, "incorporated and deemed executed by this reference" (DPA §5); **not** DPF-certified (official DB, 4 Aug 2026) | Request payloads stored 30 days by default (suppressible per-request via `X-Fal-Store-IO: 0`; media retention configurable via object-lifecycle header). API terms bar training on Client Content except models marked "Pending Enterprise Ready" — `flux-2-flex` is not so marked, so the no-training commitment and DPA apply; deidentified/usage-data carve-outs exist | Not applicable to fal (hosting layer). Black Forest Labs (FLUX developer) is a signatory, no reservations (EC list, 4 Aug 2026) |
 | Meshy | Sub-processor — image-to-3D generation | Image-to-3D task API (`_shared/mesh3d.ts`) | **No public DPA** — the terms reference a DPA only as an Order attachment (Enterprise channel); nothing to execute on the API tier. Entity: Meshy LLC, Sunnyvale CA; EU Art 27 rep: Instant EU GDPR Representative Ltd, Dublin | **Not** DPF-certified (official participant XLSX, zero rows, 4 Aug 2026); privacy policy commits generically to SCCs/BCRs — no executed instrument visible for API customers | Generated models auto-delete ~3 days after generation on non-Enterprise tiers (docs + ToS §2.5; `poll-meshy-jobs` re-hosts before the window closes; input-image retention unstated). **ToS §2.9: non-Enterprise Customer Inputs and Outputs may be used for training by default** — see the §9 watch item | No AI Act/GPAI claims anywhere on its site (ISO 27001 + SOC 2 only). Whether its narrow image-to-3D models meet the Art 3(63) GPAI threshold remains unresolved |
+
+**Removed — fal.ai (9 Aug 2026, #641).** fal.ai was listed here as a
+sub-processor for `fal-ai/flux-2/flex` image generation. It offers no data
+processing addendum, so there is no Art 28(3) processor contract available to
+put in place and it cannot lawfully receive personal data on our behalf,
+whatever the model quality. The integration was deleted outright rather than
+disabled: provider module, edge-function wiring, the `campaigns.falai_api_key`
+BYOK column, and its `provider_config` / `ai_model_pricing` rows are all gone
+(migration `20260809145858`). Nothing was ever generated through it — zero
+campaigns had selected it, zero keys were stored, and no ledger row names a fal
+model — so this removes a capability, not a processing history. The public
+privacy policy is updated separately in grimoire-marketing#23. This entry stays
+as the record of why the row disappeared; do not re-add fal.ai without a
+signed or offered DPA.
 
 ## 8. AI literacy (Art 4)
 
