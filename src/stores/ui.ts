@@ -12,6 +12,7 @@ import type { CraftingDiscipline } from "@/types/crafting.types";
 import type { SoundCategory } from "@/types/sound.types";
 import type { DowntimeDrawStatus } from "@/types/downtime.types";
 import type { MiniFormat, MiniStatus } from "@/types/mini.types";
+import type { AdminAuditAction } from "@/composables/useAdminAuditLog";
 
 export const useUiStore = defineStore("ui", () => {
   // Notes UI state
@@ -636,6 +637,19 @@ export const useUiStore = defineStore("ui", () => {
     minisFilterStatus.value = "all";
   }
 
+  // Admin → Audit (#642)
+  const adminAuditSearch = ref("");
+  const adminAuditFilterAction = ref<AdminAuditAction | "all">("all");
+
+  const adminAuditHasActiveFilters = computed(
+    () => adminAuditSearch.value !== "" || adminAuditFilterAction.value !== "all",
+  );
+
+  function resetAdminAuditFilters() {
+    adminAuditSearch.value = "";
+    adminAuditFilterAction.value = "all";
+  }
+
   function resetNotesFilters() {
     notesFilterCategory.value = "all";
     notesFilterTags.value = [];
@@ -938,5 +952,11 @@ export const useUiStore = defineStore("ui", () => {
     minisFilterStatus,
     minisHasActiveFilters,
     resetMinisFilters,
+
+    // Admin → Audit
+    adminAuditSearch,
+    adminAuditFilterAction,
+    adminAuditHasActiveFilters,
+    resetAdminAuditFilters,
   };
 });

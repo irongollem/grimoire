@@ -2,6 +2,7 @@ import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
 import { withCors } from "../_shared/cors.ts";
 import { requireAdmin } from "../_shared/requireAdmin.ts";
+import { recordAdminAction } from "../_shared/adminAudit.ts";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -43,6 +44,15 @@ serve(withCors(async (req: Request) => {
     console.error("admin-set-user-ban:", error);
     return json({ error: "ban_failed" }, 500);
   }
+
+  // Only once GoTrue has accepted it — a lock-out that was refused is not an
+  // action to record (#642).
+  await recordAdminAction(admin, {
+    adminUserId: caller.id,
+    action: banned ? "account_ban" : "account_unban",
+    targetUserId: userId,
+    details: { ban_duration: banned ? BAN_FOREVER : "none" },
+  });
 
   return json({ ok: true, banned });
 }));

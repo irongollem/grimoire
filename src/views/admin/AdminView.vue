@@ -40,6 +40,7 @@
       <AdminPromptsTab   v-else-if="activeTab === 'prompts'" />
       <AdminProvidersTab v-else-if="activeTab === 'providers'" />
       <AdminReportsTab   v-else-if="activeTab === 'reports'" />
+      <AdminAuditTab     v-else-if="activeTab === 'audit'" />
     </div>
   </div>
 </template>
@@ -47,7 +48,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { IconAddUser, IconBug, IconCoins, IconDocument, IconGridView, IconLibrary, IconParty, IconSettings, IconTag } from "@/lib/icons";
+import { IconAddUser, IconBug, IconCoins, IconDocument, IconGridView, IconLibrary, IconParty, IconSettings, IconShieldCheck, IconTag } from "@/lib/icons";
 import AdminPlansTab     from "@/components/admin/AdminPlansTab.vue";
 import AdminUsersTab     from "@/components/admin/AdminUsersTab.vue";
 import AdminInvitesTab   from "@/components/admin/AdminInvitesTab.vue";
@@ -57,12 +58,13 @@ import AdminCreditsTab   from "@/components/admin/AdminCreditsTab.vue";
 import AdminPromptsTab   from "@/components/admin/AdminPromptsTab.vue";
 import AdminProvidersTab from "@/components/admin/AdminProvidersTab.vue";
 import AdminReportsTab   from "@/components/admin/AdminReportsTab.vue";
+import AdminAuditTab     from "@/components/admin/AdminAuditTab.vue";
 
 const route = useRoute();
 const router = useRouter();
 
-type TabId = "plans" | "users" | "invites" | "content" | "pricing" | "credits" | "prompts" | "providers" | "reports";
-const VALID_TABS = new Set<string>(["plans", "users", "invites", "content", "pricing", "credits", "prompts", "providers", "reports"]);
+type TabId = "plans" | "users" | "invites" | "content" | "pricing" | "credits" | "prompts" | "providers" | "reports" | "audit";
+const VALID_TABS = new Set<string>(["plans", "users", "invites", "content", "pricing", "credits", "prompts", "providers", "reports", "audit"]);
 const TABS = [
   { id: "plans"     as TabId, label: "Plans",     icon: IconGridView },
   { id: "users"     as TabId, label: "Users",     icon: IconParty },
@@ -73,6 +75,7 @@ const TABS = [
   { id: "prompts"   as TabId, label: "Prompts",   icon: IconDocument },
   { id: "providers" as TabId, label: "Providers", icon: IconSettings },
   { id: "reports"   as TabId, label: "Reports",   icon: IconBug },
+  { id: "audit"     as TabId, label: "Audit",     icon: IconShieldCheck },
 ];
 
 const activeTab = computed<TabId>(() => {

@@ -32,12 +32,18 @@ export function useAdminUsers() {
     staleTime: 30_000,
   })
 
+  // Every mutation below goes through an RPC rather than a direct table write.
+  // That is not a style preference: each RPC writes its `admin_audit_log` entry
+  // in the same transaction as the change (#642), and migration 20260809214703
+  // dropped the admin write policies these used to rely on, so this is now the
+  // only path. A log the actor could route around by issuing the PostgREST call
+  // themselves would not be worth keeping.
   const setPlan = useMutation({
     mutationFn: async ({ userId, planId }: { userId: string; planId: PlanId }) => {
-      const { error } = await supabase
-        .from('user_subscriptions')
-        .update({ plan_id: planId, status: 'active' })
-        .eq('user_id', userId)
+      const { error } = await supabase.rpc('admin_set_user_plan', {
+        p_user_id: userId,
+        p_plan_id: planId,
+      })
       if (error) throw error
     },
     onSettled: () => qc.invalidateQueries({ queryKey: ['admin', 'users'] }),
@@ -46,13 +52,11 @@ export function useAdminUsers() {
   // Soft freeze — blocks paid actions (credit-spend, new purchases); login stays.
   const setSuspended = useMutation({
     mutationFn: async ({ userId, suspended, reason }: { userId: string; suspended: boolean; reason?: string }) => {
-      const { error } = await supabase
-        .from('user_subscriptions')
-        .update({
-          suspended_at: suspended ? new Date().toISOString() : null,
-          suspension_reason: suspended ? (reason ?? 'admin') : null,
-        })
-        .eq('user_id', userId)
+      const { error } = await supabase.rpc('admin_set_user_suspended', {
+        p_user_id: userId,
+        p_suspended: suspended,
+        p_reason: reason ?? null,
+      })
       if (error) throw error
     },
     onSettled: () => qc.invalidateQueries({ queryKey: ['admin', 'users'] }),
@@ -77,11 +81,10 @@ export function useAdminUsers() {
       amount: number
       reason: string
     }) => {
-      const { error } = await supabase.from('ai_credit_ledger').insert({
-        user_id: userId,
-        delta: amount,
-        reason: reason || 'admin_grant',
-        is_byok: false,
+      const { error } = await supabase.rpc('admin_grant_credits', {
+        p_user_id: userId,
+        p_delta: amount,
+        p_reason: reason || 'admin_grant',
       })
       if (error) throw error
     },

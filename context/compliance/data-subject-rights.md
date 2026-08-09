@@ -22,7 +22,7 @@ when they ask "what happens to X when an account is erased?"
 | Access / portability | 15, 20 | Not built | #632 |
 | DSR request log (30-day clock evidence) | 12(3) | Not built | #643 |
 | Retention periods defined + enforced | 5(1)(e) | Partial — the 90-day AI-prompt scrub (`20260804000005`) and bug-report screenshots/rows at 90/365 days (`20260809000002`) | #639 |
-| Admin action audit log | 5(2) | Table + erasure entry shipped; other writers pending | #642 |
+| Admin action audit log | 5(2) | **Shipped** (Aug 2026) — see §4d | #642 |
 
 The privacy policy §5 promises deletion within 30 days. The implementation is
 **immediate and synchronous**, so the promise is satisfied with margin; if that
@@ -221,12 +221,63 @@ usernames and every non-email column. Anonymization removes the identifier that
 made the file a roster of real people; delete your `seed.sql` when you stop
 working on the project.
 
+## 4d. The admin audit log — accountability for privileged actions
+
+Art. 5(2) requires the controller to be able to *demonstrate* compliance, and the
+admin powers here are all unilateral and consequential: erase an account, change
+what someone pays, freeze their spending, lock them out, mint or take back
+credits, refund a pack. `admin_audit_log` is the record of who did which of those
+to whom, created by `20260808000001` for erasure and completed by
+`20260809214703` for the rest (#642).
+
+**The design decision that matters is where the entry is written.** Three of
+these actions used to be direct table writes issued by the browser
+(`user_subscriptions.update`, `ai_credit_ledger.insert`), permitted by two admin
+RLS policies from `20260506000003`. A logging call added beside them in
+`useAdminUsers.ts` would have produced a log the actor can decline to write, by
+issuing the same PostgREST request from devtools. So each became a SECURITY
+DEFINER RPC that performs the mutation **and** its entry in one transaction, and
+both policies were dropped. `authenticated` now has no PostgREST path to
+`plan_id`, `suspended_at`, or an `ai_credit_ledger` insert at all: the entry is
+not enforced by discipline, it is enforced by there being no other way to do the
+work.
+
+The two actions that happen outside Postgres — the GoTrue ban and the Stripe
+refund — log from their edge functions via `_shared/adminAudit.ts`, after the
+external call succeeds. A failed log write there is reported and swallowed:
+failing the request would report a false failure for a refund that has already
+moved money, and invite a retry that refunds twice.
+
+Invariants:
+
+- **The actor is `auth.uid()` / the verified JWT, never an argument.** The
+  *target* is a caller-supplied id, necessarily — an admin acts on other
+  accounts — but nothing else about identity comes from the caller.
+- **The log has no INSERT policy and, since `20260809214703`, no INSERT grant for
+  `anon`/`authenticated`.** Every row comes from a definer function or a
+  service-role edge function. UPDATE and DELETE are refused by the append-only
+  guard, with the one sanctioned `admin_user_id` → null transition (§4, invariant
+  2).
+- **The vocabulary is pinned** by `admin_audit_log_action_check`. A new action
+  means extending that constraint in the same migration as its writer, and
+  adding it to `ADMIN_AUDIT_ACTIONS` in `useAdminAuditLog.ts` so the viewer can
+  name it.
+- **No action is logged that did not happen.** Re-freezing an already-frozen
+  account writes nothing; a zero-credit grant is refused rather than recorded.
+  A log read as evidence of events must not fill with non-events.
+- **Identity is not denormalised into the entry.** It holds ids only, so an entry
+  survives the erasure it records without carrying the erased person's email or
+  name. The admin viewer resolves ids live and falls back to the bare uuid —
+  which is the expected rendering for a deleted account, not a bug.
+
 ## 5. Known gaps
 
 - **Export (#632).** No Art. 15/20 export exists. A user can erase their data but
   cannot obtain a copy of it first, which is the more commonly exercised right.
-- **DSR log (#643).** Erasures are logged (`admin_audit_log`); other request types
-  are not, so there is no evidence of the 30-day clock for anything but deletion.
+- **DSR log (#643).** `admin_audit_log` records *actions the operator took*, not
+  *requests the operator received* — so a deletion is evidenced, but an access or
+  portability request arriving by email leaves no trace of when the 30-day clock
+  started. The two logs are not substitutes for each other.
 - **Retention (#639).** Two enforced periods exist — AI prompt text at 90 days,
   and bug-report screenshots/rows at 90/365 — out of the many categories that
   need one. The 7-year bookkeeping retention on the evidence tables is asserted
@@ -258,3 +309,7 @@ working on the project.
 | §4b invariant tests | `supabase/tests/identity_not_from_email.test.sql` |
 | Local-seed anonymizer + its gate (§4c) | `scripts/anonymize-seed.ts`, chained from `db:pull` and re-checked by `db:reset` |
 | §4c unit tests | `scripts/anonymize-seed.test.ts` |
+| Audit-log writers + the policies they replace (§4d) | `supabase/migrations/20260809214703_admin_audit_log_writers.sql` |
+| Audit entries for actions outside Postgres (§4d) | `supabase/functions/_shared/adminAudit.ts` |
+| Admin viewer + the pinned action vocabulary | `src/components/admin/AdminAuditTab.vue`, `src/composables/useAdminAuditLog.ts` |
+| §4d invariant tests | `supabase/tests/admin_audit_writers.test.sql` |

@@ -4,6 +4,7 @@ import Stripe from "stripe";
 import { withCors } from "../_shared/cors.ts";
 import { computePackLots, type LedgerRowLite } from "../_shared/creditLots.ts";
 import { requireAdmin } from "../_shared/requireAdmin.ts";
+import { recordAdminAction } from "../_shared/adminAudit.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
   apiVersion: "2026-07-29.dahlia",
@@ -42,6 +43,7 @@ serve(withCors(async (req: Request) => {
 
   const gate = await requireAdmin(req);
   if (gate instanceof Response) return gate;
+  const caller = gate;
 
   let body: { action?: string; userId?: string; paymentIntentId?: string; override?: boolean; reason?: string };
   try {
@@ -103,13 +105,36 @@ serve(withCors(async (req: Request) => {
         p_key: refund.id,
         p_note: note,
       });
+      // Logged either way (#642): the money has moved, so this is a completed
+      // admin action whether or not the credit side of it landed. `clawed_back`
+      // null is what distinguishes the half-finished case in the log — which is
+      // the state a reconciler needs to find.
+      const audit = (clawedBack: number | null) =>
+        recordAdminAction(admin, {
+          adminUserId: caller.id,
+          action: "credit_pack_refund",
+          targetUserId: userId,
+          details: {
+            payment_intent_id: paymentIntentId,
+            refund_id: refund.id,
+            credits: lot.credits,
+            consumed: lot.consumed,
+            eligible: lot.eligible,
+            override: !lot.eligible && !!override,
+            note,
+            clawed_back: clawedBack,
+          },
+        });
+
       if (cErr) {
         // Refund went through but the clawback failed — surface loudly so it can
         // be reconciled (the charge.refunded webhook is the safety net).
         console.error("clawback_pack_credits failed after refund:", cErr);
+        await audit(null);
         return json({ error: "clawback_failed", refundId: refund.id }, 500);
       }
 
+      await audit(clawed ?? 0);
       return json({ ok: true, refundId: refund.id, clawedBack: clawed ?? 0 });
     }
 
