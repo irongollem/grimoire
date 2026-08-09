@@ -113,6 +113,10 @@ export default defineConfig({
     },
   },
   build: {
+    // The model-viewer feature is intrinsically about 1.03 MB minified and is
+    // already isolated behind its lazy route. Keep the threshold just above
+    // that known chunk so an accidentally swollen shared chunk still warns.
+    chunkSizeWarningLimit: 1100,
     rolldownOptions: {
       output: {
         // Vite 8 / rolldown: the function form of `manualChunks` is deprecated
@@ -139,8 +143,15 @@ export default defineConfig({
             { name: "vue-core", test: /node_modules[\\/](@vue[\\/]|vue|pinia|@tanstack)/ },
             // 3D model viewer — Simulacrum only, keep it out of the main bundle.
             { name: "model-viewer", test: /node_modules[\\/]@google[\\/]model-viewer/ },
+            // Quest graph engine — Build mode only.
+            { name: "quest-flow", test: /node_modules[\\/]@vue-flow[\\/]/ },
             // Tiptap editor — loaded on any page with a rich text field
             { name: "tiptap", test: /node_modules[\\/](@tiptap|prosemirror)/ },
+            // Document, date, and compatibility packages are substantial but
+            // route-specific; do not fold them into catch-all vendor.
+            { name: "documents", test: /node_modules[\\/](pdf-lib|@pdf-lib|pagedjs)/ },
+            { name: "dates", test: /node_modules[\\/]date-fns/ },
+            { name: "polyfills", test: /node_modules[\\/]core-js/ },
             // Babel's runtime helpers are shared across many packages. Left
             // unassigned, rolldown co-located them with their biggest consumer
             // (jspdf) inside the `pdf` chunk — and then `vendor` had to import
