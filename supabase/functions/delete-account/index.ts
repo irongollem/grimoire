@@ -1,4 +1,5 @@
-// GDPR account deletion (#631) — self-serve and admin-initiated.
+// GDPR account deletion (#631) — self-serve and admin-initiated. The contract
+// this implements is context/compliance/data-subject-rights.md §2-§4.
 //
 // Deletes the auth.users row (which cascades/set-nulls through every other
 // table per migration 20260808000001) after first purging the user's storage
