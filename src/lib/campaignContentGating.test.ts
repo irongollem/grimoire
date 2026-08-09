@@ -86,4 +86,27 @@ describe("allowedCampaignScoped", () => {
   it("returns an empty list while the query is unsettled", () => {
     expect(allowedCampaignScoped(undefined, CAMPAIGN)).toEqual([]);
   });
+
+  // The deploy-skew case. Between a frontend release and its migration,
+  // `select *` returns rows that predate the column, so the key is absent at
+  // runtime even though the type promises it — which is why these fixtures
+  // declare campaign_id optional and then omit it. Treating that as "matches
+  // nothing" hides every piece of homebrew the DM owns, from every DM at once.
+  type MaybeScoped = { class_name: string; campaign_id?: string | null };
+
+  it("treats a row with no campaign_id field as global, like an explicit null", () => {
+    const preMigration: MaybeScoped[] = [{ class_name: "Bloodhunter" }, { class_name: "Stormcaller" }];
+    expect(allowedCampaignScoped(preMigration, CAMPAIGN).map((c) => c.class_name))
+      .toEqual(["Bloodhunter", "Stormcaller"]);
+    expect(allowedCampaignScoped(preMigration, null).map((c) => c.class_name))
+      .toEqual(["Bloodhunter", "Stormcaller"]);
+  });
+
+  it("still hides another campaign's rows when the field is present", () => {
+    const mixed: MaybeScoped[] = [
+      { class_name: "NoField" },
+      { class_name: "Explicit", campaign_id: OTHER },
+    ];
+    expect(allowedCampaignScoped(mixed, CAMPAIGN).map((c) => c.class_name)).toEqual(["NoField"]);
+  });
 });

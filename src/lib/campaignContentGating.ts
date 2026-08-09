@@ -49,9 +49,21 @@ export function allowedSystemClasses<T extends { class_name: string }>(
  *  editor lets a DM mark "Campaign-scoped") visible in `campaignId`: universal
  *  rows plus that campaign's own. No blocklist applies — ClassesTab only toggles
  *  SRD classes, custom content is always available in its own campaign. */
-export function allowedCampaignScoped<T extends { campaign_id: string | null }>(
+export function allowedCampaignScoped<T extends { campaign_id?: string | null }>(
   rows: readonly T[] | undefined,
   campaignId: string | null,
 ): T[] {
-  return (rows ?? []).filter((r) => r.campaign_id === null || r.campaign_id === campaignId);
+  // A MISSING campaign_id counts as global, exactly like an explicit null —
+  // hence the optional field in the constraint above.
+  //
+  // Not defensive programming for its own sake: schema and client deploy in two
+  // steps, and the frontend usually wins the race (Vercel deploys on push while
+  // `supabase db push` waits on three CI jobs). In that window `select *`
+  // returns rows that predate the column, so campaign_id is `undefined` — and a
+  // strict `=== null` test matches neither branch, which would empty the DM's
+  // entire homebrew list rather than show all of it. That is the silent
+  // disappearance this scoping exists to prevent, aimed at every DM at once.
+  return (rows ?? []).filter(
+    (r) => r.campaign_id === null || r.campaign_id === undefined || r.campaign_id === campaignId,
+  );
 }
