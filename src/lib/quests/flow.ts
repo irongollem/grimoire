@@ -16,7 +16,8 @@ export type QuestGraphCommand =
   | { type: "select" | "open" | "delete-beat"; beatId: string }
   | { type: "move"; beatId: string; x: number; y: number }
   | { type: "link"; sourceBeatId: string; targetBeatId: string }
-  | { type: "create" };
+  | { type: "create"; sourceBeatId?: string; x?: number; y?: number }
+  | { type: "select-edge"; edgeId: string };
 
 export function toQuestFlowGraph(
   beats: QuestBeat[],

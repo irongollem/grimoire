@@ -22,6 +22,7 @@
       <span v-if="presentation?.isDisconnected">Staging</span>
       <span v-if="presentation?.isVisited">Visited</span>
     </div>
+    <AppButton v-if="editable" label="Add next" size="xs" variant="subtle" @click.stop="emit('create-next')" />
     <Handle v-if="editable" type="source" :position="Position.Right" aria-hidden="true" />
   </article>
 </template>
@@ -30,9 +31,10 @@
 import { computed } from "vue";
 import { Handle, Position } from "@vue-flow/core";
 import type { QuestBeatPresentation } from "@/lib/quests/presentation";
+import AppButton from "@/components/common/AppButton.vue";
 
 const props = withDefaults(defineProps<{ title: string; kind: string; visibility: string; selected?: boolean; current?: boolean; presentation?: QuestBeatPresentation; editable?: boolean }>(), { editable: true });
-const emit = defineEmits<{ select: []; open: []; delete: [] }>();
+const emit = defineEmits<{ select: []; open: []; delete: []; "create-next": [] }>();
 const accessibleLabel = computed(() => [
   props.title || "Untitled beat",
   props.kind,

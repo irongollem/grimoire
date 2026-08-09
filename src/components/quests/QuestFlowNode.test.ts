@@ -43,4 +43,10 @@ describe("QuestFlowNode", () => {
     expect(wrapper.text()).toContain("2 loot held");
     expect(wrapper.text()).toContain("Visited");
   });
+
+  it("offers an atomic add-next action from the card", async () => {
+    const wrapper = mount(QuestFlowNode, { props: { title: "Start", kind: "neutral", visibility: "hidden", editable: true }, global: { stubs: { Handle: true } } });
+    await wrapper.findAll("button").find((button) => button.text() === "Add next")!.trigger("click");
+    expect(wrapper.emitted("create-next")).toHaveLength(1);
+  });
 });

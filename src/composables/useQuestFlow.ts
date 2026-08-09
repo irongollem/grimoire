@@ -43,6 +43,7 @@ async function fetchBeats(questId: string): Promise<QuestBeat[]> {
     .from("quest_beats")
     .select("*")
     .eq("quest_id", questId)
+    .neq("kind", "archived")
     .order("created_at", { ascending: true });
   if (error) throw error;
   return (data ?? []) as QuestBeat[];
@@ -263,6 +264,28 @@ export function useDeleteQuestBeat() {
   });
 }
 
+/** Soft deletion keeps transition FKs/history intact while removing the beat
+ * from authored flow. Only beat-owned placements and routes are detached; their
+ * authoritative encounters/entities remain untouched. */
+export function useArchiveQuestBeat() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; questId: string }) => {
+      const attachments = await supabase.from("quest_beat_attachments").delete().eq("beat_id", input.id);
+      if (attachments.error) throw attachments.error;
+      const edges = await supabase.from("quest_beat_edges").delete().or(`source_beat_id.eq.${input.id},target_beat_id.eq.${input.id}`);
+      if (edges.error) throw edges.error;
+      const beat = await supabase.from("quest_beats").update({ kind: "archived", visibility: "hidden" }).eq("id", input.id);
+      if (beat.error) throw beat.error;
+    },
+    onSettled: (_data, _error, input) => {
+      queryClient.invalidateQueries({ queryKey: [BEATS_KEY, input.questId] });
+      queryClient.invalidateQueries({ queryKey: [EDGES_KEY, input.questId] });
+      queryClient.invalidateQueries({ queryKey: [ATTACHMENTS_KEY, input.questId] });
+    },
+  });
+}
+
 export function useCreateQuestBeatEdge() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -290,6 +313,18 @@ export function useDeleteQuestBeatEdge() {
   });
 }
 
+export function useUpdateQuestBeatEdge() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; questId: string; update: Partial<Pick<QuestBeatEdge, "source_beat_id" | "target_beat_id" | "label">> }) => {
+      const { data, error } = await supabase.from("quest_beat_edges").update(input.update).eq("id", input.id).select().single();
+      if (error) throw error;
+      return data as QuestBeatEdge;
+    },
+    onSettled: (_data, _error, input) => queryClient.invalidateQueries({ queryKey: [EDGES_KEY, input.questId] }),
+  });
+}
+
 export function useQuestRuntimeState() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
@@ -305,6 +340,22 @@ export function useQuestRuntimeState() {
       return data as QuestRuntimeState | null;
     },
     enabled: () => !!campaignId.value,
+  });
+}
+
+export function useSetQuestRuntimeCursor() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { campaignId: string; questId: string | null; beatId: string | null }) => {
+      const { data, error } = await supabase.from("quest_runtime_state").upsert({
+        campaign_id: input.campaignId,
+        current_quest_id: input.questId,
+        current_beat_id: input.beatId,
+      }, { onConflict: "campaign_id" }).select().single();
+      if (error) throw error;
+      return data as QuestRuntimeState;
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: [RUNTIME_KEY] }),
   });
 }
 

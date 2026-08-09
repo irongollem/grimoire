@@ -12,8 +12,11 @@
         :fit-view-on-init="fitOnOpen"
         :default-viewport="initialViewport ?? undefined"
         @node-click="onNodeClick"
+        @edge-click="emit('command', { type: 'select-edge', edgeId: $event.edge.id })"
         @node-drag-stop="onNodeDragStop"
+        @connect-start="onConnectStart"
         @connect="onConnect"
+        @connect-end="onConnectEnd"
         @viewport-change-end="emit('viewport-change', $event)"
       >
         <template #node-questBeat="slotProps">
@@ -28,6 +31,7 @@
             @select="emit('command', { type: 'select', beatId: slotProps.id })"
             @open="emit('command', { type: 'open', beatId: slotProps.id })"
             @delete="editable && emit('command', { type: 'delete-beat', beatId: slotProps.id })"
+            @create-next="createNext(slotProps.id)"
           />
         </template>
         <template #edge-questRoute="slotProps">
@@ -57,11 +61,28 @@ const flow = useVueFlow(props.graphId);
 const graph = computed(() => toQuestFlowGraph(props.beats, props.edges, props.presentations, props.visitedEdgeIds));
 const nodes = computed({ get: () => graph.value.nodes, set: () => undefined });
 const flowEdges = computed({ get: () => graph.value.edges, set: () => undefined });
+let pendingConnectionSource: string | null = null;
+let connectionCompleted = false;
 
 function onNodeClick(event: { node: { id: string } }) { emit("command", { type: "select", beatId: event.node.id }); }
+function createNext(beatId: string) {
+  const beat = props.beats.find((candidate) => candidate.id === beatId);
+  emit("command", { type: "create", sourceBeatId: beatId, x: (beat?.canvas_x ?? 0) + 320, y: beat?.canvas_y ?? 0 });
+}
 function onNodeDragStop(event: { node: { id: string; position: { x: number; y: number } } }) { emit("command", moveBeatCommand(event.node)); }
 function onConnect(connection: { source: string | null; target: string | null }) {
+  connectionCompleted = true;
   if (props.editable && connection.source && connection.target && connection.source !== connection.target) emit("command", { type: "link", sourceBeatId: connection.source, targetBeatId: connection.target });
+}
+function onConnectStart(event: { nodeId?: string | null }) { pendingConnectionSource = event.nodeId ?? null; connectionCompleted = false; }
+function onConnectEnd(event?: MouseEvent | TouchEvent) {
+  if (!props.editable || connectionCompleted || !pendingConnectionSource || !event) { pendingConnectionSource = null; return; }
+  const point = "changedTouches" in event ? event.changedTouches[0] : event;
+  if (point) {
+    const position = flow.project({ x: point.clientX, y: point.clientY });
+    emit("command", { type: "create", sourceBeatId: pendingConnectionSource, x: position.x, y: position.y });
+  }
+  pendingConnectionSource = null;
 }
 
 async function fitGraph() {

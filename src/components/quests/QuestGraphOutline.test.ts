@@ -9,12 +9,15 @@ describe("QuestGraphOutline", () => {
   it("offers create, open, link, and delete without the canvas", async () => {
     const wrapper = mount(QuestGraphOutline, { props: { beats: [beat("a"), beat("b")], selectedBeatId: "a" } });
     const buttons = wrapper.findAll("button");
-    await buttons.find((button) => button.text() === "Add beat")!.trigger("click");
+    // The label and the payload both track the selection: with a beat selected
+    // the button chains from it ("Add next beat"), and only reads "Add beat"
+    // when there is nothing to chain from.
+    await buttons.find((button) => button.text() === "Add next beat")!.trigger("click");
     await wrapper.findAll("li")[1]!.find("button").trigger("click");
     await buttons.find((button) => button.text() === "Link")!.trigger("click");
     await buttons.find((button) => button.text() === "Delete")!.trigger("click");
     const commands = wrapper.emitted("command")!.map((event) => event[0]);
-    expect(commands).toContainEqual({ type: "create" });
+    expect(commands).toContainEqual({ type: "create", sourceBeatId: "a" });
     expect(commands).toContainEqual({ type: "open", beatId: "b" });
     expect(commands).toContainEqual({ type: "link", sourceBeatId: "a", targetBeatId: "b" });
     expect(commands).toContainEqual({ type: "delete-beat", beatId: "a" });

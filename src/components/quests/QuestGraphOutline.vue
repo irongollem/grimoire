@@ -1,6 +1,6 @@
 <template>
   <section class="space-y-2" aria-label="Quest beat outline">
-    <AppButton v-if="editable" label="Add beat" size="sm" @click="emit('command', { type: 'create' })" />
+    <AppButton v-if="editable" :label="selectedBeatId ? 'Add next beat' : 'Add beat'" size="sm" @click="emit('command', { type: 'create', sourceBeatId: selectedBeatId || undefined })" />
     <ol class="space-y-1">
       <li v-for="beat in beats" :key="beat.id" class="flex items-center gap-2 rounded-md border border-border bg-card p-2">
         <button class="min-w-0 flex-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" @click="emit('command', { type: 'open', beatId: beat.id })">
