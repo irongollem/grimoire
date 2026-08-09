@@ -24,6 +24,9 @@
         class="flex flex-1 min-h-0 flex-col overflow-y-auto sidenav:pb-0"
         :class="fullscreenMobile ? '' : 'pb-[calc(4.5rem+env(safe-area-inset-bottom))]'"
       >
+        <div v-if="returnTo" class="border-b border-border bg-card px-3 py-2">
+          <AppButton :to="returnTo" label="Back to quest beat" size="sm" variant="subtle" />
+        </div>
         <slot />
       </main>
     </div>
@@ -94,6 +97,8 @@ import { useCampaigns } from "@/composables/useCampaigns";
 import { useSubscription } from "@/composables/useSubscription";
 import { usePlan } from "@/composables/usePlan";
 import { initPlaceholderFocalPoints } from "@/lib/placeholderFocalPoints";
+import { safeQuestReturnTo } from "@/lib/quests/navigation";
+import AppButton from "@/components/common/AppButton.vue";
 
 // Async, and it must stay async: statically importing the generator panels
 // dragged them — plus their forms, template data and PaywallModal — into the
@@ -120,6 +125,9 @@ void initPlaceholderFocalPoints();
 const route = useRoute();
 const isMobile = useMediaQuery("(max-width: 767px)");
 const fullscreenMobile = computed(() => isMobile.value && !!route.meta.fullscreenMobile);
+const returnTo = computed(() => typeof route.query.returnTo === "string"
+  ? safeQuestReturnTo(route.query.returnTo, "")
+  : "");
 
 useCampaignPresence();
 useCampaignLiveSync();

@@ -670,6 +670,12 @@ export const routes: RouteRecordRaw[] = [
     component: () => import("@/views/quests/QuestDetailView.vue"),
     meta: { requiresAuth: true, title: "Quest" },
   },
+  {
+    path: "/quests/:id/beats/:beatId",
+    name: "quest-beat-detail",
+    component: () => import("@/views/quests/QuestBeatDetailView.vue"),
+    meta: { requiresAuth: true, title: "Quest Beat" },
+  },
 
   // Workshop (Crafting)
   {

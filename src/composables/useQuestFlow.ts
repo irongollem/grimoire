@@ -72,6 +72,19 @@ export function useQuestBeats(questId: string | Ref<string>) {
   });
 }
 
+export function useQuestBeat(beatId: string | Ref<string>) {
+  const id = asRef(beatId);
+  return useQuery({
+    queryKey: computed(() => [BEATS_KEY, "detail", id.value]),
+    queryFn: async (): Promise<QuestBeat> => {
+      const { data, error } = await supabase.from("quest_beats").select("*").eq("id", id.value).single();
+      if (error) throw error;
+      return data as QuestBeat;
+    },
+    enabled: () => !!id.value,
+  });
+}
+
 export function useQuestBeatEdges(questId: string | Ref<string>) {
   const id = asRef(questId);
   return useQuery({
@@ -320,14 +333,15 @@ export function useCreateQuestBeat() {
 export function useUpdateQuestBeat() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { id: string; questId: string; update: QuestBeatUpdate }) => {
-      const { data, error } = await supabase
+    mutationFn: async (input: { id: string; questId: string; update: QuestBeatUpdate; expectedUpdatedAt?: string }) => {
+      let query = supabase
         .from("quest_beats")
         .update(input.update)
-        .eq("id", input.id)
-        .select()
-        .single();
+        .eq("id", input.id);
+      if (input.expectedUpdatedAt) query = query.eq("updated_at", input.expectedUpdatedAt);
+      const { data, error } = await query.select().maybeSingle();
       if (error) throw error;
+      if (!data) throw new Error("This beat changed in another window. Reload it before saving your edits.");
       return data as QuestBeat;
     },
     onMutate: async (input) => {
@@ -347,6 +361,7 @@ export function useUpdateQuestBeat() {
     },
     onSettled: (_beat, _error, input) => {
       queryClient.invalidateQueries({ queryKey: [BEATS_KEY, input.questId] });
+      queryClient.invalidateQueries({ queryKey: [BEATS_KEY, "detail", input.id] });
     },
   });
 }

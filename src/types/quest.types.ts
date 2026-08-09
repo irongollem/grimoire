@@ -90,6 +90,10 @@ export interface QuestBeat {
   campaign_id: string;
   title: string;
   dm_content: string | null;
+  read_aloud: string | null;
+  how_it_plays: string | null;
+  outcomes: string | null;
+  consequences: string | null;
   rumor_text: string | null;
   reveal_text: string | null;
   visibility: QuestBeatVisibility;

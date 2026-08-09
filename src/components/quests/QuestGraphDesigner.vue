@@ -60,22 +60,38 @@
     <p v-else-if="!beats.length" class="rounded-lg border border-dashed border-border p-8 text-center text-body text-muted-foreground">
       This quest has no beats yet. Use “Add beat” to begin its story flow.
     </p>
-    <QuestFlowCanvas
-      v-else
-      ref="canvas"
-      :graph-id="`quest-${questId}`"
-      :beats="beats"
-      :edges="edges"
-      :presentations="presentations"
-      :visited-edge-ids="visitedEdgeIds"
-      :selected-beat-id="selectedBeatId"
-      :current-beat-id="currentBeatId"
-      :initial-viewport="initialViewport"
-      :fit-on-open="!initialViewport"
-      :editable="true"
-      @command="onCommand"
-      @viewport-change="writeQuestViewport(questId, $event)"
-    />
+    <div v-else class="grid items-start gap-3 xl:grid-cols-[minmax(0,1fr)_24rem]">
+      <div id="quest-flow-canvas" class="min-w-0">
+        <QuestFlowCanvas
+          ref="canvas"
+          :graph-id="`quest-${questId}`"
+          :beats="beats"
+          :edges="edges"
+          :presentations="presentations"
+          :visited-edge-ids="visitedEdgeIds"
+          :selected-beat-id="selectedBeatId"
+          :current-beat-id="currentBeatId"
+          :initial-viewport="initialViewport"
+          :fit-on-open="!initialViewport"
+          :editable="true"
+          @command="onCommand"
+          @viewport-change="writeQuestViewport(questId, $event)"
+        />
+      </div>
+      <QuestBeatInspector
+        v-if="selectedBeat"
+        :key="selectedBeat.id"
+        :beat="selectedBeat"
+        :beats="beats"
+        :edges="edges"
+        :attachments="selectedAttachments"
+        :loot="selectedLoot"
+        :presentation="presentations[selectedBeat.id]"
+      />
+      <div v-else class="hidden rounded-xl border border-dashed border-border p-6 text-center text-caption text-muted-foreground xl:block">
+        Select a beat to prepare it without leaving the flow.
+      </div>
+    </div>
 
     <p v-if="saveError" role="alert" class="text-caption text-destructive">
       The last position could not be saved and was restored. {{ saveError }}
@@ -86,6 +102,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import { useDebounceFn } from "@vueuse/core";
+import { useRoute, useRouter } from "vue-router";
 import { IconCenter, IconMaximize } from "@/lib/icons";
 import {
   useQuestBeatAttachmentSummaries,
@@ -110,15 +127,20 @@ import { retainSelectedBeatId, type QuestGraphCommand } from "@/lib/quests/flow"
 import { createBeatWithRollback, isDuplicateQuestEdge } from "@/lib/quests/mutations";
 import { useCampaignStore } from "@/stores/campaign";
 import { useConfirm } from "@/composables/useConfirm";
+import { useIsMobile } from "@/composables/useBreakpoint";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import QuestFlowCanvas from "./QuestFlowCanvas.vue";
 import QuestBeatComposer from "./QuestBeatComposer.vue";
+import QuestBeatInspector from "./QuestBeatInspector.vue";
 
 const props = withDefaults(defineProps<{ questId: string; focusCurrentOnOpen?: boolean }>(), { focusCurrentOnOpen: false });
 const canvas = ref<InstanceType<typeof QuestFlowCanvas> | null>(null);
+const route = useRoute();
+const router = useRouter();
+const isMobile = useIsMobile();
 const selectedBeatId = ref<string | null>(null);
 const selectedEdgeId = ref<string | null>(null);
 const saveError = ref("");
@@ -147,6 +169,9 @@ const edges = computed(() => edgesQuery.data.value ?? []);
 const attachments = computed(() => attachmentsQuery.data.value ?? []);
 const transitions = computed(() => transitionsQuery.data.value ?? []);
 const lootByBeat = computed(() => summarizeQuestBeatLoot(lootQuery.data.value ?? []));
+const selectedBeat = computed(() => beats.value.find((beat) => beat.id === selectedBeatId.value) ?? null);
+const selectedAttachments = computed(() => attachments.value.filter((attachment) => attachment.beat_id === selectedBeatId.value));
+const selectedLoot = computed(() => (lootQuery.data.value ?? []).filter((entry) => entry.beat_id === selectedBeatId.value));
 const currentBeatId = computed(() => runtimeQuery.data.value?.current_quest_id === props.questId ? runtimeQuery.data.value.current_beat_id : null);
 const presentations = computed(() => deriveQuestBeatPresentations({ beats: beats.value, edges: edges.value, attachments: attachments.value, runtime: runtimeQuery.data.value, transitions: transitions.value, lootByBeat: lootByBeat.value }));
 const visitedEdgeIds = computed(() => visitedRouteEdgeIds(edges.value, transitions.value));
@@ -190,6 +215,10 @@ async function flushPositions() {
 const savePositions = useDebounceFn(flushPositions, 300, { maxWait: 1000 });
 
 function onCommand(command: QuestGraphCommand) {
+  if (command.type === "open" && isMobile.value) {
+    void router.push({ path: `/quests/${props.questId}/beats/${command.beatId}`, query: { returnTo: `/quests/${props.questId}?mode=build&beat=${command.beatId}` } });
+    return;
+  }
   if (command.type === "select" || command.type === "open") { selectedBeatId.value = command.beatId; selectedEdgeId.value = null; }
   if (command.type === "select-edge") { selectedEdgeId.value = command.edgeId; selectedBeatId.value = null; }
   if (command.type === "create") openComposer(command);
@@ -215,7 +244,7 @@ async function createComposedBeat(value: { title: string; kind: string; edgeLabe
   composerError.value = "";
   try {
     const created = await createBeatWithRollback(
-      () => createBeat.mutateAsync({ quest_id: props.questId, campaign_id: campaign.activeCampaignId!, title: value.title, kind: value.kind, visibility: "hidden", dm_content: null, rumor_text: null, reveal_text: null, presentation_hint: null, canvas_x: draft.x, canvas_y: draft.y, is_improvised: false }),
+      () => createBeat.mutateAsync({ quest_id: props.questId, campaign_id: campaign.activeCampaignId!, title: value.title, kind: value.kind, visibility: "hidden", dm_content: null, read_aloud: null, how_it_plays: null, outcomes: null, consequences: null, rumor_text: null, reveal_text: null, presentation_hint: null, canvas_x: draft.x, canvas_y: draft.y, is_improvised: false }),
       draft.sourceBeatId ? (beat) => createEdge.mutateAsync({ quest_id: props.questId, campaign_id: campaign.activeCampaignId!, source_beat_id: draft.sourceBeatId!, target_beat_id: beat.id, label: value.edgeLabel }) : null,
       (beat) => deleteBeat.mutateAsync({ id: beat.id, questId: props.questId }),
     );
@@ -281,6 +310,9 @@ async function archivePendingBeat() {
 watch(beats, (rows) => {
   selectedBeatId.value = retainSelectedBeatId(selectedBeatId.value, rows);
 });
+
+const initialBeatId = typeof route.query.beat === "string" ? route.query.beat : null;
+if (initialBeatId) selectedBeatId.value = initialBeatId;
 
 let focusedOnOpen = false;
 watch([currentBeatId, beats, canvas], async ([current]) => {
