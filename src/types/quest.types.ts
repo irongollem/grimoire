@@ -197,6 +197,33 @@ export interface QuestBeatAttachmentSummary extends QuestBeatAttachment {
   full_editor_to: string | null;
 }
 
+export type QuestBeatLootKind = "item" | "currency" | "loot_chest";
+export type QuestBeatLootSource = "prepared" | "quest_reward" | "encounter_loot";
+export type QuestBeatLootDeliveryState = "held" | "chat" | "partially_claimed" | "claimed" | "message_removed";
+
+export interface QuestBeatLoot {
+  id: string;
+  beat_id: string;
+  quest_id: string;
+  campaign_id: string;
+  kind: QuestBeatLootKind;
+  item_id: string | null;
+  quantity: number;
+  label: string;
+  payload: Record<string, unknown>;
+  source_type: QuestBeatLootSource;
+  source_id: string | null;
+  sort_order: number;
+  dispatch_message_id: string | null;
+  dispatched_at: string | null;
+  delivery_state: QuestBeatLootDeliveryState;
+}
+
+export type QuestBeatLootInsert = Omit<
+  QuestBeatLoot,
+  "id" | "dispatch_message_id" | "dispatched_at" | "delivery_state"
+> & Partial<Pick<QuestBeatLoot, "quantity" | "label" | "payload" | "source_type" | "source_id" | "sort_order">>;
+
 export interface RewardCurrencyPool {
   id: string;
   label: string;

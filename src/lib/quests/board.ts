@@ -1,4 +1,15 @@
-import type { Quest, QuestRef } from "@/types/quest.types";
+import type {
+  Quest,
+  QuestBeat,
+  QuestBeatAttachmentSummary,
+  QuestBeatEdge,
+  QuestBeatLoot,
+  QuestBeatTransition,
+  QuestRef,
+  QuestRuntimeState,
+} from "@/types/quest.types";
+import { summarizeQuestLootByQuest } from "./loot";
+import { deriveQuestBeatPresentations } from "./presentation";
 
 /**
  * The board can ship before the beat graph does. These optional summaries are the
@@ -33,6 +44,44 @@ export interface QuestBoardFilters {
 export interface QuestBoardFilterData {
   refs: QuestRef[];
   summaries?: Record<string, QuestBoardSummary>;
+}
+
+export function deriveQuestBoardSummaries(input: {
+  beats: QuestBeat[];
+  edges: QuestBeatEdge[];
+  attachments: QuestBeatAttachmentSummary[];
+  loot: QuestBeatLoot[];
+  runtime?: QuestRuntimeState | null;
+  transitions?: QuestBeatTransition[];
+}) {
+  const lootByQuest = summarizeQuestLootByQuest(input.loot);
+  const presentations = deriveQuestBeatPresentations(input);
+  const questIds = new Set(input.beats.map((beat) => beat.quest_id));
+  for (const row of input.loot) questIds.add(row.quest_id);
+  const result: Record<string, QuestBoardSummary> = {};
+
+  for (const questId of questIds) {
+    const beats = input.beats.filter((beat) => beat.quest_id === questId);
+    const current = input.runtime?.current_quest_id === questId
+      ? beats.find((beat) => beat.id === input.runtime?.current_beat_id) ?? null
+      : null;
+    const loot = lootByQuest[questId] ?? { undispatched: 0, unclaimed: 0 };
+    result[questId] = {
+      isLive: current !== null,
+      currentBeatTitle: current?.title ?? null,
+      beatSegments: beats.map((beat) => {
+        const presentation = presentations[beat.id];
+        if (presentation?.isCurrent) return "live";
+        if (presentation?.isVisited) return "done";
+        if (presentation && !presentation.isReady) return "gap";
+        return "upcoming";
+      }),
+      prepGapCount: beats.reduce((total, beat) => total + (presentations[beat.id]?.prepGapCount ?? 0), 0),
+      undispatchedLootCount: loot.undispatched,
+      unclaimedLootCount: loot.unclaimed,
+    };
+  }
+  return result;
 }
 
 /**

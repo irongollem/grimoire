@@ -89,6 +89,7 @@ import { useDebounceFn } from "@vueuse/core";
 import { IconCenter, IconMaximize } from "@/lib/icons";
 import {
   useQuestBeatAttachmentSummaries,
+  useQuestBeatLoot,
   useArchiveQuestBeat,
   useCreateQuestBeat,
   useCreateQuestBeatEdge,
@@ -103,6 +104,7 @@ import {
   useUpdateQuestBeat,
 } from "@/composables/useQuestFlow";
 import { deriveQuestBeatPresentations, visitedRouteEdgeIds } from "@/lib/quests/presentation";
+import { summarizeQuestBeatLoot } from "@/lib/quests/loot";
 import { readQuestViewport, writeQuestViewport } from "@/lib/quests/viewport";
 import { retainSelectedBeatId, type QuestGraphCommand } from "@/lib/quests/flow";
 import { createBeatWithRollback, isDuplicateQuestEdge } from "@/lib/quests/mutations";
@@ -126,6 +128,7 @@ const questId = computed(() => props.questId);
 const beatsQuery = useQuestBeats(questId);
 const edgesQuery = useQuestBeatEdges(questId);
 const attachmentsQuery = useQuestBeatAttachmentSummaries(questId);
+const lootQuery = useQuestBeatLoot(questId);
 const runtimeQuery = useQuestRuntimeState();
 const transitionsQuery = useQuestBeatTransitionsForQuest(questId);
 const updateBeat = useUpdateQuestBeat();
@@ -143,10 +146,11 @@ const beats = computed(() => beatsQuery.data.value ?? []);
 const edges = computed(() => edgesQuery.data.value ?? []);
 const attachments = computed(() => attachmentsQuery.data.value ?? []);
 const transitions = computed(() => transitionsQuery.data.value ?? []);
+const lootByBeat = computed(() => summarizeQuestBeatLoot(lootQuery.data.value ?? []));
 const currentBeatId = computed(() => runtimeQuery.data.value?.current_quest_id === props.questId ? runtimeQuery.data.value.current_beat_id : null);
-const presentations = computed(() => deriveQuestBeatPresentations({ beats: beats.value, edges: edges.value, attachments: attachments.value, runtime: runtimeQuery.data.value, transitions: transitions.value }));
+const presentations = computed(() => deriveQuestBeatPresentations({ beats: beats.value, edges: edges.value, attachments: attachments.value, runtime: runtimeQuery.data.value, transitions: transitions.value, lootByBeat: lootByBeat.value }));
 const visitedEdgeIds = computed(() => visitedRouteEdgeIds(edges.value, transitions.value));
-const isLoading = computed(() => beatsQuery.isLoading.value || edgesQuery.isLoading.value || attachmentsQuery.isLoading.value);
+const isLoading = computed(() => beatsQuery.isLoading.value || edgesQuery.isLoading.value || attachmentsQuery.isLoading.value || lootQuery.isLoading.value);
 const selectedEdge = computed(() => edges.value.find((edge) => edge.id === selectedEdgeId.value) ?? null);
 const edgeSource = ref("");
 const edgeTarget = ref("");

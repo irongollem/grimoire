@@ -2,6 +2,7 @@ import { computed, isRef, ref, type Ref } from "vue";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { summarizeQuestBeatAttachment } from "@/lib/quests/attachments";
+import { deriveQuestBoardSummaries, type QuestBoardSummary } from "@/lib/quests/board";
 import { useCampaignStore } from "@/stores/campaign";
 import type {
   PlayerQuestBeat,
@@ -14,6 +15,8 @@ import type {
   QuestBeatAttachment,
   QuestBeatAttachmentInsert,
   QuestBeatAttachmentSummary,
+  QuestBeatLoot,
+  QuestBeatLootInsert,
   QuestRuntimeState,
 } from "@/types/quest.types";
 
@@ -22,6 +25,7 @@ const EDGES_KEY = "quest_beat_edges";
 const RUNTIME_KEY = "quest_runtime_state";
 const TRANSITIONS_KEY = "quest_beat_transitions";
 const ATTACHMENTS_KEY = "quest_beat_attachments";
+const LOOT_KEY = "quest_beat_loot";
 
 function asRef(value: string | Ref<string>): Ref<string> {
   return isRef(value) ? value : ref(value);
@@ -131,6 +135,64 @@ export function useQuestBeatAttachments(questId: string | Ref<string>) {
   });
 }
 
+/** Quest-scoped and campaign-scoped callers share one aggregate RPC. That RPC
+ * joins dispatch messages once, so cards never fetch claim state one by one. */
+export function useQuestBeatLoot(questId?: string | Ref<string>) {
+  const campaign = useCampaignStore();
+  const id = questId === undefined ? ref("") : asRef(questId);
+  return useQuery({
+    queryKey: computed(() => [LOOT_KEY, campaign.activeCampaignId, id.value || "all"]),
+    queryFn: async (): Promise<QuestBeatLoot[]> => {
+      const { data, error } = await supabase.rpc("get_quest_beat_loot", {
+        p_campaign_id: campaign.activeCampaignId!,
+        p_quest_id: id.value || null,
+      });
+      if (error) throw error;
+      return (data ?? []) as QuestBeatLoot[];
+    },
+    enabled: () => !!campaign.activeCampaignId,
+  });
+}
+
+export function useCreateQuestBeatLoot() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (entry: QuestBeatLootInsert) => {
+      const { data, error } = await supabase.from("quest_beat_loot").insert(entry).select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_data, input) => queryClient.invalidateQueries({ queryKey: [LOOT_KEY, input.campaign_id] }),
+  });
+}
+
+export function useDeleteQuestBeatLoot() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; campaignId: string }) => {
+      const { data, error } = await supabase.from("quest_beat_loot").delete().eq("id", input.id).is("dispatched_at", null).select("id").maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error("Only held loot can be removed; dispatched chat keeps its provenance.");
+    },
+    onSuccess: (_data, input) => queryClient.invalidateQueries({ queryKey: [LOOT_KEY, input.campaignId] }),
+  });
+}
+
+export function useDispatchQuestBeatLoot() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { beatId: string; entryId?: string | null; campaignId: string }) => {
+      const { data, error } = await supabase.rpc("dispatch_quest_beat_loot", {
+        p_beat_id: input.beatId,
+        p_entry_id: input.entryId ?? null,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_data, input) => queryClient.invalidateQueries({ queryKey: [LOOT_KEY, input.campaignId] }),
+  });
+}
+
 /** Resolves every attachment in a bounded set of type-batched queries. Query
  * count grows with supported adapter types, never with beat/card count. */
 export function useQuestBeatAttachmentSummaries(questId: string | Ref<string>) {
@@ -146,6 +208,45 @@ export function useQuestBeatAttachmentSummaries(questId: string | Ref<string>) {
       ));
     },
     enabled: () => !!id.value,
+  });
+}
+
+/** Campaign-wide board data uses a fixed set of batched queries. Adding cards,
+ * beats, or loot entries never increases its query count. */
+export function useQuestBoardSummaries() {
+  const campaign = useCampaignStore();
+  return useQuery({
+    queryKey: computed(() => [BEATS_KEY, "board", campaign.activeCampaignId]),
+    queryFn: async (): Promise<Record<string, QuestBoardSummary>> => {
+      const campaignId = campaign.activeCampaignId!;
+      const [beatsResult, edgesResult, attachmentsResult, runtimeResult, transitionsResult, lootResult] = await Promise.all([
+        supabase.from("quest_beats").select("*").eq("campaign_id", campaignId).neq("kind", "archived").order("created_at"),
+        supabase.from("quest_beat_edges").select("*").eq("campaign_id", campaignId).order("created_at"),
+        supabase.from("quest_beat_attachments").select("*").eq("campaign_id", campaignId).order("sort_order").order("created_at"),
+        supabase.from("quest_runtime_state").select("*").eq("campaign_id", campaignId).maybeSingle(),
+        supabase.from("quest_beat_transitions").select("*").eq("campaign_id", campaignId).order("created_at"),
+        supabase.rpc("get_quest_beat_loot", { p_campaign_id: campaignId, p_quest_id: null }),
+      ]);
+      const error = [beatsResult, edgesResult, attachmentsResult, runtimeResult, transitionsResult, lootResult]
+        .find((result) => result.error)?.error;
+      if (error) throw error;
+
+      const attachmentRows = (attachmentsResult.data ?? []) as QuestBeatAttachment[];
+      const targets = await fetchAttachmentTargets(attachmentRows);
+      const attachments = attachmentRows.map((attachment) => summarizeQuestBeatAttachment(
+        attachment,
+        targets.get(`${attachment.attachment_type}:${attachment.ref_id}`) ?? null,
+      ));
+      return deriveQuestBoardSummaries({
+        beats: (beatsResult.data ?? []) as QuestBeat[],
+        edges: (edgesResult.data ?? []) as QuestBeatEdge[],
+        attachments,
+        runtime: runtimeResult.data as QuestRuntimeState | null,
+        transitions: (transitionsResult.data ?? []) as QuestBeatTransition[],
+        loot: (lootResult.data ?? []) as QuestBeatLoot[],
+      });
+    },
+    enabled: () => !!campaign.activeCampaignId,
   });
 }
 

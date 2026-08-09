@@ -26,6 +26,7 @@
       v-else-if="isKanban"
       :quests="filtered"
       :party="party ?? []"
+      :summaries="boardSummaries"
       @move="onMove"
     />
 
@@ -105,6 +106,7 @@ import {
   scheduleQuestTriggers,
 } from "@/composables/useQuests";
 import { useParty } from "@/composables/useParty";
+import { useQuestBoardSummaries } from "@/composables/useQuestFlow";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -127,6 +129,7 @@ const isKanban = computed(() => ui.questsIsKanban);
 const { data: allQuests, isLoading } = useAllQuests();
 const { data: party } = useParty(() => isKanban.value);
 const { data: campaignRefs } = useCampaignQuestRefs();
+const { data: boardSummaries } = useQuestBoardSummaries();
 const { mutateAsync: updateQuest } = useUpdateQuest();
 
 const filtered = computed(() => filterQuestBoard(
@@ -138,7 +141,7 @@ const filtered = computed(() => filterQuestBoard(
     prepGapsOnly: ui.questsPrepGapsFilter,
     pendingLootOnly: ui.questsLootFilter,
   },
-  { refs: campaignRefs.value ?? [] },
+  { refs: campaignRefs.value ?? [], summaries: boardSummaries.value },
 ));
 
 async function onMove({ id, status: targetStatus }: { id: string; status: QuestStatus }) {

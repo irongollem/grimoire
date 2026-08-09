@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { Quest, QuestRef } from "@/types/quest.types";
-import { filterQuestBoard, type QuestBoardFilters, type QuestBoardSummary } from "./board";
+import type { Quest, QuestBeat, QuestRef } from "@/types/quest.types";
+import { deriveQuestBoardSummaries, filterQuestBoard, type QuestBoardFilters, type QuestBoardSummary } from "./board";
 
 function quest(id: string, overrides: Partial<Quest> = {}): Quest {
   return {
@@ -121,5 +121,29 @@ describe("filterQuestBoard", () => {
       { ...emptyFilters, prepGapsOnly: true, pendingLootOnly: true },
       { refs: [], summaries },
     ).map((item) => item.id)).toEqual(["both"]);
+  });
+});
+
+describe("deriveQuestBoardSummaries", () => {
+  it("combines live, readiness, history, and loot without card-level fetching", () => {
+    const beats = [
+      { id: "beat-a", quest_id: "quest-a", title: "Arrival" },
+      { id: "beat-b", quest_id: "quest-a", title: "Vault" },
+    ] as QuestBeat[];
+    const summaries = deriveQuestBoardSummaries({
+      beats,
+      edges: [],
+      attachments: [{ beat_id: "beat-b", attachment_type: "handout", prep_gap: true }] as never[],
+      loot: [{ beat_id: "beat-b", quest_id: "quest-a", delivery_state: "held" }] as never[],
+      runtime: { current_quest_id: "quest-a", current_beat_id: "beat-a" } as never,
+      transitions: [{ to_beat_id: "beat-a" }] as never[],
+    });
+    expect(summaries["quest-a"]).toMatchObject({
+      isLive: true,
+      currentBeatTitle: "Arrival",
+      beatSegments: ["live", "gap"],
+      prepGapCount: 1,
+      undispatchedLootCount: 1,
+    });
   });
 });

@@ -51,7 +51,7 @@
       class="mt-2 flex items-start gap-1.5 text-caption text-muted-foreground"
     >
       <IconChevronRight class="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />
-      <span>Next: <strong class="font-fell text-sm font-semibold text-foreground">{{ summary.currentBeatTitle }}</strong></span>
+      <span>Current: <strong class="font-fell text-sm font-semibold text-foreground">{{ summary.currentBeatTitle }}</strong></span>
     </div>
 
     <div v-if="hasSummaryChips" class="mt-2 flex flex-wrap gap-1">

@@ -18,7 +18,8 @@
       <span v-if="presentation?.prepGapCount" class="is-gap">{{ presentation.prepGapCount }} prep gap{{ presentation.prepGapCount === 1 ? '' : 's' }}</span>
       <span v-else class="is-ready">Ready</span>
       <span v-if="presentation?.handoutCount">{{ presentation.handoutCount }} handout{{ presentation.handoutCount === 1 ? '' : 's' }}</span>
-      <span v-if="presentation?.loot.total">{{ presentation.loot.undispatched }} loot held</span>
+      <span v-if="presentation?.loot.undispatched">{{ presentation.loot.undispatched }} loot held</span>
+      <span v-if="presentation?.loot.unclaimed">{{ presentation.loot.unclaimed }} loot unclaimed</span>
       <span v-if="presentation?.isDisconnected">Staging</span>
       <span v-if="presentation?.isVisited">Visited</span>
     </div>
@@ -43,6 +44,8 @@ const accessibleLabel = computed(() => [
   props.presentation?.isVisited ? "visited" : "",
   props.presentation?.isDisconnected ? "disconnected staging beat" : "",
   props.presentation?.prepGapCount ? `${props.presentation.prepGapCount} prep gaps` : "ready",
+  props.presentation?.loot.undispatched ? `${props.presentation.loot.undispatched} loot held` : "",
+  props.presentation?.loot.unclaimed ? `${props.presentation.loot.unclaimed} loot unclaimed` : "",
 ].filter(Boolean).join(", "));
 </script>
 
