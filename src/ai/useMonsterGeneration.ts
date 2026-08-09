@@ -96,6 +96,23 @@ export function useMonsterGeneration() {
 
       // Honour explicit user overrides
       if (options?.challenge_rating) result.stat_block.challenge_rating = options.challenge_rating;
+
+      // The system prompt asks for challenge_rating as the first key of the
+      // stat block, and the model normally obliges — but "normally" is not
+      // "always", and one slip produced a row whose CR key was simply absent.
+      // The type says `string`, so nothing downstream expected that, and the
+      // bestiary list threw on every render once infinite scroll reached it,
+      // blanking the whole catalogue.
+      //
+      // Normalised to absent rather than invented: we genuinely do not know
+      // the rating, and a plausible number is the one answer a DM cannot spot
+      // as wrong. The display layer renders an absent rating as "CR ???" in a
+      // neutral swatch (lib/monsterDisplay), and generation lands the DM on
+      // the monster's own page, where the field is right there to fill in.
+      const generatedCr = result.stat_block.challenge_rating;
+      if (typeof generatedCr !== "string" || generatedCr.trim() === "") {
+        delete (result.stat_block as { challenge_rating?: string }).challenge_rating;
+      }
       if (options?.monster_type) result.monster_type = options.monster_type as MonsterAiResult["monster_type"];
       if (options?.size) result.size = options.size as MonsterAiResult["size"];
 

@@ -1,6 +1,6 @@
 <template>
   <div class="flex flex-col h-full">
-    <div class="h-1 w-full shrink-0" :style="{ backgroundColor: crColor(monster?.stat_block?.challenge_rating ?? '0') }" />
+    <div class="h-1 w-full shrink-0" :style="{ backgroundColor: crColor(monster?.stat_block?.challenge_rating) }" />
     <div class="flex flex-1">
       <div class="shrink-0 w-20 h-24 bg-muted overflow-hidden">
         <FocalImage
@@ -14,7 +14,7 @@
         <div
           v-else
           class="w-full h-full flex items-center justify-center text-title font-bold"
-          :style="{ color: crColor(monster?.stat_block?.challenge_rating ?? '0') }"
+          :style="{ color: crColor(monster?.stat_block?.challenge_rating) }"
         >{{ name?.charAt(0) }}</div>
       </div>
       <div class="flex flex-col justify-between min-w-0 p-3 flex-1">
@@ -30,7 +30,7 @@
           <span
             class="ml-auto px-1.5 py-0.5 rounded font-bold text-white text-2xs"
             :style="{ backgroundColor: crColor(monster.stat_block.challenge_rating) }"
-          >CR {{ monster.stat_block.challenge_rating }}</span>
+          >CR {{ crText(monster.stat_block.challenge_rating) }}</span>
         </div>
       </div>
     </div>
@@ -41,6 +41,7 @@
 import FocalImage from "@/components/common/FocalImage.vue";
 import type { Monster } from "@/types/monster.types";
 import { formatHitPoints } from "@/lib/utils";
+import { crColor, crText } from "@/lib/monsterDisplay";
 
 defineProps<{
   monster: Monster | null;
@@ -48,18 +49,4 @@ defineProps<{
   imageUrl: string | null;
   revealStats?: boolean;
 }>();
-
-function parseFraction(s: string) {
-  const [a, b] = s.split("/");
-  return parseFloat(a) / parseFloat(b);
-}
-
-function crColor(cr: string): string {
-  const n = cr === "0" ? 0 : cr.includes("/") ? parseFraction(cr) : parseFloat(cr);
-  if (n <= 0.5) return "#22c55e";
-  if (n <= 4)   return "#eab308";
-  if (n <= 9)   return "#f97316";
-  if (n <= 15)  return "#dc2626";
-  return "#7c3aed";
-}
 </script>
