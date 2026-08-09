@@ -1,12 +1,13 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(26);
+select plan(34);
 
 select has_table('public', 'quest_beats', 'authored beats have their own table');
 select has_table('public', 'quest_beat_edges', 'authored routes have their own table');
 select has_table('public', 'quest_runtime_state', 'live position has separate campaign state');
 select has_table('public', 'quest_beat_transitions', 'route history is append-only data');
+select has_table('public', 'quest_beat_attachments', 'beats place authoritative records without cloning them');
 select hasnt_column('public', 'quest_beats', 'is_current', 'current position is not authored beat state');
 select hasnt_column('public', 'quest_beats', 'is_ready', 'prep readiness is not a drifting beat flag');
 
@@ -102,6 +103,47 @@ select lives_ok($$
     'jump'
   )
 $$, 'runtime history can record a cross-quest jump within the campaign');
+
+insert into public.npcs (id, user_id, campaign_id, name) values
+  ('65800000-0000-4000-8000-000000000050', '65800000-0000-4000-8000-000000000001', '65800000-0000-4000-8000-000000000010', 'Shared guide'),
+  ('65800000-0000-4000-8000-000000000051', '65800000-0000-4000-8000-000000000001', '65800000-0000-4000-8000-000000000011', 'Wrong-campaign guide');
+insert into public.quest_objectives (id, quest_id, description) values
+  ('65800000-0000-4000-8000-000000000060', '65800000-0000-4000-8000-000000000030', 'Main objective'),
+  ('65800000-0000-4000-8000-000000000061', '65800000-0000-4000-8000-000000000031', 'Side objective');
+
+select lives_ok($$
+  insert into public.quest_beat_attachments (beat_id, quest_id, campaign_id, attachment_type, ref_id) values
+    ('65800000-0000-4000-8000-000000000040', '65800000-0000-4000-8000-000000000030', '65800000-0000-4000-8000-000000000010', 'npc', '65800000-0000-4000-8000-000000000050'),
+    ('65800000-0000-4000-8000-000000000041', '65800000-0000-4000-8000-000000000030', '65800000-0000-4000-8000-000000000010', 'npc', '65800000-0000-4000-8000-000000000050')
+$$, 'one authoritative entity can support multiple beats');
+select is(
+  (select count(*)::integer from public.quest_refs where quest_id = '65800000-0000-4000-8000-000000000030' and ref_type = 'npc' and ref_id = '65800000-0000-4000-8000-000000000050'),
+  1,
+  'beat placement keeps one authoritative quest-level reference for existing filters'
+);
+
+select throws_ok($$
+  insert into public.quest_beat_attachments (beat_id, quest_id, campaign_id, attachment_type, ref_id)
+  values ('65800000-0000-4000-8000-000000000040', '65800000-0000-4000-8000-000000000030', '65800000-0000-4000-8000-000000000010', 'objective', '65800000-0000-4000-8000-000000000061')
+$$, '23514', null, 'an objective attachment cannot cross quests');
+
+select throws_ok($$
+  insert into public.quest_beat_attachments (beat_id, quest_id, campaign_id, attachment_type, ref_id)
+  values ('65800000-0000-4000-8000-000000000040', '65800000-0000-4000-8000-000000000030', '65800000-0000-4000-8000-000000000010', 'npc', '65800000-0000-4000-8000-000000000051')
+$$, '23514', null, 'an entity attachment cannot cross campaigns');
+
+update public.quest_beats set kind = 'explore' where id = '65800000-0000-4000-8000-000000000040';
+select is((select count(*)::integer from public.quest_beat_attachments where beat_id = '65800000-0000-4000-8000-000000000040'), 1, 'changing beat kind preserves every attachment');
+
+delete from public.npcs where id = '65800000-0000-4000-8000-000000000050';
+select is((select count(*)::integer from public.quest_beat_attachments where ref_id = '65800000-0000-4000-8000-000000000050'), 2, 'deleted polymorphic targets remain visible as prep gaps');
+
+insert into public.factions (id, user_id, campaign_id, name)
+values ('65800000-0000-4000-8000-000000000070', '65800000-0000-4000-8000-000000000001', '65800000-0000-4000-8000-000000000010', 'The Lanterns');
+select lives_ok($$
+  insert into public.quest_refs (quest_id, ref_type, ref_id)
+  values ('65800000-0000-4000-8000-000000000030', 'faction', '65800000-0000-4000-8000-000000000070')
+$$, 'factions are now authoritative quest references and board facets');
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '65800000-0000-4000-8000-000000000001', true);

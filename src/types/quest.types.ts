@@ -157,6 +157,46 @@ export interface PlayerQuestBeat {
   updated_at: string;
 }
 
+export type QuestBeatAttachmentType =
+  | "encounter"
+  | "objective"
+  | "quest_ref"
+  | "location_set"
+  | "npc"
+  | "faction"
+  | "sound"
+  | "playlist"
+  | "note"
+  | "handout";
+
+export interface QuestBeatAttachment {
+  id: string;
+  beat_id: string;
+  quest_id: string;
+  campaign_id: string;
+  attachment_type: QuestBeatAttachmentType;
+  ref_id: string;
+  role: string;
+  is_required: boolean;
+  metadata: Record<string, unknown>;
+  sort_order: number;
+  created_by: string | null;
+  created_at: string;
+}
+
+export type QuestBeatAttachmentInsert = Omit<
+  QuestBeatAttachment,
+  "id" | "created_by" | "created_at" | "role" | "is_required" | "metadata" | "sort_order"
+> & Partial<Pick<QuestBeatAttachment, "role" | "is_required" | "metadata" | "sort_order">>;
+
+export interface QuestBeatAttachmentSummary extends QuestBeatAttachment {
+  label: string;
+  target_exists: boolean;
+  prep_gap: boolean;
+  compact_detail: string | null;
+  full_editor_to: string | null;
+}
+
 export interface RewardCurrencyPool {
   id: string;
   label: string;
@@ -167,13 +207,15 @@ export interface RewardCurrencyPool {
   cp: number;
 }
 
-export type QuestRefType = "npc" | "location" | "monster" | "encounter";
+export type QuestRefType = "npc" | "location" | "monster" | "item" | "encounter" | "faction";
 
 export const QUEST_REF_TYPE_LABELS: Record<QuestRefType, string> = {
   npc: "NPC",
   location: "Location",
   monster: "Monster",
+  item: "Item",
   encounter: "Encounter",
+  faction: "Faction",
 };
 
 export interface QuestRef {

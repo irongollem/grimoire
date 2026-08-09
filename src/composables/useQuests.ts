@@ -371,15 +371,18 @@ export function useQuestFilterEntities(enabled?: () => boolean) {
   return useQuery({
     queryKey: computed(() => [QUEST_FILTER_ENTITIES_KEY, campaignId.value]),
     queryFn: async (): Promise<QuestFilterEntityOption[]> => {
-      const [npcs, locations] = await Promise.all([
+      const [npcs, locations, factions] = await Promise.all([
         supabase.from("npcs").select("id, name").eq("campaign_id", campaignId.value!).order("name"),
         supabase.from("locations").select("id, name").eq("campaign_id", campaignId.value!).order("name"),
+        supabase.from("factions").select("id, name").eq("campaign_id", campaignId.value!).order("name"),
       ]);
       if (npcs.error) throw npcs.error;
       if (locations.error) throw locations.error;
+      if (factions.error) throw factions.error;
       return [
         ...(npcs.data ?? []).map((row) => ({ id: `npc:${row.id}`, name: `NPC · ${row.name}` })),
         ...(locations.data ?? []).map((row) => ({ id: `location:${row.id}`, name: `Location · ${row.name}` })),
+        ...(factions.data ?? []).map((row) => ({ id: `faction:${row.id}`, name: `Faction · ${row.name}` })),
       ];
     },
     enabled: () => !!campaignId.value && (enabled?.() ?? true),
