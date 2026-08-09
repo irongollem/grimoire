@@ -1,10 +1,11 @@
 <template>
   <div class="space-y-4">
-    <input
+    <AppInput
       v-model="userSearch"
       type="search"
+      size="body"
+      tone="muted"
       placeholder="Search by email or name…"
-      class="w-full bg-muted border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
     />
 
     <div v-if="usersQuery.isPending.value" class="text-muted-foreground text-body">
@@ -41,20 +42,18 @@
           </span>
           <span class="text-caption text-muted-foreground">{{ user.ai_credits }} cr</span>
           <div class="flex gap-1">
-            <button
+            <!-- The current plan is the `active` one; AppButton blocks the click
+                 while disabled, so the guard the raw handler carried is gone. -->
+            <AppButton
               v-for="pid in PLAN_IDS"
               :key="pid"
-              class="px-2 py-0.5 text-label font-semibold border rounded transition-colors"
-              :class="
-                user.plan_id === pid
-                  ? 'border-primary/40 text-primary bg-primary/10 cursor-default'
-                  : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
-              "
+              variant="subtle"
+              size="xs"
+              :active="user.plan_id === pid"
+              :label="pid"
               :disabled="user.plan_id === pid || usersQuery.setPlan.isPending.value"
-              @click="user.plan_id !== pid && usersQuery.setPlan.mutate({ userId: user.user_id, planId: pid })"
-            >
-              {{ pid }}
-            </button>
+              @click="usersQuery.setPlan.mutate({ userId: user.user_id, planId: pid })"
+            />
           </div>
 
           <!-- Soft freeze (paid actions) -->
@@ -104,6 +103,7 @@ import { useAdminUsers, type AdminUser } from "@/composables/useAdminUsers";
 import { accountDeletionErrorMessage } from "@/composables/useAccountDeletion";
 import { useConfirm } from "@/composables/useConfirm";
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import type { PlanId } from "@/types/subscription.types";
 
 const usersQuery = useAdminUsers();

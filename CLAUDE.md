@@ -175,6 +175,22 @@ Tests are colocated next to the module they cover — never a `__tests__/` direc
 
 Add a variant or size and you must add it to `BUTTON_VARIANTS` / `BUTTON_SIZES` in `appButtonVariants.ts` — a compile-time assertion there fails otherwise, so the catalogue cannot silently omit it. Check the page at a narrow width too: label collapse is invisible to lint, typecheck and unit tests, and has regressed twice.
 
+**CRITICAL — reach for the primitive, never hand-roll the control:**
+
+A new `<button class="px-2 py-0.5 border rounded …">` or `<input class="bg-muted border border-border rounded-md …">` is not a small local styling choice — it is a 263rd copy of a recipe that `AppButton` / `AppInput` / `AppSelect` already own, and it will drift. This keeps regressing because each site looks harmless on its own; #561 and #621 exist precisely because 410 buttons and ~34 fields had each made that call independently.
+
+| You are about to write                                | Use instead                                 |
+| ----------------------------------------------------- | ------------------------------------------- |
+| `<button>` with any padding/border/radius/hover class | `AppButton` — variant + size, never classes |
+| `<input>` with the field recipe                       | `AppInput` — tone + size                    |
+| `<select>` with chrome (small fixed option set)       | `AppSelect`; dynamic/searchable → `EntityCombobox` |
+| A coloured pill whose colour means something          | `AppButton variant="tinted"` + `tone` + `emphasis` |
+| A toggle/segmented picker                             | `AppButton :active` or `SegmentedControl`   |
+
+Every variant is rendered at `/dev/components` — open it rather than guessing which one matches. If none does, add a variant to `appButtonVariants.ts` / `fieldVariants.ts` (the compile-time assertion forces it into the catalogue); do **not** fall back to a class string. A raw `<button>`/`<input>` is fine only when it carries *no* chrome — a bare word of clickable text, or a checkbox/radio/file input.
+
+`cn()` registers the #552 typography roles in tailwind-merge's `font-size` group, so a call-site `class="text-caption"` genuinely overrides a variant's `text-label-lg`. Overriding one token on a primitive is expected; re-declaring the whole box is not.
+
 **CRITICAL — extract shared UI, never duplicate it:**
 
 If two pieces of UI share structure and differ only in a few values, the structure becomes a component and the diff becomes props. Identify this *before* writing a second copy, not after.

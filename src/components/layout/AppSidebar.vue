@@ -13,25 +13,39 @@
         <div class="flex items-center gap-1 shrink-0 pt-0.5">
           <DiceRoller />
           <!-- AI generation in-progress spinner -->
-          <button
+          <AppButton
             v-if="isAnyAiGenerating && activeGenerator"
-            class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/15 border border-primary/30 hover:bg-primary/25 transition-colors"
-            :title="currentLoadingQuote"
+            variant="tinted"
+            tone="primary"
+            emphasis="soft"
+            size="xs"
+            class="px-1.5"
+            aria-label="AI generation in progress"
+            :tooltip="currentLoadingQuote"
             @click="activeGenerator.openPanel()"
           >
-            <IconLoading class="h-3 w-3 text-primary animate-spin" />
-            <span class="text-label text-primary">AI</span>
-          </button>
+            <template #icon>
+              <IconLoading class="h-3 w-3 shrink-0 animate-spin" aria-hidden="true" />
+            </template>
+            AI
+          </AppButton>
           <!-- Live encounter indicator -->
-          <RouterLink
+          <AppButton
             v-if="anyRunning && firstRunning"
             :to="`/encounters/${firstRunning.encounter_id}/run`"
-            class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-green-500/15 border border-green-500/30 hover:bg-green-500/25 transition-colors"
-            title="Encounter in progress"
+            variant="tinted"
+            tone="success"
+            emphasis="soft"
+            size="xs"
+            class="px-1.5"
+            aria-label="Live"
+            tooltip="Encounter in progress"
           >
-            <span class="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
-            <span class="text-label text-green-400">Live</span>
-          </RouterLink>
+            <template #icon>
+              <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-current animate-pulse" />
+            </template>
+            Live
+          </AppButton>
         </div>
       </div>
 
@@ -91,81 +105,82 @@
         >
           <!-- Edit name -->
           <div v-if="editingName" class="flex items-center gap-1.5 px-3 py-2">
-            <input
+            <AppInput
               v-model="nameInput"
-              class="flex-1 min-w-0 bg-background border border-border rounded px-1.5 py-0.5 text-caption text-foreground focus:outline-none focus:ring-1 focus:ring-gold-500"
+              size="xs"
+              :block="false"
+              class="flex-1 min-w-0 text-caption"
               placeholder="Your name"
               @keydown.enter="saveName"
               @keydown.esc="editingName = false"
             />
-            <button class="hover:text-foreground transition-colors shrink-0 text-muted-foreground" :disabled="nameSaving" @click="saveName">
-              <IconCheck class="h-3.5 w-3.5" />
-            </button>
-            <button class="hover:text-foreground transition-colors shrink-0 text-muted-foreground" @click="editingName = false">
-              <IconClose class="h-3.5 w-3.5" />
-            </button>
+            <AppButton
+              variant="ghost"
+              size="inline"
+              class="shrink-0"
+              :icon="IconCheck"
+              aria-label="Save display name"
+              :disabled="nameSaving"
+              @click="saveName"
+            />
+            <AppButton
+              variant="ghost"
+              size="inline"
+              class="shrink-0"
+              :icon="IconClose"
+              aria-label="Cancel"
+              @click="editingName = false"
+            />
           </div>
-          <button
+          <AccountMenuItem
             v-else
-            class="w-full flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+            :icon="IconEdit"
+            label="Edit display name"
             @click="startEdit"
-          >
-            <IconEdit class="h-3.5 w-3.5 shrink-0" />
-            <span class="font-fell">Edit display name</span>
-          </button>
+          />
 
-          <!-- Account -->
-          <RouterLink
+          <AccountMenuItem
+            :icon="IconUserCircle"
+            label="Account"
             to="/account"
-            class="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
             @click="menuOpen = false"
-          >
-            <IconUserCircle class="h-3.5 w-3.5 shrink-0" />
-            <span class="font-fell">Account</span>
-          </RouterLink>
+          />
 
           <!-- Billing (DM only) -->
-          <RouterLink
+          <AccountMenuItem
             v-if="auth.isDM"
+            :icon="IconBilling"
+            label="Billing"
             to="/billing"
-            class="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
             @click="menuOpen = false"
           >
-            <IconBilling class="h-3.5 w-3.5 shrink-0" />
-            <span class="font-fell">Billing</span>
-            <span v-if="isPro" class="ml-auto text-eyebrow font-semibold text-amber-400">Pro</span>
-          </RouterLink>
+            <template #trailing>
+              <span v-if="isPro" class="ml-auto text-eyebrow font-semibold text-amber-400">Pro</span>
+            </template>
+          </AccountMenuItem>
 
           <div class="border-t border-border my-1" />
 
-          <!-- Install PWA -->
-          <button
+          <AccountMenuItem
             v-if="canInstall"
-            class="w-full flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
-            :title="hasNativePrompt ? 'Add to home screen' : 'Open your browser menu → Add to Home Screen'"
+            :icon="IconDownload"
+            label="Install app"
+            :tooltip="hasNativePrompt ? 'Add to home screen' : 'Open your browser menu → Add to Home Screen'"
             @click="hasNativePrompt ? (install(), menuOpen = false) : undefined"
-          >
-            <IconDownload class="h-3.5 w-3.5 shrink-0" />
-            <span class="font-fell">Install app</span>
-          </button>
+          />
 
-          <!-- Bug report -->
-          <button
-            class="w-full flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+          <AccountMenuItem
+            :icon="IconBug"
+            label="Report a bug"
             @click="bugReportOpen = true; menuOpen = false"
-          >
-            <IconBug class="h-3.5 w-3.5 shrink-0" />
-            <span class="font-fell">Report a bug</span>
-          </button>
+          />
 
-          <!-- Sign out -->
-          <button
-            class="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-400/80 hover:text-red-400 hover:bg-secondary/60 transition-colors"
+          <AccountMenuItem
+            :icon="IconLogOut"
+            label="Sign out"
+            danger
             @click="handleSignOut"
-          >
-            <IconLogOut class="h-3.5 w-3.5 shrink-0" />
-            <span class="font-fell">Sign out</span>
-          </button>
+          />
 
           <!-- Legal -->
           <div class="border-t border-border my-1" />
@@ -175,10 +190,15 @@
         </div>
       </Transition>
 
-      <!-- Trigger button -->
-      <button
-        class="w-full flex items-center gap-2 px-2 py-2 rounded-md hover:bg-secondary/60 transition-colors"
-        :class="menuOpen ? 'bg-secondary/60' : ''"
+      <!-- Trigger button. Not `active`: that variant paints the row gold, and this
+           only needs to look pressed while the popover is open. -->
+      <AppButton
+        variant="ghost"
+        size="inline"
+        block
+        :class="cn('justify-start gap-2 px-2 py-2 rounded-md hover:bg-secondary/60', menuOpen && 'bg-secondary/60')"
+        :aria-label="`Account menu for ${shownName}`"
+        :aria-expanded="menuOpen"
         @click="menuOpen = !menuOpen"
       >
         <div class="h-7 w-7 rounded-full bg-secondary flex items-center justify-center shrink-0">
@@ -186,7 +206,7 @@
         </div>
         <span class="flex-1 truncate text-caption text-muted-foreground text-left">{{ shownName }}</span>
         <IconSort class="h-3 w-3 text-muted-foreground/60 shrink-0" />
-      </button>
+      </AppButton>
 
       <BugReportModal v-if="bugReportMounted" v-model="bugReportOpen" />
     </div>
@@ -210,6 +230,10 @@ import { useRunningEncounters } from "@/composables/useEncounterLive";
 import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/useOptionalRules";
 import { useSubscription } from "@/composables/useSubscription";
 import { useSimulacrumConfig } from "@/composables/useSimulacrumConfig";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import { cn } from "@/lib/utils";
+import AccountMenuItem from "./AccountMenuItem.vue";
 import NavItem from "./NavItem.vue";
 import CampaignSwitcher from "./CampaignSwitcher.vue";
 import GlobalSearch from "./GlobalSearch.vue";

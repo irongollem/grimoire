@@ -1,18 +1,5 @@
 <template>
-  <SettingsSection title="Account">
-    <div class="space-y-3">
-      <div class="flex items-center gap-2">
-        <span class="text-caption text-muted-foreground w-16">Email</span>
-        <span class="text-body text-foreground">{{ auth.userEmail ?? '—' }}</span>
-      </div>
-      <RouterLink
-        to="/billing"
-        class="inline-block text-label font-semibold text-primary hover:opacity-80 transition-opacity"
-      >
-        Billing & Subscription →
-      </RouterLink>
-    </div>
-  </SettingsSection>
+  <AccountSummarySection link-to="/billing" link-label="Billing &amp; Subscription →" />
 
   <!-- Danger zone (#631) — same accent-recoloured section shell as PlayerSettingsInstall,
        since SettingsSection has no accent prop. -->
@@ -45,13 +32,11 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import SettingsSection from "@/components/common/SettingsSection.vue";
+import AccountSummarySection from "@/components/account/AccountSummarySection.vue";
 import ConfirmByNameInput from "@/components/common/ConfirmByNameInput.vue";
 import AppButton from "@/components/common/AppButton.vue";
-import { useAuthStore } from "@/stores/auth";
 import { useAccountDeletion } from "@/composables/useAccountDeletion";
 
-const auth = useAuthStore();
 const { deleting, error, deleteAccount } = useAccountDeletion();
 
 const deleteConfirmInput = ref("");
