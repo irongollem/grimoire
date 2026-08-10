@@ -38,7 +38,7 @@ different fates, and the distinction is deliberate:
 | --- | --- | --- |
 | Everything the user authored or owns — campaigns, characters, notes, art rows, memberships | **Deleted** by `on delete cascade` from `auth.users` | Personal data with no retention basis |
 | `ai_credit_ledger`, `purchase_consents` | **Retained, anonymized** — `user_id` → null, `anonymized_at` stamped | Art. 17(3)(b): retention required for a legal obligation. Dutch bookkeeping law (art. 52 AWR) requires 7 years, and these rows are the dispute evidence for real money |
-| `rate_limit_events`, `storage.objects.owner`/`owner_id` | **Deleted / nulled** explicitly by `prepare_user_erasure` | No FK to `auth.users`, so no cascade reaches them |
+| `rate_limit_events`, a matching `pro_waitlist` address, `storage.objects.owner`/`owner_id` | **Deleted / nulled** explicitly by `prepare_user_erasure` | No FK to `auth.users`, so no cascade reaches them |
 | Storage objects under `{userId}/` in every Supabase bucket and every R2 bucket | **Deleted** before anything else | See ordering below |
 
 **Anonymized ≠ deleted, and that is the point.** A retained ledger row keeps its
@@ -52,6 +52,13 @@ both evidence tables a purge at the close of the financial year plus seven, via
 the only sanctioned exception the append-only guards have ever been given. See
 `context/compliance/retention.md` §2 for why the boundary is the year end rather
 than the row's anniversary.
+
+The waitlist match is intentionally narrow: the definer function reads the
+target email from `auth.users` only after authorizing `service_role`, compares it
+case-insensitively, and never writes the address to the audit log. Neither a
+client nor the delete-account function supplies an email. A signup that never
+became the erased account therefore remains governed by its own consent and
+retention period.
 
 **What is deliberately not kept:** no email, no display name, no IP. The only
 identifier surviving erasure is the raw uuid on the `admin_audit_log` entry, kept
@@ -284,13 +291,6 @@ Invariants:
   *requests the operator received* — so a deletion is evidenced, but an access or
   portability request arriving by email leaves no trace of when the 30-day clock
   started. The two logs are not substitutes for each other.
-- **The waitlist is outside erasure's reach.** `pro_waitlist` holds a bare
-  address with no FK to `auth.users`, so someone who joined it, signed up, and
-  later erased their account keeps an address in that table. It is bounded (365
-  days, `retention.md`) and the privacy policy offers an email route, but it is
-  not the automatic path every other category gets. The fix means matching on an
-  identifier the erasure path deliberately does not otherwise touch, which is
-  why it is its own decision rather than a line in #639.
 - **Self-serve erasure is irreversible and immediate.** There is no grace period
   or soft-delete window. That is a deliberate reading of "without undue delay";
   revisit only with a decision recorded here, because a recovery window means

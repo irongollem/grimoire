@@ -34,7 +34,7 @@ decided answer, not that every number is small.
 | Rate-limit counters | `rate_limit_events` | **25 hours** | `purge-rate-limit-events` (`20260621000008`) |
 | Invite tokens | `app_invites`, `campaign_invites` | **90 days** after the token stops working | `private.purge_expired_retention()` |
 | Product signal | `feature_interest` | **365 days** | `private.purge_expired_retention()` |
-| Waitlist | `pro_waitlist` | Until the launch email is sent; **365-day** backstop | Operational + `private.purge_expired_retention()` |
+| Waitlist | `pro_waitlist` | Until the launch email is sent; **365-day** backstop | Matching account erasure + operational removal + `private.purge_expired_retention()` |
 | Derived vectors | the eight `*_embeddings` tables | Lifetime of the row they describe | FK cascade from the source row |
 | Shared library content | `library_*`, `sound_library`, `content_sources` | **Indefinite** | — not personal data |
 | Rules catalogue and operator config | `plans`, `provider_config`, `ai_model_pricing`, the `class_*` policy tables, and the rest | **Indefinite** | — not personal data |
@@ -113,14 +113,12 @@ a job/event/log table a period.
 
 ## 4. Known gaps
 
-- **`pro_waitlist` is outside erasure's reach.** It stores a bare address with no
-  FK to `auth.users`, so someone who joined the waitlist, signed up, and later
-  erased their account still has their address in this table. The privacy policy
-  offers an email route ("email us and we will remove your address"), and the
-  365-day backstop bounds it, but neither is the automatic path the other
-  categories get. Tracked as its own issue rather than folded in here, because
-  the fix is a matching rule across an identifier the erasure path deliberately
-  does not otherwise touch.
+`pro_waitlist` has no account FK, but it is no longer an erasure gap.
+`prepare_user_erasure` reads the target's email directly from `auth.users` and
+deletes a case-insensitive match. The address is never accepted from the caller
+or copied into the audit log. Unmatched pre-account signups remain consent-based
+waitlist data with the withdrawal route and 365-day backstop above.
+
 - **Storage objects have no period of their own.** Every retention rule above is
   a row rule. Files follow their owning row only where the row is what the app
   reads; a job row deleted at 90 days does not delete a file, which is safe today

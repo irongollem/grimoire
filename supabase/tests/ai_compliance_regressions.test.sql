@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(20);
+select plan(22);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 values
@@ -48,6 +48,10 @@ reset role;
 insert into public.ai_credit_ledger (id, user_id, delta, reason, pending)
 values ('68000000-0000-4000-8000-000000000030', '68000000-0000-4000-8000-000000000003', 10, 'test_grant', false);
 
+insert into public.pro_waitlist (id, email, source) values
+  ('68000000-0000-4000-8000-000000000032', 'AI-FIX-LEDGER@EXAMPLE.INVALID', 'erasure-test'),
+  ('68000000-0000-4000-8000-000000000033', 'unrelated-waitlist@example.invalid', 'erasure-test');
+
 select throws_ok($$
   delete from public.ai_credit_ledger
   where id = '68000000-0000-4000-8000-000000000030'
@@ -74,6 +78,18 @@ select lives_ok($$
     'admin'
   )
 $$, 'an admin may prepare another account for erasure');
+
+select is(
+  (select count(*)::integer from public.pro_waitlist where lower(email) = 'ai-fix-ledger@example.invalid'),
+  0,
+  'erasure removes the pre-account waitlist row using the authoritative auth email'
+);
+
+select is(
+  (select count(*)::integer from public.pro_waitlist where email = 'unrelated-waitlist@example.invalid'),
+  1,
+  'erasure does not touch unrelated waitlist consent'
+);
 
 select set_config('request.jwt.claims', '', true);
 
