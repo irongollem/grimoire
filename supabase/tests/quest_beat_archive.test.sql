@@ -3,10 +3,10 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(15);
 
-select has_function('public', 'archive_quest_beat', array['uuid'], 'beat archival has one transactional RPC');
-select ok(not (select prosecdef from pg_proc where oid = 'public.archive_quest_beat(uuid)'::regprocedure), 'archive runs with caller RLS');
-select ok(not has_function_privilege('anon', 'public.archive_quest_beat(uuid)', 'EXECUTE'), 'anonymous callers cannot archive beats');
-select ok(has_function_privilege('authenticated', 'public.archive_quest_beat(uuid)', 'EXECUTE'), 'authenticated DMs can call the archive RPC');
+select has_function('public', 'archive_quest_beat', array['uuid', 'bigint', 'uuid', 'boolean'], 'beat archival has one transactional RPC');
+select ok((select prosecdef from pg_proc where oid = 'public.archive_quest_beat(uuid,bigint,uuid,boolean)'::regprocedure), 'archive owns runtime writes behind an explicit DM guard');
+select ok(not has_function_privilege('anon', 'public.archive_quest_beat(uuid,bigint,uuid,boolean)', 'EXECUTE'), 'anonymous callers cannot archive beats');
+select ok(has_function_privilege('authenticated', 'public.archive_quest_beat(uuid,bigint,uuid,boolean)', 'EXECUTE'), 'authenticated DMs can call the archive RPC');
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 values

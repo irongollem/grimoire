@@ -489,19 +489,34 @@ export function useDeleteQuestBeat() {
 /** Soft deletion keeps transition FKs/history intact while removing the beat
  * from authored flow. Only beat-owned placements and routes are detached; their
  * authoritative encounters/entities remain untouched. */
-export async function archiveQuestBeat(id: string) {
-  const { error } = await supabase.rpc("archive_quest_beat", { p_beat_id: id });
+export interface ArchiveQuestBeatInput {
+  id: string;
+  expectedRuntimeVersion?: number;
+  replacementBeatId?: string;
+  endRuntime?: boolean;
+}
+
+export async function archiveQuestBeat(input: ArchiveQuestBeatInput) {
+  const { error } = await supabase.rpc("archive_quest_beat", {
+    p_beat_id: input.id,
+    p_expected_runtime_version: input.expectedRuntimeVersion ?? null,
+    p_replacement_beat_id: input.replacementBeatId ?? null,
+    p_end_runtime: input.endRuntime ?? false,
+  });
   if (error) throw error;
 }
 
 export function useArchiveQuestBeat() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: { id: string; questId: string }) => archiveQuestBeat(input.id),
+    mutationFn: (input: ArchiveQuestBeatInput & { questId: string }) => archiveQuestBeat(input),
     onSettled: (_data, _error, input) => {
       queryClient.invalidateQueries({ queryKey: [BEATS_KEY, input.questId] });
       queryClient.invalidateQueries({ queryKey: [EDGES_KEY, input.questId] });
       queryClient.invalidateQueries({ queryKey: [ATTACHMENTS_KEY, input.questId] });
+      queryClient.invalidateQueries({ queryKey: [RUNTIME_KEY] });
+      queryClient.invalidateQueries({ queryKey: [RUNTIME_CONTEXT_KEY] });
+      queryClient.invalidateQueries({ queryKey: [TRANSITIONS_KEY] });
     },
   });
 }
