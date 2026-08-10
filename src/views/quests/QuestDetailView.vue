@@ -9,6 +9,11 @@
 
     <!-- `?edit=true` flips into the form; new quests skip the sheet.
          Matches the NPC / Monster / Item / Spell / Location convention (#168). -->
+    <QuestRunCockpit
+      v-else-if="quest && isRunning"
+      :key="`run-${quest.id}`"
+      :anchor-quest-id="quest.id"
+    />
     <QuestGraphDesigner
       v-else-if="quest && isBuilding"
       :key="`build-${quest.id}`"
@@ -37,6 +42,7 @@ import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import QuestEditor from "@/components/quests/QuestEditor.vue";
 import QuestGraphDesigner from "@/components/quests/QuestGraphDesigner.vue";
+import QuestRunCockpit from "@/components/quests/QuestRunCockpit.vue";
 import QuestSheet from "@/components/quests/QuestSheet.vue";
 import { QUEST_STATUS_LABELS } from "@/types/quest.types";
 
@@ -44,6 +50,7 @@ const route     = useRoute();
 const isNew     = computed(() => route.name === "quest-new");
 const isEditing = computed(() => route.query.edit === "true");
 const isBuilding = computed(() => route.query.mode === "build");
+const isRunning = computed(() => route.query.mode === "run");
 const id        = computed(() => (isNew.value ? "" : (route.params.id as string)));
 const parentId  = computed(() => (route.query.parent as string | undefined));
 

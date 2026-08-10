@@ -460,6 +460,7 @@ export function useQuestRuntimeState() {
       return data as QuestRuntimeState | null;
     },
     enabled: () => !!campaignId.value,
+    refetchInterval: 5_000,
   });
 }
 
@@ -474,6 +475,7 @@ export function useQuestRuntimeContext() {
       return data as QuestRuntimeContext;
     },
     enabled: () => !!campaignId.value,
+    refetchInterval: 5_000,
   });
 }
 

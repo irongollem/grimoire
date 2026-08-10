@@ -14,6 +14,11 @@
         @click="router.push({ query: { mode: 'build' } })"
       />
       <AppButton
+        label="Run quest"
+        variant="primary"
+        @click="router.push({ query: { mode: 'run' } })"
+      />
+      <AppButton
         :icon="IconDelete"
         label="Delete"
         variant="destructive"
