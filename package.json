@@ -5,9 +5,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --mode localdb",
     "dev:local": "vite --mode localdb",
-    "dev:portless": "portless grimoire vite",
+    "dev:hosted": "vite --mode development",
+    "dev:portless": "portless grimoire vite --mode localdb",
     "build": "vue-tsc -b && vite build",
     "preview": "vite preview",
     "lint": "oxlint --config oxlint.json src/ scripts/ supabase/functions/ infra/",

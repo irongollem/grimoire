@@ -94,21 +94,25 @@ Full pricing at [dungeongrimoire.com/pricing](https://dungeongrimoire.com/pricin
 > ⚠️ **Self-hosting requires a license.** See [Licensing](#licensing) before proceeding.
 
 ```bash
-# Prerequisites: Node 24+, a Supabase project
-cp .env.example .env.local   # fill in your Supabase URL + anon key
+# Prerequisites: Node 24+, Docker, and the Supabase CLI
 
 npm install
-npm run dev         # dev server (against the remote in .env.local)
+npm run db:start    # boot local Postgres, Auth, Storage, and Studio
+npm run dev         # dev server against local Supabase
 npm run build       # production build (vue-tsc + vite-ssg)
 npm run lint        # oxlint
 npm test            # vitest
 ```
 
-Apply database migrations to the remote:
+Hosted development is deliberately explicit. Copy `.env.example` to
+`.env.local`, fill in the hosted project values, and run:
 
 ```bash
-supabase db push
+npm run dev:hosted
 ```
+
+Remote migrations are applied by CI after changes reach `main`; do not push the
+working tree's pending migrations manually.
 
 ### Local Development (against a local Supabase copy)
 
@@ -122,14 +126,18 @@ linked once (`supabase link --project-ref <ref>`).
 ```bash
 npm run db:start     # boot the local stack (Postgres, Auth, Storage, Studio…)
 npm run db:status    # print local URLs + keys (Studio at <http://127.0.0.1:54323>)
-npm run dev:local    # run the app against the local stack (vite --mode localdb)
+npm run dev          # run the app against the local stack (vite --mode localdb)
+npm run dev:local    # explicit alias for the same local mode
+npm run dev:hosted   # opt in to the hosted credentials from .env.local
 npm run db:reset     # wipe + replay all migrations (+ seed.sql if present)
 npm run db:stop      # tear the stack down
 ```
 
-`npm run dev:local` reads `.env.localdb` (committed; the CLI's universal local
-defaults — safe, not secrets). `npm run dev` stays pointed at your remote via
-the gitignored `.env.local`, so the two never collide.
+`npm run dev` and `npm run dev:local` use the isolated
+`config/env/localdb/.env` file (committed; the CLI's universal local defaults —
+safe, not secrets). The separate environment directory prevents Vite from also
+loading the gitignored hosted values in `.env.local`. Only
+`npm run dev:hosted` opts into the hosted project.
 
 **Seed it with a copy of the remote** (tester accounts + app data — no
 production customer data exists pre-launch):

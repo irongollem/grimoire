@@ -266,14 +266,11 @@ stripe listen --forward-to http://localhost:54321/functions/v1/stripe-webhook --
 
 Add the printed `whsec_…` to `.env.test` as `STRIPE_WEBHOOK_SECRET`, then restart `supabase functions serve`.
 
-### Step 4 — Point the frontend at local functions
+### Step 4 — Use the local frontend mode
 
-Add to `.env.local` temporarily (or create `.env.development.local`):
-
-```dotenv
-VITE_SUPABASE_URL=http://localhost:54321
-VITE_SUPABASE_ANON_KEY=<anon key from supabase start output>
-```
+The committed `config/env/localdb/.env` contains the Supabase CLI's universal
+local URL and anon key. The default `dev` script selects that isolated env
+directory, even when `.env.local` contains hosted credentials.
 
 > **Note:** This routes all Supabase calls (DB, auth, storage) through the local instance. You'll need to seed local data or re-authenticate against the local auth.
 

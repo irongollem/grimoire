@@ -61,3 +61,5 @@ src/views/play/TEMPSHIT.ts
 art-src/
 .vercel
 .env*
+# Vite's isolated localdb env contains only the Supabase CLI's public defaults.
+!config/env/localdb/.env

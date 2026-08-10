@@ -74,7 +74,11 @@ function swPlugin(): Plugin {
   };
 }
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
+  // Root .env.local intentionally contains hosted credentials and Vite loads
+  // it after .env.<mode>. Isolate localdb mode in its own env directory so
+  // hosted values cannot silently win on precedence.
+  envDir: mode === "localdb" ? path.resolve(__dirname, "config/env/localdb") : undefined,
   define: {
     /**
      * Dev-only routes (the Paged.js spike, sheet calibration, the component
@@ -177,4 +181,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));
