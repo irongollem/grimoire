@@ -241,6 +241,7 @@ export type QuestBeatAttachmentType =
   | "item"
   | "monster"
   | "sound"
+  | "audio_scene"
   | "playlist"
   | "note"
   | "handout";

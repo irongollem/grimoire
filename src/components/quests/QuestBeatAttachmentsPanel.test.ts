@@ -41,4 +41,15 @@ describe("QuestBeatAttachmentsPanel", () => {
     expect(form.classes()).toContain("grid-cols-[minmax(0,9rem)_minmax(0,1fr)]");
     expect(form.find("div.col-span-2").exists()).toBe(true);
   });
+
+  it("offers sounds, ambient scenes, and music playlists separately", () => {
+    const wrapper = shallowMount(QuestBeatAttachmentsPanel, {
+      props: { beat, attachments: [] },
+      global: { stubs: { AppSelect: { template: "<select><slot /></select>" } } },
+    });
+
+    expect(wrapper.get('option[value="sound"]').text()).toBe("Sound");
+    expect(wrapper.get('option[value="audio_scene"]').text()).toBe("Audio scene");
+    expect(wrapper.get('option[value="playlist"]').text()).toBe("Playlist");
+  });
 });

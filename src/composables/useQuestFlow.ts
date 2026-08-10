@@ -127,6 +127,7 @@ async function fetchAttachmentTargets(
     ["item", "items", "id, name", "name"],
     ["monster", "monsters", "id, name", "name"],
     ["sound", "sounds", "id, name", "name"],
+    ["audio_scene", "soundboard_playlists", "id, name", "name"],
     ["playlist", "soundboard_playlists", "id, name", "name"],
     ["note", "notes", "id, title", "title"],
     ["handout", "scriptorium_documents", "id, title", "title"],

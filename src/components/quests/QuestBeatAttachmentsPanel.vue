@@ -77,7 +77,7 @@ import AppSelect from "@/components/common/AppSelect.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 
 const props = defineProps<{ beat: QuestBeat; attachments: QuestBeatAttachmentSummary[] }>();
-const supportedTypes: QuestBeatAttachmentType[] = ["encounter", "objective", "location_set", "npc", "faction", "item", "monster", "sound", "playlist", "note", "handout"];
+const supportedTypes: QuestBeatAttachmentType[] = ["encounter", "objective", "location_set", "npc", "faction", "item", "monster", "sound", "audio_scene", "playlist", "note", "handout"];
 const attachmentType = ref<QuestBeatAttachmentType>("encounter");
 const refId = ref("");
 const adding = ref(false);
@@ -112,7 +112,8 @@ const options = computed<Array<{ id: string; name: string }>>(() => ({
   item: (items.value ?? []).filter((row) => !!row.user_id).map((row) => ({ id: row.id, name: row.name })),
   monster: (monsters.value ?? []).map((row) => ({ id: row.id, name: row.name })),
   sound: (sounds.value ?? []).map((row) => ({ id: row.id, name: row.name })),
-  playlist: (playlists.value ?? []).map((row) => ({ id: row.id, name: row.name })),
+  audio_scene: (playlists.value ?? []).filter((row) => row.playlist_type === "ambient").map((row) => ({ id: row.id, name: row.name })),
+  playlist: (playlists.value ?? []).filter((row) => row.playlist_type === "music").map((row) => ({ id: row.id, name: row.name })),
   note: (notes.value ?? []).map((row) => ({ id: row.id, name: row.title })),
   handout: (documents.value ?? []).map((row) => ({ id: row.id, name: row.title })),
   quest_ref: [],
@@ -143,6 +144,7 @@ const createUrl = computed(() => withQuestReturnTo(({
   item: "/vault/new",
   monster: "/monsters/new",
   sound: "/soundboard",
+  audio_scene: "/soundboard",
   playlist: "/soundboard",
   note: "/notes/new",
   handout: "/scriptorium/new",

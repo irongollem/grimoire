@@ -9,8 +9,8 @@ const mocks = vi.hoisted(() => ({
     { id: "room-1", name: "Crypt", location_type: "room", description: "room-body", notes: null, parent_id: "root" },
   ] },
   sounds: { value: [{ id: "sound-1", name: "Thunder", category: "effects", source_type: "url", file_url: "thunder.mp3", storage_path: null }] },
-  playlists: { value: [] },
-  tracks: { value: [] },
+  playlists: { value: [] as Array<{ id: string; name: string; playlist_type: "ambient" | "music" }> },
+  tracks: { value: [] as Array<Record<string, unknown>> },
   npc: { value: null as Record<string, unknown> | null },
   faction: { value: null as Record<string, unknown> | null },
   monster: { value: undefined as { monster: Record<string, unknown>; isShared: boolean } | undefined },
@@ -89,6 +89,10 @@ describe("QuestRunContainedTool", () => {
     mocks.npc.value = null;
     mocks.note.value = undefined;
     mocks.handout.value = undefined;
+    mocks.playlists.value = [];
+    mocks.tracks.value = [];
+    mocks.playPlaylist.mockReset();
+    mocks.stopPlaylist.mockReset();
   });
 
   const global = { stubs: { Teleport: true, EntityLightbox: { template: "<div><slot /></div>" } } };
@@ -136,6 +140,22 @@ describe("QuestRunContainedTool", () => {
     });
     await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Play cue")!.trigger("click");
     expect(mocks.trigger).toHaveBeenCalledWith(expect.objectContaining({ id: "sound-1" }));
+  });
+
+  it.each([
+    ["audio_scene", "ambient", "Ambient scene · 1 track", "Play scene"],
+    ["playlist", "music", "Music playlist · 1 track", "Play playlist"],
+  ] as const)("plays an attached %s through the shared playlist engine", async (type, playlistType, copy, action) => {
+    mocks.playlists.value = [{ id: `${type}-1`, name: "Prepared audio", playlist_type: playlistType }];
+    mocks.tracks.value = [{ id: "track-1" }];
+    const wrapper = shallowMount(QuestRunContainedTool, {
+      props: { attachment: attachment(type, { ref_id: `${type}-1` }), returnTo: "/quests/q1?mode=run&beat=b1" },
+      global,
+    });
+
+    expect(wrapper.text()).toContain(copy);
+    await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === action)!.trigger("click");
+    expect(mocks.playPlaylist).toHaveBeenCalledWith(expect.objectContaining({ playlist_type: playlistType }), mocks.tracks.value);
   });
 
   it("shows an entity quick view and closes back to the beat", async () => {

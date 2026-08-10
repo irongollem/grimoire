@@ -45,8 +45,8 @@
             <AppButton v-if="sound" :label="audioAction(sound)" class="mt-2" variant="primary" :disabled="!!blockedReason(sound)" @click="triggerSound(sound)" />
             <p v-if="sound && blockedReason(sound)" class="mt-1 text-caption text-destructive">{{ blockedReason(sound) }}</p>
             <template v-else-if="playlist">
-              <p class="text-body text-foreground">{{ playlist.playlist_type }} scene · {{ playlistTracks.length }} track{{ playlistTracks.length === 1 ? '' : 's' }}</p>
-              <AppButton :label="playlistActive ? 'Stop scene' : 'Play scene'" class="mt-2" variant="primary" :disabled="!playlistTracks.length" @click="togglePlaylist" />
+              <p class="text-body text-foreground">{{ attachment.attachment_type === 'audio_scene' ? 'Ambient scene' : 'Music playlist' }} · {{ playlistTracks.length }} track{{ playlistTracks.length === 1 ? '' : 's' }}</p>
+              <AppButton :label="playlistActionLabel" class="mt-2" variant="primary" :disabled="!playlistTracks.length" @click="togglePlaylist" />
             </template>
             <p v-else class="text-body text-foreground">Audio cue is unavailable.</p>
           </div>
@@ -167,14 +167,19 @@ const { data: items } = useItems(() => ({ enabled: props.attachment.attachment_t
 const item = computed(() => props.attachment.attachment_type === "item" ? items.value?.find((row) => row.id === props.attachment.ref_id) ?? null : null);
 const portraitSrc = computed(() => npcRecord.value?.portrait_url ?? factionRecord.value?.emblem_url ?? item.value?.image_url ?? monster.value?.image_url ?? null);
 const { data: sounds } = useSounds(() => props.attachment.attachment_type === "sound");
-const { data: playlists } = usePlaylists(() => props.attachment.attachment_type === "playlist");
-const playlistId = computed(() => props.attachment.attachment_type === "playlist" ? props.attachment.ref_id : null);
+const isPlaylistAttachment = computed(() => props.attachment.attachment_type === "audio_scene" || props.attachment.attachment_type === "playlist");
+const { data: playlists } = usePlaylists(() => isPlaylistAttachment.value);
+const playlistId = computed(() => isPlaylistAttachment.value ? props.attachment.ref_id : null);
 const { data: playlistTracksData } = usePlaylistTracks(playlistId);
 const soundboard = useSoundboardStore();
 const sound = computed(() => props.attachment.attachment_type === "sound" ? sounds.value?.find((row) => row.id === props.attachment.ref_id) ?? null : null);
-const playlist = computed(() => props.attachment.attachment_type === "playlist" ? playlists.value?.find((row) => row.id === props.attachment.ref_id) ?? null : null);
+const playlist = computed(() => isPlaylistAttachment.value ? playlists.value?.find((row) => row.id === props.attachment.ref_id) ?? null : null);
 const playlistTracks = computed(() => playlistTracksData.value ?? []);
 const playlistActive = computed(() => playlist.value ? soundboard.isPlaylistActive(playlist.value.id) : false);
+const playlistActionLabel = computed(() => {
+  const noun = props.attachment.attachment_type === "audio_scene" ? "scene" : "playlist";
+  return `${playlistActive.value ? "Stop" : "Play"} ${noun}`;
+});
 const triggerSound = useSoundTrigger();
 const actionFor = useActionCheck();
 const blockedReason = useBlockedCheck();

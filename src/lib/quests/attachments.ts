@@ -28,7 +28,8 @@ export const QUEST_BEAT_ATTACHMENT_ADAPTERS: Record<QuestBeatAttachmentType, Que
   item: { type: "item", label: "Item", runAction: "view", containedSurface: "entity", summary, fullEditorTo: (id) => `/vault/${id}` },
   monster: { type: "monster", label: "Monster", runAction: "view", containedSurface: "entity", summary, fullEditorTo: (id) => `/monsters/${id}` },
   sound: { type: "sound", label: "Sound", runAction: "play", containedSurface: "audio", summary, fullEditorTo: () => "/soundboard" },
-  playlist: { type: "playlist", label: "Audio scene", runAction: "play", containedSurface: "audio", summary, fullEditorTo: () => "/soundboard" },
+  audio_scene: { type: "audio_scene", label: "Audio scene", runAction: "play", containedSurface: "audio", summary, fullEditorTo: () => "/soundboard" },
+  playlist: { type: "playlist", label: "Playlist", runAction: "play", containedSurface: "audio", summary, fullEditorTo: () => "/soundboard" },
   note: { type: "note", label: "Note", runAction: "view", containedSurface: "document", summary, fullEditorTo: (id) => `/notes/${id}` },
   handout: { type: "handout", label: "Handout", runAction: "view", containedSurface: "document", summary, fullEditorTo: (id) => `/scriptorium/${id}` },
 };
