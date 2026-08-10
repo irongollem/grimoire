@@ -3,7 +3,13 @@
     <div class="grid gap-3" :class="compact ? '' : 'md:grid-cols-2'">
       <label class="space-y-1 text-caption font-semibold text-foreground">
         Title
-        <AppInput v-model="draft.title" placeholder="What happens in this beat?" />
+        <AppInput
+          v-model="draft.title"
+          placeholder="What happens in this beat?"
+          :aria-invalid="!!titleError"
+          :aria-describedby="titleError ? 'quest-beat-title-error' : undefined"
+        />
+        <span v-if="titleError" id="quest-beat-title-error" role="alert" class="block text-caption font-normal text-destructive">{{ titleError }}</span>
       </label>
       <label class="space-y-1 text-caption font-semibold text-foreground">
         Kind
@@ -68,7 +74,8 @@
     </div>
 
     <div class="flex min-h-6 items-center gap-2 text-caption" aria-live="polite">
-      <span v-if="saveError" role="alert" class="text-destructive">{{ saveError }}</span>
+      <span v-if="titleError" class="text-muted-foreground">Autosave paused until the beat has a title</span>
+      <span v-else-if="saveError" role="alert" class="text-destructive">{{ saveError }}</span>
       <span v-else-if="saving" class="text-muted-foreground">Saving…</span>
       <span v-else-if="dirty" class="text-muted-foreground">Unsaved changes</span>
       <span v-else class="text-tone-success">Saved</span>
@@ -78,7 +85,7 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, reactive, ref, watch } from "vue";
+import { computed, onBeforeUnmount, reactive, ref, watch } from "vue";
 import { useDebounceFn } from "@vueuse/core";
 import { useUpdateQuestBeat } from "@/composables/useQuestFlow";
 import { questBeatDraftsEqual, questBeatDraftToUpdate, questBeatToDraft } from "@/lib/quests/beatDraft";
@@ -102,6 +109,7 @@ const version = ref(props.beat.updated_at);
 const dirty = ref(false);
 const saving = ref(false);
 const saveError = ref("");
+const titleError = computed(() => dirty.value && !draft.title.trim() ? "Give this beat a title before it is saved." : "");
 let hydrating = false;
 
 watch(() => props.beat, (beat) => {
@@ -123,6 +131,7 @@ watch(draft, () => {
 
 async function saveNow() {
   if (saving.value || !dirty.value) return;
+  if (titleError.value) return;
   saving.value = true;
   saveError.value = "";
   const snapshot = { ...draft };
