@@ -22,12 +22,27 @@
         Session paused. Prep remains available; resume when the table is ready.
       </div>
       <div class="grid items-start gap-3 xl:grid-cols-[minmax(0,1fr)_20rem]">
-        <QuestRunBeatCard :anchor-quest-id="anchorQuestId" :beat="context.current" :attachments="currentAttachments" :loot="currentLoot" @dirty="containedDirty = $event" />
+        <QuestRunBeatCard
+          :anchor-quest-id="anchorQuestId"
+          :beat="context.current"
+          :attachments="currentAttachments"
+          :loot="currentLoot"
+          @dirty="containedDirty = $event"
+          @open-attachment="selectedAttachment = $event"
+          @edit-beat="beatEditorOpen = true"
+        />
         <QuestRunPath :path="context.path_so_far" />
       </div>
 
       <QuestRunJumpPanel v-if="jumpOpen" v-model="jumpSearch" :targets="rankedJumpTargets" @close="jumpOpen = false" @jump="jump" />
       <QuestRunImprovPanel v-if="improvOpen" @close="improvOpen = false" @submit="improvise" />
+      <QuestRunContainedTool
+        v-if="selectedAttachment"
+        :attachment="selectedAttachment"
+        :return-to="runReturn"
+        @close="selectedAttachment = null"
+      />
+      <QuestRunBeatEditor v-if="beatEditorOpen" :beat="context.current" @close="beatEditorOpen = false" />
       <QuestRunControls
         :status="context.state.status"
         :has-previous="!!context.previous"
@@ -61,7 +76,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, defineAsyncComponent, ref, watch } from "vue";
 import { refDebounced } from "@vueuse/core";
 import { useRoute, useRouter } from "vue-router";
 import { useConfirm } from "@/composables/useConfirm";
@@ -78,7 +93,7 @@ import {
 } from "@/composables/useQuestFlow";
 import { useQuests } from "@/composables/useQuests";
 import { rankQuestJumpTargets, type RankedQuestJumpTarget } from "@/lib/quests/run";
-import type { QuestRuntimeCommand } from "@/types/quest.types";
+import type { QuestBeatAttachmentSummary, QuestRuntimeCommand } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -87,6 +102,14 @@ import QuestRunControls from "./QuestRunControls.vue";
 import QuestRunJumpPanel from "./QuestRunJumpPanel.vue";
 import QuestRunImprovPanel from "./QuestRunImprovPanel.vue";
 import QuestRunPath from "./QuestRunPath.vue";
+import QuestRunToolLoadError from "./QuestRunToolLoadError.vue";
+
+const QuestRunContainedTool = defineAsyncComponent({
+  loader: () => import("./QuestRunContainedTool.vue"),
+  errorComponent: QuestRunToolLoadError,
+  onError: (_error, retry, fail, attempts) => attempts < 2 ? retry() : fail(),
+});
+const QuestRunBeatEditor = defineAsyncComponent(() => import("./QuestRunBeatEditor.vue"));
 
 const props = defineProps<{ anchorQuestId: string }>();
 const route = useRoute();
@@ -109,10 +132,13 @@ const startBeatId = ref("");
 const transitioning = ref(false);
 const error = ref("");
 const containedDirty = ref(false);
+const selectedAttachment = ref<QuestBeatAttachmentSummary | null>(null);
+const beatEditorOpen = ref(false);
 const updateBeat = useUpdateQuestBeat();
 const improviseRuntime = useQuestRuntimeImprovise();
 
 const context = computed(() => contextQuery.data.value ?? null);
+const runReturn = computed(() => `/quests/${props.anchorQuestId}?mode=run&beat=${context.value?.current?.id ?? ""}`);
 const startOptions = computed(() => (beatsQuery.data.value ?? []).map((beat) => ({ id: beat.id, name: beat.title || "Untitled beat" })));
 const currentAttachments = computed(() => (attachmentsQuery.data.value ?? []).filter((row) => row.beat_id === context.value?.current?.id));
 const currentLoot = computed(() => (lootQuery.data.value ?? []).filter((row) => row.beat_id === context.value?.current?.id));
@@ -141,6 +167,8 @@ const rankedJumpTargets = computed(() => rankQuestJumpTargets(
 
 watch(() => context.value?.current?.id, (beatId) => {
   containedDirty.value = false;
+  selectedAttachment.value = null;
+  beatEditorOpen.value = false;
   if (!beatId || route.query.mode !== "run" || route.query.beat === beatId) return;
   void router.replace({ query: { ...route.query, mode: "run", beat: beatId } });
 }, { immediate: true });
@@ -226,5 +254,5 @@ useHotkeys(computed(() => [
     if (edge) void command("advance", { edgeId: edge.edge_id });
   } },
   { combo: "j", description: "Jump to another quest beat", handler: () => { jumpOpen.value = true; } },
-]), { layer: "page", enabled: computed(() => context.value?.state?.status === "running" && !transitioning.value && !jumpOpen.value && !improvOpen.value) });
+]), { layer: "page", enabled: computed(() => context.value?.state?.status === "running" && !transitioning.value && !jumpOpen.value && !improvOpen.value && !selectedAttachment.value && !beatEditorOpen.value) });
 </script>

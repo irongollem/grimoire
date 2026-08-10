@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { summarizeQuestBeatAttachment } from "./attachments";
+import { QUEST_BEAT_ATTACHMENT_ADAPTERS, summarizeQuestBeatAttachment } from "./attachments";
 import type { QuestBeatAttachment } from "@/types/quest.types";
 
 const attachment = (overrides: Partial<QuestBeatAttachment> = {}): QuestBeatAttachment => ({
@@ -19,6 +19,15 @@ const attachment = (overrides: Partial<QuestBeatAttachment> = {}): QuestBeatAtta
 });
 
 describe("quest beat attachment adapters", () => {
+  it("declares a Run action, contained surface, and specialist escape hatch for every type", () => {
+    for (const adapter of Object.values(QUEST_BEAT_ATTACHMENT_ADAPTERS)) {
+      expect(adapter.runAction).toMatch(/^(run|view|play|manage)$/);
+      expect(adapter.containedSurface).toMatch(/^(encounter|atlas|entity|audio|document|objective)$/);
+      expect(adapter.summary(attachment({ attachment_type: adapter.type }), { label: "Ready" }).label).toBe("Ready");
+      expect(adapter.fullEditorTo("target", "quest")).toEqual(expect.any(String));
+    }
+  });
+
   it("provides compact content and a full-editor escape hatch", () => {
     const summary = summarizeQuestBeatAttachment(attachment(), { label: "Goblin ambush", detail: "Ready" });
     expect(summary.label).toBe("Goblin ambush");

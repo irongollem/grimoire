@@ -209,6 +209,8 @@ export type QuestBeatAttachmentType =
   | "location_set"
   | "npc"
   | "faction"
+  | "item"
+  | "monster"
   | "sound"
   | "playlist"
   | "note"

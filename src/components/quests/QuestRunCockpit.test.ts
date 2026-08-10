@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import QuestRunCockpit from "./QuestRunCockpit.vue";
 import QuestRunControls from "./QuestRunControls.vue";
 import QuestRunJumpPanel from "./QuestRunJumpPanel.vue";
+import QuestRunBeatCard from "./QuestRunBeatCard.vue";
 
 const mocks = vi.hoisted(() => ({
   context: { value: null as Record<string, unknown> | null },
@@ -96,5 +97,18 @@ describe("QuestRunCockpit", () => {
     mocks.route.query = { mode: "run", beat: "stale-beat", panel: "notes" };
     shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
     expect(mocks.replace).toHaveBeenCalledWith({ query: { mode: "run", beat: "b1", panel: "notes" } });
+  });
+
+  it("opens a beat attachment in the lazy contained surface", async () => {
+    mocks.context.value = runningContext();
+    const wrapper = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
+    wrapper.findComponent(QuestRunBeatCard).vm.$emit("open-attachment", {
+      id: "a1", beat_id: "b1", quest_id: "q1", campaign_id: "c1",
+      attachment_type: "encounter", ref_id: "e1", label: "Ambush",
+      target_exists: true, prep_gap: false, compact_detail: null, full_editor_to: "/encounters/e1",
+      role: "", is_required: true, metadata: {}, sort_order: 0, created_by: "dm", created_at: "now",
+    });
+    await wrapper.vm.$nextTick();
+    expect((wrapper.vm as unknown as { selectedAttachment: { id: string } | null }).selectedAttachment?.id).toBe("a1");
   });
 });

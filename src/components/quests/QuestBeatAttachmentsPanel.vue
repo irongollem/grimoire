@@ -49,6 +49,8 @@ import { useAllFactions } from "@/composables/useFactions";
 import { useAllLocations } from "@/composables/useLocations";
 import { useNotes } from "@/composables/useNotes";
 import { useNpcs } from "@/composables/useNpcs";
+import { useItems } from "@/composables/useItems";
+import { useMonsters } from "@/composables/useMonsters";
 import { useQuestObjectives } from "@/composables/useQuests";
 import { useScriptoriumDocuments } from "@/composables/useScriptorium";
 import { usePlaylists } from "@/composables/useSoundboardPlaylists";
@@ -63,7 +65,7 @@ import AppSelect from "@/components/common/AppSelect.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 
 const props = defineProps<{ beat: QuestBeat; attachments: QuestBeatAttachmentSummary[] }>();
-const supportedTypes: QuestBeatAttachmentType[] = ["encounter", "objective", "location_set", "npc", "faction", "sound", "playlist", "note", "handout"];
+const supportedTypes: QuestBeatAttachmentType[] = ["encounter", "objective", "location_set", "npc", "faction", "item", "monster", "sound", "playlist", "note", "handout"];
 const attachmentType = ref<QuestBeatAttachmentType>("encounter");
 const refId = ref("");
 const adding = ref(false);
@@ -80,6 +82,8 @@ const { data: objectives } = useQuestObjectives(computed(() => props.beat.quest_
 const { data: locations } = useAllLocations();
 const { data: npcs } = useNpcs();
 const { data: factions } = useAllFactions();
+const { data: items } = useItems();
+const { data: monsters } = useMonsters();
 const { data: sounds } = useSounds();
 const { data: playlists } = usePlaylists();
 const { data: notes } = useNotes();
@@ -91,6 +95,8 @@ const options = computed<Array<{ id: string; name: string }>>(() => ({
   location_set: (locations.value ?? []).map((row) => ({ id: row.id, name: row.name })),
   npc: (npcs.value ?? []).map((row) => ({ id: row.id, name: row.name })),
   faction: (factions.value ?? []).map((row) => ({ id: row.id, name: row.name })),
+  item: (items.value ?? []).filter((row) => !!row.user_id).map((row) => ({ id: row.id, name: row.name })),
+  monster: (monsters.value ?? []).map((row) => ({ id: row.id, name: row.name })),
   sound: (sounds.value ?? []).map((row) => ({ id: row.id, name: row.name })),
   playlist: (playlists.value ?? []).map((row) => ({ id: row.id, name: row.name })),
   note: (notes.value ?? []).map((row) => ({ id: row.id, name: row.title })),
@@ -120,6 +126,8 @@ const createUrl = computed(() => withQuestReturnTo(({
   location_set: "/locations/new",
   npc: "/npcs/new",
   faction: "/factions/new",
+  item: "/vault/new",
+  monster: "/monsters/new",
   sound: "/soundboard",
   playlist: "/soundboard",
   note: "/notes/new",

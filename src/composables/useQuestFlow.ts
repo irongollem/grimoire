@@ -122,6 +122,8 @@ async function fetchAttachmentTargets(
     ["location_set", "locations", "id, name", "name"],
     ["npc", "npcs", "id, name", "name"],
     ["faction", "factions", "id, name", "name"],
+    ["item", "items", "id, name", "name"],
+    ["monster", "monsters", "id, name", "name"],
     ["sound", "sounds", "id, name", "name"],
     ["playlist", "soundboard_playlists", "id, name", "name"],
     ["note", "notes", "id, title", "title"],

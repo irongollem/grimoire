@@ -5,7 +5,10 @@
         <p class="text-label font-bold uppercase tracking-wider text-primary">Current beat · {{ beat.kind }}</p>
         <h2 class="font-cinzel text-xl font-bold text-foreground">{{ beat.title || "Untitled beat" }}</h2>
       </div>
-      <AppButton :to="editUrl" label="Prep this beat" size="sm" variant="subtle" />
+      <div class="flex gap-2">
+        <AppButton label="Notes & outcomes" size="sm" variant="subtle" @click="emit('edit-beat')" />
+        <AppButton :to="editUrl" label="Full prep" size="sm" variant="subtle" />
+      </div>
     </header>
 
     <div v-if="beat.is_improvised && !beat.improv_reviewed_at" class="rounded-lg border border-tone-caution/50 bg-tone-caution/5 p-3 text-caption text-tone-caution">
@@ -39,7 +42,7 @@
         <div v-for="attachment in attachments" :key="attachment.id" class="flex items-center gap-2 rounded-lg border border-border bg-card p-2">
           <span class="rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">{{ attachment.attachment_type.replace('_', ' ') }}</span>
           <span class="min-w-0 flex-1 truncate text-caption" :class="attachment.prep_gap ? 'text-tone-caution' : 'text-foreground'">{{ attachment.label }}</span>
-          <AppButton v-if="attachment.full_editor_to" :to="specialistUrl(attachment.full_editor_to)" label="Open" size="xs" variant="subtle" />
+          <AppButton v-if="attachment.target_exists" label="Quick view" size="xs" variant="subtle" @click="emit('open-attachment', attachment)" />
         </div>
       </div>
     </section>
@@ -56,7 +59,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { QuestBeat, QuestBeatAttachmentSummary, QuestBeatLoot } from "@/types/quest.types";
-import { withQuestReturnTo } from "@/lib/quests/navigation";
 import AppButton from "@/components/common/AppButton.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import QuestBeatLootPanel from "./QuestBeatLootPanel.vue";
@@ -67,7 +69,7 @@ const props = defineProps<{
   attachments: QuestBeatAttachmentSummary[];
   loot: QuestBeatLoot[];
 }>();
-const emit = defineEmits<{ dirty: [dirty: boolean] }>();
+const emit = defineEmits<{ dirty: [dirty: boolean]; "open-attachment": [attachment: QuestBeatAttachmentSummary]; "edit-beat": [] }>();
 
 const runReturn = computed(() => `/quests/${props.anchorQuestId}?mode=run&beat=${props.beat.id}`);
 const editUrl = computed(() => ({
@@ -81,7 +83,4 @@ const readinessGaps = computed(() => {
   return gaps;
 });
 
-function specialistUrl(path: string) {
-  return withQuestReturnTo(path, runReturn.value);
-}
 </script>
