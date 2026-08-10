@@ -454,17 +454,15 @@ export function useDeleteQuestBeat() {
 /** Soft deletion keeps transition FKs/history intact while removing the beat
  * from authored flow. Only beat-owned placements and routes are detached; their
  * authoritative encounters/entities remain untouched. */
+export async function archiveQuestBeat(id: string) {
+  const { error } = await supabase.rpc("archive_quest_beat", { p_beat_id: id });
+  if (error) throw error;
+}
+
 export function useArchiveQuestBeat() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { id: string; questId: string }) => {
-      const attachments = await supabase.from("quest_beat_attachments").delete().eq("beat_id", input.id);
-      if (attachments.error) throw attachments.error;
-      const edges = await supabase.from("quest_beat_edges").delete().or(`source_beat_id.eq.${input.id},target_beat_id.eq.${input.id}`);
-      if (edges.error) throw edges.error;
-      const beat = await supabase.from("quest_beats").update({ kind: "archived", visibility: "hidden" }).eq("id", input.id);
-      if (beat.error) throw beat.error;
-    },
+    mutationFn: (input: { id: string; questId: string }) => archiveQuestBeat(input.id),
     onSettled: (_data, _error, input) => {
       queryClient.invalidateQueries({ queryKey: [BEATS_KEY, input.questId] });
       queryClient.invalidateQueries({ queryKey: [EDGES_KEY, input.questId] });
