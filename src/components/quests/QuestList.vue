@@ -25,6 +25,7 @@
     <QuestKanbanBoard
       v-else-if="isKanban"
       :quests="filtered"
+      :all-quests="allQuests ?? []"
       :party="party ?? []"
       :summaries="boardSummaries"
       @move="onMove"
@@ -33,7 +34,7 @@
     <!-- List view -->
     <template v-else>
       <p v-if="!filtered.length" class="text-center text-body text-muted-foreground italic py-12">
-        No quests match your search.
+        No quests match the active filters.
       </p>
 
       <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">

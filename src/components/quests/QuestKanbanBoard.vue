@@ -42,7 +42,8 @@
         />
 
         <div v-if="!column.quests.length" class="flex flex-1 items-center justify-center px-4 py-8 text-center">
-          <p class="font-fell text-sm italic text-muted-foreground">No {{ column.label.toLowerCase() }} quests.</p>
+          <p v-if="column.unfilteredCount" class="font-fell text-sm italic text-muted-foreground">{{ column.unfilteredCount }} {{ column.label.toLowerCase() }} quest{{ column.unfilteredCount === 1 ? '' : 's' }} filtered out.</p>
+          <p v-else class="font-fell text-sm italic text-muted-foreground">No {{ column.label.toLowerCase() }} quests.</p>
         </div>
 
         <AppButton
@@ -77,10 +78,12 @@ import QuestBoardCard from "./QuestBoardCard.vue";
 
 const props = withDefaults(defineProps<{
   quests: Quest[];
+  allQuests?: Quest[];
   party?: PartyMember[];
   summaries?: Record<string, QuestBoardSummary>;
 }>(), {
   party: () => [],
+  allQuests: undefined,
   summaries: undefined,
 });
 
@@ -96,6 +99,7 @@ const columns = computed(() => QUEST_STATUSES.map((status) => ({
   label: QUEST_STATUS_LABELS[status],
   color: QUEST_STATUS_COLORS[status],
   quests: props.quests.filter((quest) => quest.status === status),
+  unfilteredCount: (props.allQuests ?? props.quests).filter((quest) => quest.status === status).length,
 })));
 
 function startDrag(id: string) {

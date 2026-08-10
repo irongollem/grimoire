@@ -11,11 +11,8 @@ import type {
 import { summarizeQuestLootByQuest } from "./loot";
 import { deriveQuestBeatPresentations } from "./presentation";
 
-/**
- * The board can ship before the beat graph does. These optional summaries are the
- * seam #658 will fill with one batched query; legacy quests simply render without
- * beat-only rows instead of receiving placeholder or inferred story data.
- */
+/** Optional summaries keep legacy quests valid: they render without invented
+ * beat-only data while flow-enabled quests use one batched campaign query. */
 export type QuestBeatSegment = "done" | "live" | "gap" | "upcoming";
 
 export interface QuestBoardSummary {
@@ -35,7 +32,7 @@ export interface QuestBoardEntry {
 export interface QuestBoardFilters {
   search: string;
   partyOnly: boolean;
-  /** Namespaced as `npc:<uuid>` / `location:<uuid>`. */
+  /** Namespaced as `npc:<uuid>`, `location:<uuid>`, or `faction:<uuid>`. */
   entity: string;
   prepGapsOnly: boolean;
   pendingLootOnly: boolean;
@@ -44,6 +41,12 @@ export interface QuestBoardFilters {
 export interface QuestBoardFilterData {
   refs: QuestRef[];
   summaries?: Record<string, QuestBoardSummary>;
+}
+
+export interface QuestBoardFilterCounts {
+  party: number;
+  prepGaps: number;
+  pendingLoot: number;
 }
 
 export function deriveQuestBoardSummaries(input: {
@@ -130,4 +133,24 @@ export function filterQuestBoard(
 
     return true;
   });
+}
+
+/** Facet counts keep every other active filter and turn the counted facet on.
+ * This makes each badge answer "how many results would this add/retain now?"
+ * without additional queries or per-card work. */
+export function countQuestBoardFilters(
+  quests: Quest[],
+  filters: QuestBoardFilters,
+  data: QuestBoardFilterData,
+): QuestBoardFilterCounts {
+  const countWith = (patch: Partial<QuestBoardFilters>) => filterQuestBoard(
+    quests,
+    { ...filters, ...patch },
+    data,
+  ).length;
+  return {
+    party: countWith({ partyOnly: true }),
+    prepGaps: countWith({ prepGapsOnly: true }),
+    pendingLoot: countWith({ pendingLootOnly: true }),
+  };
 }

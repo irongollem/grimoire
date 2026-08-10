@@ -156,9 +156,8 @@ export const useUiStore = defineStore("ui", () => {
   const questsIsKanban = useLocalStorage("grimoire:quests:kanban", true);
   const questsPartyFilter = useLocalStorage("grimoire:quests:party", false);
   const questsEntityFilter = useLocalStorage("grimoire:quests:entity", "");
-  // #658/#661 will turn these on once every board card has authoritative beat
-  // summaries. Persist the intent now, but never filter legacy quests against
-  // absent data (the pure board filter checks summary availability first).
+  // Summary-backed facets remain inert until their batched board data has loaded,
+  // so a slow response never makes legacy quests disappear temporarily.
   const questsPrepGapsFilter = useLocalStorage("grimoire:quests:prep-gaps", false);
   const questsLootFilter = useLocalStorage("grimoire:quests:pending-loot", false);
 

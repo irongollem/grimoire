@@ -67,4 +67,14 @@ describe("QuestKanbanBoard", () => {
     wrapper.getComponent(QuestBoardCard).vm.$emit("move", "active");
     expect(wrapper.emitted("move")).toBeUndefined();
   });
+
+  it("distinguishes an empty lane from quests hidden by filters", () => {
+    const allQuests = [quest("1", "active"), quest("2", "active")];
+    const wrapper = mount(QuestKanbanBoard, {
+      props: { quests: [], allQuests },
+      global,
+    });
+    expect(wrapper.text()).toContain("2 active quests filtered out.");
+    expect(wrapper.text()).toContain("No failed quests.");
+  });
 });

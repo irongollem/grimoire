@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Quest, QuestBeat, QuestRef } from "@/types/quest.types";
-import { deriveQuestBoardSummaries, filterQuestBoard, type QuestBoardFilters, type QuestBoardSummary } from "./board";
+import { countQuestBoardFilters, deriveQuestBoardSummaries, filterQuestBoard, type QuestBoardFilters, type QuestBoardSummary } from "./board";
 
 function quest(id: string, overrides: Partial<Quest> = {}): Quest {
   return {
@@ -76,7 +76,7 @@ describe("filterQuestBoard", () => {
       quest("ref-location"),
       quest("other"),
     ];
-    const refs = [ref("ref-location", "location", "loc-1")];
+    const refs = [ref("ref-location", "location", "loc-1"), ref("other", "faction", "faction-1")];
 
     expect(filterQuestBoard(
       quests,
@@ -89,6 +89,12 @@ describe("filterQuestBoard", () => {
       { ...emptyFilters, entity: "location:loc-1" },
       { refs },
     ).map((item) => item.id)).toEqual(["primary-location", "ref-location"]);
+
+    expect(filterQuestBoard(
+      quests,
+      { ...emptyFilters, entity: "faction:faction-1" },
+      { refs },
+    ).map((item) => item.id)).toEqual(["other"]);
   });
 
   it("does not erase legacy quests when beat filters lack authoritative summaries", () => {
@@ -121,6 +127,26 @@ describe("filterQuestBoard", () => {
       { ...emptyFilters, prepGapsOnly: true, pendingLootOnly: true },
       { refs: [], summaries },
     ).map((item) => item.id)).toEqual(["both"]);
+  });
+
+  it("counts each boolean facet with all other active filters composed", () => {
+    const quests = [
+      quest("ready", { title: "Harbour ready", player_visible_to: ["pc"] }),
+      quest("prep", { title: "Harbour prep", player_visible_to: ["pc"] }),
+      quest("loot", { title: "Forest loot", player_visible_to: ["pc"] }),
+      quest("both", { title: "Harbour both" }),
+    ];
+    const summaries = {
+      ready,
+      prep: { ...ready, prepGapCount: 1 },
+      loot: { ...ready, unclaimedLootCount: 1 },
+      both: { ...ready, prepGapCount: 1, undispatchedLootCount: 1 },
+    };
+    expect(countQuestBoardFilters(
+      quests,
+      { ...emptyFilters, search: "harbour" },
+      { refs: [], summaries },
+    )).toEqual({ party: 2, prepGaps: 2, pendingLoot: 1 });
   });
 });
 

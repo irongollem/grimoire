@@ -378,10 +378,11 @@ export function useQuestFilterEntities(enabled?: () => boolean) {
   return useQuery({
     queryKey: computed(() => [QUEST_FILTER_ENTITIES_KEY, campaignId.value]),
     queryFn: async (): Promise<QuestFilterEntityOption[]> => {
+      const campaignOrGlobal = `campaign_id.eq.${campaignId.value!},campaign_id.is.null`;
       const [npcs, locations, factions] = await Promise.all([
-        supabase.from("npcs").select("id, name").eq("campaign_id", campaignId.value!).order("name"),
-        supabase.from("locations").select("id, name").eq("campaign_id", campaignId.value!).order("name"),
-        supabase.from("factions").select("id, name").eq("campaign_id", campaignId.value!).order("name"),
+        supabase.from("npcs").select("id, name").or(campaignOrGlobal).order("name"),
+        supabase.from("locations").select("id, name").or(campaignOrGlobal).order("name"),
+        supabase.from("factions").select("id, name").or(campaignOrGlobal).order("name"),
       ]);
       if (npcs.error) throw npcs.error;
       if (locations.error) throw locations.error;

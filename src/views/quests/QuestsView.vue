@@ -33,8 +33,8 @@
         />
         <AppButton
           :icon="IconParty"
-          label="Shared with party"
-          mobile-label="Party"
+          :label="`Shared with party (${filterCounts.party})`"
+          :mobile-label="`Party ${filterCounts.party}`"
           variant="subtle"
           size="md"
           :active="ui.questsPartyFilter"
@@ -45,8 +45,30 @@
           v-if="entityOptions?.length"
           v-model="ui.questsEntityFilter"
           :options="entityOptions"
-          placeholder="NPC or location…"
-          class="min-w-48 max-w-64 flex-none"
+          placeholder="NPC, faction, or location…"
+          class="min-w-48 max-w-full flex-1 sm:max-w-64 sm:flex-none"
+        />
+        <AppButton
+          v-if="boardSummaries !== undefined"
+          :icon="IconWarning"
+          :label="`Prep gaps (${filterCounts.prepGaps})`"
+          :mobile-label="`Gaps ${filterCounts.prepGaps}`"
+          variant="subtle"
+          size="md"
+          :active="ui.questsPrepGapsFilter"
+          :aria-pressed="ui.questsPrepGapsFilter"
+          @click="ui.questsPrepGapsFilter = !ui.questsPrepGapsFilter"
+        />
+        <AppButton
+          v-if="boardSummaries !== undefined"
+          :icon="IconLoot"
+          :label="`Loot pending (${filterCounts.pendingLoot})`"
+          :mobile-label="`Loot ${filterCounts.pendingLoot}`"
+          variant="subtle"
+          size="md"
+          :active="ui.questsLootFilter"
+          :aria-pressed="ui.questsLootFilter"
+          @click="ui.questsLootFilter = !ui.questsLootFilter"
         />
         <!--
           View-toggle — reuses AppButton for consistent styling. Label
@@ -73,7 +95,8 @@
 </template>
 
 <script setup lang="ts">
-import { IconAdd, IconColumns, IconGenerate, IconListView, IconParty } from '@/lib/icons';
+import { computed } from "vue";
+import { IconAdd, IconColumns, IconGenerate, IconListView, IconLoot, IconParty, IconWarning } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
@@ -85,9 +108,25 @@ import QuestList from "@/components/quests/QuestList.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useCreateGate } from "@/composables/useCreateGate";
 import { useUiStore } from "@/stores/ui";
-import { useQuestFilterEntities } from "@/composables/useQuests";
+import { useAllQuests, useCampaignQuestRefs, useQuestFilterEntities } from "@/composables/useQuests";
+import { useQuestBoardSummaries } from "@/composables/useQuestFlow";
+import { countQuestBoardFilters } from "@/lib/quests/board";
 
 const ui = useUiStore();
 const { data: entityOptions } = useQuestFilterEntities();
+const { data: allQuests } = useAllQuests();
+const { data: campaignRefs } = useCampaignQuestRefs();
+const { data: boardSummaries } = useQuestBoardSummaries();
+const filterCounts = computed(() => countQuestBoardFilters(
+  allQuests.value ?? [],
+  {
+    search: ui.questsSearch,
+    partyOnly: ui.questsPartyFilter,
+    entity: ui.questsEntityFilter,
+    prepGapsOnly: ui.questsPrepGapsFilter,
+    pendingLootOnly: ui.questsLootFilter,
+  },
+  { refs: campaignRefs.value ?? [], summaries: boardSummaries.value },
+));
 const { showPaywall, handleNew } = useCreateGate("quests", "/quests/new");
 </script>
