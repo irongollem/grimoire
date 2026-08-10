@@ -54,7 +54,11 @@
     >
       <!-- Scrollable body -->
       <div
-        class="min-w-0 max-w-full px-4 pb-4 md:px-6 md:pb-6 lg:min-h-0 lg:flex-1 lg:overflow-y-auto"
+        data-testid="page-body"
+        :class="[
+          'min-w-0 max-w-full px-4 pb-4 md:px-6 md:pb-6 lg:min-h-0 lg:flex-1',
+          contained ? 'lg:overflow-hidden' : 'lg:overflow-y-auto',
+        ]"
       >
         <slot />
       </div>
@@ -73,5 +77,6 @@
 defineProps<{
   title: string;
   description?: string;
+  contained?: boolean;
 }>();
 </script>

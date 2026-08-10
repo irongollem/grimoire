@@ -2,6 +2,7 @@
   <PageHeader
     :title="quest?.title || (isNew ? 'New Quest' : 'Loading…')"
     :description="quest ? QUEST_STATUS_LABELS[quest.status] : undefined"
+    :contained="isBuilding"
   >
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />

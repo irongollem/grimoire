@@ -1,6 +1,6 @@
 <template>
-  <section class="space-y-3" aria-label="Quest Build mode">
-    <div class="flex flex-wrap items-center gap-2">
+  <section class="space-y-3 xl:flex xl:h-full xl:min-h-0 xl:flex-col xl:gap-3 xl:space-y-0 xl:overflow-hidden" aria-label="Quest Build mode">
+    <div class="flex shrink-0 flex-wrap items-center gap-2">
       <div>
         <h2 class="font-cinzel text-base font-bold text-foreground">Story flow</h2>
         <p class="text-caption text-muted-foreground">Create, connect, label, and arrange narrative beats.</p>
@@ -61,8 +61,8 @@
     <p v-else-if="!beats.length" class="rounded-lg border border-dashed border-border p-8 text-center text-body text-muted-foreground">
       This quest has no beats yet. Use “Add beat” to begin its story flow.
     </p>
-    <div v-else class="grid min-w-0 max-w-full items-start gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,24rem)]">
-      <div id="quest-flow-canvas" class="min-w-0">
+    <div v-else class="grid min-w-0 max-w-full items-start gap-3 xl:min-h-0 xl:flex-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,24rem)] xl:items-stretch">
+      <div id="quest-flow-canvas" class="min-w-0 xl:h-full xl:min-h-0">
         <QuestFlowCanvas
           ref="canvas"
           :graph-id="`quest-${questId}`"
@@ -82,7 +82,7 @@
       <QuestBeatInspector
         v-if="selectedBeat"
         :key="selectedBeat.id"
-        class="min-w-0 max-w-full"
+        class="min-w-0 max-w-full xl:h-full xl:min-h-0 xl:overflow-y-auto"
         :beat="selectedBeat"
         :beats="beats"
         :edges="edges"
@@ -91,7 +91,7 @@
         :presentation="presentations[selectedBeat.id]"
         @preview="openPreview"
       />
-      <div v-else class="hidden rounded-xl border border-dashed border-border p-6 text-center text-caption text-muted-foreground xl:block">
+      <div v-else class="hidden rounded-xl border border-dashed border-border p-6 text-center text-caption text-muted-foreground xl:block xl:h-full">
         Select a beat to prepare it without leaving the flow.
       </div>
     </div>
