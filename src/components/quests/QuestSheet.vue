@@ -1,13 +1,18 @@
 <template>
-  <div class="flex flex-col gap-5">
+  <div class="quest-overview-sheet grid items-start gap-3">
     <!-- Action bar: Edit + Delete. Matches the NPC / Location / Monster
          sheet convention (#168). -->
-    <div class="flex flex-wrap items-center justify-end gap-2">
+    <div class="quest-overview-wide flex flex-wrap items-center justify-end gap-2 rounded-lg border border-border bg-card p-3">
+      <div class="mr-auto min-w-0">
+        <p class="text-label font-bold uppercase tracking-wider text-muted-foreground">Quest fields</p>
+        <p class="text-caption text-muted-foreground">Whole-story context; scene-specific preparation stays on its beat.</p>
+      </div>
       <span
         class="text-label rounded px-2 py-0.5 font-semibold text-white"
         :style="{ backgroundColor: QUEST_STATUS_COLORS[quest.status] }"
       >{{ QUEST_STATUS_LABELS[quest.status] }}</span>
       <AppButton
+        v-if="!embedded"
         :icon="IconNetwork"
         label="Back to quest"
         variant="subtle"
@@ -30,14 +35,14 @@
 
     <!-- Summary -->
     <p
-      v-if="quest.summary"
-      class="font-fell text-base text-foreground leading-snug"
+      v-if="quest.summary && !beatPlus"
+      class="quest-overview-wide rounded-lg border border-primary/20 bg-primary/5 p-4 font-fell text-base leading-snug text-foreground"
     >{{ quest.summary }}</p>
 
     <!-- Meta row: giver / location / parent -->
     <div
       v-if="quest.giver_npc_id || quest.location_id || quest.parent_quest_id || quest.tags?.length"
-      class="flex flex-wrap items-center gap-2"
+      class="quest-overview-wide flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-4"
     >
       <RouterLink
         v-if="giverNpc"
@@ -71,13 +76,13 @@
     </div>
 
     <!-- Description -->
-    <section v-if="hasDescription" class="flex flex-col gap-2">
+    <section v-if="hasDescription && !beatPlus" class="quest-overview-wide flex flex-col gap-2">
       <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Description</h2>
       <RichTextViewer :content="quest.description" />
     </section>
 
     <!-- DM Notes -->
-    <section v-if="hasNotes" class="flex flex-col gap-2">
+    <section v-if="hasNotes && !beatPlus" class="flex flex-col gap-2">
       <h2 class="font-cinzel text-sm font-bold tracking-wide text-muted-foreground">DM Notes</h2>
       <RichTextViewer :content="quest.notes" />
     </section>
@@ -156,7 +161,7 @@
     </section>
 
     <!-- Linked entities (via quest_refs), grouped by type. -->
-    <section v-if="linkedEncounters.length" class="flex flex-col gap-2">
+    <section v-if="linkedEncounters.length && !beatPlus" class="flex flex-col gap-2">
       <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">
         Encounters
         <span class="font-fell font-normal text-muted-foreground">({{ linkedEncounters.length }})</span>
@@ -176,7 +181,7 @@
       </div>
     </section>
 
-    <section v-if="linkedNpcs.length" class="flex flex-col gap-2">
+    <section v-if="linkedNpcs.length && !beatPlus" class="flex flex-col gap-2">
       <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">
         Key NPCs
         <span class="font-fell font-normal text-muted-foreground">({{ linkedNpcs.length }})</span>
@@ -200,7 +205,7 @@
       </div>
     </section>
 
-    <section v-if="linkedLocations.length" class="flex flex-col gap-2">
+    <section v-if="linkedLocations.length && !beatPlus" class="flex flex-col gap-2">
       <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">
         Key Locations
         <span class="font-fell font-normal text-muted-foreground">({{ linkedLocations.length }})</span>
@@ -218,7 +223,7 @@
       </div>
     </section>
 
-    <section v-if="linkedMonsters.length" class="flex flex-col gap-2">
+    <section v-if="linkedMonsters.length && !beatPlus" class="flex flex-col gap-2">
       <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">
         Creatures
         <span class="font-fell font-normal text-muted-foreground">({{ linkedMonsters.length }})</span>
@@ -316,7 +321,7 @@ import { formatCoinParts } from "@/rules/currency";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import AppButton from "@/components/common/AppButton.vue";
 
-const props = defineProps<{ quest: Quest }>();
+const props = withDefaults(defineProps<{ quest: Quest; embedded?: boolean; beatPlus?: boolean }>(), { embedded: false, beatPlus: false });
 const route  = useRoute();
 const router = useRouter();
 const { confirm } = useConfirm();
@@ -453,3 +458,17 @@ async function onDelete() {
   }
 }
 </script>
+
+<style scoped>
+.quest-overview-sheet > section {
+  min-width: 0;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.75rem;
+  background: hsl(var(--card));
+  padding: 1rem;
+}
+
+.quest-overview-wide {
+  grid-column: 1 / -1;
+}
+</style>

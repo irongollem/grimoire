@@ -7,7 +7,7 @@
       </div>
       <div class="ml-auto flex gap-2">
         <AppButton v-if="context?.current" label="Preview as players" size="sm" variant="subtle" @click="openPreview(context.current.id)" />
-        <AppButton :to="`/quests/${anchorQuestId}?mode=details`" label="Quest details" size="sm" variant="subtle" />
+        <AppButton :to="`/quests/${anchorQuestId}?overview=true`" label="Overview" size="sm" variant="subtle" />
       </div>
     </header>
 

@@ -12,6 +12,12 @@
       v-else-if="isNew"
       :parent-id="parentId ?? null"
     />
+    <QuestEditor
+      v-else-if="isEditing"
+      :key="id"
+      :quest="quest ?? null"
+      :parent-id="parentId ?? null"
+    />
     <QuestRunCockpit
       v-else-if="quest && isRunning"
       :key="`run-${quest.id}`"
@@ -25,17 +31,7 @@
       :visible-to="quest.player_visible_to ?? []"
       :focus-current-on-open="route.query.focus === 'current'"
     />
-    <QuestEditor
-      v-else-if="isEditing"
-      :key="id"
-      :quest="quest ?? null"
-      :parent-id="parentId ?? null"
-    />
-    <QuestSheet
-      v-else-if="quest"
-      :key="quest.id"
-      :quest="quest"
-    />
+    <QuestOverviewDrawer v-if="quest && isOverview && !isEditing" :quest="quest" @close="closeOverview" />
   </PageHeader>
 </template>
 
@@ -50,7 +46,7 @@ import QuestEditor from "@/components/quests/QuestEditor.vue";
 import QuestFlowStarter from "@/components/quests/QuestFlowStarter.vue";
 import QuestGraphDesigner from "@/components/quests/QuestGraphDesigner.vue";
 import QuestRunCockpit from "@/components/quests/QuestRunCockpit.vue";
-import QuestSheet from "@/components/quests/QuestSheet.vue";
+import QuestOverviewDrawer from "@/components/quests/QuestOverviewDrawer.vue";
 import { QUEST_STATUS_LABELS } from "@/types/quest.types";
 
 const route     = useRoute();
@@ -58,9 +54,9 @@ const router    = useRouter();
 const ui        = useUiStore();
 const isNew     = computed(() => route.name === "quest-new");
 const isEditing = computed(() => route.query.edit === "true");
-const isDetails = computed(() => route.query.mode === "details");
-const isRunning = computed(() => !isNew.value && !isEditing.value && !isDetails.value && ui.dmMode === "play");
-const isBuilding = computed(() => !isNew.value && !isEditing.value && !isDetails.value && ui.dmMode === "prep");
+const isOverview = computed(() => route.query.overview === "true" || route.query.mode === "details");
+const isRunning = computed(() => !isNew.value && !isEditing.value && ui.dmMode === "play");
+const isBuilding = computed(() => !isNew.value && !isEditing.value && ui.dmMode === "prep");
 const id        = computed(() => (isNew.value ? "" : (route.params.id as string)));
 const parentId  = computed(() => (route.query.parent as string | undefined));
 
@@ -72,6 +68,11 @@ const isLoading = computed(() => !isNew.value && questLoading.value);
 watch(
   () => route.query.mode,
   (mode) => {
+    if (mode === "details") {
+      const { mode: _mode, ...query } = route.query;
+      void router.replace({ query: { ...query, overview: "true" } });
+      return;
+    }
     if (mode !== "build" && mode !== "run") return;
     ui.dmMode = mode === "run" ? "play" : "prep";
     const { mode: _mode, ...query } = route.query;
@@ -80,14 +81,8 @@ watch(
   { immediate: true },
 );
 
-// Details is a temporary secondary surface. Changing the global mode while it
-// is open returns to the matching primary quest workflow immediately.
-watch(
-  () => ui.dmMode,
-  (mode, previousMode) => {
-    if (mode === previousMode || !isDetails.value) return;
-    const { mode: _mode, ...query } = route.query;
-    void router.replace({ query });
-  },
-);
+function closeOverview() {
+  const { overview: _overview, mode: _mode, ...query } = route.query;
+  void router.replace({ query });
+}
 </script>

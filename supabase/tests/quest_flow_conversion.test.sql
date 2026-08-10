@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(19);
+select plan(21);
 
 select has_column('public', 'quests', 'flow_enabled_at', 'quests carry flow activation time');
 select col_not_null('public', 'quests', 'flow_enabled_at', 'every quest uses story flow');
@@ -10,6 +10,8 @@ select ok(
   'new quests enable story flow by default'
 );
 select has_column('public', 'quest_beats', 'conversion_source_type', 'generated beats retain auditable provenance');
+select has_column('public', 'quest_beats', 'is_overview', 'quests identify their first-class overview beat');
+select has_trigger('public', 'quests', 'create_quest_overview_beat', 'new quests receive an overview beat automatically');
 select has_function('private', 'backfill_quest_story_flows', array['boolean'], 'an idempotent private backfill is available to migrations and seed loading');
 select hasnt_function('public', 'preview_quest_flow_conversion', array['uuid'], 'the obsolete conversion preview is retired');
 select hasnt_function('public', 'convert_quest_to_flow', array['uuid', 'boolean'], 'the obsolete opt-in conversion is retired');
@@ -49,10 +51,10 @@ values ('65900000-0000-4000-8000-000000000070', '65900000-0000-4000-8000-0000000
 select private.backfill_quest_story_flows(false);
 select private.backfill_quest_story_flows(false);
 
-select is((select count(*)::integer from public.quest_beats where quest_id = '65900000-0000-4000-8000-000000000032'), 0, 'a quest without narrative content or encounters needs no invented beat');
+select is((select count(*)::integer from public.quest_beats where quest_id = '65900000-0000-4000-8000-000000000032'), 1, 'even an empty quest receives its editable overview beat');
 select is((select count(*)::integer from public.quest_beats where quest_id = '65900000-0000-4000-8000-000000000033' and kind = 'combat'), 1, 'one encounter reference becomes one unconnected combat beat');
 select is((select count(*)::integer from public.quest_beats where quest_id = '65900000-0000-4000-8000-000000000030'), 4, 'backfill adds an overview and two encounter beats beside hand-authored work');
-select is((select count(*)::integer from public.quest_beats where quest_id = '65900000-0000-4000-8000-000000000030' and conversion_source_type = 'legacy_overview'), 1, 'summary content becomes one hidden discovery overview');
+select is((select count(*)::integer from public.quest_beats where quest_id = '65900000-0000-4000-8000-000000000030' and is_overview), 1, 'the quest keeps exactly one first-class overview beat');
 select is((select count(*)::integer from public.quest_beat_edges where quest_id = '65900000-0000-4000-8000-000000000030'), 0, 'backfill never invents narrative edges');
 select is((select count(*)::integer from public.quest_beat_attachments where quest_id = '65900000-0000-4000-8000-000000000030' and attachment_type = 'encounter'), 2, 'combat beats reuse existing encounters as attachments');
 select is((select count(*)::integer from public.quest_refs where quest_id = '65900000-0000-4000-8000-000000000030'), 2, 'encounter refs remain authoritative and are not duplicated');

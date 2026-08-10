@@ -7,7 +7,7 @@ const beat = (visibility: QuestBeat["visibility"]): QuestBeat => ({
   id: "beat-1", quest_id: "quest-1", campaign_id: "campaign-1", title: "The bell tolls",
   dm_content: null, read_aloud: null, how_it_plays: null, outcomes: null, consequences: null,
   rumor_text: null, reveal_text: null, visibility, kind: "discovery", presentation_hint: null,
-  canvas_x: 0, canvas_y: 0, is_improvised: false, improv_reviewed_at: null,
+  canvas_x: 0, canvas_y: 0, is_improvised: false, is_overview: false, improv_reviewed_at: null,
   created_by: "dm", created_at: "now", updated_at: "now",
 });
 

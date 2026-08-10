@@ -10,7 +10,7 @@
       :aria-label="accessibleLabel"
       @click="emit('select')"
       @keydown.enter.stop.prevent="emit('open')"
-      @keydown.delete.stop.prevent="editable && emit('delete')"
+      @keydown.delete.stop.prevent="editable && deletable && emit('delete')"
     >
       <span class="quest-flow-node__kind">{{ kind }}</span>
       <strong>{{ title || "Untitled beat" }}</strong>
@@ -36,7 +36,7 @@ import { Handle, Position } from "@vue-flow/core";
 import type { QuestBeatPresentation } from "@/lib/quests/presentation";
 import AppButton from "@/components/common/AppButton.vue";
 
-const props = withDefaults(defineProps<{ title: string; kind: string; visibility: string; selected?: boolean; current?: boolean; presentation?: QuestBeatPresentation; editable?: boolean }>(), { editable: true });
+const props = withDefaults(defineProps<{ title: string; kind: string; visibility: string; selected?: boolean; current?: boolean; presentation?: QuestBeatPresentation; editable?: boolean; deletable?: boolean }>(), { editable: true, deletable: true });
 const emit = defineEmits<{ select: []; open: []; delete: []; "create-next": [] }>();
 const accessibleLabel = computed(() => [
   props.title || "Untitled beat",

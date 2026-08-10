@@ -103,6 +103,7 @@ export interface QuestBeat {
   canvas_x: number;
   canvas_y: number;
   is_improvised: boolean;
+  is_overview: boolean;
   improv_reviewed_at: string | null;
   conversion_source_type?: "legacy_overview" | "legacy_encounter_ref" | null;
   conversion_source_id?: string | null;

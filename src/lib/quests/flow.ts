@@ -7,6 +7,7 @@ export interface QuestFlowNodeData {
   title: string;
   kind: string;
   visibility: string;
+  isOverview: boolean;
   presentation?: QuestBeatPresentation;
 }
 export type QuestFlowNode = Node<QuestFlowNodeData>;
@@ -34,6 +35,7 @@ export function toQuestFlowGraph(
       title: beat.title,
       kind: beat.kind,
       visibility: beat.visibility,
+      isOverview: beat.is_overview,
       presentation: presentations[beat.id],
     },
   }));

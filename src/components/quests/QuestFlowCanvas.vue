@@ -28,9 +28,10 @@
             :current="slotProps.id === currentBeatId"
             :presentation="slotProps.data.presentation"
             :editable="editable"
+            :deletable="!slotProps.data.isOverview"
             @select="emit('command', { type: 'select', beatId: slotProps.id })"
             @open="emit('command', { type: 'open', beatId: slotProps.id })"
-            @delete="editable && emit('command', { type: 'delete-beat', beatId: slotProps.id })"
+            @delete="editable && !slotProps.data.isOverview && emit('command', { type: 'delete-beat', beatId: slotProps.id })"
             @create-next="createNext(slotProps.id)"
           />
         </template>

@@ -6,7 +6,7 @@
         <p class="text-caption text-muted-foreground">Create, connect, label, and arrange narrative beats.</p>
       </div>
       <div class="ml-auto flex gap-2">
-        <AppButton :to="{ path: `/quests/${questId}`, query: { mode: 'details' } }" label="Details" size="sm" variant="subtle" />
+        <AppButton :to="{ path: `/quests/${questId}`, query: { overview: 'true' } }" label="Overview" size="sm" variant="subtle" />
         <AppButton label="Add beat" size="sm" variant="primary" @click="openComposer()" />
         <AppButton :icon="IconMaximize" label="Fit" size="sm" variant="subtle" @click="canvas?.fitGraph()" />
         <AppButton v-if="currentBeatId" :icon="IconCenter" label="Current beat" size="sm" variant="subtle" @click="canvas?.focusCurrent()" />
@@ -239,7 +239,11 @@ function onCommand(command: QuestGraphCommand) {
   if (command.type === "select-edge") { selectedEdgeId.value = command.edgeId; selectedBeatId.value = null; }
   if (command.type === "create") openComposer(command);
   if (command.type === "link") void linkExisting(command.sourceBeatId, command.targetBeatId);
-  if (command.type === "delete-beat") { pendingDeleteBeatId.value = command.beatId; replacementBeatId.value = ""; }
+  if (command.type === "delete-beat") {
+    if (beats.value.find((beat) => beat.id === command.beatId)?.is_overview) return;
+    pendingDeleteBeatId.value = command.beatId;
+    replacementBeatId.value = "";
+  }
   if (command.type === "move") {
     pendingMoves.set(command.beatId, command);
     void savePositions();

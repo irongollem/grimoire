@@ -5,6 +5,7 @@ import { createPinia, setActivePinia } from "pinia";
 import QuestDetailView from "./QuestDetailView.vue";
 import QuestGraphDesigner from "@/components/quests/QuestGraphDesigner.vue";
 import QuestRunCockpit from "@/components/quests/QuestRunCockpit.vue";
+import QuestOverviewDrawer from "@/components/quests/QuestOverviewDrawer.vue";
 import { useUiStore } from "@/stores/ui";
 
 const mocks = vi.hoisted(() => ({
@@ -62,13 +63,39 @@ describe("QuestDetailView", () => {
     expect(mocks.replace).toHaveBeenCalledWith({ query: { beat: "beat-1" } });
   });
 
-  it("leaves Details when the global mode changes", async () => {
+  it("normalizes legacy Details into an overview over the active surface", async () => {
     mocks.route.query = { mode: "details" };
     const wrapper = mountView();
+
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.findComponent(QuestGraphDesigner).exists()).toBe(true);
+    expect(wrapper.findComponent(QuestOverviewDrawer).exists()).toBe(true);
+    expect(mocks.replace).toHaveBeenCalledWith({ query: { overview: "true" } });
+  });
+
+  it("keeps the overview open above the surface when Prep/Play changes", async () => {
+    mocks.route.query = { overview: "true" };
+    const wrapper = mountView();
+
+    expect(wrapper.findComponent(QuestGraphDesigner).exists()).toBe(true);
+    expect(wrapper.findComponent(QuestOverviewDrawer).exists()).toBe(true);
 
     ui.dmMode = "play";
     await wrapper.vm.$nextTick();
 
-    expect(mocks.replace).toHaveBeenCalledWith({ query: {} });
+    expect(wrapper.findComponent(QuestRunCockpit).exists()).toBe(true);
+    expect(wrapper.findComponent(QuestOverviewDrawer).exists()).toBe(true);
+  });
+
+  it("closes the overview without changing the active quest mode", async () => {
+    mocks.route.query = { overview: "true", beat: "beat-1" };
+    const wrapper = mountView();
+
+    wrapper.findComponent(QuestOverviewDrawer).vm.$emit("close");
+    await wrapper.vm.$nextTick();
+
+    expect(mocks.replace).toHaveBeenCalledWith({ query: { beat: "beat-1" } });
+    expect(ui.dmMode).toBe("prep");
   });
 });
