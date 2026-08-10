@@ -20,6 +20,7 @@ describe("QuestRunControls", () => {
     const buttons = new Map(wrapper.findAll("button").map((button) => [button.text(), button]));
     expect(buttons.get("Previous")?.attributes("disabled")).toBeDefined();
     expect(buttons.get("Jump…")?.attributes("disabled")).toBeDefined();
+    expect(buttons.get("Something else…")?.attributes("disabled")).toBeDefined();
     expect(buttons.get("Resume")?.attributes("disabled")).toBeUndefined();
     expect(buttons.get("End")?.attributes("disabled")).toBeUndefined();
   });
@@ -40,5 +41,13 @@ describe("QuestRunControls", () => {
     expect(wrapper.text()).toContain("Something else…");
     expect(wrapper.text()).toContain("Pause");
     expect(wrapper.text()).toContain("End");
+  });
+
+  it("keeps improvise available beside authored branch choices", async () => {
+    const wrapper = mount(QuestRunControls, { props: { status: "running", hasPrevious: false, outgoing } });
+    const improvise = wrapper.findAll("button").find((button) => button.text() === "Something else…");
+    expect(improvise?.attributes("disabled")).toBeUndefined();
+    await improvise!.trigger("click");
+    expect(wrapper.emitted("improv")).toHaveLength(1);
   });
 });
