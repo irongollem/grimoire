@@ -79,6 +79,10 @@
         class="font-fell text-foreground leading-relaxed"
       />
 
+      <!-- Existing quests stay unchanged until the DM authors at least one
+           player-visible beat. The thread is a projection, never the graph. -->
+      <PlayerQuestStoryThread v-if="playerBeats?.length" :beats="playerBeats" />
+
       <!-- Objectives -->
       <div
         v-if="visibleObjectives.length"
@@ -315,17 +319,20 @@ import { useSharedNpcs } from "@/composables/useNpcs";
 import { useSharedLocations } from "@/composables/useLocations";
 import { usePlayerVisibleMonsters } from "@/composables/useMonsters";
 import { usePlayerVisibleItems } from "@/composables/useItems";
+import { usePlayerQuestBeats } from "@/composables/useQuestFlow";
 import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
 import { QUEST_STATUS_LABELS, QUEST_STATUS_COLORS } from "@/types/quest.types";
 import type { PlayerNpc } from "@/types/npc.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
+import PlayerQuestStoryThread from "@/components/player/PlayerQuestStoryThread.vue";
 
 const route = useRoute();
 const router = useRouter();
 const questId = computed(() => route.params.id as string);
 
 const { data: quest, isLoading } = usePlayerVisibleQuest(questId);
+const { data: playerBeats } = usePlayerQuestBeats(questId);
 const { mutate: markRead } = useMarkRead();
 
 watch(quest, (q) => {
