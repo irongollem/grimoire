@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { summarizeQuestBeatAttachment } from "@/lib/quests/attachments";
 import { deriveQuestBoardSummaries, type QuestBoardSummary } from "@/lib/quests/board";
+import { toQuestRuntimeRpcArgs, type QuestRuntimeCommandInput } from "@/lib/quests/runtime";
 import { useCampaignStore } from "@/stores/campaign";
 import type {
   PlayerQuestBeat,
@@ -17,12 +18,15 @@ import type {
   QuestBeatAttachmentSummary,
   QuestBeatLoot,
   QuestBeatLootInsert,
+  QuestRuntimeContext,
+  QuestRuntimeJumpTarget,
   QuestRuntimeState,
 } from "@/types/quest.types";
 
 const BEATS_KEY = "quest_beats";
 const EDGES_KEY = "quest_beat_edges";
 const RUNTIME_KEY = "quest_runtime_state";
+const RUNTIME_CONTEXT_KEY = "quest_runtime_context";
 const TRANSITIONS_KEY = "quest_beat_transitions";
 const ATTACHMENTS_KEY = "quest_beat_attachments";
 const LOOT_KEY = "quest_beat_loot";
@@ -459,19 +463,56 @@ export function useQuestRuntimeState() {
   });
 }
 
-export function useSetQuestRuntimeCursor() {
+export function useQuestRuntimeContext() {
+  const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
+  return useQuery({
+    queryKey: computed(() => [RUNTIME_CONTEXT_KEY, campaignId.value]),
+    queryFn: async (): Promise<QuestRuntimeContext> => {
+      const { data, error } = await supabase.rpc("get_quest_runtime_context", { p_campaign_id: campaignId.value! });
+      if (error) throw error;
+      return data as QuestRuntimeContext;
+    },
+    enabled: () => !!campaignId.value,
+  });
+}
+
+export function useQuestRuntimeJumpTargets(search: string | Ref<string>) {
+  const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
+  const query = asRef(search);
+  return useQuery({
+    queryKey: computed(() => [RUNTIME_CONTEXT_KEY, "jump-targets", campaignId.value, query.value]),
+    queryFn: async (): Promise<QuestRuntimeJumpTarget[]> => {
+      const { data, error } = await supabase.rpc("search_quest_runtime_jump_targets", {
+        p_campaign_id: campaignId.value!,
+        p_search: query.value,
+        p_limit: 30,
+      });
+      if (error) throw error;
+      return (data ?? []) as QuestRuntimeJumpTarget[];
+    },
+    enabled: () => !!campaignId.value,
+  });
+}
+
+export function useQuestRuntimeCommand() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { campaignId: string; questId: string | null; beatId: string | null }) => {
-      const { data, error } = await supabase.from("quest_runtime_state").upsert({
-        campaign_id: input.campaignId,
-        current_quest_id: input.questId,
-        current_beat_id: input.beatId,
-      }, { onConflict: "campaign_id" }).select().single();
+    mutationFn: async (input: QuestRuntimeCommandInput): Promise<QuestRuntimeContext> => {
+      const { data, error } = await supabase.rpc("transition_quest_runtime", toQuestRuntimeRpcArgs(input));
       if (error) throw error;
-      return data as QuestRuntimeState;
+      return data as QuestRuntimeContext;
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: [RUNTIME_KEY] }),
+    onSuccess: (context, input) => {
+      queryClient.setQueryData([RUNTIME_CONTEXT_KEY, input.campaignId], context);
+      queryClient.setQueryData([RUNTIME_KEY, input.campaignId], context.state);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: [RUNTIME_KEY] });
+      queryClient.invalidateQueries({ queryKey: [RUNTIME_CONTEXT_KEY] });
+      queryClient.invalidateQueries({ queryKey: [TRANSITIONS_KEY] });
+    },
   });
 }
 

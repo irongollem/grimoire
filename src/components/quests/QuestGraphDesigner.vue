@@ -116,7 +116,7 @@ import {
   useQuestBeats,
   useQuestBeatTransitionsForQuest,
   useQuestRuntimeState,
-  useSetQuestRuntimeCursor,
+  useQuestRuntimeCommand,
   useUpdateQuestBeatEdge,
   useUpdateQuestBeat,
 } from "@/composables/useQuestFlow";
@@ -128,6 +128,7 @@ import { createBeatWithRollback, isDuplicateQuestEdge } from "@/lib/quests/mutat
 import { useCampaignStore } from "@/stores/campaign";
 import { useConfirm } from "@/composables/useConfirm";
 import { useIsMobile } from "@/composables/useBreakpoint";
+import type { QuestRuntimeContext } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
@@ -160,7 +161,7 @@ const archiveBeat = useArchiveQuestBeat();
 const createEdge = useCreateQuestBeatEdge();
 const updateEdge = useUpdateQuestBeatEdge();
 const deleteEdge = useDeleteQuestBeatEdge();
-const setRuntimeCursor = useSetQuestRuntimeCursor();
+const transitionRuntime = useQuestRuntimeCommand();
 const campaign = useCampaignStore();
 const { confirm } = useConfirm();
 
@@ -285,10 +286,18 @@ async function archivePendingBeat() {
   if (!beat || !campaign.activeCampaignId) return;
   deletingBeat.value = true;
   const wasCurrent = deletionImpact.value.isCurrent;
+  let movedRuntime: QuestRuntimeContext | null = null;
   try {
     if (wasCurrent) {
       const replacement = replacementBeatId.value === "end" ? null : replacementBeatId.value;
-      await setRuntimeCursor.mutateAsync({ campaignId: campaign.activeCampaignId, questId: replacement ? props.questId : null, beatId: replacement });
+      movedRuntime = await transitionRuntime.mutateAsync({
+        campaignId: campaign.activeCampaignId,
+        command: replacement ? "jump" : "end",
+        expectedVersion: runtimeQuery.data.value?.version ?? 0,
+        targetQuestId: replacement ? props.questId : undefined,
+        targetBeatId: replacement ?? undefined,
+        reason: replacement ? "Current beat removed from authored flow" : undefined,
+      });
     }
     await archiveBeat.mutateAsync({ id: beat.id, questId: props.questId });
     pendingDeleteBeatId.value = null;
@@ -297,8 +306,17 @@ async function archivePendingBeat() {
     retryMutation.value = null;
   } catch (error) {
     let restoreError: unknown = null;
-    if (wasCurrent) {
-      try { await setRuntimeCursor.mutateAsync({ campaignId: campaign.activeCampaignId, questId: props.questId, beatId: beat.id }); }
+    if (wasCurrent && movedRuntime?.state) {
+      try {
+        await transitionRuntime.mutateAsync({
+          campaignId: campaign.activeCampaignId,
+          command: movedRuntime.state.current_beat_id ? "jump" : "start",
+          expectedVersion: movedRuntime.state.version,
+          targetQuestId: props.questId,
+          targetBeatId: beat.id,
+          reason: movedRuntime.state.current_beat_id ? "Restore after beat archive failed" : undefined,
+        });
+      }
       catch (caught) { restoreError = caught; }
     }
     const message = error instanceof Error ? error.message : "Could not remove beat";

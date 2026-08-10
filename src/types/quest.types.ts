@@ -129,22 +129,62 @@ export interface QuestRuntimeState {
   campaign_id: string;
   current_quest_id: string | null;
   current_beat_id: string | null;
-  return_stack: Array<{ quest_id: string; beat_id: string }>;
+  return_stack: QuestRuntimePosition[];
+  visit_stack: QuestRuntimePosition[];
+  visit_index: number;
+  status: QuestRuntimeStatus;
+  version: number;
   updated_by: string | null;
   created_at: string;
   updated_at: string;
 }
 
-export type QuestTransitionKind = "enter" | "forward" | "previous" | "jump" | "return" | "improv";
+export type QuestRuntimeStatus = "idle" | "running" | "paused" | "ended";
+export type QuestRuntimeCommand = "start" | "advance" | "previous" | "jump" | "return" | "improv" | "pause" | "resume" | "end";
+export type QuestTransitionKind = "enter" | "forward" | "previous" | "jump" | "return" | "improv" | "pause" | "resume" | "end";
+
+export interface QuestRuntimePosition {
+  quest_id: string;
+  beat_id: string;
+}
+
+export interface QuestRuntimeChoice extends QuestRuntimePosition {
+  edge_id: string;
+  label: string;
+  beat_title: string;
+  beat_kind: string;
+}
+
+export interface QuestRuntimeJumpTarget extends QuestRuntimePosition {
+  quest_title: string;
+  beat_title: string;
+  beat_kind: string;
+  is_improvised: boolean;
+}
+
+export interface QuestRuntimeContext {
+  state: QuestRuntimeState | null;
+  current: QuestBeat | null;
+  previous: QuestRuntimePosition | null;
+  outgoing: QuestRuntimeChoice[];
+  return_target: QuestRuntimePosition | null;
+  path_so_far: Array<Record<string, unknown>>;
+}
 
 export interface QuestBeatTransition {
   id: string;
   campaign_id: string;
   from_quest_id: string | null;
   from_beat_id: string | null;
-  to_quest_id: string;
-  to_beat_id: string;
+  to_quest_id: string | null;
+  to_beat_id: string | null;
   transition_kind: QuestTransitionKind;
+  reason: string | null;
+  runtime_version: number;
+  from_quest_title: string | null;
+  from_beat_title: string | null;
+  to_quest_title: string | null;
+  to_beat_title: string | null;
   provenance: Record<string, unknown>;
   created_by: string | null;
   created_at: string;
