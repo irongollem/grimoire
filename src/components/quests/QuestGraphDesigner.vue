@@ -118,9 +118,8 @@ import {
   useQuestBeatAttachmentSummaries,
   useQuestBeatLoot,
   useArchiveQuestBeat,
-  useCreateQuestBeat,
+  useCreateQuestBeatWithRoute,
   useCreateQuestBeatEdge,
-  useDeleteQuestBeat,
   useDeleteQuestBeatEdge,
   useQuestBeatEdges,
   useQuestBeats,
@@ -134,7 +133,7 @@ import { deriveQuestBeatPresentations, visitedRouteEdgeIds } from "@/lib/quests/
 import { summarizeQuestBeatLoot } from "@/lib/quests/loot";
 import { readQuestViewport, writeQuestViewport } from "@/lib/quests/viewport";
 import { retainSelectedBeatId, type QuestGraphCommand } from "@/lib/quests/flow";
-import { createBeatWithRollback, isDuplicateQuestEdge } from "@/lib/quests/mutations";
+import { isDuplicateQuestEdge } from "@/lib/quests/mutations";
 import { useCampaignStore } from "@/stores/campaign";
 import { useConfirm } from "@/composables/useConfirm";
 import { useIsMobile } from "@/composables/useBreakpoint";
@@ -168,8 +167,7 @@ const lootQuery = useQuestBeatLoot(questId);
 const runtimeQuery = useQuestRuntimeState();
 const transitionsQuery = useQuestBeatTransitionsForQuest(questId);
 const updateBeat = useUpdateQuestBeat();
-const createBeat = useCreateQuestBeat();
-const deleteBeat = useDeleteQuestBeat();
+const createBeatWithRoute = useCreateQuestBeatWithRoute();
 const archiveBeat = useArchiveQuestBeat();
 const createEdge = useCreateQuestBeatEdge();
 const updateEdge = useUpdateQuestBeatEdge();
@@ -262,11 +260,15 @@ async function createComposedBeat(value: { title: string; kind: string; edgeLabe
   composerSaving.value = true;
   composerError.value = "";
   try {
-    const created = await createBeatWithRollback(
-      () => createBeat.mutateAsync({ quest_id: props.questId, campaign_id: campaign.activeCampaignId!, title: value.title, kind: value.kind, visibility: "hidden", dm_content: null, read_aloud: null, how_it_plays: null, outcomes: null, consequences: null, rumor_text: null, reveal_text: null, presentation_hint: null, canvas_x: draft.x, canvas_y: draft.y, is_improvised: false, improv_reviewed_at: null }),
-      draft.sourceBeatId ? (beat) => createEdge.mutateAsync({ quest_id: props.questId, campaign_id: campaign.activeCampaignId!, source_beat_id: draft.sourceBeatId!, target_beat_id: beat.id, label: value.edgeLabel }) : null,
-      (beat) => deleteBeat.mutateAsync({ id: beat.id, questId: props.questId }),
-    );
+    const created = await createBeatWithRoute.mutateAsync({
+      questId: props.questId,
+      title: value.title,
+      kind: value.kind,
+      canvasX: draft.x,
+      canvasY: draft.y,
+      sourceBeatId: draft.sourceBeatId,
+      edgeLabel: value.edgeLabel,
+    });
     selectedBeatId.value = created.id;
     composer.value = null;
   } catch (error) {

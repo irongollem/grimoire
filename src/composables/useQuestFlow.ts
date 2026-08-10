@@ -401,6 +401,41 @@ export function useCreateQuestBeat() {
   });
 }
 
+export interface CreateQuestBeatWithRouteInput {
+  questId: string;
+  title: string;
+  kind: string;
+  canvasX: number;
+  canvasY: number;
+  sourceBeatId?: string;
+  edgeLabel?: string;
+}
+
+export async function createQuestBeatWithRoute(input: CreateQuestBeatWithRouteInput): Promise<QuestBeat> {
+  const { data, error } = await supabase.rpc("create_quest_beat_with_route", {
+    p_quest_id: input.questId,
+    p_title: input.title,
+    p_kind: input.kind,
+    p_canvas_x: input.canvasX,
+    p_canvas_y: input.canvasY,
+    p_source_beat_id: input.sourceBeatId ?? null,
+    p_edge_label: input.edgeLabel ?? "",
+  });
+  if (error) throw error;
+  return data as QuestBeat;
+}
+
+export function useCreateQuestBeatWithRoute() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createQuestBeatWithRoute,
+    onSettled: (_beat, _error, input) => {
+      queryClient.invalidateQueries({ queryKey: [BEATS_KEY, input.questId] });
+      queryClient.invalidateQueries({ queryKey: [EDGES_KEY, input.questId] });
+    },
+  });
+}
+
 export function useUpdateQuestBeat() {
   const queryClient = useQueryClient();
   return useMutation({
