@@ -69,13 +69,13 @@ async function deleteSound(sound: Sound, currentUserId: string): Promise<void> {
 
 // ── Query hooks ───────────────────────────────────────────────────────────
 
-export function useSounds() {
+export function useSounds(enabled?: () => boolean) {
   const { activeCampaignId } = storeToRefs(useCampaignStore());
 
   return useQuery({
     queryKey: computed(() => [QUERY_KEY, activeCampaignId.value]),
     queryFn: () => fetchSounds(activeCampaignId.value!),
-    enabled: () => !!activeCampaignId.value,
+    enabled: () => !!activeCampaignId.value && (enabled?.() ?? true),
   });
 }
 

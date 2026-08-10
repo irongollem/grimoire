@@ -21,7 +21,7 @@
     </EmptyState>
 
     <!-- The board is a presentational/mutation boundary of its own. Beat-only
-         summaries are optional until #658 lands, so legacy quests stay useful. -->
+         summaries remain optional so legacy quests stay useful. -->
     <QuestKanbanBoard
       v-else-if="isKanban"
       :quests="filtered"

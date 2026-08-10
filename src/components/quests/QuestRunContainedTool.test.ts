@@ -4,12 +4,24 @@ import QuestRunContainedTool from "./QuestRunContainedTool.vue";
 import type { QuestBeatAttachmentSummary, QuestBeatAttachmentType } from "@/types/quest.types";
 
 const mocks = vi.hoisted(() => ({
-  locations: { value: [{ id: "room-1", name: "Crypt", parent_id: "root" }] },
+  locations: { value: [
+    { id: "root", name: "Drowned Abbey", location_type: "dungeon", description: "root-body", notes: "Mind the tide.", parent_id: null },
+    { id: "room-1", name: "Crypt", location_type: "room", description: "room-body", notes: null, parent_id: "root" },
+  ] },
   sounds: { value: [{ id: "sound-1", name: "Thunder", category: "effects", source_type: "url", file_url: "thunder.mp3", storage_path: null }] },
   playlists: { value: [] },
   tracks: { value: [] },
   npc: { value: null as Record<string, unknown> | null },
   faction: { value: null as Record<string, unknown> | null },
+  monster: { value: undefined as { monster: Record<string, unknown>; isShared: boolean } | undefined },
+  note: { value: undefined as Record<string, unknown> | undefined },
+  handout: { value: undefined as Record<string, unknown> | undefined },
+  soundEnabled: null as (() => boolean) | null,
+  playlistEnabled: null as (() => boolean) | null,
+  objectiveQuestId: { value: "" },
+  monsterId: { value: "" },
+  noteId: { value: "" },
+  handoutId: { value: "" },
   trigger: vi.fn(),
   playPlaylist: vi.fn(),
   stopPlaylist: vi.fn(),
@@ -21,10 +33,27 @@ vi.mock("@/composables/useLocations", () => ({ useAllLocations: () => ({ data: m
 vi.mock("@/composables/useNpcs", () => ({ useNpc: () => ({ data: mocks.npc }) }));
 vi.mock("@/composables/useFactions", () => ({ useFaction: () => ({ data: mocks.faction }) }));
 vi.mock("@/composables/useItems", () => ({ useItems: () => ({ data: { value: [] } }) }));
-vi.mock("@/composables/useMonsters", () => ({ useMonsters: () => ({ data: { value: [] } }) }));
-vi.mock("@/composables/useSounds", () => ({ useSounds: () => ({ data: mocks.sounds }) }));
+vi.mock("@/composables/useMonsters", () => ({ useResolvedMonster: (id: { value: string }) => {
+  mocks.monsterId = id;
+  return { data: mocks.monster };
+} }));
+vi.mock("@/composables/useNotes", () => ({ useNote: (id: { value: string }) => {
+  mocks.noteId = id;
+  return { data: mocks.note, isLoading: { value: false } };
+} }));
+vi.mock("@/composables/useScriptorium", () => ({ useScriptoriumDocument: (id: { value: string }) => {
+  mocks.handoutId = id;
+  return { data: mocks.handout, isLoading: { value: false } };
+} }));
+vi.mock("@/composables/useSounds", () => ({ useSounds: (enabled: () => boolean) => {
+  mocks.soundEnabled = enabled;
+  return { data: mocks.sounds };
+} }));
 vi.mock("@/composables/useSoundboardPlaylists", () => ({
-  usePlaylists: () => ({ data: mocks.playlists }),
+  usePlaylists: (enabled: () => boolean) => {
+    mocks.playlistEnabled = enabled;
+    return { data: mocks.playlists };
+  },
   usePlaylistTracks: () => ({ data: mocks.tracks }),
 }));
 vi.mock("@/composables/useSoundPlayback", () => ({
@@ -38,7 +67,10 @@ vi.mock("@/stores/soundboard", () => ({ useSoundboardStore: () => ({
   stopPlaylist: mocks.stopPlaylist,
 }) }));
 vi.mock("@/composables/useQuests", () => ({
-  useQuestObjectives: () => ({ data: { value: [] } }),
+  useQuestObjectives: (questId: { value: string }) => {
+    mocks.objectiveQuestId = questId;
+    return { data: { value: [] } };
+  },
   useUpdateObjective: () => ({ mutateAsync: mocks.updateObjective }),
 }));
 
@@ -55,6 +87,8 @@ describe("QuestRunContainedTool", () => {
   beforeEach(() => {
     mocks.trigger.mockReset();
     mocks.npc.value = null;
+    mocks.note.value = undefined;
+    mocks.handout.value = undefined;
   });
 
   const global = { stubs: { Teleport: true, EntityLightbox: { template: "<div><slot /></div>" } } };
@@ -75,6 +109,9 @@ describe("QuestRunContainedTool", () => {
     });
     expect(wrapper.text()).toContain("Crypt");
     expect(wrapper.text()).toContain("1 prepared room");
+    expect(wrapper.text()).toContain("Mind the tide.");
+    const bodies = wrapper.findAllComponents({ name: "RichTextViewer" }).map((viewer) => viewer.props("content"));
+    expect(bodies).toEqual(["root-body", "room-body"]);
   });
 
   it("fires an attached sound through the shared playback subsystem", async () => {
@@ -95,5 +132,33 @@ describe("QuestRunContainedTool", () => {
     expect(wrapper.text()).toContain("Guide · alive");
     await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Back to beat")!.trigger("click");
     expect(wrapper.emitted("close")).toHaveLength(1);
+  });
+
+  it("renders an attached note body and gates unrelated queries", () => {
+    mocks.note.value = { title: "Bell lore", category: "lore", tags: ["bell"], content: "note-body" };
+    const wrapper = shallowMount(QuestRunContainedTool, {
+      props: { attachment: attachment("note", { ref_id: "note-1" }), returnTo: "/quests/q1?mode=run&beat=b1" },
+      global,
+    });
+    expect(wrapper.findComponent({ name: "RichTextViewer" }).props("content")).toBe("note-body");
+    expect(wrapper.text()).toContain("lore · bell");
+    expect(mocks.noteId.value).toBe("note-1");
+    expect(mocks.handoutId.value).toBe("");
+    expect(mocks.monsterId.value).toBe("");
+    expect(mocks.objectiveQuestId.value).toBe("");
+    expect(mocks.soundEnabled?.()).toBe(false);
+    expect(mocks.playlistEnabled?.()).toBe(false);
+  });
+
+  it("renders an attached Scriptorium handout body", () => {
+    mocks.handout.value = { title: "The prophecy", doc_type: "handout", word_count: 42, is_published: false, content: "handout-body" };
+    const wrapper = shallowMount(QuestRunContainedTool, {
+      props: { attachment: attachment("handout", { ref_id: "handout-1" }), returnTo: "/quests/q1?mode=run&beat=b1" },
+      global,
+    });
+    expect(wrapper.findComponent({ name: "RichTextViewer" }).props("content")).toBe("handout-body");
+    expect(wrapper.text()).toContain("handout · 42 words · draft");
+    expect(mocks.handoutId.value).toBe("handout-1");
+    expect(mocks.noteId.value).toBe("");
   });
 });

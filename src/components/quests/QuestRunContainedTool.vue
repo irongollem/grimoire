@@ -24,11 +24,20 @@
             </div>
           </div>
           <div v-else-if="adapter.containedSurface === 'atlas'" class="rounded-lg border border-border bg-card p-3">
-            <p class="text-body text-foreground">Atlas root with {{ preparedRooms.length }} prepared room{{ preparedRooms.length === 1 ? '' : 's' }}.</p>
-            <ul v-if="preparedRooms.length" class="mt-2 space-y-1 text-caption text-foreground">
-              <li v-for="room in preparedRooms" :key="room.id">{{ room.name }}</li>
+            <p class="text-body font-semibold text-foreground">{{ atlasRoot?.name || attachment.label }}</p>
+            <p class="text-caption text-muted-foreground">{{ atlasRoot?.location_type || 'Atlas location' }} · {{ preparedRooms.length }} prepared room{{ preparedRooms.length === 1 ? '' : 's' }}</p>
+            <RichTextViewer v-if="atlasRoot?.description" class="mt-2" :content="atlasRoot.description" />
+            <p v-if="atlasRoot?.notes" class="mt-2 whitespace-pre-wrap text-caption text-muted-foreground">{{ atlasRoot.notes }}</p>
+            <ul v-if="preparedRooms.length" class="mt-3 space-y-2">
+              <li v-for="room in preparedRooms" :key="room.id" class="rounded-md border border-border p-2">
+                <p class="text-caption font-semibold text-foreground">{{ room.name }}</p>
+                <RichTextViewer v-if="room.description" class="mt-1" :content="room.description" />
+                <p v-if="room.notes" class="mt-1 whitespace-pre-wrap text-caption text-muted-foreground">{{ room.notes }}</p>
+                <p v-if="!room.description && !room.notes" class="mt-1 text-caption italic text-muted-foreground">No room notes prepared.</p>
+              </li>
             </ul>
-            <p class="text-caption text-muted-foreground">Open the authoritative Atlas view for maps, pins and room detail.</p>
+            <p v-else class="mt-2 text-caption italic text-muted-foreground">No room context selected for this beat.</p>
+            <p class="mt-2 text-caption text-muted-foreground">Open Atlas for maps, pins, and advanced editing.</p>
           </div>
           <div v-else-if="adapter.containedSurface === 'audio'" class="rounded-lg border border-border bg-card p-3">
             <p v-if="sound" class="text-body text-foreground">{{ sound.category }} · {{ sound.source_type }}</p>
@@ -67,6 +76,24 @@
               @click="toggleObjective"
             />
           </div>
+          <div v-else-if="attachment.attachment_type === 'note'" class="rounded-lg border border-border bg-card p-3">
+            <LoadingSpinner v-if="noteQuery.isLoading.value" />
+            <template v-else-if="noteRecord">
+              <p class="text-caption text-muted-foreground">{{ noteRecord.category }}<template v-if="noteRecord.tags.length"> · {{ noteRecord.tags.join(', ') }}</template></p>
+              <RichTextViewer v-if="noteRecord.content" class="mt-2" :content="noteRecord.content" />
+              <p v-else class="mt-2 text-caption italic text-muted-foreground">This note has no body yet.</p>
+            </template>
+            <p v-else class="text-caption text-tone-caution">The attached note could not be loaded.</p>
+          </div>
+          <div v-else-if="attachment.attachment_type === 'handout'" class="rounded-lg border border-border bg-card p-3">
+            <LoadingSpinner v-if="handoutQuery.isLoading.value" />
+            <template v-else-if="handoutRecord">
+              <p class="text-caption text-muted-foreground">{{ handoutRecord.doc_type }} · {{ handoutRecord.word_count }} words · {{ handoutRecord.is_published ? 'published' : 'draft' }}</p>
+              <RichTextViewer v-if="handoutRecord.content" class="mt-2" :content="handoutRecord.content" />
+              <p v-else class="mt-2 text-caption italic text-muted-foreground">This handout has no body yet.</p>
+            </template>
+            <p v-else class="text-caption text-tone-caution">The attached handout could not be loaded.</p>
+          </div>
           <div v-else class="rounded-lg border border-border bg-card p-3">
             <p class="text-body text-foreground">{{ attachment.compact_detail || "Authoritative campaign record" }}</p>
             <p class="text-caption text-muted-foreground">This quick view keeps the session in place; advanced editing stays in the existing specialist.</p>
@@ -89,7 +116,9 @@ import { useAllLocations } from "@/composables/useLocations";
 import { useNpc } from "@/composables/useNpcs";
 import { useFaction } from "@/composables/useFactions";
 import { useItems } from "@/composables/useItems";
-import { useMonsters } from "@/composables/useMonsters";
+import { useResolvedMonster } from "@/composables/useMonsters";
+import { useNote } from "@/composables/useNotes";
+import { useScriptoriumDocument } from "@/composables/useScriptorium";
 import { useSounds } from "@/composables/useSounds";
 import { usePlaylists, usePlaylistTracks } from "@/composables/useSoundboardPlaylists";
 import { useActionCheck, useBlockedCheck, useSoundTrigger } from "@/composables/useSoundPlayback";
@@ -101,6 +130,8 @@ import type { QuestBeatAttachmentSummary } from "@/types/quest.types";
 import type { Sound } from "@/types/sound.types";
 import AppButton from "@/components/common/AppButton.vue";
 import EntityLightbox from "@/components/common/EntityLightbox.vue";
+import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import RichTextViewer from "@/components/common/RichTextViewer.vue";
 
 const EncounterRunSurface = defineAsyncComponent(() => import("@/components/encounters/EncounterRunSurface.vue"));
 
@@ -113,20 +144,28 @@ const adapter = computed(() => QUEST_BEAT_ATTACHMENT_ADAPTERS[props.attachment.a
 const { data: locations } = useAllLocations(() => props.attachment.attachment_type === "location_set");
 const npcId = computed(() => props.attachment.attachment_type === "npc" ? props.attachment.ref_id : "");
 const factionId = computed(() => props.attachment.attachment_type === "faction" ? props.attachment.ref_id : "");
+const monsterId = computed(() => props.attachment.attachment_type === "monster" ? props.attachment.ref_id : "");
+const noteId = computed(() => props.attachment.attachment_type === "note" ? props.attachment.ref_id : "");
+const handoutId = computed(() => props.attachment.attachment_type === "handout" ? props.attachment.ref_id : "");
 const { data: npc } = useNpc(npcId);
 const { data: faction } = useFaction(factionId);
+const monsterQuery = useResolvedMonster(monsterId);
+const noteQuery = useNote(noteId);
+const handoutQuery = useScriptoriumDocument(handoutId);
 const npcRecord = computed(() => npc.value ?? null);
 const factionRecord = computed(() => faction.value ?? null);
-const { data: objectives } = useQuestObjectives(computed(() => props.attachment.quest_id));
+const monster = computed(() => monsterQuery.data.value?.monster ?? null);
+const noteRecord = computed(() => noteQuery.data.value ?? null);
+const handoutRecord = computed(() => handoutQuery.data.value ?? null);
+const objectiveQuestId = computed(() => props.attachment.attachment_type === "objective" ? props.attachment.quest_id : "");
+const { data: objectives } = useQuestObjectives(objectiveQuestId);
 const updateObjective = useUpdateObjective();
 const objective = computed(() => props.attachment.attachment_type === "objective" ? objectives.value?.find((row) => row.id === props.attachment.ref_id) ?? null : null);
 const { data: items } = useItems(() => ({ enabled: props.attachment.attachment_type === "item" }));
-const { data: monsters } = useMonsters();
 const item = computed(() => props.attachment.attachment_type === "item" ? items.value?.find((row) => row.id === props.attachment.ref_id) ?? null : null);
-const monster = computed(() => props.attachment.attachment_type === "monster" ? monsters.value?.find((row) => row.id === props.attachment.ref_id) ?? null : null);
 const portraitSrc = computed(() => npcRecord.value?.portrait_url ?? factionRecord.value?.emblem_url ?? item.value?.image_url ?? monster.value?.image_url ?? null);
-const { data: sounds } = useSounds();
-const { data: playlists } = usePlaylists();
+const { data: sounds } = useSounds(() => props.attachment.attachment_type === "sound");
+const { data: playlists } = usePlaylists(() => props.attachment.attachment_type === "playlist");
 const playlistId = computed(() => props.attachment.attachment_type === "playlist" ? props.attachment.ref_id : null);
 const { data: playlistTracksData } = usePlaylistTracks(playlistId);
 const soundboard = useSoundboardStore();
@@ -139,6 +178,7 @@ const actionFor = useActionCheck();
 const blockedReason = useBlockedCheck();
 const audioAction = (value: Sound) => ({ play: "Play cue", pause: "Pause cue", refire: "Fire cue again" })[actionFor(value)];
 const roomIds = computed(() => new Set(Array.isArray(props.attachment.metadata.room_ids) ? props.attachment.metadata.room_ids.map(String) : []));
+const atlasRoot = computed(() => (locations.value ?? []).find((location) => location.id === props.attachment.ref_id) ?? null);
 const preparedRooms = computed(() => (locations.value ?? []).filter((location) => roomIds.value.has(location.id)));
 const specialistUrl = (path: string) => withQuestReturnTo(path, props.returnTo);
 function togglePlaylist() {

@@ -122,12 +122,12 @@ async function replaceTracksForPlaylist(playlistId: string, tracks: PlaylistTrac
 
 // ── Exported composables ──────────────────────────────────────────────────
 
-export function usePlaylists() {
+export function usePlaylists(enabled?: () => boolean) {
   const { activeCampaignId } = storeToRefs(useCampaignStore());
   return useQuery({
     queryKey: computed(() => [PLAYLISTS_KEY, activeCampaignId.value]),
     queryFn: () => fetchPlaylists(activeCampaignId.value!),
-    enabled: () => !!activeCampaignId.value,
+    enabled: () => !!activeCampaignId.value && (enabled?.() ?? true),
   });
 }
 
