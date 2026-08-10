@@ -22,6 +22,16 @@ export interface CampaignRealtimeChange {
 type CampaignRow = Record<string, unknown> & RealtimeRow;
 type RuleRow = Record<string, unknown> & { campaign_id: string; rule_key: string };
 
+/** The message types `dispatch_quest_beat_loot` mints, one per loot entry kind. */
+const LOOT_MESSAGE_TYPES = new Set(["item_drop", "currency_drop", "loot_chest"]);
+
+function isLootMessageEvent(change: CampaignRealtimeChange): boolean {
+  const row = change.eventType === "DELETE" ? change.old : change.new;
+  const type = typeof row.type === "string" ? row.type : "";
+  if (!type) return change.eventType === "DELETE";
+  return LOOT_MESSAGE_TYPES.has(type);
+}
+
 const isKey = (key: QueryKey, root: string, length: number) =>
   key[0] === root && key.length === length;
 const stringAt = (row: Record<string, unknown>, field: string) =>
@@ -107,12 +117,27 @@ export function dispatchCampaignRealtimeSystem(
 ): boolean {
   switch (table) {
     case "quest_beat_loot":
-    case "campaign_messages":
-      // Loot state is a secured join over both tables. Re-read it rather than
-      // putting raw chat metadata into a DM-only projection, and refresh board
-      // aggregates derived from the same rows.
+      // Loot state is a secured join over quest_beat_loot and campaign_messages.
+      // Re-read it rather than putting raw chat metadata into a DM-only
+      // projection, and refresh board aggregates derived from the same rows.
       invalidate(queryClient, ["quest_beat_loot"]);
       invalidate(queryClient, ["quest_beats", "board"]);
+      return true;
+
+    case "campaign_messages":
+      // Claim state and message removal live on the chat row, so quest loot has
+      // to react to it — but campaign_messages is the highest-volume table in
+      // the app, and re-running the board aggregate (6 queries plus batched
+      // attachment lookups) on every line of table chat is not affordable.
+      // dispatch_quest_beat_loot only ever writes these three types, so nothing
+      // else can be a loot dispatch. A DELETE whose old row carries no type at
+      // all still invalidates: deleting a dispatched message is what flips a
+      // loot entry to `message_removed`, and guessing wrong there strands the
+      // DM on stale state.
+      if (isLootMessageEvent(change)) {
+        invalidate(queryClient, ["quest_beat_loot"]);
+        invalidate(queryClient, ["quest_beats", "board"]);
+      }
       return true;
 
     case "session_proposals":

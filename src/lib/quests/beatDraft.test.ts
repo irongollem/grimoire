@@ -25,4 +25,16 @@ describe("quest beat draft", () => {
     });
     expect(questBeatDraftsEqual(before, after)).toBe(false);
   });
+
+  it("keeps the moment an improvised beat was reviewed across later saves", () => {
+    const reviewed = "2026-08-01T20:15:00.000Z";
+    const draft = questBeatToDraft({ ...beat, is_improvised: true, improv_reviewed_at: reviewed } as QuestBeat);
+    expect(draft.improv_reviewed).toBe(true);
+    // An unrelated edit, saved long after the review, must not restamp it.
+    expect(questBeatDraftToUpdate({ ...draft, title: "Renamed" }, reviewed).improv_reviewed_at).toBe(reviewed);
+    // Ticking the box for the first time still records now.
+    expect(questBeatDraftToUpdate(draft, null).improv_reviewed_at).not.toBe(null);
+    // Clearing it discards the timestamp.
+    expect(questBeatDraftToUpdate({ ...draft, improv_reviewed: false }, reviewed).improv_reviewed_at).toBe(null);
+  });
 });

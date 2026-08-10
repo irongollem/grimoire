@@ -139,7 +139,7 @@ async function saveNow() {
     const saved = await updateBeat.mutateAsync({
       id: props.beat.id,
       questId: props.beat.quest_id,
-      update: questBeatDraftToUpdate(snapshot),
+      update: questBeatDraftToUpdate(snapshot, props.beat.improv_reviewed_at),
       expectedUpdatedAt: version.value,
     });
     version.value = saved.updated_at;

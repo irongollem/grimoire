@@ -13,9 +13,11 @@
     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
       <label class="flex flex-col gap-1 sm:col-span-2">
         <span class="text-label font-semibold text-muted-foreground">Title</span>
-        <input
+        <AppInput
           v-model="title"
-          class="w-full rounded-md border border-border bg-background px-3 py-2 text-body text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-ring"
+          tone="card"
+          size="body"
+          placeholder="Untitled Quest"
           @blur="saveMetadata"
           @keydown.enter.prevent="($event.target as HTMLInputElement).blur()"
         />
@@ -61,6 +63,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
+import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import PlayerVisibilityToggle from "@/components/common/PlayerVisibilityToggle.vue";

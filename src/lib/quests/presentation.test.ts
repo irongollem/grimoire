@@ -48,6 +48,22 @@ describe("quest beat presentation", () => {
     ]);
   });
 
+  it("scopes connectivity per quest and never stages the quest-level overview beat", () => {
+    const overview = { ...beat("overview"), is_overview: true } as QuestBeat;
+    const result = deriveQuestBeatPresentations({
+      // Campaign-wide input, as the board passes it: quest "q" has two wired
+      // flow beats, quest "other" has a single beat that cannot be connected.
+      beats: [overview, beat("a"), beat("b"), { ...beat("lonely"), quest_id: "other" } as QuestBeat],
+      edges: [edge("ab", "a", "b")],
+      attachments: [],
+    });
+
+    expect(result.overview.isDisconnected).toBe(false);
+    expect(result.overview.prepGaps).toEqual([]);
+    expect(result.lonely.isDisconnected).toBe(false);
+    expect(result.a.isDisconnected).toBe(false);
+  });
+
   it("marks route history without looping on cycles or convergence", () => {
     const edges = [edge("ab", "a", "b"), edge("bc", "b", "c"), edge("ca", "c", "a"), edge("dc", "d", "c")];
     expect([...visitedRouteEdgeIds(edges, [transition("a", "b"), transition("b", "c"), transition("c", "a")])]).toEqual(["ab", "bc", "ca"]);

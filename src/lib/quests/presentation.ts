@@ -67,11 +67,24 @@ export function deriveQuestBeatPresentations(input: QuestBeatPresentationInput) 
   }
   const connected = new Set(input.edges.flatMap((edge) => [edge.source_beat_id, edge.target_beat_id]));
   const visited = new Set((input.transitions ?? []).map((transition) => transition.to_beat_id));
+  // Connectivity is a per-quest question, and the overview beat is quest-level:
+  // it is deliberately never wired into the edge graph, so it is neither
+  // disconnected itself nor part of the count that decides whether a flow beat
+  // has anything to connect to. The board passes campaign-wide beats through
+  // here, so counting `input.beats` directly would make every quest answer for
+  // every other one.
+  const flowBeatsPerQuest = new Map<string, number>();
+  for (const beat of input.beats) {
+    if (beat.is_overview) continue;
+    flowBeatsPerQuest.set(beat.quest_id, (flowBeatsPerQuest.get(beat.quest_id) ?? 0) + 1);
+  }
   const result: Record<string, QuestBeatPresentation> = {};
 
   for (const beat of input.beats) {
     const placed = attachments.get(beat.id) ?? [];
-    const isDisconnected = input.beats.length > 1 && !connected.has(beat.id);
+    const isDisconnected = !beat.is_overview
+      && (flowBeatsPerQuest.get(beat.quest_id) ?? 0) > 1
+      && !connected.has(beat.id);
     const prepGaps = deriveQuestBeatPrepGaps(beat, placed, { isDisconnected });
     const loot = input.lootByBeat?.[beat.id] ?? { total: 0, undispatched: 0, unclaimed: 0 };
     result[beat.id] = {

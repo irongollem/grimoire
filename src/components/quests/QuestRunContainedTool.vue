@@ -41,9 +41,11 @@
             <p class="mt-2 text-caption text-muted-foreground">Open Atlas for maps, pins, and advanced editing.</p>
           </div>
           <div v-else-if="adapter.containedSurface === 'audio'" class="rounded-lg border border-border bg-card p-3">
-            <p v-if="sound" class="text-body text-foreground">{{ sound.category }} · {{ sound.source_type }}</p>
-            <AppButton v-if="sound" :label="audioAction(sound)" class="mt-2" variant="primary" :disabled="!!blockedReason(sound)" @click="triggerSound(sound)" />
-            <p v-if="sound && blockedReason(sound)" class="mt-1 text-caption text-destructive">{{ blockedReason(sound) }}</p>
+            <template v-if="sound">
+              <p class="text-body text-foreground">{{ sound.category }} · {{ sound.source_type }}</p>
+              <AppButton :label="audioAction(sound)" class="mt-2" variant="primary" :disabled="!!blockedReason(sound)" @click="triggerSound(sound)" />
+              <p v-if="blockedReason(sound)" class="mt-1 text-caption text-destructive">{{ blockedReason(sound) }}</p>
+            </template>
             <template v-else-if="playlist">
               <p class="text-body text-foreground">{{ attachment.attachment_type === 'audio_scene' ? 'Ambient scene' : 'Music playlist' }} · {{ playlistTracks.length }} track{{ playlistTracks.length === 1 ? '' : 's' }}</p>
               <AppButton :label="playlistActionLabel" class="mt-2" variant="primary" :disabled="!playlistTracks.length" @click="togglePlaylist" />

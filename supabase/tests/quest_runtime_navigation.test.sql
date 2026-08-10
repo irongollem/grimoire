@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(38);
+select plan(39);
 
 select has_function(
   'public', 'transition_quest_runtime',
@@ -49,6 +49,13 @@ select set_config('request.jwt.claim.role', 'authenticated', true);
 
 select is((select count(*)::integer from public.search_quest_runtime_jump_targets('66800000-0000-4000-8000-000000000010')), 5, 'jump search returns eligible beats in the current campaign');
 select is((select count(*)::integer from public.search_quest_runtime_jump_targets('66800000-0000-4000-8000-000000000010', 'Side')), 2, 'jump search matches both quest and beat labels');
+-- Every quest carries an auto-created overview beat. It sits outside the edge
+-- graph, so parking the live cursor on it would strand the cockpit.
+select is(
+  (select count(*)::integer from public.search_quest_runtime_jump_targets('66800000-0000-4000-8000-000000000010', 'overview')),
+  0,
+  'quest overview beats are never offered as runtime jump targets'
+);
 
 select is(
   public.transition_quest_runtime(

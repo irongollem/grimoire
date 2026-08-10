@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { useLocalStorage } from "@vueuse/core";
 import type { NoteCategory } from "@/types/notes.types";
 import type { BoardMode, PadSize } from "@/types/sound.types";
@@ -152,14 +152,18 @@ export const useUiStore = defineStore("ui", () => {
 
   // Quest UI state
   const questGeneratorOpen = ref(false);
-  const questsSearch = useLocalStorage("grimoire:quests:search", "");
+  // Kanban vs. list is a layout preference and persists, like `entityListLayout`.
+  // The filters below are session-scoped (plain refs): they survive navigation
+  // but must not persist, or a DM returns weeks later to a near-empty board with
+  // no memory of the search term or facet that emptied it.
   const questsIsKanban = useLocalStorage("grimoire:quests:kanban", true);
-  const questsPartyFilter = useLocalStorage("grimoire:quests:party", false);
-  const questsEntityFilter = useLocalStorage("grimoire:quests:entity", "");
+  const questsSearch = ref("");
+  const questsPartyFilter = ref(false);
+  const questsEntityFilter = ref("");
   // Summary-backed facets remain inert until their batched board data has loaded,
   // so a slow response never makes quests disappear temporarily.
-  const questsPrepGapsFilter = useLocalStorage("grimoire:quests:prep-gaps", false);
-  const questsLootFilter = useLocalStorage("grimoire:quests:pending-loot", false);
+  const questsPrepGapsFilter = ref(false);
+  const questsLootFilter = ref(false);
 
   const questsHasActiveFilters = computed(() =>
     questsSearch.value !== "" ||
@@ -446,6 +450,15 @@ export const useUiStore = defineStore("ui", () => {
     chatFocusMessageId.value = messageId;
     chatFocusRequest.value += 1;
   }
+
+  // The focus id also drives the highlight ring, so it outlives the scroll on
+  // purpose — but only for as long as the panel stays open. Closing ends the
+  // jump; without this the ring, and the beat it points at, would follow the
+  // DM around for the rest of the session. Several call sites close the panel
+  // by assigning `chatOpen` directly, so watch the flag rather than the action.
+  watch(chatOpen, (open) => {
+    if (!open) chatFocusMessageId.value = null;
+  });
 
   // DM "talk as" NPC — DM can speak/act as any NPC
   const dmTalkAsNpcId   = ref("");

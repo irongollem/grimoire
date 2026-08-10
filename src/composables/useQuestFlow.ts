@@ -343,28 +343,6 @@ export function useSetQuestBeatAttachmentRequired() {
   });
 }
 
-/** Existing encounter screens stay authoritative; this only answers where an
- * encounter is placed in the authored story flow. */
-export function useEncounterBeatUsages(encounterId: string | Ref<string>) {
-  const id = asRef(encounterId);
-  return useQuery({
-    queryKey: computed(() => [ATTACHMENTS_KEY, "encounter-usage", id.value]),
-    queryFn: async (): Promise<Array<{ beat_id: string; quest_id: string; beat_title: string }>> => {
-      const { data, error } = await supabase
-        .from("quest_beat_attachments")
-        .select("beat_id, quest_id, beat:quest_beats!inner(title)")
-        .eq("attachment_type", "encounter")
-        .eq("ref_id", id.value);
-      if (error) throw error;
-      return (data ?? []).map((raw) => {
-        const row = raw as unknown as { beat_id: string; quest_id: string; beat: Array<{ title: string }> };
-        return { beat_id: row.beat_id, quest_id: row.quest_id, beat_title: row.beat[0]?.title ?? "Untitled beat" };
-      });
-    },
-    enabled: () => !!id.value,
-  });
-}
-
 export function useCreateQuestBeat() {
   const queryClient = useQueryClient();
   return useMutation({

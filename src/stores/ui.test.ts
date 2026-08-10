@@ -3,36 +3,62 @@ import { createPinia, setActivePinia } from "pinia";
 import { nextTick } from "vue";
 import { useUiStore } from "./ui";
 
-describe("quest filter persistence", () => {
+describe("quest filter state", () => {
   beforeEach(() => {
     localStorage.clear();
     setActivePinia(createPinia());
   });
 
-  it("restores every composable quest filter and clears them together", async () => {
+  it("carries every quest filter across navigation and clears them together", () => {
+    const store = useUiStore();
+    store.questsSearch = "vault";
+    store.questsPartyFilter = true;
+    store.questsEntityFilter = "faction:faction-1";
+    store.questsPrepGapsFilter = true;
+    store.questsLootFilter = true;
+
+    // Navigating to another view and back resolves the same store instance.
+    const afterNavigation = useUiStore();
+    expect({
+      search: afterNavigation.questsSearch,
+      party: afterNavigation.questsPartyFilter,
+      entity: afterNavigation.questsEntityFilter,
+      prep: afterNavigation.questsPrepGapsFilter,
+      loot: afterNavigation.questsLootFilter,
+    }).toEqual({ search: "vault", party: true, entity: "faction:faction-1", prep: true, loot: true });
+    expect(afterNavigation.questsHasActiveFilters).toBe(true);
+
+    afterNavigation.resetQuestsFilters();
+    expect(afterNavigation.questsHasActiveFilters).toBe(false);
+    expect(afterNavigation.questsSearch).toBe("");
+    expect(afterNavigation.questsPartyFilter).toBe(false);
+    expect(afterNavigation.questsEntityFilter).toBe("");
+    expect(afterNavigation.questsPrepGapsFilter).toBe(false);
+    expect(afterNavigation.questsLootFilter).toBe(false);
+  });
+
+  it("does not persist filters, so a later session opens on the whole board", async () => {
     const first = useUiStore();
     first.questsSearch = "vault";
-    first.questsPartyFilter = true;
-    first.questsEntityFilter = "faction:faction-1";
     first.questsPrepGapsFilter = true;
-    first.questsLootFilter = true;
+    await nextTick();
+
+    expect(Object.keys(localStorage).filter((key) => key.startsWith("grimoire:quests:")))
+      .toEqual(["grimoire:quests:kanban"]);
+
+    setActivePinia(createPinia());
+    const nextSession = useUiStore();
+    expect(nextSession.questsSearch).toBe("");
+    expect(nextSession.questsPrepGapsFilter).toBe(false);
+    expect(nextSession.questsHasActiveFilters).toBe(false);
+  });
+
+  it("keeps the kanban/list layout choice, which is a preference rather than a filter", async () => {
+    const first = useUiStore();
+    first.questsIsKanban = false;
     await nextTick();
 
     setActivePinia(createPinia());
-    const restored = useUiStore();
-    expect({
-      search: restored.questsSearch,
-      party: restored.questsPartyFilter,
-      entity: restored.questsEntityFilter,
-      prep: restored.questsPrepGapsFilter,
-      loot: restored.questsLootFilter,
-    }).toEqual({ search: "vault", party: true, entity: "faction:faction-1", prep: true, loot: true });
-    expect(restored.questsHasActiveFilters).toBe(true);
-
-    restored.resetQuestsFilters();
-    expect(restored.questsHasActiveFilters).toBe(false);
-    expect(restored.questsEntityFilter).toBe("");
-    expect(restored.questsPrepGapsFilter).toBe(false);
-    expect(restored.questsLootFilter).toBe(false);
+    expect(useUiStore().questsIsKanban).toBe(false);
   });
 });

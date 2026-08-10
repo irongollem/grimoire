@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(34);
+select plan(35);
 
 select has_table('public', 'quest_beats', 'authored beats have their own table');
 select has_table('public', 'quest_beat_edges', 'authored routes have their own table');
@@ -149,7 +149,10 @@ set local role authenticated;
 select set_config('request.jwt.claim.sub', '65800000-0000-4000-8000-000000000001', true);
 select set_config('request.jwt.claim.role', 'authenticated', true);
 
-select is((select count(*)::integer from public.quest_beats where campaign_id = '65800000-0000-4000-8000-000000000010'), 5, 'the DM can read authored beats');
+select is((select count(*)::integer from public.quest_beats where campaign_id = '65800000-0000-4000-8000-000000000010' and not is_overview), 5, 'the DM can read authored beats');
+-- Each of the two quests in this campaign also carries an auto-created overview
+-- beat, and the DM reads those through the same policy.
+select is((select count(*)::integer from public.quest_beats where campaign_id = '65800000-0000-4000-8000-000000000010' and is_overview), 2, 'the DM can read the per-quest overview beats');
 select throws_ok($$
   update public.quest_beat_transitions set transition_kind = 'previous'
   where campaign_id = '65800000-0000-4000-8000-000000000010'

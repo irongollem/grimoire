@@ -32,7 +32,14 @@ export function questBeatToDraft(beat: QuestBeat): QuestBeatDraft {
   };
 }
 
-export function questBeatDraftToUpdate(draft: QuestBeatDraft): QuestBeatUpdate {
+/**
+ * `savedReviewedAt` is the beat's stored review timestamp. It is carried through
+ * unchanged whenever the flag is still set, because the column records *when the
+ * improvisation was turned into prepared material* — restamping it on every
+ * later autosave of an unrelated field would quietly redefine it as "last
+ * touched" and lose the real moment.
+ */
+export function questBeatDraftToUpdate(draft: QuestBeatDraft, savedReviewedAt: string | null = null): QuestBeatUpdate {
   const nullable = (value: string) => value || null;
   return {
     title: draft.title.trim(),
@@ -46,7 +53,9 @@ export function questBeatDraftToUpdate(draft: QuestBeatDraft): QuestBeatUpdate {
     consequences: nullable(draft.consequences),
     rumor_text: nullable(draft.rumor_text.trim()),
     reveal_text: nullable(draft.reveal_text.trim()),
-    improv_reviewed_at: draft.improv_reviewed ? new Date().toISOString() : null,
+    improv_reviewed_at: draft.improv_reviewed
+      ? savedReviewedAt ?? new Date().toISOString()
+      : null,
   };
 }
 

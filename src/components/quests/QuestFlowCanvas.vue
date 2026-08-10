@@ -119,7 +119,7 @@ defineExpose({ fitGraph, focusCurrent });
 :deep(.vue-flow__edge-textbg) { fill: var(--card); }
 :deep(.vue-flow__handle) { background: var(--primary); border-color: var(--card); width: .65rem; height: .65rem; }
 @media (max-width: 47.99rem) { .quest-flow-canvas { display: none; } .quest-flow-outline { display: block; } }
-@media (min-width: 80rem) {
+@media (min-width: 64rem) {
   .quest-flow-shell, .quest-flow-canvas { height: 100%; min-height: 0; }
 }
 @media (prefers-reduced-motion: reduce) { :deep(.vue-flow__transformationpane), :deep(.vue-flow__nodes) { transition: none !important; } }

@@ -537,14 +537,23 @@ watch(
   },
 );
 
+// `messages.length` is in the key because the requested message may not be
+// loaded yet when the jump is requested — each arrival is another chance to
+// find it. Once found, the request is spent: without that, every later message,
+// roll or loot drop would drag the panel back off the live conversation.
+let focusedKey = "";
 watch(
   () => [props.focusMessageId, props.focusRequest, props.messages.length] as const,
-  async ([messageId]) => {
+  async ([messageId, request]) => {
     if (!messageId) return;
+    const key = `${messageId}:${request ?? 0}`;
+    if (key === focusedKey) return;
     await nextTick();
     const target = [...(scrollEl.value?.querySelectorAll<HTMLElement>("[data-message-id]") ?? [])]
       .find((element) => element.dataset.messageId === messageId);
-    target?.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (!target) return;
+    focusedKey = key;
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
   },
   { immediate: true },
 );

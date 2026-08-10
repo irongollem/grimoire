@@ -42,6 +42,9 @@ const SYNC_TABLES = [
   ["session_availability",    "session_availability"],
   ["items",                   "items"],
   ["quest_beat_loot",         "quest_beat_loot"],
+  // Chat carries the authoritative claim/removal state for dispatched loot, but
+  // it is also the busiest table here — the system reducer filters down to the
+  // loot message types before touching any quest cache.
   ["campaign_messages",       "quest_beat_loot"],
   ["npc_inventory",           "npc-inventory"],
   // Membership add/remove + display-name changes — so a player renaming

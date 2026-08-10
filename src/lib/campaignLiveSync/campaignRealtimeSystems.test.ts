@@ -23,9 +23,29 @@ describe("dispatchCampaignRealtimeSystem", () => {
     qc.setQueryData(["quest_beat_loot", "campaign-a", "quest-a"], [{ id: "loot-1" }]);
     qc.setQueryData(["quest_beats", "board", "campaign-a"], { "quest-a": {} });
 
-    expect(dispatchCampaignRealtimeSystem(qc, "campaign_messages", event({ id: "message-1", campaign_id: "campaign-a" }, "UPDATE"), context)).toBe(true);
+    expect(dispatchCampaignRealtimeSystem(qc, "campaign_messages", event({ id: "message-1", campaign_id: "campaign-a", type: "item_drop" }, "UPDATE"), context)).toBe(true);
     expect(qc.getQueryState(["quest_beat_loot", "campaign-a", "quest-a"])?.isInvalidated).toBe(true);
     expect(qc.getQueryState(["quest_beats", "board", "campaign-a"])?.isInvalidated).toBe(true);
+  });
+
+  it("leaves the board aggregate alone for ordinary table chat", () => {
+    const qc = new QueryClient();
+    qc.setQueryData(["quest_beat_loot", "campaign-a", "quest-a"], [{ id: "loot-1" }]);
+    qc.setQueryData(["quest_beats", "board", "campaign-a"], { "quest-a": {} });
+
+    for (const type of ["chat", "roll", "dm_roll", "system"]) {
+      expect(dispatchCampaignRealtimeSystem(qc, "campaign_messages", event({ id: `message-${type}`, campaign_id: "campaign-a", type }), context)).toBe(true);
+    }
+    expect(qc.getQueryState(["quest_beat_loot", "campaign-a", "quest-a"])?.isInvalidated).toBe(false);
+    expect(qc.getQueryState(["quest_beats", "board", "campaign-a"])?.isInvalidated).toBe(false);
+  });
+
+  it("still reacts when a dispatched loot message is deleted without a typed payload", () => {
+    const qc = new QueryClient();
+    qc.setQueryData(["quest_beat_loot", "campaign-a", "quest-a"], [{ id: "loot-1" }]);
+
+    expect(dispatchCampaignRealtimeSystem(qc, "campaign_messages", deleteEvent("message-1"), context)).toBe(true);
+    expect(qc.getQueryState(["quest_beat_loot", "campaign-a", "quest-a"])?.isInvalidated).toBe(true);
   });
 
   it("updates only exact scheduling caches, including a filtered proposal list", () => {

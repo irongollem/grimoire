@@ -68,7 +68,12 @@ const { data: party } = useParty();
 const audienceId = ref(ui.dmPreviewPartyMemberId ?? "");
 const audienceOptions = computed(() => (party.value ?? []).filter((member) => props.visibleTo.includes(member.id)));
 const audience = computed(() => audienceOptions.value.find((member) => member.id === audienceId.value) ?? null);
-const beatsQuery = usePlayerQuestBeats(computed(() => props.questId), audienceId);
+// The `<select>` needs "" for its empty option, but the RPC parameter is a uuid
+// and `??` would forward the empty string straight into Postgres (22P02). No
+// audience is chosen until the party resolves, and never for a quest shared
+// with nobody.
+const previewAudienceId = computed(() => audienceId.value || null);
+const beatsQuery = usePlayerQuestBeats(computed(() => props.questId), previewAudienceId);
 const beats = computed(() => beatsQuery.data.value ?? []);
 
 watch(audienceOptions, (options) => {
