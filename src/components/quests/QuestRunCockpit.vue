@@ -22,19 +22,22 @@
         Session paused. Prep remains available; resume when the table is ready.
       </div>
       <div class="grid items-start gap-3 xl:grid-cols-[minmax(0,1fr)_20rem]">
-        <QuestRunBeatCard :anchor-quest-id="anchorQuestId" :beat="context.current" :attachments="currentAttachments" :loot="currentLoot" />
+        <QuestRunBeatCard :anchor-quest-id="anchorQuestId" :beat="context.current" :attachments="currentAttachments" :loot="currentLoot" @dirty="containedDirty = $event" />
         <QuestRunPath :path="context.path_so_far" />
       </div>
 
       <QuestRunJumpPanel v-if="jumpOpen" v-model="jumpSearch" :targets="rankedJumpTargets" @close="jumpOpen = false" @jump="jump" />
+      <QuestRunImprovPanel v-if="improvOpen" @close="improvOpen = false" @submit="improvise" />
       <QuestRunControls
         :status="context.state.status"
         :has-previous="!!context.previous"
-        :outgoing="context.outgoing"
+        :outgoing="branchChoices"
         :disabled="transitioning"
         @previous="command('previous')"
         @advance="(edgeId) => command('advance', { edgeId })"
+        @reveal="revealChoice"
         @jump="jumpOpen = !jumpOpen"
+        @improv="improvOpen = !improvOpen"
         @pause="command('pause')"
         @resume="command('resume')"
         @end="endSession"
@@ -67,9 +70,12 @@ import {
   useQuestBeatAttachmentSummaries,
   useQuestBeatLoot,
   useQuestBeats,
+  useCreateQuestBeat,
+  useDeleteQuestBeat,
   useQuestRuntimeCommand,
   useQuestRuntimeContext,
   useQuestRuntimeJumpTargets,
+  useUpdateQuestBeat,
 } from "@/composables/useQuestFlow";
 import { useQuests } from "@/composables/useQuests";
 import { rankQuestJumpTargets, type RankedQuestJumpTarget } from "@/lib/quests/run";
@@ -80,6 +86,7 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import QuestRunBeatCard from "./QuestRunBeatCard.vue";
 import QuestRunControls from "./QuestRunControls.vue";
 import QuestRunJumpPanel from "./QuestRunJumpPanel.vue";
+import QuestRunImprovPanel from "./QuestRunImprovPanel.vue";
 import QuestRunPath from "./QuestRunPath.vue";
 
 const props = defineProps<{ anchorQuestId: string }>();
@@ -91,15 +98,21 @@ const runtimeCommand = useQuestRuntimeCommand();
 const beatsQuery = useQuestBeats(computed(() => props.anchorQuestId));
 const questsQuery = useQuests();
 const currentQuestId = computed(() => contextQuery.data.value?.current?.quest_id ?? "");
+const runBeatsQuery = useQuestBeats(currentQuestId);
 const attachmentsQuery = useQuestBeatAttachmentSummaries(currentQuestId);
 const lootQuery = useQuestBeatLoot(currentQuestId);
 const jumpSearch = ref("");
 const debouncedJumpSearch = refDebounced(jumpSearch, 250);
 const jumpTargetsQuery = useQuestRuntimeJumpTargets(debouncedJumpSearch);
 const jumpOpen = ref(false);
+const improvOpen = ref(false);
 const startBeatId = ref("");
 const transitioning = ref(false);
 const error = ref("");
+const containedDirty = ref(false);
+const updateBeat = useUpdateQuestBeat();
+const createBeat = useCreateQuestBeat();
+const deleteBeat = useDeleteQuestBeat();
 
 const context = computed(() => contextQuery.data.value ?? null);
 const startOptions = computed(() => (beatsQuery.data.value ?? []).map((beat) => ({ id: beat.id, name: beat.title || "Untitled beat" })));
@@ -109,12 +122,27 @@ const recentBeatIds = computed(() => {
   const ids = (context.value?.path_so_far ?? []).map((row) => String(row.to_beat_id ?? "")).filter(Boolean).reverse();
   return [...new Set(ids)];
 });
+const branchChoices = computed(() => {
+  const visited = new Set(recentBeatIds.value);
+  const beats = new Map((runBeatsQuery.data.value ?? []).map((beat) => [beat.id, beat]));
+  return (context.value?.outgoing ?? []).map((choice) => {
+    const beat = beats.get(choice.beat_id);
+    return {
+      ...choice,
+      visibility: beat?.visibility ?? "hidden" as const,
+      presentationHint: beat?.presentation_hint ?? null,
+      prepGapCount: (attachmentsQuery.data.value ?? []).filter((row) => row.beat_id === choice.beat_id && row.prep_gap).length,
+      isVisited: visited.has(choice.beat_id),
+    };
+  });
+});
 const rankedJumpTargets = computed(() => rankQuestJumpTargets(
   (jumpTargetsQuery.data.value ?? []).filter((target) => target.beat_id !== context.value?.current?.id), questsQuery.data.value ?? [], context.value?.current?.quest_id ?? null,
   props.anchorQuestId, recentBeatIds.value,
 ));
 
 watch(() => context.value?.current?.id, (beatId) => {
+  containedDirty.value = false;
   if (!beatId || route.query.mode !== "run" || route.query.beat === beatId) return;
   void router.replace({ query: { ...route.query, mode: "run", beat: beatId } });
 }, { immediate: true });
@@ -125,6 +153,7 @@ async function run(input: Parameters<typeof runtimeCommand.mutateAsync>[0]) {
   try {
     const result = await runtimeCommand.mutateAsync(input);
     jumpOpen.value = false;
+    improvOpen.value = false;
     return result;
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : "The session position could not be changed";
@@ -136,6 +165,7 @@ async function run(input: Parameters<typeof runtimeCommand.mutateAsync>[0]) {
 async function command(kind: QuestRuntimeCommand, extra: { edgeId?: string } = {}) {
   const state = context.value?.state;
   if (!state) return;
+  if (["previous", "advance", "end"].includes(kind) && !(await confirmLeavingDraft())) return;
   await run({ campaignId: state.campaign_id, command: kind, expectedVersion: state.version, ...extra });
 }
 
@@ -148,7 +178,7 @@ async function start() {
 
 async function jump(target: RankedQuestJumpTarget, reason: string, pushReturn: boolean) {
   const state = context.value?.state;
-  if (!state) return;
+  if (!state || !(await confirmLeavingDraft())) return;
   await run({
     campaignId: state.campaign_id, command: "jump", expectedVersion: state.version,
     targetQuestId: target.quest_id, targetBeatId: target.beat_id, reason, pushReturn,
@@ -156,9 +186,52 @@ async function jump(target: RankedQuestJumpTarget, reason: string, pushReturn: b
   });
 }
 
+async function improvise(value: { title: string; reason: string; dmLead: string; pushReturn: boolean }) {
+  const current = context.value?.current;
+  const state = context.value?.state;
+  if (!current || !state || !(await confirmLeavingDraft())) return;
+  let createdId = "";
+  try {
+    const created = await createBeat.mutateAsync({
+      quest_id: current.quest_id, campaign_id: current.campaign_id, title: value.title, kind: "neutral", visibility: "hidden",
+      dm_content: value.dmLead || null, read_aloud: null, how_it_plays: null, outcomes: null, consequences: null,
+      rumor_text: null, reveal_text: null, presentation_hint: "Improvised at the table",
+      canvas_x: current.canvas_x + 320, canvas_y: current.canvas_y + 160, is_improvised: true,
+    });
+    createdId = created.id;
+    const moved = await run({
+      campaignId: state.campaign_id, command: "improv", expectedVersion: state.version,
+      targetQuestId: created.quest_id, targetBeatId: created.id, reason: value.reason, pushReturn: value.pushReturn,
+      provenance: { surface: "quest-run-improv" },
+    });
+    if (!moved) await deleteBeat.mutateAsync({ id: created.id, questId: created.quest_id });
+  } catch (caught) {
+    if (createdId) {
+      try { await deleteBeat.mutateAsync({ id: createdId, questId: current.quest_id }); } catch { /* Preserve the actionable create error. */ }
+    }
+    error.value = caught instanceof Error ? caught.message : "The improvised beat could not be created";
+  }
+}
+
 async function endSession() {
   if (!(await confirm("End this quest session? The visit history will remain available."))) return;
   await command("end");
+}
+
+async function revealChoice(beatId: string) {
+  const beat = runBeatsQuery.data.value?.find((row) => row.id === beatId);
+  if (!beat || !(await confirm(`Reveal “${beat.title}” to players? Advancing alone leaves it ${beat.visibility}.`))) return;
+  error.value = "";
+  try {
+    await updateBeat.mutateAsync({ id: beat.id, questId: beat.quest_id, expectedUpdatedAt: beat.updated_at, update: { visibility: "revealed" } });
+  } catch (caught) {
+    error.value = caught instanceof Error ? caught.message : "The player reveal could not be changed";
+  }
+}
+
+async function confirmLeavingDraft() {
+  if (!containedDirty.value) return true;
+  return confirm("Discard the unprepared loot fields and leave this beat?");
 }
 
 useHotkeys(computed(() => [
@@ -168,5 +241,5 @@ useHotkeys(computed(() => [
     if (edge) void command("advance", { edgeId: edge.edge_id });
   } },
   { combo: "j", description: "Jump to another quest beat", handler: () => { jumpOpen.value = true; } },
-]), { layer: "page", enabled: computed(() => context.value?.state?.status === "running" && !transitioning.value && !jumpOpen.value) });
+]), { layer: "page", enabled: computed(() => context.value?.state?.status === "running" && !transitioning.value && !jumpOpen.value && !improvOpen.value) });
 </script>

@@ -16,6 +16,14 @@ visits first and label the current quest, related quest line, and wider campaign
 results. The path panel renders immutable transition snapshots, so repeated
 beats and cross-quest detours remain understandable.
 
+Branch cards combine authored beat data, attachment readiness, and visit
+history. A normal choice never changes player visibility. Hidden or rumored
+destinations instead have a separate adjacent reveal action with explicit
+audience wording. Large branch sets get a local filter, while cycles remain in
+the list and are marked visited. At a dead end the same control surface offers
+Jump, Improvise, Pause, and End; the quick improv panel creates a hidden
+`is_improvised` beat and only enters it after creation succeeds.
+
 On refresh or browser history navigation, the persisted server cursor wins and
 the URL is canonicalized to that beat while preserving other query state. Run
 hotkeys are registered through the shared registry and disabled while typing,

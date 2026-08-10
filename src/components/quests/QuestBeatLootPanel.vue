@@ -51,6 +51,7 @@ import AppSelect from "@/components/common/AppSelect.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 
 const props = defineProps<{ beat: QuestBeat; loot: QuestBeatLoot[] }>();
+const emit = defineEmits<{ dirty: [dirty: boolean] }>();
 const auth = useAuthStore();
 const { data: items } = useItems();
 const createLoot = useCreateQuestBeatLoot();
@@ -71,8 +72,10 @@ const itemOptions = computed(() => (items.value ?? [])
   .filter((item) => item.user_id === auth.user?.id || item.campaign_id === props.beat.campaign_id)
   .map((item) => ({ id: item.id, name: item.name })));
 const canAdd = computed(() => kind.value === "item" ? !!itemId.value && quantity.value > 0 : coins.some((coin) => currency[coin] > 0));
+const isDraftDirty = computed(() => !!itemId.value || !!label.value.trim() || quantity.value !== 1 || coins.some((coin) => currency[coin] > 0));
 
 watch(kind, () => { itemId.value = ""; label.value = ""; error.value = ""; });
+watch(isDraftDirty, (dirty) => emit("dirty", dirty), { immediate: true });
 
 function statusLabel(status: QuestBeatLootDeliveryState) {
   return { held: "Held", chat: "In chat", partially_claimed: "Partly claimed", claimed: "Claimed", message_removed: "Chat removed" }[status];

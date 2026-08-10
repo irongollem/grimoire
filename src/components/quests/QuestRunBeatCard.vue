@@ -45,7 +45,7 @@
       <ul class="mt-1 list-disc pl-4"><li v-for="gap in readinessGaps" :key="gap">{{ gap }}</li></ul>
     </div>
 
-    <QuestBeatLootPanel v-if="loot.length" :beat="beat" :loot="loot" />
+    <QuestBeatLootPanel v-if="loot.length" :beat="beat" :loot="loot" @dirty="emit('dirty', $event)" />
   </article>
 </template>
 
@@ -63,6 +63,7 @@ const props = defineProps<{
   attachments: QuestBeatAttachmentSummary[];
   loot: QuestBeatLoot[];
 }>();
+const emit = defineEmits<{ dirty: [dirty: boolean] }>();
 
 const runReturn = computed(() => `/quests/${props.anchorQuestId}?mode=run&beat=${props.beat.id}`);
 const editUrl = computed(() => ({

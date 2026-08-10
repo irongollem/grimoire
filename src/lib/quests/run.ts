@@ -1,10 +1,17 @@
-import type { Quest, QuestRuntimeJumpTarget } from "@/types/quest.types";
+import type { Quest, QuestBeatVisibility, QuestRuntimeChoice, QuestRuntimeJumpTarget } from "@/types/quest.types";
 
 export type QuestJumpGroup = "current" | "side" | "campaign";
 
 export interface RankedQuestJumpTarget extends QuestRuntimeJumpTarget {
   group: QuestJumpGroup;
   recentRank: number;
+}
+
+export interface QuestRunBranchChoice extends QuestRuntimeChoice {
+  visibility: QuestBeatVisibility;
+  presentationHint: string | null;
+  prepGapCount: number;
+  isVisited: boolean;
 }
 
 export function rankQuestJumpTargets(

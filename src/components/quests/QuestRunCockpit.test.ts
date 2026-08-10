@@ -1,4 +1,4 @@
-import { shallowMount } from "@vue/test-utils";
+import { flushPromises, shallowMount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import QuestRunCockpit from "./QuestRunCockpit.vue";
 import QuestRunControls from "./QuestRunControls.vue";
@@ -10,6 +10,9 @@ const mocks = vi.hoisted(() => ({
   targets: { value: [] as Array<Record<string, unknown>> },
   quests: { value: [] as Array<Record<string, unknown>> },
   mutateAsync: vi.fn(),
+  updateBeat: vi.fn(),
+  createBeat: vi.fn(),
+  deleteBeat: vi.fn(),
   refetch: vi.fn(),
   replace: vi.fn(),
   route: { query: { mode: "run" } as Record<string, string> },
@@ -27,6 +30,9 @@ vi.mock("@/composables/useQuestFlow", () => ({
   useQuestBeatAttachmentSummaries: () => ({ data: { value: [] } }),
   useQuestBeatLoot: () => ({ data: { value: [] } }),
   useQuestRuntimeJumpTargets: () => ({ data: mocks.targets }),
+  useUpdateQuestBeat: () => ({ mutateAsync: mocks.updateBeat }),
+  useCreateQuestBeat: () => ({ mutateAsync: mocks.createBeat }),
+  useDeleteQuestBeat: () => ({ mutateAsync: mocks.deleteBeat }),
 }));
 
 const beat = { id: "b1", quest_id: "q1", campaign_id: "c1", title: "Opening", kind: "social" };
@@ -50,6 +56,9 @@ describe("QuestRunCockpit", () => {
     mocks.mutateAsync.mockImplementation(async () => mocks.context.value);
     mocks.refetch.mockReset();
     mocks.replace.mockReset();
+    mocks.updateBeat.mockReset();
+    mocks.createBeat.mockReset();
+    mocks.deleteBeat.mockReset();
   });
 
   it("starts the selected beat with version zero", async () => {
@@ -71,6 +80,7 @@ describe("QuestRunCockpit", () => {
     expect(mocks.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ command: "previous", expectedVersion: 4 }));
     expect(mocks.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ command: "advance", edgeId: "e1" }));
     expect(mocks.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ command: "pause" }));
+    await flushPromises();
 
     controls.vm.$emit("jump");
     await wrapper.vm.$nextTick();
