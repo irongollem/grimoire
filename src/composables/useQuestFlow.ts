@@ -33,6 +33,13 @@ const TRANSITIONS_KEY = "quest_beat_transitions";
 const ATTACHMENTS_KEY = "quest_beat_attachments";
 const LOOT_KEY = "quest_beat_loot";
 
+/** Player projections are audience-keyed. An authored beat change can alter
+ * every audience's safe DTO, so invalidating only the authored quest key leaves
+ * previously previewed players showing different snapshots for up to a minute. */
+export function invalidatePlayerQuestBeatProjections(queryClient: ReturnType<typeof useQueryClient>) {
+  return queryClient.invalidateQueries({ queryKey: [BEATS_KEY, "player"] });
+}
+
 function asRef(value: string | Ref<string>): Ref<string> {
   return isRef(value) ? value : ref(value);
 }
@@ -295,6 +302,7 @@ export function useCreateQuestBeatAttachment() {
     },
     onSuccess: (_attachment, input) => {
       queryClient.invalidateQueries({ queryKey: [ATTACHMENTS_KEY, input.quest_id] });
+      void invalidatePlayerQuestBeatProjections(queryClient);
     },
   });
 }
@@ -308,6 +316,7 @@ export function useDeleteQuestBeatAttachment() {
     },
     onSuccess: (_result, input) => {
       queryClient.invalidateQueries({ queryKey: [ATTACHMENTS_KEY, input.questId] });
+      void invalidatePlayerQuestBeatProjections(queryClient);
     },
   });
 }
@@ -366,6 +375,7 @@ export function useCreateQuestBeat() {
     },
     onSuccess: (_beat, input) => {
       queryClient.invalidateQueries({ queryKey: [BEATS_KEY, input.quest_id] });
+      void invalidatePlayerQuestBeatProjections(queryClient);
     },
   });
 }
@@ -437,6 +447,7 @@ export function useUpdateQuestBeat() {
     onSettled: (_beat, _error, input) => {
       queryClient.invalidateQueries({ queryKey: [BEATS_KEY, input.questId] });
       queryClient.invalidateQueries({ queryKey: [BEATS_KEY, "detail", input.id] });
+      void invalidatePlayerQuestBeatProjections(queryClient);
     },
   });
 }
@@ -451,6 +462,7 @@ export function useDeleteQuestBeat() {
     onSuccess: (_result, input) => {
       queryClient.invalidateQueries({ queryKey: [BEATS_KEY, input.questId] });
       queryClient.invalidateQueries({ queryKey: [EDGES_KEY, input.questId] });
+      void invalidatePlayerQuestBeatProjections(queryClient);
     },
   });
 }

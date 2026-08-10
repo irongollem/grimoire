@@ -17,14 +17,14 @@
     <div class="space-y-2">
       <h4 class="text-label-lg font-semibold text-muted-foreground">Confirmed journey</h4>
       <ol v-if="events.length" aria-label="Revealed quest history" class="relative space-y-3 border-l border-border pl-4 sm:pl-5">
-        <li v-for="event in events" :key="event.visit_id" class="relative min-w-0">
+        <li v-for="event in events" :key="event.eventKey" class="relative min-w-0">
           <span aria-hidden="true" class="absolute -left-[1.3rem] top-2 h-2.5 w-2.5 rounded-full border-2 border-card bg-primary sm:-left-[1.55rem]" />
           <article class="min-w-0 rounded-lg bg-muted/20 p-3">
             <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
               <h5 class="text-label-lg font-semibold text-foreground">
                 {{ event.visitNumber > 1 ? "Returned to this moment" : "Revealed story moment" }}
               </h5>
-              <time :datetime="event.visited_at" class="text-2xs text-muted-foreground">{{ formatVisitTime(event.visited_at) }}</time>
+              <time :datetime="event.occurredAt" class="text-2xs text-muted-foreground">{{ formatVisitTime(event.occurredAt) }}</time>
             </div>
             <p class="mt-1 font-fell text-body leading-relaxed text-foreground">
               {{ event.player_text || "This moment was revealed without further public details." }}
@@ -53,12 +53,20 @@ const events = computed(() => {
   const visitCounts = new Map<string, number>();
   return safeBeats.value
     .filter((beat) => beat.visibility === "revealed")
-    .flatMap((beat) => beat.visits.map((visit) => ({
-      ...visit,
-      beatId: beat.id,
-      player_text: beat.player_text,
-    })))
-    .sort((a, b) => a.visited_at.localeCompare(b.visited_at) || a.visit_id.localeCompare(b.visit_id))
+    .flatMap((beat) => beat.visits.length
+      ? beat.visits.map((visit) => ({
+          eventKey: visit.visit_id,
+          occurredAt: visit.visited_at,
+          beatId: beat.id,
+          player_text: beat.player_text,
+        }))
+      : [{
+          eventKey: `reveal-${beat.id}`,
+          occurredAt: beat.updated_at,
+          beatId: beat.id,
+          player_text: beat.player_text,
+        }])
+    .sort((a, b) => a.occurredAt.localeCompare(b.occurredAt) || a.eventKey.localeCompare(b.eventKey))
     .map((event) => {
       const visitNumber = (visitCounts.get(event.beatId) ?? 0) + 1;
       visitCounts.set(event.beatId, visitNumber);

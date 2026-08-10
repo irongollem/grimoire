@@ -54,6 +54,16 @@ describe("PlayerQuestStoryThread", () => {
     expect(wrapper.text()).toContain("No confirmed story moments have been revealed yet.");
   });
 
+  it("shows saved reveal text even before Run mode records a visit", () => {
+    const wrapper = mount(PlayerQuestStoryThread, {
+      props: { beats: [beat({ visits: [], player_text: "The chokepoint is open." })] },
+    });
+
+    expect(wrapper.text()).toContain("The chokepoint is open.");
+    expect(wrapper.get("ol[aria-label='Revealed quest history']").element.tagName).toBe("OL");
+    expect(wrapper.text()).not.toContain("No confirmed story moments");
+  });
+
   it("never renders hidden or DM-only fields from a malformed client object", () => {
     const malformed = {
       ...beat({ id: "hidden", visibility: "hidden" as PlayerQuestBeat["visibility"], player_text: "LEAKED PLAYER COPY" }),
