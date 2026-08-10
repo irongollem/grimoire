@@ -61,7 +61,7 @@ const emit = defineEmits<{
 
 const fullPageTo = computed(() => ({
   path: `/quests/${props.beat.quest_id}/beats/${props.beat.id}`,
-  query: { returnTo: `/quests/${props.beat.quest_id}?mode=build&beat=${props.beat.id}` },
+  query: { returnTo: `/quests/${props.beat.quest_id}?beat=${props.beat.id}` },
 }));
 const outgoing = computed(() => props.edges.filter((edge) => edge.source_beat_id === props.beat.id));
 const suggestions: Record<string, string> = {

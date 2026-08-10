@@ -235,6 +235,7 @@ import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import EncounterLoot from "@/components/encounters/EncounterLoot.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import { useCampaignStore } from "@/stores/campaign";
+import { useUiStore } from "@/stores/ui";
 import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
 import {
   QUEST_STATUSES,
@@ -373,6 +374,7 @@ const { mutateAsync: create } = useCreateQuest();
 const { mutateAsync: update } = useUpdateQuest();
 const { mutateAsync: del } = useDeleteQuest();
 const campaign = useCampaignStore();
+const ui = useUiStore();
 
 // ── Triggers ───────────────────────────────────────────────────────────────────
 
@@ -466,7 +468,8 @@ async function save() {
           `📋 Quest shared: "${created.title}"`,
           { entity_type: "quest", entity_id: created.id },
         );
-      router.push(`/quests/${created.id}?mode=build`);
+      ui.dmMode = "prep";
+      router.push(`/quests/${created.id}`);
     }
   } catch (e: unknown) {
     saveError.value = e instanceof Error ? e.message : "Failed to save";

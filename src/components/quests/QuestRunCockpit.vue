@@ -7,8 +7,7 @@
       </div>
       <div class="ml-auto flex gap-2">
         <AppButton v-if="context?.current" label="Preview as players" size="sm" variant="subtle" @click="openPreview(context.current.id)" />
-        <AppButton :to="`/quests/${anchorQuestId}`" label="Quest details" size="sm" variant="subtle" />
-        <AppButton :to="`/quests/${anchorQuestId}?mode=build&focus=current`" label="Build" size="sm" variant="subtle" />
+        <AppButton :to="`/quests/${anchorQuestId}?mode=details`" label="Quest details" size="sm" variant="subtle" />
       </div>
     </header>
 
@@ -157,7 +156,7 @@ const currentBeat = computed(() => {
   if (!snapshot) return null;
   return (runBeatsQuery.data.value ?? []).find((beat) => beat.id === snapshot.id) ?? snapshot;
 });
-const runReturn = computed(() => `/quests/${props.anchorQuestId}?mode=run&beat=${context.value?.current?.id ?? ""}`);
+const runReturn = computed(() => `/quests/${props.anchorQuestId}?beat=${context.value?.current?.id ?? ""}`);
 const startOptions = computed(() => (beatsQuery.data.value ?? []).map((beat) => ({ id: beat.id, name: beat.title || "Untitled beat" })));
 const currentAttachments = computed(() => (attachmentsQuery.data.value ?? []).filter((row) => row.beat_id === context.value?.current?.id));
 const currentLoot = computed(() => (lootQuery.data.value ?? []).filter((row) => row.beat_id === context.value?.current?.id));
@@ -195,8 +194,8 @@ watch(() => context.value?.current?.id, (beatId) => {
   containedDirty.value = false;
   selectedAttachment.value = null;
   beatEditorOpen.value = false;
-  if (!beatId || route.query.mode !== "run" || route.query.beat === beatId) return;
-  void router.replace({ query: { ...route.query, mode: "run", beat: beatId } });
+  if (!beatId || route.query.beat === beatId) return;
+  void router.replace({ query: { ...route.query, beat: beatId } });
 }, { immediate: true });
 
 async function run(input: Parameters<typeof runtimeCommand.mutateAsync>[0]) {

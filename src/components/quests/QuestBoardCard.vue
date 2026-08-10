@@ -11,7 +11,7 @@
   >
     <div class="flex items-start gap-2">
       <RouterLink
-        :to="{ path: `/quests/${quest.id}`, query: { mode: 'build' } }"
+        :to="`/quests/${quest.id}`"
         class="min-w-0 flex-1 font-fell text-base font-semibold leading-tight text-foreground hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 rounded-sm"
       >
         {{ quest.title || "Untitled Quest" }}
@@ -139,8 +139,8 @@
         <AppButton
           v-if="showAction"
           :to="actionTo"
-          :icon="summary?.isLive ? IconPlay : IconEdit"
-          :label="summary?.isLive ? 'Resume' : 'Prep'"
+          :icon="IconChevronRight"
+          label="Open"
           size="xs"
           variant="subtle"
           class="ml-auto"
@@ -157,9 +157,7 @@ import {
   IconCheck,
   IconChevronLeft,
   IconChevronRight,
-  IconEdit,
   IconLoot,
-  IconPlay,
   IconWarning,
 } from "@/lib/icons";
 import { timeAgo } from "@/lib/utils";
@@ -204,9 +202,7 @@ const nextStatus = computed<QuestStatus | null>(() => QUEST_STATUSES[statusIndex
 
 const hasSummaryChips = computed(() => props.summary !== undefined);
 const showAction = computed(() => !["completed", "failed"].includes(props.quest.status));
-const actionTo = computed(() => props.summary?.isLive
-  ? { path: `/quests/${props.quest.id}`, query: { mode: "run" } }
-  : { path: `/quests/${props.quest.id}`, query: { mode: "build" } });
+const actionTo = computed(() => `/quests/${props.quest.id}`);
 
 const lootLabel = computed(() => {
   if (!props.summary) return "";

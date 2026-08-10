@@ -51,7 +51,7 @@ describe("QuestRunCockpit", () => {
     mocks.beats.value = [beat];
     mocks.targets.value = [];
     mocks.quests.value = [];
-    mocks.route.query = { mode: "run" };
+    mocks.route.query = {};
     mocks.mutateAsync.mockReset();
     mocks.mutateAsync.mockImplementation(async () => mocks.context.value);
     mocks.refetch.mockReset();
@@ -95,9 +95,9 @@ describe("QuestRunCockpit", () => {
 
   it("canonicalizes a refreshed Run URL to the persisted current beat", () => {
     mocks.context.value = runningContext();
-    mocks.route.query = { mode: "run", beat: "stale-beat", panel: "notes" };
+    mocks.route.query = { beat: "stale-beat", panel: "notes" };
     shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
-    expect(mocks.replace).toHaveBeenCalledWith({ query: { mode: "run", beat: "b1", panel: "notes" } });
+    expect(mocks.replace).toHaveBeenCalledWith({ query: { beat: "b1", panel: "notes" } });
   });
 
   it("opens a beat attachment in the lazy contained surface", async () => {

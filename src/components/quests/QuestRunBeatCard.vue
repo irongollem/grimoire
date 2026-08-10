@@ -80,7 +80,7 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ dirty: [dirty: boolean]; "open-attachment": [attachment: QuestBeatAttachmentSummary]; "edit-beat": []; reveal: [] }>();
 
-const runReturn = computed(() => `/quests/${props.anchorQuestId}?mode=run&beat=${props.beat.id}`);
+const runReturn = computed(() => `/quests/${props.anchorQuestId}?beat=${props.beat.id}`);
 const editUrl = computed(() => ({
   path: `/quests/${props.beat.quest_id}/beats/${props.beat.id}`,
   query: { returnTo: runReturn.value },

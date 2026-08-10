@@ -397,7 +397,8 @@ function buildCreated(index: number) {
   const id = createdQuestIds.value[index];
   if (id) {
     ui.questGeneratorOpen = false;
-    router.push(`/quests/${id}?mode=build`);
+    ui.dmMode = "prep";
+    router.push(`/quests/${id}`);
   }
 }
 

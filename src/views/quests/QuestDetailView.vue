@@ -40,9 +40,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
-import { useRoute } from "vue-router";
+import { computed, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { useQuest } from "@/composables/useQuests";
+import { useUiStore } from "@/stores/ui";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import QuestEditor from "@/components/quests/QuestEditor.vue";
@@ -53,14 +54,40 @@ import QuestSheet from "@/components/quests/QuestSheet.vue";
 import { QUEST_STATUS_LABELS } from "@/types/quest.types";
 
 const route     = useRoute();
+const router    = useRouter();
+const ui        = useUiStore();
 const isNew     = computed(() => route.name === "quest-new");
 const isEditing = computed(() => route.query.edit === "true");
-const isRunning = computed(() => route.query.mode === "run");
 const isDetails = computed(() => route.query.mode === "details");
-const isBuilding = computed(() => !isNew.value && !isEditing.value && !isRunning.value && !isDetails.value);
+const isRunning = computed(() => !isNew.value && !isEditing.value && !isDetails.value && ui.dmMode === "play");
+const isBuilding = computed(() => !isNew.value && !isEditing.value && !isDetails.value && ui.dmMode === "prep");
 const id        = computed(() => (isNew.value ? "" : (route.params.id as string)));
 const parentId  = computed(() => (route.query.parent as string | undefined));
 
 const { data: quest, isLoading: questLoading } = useQuest(id);
 const isLoading = computed(() => !isNew.value && questLoading.value);
+
+// Build/Run used to be encoded in the URL. Honour old bookmarks once, then
+// leave the persisted global Prep/Play toggle as the only mode source.
+watch(
+  () => route.query.mode,
+  (mode) => {
+    if (mode !== "build" && mode !== "run") return;
+    ui.dmMode = mode === "run" ? "play" : "prep";
+    const { mode: _mode, ...query } = route.query;
+    void router.replace({ query });
+  },
+  { immediate: true },
+);
+
+// Details is a temporary secondary surface. Changing the global mode while it
+// is open returns to the matching primary quest workflow immediately.
+watch(
+  () => ui.dmMode,
+  (mode, previousMode) => {
+    if (mode === previousMode || !isDetails.value) return;
+    const { mode: _mode, ...query } = route.query;
+    void router.replace({ query });
+  },
+);
 </script>

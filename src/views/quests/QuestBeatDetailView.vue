@@ -56,7 +56,7 @@ const attachments = computed(() => (attachmentsQuery.data.value ?? []).filter((r
 const loot = computed(() => (lootQuery.data.value ?? []).filter((row) => row.beat_id === beatId.value));
 const outgoing = computed(() => (edgesQuery.data.value ?? []).filter((edge) => edge.source_beat_id === beatId.value));
 const isLoading = computed(() => questLoading.value || beatQuery.isLoading.value || attachmentsQuery.isLoading.value || lootQuery.isLoading.value);
-const returnTo = computed(() => safeQuestReturnTo(route.query.returnTo, `/quests/${questId.value}?mode=build&beat=${beatId.value}`));
+const returnTo = computed(() => safeQuestReturnTo(route.query.returnTo, `/quests/${questId.value}?beat=${beatId.value}`));
 
 function beatTitle(id: string) {
   return beatsQuery.data.value?.find((row) => row.id === id)?.title || "Missing beat";

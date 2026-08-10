@@ -5,6 +5,7 @@ import QuestFlowStarter from "./QuestFlowStarter.vue";
 const mocks = vi.hoisted(() => ({
   create: vi.fn(),
   push: vi.fn(),
+  ui: { dmMode: "play" as "prep" | "play" },
 }));
 
 vi.mock("@/composables/useQuests", () => ({
@@ -14,11 +15,13 @@ vi.mock("vue-router", async (importOriginal) => ({
   ...await importOriginal<typeof import("vue-router")>(),
   useRouter: () => ({ push: mocks.push }),
 }));
+vi.mock("@/stores/ui", () => ({ useUiStore: () => mocks.ui }));
 
 describe("QuestFlowStarter", () => {
   beforeEach(() => {
     mocks.create.mockReset();
     mocks.push.mockReset();
+    mocks.ui.dmMode = "play";
   });
 
   it("creates a flow-enabled quest shell and opens its graph", async () => {
@@ -39,7 +42,8 @@ describe("QuestFlowStarter", () => {
       summary: "Follow the bells below the lake.",
       status: "undiscovered",
     }));
-    expect(mocks.push).toHaveBeenCalledWith({ path: "/quests/quest-new", query: { mode: "build" } });
+    expect(mocks.ui.dmMode).toBe("prep");
+    expect(mocks.push).toHaveBeenCalledWith("/quests/quest-new");
   });
 
   it("keeps creation failures in context", async () => {

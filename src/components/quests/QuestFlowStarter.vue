@@ -36,6 +36,7 @@
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { useCreateQuest } from "@/composables/useQuests";
+import { useUiStore } from "@/stores/ui";
 import { QUEST_STATUSES, QUEST_STATUS_LABELS, type QuestStatus } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
@@ -43,6 +44,7 @@ import AppSelect from "@/components/common/AppSelect.vue";
 
 const props = withDefaults(defineProps<{ parentId?: string | null }>(), { parentId: null });
 const router = useRouter();
+const ui = useUiStore();
 const createQuest = useCreateQuest();
 const title = ref("");
 const summary = ref("");
@@ -77,7 +79,8 @@ async function createFlow() {
       started_at: null,
       resolved_at: null,
     });
-    await router.push({ path: `/quests/${created.id}`, query: { mode: "build" } });
+    ui.dmMode = "prep";
+    await router.push(`/quests/${created.id}`);
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : "The quest flow could not be created";
   } finally {

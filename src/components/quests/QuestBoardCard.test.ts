@@ -110,12 +110,12 @@ describe("QuestBoardCard", () => {
     expect(wrapper.emitted("move")).toEqual([["completed"]]);
   });
 
-  it("drops the Prep action from terminal statuses", () => {
+  it("drops the Open action from terminal statuses", () => {
     const wrapper = mount(QuestBoardCard, {
       props: { quest: quest({ status: "failed" }) },
       global,
     });
-    expect(wrapper.text()).not.toContain("Prep");
+    expect(wrapper.text()).not.toContain("Open");
     expect(wrapper.get('[aria-label="Move The Salt-Drowned Bell to Completed"]').attributes("aria-label")).toContain("Completed");
     expect(wrapper.find('[aria-label="Move The Salt-Drowned Bell to another status"]').exists()).toBe(false);
   });

@@ -7,7 +7,6 @@
       </div>
       <div class="ml-auto flex gap-2">
         <AppButton :to="{ path: `/quests/${questId}`, query: { mode: 'details' } }" label="Details" size="sm" variant="subtle" />
-        <AppButton v-if="beats.length" :to="{ path: `/quests/${questId}`, query: { mode: 'run' } }" label="Run" size="sm" variant="subtle" />
         <AppButton label="Add beat" size="sm" variant="primary" @click="openComposer()" />
         <AppButton :icon="IconMaximize" label="Fit" size="sm" variant="subtle" @click="canvas?.fitGraph()" />
         <AppButton v-if="currentBeatId" :icon="IconCenter" label="Current beat" size="sm" variant="subtle" @click="canvas?.focusCurrent()" />
@@ -233,7 +232,7 @@ const savePositions = useDebounceFn(flushPositions, 300, { maxWait: 1000 });
 
 function onCommand(command: QuestGraphCommand) {
   if (command.type === "open" && isMobile.value) {
-    void router.push({ path: `/quests/${props.questId}/beats/${command.beatId}`, query: { returnTo: `/quests/${props.questId}?mode=build&beat=${command.beatId}` } });
+    void router.push({ path: `/quests/${props.questId}/beats/${command.beatId}`, query: { returnTo: `/quests/${props.questId}?beat=${command.beatId}` } });
     return;
   }
   if (command.type === "select" || command.type === "open") { selectedBeatId.value = command.beatId; selectedEdgeId.value = null; }

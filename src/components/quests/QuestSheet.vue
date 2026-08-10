@@ -9,15 +9,9 @@
       >{{ QUEST_STATUS_LABELS[quest.status] }}</span>
       <AppButton
         :icon="IconNetwork"
-        label="Build flow"
+        label="Back to quest"
         variant="subtle"
-        @click="openBuild"
-      />
-      <AppButton
-        label="Run quest"
-        variant="primary"
-        :disabled="!quest.flow_enabled_at"
-        @click="router.push({ query: { mode: 'run' } })"
+        @click="openPrimary"
       />
       <AppButton
         :icon="IconDelete"
@@ -328,8 +322,9 @@ const router = useRouter();
 const { confirm } = useConfirm();
 const campaign = useCampaignStore();
 
-function openBuild() {
-  void router.push({ query: { mode: "build" } });
+function openPrimary() {
+  const { mode: _mode, ...query } = route.query;
+  void router.push({ query });
 }
 
 const questId = computed(() => props.quest.id);
