@@ -199,7 +199,31 @@ export interface PlayerQuestBeat {
   kind: QuestBeatKind;
   presentation_hint: string | null;
   player_text: string | null;
+  attachments: PlayerQuestBeatAttachmentSummary[];
+  visits: PlayerQuestBeatVisitSummary[];
   updated_at: string;
+}
+
+export interface PlayerQuestBeatAttachmentSummary {
+  attachment_id: string;
+  type: "objective" | QuestRefType;
+  ref_id: string;
+  label?: string;
+  role?: string;
+}
+
+export interface PlayerQuestBeatVisit {
+  visit_id: string;
+  beat_id: string;
+  quest_id: string;
+  visibility: Exclude<QuestBeatVisibility, "hidden">;
+  player_text: string | null;
+  visited_at: string;
+}
+
+export interface PlayerQuestBeatVisitSummary {
+  visit_id: string;
+  visited_at: string;
 }
 
 export type QuestBeatAttachmentType =

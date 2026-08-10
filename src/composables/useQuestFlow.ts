@@ -7,6 +7,7 @@ import { toQuestRuntimeRpcArgs, type QuestRuntimeCommandInput } from "@/lib/ques
 import { useCampaignStore } from "@/stores/campaign";
 import type {
   PlayerQuestBeat,
+  PlayerQuestBeatVisit,
   QuestBeat,
   QuestBeatEdge,
   QuestBeatEdgeInsert,
@@ -625,6 +626,32 @@ export function usePlayerQuestBeats(questId?: string | Ref<string>) {
       });
       if (error) throw error;
       return (data ?? []) as PlayerQuestBeat[];
+    },
+    enabled: () => !!campaignId.value,
+  });
+}
+
+export function usePlayerQuestBeatHistory(questId?: string | Ref<string>) {
+  const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
+  const id = questId === undefined ? ref("") : asRef(questId);
+  return useQuery({
+    queryKey: computed(() => [TRANSITIONS_KEY, "player", campaignId.value, id.value || "all"]),
+    queryFn: async (): Promise<PlayerQuestBeatVisit[]> => {
+      const { data, error } = await supabase.rpc("get_player_visible_quest_beats", {
+        p_campaign_id: campaignId.value!,
+        p_quest_id: id.value || null,
+      });
+      if (error) throw error;
+      return ((data ?? []) as PlayerQuestBeat[])
+        .flatMap((beat) => beat.visits.map((visit) => ({
+          ...visit,
+          beat_id: beat.id,
+          quest_id: beat.quest_id,
+          visibility: beat.visibility,
+          player_text: beat.player_text,
+        })))
+        .sort((a, b) => a.visited_at.localeCompare(b.visited_at) || a.visit_id.localeCompare(b.visit_id));
     },
     enabled: () => !!campaignId.value,
   });
