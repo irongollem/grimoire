@@ -102,6 +102,21 @@ describe("QuestRunContainedTool", () => {
     expect(run?.props("to")).toBe("/encounters/encounter-1/run?returnTo=%2Fquests%2Fq1%3Fmode%3Drun%26beat%3Db1");
   });
 
+  it("replaces the encounter summary while the authoritative runner is focused", async () => {
+    const wrapper = shallowMount(QuestRunContainedTool, {
+      props: { attachment: attachment("encounter", { ref_id: "encounter-1" }), returnTo: "/quests/q1?mode=run&beat=b1" },
+      global,
+    });
+
+    await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Run here")!.trigger("click");
+    expect(wrapper.findComponent({ name: "EncounterRunSurface" }).exists()).toBe(true);
+    expect(wrapper.text()).not.toContain("Focused encounter state stays in the existing Encounter Runner.");
+
+    await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Encounter summary")!.trigger("click");
+    expect(wrapper.findComponent({ name: "EncounterRunSurface" }).exists()).toBe(false);
+    expect(wrapper.text()).toContain("Focused encounter state stays in the existing Encounter Runner.");
+  });
+
   it("shows only the rooms prepared for the beat", () => {
     const wrapper = shallowMount(QuestRunContainedTool, {
       props: { attachment: attachment("location_set", { ref_id: "root", metadata: { room_ids: ["room-1"] } }), returnTo: "/quests/q1?mode=run&beat=b1" },

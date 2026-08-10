@@ -13,9 +13,10 @@
         <div v-if="encounterFocused" class="mt-4 h-[70vh] min-h-96 overflow-y-auto rounded-lg border border-border bg-background">
           <EncounterRunSurface :encounter-id="attachment.ref_id" />
         </div>
-        <p v-if="toolError" role="alert" class="mt-3 rounded-md border border-destructive/40 p-2 text-caption text-destructive">{{ toolError }}</p>
-        <div v-else-if="attachment.prep_gap" class="mt-3 rounded-lg border border-tone-caution/50 bg-tone-caution/5 p-3 text-caption text-tone-caution">This attachment is missing. Close this tool and keep running, or use the full editor to repair it.</div>
-        <div v-else class="mt-4 space-y-3">
+        <template v-else>
+          <p v-if="toolError" role="alert" class="mt-3 rounded-md border border-destructive/40 p-2 text-caption text-destructive">{{ toolError }}</p>
+          <div v-else-if="attachment.prep_gap" class="mt-3 rounded-lg border border-tone-caution/50 bg-tone-caution/5 p-3 text-caption text-tone-caution">This attachment is missing. Close this tool and keep running, or use the full editor to repair it.</div>
+          <div v-else class="mt-4 space-y-3">
           <div v-if="adapter.containedSurface === 'encounter'" class="rounded-lg border border-border bg-card p-3">
             <p class="text-body text-foreground">Focused encounter state stays in the existing Encounter Runner.</p>
             <div class="mt-2 flex flex-wrap gap-2">
@@ -98,7 +99,8 @@
             <p class="text-body text-foreground">{{ attachment.compact_detail || "Authoritative campaign record" }}</p>
             <p class="text-caption text-muted-foreground">This quick view keeps the session in place; advanced editing stays in the existing specialist.</p>
           </div>
-        </div>
+          </div>
+        </template>
 
         <footer class="mt-4 flex justify-end gap-2">
           <AppButton v-if="encounterFocused" label="Encounter summary" variant="subtle" @click="encounterFocused = false" />
