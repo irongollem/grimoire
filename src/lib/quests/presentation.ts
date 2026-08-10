@@ -12,14 +12,39 @@ export interface QuestBeatLootSummary {
   unclaimed: number;
 }
 
+export type QuestBeatPrepGapKind = "guidance" | "player_copy" | "attachment" | "improv_review" | "connection";
+
+export interface QuestBeatPrepGap {
+  kind: QuestBeatPrepGapKind;
+  label: string;
+}
+
 export interface QuestBeatPresentation {
   prepGapCount: number;
+  prepGaps: QuestBeatPrepGap[];
   handoutCount: number;
   loot: QuestBeatLootSummary;
   isReady: boolean;
   isCurrent: boolean;
   isVisited: boolean;
   isDisconnected: boolean;
+}
+
+export function deriveQuestBeatPrepGaps(
+  beat: QuestBeat,
+  attachments: QuestBeatAttachmentSummary[],
+  options: { isDisconnected?: boolean } = {},
+): QuestBeatPrepGap[] {
+  const gaps: QuestBeatPrepGap[] = [];
+  if (!beat.dm_content && !beat.how_it_plays) gaps.push({ kind: "guidance", label: "Add DM guidance" });
+  if (beat.visibility === "rumored" && !beat.rumor_text) gaps.push({ kind: "player_copy", label: "Add explicit rumor copy" });
+  if (beat.visibility === "revealed" && !beat.reveal_text) gaps.push({ kind: "player_copy", label: "Add explicit reveal copy" });
+  for (const attachment of attachments.filter((row) => row.prep_gap)) {
+    gaps.push({ kind: "attachment", label: `Replace ${attachment.label}` });
+  }
+  if (beat.is_improvised && !beat.improv_reviewed_at) gaps.push({ kind: "improv_review", label: "Review improvised beat" });
+  if (options.isDisconnected) gaps.push({ kind: "connection", label: "Connect this staging beat to the story flow" });
+  return gaps;
 }
 
 export interface QuestBeatPresentationInput {
@@ -46,17 +71,18 @@ export function deriveQuestBeatPresentations(input: QuestBeatPresentationInput) 
 
   for (const beat of input.beats) {
     const placed = attachments.get(beat.id) ?? [];
-    const prepGapCount = placed.filter((attachment) => attachment.prep_gap).length
-      + (beat.is_improvised && !beat.improv_reviewed_at ? 1 : 0);
+    const isDisconnected = input.beats.length > 1 && !connected.has(beat.id);
+    const prepGaps = deriveQuestBeatPrepGaps(beat, placed, { isDisconnected });
     const loot = input.lootByBeat?.[beat.id] ?? { total: 0, undispatched: 0, unclaimed: 0 };
     result[beat.id] = {
-      prepGapCount,
+      prepGapCount: prepGaps.length,
+      prepGaps,
       handoutCount: placed.filter((attachment) => attachment.attachment_type === "handout").length,
       loot,
-      isReady: prepGapCount === 0,
+      isReady: prepGaps.length === 0,
       isCurrent: input.runtime?.current_beat_id === beat.id,
       isVisited: visited.has(beat.id),
-      isDisconnected: input.beats.length > 1 && !connected.has(beat.id),
+      isDisconnected,
     };
   }
   return result;

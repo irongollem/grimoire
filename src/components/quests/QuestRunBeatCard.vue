@@ -67,6 +67,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { QuestBeat, QuestBeatAttachmentSummary, QuestBeatLoot } from "@/types/quest.types";
+import { deriveQuestBeatPrepGaps } from "@/lib/quests/presentation";
 import AppButton from "@/components/common/AppButton.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import QuestBeatLootPanel from "./QuestBeatLootPanel.vue";
@@ -84,11 +85,6 @@ const editUrl = computed(() => ({
   path: `/quests/${props.beat.quest_id}/beats/${props.beat.id}`,
   query: { returnTo: runReturn.value },
 }));
-const readinessGaps = computed(() => {
-  const gaps: string[] = [];
-  if (!props.beat.dm_content && !props.beat.how_it_plays) gaps.push("No DM guidance");
-  for (const attachment of props.attachments.filter((row) => row.prep_gap)) gaps.push(`${attachment.label} is missing`);
-  return gaps;
-});
+const readinessGaps = computed(() => deriveQuestBeatPrepGaps(props.beat, props.attachments).map((gap) => gap.label));
 
 </script>

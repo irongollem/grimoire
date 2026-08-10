@@ -153,12 +153,12 @@ describe("filterQuestBoard", () => {
 describe("deriveQuestBoardSummaries", () => {
   it("combines live, readiness, history, and loot without card-level fetching", () => {
     const beats = [
-      { id: "beat-a", quest_id: "quest-a", title: "Arrival" },
-      { id: "beat-b", quest_id: "quest-a", title: "Vault" },
+      { id: "beat-a", quest_id: "quest-a", title: "Arrival", visibility: "hidden", dm_content: "Ready", how_it_plays: null, is_improvised: false },
+      { id: "beat-b", quest_id: "quest-a", title: "Vault", visibility: "hidden", dm_content: "Ready", how_it_plays: null, is_improvised: false },
     ] as QuestBeat[];
     const summaries = deriveQuestBoardSummaries({
       beats,
-      edges: [],
+      edges: [{ source_beat_id: "beat-a", target_beat_id: "beat-b" }] as never[],
       attachments: [{ beat_id: "beat-b", attachment_type: "handout", prep_gap: true }] as never[],
       loot: [{ beat_id: "beat-b", quest_id: "quest-a", delivery_state: "held" }] as never[],
       runtime: { current_quest_id: "quest-a", current_beat_id: "beat-a" } as never,

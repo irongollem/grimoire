@@ -26,7 +26,7 @@ describe("quest flow adapter", () => {
   });
 
   it("maps shared presentation and visited-route state without changing domain rows", () => {
-    const presentation = { isCurrent: true, isVisited: true, isReady: false, isDisconnected: false, prepGapCount: 1, handoutCount: 1, loot: { total: 1, undispatched: 1, unclaimed: 0 } } satisfies QuestBeatPresentation;
+    const presentation = { isCurrent: true, isVisited: true, isReady: false, isDisconnected: false, prepGapCount: 1, prepGaps: [{ kind: "guidance", label: "Add DM guidance" }], handoutCount: 1, loot: { total: 1, undispatched: 1, unclaimed: 0 } } satisfies QuestBeatPresentation;
     const edges = [{ id: "e", source_beat_id: "a", target_beat_id: "b", label: "" }] as QuestBeatEdge[];
     const graph = toQuestFlowGraph([beat("a", 0, 0), beat("b", 1, 1)], edges, { a: presentation }, new Set(["e"]));
     expect(graph.nodes[0]!.data!.presentation).toBe(presentation);

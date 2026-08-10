@@ -40,7 +40,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import type { QuestBeatPresentation } from "@/lib/quests/presentation";
+import { deriveQuestBeatPrepGaps, type QuestBeatPresentation, type QuestBeatPrepGapKind } from "@/lib/quests/presentation";
 import type { QuestBeat, QuestBeatAttachmentSummary, QuestBeatEdge, QuestBeatLoot } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
 import QuestBeatAttachmentsPanel from "./QuestBeatAttachmentsPanel.vue";
@@ -73,16 +73,13 @@ const suggestions: Record<string, string> = {
 };
 const suggestion = computed(() => suggestions[props.beat.kind] ?? suggestions.neutral);
 const gaps = computed(() => {
-  const result: Array<{ label: string; href: string }> = [];
-  if (!props.beat.dm_content) result.push({ label: "Add the DM lead", href: "#beat-fields" });
-  if (props.beat.visibility !== "hidden" && !(props.beat.visibility === "rumored" ? props.beat.rumor_text : props.beat.reveal_text)) {
-    result.push({ label: `Add explicit ${props.beat.visibility === "rumored" ? "rumor" : "reveal"} copy`, href: "#beat-fields" });
-  }
-  for (const attachment of props.attachments.filter((row) => row.prep_gap)) {
-    result.push({ label: `Replace ${attachment.label}`, href: "#beat-attachments" });
-  }
-  if (props.presentation?.isDisconnected) result.push({ label: "Connect this staging beat to the story flow", href: "#quest-flow-canvas" });
-  return result;
+  const shared = props.presentation?.prepGaps
+    ?? deriveQuestBeatPrepGaps(props.beat, props.attachments, { isDisconnected: props.presentation?.isDisconnected });
+  const href: Record<QuestBeatPrepGapKind, string> = {
+    guidance: "#beat-fields", player_copy: "#beat-fields", attachment: "#beat-attachments",
+    improv_review: "#beat-fields", connection: "#quest-flow-canvas",
+  };
+  return shared.map((gap) => ({ label: gap.label, href: href[gap.kind] }));
 });
 
 function beatTitle(id: string) {

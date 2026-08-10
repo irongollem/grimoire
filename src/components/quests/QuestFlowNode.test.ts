@@ -27,6 +27,10 @@ describe("QuestFlowNode", () => {
         visibility: "revealed",
         presentation: {
           prepGapCount: 2,
+          prepGaps: [
+            { kind: "guidance", label: "Add DM guidance" },
+            { kind: "attachment", label: "Replace missing handout" },
+          ],
           handoutCount: 1,
           loot: { total: 3, undispatched: 2, unclaimed: 1 },
           isReady: false,
