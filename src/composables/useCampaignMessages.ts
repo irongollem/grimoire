@@ -258,6 +258,20 @@ export function useCampaignMessages() {
   const { data: partyMembers } = useParty();
   const { data: campaignMembers } = useCampaignMembers();
 
+  async function ensureMessage(messageId: string) {
+    if (messages.value.some((message) => message.id === messageId)) return;
+    const campaignId = campaign.activeCampaignId;
+    if (!campaignId) return;
+    const { data, error } = await supabase
+      .from("campaign_messages")
+      .select("*")
+      .eq("id", messageId)
+      .eq("campaign_id", campaignId)
+      .maybeSingle();
+    if (error) throw error;
+    if (data) mergeMessages([data as CampaignMessage]);
+  }
+
   // Name resolution priority: NPC persona → previewed character → linked character → display name
   function getSenderName() {
     if (ui.dmTalkAsNpcName) return ui.dmTalkAsNpcName;
@@ -613,5 +627,5 @@ export function useCampaignMessages() {
     if (idx >= 0 && data) messages.value[idx] = { ...messages.value[idx], metadata: data as PlayerOfferMetadata };
   }
 
-  return { messages: visibleMessages, loading, loadingOlder, hasOlder, loadOlder, sendMessage, sendFlavorMessage, sendNarrativeEvent, sendRoll, sendItemDrop, claimItemDrop, grabItemDrop, sendCurrencyDrop, claimCurrencyDrop, sendLootChest, claimLootChestAtom, sendVendorOffer, claimVendorOffer, sendPlayerOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId };
+  return { messages: visibleMessages, loading, loadingOlder, hasOlder, loadOlder, ensureMessage, sendMessage, sendFlavorMessage, sendNarrativeEvent, sendRoll, sendItemDrop, claimItemDrop, grabItemDrop, sendCurrencyDrop, claimCurrencyDrop, sendLootChest, claimLootChestAtom, sendVendorOffer, claimVendorOffer, sendPlayerOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId };
 }

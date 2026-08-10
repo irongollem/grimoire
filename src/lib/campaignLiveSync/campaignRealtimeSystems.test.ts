@@ -18,6 +18,16 @@ const deleteEvent = (id: string) => ({
 }) as const;
 
 describe("dispatchCampaignRealtimeSystem", () => {
+  it("invalidates Run loot and board summaries when authoritative chat claim state changes", () => {
+    const qc = new QueryClient();
+    qc.setQueryData(["quest_beat_loot", "campaign-a", "quest-a"], [{ id: "loot-1" }]);
+    qc.setQueryData(["quest_beats", "board", "campaign-a"], { "quest-a": {} });
+
+    expect(dispatchCampaignRealtimeSystem(qc, "campaign_messages", event({ id: "message-1", campaign_id: "campaign-a" }, "UPDATE"), context)).toBe(true);
+    expect(qc.getQueryState(["quest_beat_loot", "campaign-a", "quest-a"])?.isInvalidated).toBe(true);
+    expect(qc.getQueryState(["quest_beats", "board", "campaign-a"])?.isInvalidated).toBe(true);
+  });
+
   it("updates only exact scheduling caches, including a filtered proposal list", () => {
     const qc = new QueryClient();
     qc.setQueryData(["session_proposals", "campaign-a"], []);

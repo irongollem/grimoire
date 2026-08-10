@@ -181,7 +181,10 @@ export function useCreateQuestBeatLoot() {
       if (error) throw error;
       return data;
     },
-    onSuccess: (_data, input) => queryClient.invalidateQueries({ queryKey: [LOOT_KEY, input.campaign_id] }),
+    onSuccess: (_data, input) => {
+      void queryClient.invalidateQueries({ queryKey: [LOOT_KEY, input.campaign_id] });
+      void queryClient.invalidateQueries({ queryKey: [BEATS_KEY, "board", input.campaign_id] });
+    },
   });
 }
 
@@ -193,7 +196,10 @@ export function useDeleteQuestBeatLoot() {
       if (error) throw error;
       if (!data) throw new Error("Only held loot can be removed; dispatched chat keeps its provenance.");
     },
-    onSuccess: (_data, input) => queryClient.invalidateQueries({ queryKey: [LOOT_KEY, input.campaignId] }),
+    onSuccess: (_data, input) => {
+      void queryClient.invalidateQueries({ queryKey: [LOOT_KEY, input.campaignId] });
+      void queryClient.invalidateQueries({ queryKey: [BEATS_KEY, "board", input.campaignId] });
+    },
   });
 }
 
@@ -208,7 +214,10 @@ export function useDispatchQuestBeatLoot() {
       if (error) throw error;
       return data;
     },
-    onSuccess: (_data, input) => queryClient.invalidateQueries({ queryKey: [LOOT_KEY, input.campaignId] }),
+    onSuccess: (_data, input) => {
+      void queryClient.invalidateQueries({ queryKey: [LOOT_KEY, input.campaignId] });
+      void queryClient.invalidateQueries({ queryKey: [BEATS_KEY, "board", input.campaignId] });
+    },
   });
 }
 

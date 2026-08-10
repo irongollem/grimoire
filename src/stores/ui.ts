@@ -433,10 +433,19 @@ export const useUiStore = defineStore("ui", () => {
   // Chat panel
   const chatOpen = ref(false);
   const chatHasUnread = ref(false);
+  const chatFocusMessageId = ref<string | null>(null);
+  const chatFocusRequest = ref(0);
 
   function toggleChat() {
     chatOpen.value = !chatOpen.value;
     if (chatOpen.value) chatHasUnread.value = false;
+  }
+
+  function openChatAt(messageId: string) {
+    chatOpen.value = true;
+    chatHasUnread.value = false;
+    chatFocusMessageId.value = messageId;
+    chatFocusRequest.value += 1;
   }
 
   // DM "talk as" NPC — DM can speak/act as any NPC
@@ -814,7 +823,10 @@ export const useUiStore = defineStore("ui", () => {
     entityListLayout,
     chatOpen,
     chatHasUnread,
+    chatFocusMessageId,
+    chatFocusRequest,
     toggleChat,
+    openChatAt,
 
     // DM persona
     dmTalkAsNpcId,

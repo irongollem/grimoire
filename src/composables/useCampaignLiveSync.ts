@@ -41,6 +41,8 @@ const SYNC_TABLES = [
   ["session_proposals",       "session_proposals"],
   ["session_availability",    "session_availability"],
   ["items",                   "items"],
+  ["quest_beat_loot",         "quest_beat_loot"],
+  ["campaign_messages",       "quest_beat_loot"],
   ["npc_inventory",           "npc-inventory"],
   // Membership add/remove + display-name changes — so a player renaming
   // themselves (or being added/removed) propagates to every member's party and

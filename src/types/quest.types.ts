@@ -264,11 +264,14 @@ export interface QuestBeatLoot {
   dispatch_message_id: string | null;
   dispatched_at: string | null;
   delivery_state: QuestBeatLootDeliveryState;
+  quantity_remaining: number;
+  claimed_by_names: string[];
+  handed_out_this_session: boolean;
 }
 
 export type QuestBeatLootInsert = Omit<
   QuestBeatLoot,
-  "id" | "dispatch_message_id" | "dispatched_at" | "delivery_state"
+  "id" | "dispatch_message_id" | "dispatched_at" | "delivery_state" | "quantity_remaining" | "claimed_by_names" | "handed_out_this_session"
 > & Partial<Pick<QuestBeatLoot, "quantity" | "label" | "payload" | "source_type" | "source_id" | "sort_order">>;
 
 export interface RewardCurrencyPool {

@@ -52,8 +52,12 @@
         <div
           v-for="msg in displayMessages"
           :key="msg.id"
+          :data-message-id="msg.id"
           class="group flex gap-1"
-          :class="msg.user_id === myUserId ? 'flex-row-reverse' : 'flex-row'"
+          :class="[
+            msg.user_id === myUserId ? 'flex-row-reverse' : 'flex-row',
+            msg.id === focusMessageId ? 'rounded-lg ring-2 ring-primary/60' : '',
+          ]"
         >
           <!-- Delete button (own messages; DM can delete any) -->
           <button
@@ -371,6 +375,8 @@ const props = defineProps<{
   members: CampaignMember[] | undefined;
   party: PartyMember[] | undefined;
   npcs: { id: string; name: string }[];
+  focusMessageId?: string | null;
+  focusRequest?: number;
 }>();
 
 const emit = defineEmits<{
@@ -529,6 +535,18 @@ watch(
     const el = scrollEl.value;
     if (el) el.scrollTop = anchor.top + (el.scrollHeight - anchor.height);
   },
+);
+
+watch(
+  () => [props.focusMessageId, props.focusRequest, props.messages.length] as const,
+  async ([messageId]) => {
+    if (!messageId) return;
+    await nextTick();
+    const target = [...(scrollEl.value?.querySelectorAll<HTMLElement>("[data-message-id]") ?? [])]
+      .find((element) => element.dataset.messageId === messageId);
+    target?.scrollIntoView({ behavior: "smooth", block: "center" });
+  },
+  { immediate: true },
 );
 
 // Scroll to bottom on initial open (messages already loaded)

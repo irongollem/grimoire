@@ -15,6 +15,8 @@
         :members="members"
         :party="party"
         :npcs="npcs"
+        :focus-message-id="ui.chatFocusMessageId"
+        :focus-request="ui.chatFocusRequest"
         @send="handleSend"
         @send-roll="handleRoll"
         @delete="deleteMessage"
@@ -73,6 +75,8 @@
         :members="members"
         :party="party"
         :npcs="npcs"
+        :focus-message-id="ui.chatFocusMessageId"
+        :focus-request="ui.chatFocusRequest"
         @send="handleSend"
         @send-roll="handleRoll"
         @delete="deleteMessage"
@@ -178,7 +182,7 @@ onUnmounted(() => {
 
 const ui = useUiStore();
 const auth = useAuthStore();
-const { messages, loading, loadingOlder, hasOlder, loadOlder, sendMessage, sendRoll, claimItemDrop, grabItemDrop, claimCurrencyDrop, claimLootChestAtom, sendVendorOffer, claimVendorOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId } =
+const { messages, loading, loadingOlder, hasOlder, loadOlder, ensureMessage, sendMessage, sendRoll, claimItemDrop, grabItemDrop, claimCurrencyDrop, claimLootChestAtom, sendVendorOffer, claimVendorOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId } =
   useCampaignMessages();
 // The chat widget is mounted on every DM page so it can raise the unread badge,
 // but members / party / item catalogue / NPCs are only ever read by the panel's
@@ -203,6 +207,10 @@ watch(messages, (msgs, prev) => {
     const newest = msgs[msgs.length - 1];
     if (newest?.user_id !== auth.user?.id) ui.chatHasUnread = true;
   }
+});
+
+watch(() => ui.chatFocusRequest, () => {
+  if (ui.chatFocusMessageId) void ensureMessage(ui.chatFocusMessageId).catch(() => { /* chat keeps its current window */ });
 });
 
 function resolveClaimerName(): string {

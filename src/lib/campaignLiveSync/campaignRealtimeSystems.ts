@@ -106,6 +106,15 @@ export function dispatchCampaignRealtimeSystem(
   context: CampaignRealtimeContext,
 ): boolean {
   switch (table) {
+    case "quest_beat_loot":
+    case "campaign_messages":
+      // Loot state is a secured join over both tables. Re-read it rather than
+      // putting raw chat metadata into a DM-only projection, and refresh board
+      // aggregates derived from the same rows.
+      invalidate(queryClient, ["quest_beat_loot"]);
+      invalidate(queryClient, ["quest_beats", "board"]);
+      return true;
+
     case "session_proposals":
       applyRealtimeRow(queryClient, asRow(change), {
         rootKey: "session_proposals",

@@ -12,12 +12,21 @@
       <li v-for="entry in loot" :key="entry.id" class="flex items-center gap-2 rounded-md border border-border p-2 text-caption">
         <span class="rounded bg-muted px-1.5 py-0.5 uppercase text-muted-foreground">{{ entry.kind.replace('_', ' ') }}</span>
         <span class="min-w-0 flex-1 truncate text-foreground">{{ entry.quantity > 1 ? `${entry.quantity}× ` : '' }}{{ entry.label }}</span>
-        <span :class="statusClass(entry.delivery_state)">{{ statusLabel(entry.delivery_state) }}</span>
+        <div class="text-right">
+          <p :class="statusClass(entry.delivery_state)">{{ statusLabel(entry.delivery_state) }}</p>
+          <p v-if="entry.delivery_state !== 'held'" class="text-2xs text-muted-foreground">
+            <template v-if="entry.quantity_remaining > 0">{{ entry.quantity_remaining }} remaining</template>
+            <template v-if="entry.claimed_by_names.length"> · {{ entry.claimed_by_names.join(', ') }}</template>
+            <template v-if="entry.handed_out_this_session"> · this session</template>
+          </p>
+        </div>
         <AppButton v-if="entry.delivery_state === 'held'" label="Drop" size="xs" :loading="dispatching === entry.id" @click="dispatch(entry.id)" />
         <AppButton v-if="entry.delivery_state === 'held'" label="Remove" size="xs" variant="subtle" :loading="removingId === entry.id" @click="remove(entry.id)" />
+        <AppButton v-else-if="entry.dispatch_message_id && entry.delivery_state !== 'message_removed'" label="Open chat card" size="xs" variant="subtle" @click="ui.openChatAt(entry.dispatch_message_id)" />
       </li>
     </ul>
     <p v-else class="text-caption italic text-muted-foreground">No loot prepared for this beat.</p>
+    <p v-if="loot.some((entry) => entry.delivery_state !== 'held')" class="text-2xs text-muted-foreground">Claims are authoritative in chat and inventory. Reassignment is not available in Run mode.</p>
 
     <div class="grid gap-2 sm:grid-cols-[8rem_1fr_auto]">
       <AppSelect v-model="kind" aria-label="Loot kind">
@@ -44,6 +53,7 @@ import { computed, reactive, ref, watch } from "vue";
 import { useCreateQuestBeatLoot, useDeleteQuestBeatLoot, useDispatchQuestBeatLoot } from "@/composables/useQuestFlow";
 import { useItems } from "@/composables/useItems";
 import { useAuthStore } from "@/stores/auth";
+import { useUiStore } from "@/stores/ui";
 import type { QuestBeat, QuestBeatLoot, QuestBeatLootDeliveryState, QuestBeatLootKind } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
@@ -53,6 +63,7 @@ import EntityCombobox from "@/components/common/EntityCombobox.vue";
 const props = defineProps<{ beat: QuestBeat; loot: QuestBeatLoot[] }>();
 const emit = defineEmits<{ dirty: [dirty: boolean] }>();
 const auth = useAuthStore();
+const ui = useUiStore();
 const { data: items } = useItems();
 const createLoot = useCreateQuestBeatLoot();
 const deleteLoot = useDeleteQuestBeatLoot();

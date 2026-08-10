@@ -1,11 +1,13 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(30);
+select plan(40);
 
 select has_table('public', 'quest_beat_loot', 'beat loot has a dedicated orchestration table');
 select has_function('public', 'dispatch_quest_beat_loot', array['uuid', 'uuid'], 'beat loot has an atomic dispatch RPC');
 select has_function('public', 'get_quest_beat_loot', array['uuid', 'uuid'], 'beat loot has a batched status RPC');
+select ok(exists(select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'quest_beat_loot'), 'beat loot dispatch changes publish to Run mode');
+select ok(exists(select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'campaign_messages'), 'chat claim changes publish to Run mode');
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 values
@@ -29,6 +31,12 @@ insert into public.quests (id, user_id, campaign_id, title, reward_item_ids)
 values ('66100000-0000-4000-8000-000000000040', '66100000-0000-4000-8000-000000000001', '66100000-0000-4000-8000-000000000010', 'Vault quest', array['66100000-0000-4000-8000-000000000030']::uuid[]);
 insert into public.quest_beats (id, quest_id, campaign_id, title)
 values ('66100000-0000-4000-8000-000000000050', '66100000-0000-4000-8000-000000000040', '66100000-0000-4000-8000-000000000010', 'Open the vault');
+insert into public.quest_beat_transitions (
+  campaign_id, to_quest_id, to_beat_id, transition_kind, runtime_version, created_at
+) values (
+  '66100000-0000-4000-8000-000000000010', '66100000-0000-4000-8000-000000000040',
+  '66100000-0000-4000-8000-000000000050', 'enter', 1, now() - interval '1 minute'
+);
 
 select throws_ok($$
   insert into public.quest_beat_loot (beat_id, quest_id, campaign_id, kind, payload)
@@ -61,6 +69,8 @@ select is((select count(*)::integer from public.campaign_messages), 1, 'idempote
 select is((select count(*)::integer from public.dispatch_quest_beat_loot('66100000-0000-4000-8000-000000000050')), 3, 'drop-all returns every entry consistently');
 select is((select count(*)::integer from public.campaign_messages), 3, 'drop-all creates only the two remaining messages');
 select is((select count(*)::integer from public.get_quest_beat_loot('66100000-0000-4000-8000-000000000010') where delivery_state = 'chat'), 3, 'batched status reports all fresh messages as claimable chat');
+select is((select quantity_remaining from public.get_quest_beat_loot('66100000-0000-4000-8000-000000000010') where id = '66100000-0000-4000-8000-000000000061'), 2, 'Run status reports the authoritative remaining item quantity');
+select ok((select handed_out_this_session from public.get_quest_beat_loot('66100000-0000-4000-8000-000000000010') where id = '66100000-0000-4000-8000-000000000061'), 'session handout status is derived from transition and message time');
 select throws_ok($$
   update public.quest_beat_loot set quantity = 99 where id = '66100000-0000-4000-8000-000000000061'
 $$, '23514', null, 'dispatched payload provenance is immutable');
@@ -88,7 +98,10 @@ $$, 'existing atomic currency claim delivers beat loot');
 
 select set_config('request.jwt.claim.sub', '66100000-0000-4000-8000-000000000001', true);
 select is((select delivery_state from public.get_quest_beat_loot('66100000-0000-4000-8000-000000000010') where id = '66100000-0000-4000-8000-000000000061'), 'partially_claimed', 'partial stack claims are reflected in Run status');
+select is((select quantity_remaining from public.get_quest_beat_loot('66100000-0000-4000-8000-000000000010') where id = '66100000-0000-4000-8000-000000000061'), 1, 'partial claim quantity is reflected in Run status');
+select is((select claimed_by_names[1] from public.get_quest_beat_loot('66100000-0000-4000-8000-000000000010') where id = '66100000-0000-4000-8000-000000000061'), 'Claiming hero', 'item claimant is reflected in Run status');
 select is((select delivery_state from public.get_quest_beat_loot('66100000-0000-4000-8000-000000000010') where id = '66100000-0000-4000-8000-000000000062'), 'claimed', 'currency claim is reflected in Run status');
+select is((select claimed_by_names[1] from public.get_quest_beat_loot('66100000-0000-4000-8000-000000000010') where id = '66100000-0000-4000-8000-000000000062'), 'Claiming hero', 'currency claimant is reflected in Run status');
 
 delete from public.campaign_messages
 where id = (select dispatch_message_id from public.quest_beat_loot where id = '66100000-0000-4000-8000-000000000061');
@@ -106,6 +119,18 @@ reset role;
 select ok(
   position('for update' in lower(pg_get_functiondef('public.dispatch_quest_beat_loot(uuid,uuid)'::regprocedure))) > 0,
   'dispatch locks rows so concurrent requests serialize'
+);
+select ok(
+  position('for update' in lower(pg_get_functiondef('public.grab_item_drop(uuid,integer,uuid,text,uuid)'::regprocedure))) > 0,
+  'stacked item claim races serialize on the existing chat row lock'
+);
+select ok(
+  position('for update' in lower(pg_get_functiondef('public.claim_currency_drop(uuid,text,uuid)'::regprocedure))) > 0,
+  'currency claim races serialize on the existing chat row lock'
+);
+select ok(
+  position('for update' in lower(pg_get_functiondef('public.claim_loot_chest_atom(uuid,text,text)'::regprocedure))) > 0,
+  'loot chest claim races serialize on the existing chat row lock'
 );
 
 select * from finish();
