@@ -46,6 +46,8 @@ describe("QuestKanbanBoard", () => {
     const headings = wrapper.findAll("h2").map((heading) => heading.text());
     expect(headings).toEqual(["Undiscovered", "Rumor", "Active", "Completed", "Failed"]);
     expect(wrapper.findAllComponents(QuestBoardCard)).toHaveLength(2);
+    expect(wrapper.find('[aria-label="1 quests in Active"]').text()).toBe("1 quest");
+    expect(wrapper.find('[aria-label="0 quests in Rumor"]').text()).toBe("0 quests");
   });
 
   it("forwards the card's keyboard status move as a board mutation", () => {

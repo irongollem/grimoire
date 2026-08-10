@@ -20,8 +20,11 @@
         >
           {{ column.label }}
         </h2>
-        <span class="ml-auto rounded-full bg-muted px-2 py-0.5 text-label font-semibold text-muted-foreground">
-          {{ column.quests.length }}
+        <span
+          class="ml-auto rounded-full bg-muted px-2 py-0.5 text-label font-semibold text-muted-foreground"
+          :aria-label="`${column.quests.length} quests in ${column.label}`"
+        >
+          {{ column.quests.length }} {{ column.quests.length === 1 ? "quest" : "quests" }}
         </span>
       </header>
 

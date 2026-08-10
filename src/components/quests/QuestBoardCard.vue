@@ -86,47 +86,56 @@
       >{{ tag }}</span>
     </div>
 
-    <footer class="mt-3 flex min-h-8 items-center gap-2 border-t border-muted pt-2 text-caption-sm text-muted-foreground">
-      <div
-        v-if="visibleParty.length"
-        class="flex -space-x-1.5"
-        :aria-label="`Shared with ${visibleParty.map((member) => member.name).join(', ')}`"
-      >
-        <span
-          v-for="member in visibleParty.slice(0, 4)"
-          :key="member.id"
-          class="flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border-2 border-card bg-secondary font-cinzel text-label font-semibold text-foreground"
-          :title="member.name"
+    <footer class="mt-3 grid gap-2 border-t border-muted pt-2 text-caption-sm text-muted-foreground">
+      <div class="flex min-w-0 items-center gap-2">
+        <div
+          v-if="visibleParty.length"
+          class="flex shrink-0 -space-x-1.5"
+          :aria-label="`Shared with ${visibleParty.map((member) => member.name).join(', ')}`"
         >
-          <img
-            v-if="member.portrait_url"
-            :src="member.portrait_url"
-            :alt="member.name"
-            class="h-full w-full object-cover"
-          />
-          <span v-else aria-hidden="true">{{ initials(member.name) }}</span>
-        </span>
-        <span
-          v-if="visibleParty.length > 4"
-          class="flex h-6 w-6 items-center justify-center rounded-full border-2 border-card bg-muted text-label font-semibold"
-          :title="`${visibleParty.length - 4} more`"
-        >+{{ visibleParty.length - 4 }}</span>
+          <span
+            v-for="member in visibleParty.slice(0, 4)"
+            :key="member.id"
+            class="flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border-2 border-card bg-secondary font-cinzel text-label font-semibold text-foreground"
+            :title="member.name"
+          >
+            <img
+              v-if="member.portrait_url"
+              :src="member.portrait_url"
+              :alt="member.name"
+              class="h-full w-full object-cover"
+            />
+            <span v-else aria-hidden="true">{{ initials(member.name) }}</span>
+          </span>
+          <span
+            v-if="hiddenPartyCount"
+            class="relative z-10 flex h-6 items-center justify-center rounded-full border-2 border-card bg-muted px-1.5 text-label font-semibold"
+            :title="hiddenPartyLabel"
+          >+{{ hiddenPartyCount }} {{ hiddenPartyCount === 1 ? "player" : "players" }}</span>
+        </div>
+
+        <span class="min-w-0 truncate italic">Updated {{ timeAgo(quest.updated_at) }}</span>
       </div>
 
-      <span class="min-w-0 truncate italic">{{ timeAgo(quest.updated_at) }}</span>
-
-      <div class="ml-auto flex shrink-0 items-center gap-1.5">
-        <AppSelect
-          v-model="selectedStatus"
+      <div class="flex min-w-0 items-center gap-1.5">
+        <AppButton
+          v-if="previousStatus"
+          :icon="IconChevronLeft"
+          :tooltip="`Move to ${QUEST_STATUS_LABELS[previousStatus]}`"
+          :aria-label="`Move ${quest.title || 'quest'} to ${QUEST_STATUS_LABELS[previousStatus]}`"
           size="xs"
-          :aria-label="`Move ${quest.title || 'quest'} to another status`"
-          class="max-w-28 text-label"
-          @click.stop
-        >
-          <option v-for="status in QUEST_STATUSES" :key="status" :value="status">
-            {{ QUEST_STATUS_LABELS[status] }}
-          </option>
-        </AppSelect>
+          variant="subtle"
+          @click="emit('move', previousStatus)"
+        />
+        <AppButton
+          v-if="nextStatus"
+          :icon="IconChevronRight"
+          :tooltip="`Move to ${QUEST_STATUS_LABELS[nextStatus]}`"
+          :aria-label="`Move ${quest.title || 'quest'} to ${QUEST_STATUS_LABELS[nextStatus]}`"
+          size="xs"
+          variant="subtle"
+          @click="emit('move', nextStatus)"
+        />
         <AppButton
           v-if="showAction"
           :to="actionTo"
@@ -134,6 +143,7 @@
           :label="summary?.isLive ? 'Resume' : 'Prep'"
           size="xs"
           variant="subtle"
+          class="ml-auto"
         />
       </div>
     </footer>
@@ -145,6 +155,7 @@ import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import {
   IconCheck,
+  IconChevronLeft,
   IconChevronRight,
   IconEdit,
   IconLoot,
@@ -161,7 +172,6 @@ import {
   type QuestStatus,
 } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
 
 const props = withDefaults(defineProps<{
   quest: Quest;
@@ -182,17 +192,15 @@ const emit = defineEmits<{
   move: [status: QuestStatus];
 }>();
 
-const selectedStatus = computed<QuestStatus>({
-  get: () => props.quest.status,
-  set: (status) => {
-    if (status !== props.quest.status) emit("move", status);
-  },
-});
-
 const visibleParty = computed(() => {
   const ids = new Set(props.quest.player_visible_to ?? []);
   return props.party.filter((member) => ids.has(member.id));
 });
+const hiddenPartyCount = computed(() => Math.max(visibleParty.value.length - 4, 0));
+const hiddenPartyLabel = computed(() => `${hiddenPartyCount.value} more ${hiddenPartyCount.value === 1 ? "player" : "players"}`);
+const statusIndex = computed(() => QUEST_STATUSES.indexOf(props.quest.status));
+const previousStatus = computed<QuestStatus | null>(() => QUEST_STATUSES[statusIndex.value - 1] ?? null);
+const nextStatus = computed<QuestStatus | null>(() => QUEST_STATUSES[statusIndex.value + 1] ?? null);
 
 const hasSummaryChips = computed(() => props.summary !== undefined);
 const showAction = computed(() => !["completed", "failed"].includes(props.quest.status));

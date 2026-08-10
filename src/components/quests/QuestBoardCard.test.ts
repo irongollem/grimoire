@@ -91,11 +91,22 @@ describe("QuestBoardCard", () => {
     expect(wrapper.find('[title="Bryn"]').exists()).toBe(false);
   });
 
-  it("offers a keyboard-native status move and emits only real changes", async () => {
-    const wrapper = mount(QuestBoardCard, { props: { quest: quest() }, global });
-    const select = wrapper.get("select");
+  it("labels party overflow instead of showing an unexplained number", () => {
+    const party = ["1", "2", "3", "4", "5"].map((id) => partyMember(`pc-${id}`, `Player ${id}`));
+    const wrapper = mount(QuestBoardCard, {
+      props: { quest: quest({ player_visible_to: party.map((member) => member.id) }), party },
+      global,
+    });
 
-    await select.setValue("completed");
+    expect(wrapper.text()).toContain("+1 player");
+    expect(wrapper.find('[title="1 more player"]').exists()).toBe(true);
+  });
+
+  it("offers compact keyboard-native moves to adjacent lanes", async () => {
+    const wrapper = mount(QuestBoardCard, { props: { quest: quest() }, global });
+
+    expect(wrapper.find("select").exists()).toBe(false);
+    await wrapper.get('[aria-label="Move The Salt-Drowned Bell to Completed"]').trigger("click");
     expect(wrapper.emitted("move")).toEqual([["completed"]]);
   });
 
@@ -105,6 +116,7 @@ describe("QuestBoardCard", () => {
       global,
     });
     expect(wrapper.text()).not.toContain("Prep");
-    expect(wrapper.get("select").attributes("aria-label")).toContain("Move The Salt-Drowned Bell");
+    expect(wrapper.get('[aria-label="Move The Salt-Drowned Bell to Completed"]').attributes("aria-label")).toContain("Completed");
+    expect(wrapper.find('[aria-label="Move The Salt-Drowned Bell to another status"]').exists()).toBe(false);
   });
 });
