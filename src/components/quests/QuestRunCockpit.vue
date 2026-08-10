@@ -18,19 +18,20 @@
       <AppButton class="mt-2" label="Retry" size="sm" variant="destructive" @click="contextQuery.refetch()" />
     </div>
 
-    <template v-else-if="context?.current && context.state">
+    <template v-else-if="currentBeat && context?.state">
       <div v-if="context.state.status === 'paused'" class="rounded-lg border border-tone-caution/50 bg-tone-caution/5 p-3 text-caption text-tone-caution">
         Session paused. Prep remains available; resume when the table is ready.
       </div>
       <div class="grid items-start gap-3 xl:grid-cols-[minmax(0,1fr)_20rem]">
         <QuestRunBeatCard
           :anchor-quest-id="anchorQuestId"
-          :beat="context.current"
+          :beat="currentBeat"
           :attachments="currentAttachments"
           :loot="currentLoot"
           @dirty="containedDirty = $event"
           @open-attachment="selectedAttachment = $event"
           @edit-beat="beatEditorOpen = true"
+          @reveal="revealBeat(currentBeat.id)"
         />
         <QuestRunPath :path="context.path_so_far" />
       </div>
@@ -43,7 +44,7 @@
         :return-to="runReturn"
         @close="selectedAttachment = null"
       />
-      <QuestRunBeatEditor v-if="beatEditorOpen" :beat="context.current" @close="beatEditorOpen = false" />
+      <QuestRunBeatEditor v-if="beatEditorOpen" :beat="currentBeat" @close="beatEditorOpen = false" />
       <QuestRunControls
         :status="context.state.status"
         :has-previous="!!context.previous"
@@ -51,7 +52,7 @@
         :disabled="transitioning"
         @previous="command('previous')"
         @advance="(edgeId) => command('advance', { edgeId })"
-        @reveal="revealChoice"
+        @reveal="revealBeat"
         @preview="openPreview"
         @jump="jumpOpen = !jumpOpen"
         @improv="improvOpen = !improvOpen"
@@ -151,6 +152,11 @@ const updateBeat = useUpdateQuestBeat();
 const improviseRuntime = useQuestRuntimeImprovise();
 
 const context = computed(() => contextQuery.data.value ?? null);
+const currentBeat = computed(() => {
+  const snapshot = context.value?.current;
+  if (!snapshot) return null;
+  return (runBeatsQuery.data.value ?? []).find((beat) => beat.id === snapshot.id) ?? snapshot;
+});
 const runReturn = computed(() => `/quests/${props.anchorQuestId}?mode=run&beat=${context.value?.current?.id ?? ""}`);
 const startOptions = computed(() => (beatsQuery.data.value ?? []).map((beat) => ({ id: beat.id, name: beat.title || "Untitled beat" })));
 const currentAttachments = computed(() => (attachmentsQuery.data.value ?? []).filter((row) => row.beat_id === context.value?.current?.id));
@@ -251,7 +257,7 @@ async function endSession() {
   await command("end");
 }
 
-async function revealChoice(beatId: string) {
+async function revealBeat(beatId: string) {
   const beat = runBeatsQuery.data.value?.find((row) => row.id === beatId);
   if (!beat || !(await confirm(`Reveal “${beat.title}” to players? Advancing alone leaves it ${beat.visibility}.`))) return;
   error.value = "";

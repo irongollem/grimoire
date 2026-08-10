@@ -6,6 +6,14 @@
         <h2 class="font-cinzel text-xl font-bold text-foreground">{{ beat.title || "Untitled beat" }}</h2>
       </div>
       <div class="flex gap-2">
+        <AppButton
+          v-if="beat.visibility !== 'revealed'"
+          :label="beat.visibility === 'rumored' ? 'Reveal fully' : 'Reveal to players'"
+          size="sm"
+          variant="primary"
+          @click="emit('reveal')"
+        />
+        <span v-else class="self-center text-caption text-elven-green">Visible to players</span>
         <AppButton label="Notes & outcomes" size="sm" variant="subtle" @click="emit('edit-beat')" />
         <AppButton :to="editUrl" label="Full prep" size="sm" variant="subtle" />
       </div>
@@ -69,7 +77,7 @@ const props = defineProps<{
   attachments: QuestBeatAttachmentSummary[];
   loot: QuestBeatLoot[];
 }>();
-const emit = defineEmits<{ dirty: [dirty: boolean]; "open-attachment": [attachment: QuestBeatAttachmentSummary]; "edit-beat": [] }>();
+const emit = defineEmits<{ dirty: [dirty: boolean]; "open-attachment": [attachment: QuestBeatAttachmentSummary]; "edit-beat": []; reveal: [] }>();
 
 const runReturn = computed(() => `/quests/${props.anchorQuestId}?mode=run&beat=${props.beat.id}`);
 const editUrl = computed(() => ({

@@ -135,6 +135,29 @@ describe("QuestRunCockpit", () => {
     expect(preview.props("visibleTo")).toEqual(["side-player"]);
   });
 
+  it("renders the current beat from the live beat row after an in-place save", () => {
+    mocks.context.value = runningContext();
+    mocks.beats.value = [{ ...beat, title: "Saved at the table", visibility: "revealed" }];
+    const wrapper = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
+    expect(wrapper.findComponent(QuestRunBeatCard).props("beat")).toEqual(expect.objectContaining({
+      title: "Saved at the table",
+      visibility: "revealed",
+    }));
+  });
+
+  it("reveals the current beat without moving the runtime cursor", async () => {
+    mocks.context.value = runningContext();
+    mocks.beats.value = [{ ...beat, visibility: "hidden", updated_at: "version-1" }];
+    mocks.updateBeat.mockResolvedValue({ ...beat, visibility: "revealed", updated_at: "version-2" });
+    const wrapper = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
+    wrapper.findComponent(QuestRunBeatCard).vm.$emit("reveal");
+    await flushPromises();
+    expect(mocks.updateBeat).toHaveBeenCalledWith({
+      id: "b1", questId: "q1", expectedUpdatedAt: "version-1", update: { visibility: "revealed" },
+    });
+    expect(mocks.mutateAsync).not.toHaveBeenCalled();
+  });
+
   it("offers no audience when the previewed side quest no longer resolves", async () => {
     const missingBeat = { ...beat, id: "missing-beat", quest_id: "missing-quest" };
     mocks.context.value = { ...runningContext(), current: missingBeat };
