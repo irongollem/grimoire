@@ -31,6 +31,7 @@
             <AppButton label="Close" size="sm" variant="subtle" @click="emit('close')" />
           </header>
           <main class="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 sm:p-6">
+            <QuestOverviewMetadata :quest="quest" />
             <LoadingSpinner v-if="beatsQuery.isLoading.value" class="mx-auto my-12" />
             <template v-else-if="overviewBeat">
               <section class="space-y-2 rounded-lg border border-border bg-card p-3" aria-label="Overview beat fields">
@@ -46,7 +47,7 @@
             <div v-else role="alert" class="rounded-lg border border-dashed border-tone-caution/50 bg-tone-caution/5 p-3 text-caption text-tone-caution">
               The overview beat is not available yet. Apply the latest database migration to enable shared beat preparation here.
             </div>
-            <QuestSheet :quest="quest" embedded beat-plus />
+            <QuestOverviewLifecycle :quest="quest" />
           </main>
         </aside>
         <QuestPlayerPreviewDrawer
@@ -73,7 +74,8 @@ import QuestBeatAttachmentsPanel from "./QuestBeatAttachmentsPanel.vue";
 import QuestBeatFields from "./QuestBeatFields.vue";
 import QuestBeatLootPanel from "./QuestBeatLootPanel.vue";
 import QuestPlayerPreviewDrawer from "./QuestPlayerPreviewDrawer.vue";
-import QuestSheet from "./QuestSheet.vue";
+import QuestOverviewLifecycle from "./QuestOverviewLifecycle.vue";
+import QuestOverviewMetadata from "./QuestOverviewMetadata.vue";
 
 const props = defineProps<{ quest: Quest }>();
 const emit = defineEmits<{ close: [] }>();

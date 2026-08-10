@@ -137,7 +137,7 @@ const roomOptions = computed(() => {
 });
 const createUrl = computed(() => withQuestReturnTo(({
   encounter: "/encounters/new",
-  objective: `/quests/${props.beat.quest_id}?edit=true`,
+  objective: `/quests/${props.beat.quest_id}?overview=true`,
   location_set: "/locations/new",
   npc: "/npcs/new",
   faction: "/factions/new",
@@ -148,7 +148,7 @@ const createUrl = computed(() => withQuestReturnTo(({
   playlist: "/soundboard",
   note: "/notes/new",
   handout: "/scriptorium/new",
-  quest_ref: `/quests/${props.beat.quest_id}?edit=true`,
+  quest_ref: `/quests/${props.beat.quest_id}?overview=true`,
 })[attachmentType.value], `/quests/${props.beat.quest_id}/beats/${props.beat.id}`));
 
 watch(attachmentType, () => { refId.value = ""; selectedRoomIds.value = []; error.value = ""; });

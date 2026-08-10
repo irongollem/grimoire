@@ -74,6 +74,16 @@ describe("QuestDetailView", () => {
     expect(mocks.replace).toHaveBeenCalledWith({ query: { overview: "true" } });
   });
 
+  it("redirects legacy edit links into the overview instead of mounting an old editor", async () => {
+    mocks.route.query = { edit: "true", beat: "beat-1" };
+    const wrapper = mountView();
+
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.findComponent(QuestGraphDesigner).exists()).toBe(true);
+    expect(mocks.replace).toHaveBeenCalledWith({ query: { beat: "beat-1", overview: "true" } });
+  });
+
   it("keeps the overview open above the surface when Prep/Play changes", async () => {
     mocks.route.query = { overview: "true" };
     const wrapper = mountView();

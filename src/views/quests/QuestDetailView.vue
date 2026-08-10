@@ -12,12 +12,6 @@
       v-else-if="isNew"
       :parent-id="parentId ?? null"
     />
-    <QuestEditor
-      v-else-if="isEditing"
-      :key="id"
-      :quest="quest ?? null"
-      :parent-id="parentId ?? null"
-    />
     <QuestRunCockpit
       v-else-if="quest && isRunning"
       :key="`run-${quest.id}`"
@@ -31,7 +25,7 @@
       :visible-to="quest.player_visible_to ?? []"
       :focus-current-on-open="route.query.focus === 'current'"
     />
-    <QuestOverviewDrawer v-if="quest && isOverview && !isEditing" :quest="quest" @close="closeOverview" />
+    <QuestOverviewDrawer v-if="quest && isOverview" :quest="quest" @close="closeOverview" />
   </PageHeader>
 </template>
 
@@ -42,7 +36,6 @@ import { useQuest } from "@/composables/useQuests";
 import { useUiStore } from "@/stores/ui";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import QuestEditor from "@/components/quests/QuestEditor.vue";
 import QuestFlowStarter from "@/components/quests/QuestFlowStarter.vue";
 import QuestGraphDesigner from "@/components/quests/QuestGraphDesigner.vue";
 import QuestRunCockpit from "@/components/quests/QuestRunCockpit.vue";
@@ -53,10 +46,9 @@ const route     = useRoute();
 const router    = useRouter();
 const ui        = useUiStore();
 const isNew     = computed(() => route.name === "quest-new");
-const isEditing = computed(() => route.query.edit === "true");
 const isOverview = computed(() => route.query.overview === "true" || route.query.mode === "details");
-const isRunning = computed(() => !isNew.value && !isEditing.value && ui.dmMode === "play");
-const isBuilding = computed(() => !isNew.value && !isEditing.value && ui.dmMode === "prep");
+const isRunning = computed(() => !isNew.value && ui.dmMode === "play");
+const isBuilding = computed(() => !isNew.value && ui.dmMode === "prep");
 const id        = computed(() => (isNew.value ? "" : (route.params.id as string)));
 const parentId  = computed(() => (route.query.parent as string | undefined));
 
@@ -66,8 +58,13 @@ const isLoading = computed(() => !isNew.value && questLoading.value);
 // Build/Run used to be encoded in the URL. Honour old bookmarks once, then
 // leave the persisted global Prep/Play toggle as the only mode source.
 watch(
-  () => route.query.mode,
-  (mode) => {
+  () => [route.query.mode, route.query.edit] as const,
+  ([mode, edit]) => {
+    if (edit === "true") {
+      const { edit: _edit, mode: _mode, ...query } = route.query;
+      void router.replace({ query: { ...query, overview: "true" } });
+      return;
+    }
     if (mode === "details") {
       const { mode: _mode, ...query } = route.query;
       void router.replace({ query: { ...query, overview: "true" } });

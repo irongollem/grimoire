@@ -21,7 +21,8 @@ function mountDrawer() {
     global: {
       stubs: {
         Teleport: true,
-        QuestSheet: true,
+        QuestOverviewMetadata: true,
+        QuestOverviewLifecycle: true,
       },
     },
   });
@@ -32,7 +33,8 @@ describe("QuestOverviewDrawer", () => {
     const wrapper = mountDrawer();
     expect(wrapper.get('[role="dialog"]').attributes("aria-modal")).toBe("true");
     expect(wrapper.text()).toContain("The Unseen — Overview");
-    expect(wrapper.findComponent({ name: "QuestSheet" }).props("embedded")).toBe(true);
+    expect(wrapper.findComponent({ name: "QuestOverviewMetadata" }).exists()).toBe(true);
+    expect(wrapper.findComponent({ name: "QuestOverviewLifecycle" }).exists()).toBe(true);
     wrapper.unmount();
   });
 
