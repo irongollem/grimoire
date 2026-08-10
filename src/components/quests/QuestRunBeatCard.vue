@@ -8,6 +8,10 @@
       <AppButton :to="editUrl" label="Prep this beat" size="sm" variant="subtle" />
     </header>
 
+    <div v-if="beat.is_improvised && !beat.improv_reviewed_at" class="rounded-lg border border-tone-caution/50 bg-tone-caution/5 p-3 text-caption text-tone-caution">
+      Improvised at the table · needs post-session review. You can still run, attach material, take notes, and reveal it now.
+    </div>
+
     <section v-if="beat.read_aloud" class="rounded-lg border border-primary/30 bg-primary/5 p-4">
       <h3 class="mb-2 font-cinzel text-sm font-bold text-primary">Read aloud</h3>
       <RichTextViewer :content="beat.read_aloud" />

@@ -11,8 +11,7 @@ const mocks = vi.hoisted(() => ({
   quests: { value: [] as Array<Record<string, unknown>> },
   mutateAsync: vi.fn(),
   updateBeat: vi.fn(),
-  createBeat: vi.fn(),
-  deleteBeat: vi.fn(),
+  improvise: vi.fn(),
   refetch: vi.fn(),
   replace: vi.fn(),
   route: { query: { mode: "run" } as Record<string, string> },
@@ -31,8 +30,7 @@ vi.mock("@/composables/useQuestFlow", () => ({
   useQuestBeatLoot: () => ({ data: { value: [] } }),
   useQuestRuntimeJumpTargets: () => ({ data: mocks.targets }),
   useUpdateQuestBeat: () => ({ mutateAsync: mocks.updateBeat }),
-  useCreateQuestBeat: () => ({ mutateAsync: mocks.createBeat }),
-  useDeleteQuestBeat: () => ({ mutateAsync: mocks.deleteBeat }),
+  useQuestRuntimeImprovise: () => ({ mutateAsync: mocks.improvise }),
 }));
 
 const beat = { id: "b1", quest_id: "q1", campaign_id: "c1", title: "Opening", kind: "social" };
@@ -57,8 +55,7 @@ describe("QuestRunCockpit", () => {
     mocks.refetch.mockReset();
     mocks.replace.mockReset();
     mocks.updateBeat.mockReset();
-    mocks.createBeat.mockReset();
-    mocks.deleteBeat.mockReset();
+    mocks.improvise.mockReset();
   });
 
   it("starts the selected beat with version zero", async () => {

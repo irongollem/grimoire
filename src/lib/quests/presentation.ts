@@ -46,7 +46,8 @@ export function deriveQuestBeatPresentations(input: QuestBeatPresentationInput) 
 
   for (const beat of input.beats) {
     const placed = attachments.get(beat.id) ?? [];
-    const prepGapCount = placed.filter((attachment) => attachment.prep_gap).length;
+    const prepGapCount = placed.filter((attachment) => attachment.prep_gap).length
+      + (beat.is_improvised && !beat.improv_reviewed_at ? 1 : 0);
     const loot = input.lootByBeat?.[beat.id] ?? { total: 0, undispatched: 0, unclaimed: 0 };
     result[beat.id] = {
       prepGapCount,

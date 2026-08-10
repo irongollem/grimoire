@@ -518,6 +518,51 @@ export function useQuestRuntimeCommand() {
   });
 }
 
+export interface QuestRuntimeImprovInput {
+  campaignId: string;
+  expectedVersion: number;
+  title: string;
+  kind: string;
+  dmLead: string;
+  revealText: string;
+  reason: string;
+  pushReturn: boolean;
+  keepEdge: boolean;
+}
+
+export function useQuestRuntimeImprovise() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: QuestRuntimeImprovInput): Promise<{ context: QuestRuntimeContext; beat: QuestBeat }> => {
+      const { data, error } = await supabase.rpc("improvise_quest_runtime", {
+        p_campaign_id: input.campaignId,
+        p_expected_version: input.expectedVersion,
+        p_title: input.title,
+        p_kind: input.kind,
+        p_dm_lead: input.dmLead || null,
+        p_reveal_text: input.revealText || null,
+        p_reason: input.reason,
+        p_push_return: input.pushReturn,
+        p_keep_edge: input.keepEdge,
+        p_edge_label: "Improvised",
+      });
+      if (error) throw error;
+      return data as { context: QuestRuntimeContext; beat: QuestBeat };
+    },
+    onSuccess: ({ context }, input) => {
+      queryClient.setQueryData([RUNTIME_CONTEXT_KEY, input.campaignId], context);
+      queryClient.setQueryData([RUNTIME_KEY, input.campaignId], context.state);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: [RUNTIME_KEY] });
+      queryClient.invalidateQueries({ queryKey: [RUNTIME_CONTEXT_KEY] });
+      queryClient.invalidateQueries({ queryKey: [TRANSITIONS_KEY] });
+      queryClient.invalidateQueries({ queryKey: [BEATS_KEY] });
+      queryClient.invalidateQueries({ queryKey: [EDGES_KEY] });
+    },
+  });
+}
+
 export function useQuestBeatTransitions(limit = 100) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);

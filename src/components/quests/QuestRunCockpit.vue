@@ -70,11 +70,10 @@ import {
   useQuestBeatAttachmentSummaries,
   useQuestBeatLoot,
   useQuestBeats,
-  useCreateQuestBeat,
-  useDeleteQuestBeat,
   useQuestRuntimeCommand,
   useQuestRuntimeContext,
   useQuestRuntimeJumpTargets,
+  useQuestRuntimeImprovise,
   useUpdateQuestBeat,
 } from "@/composables/useQuestFlow";
 import { useQuests } from "@/composables/useQuests";
@@ -111,8 +110,7 @@ const transitioning = ref(false);
 const error = ref("");
 const containedDirty = ref(false);
 const updateBeat = useUpdateQuestBeat();
-const createBeat = useCreateQuestBeat();
-const deleteBeat = useDeleteQuestBeat();
+const improviseRuntime = useQuestRuntimeImprovise();
 
 const context = computed(() => contextQuery.data.value ?? null);
 const startOptions = computed(() => (beatsQuery.data.value ?? []).map((beat) => ({ id: beat.id, name: beat.title || "Untitled beat" })));
@@ -186,31 +184,18 @@ async function jump(target: RankedQuestJumpTarget, reason: string, pushReturn: b
   });
 }
 
-async function improvise(value: { title: string; reason: string; dmLead: string; pushReturn: boolean }) {
-  const current = context.value?.current;
+async function improvise(value: { title: string; kind: string; reason: string; dmLead: string; revealText: string; pushReturn: boolean; keepEdge: boolean }) {
   const state = context.value?.state;
-  if (!current || !state || !(await confirmLeavingDraft())) return;
-  let createdId = "";
+  if (!state || !(await confirmLeavingDraft())) return;
+  transitioning.value = true;
+  error.value = "";
   try {
-    const created = await createBeat.mutateAsync({
-      quest_id: current.quest_id, campaign_id: current.campaign_id, title: value.title, kind: "neutral", visibility: "hidden",
-      dm_content: value.dmLead || null, read_aloud: null, how_it_plays: null, outcomes: null, consequences: null,
-      rumor_text: null, reveal_text: null, presentation_hint: "Improvised at the table",
-      canvas_x: current.canvas_x + 320, canvas_y: current.canvas_y + 160, is_improvised: true,
-    });
-    createdId = created.id;
-    const moved = await run({
-      campaignId: state.campaign_id, command: "improv", expectedVersion: state.version,
-      targetQuestId: created.quest_id, targetBeatId: created.id, reason: value.reason, pushReturn: value.pushReturn,
-      provenance: { surface: "quest-run-improv" },
-    });
-    if (!moved) await deleteBeat.mutateAsync({ id: created.id, questId: created.quest_id });
+    await improviseRuntime.mutateAsync({ campaignId: state.campaign_id, expectedVersion: state.version, ...value });
+    improvOpen.value = false;
   } catch (caught) {
-    if (createdId) {
-      try { await deleteBeat.mutateAsync({ id: createdId, questId: current.quest_id }); } catch { /* Preserve the actionable create error. */ }
-    }
     error.value = caught instanceof Error ? caught.message : "The improvised beat could not be created";
-  }
+    await contextQuery.refetch();
+  } finally { transitioning.value = false; }
 }
 
 async function endSession() {

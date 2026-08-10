@@ -37,7 +37,7 @@ describe("QuestRunControls", () => {
   it("offers jump, improvise, pause, and end at an authored dead end", () => {
     const wrapper = mount(QuestRunControls, { props: { status: "running", hasPrevious: false, outgoing: [] } });
     expect(wrapper.text()).toContain("Jump…");
-    expect(wrapper.text()).toContain("Improvise…");
+    expect(wrapper.text()).toContain("Something else…");
     expect(wrapper.text()).toContain("Pause");
     expect(wrapper.text()).toContain("End");
   });

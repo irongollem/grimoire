@@ -23,6 +23,10 @@
       </label>
     </div>
 
+    <label v-if="beat.is_improvised" class="flex items-center gap-2 rounded-md border border-tone-caution/40 bg-tone-caution/5 p-2 text-caption text-foreground">
+      <input v-model="draft.improv_reviewed" type="checkbox" /> Post-session review complete
+    </label>
+
     <label class="block space-y-1 text-caption font-semibold text-foreground">
       DM lead
       <RichTextEditor v-model="draft.dm_content" :min-height="compact ? '7rem' : '11rem'" :sticky-toolbar="!compact" placeholder="What should the DM know first?" />

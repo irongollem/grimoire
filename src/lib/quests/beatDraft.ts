@@ -12,6 +12,7 @@ export interface QuestBeatDraft {
   consequences: string;
   rumor_text: string;
   reveal_text: string;
+  improv_reviewed: boolean;
 }
 
 export function questBeatToDraft(beat: QuestBeat): QuestBeatDraft {
@@ -27,6 +28,7 @@ export function questBeatToDraft(beat: QuestBeat): QuestBeatDraft {
     consequences: beat.consequences ?? "",
     rumor_text: beat.rumor_text ?? "",
     reveal_text: beat.reveal_text ?? "",
+    improv_reviewed: !!beat.improv_reviewed_at,
   };
 }
 
@@ -44,6 +46,7 @@ export function questBeatDraftToUpdate(draft: QuestBeatDraft): QuestBeatUpdate {
     consequences: nullable(draft.consequences),
     rumor_text: nullable(draft.rumor_text.trim()),
     reveal_text: nullable(draft.reveal_text.trim()),
+    improv_reviewed_at: draft.improv_reviewed ? new Date().toISOString() : null,
   };
 }
 

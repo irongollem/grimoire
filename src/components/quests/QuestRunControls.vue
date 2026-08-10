@@ -33,7 +33,7 @@
       <AppButton label="Previous" variant="subtle" :disabled="navigationDisabled || !hasPrevious" @click="emit('previous')" />
       <AppButton v-if="!outgoing.length" label="No authored next beat" variant="subtle" disabled />
       <AppButton label="Jump…" variant="subtle" :disabled="navigationDisabled" @click="emit('jump')" />
-      <AppButton v-if="!outgoing.length" label="Improvise…" variant="subtle" :disabled="navigationDisabled" @click="emit('improv')" />
+      <AppButton v-if="!outgoing.length" label="Something else…" variant="subtle" :disabled="navigationDisabled" @click="emit('improv')" />
       <div class="ml-auto flex gap-2">
         <AppButton v-if="status === 'running'" label="Pause" variant="subtle" :disabled="disabled" @click="emit('pause')" />
         <AppButton v-else-if="status === 'paused'" label="Resume" variant="primary" :disabled="disabled" @click="emit('resume')" />
