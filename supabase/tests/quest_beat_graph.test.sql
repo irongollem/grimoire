@@ -158,7 +158,7 @@ $$, '42501', null, 'authenticated history is append-only');
 select set_config('request.jwt.claim.sub', '65800000-0000-4000-8000-000000000002', true);
 
 select is((select count(*)::integer from public.quest_beats where campaign_id = '65800000-0000-4000-8000-000000000010'), 0, 'players cannot read raw beat rows');
-select is((select count(*)::integer from public.get_player_visible_quest_beats('65800000-0000-4000-8000-000000000010')), 2, 'players receive rumored and revealed beats only');
+select is((select count(*)::integer from public.get_player_visible_quest_beats('65800000-0000-4000-8000-000000000010', null, null)), 2, 'players receive rumored and revealed beats only');
 select is((select player_text from public.get_player_visible_quest_beats('65800000-0000-4000-8000-000000000010') where id = '65800000-0000-4000-8000-000000000040'), 'A rumor', 'rumored beats use explicit rumor copy');
 select is((select player_text from public.get_player_visible_quest_beats('65800000-0000-4000-8000-000000000010') where id = '65800000-0000-4000-8000-000000000041'), 'B reveal', 'revealed beats use explicit reveal copy');
 select ok((select not (to_jsonb(b) ? 'dm_content') from public.get_player_visible_quest_beats('65800000-0000-4000-8000-000000000010') b limit 1), 'the player projection has no DM content field');

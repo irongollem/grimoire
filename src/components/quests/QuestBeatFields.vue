@@ -23,6 +23,11 @@
       </label>
     </div>
 
+    <div class="flex flex-wrap items-center gap-2">
+      <AppButton label="Preview as players" size="sm" variant="subtle" @click="emit('preview', { draftVisibility: draft.visibility, savedVisibility: beat.visibility, unsaved: dirty })" />
+      <span class="text-caption text-muted-foreground">Uses saved player data; DM fields never enter the preview.</span>
+    </div>
+
     <label v-if="beat.is_improvised" class="flex items-center gap-2 rounded-md border border-tone-caution/40 bg-tone-caution/5 p-2 text-caption text-foreground">
       <input v-model="draft.improv_reviewed" type="checkbox" /> Post-session review complete
     </label>
@@ -85,7 +90,10 @@ import MentionTextarea from "@/components/common/MentionTextarea.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 
 const props = withDefaults(defineProps<{ beat: QuestBeat; compact?: boolean }>(), { compact: false });
-const emit = defineEmits<{ saved: [beat: QuestBeat] }>();
+const emit = defineEmits<{
+  saved: [beat: QuestBeat];
+  preview: [context: { draftVisibility: QuestBeat["visibility"]; savedVisibility: QuestBeat["visibility"]; unsaved: boolean }];
+}>();
 const updateBeat = useUpdateQuestBeat();
 const draft = reactive(questBeatToDraft(props.beat));
 let baseline = questBeatToDraft(props.beat);

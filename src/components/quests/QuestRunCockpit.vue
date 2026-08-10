@@ -6,6 +6,7 @@
         <p class="text-caption text-muted-foreground">Stay in the story; supporting material opens with a return path.</p>
       </div>
       <div class="ml-auto flex gap-2">
+        <AppButton v-if="context?.current" label="Preview as players" size="sm" variant="subtle" @click="openPreview(context.current.id)" />
         <AppButton :to="`/quests/${anchorQuestId}`" label="Quest details" size="sm" variant="subtle" />
         <AppButton :to="`/quests/${anchorQuestId}?mode=build&focus=current`" label="Build" size="sm" variant="subtle" />
       </div>
@@ -51,11 +52,20 @@
         @previous="command('previous')"
         @advance="(edgeId) => command('advance', { edgeId })"
         @reveal="revealChoice"
+        @preview="openPreview"
         @jump="jumpOpen = !jumpOpen"
         @improv="improvOpen = !improvOpen"
         @pause="command('pause')"
         @resume="command('resume')"
         @end="endSession"
+      />
+      <QuestPlayerPreviewDrawer
+        v-if="previewOpen"
+        :quest-id="previewQuestId"
+        :visible-to="visibleTo"
+        :selected-beat-id="previewBeat?.id"
+        :saved-visibility="previewBeat?.visibility"
+        @close="previewOpen = false"
       />
     </template>
 
@@ -102,6 +112,7 @@ import QuestRunControls from "./QuestRunControls.vue";
 import QuestRunJumpPanel from "./QuestRunJumpPanel.vue";
 import QuestRunImprovPanel from "./QuestRunImprovPanel.vue";
 import QuestRunPath from "./QuestRunPath.vue";
+import QuestPlayerPreviewDrawer from "./QuestPlayerPreviewDrawer.vue";
 import QuestRunToolLoadError from "./QuestRunToolLoadError.vue";
 
 const QuestRunContainedTool = defineAsyncComponent({
@@ -111,7 +122,7 @@ const QuestRunContainedTool = defineAsyncComponent({
 });
 const QuestRunBeatEditor = defineAsyncComponent(() => import("./QuestRunBeatEditor.vue"));
 
-const props = defineProps<{ anchorQuestId: string }>();
+const props = withDefaults(defineProps<{ anchorQuestId: string; visibleTo?: string[] }>(), { visibleTo: () => [] });
 const route = useRoute();
 const router = useRouter();
 const { confirm } = useConfirm();
@@ -134,6 +145,8 @@ const error = ref("");
 const containedDirty = ref(false);
 const selectedAttachment = ref<QuestBeatAttachmentSummary | null>(null);
 const beatEditorOpen = ref(false);
+const previewOpen = ref(false);
+const previewBeatId = ref<string | null>(null);
 const updateBeat = useUpdateQuestBeat();
 const improviseRuntime = useQuestRuntimeImprovise();
 
@@ -142,6 +155,8 @@ const runReturn = computed(() => `/quests/${props.anchorQuestId}?mode=run&beat=$
 const startOptions = computed(() => (beatsQuery.data.value ?? []).map((beat) => ({ id: beat.id, name: beat.title || "Untitled beat" })));
 const currentAttachments = computed(() => (attachmentsQuery.data.value ?? []).filter((row) => row.beat_id === context.value?.current?.id));
 const currentLoot = computed(() => (lootQuery.data.value ?? []).filter((row) => row.beat_id === context.value?.current?.id));
+const previewBeat = computed(() => (runBeatsQuery.data.value ?? []).find((beat) => beat.id === previewBeatId.value) ?? context.value?.current ?? null);
+const previewQuestId = computed(() => previewBeat.value?.quest_id ?? props.anchorQuestId);
 const recentBeatIds = computed(() => {
   const ids = (context.value?.path_so_far ?? []).map((row) => String(row.to_beat_id ?? "")).filter(Boolean).reverse();
   return [...new Set(ids)];
@@ -240,6 +255,11 @@ async function revealChoice(beatId: string) {
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : "The player reveal could not be changed";
   }
+}
+
+function openPreview(beatId: string) {
+  previewBeatId.value = beatId;
+  previewOpen.value = true;
 }
 
 async function confirmLeavingDraft() {

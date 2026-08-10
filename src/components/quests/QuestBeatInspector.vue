@@ -20,7 +20,7 @@
       </ul>
     </details>
 
-    <div id="beat-fields"><QuestBeatFields :key="beat.id" :beat="beat" compact /></div>
+    <div id="beat-fields"><QuestBeatFields :key="beat.id" :beat="beat" compact @preview="emit('preview', $event)" /></div>
 
     <section class="space-y-2 rounded-lg border border-border bg-card p-3" aria-label="Outgoing branches">
       <h3 class="font-cinzel text-sm font-bold text-foreground">Outgoing branches</h3>
@@ -54,6 +54,9 @@ const props = defineProps<{
   attachments: QuestBeatAttachmentSummary[];
   loot: QuestBeatLoot[];
   presentation?: QuestBeatPresentation;
+}>();
+const emit = defineEmits<{
+  preview: [context: { draftVisibility: QuestBeat["visibility"]; savedVisibility: QuestBeat["visibility"]; unsaved: boolean }];
 }>();
 
 const fullPageTo = computed(() => ({

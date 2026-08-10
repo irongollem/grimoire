@@ -13,11 +13,13 @@
       v-else-if="quest && isRunning"
       :key="`run-${quest.id}`"
       :anchor-quest-id="quest.id"
+      :visible-to="quest.player_visible_to ?? []"
     />
     <QuestGraphDesigner
       v-else-if="quest && isBuilding"
       :key="`build-${quest.id}`"
       :quest-id="quest.id"
+      :visible-to="quest.player_visible_to ?? []"
       :focus-current-on-open="route.query.focus === 'current'"
     />
     <QuestEditor

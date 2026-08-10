@@ -19,6 +19,17 @@ create extension if not exists pgtap with schema extensions;
 
 select plan(1);
 
+-- Player-safe projections intentionally reject anonymous callers before they
+-- inspect campaign membership. Give the schema guard a syntactically valid
+-- authenticated identity; the placeholder user need not belong to a campaign
+-- for the function bodies to execute and validate their return shapes.
+select set_config(
+  'request.jwt.claim.sub',
+  '00000000-0000-4000-8000-000000000000',
+  true
+);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+
 create or replace function pg_temp.broken_projections()
 returns setof text
 language plpgsql as $fn$
@@ -39,6 +50,7 @@ begin
     select coalesce(string_agg(
       case
         when a like '%uuid[]%' then 'null::uuid[]'
+        when a like '%preview%' then 'null::uuid'
         when a like '%uuid%'   then '''00000000-0000-4000-8000-000000000000''::uuid'
         else 'null'
       end, ', '), '')

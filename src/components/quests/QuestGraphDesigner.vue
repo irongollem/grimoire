@@ -87,6 +87,7 @@
         :attachments="selectedAttachments"
         :loot="selectedLoot"
         :presentation="presentations[selectedBeat.id]"
+        @preview="openPreview"
       />
       <div v-else class="hidden rounded-xl border border-dashed border-border p-6 text-center text-caption text-muted-foreground xl:block">
         Select a beat to prepare it without leaving the flow.
@@ -96,6 +97,15 @@
     <p v-if="saveError" role="alert" class="text-caption text-destructive">
       The last position could not be saved and was restored. {{ saveError }}
     </p>
+    <QuestPlayerPreviewDrawer
+      v-if="previewOpen"
+      :quest-id="questId"
+      :visible-to="visibleTo"
+      :selected-beat-id="selectedBeat?.id"
+      :saved-visibility="previewContext?.savedVisibility"
+      :draft-visibility="previewContext?.draftVisibility"
+      @close="previewOpen = false"
+    />
   </section>
 </template>
 
@@ -128,7 +138,7 @@ import { createBeatWithRollback, isDuplicateQuestEdge } from "@/lib/quests/mutat
 import { useCampaignStore } from "@/stores/campaign";
 import { useConfirm } from "@/composables/useConfirm";
 import { useIsMobile } from "@/composables/useBreakpoint";
-import type { QuestRuntimeContext } from "@/types/quest.types";
+import type { QuestBeat, QuestRuntimeContext } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
@@ -136,8 +146,9 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import QuestFlowCanvas from "./QuestFlowCanvas.vue";
 import QuestBeatComposer from "./QuestBeatComposer.vue";
 import QuestBeatInspector from "./QuestBeatInspector.vue";
+import QuestPlayerPreviewDrawer from "./QuestPlayerPreviewDrawer.vue";
 
-const props = withDefaults(defineProps<{ questId: string; focusCurrentOnOpen?: boolean }>(), { focusCurrentOnOpen: false });
+const props = withDefaults(defineProps<{ questId: string; visibleTo?: string[]; focusCurrentOnOpen?: boolean }>(), { visibleTo: () => [], focusCurrentOnOpen: false });
 const canvas = ref<InstanceType<typeof QuestFlowCanvas> | null>(null);
 const route = useRoute();
 const router = useRouter();
@@ -145,6 +156,8 @@ const isMobile = useIsMobile();
 const selectedBeatId = ref<string | null>(null);
 const selectedEdgeId = ref<string | null>(null);
 const saveError = ref("");
+const previewOpen = ref(false);
+const previewContext = ref<{ draftVisibility: QuestBeat["visibility"]; savedVisibility: QuestBeat["visibility"]; unsaved: boolean } | null>(null);
 const initialViewport = readQuestViewport(props.questId);
 const questId = computed(() => props.questId);
 
@@ -164,6 +177,11 @@ const deleteEdge = useDeleteQuestBeatEdge();
 const transitionRuntime = useQuestRuntimeCommand();
 const campaign = useCampaignStore();
 const { confirm } = useConfirm();
+
+function openPreview(context: { draftVisibility: QuestBeat["visibility"]; savedVisibility: QuestBeat["visibility"]; unsaved: boolean }) {
+  previewContext.value = context;
+  previewOpen.value = true;
+}
 
 const beats = computed(() => beatsQuery.data.value ?? []);
 const edges = computed(() => edgesQuery.data.value ?? []);

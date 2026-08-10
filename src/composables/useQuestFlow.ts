@@ -5,6 +5,7 @@ import { summarizeQuestBeatAttachment } from "@/lib/quests/attachments";
 import { deriveQuestBoardSummaries, type QuestBoardSummary } from "@/lib/quests/board";
 import { toQuestRuntimeRpcArgs, type QuestRuntimeCommandInput } from "@/lib/quests/runtime";
 import { useCampaignStore } from "@/stores/campaign";
+import { useUiStore } from "@/stores/ui";
 import type {
   PlayerQuestBeat,
   PlayerQuestBeatVisit,
@@ -613,16 +614,19 @@ export function useQuestBeatTransitionsForQuest(questId: string | Ref<string>) {
   });
 }
 
-export function usePlayerQuestBeats(questId?: string | Ref<string>) {
+export function usePlayerQuestBeats(questId?: string | Ref<string>, previewPartyMemberId?: Ref<string | null>) {
   const campaign = useCampaignStore();
+  const ui = useUiStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   const id = questId === undefined ? ref("") : asRef(questId);
+  const previewId = computed(() => previewPartyMemberId?.value ?? (ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : null));
   return useQuery({
-    queryKey: computed(() => [BEATS_KEY, "player", campaignId.value, id.value || "all"]),
+    queryKey: computed(() => [BEATS_KEY, "player", campaignId.value, id.value || "all", previewId.value]),
     queryFn: async (): Promise<PlayerQuestBeat[]> => {
       const { data, error } = await supabase.rpc("get_player_visible_quest_beats", {
         p_campaign_id: campaignId.value!,
         p_quest_id: id.value || null,
+        p_preview_party_member_id: previewId.value,
       });
       if (error) throw error;
       return (data ?? []) as PlayerQuestBeat[];
@@ -631,16 +635,19 @@ export function usePlayerQuestBeats(questId?: string | Ref<string>) {
   });
 }
 
-export function usePlayerQuestBeatHistory(questId?: string | Ref<string>) {
+export function usePlayerQuestBeatHistory(questId?: string | Ref<string>, previewPartyMemberId?: Ref<string | null>) {
   const campaign = useCampaignStore();
+  const ui = useUiStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   const id = questId === undefined ? ref("") : asRef(questId);
+  const previewId = computed(() => previewPartyMemberId?.value ?? (ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : null));
   return useQuery({
-    queryKey: computed(() => [TRANSITIONS_KEY, "player", campaignId.value, id.value || "all"]),
+    queryKey: computed(() => [TRANSITIONS_KEY, "player", campaignId.value, id.value || "all", previewId.value]),
     queryFn: async (): Promise<PlayerQuestBeatVisit[]> => {
       const { data, error } = await supabase.rpc("get_player_visible_quest_beats", {
         p_campaign_id: campaignId.value!,
         p_quest_id: id.value || null,
+        p_preview_party_member_id: previewId.value,
       });
       if (error) throw error;
       return ((data ?? []) as PlayerQuestBeat[])

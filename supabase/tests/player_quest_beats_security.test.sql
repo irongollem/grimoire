@@ -3,11 +3,11 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(28);
 
-select has_function('public', 'get_player_visible_quest_beats', array['uuid', 'uuid'], 'player beats use a dedicated projection');
+select has_function('public', 'get_player_visible_quest_beats', array['uuid', 'uuid', 'uuid'], 'player beats use a dedicated projection');
 select hasnt_function('public', 'get_player_visible_quest_beat_history', array['uuid', 'uuid'], 'visit history adds no second security-definer endpoint');
-select ok(not has_function_privilege('anon', 'public.get_player_visible_quest_beats(uuid,uuid)', 'EXECUTE'), 'anonymous users cannot execute the beat projection');
+select ok(not has_function_privilege('anon', 'public.get_player_visible_quest_beats(uuid,uuid,uuid)', 'EXECUTE'), 'anonymous users cannot execute the beat projection');
 select is((select count(*)::integer from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname like 'get_player_visible_quest_beat%'), 1, 'beats and history share one auditable player endpoint');
-select ok(position('auth.uid() is null' in lower(pg_get_functiondef('public.get_player_visible_quest_beats(uuid,uuid)'::regprocedure))) > 0, 'the security-definer projection rejects missing authentication before reading data');
+select ok(position('auth.uid() is null' in lower(pg_get_functiondef('public.get_player_visible_quest_beats(uuid,uuid,uuid)'::regprocedure))) > 0, 'the security-definer projection rejects missing authentication before reading data');
 select is((select count(*)::integer from pg_publication_tables where pubname = 'supabase_realtime' and tablename in ('quest_beats', 'quest_beat_edges', 'quest_beat_attachments', 'quest_beat_transitions')), 0, 'raw quest topology never enters realtime payloads');
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)

@@ -3,6 +3,7 @@ import type { Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
+import { useUiStore } from "@/stores/ui";
 import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
 import { useToast } from "@/composables/useToast";
 import { EVENT_TYPE_COLORS } from "@/types/calendar.types";
@@ -203,13 +204,16 @@ export function useQuests(status?: QuestStatus) {
  */
 export function usePlayerVisibleQuests() {
   const campaign = useCampaignStore();
+  const ui = useUiStore();
   const campaignId = computed(() => campaign.activeCampaignId);
+  const previewId = computed(() => ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : null);
   return useQuery({
-    queryKey: computed(() => [QUESTS_KEY, campaignId.value, "player-visible"]),
+    queryKey: computed(() => [QUESTS_KEY, campaignId.value, "player-visible", previewId.value]),
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_player_visible_quests", {
         p_campaign_id: campaignId.value!,
         p_quest_id: null,
+        p_preview_party_member_id: previewId.value,
       });
       if (error) throw error;
       return ((data ?? []) as Quest[]).sort(
@@ -227,12 +231,15 @@ export function usePlayerVisibleQuests() {
  */
 export function usePlayerVisibleQuest(id: string | Ref<string>) {
   const idRef = isRef(id) ? id : ref(id);
+  const ui = useUiStore();
+  const previewId = computed(() => ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : null);
   return useQuery({
-    queryKey: computed(() => [QUESTS_KEY, "player-one", idRef.value]),
+    queryKey: computed(() => [QUESTS_KEY, "player-one", idRef.value, previewId.value]),
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_player_visible_quests", {
         p_campaign_id: null,
         p_quest_id: idRef.value,
+        p_preview_party_member_id: previewId.value,
       });
       if (error) throw error;
       return ((data ?? []) as Quest[])[0] ?? null;

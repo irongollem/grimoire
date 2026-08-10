@@ -16,6 +16,7 @@
           </div>
           <div class="flex flex-wrap gap-2">
             <AppButton label="Choose" size="sm" variant="primary" :disabled="navigationDisabled" @click="emit('advance', choice.edge_id)" />
+            <AppButton label="Preview as players" size="sm" variant="subtle" @click="emit('preview', choice.beat_id)" />
             <AppButton
               v-if="choice.visibility !== 'revealed'"
               :label="choice.visibility === 'rumored' ? 'Reveal fully' : 'Reveal to players'"
@@ -63,6 +64,7 @@ const emit = defineEmits<{
   previous: [];
   advance: [edgeId: string];
   reveal: [beatId: string];
+  preview: [beatId: string];
   jump: [];
   improv: [];
   pause: [];
