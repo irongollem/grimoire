@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(40);
+select plan(41);
 
 select has_table('public', 'quest_beat_loot', 'beat loot has a dedicated orchestration table');
 select has_function('public', 'dispatch_quest_beat_loot', array['uuid', 'uuid'], 'beat loot has an atomic dispatch RPC');
@@ -86,9 +86,14 @@ $$, 'P0001', null, 'players cannot dispatch prepared beat loot');
 select lives_ok($$
   select public.grab_item_drop(
     (select id from public.campaign_messages where metadata->>'quest_loot_entry_id' = '66100000-0000-4000-8000-000000000061'),
-    1, '66100000-0000-4000-8000-000000000002', 'Claiming hero', '66100000-0000-4000-8000-000000000020'
+    1, '66100000-0000-4000-8000-000000000003', 'Claiming hero', '66100000-0000-4000-8000-000000000020'
   )
-$$, 'existing atomic item claim delivers beat loot');
+$$, 'existing atomic item claim ignores the legacy caller-supplied user id');
+select is(
+  (select metadata->'claims'->0->>'user_id' from public.campaign_messages where metadata->>'quest_loot_entry_id' = '66100000-0000-4000-8000-000000000061'),
+  '66100000-0000-4000-8000-000000000002',
+  'item claims derive the claimant from auth.uid rather than the compatibility parameter'
+);
 select lives_ok($$
   select public.claim_currency_drop(
     (select id from public.campaign_messages where metadata->>'quest_loot_entry_id' = '66100000-0000-4000-8000-000000000062'),
