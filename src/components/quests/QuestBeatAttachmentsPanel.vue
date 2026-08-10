@@ -8,7 +8,7 @@
     </div>
 
     <ul v-if="attachments.length" class="space-y-1.5">
-      <li v-for="attachment in attachments" :key="attachment.id" class="flex items-center gap-2 rounded-md border border-border p-2 text-caption">
+      <li v-for="attachment in attachments" :key="attachment.id" class="flex min-w-0 flex-wrap items-center gap-2 rounded-md border border-border p-2 text-caption">
         <span class="rounded bg-muted px-1.5 py-0.5 uppercase text-muted-foreground">{{ adapterLabel(attachment.attachment_type) }}</span>
         <span class="min-w-0 flex-1 truncate" :class="attachment.prep_gap ? 'text-tone-caution' : 'text-foreground'">{{ attachment.label }}</span>
         <AppButton
@@ -27,16 +27,18 @@
     </ul>
     <p v-else class="text-caption italic text-muted-foreground">Nothing placed on this beat yet.</p>
 
-    <div class="grid gap-2 sm:grid-cols-[9rem_1fr_auto_auto]">
-      <AppSelect v-model="attachmentType" aria-label="Attachment type">
+    <div data-testid="beat-attachment-form" class="grid min-w-0 grid-cols-[minmax(0,9rem)_minmax(0,1fr)] gap-2">
+      <AppSelect v-model="attachmentType" class="min-w-0" aria-label="Attachment type">
         <option v-for="type in supportedTypes" :key="type" :value="type">{{ adapterLabel(type) }}</option>
       </AppSelect>
-      <EntityCombobox v-model="refId" :options="options" :placeholder="`Find ${adapterLabel(attachmentType).toLowerCase()}…`" />
-      <AppButton label="Place" size="sm" :disabled="!refId" :loading="adding" @click="add" />
-      <AppButton :to="createUrl" label="Create new" size="sm" variant="subtle" />
+      <EntityCombobox v-model="refId" class="min-w-0" :options="options" :placeholder="`Find ${adapterLabel(attachmentType).toLowerCase()}…`" />
+      <div class="col-span-2 flex min-w-0 flex-wrap justify-end gap-2">
+        <AppButton label="Place" size="sm" :disabled="!refId" :loading="adding" @click="add" />
+        <AppButton :to="createUrl" label="Create new" size="sm" variant="subtle" />
+      </div>
     </div>
-    <div v-if="attachmentType === 'encounter'" class="flex gap-2 rounded-md border border-dashed border-border p-2">
-      <AppInput v-model="quickEncounterName" placeholder="Quick encounter name…" />
+    <div v-if="attachmentType === 'encounter'" class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-2 rounded-md border border-dashed border-border p-2">
+      <AppInput v-model="quickEncounterName" class="min-w-0" placeholder="Quick encounter name…" />
       <AppButton label="Create & place" size="sm" variant="subtle" :disabled="!quickEncounterName.trim()" :loading="quickCreating" @click="quickCreateEncounter" />
     </div>
     <fieldset v-if="attachmentType === 'location_set' && refId && roomOptions.length" class="space-y-1 rounded-md border border-dashed border-border p-2">

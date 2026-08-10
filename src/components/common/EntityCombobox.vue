@@ -1,5 +1,5 @@
 <template>
-  <div class="relative flex-1" ref="rootEl">
+  <div class="relative min-w-0 flex-1" ref="rootEl">
     <div class="relative">
       <input
         v-no-pwm

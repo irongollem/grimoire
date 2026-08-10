@@ -1,5 +1,5 @@
 <template>
-  <aside class="space-y-3 rounded-xl border border-border bg-background p-3" aria-label="Selected beat inspector">
+  <aside class="min-w-0 max-w-full space-y-3 rounded-xl border border-border bg-background p-3" aria-label="Selected beat inspector">
     <div class="flex items-start gap-2">
       <div class="min-w-0 flex-1">
         <p class="text-label font-bold uppercase tracking-wider text-muted-foreground">Beat inspector</p>

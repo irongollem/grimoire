@@ -9,7 +9,7 @@
     </div>
 
     <ul v-if="loot.length" class="space-y-1.5">
-      <li v-for="entry in loot" :key="entry.id" class="flex items-center gap-2 rounded-md border border-border p-2 text-caption">
+      <li v-for="entry in loot" :key="entry.id" class="flex min-w-0 flex-wrap items-center gap-2 rounded-md border border-border p-2 text-caption">
         <span class="rounded bg-muted px-1.5 py-0.5 uppercase text-muted-foreground">{{ entry.kind.replace('_', ' ') }}</span>
         <span class="min-w-0 flex-1 truncate text-foreground">{{ entry.quantity > 1 ? `${entry.quantity}× ` : '' }}{{ entry.label }}</span>
         <div class="text-right">
@@ -28,14 +28,16 @@
     <p v-else class="text-caption italic text-muted-foreground">No loot prepared for this beat.</p>
     <p v-if="loot.some((entry) => entry.delivery_state !== 'held')" class="text-2xs text-muted-foreground">Claims are authoritative in chat and inventory. Reassignment is not available in Run mode.</p>
 
-    <div class="grid gap-2 sm:grid-cols-[8rem_1fr_auto]">
-      <AppSelect v-model="kind" aria-label="Loot kind">
+    <div data-testid="beat-loot-form" class="grid min-w-0 grid-cols-[minmax(0,8rem)_minmax(0,1fr)] gap-2">
+      <AppSelect v-model="kind" class="min-w-0" aria-label="Loot kind">
         <option value="item">Item</option>
         <option value="currency">Currency</option>
       </AppSelect>
-      <EntityCombobox v-if="kind === 'item'" v-model="itemId" :options="itemOptions" placeholder="Find an Item Vault item…" />
-      <AppInput v-else v-model="label" placeholder="Currency label (optional)" />
-      <AppButton label="Prepare" size="sm" :disabled="!canAdd" :loading="adding" @click="add" />
+      <EntityCombobox v-if="kind === 'item'" v-model="itemId" class="min-w-0" :options="itemOptions" placeholder="Find an Item Vault item…" />
+      <AppInput v-else v-model="label" class="min-w-0" placeholder="Currency label (optional)" />
+      <div class="col-span-2 flex justify-end">
+        <AppButton label="Prepare" size="sm" :disabled="!canAdd" :loading="adding" @click="add" />
+      </div>
     </div>
     <div v-if="kind === 'item'" class="grid grid-cols-2 gap-2 sm:grid-cols-[7rem_1fr]">
       <label class="text-caption text-muted-foreground">Quantity <AppInput v-model.number="quantity" type="number" min="1" /></label>

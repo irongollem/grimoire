@@ -61,7 +61,7 @@
     <p v-else-if="!beats.length" class="rounded-lg border border-dashed border-border p-8 text-center text-body text-muted-foreground">
       This quest has no beats yet. Use “Add beat” to begin its story flow.
     </p>
-    <div v-else class="grid items-start gap-3 xl:grid-cols-[minmax(0,1fr)_24rem]">
+    <div v-else class="grid min-w-0 max-w-full items-start gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,24rem)]">
       <div id="quest-flow-canvas" class="min-w-0">
         <QuestFlowCanvas
           ref="canvas"
@@ -82,6 +82,7 @@
       <QuestBeatInspector
         v-if="selectedBeat"
         :key="selectedBeat.id"
+        class="min-w-0 max-w-full"
         :beat="selectedBeat"
         :beats="beats"
         :edges="edges"

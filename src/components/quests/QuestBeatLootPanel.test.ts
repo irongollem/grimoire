@@ -52,4 +52,12 @@ describe("QuestBeatLootPanel", () => {
     await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Drop all")!.trigger("click");
     expect(mocks.dispatch).toHaveBeenCalledWith({ beatId: "beat-1", entryId: undefined, campaignId: "campaign-1" });
   });
+
+  it("keeps preparation controls inside the narrow beat inspector", () => {
+    const wrapper = shallowMount(QuestBeatLootPanel, { props: { beat, loot: [] } });
+    const form = wrapper.get('[data-testid="beat-loot-form"]');
+    expect(form.classes()).toContain("min-w-0");
+    expect(form.classes()).toContain("grid-cols-[minmax(0,8rem)_minmax(0,1fr)]");
+    expect(form.find("div.col-span-2").exists()).toBe(true);
+  });
 });
