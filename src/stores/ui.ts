@@ -157,7 +157,7 @@ export const useUiStore = defineStore("ui", () => {
   const questsPartyFilter = useLocalStorage("grimoire:quests:party", false);
   const questsEntityFilter = useLocalStorage("grimoire:quests:entity", "");
   // Summary-backed facets remain inert until their batched board data has loaded,
-  // so a slow response never makes legacy quests disappear temporarily.
+  // so a slow response never makes quests disappear temporarily.
   const questsPrepGapsFilter = useLocalStorage("grimoire:quests:prep-gaps", false);
   const questsLootFilter = useLocalStorage("grimoire:quests:pending-loot", false);
 

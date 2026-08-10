@@ -23,8 +23,6 @@ import type {
   QuestRuntimeContext,
   QuestRuntimeJumpTarget,
   QuestRuntimeState,
-  QuestFlowConversionPreview,
-  QuestFlowConversionResult,
 } from "@/types/quest.types";
 
 const BEATS_KEY = "quest_beats";
@@ -34,7 +32,6 @@ const RUNTIME_CONTEXT_KEY = "quest_runtime_context";
 const TRANSITIONS_KEY = "quest_beat_transitions";
 const ATTACHMENTS_KEY = "quest_beat_attachments";
 const LOOT_KEY = "quest_beat_loot";
-const CONVERSION_KEY = "quest_flow_conversion";
 
 function asRef(value: string | Ref<string>): Ref<string> {
   return isRef(value) ? value : ref(value);
@@ -100,57 +97,6 @@ export function useQuestBeatEdges(questId: string | Ref<string>) {
     queryKey: computed(() => [EDGES_KEY, id.value]),
     queryFn: () => fetchEdges(id.value),
     enabled: () => !!id.value,
-  });
-}
-
-export function useQuestFlowConversionPreview(questId: string | Ref<string>, enabled?: Ref<boolean>) {
-  const id = asRef(questId);
-  return useQuery({
-    queryKey: computed(() => [CONVERSION_KEY, "preview", id.value]),
-    queryFn: async (): Promise<QuestFlowConversionPreview> => {
-      const { data, error } = await supabase.rpc("preview_quest_flow_conversion", { p_quest_id: id.value });
-      if (error) throw error;
-      return data as QuestFlowConversionPreview;
-    },
-    enabled: () => !!id.value && (enabled?.value ?? true),
-  });
-}
-
-export function useConvertQuestToFlow() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (input: { questId: string; includeOverview: boolean }): Promise<QuestFlowConversionResult> => {
-      const { data, error } = await supabase.rpc("convert_quest_to_flow", {
-        p_quest_id: input.questId,
-        p_include_overview: input.includeOverview,
-      });
-      if (error) throw error;
-      return data as QuestFlowConversionResult;
-    },
-    onSuccess: (_result, input) => {
-      queryClient.invalidateQueries({ queryKey: ["quests"] });
-      queryClient.invalidateQueries({ queryKey: [CONVERSION_KEY, "preview", input.questId] });
-      queryClient.invalidateQueries({ queryKey: [BEATS_KEY, input.questId] });
-      queryClient.invalidateQueries({ queryKey: [ATTACHMENTS_KEY, input.questId] });
-    },
-  });
-}
-
-export function useRollbackQuestFlowConversion() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (questId: string): Promise<number> => {
-      const { data, error } = await supabase.rpc("rollback_quest_flow_conversion", { p_quest_id: questId });
-      if (error) throw error;
-      return data as number;
-    },
-    onSuccess: (_result, questId) => {
-      queryClient.invalidateQueries({ queryKey: ["quests"] });
-      queryClient.invalidateQueries({ queryKey: [CONVERSION_KEY, "preview", questId] });
-      queryClient.invalidateQueries({ queryKey: [BEATS_KEY, questId] });
-      queryClient.invalidateQueries({ queryKey: [EDGES_KEY, questId] });
-      queryClient.invalidateQueries({ queryKey: [ATTACHMENTS_KEY, questId] });
-    },
   });
 }
 

@@ -1,13 +1,19 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(26);
+select plan(19);
 
-select has_column('public', 'quests', 'flow_enabled_at', 'quests explicitly opt into flow mode');
-select has_column('public', 'quest_beats', 'conversion_source_type', 'generated beats retain rollback provenance');
-select has_function('public', 'preview_quest_flow_conversion', array['uuid'], 'conversion has a read-only preview');
-select has_function('public', 'convert_quest_to_flow', array['uuid', 'boolean'], 'conversion is atomic');
-select has_function('public', 'rollback_quest_flow_conversion', array['uuid'], 'conversion is reversible');
+select has_column('public', 'quests', 'flow_enabled_at', 'quests carry flow activation time');
+select col_not_null('public', 'quests', 'flow_enabled_at', 'every quest uses story flow');
+select ok(
+  (select column_default is not null from information_schema.columns where table_schema = 'public' and table_name = 'quests' and column_name = 'flow_enabled_at'),
+  'new quests enable story flow by default'
+);
+select has_column('public', 'quest_beats', 'conversion_source_type', 'generated beats retain auditable provenance');
+select has_function('private', 'backfill_quest_story_flows', array['boolean'], 'an idempotent private backfill is available to migrations and seed loading');
+select hasnt_function('public', 'preview_quest_flow_conversion', array['uuid'], 'the obsolete conversion preview is retired');
+select hasnt_function('public', 'convert_quest_to_flow', array['uuid', 'boolean'], 'the obsolete opt-in conversion is retired');
+select hasnt_function('public', 'rollback_quest_flow_conversion', array['uuid'], 'story flows no longer roll back to a second quest mode');
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data) values
   ('65900000-0000-4000-8000-000000000001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'issue659-dm@example.invalid', '', '{}'::jsonb, '{}'::jsonb),
@@ -40,40 +46,20 @@ insert into public.quest_refs (id, quest_id, ref_type, ref_id, is_player_visible
 insert into public.quest_beats (id, quest_id, campaign_id, title)
 values ('65900000-0000-4000-8000-000000000070', '65900000-0000-4000-8000-000000000030', '65900000-0000-4000-8000-000000000010', 'Hand-authored beat');
 
-set local role authenticated;
-select set_config('request.jwt.claim.sub', '65900000-0000-4000-8000-000000000001', true);
-select set_config('request.jwt.claim.role', 'authenticated', true);
+select private.backfill_quest_story_flows(false);
+select private.backfill_quest_story_flows(false);
 
-select is((public.preview_quest_flow_conversion('65900000-0000-4000-8000-000000000032')->>'encounter_refs')::integer, 0, 'a quest with no encounters previews zero combat beats');
-select is((public.preview_quest_flow_conversion('65900000-0000-4000-8000-000000000033')->>'encounter_beats_to_create')::integer, 1, 'a quest with one encounter previews one unconnected combat beat');
-select is((public.preview_quest_flow_conversion('65900000-0000-4000-8000-000000000030')->>'encounter_beats_to_create')::integer, 2, 'many encounter refs are counted without inferring order');
-select is((public.preview_quest_flow_conversion('65900000-0000-4000-8000-000000000030')->>'objectives_preserved')::integer, 1, 'preview names preserved objectives');
-select is((public.preview_quest_flow_conversion('65900000-0000-4000-8000-000000000030')->>'triggers_preserved')::integer, 1, 'preview names preserved triggers');
-select is((select count(*)::integer from public.quest_beats where quest_id = '65900000-0000-4000-8000-000000000030'), 1, 'preview writes nothing');
-
-select is((public.convert_quest_to_flow('65900000-0000-4000-8000-000000000030', true)->>'encounter_beats_created')::integer, 2, 'conversion creates one staging beat per encounter ref');
-select is((select count(*)::integer from public.quest_beats where quest_id = '65900000-0000-4000-8000-000000000030' and conversion_source_type = 'legacy_overview'), 1, 'selected overview becomes one hidden discovery beat');
-select is((select count(*)::integer from public.quest_beat_edges where quest_id = '65900000-0000-4000-8000-000000000030'), 0, 'conversion never invents narrative edges');
-select is((select count(*)::integer from public.quest_beat_attachments where quest_id = '65900000-0000-4000-8000-000000000030' and attachment_type = 'encounter'), 2, 'combat beats reuse the existing encounters as attachments');
-select is((select count(*)::integer from public.quest_refs where quest_id = '65900000-0000-4000-8000-000000000030'), 2, 'legacy refs remain authoritative and are not duplicated');
-select isnt((select flow_enabled_at from public.quests where id = '65900000-0000-4000-8000-000000000030'), null, 'conversion explicitly enables flow mode');
-
-select lives_ok($$ select public.convert_quest_to_flow('65900000-0000-4000-8000-000000000030', true) $$, 'running conversion twice is safe');
-select is((select count(*)::integer from public.quest_beats where quest_id = '65900000-0000-4000-8000-000000000030'), 4, 'idempotent conversion creates no duplicate overview or combat beats');
+select is((select count(*)::integer from public.quest_beats where quest_id = '65900000-0000-4000-8000-000000000032'), 0, 'a quest without narrative content or encounters needs no invented beat');
+select is((select count(*)::integer from public.quest_beats where quest_id = '65900000-0000-4000-8000-000000000033' and kind = 'combat'), 1, 'one encounter reference becomes one unconnected combat beat');
+select is((select count(*)::integer from public.quest_beats where quest_id = '65900000-0000-4000-8000-000000000030'), 4, 'backfill adds an overview and two encounter beats beside hand-authored work');
+select is((select count(*)::integer from public.quest_beats where quest_id = '65900000-0000-4000-8000-000000000030' and conversion_source_type = 'legacy_overview'), 1, 'summary content becomes one hidden discovery overview');
+select is((select count(*)::integer from public.quest_beat_edges where quest_id = '65900000-0000-4000-8000-000000000030'), 0, 'backfill never invents narrative edges');
+select is((select count(*)::integer from public.quest_beat_attachments where quest_id = '65900000-0000-4000-8000-000000000030' and attachment_type = 'encounter'), 2, 'combat beats reuse existing encounters as attachments');
+select is((select count(*)::integer from public.quest_refs where quest_id = '65900000-0000-4000-8000-000000000030'), 2, 'encounter refs remain authoritative and are not duplicated');
+select is((select count(*)::integer from public.quests where flow_enabled_at is null), 0, 'all quests remain flow-enabled');
+select is((select count(*)::integer from public.quest_beats where quest_id = '65900000-0000-4000-8000-000000000030'), 4, 'repeated backfill creates no duplicate overview or combat beats');
 select ok((select notes = 'Keep this note' and reward_gp = 50 and rewards = 'A title deed' and cardinality(player_visible_to) = 1 from public.quests where id = '65900000-0000-4000-8000-000000000030'), 'quest fields, rewards, and sharing remain unchanged');
-select is((select count(*)::integer from public.quest_objectives where quest_id = '65900000-0000-4000-8000-000000000030') + (select count(*)::integer from public.quest_triggers where quest_id = '65900000-0000-4000-8000-000000000030') + (select count(*)::integer from public.quests where parent_quest_id = '65900000-0000-4000-8000-000000000030'), 3, 'objectives, consequences, and subquests survive conversion');
-
-select is(public.rollback_quest_flow_conversion('65900000-0000-4000-8000-000000000030'), 3, 'rollback removes exactly the conversion-created beats');
-select is((select count(*)::integer from public.quest_beats where quest_id = '65900000-0000-4000-8000-000000000030' and title = 'Hand-authored beat'), 1, 'rollback preserves separately authored flow rows');
-select is((select count(*)::integer from public.quest_refs where quest_id = '65900000-0000-4000-8000-000000000030'), 2, 'rollback never removes legacy encounter refs');
-select is((select flow_enabled_at from public.quests where id = '65900000-0000-4000-8000-000000000030'), null::timestamptz, 'rollback returns the quest to legacy mode');
-
-select set_config('request.jwt.claim.sub', '65900000-0000-4000-8000-000000000002', true);
-select throws_ok(
-  $$ select public.preview_quest_flow_conversion('65900000-0000-4000-8000-000000000030') $$,
-  'P0001', 'Only the campaign DM can convert this quest',
-  'non-members cannot inspect conversion details'
-);
+select is((select count(*)::integer from public.quest_objectives where quest_id = '65900000-0000-4000-8000-000000000030') + (select count(*)::integer from public.quest_triggers where quest_id = '65900000-0000-4000-8000-000000000030') + (select count(*)::integer from public.quests where parent_quest_id = '65900000-0000-4000-8000-000000000030'), 3, 'objectives, consequences, and subquests survive backfill');
 
 select * from finish();
 rollback;

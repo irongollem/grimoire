@@ -7,12 +7,9 @@
       <LoadingSpinner />
     </div>
 
-    <!-- `?edit=true` flips into the form; new quests skip the sheet.
-         Matches the NPC / Monster / Item / Spell / Location convention (#168). -->
-    <QuestFlowConversionPanel
-      v-else-if="quest && needsFlowConversion"
-      :quest="quest"
-      @cancel="router.replace(`/quests/${quest.id}`)"
+    <QuestFlowStarter
+      v-else-if="isNew"
+      :parent-id="parentId ?? null"
     />
     <QuestRunCockpit
       v-else-if="quest && isRunning"
@@ -28,9 +25,9 @@
       :focus-current-on-open="route.query.focus === 'current'"
     />
     <QuestEditor
-      v-else-if="isNew || isEditing"
-      :key="id || 'new'"
-      :quest="isNew ? null : (quest ?? null)"
+      v-else-if="isEditing"
+      :key="id"
+      :quest="quest ?? null"
       :parent-id="parentId ?? null"
     />
     <QuestSheet
@@ -43,24 +40,23 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { useRoute } from "vue-router";
 import { useQuest } from "@/composables/useQuests";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import QuestEditor from "@/components/quests/QuestEditor.vue";
+import QuestFlowStarter from "@/components/quests/QuestFlowStarter.vue";
 import QuestGraphDesigner from "@/components/quests/QuestGraphDesigner.vue";
 import QuestRunCockpit from "@/components/quests/QuestRunCockpit.vue";
 import QuestSheet from "@/components/quests/QuestSheet.vue";
-import QuestFlowConversionPanel from "@/components/quests/QuestFlowConversionPanel.vue";
 import { QUEST_STATUS_LABELS } from "@/types/quest.types";
 
 const route     = useRoute();
-const router    = useRouter();
 const isNew     = computed(() => route.name === "quest-new");
 const isEditing = computed(() => route.query.edit === "true");
-const isBuilding = computed(() => route.query.mode === "build");
 const isRunning = computed(() => route.query.mode === "run");
-const needsFlowConversion = computed(() => (isBuilding.value || isRunning.value) && !quest.value?.flow_enabled_at);
+const isDetails = computed(() => route.query.mode === "details");
+const isBuilding = computed(() => !isNew.value && !isEditing.value && !isRunning.value && !isDetails.value);
 const id        = computed(() => (isNew.value ? "" : (route.params.id as string)));
 const parentId  = computed(() => (route.query.parent as string | undefined));
 

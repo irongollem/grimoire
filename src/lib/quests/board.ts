@@ -11,7 +11,7 @@ import type {
 import { summarizeQuestLootByQuest } from "./loot";
 import { deriveQuestBeatPresentations } from "./presentation";
 
-/** Optional summaries keep legacy quests valid: they render without invented
+/** Optional summaries keep quests valid while graph data loads: they render without invented
  * beat-only data while flow-enabled quests use one batched campaign query. */
 export type QuestBeatSegment = "done" | "live" | "gap" | "upcoming";
 
@@ -89,7 +89,7 @@ export function deriveQuestBoardSummaries(input: {
 
 /**
  * One filter pipeline for list and board views. Beat-only filters deliberately
- * become no-ops while summaries are unavailable: hiding every legacy quest would
+ * become no-ops while summaries are unavailable: hiding every quest would
  * be a much worse failure mode than temporarily withholding the filter control.
  */
 export function filterQuestBoard(

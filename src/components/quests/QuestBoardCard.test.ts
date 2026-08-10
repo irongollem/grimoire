@@ -63,7 +63,7 @@ describe("QuestBoardCard", () => {
     expect(wrapper.find('[aria-label$="prepared story beats"]').exists()).toBe(false);
   });
 
-  it("renders the optional beat seam without inventing it for legacy quests", () => {
+  it("renders the optional beat seam without inventing it before graph data loads", () => {
     const wrapper = mount(QuestBoardCard, {
       props: { quest: quest(), summary },
       global,

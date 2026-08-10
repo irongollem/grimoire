@@ -58,14 +58,6 @@
           />
         </div>
 
-        <label v-if="isNew" class="flex items-start gap-3 rounded-lg border border-border bg-card p-3">
-          <input v-model="startInFlow" type="checkbox" class="mt-1" />
-          <span>
-            <span class="block font-cinzel text-sm font-semibold text-foreground">Start in the visual story flow</span>
-            <span class="block text-caption text-muted-foreground">Creates an optional hidden overview from this summary and opens Build mode after saving.</span>
-          </span>
-        </label>
-
         <!-- Metadata grid -->
         <QuestMetadataGrid
           v-model:giver-npc-id="giverNpcId"
@@ -257,7 +249,6 @@ import type {
 } from "@/types/quest.types";
 import { markEdited, type AiProvenance } from "@/ai/provenance";
 import { deepEqual } from "@/lib/utils";
-import { useConvertQuestToFlow } from "@/composables/useQuestFlow";
 
 const props = defineProps<{
   quest: Quest | null;
@@ -360,7 +351,6 @@ const playerVisibleTo = ref<string[]>(props.quest?.player_visible_to ?? []);
 const saving = ref(false);
 const deleting = ref(false);
 const saveError = ref("");
-const startInFlow = ref(false);
 
 const rewardItemIds = ref<string[]>([...(props.quest?.reward_item_ids ?? [])]);
 const rewardPp = ref(props.quest?.reward_pp ?? 0);
@@ -382,7 +372,6 @@ const aiProvenance = ref<AiProvenance | null>(props.quest?.ai_provenance ?? null
 const { mutateAsync: create } = useCreateQuest();
 const { mutateAsync: update } = useUpdateQuest();
 const { mutateAsync: del } = useDeleteQuest();
-const convertToFlow = useConvertQuestToFlow();
 const campaign = useCampaignStore();
 
 // ── Triggers ───────────────────────────────────────────────────────────────────
@@ -477,12 +466,7 @@ async function save() {
           `📋 Quest shared: "${created.title}"`,
           { entity_type: "quest", entity_id: created.id },
         );
-      if (startInFlow.value) {
-        await convertToFlow.mutateAsync({ questId: created.id, includeOverview: true });
-        router.push(`/quests/${created.id}?mode=build`);
-      } else {
-        router.push(`/quests/${created.id}`);
-      }
+      router.push(`/quests/${created.id}?mode=build`);
     }
   } catch (e: unknown) {
     saveError.value = e instanceof Error ? e.message : "Failed to save";

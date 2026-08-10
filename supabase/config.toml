@@ -20,6 +20,10 @@
 # commands without this string.
 project_id = "grimoire"
 
+[db.seed]
+enabled = true
+sql_paths = ["./seed*.sql"]
+
 # ── Edge Functions ───────────────────────────────────────────────────────────
 
 # Public ICS feed consumed by players' calendar apps (Google / Apple / Outlook).

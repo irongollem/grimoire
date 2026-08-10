@@ -97,7 +97,7 @@ describe("filterQuestBoard", () => {
     ).map((item) => item.id)).toEqual(["other"]);
   });
 
-  it("does not erase legacy quests when beat filters lack authoritative summaries", () => {
+  it("does not erase quests when beat filters lack authoritative summaries", () => {
     const quests = [quest("legacy-a"), quest("legacy-b")];
     const result = filterQuestBoard(
       quests,

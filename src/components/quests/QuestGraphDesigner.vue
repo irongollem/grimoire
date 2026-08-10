@@ -6,7 +6,8 @@
         <p class="text-caption text-muted-foreground">Create, connect, label, and arrange narrative beats.</p>
       </div>
       <div class="ml-auto flex gap-2">
-        <AppButton :to="`/quests/${questId}`" label="Details" size="sm" variant="subtle" />
+        <AppButton :to="{ path: `/quests/${questId}`, query: { mode: 'details' } }" label="Details" size="sm" variant="subtle" />
+        <AppButton v-if="beats.length" :to="{ path: `/quests/${questId}`, query: { mode: 'run' } }" label="Run" size="sm" variant="subtle" />
         <AppButton label="Add beat" size="sm" variant="primary" @click="openComposer()" />
         <AppButton :icon="IconMaximize" label="Fit" size="sm" variant="subtle" @click="canvas?.fitGraph()" />
         <AppButton v-if="currentBeatId" :icon="IconCenter" label="Current beat" size="sm" variant="subtle" @click="canvas?.focusCurrent()" />

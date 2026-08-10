@@ -118,25 +118,6 @@ export type QuestBeatInsert = Omit<QuestBeat, "id" | "created_by" | "created_at"
 };
 export type QuestBeatUpdate = Partial<Omit<QuestBeatInsert, "quest_id" | "campaign_id">>;
 
-export interface QuestFlowConversionPreview {
-  flow_enabled: boolean;
-  overview_available: boolean;
-  overview_beats_to_create: number;
-  encounter_refs: number;
-  encounter_beats_to_create: number;
-  objectives_preserved: number;
-  triggers_preserved: number;
-  subquests_preserved: number;
-  shared_characters_preserved: number;
-  rewards_preserved: boolean;
-}
-
-export interface QuestFlowConversionResult {
-  overview_beats_created: number;
-  encounter_beats_created: number;
-  flow_enabled: boolean;
-}
-
 export interface QuestBeatEdge {
   id: string;
   quest_id: string;

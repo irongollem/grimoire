@@ -11,7 +11,7 @@
   >
     <div class="flex items-start gap-2">
       <RouterLink
-        :to="`/quests/${quest.id}`"
+        :to="{ path: `/quests/${quest.id}`, query: { mode: 'build' } }"
         class="min-w-0 flex-1 font-fell text-base font-semibold leading-tight text-foreground hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 rounded-sm"
       >
         {{ quest.title || "Untitled Quest" }}

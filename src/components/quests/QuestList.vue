@@ -21,7 +21,7 @@
     </EmptyState>
 
     <!-- The board is a presentational/mutation boundary of its own. Beat-only
-         summaries remain optional so legacy quests stay useful. -->
+         summaries remain optional so cards stay useful while graph data loads. -->
     <QuestKanbanBoard
       v-else-if="isKanban"
       :quests="filtered"
@@ -41,7 +41,7 @@
         <RouterLink
           v-for="quest in filtered"
           :key="quest.id"
-          :to="`/quests/${quest.id}`"
+          :to="{ path: `/quests/${quest.id}`, query: { mode: 'build' } }"
           class="group relative flex flex-col rounded-lg border border-border bg-card hover:border-primary/50 transition-colors overflow-hidden"
         >
           <div class="h-1.5 w-full shrink-0" :style="{ backgroundColor: QUEST_STATUS_COLORS[quest.status] }" />
