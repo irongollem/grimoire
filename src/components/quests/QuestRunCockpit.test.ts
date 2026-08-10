@@ -4,6 +4,7 @@ import QuestRunCockpit from "./QuestRunCockpit.vue";
 import QuestRunControls from "./QuestRunControls.vue";
 import QuestRunJumpPanel from "./QuestRunJumpPanel.vue";
 import QuestRunBeatCard from "./QuestRunBeatCard.vue";
+import QuestPlayerPreviewDrawer from "./QuestPlayerPreviewDrawer.vue";
 
 const mocks = vi.hoisted(() => ({
   context: { value: null as Record<string, unknown> | null },
@@ -110,5 +111,40 @@ describe("QuestRunCockpit", () => {
     });
     await wrapper.vm.$nextTick();
     expect((wrapper.vm as unknown as { selectedAttachment: { id: string } | null }).selectedAttachment?.id).toBe("a1");
+  });
+
+  it("uses the current side quest's sharing audience for player preview", async () => {
+    const sideBeat = { ...beat, id: "side-beat", quest_id: "q2", title: "Side road" };
+    mocks.context.value = {
+      ...runningContext(),
+      state: { ...runningContext().state, current_quest_id: "q2", current_beat_id: "side-beat" },
+      current: sideBeat,
+    };
+    mocks.beats.value = [sideBeat];
+    mocks.quests.value = [
+      { id: "q1", player_visible_to: ["anchor-player"] },
+      { id: "q2", player_visible_to: ["side-player"] },
+    ];
+    const wrapper = shallowMount(QuestRunCockpit, {
+      props: { anchorQuestId: "q1", visibleTo: ["anchor-player"] },
+    });
+    await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Preview as players")!.trigger("click");
+    await wrapper.vm.$nextTick();
+    const preview = wrapper.findComponent(QuestPlayerPreviewDrawer);
+    expect(preview.props("questId")).toBe("q2");
+    expect(preview.props("visibleTo")).toEqual(["side-player"]);
+  });
+
+  it("offers no audience when the previewed side quest no longer resolves", async () => {
+    const missingBeat = { ...beat, id: "missing-beat", quest_id: "missing-quest" };
+    mocks.context.value = { ...runningContext(), current: missingBeat };
+    mocks.beats.value = [missingBeat];
+    mocks.quests.value = [{ id: "q1", player_visible_to: ["anchor-player"] }];
+    const wrapper = shallowMount(QuestRunCockpit, {
+      props: { anchorQuestId: "q1", visibleTo: ["anchor-player"] },
+    });
+    await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Preview as players")!.trigger("click");
+    await wrapper.vm.$nextTick();
+    expect(wrapper.findComponent(QuestPlayerPreviewDrawer).props("visibleTo")).toEqual([]);
   });
 });

@@ -62,7 +62,7 @@
       <QuestPlayerPreviewDrawer
         v-if="previewOpen"
         :quest-id="previewQuestId"
-        :visible-to="visibleTo"
+        :visible-to="previewVisibleTo"
         :selected-beat-id="previewBeat?.id"
         :saved-visibility="previewBeat?.visibility"
         @close="previewOpen = false"
@@ -157,6 +157,11 @@ const currentAttachments = computed(() => (attachmentsQuery.data.value ?? []).fi
 const currentLoot = computed(() => (lootQuery.data.value ?? []).filter((row) => row.beat_id === context.value?.current?.id));
 const previewBeat = computed(() => (runBeatsQuery.data.value ?? []).find((beat) => beat.id === previewBeatId.value) ?? context.value?.current ?? null);
 const previewQuestId = computed(() => previewBeat.value?.quest_id ?? props.anchorQuestId);
+const previewVisibleTo = computed(() => {
+  const quest = questsQuery.data.value?.find((row) => row.id === previewQuestId.value);
+  if (quest) return quest.player_visible_to ?? [];
+  return previewQuestId.value === props.anchorQuestId ? props.visibleTo : [];
+});
 const recentBeatIds = computed(() => {
   const ids = (context.value?.path_so_far ?? []).map((row) => String(row.to_beat_id ?? "")).filter(Boolean).reverse();
   return [...new Set(ids)];
