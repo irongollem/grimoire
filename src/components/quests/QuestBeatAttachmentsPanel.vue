@@ -11,6 +11,16 @@
       <li v-for="attachment in attachments" :key="attachment.id" class="flex items-center gap-2 rounded-md border border-border p-2 text-caption">
         <span class="rounded bg-muted px-1.5 py-0.5 uppercase text-muted-foreground">{{ adapterLabel(attachment.attachment_type) }}</span>
         <span class="min-w-0 flex-1 truncate" :class="attachment.prep_gap ? 'text-tone-caution' : 'text-foreground'">{{ attachment.label }}</span>
+        <AppButton
+          :label="attachment.is_required ? 'Required' : 'Optional'"
+          size="xs"
+          variant="subtle"
+          :active="attachment.is_required"
+          :aria-pressed="attachment.is_required"
+          :loading="updatingId === attachment.id"
+          :disabled="!!updatingId && updatingId !== attachment.id"
+          @click="setRequired(attachment, !attachment.is_required)"
+        />
         <AppButton v-if="attachment.full_editor_to" :to="specialistUrl(attachment.full_editor_to)" label="Open" size="xs" variant="subtle" />
         <AppButton label="Remove" size="xs" variant="subtle" :loading="removingId === attachment.id" @click="remove(attachment.id)" />
       </li>
@@ -43,7 +53,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { useCreateQuestBeatAttachment, useDeleteQuestBeatAttachment } from "@/composables/useQuestFlow";
+import { useCreateQuestBeatAttachment, useDeleteQuestBeatAttachment, useSetQuestBeatAttachmentRequired } from "@/composables/useQuestFlow";
 import { useCreateEncounter, useEncounters } from "@/composables/useEncounters";
 import { useAllFactions } from "@/composables/useFactions";
 import { useAllLocations } from "@/composables/useLocations";
@@ -73,9 +83,11 @@ const quickCreating = ref(false);
 const quickEncounterName = ref("");
 const selectedRoomIds = ref<string[]>([]);
 const removingId = ref("");
+const updatingId = ref("");
 const error = ref("");
 const createAttachment = useCreateQuestBeatAttachment();
 const deleteAttachment = useDeleteQuestBeatAttachment();
+const updateRequired = useSetQuestBeatAttachmentRequired();
 const createEncounter = useCreateEncounter();
 const { data: encounters } = useEncounters();
 const { data: objectives } = useQuestObjectives(computed(() => props.beat.quest_id));
@@ -171,6 +183,16 @@ async function remove(id: string) {
   try { await deleteAttachment.mutateAsync({ id, questId: props.beat.quest_id }); }
   catch (caught) { error.value = caught instanceof Error ? caught.message : "Could not remove this placement"; }
   finally { removingId.value = ""; }
+}
+
+async function setRequired(attachment: QuestBeatAttachmentSummary, isRequired: boolean) {
+  updatingId.value = attachment.id;
+  error.value = "";
+  try {
+    await updateRequired.mutateAsync({ id: attachment.id, questId: props.beat.quest_id, isRequired });
+  } catch (caught) {
+    error.value = caught instanceof Error ? caught.message : "Could not change this placement requirement";
+  } finally { updatingId.value = ""; }
 }
 
 async function quickCreateEncounter() {

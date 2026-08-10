@@ -365,6 +365,28 @@ export function useDeleteQuestBeatAttachment() {
   });
 }
 
+export async function setQuestBeatAttachmentRequired(id: string, isRequired: boolean): Promise<QuestBeatAttachment> {
+  const { data, error } = await supabase
+    .from("quest_beat_attachments")
+    .update({ is_required: isRequired })
+    .eq("id", id)
+    .select()
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error("This beat placement is no longer available. Reload before changing it.");
+  return data as QuestBeatAttachment;
+}
+
+export function useSetQuestBeatAttachmentRequired() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { id: string; questId: string; isRequired: boolean }) => setQuestBeatAttachmentRequired(input.id, input.isRequired),
+    onSettled: (_attachment, _error, input) => {
+      queryClient.invalidateQueries({ queryKey: [ATTACHMENTS_KEY, input.questId] });
+    },
+  });
+}
+
 /** Existing encounter screens stay authoritative; this only answers where an
  * encounter is placed in the authored story flow. */
 export function useEncounterBeatUsages(encounterId: string | Ref<string>) {
