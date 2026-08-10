@@ -57,14 +57,15 @@ export interface Quest {
   started_at: string | null;
   resolved_at: string | null;
   ai_provenance?: AiProvenance | null;
+  flow_enabled_at?: string | null;
   created_at: string;
   updated_at: string;
 }
 
 export type QuestInsert = Omit<
   Quest,
-  "id" | "user_id" | "created_at" | "updated_at"
->;
+  "id" | "user_id" | "created_at" | "updated_at" | "flow_enabled_at"
+> & { flow_enabled_at?: string | null };
 export type QuestUpdate = Partial<QuestInsert>;
 
 export interface QuestObjective {
@@ -103,15 +104,38 @@ export interface QuestBeat {
   canvas_y: number;
   is_improvised: boolean;
   improv_reviewed_at: string | null;
+  conversion_source_type?: "legacy_overview" | "legacy_encounter_ref" | null;
+  conversion_source_id?: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
 }
 
-export type QuestBeatInsert = Omit<QuestBeat, "id" | "created_by" | "created_at" | "updated_at"> & {
+export type QuestBeatInsert = Omit<QuestBeat, "id" | "created_by" | "created_at" | "updated_at" | "conversion_source_type" | "conversion_source_id"> & {
   id?: string;
+  conversion_source_type?: QuestBeat["conversion_source_type"];
+  conversion_source_id?: string | null;
 };
 export type QuestBeatUpdate = Partial<Omit<QuestBeatInsert, "quest_id" | "campaign_id">>;
+
+export interface QuestFlowConversionPreview {
+  flow_enabled: boolean;
+  overview_available: boolean;
+  overview_beats_to_create: number;
+  encounter_refs: number;
+  encounter_beats_to_create: number;
+  objectives_preserved: number;
+  triggers_preserved: number;
+  subquests_preserved: number;
+  shared_characters_preserved: number;
+  rewards_preserved: boolean;
+}
+
+export interface QuestFlowConversionResult {
+  overview_beats_created: number;
+  encounter_beats_created: number;
+  flow_enabled: boolean;
+}
 
 export interface QuestBeatEdge {
   id: string;

@@ -119,6 +119,13 @@
                 >
                   View Quest →
                 </button>
+                <button
+                  type="button"
+                  class="text-caption text-primary hover:underline underline-offset-2 transition-colors"
+                  @click="buildCreated(i)"
+                >
+                  Build flow →
+                </button>
               </template>
             </div>
           </div>
@@ -383,6 +390,14 @@ function viewCreated(index: number) {
   if (id) {
     ui.questGeneratorOpen = false;
     router.push(`/quests/${id}`);
+  }
+}
+
+function buildCreated(index: number) {
+  const id = createdQuestIds.value[index];
+  if (id) {
+    ui.questGeneratorOpen = false;
+    router.push(`/quests/${id}?mode=build`);
   }
 }
 
