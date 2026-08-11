@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { renderFurniture } from "./renderFurniture";
 import { createFurnitureItem } from "./model";
-import { WATERCOLOR_ASSETS } from "./watercolorAssets";
+import { WATERCOLOR_ASSETS } from "@/data/watercolorAssets";
 
 /** Build N fake Paged.js pages; page `blockPage` (1-based) contains `blockId`. */
 function makeContainer(n: number, blockId?: string, blockPage = 1): HTMLElement {

@@ -13,7 +13,7 @@
  */
 
 import type { PageFurnitureItem, FurnitureAnchor } from "@/types/scriptorium.types";
-import { watercolorAsset } from "./watercolorAssets";
+import { watercolorAsset } from "@/data/watercolorAssets";
 
 const FURNITURE_CLASS = "sc-furniture";
 

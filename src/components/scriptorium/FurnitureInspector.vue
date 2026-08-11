@@ -122,7 +122,7 @@
 import { computed, ref, onBeforeUnmount } from "vue";
 import { IconClose, IconDelete } from "@/lib/icons";
 import ImageUpload from "@/components/common/ImageUpload.vue";
-import { WATERCOLOR_COUNT } from "@/lib/scriptorium/furniture/watercolorAssets";
+import { WATERCOLOR_COUNT } from "@/data/watercolorAssets";
 import type { PageFurnitureItem } from "@/types/scriptorium.types";
 
 const { item } = defineProps<{ item: PageFurnitureItem | null }>();

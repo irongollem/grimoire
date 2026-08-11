@@ -1,10 +1,11 @@
 import { Node, mergeAttributes } from "@tiptap/core";
-import { watercolorSrc } from "@/lib/scriptorium/furniture/watercolorAssets";
+import { WATERCOLOR_COUNT, watercolorSrc } from "@/data/watercolorAssets";
 
-export type WatercolorVariant = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
+/** 1-based index into `WATERCOLOR_ASSETS`; out-of-range values clamp on render. */
+export type WatercolorVariant = number;
 
 export interface WatercolorAttrs {
-  /** Splatter variant 1–12. */
+  /** Splatter variant, 1-based into `WATERCOLOR_ASSETS`. */
   variant: WatercolorVariant;
   /** CSS top value (e.g. "20px", "10%"). */
   top: string;
@@ -29,7 +30,12 @@ declare module "@tiptap/core" {
 /**
  * Watercolor splatter overlay — an absolutely-positioned decorative blob.
  *
- * Rendered as an <img> pointing to one of 12 SVG/PNG splatter assets in
+ * Legacy: since v3 (#456 Phase D) new splatters are page furniture, not
+ * content nodes — see `lib/scriptorium/migrations/v2ToV3`. This node stays
+ * registered forever so any decoration the migration can't lift (e.g. one
+ * nested inside a callout) still parses and renders.
+ *
+ * Rendered as an <img> pointing to one of the splatter assets in
  * `/assets/scriptorium/watercolor/`. The element is positioned relative to
  * the nearest `.phb-page` ancestor and sits above the page background but
  * below body text via `z-index`.
@@ -51,7 +57,7 @@ export const Watercolor = Node.create({
         default: 1,
         parseHTML: (el) => {
           const v = parseInt(el.getAttribute("data-variant") ?? "1", 10);
-          return (v >= 1 && v <= 12 ? v : 1) as WatercolorVariant;
+          return v >= 1 && v <= WATERCOLOR_COUNT ? v : 1;
         },
         renderHTML: (attrs) => ({ "data-variant": String(attrs.variant) }),
       },

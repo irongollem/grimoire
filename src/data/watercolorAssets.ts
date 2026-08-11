@@ -7,6 +7,15 @@
  * if the underlying filenames change); the renderer paints the asset as a CSS
  * mask filled with the item's tint colour, so `aspect` is needed to size the
  * (height-less) masked box correctly.
+ *
+ * Lives in `data/` rather than `lib/scriptorium/furniture/` (#721) because it
+ * has two consumers on opposite sides of a one-way boundary: the furniture
+ * renderer, and the legacy `lib/tiptap/watercolor` node kept registered for
+ * pre-v3 documents. `lib/tiptap` is infrastructure and must not import from a
+ * feature folder, and parking the table in `lib/tiptap` instead would only
+ * invert the same problem — furniture, which owns this art, would depend on
+ * the editor subsystem for it. A neutral asset table lets both sides point
+ * outward at it.
  */
 
 export interface WatercolorAsset {
