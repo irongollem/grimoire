@@ -87,7 +87,7 @@
     "@gltf-transform/extensions": "^4.4.1",
     "@tailwindcss/vite": "^4.0.0",
     "@types/marked": "^5.0.2",
-    "@types/node": "^22.13.10",
+    "@types/node": "^26.2.0",
     "@vitejs/plugin-vue": "^6.0.6",
     "@vue/test-utils": "^2.4.10",
     "fake-indexeddb": "^6.2.5",
