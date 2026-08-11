@@ -45,9 +45,9 @@ function swPlugin(): Plugin {
     name: "grimoire-sw",
     apply: "build",
     closeBundle() {
-      const distDir  = path.resolve(__dirname, "dist");
+      const distDir  = path.resolve(import.meta.dirname, "dist");
       const template = readFileSync(
-        path.resolve(__dirname, "scripts/sw-template.js"),
+        path.resolve(import.meta.dirname, "scripts/sw-template.js"),
         "utf8",
       );
 
@@ -78,7 +78,7 @@ export default defineConfig(({ mode }) => ({
   // Root .env.local intentionally contains hosted credentials and Vite loads
   // it after .env.<mode>. Isolate localdb mode in its own env directory so
   // hosted values cannot silently win on precedence.
-  envDir: mode === "localdb" ? path.resolve(__dirname, "config/env/localdb") : undefined,
+  envDir: mode === "localdb" ? path.resolve(import.meta.dirname, "config/env/localdb") : undefined,
   define: {
     /**
      * Dev-only routes (the Paged.js spike, sheet calibration, the component
@@ -110,10 +110,10 @@ export default defineConfig(({ mode }) => ({
   },
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      "@": path.resolve(import.meta.dirname, "./src"),
       // Canonical AI-provenance core is pure TS shared verbatim with the Deno
       // edge functions (context/compliance/provenance-architecture.md §1).
-      "@edge-shared": path.resolve(__dirname, "./supabase/functions/_shared"),
+      "@edge-shared": path.resolve(import.meta.dirname, "./supabase/functions/_shared"),
     },
   },
   build: {

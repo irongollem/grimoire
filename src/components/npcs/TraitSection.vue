@@ -44,7 +44,7 @@ import RichTextEditor from "@/components/common/RichTextEditor.vue";
 
 defineProps<{ label: string }>();
 
-const model = defineModel<Array<{ name: string; description: string }>>({ default: [] });
+const model = defineModel<Array<{ name: string; description: string }>>({ default: () => [] });
 
 /**
  * Stable per-item keys so Vue never reuses a Tiptap editor instance for a

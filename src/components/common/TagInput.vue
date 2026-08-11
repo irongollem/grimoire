@@ -61,7 +61,7 @@ const { placeholder = "Add tag...", suggestions = [] } = defineProps<{
   suggestions?: string[];
 }>();
 
-const model = defineModel<string[]>({ required: true, default: [] });
+const model = defineModel<string[]>({ required: true, default: () => [] });
 
 const inputVal  = ref("");
 const open      = ref(false);

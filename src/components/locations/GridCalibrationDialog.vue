@@ -217,14 +217,12 @@ const cellsBetween = ref<number | null>(1);
 const gridOpacity = ref<number>(DEFAULT_GRID_OPACITY);
 const dragging = ref<"A" | "B" | null>(null);
 const saving = ref(false);
-const errorMessage = ref<string | null>(null);
 
 watch(
   () => open,
   (isOpen) => {
     if (!isOpen) return;
     imageReady.value = false;
-    errorMessage.value = null;
     saving.value = false;
     pointA.value = { x: 0.4, y: 0.5 };
     pointB.value = { x: 0.6, y: 0.5 };
@@ -275,26 +273,35 @@ function onPointerUp() {
   dragging.value = null;
 }
 
-const preview = computed<GridCalibration | null>(() => {
+// Preview and error message are two views of one calculation, so they come out
+// of one computed. Assigning errorMessage from inside the preview computed made
+// it a side effect: the message survived independently of the value that
+// produced it, so any re-render that reused a cached preview could leave a
+// stale error on screen next to a valid grid. Deriving both keeps them honest,
+// and the reset on dialog open comes free — `open` clears `imageReady`, which
+// lands in the first branch.
+const calibration = computed<{ result: GridCalibration | null; error: string | null }>(() => {
   if (!imageReady.value || !cellsBetween.value || cellsBetween.value <= 0) {
-    errorMessage.value = null;
-    return null;
+    return { result: null, error: null };
   }
   try {
-    const result = calibrateGrid({
-      pointAPct: pointA.value,
-      pointBPct: pointB.value,
-      cellsBetween: cellsBetween.value,
-      imageNaturalWidth: naturalW.value,
-      imageNaturalHeight: naturalH.value,
-    });
-    errorMessage.value = null;
-    return result;
+    return {
+      result: calibrateGrid({
+        pointAPct: pointA.value,
+        pointBPct: pointB.value,
+        cellsBetween: cellsBetween.value,
+        imageNaturalWidth: naturalW.value,
+        imageNaturalHeight: naturalH.value,
+      }),
+      error: null,
+    };
   } catch (e) {
-    errorMessage.value = e instanceof Error ? e.message : "Invalid calibration";
-    return null;
+    return { result: null, error: e instanceof Error ? e.message : "Invalid calibration" };
   }
 });
+
+const preview = computed<GridCalibration | null>(() => calibration.value.result);
+const errorMessage = computed<string | null>(() => calibration.value.error);
 
 // Live grid overlay derived from the current preview calibration. Lines are
 // expressed in image-natural-pixel space so they align with the SVG viewBox;

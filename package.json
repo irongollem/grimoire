@@ -60,8 +60,8 @@
     "@tiptap/suggestion": "^3.22.4",
     "@tiptap/vue-3": "^3.20.1",
     "@vue-flow/core": "^1.48.2",
-    "@vuepic/vue-datepicker": "^12.1.0",
-    "@vueuse/core": "^12.7.0",
+    "@vuepic/vue-datepicker": "^14.0.0",
+    "@vueuse/core": "^14.4.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "d3-force": "^3.0.0",
@@ -72,7 +72,7 @@
     "marked": "^18.0.1",
     "pagedjs": "^0.4.3",
     "pdf-lib": "^1.17.1",
-    "pinia": "^2.3.1",
+    "pinia": "^4.0.2",
     "reka-ui": "^2.10.1",
     "smartcrop": "^2.0.5",
     "tailwind-merge": "^3.6.0",
@@ -80,21 +80,21 @@
     "v-network-graph": "^0.9.22",
     "vue": "^3.5.13",
     "vue-draggable-plus": "^0.6.1",
-    "vue-router": "^4.5.0"
+    "vue-router": "^5.2.0"
   },
   "devDependencies": {
     "@gltf-transform/core": "^4.4.1",
     "@gltf-transform/extensions": "^4.4.1",
     "@tailwindcss/vite": "^4.0.0",
     "@types/marked": "^5.0.2",
-    "@types/node": "^22.13.10",
+    "@types/node": "^26.2.0",
     "@vitejs/plugin-vue": "^6.0.6",
     "@vue/test-utils": "^2.4.10",
     "fake-indexeddb": "^6.2.5",
     "happy-dom": "^20.9.0",
     "jsdom": "^29.1.1",
     "oxlint": "^1.60.0",
-    "portless": "^0.10.2",
+    "portless": "^0.15.5",
     "puppeteer-core": "^25.1.0",
     "stripe": "^22.1.0",
     "tailwindcss": "^4.0.0",
@@ -111,10 +111,10 @@
     "node": "^24.0.0"
   },
   "allowScripts": {
-    "esbuild@0.28.1": true,
     "core-js": false,
     "es5-ext": false,
     "vue-demi": false,
-    "fsevents": false
+    "fsevents": false,
+    "esbuild@0.28.2": true
   }
 }
