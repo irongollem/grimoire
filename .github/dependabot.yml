@@ -1,0 +1,92 @@
+version: 2
+
+# Dependabot version updates. Free on this repo (public), as are the Actions
+# minutes the resulting PRs spend — and those PRs do run the full gate, because
+# neither `application` nor `spell-database` in test.yml reads a secret. A
+# Dependabot PR therefore proves lint + tests + build + a full migration replay
+# before you look at it.
+#
+# Not covered here, so do not read a green Dependabot week as "everything is
+# current":
+#   - supabase/functions/* Deno imports — Dependabot has no Deno ecosystem.
+#   - The Supabase CLI version pinned as `with: version: 2.109.1` in test.yml —
+#     that is a workflow input, not a dependency, and nothing watches it.
+#   - infra/ (Cloudflare Worker) — wrangler.toml only, no manifest to parse.
+
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Amsterdam"
+    open-pull-requests-limit: 10
+    # Matches the repo's conventional-commit history; `include: scope` yields
+    # `chore(deps): bump …` / `chore(deps-dev): bump …`.
+    commit-message:
+      prefix: "chore"
+      prefix-development: "chore"
+      include: "scope"
+
+    ignore:
+      # vue-tsc is deliberately held at 2.2.x — 3.x is a separate rewrite and
+      # breaks the `vue-tsc -b` build step. A major PR here is noise that will
+      # be closed every week.
+      - dependency-name: "vue-tsc"
+        update-types: ["version-update:semver-major"]
+      # An optional platform binding that must track whatever Rolldown version
+      # Vite ships, not move on its own. Bumping it independently of vite is at
+      # best a no-op and at worst a mismatched native binary.
+      - dependency-name: "@rolldown/binding-darwin-arm64"
+
+    # Group order is significant: Dependabot assigns a dependency to the FIRST
+    # group it matches. The named families come first because they release in
+    # lockstep — a PR bumping one @tiptap package without its siblings does not
+    # install. The two catch-alls then sweep up everything else at minor/patch,
+    # which leaves every remaining major as its own PR. That is intentional:
+    # a major deserves a review of its own, not a line in a batch of twenty.
+    groups:
+      tiptap:
+        patterns:
+          - "@tiptap/*"
+      tailwind:
+        patterns:
+          - "tailwindcss"
+          - "@tailwindcss/*"
+      vue-core:
+        patterns:
+          - "vue"
+          - "vue-router"
+      vite-toolchain:
+        patterns:
+          - "vite"
+          - "vitest"
+          - "@vitejs/*"
+          - "@vitest/*"
+      gltf-transform:
+        patterns:
+          - "@gltf-transform/*"
+      production-dependencies:
+        dependency-type: "production"
+        update-types: ["minor", "patch"]
+      development-dependencies:
+        dependency-type: "development"
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Amsterdam"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    # One PR for all action bumps: they are independent of each other and each
+    # is a one-line diff, so separate PRs buy nothing.
+    groups:
+      github-actions:
+        patterns:
+          - "*"
