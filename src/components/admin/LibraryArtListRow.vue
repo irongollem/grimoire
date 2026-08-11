@@ -7,7 +7,7 @@ import {
   Loader2Icon,
   Trash2Icon,
   CrosshairIcon,
-} from "lucide-vue-next";
+} from "@lucide/vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import FocalPointPicker from "@/components/common/FocalPointPicker.vue";
 

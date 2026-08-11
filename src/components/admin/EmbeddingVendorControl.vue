@@ -70,7 +70,7 @@
 // the choice as one control makes the invalid state unrepresentable in the UI
 // instead of merely caught after the fact.
 import { ref, computed, watch } from "vue";
-import { Loader2Icon } from "lucide-vue-next";
+import { Loader2Icon } from "@lucide/vue";
 import { useAdminProviders, PROVIDER_LABELS } from "@/composables/useAdminProviders";
 import { useConfirm } from "@/composables/useConfirm";
 import { useEmbeddingBackfill } from "@/composables/useEmbeddingBackfill";

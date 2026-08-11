@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronDownIcon } from "lucide-vue-next";
+import { ChevronDownIcon } from "@lucide/vue";
 
 const { title, open, withArtCount, total, stagingCount } = defineProps<{
   title: string;

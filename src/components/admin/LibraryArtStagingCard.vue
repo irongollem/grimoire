@@ -4,7 +4,7 @@ import {
   AlertCircleIcon,
   Loader2Icon,
   Trash2Icon,
-} from "lucide-vue-next";
+} from "@lucide/vue";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

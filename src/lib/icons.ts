@@ -1,6 +1,6 @@
 // Single source of truth for all icons.
 // To swap icon libraries, edit only this file.
-export type { LucideIcon as AppIcon } from 'lucide-vue-next'
+export type { LucideIcon as AppIcon } from '@lucide/vue'
 
 import {
   AlertCircle, AlertTriangle, AlignCenter, AlignLeft, AlignRight,
@@ -34,7 +34,7 @@ import {
   Underline, Undo2, Upload, UploadCloud,
   User, UserPlus, UserRound, UserX, Users, UtensilsCrossed,
   VolumeX, Wand2, Wind, Wine, WrapText, Wrench, X, XCircle, Zap, ZoomIn, ZoomOut,
-} from 'lucide-vue-next'
+} from '@lucide/vue'
 
 // ── Actions ───────────────────────────────────────────────────────────────────
 export { Plus as IconAdd }

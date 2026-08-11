@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { ImagePlusIcon, Loader2Icon } from "lucide-vue-next";
+import { ImagePlusIcon, Loader2Icon } from "@lucide/vue";
 
 // ── Props & emits ─────────────────────────────────────────────────────────────
 

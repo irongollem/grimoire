@@ -172,7 +172,7 @@ export default defineConfig(({ mode }) => ({
             // UI primitives (reka-ui + vueuse + icons + tw utils)
             {
               name: "ui",
-              test: /node_modules[\\/](reka-ui|@vueuse|lucide-vue-next|class-variance-authority|clsx|tailwind-merge|tw-animate-css)/,
+              test: /node_modules[\\/](reka-ui|@vueuse|@lucide[\\/]vue|class-variance-authority|clsx|tailwind-merge|tw-animate-css)/,
             },
             // Everything else from node_modules
             { name: "vendor", test: /node_modules/ },
