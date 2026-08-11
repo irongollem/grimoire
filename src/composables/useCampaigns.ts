@@ -152,21 +152,26 @@ export async function disposeHomebrewAndDeleteCampaign(
  * all of them, clone the personal-library rows the campaign hydrates from
  * (monsters, traps, backgrounds, scriptorium docs), and swap the two
  * `campaign_members` roles. Half of that applied is worse than none of it: the
- * outgoing DM would keep read/write on content the new DM cannot see. One
- * PL/pgSQL body = one transaction = all or nothing.
+ * outgoing DM would keep read/write on content the new DM cannot see. The
+ * wrapper and delegated PL/pgSQL body run in one transaction: all or nothing.
  *
  * `leaveCampaign` decides what happens to the outgoing DM: `false` demotes them
  * to a player (they stay in the group), `true` removes their membership.
+ * `scopedCopyDisposition` decides whether their original campaign-only monsters
+ * and traps become global homebrew or are removed after the recipient's copies
+ * have been made.
  */
 export async function transferCampaignOwnership(
   campaignId: string,
   newOwnerId: string,
   leaveCampaign: boolean,
+  scopedCopyDisposition: HomebrewDisposition,
 ): Promise<void> {
   const { error } = await supabase.rpc("transfer_campaign_ownership", {
     p_campaign_id: campaignId,
     p_new_owner_id: newOwnerId,
     p_leave_campaign: leaveCampaign,
+    p_scoped_copy_disposition: scopedCopyDisposition,
   });
   if (error) throw error;
 }
@@ -278,11 +283,18 @@ export function useTransferCampaignOwnership() {
       campaignId,
       newOwnerId,
       leaveCampaign,
+      scopedCopyDisposition,
     }: {
       campaignId: string;
       newOwnerId: string;
       leaveCampaign: boolean;
-    }) => transferCampaignOwnership(campaignId, newOwnerId, leaveCampaign),
+      scopedCopyDisposition: HomebrewDisposition;
+    }) => transferCampaignOwnership(
+      campaignId,
+      newOwnerId,
+      leaveCampaign,
+      scopedCopyDisposition,
+    ),
     // The caller just gave away read access to nearly every row they had cached
     // for this campaign. Naming the affected keys would mean naming ~40 of them
     // and silently rotting the moment a new one is added, so drop the lot and

@@ -113,8 +113,9 @@ RLS on `auth.uid() = user_id` rather than on `private.is_campaign_dm(campaign_id
 notes, npcs, quests, locations, items, encounters, sounds, homebrew. Swapping the owner
 column alone hands over an empty shell: the new DM passes `is_campaign_dm()` but cannot
 read a single note, while the old DM keeps full read/write on all of it. So
-`transfer_campaign_ownership(p_campaign_id, p_new_owner_id, p_leave_campaign)`
-(`supabase/migrations/20260731000001_transfer_campaign_ownership.sql`) does the whole
+`transfer_campaign_ownership(p_campaign_id, p_new_owner_id, p_leave_campaign,
+p_scoped_copy_disposition)` (`supabase/migrations/20260731000001_transfer_campaign_ownership.sql`,
+extended by `20260812000001_transfer_campaign_scoped_monsters_traps.sql`) does the whole
 thing in one `SECURITY DEFINER` transaction — a half-applied transfer would lock both
 DMs out of the same campaign at once.
 
@@ -132,15 +133,14 @@ What the RPC does, in order:
    new owner's library (never moved: the outgoing DM's *other* campaigns may use the
    same rows).
 
-   **Stale as of #597**, and knowingly so. `monsters` and `traps` gained a `campaign_id`
-   in `20260809000003`, and the clone is a whole-row `jsonb_populate_record` copy, so it
-   now carries the source row's scope verbatim — a clone made for *this* campaign can
-   land scoped to one the new owner isn't in, and the outgoing DM's originals keep
-   pointing at a campaign they no longer own. Whether either should be re-scoped at
-   handover is a policy call tracked in **#630**, not settled yet. What *was* settled:
-   `delete_campaign_with_homebrew` used to dispose of those left-behind rows with an
-   owner-less `where campaign_id = …`, so the new owner deleting the campaign could take
-   the previous DM's authored homebrew with it. `20260809000004` confines each
+   `monsters` and `traps` gained a `campaign_id` in `20260809000003`. Since #630, rows
+   scoped to the transferred campaign are copied even when no campaign content references
+   them yet; the clone keeps that campaign scope. Before confirming, the outgoing DM must
+   choose whether their originals become global (`campaign_id = null`) or are deleted.
+   Referenced global rows are still copied for the recipient and remain global for their
+   author. The disposition is part of the transfer RPC, so clone, transfer and cleanup are
+   atomic. Separately, `delete_campaign_with_homebrew` once disposed of left-behind rows
+   with an owner-less `where campaign_id = …`; `20260809000004` confines each
    disposition to the caller's own rows and promotes anyone else's to global rather than
    deleting them.
 3. **Repoints every reference at the clones**, including the jsonb ones. Monster ids nest
