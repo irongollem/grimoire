@@ -509,7 +509,8 @@ one table carrying a seven-year period — the §4d principle inverted, because 
 the evidence *is* the personal data. The absence of the row is the record. The
 same reasoning bounds the operator route: `admin_remove_waitlist_email()` is
 audit-logged, because a unilateral removal is exactly what §4d exists to make
-attributable, but the entry carries a count and a reason and never the address.
+attributable, but the entry carries a count and the fixed reason
+`requested_by_email`, never operator-entered text or the address.
 
 ## 5. Known gaps
 

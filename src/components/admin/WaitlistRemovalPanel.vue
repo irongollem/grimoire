@@ -12,12 +12,6 @@
         placeholder="Address to remove"
         @keyup.enter="submit"
       />
-      <AppInput
-        v-model="reason"
-        size="body"
-        tone="muted"
-        placeholder="Reason (optional) — recorded in the audit log; the address is not"
-      />
       <div class="flex flex-wrap items-center gap-3">
         <AppButton
           variant="destructive"
@@ -55,7 +49,6 @@ import { useRemoveWaitlistEmail } from "@/composables/useProWaitlist";
 const removeEmail = useRemoveWaitlistEmail();
 
 const email = ref("");
-const reason = ref("");
 const result = ref<string | null>(null);
 const failed = ref(false);
 
@@ -70,7 +63,7 @@ async function submit() {
   result.value = null;
   failed.value = false;
   try {
-    const removed = await removeEmail.mutateAsync({ email: address, reason: reason.value });
+    const removed = await removeEmail.mutateAsync(address);
     // Zero is reported as its own outcome rather than as success: "removed" for
     // an address that was never on the list is the answer that would send an
     // operator back to the requester with the wrong reassurance.
@@ -78,7 +71,6 @@ async function submit() {
       ? `Removed ${removed} address${removed === 1 ? "" : "es"} from the waitlist.`
       : "That address was not on the waitlist — nothing to remove.";
     email.value = "";
-    reason.value = "";
   } catch (err) {
     failed.value = true;
     result.value = err instanceof Error ? err.message : String(err);

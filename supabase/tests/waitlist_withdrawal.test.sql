@@ -126,7 +126,7 @@ select is(
   'and the row survives the refused attempt');
 
 select ok(
-  not has_function_privilege('anon', 'public.admin_remove_waitlist_email(text, text)', 'EXECUTE'),
+  not has_function_privilege('anon', 'public.admin_remove_waitlist_email(text)', 'EXECUTE'),
   'anon cannot execute admin_remove_waitlist_email');
 
 -- ── 5. The email route removes, counts, and records without the address ─────
@@ -147,7 +147,7 @@ select set_config('request.jwt.claims',
 -- Upper-cased on purpose: the operator copies the address out of a mail, and
 -- the match has to behave like pro_waitlist_email_key, which is on lower(email).
 select is(
-  public.admin_remove_waitlist_email('STAYER@Example.Invalid', 'wrote to info@'),
+  public.admin_remove_waitlist_email('STAYER@Example.Invalid'),
   1,
   'an admin removes an address case-insensitively and gets the count back');
 
@@ -159,8 +159,8 @@ select is(
 select is(
   (select details::text from public.admin_audit_log
     where action = 'waitlist_removal' order by created_at desc limit 1),
-  '{"reason": "wrote to info@", "rows_removed": 1}',
-  'the audit entry records the count and the reason and nothing that identifies the address');
+  '{"reason": "requested_by_email", "rows_removed": 1}',
+  'the audit entry records the count and a fixed reason that cannot identify the address');
 
 -- An address that was never on the list is a real answer, not an error: it is
 -- what the operator has to tell the person who wrote in.

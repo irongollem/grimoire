@@ -135,8 +135,8 @@ mechanism behind it. Two routes now exist:
   because link scanners prefetch and the only thing this list ever sends is the
   one email the person consented to.
 - `admin_remove_waitlist_email()` covers the people who write to info@ instead
-  (Admin → Requests). It is audit-logged with a count and a reason and **never
-  the address** — `admin_audit_log` runs on a seven-year clock, so an entry
+  (Admin → Requests). It is audit-logged with a count and the fixed reason
+  `requested_by_email`, and **never the address** — `admin_audit_log` runs on a seven-year clock, so an entry
   naming the address would hand back the erasure it was recording.
 
 Neither route writes a `dsr_requests` row, which is the decision most likely to
