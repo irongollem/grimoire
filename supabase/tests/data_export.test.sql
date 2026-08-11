@@ -82,10 +82,15 @@ create temp view unreferenced_user_tables as
 -- are `is_empty` over this set, so an empty set passes them both vacuously —
 -- and the set becomes empty the moment someone gives rate_limit_events an FK,
 -- at which point two green tests would be asserting nothing at all.
+-- `dsr_requests` (#643) joined this set on purpose: an FK would make the
+-- erasure request delete its own evidence at the moment it is honoured, so its
+-- `user_id` is a bare uuid like admin_audit_log.target_user_id. It is named in
+-- both functions below — the export reads it, and erasure anonymizes rather
+-- than deletes it.
 select set_eq(
   'select table_name::text from unreferenced_user_tables',
-  $$ values ('rate_limit_events') $$,
-  'exactly one user-keyed table has no auth.users FK, and it is the known one');
+  $$ values ('rate_limit_events'), ('dsr_requests') $$,
+  'the user-keyed tables with no auth.users FK are exactly the two known ones');
 
 select is_empty(
   $q$

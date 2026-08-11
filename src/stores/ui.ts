@@ -688,6 +688,19 @@ export const useUiStore = defineStore("ui", () => {
     adminAuditFilterAction.value = "all";
   }
 
+  // Admin → Requests (#643)
+  const adminDsrSearch = ref("");
+  const adminDsrFilterStatus = ref<"all" | "open" | "answered">("all");
+
+  const adminDsrHasActiveFilters = computed(
+    () => adminDsrSearch.value !== "" || adminDsrFilterStatus.value !== "all",
+  );
+
+  function resetAdminDsrFilters() {
+    adminDsrSearch.value = "";
+    adminDsrFilterStatus.value = "all";
+  }
+
   function resetNotesFilters() {
     notesFilterCategory.value = "all";
     notesFilterTags.value = [];
@@ -1003,5 +1016,11 @@ export const useUiStore = defineStore("ui", () => {
     adminAuditFilterAction,
     adminAuditHasActiveFilters,
     resetAdminAuditFilters,
+
+    // Admin → Requests
+    adminDsrSearch,
+    adminDsrFilterStatus,
+    adminDsrHasActiveFilters,
+    resetAdminDsrFilters,
   };
 });

@@ -20,7 +20,7 @@ when they ask "what happens to X when an account is erased?"
 | --- | --- | --- | --- |
 | Erasure | 17 | **Shipped** (Aug 2026) | #631 |
 | Access / portability | 15, 20 | **Shipped** (Aug 2026) — see §4e | #632 |
-| DSR request log (30-day clock evidence) | 12(3) | Not built | #643 |
+| DSR request log (30-day clock evidence) | 12(3) | **Shipped** (Aug 2026) — see §4f | #643 |
 | Retention periods defined + enforced | 5(1)(e) | **Shipped** (Aug 2026) — register in `context/compliance/retention.md` | #639 |
 | Admin action audit log | 5(2) | **Shipped** (Aug 2026) — see §4d | #642 |
 
@@ -364,12 +364,74 @@ and the export is deliberately *not* written to `admin_audit_log` — that log i
 for privileged actions an operator takes on someone else (§4d), and filling it
 with self-serve events by their own subject would blur what it is for.
 
+## 4f. The DSR request log — evidence of the clock
+
+Shipped Aug 2026 by `20260811152817` (#643). `admin_audit_log` records *actions
+the operator took*; `dsr_requests` records *requests the operator received*.
+They are not substitutes: Art. 12(3) runs its month from **receipt**, and an
+action log cannot evidence a clock that started before anyone acted.
+
+**The constraint that shapes the schema: this table must not cascade.** §4
+invariant 1 forces every FK to `auth.users` in `public` to be `cascade` or
+`set null`. With `cascade`, the erasure request — the single entry you most need
+to prove you honoured — would delete its own evidence at the moment it was
+honoured, and the log would be reliably empty of exactly the requests that
+matter. So `user_id` is a bare uuid with **no foreign key**, the same shape and
+for the same reason as `admin_audit_log.target_user_id` (§2): it outlives the
+account it names, and afterwards links to nothing, because every row that
+referenced it has been nulled.
+
+The column is named `user_id` rather than `subject_user_id` deliberately. That
+name puts the table under `data_export.test.sql`'s existing assertion — which
+pins the set of user-keyed tables with no `auth.users` FK and requires each to
+be named in **both** `export_user_data` and `prepare_user_erasure` — instead of
+outside it. The test failed until both handled it, which is the mechanism
+working rather than an obstacle to route around.
+
+Four positions worth not re-deriving:
+
+1. **The self-serve rights log themselves, inside the function that does the
+   work.** `export_user_data` and `prepare_user_erasure` each write their entry
+   in the same transaction as the export or the erasure. This is §4d's lesson
+   applied: a logging call placed *beside* the work is a log the caller can
+   decline to write, and one the edge function writes separately is a log a
+   failed second request silently skips. Here there is no way to produce an
+   export or an erasure without producing its evidence.
+2. **The export logs itself *after* reading.** Otherwise the second export would
+   contain the record of the first, the third both, and no export would be a
+   clean snapshot of the account as it stood. Asserted.
+3. **Self-serve entries are logged already-answered.** There is no interval
+   between receipt and fulfilment to record when the action is instantaneous;
+   an open row with a running clock would misdescribe it. The 30-day countdown
+   in the admin tab is therefore only ever about email-channel requests, which
+   is the only place it means anything.
+4. **Earlier requests are anonymized on erasure, not deleted** — `subject_email`
+   nulled, `anonymized_at` stamped, everything else kept. Same reasoning as the
+   ledger and consents (§2): the row keeps its type, dates and outcome, and
+   loses only the link to a person. Deleting them would destroy the proof that
+   earlier requests were answered on time at the very moment the last one is
+   honoured. An anonymized row is then frozen — the guard refuses any further
+   modification, so it cannot be re-attributed or re-answered once nobody is
+   left to contradict it.
+
+**Append-mostly, not append-only.** A request received today is answered later,
+so `fulfilled_at`/`outcome`/`notes` are writable exactly once. `request_type`,
+`channel`, `user_id` and `received_at` are immutable — an editable clock
+evidences nothing — and DELETE is refused outside the 7-year retention purge.
+
+**Retention is 7 years, measured from `received_at`, not `created_at`.** For the
+email channel those differ: a request that arrived last month may be recorded
+today, and the clock this table exists to evidence starts on receipt. Same
+period as `admin_audit_log`, because the two describe opposite sides of one
+event and splitting their clocks would leave a request whose answer has gone.
+
+**The email channel is the remainder.** `admin_log_dsr_request` resolves the
+address to an account when one exists, so an operator types an email and the row
+still links to the person — without which erasure and the subject's own export
+would reach it only by coincidence of matching the address.
+
 ## 5. Known gaps
 
-- **DSR log (#643).** `admin_audit_log` records *actions the operator took*, not
-  *requests the operator received* — so a deletion is evidenced, but an access or
-  portability request arriving by email leaves no trace of when the 30-day clock
-  started. The two logs are not substitutes for each other.
 - **Self-serve erasure is irreversible and immediate.** There is no grace period
   or soft-delete window. That is a deliberate reading of "without undue delay";
   revisit only with a decision recorded here, because a recovery window means
@@ -388,6 +450,10 @@ with self-serve events by their own subject would blur what it is for.
 | Export client call + error copy | `src/composables/useDataExport.ts` |
 | Self-serve export UI | `src/components/account/AccountDataExport.vue` (route `/account`) |
 | §4e invariant tests (coverage symmetry, gate, redaction) | `supabase/tests/data_export.test.sql` |
+| DSR request log — table, guard, writers, retention (§4f) | `supabase/migrations/20260811152817_dsr_request_log.sql` |
+| DSR client calls + the pinned request vocabulary | `src/composables/useDsrRequests.ts` |
+| DSR admin viewer + email-channel entry | `src/components/admin/AdminDsrTab.vue`, `DsrRequestRow.vue` |
+| §4f invariant tests (no FK, guard, erasure survival) | `supabase/tests/dsr_requests.test.sql` |
 | Client call + error copy | `src/composables/useAccountDeletion.ts` |
 | Self-serve UI | `src/components/account/AccountSettings.vue` (route `/account`) |
 | Admin UI | `src/components/admin/AdminUsersTab.vue` |

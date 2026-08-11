@@ -334,6 +334,11 @@ select is(
         -- five, purge-rate-limit-events (20260621000008) for the last.
         'ai_credit_ledger', 'purchase_consents', 'admin_audit_log',
         'app_invites', 'pro_waitlist', 'rate_limit_events',
+        -- #643. Not cascade-reached by design: an FK would delete the erasure
+        -- request's own evidence at the moment it is honoured. 7 years, the
+        -- same accountability clock as admin_audit_log, measured from
+        -- received_at rather than created_at.
+        'dsr_requests',
         -- Decided as indefinite: shared library content and its embeddings,
         -- the 5e rules catalogue, and operator configuration. None of it is
         -- personal data — it describes the product, not a person — so there is

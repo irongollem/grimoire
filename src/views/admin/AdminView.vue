@@ -41,6 +41,7 @@
       <AdminProvidersTab v-else-if="activeTab === 'providers'" />
       <AdminReportsTab   v-else-if="activeTab === 'reports'" />
       <AdminAuditTab     v-else-if="activeTab === 'audit'" />
+      <AdminDsrTab       v-else-if="activeTab === 'requests'" />
     </div>
   </div>
 </template>
@@ -59,12 +60,13 @@ import AdminPromptsTab   from "@/components/admin/AdminPromptsTab.vue";
 import AdminProvidersTab from "@/components/admin/AdminProvidersTab.vue";
 import AdminReportsTab   from "@/components/admin/AdminReportsTab.vue";
 import AdminAuditTab     from "@/components/admin/AdminAuditTab.vue";
+import AdminDsrTab       from "@/components/admin/AdminDsrTab.vue";
 
 const route = useRoute();
 const router = useRouter();
 
-type TabId = "plans" | "users" | "invites" | "content" | "pricing" | "credits" | "prompts" | "providers" | "reports" | "audit";
-const VALID_TABS = new Set<string>(["plans", "users", "invites", "content", "pricing", "credits", "prompts", "providers", "reports", "audit"]);
+type TabId = "plans" | "users" | "invites" | "content" | "pricing" | "credits" | "prompts" | "providers" | "reports" | "audit" | "requests";
+const VALID_TABS = new Set<string>(["plans", "users", "invites", "content", "pricing", "credits", "prompts", "providers", "reports", "audit", "requests"]);
 const TABS = [
   { id: "plans"     as TabId, label: "Plans",     icon: IconGridView },
   { id: "users"     as TabId, label: "Users",     icon: IconParty },
@@ -76,6 +78,7 @@ const TABS = [
   { id: "providers" as TabId, label: "Providers", icon: IconSettings },
   { id: "reports"   as TabId, label: "Reports",   icon: IconBug },
   { id: "audit"     as TabId, label: "Audit",     icon: IconShieldCheck },
+  { id: "requests"  as TabId, label: "Requests",  icon: IconDocument },
 ];
 
 const activeTab = computed<TabId>(() => {

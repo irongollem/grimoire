@@ -26,6 +26,7 @@ decided answer, not that every number is small.
 | Account and authored content | Profile, subscription, preferences, consents, and the ~104 tables holding campaigns, characters, NPCs, notes, art rows, memberships | **As long as the account exists** | `on delete cascade` from `auth.users` — see data-subject-rights.md §2 |
 | Financial evidence | `ai_credit_ledger`, `purchase_consents` | **7 years** from the end of the financial year; anonymized earlier if the account is erased | `private.purge_expired_retention()` |
 | Accountability log | `admin_audit_log` | **7 years**, same clock | `private.purge_expired_retention()` |
+| Data-subject request log | `dsr_requests` | **7 years** from `received_at` — not `created_at`, which differs for the email channel | `private.purge_expired_retention()` |
 | AI prompt text | `image_generation_jobs.prompt`, `ai_generation_jobs.request_json` | **90 days**, cleared in place | `scrub-stale-ai-prompt-content` (`20260804000005`) |
 | AI image jobs that produced nothing | `image_generation_jobs` where `status <> 'ready'` or no image | **90 days** | `private.purge_expired_retention()` |
 | AI generation job receipts | `ai_generation_jobs` | **365 days** | `private.purge_expired_retention()` |
@@ -139,6 +140,7 @@ waitlist data with the withdrawal route and 365-day backstop above.
 | Concern | File |
 | --- | --- |
 | The horizon, the guard exceptions, the purge, the schedule | `supabase/migrations/20260810000004_retention_periods.sql` |
+| DSR request log — 7 years from receipt, and its own append-mostly guard | `supabase/migrations/20260811152817_dsr_request_log.sql` |
 | Both sides of every boundary, and the "every table is classified" assertion | `supabase/tests/retention_periods.test.sql` |
 | AI prompt-text scrub (90 days) | `supabase/migrations/20260804000005_ai_log_tamper_evidence.sql` |
 | Bug-report screenshot and row purge (90/365) | `supabase/migrations/20260809000002_bug_report_privacy.sql` |
