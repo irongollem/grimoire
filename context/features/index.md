@@ -35,6 +35,11 @@ Adding or changing an AI generator? Read
 transparency register (roles, system inventory, exemptions, provider
 due-diligence) that every AI-touching feature needs to stay in step with.
 
+Cross-cutting system diagrams (internal layers, third-party integrations,
+release pipeline) and the **outage triage table** live in
+[../architecture/index.md](../architecture/index.md) — start there when a
+problem spans features or points outside the app.
+
 ---
 
 ## Full Feature List (marketing reference)

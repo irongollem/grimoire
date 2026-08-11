@@ -12,7 +12,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Vue-3.5-42b883?logo=vue.js&logoColor=white" alt="Vue 3" />
-  <img src="https://img.shields.io/badge/TypeScript-5.7-3178c6?logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/TypeScript-6.0-3178c6?logo=typescript&logoColor=white" alt="TypeScript" />
   <img src="https://img.shields.io/badge/Supabase-PostgreSQL-3ecf8e?logo=supabase&logoColor=white" alt="Supabase" />
   <img src="https://img.shields.io/badge/Tailwind-v4-38bdf8?logo=tailwindcss&logoColor=white" alt="Tailwind v4" />
   <img src="https://img.shields.io/badge/license-Source%20Available-orange" alt="Source Available" />
@@ -66,12 +66,15 @@ Players join any campaign for free via an invite link and get their own portal:
 | ---------- | --------------------------------------------------------------------- |
 | Frontend   | Vue 3 + TypeScript + Vite (Rolldown)                                  |
 | Styling    | Tailwind CSS v4 — config in CSS via `@theme`, no `tailwind.config.js` |
-| Components | Shadcn Vue (Radix Vue–based, headless)                                |
+| Components | Reka UI (shadcn-vue style, headless)                                  |
 | State      | Pinia (UI) + TanStack Query (server/async)                            |
-| Router     | Vue Router 4                                                          |
-| Backend    | Supabase — PostgreSQL + Auth + Realtime + Storage                     |
+| Router     | Vue Router 5                                                          |
+| Backend    | Supabase — PostgreSQL + Auth + Realtime + Storage + Edge Functions    |
 | Linting    | oxlint                                                                |
-| SSG        | vite-ssg (marketing pages only)                                       |
+
+Architecture diagrams (system context, internal layers, third-party
+integrations, release pipeline) live in
+[`context/architecture/`](context/architecture/index.md).
 
 ---
 
@@ -99,7 +102,7 @@ Full pricing at [dungeongrimoire.com/pricing](https://dungeongrimoire.com/pricin
 npm install
 npm run db:start    # boot local Postgres, Auth, Storage, and Studio
 npm run dev         # dev server against local Supabase
-npm run build       # production build (vue-tsc + vite-ssg)
+npm run build       # production build (vue-tsc + vite build)
 npm run lint        # oxlint
 npm test            # vitest
 ```
@@ -199,21 +202,33 @@ at <http://127.0.0.1:54324>).
 
 ```
 src/
-├── assets/main.css        # Tailwind v4 @theme tokens + global utilities
-├── calendars/             # Calendar adapter pattern (Harptos + registry)
-├── composables/           # TanStack Query hooks per feature domain
-├── stores/                # Pinia: auth, ui, calendar, encounterRun, soundboard
-├── types/                 # TypeScript types per feature domain
-├── data/                  # SRD static data (monster templates, ammunition)
-├── router/                # Routes + auth guard
-├── lib/                   # supabase client, utils, nav config
-├── layouts/               # DefaultLayout, AuthLayout
+├── assets/                # Tailwind v4 @theme tokens + global CSS
+├── ai/                    # AI generation composables + provider adapters
+├── calendars/             # Calendar adapter pattern (registry + adapters)
+├── cartographer/          # Tile-pack authoring engine
 ├── components/            # Feature components (npcs/, monsters/, encounters/, …)
-└── views/                 # Page views (auth/, notes/, calendar/, …)
+├── composables/           # TanStack Query hooks per feature domain
+├── data/                  # Static data tables (no logic)
+├── directives/            # Vue directives (tooltip, roll mode, …)
+├── layouts/               # DefaultLayout (DM), PlayerLayout, AuthLayout
+├── levelup/               # Level-up wizard
+├── lib/                   # Cross-cutting infra + feature subsystems
+├── manual/                # In-app user manual (markdown)
+├── router/                # Routes + auth guard
+├── rules/                 # Pure D&D 5e rules computation
+├── settings/              # Campaign-setting definitions
+├── stores/                # Pinia: auth, campaign, ui, encounterRun, …
+├── types/                 # TypeScript types per feature domain
+└── views/                 # Page views per feature area
 supabase/
-└── migrations/            # Timestamped SQL migrations
+├── functions/             # Deno Edge Functions (AI, Stripe, storage, email, MCP)
+├── migrations/            # Timestamped SQL migrations
+├── tests/                 # pgTAP suites
+└── checks/                # Deploy-gating content integrity checks
 context/
-└── features/              # Per-feature agent-readable documentation
+├── architecture/          # System diagrams + outage triage (start here)
+├── features/              # Per-feature agent-readable documentation
+└── compliance/            # AI Act register, provenance, retention
 ```
 
 ---
