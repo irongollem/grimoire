@@ -8,6 +8,7 @@ lives in three focused docs — read only the one your problem points at:
 | [internal.md](internal.md) | Frontend layers, state model, data-access verbs, realtime sync, service worker |
 | [integrations.md](integrations.md) | Every third party: call direction, credentials, failure symptoms |
 | [release-pipeline.md](release-pipeline.md) | CI/CD, the two deploy pipelines, the three skew windows |
+| [boundary-drift.md](boundary-drift.md) | Where the code already deviates from this map — verified holds, known breaks, re-run instructions |
 
 Per-feature depth (file paths, tables, composables) stays in
 [`../features/`](../features/index.md); DB security rules in `CLAUDE.md`.
