@@ -186,7 +186,6 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { supabase } from "@/lib/supabase";
 import RunnerRollBanner from "@/components/encounters/RunnerRollBanner.vue";
 import type { CheckResult } from "@/components/encounters/RunnerRollBanner.vue";
 import RunnerRollModeToggle from "@/components/encounters/RunnerRollModeToggle.vue";
@@ -200,13 +199,12 @@ import type { PartyMember } from "@/types/party.types";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useCompanions } from "@/composables/useCompanions";
 import { TRAP_TYPE_COLORS } from "@/types/trap.types";
-import { useCampaignStore } from "@/stores/campaign";
+import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { parseExpression } from "@/lib/dice/dice";
 import { rollParsed } from "@/lib/dice/roller";
 import type { DieSize, RollResult } from "@/lib/dice/roller";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import type { Spell as SpellType } from "@/types/spell.types";
-import { useAuthStore } from "@/stores/auth";
 import { renderTiptapHtml } from "@/lib/tiptap/renderTiptap";
 
 const props = defineProps<{
@@ -221,8 +219,7 @@ const emit = defineEmits<{
 }>();
 
 const store = useEncounterRunStore();
-const campaign = useCampaignStore();
-const auth = useAuthStore();
+const { sendRoll, sendSystemMessage } = useCampaignMessages();
 const { data: companions } = useCompanions();
 
 // ── Trap detail ───────────────────────────────────────────────────────────────
@@ -280,30 +277,9 @@ function actionDiceLabel(desc: string): string {
   return diceStr + (mod > 0 ? `+${mod}` : mod < 0 ? `${mod}` : "");
 }
 
-async function postRollToChat(
-  label: string,
-  total: number,
-  breakdown: { val: number; dropped: boolean }[],
-  modifier: number,
-  isCrit: boolean,
-  isFumble: boolean,
-  senderName: string,
-) {
-  if (!campaign.activeCampaignId || !auth.user?.id) return;
+async function postRollToChat(result: RollResult, senderName: string) {
   if (chatMode.value === "silent") return;
-
-  try {
-    await supabase.from("campaign_messages").insert({
-      campaign_id: campaign.activeCampaignId,
-      user_id: auth.user.id,
-      recipient_user_id: null,
-      sender_name: senderName,
-      message: `rolled ${label} = ${total}`,
-      type: "roll",
-      metadata: { label, total, breakdown, modifier, isCrit, isFumble },
-    });
-  } catch {
-  }
+  await sendRoll(result, null, senderName);
 }
 
 function rollAttack(attackBonus: number, actionName: string, onResolved?: (rolled: boolean) => void) {
@@ -354,7 +330,10 @@ async function rollSpellDamage(spell: SpellType) {
   if (Object.keys(counts).length === 0) {
     const { total, breakdown } = rollParsed(combined);
     lastCheck.value = { total, label, modifier: 0, d20: breakdown[0]?.val ?? total, isCrit: false, isFumble: false };
-    void postRollToChat(label, total, breakdown, 0, false, false, selectedMember.value?.name ?? "Player");
+    void postRollToChat(
+      { total, label, modifier: 0, breakdown, isCrit: false, isFumble: false },
+      selectedMember.value?.name ?? "Player",
+    );
     return;
   }
   const r = await promptRoll({
@@ -370,26 +349,17 @@ async function rollSpellDamage(spell: SpellType) {
 
 /** Announce a spell's saving throw (DC + ability) into chat so the table can roll against it. */
 async function announceSpellSave(spell: SpellType, dc: number) {
-  if (!campaign.activeCampaignId || !auth.user?.id) return;
   if (chatMode.value === "silent") return;
   const ability = spell.save_attribute ?? "";
   const effect =
     spell.save_effect === "half" ? " (half on save)"
     : spell.save_effect === "negates" ? " (negates on save)"
     : "";
-  try {
-    await supabase.from("campaign_messages").insert({
-      campaign_id: campaign.activeCampaignId,
-      user_id: auth.user.id,
-      recipient_user_id: null,
-      sender_name: selectedMember.value?.name ?? selectedCombatant.value?.name ?? "Player",
-      message: `casts ${spell.name} — DC ${dc} ${ability} saving throw${effect}`,
-      type: "system",
-      metadata: null,
-    });
-  } catch {
-    // best-effort announcement
-  }
+  // Best-effort announcement — sendSystemMessage no-ops without a campaign.
+  await sendSystemMessage(
+    `casts ${spell.name} — DC ${dc} ${ability} saving throw${effect}`,
+    selectedMember.value?.name ?? selectedCombatant.value?.name ?? "Player",
+  );
 }
 
 // ── Combatant selection ───────────────────────────────────────────────────────

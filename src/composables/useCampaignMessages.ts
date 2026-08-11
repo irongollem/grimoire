@@ -357,6 +357,36 @@ export function useCampaignMessages() {
     if (data) _optimisticPush(data as CampaignMessage);
   }
 
+  /**
+   * System event attributed to a named source — the encounter runner, a boss's
+   * lair, an NPC mid-cast — rather than to the DM who happens to be driving.
+   * Differs from sendFlavorMessage (which speaks as the DM's current persona)
+   * only in where the sender name comes from.
+   *
+   * The array form exists so a burst of runner broadcasts lands in one
+   * round-trip instead of N; sendSystemMessage is the single-message form.
+   */
+  async function sendSystemMessages(texts: string[], senderName: string) {
+    const cid = campaign.activeCampaignId;
+    const uid = auth.user?.id;
+    if (!cid || !uid || !texts.length) return;
+    const inserts: CampaignMessageInsert[] = texts.map(text => ({
+      campaign_id: cid,
+      user_id: uid,
+      recipient_user_id: null,
+      sender_name: senderName,
+      message: text,
+      type: "system",
+      metadata: null,
+    }));
+    const { data } = await supabase.from("campaign_messages").insert(inserts).select();
+    for (const row of (data ?? [])) _optimisticPush(row as CampaignMessage);
+  }
+
+  async function sendSystemMessage(text: string, senderName: string) {
+    await sendSystemMessages([text], senderName);
+  }
+
   async function sendRoll(result: RollResult, recipientUserId: string | null = null, senderName?: string) {
     const cid = campaign.activeCampaignId;
     if (!cid || !auth.user?.id) return;
@@ -627,5 +657,5 @@ export function useCampaignMessages() {
     if (idx >= 0 && data) messages.value[idx] = { ...messages.value[idx], metadata: data as PlayerOfferMetadata };
   }
 
-  return { messages: visibleMessages, loading, loadingOlder, hasOlder, loadOlder, ensureMessage, sendMessage, sendFlavorMessage, sendNarrativeEvent, sendRoll, sendItemDrop, claimItemDrop, grabItemDrop, sendCurrencyDrop, claimCurrencyDrop, sendLootChest, claimLootChestAtom, sendVendorOffer, claimVendorOffer, sendPlayerOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId };
+  return { messages: visibleMessages, loading, loadingOlder, hasOlder, loadOlder, ensureMessage, sendMessage, sendFlavorMessage, sendNarrativeEvent, sendSystemMessage, sendSystemMessages, sendRoll, sendItemDrop, claimItemDrop, grabItemDrop, sendCurrencyDrop, claimCurrencyDrop, sendLootChest, claimLootChestAtom, sendVendorOffer, claimVendorOffer, sendPlayerOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId };
 }

@@ -94,13 +94,12 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
-import { supabase } from "@/lib/supabase";
-import { useCampaignStore } from "@/stores/campaign";
-import { useAuthStore } from "@/stores/auth";
+import { useCampaignMessages } from "@/composables/useCampaignMessages";
 
 const store = useEncounterRunStore();
-const campaign = useCampaignStore();
-const auth = useAuthStore();
+// Chat posting is best-effort from the runner — sendSystemMessage no-ops
+// without an active campaign and swallows a failed insert.
+const { sendSystemMessage } = useCampaignMessages();
 
 const showSurprise = ref(false);
 const surprisedCount = computed(() => store.combatants.filter((c) => c.surprised).length);
@@ -143,34 +142,17 @@ function actionCost(name: string): number {
   return match ? parseInt(match[1], 10) : 1;
 }
 
-async function postToChat(message: string, senderName: string) {
-  if (!campaign.activeCampaignId || !auth.user?.id) return;
-  try {
-    await supabase.from("campaign_messages").insert({
-      campaign_id: campaign.activeCampaignId,
-      user_id: auth.user.id,
-      recipient_user_id: null,
-      sender_name: senderName,
-      message,
-      type: "system",
-      metadata: null,
-    });
-  } catch {
-    // Chat posting is best-effort from the runner.
-  }
-}
-
 async function fireLairAction(action: { name: string; description: string }) {
   const owner = store.combatants.find((c) => c.instance_id === store.lairOwnerInstanceId);
   if (!owner) return;
   store.markLairFired();
-  await postToChat(`uses Lair Action: ${action.name}`, `⚔ ${owner.name} (lair)`);
+  await sendSystemMessage(`uses Lair Action: ${action.name}`, `⚔ ${owner.name} (lair)`);
 }
 
 async function fireLegendaryAction(instanceId: string, name: string, action: { name: string; description: string }) {
   const cost = actionCost(action.name);
   const spent = store.spendLegendaryActions(instanceId, cost);
   if (spent === 0) return;
-  await postToChat(`uses legendary action: ${action.name}`, `⚔ ${name}`);
+  await sendSystemMessage(`uses legendary action: ${action.name}`, `⚔ ${name}`);
 }
 </script>

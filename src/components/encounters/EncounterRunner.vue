@@ -143,7 +143,6 @@ import { IconDiceRoll, IconDungeon, IconEncounter, IconFlag, IconLive, IconMap }
 import ManualHelpLink from '@/components/common/ManualHelpLink.vue';
 import { useEncounter } from "@/composables/useEncounters";
 import { useLocation } from "@/composables/useLocations";
-import { supabase } from "@/lib/supabase";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useAllMonsters } from "@/composables/useMonsters";
 import { useParty, useUpdatePartyMember } from "@/composables/useParty";
@@ -153,7 +152,7 @@ import { buildNpcSyncUpdate } from "@/lib/npcEncounterSync";
 import { useEncounterLive } from "@/composables/useEncounterLive";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAutoDiscoverMonsters } from "@/composables/useDiscoveredMonsters";
-import { useAuthStore } from "@/stores/auth";
+import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { initiativeModifier } from "@/rules/combatantSort";
 import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/useOptionalRules";
@@ -174,7 +173,7 @@ const encounterId = computed(() => route.params.id as string);
 const campaign = useCampaignStore();
 const { isLive, goLive, schedulePush, endLive } = useEncounterLive(encounterId.value);
 const goingLive = ref(false);
-const auth = useAuthStore();
+const { sendSystemMessages } = useCampaignMessages();
 
 // The runner resolves combatants' stored monster_id (detail panel, auto-discover
 // on go-live) rather than letting the DM pick, so scoping must stay off here.
@@ -434,23 +433,11 @@ onUnmounted(() => {
 watch(
   () => store.pendingBroadcasts.length,
   async () => {
-    const campaignId = campaign.activeCampaignId;
-    if (!store.pendingBroadcasts.length || !campaignId) return;
+    if (!store.pendingBroadcasts.length) return;
     const messages = [...store.pendingBroadcasts];
     for (const msg of messages) store.clearPendingBroadcast(msg);
-    try {
-      await supabase.from("campaign_messages").insert(
-        messages.map((msg) => ({
-          campaign_id: campaignId,
-          user_id: auth.user?.id ?? "",
-          recipient_user_id: null,
-          sender_name: "⚔ Encounter",
-          message: msg,
-          type: "system",
-        })),
-      );
-    } catch (e) {
-    }
+    // One insert for the whole burst; posting is best-effort from the runner.
+    await sendSystemMessages(messages, "⚔ Encounter");
   },
 );
 

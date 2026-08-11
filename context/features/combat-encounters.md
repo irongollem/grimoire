@@ -395,6 +395,8 @@ For each combatant type the panel shows:
 
 **Chat mode bar**: toggles whether rolls are posted to campaign chat (public / private / off).
 
+**Runner → chat write path**: everything the runner posts goes through `useCampaignMessages` — the pending-broadcast flush in `EncounterRunner` uses `sendSystemMessages` (array form, so a burst is one insert), lair/legendary announcements in `RunnerBossMechanics` and the spell-save call in `RunnerEntityDetail` use `sendSystemMessage`, and the flat-damage roll uses `sendRoll`. Never hand-build a `campaign_messages` insert here: the composable owns the row shape and the optimistic local push, so the DM sees their own runner message immediately rather than waiting for the realtime echo (#722).
+
 **Events sidebar (`RunnerDmTools.vue`):**
 
 A 200px-wide panel on the right edge of the runner. Appears only when the encounter has events defined.
