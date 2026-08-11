@@ -107,6 +107,15 @@
   "optionalDependencies": {
     "@rolldown/binding-darwin-arm64": "^1.0.0-rc.15"
   },
+  "overrides": {
+    "@vue/test-utils": {
+      "js-beautify": "^2.0.3",
+      "nopt": "^9.0.0"
+    },
+    "pagedjs": {
+      "@babel/polyfill": "npm:core-js@^3.50.0"
+    }
+  },
   "engines": {
     "node": "^24.0.0"
   },
