@@ -73,18 +73,31 @@ export async function listSupabaseUserObjects(
   const { data: buckets, error: bucketsError } = await admin.storage.listBuckets();
   if (bucketsError) return { buckets: [], errors: [`listBuckets: ${bucketsError.message}`] };
 
+  // Buckets are walked concurrently. Each walk is itself serial and recursive —
+  // `mini-models/{userId}/{miniId}/` is several round-trips deep — so doing ~15
+  // registry buckets one after another put hundreds of sequential requests on a
+  // user-facing path with an edge-function wall clock, on top of the
+  // whole-database export. Wall time is now roughly the slowest single bucket
+  // rather than the sum of all of them.
+  const settled = await Promise.all(
+    (buckets ?? []).map(async (bucket): Promise<BucketObjects | string> => {
+      try {
+        const paths = await listAllFilePaths(
+          (prefix) => listFolderPaginated(admin, bucket.id, prefix),
+          userId,
+        );
+        return { bucket: bucket.id, paths };
+      } catch (err) {
+        return `${bucket.id}: ${err instanceof Error ? err.message : String(err)}`;
+      }
+    }),
+  );
+
   const result: BucketObjects[] = [];
   const errors: string[] = [];
-  for (const bucket of buckets ?? []) {
-    try {
-      const paths = await listAllFilePaths(
-        (prefix) => listFolderPaginated(admin, bucket.id, prefix),
-        userId,
-      );
-      if (paths.length > 0) result.push({ bucket: bucket.id, paths });
-    } catch (err) {
-      errors.push(`${bucket.id}: ${err instanceof Error ? err.message : String(err)}`);
-    }
+  for (const entry of settled) {
+    if (typeof entry === "string") errors.push(entry);
+    else if (entry.paths.length > 0) result.push(entry);
   }
   return { buckets: result, errors };
 }
@@ -107,7 +120,20 @@ export async function listR2UserObjects(
       if (keys.length > 0) {
         result.push({
           bucket: bucketId,
-          paths: keys.map((key) => (key.startsWith(keyPrefix) ? key.slice(keyPrefix.length) : key)),
+          paths: keys.map((key) => {
+            // Throwing rather than returning the key unchanged. delete-account
+            // re-applies the prefix with r2ObjectKey(bucket, path), so a key
+            // that fell through here would become `mini-models/mini-models/…`
+            // and be issued as a DELETE for an object that does not exist —
+            // which R2 answers 204, so the purge would report success while
+            // leaving the user's files in place. A listing that violates its
+            // own prefix means the assumption is broken; the caller records
+            // this bucket as an error instead of silently mis-purging it.
+            if (!key.startsWith(keyPrefix)) {
+              throw new Error(`key ${key} does not start with expected prefix ${keyPrefix}`);
+            }
+            return key.slice(keyPrefix.length);
+          }),
         });
       }
     } catch (err) {

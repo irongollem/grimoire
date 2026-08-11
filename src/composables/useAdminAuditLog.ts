@@ -16,6 +16,8 @@ export const ADMIN_AUDIT_ACTIONS = [
   "account_unban",
   "credit_grant",
   "credit_pack_refund",
+  "dsr_request_logged",
+  "dsr_request_answered",
 ] as const;
 
 export type AdminAuditAction = (typeof ADMIN_AUDIT_ACTIONS)[number];
@@ -79,4 +81,6 @@ export const ADMIN_AUDIT_LABELS: Record<AdminAuditAction, string> = {
   account_unban: "Unlocked",
   credit_grant: "Credits granted",
   credit_pack_refund: "Pack refunded",
+  dsr_request_logged: "Data request recorded",
+  dsr_request_answered: "Data request answered",
 };

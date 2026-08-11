@@ -1,5 +1,6 @@
 import { ref } from "vue";
 import { supabase } from "@/lib/supabase";
+import { functionErrorCode } from "@/lib/functionError";
 
 /** `export-my-data` edge function error codes (#632) -> human copy. */
 const ERROR_MESSAGES: Record<string, string> = {
@@ -23,6 +24,13 @@ export function exportFilename(now: Date): string {
  * Triggers a browser download of `contents` as `filename`. Split out from the
  * request so the composable's tests can assert what would be downloaded without
  * a DOM that implements object URLs (jsdom has no `createObjectURL`).
+ *
+ * The anchor is appended before clicking and the URL is revoked on a later
+ * task, not on the next line. `a.click()` only *queues* the download; revoking
+ * the object URL in the same tick invalidates the blob before the browser has
+ * read it, which for a multi-megabyte export yields a zero-byte file or nothing
+ * at all — while this function returns normally and the caller reports success.
+ * An account export is exactly the size where that bites.
  */
 export function downloadJson(contents: string, filename: string): void {
   const blob = new Blob([contents], { type: "application/json" });
@@ -30,9 +38,17 @@ export function downloadJson(contents: string, filename: string): void {
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;
+  a.style.display = "none";
+  document.body.appendChild(a);
   a.click();
-  URL.revokeObjectURL(url);
+  setTimeout(() => {
+    a.remove();
+    URL.revokeObjectURL(url);
+  }, REVOKE_DELAY_MS);
 }
+
+/** Long enough for the browser to have started reading the blob; short enough not to leak. */
+const REVOKE_DELAY_MS = 60_000;
 
 /**
  * GDPR access & portability export (#632). Asks `export-my-data` for everything
@@ -53,18 +69,7 @@ export function useDataExport() {
     error.value = null;
     try {
       const { data, error: fnError } = await supabase.functions.invoke("export-my-data", { body: {} });
-      if (fnError) {
-        // The JSON error body arrives on `error.context`, not `error.message` —
-        // the same functions.invoke quirk `invokeDeleteAccount` documents.
-        let code: string | undefined;
-        try {
-          const payload = await (fnError as unknown as { context?: Response }).context?.json();
-          code = payload?.error;
-        } catch {
-          /* response had no JSON body */
-        }
-        throw new Error(code ?? fnError.message);
-      }
+      if (fnError) throw new Error(await functionErrorCode(fnError));
       if (data?.error) throw new Error(data.error);
 
       downloadJson(JSON.stringify(data, null, 2), exportFilename(new Date()));

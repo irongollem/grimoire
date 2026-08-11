@@ -1,6 +1,7 @@
 import { type Ref } from 'vue'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { supabase } from '@/lib/supabase'
+import { functionErrorPayload } from '@/lib/functionError'
 
 /** One purchased credit pack with FIFO-computed refund eligibility. */
 export interface PackLot {
@@ -28,12 +29,7 @@ export interface RefundResult {
 async function invokeRefundFn<T>(body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke('admin-refund-credit-pack', { body })
   if (error) {
-    let payload: { error?: string; detail?: string; lot?: PackLot } | null = null
-    try {
-      payload = await (error as unknown as { context?: Response }).context?.json() ?? null
-    } catch {
-      /* response had no JSON body */
-    }
+    const payload = await functionErrorPayload<{ error?: string; detail?: string; lot?: PackLot }>(error)
     const e = new Error(payload?.error ?? error.message) as Error & {
       payload?: { error?: string; detail?: string; lot?: PackLot } | null
     }

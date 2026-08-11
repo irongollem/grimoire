@@ -70,7 +70,7 @@
  * has to outlive the person for it to evidence that their request was answered,
  * which is the whole reason this table does not cascade.
  */
-import { ref } from "vue";
+import { computed, onUnmounted, ref } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import {
@@ -93,12 +93,39 @@ const emit = defineEmits<{ fulfil: [payload: { id: string; outcome: DsrOutcome }
 
 const outcome = ref<DsrOutcome>("fulfilled");
 
-const days = daysUntilDue(request, new Date());
-const dueLabel =
-  days < 0 ? `Overdue by ${Math.abs(days)} day${Math.abs(days) === 1 ? "" : "s"}`
-  : days === 0 ? "Due today"
-  : `Due in ${days} day${days === 1 ? "" : "s"}`;
-const dueClass = days < 0 ? "text-destructive font-semibold" : days <= 7 ? "text-caution" : "text-muted-foreground";
+/**
+ * Recomputed rather than captured at setup. Rows are keyed by `request.id`, so
+ * Vue reuses the instance across refetches — a plain const would freeze both
+ * the row's data and the `new Date()` it was measured against, and a request
+ * that went overdue while the tab sat open would keep rendering "Due in 1 day"
+ * in muted grey. The overdue state is the whole reason this tab exists.
+ *
+ * `now` ticks on a timer so the countdown crosses midnight on its own; an admin
+ * leaving this open overnight is the normal case, not an edge one.
+ */
+const now = ref(new Date());
+const timer = setInterval(() => { now.value = new Date(); }, 60_000);
+onUnmounted(() => clearInterval(timer));
+
+const days = computed(() => daysUntilDue(request, now.value));
+
+const dueLabel = computed(() => {
+  const d = days.value;
+  if (d < 0) return `Overdue by ${Math.abs(d)} day${Math.abs(d) === 1 ? "" : "s"}`;
+  if (d === 0) return "Due today";
+  return `Due in ${d} day${d === 1 ? "" : "s"}`;
+});
+
+// `text-tone-caution`, not `text-caution`: theme.css defines `--color-tone-caution`,
+// and Tailwind v4 generates utilities from the token name. An unknown utility is
+// silently dropped rather than failing the build, so `text-caution` rendered as
+// plain foreground — a warning state indistinguishable from a request due in two
+// months, invisible to lint, typecheck and tests alike.
+const dueClass = computed(() =>
+  days.value < 0 ? "text-destructive font-semibold"
+  : days.value <= 7 ? "text-tone-caution"
+  : "text-muted-foreground",
+);
 
 function formatWhen(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {

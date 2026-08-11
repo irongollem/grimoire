@@ -17,8 +17,15 @@ const { invoke: invokeMock } = mocked;
 
 /** Captures the anchor the download path builds, without a real object URL. */
 function stubDownload() {
-  const anchor = { href: "", download: "", click: mocked.click } as unknown as HTMLAnchorElement;
+  const anchor = {
+    href: "",
+    download: "",
+    style: {},
+    click: mocked.click,
+    remove: vi.fn(),
+  } as unknown as HTMLAnchorElement;
   vi.spyOn(document, "createElement").mockReturnValue(anchor);
+  vi.spyOn(document.body, "appendChild").mockReturnValue(anchor);
   Object.defineProperty(URL, "createObjectURL", { value: mocked.createObjectURL, configurable: true });
   Object.defineProperty(URL, "revokeObjectURL", { value: mocked.revokeObjectURL, configurable: true });
   return anchor;
@@ -71,7 +78,27 @@ describe("useDataExport", () => {
     expect(mocked.click).toHaveBeenCalledOnce();
     const [[blob]] = mocked.createObjectURL.mock.calls as unknown as [[Blob]];
     await expect(blob.text()).resolves.toBe(JSON.stringify(payload, null, 2));
-    expect(mocked.revokeObjectURL).toHaveBeenCalledOnce();
+  });
+
+  // `a.click()` only queues the download; revoking in the same tick invalidates
+  // the blob before the browser has read it, which for a multi-megabyte export
+  // yields a zero-byte file while this code reports success.
+  it("does not revoke the object URL in the same tick as the click", async () => {
+    vi.useFakeTimers();
+    try {
+      stubDownload();
+      invokeMock.mockResolvedValue({ data: { tables: {} }, error: null });
+
+      await useDataExport().exportData();
+
+      expect(mocked.click).toHaveBeenCalledOnce();
+      expect(mocked.revokeObjectURL).not.toHaveBeenCalled();
+
+      vi.runAllTimers();
+      expect(mocked.revokeObjectURL).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("maps a functions-error JSON payload code to human copy and downloads nothing", async () => {

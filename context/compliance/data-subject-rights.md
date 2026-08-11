@@ -304,11 +304,20 @@ plausible document and an unlawful answer. So `export_user_data` walks the
    push time, so this graph *is* the definition of "rows belonging to a person"
    — and it is maintained, because deletion breaks otherwise. A new table
    inherits the export for free.
-2. **The rows no FK reaches** — `rate_limit_events` and a `pro_waitlist` address
-   match. This is the half that can rot, because both functions name them by
-   hand, so `data_export.test.sql` asserts the two hand-written sets are the
-   same set, and separately pins that the set is non-empty (an `is_empty` check
-   over an empty set passes while proving nothing).
+2. **The columns no FK reaches** — `rate_limit_events.user_id`,
+   `admin_audit_log.target_user_id`, `dsr_requests.user_id`, and a
+   `pro_waitlist` address match. This is the half that can rot, because both
+   functions name them by hand, so `data_export.test.sql` asserts the two
+   hand-written sets are the same set, and separately pins that the set is
+   non-empty (an `is_empty` check over an empty set passes while proving
+   nothing).
+
+   That assertion matches on `%user_id`, not the literal `user_id`, and the
+   difference was a real hole: `admin_audit_log.target_user_id` sat outside the
+   narrow check entirely — so a ban, freeze, plan change or credit grant
+   recorded against someone was missing from their own Art. 15 answer, while
+   the check read as though it covered everything. Any future `subject_user_id`
+   or `owner_user_id` would have escaped the same way.
 
 Storage objects are the third source and live outside Postgres, so the edge
 function enumerates them from `_shared/storage-inventory.ts` — extracted from
@@ -317,21 +326,35 @@ purges cannot disagree.
 
 Four positions worth not re-deriving:
 
-1. **Two FK columns on one table are two different people.** `party_members`
-   has `user_id` (the campaign owner) and `owner_user_id` (the player whose
-   character it is). Keying the export on `user_id` alone — the obvious reading,
-   and the convention in ~85 other tables — hands a player everything about
-   their account *except the character they actually play*, which is the row
-   they would look for first. The loop is over FK columns, not tables, for this
-   reason.
-2. **Credentials are redacted, nulls are not.** BYOK keys and invite/calendar
-   tokens are bearer credentials: exporting the string exports the capability,
-   and `enc:v1:…` at rest does not help because the app decrypts on use. They
-   become `"[redacted]"`; a null stays null, because "no key was ever set" and
-   "a key is withheld" are different facts and the subject is entitled to the
-   first. The predicate anchors `token` at a word boundary — a `%token%` rule
-   would redact `input_tokens`/`output_tokens` on the credit ledger, i.e. the
-   billing history, to protect nothing.
+1. **Two FK columns on one table are two different people, but one row.**
+   `party_members` has `user_id` (the campaign owner) and `owner_user_id` (the
+   player whose character it is). Keying the export on `user_id` alone — the
+   obvious reading, and the convention in ~85 other tables — hands a player
+   everything about their account *except the character they actually play*.
+   So the derivation is over columns, not tables. But the *query* is grouped
+   back per table (`col_a = $1 or col_b = $1`): a DM playing a character in
+   their own campaign matches both columns, and one query per column
+   concatenated would export that sheet twice — which a consumer re-importing
+   the document, the entire point of Art. 20, reads as two characters or a
+   primary-key collision.
+2. **Two reasons to withhold a column, kept as two predicates.**
+   `is_credential_column` covers bearer credentials — BYOK keys, invite and
+   calendar tokens — where exporting the string exports the capability, and
+   `enc:v1:…` at rest does not help because the app decrypts on use.
+   `is_third_party_column` covers identifiers belonging to someone else
+   (`admin_audit_log.admin_user_id`), under Art. 15(4). Both render as
+   `"[redacted]"`; a null stays null, because "no key was ever set" and "a key
+   is withheld" are different facts and the subject is entitled to the first.
+
+   **Every term in the credential pattern is anchored to a whole word, and it
+   matters in both directions.** A `%token%` rule would redact
+   `input_tokens`/`output_tokens` on the credit ledger — the billing history —
+   to protect nothing. The mirror-image trap is the one this domain invites:
+   `%secret%` would match `npcs.secrets` or `quests.secret_hook`, ordinary
+   campaign prose, and return it as `"[redacted]"` — an incomplete answer to an
+   access request wearing the costume of a working export. `password` is the
+   single unanchored term, because a column with that word anywhere in its name
+   is a credential in every form it takes.
 3. **There is no admin export path, and that is not an oversight.**
    `delete-account` has one because an operator sometimes must erase an account
    its owner cannot reach; nothing equivalent is true of export. An admin button
@@ -413,6 +436,24 @@ Four positions worth not re-deriving:
    honoured. An anonymized row is then frozen — the guard refuses any further
    modification, so it cannot be re-attributed or re-answered once nobody is
    left to contradict it.
+
+   **A request still open at that moment must be closed in the same statement,
+   and the freeze is why.** Stamping an open row anonymized without answering it
+   strands it permanently: the guard then refuses the very update that would
+   close it, so it sits in the admin tab's "Open" filter accruing overdue days
+   against a clock nobody can stop — in the one case where the erasure itself is
+   the reason no answer is possible. It is closed with
+   `outcome = 'closed_account_erased'`, a value reserved to `prepare_user_erasure`
+   (an operator picking it could record a refusal as though the account had been
+   erased out from under the request). Already-answered rows keep the outcome
+   they were actually answered with.
+5. **The operator is accountable for what they record and answer.**
+   `dsr_requests` says what was answered; `admin_audit_log` says who answered
+   it. `admin_log_dsr_request` and `admin_fulfil_dsr_request` each write their
+   `dsr_request_logged` / `dsr_request_answered` entry in the same transaction —
+   "refused" is a decision a person makes, and without these the one table in
+   the schema about operator accountability would be where an operator acts
+   unrecorded.
 
 **Append-mostly, not append-only.** A request received today is answered later,
 so `fulfilled_at`/`outcome`/`notes` are writable exactly once. `request_type`,

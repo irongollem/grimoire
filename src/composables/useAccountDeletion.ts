@@ -1,6 +1,7 @@
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { supabase } from "@/lib/supabase";
+import { functionErrorCode } from "@/lib/functionError";
 import { useAuthStore } from "@/stores/auth";
 
 /** `delete-account` edge function error codes (#631) -> human copy. */
@@ -22,25 +23,16 @@ export function accountDeletionErrorMessage(code: string): string {
  * Invokes the `delete-account` edge function, resolving on `{ ok: true }` and
  * throwing an `Error` whose `.message` is the server's error code otherwise.
  * Shared by `useAccountDeletion` (self-service) and `useAdminUsers.deleteUser`
- * (admin) so the `functions.invoke` payload-extraction quirk — the JSON error
- * body arrives on `error.context`, not `error.message`, same as
- * `useAdminRefunds.invokeRefundFn` — lives in exactly one place.
+ * (admin). The `functions.invoke` payload-extraction quirk it used to spell out
+ * here now lives in `@/lib/functionError` — this file claimed to be its single
+ * owner while two other call sites held their own copies.
  */
 export async function invokeDeleteAccount(targetUserId?: string): Promise<void> {
   const body: { confirm: "DELETE"; targetUserId?: string } = { confirm: "DELETE" };
   if (targetUserId) body.targetUserId = targetUserId;
 
   const { data, error } = await supabase.functions.invoke("delete-account", { body });
-  if (error) {
-    let code: string | undefined;
-    try {
-      const payload = await (error as unknown as { context?: Response }).context?.json();
-      code = payload?.error;
-    } catch {
-      /* response had no JSON body */
-    }
-    throw new Error(code ?? error.message);
-  }
+  if (error) throw new Error(await functionErrorCode(error));
   if (data?.error) throw new Error(data.error);
 }
 

@@ -99,7 +99,7 @@
         :key="request.id"
         :request="request"
         :subject-label="subjectLabel(request)"
-        :saving="fulfilRequest.isPending.value"
+        :saving="savingId === request.id"
         @fulfil="onFulfil"
       />
 
@@ -202,12 +202,23 @@ async function submit() {
   }
 }
 
+/**
+ * Which row is mid-save. The mutation's own `isPending` is a single boolean for
+ * the whole tab, so binding it to every row put all of them in the loading
+ * state when one was answered — ten spinners for one click, and on failure a
+ * single error at the top of a page where ten rows looked submitted.
+ */
+const savingId = ref<string | null>(null);
+
 async function onFulfil(payload: { id: string; outcome: DsrOutcome }) {
   formError.value = null;
+  savingId.value = payload.id;
   try {
     await fulfilRequest.mutateAsync(payload);
   } catch (err) {
     formError.value = err instanceof Error ? err.message : String(err);
+  } finally {
+    savingId.value = null;
   }
 }
 

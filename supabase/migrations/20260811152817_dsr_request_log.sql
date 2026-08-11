@@ -59,7 +59,15 @@ create table public.dsr_requests (
 
   received_at timestamptz not null default now(),
   fulfilled_at timestamptz,
-  outcome text check (outcome in ('fulfilled', 'refused', 'partially_fulfilled', 'withdrawn')),
+  -- `closed_account_erased` is written only by prepare_user_erasure, for a
+  -- request that was still open when the subject erased their account. It is a
+  -- real outcome rather than a tidy-up: an access request cannot be answered
+  -- once the data is gone, and recording that is more honest than either
+  -- claiming it was fulfilled or leaving it open forever against a clock
+  -- nobody can now stop.
+  outcome text check (outcome in (
+    'fulfilled', 'refused', 'partially_fulfilled', 'withdrawn', 'closed_account_erased'
+  )),
   notes text,
 
   anonymized_at timestamptz,
@@ -204,6 +212,25 @@ $$;
 comment on function private.log_dsr_request(text, text, uuid, text, text, timestamptz, text, text) is
   'Writes one dsr_requests row. Called only from other SECURITY DEFINER functions; never client-reachable.';
 
+-- ── Extending the pinned admin action vocabulary ────────────────────────────
+-- CLAUDE.md: a new action means extending admin_audit_log_action_check in the
+-- same migration as its writer, and adding it to ADMIN_AUDIT_ACTIONS so the
+-- viewer can name it.
+--
+-- dsr_requests is append-mostly, which records WHAT was answered but not WHO
+-- answered it. Recording a request and closing one are both unilateral operator
+-- actions with consequences — "refused" is a decision a person makes — and §4d
+-- exists precisely so those are attributable. Without these two entries, the
+-- one table in the schema about operator accountability would be the one place
+-- an operator acts unrecorded.
+alter table public.admin_audit_log drop constraint admin_audit_log_action_check;
+alter table public.admin_audit_log add constraint admin_audit_log_action_check
+  check (action in (
+    'account_erasure', 'plan_change', 'account_freeze', 'account_unfreeze',
+    'account_ban', 'account_unban', 'credit_grant', 'credit_pack_refund',
+    'dsr_request_logged', 'dsr_request_answered'
+  ));
+
 -- ── Admin entry points for the email channel ────────────────────────────────
 -- The self-serve rights log themselves (see below). These cover the remainder:
 -- a request that arrives by email, where receipt and fulfilment are separate
@@ -223,6 +250,7 @@ as $$
 declare
   v_email text := nullif(btrim(coalesce(p_subject_email, '')), '');
   v_user_id uuid := p_user_id;
+  v_id uuid;
 begin
   -- SECURITY DEFINER rule: authorize first. coalesce'd at the source in
   -- private.is_app_admin() since 20260809144926 — `not null` is null, and a
@@ -244,7 +272,7 @@ begin
     select id into v_user_id from auth.users where lower(email) = lower(v_email);
   end if;
 
-  return private.log_dsr_request(
+  v_id := private.log_dsr_request(
     p_request_type,
     'email',
     v_user_id,
@@ -253,6 +281,20 @@ begin
     null, null,
     p_notes
   );
+
+  -- Same transaction as the write it describes, so there is no version of this
+  -- that records the request without recording who recorded it. The address is
+  -- NOT copied into the entry: admin_audit_log holds ids only, so an entry can
+  -- outlive the erasure it may later be part of (§4d).
+  insert into public.admin_audit_log (admin_user_id, action, target_user_id, details)
+  values (
+    auth.uid(),
+    'dsr_request_logged',
+    v_user_id,
+    jsonb_build_object('dsr_request_id', v_id, 'request_type', p_request_type)
+  );
+
+  return v_id;
 end;
 $$;
 
@@ -266,20 +308,38 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_user_id uuid;
 begin
   if not private.is_app_admin() then
     raise exception 'Not authorized';
+  end if;
+
+  -- `closed_account_erased` is reserved for prepare_user_erasure. Letting an
+  -- operator pick it would let a refusal be recorded as though the account had
+  -- been erased out from under the request.
+  if p_outcome = 'closed_account_erased' then
+    raise exception 'admin_fulfil_dsr_request: closed_account_erased is written only by an erasure';
   end if;
 
   update public.dsr_requests
      set fulfilled_at = now(),
          outcome = p_outcome,
          notes = coalesce(p_notes, notes)
-   where id = p_id;
+   where id = p_id
+  returning user_id into v_user_id;
 
   if not found then
     raise exception 'admin_fulfil_dsr_request: no such request %', p_id;
   end if;
+
+  insert into public.admin_audit_log (admin_user_id, action, target_user_id, details)
+  values (
+    auth.uid(),
+    'dsr_request_answered',
+    v_user_id,
+    jsonb_build_object('dsr_request_id', p_id, 'outcome', p_outcome)
+  );
 end;
 $$;
 
@@ -312,6 +372,7 @@ declare
   v_select text[];
   v_redacted text[] := '{}';
   v_cols text[];
+  v_where text;
 begin
   -- Service-role only, exactly like prepare_user_erasure: this function reads
   -- every table in the database for an arbitrary uuid, so the browser must have
@@ -358,26 +419,54 @@ begin
   -- character they actually play, which is the single row they would look for
   -- first.
   --
-  -- Results are merged per table (`||` on the accumulated array) so a row
-  -- matching on two columns appears once per match rather than replacing the
-  -- other column's rows.
+  -- The columns are grouped into ONE query per table (`col_a = $1 or col_b = $1`)
+  -- rather than one query per column. Querying per column and concatenating the
+  -- results duplicates any row that matches on both — a DM who also plays their
+  -- own character has `user_id` and `owner_user_id` equal, so their character
+  -- sheet would appear twice, and a consumer re-importing the document (the
+  -- point of Art. 20) would see two characters or a primary-key collision.
   for v_rec in
-    select con.conrelid::regclass::text as qualified_table,
-           cls.relname                  as table_name,
-           att.attname                  as column_name
-    from pg_constraint con
-    join pg_namespace  con_ns on con_ns.oid = con.connamespace
-    join pg_class      cls    on cls.oid = con.conrelid
-    join unnest(con.conkey) with ordinality k(attnum, ord) on true
-    join pg_attribute  att    on att.attrelid = con.conrelid and att.attnum = k.attnum
-    where con.contype = 'f'
-      and con.confrelid = 'auth.users'::regclass
-      and con_ns.nspname = 'public'
-      and cls.relkind = 'r'
-      -- A composite FK into auth.users would make "the person column"
-      -- ambiguous. None exists; this keeps the loop honest if one ever does.
-      and array_length(con.conkey, 1) = 1
-    order by cls.relname, att.attname
+    with keyed as (
+      select cls.relname::text as table_name,
+             att.attname::text as column_name
+      from pg_constraint con
+      join pg_namespace  con_ns on con_ns.oid = con.connamespace
+      join pg_class      cls    on cls.oid = con.conrelid
+      join unnest(con.conkey) with ordinality k(attnum, ord) on true
+      join pg_attribute  att    on att.attrelid = con.conrelid and att.attnum = k.attnum
+      where con.contype = 'f'
+        and con.confrelid = 'auth.users'::regclass
+        and con_ns.nspname = 'public'
+        and cls.relkind = 'r'
+        -- A composite FK into auth.users would make "the person column"
+        -- ambiguous. None exists; this keeps the loop honest if one ever does.
+        and array_length(con.conkey, 1) = 1
+
+      union
+
+      -- The user-keyed columns with NO FK, which the graph above cannot see.
+      -- This is the half that can rot, so data_export.test.sql pins the set and
+      -- asserts each member is named in both this function and
+      -- prepare_user_erasure.
+      --
+      -- admin_audit_log.target_user_id is deliberately FK-less (§2) so the
+      -- erasure receipt outlives its subject — which also made it invisible to
+      -- an export keyed on the FK graph alone, even though a ban, freeze, plan
+      -- change or credit grant recorded against someone is plainly data about
+      -- them. `admin_user_id` on the same row is reached by the FK graph and is
+      -- withheld by private.is_third_party_column: the operator's own id is not
+      -- the subject's to receive.
+      select *
+      from (values
+        ('rate_limit_events', 'user_id'),
+        ('admin_audit_log',   'target_user_id')
+      ) as extra(table_name, column_name)
+    )
+    select table_name,
+           array_agg(column_name order by column_name) as columns
+    from keyed
+    group by table_name
+    order by table_name
   loop
     -- Build the projection column by column so credential columns can be
     -- replaced in place. `format(%I)` over catalog-sourced identifiers is what
@@ -390,38 +479,37 @@ begin
     -- keeps dropped columns out of the projection.
     select array_agg(
              case
-               when private.is_credential_column(a.attname)
+               when private.is_withheld_column(a.attname)
                  then format('case when t.%I is null then null else %L end as %I',
                              a.attname, '[redacted]', a.attname)
                else format('t.%I', a.attname)
              end
              order by a.attnum),
            array_agg(a.attname order by a.attnum)
-             filter (where private.is_credential_column(a.attname))
+             filter (where private.is_withheld_column(a.attname))
       into v_select, v_cols
     from pg_attribute a
-    where a.attrelid = v_rec.qualified_table::regclass
+    where a.attrelid = ('public.' || v_rec.table_name)::regclass
       and a.attnum > 0
       and not a.attisdropped;
 
+    select string_agg(format('t.%I = $1', c), ' or ' order by c)
+      into v_where
+    from unnest(v_rec.columns) c;
+
     execute format(
       'select coalesce(jsonb_agg(to_jsonb(r)), ''[]''::jsonb)
-         from (select %s from %s t where t.%I = $1) r',
-      array_to_string(v_select, ', '), v_rec.qualified_table, v_rec.column_name
+         from (select %s from public.%I t where %s) r',
+      array_to_string(v_select, ', '), v_rec.table_name, v_where
     )
     into v_rows
     using p_user_id;
 
     if jsonb_array_length(v_rows) > 0 then
-      v_tables := jsonb_set(
-        v_tables,
-        array[v_rec.table_name],
-        coalesce(v_tables -> v_rec.table_name, '[]'::jsonb) || v_rows
-      );
+      v_tables := jsonb_set(v_tables, array[v_rec.table_name], v_rows);
       -- Recorded only for tables that actually contributed rows, so the list
       -- describes this export rather than the schema's redaction policy in the
-      -- abstract. Deduplicated because a table reached by two FK columns walks
-      -- this branch twice.
+      -- abstract.
       if v_cols is not null then
         v_redacted := array(
           select distinct e
@@ -434,26 +522,25 @@ begin
     end if;
   end loop;
 
-  -- ── 2. The rows no FK reaches ─────────────────────────────────────────────
-  -- The other half of prepare_user_erasure. These are invisible to the loop
-  -- above by construction, so they are the one place this function can fall out
-  -- of step with erasure — hence the pgTAP assertion that the two hand-written
-  -- sets are the same set.
-  select coalesce(jsonb_agg(to_jsonb(r)), '[]'::jsonb) into v_rows
-  from public.rate_limit_events r where r.user_id = p_user_id;
-  if jsonb_array_length(v_rows) > 0 then
-    v_tables := jsonb_set(v_tables, '{rate_limit_events}', v_rows);
-  end if;
-
   -- The subject's own request history (#643). Their record of what they asked
   -- for and when it was answered is their personal data as much as anyone's,
   -- and it is the one table here whose whole purpose is to be producible.
+  --
+  -- Matched on user_id OR the address, exactly as prepare_user_erasure matches
+  -- it. Keying on user_id alone would leave an email-channel request logged
+  -- before the account existed erasable but never exportable — the precise
+  -- asymmetry between the two rights that data_export.test.sql exists to rule
+  -- out. One query rather than two, so a row matching both conditions still
+  -- appears once.
   select coalesce(jsonb_agg(to_jsonb(r)), '[]'::jsonb) into v_rows
-  from public.dsr_requests r where r.user_id = p_user_id;
+  from public.dsr_requests r
+  where r.user_id = p_user_id
+     or (v_email is not null and lower(r.subject_email) = lower(v_email));
   if jsonb_array_length(v_rows) > 0 then
     v_tables := jsonb_set(v_tables, '{dsr_requests}', v_rows);
   end if;
 
+  -- ── 2. Rows keyed by address rather than by id ────────────────────────────
   -- Matched case-insensitively on the address read from auth.users above, the
   -- same match erasure uses. A signup that never became this account keeps its
   -- own consent and retention period and is not this subject's data.
@@ -491,8 +578,9 @@ begin
       'omitted_when_empty', true,
       'redacted_columns', to_jsonb(v_redacted),
       'redaction_note',
-        'Bearer credentials (BYOK API keys, invite and calendar-feed tokens) are shown as "[redacted]". '
-        'A null stays null, so the export still records whether one was set.'
+        'Shown as "[redacted]": bearer credentials (BYOK API keys, invite and calendar-feed tokens), '
+        'and identifiers belonging to someone else (which admin acted on an audit entry). '
+        'A null stays null, so the export still records whether a value was set.'
     )
   );
 end;
@@ -583,9 +671,19 @@ begin
   -- This runs AFTER the insert above, so the erasure entry just written is
   -- anonymized too: its user_id is a bare uuid pointing at an account that is
   -- about to stop existing, exactly like admin_audit_log.target_user_id.
+  --
+  -- Any request still OPEN is closed in the same statement, and it has to be:
+  -- the guard refuses every update to an anonymized row, so stamping one
+  -- without answering it would strand it as permanently unanswerable — showing
+  -- in the admin tab's "Open" filter, accruing overdue days against a clock
+  -- nobody could ever stop, in the one case where the erasure itself is why no
+  -- answer is possible. coalesce rather than a blanket assignment so a request
+  -- already answered keeps the date and outcome it was actually answered with.
   update public.dsr_requests
      set subject_email = null,
-         anonymized_at = now()
+         anonymized_at = now(),
+         fulfilled_at = coalesce(fulfilled_at, now()),
+         outcome = coalesce(outcome, 'closed_account_erased')
    where anonymized_at is null
      and (user_id = p_user_id
           or (v_erased_email is not null and lower(subject_email) = lower(v_erased_email)));

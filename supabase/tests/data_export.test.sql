@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(15);
+select plan(24);
 
 -- Cover for the GDPR access & portability export (#632, 20260811130935).
 -- Companion to context/compliance/data-subject-rights.md §4e.
@@ -59,14 +59,21 @@ select set_config('request.jwt.claims', '{"role":"service_role"}', true);
 -- adds a user-keyed table with no FK to auth.users, it must be added to BOTH
 -- functions, and the first of these fails until it is.
 
-create temp view unreferenced_user_tables as
-  select c.table_name
+-- Matched on `%user_id`, not the literal `user_id`. The narrower form was this
+-- assertion's own blind spot: `admin_audit_log.target_user_id` is a user-keyed
+-- uuid with deliberately no FK, and it sat outside the check entirely — neither
+-- exported nor asserted — while the check read as though it covered everything.
+-- A future `subject_user_id` / `owner_user_id` would have escaped the same way,
+-- which is precisely what 20260811152817's header claims this prevents.
+create temp view unreferenced_user_columns as
+  select c.table_name::text as table_name, c.column_name::text as column_name
   from information_schema.columns c
   join information_schema.tables t
     on t.table_schema = c.table_schema and t.table_name = c.table_name
   where c.table_schema = 'public'
     and t.table_type = 'BASE TABLE'
-    and c.column_name = 'user_id'
+    and c.data_type = 'uuid'
+    and c.column_name ~ '_?user_id$'
     and not exists (
       select 1
       from pg_constraint con
@@ -75,41 +82,45 @@ create temp view unreferenced_user_tables as
       where con.contype = 'f'
         and con.confrelid = 'auth.users'::regclass
         and con.conrelid = ('public.' || c.table_name)::regclass
-        and a.attname = 'user_id'
+        and a.attname = c.column_name
     );
 
 -- Pinned, and this assertion is the one that keeps the next two honest. They
--- are `is_empty` over this set, so an empty set passes them both vacuously —
--- and the set becomes empty the moment someone gives rate_limit_events an FK,
--- at which point two green tests would be asserting nothing at all.
--- `dsr_requests` (#643) joined this set on purpose: an FK would make the
--- erasure request delete its own evidence at the moment it is honoured, so its
--- `user_id` is a bare uuid like admin_audit_log.target_user_id. It is named in
--- both functions below — the export reads it, and erasure anonymizes rather
--- than deletes it.
+-- are `is_empty` over this set, so an empty set would pass both vacuously.
+--
+-- All three are FK-less on purpose:
+--   rate_limit_events.user_id      — high-volume append-only log (20260621000008)
+--   admin_audit_log.target_user_id — the erasure receipt must outlive its subject (§2)
+--   dsr_requests.user_id           — an FK would make the erasure request delete
+--                                    its own evidence at the moment it is honoured
 select set_eq(
-  'select table_name::text from unreferenced_user_tables',
-  $$ values ('rate_limit_events'), ('dsr_requests') $$,
-  'the user-keyed tables with no auth.users FK are exactly the two known ones');
+  $$ select table_name || '.' || column_name from unreferenced_user_columns $$,
+  $$ values ('rate_limit_events.user_id'),
+            ('admin_audit_log.target_user_id'),
+            ('dsr_requests.user_id') $$,
+  'the user-keyed columns with no auth.users FK are exactly the three known ones');
 
 select is_empty(
   $q$
-    -- Each such table is invisible to the FK loop and must be named explicitly
-    -- in export_user_data.
-    select table_name from unreferenced_user_tables
+    -- Each is invisible to the FK loop and must be named explicitly in
+    -- export_user_data.
+    select table_name from unreferenced_user_columns
     where (select prosrc from pg_proc where proname = 'export_user_data') not like '%' || table_name || '%'
   $q$,
-  'every user-keyed table with no auth.users FK is named explicitly in export_user_data');
+  'every user-keyed column with no auth.users FK is named explicitly in export_user_data');
 
 select is_empty(
   $q$
-    -- ...and the same set is cleared by prepare_user_erasure. Asserted in both
-    -- directions: a table the export lists but erasure does not clear is data
-    -- handed to the subject and then kept after they asked for it to go.
-    select table_name from unreferenced_user_tables
+    -- ...and each is named in prepare_user_erasure too. Asserted in both
+    -- directions: a table the export lists but erasure has no position on is
+    -- data handed to the subject and then kept after they asked for it to go.
+    -- "Named" rather than "deleted" is deliberate — erasure's correct handling
+    -- differs per table (delete, anonymize, or deliberately retain as the
+    -- receipt), and what must not happen is a table nobody decided about.
+    select table_name from unreferenced_user_columns
     where (select prosrc from pg_proc where proname = 'prepare_user_erasure') not like '%' || table_name || '%'
   $q$,
-  'the same set is cleared by prepare_user_erasure — export and erasure agree on what has no FK');
+  'the same set is handled by prepare_user_erasure — export and erasure agree on what has no FK');
 
 -- ── 3. Redaction ────────────────────────────────────────────────────────────
 -- The predicate is what stands between a downloaded file and a working BYOK key
@@ -122,6 +133,21 @@ select ok(private.is_credential_column('ical_token'), 'a calendar-feed token is 
 select ok(private.is_credential_column('token'), 'a bare token column is a credential');
 select ok(not private.is_credential_column('input_tokens'), 'a token COUNT is not a credential');
 select ok(not private.is_credential_column('battle_map_show_tokens'), 'a battle-map setting is not a credential');
+
+-- The trap runs both ways, and the second direction is the one that bites in a
+-- D&D schema: an unanchored `%secret%` would match `npcs.secrets` or
+-- `quests.secret_hook` — ordinary campaign prose — and return them as
+-- "[redacted]" in the subject's Art. 15 document. That is an incomplete answer
+-- to an access request wearing the costume of a working export.
+select ok(not private.is_credential_column('secrets'), 'an NPC''s secrets are content, not a credential');
+select ok(not private.is_credential_column('secret_hook'), 'a quest''s secret hook is content, not a credential');
+select ok(private.is_credential_column('encrypted_password'), 'a password column is a credential wherever the word sits');
+
+-- Third-party identifiers are withheld for a different reason (Art. 15(4)) and
+-- through a different predicate, so the two stay independently checkable.
+select ok(private.is_third_party_column('admin_user_id'), 'the acting admin''s id belongs to someone else');
+select ok(private.is_withheld_column('gemini_api_key') and private.is_withheld_column('admin_user_id'),
+  'the projection''s predicate covers both credentials and third-party identifiers');
 
 -- ── 4. Behaviour: two accounts, and the export of one is not the other ──────
 -- The FK loop keys on a uuid, so the failure this guards against is not subtle
@@ -164,6 +190,65 @@ select is(
             -> 'tables' -> 'campaigns' -> 0 ->> 'gemini_api_key'),
   null,
   'an unset credential stays null rather than being reported as redacted');
+
+-- ── 5. A row keyed to the subject twice appears once ────────────────────────
+-- party_members.user_id is the campaign owner and owner_user_id is the player.
+-- For a DM running a character in their own campaign both are the same person,
+-- and querying per column and concatenating returned the sheet twice — which a
+-- consumer re-importing the document (the point of Art. 20) reads as two
+-- characters, or as a primary-key collision.
+
+insert into public.party_members (id, user_id, owner_user_id, campaign_id, name)
+values ('32000000-0000-4000-8000-0000000000a3',
+        '32000000-0000-4000-8000-0000000000a1',
+        '32000000-0000-4000-8000-0000000000a1',
+        '32000000-0000-4000-8000-0000000000a2',
+        'Solo DM character');
+
+select is(
+  (select jsonb_array_length(
+            public.export_user_data('32000000-0000-4000-8000-0000000000a1')
+              -> 'tables' -> 'party_members')),
+  1,
+  'a row matching on two user-keyed columns is exported once, not twice');
+
+-- ── 6. admin_audit_log reaches the subject it is about ──────────────────────
+-- Reached only by target_user_id, which has no FK — so the FK graph alone never
+-- saw it, and a ban, freeze, plan change or credit grant recorded against
+-- someone was absent from their own Art. 15 answer.
+
+insert into public.admin_audit_log (admin_user_id, action, target_user_id, details)
+values ('32000000-0000-4000-8000-0000000000b1', 'account_freeze',
+        '32000000-0000-4000-8000-0000000000a1', '{"reason":"test"}'::jsonb);
+
+select is(
+  (select public.export_user_data('32000000-0000-4000-8000-0000000000a1')
+            -> 'tables' -> 'admin_audit_log' -> 0 ->> 'action'),
+  'account_freeze',
+  'an admin action recorded against the subject is in their export');
+
+select is(
+  (select public.export_user_data('32000000-0000-4000-8000-0000000000a1')
+            -> 'tables' -> 'admin_audit_log' -> 0 ->> 'admin_user_id'),
+  '[redacted]',
+  'but not which admin did it — Art. 15(4), that id belongs to someone else');
+
+-- The acting admin also receives the entry, through `admin_user_id` — which IS
+-- an FK, so the graph reaches it by construction. That is the right answer
+-- rather than an oversight: it is a record of something they did, and an admin
+-- can already read the whole log, so it discloses nothing new to them.
+--
+-- The consequence to know about is that their own id comes back "[redacted]" in
+-- their own export, because the predicate is name-based and cannot tell "your
+-- id" from "someone else's". Withholding an id the subject already has at the
+-- top of the same document is a harmless wrong answer; the reverse — leaking
+-- the operator's id to every requester — is not, so the redaction stays
+-- unconditional.
+select is(
+  (select public.export_user_data('32000000-0000-4000-8000-0000000000b1')
+            -> 'tables' -> 'admin_audit_log' -> 0 ->> 'target_user_id'),
+  '32000000-0000-4000-8000-0000000000a1',
+  'the acting admin receives the entry too, via the admin_user_id FK');
 
 select * from finish();
 rollback;

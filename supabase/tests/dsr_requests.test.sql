@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(19);
+select plan(27);
 
 -- Cover for the data-subject request log (#643, 20260811152817).
 -- Companion to context/compliance/data-subject-rights.md §4f.
@@ -110,6 +110,15 @@ select throws_ok(
 
 -- ── 5. Erasure: the request survives, the person does not ───────────────────
 
+-- An OPEN request at the moment of erasure. The guard refuses every update to
+-- an anonymized row, so stamping this one without also answering it would
+-- strand it as permanently unanswerable — sitting in the admin tab's "Open"
+-- filter accruing overdue days against a clock nobody could stop, in the one
+-- case where the erasure itself is why no answer is possible.
+insert into public.dsr_requests (request_type, channel, user_id, identity_verification, received_at)
+values ('rectification', 'email', '55000000-0000-4000-8000-0000000000a1',
+        'replied from the account address', now() - interval '3 days');
+
 select lives_ok(
   $$ select public.prepare_user_erasure(
        '55000000-0000-4000-8000-0000000000a1',
@@ -120,14 +129,37 @@ select lives_ok(
 select is(
   (select count(*)::int from public.dsr_requests
     where user_id = '55000000-0000-4000-8000-0000000000a1'),
-  3,
-  'both exports and the erasure itself are still on record after erasure preparation');
+  4,
+  'both exports, the open request and the erasure itself are still on record');
 
 select is_empty(
   $q$ select id from public.dsr_requests
        where user_id = '55000000-0000-4000-8000-0000000000a1'
          and anonymized_at is null $q$,
   'every one of the subject''s rows is stamped anonymized');
+
+-- The bug this guards: anonymizing without answering left the row frozen open.
+select is_empty(
+  $q$ select id from public.dsr_requests
+       where user_id = '55000000-0000-4000-8000-0000000000a1'
+         and fulfilled_at is null $q$,
+  'no request is left open and unanswerable behind the anonymized-row guard');
+
+select is(
+  (select outcome from public.dsr_requests
+    where user_id = '55000000-0000-4000-8000-0000000000a1'
+      and request_type = 'rectification'),
+  'closed_account_erased',
+  'the open request is closed with the reason it could not be answered');
+
+-- ...and an already-answered request keeps the outcome it was answered with,
+-- rather than being relabelled by the erasure that came later.
+select is(
+  (select count(distinct outcome)::int from public.dsr_requests
+    where user_id = '55000000-0000-4000-8000-0000000000a1'
+      and request_type = 'access_portability'),
+  1,
+  'requests already fulfilled keep their own outcome');
 
 -- Anonymized means finished. Re-attributing an erased subject's row, or
 -- rewriting its outcome once nobody is left to contradict it, is refused.
@@ -151,6 +183,50 @@ select throws_ok(
   $$ select public.admin_log_dsr_request('access', 'passport check', null, '   ') $$,
   'admin_log_dsr_request: a request needs a subject — an account id or an email address',
   'an email-channel request with no subject at all is refused');
+
+-- ── 6b. The operator is accountable for what they record and answer ─────────
+-- dsr_requests says WHAT was answered; admin_audit_log says WHO answered it.
+-- "Refused" is a decision a person makes, and without these entries the one
+-- table about operator accountability would be where an operator acts
+-- unrecorded.
+
+insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
+values ('55000000-0000-4000-8000-0000000000f9', '00000000-0000-0000-0000-000000000000',
+        'authenticated', 'authenticated', 'dsr-admin@example.invalid', '', now(), now());
+
+select lives_ok(
+  $$ select public.admin_log_dsr_request('access', 'replied from the account address',
+                                         null, 'stranger@example.invalid') $$,
+  'an admin records an email-channel request');
+
+select is(
+  (select count(*)::int from public.admin_audit_log
+    where action = 'dsr_request_logged'
+      and admin_user_id = '55000000-0000-4000-8000-0000000000f9'),
+  1,
+  'recording a request is attributed to the admin who recorded it');
+
+select lives_ok(
+  $$ select public.admin_fulfil_dsr_request(
+       (select id from public.dsr_requests where subject_email = 'stranger@example.invalid'),
+       'refused', 'could not verify identity') $$,
+  'an admin answers it');
+
+select is(
+  (select details ->> 'outcome' from public.admin_audit_log
+    where action = 'dsr_request_answered'
+      and admin_user_id = '55000000-0000-4000-8000-0000000000f9'),
+  'refused',
+  'answering a request is attributed too, with the decision that was made');
+
+-- Reserved for prepare_user_erasure. An operator able to pick it could record a
+-- refusal as though the account had been erased out from under the request.
+select throws_ok(
+  $$ select public.admin_fulfil_dsr_request(
+       (select id from public.dsr_requests where request_type = 'objection' limit 1),
+       'closed_account_erased') $$,
+  'admin_fulfil_dsr_request: closed_account_erased is written only by an erasure',
+  'an operator cannot claim an erasure closed a request');
 
 -- ── 7. The guard lets the retention purge through ───────────────────────────
 -- §4 invariant 2: an append-only guard that does not sanction the one deletion
