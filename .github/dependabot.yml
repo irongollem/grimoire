@@ -6,6 +6,24 @@ version: 2
 # Dependabot PR therefore proves lint + tests + build + a full migration replay
 # before you look at it.
 #
+# ONE PR PER WEEK, deliberately. The first run of the previous config opened
+# fourteen, because per-family grouping still gives every major its own PR and
+# there was a long backlog of them. Fourteen PRs against one lockfile is worse
+# than it looks: merging any one of them invalidates the other thirteen, so
+# each needs a rebase and a fresh CI run, and the review cost is quadratic in
+# the number open. A single grouped PR is one lockfile, one CI run, one review.
+#
+# The tradeoff, stated plainly so it is not a surprise: one incompatible
+# package turns the whole PR red and nothing lands that week. When that
+# happens, do not split the group — the fix is one of:
+#   1. Fix the code. Usually right; a real incompatibility found at review time
+#      is the point of the gate.
+#   2. Add an `ignore` entry below, with a comment saying what breaks and what
+#      condition would let it be removed (see typescript).
+# Security updates are unaffected either way: Dependabot raises those on their
+# own schedule, outside this grouping, so a stuck weekly PR never blocks a CVE
+# fix.
+#
 # Not covered here, so do not read a green Dependabot week as "everything is
 # current":
 #   - supabase/functions/* Deno imports — Dependabot has no Deno ecosystem.
@@ -21,18 +39,26 @@ updates:
       day: "monday"
       time: "06:00"
       timezone: "Europe/Amsterdam"
-    open-pull-requests-limit: 10
-    # Matches the repo's conventional-commit history; `include: scope` yields
-    # `chore(deps): bump …` / `chore(deps-dev): bump …`.
+    # One grouped PR is the whole point; a limit above 1 only matters for
+    # majors that somehow escape the group, and there should be none.
+    open-pull-requests-limit: 2
     commit-message:
       prefix: "chore"
       prefix-development: "chore"
       include: "scope"
 
     ignore:
-      # vue-tsc is deliberately held at 2.2.x — 3.x is a separate rewrite and
-      # breaks the `vue-tsc -b` build step. A major PR here is noise that will
-      # be closed every week.
+      # vue-tsc 2.x cannot load TypeScript 7 AT ALL. `vue-tsc/index.js:7` calls
+      # require.resolve('typescript/lib/tsc'), and TS 7 dropped './lib/tsc'
+      # from its exports map, so `npm run build` dies with
+      # ERR_PACKAGE_PATH_NOT_EXPORTED before compiling a single file (PR #714).
+      # This is not our code to fix and no tsconfig setting reaches it.
+      # REMOVE THIS when vue-tsc ships a release supporting TS 7 — and note
+      # that unblocking it means moving vue-tsc off the 2.2.x pin below, so the
+      # two ignores have to lift together.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      # vue-tsc is deliberately held at 2.2.x — 3.x is a separate rewrite.
       - dependency-name: "vue-tsc"
         update-types: ["version-update:semver-major"]
       # An optional platform binding that must track whatever Rolldown version
@@ -40,39 +66,12 @@ updates:
       # best a no-op and at worst a mismatched native binary.
       - dependency-name: "@rolldown/binding-darwin-arm64"
 
-    # Group order is significant: Dependabot assigns a dependency to the FIRST
-    # group it matches. The named families come first because they release in
-    # lockstep — a PR bumping one @tiptap package without its siblings does not
-    # install. The two catch-alls then sweep up everything else at minor/patch,
-    # which leaves every remaining major as its own PR. That is intentional:
-    # a major deserves a review of its own, not a line in a batch of twenty.
     groups:
-      tiptap:
+      all-dependencies:
         patterns:
-          - "@tiptap/*"
-      tailwind:
-        patterns:
-          - "tailwindcss"
-          - "@tailwindcss/*"
-      vue-core:
-        patterns:
-          - "vue"
-          - "vue-router"
-      vite-toolchain:
-        patterns:
-          - "vite"
-          - "vitest"
-          - "@vitejs/*"
-          - "@vitest/*"
-      gltf-transform:
-        patterns:
-          - "@gltf-transform/*"
-      production-dependencies:
-        dependency-type: "production"
-        update-types: ["minor", "patch"]
-      development-dependencies:
-        dependency-type: "development"
-        update-types: ["minor", "patch"]
+          - "*"
+        # No `update-types` filter: majors ride along too. That is what makes
+        # it one PR rather than one-plus-N.
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -81,11 +80,12 @@ updates:
       day: "monday"
       time: "06:00"
       timezone: "Europe/Amsterdam"
+    open-pull-requests-limit: 1
     commit-message:
       prefix: "chore"
       include: "scope"
-    # One PR for all action bumps: they are independent of each other and each
-    # is a one-line diff, so separate PRs buy nothing.
+    # Separate from the npm PR because Dependabot cannot mix ecosystems in one
+    # PR. In practice this is silent for months at a time.
     groups:
       github-actions:
         patterns:
