@@ -10,8 +10,8 @@ jobs:
   application:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -23,7 +23,7 @@ jobs:
   spell-database:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         # Full history: the version guard below compares this branch's
         # migrations against origin/main, and the default shallow clone has no
         # origin/main to compare against — it would skip its most important
@@ -36,7 +36,11 @@ jobs:
       # two production incidents that justify it.
       - name: Migration versions are unique and land after main
         run: sh scripts/check-migration-versions.sh
-      - uses: supabase/setup-cli@v1
+      # setup-cli v3 installs the CLI from the npm `supabase` package rather
+      # than a GitHub release, so a version pinned here must exist on npm — the
+      # two publication streams are not guaranteed to carry the same tags. It
+      # also dropped the `github-token` input, which this repo never passed.
+      - uses: supabase/setup-cli@v3
         with:
           version: 2.109.1
       - name: Start migrated local database
@@ -60,7 +64,7 @@ jobs:
     outputs:
       supabase: ${{ steps.changes.outputs.supabase }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # The push may contain several commits; the before SHA must be
           # available so path detection covers the complete push.
@@ -100,9 +104,9 @@ jobs:
       # behaviour survives intact.
       STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: supabase/setup-cli@v1
+      - uses: supabase/setup-cli@v3
         with:
           version: 2.109.1
 
@@ -114,7 +118,7 @@ jobs:
       #
       # Deliberately before `db push`: a config mismatch should fail while
       # production is still untouched, not after migrations have landed.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: env.STRIPE_SECRET_KEY != ''
         with:
           node-version: 24
