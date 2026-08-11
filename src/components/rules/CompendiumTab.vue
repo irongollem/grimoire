@@ -2,15 +2,14 @@
   <div class="flex h-full min-h-0">
     <!-- Sidebar: rule tree -->
     <div class="w-64 shrink-0 flex flex-col gap-2 overflow-y-auto px-4 pt-4 pb-4 md:px-6 md:pt-6">
-      <div class="relative">
-        <IconSearch class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-        <input
-          v-model="search"
-          type="text"
-          placeholder="Search rules…"
-          class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        />
-      </div>
+      <ListFilterBar
+        :has-active-filters="ui.compendiumHasActiveFilters"
+        @clear="ui.resetCompendiumFilters()"
+      >
+        <template #above>
+          <ListSearchInput v-model="ui.compendiumSearch" :inline="false" placeholder="Search rules…" />
+        </template>
+      </ListFilterBar>
 
       <div v-if="isLoading" class="flex justify-center py-8">
         <LoadingSpinner />
@@ -26,7 +25,7 @@
 
       <template v-else>
         <!-- IconSearch results (flat) -->
-        <template v-if="search.trim()">
+        <template v-if="ui.compendiumSearch.trim()">
           <button
             v-for="rule in searchResults"
             :key="rule.id"
@@ -92,14 +91,18 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { renderBasicMarkdown } from "@/lib/sanitizeHtml";
-import { IconSearch } from '@/lib/icons';
 import { useLibraryRules } from "@/composables/useRules";
+import { useUiStore } from "@/stores/ui";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import ListFilterBar from "@/components/common/ListFilterBar.vue";
+import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import type { LibraryRule } from "@/types/rule.types";
 
 const { data: libraryRules, isLoading, error } = useLibraryRules();
 
-const search = ref("");
+// Filter State Pattern — the sidebar query survives leaving the Reliquary and
+// coming back. `selected` stays local: it is a cursor, not a filter.
+const ui = useUiStore();
 const selected = ref<LibraryRule | null>(null);
 
 const rootRules = computed(() =>
@@ -111,7 +114,7 @@ function childrenOf(slug: string): LibraryRule[] {
 }
 
 const searchResults = computed(() => {
-  const q = search.value.toLowerCase().trim();
+  const q = ui.compendiumSearch.toLowerCase().trim();
   if (!q) return [];
   return (libraryRules.value ?? []).filter(
     (r) => r.name.toLowerCase().includes(q) || r.content.toLowerCase().includes(q)

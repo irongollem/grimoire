@@ -140,7 +140,7 @@ All mutations call `queryClient.invalidateQueries({ queryKey: ["notes"] })` on s
 - Each card is the extracted `NoteCard` (`src/components/notes/NoteCard.vue`), reused by both the static grid and the draggable grid
 - Category colour map: `general=#6b7280`, `session=#2563eb`, `lore=#7c3aed`, `location=#059669`, `quest=#d97706`, `faction=#dc2626`
 - Content preview via `extractTiptapText(note.content)` from `src/lib/utils.ts`
-- Filter state (search + category) is stored in local `ref`s; sort state is in `useUiStore`
+- Filter state (search + category), sort state and the Clear button all live in `useUiStore` — `notesSearchQuery`, `notesFilterCategory`, `notesHasActiveFilters`, `resetNotesFilters`, `notesSortBy`, `notesSortDir` (#723). The bar itself is the shared `ListFilterBar` / `ListSearchInput` / `ListFilterGroup` trio, not hand-rolled markup
 - **Session sequence:** filter to the Session category + Manual sort to drag session notes into the order they should read (the `Session N` label / `session_num` is unaffected — `sort_order` is a separate column)
 
 **`src/components/notes/NoteEditor.vue`**
@@ -543,7 +543,7 @@ The inline calendar event reference chip is a custom Tiptap node:
 
 5. **`content` field is Tiptap JSON string**: Use `RichTextViewer` to display, `RichTextEditor` to edit. Never use `<textarea>`. For content previews, use `extractTiptapText(content)` from `src/lib/utils.ts`.
 
-6. **Filter state in NotesList**: The text search and category filter are in local `ref`s inside `NotesList.vue` (not `useUiStore`). This is the current state — if the filter set grows more complex, migrate to `useUiStore`.
+6. **Filter state in NotesList**: search, category and sort are all in `useUiStore` (#723). Before that fix the sort was in the store and the search/category next to it were local `ref`s — half the pattern applied, which is exactly how it survived. Do not reintroduce a local filter `ref` here.
 
 7. **Notes quota**: `useQuota("notes")` checks the `check_quota` RPC. On quota exceeded, show `PaywallModal` with `resource="notes"`. Both `NotesView` and `NoteEditor` do this independently.
 

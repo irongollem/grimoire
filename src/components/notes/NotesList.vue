@@ -1,38 +1,26 @@
 <template>
   <div>
     <!-- Filters -->
-    <div class="flex flex-wrap items-center gap-2 mb-5">
-      <div class="relative flex-1 min-w-48">
-        <IconSearch class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-        <input
-          v-model="search"
-          type="text"
-          placeholder="Search notes…"
-          class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        />
-      </div>
+    <ListFilterBar
+      class="mb-5"
+      :has-active-filters="ui.notesHasActiveFilters"
+      @clear="ui.resetNotesFilters()"
+    >
+      <ListSearchInput v-model="ui.notesSearchQuery" placeholder="Search notes…" />
       <SortControl v-model:sort-by="sortBy" v-model:sort-dir="sortDir" :options="SORT_OPTIONS" />
-      <div class="flex rounded-md border border-border overflow-hidden text-label-lg font-semibold">
-        <button
-          v-for="cat in CATEGORY_OPTIONS"
-          :key="cat.value"
-          class="px-2.5 py-1.5 transition-colors"
-          :class="categoryFilter === cat.value
-            ? 'bg-primary text-primary-foreground'
-            : 'bg-card text-muted-foreground hover:text-foreground'"
-          @click="categoryFilter = cat.value"
-        >
-          {{ cat.label }}
-        </button>
-      </div>
-    </div>
+      <ListFilterGroup
+        v-model="ui.notesFilterCategory"
+        :options="CATEGORY_OPTIONS"
+        aria-label="Note category filter"
+      />
+    </ListFilterBar>
 
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
     </div>
 
     <EmptyState
-      v-else-if="!filtered.length && !search && categoryFilter === 'all'"
+      v-else-if="!filtered.length && !ui.notesHasActiveFilters"
       title="No notes yet"
       description="Begin recording your campaign's history, lore, and secrets."
     >
@@ -94,15 +82,18 @@ import { ref, computed, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { useRouter } from "vue-router";
 import { VueDraggable } from "vue-draggable-plus";
-import { IconNavNotes, IconSearch } from '@/lib/icons';
+import { IconNavNotes } from '@/lib/icons';
 import { useNotes, useReorderNotes } from "@/composables/useNotes";
 import { useUiStore } from "@/stores/ui";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import SortControl from "@/components/common/SortControl.vue";
+import ListFilterBar from "@/components/common/ListFilterBar.vue";
+import ListFilterGroup from "@/components/common/ListFilterGroup.vue";
+import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import NoteCard from "@/components/notes/NoteCard.vue";
 import { sortEntities, type SortField } from "@/lib/noteSort";
-import type { Note } from "@/types/notes.types";
+import type { Note, NoteCategory } from "@/types/notes.types";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useQuota } from "@/composables/useQuota";
 
@@ -123,7 +114,7 @@ const CATEGORY_OPTIONS = [
   { value: "location", label: "Location" },
   { value: "quest", label: "Quest" },
   { value: "faction", label: "Faction" },
-];
+] as const satisfies readonly { value: NoteCategory | "all"; label: string }[];
 
 const SORT_OPTIONS = [
   { value: "created", label: "Created" },
@@ -132,12 +123,13 @@ const SORT_OPTIONS = [
   { value: "manual", label: "Manual" },
 ] as const satisfies readonly { value: SortField; label: string }[];
 
-const search = ref("");
-const categoryFilter = ref("all");
 const { data: notes, isLoading } = useNotes();
 const { mutate: reorder } = useReorderNotes();
 
-const { notesSortBy: sortBy, notesSortDir: sortDir } = storeToRefs(useUiStore());
+// Search + category live in the store so they survive navigating into a note
+// and back (Filter State Pattern) — the same place the sort already lived.
+const ui = useUiStore();
+const { notesSortBy: sortBy, notesSortDir: sortDir } = storeToRefs(ui);
 
 const lockedNoteIds = computed((): Set<string> => {
   const q = noteQuota.value;
@@ -151,9 +143,9 @@ const lockedNoteIds = computed((): Set<string> => {
 
 const filtered = computed((): Note[] => {
   let list = notes.value ?? [];
-  if (categoryFilter.value !== "all") list = list.filter((n) => n.category === categoryFilter.value);
-  if (search.value.trim()) {
-    const q = search.value.trim().toLowerCase();
+  if (ui.notesFilterCategory !== "all") list = list.filter((n) => n.category === ui.notesFilterCategory);
+  if (ui.notesSearchQuery.trim()) {
+    const q = ui.notesSearchQuery.trim().toLowerCase();
     list = list.filter((n) =>
       n.title.toLowerCase().includes(q) ||
       n.tags.some((t) => t.toLowerCase().includes(q))

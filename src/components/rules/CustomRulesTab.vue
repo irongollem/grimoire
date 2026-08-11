@@ -1,34 +1,17 @@
 <template>
   <div class="overflow-y-auto h-full px-4 pt-4 pb-4 md:px-6 md:pt-6">
     <!-- Filters + new button -->
-    <div class="flex flex-wrap items-center gap-2 mb-5">
-      <div class="relative flex-1 min-w-48">
-        <IconSearch class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-        <input
-          v-model="search"
-          type="text"
-          placeholder="Search custom rules…"
-          class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        />
-      </div>
-
-      <select
-        v-model="categoryFilter"
-        class="bg-card border border-border rounded-md px-2.5 py-1.5 font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-      >
+    <ListFilterBar
+      class="mb-5"
+      :has-active-filters="ui.customRulesHasActiveFilters"
+      @clear="ui.resetCustomRulesFilters()"
+    >
+      <ListSearchInput v-model="search" placeholder="Search custom rules…" />
+      <ListFilterSelect v-model="categoryFilter" aria-label="Rule category filter">
         <option value="">All categories</option>
         <option v-for="cat in RULE_CATEGORIES" :key="cat" :value="cat">{{ cat }}</option>
-      </select>
-
-      <button
-        v-if="ui.customRulesHasActiveFilters"
-        type="button"
-        class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors shrink-0"
-        @click="ui.resetCustomRulesFilters()"
-      >
-        Clear
-      </button>
-    </div>
+      </ListFilterSelect>
+    </ListFilterBar>
 
     <!-- ── Active built-in optional rules ──────────────────────────────── -->
     <div v-if="enabledBuiltIns.length" class="mb-6 space-y-2">
@@ -134,13 +117,16 @@
 <script setup lang="ts">
 import { computed, shallowRef } from "vue";
 import { renderBasicMarkdown } from "@/lib/sanitizeHtml";
-import { IconChevronRight, IconReveal, IconSearch } from '@/lib/icons';
+import { IconChevronRight, IconReveal } from '@/lib/icons';
 import { useRules } from "@/composables/useRules";
 import { RULE_CATEGORIES } from "@/types/rule.types";
 import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/useOptionalRules";
 import { listOptionalRules } from "@/rules/optionalRules";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
+import ListFilterBar from "@/components/common/ListFilterBar.vue";
+import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
+import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import { useUiStore } from "@/stores/ui";
 
 const { data: rules, isLoading } = useRules();

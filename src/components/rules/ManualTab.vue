@@ -2,17 +2,17 @@
   <div class="flex h-full min-h-0">
     <!-- Sidebar -->
     <div class="w-64 shrink-0 flex flex-col gap-1 overflow-y-auto px-4 pt-4 pb-4 md:px-6 md:pt-6">
-      <div class="relative mb-1">
-        <IconSearch class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-        <input
-          v-model="search"
-          type="text"
-          placeholder="Search manual…"
-          class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        />
-      </div>
+      <ListFilterBar
+        class="mb-1"
+        :has-active-filters="ui.manualHasActiveFilters"
+        @clear="ui.resetManualFilters()"
+      >
+        <template #above>
+          <ListSearchInput v-model="ui.manualSearch" :inline="false" placeholder="Search manual…" />
+        </template>
+      </ListFilterBar>
 
-      <template v-if="search.trim()">
+      <template v-if="ui.manualSearch.trim()">
         <button
           v-for="page in searchResults"
           :key="page.id"
@@ -85,8 +85,11 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { IconBookMarked, IconPopulate, IconSearch } from '@/lib/icons';
+import { IconBookMarked, IconPopulate } from '@/lib/icons';
 import { manualSections } from "@/lib/manualLoader";
+import { useUiStore } from "@/stores/ui";
+import ListFilterBar from "@/components/common/ListFilterBar.vue";
+import ListSearchInput from "@/components/common/ListSearchInput.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -108,10 +111,11 @@ watch(selectedId, () => {
   contentEl.value?.scrollTo({ top: 0 });
 });
 
-const search = ref("");
+// Filter State Pattern — the manual query survives navigating away and back.
+const ui = useUiStore();
 
 const searchResults = computed(() => {
-  const q = search.value.trim().toLowerCase();
+  const q = ui.manualSearch.trim().toLowerCase();
   if (!q) return allPages.value;
   return allPages.value.filter(
     (p) =>

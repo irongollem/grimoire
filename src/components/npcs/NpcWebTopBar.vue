@@ -12,52 +12,45 @@
     <ManualHelpLink page="npc-relationship-web" />
 
     <div class="ml-auto flex items-center gap-2 flex-wrap">
-      <!-- Search -->
-      <div class="relative">
-        <IconSearch class="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-        <input
-          :value="searchQuery"
-          type="text"
+      <ListFilterBar :has-active-filters="hasActiveFilters" @clear="$emit('clear')">
+        <!--
+          Narrower than the list-page default: this bar also carries the page
+          title and the legend, so the search does not get to grow into it.
+        -->
+        <ListSearchInput
+          v-model="searchModel"
+          :inline="false"
           placeholder="Filter nodes…"
-          class="pl-7 pr-3 py-1.5 rounded-md border border-border bg-card text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring w-36"
-          @input="$emit('update:searchQuery', ($event.target as HTMLInputElement).value)"
+          class="max-w-36"
         />
-      </div>
 
-      <!-- Show PCs toggle -->
-      <button
-        type="button"
-        class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-label-lg font-semibold transition-colors"
-        :class="showPcs
-          ? 'bg-amber-500/20 border-amber-500/50 text-amber-400'
-          : 'border-border text-muted-foreground hover:text-foreground'"
-        @click="$emit('update:showPcs', !showPcs)"
-      >
-        <IconShield class="h-3 w-3" />
-        Party Members
-      </button>
+        <!--
+          Show-PCs toggle. `tinted`/`caution` when on is the tokenised form of
+          the amber this used to hard-code; `outline` off keeps it neutral, so
+          the two states still read as on/off rather than two shades of amber.
+        -->
+        <AppButton
+          :variant="showPcs ? 'tinted' : 'outline'"
+          tone="caution"
+          emphasis="strong"
+          size="md"
+          :icon="IconShield"
+          label="Party Members"
+          @click="$emit('update:showPcs', !showPcs)"
+        />
 
-      <!-- Location filter -->
-      <select
-        :value="locationFilter"
-        class="px-2.5 py-1.5 rounded-md border border-border bg-card font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        @change="$emit('update:locationFilter', ($event.target as HTMLSelectElement).value)"
-      >
-        <option value="">All Locations</option>
-        <option v-for="loc in locationOptions" :key="loc.id" :value="loc.id">
-          {{ '  '.repeat(loc.depth) }}{{ loc.name }}
-        </option>
-      </select>
+        <ListFilterSelect v-model="locationModel" aria-label="Location filter">
+          <option value="">All Locations</option>
+          <option v-for="loc in locationOptions" :key="loc.id" :value="loc.id">
+            {{ '  '.repeat(loc.depth) }}{{ loc.name }}
+          </option>
+        </ListFilterSelect>
 
-      <!-- Relationship type filter -->
-      <select
-        :value="typeFilter"
-        class="px-2.5 py-1.5 rounded-md border border-border bg-card font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        @change="$emit('update:typeFilter', ($event.target as HTMLSelectElement).value as NpcRelationshipType | '')"
-      >
-        <option value="">All Relationships</option>
-        <option v-for="[k, label] in typeOptions" :key="k" :value="k">{{ label }}</option>
-      </select>
+        <ListFilterSelect v-model="typeModel" aria-label="Relationship type filter">
+          <option value="">All Relationships</option>
+          <option v-for="[k, label] in typeOptions" :key="k" :value="k">{{ label }}</option>
+        </ListFilterSelect>
+      </ListFilterBar>
 
       <!-- Legend -->
       <div class="flex items-center gap-3 pl-2 border-l border-border">
@@ -75,8 +68,13 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import { RouterLink } from 'vue-router';
-import { IconChevronLeft, IconSearch, IconShield } from '@/lib/icons';
+import { IconChevronLeft, IconShield } from '@/lib/icons';
+import AppButton from '@/components/common/AppButton.vue';
+import ListFilterBar from '@/components/common/ListFilterBar.vue';
+import ListFilterSelect from '@/components/common/ListFilterSelect.vue';
+import ListSearchInput from '@/components/common/ListSearchInput.vue';
 import ManualHelpLink from '@/components/common/ManualHelpLink.vue';
 import type { NpcRelationshipType } from '@/types/npc.types';
 
@@ -102,12 +100,30 @@ const {
   locationOptions: LocationOption[];
   typeOptions: [NpcRelationshipType, string][];
   legendItems: [string, string][];
+  /** Drives the Clear button in the filter bar. */
+  hasActiveFilters?: boolean;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   'update:searchQuery': [value: string];
   'update:showPcs': [value: boolean];
   'update:locationFilter': [value: string];
   'update:typeFilter': [value: NpcRelationshipType | ''];
+  clear: [];
 }>();
+
+// The list primitives take a v-model; the bar stays prop/emit-driven so the
+// view owns where the state lives. These bridge the two.
+const searchModel = computed({
+  get: () => searchQuery,
+  set: (v) => emit('update:searchQuery', v),
+});
+const locationModel = computed({
+  get: () => locationFilter,
+  set: (v) => emit('update:locationFilter', v),
+});
+const typeModel = computed({
+  get: () => typeFilter as string,
+  set: (v) => emit('update:typeFilter', v as NpcRelationshipType | ''),
+});
 </script>

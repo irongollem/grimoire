@@ -2,13 +2,15 @@
   <div class="flex flex-col h-[calc(100vh-3.5rem)] overflow-hidden">
     <!-- Top bar -->
     <NpcWebTopBar
-      v-model:search-query="searchQuery"
-      v-model:show-pcs="showPcs"
-      v-model:location-filter="locationFilter"
-      v-model:type-filter="typeFilter"
+      v-model:search-query="ui.npcWebSearch"
+      v-model:show-pcs="ui.npcWebShowPcs"
+      v-model:location-filter="ui.npcWebFilterLocation"
+      v-model:type-filter="ui.npcWebFilterType"
       :location-options="locationOptions"
       :type-options="typeOptions"
       :legend-items="legendItems"
+      :has-active-filters="ui.npcWebHasActiveFilters"
+      @clear="ui.resetNpcWebFilters()"
     />
 
     <!-- Graph area (fills remaining space; panel overlays it so the graph never resizes) -->
@@ -108,6 +110,7 @@ import { useSpeciesNameMap } from "@/composables/useSpecies";
 import { useLocationTree } from "@/composables/useLocations";
 import { useAllNpcRelations, useCreateNpcRelation, useUpdateNpcRelation, useDeleteNpcRelation } from "@/composables/useNpcRelations";
 import { useAllNpcPcNotes, useUpsertNpcPcNoteDirect, useDeleteNpcPcNote } from "@/composables/useNpcPcNotes";
+import { useUiStore } from "@/stores/ui";
 import {
   NPC_RELATIONSHIP_TYPE_LABELS,
   NPC_RELATIONSHIP_TYPE_COLORS,
@@ -116,11 +119,10 @@ import {
 import type { NpcRelationshipType } from "@/types/npc.types";
 
 // ── Filters ───────────────────────────────────────────────────────────────────
+// In useUiStore (Filter State Pattern), so opening an NPC from the web and
+// coming back does not drop the query and the location/type narrowing.
 
-const showPcs = ref(true);
-const typeFilter = ref<NpcRelationshipType | "">("");
-const locationFilter = ref("");
-const searchQuery = ref("");
+const ui = useUiStore();
 
 const typeOptions = Object.entries(NPC_RELATIONSHIP_TYPE_LABELS) as [NpcRelationshipType, string][];
 const { locationOptions, getDescendantIds } = useLocationTree();
@@ -171,9 +173,9 @@ function npcMatchesSearch(npc: { name: string; disguise_name?: string | null }, 
 
 const graphNodes = computed(() => {
   const nodes: Record<string, { name: string; nodeType: "npc" | "pc"; nodeColor: string; nodeSize: number }> = {};
-  const q = searchQuery.value.trim();
+  const q = ui.npcWebSearch.trim();
 
-  const locationDescendants = locationFilter.value ? getDescendantIds(locationFilter.value) : null;
+  const locationDescendants = ui.npcWebFilterLocation ? getDescendantIds(ui.npcWebFilterLocation) : null;
 
   for (const npc of allNpcs.value ?? []) {
     const key = `npc:${npc.id}`;
@@ -187,7 +189,7 @@ const graphNodes = computed(() => {
     };
   }
 
-  if (showPcs.value) {
+  if (ui.npcWebShowPcs) {
     for (const pc of partyMembers.value ?? []) {
       const key = `pc:${pc.id}`;
       if (q && !pc.name.toLowerCase().includes(q.toLowerCase()) && !pinnedKeys.value.has(key)) continue;
@@ -208,7 +210,7 @@ const graphEdges = computed(() => {
 
   for (const rel of npcRelations.value ?? []) {
     const rawType = rel.relationship_type as NpcRelationshipType;
-    if (typeFilter.value && rawType !== typeFilter.value && NPC_RELATIONSHIP_INVERSE[rawType] !== typeFilter.value) {
+    if (ui.npcWebFilterType && rawType !== ui.npcWebFilterType && NPC_RELATIONSHIP_INVERSE[rawType] !== ui.npcWebFilterType) {
       continue;
     }
     const a = `npc:${rel.npc_id}`;
@@ -224,9 +226,9 @@ const graphEdges = computed(() => {
     }
   }
 
-  if (showPcs.value) {
+  if (ui.npcWebShowPcs) {
     for (const note of pcNotes.value ?? []) {
-      if (typeFilter.value && note.relationship_type !== typeFilter.value) continue;
+      if (ui.npcWebFilterType && note.relationship_type !== ui.npcWebFilterType) continue;
       const npcKey = `npc:${note.npc_id}`;
       const pcKey = `pc:${note.party_member_id}`;
       const key = `${npcKey}--${pcKey}`;

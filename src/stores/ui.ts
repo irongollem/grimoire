@@ -5,7 +5,7 @@ import type { NoteCategory } from "@/types/notes.types";
 import type { BoardMode, PadSize } from "@/types/sound.types";
 import type { JournalCategory } from "@/composables/usePlayerJournal";
 import type { SortField, SortDir } from "@/lib/noteSort";
-import type { NpcStatus, NpcRelationship } from "@/types/npc.types";
+import type { NpcStatus, NpcRelationship, NpcRelationshipType } from "@/types/npc.types";
 import type { ScriptoriumDocType } from "@/types/scriptorium.types";
 import type { ItemType, ItemRarity } from "@/types/item.types";
 import type { CraftingDiscipline } from "@/types/crafting.types";
@@ -17,9 +17,11 @@ import type { AdminAuditAction } from "@/composables/useAdminAuditLog";
 export const useUiStore = defineStore("ui", () => {
   // Notes UI state
   const notesFilterCategory = ref<NoteCategory | "all">("all");
-  const notesFilterTags = ref<string[]>([]);
   const notesSearchQuery = ref("");
   const activeNoteId = ref<string | null>(null);
+  const notesHasActiveFilters = computed(
+    () => notesSearchQuery.value !== "" || notesFilterCategory.value !== "all",
+  );
   // Sort state — DM notes list and player journal (shared default: newest created first)
   const notesSortBy = ref<SortField>("created");
   const notesSortDir = ref<SortDir>("desc");
@@ -35,8 +37,18 @@ export const useUiStore = defineStore("ui", () => {
 
   // Scriptorium UI state
   const scriptoriumPreviewMode = ref<"split" | "edit" | "preview">("split");
+  const scriptoriumSearch = ref("");
   const scriptoriumFilterType = ref<ScriptoriumDocType | "all">("all");
   const activeScriptoriumDocId = ref<string | null>(null);
+
+  const scriptoriumHasActiveFilters = computed(
+    () => scriptoriumSearch.value !== "" || scriptoriumFilterType.value !== "all",
+  );
+
+  function resetScriptoriumFilters() {
+    scriptoriumSearch.value = "";
+    scriptoriumFilterType.value = "all";
+  }
 
   // NPC UI state
   const npcsFilterStatus = ref<NpcStatus | "all">("all");
@@ -56,6 +68,29 @@ export const useUiStore = defineStore("ui", () => {
     npcsFilterPartyMember.value !== "" ||
     npcsFilterSortBy.value !== "location",
   );
+
+  // NPC relationship web. A graph is not a list, but its filters are filters —
+  // losing them on every navigation away is the same annoyance the pattern
+  // exists to prevent, so it gets the same treatment. `showPcs` defaults on, so
+  // "active" means it has been switched off.
+  const npcWebSearch = ref("");
+  const npcWebShowPcs = ref(true);
+  const npcWebFilterLocation = ref("");
+  const npcWebFilterType = ref<NpcRelationshipType | "">("");
+
+  const npcWebHasActiveFilters = computed(() =>
+    npcWebSearch.value !== "" ||
+    !npcWebShowPcs.value ||
+    npcWebFilterLocation.value !== "" ||
+    npcWebFilterType.value !== "",
+  );
+
+  function resetNpcWebFilters() {
+    npcWebSearch.value = "";
+    npcWebShowPcs.value = true;
+    npcWebFilterLocation.value = "";
+    npcWebFilterType.value = "";
+  }
 
   // Monster UI state
   const monstersSearch = ref("");
@@ -302,6 +337,17 @@ export const useUiStore = defineStore("ui", () => {
     customRulesSearch.value = "";
     customRulesFilterCategory.value = "";
   }
+
+  // Reliquary → Compendium tab (library rules tree). The sidebar search is the
+  // whole filter set, so hasActiveFilters is just "is there a query".
+  const compendiumSearch = ref("");
+  const compendiumHasActiveFilters = computed(() => compendiumSearch.value !== "");
+  function resetCompendiumFilters() { compendiumSearch.value = ""; }
+
+  // Reliquary → Manual tab
+  const manualSearch = ref("");
+  const manualHasActiveFilters = computed(() => manualSearch.value !== "");
+  function resetManualFilters() { manualSearch.value = ""; }
 
   // Class Features (Abilities) UI state
   const featuresSearch = ref("");
@@ -703,7 +749,6 @@ export const useUiStore = defineStore("ui", () => {
 
   function resetNotesFilters() {
     notesFilterCategory.value = "all";
-    notesFilterTags.value = [];
     notesSearchQuery.value = "";
   }
 
@@ -719,8 +764,8 @@ export const useUiStore = defineStore("ui", () => {
   return {
     // Notes
     notesFilterCategory,
-    notesFilterTags,
     notesSearchQuery,
+    notesHasActiveFilters,
     activeNoteId,
     notesSortBy,
     notesSortDir,
@@ -736,7 +781,10 @@ export const useUiStore = defineStore("ui", () => {
 
     // Scriptorium
     scriptoriumPreviewMode,
+    scriptoriumSearch,
     scriptoriumFilterType,
+    scriptoriumHasActiveFilters,
+    resetScriptoriumFilters,
     activeScriptoriumDocId,
 
     // NPCs
@@ -750,6 +798,14 @@ export const useUiStore = defineStore("ui", () => {
     activeNpcId,
     npcGeneratorOpen,
     resetNpcsFilters,
+
+    // NPC relationship web
+    npcWebSearch,
+    npcWebShowPcs,
+    npcWebFilterLocation,
+    npcWebFilterType,
+    npcWebHasActiveFilters,
+    resetNpcWebFilters,
 
     // Monsters
     monstersSearch,
@@ -909,6 +965,16 @@ export const useUiStore = defineStore("ui", () => {
     customRulesFilterCategory,
     customRulesHasActiveFilters,
     resetCustomRulesFilters,
+
+    // Reliquary → Compendium
+    compendiumSearch,
+    compendiumHasActiveFilters,
+    resetCompendiumFilters,
+
+    // Reliquary → Manual
+    manualSearch,
+    manualHasActiveFilters,
+    resetManualFilters,
 
     // Class Features (Abilities)
     featuresSearch,

@@ -242,6 +242,9 @@ Only one edge is drawn per pair regardless of directionality (the inverse type i
 | Location dropdown          | Shows only NPCs at that location (including descendants)                             |
 | Relationship type dropdown | Shows only edges of that type (considering inverse)                                  |
 | Legend                     | Colour swatches for Ally/Neutral/Enemy + dashed line = PC link                       |
+| Clear                      | Appears when any of the four is active; calls `resetNpcWebFilters()`                 |
+
+All four live in `useUiStore` (`npcWebSearch`, `npcWebShowPcs`, `npcWebFilterLocation`, `npcWebFilterType`) and survive navigating to an NPC sheet and back (#723). A graph is not a list, which is why the Filter State Pattern audit skipped it — but the filters are filters, so it gets the same treatment. `NpcWebTopBar` stays prop/emit-driven (the view owns where the state lives) and bridges to the `ListSearchInput` / `ListFilterSelect` v-models with local writable computeds.
 
 ### Side Panel
 

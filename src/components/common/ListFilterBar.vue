@@ -20,7 +20,12 @@
       <slot name="above" />
     </div>
 
-    <div class="flex flex-wrap items-center gap-2 md:min-w-0">
+    <!--
+      A bar whose only control is the `above` search (the Reliquary sidebars)
+      has nothing in this row until Clear appears. Rendering it anyway would
+      leave the wrapper's `gap-2` as dead space under the search, so skip it.
+    -->
+    <div v-if="$slots.default || hasActiveFilters" class="flex flex-wrap items-center gap-2 md:min-w-0">
       <slot />
 
       <!--

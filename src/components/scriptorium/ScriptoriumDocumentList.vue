@@ -1,42 +1,29 @@
 <template>
   <div>
     <!-- Filters bar -->
-    <div class="flex flex-wrap items-center gap-2 mb-5">
-      <div class="relative flex-1 min-w-48">
-        <IconSearch
-          class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground"
-        />
-        <input
-          v-model="search"
-          type="text"
-          placeholder="Search documents…"
-          class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        />
-      </div>
-
-      <div class="flex flex-wrap gap-1">
-        <button
-          v-for="t in TYPE_OPTIONS"
-          :key="t.value"
-          class="px-2.5 py-1.5 rounded border border-border text-label-lg font-semibold transition-colors"
-          :class="
-            typeFilter === t.value
-              ? 'bg-primary text-primary-foreground border-primary'
-              : 'bg-card text-muted-foreground hover:text-foreground'
-          "
-          @click="typeFilter = t.value"
-        >
-          {{ t.label }}
-        </button>
-      </div>
-    </div>
+    <ListFilterBar
+      class="mb-5"
+      :has-active-filters="ui.scriptoriumHasActiveFilters"
+      @clear="ui.resetScriptoriumFilters()"
+    >
+      <ListSearchInput v-model="ui.scriptoriumSearch" placeholder="Search documents…" />
+      <!--
+        Ten doc types is past what a segmented group can hold: joined segments
+        do not wrap, so at md widths the tail gets clipped. Same call the
+        Bestiary makes for its 14 creature types — a native select lists them
+        compactly and opens the OS picker on touch.
+      -->
+      <ListFilterSelect v-model="typeFilter" aria-label="Document type filter">
+        <option v-for="t in TYPE_OPTIONS" :key="t.value" :value="t.value">{{ t.label }}</option>
+      </ListFilterSelect>
+    </ListFilterBar>
 
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
     </div>
 
     <EmptyState
-      v-else-if="!filtered.length && !search && typeFilter === 'all'"
+      v-else-if="!filtered.length && !ui.scriptoriumHasActiveFilters"
       title="The scriptorium awaits"
       description="Craft monsters, spells, items, and adventure documents with the look of the official books."
     >
@@ -172,13 +159,17 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import { IconDelete, IconFaction, IconLock, IconNavScriptorium, IconSearch } from '@/lib/icons';
+import { IconDelete, IconFaction, IconLock, IconNavScriptorium } from '@/lib/icons';
 import {
   useScriptoriumDocuments,
   useDeleteScriptoriumDocument,
 } from "@/composables/useScriptorium";
+import { useUiStore } from "@/stores/ui";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
+import ListFilterBar from "@/components/common/ListFilterBar.vue";
+import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
+import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useQuota } from "@/composables/useQuota";
 import type { ScriptoriumDocType } from "@/types/scriptorium.types";
@@ -203,7 +194,7 @@ const TYPE_OPTIONS = [
   { value: "adventure", label: "Adventure" },
   { value: "npc-sheet", label: "NPC Sheet" },
   { value: "location", label: "Location" },
-];
+] as const satisfies readonly { value: ScriptoriumDocType | "all"; label: string }[];
 
 const DOC_TYPE_LABELS: Record<ScriptoriumDocType, string> = {
   custom: "Custom",
@@ -235,8 +226,14 @@ const DOC_TYPE_COLORS: Record<ScriptoriumDocType, string> = {
   quest: "#b45309",
 };
 
-const search = ref("");
-const typeFilter = ref("all");
+// Filter State Pattern — search + type survive opening a document and coming back.
+const ui = useUiStore();
+
+// ListFilterSelect models a plain string; the store keeps the narrower union.
+const typeFilter = computed({
+  get: () => ui.scriptoriumFilterType as string,
+  set: (v) => { ui.scriptoriumFilterType = v as ScriptoriumDocType | "all"; },
+});
 
 const { data: docs, isLoading } = useScriptoriumDocuments();
 const { mutateAsync: deleteDoc } = useDeleteScriptoriumDocument();
@@ -258,16 +255,16 @@ async function confirmDelete(id: string, title: string) {
 
 const filtered = computed(() => {
   let list = docs.value ?? [];
-  if (search.value.trim()) {
-    const q = search.value.trim().toLowerCase();
+  if (ui.scriptoriumSearch.trim()) {
+    const q = ui.scriptoriumSearch.trim().toLowerCase();
     list = list.filter(
       (d) =>
         d.title.toLowerCase().includes(q) ||
         d.tags.some((t) => t.toLowerCase().includes(q)),
     );
   }
-  if (typeFilter.value !== "all")
-    list = list.filter((d) => d.doc_type === typeFilter.value);
+  if (ui.scriptoriumFilterType !== "all")
+    list = list.filter((d) => d.doc_type === ui.scriptoriumFilterType);
   return list;
 });
 

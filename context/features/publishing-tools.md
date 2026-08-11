@@ -48,6 +48,8 @@ Page sizes: **A4**, **A5**, **Letter**
 - Page numbers with footer text: optional, with configurable start number and recto/verso alternation
 - Word count shown in editor footer and document list cards
 
+**Document list filters** (`ScriptoriumDocumentList.vue`) — search + doc-type live in `useUiStore` (`scriptoriumSearch`, `scriptoriumFilterType`, `scriptoriumHasActiveFilters`, `resetScriptoriumFilters`) so opening a document and coming back does not drop them, and the bar is the shared `ListFilterBar` + `ListSearchInput` + `ListFilterSelect` (#723). The doc-type filter is a **select**, not a segmented group: ten joined segments do not wrap, so the tail clips at md widths — the same call the Bestiary makes for its 14 creature types.
+
 ### Export & Sharing
 
 - **PDF export** — generates a PDF from the preview pages (shown in a preview dialog before saving to disk)
@@ -284,6 +286,8 @@ A client-side image processing tool for applying photographic and painterly trea
 Route: `/rules`
 
 A five-tab rules reference and management screen for the DM. Includes a built-in dice roller.
+
+All three searchable tabs keep their query in `useUiStore` — `compendiumSearch`, `manualSearch`, `customRulesSearch` (+ `*HasActiveFilters` / `reset*Filters`) — so switching tabs or leaving the Reliquary does not wipe it, and all three render the same `ListFilterBar` + `ListSearchInput` chrome with a Clear button (#723). In the two sidebar tabs the search sits in the bar's `above` slot so Clear falls beneath it rather than fighting the 16rem column for width.
 
 **Tabs:**
 
