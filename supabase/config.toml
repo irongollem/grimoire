@@ -68,6 +68,15 @@ verify_jwt = false
 [functions.stripe-webhook]
 verify_jwt = false
 
+# Pro-waitlist unsubscribe (#638). The recipient is a logged-out visitor who
+# left an email address and has no account, so there is no JWT to check —
+# exactly the ical-feed situation. The capability is the random per-row
+# `pro_waitlist.unsubscribe_token` in the URL, and the function only ever
+# deletes the one row that token names. It must also answer an RFC 8058
+# one-click POST from a mail client, which carries no apikey header at all.
+[functions.waitlist-unsubscribe]
+verify_jwt = false
+
 # Read-only MCP server — lets a DM connect their own AI (Claude Desktop /
 # claude.ai) and look up campaign content by conversation. The gateway check is
 # off because the function must (a) serve a public Protected Resource Metadata

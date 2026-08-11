@@ -35,7 +35,7 @@ decided answer, not that every number is small.
 | Rate-limit counters | `rate_limit_events` | **25 hours** | `purge-rate-limit-events` (`20260621000008`) |
 | Invite tokens | `app_invites`, `campaign_invites` | **90 days** after the token stops working | `private.purge_expired_retention()` |
 | Product signal | `feature_interest` | **365 days** | `private.purge_expired_retention()` |
-| Waitlist | `pro_waitlist` | Until the launch email is sent; **365-day** backstop | Matching account erasure + operational removal + `private.purge_expired_retention()` |
+| Waitlist | `pro_waitlist` | Until the launch email is sent; **365-day** backstop | Withdrawal at any time (§4) + matching account erasure + operational removal + `private.purge_expired_retention()` |
 | Derived vectors | the eight `*_embeddings` tables | Lifetime of the row they describe | FK cascade from the source row |
 | Shared library content | `library_*`, `sound_library`, `content_sources` | **Indefinite** | — not personal data |
 | Rules catalogue and operator config | `plans`, `provider_config`, `ai_model_pricing`, the `class_*` policy tables, and the rest | **Indefinite** | — not personal data |
@@ -117,8 +117,33 @@ a job/event/log table a period.
 `pro_waitlist` has no account FK, but it is no longer an erasure gap.
 `prepare_user_erasure` reads the target's email directly from `auth.users` and
 deletes a case-insensitive match. The address is never accepted from the caller
-or copied into the audit log. Unmatched pre-account signups remain consent-based
-waitlist data with the withdrawal route and 365-day backstop above.
+or copied into the audit log.
+
+**Withdrawal (#638, `20260811221206`).** A retention period is not a withdrawal
+route: consent under Art. 7(3) has to be as easy to take back as it was to give,
+and giving it here is one anonymous POST from someone who may never hold an
+account. Until that migration the only exits were the erasure match above and
+the 365-day backstop, neither of which a pre-account signup can reach — so the
+privacy policy's "email us and we will remove you" was a promise with no
+mechanism behind it. Two routes now exist:
+
+- Every row carries an `unsubscribe_token` (defaulted, unique, opaque — the
+  address never travels in a URL). **Any mailing to this list must carry the
+  link, from mail one**, as both a body link and the RFC 8058 header pair; the
+  `waitlist-unsubscribe` Edge Function is the endpoint and its header documents
+  the exact form. GET renders a confirmation page and POST performs the removal,
+  because link scanners prefetch and the only thing this list ever sends is the
+  one email the person consented to.
+- `admin_remove_waitlist_email()` covers the people who write to info@ instead
+  (Admin → Requests). It is audit-logged with a count and a reason and **never
+  the address** — `admin_audit_log` runs on a seven-year clock, so an entry
+  naming the address would hand back the erasure it was recording.
+
+Neither route writes a `dsr_requests` row, which is the decision most likely to
+look like an omission. Art. 12(3) governs Arts. 15–22; withdrawal is Art. 7(3),
+is immediate, and has no month to evidence. Logging each unsubscribe would
+rebuild — permanently, in the one table with a seven-year period — exactly the
+address the unsubscribe just deleted. The absence of the row is the record.
 
 - **Storage objects have no period of their own.** Every retention rule above is
   a row rule. Files follow their owning row only where the row is what the app
@@ -141,6 +166,8 @@ waitlist data with the withdrawal route and 365-day backstop above.
 | --- | --- |
 | The horizon, the guard exceptions, the purge, the schedule | `supabase/migrations/20260810000004_retention_periods.sql` |
 | DSR request log — 7 years from receipt, and its own append-mostly guard | `supabase/migrations/20260811152817_dsr_request_log.sql` |
+| Waitlist withdrawal — the token, both removal routes, and why neither is logged | `supabase/migrations/20260811221206_waitlist_withdrawal.sql`, `supabase/tests/waitlist_withdrawal.test.sql` |
+| The unsubscribe endpoint, and the header pair a mailing must send | `supabase/functions/waitlist-unsubscribe/index.ts` |
 | Both sides of every boundary, and the "every table is classified" assertion | `supabase/tests/retention_periods.test.sql` |
 | AI prompt-text scrub (90 days) | `supabase/migrations/20260804000005_ai_log_tamper_evidence.sql` |
 | Bug-report screenshot and row purge (90/365) | `supabase/migrations/20260809000002_bug_report_privacy.sql` |

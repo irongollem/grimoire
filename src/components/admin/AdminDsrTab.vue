@@ -55,6 +55,9 @@
       </div>
     </SettingsSection>
 
+    <!-- Consent withdrawal — deliberately outside the log above; see the panel. -->
+    <WaitlistRemovalPanel />
+
     <!-- Filters -->
     <div class="flex flex-wrap items-center gap-2">
       <AppInput
@@ -129,6 +132,7 @@ import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import SettingsSection from "@/components/common/SettingsSection.vue";
 import DsrRequestRow from "@/components/admin/DsrRequestRow.vue";
+import WaitlistRemovalPanel from "@/components/admin/WaitlistRemovalPanel.vue";
 import { useUiStore } from "@/stores/ui";
 import { useAdminUsers } from "@/composables/useAdminUsers";
 import {

@@ -18,6 +18,7 @@ export const ADMIN_AUDIT_ACTIONS = [
   "credit_pack_refund",
   "dsr_request_logged",
   "dsr_request_answered",
+  "waitlist_removal",
 ] as const;
 
 export type AdminAuditAction = (typeof ADMIN_AUDIT_ACTIONS)[number];
@@ -83,4 +84,7 @@ export const ADMIN_AUDIT_LABELS: Record<AdminAuditAction, string> = {
   credit_pack_refund: "Pack refunded",
   dsr_request_logged: "Data request recorded",
   dsr_request_answered: "Data request answered",
+  // Entries carry a row count and reason but no address (#638): naming it would
+  // outlive the deletion by the log's seven-year period.
+  waitlist_removal: "Waitlist address removed",
 };

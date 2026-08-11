@@ -23,6 +23,7 @@ when they ask "what happens to X when an account is erased?"
 | DSR request log (30-day clock evidence) | 12(3) | **Shipped** (Aug 2026) — see §4f | #643 |
 | Retention periods defined + enforced | 5(1)(e) | **Shipped** (Aug 2026) — register in `context/compliance/retention.md` | #639 |
 | Admin action audit log | 5(2) | **Shipped** (Aug 2026) — see §4d | #642 |
+| Consent withdrawal (Pro waitlist) | 7(3) | **Shipped** (Aug 2026) — see §4g | #638 |
 
 The privacy policy §5 promises deletion within 30 days. The implementation is
 **immediate and synchronous**, so the promise is satisfied with margin; if that
@@ -471,6 +472,45 @@ address to an account when one exists, so an operator types an email and the row
 still links to the person — without which erasure and the subject's own export
 would reach it only by coincidence of matching the address.
 
+## 4g. Consent withdrawal — the right with no account behind it
+
+*#638, migration `20260811221206`. The register entry lives in
+`context/compliance/retention.md` §4; this section is the contract.*
+
+Every other right in this file starts from a session. Art. 7(3) does not: the
+`pro_waitlist` subscriber is a logged-out visitor who typed an address into the
+marketing site and may never hold an account. That is what made this the last
+gap — `20260718000006` wrote "rows are immutable facts, no update/delete
+policies", which is right about editing and silent about leaving, and the two
+exits that did exist (`prepare_user_erasure`'s address match, the 365-day
+backstop) are both unreachable for someone who never signed up.
+
+**The link is the primary route, and the token is the credential.** Each row
+carries a unique, defaulted `unsubscribe_token`; the `waitlist-unsubscribe` Edge
+Function is the only caller of `withdraw_waitlist_consent()`, which is
+`service_role`-only. The address never travels in a URL, and the token dies with
+the row, so someone who leaves and later rejoins cannot be unsubscribed a second
+time by the old link.
+
+**GET does not act; POST does.** Mail gateways prefetch links. A GET that removed
+would let a scanner silently take someone off a list whose entire output is the
+one email they consented to — an invisible failure that costs them exactly the
+thing they asked for. So GET renders a no-JavaScript confirmation page and POST
+performs the removal, which is also precisely RFC 8058: clients supporting
+`List-Unsubscribe-Post` POST directly and never see the page. **A mailing to this
+list must carry both headers and a body link from mail one** — the form is
+documented in the function's header, which is where someone building the mailing
+will be standing.
+
+**Nothing here writes a `dsr_requests` row, and that is the decision.** Art. 12(3)
+governs Arts. 15–22; withdrawal is Art. 7(3), immediate, with no month to
+evidence. A log entry per unsubscribe would rebuild the deleted address in the
+one table carrying a seven-year period — the §4d principle inverted, because here
+the evidence *is* the personal data. The absence of the row is the record. The
+same reasoning bounds the operator route: `admin_remove_waitlist_email()` is
+audit-logged, because a unilateral removal is exactly what §4d exists to make
+attributable, but the entry carries a count and a reason and never the address.
+
 ## 5. Known gaps
 
 - **Self-serve erasure is irreversible and immediate.** There is no grace period
@@ -495,6 +535,10 @@ would reach it only by coincidence of matching the address.
 | DSR client calls + the pinned request vocabulary | `src/composables/useDsrRequests.ts` |
 | DSR admin viewer + email-channel entry | `src/components/admin/AdminDsrTab.vue`, `DsrRequestRow.vue` |
 | §4f invariant tests (no FK, guard, erasure survival) | `supabase/tests/dsr_requests.test.sql` |
+| Waitlist withdrawal — token, both routes, why neither is logged (§4g) | `supabase/migrations/20260811221206_waitlist_withdrawal.sql` |
+| The unsubscribe endpoint, and the header pair a mailing must send | `supabase/functions/waitlist-unsubscribe/index.ts`, `page.ts` |
+| Operator route — client call and admin UI | `src/composables/useProWaitlist.ts`, `src/components/admin/WaitlistRemovalPanel.vue` |
+| §4g invariant tests (token uniqueness, both gates, no address in the audit entry) | `supabase/tests/waitlist_withdrawal.test.sql` |
 | Client call + error copy | `src/composables/useAccountDeletion.ts` |
 | Self-serve UI | `src/components/account/AccountSettings.vue` (route `/account`) |
 | Admin UI | `src/components/admin/AdminUsersTab.vue` |
