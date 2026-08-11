@@ -19,7 +19,7 @@ when they ask "what happens to X when an account is erased?"
 | Right | Article | State | Ticket |
 | --- | --- | --- | --- |
 | Erasure | 17 | **Shipped** (Aug 2026) | #631 |
-| Access / portability | 15, 20 | Not built | #632 |
+| Access / portability | 15, 20 | **Shipped** (Aug 2026) — see §4e | #632 |
 | DSR request log (30-day clock evidence) | 12(3) | Not built | #643 |
 | Retention periods defined + enforced | 5(1)(e) | **Shipped** (Aug 2026) — register in `context/compliance/retention.md` | #639 |
 | Admin action audit log | 5(2) | **Shipped** (Aug 2026) — see §4d | #642 |
@@ -283,10 +283,89 @@ Invariants:
   name. The admin viewer resolves ids live and falls back to the bare uuid —
   which is the expected rendering for a deleted account, not a bug.
 
+## 4e. The export contract — access and portability
+
+Shipped Aug 2026 by `20260811130935` + the `export-my-data` edge function
+(#632). Art. 15 asks "what do you hold about me", Art. 17 says "stop holding
+it". They are the same question twice, which is the organising idea of the
+implementation: **the export enumerates exactly what erasure deletes**, from the
+same two sources, and a divergence is a defect in whichever one is behind.
+
+**Why the table set is derived rather than listed.** The obvious shape is a
+manifest — one `select` per table in a big `jsonb_build_object`. That shape
+fails the way #640 failed: a manifest covers what someone remembered to add, and
+a table added by a later migration is simply missing, with nothing red. An
+export that omits a table is not a visibly broken feature. It returns a large,
+plausible document and an unlawful answer. So `export_user_data` walks the
+`auth.users` FK graph at runtime:
+
+1. **Every `public` column with an FK to `auth.users`** (87 today). §4 invariant
+   1 already forces every such FK to be `cascade`/`set null` and asserts it at
+   push time, so this graph *is* the definition of "rows belonging to a person"
+   — and it is maintained, because deletion breaks otherwise. A new table
+   inherits the export for free.
+2. **The rows no FK reaches** — `rate_limit_events` and a `pro_waitlist` address
+   match. This is the half that can rot, because both functions name them by
+   hand, so `data_export.test.sql` asserts the two hand-written sets are the
+   same set, and separately pins that the set is non-empty (an `is_empty` check
+   over an empty set passes while proving nothing).
+
+Storage objects are the third source and live outside Postgres, so the edge
+function enumerates them from `_shared/storage-inventory.ts` — extracted from
+`delete-account` for this, so the listing that reports and the listing that
+purges cannot disagree.
+
+Four positions worth not re-deriving:
+
+1. **Two FK columns on one table are two different people.** `party_members`
+   has `user_id` (the campaign owner) and `owner_user_id` (the player whose
+   character it is). Keying the export on `user_id` alone — the obvious reading,
+   and the convention in ~85 other tables — hands a player everything about
+   their account *except the character they actually play*, which is the row
+   they would look for first. The loop is over FK columns, not tables, for this
+   reason.
+2. **Credentials are redacted, nulls are not.** BYOK keys and invite/calendar
+   tokens are bearer credentials: exporting the string exports the capability,
+   and `enc:v1:…` at rest does not help because the app decrypts on use. They
+   become `"[redacted]"`; a null stays null, because "no key was ever set" and
+   "a key is withheld" are different facts and the subject is entitled to the
+   first. The predicate anchors `token` at a word boundary — a `%token%` rule
+   would redact `input_tokens`/`output_tokens` on the credit ledger, i.e. the
+   billing history, to protect nothing.
+3. **There is no admin export path, and that is not an oversight.**
+   `delete-account` has one because an operator sometimes must erase an account
+   its owner cannot reach; nothing equivalent is true of export. An admin button
+   that dumps another person's whole account into a browser download is a
+   disclosure surface the GDPR never asks for and Art. 32 argues against. The
+   target is always the caller — there is no `targetUserId` parameter, not
+   merely one that is ignored.
+4. **`export_user_data` is service_role-only, so the rate limit is real.** The
+   function reads every table for an arbitrary uuid; `authenticated` holding
+   EXECUTE would be both a whole-account read by user id and a way around the
+   only bound on how often a full dump can be built. The edge function is the
+   sole caller and derives the id from the verified JWT. Both the grant and the
+   in-body `service_role` guard are asserted, because `drop function` + `create`
+   resets an ACL to the `PUBLIC` default — the exact route #650 took.
+
+**Deliberately not done:** no server-side archive, no emailed link, no
+asynchronous job. The response is built and returned in one request because it
+fits — the heaviest account measured is ~300 kB — and each of those alternatives
+creates a second copy of the account's data with its own retention question.
+Revisit if a real export stops fitting in a request, and record the decision
+here.
+
+**The rate limit is 5/hour** (`_shared/rate-limit.ts`). A denied request costs
+the subject a wait, never the right: Art. 12(3) allows a month, this resets in
+an hour.
+
+**Not a DSR request log.** A rate-limit event is incidental evidence that an
+export happened and is deleted on erasure. #643 still owns Art. 12(3) evidence,
+and the export is deliberately *not* written to `admin_audit_log` — that log is
+for privileged actions an operator takes on someone else (§4d), and filling it
+with self-serve events by their own subject would blur what it is for.
+
 ## 5. Known gaps
 
-- **Export (#632).** No Art. 15/20 export exists. A user can erase their data but
-  cannot obtain a copy of it first, which is the more commonly exercised right.
 - **DSR log (#643).** `admin_audit_log` records *actions the operator took*, not
   *requests the operator received* — so a deletion is evidenced, but an access or
   portability request arriving by email leaves no trace of when the 30-day clock
@@ -303,6 +382,12 @@ Invariants:
 | Schema, guards, audit table, push-time assertion | `supabase/migrations/20260808000001_account_deletion_erasure_path.sql` |
 | Orchestration (authorize → purge → prepare → delete) | `supabase/functions/delete-account/index.ts` |
 | Recursive storage listing | `supabase/functions/_shared/storage-purge.ts` |
+| Export RPC — FK-graph walk, redaction (§4e) | `supabase/migrations/20260811130935_gdpr_data_export.sql` |
+| Export orchestration (JWT identity → rate limit → RPC → storage) | `supabase/functions/export-my-data/index.ts` |
+| The one listing both rights use to find a user's files | `supabase/functions/_shared/storage-inventory.ts` |
+| Export client call + error copy | `src/composables/useDataExport.ts` |
+| Self-serve export UI | `src/components/account/AccountDataExport.vue` (route `/account`) |
+| §4e invariant tests (coverage symmetry, gate, redaction) | `supabase/tests/data_export.test.sql` |
 | Client call + error copy | `src/composables/useAccountDeletion.ts` |
 | Self-serve UI | `src/components/account/AccountSettings.vue` (route `/account`) |
 | Admin UI | `src/components/admin/AdminUsersTab.vue` |

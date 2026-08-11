@@ -16,12 +16,13 @@
 // purge.
 
 import { serve } from "std/http/server.ts";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
 import { withCors } from "../_shared/cors.ts";
 import { requireAdmin } from "../_shared/requireAdmin.ts";
-import { listAllFilePaths, chunk, type StorageEntry } from "../_shared/storage-purge.ts";
-import { r2ConfigFrom, r2ObjectKey, R2_BUCKET_IDS } from "../_shared/r2/config.ts";
-import { listObjects, deleteObjects } from "../_shared/r2/client.ts";
+import { chunk } from "../_shared/storage-purge.ts";
+import { listUserStorage } from "../_shared/storage-inventory.ts";
+import { r2ConfigFrom, r2ObjectKey } from "../_shared/r2/config.ts";
+import { deleteObjects } from "../_shared/r2/client.ts";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -31,83 +32,50 @@ const admin = createClient(
 // Supabase Storage's remove() takes a bounded list per call; ~100 keeps each
 // request comfortably sized without adding much round-trip overhead.
 const REMOVE_CHUNK_SIZE = 100;
-// Supabase Storage's list() defaults to 100 rows; page explicitly so a folder
-// with more objects than that doesn't silently lose the tail.
-const LIST_PAGE_SIZE = 1000;
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
-async function listFolderPaginated(
-  client: SupabaseClient,
-  bucketId: string,
-  prefix: string,
-): Promise<StorageEntry[]> {
-  const entries: StorageEntry[] = [];
-  let offset = 0;
-  for (;;) {
-    const { data, error } = await client.storage.from(bucketId).list(prefix, { limit: LIST_PAGE_SIZE, offset });
-    if (error) throw new Error(error.message);
-    const page = (data ?? []) as StorageEntry[];
-    entries.push(...page);
-    if (page.length < LIST_PAGE_SIZE) break;
-    offset += LIST_PAGE_SIZE;
-  }
-  return entries;
-}
-
 /**
- * Purge `userId`'s objects from every Supabase Storage bucket. Every bucket
- * currently registered (`listBuckets()`), not just the ones this repo's
- * BUCKETS registry knows about — a bucket the app no longer writes to can
- * still hold objects from before it was retired.
+ * Delete every object belonging to `userId` from both stores.
+ *
+ * Finding the objects is `_shared/storage-inventory.ts`, shared with the GDPR
+ * export (#632) so the two rights cannot disagree about what the account holds
+ * — see that module's header. This function only removes what the inventory
+ * found, and treats a listing error as fatal: a purge that silently skipped a
+ * bucket it could not enumerate would report success while leaving objects
+ * behind that no per-user listing path can reach again.
  */
-async function purgeSupabaseStorage(userId: string): Promise<string[]> {
-  const { data: buckets, error: bucketsError } = await admin.storage.listBuckets();
-  if (bucketsError) return [`listBuckets: ${bucketsError.message}`];
+async function purgeStorage(userId: string): Promise<string[]> {
+  const r2Config = r2ConfigFrom((key) => Deno.env.get(key));
+  const inventory = await listUserStorage(admin, userId, r2Config);
+  const errors = [...inventory.errors];
 
-  const errors: string[] = [];
-  for (const bucket of buckets ?? []) {
-    try {
-      const paths = await listAllFilePaths(
-        (prefix) => listFolderPaginated(admin, bucket.id, prefix),
-        userId,
-      );
-      for (const batch of chunk(paths, REMOVE_CHUNK_SIZE)) {
-        const { error } = await admin.storage.from(bucket.id).remove(batch);
-        if (error) errors.push(`${bucket.id}: remove failed: ${error.message}`);
-      }
-    } catch (err) {
-      errors.push(`${bucket.id}: ${err instanceof Error ? err.message : String(err)}`);
+  for (const { bucket, paths } of inventory.supabase) {
+    for (const batch of chunk(paths, REMOVE_CHUNK_SIZE)) {
+      const { error } = await admin.storage.from(bucket).remove(batch);
+      if (error) errors.push(`${bucket}: remove failed: ${error.message}`);
     }
   }
-  return errors;
-}
 
-/**
- * Purge `userId`'s objects from every R2-backed bucket, mirroring r2-list /
- * r2-delete. A missing R2 config is not an error — it means this environment
- * hasn't been provisioned for R2 yet (see r2ConfigFrom), so every object is
- * still in Supabase Storage and the purge above already covers it.
- */
-async function purgeR2Storage(userId: string): Promise<string[]> {
-  const config = r2ConfigFrom((key) => Deno.env.get(key));
-  if (!config) return [];
-
-  const errors: string[] = [];
-  for (const bucketId of R2_BUCKET_IDS) {
-    try {
-      const keys = await listObjects(config, r2ObjectKey(bucketId, `${userId}/`));
-      // deleteObjects issues one concurrent DELETE per key (it was written for
-      // ~5-key image removals) — chunk so a large account doesn't fan out
-      // hundreds of simultaneous requests.
-      for (const batch of chunk(keys, REMOVE_CHUNK_SIZE)) {
-        await deleteObjects(config, batch);
+  if (r2Config) {
+    for (const { bucket, paths } of inventory.r2) {
+      // The inventory returns bucket-relative paths; R2 keys are prefixed with
+      // the bucket id (one R2 bucket holds every store — see r2/config.ts).
+      const keys = paths.map((path) => r2ObjectKey(bucket, path));
+      try {
+        // deleteObjects issues one concurrent DELETE per key (it was written
+        // for ~5-key image removals) — chunk so a large account doesn't fan out
+        // hundreds of simultaneous requests.
+        for (const batch of chunk(keys, REMOVE_CHUNK_SIZE)) {
+          await deleteObjects(r2Config, batch);
+        }
+      } catch (err) {
+        errors.push(`r2:${bucket}: ${err instanceof Error ? err.message : String(err)}`);
       }
-    } catch (err) {
-      errors.push(`r2:${bucketId}: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
+
   return errors;
 }
 
@@ -154,11 +122,7 @@ serve(withCors(async (req: Request) => {
   // admin-initiated.
   if (target.app_metadata?.role === "admin") return json({ error: "cannot_delete_admin" }, 400);
 
-  const [supabaseErrors, r2Errors] = await Promise.all([
-    purgeSupabaseStorage(target.id),
-    purgeR2Storage(target.id),
-  ]);
-  const purgeErrors = [...supabaseErrors, ...r2Errors];
+  const purgeErrors = await purgeStorage(target.id);
   if (purgeErrors.length > 0) {
     console.error("delete-account: storage purge failed for user", target.id, purgeErrors);
     return json({ error: "storage_purge_failed" }, 500);

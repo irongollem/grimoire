@@ -1,6 +1,8 @@
 <template>
   <AccountSummarySection link-to="/billing" link-label="Billing &amp; Subscription →" />
 
+  <AccountDataExport />
+
   <!-- Danger zone (#631) — same accent-recoloured section shell as PlayerSettingsInstall,
        since SettingsSection has no accent prop. -->
   <section class="rounded-lg border border-destructive/40 bg-destructive/5 overflow-hidden">
@@ -33,6 +35,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import AccountSummarySection from "@/components/account/AccountSummarySection.vue";
+import AccountDataExport from "@/components/account/AccountDataExport.vue";
 import ConfirmByNameInput from "@/components/common/ConfirmByNameInput.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import { useAccountDeletion } from "@/composables/useAccountDeletion";

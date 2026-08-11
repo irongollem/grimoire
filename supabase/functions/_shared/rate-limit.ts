@@ -18,6 +18,14 @@ export const RATE_LIMITS = {
   // One event per notify invocation (which may email a whole party). Bounds a
   // compromised or misbehaving DM account to 30 email bursts an hour.
   email_notify:  { action: "email_notify",  limit: 30, windowSeconds: 3_600 },
+  // GDPR export (#632). Reads every table in the database for one account, so
+  // it is the app's most expensive single read — and on a stolen session it is
+  // the fastest route to a whole account in one file. Deliberately generous
+  // enough that a real person never notices (a retry, a second thought, a
+  // re-download) and tight enough that it cannot be used as a bulk-read loop.
+  // A denied request costs the subject a wait, never the right: Art. 12(3)
+  // allows a month, and this resets in an hour.
+  data_export:   { action: "data_export",   limit: 5,  windowSeconds: 3_600 },
 } as const;
 
 export type RateLimitKey = keyof typeof RATE_LIMITS;
