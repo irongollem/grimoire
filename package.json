@@ -109,5 +109,12 @@
   },
   "engines": {
     "node": "^24.0.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true,
+    "core-js": false,
+    "es5-ext": false,
+    "vue-demi": false,
+    "fsevents": false
   }
 }
