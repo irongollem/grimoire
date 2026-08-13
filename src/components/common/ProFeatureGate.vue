@@ -9,23 +9,24 @@
     </p>
     <button
       type="button"
-      class="self-start px-4 py-2 rounded-md bg-amber-500 text-black text-label-lg font-semibold hover:bg-amber-400 transition-colors disabled:opacity-60"
-      :disabled="stripeLoading"
+      class="self-start px-4 py-2 rounded-md bg-amber-500 text-black text-label-lg font-semibold hover:bg-amber-400 transition-colors"
       @click="upgrade"
     >
-      {{ stripeLoading ? 'Redirecting…' : 'Upgrade to Pro' }}
+      Upgrade to Pro
     </button>
   </div>
 </template>
 
 <script setup lang="ts">
+import { useRouter } from "vue-router";
 import { IconDM } from "@/lib/icons";
-import { useStripe } from "@/composables/useStripe";
 
 const { message } = defineProps<{
   message: string;
 }>();
 
-const { loading: stripeLoading, createCheckoutSession } = useStripe();
-function upgrade() { createCheckoutSession(); }
+// See PaywallModal: checkout needs the withdrawal-consent tick from /billing, so
+// this gate routes there rather than 400'ing against stripe-create-checkout.
+const router = useRouter();
+function upgrade() { router.push("/billing"); }
 </script>
