@@ -159,21 +159,65 @@ No inbound webhooks exist from Meshy, Resend, Freesound, Open5e, Spotify or
 GitHub — those are all outbound-only or polled. If a request claims to be
 from one of them, it isn't.
 
-## Monitoring — deliberately none (know this before an outage)
+## Monitoring — errors only, and that boundary is deliberate (#644)
 
-There is **no** Sentry/PostHog/Datadog/analytics of any kind; `index.html`
-loads no third-party scripts. Error visibility is: Supabase dashboard logs
-(edge functions, Postgres, Auth), Stripe dashboard (payments/webhooks),
-Vercel dashboard (frontend deploys), GitHub Actions (CI), and user-filed bug
-reports via `create-bug-report`. When tracing an outage, those five dashboards
-are the complete observability surface.
+**Sentry, EU region** (`ingest.de.sentry.io`, org `crocode-bv`, project
+`dungeon-grimoire`) receives **errors and nothing else**. There is still no
+analytics, no product telemetry, and no third-party script in `index.html` —
+the SDK is bundled from npm, so nothing is fetched from a foreign origin at
+runtime except the error POST itself.
+
+Switched off, and each for a reason worth keeping:
+
+| Off | Why |
+| --- | --- |
+| **Session replay** | Records the DOM. For a DM that is campaign secrets, unrevealed plot and player notes. Permanent — no `beforeSend` can filter a replay after the fact. |
+| Tracing | Bundle weight for a performance problem we do not have. |
+| Logs, metrics | The Supabase and Vercel dashboards already answer this. |
+
+Where it is wired:
+
+- **Frontend** — `src/lib/observability/sentry.ts`, called from `main.ts`
+  before any plugin. Installs Vue's `errorHandler` plus the global handlers,
+  and adds `router.onError` (router failures bypass `errorHandler`).
+- **Edge functions** — `_shared/observability/sentryEdge.ts`, called from the
+  `catch` in `withCors`. That is the single seam covering 41 of the 45
+  functions; the four that do not use `withCors` (`ical-feed`, `mcp`,
+  `sync-srd-rules`, `waitlist-unsubscribe`) are not reported. It is a
+  hand-rolled envelope POST rather than `@sentry/deno` — see the file header
+  for why an npm dependency in all 45 bundles is the wrong trade against a
+  deploy path that resolves dependencies over the network.
+- **Scrubbing** — `_shared/observability/scrub.ts`, shared verbatim by both
+  through the `@edge-shared` alias. Read it before changing what is reported:
+  it is what makes the privacy policy's "technical error data only" true.
+
+**Production only, deliberately.** `VITE_SENTRY_DSN` and `SENTRY_AUTH_TOKEN`
+are set on Vercel's Production environment and nowhere else, so preview
+deploys neither report nor upload maps — a PR build would otherwise spend
+~800 source-map files of quota on a bundle that has no DSN and can never
+report. Enabling preview reporting means adding *both* variables; the
+`environment` tag (`__SENTRY_ENVIRONMENT__`, from `VERCEL_ENV`) already
+separates the streams if you do.
+
+Local builds are cheaper still: with no DSN, `import.meta.env.VITE_SENTRY_DSN`
+inlines to `undefined`, the guard in `initErrorTracking` becomes
+`if (!undefined) return`, and rolldown eliminates the entire SDK. Error
+tracking costs a contributor's build, and the CI build, exactly zero bytes.
+
+Error visibility is therefore Sentry **plus** the five dashboards that were
+always there: Supabase logs (edge functions, Postgres, Auth), Stripe, Vercel,
+GitHub Actions, and user-filed bug reports via `create-bug-report`. Sentry
+does not see Postgres, Stripe webhook failures, or anything in the four
+unwrapped functions above — for those, the dashboards are still the only
+surface.
 
 ## Credentials map (where a secret lives decides where it can leak or break)
 
 | Scope | Store | Keys |
 | --- | --- | --- |
-| Frontend build (public) | Vercel env (`VITE_*`) | Supabase URL + anon key, CDN URL, Spotify dev client ID, marketing URL |
-| Edge functions | Supabase secrets | service-role key, `VAULT_KEY`, Stripe secret + webhook secret, Resend, Freesound, `SIMULACRUM_POLLER_TOKEN` |
+| Frontend build (public) | Vercel env (`VITE_*`) | Supabase URL + anon key, CDN URL, Spotify dev client ID, marketing URL, `VITE_SENTRY_DSN` |
+| Frontend build (secret) | Vercel env | `SENTRY_AUTH_TOKEN` — source-map upload, **Production only** |
+| Edge functions | Supabase secrets | service-role key, `VAULT_KEY`, Stripe secret + webhook secret, Resend, Freesound, `SIMULACRUM_POLLER_TOKEN`, `SENTRY_DSN` |
 | Database (pg_net callers) | Supabase Vault | `marketing_deploy_hook`, `simulacrum_poller_url/token` |
 | CI | GitHub Actions secrets | `SUPABASE_ACCESS_TOKEN`, `PRODUCTION_DB_PASSWORD`, `PRODUCTION_PROJECT_ID`, `STRIPE_SECRET_KEY` |
 | Per-campaign (BYOK) | `platform_api_keys`-style encrypted rows via `api-key-vault` | OpenAI / Anthropic / Gemini keys, Spotify client ID |

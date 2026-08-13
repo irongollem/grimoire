@@ -6,6 +6,7 @@ import App from "./App.vue";
 import { vRollMode } from "./directives/vRollMode";
 import { routes, setupRouterGuard } from "./router/index";
 import { installStaleChunkRecovery } from "./lib/staleChunkRecovery";
+import { initErrorTracking } from "./lib/observability/sentry";
 import { installSwAutoUpdate } from "./lib/swAutoUpdate";
 import { updateAvailable } from "./composables/useAppUpdate";
 import { captureInstallPrompt } from "./composables/usePwaInstall";
@@ -55,6 +56,12 @@ setupRouterGuard(router);
 installStaleChunkRecovery(router);
 
 const app = createApp(App);
+
+// Before any plugin, directive or store — this installs Vue's errorHandler and
+// the global handlers, and anything thrown during the wiring below is exactly
+// the kind of boot failure worth hearing about. No-op without a DSN.
+initErrorTracking(app, router);
+
 const pinia = createPinia();
 app.use(pinia);
 app.use(VueQueryPlugin, { queryClient });

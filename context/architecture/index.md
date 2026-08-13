@@ -79,10 +79,12 @@ Supabase logs.
 
 ## Outage triage — symptom → first place to look
 
-There is **no monitoring service** (no Sentry/analytics — a deliberate
-choice). The complete observability surface is five dashboards: Supabase
-(edge logs, Postgres, Auth), Stripe, Vercel, GitHub Actions, plus user bug
-reports. Start from the symptom:
+**Sentry (EU) reports errors only** — frontend exceptions and unhandled edge
+errors thrown through `withCors` (#644). There is still no analytics. It does
+not see Postgres, Stripe webhooks, or the four functions that skip `withCors`,
+so the five dashboards remain the rest of the surface: Supabase (edge logs,
+Postgres, Auth), Stripe, Vercel, GitHub Actions, plus user bug reports. Start
+from the symptom:
 
 | Symptom | Likely system | Look at |
 | --- | --- | --- |

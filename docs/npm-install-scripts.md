@@ -65,6 +65,38 @@ the condition to recheck, and nothing else.
 `hasInstallScript` flag in the registry metadata. It is also `os: ["darwin"]`,
 so it never installs in CI at all.
 
+**`@sentry/cli` — denied.** Arrived with `@sentry/vite-plugin` for source-map
+upload (#644), and is the mirror image of the `esbuild` verdict — same
+mechanism, opposite conclusion, so the difference is the point.
+
+Its `postinstall` (`scripts/install.js`) downloads a platform binary to
+`@sentry/cli/sentry-cli`. That is a *fallback*, not the primary path: the
+package declares eight `optionalDependencies` (`@sentry/cli-darwin`,
+`@sentry/cli-linux-x64`, …) that ship the binary directly, and `getBinaryPath()`
+in `js/helper.js` reads
+
+```js
+let fallbackBinaryPath = getFallbackBinaryPath();
+if (fs.existsSync(fallbackBinaryPath)) {
+  // Since the fallback got installed, the optional dependencies likely didn't
+  // get installed, so we just default to the fallback.
+  return fallbackBinaryPath;
+}
+compatibleBinaryPath = require.resolve(`${packageName}/${subpath}`);
+```
+
+— the package's own comment saying the download only matters when npm failed to
+place the platform package. Verified after install: no binary at
+`node_modules/@sentry/cli/sentry-cli`, and `@sentry/cli-darwin/bin/sentry-cli`
+present and used.
+
+That is exactly the argument that got `esbuild` *allowed*, so why deny this one?
+**Blast radius on failure.** A missing esbuild binary fails the build outright;
+a missing sentry-cli binary fails only the source-map upload, which
+`vite.config.ts` already handles with an `errorHandler` that warns and continues
+— by design, because taking the frontend down over a map upload would be the
+more expensive outage. The safety net esbuild needs, this does not.
+
 **`core-js` (both 2.x and 3.x) and `es5-ext` — denied.** Cosmetic only.
 `core-js` prints a funding banner; `es5-ext` broadcasts an anti-war message when
 the machine's timezone is Russian. Neither writes anything the build reads.

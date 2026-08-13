@@ -1,6 +1,7 @@
-import { defineConfig, type Plugin } from "vite";
+import { defineConfig, loadEnv, type Plugin } from "vite";
 import vue from "@vitejs/plugin-vue";
 import tailwindcss from "@tailwindcss/vite";
+import { sentryVitePlugin } from "@sentry/vite-plugin";
 import path from "path";
 import { readFileSync, writeFileSync, readdirSync, statSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -74,111 +75,185 @@ function swPlugin(): Plugin {
   };
 }
 
-export default defineConfig(({ mode }) => ({
-  // Root .env.local intentionally contains hosted credentials and Vite loads
-  // it after .env.<mode>. Isolate localdb mode in its own env directory so
-  // hosted values cannot silently win on precedence.
-  envDir: mode === "localdb" ? path.resolve(import.meta.dirname, "config/env/localdb") : undefined,
-  define: {
-    /**
-     * Dev-only routes (the Paged.js spike, sheet calibration, the component
-     * catalogue) also build for Vercel *preview* deployments, so a PR's preview
-     * can be used to review them. Gated on VERCEL_ENV rather than on "not
-     * production", so a local `npm run build` — where VERCEL_ENV is unset — still
-     * strips them, and a production deploy never sees them.
-     */
-    __PREVIEW_BUILD__: JSON.stringify(process.env.VERCEL_ENV === "preview"),
-  },
-  plugins: [
-    vue({
-      template: {
-        compilerOptions: {
-          // <model-viewer> (Simulacrum 3D preview) is a native custom element,
-          // not a Vue component — don't try to resolve/import it.
-          isCustomElement: (tag) => tag === "model-viewer",
-        },
-      },
-    }),
-    tailwindcss(),
-    swPlugin(),
-  ],
-  server: {
-    // Portless injects PORT so its proxy can reach the dev server.
-    // Falls back to 5173 for plain `npm run dev`.
-    port: parseInt(process.env.PORT ?? "5173"),
-    strictPort: true,
-  },
-  resolve: {
-    alias: {
-      "@": path.resolve(import.meta.dirname, "./src"),
-      // Canonical AI-provenance core is pure TS shared verbatim with the Deno
-      // edge functions (context/compliance/provenance-architecture.md §1).
-      "@edge-shared": path.resolve(import.meta.dirname, "./supabase/functions/_shared"),
+export default defineConfig(({ mode }) => {
+  /**
+   * Source-map upload for error tracking (#644).
+   *
+   * Read through `loadEnv` rather than `process.env` alone so a local
+   * `npm run build` picks the token up from the gitignored `.env.local` and can
+   * verify the upload before anything is pushed. On Vercel — which is where the
+   * production frontend actually builds, so this is the run that matters — it
+   * comes from the project's environment variables instead. Unset anywhere
+   * else, and then no maps are generated and no upload is attempted.
+   */
+  const sentryAuthToken = loadEnv(mode, import.meta.dirname, "SENTRY_").SENTRY_AUTH_TOKEN;
+
+  // Sentry pairs an event with the right source maps by debug id, so this is
+  // only the human-readable label on the release. Empty off-Vercel.
+  const release = process.env.VERCEL_GIT_COMMIT_SHA ?? "";
+
+  return {
+    // Root .env.local intentionally contains hosted credentials and Vite loads
+    // it after .env.<mode>. Isolate localdb mode in its own env directory so
+    // hosted values cannot silently win on precedence.
+    envDir: mode === "localdb" ? path.resolve(import.meta.dirname, "config/env/localdb") : undefined,
+    define: {
+      __SENTRY_RELEASE__: JSON.stringify(release),
+      __SENTRY_ENVIRONMENT__: JSON.stringify(process.env.VERCEL_ENV ?? "development"),
+      // Sentry's own tree-shaking flags. We run errors-only (no tracing, and
+      // `tracesSampleRate: 0`), so the tracing code is dead weight the bundler
+      // cannot prove is unreachable on its own. Debug logging likewise.
+      __SENTRY_TRACING__: JSON.stringify(false),
+      __SENTRY_DEBUG__: JSON.stringify(false),
+      /**
+       * Dev-only routes (the Paged.js spike, sheet calibration, the component
+       * catalogue) also build for Vercel *preview* deployments, so a PR's preview
+       * can be used to review them. Gated on VERCEL_ENV rather than on "not
+       * production", so a local `npm run build` — where VERCEL_ENV is unset — still
+       * strips them, and a production deploy never sees them.
+       */
+      __PREVIEW_BUILD__: JSON.stringify(process.env.VERCEL_ENV === "preview"),
     },
-  },
-  build: {
-    // The model-viewer feature is intrinsically about 1.03 MB minified and is
-    // already isolated behind its lazy route. Keep the threshold just above
-    // that known chunk so an accidentally swollen shared chunk still warns.
-    chunkSizeWarningLimit: 1100,
-    rolldownOptions: {
-      output: {
-        // Vite 8 / rolldown: the function form of `manualChunks` is deprecated
-        // and — importantly — is NOT consulted for virtual modules. That let
-        // Vite's `__vitePreload` helper (`\0vite/preload-helper.js`, needed by
-        // the entry and by every chunk with a dynamic import) get folded into
-        // whichever feature chunk claimed it first. It landed in `model-viewer`,
-        // so the entry statically imported 1 MB of Simulacrum-only 3D code on
-        // every single page load just to reach a ~1 kB function.
-        //
-        // `codeSplitting.groups` is the rolldown-native replacement and does see
-        // virtual modules, so the helper below is pinned to its own chunk.
-        // Groups are matched in order — first match wins — so the node_modules
-        // catch-all stays last.
-        codeSplitting: {
-          groups: [
-            // Shared dynamic-import helper — must never ride along with a
-            // feature chunk (see above).
-            { name: "preload-helper", test: /vite[\\/]preload-helper/ },
+    plugins: [
+      vue({
+        template: {
+          compilerOptions: {
+            // <model-viewer> (Simulacrum 3D preview) is a native custom element,
+            // not a Vue component — don't try to resolve/import it.
+            isCustomElement: (tag) => tag === "model-viewer",
+          },
+        },
+      }),
+      tailwindcss(),
+      swPlugin(),
+      // Last: it needs the finished bundle. Skipped entirely without a token, so
+      // `npm run build` stays a zero-configuration command for contributors and
+      // for the CI gate in test.yml (which builds only to prove the build works
+      // — a PR branch has no business minting production releases).
+      ...(sentryAuthToken
+        ? [
+            sentryVitePlugin({
+              authToken: sentryAuthToken,
+              // Hardcoded rather than read from env: they are not secret, and a
+              // missing env var here would fail *silently* by uploading nothing.
+              org: "crocode-bv",
+              project: "dungeon-grimoire",
+              release: { name: release || undefined },
+              // The maps are uploaded and then deleted from `dist/`, so they are
+              // never served — Sentry un-minifies, the public never sees source.
+              sourcemaps: { filesToDeleteAfterUpload: ["./dist/**/*.map"] },
+            // Expect exactly three "could not determine a source map
+            // reference" warnings, for `_plugin-vue_export-helper`,
+            // `preload-helper` and `rolldown-runtime`. Checked: those are the
+            // only three of 410 chunks with no `.map` sidecar, because they are
+            // generated glue with no original source — 2.2 kB in total. There
+            // is nothing to map and nothing to fix; a *fourth* name appearing
+            // in that list is the thing worth looking at.
+              telemetry: false,
+              // A failed upload must never fail a deploy. The worst case is one
+              // release with minified stack traces; taking the whole frontend
+              // down over it would be the more expensive outage by far.
+              errorHandler: (err) => {
+                console.warn(`::warning::Sentry source-map upload failed: ${err.message}`);
+              },
+            }),
+          ]
+        : []),
+    ],
+    server: {
+      // Portless injects PORT so its proxy can reach the dev server.
+      // Falls back to 5173 for plain `npm run dev`.
+      port: parseInt(process.env.PORT ?? "5173"),
+      strictPort: true,
+    },
+    resolve: {
+      alias: {
+        "@": path.resolve(import.meta.dirname, "./src"),
+        // Canonical AI-provenance core is pure TS shared verbatim with the Deno
+        // edge functions (context/compliance/provenance-architecture.md §1).
+        "@edge-shared": path.resolve(import.meta.dirname, "./supabase/functions/_shared"),
+      },
+    },
+    build: {
+      // "hidden" emits the maps but omits the `//# sourceMappingURL` comment, so
+      // the browser never fetches them and the bundle stays effectively closed
+      // to a reader — Sentry resolves them by debug id instead. Paired with
+      // `filesToDeleteAfterUpload`, the maps exist only between the end of the
+      // build and the end of the upload.
+      sourcemap: sentryAuthToken ? ("hidden" as const) : false,
+      // The model-viewer feature is intrinsically about 1.03 MB minified and is
+      // already isolated behind its lazy route. Keep the threshold just above
+      // that known chunk so an accidentally swollen shared chunk still warns.
+      chunkSizeWarningLimit: 1100,
+      rolldownOptions: {
+        output: {
+          // Vite 8 / rolldown: the function form of `manualChunks` is deprecated
+          // and — importantly — is NOT consulted for virtual modules. That let
+          // Vite's `__vitePreload` helper (`\0vite/preload-helper.js`, needed by
+          // the entry and by every chunk with a dynamic import) get folded into
+          // whichever feature chunk claimed it first. It landed in `model-viewer`,
+          // so the entry statically imported 1 MB of Simulacrum-only 3D code on
+          // every single page load just to reach a ~1 kB function.
+          //
+          // `codeSplitting.groups` is the rolldown-native replacement and does see
+          // virtual modules, so the helper below is pinned to its own chunk.
+          // Groups are matched in order — first match wins — so the node_modules
+          // catch-all stays last.
+          codeSplitting: {
+            groups: [
+              // Shared dynamic-import helper — must never ride along with a
+              // feature chunk (see above).
+              { name: "preload-helper", test: /vite[\\/]preload-helper/ },
+              // Error tracking. Pinned to its own chunk for the same reason as
+            // the preload helper above: left to the `node_modules` catch-all it
+            // lands in `vendor`, and the resulting reshuffle pulled `tiptap`,
+            // `dates` and `polyfills` from lazy into the entry's static graph —
+            // a measured +311 kB gzip on first load for a 31 kB library.
+            // Measured, not guessed: initial JS is 325 kB gzip without error
+            // tracking, 357 kB with it pinned here, and 636 kB with it left in
+            // `vendor`. Re-measure by summing the gzip size of every script and
+            // modulepreload in `dist/index.html` before changing this line.
+            { name: "sentry", test: /node_modules[\\/]@sentry/ },
             // Vue ecosystem core. Order and `@vue[\\/]` are both load-bearing:
-            // the runtime ships as @vue/*, so listed after tiptap (and without
-            // that alternative) it was absorbed into the editor chunk, forcing
-            // every chunk that needs Vue to import all 574 kB of tiptap.
-            { name: "vue-core", test: /node_modules[\\/](@vue[\\/]|vue|pinia|@tanstack)/ },
-            // 3D model viewer — Simulacrum only, keep it out of the main bundle.
-            { name: "model-viewer", test: /node_modules[\\/]@google[\\/]model-viewer/ },
-            // Quest graph engine — Build mode only.
-            { name: "quest-flow", test: /node_modules[\\/]@vue-flow[\\/]/ },
-            // Tiptap editor — loaded on any page with a rich text field
-            { name: "tiptap", test: /node_modules[\\/](@tiptap|prosemirror)/ },
-            // Document, date, and compatibility packages are substantial but
-            // route-specific; do not fold them into catch-all vendor.
-            { name: "documents", test: /node_modules[\\/](pdf-lib|@pdf-lib|pagedjs)/ },
-            { name: "dates", test: /node_modules[\\/]date-fns/ },
-            { name: "polyfills", test: /node_modules[\\/]core-js/ },
-            // Babel's runtime helpers are shared across many packages. Left
-            // unassigned, rolldown co-located them with their biggest consumer
-            // (jspdf) inside the `pdf` chunk — and then `vendor` had to import
-            // `_typeof` back out of it, making the entry statically depend on
-            // all ~590 kB of PDF code. Pin them to `vendor` so the edge only
-            // ever points the other way.
-            { name: "vendor", test: /node_modules[\\/]@babel[\\/]runtime/ },
-            // PDF/print — only needed in Card Forge and character-sheet export.
-            { name: "pdf", test: /node_modules[\\/](jspdf|html2canvas)/ },
-            // Visualisation — NPC relationship web only
-            { name: "viz", test: /node_modules[\\/](d3|v-network-graph)/ },
-            // Supabase client
-            { name: "supabase", test: /node_modules[\\/]@supabase/ },
-            // UI primitives (reka-ui + vueuse + icons + tw utils)
-            {
-              name: "ui",
-              test: /node_modules[\\/](reka-ui|@vueuse|@lucide[\\/]vue|class-variance-authority|clsx|tailwind-merge|tw-animate-css)/,
-            },
-            // Everything else from node_modules
-            { name: "vendor", test: /node_modules/ },
-          ],
+              // the runtime ships as @vue/*, so listed after tiptap (and without
+              // that alternative) it was absorbed into the editor chunk, forcing
+              // every chunk that needs Vue to import all 574 kB of tiptap.
+              { name: "vue-core", test: /node_modules[\\/](@vue[\\/]|vue|pinia|@tanstack)/ },
+              // 3D model viewer — Simulacrum only, keep it out of the main bundle.
+              { name: "model-viewer", test: /node_modules[\\/]@google[\\/]model-viewer/ },
+              // Quest graph engine — Build mode only.
+              { name: "quest-flow", test: /node_modules[\\/]@vue-flow[\\/]/ },
+              // Tiptap editor — loaded on any page with a rich text field
+              { name: "tiptap", test: /node_modules[\\/](@tiptap|prosemirror)/ },
+              // Document, date, and compatibility packages are substantial but
+              // route-specific; do not fold them into catch-all vendor.
+              { name: "documents", test: /node_modules[\\/](pdf-lib|@pdf-lib|pagedjs)/ },
+              { name: "dates", test: /node_modules[\\/]date-fns/ },
+              { name: "polyfills", test: /node_modules[\\/]core-js/ },
+              // Babel's runtime helpers are shared across many packages. Left
+              // unassigned, rolldown co-located them with their biggest consumer
+              // (jspdf) inside the `pdf` chunk — and then `vendor` had to import
+              // `_typeof` back out of it, making the entry statically depend on
+              // all ~590 kB of PDF code. Pin them to `vendor` so the edge only
+              // ever points the other way.
+              { name: "vendor", test: /node_modules[\\/]@babel[\\/]runtime/ },
+              // PDF/print — only needed in Card Forge and character-sheet export.
+              { name: "pdf", test: /node_modules[\\/](jspdf|html2canvas)/ },
+              // Visualisation — NPC relationship web only
+              { name: "viz", test: /node_modules[\\/](d3|v-network-graph)/ },
+              // Supabase client
+              { name: "supabase", test: /node_modules[\\/]@supabase/ },
+              // UI primitives (reka-ui + vueuse + icons + tw utils)
+              {
+                name: "ui",
+                test: /node_modules[\\/](reka-ui|@vueuse|@lucide[\\/]vue|class-variance-authority|clsx|tailwind-merge|tw-animate-css)/,
+              },
+              // Everything else from node_modules
+              { name: "vendor", test: /node_modules/ },
+            ],
+          },
         },
       },
     },
-  },
-}));
+  };
+});
