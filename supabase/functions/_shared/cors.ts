@@ -1,4 +1,4 @@
-import { captureEdgeError, functionNameFromUrl } from "./observability/sentryEdge.ts";
+import { reportEdgeError } from "./observability/report.ts";
 
 // Shared CORS helper.
 //
@@ -24,37 +24,6 @@ const ALLOWED_ORIGINS = new Set<string>([
   // across Vite port shuffles, unlike the localhost:<port> entries above.
   "https://grimoire.localhost",
 ]);
-
-// Error tracking (#644). Unset in local development, where reporting is off.
-const SENTRY_DSN = Deno.env.get("SENTRY_DSN");
-const SENTRY_ENVIRONMENT = Deno.env.get("SENTRY_ENVIRONMENT") ?? "production";
-
-/**
- * Report an unhandled edge-function error, if error tracking is configured.
- *
- * `withCors` is the only place worth doing this: all but four of the 45
- * functions are wrapped in it, so one call here covers the lot and no new
- * function can forget to opt in.
- */
-async function reportEdgeError(err: unknown, req: Request): Promise<void> {
-  if (!SENTRY_DSN) return;
-
-  const capture = captureEdgeError(
-    err,
-    { functionName: functionNameFromUrl(req.url), url: req.url, method: req.method },
-    { dsn: SENTRY_DSN, environment: SENTRY_ENVIRONMENT },
-  );
-
-  // Hand the POST to the runtime where possible so the caller's 500 is not held
-  // behind an ingest round trip. Without `waitUntil` the isolate can be torn
-  // down mid-flight and the report is simply lost, so the fallback awaits —
-  // that path is local dev, where the latency costs nothing. `captureEdgeError`
-  // never rejects, so neither branch can turn a handled error into a crash.
-  const runtime = (globalThis as { EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void } })
-    .EdgeRuntime;
-  if (runtime?.waitUntil) runtime.waitUntil(capture);
-  else await capture;
-}
 
 export function corsHeaders(req: Request): Record<string, string> {
   const origin = req.headers.get("Origin");
