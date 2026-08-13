@@ -62,14 +62,42 @@ because they can be revisited.
   soft-opt-in exemptions in all three are built around an existing *sale*, so
   they do not cover users who have never paid.
 
-**The objection record.** Both purposes rely on being genuinely stoppable, so a
+## 3. Cookieless visitor statistics
+
+*Decided 14 Aug 2026, issue #645.*
+
+- **Purpose.** Knowing how many people reach the app, which screens they open,
+  and on what kind of device — so that decisions about what to fix are made on
+  evidence rather than guesswork. The immediate question it exists to answer:
+  new accounts appear to arrive on phones and leave, and nothing in the product
+  could confirm or refute that.
+- **Necessity.** The alternatives are all *more* intrusive, not less. A product
+  analytics suite with funnels and session replay would answer the question in
+  more detail while storing an identifier on the device, profiling across
+  visits, and recording what is on screen — screens which here hold the user's
+  own campaign writing. Server logs, the other option, hold full IP addresses.
+  Cookieless aggregate counting is the weakest tool that answers the question,
+  and it was chosen *because* it is the weakest.
+- **Balance.** Nothing is stored on the device, so ePrivacy Art. 5(3) does not
+  engage and there is nothing for the user to consent to or refuse; no profile
+  is built, no identifier persists between visits, and no advertising network is
+  involved. URLs are reduced to their route shape in the browser before sending,
+  so neither the ids of a user's own content nor anything they typed into a
+  search box reaches the processor — the same reduction #644 applies to Sentry.
+  What remains is aggregate and anonymous. **Not overridden.** The condition
+  this depends on is the absence of storage and identity: adding cookies,
+  persistent visitor ids, session replay, or a join to account identity would
+  make this a different processing operation needing its own analysis, and
+  almost certainly consent.
+
+**The objection record.** The two email purposes rely on being genuinely stoppable, so a
 request to stop has to outlive the person who received it. Whatever form that
 record takes, it holds an email address indefinitely for the sole purpose of
 never using it again — which is lawful and expected, and is the one case where
 keeping data *is* the way to honour the objection. See the matching row in
 `retention.md`.
 
-## 3. Not yet documented
+## 4. Not yet documented
 
 The privacy policy also claims legitimate interest for **abuse prevention and
 security**, **automatic error reporting**, **AI usage logging for pricing
