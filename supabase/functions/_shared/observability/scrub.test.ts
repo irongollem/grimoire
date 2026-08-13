@@ -13,7 +13,12 @@ describe("redactText", () => {
   });
 
   it("removes JWTs — a Supabase access token is a working session", () => {
-    const jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0In0.dBjftJeZ4CVPmB92K27uhbUJU1p1r_wW1g";
+    // Assembled at runtime, not written as one literal. A complete JWT in
+    // source is indistinguishable from a leaked one to a secret scanner: the
+    // jwt.io sample token this used to hold raised a GitGuardian incident, and
+    // a false positive someone has to dismiss is how real alerts get dismissed
+    // too. The string `redactText` sees is byte-identical either way.
+    const jwt = ["eyJ0ZXN0IjoxfQ", "eyJzdWIiOiJ0ZXN0In0", "not-a-real-signature"].join(".");
     expect(redactText(`token=${jwt} expired`)).toBe("token=[jwt] expired");
   });
 
@@ -166,7 +171,7 @@ describe("scrubEvent", () => {
           data: {
             method: "POST",
             status_code: 500,
-            url: "https://x.supabase.co/functions/v1/generate-npc?apikey=eyJhbGciOiJI.abc.def",
+            url: "https://x.supabase.co/functions/v1/generate-npc?apikey=not-a-real-token",
           },
         },
         {
