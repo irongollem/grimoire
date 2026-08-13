@@ -1,6 +1,7 @@
 import { computed } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
+import { track } from "@/lib/analytics";
 import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
 import type { Campaign, CampaignInsert, CampaignUpdate } from "@/types/campaign.types";
 import { useToast } from "@/composables/useToast";
@@ -56,6 +57,11 @@ async function createCampaign(campaign: CampaignInsert): Promise<Campaign> {
     .select()
     .single();
   if (error) throw error;
+  // Reported here rather than from a mutation callback: this is the single
+  // choke point every campaign creation passes through, and it is past the
+  // throw, so the count cannot drift from reality. No campaign name or id is
+  // sent — see lib/analytics.ts (#645).
+  track({ name: "campaign_created" });
   return data as Campaign;
 }
 

@@ -1,4 +1,4 @@
-import { createApp } from "vue";
+import { createApp, watch } from "vue";
 import { createRouter, createWebHistory } from "vue-router";
 import { createPinia } from "pinia";
 import { VueQueryPlugin, QueryClient } from "@tanstack/vue-query";
@@ -7,6 +7,8 @@ import { vRollMode } from "./directives/vRollMode";
 import { routes, setupRouterGuard } from "./router/index";
 import { supabase, onSessionLost } from "./lib/supabase";
 import { createSessionRecovery } from "./lib/sessionRecovery";
+import { track } from "./lib/analytics";
+import { getAiGeneratorRegistry } from "./ai/aiGeneratorRegistry";
 import { useAuthStore } from "./stores/auth";
 import { installStaleChunkRecovery } from "./lib/staleChunkRecovery";
 import { initErrorTracking } from "./lib/observability/sentry";
@@ -93,6 +95,24 @@ onSessionLost(
         });
     },
   }),
+);
+
+// Every AI generator registers itself so the badge can discover it without
+// being updated (see ai/aiGenerationState.ts), which makes the registry the one
+// place that sees every generation begin. Counting them here rather than in each
+// of the ~14 useXxxGeneration composables means no scattered call sites and no
+// step 6 to forget: a new generator is counted the moment it registers.
+//
+// The label is the registry's own short literal ("NPC", "Monster") — never the
+// user's concept text, which is exactly what lib/analytics.ts refuses to send.
+watch(
+  () => getAiGeneratorRegistry().map((g) => [g.label, g.isGenerating.value] as const),
+  (now, before) => {
+    for (const [label, generating] of now) {
+      const wasGenerating = before?.find(([seen]) => seen === label)?.[1] ?? false;
+      if (generating && !wasGenerating) track({ name: "generator_used", kind: label });
+    }
+  },
 );
 
 // Registered synchronously (not in the async block below) so roll triggers that
