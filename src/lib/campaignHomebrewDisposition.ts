@@ -33,6 +33,21 @@ export type HomebrewKind =
  *  - `"delete"`  — delete the rows along with the campaign. */
 export type HomebrewDisposition = "promote" | "delete";
 
+/**
+ * What happens to homebrew scoped exclusively to a campaign whose ownership
+ * is being *transferred* (#630) — `"promote"` and `"delete"` mean the same
+ * thing as in {@link HomebrewDisposition}, plus a third option unique to
+ * this flow: `"reassign"` re-scopes the originals to another campaign the
+ * outgoing DM still owns, instead of making them universal or destroying
+ * them.
+ *
+ * Kept as its own type rather than widening `HomebrewDisposition` because
+ * that type also drives the campaign *deletion* dialog, which has no
+ * "another campaign" to reassign into — a shared type would silently offer
+ * `"reassign"` there too.
+ */
+export type TransferScopedDisposition = HomebrewDisposition | "reassign";
+
 /** Table each homebrew kind lives in. */
 export const HOMEBREW_TABLES: Record<HomebrewKind, string> = {
   classes: "custom_classes",

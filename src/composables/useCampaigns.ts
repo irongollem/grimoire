@@ -5,7 +5,12 @@ import { track } from "@/lib/analytics";
 import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
 import type { Campaign, CampaignInsert, CampaignUpdate } from "@/types/campaign.types";
 import { useToast } from "@/composables/useToast";
-import type { HomebrewCounts, HomebrewDisposition, HomebrewKind } from "@/lib/campaignHomebrewDisposition";
+import type {
+  HomebrewCounts,
+  HomebrewDisposition,
+  HomebrewKind,
+  TransferScopedDisposition,
+} from "@/lib/campaignHomebrewDisposition";
 import { HOMEBREW_TABLES, EMPTY_HOMEBREW_COUNTS } from "@/lib/campaignHomebrewDisposition";
 
 // All campaign-scoped tables whose orphaned rows (campaign_id IS NULL) can be claimed
@@ -164,20 +169,27 @@ export async function disposeHomebrewAndDeleteCampaign(
  * `leaveCampaign` decides what happens to the outgoing DM: `false` demotes them
  * to a player (they stay in the group), `true` removes their membership.
  * `scopedCopyDisposition` decides whether their original campaign-only monsters
- * and traps become global homebrew or are removed after the recipient's copies
- * have been made.
+ * and traps become global homebrew, are removed, or are reassigned to another
+ * campaign after the recipient's copies have been made. `"reassign"` requires
+ * `reassignCampaignId` to name another campaign the caller (still) owns; for
+ * every other disposition `reassignCampaignId` must be `null` — the RPC
+ * rejects a non-null target paired with a non-reassign disposition, and
+ * rejects `"reassign"` whose target is null, equals the transferred campaign,
+ * or isn't owned by the caller.
  */
 export async function transferCampaignOwnership(
   campaignId: string,
   newOwnerId: string,
   leaveCampaign: boolean,
-  scopedCopyDisposition: HomebrewDisposition,
+  scopedCopyDisposition: TransferScopedDisposition,
+  reassignCampaignId: string | null,
 ): Promise<void> {
   const { error } = await supabase.rpc("transfer_campaign_ownership", {
     p_campaign_id: campaignId,
     p_new_owner_id: newOwnerId,
     p_leave_campaign: leaveCampaign,
     p_scoped_copy_disposition: scopedCopyDisposition,
+    p_reassign_campaign_id: reassignCampaignId,
   });
   if (error) throw error;
 }
@@ -290,16 +302,19 @@ export function useTransferCampaignOwnership() {
       newOwnerId,
       leaveCampaign,
       scopedCopyDisposition,
+      reassignCampaignId,
     }: {
       campaignId: string;
       newOwnerId: string;
       leaveCampaign: boolean;
-      scopedCopyDisposition: HomebrewDisposition;
+      scopedCopyDisposition: TransferScopedDisposition;
+      reassignCampaignId: string | null;
     }) => transferCampaignOwnership(
       campaignId,
       newOwnerId,
       leaveCampaign,
       scopedCopyDisposition,
+      reassignCampaignId,
     ),
     // The caller just gave away read access to nearly every row they had cached
     // for this campaign. Naming the affected keys would mean naming ~40 of them

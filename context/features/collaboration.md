@@ -105,7 +105,13 @@ A DM can hand a campaign to any other member from **Settings → Danger Zone**
 (`src/components/campaign/TransferOwnershipPanel.vue`). They pick the new DM from the
 member list, optionally tick *"Leave the campaign as well"*, and type the campaign name
 to confirm — the same gate the delete flow uses, shared via
-`src/components/common/ConfirmByNameInput.vue`.
+`src/components/common/ConfirmByNameInput.vue`. If any monsters or traps are scoped
+exclusively to the campaign, a radio group makes them choose what happens to their
+originals: keep globally, move to another campaign they own (a picker appears; the
+option is hidden when they own no other campaign), or delete. The choice is typed as
+`TransferScopedDisposition` (`src/lib/campaignHomebrewDisposition.ts`), kept separate
+from the deletion dialog's two-value `HomebrewDisposition` so `'reassign'` cannot leak
+into a flow that has no target campaign to offer.
 
 **Why this is an RPC and not an `update campaigns set user_id`.** `campaigns.user_id` is
 only half of what ownership means here. Roughly forty campaign-scoped tables gate their
@@ -114,8 +120,9 @@ notes, npcs, quests, locations, items, encounters, sounds, homebrew. Swapping th
 column alone hands over an empty shell: the new DM passes `is_campaign_dm()` but cannot
 read a single note, while the old DM keeps full read/write on all of it. So
 `transfer_campaign_ownership(p_campaign_id, p_new_owner_id, p_leave_campaign,
-p_scoped_copy_disposition)` (`supabase/migrations/20260731000001_transfer_campaign_ownership.sql`,
-extended by `20260812000001_transfer_campaign_scoped_monsters_traps.sql`) does the whole
+p_scoped_copy_disposition, p_reassign_campaign_id)` (`supabase/migrations/20260731000001_transfer_campaign_ownership.sql`,
+extended by `20260812000001_transfer_campaign_scoped_monsters_traps.sql` and
+`20260814003041_transfer_quest_referenced_monsters_and_reassign.sql`) does the whole
 thing in one `SECURITY DEFINER` transaction — a half-applied transfer would lock both
 DMs out of the same campaign at once.
 
@@ -136,10 +143,15 @@ What the RPC does, in order:
    `monsters` and `traps` gained a `campaign_id` in `20260809000003`. Since #630, rows
    scoped to the transferred campaign are copied even when no campaign content references
    them yet; the clone keeps that campaign scope. Before confirming, the outgoing DM must
-   choose whether their originals become global (`campaign_id = null`) or are deleted.
+   choose whether their originals become global (`campaign_id = null`), move to another
+   campaign they still own (`'reassign'` + `p_reassign_campaign_id`, validated as
+   caller-owned and distinct from the campaign being handed over), or are deleted.
    Referenced global rows are still copied for the recipient and remain global for their
    author. The disposition is part of the transfer RPC, so clone, transfer and cleanup are
-   atomic. Separately, `delete_campaign_with_homebrew` once disposed of left-behind rows
+   atomic. What counts as "referenced" is defined once, in
+   `private.campaign_referenced_monster_ids()` / `_trap_ids()` — the base function's
+   clone set and the wrapper's don't-copy-twice exclusion set call the same helpers,
+   because their previous inline copies of that union had already drifted. Separately, `delete_campaign_with_homebrew` once disposed of left-behind rows
    with an owner-less `where campaign_id = …`; `20260809000004` confines each
    disposition to the caller's own rows and promotes anyone else's to global rather than
    deleting them.
@@ -149,6 +161,17 @@ What the RPC does, in order:
    document — a v4 uuid is globally unique, so a match anywhere in the document *is* that
    reference. Note that these fields also hold shared SRD keys like `srd_dire_wolf`; only
    well-formed uuids are candidates, or the cast raises `invalid input syntax for type uuid`.
+
+   Quest references (`quest_refs` with `ref_type = 'monster'`, `quest_beat_attachments`
+   with `attachment_type = 'monster'`) are both in the clone-reachability union and
+   repointed too — but as a final step *after* the campaign-row flip, in that order.
+   Both constraints are load-bearing: the beat-attachment update fires
+   `validate_quest_beat_attachment`, whose global-row arm accepts the recipient-owned
+   clone only via the campaign's *current* owner (patched in `20260814003041`), and it
+   also fires the `sync_quest_ref_from_beat_attachment` mirror trigger, whose insert
+   must land as an `ON CONFLICT` no-op against an already-repointed `quest_refs` row.
+   Beat attachments of *other* types (handouts, global items/locations/NPCs/factions)
+   still do not travel — that is #733, deliberately out of #630's scope.
 4. **Moves the campaign's content** — `user_id` is re-stamped on every campaign-scoped
    table plus the FK children that carry a `user_id` but no `campaign_id` (`faction_*`,
    `quest_triggers`, `store_items`). Every update is filtered on
@@ -158,8 +181,9 @@ What the RPC does, in order:
    promoted *before* the outgoing DM is demoted — the reverse order makes the trigger
    reject the promotion as an illegal self role change. The new DM's `party_member_id` is
    cleared, or their character would read as "taken" in the member list forever.
-6. **Updates the campaign row** — new `user_id`, and the four `*_api_key` columns are
-   nulled. `spotify_client_id` travels with the campaign (it is a public OAuth client id).
+6. **Updates the campaign row** — new `user_id`, and the three `*_api_key` columns are
+   nulled (four until `20260809145858` dropped `falai_api_key`). `spotify_client_id`
+   travels with the campaign (it is a public OAuth client id).
 
 What deliberately does **not** move: credit-spend records (`ai_generation_jobs`,
 `image_generation_jobs`), chat authorship (`campaign_messages`), personal annotations

@@ -35,9 +35,9 @@
         </p>
         <p class="text-caption text-muted-foreground">
           Every note, NPC, quest, location, item, encounter, faction, sound and
-          campaign-scoped homebrew, plus the monsters, traps, backgrounds and
-          Scriptorium handouts this campaign uses — those are copied into their
-          library, so yours keeps its own.
+          campaign-scoped homebrew, plus the monsters and traps this campaign's
+          encounters and quests use, and its backgrounds and Scriptorium
+          handouts — those are copied into their library, so yours keeps its own.
         </p>
         <p class="text-caption text-muted-foreground">
           Staying with you: your AI provider keys (cleared from the campaign), your
@@ -92,6 +92,32 @@
               </p>
             </div>
           </label>
+          <label
+            v-if="otherOwnedCampaigns.length"
+            class="flex items-start gap-2.5 cursor-pointer group"
+          >
+            <input
+              v-model="scopedCopyDisposition"
+              type="radio"
+              value="reassign"
+              class="mt-0.5 h-3.5 w-3.5 border-border text-primary focus:ring-ring"
+            />
+            <div>
+              <span class="text-body text-foreground group-hover:text-primary transition-colors">
+                Move to another campaign
+              </span>
+              <p class="text-caption text-muted-foreground italic">
+                Your originals become scoped to one campaign you keep — pick which.
+              </p>
+            </div>
+          </label>
+          <div v-if="scopedCopyDisposition === 'reassign'" class="pl-6">
+            <EntityCombobox
+              v-model="reassignCampaignId"
+              :options="otherOwnedCampaigns"
+              placeholder="Choose a campaign…"
+            />
+          </div>
           <label class="flex items-start gap-2.5 cursor-pointer group">
             <input
               v-model="scopedCopyDisposition"
@@ -135,14 +161,14 @@
         accent="primary"
       />
 
-      <button
-        type="button"
+      <AppButton
+        variant="primary"
+        size="md"
+        block
+        :label="isTransferring ? 'Transferring…' : 'Transfer Campaign'"
         :disabled="!canTransfer || isTransferring"
-        class="w-full px-4 py-2 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-30 transition-opacity"
         @click="doTransfer"
-      >
-        {{ isTransferring ? "Transferring…" : "Transfer Campaign" }}
-      </button>
+      />
     </template>
   </div>
 </template>
@@ -160,10 +186,11 @@ import {
 import { useCampaignMembers } from "@/composables/useCampaignMembers";
 import {
   EMPTY_HOMEBREW_COUNTS,
-  type HomebrewDisposition,
+  type TransferScopedDisposition,
 } from "@/lib/campaignHomebrewDisposition";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import ConfirmByNameInput from "@/components/common/ConfirmByNameInput.vue";
+import AppButton from "@/components/common/AppButton.vue";
 
 const campaignStore = useCampaignStore();
 const auth = useAuthStore();
@@ -179,7 +206,8 @@ const campaign = computed(() => campaignStore.activeCampaign);
 const newOwnerId = ref("");
 const leaveCampaign = ref(false);
 const confirmInput = ref("");
-const scopedCopyDisposition = ref<HomebrewDisposition | null>(null);
+const scopedCopyDisposition = ref<TransferScopedDisposition | null>(null);
+const reassignCampaignId = ref("");
 
 const campaignId = computed(() => campaign.value?.id ?? null);
 const {
@@ -215,6 +243,7 @@ watch(campaignId, () => {
   leaveCampaign.value = false;
   confirmInput.value = "";
   scopedCopyDisposition.value = null;
+  reassignCampaignId.value = "";
 });
 
 // Everyone but the current DM. The RPC re-checks membership server-side; this is
@@ -225,6 +254,16 @@ const candidates = computed(() =>
     .map((m) => ({ id: m.user_id, name: m.display_name || "(unnamed player)" })),
 );
 
+// Campaigns the outgoing DM could reassign scoped originals into: their own,
+// excluding the one being transferred. `campaignList` is already the
+// non-archived set (see `fetchCampaigns`), and the RPC re-checks ownership
+// server-side — this is only about not offering a target it would reject.
+const otherOwnedCampaigns = computed(() =>
+  (campaignList.value ?? [])
+    .filter((c) => c.user_id === auth.user?.id && c.id !== campaignId.value)
+    .map((c) => ({ id: c.id, name: c.name })),
+);
+
 const canTransfer = computed(
   () =>
     !!campaign.value &&
@@ -232,6 +271,7 @@ const canTransfer = computed(
     !isCheckingScopedCopies.value &&
     !scopedCopiesError.value &&
     (!hasScopedCopies.value || scopedCopyDisposition.value !== null) &&
+    (scopedCopyDisposition.value !== "reassign" || !!reassignCampaignId.value) &&
     confirmInput.value === campaign.value.name,
 );
 
@@ -247,6 +287,8 @@ async function doTransfer() {
     // When no scoped copies exist either disposition is a no-op. Supplying the
     // non-destructive choice keeps the RPC contract explicit for every call.
     scopedCopyDisposition: scopedCopyDisposition.value ?? "promote",
+    // Strict RPC contract: null for every disposition except "reassign".
+    reassignCampaignId: scopedCopyDisposition.value === "reassign" ? reassignCampaignId.value : null,
   });
 
   // The role this session is running as just changed underneath us; the router
