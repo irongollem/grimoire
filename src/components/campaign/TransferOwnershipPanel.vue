@@ -35,9 +35,10 @@
         </p>
         <p class="text-caption text-muted-foreground">
           Every note, NPC, quest, location, item, encounter, faction, sound and
-          campaign-scoped homebrew, plus the monsters and traps this campaign's
-          encounters and quests use, and its backgrounds and Scriptorium
-          handouts — those are copied into their library, so yours keeps its own.
+          campaign-scoped homebrew, plus whatever this campaign's encounters and
+          quests use from your cross-campaign library — monsters, traps, items,
+          NPCs, factions, locations, backgrounds and Scriptorium handouts. Those
+          are copied into their library, so yours keeps its own.
         </p>
         <p class="text-caption text-muted-foreground">
           Staying with you: your AI provider keys (cleared from the campaign), your

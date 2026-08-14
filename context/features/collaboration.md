@@ -151,7 +151,17 @@ What the RPC does, in order:
    atomic. What counts as "referenced" is defined once, in
    `private.campaign_referenced_monster_ids()` / `_trap_ids()` — the base function's
    clone set and the wrapper's don't-copy-twice exclusion set call the same helpers,
-   because their previous inline copies of that union had already drifted. Separately, `delete_campaign_with_homebrew` once disposed of left-behind rows
+   because their previous inline copies of that union had already drifted.
+
+   Since #733 the same clone-and-repoint applies to the outgoing DM's **global** items,
+   NPCs, factions and locations that quest content references (campaign-scoped rows of
+   these kinds simply move in step 4, ids intact, so they need nothing). NPC clones pull
+   their `linked_monster_id` stat block and `scriptorium_doc_id` handout into the
+   monster/doc clone sets so the copy resolves; location clones include `location_set`
+   `room_ids`, get `parent_location_id` remapped clone-to-clone and `source_map_id`
+   nulled (the Cartographer deep-link rule); faction clones are shallow — `faction_*`
+   junction rows are campaign relations and stay put. No disposition question is asked
+   for any of these: originals are global, stay with their author, and lose nothing. Separately, `delete_campaign_with_homebrew` once disposed of left-behind rows
    with an owner-less `where campaign_id = …`; `20260809000004` confines each
    disposition to the caller's own rows and promotes anyone else's to global rather than
    deleting them.
@@ -162,16 +172,16 @@ What the RPC does, in order:
    reference. Note that these fields also hold shared SRD keys like `srd_dire_wolf`; only
    well-formed uuids are candidates, or the cast raises `invalid input syntax for type uuid`.
 
-   Quest references (`quest_refs` with `ref_type = 'monster'`, `quest_beat_attachments`
-   with `attachment_type = 'monster'`) are both in the clone-reachability union and
-   repointed too — but as a final step *after* the campaign-row flip, in that order.
-   Both constraints are load-bearing: the beat-attachment update fires
-   `validate_quest_beat_attachment`, whose global-row arm accepts the recipient-owned
-   clone only via the campaign's *current* owner (patched in `20260814003041`), and it
-   also fires the `sync_quest_ref_from_beat_attachment` mirror trigger, whose insert
-   must land as an `ON CONFLICT` no-op against an already-repointed `quest_refs` row.
-   Beat attachments of *other* types (handouts, global items/locations/NPCs/factions)
-   still do not travel — that is #733, deliberately out of #630's scope.
+   Quest references (`quest_refs` and `quest_beat_attachments`, for monsters since
+   `20260814003041` and for items/NPCs/factions/location sets/handouts since #733) are
+   both in the clone-reachability unions and repointed too — but as a final step *after*
+   the campaign-row flip, `quest_refs` before the attachments. Both constraints are
+   load-bearing: the beat-attachment update fires `validate_quest_beat_attachment`,
+   whose global-row arms accept a recipient-owned clone only via the campaign's
+   *current* owner (the `'monster'` arm was patched in `20260814003041`, the remaining
+   arms with #733), and it also fires the `sync_quest_ref_from_beat_attachment` mirror
+   trigger, whose insert must land as an `ON CONFLICT` no-op against an
+   already-repointed `quest_refs` row.
 4. **Moves the campaign's content** — `user_id` is re-stamped on every campaign-scoped
    table plus the FK children that carry a `user_id` but no `campaign_id` (`faction_*`,
    `quest_triggers`, `store_items`). Every update is filtered on
