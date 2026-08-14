@@ -1,3 +1,4 @@
+import { withErrorReporting } from "../_shared/observability/report.ts";
 import { createClient } from "@supabase/supabase-js";
 
 // This function is public — calendar clients (Google / Apple / Outlook) can't
@@ -51,7 +52,7 @@ interface CampaignRow {
   name: string;
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve(withErrorReporting(async (req: Request) => {
   if (req.method !== "GET") {
     return new Response("Method Not Allowed", { status: 405 });
   }
@@ -174,4 +175,4 @@ Deno.serve(async (req: Request) => {
       "Last-Modified": lastModified,
     },
   });
-});
+}));

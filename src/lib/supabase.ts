@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import type { User } from "@supabase/supabase-js";
+import { createAuthAwareFetch } from "./authAwareFetch";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
@@ -35,11 +36,31 @@ const singleTabLock = <R>(name: string, _timeout: number, fn: () => Promise<R>):
   return current;
 };
 
+// Set by main.ts once the query client and auth store exist. Held as a mutable
+// ref because the fetch wrapper is baked into the client at construction, long
+// before there is anything to recover into.
+let sessionLostHandler: (() => void) | null = null;
+
+/**
+ * Registers what to do when a PostgREST request comes back unauthenticated —
+ * see `authAwareFetch` for why that is detectable and `sessionRecovery` for why
+ * the answer is to re-read the session rather than sign the user out (#727).
+ */
+export function onSessionLost(handler: () => void): void {
+  sessionLostHandler = handler;
+}
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
     lock: singleTabLock,
+  },
+  global: {
+    fetch: createAuthAwareFetch(
+      (input, init) => globalThis.fetch(input, init),
+      () => sessionLostHandler?.(),
+    ),
   },
 });
 

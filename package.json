@@ -16,7 +16,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "verify": "npm run lint && npm run test && npm run build",
-    "verify:db": "npm run db:reset && supabase test db && npm run db:check && npm run db:check:test",
+    "verify:db": "npm run db:reset && supabase test db && npm run db:check && npm run db:check:test && npm run db:check:embeds",
     "stripe:check": "tsx --tsconfig tsconfig.node.json scripts/check-stripe-webhook.ts",
     "db:start": "supabase start",
     "db:stop": "supabase stop",
@@ -24,6 +24,7 @@
     "db:reset": "npm run db:anonymize:check && supabase db reset",
     "db:check": "sh scripts/check-content-integrity.sh",
     "db:check:test": "sh scripts/test-content-integrity.sh",
+    "db:check:embeds": "sh scripts/check-embeds.sh",
     "db:pull": "supabase db dump --linked --data-only --schema auth,public -x public.abuse_guard_config -x public.ai_generation_credit_costs -x public.ai_model_pricing -x public.ai_system_prompts -x public.checkout_config -x public.credit_pack_config -x public.provider_config -x public.simulacrum_config -x public.class_choice_rest_resets -x public.class_ritual_policies -x public.class_spellcasting_policies -x public.content_sources -x public.disposable_email_domains -x public.metamagic_options -x public.plans -x public.system_classes -f supabase/seed.sql && npm run db:anonymize",
     "db:anonymize": "tsx --tsconfig tsconfig.node.json scripts/anonymize-seed.ts",
     "db:anonymize:check": "tsx --tsconfig tsconfig.node.json scripts/anonymize-seed.ts --check",
@@ -42,6 +43,7 @@
   "dependencies": {
     "@google/model-viewer": "^4.3.1",
     "@lucide/vue": "^1.31.0",
+    "@sentry/vue": "^10.70.0",
     "@supabase/supabase-js": "^2.49.1",
     "@tanstack/vue-query": "^5.72.2",
     "@tiptap/extension-highlight": "^3.22.4",
@@ -85,6 +87,7 @@
   "devDependencies": {
     "@gltf-transform/core": "^4.4.1",
     "@gltf-transform/extensions": "^4.4.1",
+    "@sentry/vite-plugin": "^5.4.0",
     "@tailwindcss/vite": "^4.0.0",
     "@types/marked": "^5.0.2",
     "@types/node": "^26.2.0",
@@ -124,6 +127,7 @@
     "es5-ext": false,
     "vue-demi": false,
     "fsevents": false,
-    "esbuild@0.28.2": true
+    "esbuild@0.28.2": true,
+    "@sentry/cli": false
   }
 }

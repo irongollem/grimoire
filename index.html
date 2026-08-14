@@ -24,6 +24,52 @@
   </head>
   <body>
     <div id="app"></div>
+
+    <!-- Vercel Web Analytics (#645). Loaded as a script rather than via
+         @vercel/analytics because every stable release of that package still
+         declares a `vue-router@^4` peer and this app is on 5 — the package
+         would need a forced override to install, for an integration we would
+         not use anyway.
+
+         No cookie and no device storage, so ePrivacy Art. 5(3) never engages
+         and this needs no consent banner. Cookieless is the whole reason this
+         was chosen over a tool with funnels; see issue #645.
+
+         beforeSend reduces every URL to its route *shape* before it leaves the
+         browser. Grimoire's paths carry entity ids (/campaign/<uuid>/npc/<uuid>)
+         and its search params carry whatever the user typed, none of which
+         belongs in an analytics product — and unreduced ids would fragment the
+         report into one row per entity regardless. This mirrors what the Sentry
+         integration already does to URLs (#644). -->
+    <script>
+      window.va =
+        window.va ||
+        function () {
+          (window.vaq = window.vaq || []).push(arguments);
+        };
+      window.va("beforeSend", function (event) {
+        try {
+          var url = new URL(event.url);
+          return {
+            ...event,
+            url:
+              url.origin +
+              url.pathname
+                .replace(
+                  /\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?=\/|$)/gi,
+                  "/:id",
+                )
+                // Shared-library rows are text ids (srd_owlbear), not uuids.
+                .replace(/\/srd_[^/]+(?=\/|$)/gi, "/:id"),
+          };
+        } catch {
+          // An unparseable URL is not worth reporting a shape for.
+          return null;
+        }
+      });
+    </script>
+    <script defer src="/_vercel/insights/script.js"></script>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

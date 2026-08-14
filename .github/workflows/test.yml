@@ -47,6 +47,14 @@ jobs:
         run: supabase start
       - name: Direct API and transaction rules
         run: supabase test db
+      # Asks a real PostgREST to resolve every embed the app ships. Nothing else
+      # in CI talks to PostgREST, so an ambiguous embed typechecks, lints and
+      # unit-tests clean while answering 300 to every caller in production —
+      # which is exactly what #728 did, undetected, until a log trawl found it.
+      # The ambiguity is a property of the schema, so this guards code nobody
+      # touched: an unrelated new table can break a query that was always fine.
+      - name: Client embeds resolve to one relationship
+        run: sh scripts/check-embeds.sh
       # The deploy gate is itself code, and it has been wrong in both
       # directions: it missed nine live referrers (#553 stranded 33 references
       # through that gap), and a later version counted a valid note on a shared

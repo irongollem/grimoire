@@ -27,6 +27,7 @@
 //   List-Unsubscribe-Post: List-Unsubscribe=One-Click
 //
 // and the same URL as a visible link in the body, for clients that have neither.
+import { withErrorReporting } from "../_shared/observability/report.ts";
 import { createClient } from "@supabase/supabase-js";
 import { parseToken, renderPage, type UnsubscribeState } from "./page.ts";
 
@@ -50,7 +51,7 @@ function page(state: UnsubscribeState, token: string | null): Response {
   });
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve(withErrorReporting(async (req: Request) => {
   if (req.method !== "GET" && req.method !== "POST") {
     return new Response("Method Not Allowed", { status: 405, headers: { Allow: "GET, POST" } });
   }
@@ -71,4 +72,4 @@ Deno.serve(async (req: Request) => {
   }
 
   return page(data === true ? "removed" : "not_found", token);
-});
+}));

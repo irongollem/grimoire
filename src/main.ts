@@ -1,11 +1,17 @@
-import { createApp } from "vue";
+import { createApp, watch } from "vue";
 import { createRouter, createWebHistory } from "vue-router";
 import { createPinia } from "pinia";
 import { VueQueryPlugin, QueryClient } from "@tanstack/vue-query";
 import App from "./App.vue";
 import { vRollMode } from "./directives/vRollMode";
 import { routes, setupRouterGuard } from "./router/index";
+import { supabase, onSessionLost } from "./lib/supabase";
+import { createSessionRecovery } from "./lib/sessionRecovery";
+import { track } from "./lib/analytics";
+import { getAiGeneratorRegistry } from "./ai/aiGeneratorRegistry";
+import { useAuthStore } from "./stores/auth";
 import { installStaleChunkRecovery } from "./lib/staleChunkRecovery";
+import { initErrorTracking } from "./lib/observability/sentry";
 import { installSwAutoUpdate } from "./lib/swAutoUpdate";
 import { updateAvailable } from "./composables/useAppUpdate";
 import { captureInstallPrompt } from "./composables/usePwaInstall";
@@ -55,10 +61,59 @@ setupRouterGuard(router);
 installStaleChunkRecovery(router);
 
 const app = createApp(App);
+
+// Before any plugin, directive or store — this installs Vue's errorHandler and
+// the global handlers, and anything thrown during the wiring below is exactly
+// the kind of boot failure worth hearing about. No-op without a DSN.
+initErrorTracking(app, router);
+
 const pinia = createPinia();
 app.use(pinia);
 app.use(VueQueryPlugin, { queryClient });
 app.use(router);
+
+// A backgrounded tab's timers freeze, so the access token can expire without
+// auto-refresh ever firing; the requests sent on wake-up are then anonymous and
+// RLS answers `200 []` rather than an error, leaving a fully rendered app with
+// none of the user's data in it (#727). Wired here because recovery needs both
+// the query client and the store — neither exists inside lib/supabase.ts.
+onSessionLost(
+  createSessionRecovery({
+    hasUsableSession: async () => {
+      // getSession(), never refreshSession() — see sessionRecovery.ts.
+      const { data } = await supabase.auth.getSession();
+      return !!data.session?.access_token;
+    },
+    // The empty results are cached as real answers; without this the app stays
+    // blank even though the session is back.
+    refetchAll: () => void queryClient.invalidateQueries(),
+    signOutAndRedirect: () => {
+      void useAuthStore()
+        .signOut()
+        .finally(() => {
+          if (window.location.pathname !== "/login") window.location.href = "/login";
+        });
+    },
+  }),
+);
+
+// Every AI generator registers itself so the badge can discover it without
+// being updated (see ai/aiGenerationState.ts), which makes the registry the one
+// place that sees every generation begin. Counting them here rather than in each
+// of the ~14 useXxxGeneration composables means no scattered call sites and no
+// step 6 to forget: a new generator is counted the moment it registers.
+//
+// The label is the registry's own short literal ("NPC", "Monster") — never the
+// user's concept text, which is exactly what lib/analytics.ts refuses to send.
+watch(
+  () => getAiGeneratorRegistry().map((g) => [g.label, g.isGenerating.value] as const),
+  (now, before) => {
+    for (const [label, generating] of now) {
+      const wasGenerating = before?.find(([seen]) => seen === label)?.[1] ?? false;
+      if (generating && !wasGenerating) track({ name: "generator_used", kind: label });
+    }
+  },
+);
 
 // Registered synchronously (not in the async block below) so roll triggers that
 // mount early can always resolve `v-roll-mode` (#501).

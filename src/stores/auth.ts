@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { supabase, setCachedUser } from "@/lib/supabase";
+import { setErrorTrackingUser } from "@/lib/observability/sentry";
 import type { User, Session } from "@supabase/supabase-js";
 import type { CampaignMember, CampaignRole } from "@/types/campaign.types";
 
@@ -14,6 +15,13 @@ export const useAuthStore = defineStore("auth", () => {
 
   const isAuthenticated = computed(() => !!user.value);
   const userEmail = computed(() => user.value?.email ?? null);
+
+  // Tag error reports with the account id (#644) — never the email; see
+  // `setErrorTrackingUser`. Watched rather than set at each assignment to
+  // `user`: there are four of them, and only two go through setCachedUser, so
+  // a hand-placed call would eventually miss one and quietly report a
+  // signed-out user as still signed in.
+  watch(user, (current) => setErrorTrackingUser(current?.id ?? null), { immediate: true });
 
   /**
    * What to call this user in front of *other people* — chat messages, presence,

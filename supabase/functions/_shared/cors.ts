@@ -1,3 +1,5 @@
+import { reportEdgeError } from "./observability/report.ts";
+
 // Shared CORS helper.
 //
 // Instead of a blanket `Access-Control-Allow-Origin: *`, reflect the request's
@@ -55,6 +57,7 @@ export function withCors(
       res = await handler(req);
     } catch (err) {
       console.error("unhandled edge-function error:", err);
+      await reportEdgeError(err, req);
       res = new Response(JSON.stringify({ error: "Internal error" }), {
         status: 500,
         headers: { "Content-Type": "application/json" },

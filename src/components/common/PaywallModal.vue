@@ -77,12 +77,10 @@
           <div class="flex items-center gap-3 px-5 pb-5">
             <button
               type="button"
-              class="flex-1 px-4 py-2 rounded-md bg-amber-500 text-black text-label-lg font-semibold hover:bg-amber-400 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              :disabled="stripeLoading"
+              class="flex-1 px-4 py-2 rounded-md bg-amber-500 text-black text-label-lg font-semibold hover:bg-amber-400 transition-colors flex items-center justify-center gap-2"
               @click="upgrade"
             >
-              <IconLoading v-if="stripeLoading" class="h-3.5 w-3.5 animate-spin" />
-              {{ stripeLoading ? 'Redirecting…' : 'Upgrade to Pro' }}
+              Upgrade to Pro
             </button>
             <button
               type="button"
@@ -100,10 +98,10 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { IconClose, IconDM, IconLoading } from '@/lib/icons';
+import { useRouter } from "vue-router";
+import { IconClose, IconDM } from '@/lib/icons';
 import { useQuota } from "@/composables/useQuota";
 import { usePlan } from "@/composables/usePlan";
-import { useStripe } from "@/composables/useStripe";
 import { QUOTA_RESOURCE_LABELS } from "@/types/subscription.types";
 import type { QuotaResource } from "@/types/subscription.types";
 import { detectCurrency, formatCents, resolveAmount } from "@/lib/pricing";
@@ -116,7 +114,7 @@ const props = defineProps<{
 
 const { quota } = useQuota(props.resource ?? 'npcs')
 const { data: proPlan } = usePlan('pro')
-const { loading: stripeLoading, createCheckoutSession } = useStripe()
+const router = useRouter()
 
 const currency = detectCurrency()
 
@@ -176,9 +174,14 @@ function close() {
   open.value = false
 }
 
+// Checkout must be started from /billing, never from here: stripe-create-checkout
+// rejects any session without the ticked withdrawal-consent flag (R3), and that
+// checkbox lives on BillingView. Calling createCheckoutSession() directly from
+// this modal 400'd every time — and because upgrade() closes the dialog first,
+// the error had nowhere to render, so the button read as doing nothing at all.
 function upgrade() {
   close()
-  createCheckoutSession()
+  router.push('/billing')
 }
 </script>
 

@@ -13,6 +13,7 @@
 // config.toml) because we must serve the public discovery document and emit our
 // own 401/WWW-Authenticate; the function validates the token itself.
 
+import { withErrorReporting } from "../_shared/observability/report.ts";
 import { createClient } from "@supabase/supabase-js";
 import { callTool, isMcpContentResult, listTools } from "../_shared/mcp/tools.ts";
 import type { ToolContext } from "../_shared/mcp/tools.ts";
@@ -119,7 +120,7 @@ async function handleRpc(message: Record<string, unknown>, ctx: ToolContext): Pr
 }
 
 // ── HTTP entry ────────────────────────────────────────────────────────────────
-Deno.serve(async (req: Request) => {
+Deno.serve(withErrorReporting(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   const url = new URL(req.url);
@@ -173,4 +174,4 @@ Deno.serve(async (req: Request) => {
     status: response === null ? 202 : 200,
     headers: jsonHeaders,
   });
-});
+}));

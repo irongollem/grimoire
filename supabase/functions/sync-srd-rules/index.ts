@@ -1,3 +1,4 @@
+import { withErrorReporting } from "../_shared/observability/report.ts";
 import { createClient } from "@supabase/supabase-js";
 import { requireAdmin } from "../_shared/requireAdmin.ts";
 import {
@@ -59,7 +60,7 @@ async function fetchAll<T>(url: string): Promise<T[]> {
   return results;
 }
 
-Deno.serve(async (req) => {
+Deno.serve(withErrorReporting(async (req) => {
   try {
     // Admin-only: this triggers a full canonical library_rules re-sync. The gateway
     // verifies the JWT (verify_jwt default), but any authenticated user would
@@ -137,4 +138,4 @@ Deno.serve(async (req) => {
       { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }
-});
+}));

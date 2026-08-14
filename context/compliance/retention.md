@@ -36,6 +36,7 @@ decided answer, not that every number is small.
 | Invite tokens | `app_invites`, `campaign_invites` | **90 days** after the token stops working | `private.purge_expired_retention()` |
 | Product signal | `feature_interest` | **365 days** | `private.purge_expired_retention()` |
 | Waitlist | `pro_waitlist` | Until the launch email is sent; **365-day** backstop | Withdrawal at any time (§4) + matching account erasure + operational removal + `private.purge_expired_retention()` |
+| Objection to being contacted | A request to stop receiving fault notices or experience questions — see `legitimate-interests.md` | **Indefinite**, deliberately | Kept precisely so the address is never used again; deleting it would re-enable the contact the person objected to. Not yet a table — hand-kept while the volume is three people, and the first thing to formalise if it stops being three |
 | Derived vectors | the eight `*_embeddings` tables | Lifetime of the row they describe | FK cascade from the source row |
 | Shared library content | `library_*`, `sound_library`, `content_sources` | **Indefinite** | — not personal data |
 | Rules catalogue and operator config | `plans`, `provider_config`, `ai_model_pricing`, the `class_*` policy tables, and the rest | **Indefinite** | — not personal data |

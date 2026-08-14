@@ -47,6 +47,70 @@
         </p>
       </div>
 
+      <div
+        v-if="isCheckingScopedCopies"
+        class="rounded-md border border-border px-3 py-2.5"
+      >
+        <p class="text-caption text-muted-foreground italic">
+          Checking for campaign-only monsters and traps…
+        </p>
+      </div>
+
+      <div
+        v-else-if="scopedCopiesError"
+        class="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2.5"
+      >
+        <p class="text-caption text-destructive">
+          Campaign-only monsters and traps could not be checked. Reload this page
+          before transferring so none of your authored work is left hidden.
+        </p>
+      </div>
+
+      <div
+        v-else-if="hasScopedCopies"
+        class="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 space-y-2.5"
+      >
+        <p class="text-caption text-amber-700 dark:text-amber-400">
+          This campaign has <span class="font-semibold">{{ scopedCopiesSummary }}</span>
+          scoped exclusively to it. Copies move to the new DM. Choose what happens
+          to your originals:
+        </p>
+        <div class="space-y-2">
+          <label class="flex items-start gap-2.5 cursor-pointer group">
+            <input
+              v-model="scopedCopyDisposition"
+              type="radio"
+              value="promote"
+              class="mt-0.5 h-3.5 w-3.5 border-border text-primary focus:ring-ring"
+            />
+            <div>
+              <span class="text-body text-foreground group-hover:text-primary transition-colors">
+                Keep in my library
+              </span>
+              <p class="text-caption text-muted-foreground italic">
+                Your originals become available in all your other campaigns.
+              </p>
+            </div>
+          </label>
+          <label class="flex items-start gap-2.5 cursor-pointer group">
+            <input
+              v-model="scopedCopyDisposition"
+              type="radio"
+              value="delete"
+              class="mt-0.5 h-3.5 w-3.5 border-border text-primary focus:ring-ring"
+            />
+            <div>
+              <span class="text-body text-foreground group-hover:text-primary transition-colors">
+                Remove my originals
+              </span>
+              <p class="text-caption text-muted-foreground italic">
+                The new DM keeps their copies, but these originals are permanently removed from your library.
+              </p>
+            </div>
+          </label>
+        </div>
+      </div>
+
       <label class="flex items-start gap-2.5 cursor-pointer group">
         <input
           v-model="leaveCampaign"
@@ -84,12 +148,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
-import { useCampaigns, useTransferCampaignOwnership } from "@/composables/useCampaigns";
+import {
+  useCampaigns,
+  useCampaignScopedHomebrewCounts,
+  useTransferCampaignOwnership,
+} from "@/composables/useCampaigns";
 import { useCampaignMembers } from "@/composables/useCampaignMembers";
+import {
+  EMPTY_HOMEBREW_COUNTS,
+  type HomebrewDisposition,
+} from "@/lib/campaignHomebrewDisposition";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import ConfirmByNameInput from "@/components/common/ConfirmByNameInput.vue";
 
@@ -107,6 +179,43 @@ const campaign = computed(() => campaignStore.activeCampaign);
 const newOwnerId = ref("");
 const leaveCampaign = ref(false);
 const confirmInput = ref("");
+const scopedCopyDisposition = ref<HomebrewDisposition | null>(null);
+
+const campaignId = computed(() => campaign.value?.id ?? null);
+const {
+  data: scopedHomebrewCounts,
+  isPending: isCheckingScopedCopies,
+  isError: scopedCopiesError,
+} = useCampaignScopedHomebrewCounts(() => campaignId.value);
+const scopedCounts = computed(
+  () => scopedHomebrewCounts.value ?? EMPTY_HOMEBREW_COUNTS,
+);
+const scopedCopyCount = computed(
+  () => scopedCounts.value.monsters + scopedCounts.value.traps,
+);
+const hasScopedCopies = computed(() => scopedCopyCount.value > 0);
+const scopedCopiesSummary = computed(() => {
+  const parts: string[] = [];
+  if (scopedCounts.value.monsters > 0) {
+    const count = scopedCounts.value.monsters;
+    parts.push(`${count} ${count === 1 ? "monster" : "monsters"}`);
+  }
+  if (scopedCounts.value.traps > 0) {
+    const count = scopedCounts.value.traps;
+    parts.push(`${count} ${count === 1 ? "trap" : "traps"}`);
+  }
+  return parts.join(" and ");
+});
+
+// Campaign settings can stay mounted while the active campaign changes. Never
+// carry a destructive retention choice (or a recipient/confirmation) across
+// that boundary; the outgoing DM must choose for the campaign being transferred.
+watch(campaignId, () => {
+  newOwnerId.value = "";
+  leaveCampaign.value = false;
+  confirmInput.value = "";
+  scopedCopyDisposition.value = null;
+});
 
 // Everyone but the current DM. The RPC re-checks membership server-side; this is
 // only about not offering a choice that would be rejected.
@@ -120,6 +229,9 @@ const canTransfer = computed(
   () =>
     !!campaign.value &&
     !!newOwnerId.value &&
+    !isCheckingScopedCopies.value &&
+    !scopedCopiesError.value &&
+    (!hasScopedCopies.value || scopedCopyDisposition.value !== null) &&
     confirmInput.value === campaign.value.name,
 );
 
@@ -132,6 +244,9 @@ async function doTransfer() {
     campaignId,
     newOwnerId: newOwnerId.value,
     leaveCampaign: left,
+    // When no scoped copies exist either disposition is a no-op. Supplying the
+    // non-destructive choice keeps the RPC contract explicit for every call.
+    scopedCopyDisposition: scopedCopyDisposition.value ?? "promote",
   });
 
   // The role this session is running as just changed underneath us; the router
