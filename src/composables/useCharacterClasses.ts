@@ -25,9 +25,22 @@ async function fetchClassesForMember(partyMemberId: string): Promise<CharacterCl
 async function fetchAllClassesForCampaign(campaignId: string): Promise<CharacterClass[]> {
   // Join through party_members to scope by campaign. RLS already restricts to
   // the caller's own members — campaign filter is belt-and-braces.
+  //
+  // The `!character_classes_party_member_id_fkey` hint is mandatory, not
+  // decoration (#728). A bare `party_members!inner` is ambiguous: besides the
+  // direct FK, three tables hold foreign keys to *both* character_classes and
+  // party_members — character_spells, ruleset_reviews and spell_change_windows
+  // — so PostgREST infers a many-to-many path through each, finds four
+  // candidates, and answers `300 PGRST201` instead of data.
+  //
+  // It failed silently for as long as it was wrong, which is why it took a log
+  // trawl to find: this query throws, so every consumer sees `undefined` and
+  // falls back — `memberLevelDisplay` in useEncounterDifficulty quietly reverts
+  // to `party_members.level`, which is the wrong number for anyone
+  // multiclassed, and the "Fighter 5 / Wizard 3" labels simply never appear.
   const { data, error } = await supabase
     .from("character_classes")
-    .select("*, party_members!inner(campaign_id)")
+    .select("*, party_members!character_classes_party_member_id_fkey!inner(campaign_id)")
     .eq("party_members.campaign_id", campaignId)
     .order("sort_order", { ascending: true });
   if (error) throw error;
