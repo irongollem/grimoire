@@ -162,7 +162,11 @@ from one of them, it isn't.
 ## Monitoring — errors only, and that boundary is deliberate (#644)
 
 **Sentry, EU region** (`ingest.de.sentry.io`, org `crocode-bv`, project
-`dungeon-grimoire`) receives **errors and nothing else**. There is still no
+`dungeon-grimoire`) receives **errors and nothing else**. Note when reading
+event history: nothing arrived before 15 Aug 2026 — from #644's ship until
+then, both `VITE_SENTRY_DSN` and the edge `SENTRY_DSN` secret held the DSN of
+a defunct earlier project, and the ingest rejected every event with a 403. An
+empty stretch before that date is the outage, not an absence of errors. There is still no
 analytics, no product telemetry, and no third-party script in `index.html` —
 the SDK is bundled from npm, so nothing is fetched from a foreign origin at
 runtime except the error POST itself.
