@@ -115,10 +115,14 @@ just because the key does.
 
 ### MCP server
 
-`supabase/functions/mcp` — a read-only OAuth 2.1 resource server ("traverse
+`supabase/functions/mcp` — an OAuth 2.1 resource server ("traverse and edit
 your campaign from your own AI"). It serves campaign data to external MCP
-clients; it does not itself generate content, so it sits outside Art 50's
-scope. Listed here for completeness of the AI surface.
+clients and, through `create`/`update`, lets them write it back. Neither
+direction calls a model: the server runs SQL under the DM's own RLS scope, and
+any text it stores was authored by whatever client the DM connected. So it
+generates no content and sits outside Art 50's scope — the client on the other
+end may be an AI system, but it is not one of ours, and its output is disclosed
+by whoever operates it. Listed here for completeness of the AI surface.
 
 ### Not AI
 

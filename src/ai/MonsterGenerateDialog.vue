@@ -129,13 +129,7 @@ const PROMPT_LIMIT = AI_PROMPT_LIMIT;
 import { useMonsterGeneration } from "./useMonsterGeneration";
 import { currentLoadingQuote } from "./aiGenerationState";
 import type { MonsterAiGenerated } from "./types";
-import type { MonsterType, MonsterSize } from "@/types/monster.types";
-
-const MONSTER_TYPES: MonsterType[] = [
-  "aberration", "beast", "celestial", "construct", "dragon", "elemental",
-  "fey", "fiend", "giant", "humanoid", "monstrosity", "ooze", "plant", "undead",
-];
-const SIZES: MonsterSize[] = ["tiny", "small", "medium", "large", "huge", "gargantuan"];
+import { MONSTER_SIZES as SIZES, MONSTER_TYPES } from "@/types/monster.types";
 
 const emit = defineEmits<{
   close: [];

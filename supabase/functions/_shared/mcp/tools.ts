@@ -1,4 +1,4 @@
-// Transport-agnostic read-only tool layer for the Grimoire MCP server.
+// Transport-agnostic tool layer for the Grimoire MCP server.
 //
 // `listTools()` returns MCP tool definitions; `callTool(ctx, name, args)` runs one
 // and returns plain data (the transport wraps it as MCP content). All queries go
@@ -112,6 +112,11 @@ function coerceField(name: string, f: FieldDef, raw: unknown): unknown {
       if (typeof raw === "string" && raw.trim() === "") throw new Error(`Field "${name}" must be a number.`);
       const n = typeof raw === "number" ? raw : Number(raw);
       if (!Number.isFinite(n)) throw new Error(`Field "${name}" must be a number.`);
+      // Mirrors the column's CHECK constraint, so an out-of-range value comes
+      // back as a sentence the agent can act on rather than a raw Postgres
+      // constraint-violation string.
+      if (f.min !== undefined && n < f.min) throw new Error(`Field "${name}" must be at least ${f.min}.`);
+      if (f.max !== undefined && n > f.max) throw new Error(`Field "${name}" must be at most ${f.max}.`);
       return n;
     }
     case "boolean": {
@@ -123,6 +128,30 @@ function coerceField(name: string, f: FieldDef, raw: unknown): unknown {
         throw new Error(`Field "${name}" must be an array of strings.`);
       }
       return (raw as string[]).map((x) => x.trim());
+    }
+    case "uuid[]": {
+      if (!Array.isArray(raw) || raw.some((x) => typeof x !== "string")) {
+        throw new Error(`Field "${name}" must be an array of UUID strings.`);
+      }
+      return (raw as string[]).map((x) => {
+        const v = x.trim();
+        if (!UUID_RE.test(v)) throw new Error(`Field "${name}" contains "${x}", which is not a valid UUID.`);
+        return v;
+      });
+    }
+    case "json": {
+      // Objects and arrays only. A bare scalar would be valid JSON but never the
+      // shape any of these columns holds, and a JSON *string* is the classic
+      // near-miss — an agent stringifying the payload it meant to send.
+      if (typeof raw === "string") {
+        throw new Error(
+          `Field "${name}" must be a JSON object/array, not a string — send the value itself, shaped ${f.shape ?? "as documented"}.`,
+        );
+      }
+      if (typeof raw !== "object") {
+        throw new Error(`Field "${name}" must be a JSON object/array shaped ${f.shape ?? "as documented"}.`);
+      }
+      return raw;
     }
   }
 }
@@ -241,13 +270,59 @@ function toHit(def: EntityDef, row: EntityRow) {
     id: row.id,
     name: row[def.nameField] ?? null,
     summary: def.summaryField ? (row[def.summaryField] ?? null) : null,
-    campaign_id: def.campaignScoped ? (row.campaign_id ?? null) : undefined,
+    campaign_id: row.campaign_id ?? null,
   };
+}
+
+/** Read an optional `campaign_id` argument, rejecting anything that isn't a UUID. */
+function campaignArg(raw: unknown): string | null {
+  if (typeof raw !== "string" || raw.trim() === "") return null;
+  const v = raw.trim();
+  if (!UUID_RE.test(v)) throw new Error("`campaign_id` must be a valid UUID.");
+  return v;
+}
+
+/**
+ * The minimal slice of a PostgREST query builder the campaign filter needs.
+ * Structural rather than imported so this stays a pure, unit-testable function
+ * instead of dragging the full generic builder type through.
+ */
+interface CampaignFilterable<T> {
+  eq(column: string, value: string): T;
+  or(filters: string): T;
+}
+
+/**
+ * Narrow a query to one campaign, honouring what `campaign_id` means for the
+ * table (see `campaignScope` in the registry). On a "shared" library table NULL
+ * means "available in every campaign", so an equality match would hide the DM's
+ * entire general catalogue from a campaign-scoped question — those tables get
+ * `is null OR eq` instead.
+ *
+ * `campaignId` is interpolated into a PostgREST filter string here, where `,`
+ * and `)` are syntax, so it MUST already be UUID-validated by `campaignArg`.
+ */
+export function applyCampaignFilter<T extends CampaignFilterable<T>>(
+  query: T,
+  def: EntityDef,
+  campaignId: string,
+): T {
+  return def.campaignScope === "shared"
+    ? query.or(`campaign_id.is.null,campaign_id.eq.${campaignId}`)
+    : query.eq("campaign_id", campaignId);
 }
 
 export function listTools(): ToolDef[] {
   const typeEnum = { type: "string", enum: ENTITY_TYPES };
   const creatableEnum = { type: "string", enum: CREATABLE_TYPES };
+  // `list` and `search` take the same argument and must explain it the same way.
+  const campaignIdArg = {
+    type: "string",
+    description:
+      "Narrow to one campaign. Types whose rows belong to a campaign (npc, quest, party_member, …) are matched exactly; " +
+      "the shared library types (item, monster, spell, trap, rule) also keep their general-catalogue rows, which are the " +
+      "ones available in every campaign.",
+  };
   return [
     {
       name: "list_campaigns",
@@ -264,7 +339,7 @@ export function listTools(): ToolDef[] {
         properties: {
           query: { type: "string", description: "Text to search for (matched against names and descriptions)." },
           types: { type: "array", items: typeEnum, description: "Limit to these entity types. Omit to search all." },
-          campaign_id: { type: "string", description: "Restrict campaign-scoped types to this campaign." },
+          campaign_id: campaignIdArg,
           limit: { type: "number", description: `Max hits per type (1-${MAX_LIMIT}, default ${SEARCH_PER_TYPE}).` },
         },
         required: ["query"],
@@ -308,12 +383,12 @@ export function listTools(): ToolDef[] {
     {
       name: "list",
       description:
-        "List entities of one type (most recently updated first). Returns lightweight rows; use `get` for full details. Optionally filter campaign-scoped types by campaign.",
+        "List entities of one type (most recently updated first). Returns lightweight rows; use `get` for full details. Optionally filter by campaign.",
       inputSchema: {
         type: "object",
         properties: {
           type: typeEnum,
-          campaign_id: { type: "string", description: "Restrict campaign-scoped types to this campaign." },
+          campaign_id: campaignIdArg,
           limit: { type: "number", description: `Max rows (1-${MAX_LIMIT}, default ${DEFAULT_LIMIT}).` },
         },
         required: ["type"],
@@ -323,7 +398,12 @@ export function listTools(): ToolDef[] {
     {
       name: "create",
       description:
-        "Create a new piece of the DM's content and return the created record. Provide `type` and a `fields` object. The owner is set automatically — never pass user_id/id. Free-tier limits apply (some types are capped). Writable fields per type (`*`=required, `[]`=string array, `#`=number, `(a|b)`=enum):\n" +
+        "Create a new piece of the DM's content and return the created record. Provide `type` and a `fields` object. " +
+        "The owner is set automatically — never pass user_id/id. Free-tier limits apply (some types are capped). " +
+        "Images are never writable here; upload art in the app. " +
+        "Omitting `campaign_id` on item/monster/spell/trap/rule files the row in the DM's general catalogue, visible from every campaign — " +
+        "which is usually what you want when transcribing source material. " +
+        "Writable fields per type (`*`=required, `[]`=string array, `[uuid]`=id array, `#`=number, `?`=boolean, `(a|b)`=enum, `{…}`=JSON shape):\n" +
         describeCreatableFields(),
       inputSchema: {
         type: "object",
@@ -415,7 +495,7 @@ async function search(ctx: ToolContext, args: Record<string, unknown>) {
   if (!q) throw new Error("`query` must contain searchable text.");
   const pattern = `*${q}*`;
   const perType = clampLimit(args.limit, SEARCH_PER_TYPE);
-  const campaignId = typeof args.campaign_id === "string" ? args.campaign_id : null;
+  const campaignId = campaignArg(args.campaign_id);
 
   const requested = Array.isArray(args.types) && args.types.length
     ? (args.types as unknown[]).map(resolveDef)
@@ -428,7 +508,10 @@ async function search(ctx: ToolContext, args: Record<string, unknown>) {
         .select(listColumns(def))
         .or(def.searchFields.map((f) => `${f}.ilike.${pattern}`).join(","))
         .limit(perType);
-      if (campaignId && def.campaignScoped) query = query.eq("campaign_id", campaignId);
+      // A second `.or()` is appended as its own `or=` param, and PostgREST ANDs
+      // top-level params — so the campaign group narrows the text match rather
+      // than widening it.
+      if (campaignId) query = applyCampaignFilter(query, def, campaignId);
       const { data, error } = await query.overrideTypes<EntityRow[]>();
       // A single bad table shouldn't sink the whole multi-type search.
       if (error) return { type: def.type, error: error.message, hits: [] as unknown[] };
@@ -494,13 +577,13 @@ async function getImage(ctx: ToolContext, args: Record<string, unknown>): Promis
 async function list(ctx: ToolContext, args: Record<string, unknown>) {
   const def = resolveDef(args.type);
   const limit = clampLimit(args.limit);
-  const campaignId = typeof args.campaign_id === "string" ? args.campaign_id : null;
+  const campaignId = campaignArg(args.campaign_id);
   let query = ctx.supabase
     .from(def.table)
     .select(listColumns(def))
     .order("updated_at", { ascending: false })
     .limit(limit);
-  if (campaignId && def.campaignScoped) query = query.eq("campaign_id", campaignId);
+  if (campaignId) query = applyCampaignFilter(query, def, campaignId);
   const { data, error } = await query.overrideTypes<EntityRow[]>();
   if (error) throw new Error(error.message);
   return { type: def.type, count: (data ?? []).length, items: (data ?? []).map((r) => toHit(def, r)) };
