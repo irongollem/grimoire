@@ -15,7 +15,7 @@
       </RouterLink>
 
       <!-- ── Party — full width, 1/2/3 col responsive ──────────────────── -->
-      <div class="rounded-lg border border-border bg-card overflow-hidden">
+      <div data-tour="dm-party" class="rounded-lg border border-border bg-card overflow-hidden">
         <div class="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/20">
           <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">Party</h2>
           <div class="flex items-center gap-3">
@@ -95,7 +95,7 @@
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
         <!-- Active Quests (compact) -->
-        <div class="rounded-lg border border-border bg-card overflow-hidden">
+        <div data-tour="dm-quests" class="rounded-lg border border-border bg-card overflow-hidden">
           <div class="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/20">
             <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">Active Quests</h2>
             <RouterLink to="/quests" class="text-label font-semibold text-primary hover:opacity-80">View all →</RouterLink>
@@ -127,7 +127,7 @@
         </div>
 
         <!-- Session Status: Game Day + Location -->
-        <div class="rounded-lg border border-border bg-card overflow-hidden">
+        <div data-tour="dm-session" class="rounded-lg border border-border bg-card overflow-hidden">
           <div class="px-4 py-2.5 border-b border-border bg-muted/20">
             <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">Session</h2>
           </div>

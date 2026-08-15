@@ -1,7 +1,10 @@
 import { ref, reactive, computed, watch, type InjectionKey } from "vue";
 import { useRouter, useRoute } from "vue-router";
+import { useQueryClient } from "@tanstack/vue-query";
 import { useAuthStore } from "@/stores/auth";
+import { useCampaignStore } from "@/stores/campaign";
 import { useParty, useCreatePartyMember, useUpdatePartyMember } from "@/composables/useParty";
+import { useCharacterPool } from "@/composables/useCharacterPool";
 import { useAddCharacterClass } from "@/composables/useCharacterClasses";
 import { useAddInventoryItem, useAddInventoryItems } from "@/composables/usePartyInventory";
 import { useCampaignMembers, useUpdateCampaignMember } from "@/composables/useCampaignMembers";
@@ -90,6 +93,8 @@ export function useCharacterCreationForm() {
   const router = useRouter();
   const route  = useRoute();
   const auth   = useAuthStore();
+  const campaign = useCampaignStore();
+  const queryClient = useQueryClient();
 
   // Pickers offer only what the campaign permits (`campaignSpecies` /
   // `campaignSystemClasses`); resolution of what a character already has runs
@@ -158,6 +163,7 @@ export function useCharacterCreationForm() {
   const isEditMode = computed(() => route.name === "play-character-edit");
   const isDmCreate = computed(() => route.name === "party-member-new");
   const { data: partyMembers }    = useParty();
+  const { data: myCharacters }    = useCharacterPool();
   const { data: campaignMembers } = useCampaignMembers();
   const { mutateAsync: create }               = useCreatePartyMember();
   const { mutateAsync: update }               = useUpdatePartyMember();
@@ -169,12 +175,21 @@ export function useCharacterCreationForm() {
   const editMemberId = computed(() =>
     (route.query.memberId as string | undefined) ?? auth.linkedPartyMemberId ?? null,
   );
-  const existingMember = computed(() =>
-    editMemberId.value && partyMembers.value
-      ? (partyMembers.value.find((m) => m.id === editMemberId.value) ?? null)
-      : null,
-  );
-  const backRoute = isDmCreate.value || (route.query.memberId as string | undefined) ? "/party" : "/play";
+  // partyMembers (useParty) is the active campaign's roster — a DM managing a
+  // member via ?memberId= resolves there. A standalone character (#729/#730,
+  // no campaign) never appears in that campaign-scoped list, so an owner
+  // editing their own unattached character falls back to myCharacters
+  // (useCharacterPool), which RLS already scopes to rows the caller owns.
+  const existingMember = computed(() => {
+    if (!editMemberId.value) return null;
+    return partyMembers.value?.find((m) => m.id === editMemberId.value)
+      ?? myCharacters.value?.find((m) => m.id === editMemberId.value)
+      ?? null;
+  });
+  // A memberId query param means either "DM managing a campaign member" (the
+  // established affordance — /party is a DM route) or "owner editing their own
+  // unattached character" (#729/#730); only the DM case belongs on /party.
+  const backRoute = isDmCreate.value || (auth.isDM && !!(route.query.memberId as string | undefined)) ? "/party" : "/play";
 
   const tabParam = route.query.tab as string | undefined;
   const activeTab  = ref<"identity" | "stats" | "profs">(
@@ -498,7 +513,11 @@ export function useCharacterCreationForm() {
         router.push(freePicks.length > 0 ? "/play/spells?tab=innate" : "/play/champions");
       } else {
         // ── Create flow ───────────────────────────────────────────────────────
-        const created = await create({ ...basePayload, owner_user_id: isDmCreate.value ? null : (auth.user?.id ?? null) });
+        const created = await create({
+          ...basePayload,
+          campaign_id: isDmCreate.value ? campaign.activeCampaignId : null,
+          owner_user_id: isDmCreate.value ? null : (auth.user?.id ?? null),
+        });
 
         // The shell row now exists but the character isn't usable until its
         // class/spells/equipment are seeded. If any seeding step fails, roll the
@@ -534,37 +553,43 @@ export function useCharacterCreationForm() {
             await applySpeciesSpellGrants(created.id, selectedSpecies.value, 1, f.subrace || null);
           }
 
-          // Seed class + background starting equipment as inventory rows.
+          // Seed class + background starting equipment as inventory rows — only
+          // when the character actually has a campaign. party_inventory.campaign_id
+          // is NOT NULL, and a standalone character (#729/#730) has none to seed
+          // into; class_choices/character_classes/character_spells above are keyed
+          // on the character alone, so those still run regardless.
           // Plain entries from both sources batch into a single insert; any
           // "pack" entries (e.g. a class's starting Pack) still need their
           // generated id before their contents can be inserted, so those go
           // through seedEquipmentEntry (which itself batches the pack's
           // sub-items) one at a time — see partitionBundleEntries above.
-          const plainRows: Omit<PartyInventoryInsert, "campaign_id">[] = [];
-          let packEntries: EquipmentEntry[] = [];
-          let packVaultMap: Map<string, VaultEntry> = new Map();
+          if (created.campaign_id) {
+            const plainRows: Omit<PartyInventoryInsert, "campaign_id">[] = [];
+            let packEntries: EquipmentEntry[] = [];
+            let packVaultMap: Map<string, VaultEntry> = new Map();
 
-          if (importClassEquipment.value && f.class) {
-            const classPack = CLASS_EQUIPMENT[f.class];
-            if (classPack) {
-              const bundle = classEquipmentChoice.value === "a" ? classPack.a : classPack.b;
-              const uniqueNames = [...new Set(bundle.items.map(e => e.name))];
-              packVaultMap = await lookupVaultItems(uniqueNames);
-              const split = partitionBundleEntries(bundle.items, packVaultMap, created.id);
-              plainRows.push(...split.plainRows);
-              packEntries = split.packEntries;
+            if (importClassEquipment.value && f.class) {
+              const classPack = CLASS_EQUIPMENT[f.class];
+              if (classPack) {
+                const bundle = classEquipmentChoice.value === "a" ? classPack.a : classPack.b;
+                const uniqueNames = [...new Set(bundle.items.map(e => e.name))];
+                packVaultMap = await lookupVaultItems(uniqueNames);
+                const split = partitionBundleEntries(bundle.items, packVaultMap, created.id);
+                plainRows.push(...split.plainRows);
+                packEntries = split.packEntries;
+              }
             }
-          }
 
-          // Seed background starting equipment as inventory rows (text-based, no vault lookup)
-          if (importBackgroundEquipment.value && f.background_id) {
-            const bg = (allBackgrounds.value ?? []).find((b) => b.id === f.background_id);
-            plainRows.push(...buildBackgroundEquipmentRows(bg?.equipment ?? "", created.id));
-          }
+            // Seed background starting equipment as inventory rows (text-based, no vault lookup)
+            if (importBackgroundEquipment.value && f.background_id) {
+              const bg = (allBackgrounds.value ?? []).find((b) => b.id === f.background_id);
+              plainRows.push(...buildBackgroundEquipmentRows(bg?.equipment ?? "", created.id));
+            }
 
-          if (plainRows.length > 0) await addInventoryItems(plainRows);
-          for (const entry of packEntries) {
-            await seedEquipmentEntry(entry, packVaultMap, created.id);
+            if (plainRows.length > 0) await addInventoryItems(plainRows);
+            for (const entry of packEntries) {
+              await seedEquipmentEntry(entry, packVaultMap, created.id);
+            }
           }
         } catch (seedErr) {
           await supabase.from("party_inventory").delete().eq("carried_by", created.id);
@@ -575,6 +600,11 @@ export function useCharacterCreationForm() {
         await auth.refreshMembership();
         if (isDmCreate.value) {
           router.push("/party");
+        } else if (!created.campaign_id) {
+          // Standalone create (#729/#730): no campaign to land in — the character
+          // pool is the list view / success feedback, same as any other create.
+          void queryClient.invalidateQueries({ queryKey: ["character-pool"] });
+          router.push({ name: "play-home" });
         } else if (levelUp) {
           router.push(`/play/character/levelup?targetLevel=2&memberId=${created.id}`);
         } else {

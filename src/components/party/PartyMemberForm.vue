@@ -90,7 +90,7 @@
           class="font-cinzel text-xs text-destructive hover:opacity-80 transition-opacity disabled:opacity-50"
           @click="remove"
         >
-          Remove from party
+          {{ props.member.owner_user_id ? "Detach from party" : "Remove from party" }}
         </button>
         <div class="flex gap-2 ml-auto">
           <button
@@ -129,6 +129,7 @@ import {
   useUpdatePartyMember,
   useDeletePartyMember,
 } from "@/composables/useParty";
+import { useDetachCharacter } from "@/composables/useCharacterPool";
 import {
   useCampaignMembers,
   useUpdateCampaignMember,
@@ -424,6 +425,7 @@ const selectedCampaignMemberId = ref<string>(
 const { mutateAsync: create } = useCreatePartyMember();
 const { mutateAsync: update } = useUpdatePartyMember();
 const { mutateAsync: del } = useDeletePartyMember();
+const { mutateAsync: detach } = useDetachCharacter();
 
 const saving = ref(false);
 
@@ -494,10 +496,18 @@ async function save() {
 async function remove() {
   if (!props.member) return;
   if (saving.value) return;
-  if (!await confirm(`Remove ${props.member.name} from the party?`)) return;
+  const claimed = !!props.member.owner_user_id;
+  const action = claimed ? "Detach" : "Remove";
+  if (!await confirm(
+    claimed
+      ? `Detach ${props.member.name} from the party? The character returns to its owner's pool.`
+      : `Remove ${props.member.name} from the party?`,
+    { title: `${action} character?`, confirmLabel: action, danger: !claimed },
+  )) return;
   saving.value = true;
   try {
-    await del(props.member);
+    if (claimed) await detach(props.member.id);
+    else await del(props.member);
     emit("close");
   } finally {
     saving.value = false;

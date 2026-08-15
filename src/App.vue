@@ -8,6 +8,7 @@
     <ToastHost />
     <ManualRollPrompt />
     <RollModePicker />
+    <FirstRunTour />
     <ImportBundleModal
       v-if="auth.isAuthenticated && bundleImportMounted"
       v-model="bundleImportOpen"
@@ -38,6 +39,7 @@ import ConfirmDialog from "@/components/common/ConfirmDialog.vue";
 import ToastHost from "@/components/common/ToastHost.vue";
 import ManualRollPrompt from "@/components/common/ManualRollPrompt.vue";
 import RollModePicker from "@/components/common/RollModePicker.vue";
+import FirstRunTour from "@/components/common/FirstRunTour.vue";
 import { pendingBundleFile } from "@/composables/usePendingBundle";
 import { useLazyMount } from "@/composables/useLazyMount";
 import LoadingScreen from "@/components/auth/LoadingScreen.vue";

@@ -118,7 +118,7 @@
         </h3>
         <p class="text-caption text-muted-foreground italic">
           These still show on the dashboard and party tracker but aren't attached
-          to anyone. Assign one to a player above, or remove it.
+          to anyone. Assign one to a player above, or detach/remove it.
         </p>
         <div
           v-for="pm in unattachedCharacters"
@@ -133,7 +133,19 @@
               {{ pm.class || "Adventurer" }}{{ pm.level ? ` · Level ${pm.level}` : "" }}
             </p>
           </div>
+          <!-- Claimed characters (owner_user_id set) can only be detached — RLS
+               no longer permits deleting them; unclaimed ones can still be removed. -->
           <button
+            v-if="pm.owner_user_id"
+            class="shrink-0 p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            title="Detach — return to owner's pool"
+            :disabled="detachCharacter.isPending.value"
+            @click="detachOrphan(pm)"
+          >
+            <IconUndo class="h-4 w-4" />
+          </button>
+          <button
+            v-else
             class="shrink-0 p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
             title="Remove character"
             :disabled="deleteCharacter.isPending.value"
@@ -164,22 +176,13 @@
           }}</strong>
           from the campaign? They can rejoin via a new invite link.
         </p>
-        <label
-          v-if="removedPlayerCharacters.length"
-          class="flex items-start gap-2 cursor-pointer select-none"
-        >
-          <input
-            v-model="removeCharacters"
-            type="checkbox"
-            class="mt-1 accent-destructive"
-          />
-          <span class="text-body text-muted-foreground italic">
-            Also delete their character<span v-if="removedPlayerCharacters.length > 1">s</span>
-            <strong class="text-foreground">{{ removedCharacterNames }}</strong>
-            from the party. If unchecked, the character stays on the dashboard and
-            party tracker with no player attached.
-          </span>
-        </label>
+        <p v-if="removedPlayerCharacters.length" class="text-body text-muted-foreground italic">
+          Character<span v-if="removedPlayerCharacters.length > 1">s</span>
+          <strong class="text-foreground">{{ removedCharacterNames }}</strong>
+          <template v-if="removedPlayerCharacters.length > 1"> return</template><template v-else> returns</template>
+          to the player's own pool automatically — nothing is deleted, and they can
+          bring {{ removedPlayerCharacters.length > 1 ? "them" : "it" }} to another campaign.
+        </p>
         <div class="flex gap-2 justify-end">
           <button
             class="px-3 py-1.5 rounded-md border border-border text-body text-muted-foreground hover:text-foreground transition-colors"
@@ -189,7 +192,7 @@
           </button>
           <button
             class="px-3 py-1.5 rounded-md bg-destructive text-destructive-foreground text-body hover:opacity-90 transition-opacity"
-            :disabled="removeMember.isPending.value || deleteCharacter.isPending.value"
+            :disabled="removeMember.isPending.value"
             @click="doRemove"
           >
             Remove
@@ -202,15 +205,17 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { IconParty, IconRemoveUser, IconDelete } from '@/lib/icons';
+import { IconParty, IconRemoveUser, IconDelete, IconUndo } from '@/lib/icons';
 import {
   useCampaignMembers,
   useUpdateCampaignMember,
   useRemoveCampaignMember,
 } from "@/composables/useCampaignMembers";
 import { useParty, useDeletePartyMember } from "@/composables/useParty";
+import { useDetachCharacter } from "@/composables/useCharacterPool";
 import { useCampaignPresence } from "@/composables/useCampaignPresence";
 import { useConfirm } from "@/composables/useConfirm";
+import { useToast } from "@/composables/useToast";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import type { CampaignMember } from "@/types/campaign.types";
@@ -223,7 +228,9 @@ const partyQuery = useParty();
 const updateMember = useUpdateCampaignMember();
 const removeMember = useRemoveCampaignMember();
 const deleteCharacter = useDeletePartyMember();
+const detachCharacter = useDetachCharacter();
 const { confirm } = useConfirm();
+const toast = useToast();
 
 const members = computed(() => membersQuery.data.value ?? []);
 const partyMembers = computed(() => partyQuery.data.value ?? []);
@@ -254,6 +261,23 @@ async function removeOrphan(pm: PartyMember) {
   await deleteCharacter.mutateAsync(pm);
 }
 
+// Claimed characters (owner_user_id set) can no longer be deleted here — RLS
+// only allows the owner to destroy their own character. Detach is the durable
+// replacement: it returns to the owner's pool with progress intact.
+async function detachOrphan(pm: PartyMember) {
+  const ok = await confirm(`Return "${pm.name}" to its owner's pool? It leaves this campaign, but nothing is deleted.`, {
+    title: "Detach character?",
+    confirmLabel: "Detach",
+    danger: false,
+  });
+  if (!ok) return;
+  try {
+    await detachCharacter.mutateAsync(pm.id);
+  } catch (error) {
+    toast.error(toast.fromError(error));
+  }
+}
+
 // Only show party members not already assigned to another player
 function availablePartyMembers(forMember: CampaignMember) {
   const takenIds = new Set(
@@ -280,17 +304,14 @@ function assignPartyMember(memberId: string, partyMemberId: string) {
 }
 
 const memberToRemove = ref<CampaignMember | null>(null);
-const removeCharacters = ref(true);
 
-// Characters belonging to the player being removed — their linked/active one
-// plus any they own. Deleting the membership alone leaves these orphaned on the
-// dashboard and party tracker, so we offer to remove them in the same step.
+// Match detach_characters_on_membership_delete exactly: only characters owned
+// by the removed user detach. A linked DM-managed character stays in the
+// campaign and must not be promised as returning to the player's pool.
 const removedPlayerCharacters = computed<PartyMember[]>(() => {
   const member = memberToRemove.value;
   if (!member) return [];
-  return partyMembers.value.filter(
-    (pm) => pm.owner_user_id === member.user_id || pm.id === member.party_member_id,
-  );
+  return partyMembers.value.filter((pm) => pm.owner_user_id === member.user_id);
 });
 const removedCharacterNames = computed(() =>
   removedPlayerCharacters.value.map((pm) => pm.name).join(", "),
@@ -298,18 +319,15 @@ const removedCharacterNames = computed(() =>
 
 function confirmRemove(member: CampaignMember) {
   memberToRemove.value = member;
-  removeCharacters.value = true;
 }
 
+// Detach-never-delete (#730): the server-side removal trigger returns the
+// player's characters to their own pool. No client-side deletion needed.
 async function doRemove() {
   const member = memberToRemove.value;
   if (!member) return;
-  const characters = removeCharacters.value ? [...removedPlayerCharacters.value] : [];
   removeMember.mutate(member.id, {
-    onSuccess: async () => {
-      for (const pm of characters) {
-        await deleteCharacter.mutateAsync(pm);
-      }
+    onSuccess: () => {
       memberToRemove.value = null;
     },
   });

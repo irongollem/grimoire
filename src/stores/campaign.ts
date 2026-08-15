@@ -143,6 +143,32 @@ export const useCampaignStore = defineStore("campaign", () => {
     decryptedGeminiKey.value    = "";
   }
 
+  // Mode switch (#729): each mode remembers its own last-active campaign, so
+  // toggling DM → Player → DM lands back where the DM left off. STORAGE_KEY
+  // stays the boot key (whatever was active last, regardless of mode); these
+  // two are only read here. Restoring sets the id and lets App.vue's
+  // earlyCampaign watcher hydrate the full row — same path as a cold boot.
+  const MODE_STORAGE_KEY: Record<"dm" | "player", string> = {
+    dm:     "grimoire_active_campaign_dm",
+    player: "grimoire_active_campaign_player",
+  };
+
+  function switchUserMode(
+    from: "dm" | "player" | "",
+    to: "dm" | "player",
+    rememberCurrentCampaign = true,
+  ) {
+    if (from && activeCampaignId.value && rememberCurrentCampaign) {
+      localStorage.setItem(MODE_STORAGE_KEY[from], activeCampaignId.value);
+    }
+    if (from && !rememberCurrentCampaign) {
+      localStorage.removeItem(MODE_STORAGE_KEY[from]);
+    }
+    clearActiveCampaign();
+    const remembered = localStorage.getItem(MODE_STORAGE_KEY[to]);
+    if (remembered) activeCampaignId.value = remembered;
+  }
+
   // Tri-state: only an explicit `true` counts as on. `null` (never chosen)
   // and `false` (explicitly declined) both hide AI UI — see
   // context/compliance/ai-act.md §4.
@@ -162,6 +188,7 @@ export const useCampaignStore = defineStore("campaign", () => {
     decryptedGeminiKey,
     switchToCampaign,
     clearActiveCampaign,
+    switchUserMode,
     todayYear,
     todayMonth,
     todayDay,

@@ -16,26 +16,59 @@ export function setupRouterGuard(router: Router) {
     if (to.meta.requiresAuth && !auth.isAuthenticated) {
       return { name: "login", query: { redirect: to.fullPath } };
     }
+
+    // #729: routing is fenced by the persisted DM/Player *lens*, not by the
+    // active campaign's membership role — which hat you wear is chosen, not
+    // inherited from whichever campaign happened to load. Accounts that
+    // predate the mode (or a fresh device) infer it once from the loaded
+    // membership; an account with no membership anywhere gets the /welcome
+    // first-run choice instead of silently landing on the DM dashboard.
+    const ui = useUiStore();
+    if (auth.isAuthenticated && !ui.userMode) {
+      ui.userMode = (await auth.inferUserMode()) ?? "";
+    }
+    const mode = ui.userMode;
+    const home = () =>
+      mode === "player"
+        ? { name: auth.isPlayer ? "play" : "play-home" }
+        : { name: "dashboard" };
+
     if (to.meta.requiresGuest && auth.isAuthenticated) {
-      return { name: "dashboard" };
+      return home();
     }
     if (to.meta.requiresAdmin && !auth.isAppAdmin) {
-      return { name: "dashboard" };
+      return home();
     }
 
-    // Players are redirected away from DM routes to the player portal
-    if (auth.isAuthenticated && auth.isPlayer && !to.meta.requiresPlayer && !to.meta.playerReadable && to.name !== "join-campaign") {
-      return { name: "play" };
+    if (auth.isAuthenticated && !mode && !to.meta.requiresGuest && to.name !== "welcome" && to.name !== "join-campaign") {
+      return { name: "welcome" };
+    }
+    if (auth.isAuthenticated && mode && to.name === "welcome") {
+      return home();
     }
 
-    // Players can't manually navigate to /play if they're actually a DM
+    // The /play area belongs to player mode; everything else to DM mode.
+    const inPlayerArea = to.path === "/play" || to.path.startsWith("/play/");
+    const dmManagingMember = auth.isDM && !!to.query.memberId;
+
+    // Player-mode users are redirected away from DM routes...
+    if (auth.isAuthenticated && mode === "player" && !inPlayerArea && !to.meta.playerReadable && to.name !== "join-campaign") {
+      return home();
+    }
+
+    // ...and DM-mode users away from the player portal.
     // Exceptions:
     //   - DM preview mode lets the DM browse the full player portal
     //   - A memberId query param means the DM is managing a specific character
-    const ui = useUiStore();
-    const dmManagingMember = auth.isDM && !!to.query.memberId;
-    if (to.meta.requiresPlayer && auth.isDM && !ui.dmPreviewMode && !dmManagingMember) {
+    if (mode === "dm" && inPlayerArea && !ui.dmPreviewMode && !dmManagingMember) {
       return { name: "dashboard" };
+    }
+
+    // Campaign-scoped player routes need an actual membership; the
+    // playerStandalone ones (character pool, create/edit and its pickers)
+    // exist precisely for the member-of-nothing player (#730).
+    if (to.meta.requiresPlayer && !to.meta.playerStandalone && !auth.isPlayer && !ui.dmPreviewMode && !dmManagingMember) {
+      return { name: "play-home" };
     }
 
     // Deliberately not awaited, and deliberately last. The shells are lazy
@@ -54,4 +87,3 @@ export function setupRouterGuard(router: Router) {
     await preloadLayout(to);
   });
 }
-

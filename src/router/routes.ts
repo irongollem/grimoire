@@ -33,6 +33,15 @@ export const routes: RouteRecordRaw[] = [
     meta: { layout: "auth" },
   },
 
+  // ── First-run "What are you?" choice (#729) — the guard sends any
+  //    authenticated account with no mode and no membership here.
+  {
+    path: "/welcome",
+    name: "welcome",
+    component: () => import("@/views/auth/WelcomeView.vue"),
+    meta: { layout: "auth", requiresAuth: true, title: "Welcome" },
+  },
+
   // ── OAuth consent (Supabase OAuth 2.1 Server redirects DMs here to approve
   //    an AI client connecting via the MCP server). Must be logged in to consent.
   {
@@ -45,11 +54,21 @@ export const routes: RouteRecordRaw[] = [
   // see legalUrl() in src/lib/marketing.ts. The app links out to them.
 
   // ── Player portal ─────────────────────────────────────────────────────
+  // `playerStandalone` marks the routes a player can use with no campaign
+  // membership at all (#729/#730): the character pool and the creation flow
+  // plus its picker sub-pages. Everything else in /play is campaign-scoped
+  // and bounces a role-less player back to play-home.
   {
     path: "/play",
     name: "play",
     component: () => import("@/views/play/PlayerCharacterView.vue"),
     meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Your Character" },
+  },
+  {
+    path: "/play/home",
+    name: "play-home",
+    component: () => import("@/views/play/PlayerHomeView.vue"),
+    meta: { requiresAuth: true, requiresPlayer: true, playerStandalone: true, layout: "player", title: "Adventurer's Rest" },
   },
   {
     path: "/play/champions",
@@ -61,13 +80,13 @@ export const routes: RouteRecordRaw[] = [
     path: "/play/character/create",
     name: "play-character-create",
     component: () => import("@/views/play/PlayerCharacterCreateView.vue"),
-    meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Create Character" },
+    meta: { requiresAuth: true, requiresPlayer: true, playerStandalone: true, layout: "player", title: "Create Character" },
   },
   {
     path: "/play/character/edit",
     name: "play-character-edit",
     component: () => import("@/views/play/PlayerCharacterCreateView.vue"),
-    meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Edit Character" },
+    meta: { requiresAuth: true, requiresPlayer: true, playerStandalone: true, layout: "player", title: "Edit Character" },
   },
   {
     path: "/play/character/levelup",
@@ -117,13 +136,13 @@ export const routes: RouteRecordRaw[] = [
     path: "/play/background",
     name: "play-background",
     component: () => import("@/views/play/PlayerBackgroundPickerView.vue"),
-    meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Choose Background" },
+    meta: { requiresAuth: true, requiresPlayer: true, playerStandalone: true, layout: "player", title: "Choose Background" },
   },
   {
     path: "/play/species",
     name: "play-species",
     component: () => import("@/views/play/PlayerSpeciesPickerView.vue"),
-    meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Choose Species" },
+    meta: { requiresAuth: true, requiresPlayer: true, playerStandalone: true, layout: "player", title: "Choose Species" },
   },
   {
     path: "/play/crafting",

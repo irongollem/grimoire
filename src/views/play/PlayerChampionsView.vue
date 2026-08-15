@@ -99,6 +99,24 @@
                 >
                   Level Up
                 </RouterLink>
+                <AppButton
+                  v-if="!ui.dmPreviewMode"
+                  variant="subtle"
+                  size="xs"
+                  :disabled="cloning === char.id"
+                  @click="cloneChar(char)"
+                >
+                  {{ cloning === char.id ? 'Cloning…' : 'Clone' }}
+                </AppButton>
+                <AppButton
+                  v-if="!ui.dmPreviewMode"
+                  variant="destructive"
+                  size="xs"
+                  :disabled="detaching === char.id"
+                  @click="detach(char)"
+                >
+                  {{ detaching === char.id ? 'Leaving…' : 'Leave campaign' }}
+                </AppButton>
               </div>
             </div>
           </div>
@@ -166,12 +184,15 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { RouterLink } from 'vue-router';
+import { RouterLink, useRouter } from 'vue-router';
 import { IconAdd, IconDM } from '@/lib/icons';
 import { useMyCharacters, useSetActiveCharacter, useParty, useOfferedCharacters, useAssumeCharacter } from '@/composables/useParty';
+import { useDetachCharacter, useCloneCharacter } from '@/composables/useCharacterPool';
+import { useConfirm } from '@/composables/useConfirm';
 import { useSpeciesNameMap } from '@/composables/useSpecies';
 import { useAuthStore } from '@/stores/auth';
 import { useUiStore } from '@/stores/ui';
+import AppButton from '@/components/common/AppButton.vue';
 import FocalImage from '@/components/common/FocalImage.vue';
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue';
 import type { PartyMember } from '@/types/party.types';
@@ -229,6 +250,47 @@ async function assume(id: string) {
     assumeError.value = e instanceof Error ? e.message : 'Failed to assume character.';
   } finally {
     assuming.value = null;
+  }
+}
+
+// #730 — a character is the player's, not the campaign's. Leaving detaches it
+// back to the pool (progression intact); cloning copies it there for another
+// table. Both land on the pool page, which is where the result is visible.
+const router = useRouter();
+const { confirm } = useConfirm();
+const { mutateAsync: detachChar } = useDetachCharacter();
+const { mutateAsync: cloneCharMut } = useCloneCharacter();
+const detaching = ref<string | null>(null);
+const cloning = ref<string | null>(null);
+
+async function detach(char: PartyMember) {
+  const ok = await confirm(
+    `${char.name} will leave this campaign and return to your character pool, keeping their level, gear and gold. The DM will no longer see them.`,
+    { title: 'Leave campaign?', confirmLabel: 'Leave', danger: true },
+  );
+  if (!ok) return;
+  detaching.value = char.id;
+  setActiveError.value = '';
+  try {
+    await detachChar(char.id);
+    router.push({ name: 'play-home' });
+  } catch (e) {
+    setActiveError.value = e instanceof Error ? e.message : 'Failed to leave the campaign.';
+  } finally {
+    detaching.value = null;
+  }
+}
+
+async function cloneChar(char: PartyMember) {
+  cloning.value = char.id;
+  setActiveError.value = '';
+  try {
+    await cloneCharMut(char.id);
+    router.push({ name: 'play-home' });
+  } catch (e) {
+    setActiveError.value = e instanceof Error ? e.message : 'Failed to clone the character.';
+  } finally {
+    cloning.value = null;
   }
 }
 </script>

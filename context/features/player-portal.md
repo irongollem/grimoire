@@ -29,7 +29,17 @@ Invite links can be configured with roles (`player`), labels, expiry dates, and 
 
 Navigation is a fixed bottom bar with mobile-optimised slot counts: **4 items on mobile**, **7 on tablet**. Items beyond the slot limit are accessible via a "More" bottom sheet. Players can reorder nav items in Settings to promote their most-used sections to the quick bar.
 
-All 15 nav items defined in `src/lib/playerNav.ts`:
+**No-membership state (#729/#730):** a player-mode user with no campaign
+membership sees a single nav tab — **Home** (`/play/home`, "Adventurer's
+Rest") — because every campaign-scoped tab would only bounce off the router
+guard (`usePlayerNavPrefs` collapses the list; DM preview keeps the full nav).
+Home is also present, last by default, for players mid-campaign: it is the
+cross-campaign character pool, campaign list and join-by-code entry. The
+standalone-capable routes (`play-home`, character create/edit, the species and
+background pickers) carry `meta.playerStandalone` and work with no membership
+at all; everything else under `/play` redirects a role-less player to Home.
+
+All nav items defined in `src/lib/playerNav.ts`:
 
 | Route             | Label     | Description                                                                     |
 | ----------------- | --------- | ------------------------------------------------------------------------------- |

@@ -139,6 +139,10 @@
             @click="startEdit"
           />
 
+          <div class="border-y border-border py-1">
+            <ModeToggle />
+          </div>
+
           <AccountMenuItem
             :icon="IconUserCircle"
             label="Account"
@@ -196,6 +200,7 @@
         variant="ghost"
         size="inline"
         block
+        data-tour="account-menu"
         :class="cn('justify-start gap-2 px-2 py-2 rounded-md hover:bg-secondary/60', menuOpen && 'bg-secondary/60')"
         :aria-label="`Account menu for ${shownName}`"
         :aria-expanded="menuOpen"
@@ -240,6 +245,7 @@ import GlobalSearch from "./GlobalSearch.vue";
 import DiceRoller from "@/components/common/DiceRoller.vue";
 import { useLazyMount } from "@/composables/useLazyMount";
 import DmModeToggle from "./DmModeToggle.vue";
+import ModeToggle from "./ModeToggle.vue";
 
 const auth = useAuthStore();
 const router = useRouter();

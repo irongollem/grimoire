@@ -80,14 +80,16 @@
       </form>
     </template>
 
-    <!-- Authenticated: joining in progress -->
+    <!-- Authenticated: joining in progress, or choosing a character first -->
     <template v-else>
       <div class="text-center py-4">
-        <div v-if="joining" class="space-y-3">
+        <div v-if="joining || isDecidingAutoJoin" class="space-y-3">
           <div class="flex justify-center">
             <div class="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
           </div>
-          <p class="text-body text-muted-foreground italic">Joining the campaign…</p>
+          <p class="text-body text-muted-foreground italic">
+            {{ joining ? "Joining the campaign…" : "Loading your characters…" }}
+          </p>
         </div>
 
         <div v-else-if="joinError" class="space-y-4">
@@ -100,22 +102,82 @@
             Go to your dashboard
           </RouterLink>
         </div>
+
+        <div v-else-if="showChooser" class="text-left space-y-4">
+          <div class="text-center">
+            <h2 class="text-heading font-semibold text-foreground mb-1">Bring a character?</h2>
+            <p class="text-body text-muted-foreground italic">
+              Choose one of your characters to bring along, or join without one.
+            </p>
+          </div>
+
+          <div class="space-y-2">
+            <label
+              v-for="pm in unattachedCharacters"
+              :key="pm.id"
+              class="flex items-start gap-2.5 cursor-pointer group"
+            >
+              <input
+                v-model="selectedCharacterId"
+                type="radio"
+                :value="pm.id"
+                class="mt-1 h-3.5 w-3.5 border-border text-primary focus:ring-ring"
+              />
+              <div class="min-w-0">
+                <span class="text-body text-foreground group-hover:text-primary transition-colors block truncate">
+                  {{ pm.name }}
+                </span>
+                <span class="text-caption text-muted-foreground italic block truncate">
+                  {{ pm.class || "Adventurer" }}{{ pm.level ? ` · Level ${pm.level}` : "" }}
+                </span>
+              </div>
+            </label>
+            <label class="flex items-start gap-2.5 cursor-pointer group">
+              <input
+                v-model="selectedCharacterId"
+                type="radio"
+                value=""
+                class="mt-1 h-3.5 w-3.5 border-border text-primary focus:ring-ring"
+              />
+              <span class="text-body text-foreground group-hover:text-primary transition-colors">
+                Join without a character
+              </span>
+            </label>
+          </div>
+
+          <AppButton
+            variant="primary"
+            size="md"
+            block
+            label="Join"
+            :disabled="selectedCharacterId === null"
+            @click="confirmChoice"
+          />
+        </div>
       </div>
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from "vue";
+import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
+import { useQueryClient } from "@tanstack/vue-query";
 import { joinCampaignViaInvite } from "@/composables/useCampaignMembers";
+import { useCharacterPool } from "@/composables/useCharacterPool";
+import { useModeSwitch } from "@/composables/useModeSwitch";
+import { useCampaigns } from "@/composables/useCampaigns";
+import AppButton from "@/components/common/AppButton.vue";
 
 const auth = useAuthStore();
 const campaign = useCampaignStore();
 const route = useRoute();
 const router = useRouter();
+const queryClient = useQueryClient();
+const { switchMode } = useModeSwitch();
+const { refetch: refetchCampaigns } = useCampaigns();
 
 const token = route.params.token as string;
 const activeTab = ref<"signup" | "login">("signup");
@@ -126,21 +188,66 @@ const errorMessage = ref("");
 const authMessage = ref("");
 const joining = ref(false);
 const joinError = ref("");
+const decidingJoin = ref(false);
 
-async function attemptJoin() {
+// #730: characters are durable and campaign-agnostic until attached — only
+// ones with no campaign yet can be brought along here.
+const myCharactersQuery = useCharacterPool();
+const unattachedCharacters = computed(() =>
+  (myCharactersQuery.data.value ?? []).filter((pm) => pm.campaign_id === null),
+);
+
+// Transient chooser state — never the ui store, this view never reopens with
+// a stale selection. null = nothing picked yet; "" = "join without one".
+const selectedCharacterId = ref<string | null>(null);
+const hasChosen = ref(false);
+
+const showChooser = computed(
+  () =>
+    !joining.value &&
+    !joinError.value &&
+    !hasChosen.value &&
+    !myCharactersQuery.isPending.value &&
+    unattachedCharacters.value.length > 0,
+);
+
+// True only while we're still finding out whether a chooser is even needed —
+// keeps the zero-character path looking the same as a plain auto-join.
+const isDecidingAutoJoin = computed(() => !hasChosen.value && decidingJoin.value);
+
+async function attemptJoin(partyMemberId?: string) {
   joining.value = true;
   joinError.value = "";
   try {
-    const campaignId = await joinCampaignViaInvite(token);
+    const campaignId = await joinCampaignViaInvite(token, partyMemberId);
+    // Preserve the current DM campaign in its per-mode slot before activating
+    // the joined campaign. When already in player mode, the explicit cache
+    // invalidation still exposes the newly-created membership immediately.
+    await switchMode("player", { navigate: false });
+    await queryClient.invalidateQueries();
     await auth.refreshMembership(campaignId);
 
-    // Activate the campaign they just joined and redirect to player portal
-    campaign.activeCampaignId = campaignId;
-    router.replace({ name: "play" });
+    // Hydrate the whole campaign row. Assigning only activeCampaignId can
+    // leave the previous mode's theme, calendar and BYOK-bearing object alive.
+    const { data: freshCampaigns } = await refetchCampaigns();
+    const joined = freshCampaigns?.find((c) => c.id === campaignId) ?? null;
+    if (joined) {
+      campaign.switchToCampaign(joined);
+    } else {
+      campaign.clearActiveCampaign();
+      campaign.activeCampaignId = campaignId;
+    }
+    await router.replace({ name: "play" });
   } catch (err) {
     joinError.value = err instanceof Error ? err.message : "This invite link is invalid or has expired.";
     joining.value = false;
   }
+}
+
+function confirmChoice() {
+  if (selectedCharacterId.value === null) return;
+  hasChosen.value = true;
+  attemptJoin(selectedCharacterId.value || undefined);
 }
 
 async function handleAuth() {
@@ -152,22 +259,34 @@ async function handleAuth() {
       authMessage.value = "Check your email to confirm — the link will bring you straight back here to join.";
     } else {
       await auth.signIn(email.value, password.value);
-      // onAuthStateChange will fire → watch(isAuthenticated) triggers join
+      // onAuthStateChange will fire → watch(isAuthenticated) below decides
     }
   } catch (err) {
     errorMessage.value = err instanceof Error ? err.message : "Authentication failed. Please try again.";
   }
 }
 
-// Once authenticated (via sign-in tab or if they were already logged in), auto-join
-watch(
-  () => auth.isAuthenticated,
-  (authed) => {
-    if (authed) attemptJoin();
-  },
-);
+// Once authenticated (via sign-in tab, or already logged in on mount) and the
+// character pool has loaded, auto-join only when there is nothing to choose
+// from — otherwise the chooser above takes over and the player picks first.
+async function decideHowToJoin() {
+  if (!auth.user?.id || hasChosen.value || joining.value || decidingJoin.value) return;
+  decidingJoin.value = true;
+  try {
+    // refetch() also works when the query was initially disabled while auth
+    // initialized, avoiding TanStack's disabled-query isPending limbo.
+    const result = await myCharactersQuery.refetch();
+    if (result.error) {
+      joinError.value = "Couldn't load your characters. Please try again.";
+      return;
+    }
+    if ((result.data ?? []).every((pm) => pm.campaign_id !== null)) {
+      await attemptJoin();
+    }
+  } finally {
+    decidingJoin.value = false;
+  }
+}
 
-onMounted(() => {
-  if (auth.isAuthenticated) attemptJoin();
-});
+watch(() => auth.user?.id, () => { void decideHowToJoin(); }, { immediate: true });
 </script>

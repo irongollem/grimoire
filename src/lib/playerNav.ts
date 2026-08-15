@@ -4,6 +4,7 @@ import {
   IconNavBestiary,
   IconNavCalendar,
   IconNavCharacterSheet,
+  IconNavDashboard,
   IconNavFactions,
   IconNavInterlude,
   IconNavItemVault,
@@ -24,6 +25,8 @@ export interface PlayerNavItem {
    * seeing a portal tab for a module the DM has switched off.
    */
   ruleKey?: string;
+  /** Available even when no campaign membership is currently active. */
+  standalone?: boolean;
 }
 
 // Uses the hand-drawn custom nav glyphs (IconNav*) so the player portal matches
@@ -42,6 +45,11 @@ export const ALL_PLAYER_NAV: PlayerNavItem[] = [
   { to: "/play/bestiary", label: "Bestiary", icon: IconNavBestiary },
   { to: "/play/rules", label: "Reliquary", icon: IconNavReliquary },
   { to: "/play/factions", label: "Factions", icon: IconNavFactions },
+  // The cross-campaign character pool (#730). Last by default so it lives in
+  // the More sheet for players mid-campaign; for a player with no campaign
+  // membership it is the only tab (see usePlayerNavPrefs). Reuses the DM
+  // dashboard glyph — home is home.
+  { to: "/play/home", label: "Home", icon: IconNavDashboard, standalone: true },
 ];
 
 export const MOBILE_NAV_SLOTS = 4;

@@ -67,6 +67,7 @@
         <button
           class="p-1.5 rounded text-muted-foreground hover:text-foreground transition-colors"
           title="Menu"
+          data-tour="account-menu"
           @click="showMenu = !showMenu"
         >
           <IconMenu class="h-4 w-4" />
@@ -201,6 +202,7 @@
           <IconPopulate class="h-4 w-4" />
           Campaigns
         </button>
+        <ModeToggle class="px-4 py-3" />
         <RouterLink
           :to="{ name: 'play-settings' }"
           class="flex items-center gap-2.5 px-4 py-3 font-cinzel text-xs font-semibold text-foreground hover:bg-muted transition-colors"
@@ -333,6 +335,7 @@ import CampaignChat from "@/components/chat/CampaignChat.vue";
 import PlayerEncounterPanel from "@/components/player/PlayerEncounterPanel.vue";
 import PlayerBottomNav from "@/components/layout/PlayerBottomNav.vue";
 import PlayerNavGrid from "@/components/layout/PlayerNavGrid.vue";
+import ModeToggle from "@/components/layout/ModeToggle.vue";
 import { useLazyMount } from "@/composables/useLazyMount";
 import PlayerLocationDialog from "@/components/play/PlayerLocationDialog.vue";
 import AiUseNoticeGate from "@/components/campaign/AiUseNoticeGate.vue";

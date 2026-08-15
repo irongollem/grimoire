@@ -83,7 +83,14 @@ export function useRemoveCampaignMember() {
   const toast = useToast();
   return useMutation({
     mutationFn: removeMember,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [MEMBERS_KEY] }),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: [MEMBERS_KEY] }),
+        queryClient.invalidateQueries({ queryKey: ["party"] }),
+        queryClient.invalidateQueries({ queryKey: ["character-pool"] }),
+        queryClient.invalidateQueries({ queryKey: ["my-characters"] }),
+      ]);
+    },
     onError: (e) => toast.error(toast.fromError(e)),
   });
 }
@@ -161,8 +168,18 @@ export function useMemberByUserId() {
 
 // ── Join via invite (called from JoinCampaign view) ───────────────────────────
 
-export async function joinCampaignViaInvite(token: string): Promise<string> {
-  const { data, error } = await supabase.rpc("join_campaign_via_invite", { p_token: token });
+export async function joinCampaignViaInvite(token: string, partyMemberId?: string): Promise<string> {
+  // Omitting the defaulted argument keeps character-less joins compatible
+  // while the database and frontend roll out in either order.
+  const args = partyMemberId
+    ? { p_token: token, p_party_member_id: partyMemberId }
+    : { p_token: token };
+  let { data, error } = await supabase.rpc("join_campaign_via_invite", args);
+  if (error?.code === "PGRST202" && partyMemberId) {
+    // Old database during a rolling deploy: joining is still more useful than
+    // rejecting the invite. The character remains safely in the resting pool.
+    ({ data, error } = await supabase.rpc("join_campaign_via_invite", { p_token: token }));
+  }
   if (error) throw error;
   return data as string; // campaign_id
 }

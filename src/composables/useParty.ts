@@ -46,8 +46,15 @@ async function updatePartyMember(id: string, update: PartyMemberUpdate): Promise
 }
 
 async function deletePartyMember(member: PartyMember): Promise<void> {
-  const { error } = await supabase.from("party_members").delete().eq("id", member.id);
+  const { data, error } = await supabase
+    .from("party_members")
+    .delete()
+    .eq("id", member.id)
+    .select("id");
   if (error) throw error;
+  if (!data?.length) {
+    throw new Error("This character could not be removed. Detach claimed characters instead.");
+  }
   await removeStorageImages("asset-images", member.portrait_url);
 }
 
@@ -74,10 +81,11 @@ export function useMe() {
 
 export function useCreatePartyMember() {
   const queryClient = useQueryClient();
-  const campaign = useCampaignStore();
   return useMutation({
-    mutationFn: (member: Omit<PartyMemberInsert, "campaign_id">) =>
-      createPartyMember({ ...member, campaign_id: campaign.activeCampaignId! }),
+    // Callers choose whether this is a campaign character or a resting-pool
+    // character. Deriving it from persisted active state can attach a new
+    // player character to a campaign they no longer belong to.
+    mutationFn: (member: PartyMemberInsert) => createPartyMember(member),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
   });
 }

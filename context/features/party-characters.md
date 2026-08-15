@@ -260,6 +260,60 @@ Also stores: `card_art_url`, `disguise_name`, `disguise_portrait_url`, `disguise
 
 **Routes:** `/play/*` — the player-facing portal
 
+### Durable Characters & the Pool (#730, migration `20260814221409`)
+
+A character is OF a player, not of a campaign. `party_members.campaign_id` is
+nullable (it always was — the squash-point schema shipped it that way) and a
+character with `campaign_id = null` is an **unattached** character resting in
+its owner's pool: readable and editable by `owner_user_id` alone, invisible to
+everyone else. Linking to a campaign is 1:1 — one character, at most one
+campaign at a time — because progression (level, XP, HP, inventory, gold)
+lives on the character row. Wanting the same character at two tables means
+**cloning** it; the clones diverge, on purpose.
+
+The `campaign_id` transitions are RPC-only (a `BEFORE UPDATE OF campaign_id`
+guard trigger rejects client writes; the FK's `ON DELETE SET NULL` referential
+action is exempted):
+
+- `attach_party_member_to_campaign(p_party_member_id, p_campaign_id, p_set_active)` —
+  owner (or DM for unclaimed rows) brings an unattached character into a
+  campaign they are a member of. `p_set_active` fills `campaign_members.party_member_id`
+  only when it is empty; switching an already-active character stays the
+  Champions view's client-side concern.
+- `detach_party_member_from_campaign(p_party_member_id)` — owner or campaign DM
+  returns the character to the pool. Clears `current_location_id` /
+  `current_initiative`; progression travels. Idempotent.
+- `join_campaign_via_invite(p_token, p_party_member_id default null)` — joining
+  can bind a pool character in the same transaction (see collaboration.md).
+- `clone_party_member(p_party_member_id)` — copies the sheet (jsonb round-trip,
+  future columns included), `character_classes` and `character_spells` (with
+  `source_class_id` remapped to the cloned class rows) into the caller's pool,
+  unattached. Campaign-bound satellites (inventory, companions, tracker state,
+  pinned wild forms, notes, downtime) deliberately do not travel.
+
+**Detach, never delete.** Removing a member (MembersTab, or the
+`campaign_members` cascade when a campaign dies) fires an `AFTER DELETE`
+trigger that detaches the removed player's owned characters; campaign deletion
+detaches via the FK. A claimed character (`owner_user_id` set) can be deleted
+by nobody but its owner — the creator-`ALL` policy was split into per-command
+policies to carve that out, and the DM's delete affordances became Detach.
+Known gap: the creator's *account* deletion still cascades (#735).
+
+**Pool UI:** `/play/home` (`PlayerHomeView.vue` + `CharacterPoolCard.vue`,
+route `play-home`, "Adventurer's Rest") lists every owned character with
+Continue/Detach/Clone (attached) or Attach/Edit/Clone/Delete (unattached),
+the player-role campaign list, and a join-by-code box. It is a
+`playerStandalone` route — reachable with no membership at all, which is the
+point (#729). Champions gained **Leave campaign** (detach) and **Clone** per
+card. Standalone character creation inserts with `campaign_id: null`, skips
+the equipment seeding (`party_inventory.campaign_id` is NOT NULL) and the
+membership link, and lands back on the pool; the species picker falls back to
+the `wotc-srd` baseline when no campaign is active (`useSpecies.ts`), since
+`campaign_enabled_sources` has no row to read. Data layer:
+`src/composables/useCharacterPool.ts` (query key `character-pool` — NOT
+`my-characters`, which useParty.ts owns for the campaign-scoped champions
+list).
+
 ### Champions List (`/play/champions` — `PlayerChampionsView.vue`)
 
 A player may have multiple characters in a campaign (e.g. a backup character). The Champions view lists all their owned characters with:

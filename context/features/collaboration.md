@@ -38,7 +38,7 @@ The DM UI lets them:
 
 Invite URLs take the form `<origin>/join/<token>` (constructed at runtime from `window.location.origin`).
 
-The join operation itself is performed by the `join_campaign_via_invite(p_token)` PostgreSQL function (security definer). It validates the token (not expired, not over max uses), inserts the membership row, increments the use count, and returns the `campaign_id` — all atomically. If the calling user is already a member, it returns the `campaign_id` idempotently without error or duplicate membership.
+The join operation itself is performed by the `join_campaign_via_invite(p_token, p_party_member_id default null)` PostgreSQL function (security definer). It validates the token (not expired, not over max uses), inserts the membership row, increments the use count, and returns the `campaign_id` — all atomically. If the calling user is already a member, it returns the `campaign_id` idempotently without error or duplicate membership. Since #730 it optionally binds a character from the joiner's pool: the character must be owned by the caller and unattached (or already attached to this campaign — idempotent re-joins), it is attached and linked as the joiner's active character without ever clobbering an existing link. `JoinCampaignView` shows a "Bring a character?" chooser when the authenticated joiner has unattached characters, auto-joins exactly as before when they have none, and sets `userMode = "player"` on success.
 
 ## Campaign Members
 
@@ -56,11 +56,31 @@ The Members tab shows every member with:
 
 - An avatar initial, role badge, and online/offline presence indicator (green dot = currently connected)
 - For players: a character assignment dropdown (only shows party members not already assigned to another player)
-- A remove button for players (with a confirmation dialog). Players can rejoin via a new invite. The DM cannot be removed.
+- A remove button for players (with a confirmation dialog). Players can rejoin via a new invite. The DM cannot be removed. Removal **detaches** the player's owned characters back to their personal pool automatically (an `AFTER DELETE` trigger on `campaign_members`, migration `20260814221409`) — nothing is deleted, and the dialog says so. In the "characters without a player" list, claimed characters (`owner_user_id` set) offer Detach only; genuine delete remains for unclaimed DM-managed rows, which is also all RLS still permits.
 
 The DM membership is created automatically by the `create_dm_membership` trigger that fires `after insert on campaigns`. DMs never need to join their own campaign via invite.
 
 ## Role System
+
+**The DM/Player mode lens (#729).** Above the per-campaign role sits a
+persisted, user-level mode: `useUiStore().userMode` (`"dm" | "player" | ""`,
+localStorage `grimoire:user-mode`). It is a *lens, never a grant* —
+`campaign_members.role` remains the truth RLS and capability checks key off;
+the mode only decides which home the user lands on (`/dashboard` vs
+`/play/home`) and which of their campaigns are in view. The router guard
+(`src/router/index.ts`) fences the `/play` area to player mode and everything
+else to DM mode (DM preview and `?memberId=` management excepted), infers the
+mode once from the loaded membership for accounts that predate it, and sends a
+fresh account with no mode and no membership to `/welcome` — the first-run
+"What are you?" choice (`WelcomeView.vue`), which also arms the skippable
+driver.js tour (`src/lib/tours/`, `FirstRunTour.vue`). Each mode remembers its
+own last-active campaign (`campaign.switchUserMode()`); switching goes through
+`useModeSwitch()` alone, which swaps that memory, clears the stale membership,
+invalidates the query cache and navigates. The toggle itself is the shared
+`ModeToggle.vue`, rendered in both account menus. Campaign-scoped `/play`
+routes additionally require a real membership; the `playerStandalone` routes
+(pool, character create/edit, pickers) exist precisely for the
+member-of-nothing player.
 
 There are two roles:
 

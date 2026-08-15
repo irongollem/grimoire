@@ -4,18 +4,49 @@ import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { Background, BackgroundInsert, BackgroundUpdate } from "@/types/background.types";
 import { removeStorageImages } from "@/composables/useImageUpload";
 import { useRuleset } from "@/composables/useRuleset";
+import { useCampaignStore } from "@/stores/campaign";
 import type { RulesetKey } from "@/types/ruleset.types";
 
 const QUERY_KEY = "backgrounds";
 const OPEN5E_DOCS_KEY = "open5e-background-documents";
 
-async function fetchBackgrounds(ruleset: RulesetKey): Promise<Background[]> {
-  const { data, error } = await supabase
+async function fetchBackgrounds(
+  ruleset: RulesetKey,
+  seedStandaloneBaseline = false,
+): Promise<Background[]> {
+  let { data, error } = await supabase
     .from("backgrounds")
     .select("*")
     .or(`ruleset.is.null,ruleset.eq.${ruleset}`)
     .order("name", { ascending: true });
   if (error) throw error;
+
+  if (seedStandaloneBaseline) {
+    const user = getCurrentUser();
+    if (!user) return (data ?? []) as Background[];
+    const baselineSource = ruleset === "2024" ? "srd-2024" : "srd-2014";
+    const { fetchBackgrounds: fetchFromOpen5e } = await import(
+      "@/lib/library/open5eBackgroundImport"
+    );
+    const baseline = await fetchFromOpen5e([baselineSource]);
+    const existingIdentities = new Set(
+      (data ?? []).map((row) => `${row.source_document_key}::${row.source_record_key}`),
+    );
+    const missing = baseline
+      .filter((row) => !existingIdentities.has(`${row.source_document_key}::${row.source_record_key}`))
+      .map((row) => ({ ...row, user_id: user.id }));
+    if (missing.length > 0) {
+      const { error: insertError } = await supabase.from("backgrounds").insert(missing);
+      // A concurrent mount may have inserted the same baseline first.
+      if (insertError && insertError.code !== "23505") throw insertError;
+      ({ data, error } = await supabase
+        .from("backgrounds")
+        .select("*")
+        .or(`ruleset.is.null,ruleset.eq.${ruleset}`)
+        .order("name", { ascending: true }));
+      if (error) throw error;
+    }
+  }
   return (data ?? []) as Background[];
 }
 
@@ -56,9 +87,10 @@ async function deleteBackground(bg: Background): Promise<void> {
 
 export function useBackgrounds() {
   const { ruleset } = useRuleset();
+  const campaign = useCampaignStore();
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, ruleset.value]),
-    queryFn: () => fetchBackgrounds(ruleset.value),
+    queryKey: computed(() => [QUERY_KEY, ruleset.value, campaign.activeCampaignId ?? "standalone"]),
+    queryFn: () => fetchBackgrounds(ruleset.value, !campaign.activeCampaignId),
     staleTime: Infinity,
   });
 }

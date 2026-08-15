@@ -2,6 +2,8 @@
 import { ref, computed } from "vue";
 import { ALL_PLAYER_NAV } from "@/lib/playerNav";
 import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/useOptionalRules";
+import { useAuthStore } from "@/stores/auth";
+import { useUiStore } from "@/stores/ui";
 
 const NAV_ORDER_KEY = "grimoire_nav_order";
 
@@ -34,12 +36,20 @@ export function usePlayerNavPrefs() {
   // While it loads, `isRuleEffectivelyEnabled` falls back to the rule's
   // `defaultEnabled`, so an on-by-default tab never flickers out and back in.
   const { data: campaignRules } = useOptionalRules();
+  const auth = useAuthStore();
+  const ui = useUiStore();
 
-  const visibleNav = computed(() =>
-    sortedNav.value.filter(
+  const visibleNav = computed(() => {
+    // No campaign membership (#729): every campaign-scoped tab would only
+    // bounce off the router guard back to the pool, so show the pool alone.
+    // DM preview keeps the full nav — the preview *is* a membership's view.
+    if (!auth.isPlayer && !ui.dmPreviewMode) {
+      return sortedNav.value.filter((item) => item.standalone);
+    }
+    return sortedNav.value.filter(
       (item) => !item.ruleKey || isRuleEffectivelyEnabled(campaignRules.value, item.ruleKey),
-    ),
-  );
+    );
+  });
 
   function setNavOrder(order: string[]) {
     navOrder.value = order;

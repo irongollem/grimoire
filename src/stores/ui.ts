@@ -521,6 +521,16 @@ export const useUiStore = defineStore("ui", () => {
   const dmPreviewMode = ref(false);
   const dmPreviewPartyMemberId = ref<string | null>(null);
 
+  // User-level DM/Player mode (#729) — a persisted *lens*, never a grant.
+  // `campaign_members.role` stays the per-campaign truth that RLS and the
+  // router's capability checks (dmPreviewMode, ?memberId=) key off; this only
+  // decides which home the user lands on and which of their campaigns are in
+  // view. Empty string = never chosen → the /welcome first-run modal. For
+  // accounts that predate the mode, the router guard infers it once from the
+  // loaded membership's role. Switch via useModeSwitch(), never by writing
+  // this ref directly — the switch also swaps the per-mode active campaign.
+  const userMode = useLocalStorage<"dm" | "player" | "">("grimoire:user-mode", "");
+
   // DM Prep/Play mode (issue #133) — `play` triggers auto-broadcast of
   // entity visibility changes into campaign chat; `prep` is silent. Mode
   // persists in localStorage so a mid-session reload doesn't silently drop
@@ -921,6 +931,7 @@ export const useUiStore = defineStore("ui", () => {
     exitDmPreview,
 
     // DM Prep/Play mode (#133)
+    userMode,
     dmMode,
     toggleDmMode,
 

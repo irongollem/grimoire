@@ -179,6 +179,7 @@ import { ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
+import { useModeSwitch } from "@/composables/useModeSwitch";
 import {
   useCampaigns,
   useCampaignScopedHomebrewCounts,
@@ -196,6 +197,7 @@ import AppButton from "@/components/common/AppButton.vue";
 const campaignStore = useCampaignStore();
 const auth = useAuthStore();
 const router = useRouter();
+const { switchMode } = useModeSwitch();
 
 const { data: campaignList, refetch: refetchCampaigns } = useCampaigns();
 const membersQuery = useCampaignMembers();
@@ -294,19 +296,21 @@ async function doTransfer() {
 
   // The role this session is running as just changed underneath us; the router
   // guard reads it, so it has to be refreshed before we navigate anywhere.
-  await auth.refreshMembership(left ? undefined : campaignId);
   const { data: fresh } = await refetchCampaigns();
 
   if (left) {
     // No longer a member — the campaign is gone from `fresh`. Fall back to
     // whatever else they run, or to no active campaign at all.
-    const remaining = (fresh ?? []).filter((c) => c.id !== campaignId);
+    const remaining = (fresh ?? []).filter(
+      (c) => c.id !== campaignId && c.user_id === auth.user?.id,
+    );
     if (remaining.length > 0) {
       campaignStore.switchToCampaign(remaining[0]);
+      await auth.refreshMembership(remaining[0].id);
+      await router.push("/dashboard");
     } else {
-      campaignStore.clearActiveCampaign();
+      await switchMode("player", { rememberCurrentCampaign: false });
     }
-    router.push("/dashboard");
     return;
   }
 
@@ -315,7 +319,15 @@ async function doTransfer() {
   // transfer) do not linger, then hand over to the player portal.
   const updated =
     (fresh ?? campaignList.value ?? []).find((c) => c.id === campaignId) ?? null;
+  // The transferred campaign must not be remembered as a DM campaign: this
+  // account no longer owns it. The shared switch also clears stale membership
+  // and invalidates mode-sensitive queries before the player route is opened.
+  await switchMode("player", {
+    navigate: false,
+    rememberCurrentCampaign: false,
+  });
   if (updated) campaignStore.switchToCampaign(updated);
-  router.push("/play");
+  await auth.refreshMembership(campaignId);
+  await router.push("/play");
 }
 </script>

@@ -258,6 +258,28 @@ export const useAuthStore = defineStore("auth", () => {
     if (user.value) await loadMembership(user.value.id, campaignId);
   }
 
+  // Fresh-device mode inference must not depend on whichever membership row
+  // happened to be loaded first. A user who owns any campaign starts in the
+  // DM lens; otherwise an existing player membership selects the player lens.
+  async function inferUserMode(): Promise<CampaignRole | null> {
+    if (!user.value) return null;
+    const { data } = await supabase
+      .from("campaign_members")
+      .select("role")
+      .eq("user_id", user.value.id);
+    if (data?.some((row) => row.role === "dm")) return "dm";
+    if (data?.some((row) => row.role === "player")) return "player";
+    return null;
+  }
+
+  // Mode switch (#729): drop the current membership without loading another.
+  // Leaving the old one in place lets App.vue's `membership?.campaign_id`
+  // fallback re-hydrate the campaign the user just switched away from; the
+  // next switchToCampaign() reloads membership for the right one.
+  function clearMembership() {
+    membership.value = null;
+  }
+
   // No-op: autoRefreshToken:true handles all proactive refresh internally, and
   // every supabase.from() call refreshes the token if needed via _getAccessToken().
   // The old getSession() call here was racing with the SDK's own refresh timer —
@@ -287,5 +309,7 @@ export const useAuthStore = defineStore("auth", () => {
     signUp,
     signOut,
     refreshMembership,
+    inferUserMode,
+    clearMembership,
   };
 });

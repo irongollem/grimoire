@@ -88,9 +88,15 @@ export function useAllSpecies() {
   });
   const enabledQuery = useEnabledSources();
 
-  const enabledSlugs = computed(() =>
-    enabledQuery.data.value?.map((e) => e.source_slug) ?? null,
-  );
+  const enabledSlugs = computed(() => {
+    // Standalone character creation (#730): with no active campaign there are
+    // no campaign_enabled_sources rows to read (useEnabledSources is disabled),
+    // which would leave a member-of-nothing player an empty species picker.
+    // The legacy wotc-srd source was retired by 20260722000002. Standalone
+    // character creation uses the current 2014 SRD baseline instead.
+    if (!useCampaignStore().activeCampaignId) return ["srd-2014"];
+    return enabledQuery.data.value?.map((e) => e.source_slug) ?? null;
+  });
 
   const libraryQuery = useQuery({
     queryKey: computed(() => [LIBRARY_QUERY_KEY, enabledSlugs.value, ruleset.value]),
