@@ -297,7 +297,11 @@ trigger that detaches the removed player's owned characters; campaign deletion
 detaches via the FK. A claimed character (`owner_user_id` set) can be deleted
 by nobody but its owner — the creator-`ALL` policy was split into per-command
 policies to carve that out, and the DM's delete affordances became Detach.
-Known gap: the creator's *account* deletion still cascades (#735).
+Before an account deletion, migration `20260815000001` re-stamps characters
+that account created but another player owns to the surviving `owner_user_id`.
+This prevents the creator FK cascade from erasing another player's claimed
+character (#735); unclaimed and creator-owned characters retain the normal
+account-deletion cascade.
 
 **Pool UI:** `/play/home` (`PlayerHomeView.vue` + `CharacterPoolCard.vue`,
 route `play-home`, "Adventurer's Rest") lists every owned character with
