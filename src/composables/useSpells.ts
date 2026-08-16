@@ -5,7 +5,7 @@ import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { Spell, SpellInsert, SpellUpdate } from "@/types/spell.types";
 import { removeStorageImages } from "@/composables/useImageUpload";
 import { useLibraryArtDefaults } from "@/composables/useLibraryArtDefaults";
-import { useEnabledSources } from "@/composables/useEnabledSources";
+import { useLibrarySourceSlugs } from "@/composables/useEnabledSources";
 import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
 import { isUuid } from "@/lib/library/contentIdentity";
@@ -158,20 +158,9 @@ async function fetchLibrarySpells(enabledSlugs: string[], ruleset: RulesetKey): 
  *  the user row wins — preserving any edits or custom art. */
 export function useAllSpells() {
   const customQuery  = useSpells();
-  const enabledQuery = useEnabledSources();
   const campaign     = useCampaignStore();
   const { ruleset }  = useRuleset();
-
-  const enabledSlugs = computed(() => {
-    // Standalone play (#730): a player who belongs to no campaign has no
-    // campaign_enabled_sources rows to read (useEnabledSources is disabled),
-    // which would leave every spell surface empty — including the level-up
-    // wizard, which then demands N spell picks from an empty list and can
-    // never be confirmed (#736). Mirrors the useAllSpecies baseline: with no
-    // campaign, useRuleset resolves to 2014, so srd-2014 is the matching SRD.
-    if (!campaign.activeCampaignId) return ["srd-2014"];
-    return enabledQuery.data.value?.map((e) => e.source_slug) ?? null;
-  });
+  const { slugs: enabledSlugs, isLoading: sourcesLoading } = useLibrarySourceSlugs();
 
   const libraryQuery = useQuery({
     queryKey: computed(() => [LIBRARY_QUERY_KEY, enabledSlugs.value, ruleset.value]),
@@ -196,7 +185,7 @@ export function useAllSpells() {
   });
 
   const isLoading = computed(
-    () => customQuery.isLoading.value || enabledQuery.isLoading.value || libraryQuery.isLoading.value,
+    () => customQuery.isLoading.value || sourcesLoading.value || libraryQuery.isLoading.value,
   );
 
   return { data, isLoading };

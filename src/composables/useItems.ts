@@ -6,7 +6,7 @@ import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { Item, ItemInsert, ItemUpdate } from "@/types/item.types";
 import { deleteByPublicUrl } from "@/lib/storage";
 import { useLibraryArtDefaults } from "@/composables/useLibraryArtDefaults";
-import { useEnabledSources } from "@/composables/useEnabledSources";
+import { useLibrarySourceSlugs } from "@/composables/useEnabledSources";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
 import { useToast } from "@/composables/useToast";
@@ -141,11 +141,7 @@ export function useItems(getOptions?: () => UseItemsOptions) {
   const artDefaults = useLibraryArtDefaults();
   const { activeCampaignId } = storeToRefs(useCampaignStore());
   const { ruleset } = useRuleset();
-  const enabledQuery = useEnabledSources();
-
-  const enabledSlugs = computed(() =>
-    enabledQuery.data.value?.map((e) => e.source_slug) ?? null,
-  );
+  const { slugs: enabledSlugs, isLoading: sourcesLoading } = useLibrarySourceSlugs();
 
   const libraryQuery = useQuery({
     queryKey: computed(() => [LIBRARY_QUERY_KEY, enabledSlugs.value, ruleset.value]),
@@ -177,7 +173,7 @@ export function useItems(getOptions?: () => UseItemsOptions) {
   });
 
   const isLoading = computed(
-    () => itemsQuery.isLoading.value || enabledQuery.isLoading.value || libraryQuery.isLoading.value,
+    () => itemsQuery.isLoading.value || sourcesLoading.value || libraryQuery.isLoading.value,
   );
 
   return { ...itemsQuery, data, isLoading };
@@ -202,11 +198,7 @@ export function usePlayerVisibleItems(getOptions?: () => UseItemsOptions) {
   // Players can read campaign_enabled_sources directly (RLS allows any
   // campaign member select), so the same enabled-sources → library_items query
   // used by the DM catalog works unchanged here.
-  const enabledQuery = useEnabledSources();
-
-  const enabledSlugs = computed(() =>
-    enabledQuery.data.value?.map((e) => e.source_slug) ?? null,
-  );
+  const { slugs: enabledSlugs, isLoading: sourcesLoading } = useLibrarySourceSlugs();
 
   const libraryQuery = useQuery({
     queryKey: computed(() => [LIBRARY_QUERY_KEY, enabledSlugs.value, ruleset.value]),
@@ -235,7 +227,7 @@ export function usePlayerVisibleItems(getOptions?: () => UseItemsOptions) {
     ui.dmPreviewMode ? baseQuery.data.value : projectionQuery.data.value,
   );
   const isLoading = computed(() =>
-    enabledQuery.isLoading.value ||
+    sourcesLoading.value ||
     libraryQuery.isLoading.value ||
     (ui.dmPreviewMode ? baseQuery.isLoading.value : projectionQuery.isLoading.value),
   );

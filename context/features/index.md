@@ -140,4 +140,21 @@ When working on any feature:
 7. Server state → TanStack Query composables; UI state → Pinia
 8. After create/save/delete → always `router.push('/list-route')`
 9. New tables need RLS + `update_updated_at()` trigger; use `/new-migration` skill for migration files
-10. **After implementing a feature** → update the relevant feature doc in `context/features/`
+10. Shared library content (`library_*`) → resolve source slugs with `useLibrarySourceSlugs()`, never re-derive them from `useEnabledSources()` — see below
+11. **After implementing a feature** → update the relevant feature doc in `context/features/`
+
+### Reading shared library content
+
+Any composable merging `library_*` rows with a user's own must take its source slugs from **`useLibrarySourceSlugs()`** (`useEnabledSources.ts`). Do not write `enabledQuery.data.value?.map(e => e.source_slug) ?? null` again.
+
+That line looks self-evidently correct and is wrong in one case. `useEnabledSources` is _disabled_ when there is no active campaign, so its data never arrives, the slug list sits at `null` forever, and the library query — gated on `!== null` — never runs. Every shared-content surface is then silently empty for a user who belongs to no campaign, which standalone play (#730) made an ordinary state rather than an edge case.
+
+Six call sites had written that computed by hand and exactly one remembered the standalone case. The other five were empty for campaign-less users: no spells, items, monsters or species. It stayed invisible because nothing errors — the query simply never fires — and because the account you would naturally test on always has a campaign. It surfaced only when it collided with the level-up wizard's mandatory spell picks and produced a level-up that could never be confirmed (#736), which a real user reported (#737).
+
+Three properties the helper encodes, all load-bearing:
+
+- **`null` means "not known yet", `[]` means "the DM disabled everything."** They must stay distinct: `[]` fires a query that matches nothing and caches it.
+- **No campaign → the `srd-2014` baseline**, never `null`. Without a campaign `useRuleset` resolves to 2014, so that is the matching edition.
+- **A cleared campaign wins over cached source rows**, which may still be in hand after leaving one.
+
+`resolveLibrarySlugs` holds the decision without Vue or the store, and `useEnabledSources.test.ts` pins all three.

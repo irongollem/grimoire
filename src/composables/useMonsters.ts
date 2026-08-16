@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { computed, type Ref } from "vue";
 import { storeToRefs } from "pinia";
 import { supabase, getCurrentUser } from "@/lib/supabase";
-import { useEnabledSources } from "@/composables/useEnabledSources";
+import { useLibrarySourceSlugs } from "@/composables/useEnabledSources";
 import { allowedCampaignScoped } from "@/lib/campaignContentGating";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
@@ -124,13 +124,9 @@ export function useMonsters(getOptions?: () => UseMonstersOptions) {
  *  the user row wins — preserving any edits or custom art. */
 export function useAllMonsters(getOptions?: () => UseMonstersOptions) {
   const customQuery  = useMonstersQuery();
-  const enabledQuery = useEnabledSources();
+  const { slugs: enabledSlugs, isLoading: sourcesLoading } = useLibrarySourceSlugs();
   const { ruleset } = useRuleset();
   const { activeCampaignId } = storeToRefs(useCampaignStore());
-
-  const enabledSlugs = computed(() =>
-    enabledQuery.data.value?.map((e) => e.source_slug) ?? null,
-  );
 
   const libraryQuery = useQuery({
     queryKey: computed(() => [LIBRARY_QUERY_KEY, enabledSlugs.value, ruleset.value]),
@@ -154,7 +150,7 @@ export function useAllMonsters(getOptions?: () => UseMonstersOptions) {
   });
 
   const isLoading = computed(
-    () => customQuery.isLoading.value || enabledQuery.isLoading.value || libraryQuery.isLoading.value,
+    () => customQuery.isLoading.value || sourcesLoading.value || libraryQuery.isLoading.value,
   );
   return { data, isLoading };
 }
@@ -189,12 +185,8 @@ export function usePlayerVisibleMonsters() {
   const ui = useUiStore();
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
-  const enabledQuery = useEnabledSources();
+  const { slugs: enabledSlugs, isLoading: sourcesLoading } = useLibrarySourceSlugs();
   const { ruleset } = useRuleset();
-
-  const enabledSlugs = computed(() =>
-    enabledQuery.data.value?.map((e) => e.source_slug) ?? null,
-  );
 
   const libraryQuery = useQuery({
     queryKey: computed(() => [LIBRARY_QUERY_KEY, enabledSlugs.value, ruleset.value]),
@@ -232,7 +224,7 @@ export function usePlayerVisibleMonsters() {
 
   const isLoading = computed(
     () =>
-      enabledQuery.isLoading.value ||
+      sourcesLoading.value ||
       libraryQuery.isLoading.value ||
       (ui.dmPreviewMode ? baseQuery.isLoading.value : projectionQuery.isLoading.value),
   );

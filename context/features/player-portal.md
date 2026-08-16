@@ -225,7 +225,7 @@ That failure mode is the thing to protect. `apply_level_up` (migration `20260720
 - **`available` vs. the rendered list.** `pickSpellCandidates` reports how many spells existed *before* the search box narrowed them, so "no match for your search" is never confused with "no library at all".
 - **`LevelUpSpellsUnavailable`.** When a required picker has zero candidates, the wizard explains that a spell source must be enabled (Reliquary → Sources) instead of leaving a permanently disabled Confirm button.
 
-Related: a player in standalone mode (no campaign — #730) has no `campaign_enabled_sources` rows, so `useAllSpells` falls back to the `srd-2014` baseline exactly as `useAllSpecies` does. Without it the level-up hits the same dead end from the other direction.
+Related: a player in standalone mode (no campaign — #730) has no `campaign_enabled_sources` rows, so `useAllSpells` falls back to the `srd-2014` baseline. That fallback now lives in the shared `useLibrarySourceSlugs()` — see index.md § "Reading shared library content" (#737). Without it the level-up hits the same dead end from the other direction.
 
 Also includes a `DeLevelPanel` that lets players undo a level if character classes exist, for correction purposes.
 
