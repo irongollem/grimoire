@@ -1,6 +1,6 @@
 import { computed, ref, isRef } from "vue";
 import type { Ref } from "vue";
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/vue-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { Spell, SpellInsert, SpellUpdate } from "@/types/spell.types";
 import { removeStorageImages } from "@/composables/useImageUpload";
@@ -15,40 +15,6 @@ import type { RulesetKey } from "@/types/ruleset.types";
 const LIBRARY_QUERY_KEY = "library-spells";
 
 const QUERY_KEY = "spells";
-export const SPELLS_PAGE_SIZE = 50;
-
-export interface SpellFilters {
-  search: string;
-  level: string;
-  school: string;
-  class: string;
-  source: string;
-}
-
-async function fetchSpellsPage(
-  filters: SpellFilters,
-  page: number,
-): Promise<{ spells: Spell[]; total: number }> {
-  let query = supabase
-    .from("spells")
-    .select("*", { count: "exact" })
-    .order("level", { ascending: true })
-    .order("name", { ascending: true });
-
-  const name = filters.search.trim();
-  if (name) query = query.ilike("name", `%${name}%`);
-  if (filters.level !== "") query = query.eq("level", parseInt(filters.level));
-  if (filters.school) query = query.eq("school", filters.school);
-  if (filters.class) query = query.contains("classes", [filters.class]);
-  if (filters.source) query = query.eq("source", filters.source);
-
-  const from = page * SPELLS_PAGE_SIZE;
-  query = query.range(from, from + SPELLS_PAGE_SIZE - 1);
-
-  const { data, error, count } = await query;
-  if (error) throw error;
-  return { spells: data as Spell[], total: count ?? 0 };
-}
 
 export interface SpellSource {
   slug: string;
@@ -133,15 +99,6 @@ async function deleteSpell(spell: Spell): Promise<void> {
   await removeStorageImages("asset-images", spell.image_url);
 }
 
-export function useSpellsPage(filters: Ref<SpellFilters>, page: Ref<number>) {
-  return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "page", filters.value, page.value]),
-    queryFn: () => fetchSpellsPage(filters.value, page.value),
-    staleTime: Infinity,
-    placeholderData: keepPreviousData,
-  });
-}
-
 const SOURCES_KEY = "spell-sources";
 
 export function useSpellSources() {
@@ -205,9 +162,16 @@ export function useAllSpells() {
   const campaign     = useCampaignStore();
   const { ruleset }  = useRuleset();
 
-  const enabledSlugs = computed(() =>
-    enabledQuery.data.value?.map((e) => e.source_slug) ?? null,
-  );
+  const enabledSlugs = computed(() => {
+    // Standalone play (#730): a player who belongs to no campaign has no
+    // campaign_enabled_sources rows to read (useEnabledSources is disabled),
+    // which would leave every spell surface empty — including the level-up
+    // wizard, which then demands N spell picks from an empty list and can
+    // never be confirmed (#736). Mirrors the useAllSpecies baseline: with no
+    // campaign, useRuleset resolves to 2014, so srd-2014 is the matching SRD.
+    if (!campaign.activeCampaignId) return ["srd-2014"];
+    return enabledQuery.data.value?.map((e) => e.source_slug) ?? null;
+  });
 
   const libraryQuery = useQuery({
     queryKey: computed(() => [LIBRARY_QUERY_KEY, enabledSlugs.value, ruleset.value]),

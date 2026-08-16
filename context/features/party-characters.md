@@ -406,6 +406,8 @@ Wraps `LevelUpWizard` with a target level (from query param or current level + 1
 
 The `LevelUpWizard` (at `src/levelup/LevelUpWizard.vue`) walks through class-defined wizard steps at the relevant level (choose fighting style, pick spells, pick features, etc.) and commits the result to the `character_classes` table. Features unlocked at the new level are displayed with expandable descriptions.
 
+Spell and cantrip choices come from `useLevelUpSpellCandidates`, which reads the merged Spellbook library — see [player-portal.md](player-portal.md) § "Where the spell pickers get their spells" for why it must not query the `spells` table, and for the three guards that keep an empty picker from producing a level-up that can never be confirmed (#736).
+
 ---
 
 ## Player Portal — Party View

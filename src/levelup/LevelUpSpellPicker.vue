@@ -12,16 +12,23 @@
       Pick {{ needed }} new {{ isCantrip ? 'cantrip' : 'spell' }}{{ needed > 1 ? 's' : '' }} to learn.
     </p>
 
-    <input
-      :value="search"
-      type="text"
+    <p v-if="notice" class="text-label text-muted-foreground italic">{{ notice }}</p>
+
+    <AppInput
+      :model-value="search"
+      type="search"
+      tone="muted"
       :placeholder="isCantrip ? 'Search cantrips…' : 'Search spells…'"
-      class="w-full rounded border border-border bg-muted/40 px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-      @input="emit('update:search', ($event.target as HTMLInputElement).value)"
+      @update:model-value="onSearch"
     />
 
     <div class="max-h-64 overflow-y-auto rounded border border-border divide-y divide-border">
-      <div v-if="!spells.length" class="px-3 py-4 text-center">
+      <div v-if="isLoading" class="px-3 py-4 text-center">
+        <p class="text-body text-muted-foreground italic">
+          Loading {{ isCantrip ? 'cantrips' : 'spells' }}…
+        </p>
+      </div>
+      <div v-else-if="!spells.length" class="px-3 py-4 text-center">
         <p class="text-body text-muted-foreground italic">
           {{ search ? `No ${isCantrip ? 'cantrips' : 'spells'} match your search.` : `No ${isCantrip ? 'cantrips' : 'spells'} found for this class.` }}
         </p>
@@ -50,14 +57,20 @@
       </button>
     </div>
 
+    <!-- This count is not advice: apply_level_up rejects a submission whose class
+         spell/cantrip count differs from the requirement, so Confirm stays
+         disabled until the picker is full. Saying "you can add these later"
+         here (as this line used to) sends the reader looking for a Confirm
+         button that will never enable. -->
     <p v-if="selectedIds.size < needed" class="text-label text-muted-foreground">
-      You can also add {{ isCantrip ? 'cantrips' : 'spells' }} later from your Spellbook tab.
+      {{ needed - selectedIds.size }} more to choose before this level can be confirmed.
     </p>
   </WizardStepCard>
 </template>
 
 <script setup lang="ts">
 import WizardStepCard from "@/components/common/WizardStepCard.vue";
+import AppInput from "@/components/common/AppInput.vue";
 
 interface SpellEntry {
   id: string;
@@ -74,6 +87,8 @@ const {
   spells,
   selectedIds,
   alreadyKnownIds,
+  isLoading = false,
+  notice,
 } = defineProps<{
   title: string;
   isCantrip: boolean;
@@ -82,10 +97,20 @@ const {
   spells: SpellEntry[];
   selectedIds: Set<string>;
   alreadyKnownIds: Set<string>;
+  /** Distinguishes "still fetching" from "this class has nothing to offer". */
+  isLoading?: boolean;
+  /** Shown above the search box — e.g. why the class filter was widened. */
+  notice?: string;
 }>();
 
 const emit = defineEmits<{
   "update:search": [value: string];
   toggle: [id: string];
 }>();
+
+/** AppInput's model is `string | number | null`; a cleared search box means an
+ *  empty query — the list widens back to everything — not an absent one. */
+function onSearch(value: string | number | null) {
+  emit("update:search", value === null ? "" : String(value));
+}
 </script>

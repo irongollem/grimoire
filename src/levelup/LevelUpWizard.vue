@@ -112,9 +112,11 @@
         :is-cantrip="false"
         :needed="spellsKnownGain"
         :search="spellSearch"
-        :spells="filteredSpells"
+        :spells="spellCandidates.spells"
         :selected-ids="selectedSpellIds"
         :already-known-ids="alreadyKnownIds"
+        :is-loading="spellsLoading"
+        :notice="classFallbackNotice(spellCandidates)"
         @update:search="spellSearch = $event"
         @toggle="toggleSpell"
       />
@@ -126,11 +128,21 @@
         :is-cantrip="true"
         :needed="cantripsKnownGain"
         :search="cantripSearch"
-        :spells="cantripPageData?.spells ?? []"
+        :spells="cantripCandidates.spells"
         :selected-ids="selectedCantripIds"
         :already-known-ids="alreadyKnownIds"
+        :is-loading="spellsLoading"
+        :notice="classFallbackNotice(cantripCandidates)"
         @update:search="cantripSearch = $event"
         @toggle="toggleCantrip"
+      />
+
+      <!-- The level-up demands picks the library cannot supply. Confirm can
+           never enable here, so say why rather than leave a dead button. -->
+      <LevelUpSpellsUnavailable
+        v-if="blockedOnEmptySpellLibrary"
+        :spells-needed="spellCandidates.available === 0 ? spellsKnownGain : 0"
+        :cantrips-needed="cantripCandidates.available === 0 ? cantripsKnownGain : 0"
       />
 
       <!-- Error -->
@@ -162,6 +174,7 @@ import LevelUpHitPoints from "./LevelUpHitPoints.vue";
 import LevelUpAsiSection from "./LevelUpAsiSection.vue";
 import LevelUpSubclassPicker from "./LevelUpSubclassPicker.vue";
 import LevelUpSpellPicker from "./LevelUpSpellPicker.vue";
+import LevelUpSpellsUnavailable from "./LevelUpSpellsUnavailable.vue";
 import LevelUpClassSteps from "./LevelUpClassSteps.vue";
 import { useLevelUpConfirm } from "./useLevelUpConfirm";
 import { useCampaignCustomSubclasses } from "@/composables/useCustomSubclasses";
@@ -180,7 +193,7 @@ import type { DieSize } from "@/lib/dice/dice";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { useAllFeatures } from "@/composables/useFeatures";
 import { useCharacterSpells } from "@/composables/useCharacterSpells";
-import { useSpellsPage } from "@/composables/useSpells";
+import { useLevelUpSpellCandidates } from "./useLevelUpSpellCandidates";
 import type { PartyMember } from "@/types/party.types";
 import type { AbilityKey, AsiMode, ClassStep, ClassResourceDef, FeatureEntry } from "./types";
 import { mapFeatureIds } from "./types";
@@ -536,21 +549,32 @@ const classSteps = computed<ClassStep[]>(() => {
 const stepValues = ref<Record<string, string>>({});
 const stepMultiValues = ref<Record<string, string[]>>({});
 
-// ── Spell picker ───────────────────────────────────────────────────────────────
+// ── Spell + cantrip candidates ─────────────────────────────────────────────────
+// Sourced from the Spellbook's merged library (enabled campaign sources + the
+// player's own custom spells). Querying the `spells` table alone — which holds
+// only user-authored spells — left both pickers permanently empty (#736).
 const spellSearch = ref("");
-const spellFilters = computed(() => ({
-  search: spellSearch.value,
-  level: "",
-  school: "",
-  class: memberClass.value,
-  source: "",
-}));
-const spellPage = ref(0);
-const { data: spellPageData } = useSpellsPage(spellFilters, spellPage);
-/** Only show spells the character can actually cast (level ≤ max slot level). */
-const filteredSpells = computed(() =>
-  (spellPageData.value?.spells ?? []).filter(s => s.level > 0 && s.level <= maxCastableLevel.value),
-);
+const cantripSearch = ref("");
+const { spellCandidates, cantripCandidates, isLoading: spellsLoading } =
+  useLevelUpSpellCandidates({
+    className: memberClass,
+    maxCastableLevel,
+    spellSearch,
+    cantripSearch,
+  });
+
+// Worded without "campaign" on purpose — a standalone player (#730) has none.
+function classFallbackNotice(candidates: { usedClassFallback: boolean }): string | undefined {
+  if (!candidates.usedClassFallback) return undefined;
+  return `No spell in the available sources lists ${memberClass.value}, so the full list is shown.`;
+}
+
+/** A required picker with nothing in it — Confirm can never enable. */
+const blockedOnEmptySpellLibrary = computed(() => {
+  if (spellsLoading.value) return false;
+  if (spellsKnownGain.value > 0 && spellCandidates.value.available === 0) return true;
+  return cantripsKnownGain.value > 0 && cantripCandidates.value.available === 0;
+});
 
 const { data: characterSpells } = useCharacterSpells(computed(() => props.member.id));
 const alreadyKnownIds = computed(() => new Set((characterSpells.value ?? []).map(s => s.spell_id)));
@@ -568,17 +592,6 @@ function toggleSpell(id: string) {
 }
 
 // ── Cantrip picker ─────────────────────────────────────────────────────────────
-const cantripSearch = ref("");
-const cantripFilters = computed(() => ({
-  search: cantripSearch.value,
-  level: "0",
-  school: "",
-  class: memberClass.value,
-  source: "",
-}));
-const cantripPage = ref(0);
-const { data: cantripPageData } = useSpellsPage(cantripFilters, cantripPage);
-
 const selectedCantripIds = ref(new Set<string>());
 function toggleCantrip(id: string) {
   if (alreadyKnownIds.value.has(id)) return;

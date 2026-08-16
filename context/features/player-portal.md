@@ -213,6 +213,18 @@ Hosts `LevelUpWizard` (from `src/levelup/`) which guides the player through gain
 - Hit point roll or average HP gain
 - New cantrips/spells known selection for applicable caster types
 
+### Where the spell pickers get their spells
+
+`useLevelUpSpellCandidates` (`src/levelup/`) reads `useAllSpells()` — the same merged source as the Spellbook: the campaign's enabled library sources plus the player's own custom spells. It must never query the `spells` table directly. That table holds only user-authored spells (12 rows across the whole production database on 17 Aug 2026), and the wizard did exactly that until #736: both pickers rendered "No spells found for this class" while `canConfirm` still demanded N picks, so **Confirm could never enable** and the character could not be levelled at all.
+
+That failure mode is the thing to protect. `apply_level_up` (migration `20260720000026`) rejects any submission whose class spell/cantrip count differs from its own server-derived requirement, so a picker with nothing in it is not a cosmetic gap — it is an unenterable level. Three guards exist because of it:
+
+- **Class fallback.** If no library spell lists the class (a DM-built custom class appears in no `classes` array), the picker widens to the full castable list and says so, rather than showing an empty box.
+- **`available` vs. the rendered list.** `pickSpellCandidates` reports how many spells existed *before* the search box narrowed them, so "no match for your search" is never confused with "no library at all".
+- **`LevelUpSpellsUnavailable`.** When a required picker has zero candidates, the wizard explains that a spell source must be enabled (Reliquary → Sources) instead of leaving a permanently disabled Confirm button.
+
+Related: a player in standalone mode (no campaign — #730) has no `campaign_enabled_sources` rows, so `useAllSpells` falls back to the `srd-2014` baseline exactly as `useAllSpecies` does. Without it the level-up hits the same dead end from the other direction.
+
 Also includes a `DeLevelPanel` that lets players undo a level if character classes exist, for correction purposes.
 
 Back route goes to `/play` (character sheet) if the player triggered it from the character sheet, or `/party` if triggered from the DM party manager.
