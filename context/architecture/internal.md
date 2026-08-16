@@ -161,6 +161,16 @@ sequenceDiagram
     R->>R: one hard navigation to intended path<br/>(sessionStorage guard — a broken deploy<br/>degrades to visible failure, not a reload loop)
 ```
 
+One trap in that last step: Vite wraps every route `import()` in
+`__vitePreload`, whose error path is `baseModule().catch(handlePreloadError)`,
+and `handlePreloadError` re-throws **only** if nothing called `preventDefault`
+on the `vite:preloadError` event — which `staleChunkRecovery` does. So the
+import resolves to `undefined` and vue-router throws `Couldn't resolve
+component "default" at "<path>"` instead of the engine's "failed to fetch
+dynamically imported module". Classify with `isStaleChunkError`, never
+`isChunkLoadError`, anywhere downstream of a route load; matching only the
+engine text is what let DUNGEON-GRIMOIRE-3 through the Sentry filter.
+
 Fetch policy: same-origin GET only; navigations race network vs 2.5 s timeout
 → cached `index.html`; assets cache-first. **Supabase and provider calls are
 never cached** (cross-origin passes through), so the SW can be ruled out of

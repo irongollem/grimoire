@@ -2,7 +2,7 @@ import * as Sentry from "@sentry/vue";
 import type { App } from "vue";
 import type { Router } from "vue-router";
 import { scrubEvent } from "@edge-shared/observability/scrub.ts";
-import { isChunkLoadError } from "../staleChunkRecovery";
+import { isStaleChunkError } from "../staleChunkRecovery";
 
 /**
  * Error tracking (#644) — Sentry, EU region (`ingest.de.sentry.io`).
@@ -105,7 +105,9 @@ export function initErrorTracking(app: App, router: Router): void {
       // A stale-chunk failure is an expected consequence of deploying while
       // tabs are open, and `installStaleChunkRecovery` already fixes it by
       // reloading. Reporting it would make every deploy look like an incident.
-      if (isChunkLoadError(hint?.originalException)) return null;
+      // Note this must be isStaleChunkError, not isChunkLoadError: Vite
+      // swallows the engine's message and vue-router rethrows a different one.
+      if (isStaleChunkError(hint?.originalException)) return null;
       return scrubEvent(event);
     },
 
@@ -120,7 +122,7 @@ export function initErrorTracking(app: App, router: Router): void {
   // failures bypass it — a rejected async guard or a failed route-component
   // import surfaces here and nowhere else.
   router.onError((error) => {
-    if (isChunkLoadError(error)) return;
+    if (isStaleChunkError(error)) return;
     Sentry.captureException(error);
   });
 }
