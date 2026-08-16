@@ -14,10 +14,27 @@ import type { PartyMember } from "@/types/party.types";
 const POOL_KEY = "character-pool";
 
 async function fetchMyCharacters(userId: string): Promise<PartyMember[]> {
+  // Two shapes count as "mine", mirroring attach_party_member_to_campaign's
+  // own predicate (`owner_user_id = uid or (owner_user_id is null and
+  // user_id = uid)`):
+  //
+  //   1. owned outright — the normal case;
+  //   2. created by me, unclaimed, and in no campaign — the orphan shape from
+  //      #738, plus any character predating the ownership column.
+  //
+  // Case 2 is deliberately narrowed to detached rows. Without `campaign_id is
+  // null` a DM's unclaimed roster would leak into their personal pool; with
+  // it, the only rows that surface are ones no other view can show at all.
+  // The server would already let these be attached — a strict
+  // `.eq("owner_user_id", …)` here was the sole reason the UI never offered
+  // them, so a character could be created, levelled, and then vanish.
   const { data, error } = await supabase
     .from("party_members")
     .select("*")
-    .eq("owner_user_id", userId)
+    .or(
+      `owner_user_id.eq.${userId},` +
+      `and(owner_user_id.is.null,user_id.eq.${userId},campaign_id.is.null)`,
+    )
     .order("created_at", { ascending: true });
   if (error) throw error;
   return data as PartyMember[];

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { partitionBundleEntries, buildBackgroundEquipmentRows } from "./useCharacterCreationForm";
+import {
+  partitionBundleEntries,
+  buildBackgroundEquipmentRows,
+  resolveCharacterPlacement,
+} from "./useCharacterCreationForm";
 import type { VaultEntry } from "./useCharacterEquipmentSeeding";
 
 const CARRIER = "member-1";
@@ -96,5 +100,48 @@ describe("buildBackgroundEquipmentRows", () => {
   it("returns no rows for empty equipment text", () => {
     expect(buildBackgroundEquipmentRows("", CARRIER)).toEqual([]);
     expect(buildBackgroundEquipmentRows("   ", CARRIER)).toEqual([]);
+  });
+});
+
+describe("resolveCharacterPlacement", () => {
+  const CREATOR = "user-1";
+  const CAMPAIGN = "campaign-1";
+
+  it("leaves a DM's roster character unclaimed in the active campaign", () => {
+    expect(resolveCharacterPlacement({
+      isDmCreate: true, activeCampaignId: CAMPAIGN, creatorId: CREATOR,
+    })).toEqual({ campaign_id: CAMPAIGN, owner_user_id: null });
+  });
+
+  it("gives a player's own character to them, with no campaign of its own", () => {
+    // The player's character is linked to a campaign through campaign_members,
+    // not by stamping campaign_id at creation.
+    expect(resolveCharacterPlacement({
+      isDmCreate: false, activeCampaignId: CAMPAIGN, creatorId: CREATOR,
+    })).toEqual({ campaign_id: null, owner_user_id: CREATOR });
+  });
+
+  it("gives a DM create with no active campaign to its creator", () => {
+    // Regression for #738. Deriving both fields from isDmCreate alone set
+    // campaign_id AND owner_user_id to null here, producing a character that
+    // useParty, useMyCharacters, useOfferedCharacters and useCharacterPool all
+    // filter out — created, levellable by direct link, and visible nowhere.
+    const placement = resolveCharacterPlacement({
+      isDmCreate: true, activeCampaignId: null, creatorId: CREATOR,
+    });
+
+    expect(placement).toEqual({ campaign_id: null, owner_user_id: CREATOR });
+    expect(placement.owner_user_id).not.toBeNull();
+  });
+
+  it("never returns a row that is both unowned and unattached", () => {
+    for (const isDmCreate of [true, false]) {
+      for (const activeCampaignId of [CAMPAIGN, null]) {
+        const { campaign_id, owner_user_id } = resolveCharacterPlacement({
+          isDmCreate, activeCampaignId, creatorId: CREATOR,
+        });
+        expect(campaign_id === null && owner_user_id === null).toBe(false);
+      }
+    }
   });
 });

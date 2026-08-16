@@ -56,6 +56,35 @@ function buildPlainEquipmentRow(
 }
 
 /**
+ * Where a newly-created character lands: as an unclaimed row on a campaign's
+ * roster, or in its creator's personal pool.
+ *
+ * These are two decisions, not one. Deriving both from `isDmCreate` alone —
+ * `campaign_id: isDmCreate ? activeCampaignId : null` beside
+ * `owner_user_id: isDmCreate ? null : userId` — is correct on each line and
+ * broken together: opening the DM create route with no campaign selected
+ * (reachable since the #729 mode lens, and the default state for a fresh
+ * signup) sets *both* to null, and no query in the app returns such a row.
+ * useParty and useMyCharacters filter on campaign_id, useCharacterPool on
+ * owner_user_id, so the character is fully created and invisible everywhere.
+ * One user rebuilt a level-2 character from scratch because of it (#738).
+ *
+ * A DM roster row therefore requires an actual campaign to be a roster row;
+ * without one the character belongs to whoever made it. Exported for testing.
+ */
+export function resolveCharacterPlacement(opts: {
+  isDmCreate: boolean;
+  activeCampaignId: string | null;
+  creatorId: string;
+}): { campaign_id: string | null; owner_user_id: string | null } {
+  const dmRosterCreate = opts.isDmCreate && !!opts.activeCampaignId;
+  return {
+    campaign_id: dmRosterCreate ? opts.activeCampaignId : null,
+    owner_user_id: dmRosterCreate ? null : opts.creatorId,
+  };
+}
+
+/**
  * Splits a class-equipment bundle's entries into plain rows ready for one
  * batched insert, and "pack" entries whose contents need the pack's own
  * generated id first (so they stay one-at-a-time via seedEquipmentEntry).
@@ -513,10 +542,17 @@ export function useCharacterCreationForm() {
         router.push(freePicks.length > 0 ? "/play/spells?tab=innate" : "/play/champions");
       } else {
         // ── Create flow ───────────────────────────────────────────────────────
+        const creatorId = auth.user?.id;
+        // An unowned character is not a degraded success — no list view in the
+        // app returns one (#738). Refuse to create it rather than orphan it.
+        if (!creatorId) throw new Error("You must be signed in to create a character.");
         const created = await create({
           ...basePayload,
-          campaign_id: isDmCreate.value ? campaign.activeCampaignId : null,
-          owner_user_id: isDmCreate.value ? null : (auth.user?.id ?? null),
+          ...resolveCharacterPlacement({
+            isDmCreate: isDmCreate.value,
+            activeCampaignId: campaign.activeCampaignId,
+            creatorId,
+          }),
         });
 
         // The shell row now exists but the character isn't usable until its
@@ -598,13 +634,17 @@ export function useCharacterCreationForm() {
         }
 
         await auth.refreshMembership();
-        if (isDmCreate.value) {
-          router.push("/party");
-        } else if (!created.campaign_id) {
+        // Campaign-less first: a DM create with no campaign selected lands in
+        // the pool, not on a roster, so /party would be an empty list view
+        // (#738). Ordering this after the isDmCreate branch is what sent the
+        // character somewhere it could never appear.
+        if (!created.campaign_id) {
           // Standalone create (#729/#730): no campaign to land in — the character
           // pool is the list view / success feedback, same as any other create.
           void queryClient.invalidateQueries({ queryKey: ["character-pool"] });
           router.push({ name: "play-home" });
+        } else if (isDmCreate.value) {
+          router.push("/party");
         } else if (levelUp) {
           router.push(`/play/character/levelup?targetLevel=2&memberId=${created.id}`);
         } else {
