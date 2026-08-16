@@ -2,23 +2,35 @@ import type { SpellcastingBlock } from "@/types/npc.types";
 import type { VersionedContentMetadata } from "@/types/content.types";
 import type { AiProvenance } from "@/ai/provenance";
 
-export type MonsterType =
-  | "aberration"
-  | "beast"
-  | "celestial"
-  | "construct"
-  | "dragon"
-  | "elemental"
-  | "fey"
-  | "fiend"
-  | "giant"
-  | "humanoid"
-  | "monstrosity"
-  | "ooze"
-  | "plant"
-  | "undead";
+export const MONSTER_TYPES = [
+  "aberration",
+  "beast",
+  "celestial",
+  "construct",
+  "dragon",
+  "elemental",
+  "fey",
+  "fiend",
+  "giant",
+  "humanoid",
+  "monstrosity",
+  "ooze",
+  "plant",
+  "undead",
+] as const;
 
-export type MonsterSize = "tiny" | "small" | "medium" | "large" | "huge" | "gargantuan";
+export type MonsterType = (typeof MONSTER_TYPES)[number];
+
+export const MONSTER_SIZES = [
+  "tiny",
+  "small",
+  "medium",
+  "large",
+  "huge",
+  "gargantuan",
+] as const;
+
+export type MonsterSize = (typeof MONSTER_SIZES)[number];
 
 export interface MonsterStatBlock {
   armor_class: number;

@@ -175,13 +175,7 @@ import { useMonsterGeneration } from "@/ai/useMonsterGeneration";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
-import type { MonsterType, MonsterSize } from "@/types/monster.types";
-
-const MONSTER_TYPES: MonsterType[] = [
-  "aberration", "beast", "celestial", "construct", "dragon", "elemental",
-  "fey", "fiend", "giant", "humanoid", "monstrosity", "ooze", "plant", "undead",
-];
-const SIZES: MonsterSize[] = ["tiny", "small", "medium", "large", "huge", "gargantuan"];
+import { MONSTER_SIZES as SIZES, MONSTER_TYPES } from "@/types/monster.types";
 
 const ui = useUiStore();
 const router = useRouter();

@@ -259,6 +259,7 @@ import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
 import { useLocationTree } from "@/composables/useLocations";
 import type { Location } from "@/types/location.types";
 import { IconCopy, IconDelete, IconGenerate, IconScrollText } from "@/lib/icons";
+import { MONSTER_SIZES as SIZES, MONSTER_TYPES } from "@/types/monster.types";
 import type { MonsterStatBlock, MonsterType, MonsterSize } from "@/types/monster.types";
 import { buildEntityContext, toPlainText } from "@/ai/utils";
 
@@ -340,23 +341,6 @@ const ALIGNMENTS = [
   "Chaotic Evil",
   "Unaligned",
 ] as const;
-const MONSTER_TYPES: MonsterType[] = [
-  "aberration",
-  "beast",
-  "celestial",
-  "construct",
-  "dragon",
-  "elemental",
-  "fey",
-  "fiend",
-  "giant",
-  "humanoid",
-  "monstrosity",
-  "ooze",
-  "plant",
-  "undead",
-];
-const SIZES: MonsterSize[] = ["tiny", "small", "medium", "large", "huge", "gargantuan"];
 
 const showMenu = ref(false);
 

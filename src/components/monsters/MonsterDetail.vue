@@ -277,6 +277,7 @@ import {
 import { useUpsertLibraryMonsterArt } from "@/composables/useLibraryMonsterArt";
 import { useCreateScriptoriumDocument } from "@/composables/useScriptorium";
 import { formatMonsterForScriptorium } from "@/lib/scriptorium/scriptoriumImport";
+import { MONSTER_SIZES as SIZES, MONSTER_TYPES } from "@/types/monster.types";
 import type {
   Monster,
   MonsterType,
@@ -297,30 +298,6 @@ const ALIGNMENTS = [
   "Neutral Evil",
   "Chaotic Evil",
   "Unaligned",
-];
-const MONSTER_TYPES: MonsterType[] = [
-  "aberration",
-  "beast",
-  "celestial",
-  "construct",
-  "dragon",
-  "elemental",
-  "fey",
-  "fiend",
-  "giant",
-  "humanoid",
-  "monstrosity",
-  "ooze",
-  "plant",
-  "undead",
-];
-const SIZES: MonsterSize[] = [
-  "tiny",
-  "small",
-  "medium",
-  "large",
-  "huge",
-  "gargantuan",
 ];
 const props = defineProps<{ monster: Monster | null }>();
 const router = useRouter();

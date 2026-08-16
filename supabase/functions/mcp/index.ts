@@ -1,12 +1,13 @@
-// Grimoire MCP server — read-only "traverse your campaign from your own AI".
+// Grimoire MCP server — "traverse and edit your campaign from your own AI".
 //
 // A thin OAuth 2.1 *resource server*: Supabase Auth's OAuth 2.1 Server is the
 // authorization server (it hosts /authorize, /token, JWKS, discovery and DCR).
 // This function only:
 //   1. publishes Protected Resource Metadata + answers unauthenticated calls with
 //      401 + WWW-Authenticate so MCP clients can discover where to log in;
-//   2. validates the Supabase-issued OAuth JWT and runs the read-only tools through
-//      an RLS-scoped client (so existing RLS policies enforce tenancy).
+//   2. validates the Supabase-issued OAuth JWT and runs the tools through an
+//      RLS-scoped client (so existing RLS policies enforce tenancy on reads and
+//      writes alike).
 //
 // Gateway JWT verification is OFF (`[functions.mcp] verify_jwt = false` in
 // config.toml) because we must serve the public discovery document and emit our
