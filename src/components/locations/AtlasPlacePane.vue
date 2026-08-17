@@ -101,7 +101,7 @@
           thing a DM does mid-session, and it should never cost a trip through
           the full edit form.
         -->
-        <LocationRevealControl :location="location" show-label />
+        <LocationRevealControl :location="location" />
         <AppButton
           variant="outline"
           size="sm"

@@ -11,8 +11,7 @@
   <RevealControl
     :adapter="adapter"
     :entity-name="location.name"
-    :show-label="showLabel"
-    :size="size"
+    :form="form"
   >
     <template #what>
       <p class="mb-2 font-cinzel text-2xs font-semibold tracking-widest text-muted-foreground">
@@ -51,12 +50,10 @@ import { IconCheck } from "@/lib/icons";
 import { arrayRevealAdapter } from "@/lib/reveal";
 import { STORE_LOCATION_TYPES } from "@/types/location.types";
 import type { Location } from "@/types/location.types";
-import type { ButtonVariants } from "@/components/common/appButtonVariants";
 
-const { location, showLabel = false, size = "sm" } = defineProps<{
+const { location, form = "button" } = defineProps<{
   location: Location;
-  showLabel?: boolean;
-  size?: ButtonVariants["size"];
+  form?: "button" | "overlay";
 }>();
 
 type ShareKey = "is_description_shared" | "is_npcs_shared" | "is_inventory_shared" | "is_map_shared";
@@ -90,13 +87,15 @@ watch(
   },
 );
 
-const adapter = arrayRevealAdapter(visibleTo, () => (partyData.value ?? []).map((m) => m.id));
-
-// Persist "who" whenever the adapter changes it. The adapter is deliberately
-// storage-agnostic, so saving is the caller's job.
-watch(visibleTo, (next) => {
-  updateLocation({ id: location.id, update: { player_visible_to: next } });
-});
+// Saving is passed to the adapter rather than done in a watcher on `visibleTo`:
+// the save refetches, the refetch pushes a new array into the ref, and a
+// watcher would treat that changed identity as another edit — writing forever,
+// with an embedding call behind every write.
+const adapter = arrayRevealAdapter(
+  visibleTo,
+  () => (partyData.value ?? []).map((m) => m.id),
+  (next) => updateLocation({ id: location.id, update: { player_visible_to: next } }),
+);
 
 /** Stock only means something where a location can hold any. */
 const shareOptions = computed(() => {

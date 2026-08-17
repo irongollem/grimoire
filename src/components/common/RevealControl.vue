@@ -18,10 +18,12 @@
       :variant="state === 'private' ? 'subtle' : 'tinted'"
       :tone="state === 'private' ? undefined : 'primary'"
       :emphasis="state === 'everyone' ? 'strong' : 'soft'"
-      :size="size"
+      :size="overlay ? 'icon-sm' : 'sm'"
+      :class="overlay ? 'bg-background/85 shadow-sm backdrop-blur-sm' : undefined"
       :icon="state === 'private' ? IconHide : IconReveal"
-      :label="showLabel ? label : undefined"
+      :label="overlay ? undefined : label"
       :title="title"
+      :aria-label="overlay ? title : undefined"
       :aria-expanded="open"
       aria-haspopup="dialog"
       @click="toggleOpen"
@@ -68,22 +70,29 @@ import { useParty } from "@/composables/useParty";
 import { IconHide, IconReveal } from "@/lib/icons";
 import { revealLabel, revealState } from "@/lib/reveal";
 import type { RevealAdapter } from "@/lib/reveal";
-import type { ButtonVariants } from "@/components/common/appButtonVariants";
 
-const {
-  adapter,
-  entityName,
-  showLabel = false,
-  size = "sm",
-} = defineProps<{
+const { adapter, entityName, form = "button" } = defineProps<{
   /** Bridges whichever storage model this entity uses. See `lib/reveal`. */
   adapter: RevealAdapter;
   /** Used in the control's title and the sheet's heading. */
   entityName?: string;
-  /** Show the audience beside the icon. Off in dense rows, on in headers. */
-  showLabel?: boolean;
-  size?: ButtonVariants["size"];
+  /**
+   * The two shapes this control comes in. Deliberately an enum rather than
+   * loose size/label props: the point of one reveal control is that a DM
+   * recognises it instantly, and nineteen call sites each choosing their own
+   * size and label is how the previous four variants came about.
+   *
+   *   button  — icon plus the current audience ("Hidden", "3 players",
+   *             "Whole party"). For detail headers and action rows, where
+   *             there is room to say what the state actually is.
+   *   overlay — icon only, on a translucent backdrop so it stays legible on
+   *             top of artwork. For list cards and gallery tiles, where it
+   *             sits over an image and a word would cover the art.
+   */
+  form?: "button" | "overlay";
 }>();
+
+const overlay = computed(() => form === "overlay");
 
 const { data: partyData } = useParty();
 const party = computed(() => partyData.value ?? []);

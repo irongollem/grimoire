@@ -57,23 +57,35 @@ export function revealLabel(state: RevealState, sharedCount: number): string {
  * `partyIds` is a getter rather than a value because the party can load after
  * the control mounts, and "reveal to the whole party" must mean the party as it
  * is at the moment of the click.
+ *
+ * `onChange` fires once per user action, with the new list. Persisting belongs
+ * here rather than in a watcher on `visibleTo`, and the difference is not
+ * stylistic: a watcher that saves will re-fire when the save's refetch pushes a
+ * fresh array back into the ref, because the identity changed even though the
+ * contents did not. That is an endless write loop — and on entities that
+ * re-embed on save, an endless loop of edge-function calls behind it.
+ *
+ * Omit `onChange` where a parent owns saving, such as an editor with its own
+ * Save button.
  */
 export function arrayRevealAdapter(
   visibleTo: Ref<string[]>,
   partyIds: () => readonly string[],
+  onChange?: (next: string[]) => void,
 ): RevealAdapter {
+  const apply = (next: string[]) => {
+    visibleTo.value = next;
+    onChange?.(next);
+  };
   return {
     isMemberVisible: (id) => visibleTo.value.includes(id),
-    toggleMember: (id) => {
-      visibleTo.value = visibleTo.value.includes(id)
-        ? visibleTo.value.filter((existing) => existing !== id)
-        : [...visibleTo.value, id];
-    },
-    setWholeParty: () => {
-      visibleTo.value = [...partyIds()];
-    },
-    unshare: () => {
-      visibleTo.value = [];
-    },
+    toggleMember: (id) =>
+      apply(
+        visibleTo.value.includes(id)
+          ? visibleTo.value.filter((existing) => existing !== id)
+          : [...visibleTo.value, id],
+      ),
+    setWholeParty: () => apply([...partyIds()]),
+    unshare: () => apply([]),
   };
 }

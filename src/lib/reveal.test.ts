@@ -70,6 +70,33 @@ describe("arrayRevealAdapter", () => {
     expect(visibleTo.value).toEqual(PARTY);
   });
 
+  it("reports each change exactly once, so a saver cannot loop", () => {
+    // Persisting used to live in a watcher on the ref. The save refetched, the
+    // refetch pushed a fresh array back in, and the changed identity read as
+    // another edit — an endless write loop with an embedding call behind each
+    // one. Saving is a callback now, and it must fire per action, not per
+    // assignment.
+    const seen: string[][] = [];
+    const visibleTo = ref<string[]>([]);
+    const adapter = arrayRevealAdapter(visibleTo, () => PARTY, (next) => seen.push(next));
+
+    adapter.toggleMember("a");
+    adapter.setWholeParty();
+    adapter.unshare();
+    expect(seen).toEqual([["a"], PARTY, []]);
+
+    // An outside write (a refetch syncing the row back in) is not an edit.
+    visibleTo.value = ["b"];
+    expect(seen).toHaveLength(3);
+  });
+
+  it("works without a saver, for editors that own their own Save", () => {
+    const visibleTo = ref<string[]>([]);
+    const adapter = arrayRevealAdapter(visibleTo, () => PARTY);
+    adapter.toggleMember("a");
+    expect(visibleTo.value).toEqual(["a"]);
+  });
+
   it("replaces the array rather than mutating it, so watchers fire", () => {
     const original: string[] = [];
     const visibleTo = ref<string[]>(original);
