@@ -614,26 +614,41 @@ export const useUiStore = defineStore("ui", () => {
   // whether its pane is showing contents or the map. Expansion is not a filter,
   // so `resetLocationsFilters` deliberately leaves it alone: clearing a search
   // should return you to the tree you had, not collapse the world.
-  const locationsExpanded = ref(new Set<string>());
+  //
+  // Persisted, unlike the filters below, and the exception is deliberate. A
+  // world is nested several levels deep, so the branch you work in costs real
+  // clicks to reopen — and a reload (a deploy, an HMR refresh, closing a tab)
+  // would otherwise dump you at the top of the tree every time. There is
+  // already an explicit way to start over: Collapse all.
+  //
+  // Stored as an array because a Set does not survive JSON, with a Set exposed
+  // for lookups. Ids of deleted locations are inert — they simply match no row —
+  // and the cap keeps the list from growing without bound across campaigns.
+  const EXPANDED_CAP = 500;
+  const locationsExpandedIds = useLocalStorage<string[]>("grimoire:atlas:expanded", []);
+  const locationsExpanded = computed(() => new Set(locationsExpandedIds.value));
   const locationsSelectedId = ref<string | null>(null);
   const locationsPaneMode = ref<"places" | "map">("places");
 
+  function rememberExpanded(ids: string[]) {
+    locationsExpandedIds.value = ids.slice(-EXPANDED_CAP);
+  }
+
   function toggleLocationExpanded(id: string) {
-    const next = new Set(locationsExpanded.value);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    locationsExpanded.value = next;
+    const current = locationsExpandedIds.value;
+    rememberExpanded(
+      current.includes(id) ? current.filter((x) => x !== id) : [...current, id],
+    );
   }
 
   /** Opens every ancestor so a deep location can be revealed and selected. */
   function revealLocationPath(ancestorIds: readonly string[]) {
-    const next = new Set(locationsExpanded.value);
-    for (const id of ancestorIds) next.add(id);
-    locationsExpanded.value = next;
+    const missing = ancestorIds.filter((id) => !locationsExpandedIds.value.includes(id));
+    if (missing.length) rememberExpanded([...locationsExpandedIds.value, ...missing]);
   }
 
   function collapseAllLocations() {
-    locationsExpanded.value = new Set();
+    locationsExpandedIds.value = [];
   }
 
   // Puzzles (Enigmarium) UI state
