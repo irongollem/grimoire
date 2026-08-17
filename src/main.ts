@@ -11,6 +11,7 @@ import { track } from "./lib/analytics";
 import { getAiGeneratorRegistry } from "./ai/aiGeneratorRegistry";
 import { useAuthStore } from "./stores/auth";
 import { installStaleChunkRecovery } from "./lib/staleChunkRecovery";
+import { queryRetryDelay, shouldRetryQuery } from "./lib/queryRetry";
 import { initErrorTracking } from "./lib/observability/sentry";
 import { installSwAutoUpdate } from "./lib/swAutoUpdate";
 import { updateAvailable } from "./composables/useAppUpdate";
@@ -21,24 +22,14 @@ import { useSpotifyStore } from "./stores/spotify";
 
 import "./assets/main.css";
 
-function isAbortError(error: unknown): boolean {
-  return error instanceof DOMException && error.name === "AbortError";
-}
-
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       networkMode: "always",
       refetchOnWindowFocus: false,
       staleTime: 60_000,
-      retry: (failureCount, error) => {
-        if (isAbortError(error)) return failureCount < 2;
-        return failureCount < 3;
-      },
-      retryDelay: (attemptIndex, error) => {
-        if (isAbortError(error)) return 600 * (attemptIndex + 1);
-        return Math.min(1000 * 2 ** attemptIndex, 30_000);
-      },
+      retry: shouldRetryQuery,
+      retryDelay: queryRetryDelay,
     },
     mutations: { networkMode: "always" },
   },

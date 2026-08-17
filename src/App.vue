@@ -70,8 +70,14 @@ const campaignStore = useCampaignStore();
 // Without this, DefaultLayout mounts and CampaignSwitcher/nav queries fire
 // before activeCampaign is set, producing a visible "Create your first campaign"
 // flash for DMs and missing-data states for players.
+// `initialized` only means auth finished *checking* — it is true for a signed-out
+// visitor too. `activeCampaignId` outlives the session in localStorage, so gating
+// on `initialized` alone had the login screen fetch a campaign that RLS could
+// never return: 406, three retries with backoff, and a loading screen held for
+// the duration. Anyone returning after their session expired paid ~20s of blank
+// page before the login form appeared.
 const campaignIdToFetch = computed<string | null>(() => {
-  if (!auth.initialized) return null;
+  if (!auth.initialized || !auth.isAuthenticated) return null;
   return (
     campaignStore.activeCampaignId ??
     auth.membership?.campaign_id ??
