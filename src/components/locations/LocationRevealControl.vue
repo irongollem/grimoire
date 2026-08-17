@@ -58,6 +58,16 @@ const { location, form = "button" } = defineProps<{
 
 type ShareKey = "is_description_shared" | "is_npcs_shared" | "is_inventory_shared" | "is_map_shared";
 
+/**
+ * A NULL `player_visible_to` is not missing data to paper over — it is a
+ * location nobody has ever been given, which is exactly an empty audience. The
+ * column is nullable with no default (its siblings are `NOT NULL DEFAULT '{}'`),
+ * so a third of rows arrive this way.
+ */
+function revealedIds(loc: Location): string[] {
+  return loc.player_visible_to ? [...loc.player_visible_to] : [];
+}
+
 const { mutate: updateLocation } = useUpdateLocation();
 const { data: partyData } = useParty();
 
@@ -66,7 +76,7 @@ const { data: partyData } = useParty();
  * the control does not wait for a refetch to redraw. Same pattern as
  * ItemDetailPanel.
  */
-const visibleTo = ref<string[]>([...location.player_visible_to]);
+const visibleTo = ref<string[]>(revealedIds(location));
 const draft = ref<Record<ShareKey, boolean>>({
   is_description_shared: location.is_description_shared,
   is_npcs_shared: location.is_npcs_shared,
@@ -77,7 +87,7 @@ const draft = ref<Record<ShareKey, boolean>>({
 watch(
   () => location,
   (next) => {
-    visibleTo.value = [...next.player_visible_to];
+    visibleTo.value = revealedIds(next);
     draft.value = {
       is_description_shared: next.is_description_shared,
       is_npcs_shared: next.is_npcs_shared,

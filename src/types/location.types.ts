@@ -156,7 +156,17 @@ export interface Location {
   map_url: string | null;
   map_pins: MapPin[];
   is_map_shared: boolean;
-  player_visible_to: string[];
+  /**
+   * Party member ids this location is revealed to. **Nullable in the database**
+   * — unlike its siblings `tags` and `related_location_ids`, this column has no
+   * `NOT NULL DEFAULT '{}'`, and a third of rows are NULL.
+   *
+   * Typed honestly rather than as `string[]`, which is what it claimed until a
+   * reveal control indexed straight into it and took the whole Atlas down on
+   * any location nobody had ever shared. `20260818...` backfills and constrains
+   * the column; once that has shipped everywhere this can tighten again.
+   */
+  player_visible_to: string[] | null;
   player_summary: string | null;
   is_description_shared: boolean;
   is_npcs_shared: boolean;
