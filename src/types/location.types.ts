@@ -41,43 +41,89 @@ export const VAGUE_LOCATION_TYPES = new Set<LocationType>([
   "country",
 ]);
 
+/**
+ * Declaration order is **scale order**, matching the ladder in
+ * `lib/locations/tiers`. Both type dropdowns — the DM Atlas and the player
+ * portal — build their options by iterating this record, so the order here is
+ * the order a user reads, and an alphabetical or arbitrary sort would put a
+ * broom closet between two continents.
+ */
 export const LOCATION_TYPE_LABELS: Record<LocationType, string> = {
   world: "World",
   plane: "Plane",
+
   continent: "Continent",
   region: "Region",
   country: "Country",
+
   city: "City",
   town: "Town",
   village: "Village",
+
+  dungeon: "Dungeon",
   district: "District",
   building: "Building",
+  wilderness: "Wilderness",
+
   store: "Store",
   tavern: "Tavern",
   inn: "Inn",
+
   room: "Room",
-  dungeon: "Dungeon",
-  wilderness: "Wilderness",
+
   other: "Other",
 };
 
+/**
+ * Type colours are a **scale ramp, not a palette of kinds** — do not reshuffle
+ * these into "a red for dungeons, a green for forests". That was the previous
+ * scheme, and it meant colour carried no information the type label did not
+ * already carry, while the one thing a DM cannot read from a label — how big
+ * this place is relative to that one — went unencoded entirely.
+ *
+ * The ramp runs cool-to-warm along the scale ladder in `lib/locations/tiers`,
+ * which reads as distance: the far and cosmic are cold, the near and enclosed
+ * are warm.
+ *
+ *   cosmic      violet   — the void
+ *   continental blue     — lands seen from above
+ *   settlement  teal     — where people gather
+ *   site        lime     — a place you can walk around
+ *   venue       amber    — hearth-light, a room you can stand in
+ *   interior    rust     — fully enclosed
+ *   other       grey     — no scale claimed
+ *
+ * Within a tier, lightness steps by **enclosure**, darkest = most enclosed. So
+ * `dungeon` is the darkest site and `wilderness` the lightest, which is why
+ * they sit in the same hue family despite feeling like opposites — they are
+ * the same *scale*, and that is what this channel now means.
+ *
+ * Values stay 6-digit hex: several call sites append an alpha pair
+ * (`LOCATION_TYPE_COLORS[t] + "22"`) to derive a tint.
+ */
 export const LOCATION_TYPE_COLORS: Record<LocationType, string> = {
-  world: "#0f172a",
-  plane: "#4c1d95",
+  world: "#6d28d9",
+  plane: "#8b5cf6",
+
   continent: "#1d4ed8",
-  region: "#0369a1",
-  country: "#0891b2",
-  city: "#7c3aed",
-  town: "#6d28d9",
-  village: "#9333ea",
-  district: "#c026d3",
-  building: "#b45309",
-  store: "#d97706",
-  tavern: "#b45309",
-  inn: "#92400e",
-  room: "#92400e",
-  dungeon: "#991b1b",
-  wilderness: "#15803d",
+  region: "#3b82f6",
+  country: "#60a5fa",
+
+  city: "#0f766e",
+  town: "#14b8a6",
+  village: "#2dd4bf",
+
+  dungeon: "#3f6212",
+  district: "#4d7c0f",
+  building: "#65a30d",
+  wilderness: "#84cc16",
+
+  store: "#b45309",
+  tavern: "#d97706",
+  inn: "#f59e0b",
+
+  room: "#9a3412",
+
   other: "#6b7280",
 };
 
