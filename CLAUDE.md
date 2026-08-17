@@ -111,6 +111,22 @@ GitHub issues on `irongollem/grimoire` are the single source of truth for open w
 
 There is no change log to update. The record of what shipped is the git history, and the record of *why* is a comment at the point of the decision — put it in the code, the migration, or the relevant `context/features/` doc, where the next person to touch that line will actually be standing.
 
+## Seeing the App — local sign-in
+
+You can look at the running app. Do it before reporting UI work as done; a green build says nothing about layout, density, or whether a control reads as chrome.
+
+```bash
+npm run db:start     # local Supabase (skip if already up)
+npm run dev:auth     # ensure local accounts + known password
+npm run dev          # already --mode localdb
+```
+
+`dev:auth` (`scripts/dev-auth.ts`) sets `grimoire-local-dev` as the password on two **local** accounts and prints them. It reads the running stack's own keys from `supabase status` and **refuses to run against anything but loopback**, so it cannot address the hosted project. Remote work still needs a real token, via the Supabase MCP as usual.
+
+**Sign in as `dm-fixture@example.invalid`, not the admin.** `seed.sql` is a dump of real data, so every row belongs to whoever pulled it — the admin — which leaves the admin as the only account with anything in it. That is precisely the fixture that hid #736: an RLS-scoped read path tested clean as admin and broke every real user. `dev:auth` clones a campaign and its locations onto a plain non-admin user for this reason. Use the admin login only when you are specifically exercising an admin path.
+
+Do **not** add an `import.meta.env.DEV` auto-login to `src/` instead. The repo is public, so auth-bypass-shaped code is readable whether or not it ships; and because every read is RLS-scoped on `auth.uid()`, a faked client session renders zero rows — you would be checking layouts against an empty world.
+
 ## Sanctioned Exceptions
 
 Deliberate departures from the rules above and in the feature docs. They look like oversights, get "fixed", and regress — so they are written down.
