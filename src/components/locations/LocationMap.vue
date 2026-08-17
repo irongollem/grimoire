@@ -117,50 +117,59 @@
 
             <!-- Edit actions -->
             <template v-if="mode === 'edit'">
-              <button
-                type="button"
-                class="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+              <AppButton
+                variant="ghost"
+                size="icon-xs"
+                class="shrink-0"
+                :icon="pin.visible_to_players ? IconReveal : IconHide"
                 :title="pin.visible_to_players ? 'Hide from players' : 'Show to players'"
                 @click.stop="toggleVisibility(pin.child_location_id)"
                 @pointerdown.stop
-              >
-                <IconReveal v-if="pin.visible_to_players" class="h-3 w-3" />
-                <IconHide v-else class="h-3 w-3 text-muted-foreground/50" />
-              </button>
-              <button
-                type="button"
-                class="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
+              />
+              <AppButton
+                variant="ghost"
+                size="icon-xs"
+                class="shrink-0 hover:text-destructive"
+                :icon="IconClose"
                 title="Remove pin"
                 @click.stop="removePin(pin.child_location_id)"
                 @pointerdown.stop
-              >
-                <IconClose class="h-3 w-3" />
-              </button>
+              />
             </template>
 
             <!-- View actions (player view) -->
             <template v-if="mode === 'view'">
               <!-- Go there — only when the child location is shared/navigable -->
-              <button
+              <AppButton
                 v-if="sharedChildIds?.has(pin.child_location_id)"
-                type="button"
-                class="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                variant="ghost"
+                size="icon-xs"
+                class="shrink-0"
+                :icon="IconNavigate"
                 title="Go there"
                 @click.stop="emit('pin-go', pin.child_location_id)"
                 @pointerdown.stop
-              >
-                <IconNavigate class="h-3 w-3" />
-              </button>
-              <!-- Watch — always available; shows art + summary + notes -->
-              <button
-                type="button"
-                class="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+              />
+              <!--
+                Peek — art + summary + notes without going there.
+
+                Only worth offering where travelling is expensive. In the player
+                atlas, following a pin loads a different panel and coming back is
+                work, so a peek saves "ah, not this one". The Atlas explorer
+                zooms between maps and never leaves the page, so there the peek
+                is a second way to do what clicking the pill already does, and
+                the extra control just makes the pill harder to hit.
+              -->
+              <AppButton
+                v-if="offerPeek"
+                variant="ghost"
+                size="icon-xs"
+                class="shrink-0"
+                :icon="IconScan"
                 title="Watch"
                 @click.stop="emit('pin-watch', pin.child_location_id)"
                 @pointerdown.stop
-              >
-                <IconScan class="h-3 w-3" />
-              </button>
+              />
             </template>
           </div>
         </div>
@@ -168,29 +177,33 @@
 
       <!-- Zoom controls overlay (always-reachable; keyboard-accessible) -->
       <div class="absolute bottom-2 right-2 z-30 flex flex-col gap-1">
-        <button
-          type="button"
-          class="w-8 h-8 rounded-md bg-card/90 backdrop-blur-sm border border-border text-muted-foreground hover:text-foreground transition-colors shadow-lg font-cinzel text-sm font-bold"
+        <AppButton
+          variant="subtle"
+          size="icon-sm"
+          class="bg-card/90 shadow-lg backdrop-blur-sm"
           :disabled="scale >= MAX_SCALE - 0.01"
           title="Zoom in"
+          label="+"
           @click.stop="zoomBy(1.5)"
-        >+</button>
-        <button
-          type="button"
-          class="w-8 h-8 rounded-md bg-card/90 backdrop-blur-sm border border-border text-muted-foreground hover:text-foreground transition-colors shadow-lg font-cinzel text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+        />
+        <AppButton
+          variant="subtle"
+          size="icon-sm"
+          class="bg-card/90 shadow-lg backdrop-blur-sm"
           :disabled="scale <= 1.01"
           title="Zoom out"
+          label="−"
           @click.stop="zoomBy(1 / 1.5)"
-        >−</button>
-        <button
+        />
+        <AppButton
           v-if="scale > 1.01"
-          type="button"
-          class="w-8 h-8 rounded-md bg-card/90 backdrop-blur-sm border border-border text-muted-foreground hover:text-foreground transition-colors shadow-lg"
+          variant="subtle"
+          size="icon-sm"
+          class="bg-card/90 shadow-lg backdrop-blur-sm"
           title="Reset zoom"
+          label="↺"
           @click.stop="resetZoom"
-        >
-          <span class="block text-xs leading-none">↺</span>
-        </button>
+        />
       </div>
     </div>
 
@@ -205,22 +218,22 @@
           Click the map to place
           <strong>{{ placingChildName }}</strong>
         </span>
-        <button
-          type="button"
-          class="font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors"
+        <AppButton
+          variant="ghost"
+          size="inline-xs"
+          label="Cancel"
           @click="placingChildId = null"
-        >
-          Cancel
-        </button>
+        />
       </div>
 
       <div v-else-if="unplacedChildren.length" class="flex flex-wrap items-center gap-1.5">
         <span class="text-label-lg text-muted-foreground shrink-0">Unplaced:</span>
-        <button
+        <AppButton
           v-for="child in unplacedChildren"
           :key="child.id"
-          type="button"
-          class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border border-dashed border-border hover:border-primary/50 hover:bg-muted/50 transition-colors"
+          variant="subtle"
+          size="xs"
+          class="gap-1.5 border-dashed"
           :title="child.parent_chain?.length ? `In ${child.parent_chain.join(' › ')}` : undefined"
           @click="startPlacing(child.id)"
         >
@@ -235,7 +248,7 @@
           >
             · {{ child.parent_chain.join(" › ") }}
           </span>
-        </button>
+        </AppButton>
       </div>
     </template>
   </div>
@@ -244,12 +257,18 @@
 <script setup lang="ts">
 import { ref, computed, onUnmounted } from "vue";
 import { IconClose, IconHide, IconLocation, IconNavigate, IconReveal, IconScan } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
 import { MAP_IMAGE_COMPACT_SIZING, MAP_IMAGE_SIZING } from "@/lib/locations/mapZoom";
 import { LOCATION_TYPE_COLORS } from "@/types/location.types";
 import type { MapPin as MapPinType, LocationType } from "@/types/location.types";
 
 const pins = defineModel<MapPinType[]>("pins", { required: true });
-const props = defineProps<{
+const {
+  children,
+  mode,
+  showHiddenPins = false,
+  offerPeek = true,
+} = defineProps<{
   mapUrl: string;
   /** Candidate pin targets (edit mode: unplaced list + pin data population).
    *  Usually direct children, but callers can also pass descendants that were
@@ -268,8 +287,16 @@ const props = defineProps<{
   showHiddenPins?: boolean;
   /** Cap map height at ~800px with scroll (useful for very tall portrait maps). */
   compact?: boolean;
-  /** Player view only: IDs of child locations that are shared (gates Go-there + Watch buttons). */
+  /** Player view only: IDs of child locations that are shared (gates the Go-there button). */
   sharedChildIds?: Set<string>;
+  /**
+   * Offer the peek (Watch) action on a pin. Default true.
+   *
+   * Turn it off where travelling is already cheap — the Atlas explorer zooms
+   * between maps without leaving the page, so a peek there duplicates what
+   * clicking the pill does and only makes the pill harder to hit.
+   */
+  offerPeek?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -538,7 +565,7 @@ function resetZoom() {
 
 // ── Pin visibility ─────────────────────────────────────────────────────────────
 const visiblePins = computed(() =>
-  props.showHiddenPins === false
+  showHiddenPins === false
     ? pins.value.filter((p) => p.visible_to_players)
     : pins.value,
 );
@@ -575,7 +602,7 @@ function onPinLeave(e: PointerEvent) {
 
 // ── Live child type (color updates when child type changes) ────────────────────
 function getChildType(pin: MapPinType): LocationType {
-  const child = props.children.find((c) => c.id === pin.child_location_id);
+  const child = children.find((c) => c.id === pin.child_location_id);
   return child?.location_type ?? pin.child_type;
 }
 
@@ -653,13 +680,13 @@ function tokenStyle(pin: MapPinType): Record<string, string> {
 // ── Unplaced children (edit mode) ─────────────────────────────────────────────
 const placedIds = computed(() => new Set(pins.value.map((p) => p.child_location_id)));
 const unplacedChildren = computed(() =>
-  props.children.filter((c) => !placedIds.value.has(c.id)),
+  children.filter((c) => !placedIds.value.has(c.id)),
 );
 
 // ── Placing mode ──────────────────────────────────────────────────────────────
 const placingChildId = ref<string | null>(null);
 const placingChildName = computed(
-  () => props.children.find((c) => c.id === placingChildId.value)?.name ?? "",
+  () => children.find((c) => c.id === placingChildId.value)?.name ?? "",
 );
 
 function startPlacing(childId: string) {
@@ -671,7 +698,7 @@ function onPlacePin(e: MouseEvent) {
   const rect = mapContainer.value.getBoundingClientRect();
   const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
   const y = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
-  const child = props.children.find((c) => c.id === placingChildId.value)!;
+  const child = children.find((c) => c.id === placingChildId.value)!;
   const existing = pins.value.filter((p) => p.child_location_id !== placingChildId.value);
   pins.value = [
     ...existing,

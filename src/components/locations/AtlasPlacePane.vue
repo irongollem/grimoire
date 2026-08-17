@@ -135,8 +135,9 @@
           mode="view"
           show-hidden-pins
           compact
-          @pin-click="$emit('select', $event)"
-          @pin-go="$emit('select', $event)"
+          :offer-peek="false"
+          @pin-click="descendTo"
+          @pin-go="descendTo"
           @pin-watch="descendTo"
         />
 
