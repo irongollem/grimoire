@@ -95,13 +95,21 @@
         so a link to that page would lead somewhere the reader already is; the
         only thing left up there that this surface cannot do is change the place.
       -->
-      <AppButton
-        variant="outline"
-        size="sm"
-        :icon="IconEdit"
-        label="Edit"
-        :to="`/locations/${location.id}?edit=true`"
-      />
+      <div class="flex shrink-0 items-center gap-1.5">
+        <!--
+          Reveal sits beside Edit because revealing is not editing: it is the
+          thing a DM does mid-session, and it should never cost a trip through
+          the full edit form.
+        -->
+        <LocationRevealControl :location="location" show-label />
+        <AppButton
+          variant="outline"
+          size="sm"
+          :icon="IconEdit"
+          label="Edit"
+          :to="`/locations/${location.id}?edit=true`"
+        />
+      </div>
     </div>
 
     <div class="py-3">
@@ -215,6 +223,7 @@ import AtlasScaleRail from "@/components/locations/AtlasScaleRail.vue";
 import AtlasTreeRow from "@/components/locations/AtlasTreeRow.vue";
 import LocationDetailSections from "@/components/locations/LocationDetailSections.vue";
 import LocationMap from "@/components/locations/LocationMap.vue";
+import LocationRevealControl from "@/components/locations/LocationRevealControl.vue";
 import { IconChevronRight, IconChevronUp, IconClock, IconEdit, IconLocation, IconMap } from "@/lib/icons";
 import { isLocationOutOfEra } from "@/lib/locations/era";
 import { planAscent, planDescent } from "@/lib/locations/mapZoom";
