@@ -41,10 +41,15 @@
         }"
         @click="pinnedPinId = null"
       >
+        <!--
+          Sizing comes from the shared constants, not literals: the Atlas zoom
+          overlay renders this same image and must match exactly, or the handoff
+          between the two visibly jumps.
+        -->
         <img
           :src="mapUrl"
-          class="block max-w-full h-auto rounded-lg pointer-events-none"
-          :class="compact ? 'max-h-200' : ''"
+          class="rounded-lg pointer-events-none"
+          :class="[MAP_IMAGE_SIZING, compact ? MAP_IMAGE_COMPACT_SIZING : '']"
           draggable="false"
           alt="Location map"
         />
@@ -239,6 +244,7 @@
 <script setup lang="ts">
 import { ref, computed, onUnmounted } from "vue";
 import { IconClose, IconHide, IconLocation, IconNavigate, IconReveal, IconScan } from '@/lib/icons';
+import { MAP_IMAGE_COMPACT_SIZING, MAP_IMAGE_SIZING } from "@/lib/locations/mapZoom";
 import { LOCATION_TYPE_COLORS } from "@/types/location.types";
 import type { MapPin as MapPinType, LocationType } from "@/types/location.types";
 

@@ -20,11 +20,33 @@ import type { Location, MapPin } from "@/types/location.types";
 /** Total wall-clock of the transition. */
 export const ZOOM_DURATION_MS = 900;
 
-/** How far the parent map is magnified before it hands over. */
+/**
+ * How far the parent map is magnified before it hands over — and therefore the
+ * assumed ratio between the two maps: the child's map depicts roughly the pin's
+ * region, so the parent shown at 7× covers about what the child shows at 1×.
+ */
 export const ZOOM_PARENT_SCALE = 7;
 
-/** The child arrives already enlarged and settles to 1 — the "still moving" cue. */
-export const ZOOM_CHILD_ENTRY_SCALE = 1.25;
+/**
+ * The child's scale when the parent is at 1×, derived rather than chosen.
+ *
+ * This is the constant that makes the illusion hold. If the child's map is the
+ * parent's pin region, then a parent displayed at scale `s` matches a child
+ * displayed at `s / ZOOM_PARENT_SCALE`. Both layers must move along that one
+ * locked trajectory — parent 1→7 while child 1/7→1 on the way in, and the exact
+ * reverse on the way out.
+ *
+ * An earlier version had the child merely overshoot (1.25 → 1) on the way in.
+ * That looks fine descending, because the parent's 7× explosion dominates and
+ * hides it — but reversed it put the *departing* map at full opacity growing
+ * from 1 → 1.25, with nothing to mask it. Rising visibly began by zooming in.
+ *
+ * The lock survives any easing, as long as both layers share it: for parent
+ * `1 + 6·e(t)` the child is `(1 + 6·e(t)) / 7` at every instant, whatever e is.
+ * What breaks it is giving the two layers different curves, durations or delays
+ * — so their transforms must be timed identically, and only opacity may differ.
+ */
+export const ZOOM_CHILD_SCALE = 1 / ZOOM_PARENT_SCALE;
 
 /**
  * When the child starts fading in, as a fraction of the total. Deliberately
@@ -34,6 +56,22 @@ export const ZOOM_CHILD_ENTRY_SCALE = 1.25;
 export const ZOOM_CROSSFADE_AT = 0.45;
 
 export const ZOOM_PARENT_BLUR_PX = 6;
+
+/**
+ * The sizing rules a map image is displayed under, shared by `LocationMap` and
+ * the zoom overlay so the two cannot disagree.
+ *
+ * They must render the image at *identical* size. `LocationMap` caps a compact
+ * map's height, so an overlay that only constrained width drew the map
+ * full-width and then snapped to the shorter, narrower box the instant the real
+ * map took over — a jump at exactly the moment the transition is supposed to be
+ * seamless. Two class strings in two files is how that happened; one constant
+ * is why it cannot happen again.
+ */
+export const MAP_IMAGE_SIZING = "block h-auto max-w-full";
+
+/** Height cap for a map rendered in `compact` mode. */
+export const MAP_IMAGE_COMPACT_SIZING = "max-h-200";
 
 /**
  * `in` descends into a child's map; `out` rises to the parent's.

@@ -102,6 +102,32 @@ describe("useHotkeys", () => {
     expect(overlayHandler).toHaveBeenCalledTimes(1);
   });
 
+  it("does not warn when overlays stack their Escape bindings", () => {
+    // Every dismissable overlay binds Escape to close itself; a dialog opened
+    // from a palette *should* shadow it and hand it back on unmount. Warning
+    // here fired during ordinary use, and a warning that cries wolf is how a
+    // real collision gets scrolled past.
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    register([{ combo: "escape", description: "Close the palette", handler: vi.fn() }], { layer: "overlay" });
+    register([{ combo: "escape", description: "Close", handler: vi.fn() }], { layer: "overlay" });
+
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it("still warns when two overlays claim the same non-dismiss combo", () => {
+    // The suppression above is narrow on purpose: it must not blind the
+    // registry to two different actions fighting over one key.
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    register([{ combo: "mod+k", description: "Search", handler: vi.fn() }], { layer: "overlay" });
+    register([{ combo: "mod+k", description: "Kill audio", handler: vi.fn() }], { layer: "overlay" });
+
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
+
   it("prefers a page binding over a global binding for the same combo", () => {
     const globalHandler = vi.fn();
     const pageHandler = vi.fn();

@@ -22,6 +22,7 @@ import {
   type MaybeRefOrGetter,
 } from "vue";
 import { formatCombo, isMacPlatform, isTextEntryTarget, matchesCombo, parseCombo } from "@/lib/hotkeys";
+import type { ParsedCombo } from "@/lib/hotkeys";
 
 export type HotkeyLayer = "global" | "page" | "overlay";
 
@@ -80,6 +81,22 @@ function combosEqual(a: ReturnType<typeof parseCombo>, b: ReturnType<typeof pars
 }
 
 /**
+ * Escape in the overlay layer is the one collision that is not one.
+ *
+ * Every dismissable overlay binds Escape to close itself, and when they stack —
+ * a dialog opened from a palette — the topmost *should* shadow the one beneath,
+ * then hand it back on unmount. That is the intended behaviour of the layer,
+ * not an accident to report.
+ *
+ * Warning about it anyway cost more than it found: the message fired on
+ * ordinary use, and a warning that cries wolf is how a real collision (two
+ * different actions on one combo) gets scrolled past.
+ */
+function isExpectedDismissStack(registration: Registration, combo: ParsedCombo): boolean {
+  return registration.layer === "overlay" && combo.key === "escape";
+}
+
+/**
  * Dev-only visibility into the whole point of having a registry: a silent
  * shadow is exactly what ad-hoc listeners couldn't detect. Checked from the
  * perspective of whichever registration's bindings just changed, against
@@ -90,6 +107,7 @@ function warnOnCollisions(registration: Registration, bindings: HotkeyBinding[])
 
   for (const binding of bindings) {
     const parsed = parseCombo(binding.combo);
+    if (isExpectedDismissStack(registration, parsed)) continue;
     for (const other of registrations.value) {
       if (other === registration || other.layer !== registration.layer) continue;
       for (const otherBinding of toValue(other.bindings)) {

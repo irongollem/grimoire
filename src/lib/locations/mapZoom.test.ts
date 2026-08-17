@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
-  ZOOM_CHILD_ENTRY_SCALE,
+  ZOOM_CHILD_SCALE,
+  ZOOM_PARENT_SCALE,
   ZOOM_CROSSFADE_AT,
   canZoomBetween,
   pinOrigin,
@@ -147,7 +148,23 @@ describe("timing constants", () => {
     expect(ZOOM_CROSSFADE_AT).toBeLessThan(1);
   });
 
-  it("has the child still moving when it arrives", () => {
-    expect(ZOOM_CHILD_ENTRY_SCALE).toBeGreaterThan(1);
+  it("derives the child's scale from the magnification, keeping the two locked", () => {
+    // The child's map is the parent's pin region, so a parent at scale s shows
+    // what the child shows at s/7. Hard-coding an overshoot instead (1.25 → 1)
+    // looked fine descending — the parent's explosion masked it — but reversed
+    // it made the departing map *grow*, so rising visibly began by zooming in.
+    expect(ZOOM_CHILD_SCALE).toBe(1 / ZOOM_PARENT_SCALE);
+    expect(ZOOM_CHILD_SCALE).toBeLessThan(1);
+  });
+
+  it("keeps the layers locked at every instant under a shared easing", () => {
+    // With both layers on one curve e(t): parent = 1 + 6·e, child = (1+6·e)/7.
+    // Asserted as arithmetic because the property is what matters, not the
+    // particular curve — swapping the easing must not be able to break it.
+    for (const e of [0, 0.25, 0.5, 0.75, 1]) {
+      const parent = 1 + (ZOOM_PARENT_SCALE - 1) * e;
+      const child = ZOOM_CHILD_SCALE + (1 - ZOOM_CHILD_SCALE) * e;
+      expect(child).toBeCloseTo(parent * ZOOM_CHILD_SCALE, 10);
+    }
   });
 });

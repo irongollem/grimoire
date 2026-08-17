@@ -6,13 +6,24 @@
   </div>
 
   <div v-else class="flex min-h-0 flex-1 flex-col">
-    <!-- Breadcrumb: every ancestor is a target, so climbing is one click. -->
-    <nav v-if="trail.length > 1" class="flex flex-wrap items-center gap-1 pb-1.5" aria-label="Ancestors">
+    <!--
+      Breadcrumb: every ancestor is a target, so climbing is one click.
+
+      Always rendered and always one line high, even for a root with no
+      ancestors. Wrapping (or vanishing) changes the header's height, which
+      moves the map below it — and a map that starts somewhere other than where
+      it finished turns the zoom into a jump cut. Long trails scroll sideways
+      rather than growing downward.
+    -->
+    <nav
+      class="atlas-trail flex h-5 items-center gap-1 overflow-x-auto whitespace-nowrap pb-0.5"
+      aria-label="Ancestors"
+    >
       <template v-for="(step, i) in trail.slice(0, -1)" :key="step.id">
         <AppButton
           variant="ghost"
           size="inline-xs"
-          class="max-w-40 truncate"
+          class="max-w-40 shrink-0 truncate"
           :label="step.name"
           @click="$emit('select', step.id)"
         />
@@ -20,7 +31,14 @@
       </template>
     </nav>
 
-    <div class="flex items-start gap-3">
+    <!--
+      Fixed height, not content height. Everything above the map has to occupy
+      the same space for every location, or the map lands at a different y than
+      it left from and the zoom reads as a jump cut. That is why the sigil box
+      is always rendered (placeholder when unset) rather than v-if'd away, and
+      why this row has a floor.
+    -->
+    <div class="flex min-h-14 items-start gap-3">
       <!--
         The size must live on a wrapper, not on FocalImage itself: its root is
         `w-full h-full` and is not run through `cn()`, so a size class passed in
@@ -28,13 +46,17 @@
         sigil or coat of arms, not the location's map; unconstrained it fills the
         pane and pushes every child row out of view.
       -->
-      <div v-if="location.image_url" class="h-14 w-14 shrink-0 overflow-hidden rounded-md">
+      <div
+        class="h-14 w-14 shrink-0 overflow-hidden rounded-md"
+        :style="{ backgroundColor: LOCATION_TYPE_COLORS[location.location_type] + '22' }"
+      >
         <FocalImage
           :src="location.image_url"
           :alt="location.name"
           format="portrait"
           :render-width="200"
           :focal-point="null"
+          placeholder="/assets/placeholders/location.webp"
           class="h-full w-full object-cover"
         />
       </div>
@@ -137,6 +159,7 @@
           v-if="zoomPlan"
           :plan="zoomPlan"
           :settling="zoomSettling"
+          compact
           @done="finishDescent"
         />
       </div>
@@ -341,3 +364,15 @@ function rowFor(child: Location): AtlasRow {
   };
 }
 </script>
+
+<style scoped>
+/* The trail scrolls when a hierarchy is deep; a scrollbar inside a breadcrumb
+   reads as chrome, and on some platforms it also steals vertical space — which
+   is the very thing this row exists to keep constant. */
+.atlas-trail {
+  scrollbar-width: none;
+}
+.atlas-trail::-webkit-scrollbar {
+  display: none;
+}
+</style>

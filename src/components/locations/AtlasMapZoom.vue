@@ -4,9 +4,12 @@
     live LocationMap rather than replacing it, so the box it animates in is
     exactly the one the reader was already looking at — no measuring, and no
     size jump at the moment the motion starts.
+
+    Opaque on purpose: underneath is the *departing* map, still at rest. Rising,
+    that would show a stationary copy of the very image being shrunk away.
   -->
   <div
-    class="absolute inset-0 z-40 overflow-hidden rounded-lg transition-opacity duration-200"
+    class="absolute inset-0 z-40 overflow-hidden rounded-lg bg-background transition-opacity duration-200"
     :class="settling ? 'opacity-0' : 'opacity-100'"
     aria-hidden="true"
   >
@@ -14,14 +17,14 @@
       class="absolute inset-0 flex items-start justify-center will-change-transform"
       :style="fromStyle"
     >
-      <img :src="plan.fromUrl" class="block h-auto max-w-full" alt="" draggable="false" />
+      <img :src="plan.fromUrl" :class="imageClass" alt="" draggable="false" />
     </div>
 
     <div
       class="absolute inset-0 flex items-start justify-center will-change-transform"
       :style="toStyle"
     >
-      <img :src="plan.toUrl" class="block h-auto max-w-full" alt="" draggable="false" />
+      <img :src="plan.toUrl" :class="imageClass" alt="" draggable="false" />
     </div>
   </div>
 </template>
@@ -29,7 +32,9 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref } from "vue";
 import {
-  ZOOM_CHILD_ENTRY_SCALE,
+  MAP_IMAGE_COMPACT_SIZING,
+  MAP_IMAGE_SIZING,
+  ZOOM_CHILD_SCALE,
   ZOOM_CROSSFADE_AT,
   ZOOM_DURATION_MS,
   ZOOM_PARENT_BLUR_PX,
@@ -38,8 +43,10 @@ import {
 } from "@/lib/locations/mapZoom";
 import type { ZoomPlan } from "@/lib/locations/mapZoom";
 
-const { plan, settling = false } = defineProps<{
+const { plan, settling = false, compact = false } = defineProps<{
   plan: ZoomPlan;
+  /** Must mirror what the caller passed LocationMap, or the handoff jumps. */
+  compact?: boolean;
   /**
    * Set once the real map for the destination has mounted underneath. The
    * overlay then fades rather than cutting — which covers both the frame where
@@ -54,35 +61,38 @@ const emit = defineEmits<{ done: [] }>();
 
 const descending = plan.direction === "in";
 
-/**
- * Ascent is the descent's timeline reversed, so the two share one set of
- * numbers. Reading them as start/end pairs rather than duplicating the
- * animation keeps "go back" from drifting into its own effect.
- *
- *   descending  from = the parent, growing away        1 → 7, blurring
- *               to   = the child, arriving          1.25 → 1, fading in
- *   ascending   from = the child, falling away         1 → 1.25, fading out
- *               to   = the parent, resolving           7 → 1, unblurring
- */
-const from = descending
-  ? { start: 1, end: ZOOM_PARENT_SCALE, blurStart: 0, blurEnd: ZOOM_PARENT_BLUR_PX, opacityEnd: "1" }
-  : { start: 1, end: ZOOM_CHILD_ENTRY_SCALE, blurStart: 0, blurEnd: ZOOM_PARENT_BLUR_PX, opacityEnd: "0" };
+const imageClass = [MAP_IMAGE_SIZING, compact ? MAP_IMAGE_COMPACT_SIZING : ""];
 
-const to = descending
-  ? { start: ZOOM_CHILD_ENTRY_SCALE, end: 1, blurStart: 0, blurEnd: 0 }
-  : { start: ZOOM_PARENT_SCALE, end: 1, blurStart: ZOOM_PARENT_BLUR_PX, blurEnd: 0 };
+/**
+ * Both layers ride one locked trajectory (see ZOOM_CHILD_SCALE): everything on
+ * screen grows by 7× descending and shrinks by 7× rising. Which image you see
+ * is decided purely by the crossfade — never by the two moving differently.
+ *
+ *   descending  from = parent   1 → 7      to = child   1/7 → 1
+ *   ascending   from = child    1 → 1/7    to = parent    7 → 1
+ */
+const fromScale = descending ? { start: 1, end: ZOOM_PARENT_SCALE } : { start: 1, end: ZOOM_CHILD_SCALE };
+const toScale = descending ? { start: ZOOM_CHILD_SCALE, end: 1 } : { start: ZOOM_PARENT_SCALE, end: 1 };
+
+/**
+ * Blur tracks magnification rather than direction: whichever layer is currently
+ * blown up is the one that would otherwise show its pixels. It also sells speed
+ * at the moment the eye is moving fastest.
+ */
+const fromBlur = { start: 0, end: ZOOM_PARENT_BLUR_PX };
+const toBlur = { start: ZOOM_PARENT_BLUR_PX, end: 0 };
 
 const fromStyle = ref<Record<string, string>>({
   transformOrigin: plan.origin,
-  transform: `scale(${from.start})`,
-  filter: `blur(${from.blurStart}px) saturate(1)`,
+  transform: `scale(${fromScale.start})`,
+  filter: `blur(${fromBlur.start}px) saturate(1)`,
   opacity: "1",
 });
 
 const toStyle = ref<Record<string, string>>({
   transformOrigin: plan.origin,
-  transform: `scale(${to.start})`,
-  filter: `blur(${to.blurStart}px) saturate(${descending ? 1 : 0.6})`,
+  transform: `scale(${toScale.start})`,
+  filter: `blur(${toBlur.start}px) saturate(0.6)`,
   opacity: "0",
 });
 
@@ -115,23 +125,33 @@ onMounted(async () => {
       const crossfadeDelay = Math.round(ZOOM_DURATION_MS * ZOOM_CROSSFADE_AT);
       const fadeMs = Math.round(ZOOM_DURATION_MS * 0.35);
 
+      /*
+       * One curve, one duration, no delay — for BOTH layers' transforms.
+       *
+       * This is what keeps the two images locked at `child = parent / 7` for
+       * the whole flight, so the crossfade can happen mid-motion without the
+       * scenery jumping. Giving the departing and arriving layers different
+       * easings (an "accelerate away, decelerate in" flourish) breaks the lock
+       * even though each curve looks reasonable on its own. Only opacity is
+       * allowed to differ.
+       */
+      const move = `transform ${ZOOM_DURATION_MS}ms cubic-bezier(0.45, 0, 0.55, 1)`;
+      const sharpen = `filter ${ZOOM_DURATION_MS}ms cubic-bezier(0.45, 0, 0.55, 1)`;
+
       fromStyle.value = {
         transformOrigin: plan.origin,
-        transform: `scale(${from.end})`,
-        filter: `blur(${from.blurEnd}px) saturate(0.6)`,
-        opacity: from.opacityEnd,
-        // ease-in on the way out: the departing map accelerates, which is what
-        // makes the arriving map's deceleration read as the same movement
-        // continuing rather than as a second one starting.
-        transition: `transform ${ZOOM_DURATION_MS}ms cubic-bezier(0.4, 0, 0.9, 0.6), filter ${ZOOM_DURATION_MS}ms ease-in, opacity ${fadeMs}ms ease-out ${crossfadeDelay}ms`,
+        transform: `scale(${fromScale.end})`,
+        filter: `blur(${fromBlur.end}px) saturate(0.6)`,
+        opacity: "0",
+        transition: `${move}, ${sharpen}, opacity ${fadeMs}ms ease-out ${crossfadeDelay}ms`,
       };
 
       toStyle.value = {
         transformOrigin: plan.origin,
-        transform: `scale(${to.end})`,
-        filter: `blur(${to.blurEnd}px) saturate(1)`,
+        transform: `scale(${toScale.end})`,
+        filter: `blur(${toBlur.end}px) saturate(1)`,
         opacity: "1",
-        transition: `transform ${ZOOM_DURATION_MS - crossfadeDelay}ms cubic-bezier(0.2, 0.6, 0.2, 1) ${crossfadeDelay}ms, filter ${ZOOM_DURATION_MS - crossfadeDelay}ms ease-out ${crossfadeDelay}ms, opacity ${fadeMs}ms ease-out ${crossfadeDelay}ms`,
+        transition: `${move}, ${sharpen}, opacity ${fadeMs}ms ease-out ${crossfadeDelay}ms`,
       };
 
       // Driven by a timer rather than transitionend: each layer owns several
