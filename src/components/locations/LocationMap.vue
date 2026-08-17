@@ -65,6 +65,7 @@
         <div
           v-for="pin in visiblePins"
           :key="pin.child_location_id"
+          :data-pin-id="pin.child_location_id"
           class="absolute"
           :class="[
             mode === 'edit' ? 'cursor-grab' : 'cursor-pointer',
@@ -74,7 +75,7 @@
           @pointerenter="onPinEnter($event, pin.child_location_id)"
           @pointerleave="onPinLeave($event)"
           @pointerdown="mode === 'edit' ? onPinPointerDown($event, pin.child_location_id) : undefined"
-          @click.stop="mode !== 'edit' ? onPinClick(pin.child_location_id) : undefined"
+          @click.stop
         >
           <!-- Collapsed: simple dot -->
           <div
@@ -255,7 +256,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onUnmounted } from "vue";
+import { ref, computed, onUnmounted, watch } from "vue";
 import { IconClose, IconHide, IconLocation, IconNavigate, IconReveal, IconScan } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import { MAP_IMAGE_COMPACT_SIZING, MAP_IMAGE_SIZING } from "@/lib/locations/mapZoom";
@@ -264,6 +265,7 @@ import type { MapPin as MapPinType, LocationType } from "@/types/location.types"
 
 const pins = defineModel<MapPinType[]>("pins", { required: true });
 const {
+  mapUrl,
   children,
   mode,
   showHiddenPins = false,
@@ -393,7 +395,25 @@ function pointerDistance(): number {
   return Math.hypot(b.x - a.x, b.y - a.y);
 }
 
+/**
+ * The pin a gesture started on, or null.
+ *
+ * A pin cannot act on its own `click`: the frame calls `setPointerCapture` on
+ * pointerdown, and the browser then delivers the resulting click to the frame
+ * instead of the pin — the same redirect the placement overlay avoids by
+ * skipping capture. Only the pill's inner buttons escaped it, because they
+ * carry `@pointerdown.stop`; the pill body and the bare dot did not, so
+ * clicking a pin silently did nothing.
+ *
+ * Recognising the tap here keeps pan and pinch intact (both need the frame to
+ * capture) while making the whole pin actionable.
+ */
+let pointerDownPinId: string | null = null;
+
 function onFramePointerDown(e: PointerEvent) {
+  const pinEl = (e.target as HTMLElement | null)?.closest?.("[data-pin-id]") ?? null;
+  pointerDownPinId = pinEl?.getAttribute("data-pin-id") ?? null;
+
   // Accept all pointer types (touch, pen, mouse). Desktop mouse drag pans
   // when zoomed in, and DevTools mobile emulation / touch-simulation can
   // report either "mouse" or "touch" depending on the toolbar setting.
@@ -485,7 +505,27 @@ function onFramePointerUp(e: PointerEvent) {
     installClickSwallow();
   }
 
+  // A clean tap on a pin — no pan, no pinch. Same two-step rule as edit mode:
+  // act only once the pill is already showing. On a mouse, hover has shown it
+  // by then, so a click travels immediately. On touch there is no hover, so the
+  // first tap opens the pill (and reaches its buttons) and the second travels.
+  if (
+    activePointers.size === 0 &&
+    mode !== "edit" &&
+    pointerDownPinId &&
+    !didMultiPointerGesture &&
+    !dragStart?.moved
+  ) {
+    const tappedId = pointerDownPinId;
+    if (isHovered(tappedId)) emit("pin-click", tappedId);
+    else pinnedPinId.value = tappedId;
+    // The redirected click still arrives at the frame afterwards; swallow it so
+    // the container's clear-pinned handler cannot undo what the tap just did.
+    installClickSwallow();
+  }
+
   if (activePointers.size === 0) {
+    pointerDownPinId = null;
     dragStart = null;
     didMultiPointerGesture = false;
     isGesturing.value = false;
@@ -579,6 +619,18 @@ let leaveTimer: ReturnType<typeof setTimeout> | null = null;
 function isHovered(childId: string) {
   return hoveredPinId.value === childId || pinnedPinId.value === childId;
 }
+
+// Hover and pinned state describe pins on *this* map. The Atlas keeps one
+// LocationMap instance and swaps `mapUrl` as you travel, so without this the
+// pin you clicked to leave stays pinned open when you come back — its pill
+// floating with no pointer anywhere near it.
+watch(
+  () => mapUrl,
+  () => {
+    hoveredPinId.value = null;
+    pinnedPinId.value = null;
+  },
+);
 
 function onPinEnter(e: PointerEvent, childId: string) {
   // Hover-to-expand is a mouse-only UX. On touch the pointerenter fires at
@@ -772,14 +824,9 @@ onUnmounted(() => {
   pinnedPinId.value = null;
 });
 
-// ── View mode: click to navigate + toggle pinned state for touch ──────────────
-function onPinClick(childId: string) {
-  // Toggle pinned — keeps the pill open on touch until another tap dismisses it.
-  // The mapContainer @click (with @click.stop on pins) clears pinnedPinId when
-  // the player taps anywhere else on the map.
-  pinnedPinId.value = pinnedPinId.value === childId ? null : childId;
-  emit("pin-click", childId);
-}
+// View-mode taps are recognised in `onFramePointerUp`, not here: pointer
+// capture on the frame redirects a pin's own click away from it, so there is no
+// click handler left to hang this on.
 
 // ── Mutation helpers ──────────────────────────────────────────────────────────
 function toggleVisibility(childId: string) {

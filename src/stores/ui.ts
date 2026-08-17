@@ -552,12 +552,33 @@ export const useUiStore = defineStore("ui", () => {
     dmPreviewPartyMemberId.value = null;
   }
 
-  // Player Atlas — expanded location state survives navigation within session
-  const atlasChildrenOpen = ref(new Set<string>());
-  const atlasDetailOpen = ref(new Set<string>());
+  // Player Atlas — which branches and detail panels are open.
+  //
+  // Persisted for the same reason the DM's tree is: a player who has opened
+  // Toril › Faerûn › The North › Icewind Dale › Ten Towns to reach their
+  // party's location should not have to do it again after a refresh. Kept in
+  // the same shape as `locationsExpanded` so the two atlases cannot drift.
+  // Writable computeds so every call site keeps handing Sets around exactly as
+  // before; only the storage underneath changed.
+  const atlasChildrenOpenIds = useLocalStorage<string[]>("grimoire:play:atlas:children", []);
+  const atlasDetailOpenIds = useLocalStorage<string[]>("grimoire:play:atlas:detail", []);
+
+  const atlasChildrenOpen = computed({
+    get: () => new Set(atlasChildrenOpenIds.value),
+    set: (next) => {
+      atlasChildrenOpenIds.value = [...next].slice(-EXPANDED_CAP);
+    },
+  });
+  const atlasDetailOpen = computed({
+    get: () => new Set(atlasDetailOpenIds.value),
+    set: (next) => {
+      atlasDetailOpenIds.value = [...next].slice(-EXPANDED_CAP);
+    },
+  });
+
   function resetAtlasOpenState() {
-    atlasChildrenOpen.value = new Set();
-    atlasDetailOpen.value = new Set();
+    atlasChildrenOpenIds.value = [];
+    atlasDetailOpenIds.value = [];
   }
 
   // Player location quick-view dialog — opened from @location chips in rich text
