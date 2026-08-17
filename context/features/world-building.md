@@ -17,7 +17,33 @@ Route: `/locations` (list), `/locations/new`, `/locations/:id`, `/locations/:id?
 - Title: "Atlas", subtitle: "Continents, cities, dungeons, and every place in between"
 - Filter bar: free-text search + type dropdown (all 17 location types)
 - Action buttons: **New Location** (primary), **Populate Setting** (bulk-inserts preset locations for the campaign's setting/calendar, e.g. Faerûn), **Populate Planes** (bulk-inserts the 21 standard D&D cosmological planes). Both populate buttons are idempotent — they skip names that already exist and report how many were added.
-- List rendered by `LocationList.vue`
+- Body rendered by `AtlasExplorer.vue`
+
+**Atlas explorer** (`AtlasExplorer.vue` + `AtlasTree.vue` / `AtlasTreeRow.vue` / `AtlasPlacePane.vue` / `AtlasScaleRail.vue`)
+
+Two panes from `lg` up, master/detail swap below it. This replaced a flat alphabetical card grid (`LocationList.vue` / `LocationCard.vue`, both deleted), which sorted a continent between a tavern and a broom closet and rendered the `parent_id` hierarchy as one line of italic text. The players' atlas had had a tree since it shipped; the DM who authored the hierarchy did not.
+
+- **Left — tree.** One row per location: type dot, name, descendant count, and a `map` glyph when the place has non-battle-map art. Expander and row are separate targets (opening a region ≠ selecting it). Rows carry no images, which is why the old `useInfiniteScroll` paging is gone — it existed to stop a few hundred `FocalImage`s mounting at once.
+- **Right — place pane.** Breadcrumb of clickable ancestors, sigil, type badge, scale rail, then the location's children **grouped by scale tier** rather than laid out as equal cards. This is the part that must carry the pane for a DM with no artwork, so it leans on the taxonomy instead of on images. The map is a `SegmentedControl` mode *inside* this pane, offered only when `map_url` is set and `is_battle_map` is false — never the pane itself.
+- **Scale rail** (`AtlasScaleRail.vue`) — the six tiers as rungs; the selection's tier is lit, tiers occupied by its subtree are at half strength, and unauthored tiers are dim, so a gap in a world is visible without opening every node.
+- **The full read-only body**, via the shared `LocationDetailSections.vue` (below) — description, related locations, store, people, encounters, party. The pane is not a preview of the detail page; it renders the same content.
+
+**`LocationDetailSections.vue` — shared by the sheet and the pane.** Holds the six sections that are *about* a place rather than *where it sits*: Description, Related Locations, Store, People in the Area, Encounters Here, Currently Here. Self-contained (does its own queries; TanStack dedupes against the caller's). Each caller keeps what genuinely differs — breadcrumb, identity, sub-locations, map placement, and the Atlas's scale rail and tier groups.
+
+It exists because the Atlas pane needed the same sections the sheet already had, and a second copy drifts within a release: the sheet's People card grid and the pane's People list were already two designs for one thing before the extraction. `LocationSheet` went 403 → 217 lines.
+
+`hasContent` is `defineExpose`d so a caller can tell "no sections rendered" from "no sub-places". The Atlas pane pairs it with its child-group count, because *Nothing inside X yet* is wrong above a tavern's stocked store — a venue has no sub-places by nature.
+
+**Open became Edit.** Since the pane renders the detail page's body, a link to that page led where the reader already was. The button now goes straight to `/locations/:id?edit=true` — the one thing the pane cannot do is change the place.
+
+**Selection is a route, not just store state.** Picking a place pushes `/locations?at=<id>`, so browser Back walks the trail of places you visited instead of leaving the Atlas — descending a hierarchy *is* navigation. The route is the input: a watcher resolves `at` against the live index, so a deep link, a Back, and a stale-after-delete id all land correctly, and `revealLocationPath` unfolds the ancestors on arrival.
+
+**Two things deliberately absent:**
+
+- **No stub/`empty` marker.** An earlier version flagged places with no description, children, map or tags. It was removed rather than tuned: the predicate reads four fields, three of which the tree does not display, so a row marked "empty" beside an unmarked sibling looked arbitrary — the sibling had a description you could not see. A marker needing knowledge the surface withholds is noise however accurate it is.
+- **The sigil is size-capped by a wrapper `div`, not by a class on `FocalImage`.** `FocalImage`'s root is `w-full h-full` and is not run through `cn()`, so a size class passed to it does not override — it coexists, and `w-full` wins. Passing `h-14 w-14` directly rendered the coat of arms at pane width and pushed every child row out of view.
+
+**Filter state**: `locationsSearch` / `locationsFilterType` as before, plus `locationsExpanded`, `locationsSelectedId` and `locationsPaneMode` in `useUiStore`. Expansion is deliberately **not** cleared by `resetLocationsFilters()` — clearing a search should return you to the tree you had, not collapse the world. Searching flattens the tree to a match list (same behaviour as the player atlas), because hiding a branch that contains a match makes the match unreachable.
 
 **Detail page** (`LocationDetailView.vue` + `LocationSheet.vue` / `LocationEditor.vue`)
 
@@ -57,12 +83,30 @@ The detail page follows the sheet + editor convention: existing locations show a
 - **Currently Here** — party members whose `current_location_id` equals this location; links to party member detail
 - **Move a party member here** — available in edit mode via an `EntityCombobox` + "Move here" button
 
-**Location type taxonomy** (17 types, each with a distinct colour dot):
+**Location type taxonomy** (17 types). Two independent axes — do not conflate them:
 
-- _Vague containers_ (not useful as single map pins): World, Plane, Continent, Region, Country
-- _Concrete place types_: City, Town, Village, District, Building, Dungeon, Wilderness, Other
-- _Store types_ (support inventory): Store, Tavern, Inn
-- _Other_: Room
+*By pinnability* (drives map pin recursion and store inventory):
+
+- *Vague containers* (not useful as single map pins): World, Plane, Continent, Region, Country
+- *Concrete place types*: City, Town, Village, District, Building, Dungeon, Wilderness, Other
+- *Store types* (support inventory): Store, Tavern, Inn
+- *Other*: Room
+
+*By scale* (`lib/locations/tiers.ts`) — the ladder the Atlas groups, sorts and colours by:
+
+| Tier          | Types                                   |
+| ------------- | --------------------------------------- |
+| `cosmic`      | World, Plane                            |
+| `continental` | Continent, Region, Country              |
+| `settlement`  | City, Town, Village                     |
+| `site`        | Dungeon, District, Building, Wilderness |
+| `venue`       | Store, Tavern, Inn                      |
+| `interior`    | Room                                    |
+| *(none)*      | Other — the escape hatch claims no scale |
+
+**`LOCATION_TYPE_COLORS` is a scale ramp, not a palette of kinds.** It runs cool-to-warm along that ladder (violet → blue → teal → lime → amber → rust), which reads as distance; within a tier, lightness steps by enclosure, darkest = most enclosed. That is why Dungeon and Wilderness share a hue family despite feeling like opposites — they are the same *scale*, and scale is the only thing the colour channel now encodes. The type label already says what a place is; colour says how big. Do not reshuffle it back into a red-for-dungeons rainbow. `LOCATION_TYPE_LABELS` declaration order is likewise scale order, because both type dropdowns (DM and player) iterate it to build their options.
+
+**DM and player share one colour system by construction**, not by discipline: `LOCATION_TYPE_COLORS` / `LOCATION_TYPE_LABELS` in `types/location.types.ts` are the single source, imported by `LocationMap`, `LocationSheet`, `LocationHierarchyPanel`, `AtlasTreeRow`, `AtlasPlacePane`, `PlayerLocationCard`, `PlayerLocationDialog`, `PlayerLocationsView` and `AssetInsertPanel`. There is no second map anywhere — keep it that way rather than adding a player-side variant. `AtlasScaleRail` derives its tier swatches from the same record via `TIER_REPRESENTATIVE_TYPE`, so a rung can never drift from the places it stands for.
 
 **Hierarchy**: unlimited depth; parent/child relationship is a single `parent_id` FK. The `useLocationTree` composable builds a depth-annotated flat list for indented combobox display across the app. `getPinnableDescendants()` recurses through vague containers to surface pinnable leaves (capped at 60 per map).
 
@@ -130,7 +174,7 @@ Route: `/quests` (list), `/quests/new`, `/quests/:id`, `/quests/:id?edit=true`
 **Run cockpit** (`QuestRunCockpit.vue`, `QuestRunContainedTool.vue`): the campaign runtime cursor supports history-based Previous, explicit branch choice, cross-quest Jump/Return, and a Something else path that remains available beside authored branches. Improv atomically creates a hidden beat and visit event, with optional return point and authored edge. Runtime hardening lives in `20260810231919` rather than in the migrations it amends, so environments that already applied the quest-flow batch pick the fixes up instead of diverging from history: `search_quest_runtime_jump_targets` excludes each quest's overview beat (it sits outside the edge graph, so parking the cursor there would leave the cockpit with no outgoing branches), and `get_quest_runtime_context` returns the most recent 100 transitions rather than the whole campaign history, because the cockpit polls it every 5 seconds; the full log stays readable from `quest_beat_transitions` itself. Attachments open in a lazy contained overlay: encounters reuse the focused Encounter Runner, audio calls the Soundboard, objectives update in place, entity records provide compact context, notes and Scriptorium handouts render their authoritative bodies, and Atlas sets render the selected root/room prep. Only the selected attachment type is queried; full specialist routes remain an escape hatch carrying the exact Run return URL.
 
 **Quest editor fields** (two-column layout on desktop):
-_Left column:_
+*Left column:*
 
 - **Title** (required), **Status** selector (Undiscovered / Active / On Hold / Completed / Failed, colour-coded), **Player visibility toggle**, Save/Cancel/Delete/Scriptorium buttons
 - **Summary** — plain text, short description
@@ -143,7 +187,7 @@ _Left column:_
 - **Description** — `RichTextEditor` (full narrative/context)
 - **DM Notes** — separate `RichTextEditor` (session notes, reminders — never shown to players)
 
-_Right column:_
+*Right column:*
 
 - **Objectives panel** — inline add/remove; each objective has a checkbox (toggle `is_done`) and a visibility toggle (Eye/EyeOff, controls `is_player_visible`). Objectives can only be added after the quest is saved.
 - **Reward panel** — `EncounterLoot` component (items, currency pools, art objects, "Drop pool to chat" and "Drop item to chat" buttons)
@@ -186,7 +230,7 @@ _Right column:_
 - **Offer**: candidates enter the prompt as `npc|Name|occupation` / `location|Name|type` / `faction|Name|type` lines inside a `---BEGIN CAMPAIGN ENTITIES---` block — fixed ~30 lines regardless of corpus size, so prompt cost does not scale with DM engagement.
 - **Resolve** (`src/ai/resolveGeneratedEntities.ts` — moved out of `lib/quests/` when the roll-table generator became its second consumer): hook name arrays are matched trim/case-insensitively against the client's own entity pools. Matched names render as clickable chips (`GeneratedEntityChips` in `components/common/`, shared with the roll-table panel); unmatched names render as dashed "new" chips — surfaced, never silently dropped, per the #337/#595 resolution-guard principle.
 - **Fallback**: any retrieval failure (no vendor, provider down, RPC error, zero candidates) drops the entity block and generates exactly what the pre-#600 client path sent. Retrieval can cost grounding, never the feature.
-- **Not documented here**: the loot generator (#602, dungeon-craft.md) is a fourth consumer of this pattern but does NOT use `campaignEntityRetrieval.ts` — items span two corpora and need a rarity/attunement _constraint band_ applied in the RPC `WHERE` before ranking, which the single-corpus entity RPCs have no parameter for. It has its own sibling module (`_shared/itemRetrieval.ts`); read dungeon-craft.md's "AI loot generator" section for the band rationale before adding a band to anything else.
+- **Not documented here**: the loot generator (#602, dungeon-craft.md) is a fourth consumer of this pattern but does NOT use `campaignEntityRetrieval.ts` — items span two corpora and need a rarity/attunement *constraint band* applied in the RPC `WHERE` before ranking, which the single-corpus entity RPCs have no parameter for. It has its own sibling module (`_shared/itemRetrieval.ts`); read dungeon-craft.md's "AI loot generator" section for the band rationale before adding a band to anything else.
 
 **Ref system** (`quest_refs` table): quests maintain a set of typed references (NPC / Location / Monster / Encounter), each with an `is_player_visible` flag that controls what the player portal shows. This is separate from the primary giver NPC and primary location fields.
 
@@ -234,8 +278,8 @@ Route: `/factions` (list), `/factions/new`, `/factions/:id`, `/factions/:id?edit
 - Responsive card grid (1–3 columns): emblem thumbnail (or shield placeholder), name, type, tags (up to 3), Eye icon when `player_visible_to` is non-empty
 
 **Faction editor** (`FactionEditor.vue`) — two-column layout:
-_Left column:_ emblem image (square, click to upload, `asset-images` bucket), type selector (`EntityCombobox`), alignment selector (9 standard alignments), player visibility toggle (`PlayerVisibilityToggle`), tags (`TagInput`)
-_Right column:_ name, description/notes (`RichTextEditor`, placeholder: "History, motives, known activities…"), Save/Cancel/Delete buttons
+*Left column:* emblem image (square, click to upload, `asset-images` bucket), type selector (`EntityCombobox`), alignment selector (9 standard alignments), player visibility toggle (`PlayerVisibilityToggle`), tags (`TagInput`)
+*Right column:* name, description/notes (`RichTextEditor`, placeholder: "History, motives, known activities…"), Save/Cancel/Delete buttons
 
 **Faction detail page** (`FactionDetailView.vue`)
 Shows the sheet or editor (via `?edit=true`), then below it always-visible sub-sections (rendered even in edit mode):

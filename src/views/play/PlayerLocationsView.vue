@@ -199,7 +199,7 @@ import { useUiStore } from "@/stores/ui";
 import { useSharedNpcsByLocations } from "@/composables/useNpcs";
 import { useCampaignStore } from "@/stores/campaign";
 import { storeToRefs } from "pinia";
-import { isLocationOutOfEra } from "@/lib/locationEra";
+import { isLocationOutOfEra } from "@/lib/locations/era";
 import PlayerNpcLightbox from "@/components/play/PlayerNpcLightbox.vue";
 import type { PlayerNpc } from "@/types/npc.types";
 import { extractTiptapText } from "@/lib/utils";

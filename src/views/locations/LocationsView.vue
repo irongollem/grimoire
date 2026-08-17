@@ -46,7 +46,7 @@
       </ListFilterBar>
     </template>
 
-    <LocationList :search="ui.locationsSearch" :type-filter="ui.locationsFilterType" />
+    <AtlasExplorer />
   </ListPageLayout>
 
   <PaywallModal v-model="showPaywall" resource="locations" />
@@ -61,7 +61,7 @@ import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
-import LocationList from "@/components/locations/LocationList.vue";
+import AtlasExplorer from "@/components/locations/AtlasExplorer.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useCreateGate } from "@/composables/useCreateGate";
 import { usePopulateLocations, usePopulatePlanarLocations } from "@/composables/useLocations";

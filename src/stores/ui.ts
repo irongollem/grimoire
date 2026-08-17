@@ -610,6 +610,32 @@ export const useUiStore = defineStore("ui", () => {
     locationsFilterType.value = "all";
   }
 
+  // Atlas explorer (DM) — which branches are open, which place is selected, and
+  // whether its pane is showing contents or the map. Expansion is not a filter,
+  // so `resetLocationsFilters` deliberately leaves it alone: clearing a search
+  // should return you to the tree you had, not collapse the world.
+  const locationsExpanded = ref(new Set<string>());
+  const locationsSelectedId = ref<string | null>(null);
+  const locationsPaneMode = ref<"places" | "map">("places");
+
+  function toggleLocationExpanded(id: string) {
+    const next = new Set(locationsExpanded.value);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    locationsExpanded.value = next;
+  }
+
+  /** Opens every ancestor so a deep location can be revealed and selected. */
+  function revealLocationPath(ancestorIds: readonly string[]) {
+    const next = new Set(locationsExpanded.value);
+    for (const id of ancestorIds) next.add(id);
+    locationsExpanded.value = next;
+  }
+
+  function collapseAllLocations() {
+    locationsExpanded.value = new Set();
+  }
+
   // Puzzles (Enigmarium) UI state
   const puzzlesSearch = ref("");
   const puzzlesFilterType = ref("");
@@ -1038,6 +1064,12 @@ export const useUiStore = defineStore("ui", () => {
     locationsFilterType,
     locationsHasActiveFilters,
     resetLocationsFilters,
+    locationsExpanded,
+    locationsSelectedId,
+    locationsPaneMode,
+    toggleLocationExpanded,
+    revealLocationPath,
+    collapseAllLocations,
 
     // Puzzles
     puzzlesSearch,

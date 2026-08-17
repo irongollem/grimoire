@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isLocationOutOfEra } from "@/lib/locationEra";
+import { isLocationOutOfEra } from "@/lib/locations/era";
 
 describe("isLocationOutOfEra", () => {
   it("is never out of era when both bounds are unset", () => {

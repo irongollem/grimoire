@@ -162,8 +162,9 @@ describe("applyEdgeTreatmentToCtx — a single enabled edge", () => {
     );
     const mask = created[0];
     // top row is nowhere near the bottom tear/fade zone
+    const row = 0;
     for (let x = 0; x < 50; x++) {
-      const i = (0 * 50 + x) * 4 + 3;
+      const i = (row * 50 + x) * 4 + 3;
       expect(mask.buffer[i]).toBe(255);
     }
   });
