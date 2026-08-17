@@ -34,6 +34,16 @@ It exists because the Atlas pane needed the same sections the sheet already had,
 
 `hasContent` is `defineExpose`d so a caller can tell "no sections rendered" from "no sub-places". The Atlas pane pairs it with its child-group count, because *Nothing inside X yet* is wrong above a tavern's stocked store — a venue has no sub-places by nature.
 
+**Descending and rising between maps** (`AtlasMapZoom.vue`, `lib/locations/mapZoom.ts`). A pin's *watch* action, when this place and the child both have a non-battle map, moves between them as a continued zoom rather than a page change — the thing an atlas actually does. A matching **Up to `<parent>`** control sits on the map itself, because rising is the reverse of the gesture that got you there and belongs where that gesture happened. Both fall back to plain selection when either end has no map, and under `prefers-reduced-motion`.
+
+The illusion rests on three things, all of which have failed at least once:
+
+- **Overlap.** The arriving map starts fading in at `ZOOM_CROSSFADE_AT` (0.45), while the departing one is still accelerating away. The eye tracks velocity, not pixels; finish the first move before starting the second and it reads as two shots. Ascent is the same timeline reversed — same anchor, swapped endpoints — so going back is not a second animation that can drift.
+- **The anchor is the child's pin on the *parent's* map**, for both directions. It is the one point the two images agree about, so the place stays still while the scale changes.
+- **The overlay outlives the selection.** It stays mounted at full opacity until the destination's real `LocationMap` has mounted underneath, then fades over 220ms. Tearing it down when the animation ended produced a visible jitter: the selection travels through the router, so for a frame or two the *previous* map was still what was mounted. The fade also covers the fact that two maps of different aspect ratios never occupy the same box, so the last animated frame and the first real one are not pixel-identical.
+
+Destination images are decoded before the motion starts (`preloadImage`) — a crossfade onto an undecoded image flashes white on exactly the frame being watched — and the parent blurs as it magnifies, which sells speed and hides a 2000px JPEG at 7×.
+
 **Open became Edit.** Since the pane renders the detail page's body, a link to that page led where the reader already was. The button now goes straight to `/locations/:id?edit=true` — the one thing the pane cannot do is change the place.
 
 **Selection is a route, not just store state.** Picking a place pushes `/locations?at=<id>`, so browser Back walks the trail of places you visited instead of leaving the Atlas — descending a hierarchy *is* navigation. The route is the input: a watcher resolves `at` against the live index, so a deep link, a Back, and a stale-after-delete id all land correctly, and `revealLocationPath` unfolds the ancestors on arrival.

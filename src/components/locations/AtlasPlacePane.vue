@@ -101,18 +101,45 @@
     />
 
     <div class="min-h-0 flex-1 overflow-y-auto pr-1">
-      <LocationMap
-        v-if="hasMap && paneMode === 'map'"
-        :map-url="location.map_url!"
-        :pins="location.map_pins"
-        :children="children"
-        mode="view"
-        show-hidden-pins
-        compact
-        @pin-click="$emit('select', $event)"
-        @pin-go="$emit('select', $event)"
-        @pin-watch="$emit('select', $event)"
-      />
+      <!--
+        `relative` so the zoom overlay can sit exactly on the map frame the
+        reader is already looking at, instead of being measured into place.
+      -->
+      <div v-if="hasMap && paneMode === 'map'" class="relative">
+        <LocationMap
+          :map-url="location.map_url!"
+          :pins="location.map_pins"
+          :children="children"
+          mode="view"
+          show-hidden-pins
+          compact
+          @pin-click="$emit('select', $event)"
+          @pin-go="$emit('select', $event)"
+          @pin-watch="descendTo"
+        />
+
+        <!--
+          Up one level, in the map's own idiom. Placed on the map rather than in
+          the breadcrumb because it is the reverse of the gesture that got you
+          here, and it should be where that gesture happened.
+        -->
+        <AppButton
+          v-if="ascendTarget && !zoomPlan"
+          variant="subtle"
+          size="xs"
+          class="absolute top-2 left-2 z-30 max-w-56 bg-background/85 backdrop-blur-sm"
+          :icon="IconChevronUp"
+          :label="`Up to ${ascendTarget.name}`"
+          @click="ascend"
+        />
+
+        <AtlasMapZoom
+          v-if="zoomPlan"
+          :plan="zoomPlan"
+          :settling="zoomSettling"
+          @done="finishDescent"
+        />
+      </div>
 
       <template v-else>
         <!--
@@ -155,16 +182,19 @@
 </template>
 
 <script setup lang="ts">
-import { computed, useTemplateRef } from "vue";
+import { computed, onBeforeUnmount, ref, useTemplateRef, watch } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
+import AtlasMapZoom from "@/components/locations/AtlasMapZoom.vue";
 import AtlasScaleRail from "@/components/locations/AtlasScaleRail.vue";
 import AtlasTreeRow from "@/components/locations/AtlasTreeRow.vue";
 import LocationDetailSections from "@/components/locations/LocationDetailSections.vue";
 import LocationMap from "@/components/locations/LocationMap.vue";
-import { IconChevronRight, IconClock, IconLocation, IconEdit, IconMap } from "@/lib/icons";
+import { IconChevronRight, IconChevronUp, IconClock, IconEdit, IconLocation, IconMap } from "@/lib/icons";
 import { isLocationOutOfEra } from "@/lib/locations/era";
+import { planAscent, planDescent } from "@/lib/locations/mapZoom";
+import type { ZoomPlan } from "@/lib/locations/mapZoom";
 import { visibleTags } from "@/lib/locations/tags";
 import { groupByTier, occupiedTiers } from "@/lib/locations/tiers";
 import type { LocationTier } from "@/lib/locations/tiers";
@@ -180,7 +210,7 @@ const { index, location, paneMode, todayYear } = defineProps<{
   todayYear: number;
 }>();
 
-defineEmits<{ select: [id: string]; "update:paneMode": [mode: "places" | "map"] }>();
+const emit = defineEmits<{ select: [id: string]; "update:paneMode": [mode: "places" | "map"] }>();
 
 const MODE_OPTIONS = [
   { value: "places", label: "Contents", icon: IconLocation },
@@ -195,6 +225,82 @@ const sections = useTemplateRef("sectionsRef");
 // A `tavern` tag beside a Tavern badge says nothing twice. Legacy rows typed
 // `building` and tagged "tavern" keep theirs — there the tag is the meaning.
 const shownTags = computed(() => (location ? visibleTags(location) : []));
+
+// ── Moving between maps ───────────────────────────────────────────────────────
+const zoomPlan = ref<ZoomPlan | null>(null);
+const zoomSettling = ref(false);
+let settleTimer: ReturnType<typeof setTimeout> | undefined;
+
+/** The parent, when rising to it can be animated. Drives the ascend control. */
+const ascendTarget = computed(() => {
+  if (!location?.parent_id) return null;
+  const parent = index.byId.get(location.parent_id);
+  return parent && planAscent(location, parent) ? parent : null;
+});
+
+/**
+ * The pin's "watch" action. When both this place and the child have a map, the
+ * move is animated as a continued zoom — the thing an atlas actually does —
+ * and the selection is deferred until the motion lands. Otherwise it is an
+ * ordinary selection, which is also what happens under reduced motion.
+ */
+function descendTo(childId: string) {
+  start(planDescent(location, index.byId.get(childId)), childId);
+}
+
+function ascend() {
+  const parent = ascendTarget.value;
+  if (parent) start(planAscent(location, parent), parent.id);
+}
+
+function start(plan: ZoomPlan | null, fallbackId: string) {
+  if (!plan) {
+    emit("select", fallbackId);
+    return;
+  }
+  zoomSettling.value = false;
+  zoomPlan.value = plan;
+}
+
+/**
+ * The motion has landed. Select — but leave the overlay up.
+ *
+ * Tearing it down here is what produced the jitter: the selection travels
+ * through the router, so for a frame or two the *previous* map is still what is
+ * mounted underneath, and it flashes through before the destination renders.
+ */
+function finishDescent() {
+  if (zoomPlan.value) emit("select", zoomPlan.value.targetId);
+}
+
+/**
+ * Retire the overlay once the destination is genuinely mounted beneath it, and
+ * fade rather than cut — two maps of different aspect ratios do not occupy the
+ * same box, so the last frame of the animation and the first frame of the real
+ * map are never pixel-identical. A short fade covers that; a cut shows it.
+ */
+watch(
+  () => location?.id,
+  (id) => {
+    const plan = zoomPlan.value;
+    if (!plan) return;
+    if (id !== plan.targetId) {
+      // Navigated somewhere else mid-flight (tree, breadcrumb, Back) — drop it.
+      clearZoom();
+      return;
+    }
+    zoomSettling.value = true;
+    settleTimer = setTimeout(clearZoom, 220);
+  },
+);
+
+function clearZoom() {
+  clearTimeout(settleTimer);
+  zoomPlan.value = null;
+  zoomSettling.value = false;
+}
+
+onBeforeUnmount(clearZoom);
 
 const trail = computed(() => (location ? ancestorPath(index, location.id) : []));
 
