@@ -41,6 +41,8 @@
 import { execFileSync } from "node:child_process";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { parseArgs } from "node:util";
+import { quote, sql } from "./lib/dev-db.ts";
+import { ensureFixtureContent } from "./lib/dev-fixture-content.ts";
 
 /** Local-only, deliberately boring, never valid anywhere but this machine. */
 const DEV_PASSWORD = "grimoire-local-dev";
@@ -117,13 +119,6 @@ async function ensurePassword(
   return true;
 }
 
-function sql(dbUrl: string, statement: string): string {
-  return execFileSync("psql", [dbUrl, "-At", "-F", "\t", "-c", statement], {
-    encoding: "utf8",
-    maxBuffer: 32 * 1024 * 1024,
-  }).trim();
-}
-
 async function main() {
   const { values } = parseArgs({
     options: { check: { type: "boolean", default: false } },
@@ -180,21 +175,28 @@ async function main() {
   }
 
   const cloned = cloneRichestCampaign(stack.DB_URL, fixtureId);
+  // Party first: the content below spreads its reveal state across party
+  // members, so it needs somebody to share with.
   const party = ensureFixtureParty(stack.DB_URL, fixtureId);
   const beasts = ensureFixtureBestiary(stack.DB_URL, fixtureId);
+  const content = ensureFixtureContent(stack.DB_URL, fixtureId);
+
+  const inventory = [
+    `${cloned} locations`,
+    `${party} party members`,
+    `${beasts} monsters`,
+    ...Object.entries(content).map(([name, n]) => `${n} ${name}`),
+  ].join(", ");
 
   console.log(`Local sign-in ready — password for both: ${DEV_PASSWORD}\n`);
   console.log(`  admin   ${adminEmail}`);
-  console.log(`  fixture ${FIXTURE_EMAIL}  (${cloned} locations, ${party} party members, ${beasts} monsters, ordinary privileges)\n`);
+  console.log(`  fixture ${FIXTURE_EMAIL}`);
+  console.log(`          ${inventory}, ordinary privileges\n`);
   if (changed.length) {
     console.log(`Password changed for ${changed.join(", ")} — those sessions are signed out.`);
   }
   console.log("Use the fixture for anything RLS-scoped. See #736 — the admin account");
   console.log("is not a representative reader, and testing on it is what hid that bug.");
-}
-
-function quote(value: string): string {
-  return `'${value.replace(/'/g, "''")}'`;
 }
 
 /**
