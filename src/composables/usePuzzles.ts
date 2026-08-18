@@ -7,6 +7,7 @@ import type { Ref } from "vue";
 import { computed, isRef, ref } from "vue";
 import { storeToRefs } from "pinia";
 import { useCampaignStore } from "@/stores/campaign";
+import { useUiStore } from "@/stores/ui";
 import { allowedCampaignScoped } from "@/lib/campaignContentGating";
 
 const QUERY_KEY = "puzzle_rooms";
@@ -131,13 +132,23 @@ export function useDeletePuzzle() {
  */
 export function usePlayerVisiblePuzzles() {
   const campaign = useCampaignStore();
+  const ui = useUiStore();
   const campaignId = computed(() => campaign.activeCampaignId);
+  const previewPartyMemberId = computed(() =>
+    ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : null,
+  );
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "player", campaignId.value]),
+    queryKey: computed(() => [
+      QUERY_KEY,
+      "player",
+      campaignId.value,
+      previewPartyMemberId.value,
+    ]),
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_player_visible_puzzles", {
         p_campaign_id: campaignId.value!,
         p_puzzle_id: null,
+        p_preview_party_member_id: previewPartyMemberId.value,
       });
       if (error) throw error;
       return ((data ?? []) as PuzzleRoom[]).sort((a, b) => a.name.localeCompare(b.name));
@@ -156,13 +167,24 @@ export function usePlayerVisiblePuzzles() {
 export function usePlayerVisiblePuzzle(id: string | Ref<string>) {
   const resolved = isRef(id) ? id : ref(id);
   const campaign = useCampaignStore();
+  const ui = useUiStore();
   const campaignId = computed(() => campaign.activeCampaignId);
+  const previewPartyMemberId = computed(() =>
+    ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : null,
+  );
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, "player-one", campaignId.value, resolved.value]),
+    queryKey: computed(() => [
+      QUERY_KEY,
+      "player-one",
+      campaignId.value,
+      resolved.value,
+      previewPartyMemberId.value,
+    ]),
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_player_visible_puzzles", {
         p_campaign_id: campaignId.value,
         p_puzzle_id: resolved.value,
+        p_preview_party_member_id: previewPartyMemberId.value,
       });
       if (error) throw error;
       return ((data ?? []) as PuzzleRoom[])[0] ?? null;

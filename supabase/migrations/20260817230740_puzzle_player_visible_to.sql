@@ -67,15 +67,33 @@ grant execute on function private.is_puzzle_player_visible(uuid) to authenticate
 -- narrower: step 2 gave every shared puzzle the whole party, so no player loses
 -- a puzzle they can see today, and an unshared puzzle has an empty array, which
 -- matches nobody.
-create or replace function get_player_visible_puzzles(
+drop function if exists public.get_player_visible_puzzles(uuid, uuid);
+
+create function get_player_visible_puzzles(
   p_campaign_id uuid default null,
-  p_puzzle_id uuid default null
+  p_puzzle_id uuid default null,
+  p_preview_party_member_id uuid default null
 )
 returns setof puzzle_rooms
-language sql stable security definer
-set search_path = public
+language plpgsql stable security definer
+set search_path = public, private
 as $$
-  select
+begin
+  if auth.uid() is null then
+    raise exception 'Authentication required';
+  end if;
+
+  if p_preview_party_member_id is not null and not exists (
+    select 1
+    from public.party_members pm
+    where pm.id = p_preview_party_member_id
+      and (p_campaign_id is null or pm.campaign_id = p_campaign_id)
+      and coalesce(private.is_campaign_dm(pm.campaign_id), false)
+  ) then
+    raise exception 'Preview audience is not available to this DM';
+  end if;
+
+  return query select
     p.id,
     p.user_id,
     p.name,
@@ -110,11 +128,16 @@ as $$
   where p.campaign_id is not null
     and (p_campaign_id is null or p.campaign_id = p_campaign_id)
     and (p_puzzle_id   is null or p.id = p_puzzle_id)
-    and private.is_puzzle_player_visible(p.id);
+    and case
+      when p_preview_party_member_id is null then private.is_puzzle_player_visible(p.id)
+      else p_preview_party_member_id = any (p.player_visible_to)
+        and coalesce(private.is_campaign_dm(p.campaign_id), false)
+    end;
+end;
 $$;
 
--- CREATE OR REPLACE preserves grants, but the login-only boundary is restated
--- here so this migration is readable on its own. anon's access comes via the
--- PUBLIC grant, so revoking from anon alone would be a no-op.
-revoke execute on function public.get_player_visible_puzzles(uuid, uuid) from public, anon;
-grant execute on function public.get_player_visible_puzzles(uuid, uuid) to authenticated, service_role;
+-- The new signature gets fresh default grants, so restate the login-only
+-- boundary explicitly. anon's access comes via the PUBLIC grant, so revoking
+-- from anon alone would be a no-op.
+revoke execute on function public.get_player_visible_puzzles(uuid, uuid, uuid) from public, anon;
+grant execute on function public.get_player_visible_puzzles(uuid, uuid, uuid) to authenticated, service_role;
