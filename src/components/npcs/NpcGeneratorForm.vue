@@ -33,11 +33,11 @@
       <label class="block text-caption text-muted-foreground mb-1"
         >Name</label
       >
-      <input
-        :value="quickForm.name"
+      <AppInput
+        v-model="nameModel"
         placeholder="Leave blank to auto-generate"
-        class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        @input="patchForm('name', ($event.target as HTMLInputElement).value)"
+        tone="muted"
+        size="body"
       />
     </div>
 
@@ -45,14 +45,10 @@
       <label class="block text-caption text-muted-foreground mb-1"
         >Species</label
       >
-      <select
-        :value="quickForm.race"
-        class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        @change="patchForm('race', ($event.target as HTMLSelectElement).value)"
-      >
+      <AppSelect v-model="raceModel" tone="muted" size="body" weight="normal" block>
         <option value="">Any</option>
         <option v-for="r in RACES" :key="r" :value="r">{{ r }}</option>
-      </select>
+      </AppSelect>
     </div>
 
     <div class="grid grid-cols-2 gap-2">
@@ -60,33 +56,25 @@
         <label class="block text-caption text-muted-foreground mb-1"
           >Alignment</label
         >
-        <select
-          :value="quickForm.alignment"
-          class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          @change="patchForm('alignment', ($event.target as HTMLSelectElement).value)"
-        >
+        <AppSelect v-model="alignmentModel" tone="muted" size="body" weight="normal" block>
           <option value="">Any</option>
           <option v-for="a in ALIGNMENTS" :key="a" :value="a">
             {{ a }}
           </option>
-        </select>
+        </AppSelect>
       </div>
       <div>
         <label class="block text-caption text-muted-foreground mb-1"
           >Relationship</label
         >
-        <select
-          :value="quickForm.relationship"
-          class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          @change="patchForm('relationship', ($event.target as HTMLSelectElement).value as NpcRelationship)"
-        >
+        <AppSelect v-model="relationshipModel" tone="muted" size="body" weight="normal" block>
           <option value="unknown">Unknown</option>
           <option value="hostile">Hostile</option>
           <option value="unfriendly">Unfriendly</option>
           <option value="indifferent">Indifferent</option>
           <option value="friendly">Friendly</option>
           <option value="helpful">Helpful</option>
-        </select>
+        </AppSelect>
       </div>
     </div>
 
@@ -94,31 +82,23 @@
       <label class="block text-caption text-muted-foreground mb-1"
         >Faction</label
       >
-      <select
-        :value="quickForm.faction_id ?? ''"
-        class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        @change="patchForm('faction_id', ($event.target as HTMLSelectElement).value || null)"
-      >
+      <AppSelect v-model="factionIdModel" tone="muted" size="body" weight="normal" block>
         <option value="">None</option>
         <option v-for="f in factions" :key="f.id" :value="f.id">
           {{ f.name }}{{ f.faction_type ? ` (${f.faction_type})` : "" }}
         </option>
-      </select>
+      </AppSelect>
     </div>
 
     <div v-if="quickForm.faction_id">
       <label class="block text-caption text-muted-foreground mb-1"
         >Role in faction</label
       >
-      <select
-        :value="quickForm.faction_role"
-        class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        @change="patchForm('faction_role', ($event.target as HTMLSelectElement).value)"
-      >
+      <AppSelect v-model="factionRoleModel" tone="muted" size="body" weight="normal" block>
         <option v-for="r in NPC_FACTION_ROLES" :key="r" :value="r">
           {{ r }}
         </option>
-      </select>
+      </AppSelect>
     </div>
 
     <div>
@@ -141,11 +121,7 @@
       <label class="block text-caption text-muted-foreground mb-1"
         >Stat block template</label
       >
-      <select
-        :value="quickForm.templateId"
-        class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        @change="patchForm('templateId', ($event.target as HTMLSelectElement).value)"
-      >
+      <AppSelect v-model="templateIdModel" tone="muted" size="body" weight="normal" block>
         <option value="">None</option>
         <optgroup
           v-for="cat in templateCategories"
@@ -160,7 +136,7 @@
             {{ t.name }} (CR {{ t.stat_block.challenge_rating }})
           </option>
         </optgroup>
-      </select>
+      </AppSelect>
     </div>
 
     <div>
@@ -179,11 +155,7 @@
       <label class="block text-caption text-muted-foreground mb-1"
         >Relationship type</label
       >
-      <select
-        :value="quickForm.related_npc_relationship"
-        class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        @change="patchForm('related_npc_relationship', ($event.target as HTMLSelectElement).value as NpcRelationshipType)"
-      >
+      <AppSelect v-model="relatedNpcRelationshipModel" tone="muted" size="body" weight="normal" block>
         <option
           v-for="[type, label] in Object.entries(NPC_RELATIONSHIP_TYPE_LABELS)"
           :key="type"
@@ -191,7 +163,7 @@
         >
           {{ label }}
         </option>
-      </select>
+      </AppSelect>
     </div>
   </div>
 
@@ -252,13 +224,14 @@
     <p class="text-body text-muted-foreground italic text-center">
       {{ currentLoadingQuote }}
     </p>
-    <button
-      type="button"
-      class="mt-1 text-caption text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+    <AppButton
+      variant="ghost"
+      size="inline-xs"
+      class="mt-1 text-caption underline underline-offset-2"
       @click="emit('dismiss-to-background')"
     >
       Continue in background
-    </button>
+    </AppButton>
   </div>
 
   <!-- Error -->
@@ -280,6 +253,9 @@ import { NPC_FACTION_ROLES } from "@/types/faction.types";
 import { useLocationTree } from "@/composables/useLocations";
 import { useAllFactions } from "@/composables/useFactions";
 import { useNpcs } from "@/composables/useNpcs";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import type { Location } from "@/types/location.types";
@@ -328,6 +304,43 @@ const emit = defineEmits<{
 function patchForm<K extends keyof QuickForm>(key: K, value: QuickForm[K]) {
   emit("update:quickForm", { ...quickForm, [key]: value });
 }
+
+// AppInput/AppSelect require a v-model. `quickForm` is a prop paired with a
+// single `update:quickForm` emit (the parent wires it as v-model:quick-form)
+// rather than individual local refs, so bridge each field through a writable
+// computed — same idiom as SpellLevelAdvisorModal's `schoolModel`.
+const nameModel = computed<QuickForm["name"]>({
+  get: () => quickForm.name,
+  set: (value) => patchForm("name", value),
+});
+const raceModel = computed<QuickForm["race"]>({
+  get: () => quickForm.race,
+  set: (value) => patchForm("race", value),
+});
+const alignmentModel = computed<QuickForm["alignment"]>({
+  get: () => quickForm.alignment,
+  set: (value) => patchForm("alignment", value),
+});
+const relationshipModel = computed<NpcRelationship>({
+  get: () => quickForm.relationship,
+  set: (value) => patchForm("relationship", value),
+});
+const factionIdModel = computed<QuickForm["faction_id"]>({
+  get: () => quickForm.faction_id,
+  set: (value) => patchForm("faction_id", value || null),
+});
+const factionRoleModel = computed<QuickForm["faction_role"]>({
+  get: () => quickForm.faction_role,
+  set: (value) => patchForm("faction_role", value),
+});
+const templateIdModel = computed<QuickForm["templateId"]>({
+  get: () => quickForm.templateId,
+  set: (value) => patchForm("templateId", value),
+});
+const relatedNpcRelationshipModel = computed<NpcRelationshipType>({
+  get: () => quickForm.related_npc_relationship,
+  set: (value) => patchForm("related_npc_relationship", value),
+});
 
 const RACES = [
   "Human", "Elf", "Half-Elf", "Dwarf", "Halfling", "Gnome",

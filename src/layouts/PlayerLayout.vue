@@ -22,26 +22,30 @@
       </span>
 
       <!-- Live encounter — mobile: navigate to encounter view -->
-      <RouterLink
+      <AppButton
         v-if="anyRunning"
         :to="{ name: 'player-encounter' }"
-        class="md:hidden flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-green-500/15 border border-green-500/40 text-green-400 hover:bg-green-500/25 transition-colors text-label-lg font-semibold"
+        variant="tinted"
+        tone="success"
+        emphasis="soft"
+        size="sm"
+        class="md:hidden"
       >
         <span class="relative flex h-2 w-2 shrink-0">
           <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
           <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
         </span>
         Live
-      </RouterLink>
+      </AppButton>
 
       <!-- Live encounter — tablet+: toggle the encounter sidebar -->
-      <button
+      <AppButton
         v-if="anyRunning"
-        type="button"
-        class="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md border transition-colors text-label-lg font-semibold"
-        :class="showEncounterPanel
-          ? 'bg-green-500/25 border-green-400/60 text-green-300'
-          : 'bg-green-500/15 border-green-500/40 text-green-400 hover:bg-green-500/25'"
+        variant="tinted"
+        tone="success"
+        :emphasis="showEncounterPanel ? 'strong' : 'soft'"
+        size="sm"
+        class="hidden md:flex"
         @click="showEncounterPanel = !showEncounterPanel"
       >
         <span class="relative flex h-2 w-2 shrink-0">
@@ -49,29 +53,34 @@
           <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
         </span>
         Live
-      </button>
+      </AppButton>
 
       <DiceRoller />
 
-      <button
-        class="relative p-1.5 rounded text-muted-foreground hover:text-foreground transition-colors"
-        title="Open chat"
+      <AppButton
+        variant="ghost"
+        size="icon-xs"
+        tooltip="Open chat"
+        class="relative"
         @click="ui.toggleChat()"
       >
-        <IconMessage class="h-4 w-4" />
-        <span v-if="ui.chatHasUnread" class="absolute top-0.5 right-0.5 h-2 w-2 rounded-full bg-destructive" />
-      </button>
+        <template #icon>
+          <IconMessage class="h-4 w-4" />
+          <span v-if="ui.chatHasUnread" class="absolute top-0.5 right-0.5 h-2 w-2 rounded-full bg-destructive" />
+        </template>
+      </AppButton>
 
       <!-- Hamburger menu -->
       <div class="relative">
-        <button
-          class="p-1.5 rounded text-muted-foreground hover:text-foreground transition-colors"
-          title="Menu"
+        <AppButton
+          variant="ghost"
+          size="icon-xs"
+          tooltip="Menu"
           data-tour="account-menu"
           @click="showMenu = !showMenu"
         >
-          <IconMenu class="h-4 w-4" />
-        </button>
+          <template #icon><IconMenu class="h-4 w-4" /></template>
+        </AppButton>
       </div>
     </header>
 
@@ -115,9 +124,14 @@
             <p class="text-label-lg font-semibold text-green-400">Encounter Started!</p>
             <p class="text-body text-foreground mt-0.5">Your DM has started a live encounter. Tap to join.</p>
           </div>
-          <button class="text-muted-foreground hover:text-foreground transition-colors shrink-0" @click.prevent="encounterLiveToast = false">
-            <IconClose class="h-3.5 w-3.5" />
-          </button>
+          <AppButton
+            variant="ghost"
+            size="inline"
+            :icon="IconClose"
+            ariaLabel="Dismiss"
+            class="shrink-0"
+            @click.prevent="encounterLiveToast = false"
+          />
         </RouterLink>
         <!-- Tablet+: tap dismisses (panel already opened automatically) -->
         <div
@@ -128,9 +142,14 @@
             <p class="text-label-lg font-semibold text-green-400">Encounter Started!</p>
             <p class="text-body text-foreground mt-0.5">Live encounter panel opened on the left.</p>
           </div>
-          <button class="text-muted-foreground hover:text-foreground transition-colors shrink-0" @click="encounterLiveToast = false">
-            <IconClose class="h-3.5 w-3.5" />
-          </button>
+          <AppButton
+            variant="ghost"
+            size="inline"
+            :icon="IconClose"
+            ariaLabel="Dismiss"
+            class="shrink-0"
+            @click="encounterLiveToast = false"
+          />
         </div>
       </div>
     </Transition>
@@ -194,31 +213,35 @@
         class="absolute right-2 top-14 bg-card border border-border rounded-lg shadow-xl overflow-hidden w-44"
         @click.stop
       >
-        <button
-          type="button"
-          class="w-full flex items-center gap-2.5 px-4 py-3 font-cinzel text-xs font-semibold text-foreground hover:bg-muted transition-colors"
+        <AppButton
+          variant="menu"
+          size="sm"
+          block
+          label="Campaigns"
           @click="showMenu = false; showCampaignSheet = true"
         >
-          <IconPopulate class="h-4 w-4" />
-          Campaigns
-        </button>
+          <template #icon><IconPopulate class="h-4 w-4" /></template>
+        </AppButton>
         <ModeToggle class="px-4 py-3" />
-        <RouterLink
+        <AppButton
           :to="{ name: 'play-settings' }"
-          class="flex items-center gap-2.5 px-4 py-3 font-cinzel text-xs font-semibold text-foreground hover:bg-muted transition-colors"
+          variant="menu"
+          size="sm"
+          block
+          label="Settings"
           @click="showMenu = false"
         >
-          <IconSettingsAlt class="h-4 w-4" />
-          Settings
-        </RouterLink>
-        <button
-          type="button"
-          class="w-full flex items-center gap-2.5 px-4 py-3 font-cinzel text-xs font-semibold text-foreground hover:bg-muted transition-colors"
+          <template #icon><IconSettingsAlt class="h-4 w-4" /></template>
+        </AppButton>
+        <AppButton
+          variant="menu"
+          size="sm"
+          block
+          label="Report a bug"
           @click="showMenu = false; bugReportOpen = true"
         >
-          <IconBug class="h-4 w-4" />
-          Report a bug
-        </button>
+          <template #icon><IconBug class="h-4 w-4" /></template>
+        </AppButton>
         <button
           type="button"
           class="w-full flex items-center gap-2.5 px-4 py-3 font-cinzel text-xs font-semibold text-destructive hover:bg-muted transition-colors"
@@ -278,14 +301,10 @@
           </div>
 
           <div class="border-t border-border pt-3">
-            <button
-              type="button"
-              class="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg hover:bg-muted transition-colors"
-              @click="startCreateCampaign"
-            >
-              <IconAdd class="h-4 w-4 text-muted-foreground shrink-0" />
+            <AppButton variant="menu" size="md" block @click="startCreateCampaign">
+              <template #icon><IconAdd class="h-4 w-4 text-muted-foreground shrink-0" /></template>
               <span class="font-cinzel text-xs font-semibold text-muted-foreground">New Campaign</span>
-            </button>
+            </AppButton>
           </div>
         </div>
       </div>
@@ -320,6 +339,7 @@ import { useRoute, useRouter } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import { IconAdd, IconBug, IconCalendarDays, IconClose, IconEncounter, IconLogOut, IconMenu, IconMessage, IconPopulate, IconReveal, IconSettingsAlt } from '@/lib/icons';
 import { useCalendarStore } from "@/stores/calendar";
+import AppButton from "@/components/common/AppButton.vue";
 import DiceRoller from "@/components/common/DiceRoller.vue";
 import { usePlayerEncounterLive } from "@/composables/useEncounterLive";
 import { useAuthStore } from "@/stores/auth";

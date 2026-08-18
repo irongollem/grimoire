@@ -26,13 +26,13 @@
     <header
       class="sticky top-0 z-20 flex items-center gap-2 border-b border-border bg-background/95 px-2 py-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] backdrop-blur"
     >
-      <button
-        type="button"
-        class="shrink-0 rounded-md px-2 py-2 text-body text-muted-foreground active:text-foreground"
+      <AppButton
+        variant="ghost"
+        size="sm"
+        label="Cancel"
+        class="shrink-0"
         @click="emit('cancel')"
-      >
-        Cancel
-      </button>
+      />
       <h1 class="min-w-0 flex-1 truncate text-center text-heading-sm font-bold text-foreground">
         {{ title }}
       </h1>
@@ -63,15 +63,15 @@
         <p class="text-body italic text-muted-foreground">
           Read-only reference.
         </p>
-        <button
-          type="button"
+        <AppButton
+          variant="primary"
+          size="md"
+          class="shrink-0"
+          :icon="IconCopy"
+          :label="isCloning ? 'Copying…' : 'Customize'"
           :disabled="isCloning"
-          class="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground active:opacity-90 disabled:opacity-50"
           @click="emit('customize')"
-        >
-          <IconCopy class="size-3.5" />
-          {{ isCloning ? "Copying…" : "Customize" }}
-        </button>
+        />
       </section>
 
       <!-- Portrait card (interactive even for SRD — art override) -->
@@ -97,36 +97,36 @@
           <h3 class="text-heading-sm font-bold text-foreground">Identity</h3>
           <label class="block">
             <span class="field-label">Name</span>
-            <input v-model="form.name" class="field-input w-full" placeholder="Monster name…" />
+            <AppInput v-model="form.name" tone="muted" size="body" placeholder="Monster name…" />
           </label>
           <div class="grid grid-cols-2 gap-2">
             <label class="block">
               <span class="field-label">Type</span>
-              <select v-model="form.monster_type" class="field-input w-full capitalize">
+              <AppSelect v-model="form.monster_type" tone="muted" size="body" weight="normal" block class="capitalize">
                 <option v-for="t in MONSTER_TYPES" :key="t" :value="t" class="capitalize">{{ t }}</option>
-              </select>
+              </AppSelect>
             </label>
             <label class="block">
               <span class="field-label">Size</span>
-              <select v-model="form.size" class="field-input w-full capitalize">
+              <AppSelect v-model="form.size" tone="muted" size="body" weight="normal" block class="capitalize">
                 <option v-for="s in SIZES" :key="s" :value="s" class="capitalize">{{ s }}</option>
-              </select>
+              </AppSelect>
             </label>
           </div>
           <label class="block">
             <span class="field-label">Alignment</span>
-            <select v-model="form.alignment" class="field-input w-full">
+            <AppSelect v-model="form.alignment" tone="muted" size="body" weight="normal" block>
               <option v-for="a in ALIGNMENTS" :key="a" :value="a.toLowerCase()">{{ a }}</option>
-            </select>
+            </AppSelect>
           </label>
           <label class="block">
             <span class="field-label">Source</span>
-            <input v-model="form.source" class="field-input w-full" placeholder="Monster Manual" />
+            <AppInput v-model="form.source" tone="muted" size="body" placeholder="Monster Manual" />
           </label>
           <CampaignScopeField v-model="form.campaign_id" />
           <label class="block">
             <span class="field-label">Habitat</span>
-            <input v-model="form.habitat" class="field-input w-full" placeholder="Forest, underground…" />
+            <AppInput v-model="form.habitat" tone="muted" size="body" placeholder="Forest, underground…" />
           </label>
           <label class="block">
             <span class="field-label">Lair Location</span>
@@ -189,53 +189,60 @@
       v-if="!isShared"
       class="fixed inset-x-0 bottom-0 z-20 flex gap-3 border-t border-border bg-background/95 px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur"
     >
-      <button
-        type="button"
-        class="min-h-11 shrink-0 basis-28 rounded-lg border border-border px-4 font-cinzel text-sm font-bold tracking-wider text-muted-foreground active:bg-muted"
+      <AppButton
+        variant="subtle"
+        size="md"
+        label="Cancel"
+        class="shrink-0 basis-28"
         @click="emit('cancel')"
-      >
-        Cancel
-      </button>
-      <button
-        type="button"
-        class="min-h-11 flex-1 rounded-lg bg-primary px-4 font-cinzel text-sm font-bold tracking-wider text-primary-foreground active:opacity-90 disabled:opacity-50"
+      />
+      <AppButton
+        variant="primary"
+        size="md"
+        class="flex-1"
+        :label="isSaving ? 'Saving…' : isNew ? 'Create' : 'Save Changes'"
         :disabled="isSaving || !form.name.trim()"
         @click="emit('save')"
-      >
-        {{ isSaving ? "Saving…" : isNew ? "Create" : "Save Changes" }}
-      </button>
+      />
     </footer>
   </div>
 
   <!-- Overflow ⋮ sheet (existing custom monsters) — secondary actions -->
   <MobileSheet v-model:open="showMenu" title="Actions">
     <div class="flex flex-col gap-1 pb-2">
-      <button
+      <AppButton
         v-if="isAiEnabled"
-        type="button"
-        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-body text-foreground active:bg-muted/50"
+        variant="menu"
+        size="md"
+        block
+        class="gap-3"
         @click="runAction('generate')"
       >
-        <IconGenerate class="size-4 shrink-0 text-primary" /> Generate with AI
-      </button>
-      <button
-        type="button"
-        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-body text-foreground active:bg-muted/50 disabled:opacity-50"
+        <template #icon><IconGenerate class="size-4 shrink-0 text-primary" /></template>
+        Generate with AI
+      </AppButton>
+      <AppButton
+        variant="menu"
+        size="md"
+        block
+        class="gap-3"
         :disabled="isSendingToScriptorium"
         @click="runAction('scriptorium')"
       >
-        <IconScrollText class="size-4 shrink-0 text-muted-foreground" />
+        <template #icon><IconScrollText class="size-4 shrink-0 text-muted-foreground" /></template>
         {{ isSendingToScriptorium ? "Exporting…" : "Send to Scriptorium" }}
-      </button>
-      <button
-        type="button"
-        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-body text-foreground active:bg-muted/50 disabled:opacity-50"
+      </AppButton>
+      <AppButton
+        variant="menu"
+        size="md"
+        block
+        class="gap-3"
         :disabled="isDuplicating"
         @click="runAction('duplicate')"
       >
-        <IconCopy class="size-4 shrink-0 text-muted-foreground" />
+        <template #icon><IconCopy class="size-4 shrink-0 text-muted-foreground" /></template>
         {{ isDuplicating ? "Copying…" : "Duplicate" }}
-      </button>
+      </AppButton>
       <button
         type="button"
         class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-body text-destructive active:bg-destructive/10"
@@ -249,6 +256,9 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
@@ -361,9 +371,6 @@ function runAction(action: "generate" | "scriptorium" | "duplicate" | "delete") 
 
 <style scoped>
 @reference "@/assets/main.css";
-.field-input {
-  @apply w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
-}
 .field-label {
   @apply block text-label-lg font-semibold text-muted-foreground mb-1;
 }

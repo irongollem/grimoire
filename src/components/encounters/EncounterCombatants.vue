@@ -5,22 +5,20 @@
         Combatants
       </h2>
       <div class="flex items-center gap-3">
-        <button
-          type="button"
-          class="inline-flex items-center gap-1 font-cinzel text-xs text-primary hover:opacity-80 transition-opacity"
+        <AppButton
+          variant="link"
+          size="inline"
+          :icon="IconAdd"
+          label="Add NPC"
           @click="showNpcSearch = !showNpcSearch; showMonsterSearch = false"
-        >
-          <IconAdd class="h-3.5 w-3.5" />
-          Add NPC
-        </button>
-        <button
-          type="button"
-          class="inline-flex items-center gap-1 font-cinzel text-xs text-primary hover:opacity-80 transition-opacity"
+        />
+        <AppButton
+          variant="link"
+          size="inline"
+          :icon="IconAdd"
+          label="Add Monster"
           @click="showMonsterSearch = !showMonsterSearch; showNpcSearch = false"
-        >
-          <IconAdd class="h-3.5 w-3.5" />
-          Add Monster
-        </button>
+        />
       </div>
     </div>
 
@@ -92,14 +90,15 @@
               CR {{ monster.stat_block.challenge_rating }} · AC {{ monster.stat_block.armor_class }} · {{ monster.stat_block.speed }}
             </span>
           </button>
-          <button
-            type="button"
-            :title="props.excludedMonsterIds.has(monster.id) ? 'Show in search' : 'Hide from search'"
-            class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity px-2 py-2 text-muted-foreground hover:text-destructive shrink-0"
+          <AppButton
+            variant="ghost"
+            tone="danger"
+            size="icon-xs"
+            :icon="IconClose"
+            class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+            :tooltip="props.excludedMonsterIds.has(monster.id) ? 'Show in search' : 'Hide from search'"
             @click.stop="emit('hideMonster', monster.id)"
-          >
-            <IconClose class="h-3.5 w-3.5" />
-          </button>
+          />
         </div>
       </div>
       <p v-else-if="monsterSearch" class="text-caption text-muted-foreground italic text-center py-2">
@@ -139,31 +138,37 @@
         </div>
 
         <!-- Custom name -->
-        <input
+        <AppInput
           v-model="entry.custom_name"
-          type="text"
+          size="body-xs"
+          tone="card"
+          :block="false"
           placeholder="Custom name (optional)"
-          class="w-36 bg-card border border-border rounded px-2 py-1 text-caption text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="w-36"
           @change="emitCombatants"
         />
 
         <!-- Count -->
         <div class="flex items-center gap-1">
-          <button
-            type="button"
-            class="w-6 h-6 rounded bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+          <AppButton
+            variant="subtle"
+            size="icon-xs"
+            class="bg-card"
+            aria-label="Decrease count"
             @click="changeCount(entry, -1)"
           >
-            <IconMinus class="h-3 w-3" />
-          </button>
+            <template #icon><IconMinus class="h-3 w-3" /></template>
+          </AppButton>
           <span class="font-cinzel text-sm font-bold text-foreground w-6 text-center">{{ entry.count }}</span>
-          <button
-            type="button"
-            class="w-6 h-6 rounded bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+          <AppButton
+            variant="subtle"
+            size="icon-xs"
+            class="bg-card"
+            aria-label="Increase count"
             @click="changeCount(entry, 1)"
           >
-            <IconAdd class="h-3 w-3" />
-          </button>
+            <template #icon><IconAdd class="h-3 w-3" /></template>
+          </AppButton>
         </div>
 
         <!-- Faction selector -->
@@ -176,13 +181,15 @@
         />
 
         <!-- Remove -->
-        <button
-          type="button"
-          class="text-muted-foreground hover:text-destructive transition-colors"
+        <AppButton
+          variant="ghost"
+          tone="danger"
+          size="inline"
+          aria-label="Remove combatant"
           @click="removeCombatant(entry.id)"
         >
-          <IconClose class="h-4 w-4" />
-        </button>
+          <template #icon><IconClose class="h-4 w-4" /></template>
+        </AppButton>
       </div>
     </div>
 
@@ -195,6 +202,8 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { IconAdd, IconClose, IconMinus, IconSearch } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import type { CombatantDef, FactionDef } from "@/types/encounter.types";
 import { crToXp } from "@/types/encounter.types";

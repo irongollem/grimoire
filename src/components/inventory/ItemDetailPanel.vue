@@ -16,9 +16,9 @@
                 class="text-label text-destructive hover:opacity-70 transition-opacity"
                 @click="emit('unequip')"
               >Unequip</button>
-              <button class="text-muted-foreground hover:text-foreground" @click="$emit('close')">
-                <IconClose class="h-5 w-5" />
-              </button>
+              <AppButton variant="ghost" size="inline" ariaLabel="Close" @click="$emit('close')">
+                <template #icon><IconClose class="h-5 w-5" /></template>
+              </AppButton>
             </div>
           </div>
 
@@ -146,17 +146,19 @@
                 <span class="font-cinzel text-2xs text-muted-foreground ml-1.5">{{ spell.level === 0 ? 'Cantrip' : `Lvl ${spell.level}` }}</span>
               </div>
               <!-- Cast button -->
-              <button
-                type="button"
-                class="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded text-label font-semibold transition-colors border"
-                :class="canCastSpell ? 'bg-primary/10 border-primary/30 text-primary hover:bg-primary/20' : 'bg-muted/30 border-border/50 text-muted-foreground/40 cursor-not-allowed'"
+              <AppButton
+                variant="tinted"
+                tone="primary"
+                emphasis="soft"
+                size="xs"
+                class="shrink-0"
                 :disabled="!canCastSpell || isCasting"
-                :title="castButtonTitle"
+                :tooltip="castButtonTitle"
+                label="Cast"
                 @click="castFromItem(spell)"
               >
-                <IconWand class="h-3 w-3" />
-                Cast
-              </button>
+                <template #icon><IconWand class="h-3 w-3" /></template>
+              </AppButton>
             </div>
           </div>
         </div>
@@ -215,34 +217,35 @@
         >
           <div class="flex items-center justify-between gap-2">
             <p class="text-label-lg font-semibold text-destructive uppercase">Curse</p>
-            <button
+            <AppButton
               v-if="canIdentify && inv"
-              type="button"
+              :variant="inv.curse_revealed ? 'tinted' : 'subtle'"
+              tone="caution"
+              emphasis="outline"
+              size="xs"
               :disabled="isTogglingCurse"
-              class="inline-flex items-center gap-1.5 rounded px-2 py-1 text-label font-semibold border transition-colors disabled:opacity-50"
-              :class="inv.curse_revealed
-                ? 'border-amber-500/50 text-amber-500 hover:bg-amber-500/10'
-                : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'"
               @click="toggleCurseReveal"
             >
-              <IconReveal v-if="inv.curse_revealed" class="h-3 w-3" />
-              <IconHide v-else class="h-3 w-3" />
+              <template #icon>
+                <IconReveal v-if="inv.curse_revealed" class="h-3 w-3" />
+                <IconHide v-else class="h-3 w-3" />
+              </template>
               {{ inv.curse_revealed ? 'Revealed to players' : 'Hidden from players' }}
-            </button>
+            </AppButton>
           </div>
           <RichTextViewer :content="vaultItem.curse_description" />
         </div>
 
         <!-- Sell form -->
         <div class="border-t border-border pt-4">
-          <button
+          <AppButton
             v-if="!sellOpen"
-            class="flex items-center gap-1.5 text-label text-muted-foreground hover:text-foreground transition-colors"
+            variant="ghost"
+            size="inline-xs"
+            :icon="IconShop"
+            label="List for Sale"
             @click="openSell"
-          >
-            <IconShop class="h-3.5 w-3.5" />
-            List for Sale
-          </button>
+          />
           <div v-else class="space-y-2">
             <p class="font-cinzel text-2xs text-amber-400/80 tracking-widest uppercase">List for Sale</p>
             <div class="grid grid-cols-5 gap-1">
@@ -256,11 +259,14 @@
               </div>
             </div>
             <div class="flex gap-2">
-              <button
+              <AppButton
+                variant="primary"
+                size="xs"
+                class="flex-1"
                 :disabled="!sellHasPrice"
-                class="flex-1 py-1 bg-amber-600/80 text-white rounded text-label hover:opacity-90 transition-opacity disabled:opacity-40"
+                label="Post to Chat"
                 @click="confirmSell"
-              >Post to Chat</button>
+              />
               <AppButton variant="subtle" size="xs" label="Cancel" @click="sellOpen = false" />
             </div>
           </div>

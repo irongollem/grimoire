@@ -15,15 +15,15 @@
         :is-loading="sourcesLoading"
       >
         <template #trigger="{ open: pickerOpen, toggle }">
-          <button
-            type="button"
-            class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors shrink-0"
-            :class="pickerOpen ? 'border-primary/50 text-foreground' : ''"
-            title="Manage monster sources for this campaign"
+          <AppButton
+            variant="subtle"
+            size="icon-sm"
+            :active="pickerOpen"
+            :icon="IconLibrary"
+            class="shrink-0"
+            tooltip="Manage monster sources for this campaign"
             @click="toggle"
-          >
-            <IconLibrary class="size-3.5 shrink-0" />
-          </button>
+          />
         </template>
       </SourcesPickerPanel>
 
@@ -146,13 +146,12 @@
           {{ chip.label }}
           <IconClose class="size-3 text-muted-foreground" />
         </button>
-        <button
-          type="button"
-          class="text-label-lg font-semibold text-primary"
+        <AppButton
+          variant="link"
+          size="inline"
+          label="Clear all"
           @click="ui.resetMonstersFilters()"
-        >
-          Clear all
-        </button>
+        />
       </div>
     </div>
 
@@ -209,20 +208,24 @@
     <!-- Overflow ⋮ sheet -->
     <MobileSheet v-model:open="overflowOpen" title="More">
       <div class="flex flex-col gap-1 py-1">
-        <button
-          type="button"
-          class="flex items-center gap-3 rounded-lg px-2 py-3 text-left text-body text-foreground hover:bg-muted/50"
+        <AppButton
+          variant="menu"
+          size="sm"
+          block
+          label="Monster Sources"
           @click="overflowOpen = false; sourcesOpen = true"
         >
-          <IconLibrary class="size-5 shrink-0 text-muted-foreground" /> Monster Sources
-        </button>
-        <button
-          type="button"
-          class="flex items-center gap-3 rounded-lg px-2 py-3 text-left text-body text-foreground hover:bg-muted/50"
+          <template #icon><IconLibrary class="size-5 shrink-0 text-muted-foreground" /></template>
+        </AppButton>
+        <AppButton
+          variant="menu"
+          size="sm"
+          block
+          label="Generate"
           @click="overflowOpen = false; ui.monsterGeneratorOpen = true"
         >
-          <IconGenerate class="size-5 shrink-0 text-muted-foreground" /> Generate
-        </button>
+          <template #icon><IconGenerate class="size-5 shrink-0 text-muted-foreground" /></template>
+        </AppButton>
       </div>
     </MobileSheet>
 
@@ -259,6 +262,7 @@ import {
 } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterSelect from "@/components/common/ListFilterSelect.vue";

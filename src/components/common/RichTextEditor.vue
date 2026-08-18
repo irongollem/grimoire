@@ -1071,4 +1071,14 @@ function tbCls(active: boolean) {
   border-color: theme(colors.rose-400 / 40%);
   background: theme(colors.rose-400 / 10%);
 }
+.entity-suggestion-badge--location {
+  color: theme(colors.emerald-400);
+  border-color: theme(colors.emerald-400 / 40%);
+  background: theme(colors.emerald-400 / 10%);
+}
+.entity-suggestion-badge--party {
+  color: theme(colors.amber-400);
+  border-color: theme(colors.amber-400 / 40%);
+  background: theme(colors.amber-400 / 10%);
+}
 </style>

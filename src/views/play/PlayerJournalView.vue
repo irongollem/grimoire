@@ -4,29 +4,27 @@
     <div class="flex items-center justify-between gap-2">
       <h2 class="text-heading-lg font-bold text-foreground">Adventure Journal</h2>
       <div class="flex items-center gap-2">
-        <button
+        <AppButton
           v-if="ui.journalHasActiveFilters && (activeTab === 'mine' || activeTab === 'party')"
-          type="button"
-          class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-label-lg font-semibold text-muted-foreground hover:text-foreground transition-colors"
+          variant="subtle"
+          size="md"
+          label="Clear"
           @click="ui.resetJournalFilters()"
-        >
-          Clear
-        </button>
+        />
         <SortControl
           v-if="showSort"
           v-model:sort-by="sortBy"
           v-model:sort-dir="sortDir"
           :options="sortOptions"
         />
-        <button
+        <AppButton
           v-if="activeTab !== 'dm-notes' && activeTab !== 'quest-log' && activeTab !== 'puzzles'"
-          type="button"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
+          variant="primary"
+          size="md"
+          :icon="IconAdd"
+          label="New Entry"
           @click="openNew"
-        >
-          <IconAdd class="h-3.5 w-3.5" />
-          New Entry
-        </button>
+        />
       </div>
     </div>
 
@@ -39,15 +37,15 @@
       <div class="p-4 flex flex-col gap-3">
         <!-- Category + title row -->
         <div class="flex flex-wrap items-center gap-2">
-          <select
+          <AppSelect
             v-model="formCategory"
-            class="bg-muted border border-border rounded-md px-2 py-1.5 font-cinzel text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-ring"
+            tone="muted"
             :style="{ color: JOURNAL_CATEGORIES[formCategory].color }"
           >
             <option v-for="[key, cat] in JOURNAL_CATEGORY_LIST" :key="key" :value="key">
               {{ cat.label }}
             </option>
-          </select>
+          </AppSelect>
           <input
             v-model="formTitle"
             placeholder="Entry title (optional)…"
@@ -60,9 +58,10 @@
 
         <!-- Context link row -->
         <div class="flex flex-wrap items-center gap-2">
-          <select
+          <AppSelect
             v-model="formRefType"
-            class="bg-muted border border-border rounded-md px-2 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            tone="muted"
+            class="text-muted-foreground"
             @change="formRefId = ''"
           >
             <option value="">No context</option>
@@ -71,15 +70,18 @@
             <option value="location">Location</option>
             <option value="item">Item</option>
             <option value="monster">Monster</option>
-          </select>
-          <select
+          </AppSelect>
+          <AppSelect
             v-if="formRefType"
             v-model="formRefId"
-            class="flex-1 min-w-32 bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            tone="muted"
+            size="body"
+            weight="normal"
+            class="flex-1 min-w-32"
           >
             <option value="">— Select —</option>
             <option v-for="opt in refOptions" :key="opt.id" :value="opt.id">{{ opt.name }}</option>
-          </select>
+          </AppSelect>
         </div>
 
         <!-- Footer row: privacy + actions -->
@@ -103,21 +105,15 @@
             </label>
           </div>
           <div class="flex items-center gap-2">
-            <button
-              type="button"
-              class="text-label-lg text-muted-foreground hover:text-foreground transition-colors"
-              @click="cancelForm"
-            >Cancel</button>
-            <button
-              type="button"
+            <AppButton variant="ghost" size="inline" @click="cancelForm">Cancel</AppButton>
+            <AppButton
+              variant="primary"
+              size="sm"
+              :icon="IconSave"
+              :loading="saving"
               :disabled="isRteEmpty(formContent) || saving"
-              class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-label-lg font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
               @click="submitNew"
-            >
-              <IconLoading v-if="saving" class="h-3.5 w-3.5 animate-spin" />
-              <IconSave v-else class="h-3.5 w-3.5" />
-              {{ saving ? 'Saving…' : 'Add Entry' }}
-            </button>
+            >{{ saving ? 'Saving…' : 'Add Entry' }}</AppButton>
           </div>
         </div>
       </div>
@@ -203,9 +199,11 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed, watch, nextTick } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { IconAdd, IconCalendarDays, IconDocument, IconFeather, IconLoading, IconLocation, IconLock, IconMessage, IconPopulate, IconReveal, IconSave, IconScrollText, IconSearch, IconShield, IconStar } from '@/lib/icons';
+import { IconAdd, IconCalendarDays, IconDocument, IconFeather, IconLocation, IconLock, IconMessage, IconPopulate, IconReveal, IconSave, IconScrollText, IconSearch, IconShield, IconStar } from '@/lib/icons';
 import TabBar from "@/components/common/TabBar.vue";
 import SortControl from "@/components/common/SortControl.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import PlayerJournalMyTab from "./PlayerJournalMyTab.vue";
 import PlayerJournalPartyTab from "./PlayerJournalPartyTab.vue";
 import PlayerJournalDmNotesTab from "./PlayerJournalDmNotesTab.vue";

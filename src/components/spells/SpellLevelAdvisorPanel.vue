@@ -23,14 +23,14 @@
           :class="open ? 'rotate-180' : ''"
         />
       </button>
-      <button
+      <AppButton
         v-if="open"
-        type="button"
-        class="text-label text-muted-foreground hover:text-foreground transition-colors shrink-0"
+        variant="ghost"
+        size="inline-xs"
+        label="Skip →"
+        class="shrink-0"
         @click="emit('toggle')"
-      >
-        Skip →
-      </button>
+      />
     </div>
     <p class="text-caption text-muted-foreground italic mt-1 mb-3">
       {{
@@ -46,16 +46,13 @@
         <span class="text-eyebrow text-muted-foreground"
           >Main Effect</span
         >
-        <select
-          v-model="adv.effectType"
-          class="bg-muted border border-border rounded px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        >
+        <AppSelect v-model="adv.effectType" tone="muted" size="body" weight="normal" block>
           <option value="damage">Damage</option>
           <option value="healing">Healing / Restoration</option>
           <option value="control">Control (restrain, slow, etc.)</option>
           <option value="buff">Buff / Enhancement</option>
           <option value="utility">Utility / Exploration</option>
-        </select>
+        </AppSelect>
       </label>
 
       <!-- Intensity (control / buff / utility only) -->
@@ -66,10 +63,7 @@
         <span class="text-eyebrow text-muted-foreground"
           >Effect Intensity</span
         >
-        <select
-          v-model="adv.effectIntensity"
-          class="bg-muted border border-border rounded px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        >
+        <AppSelect v-model="adv.effectIntensity" tone="muted" size="body" weight="normal" block>
           <template v-if="adv.effectType === 'control'">
             <option value="weak">Weak — disadvantage, minor debuff</option>
             <option value="moderate">Moderate — restrained, frightened, slow</option>
@@ -88,7 +82,7 @@
             <option value="major">Major — teleportation, legend lore</option>
             <option value="extreme">World-altering — Wish, Gate level</option>
           </template>
-        </select>
+        </AppSelect>
       </label>
 
       <!-- Damage / healing dice -->
@@ -114,10 +108,7 @@
         <span class="text-eyebrow text-muted-foreground"
           >Targeting</span
         >
-        <select
-          v-model="adv.targetingMode"
-          class="bg-muted border border-border rounded px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        >
+        <AppSelect v-model="adv.targetingMode" tone="muted" size="body" weight="normal" block>
           <option value="self">Self only</option>
           <option value="single">Single target</option>
           <option value="multi_2">Up to 2 creatures</option>
@@ -126,7 +117,7 @@
           <option value="aoe_small">Small AoE (≤15 ft cone / ≤30 ft line)</option>
           <option value="aoe_medium">Medium AoE (20 ft radius / 60 ft line)</option>
           <option value="aoe_large">Large AoE (30+ ft radius)</option>
-        </select>
+        </AppSelect>
       </label>
 
       <!-- Save type -->
@@ -134,15 +125,12 @@
         <span class="text-eyebrow text-muted-foreground"
           >Targeting / Save</span
         >
-        <select
-          v-model="adv.saveType"
-          class="bg-muted border border-border rounded px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        >
+        <AppSelect v-model="adv.saveType" tone="muted" size="body" weight="normal" block>
           <option value="save_for_half">Saving throw — half on save</option>
           <option value="save_negates">Saving throw — negates on save</option>
           <option value="attack_roll">Attack roll (can miss)</option>
           <option value="automatic">Automatic — no save or attack</option>
-        </select>
+        </AppSelect>
       </label>
 
       <!-- Duration -->
@@ -150,17 +138,14 @@
         <span class="text-eyebrow text-muted-foreground"
           >Duration Tier</span
         >
-        <select
-          v-model="adv.durationTier"
-          class="bg-muted border border-border rounded px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        >
+        <AppSelect v-model="adv.durationTier" tone="muted" size="body" weight="normal" block>
           <option value="instantaneous">Instantaneous</option>
           <option value="conc_1min">Concentration, ≤1 minute</option>
           <option value="conc_10min">Concentration, ≤10 minutes</option>
           <option value="conc_1hour">Concentration, ≤1 hour</option>
           <option value="sustained_1min">1 minute (no concentration)</option>
           <option value="sustained_long">8+ hours (no concentration)</option>
-        </select>
+        </AppSelect>
       </label>
 
       <!-- Checkboxes -->
@@ -227,17 +212,13 @@
             </p>
           </div>
         </template>
-        <button
-          type="button"
-          class="mt-1 inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
-          @click="emit('apply')"
-        >
+        <AppButton variant="primary" size="sm" class="mt-1" @click="emit('apply')">
           Apply to Spell (Level
           {{
             advResult.suggestedMin +
             Math.floor((advResult.suggestedMax - advResult.suggestedMin) / 2)
           }}) →
-        </button>
+        </AppButton>
       </div>
 
       <!-- School design tips -->
@@ -265,13 +246,9 @@
       </div>
 
       <!-- Reference table toggle -->
-      <button
-        type="button"
-        class="text-label text-muted-foreground hover:text-foreground transition-colors text-left"
-        @click="emit('toggle-table')"
-      >
+      <AppButton variant="ghost" size="inline-xs" @click="emit('toggle-table')">
         {{ showTable ? "▲ Hide" : "▼ Show" }} damage benchmark table
-      </button>
+      </AppButton>
       <div v-if="showTable" class="overflow-x-auto">
         <table class="w-full text-caption-sm">
           <thead>
@@ -304,6 +281,8 @@
 
 <script setup lang="ts">
 import { IconChevronDown, IconTip } from "@/lib/icons";
+import AppButton from "@/components/common/AppButton.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import DiceInput from "@/components/common/DiceInput.vue";
 import { parseDiceAvg, DAMAGE_BENCHMARKS } from "@/lib/spellAdvisor";
 import type { AdvisorState, AdvisorResult, SchoolTip, RefSpells } from "./spellAdvisorTypes";

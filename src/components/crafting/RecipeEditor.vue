@@ -185,23 +185,23 @@
             max="20"
             class="w-14 bg-muted border border-border rounded px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring text-center"
           />
-          <button
-            type="button"
-            class="text-muted-foreground hover:text-destructive transition-colors"
+          <AppButton
+            variant="ghost"
+            tone="danger"
+            size="icon-xs"
+            :icon="IconDelete"
             @click="modifiers.splice(idx, 1)"
-          >
-            <IconDelete class="h-3.5 w-3.5" />
-          </button>
+          />
         </div>
 
-        <button
-          type="button"
-          class="flex items-center gap-1.5 text-xs font-cinzel text-muted-foreground hover:text-foreground transition-colors mt-1"
+        <AppButton
+          variant="ghost"
+          size="inline"
+          label="Add modifier"
+          :icon="IconAdd"
+          class="mt-1"
           @click="modifiers.push({ description: '', bonus: 2 })"
-        >
-          <IconAdd class="h-3.5 w-3.5" />
-          Add modifier
-        </button>
+        />
       </div>
     </div>
   </div>
@@ -212,6 +212,7 @@ import { ref, computed, watch } from "vue";
 import { IconAdd, IconDelete, IconLock, IconTool } from '@/lib/icons';
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import EntityEditorActionBar from "@/components/common/EntityEditorActionBar.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import RecipeOutputsPanel from "@/components/crafting/RecipeOutputsPanel.vue";
 import RecipeIngredientsPanel from "@/components/crafting/RecipeIngredientsPanel.vue";
 import {

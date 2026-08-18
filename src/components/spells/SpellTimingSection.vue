@@ -5,49 +5,44 @@
       <span class="text-label-lg text-muted-foreground uppercase"
         >Casting Time</span
       >
-      <select
-        :value="castingTime"
-        class="bg-card border border-border rounded-md px-3 py-2 font-cinzel text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        @change="$emit('update:castingTime', ($event.target as HTMLSelectElement).value)"
-      >
+      <AppSelect v-model="castingTimeModel" tone="card" size="lg" weight="normal" block>
         <option v-for="o in CASTING_TIME_OPTIONS" :key="o.value" :value="o.value">
           {{ o.label }}
         </option>
-      </select>
-      <input
+      </AppSelect>
+      <AppInput
         v-if="castingTime === 'Special'"
-        :value="castingTimeCustom"
+        v-model="castingTimeCustomModel"
         placeholder="Describe casting time…"
-        class="mt-1 bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        @input="$emit('update:castingTimeCustom', ($event.target as HTMLInputElement).value)"
+        tone="muted"
+        size="body"
+        class="mt-1"
       />
-      <input
+      <AppInput
         v-if="castingTime === 'Reaction'"
-        :value="castingTimeCustom"
+        v-model="castingTimeCustomModel"
         placeholder="Reaction to what? (optional)"
-        class="mt-1 bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        @input="$emit('update:castingTimeCustom', ($event.target as HTMLInputElement).value)"
+        tone="muted"
+        size="body"
+        class="mt-1"
       />
     </div>
     <div class="flex flex-col gap-1">
       <span class="text-label-lg text-muted-foreground uppercase"
         >Range</span
       >
-      <select
-        :value="range"
-        class="bg-card border border-border rounded-md px-3 py-2 font-cinzel text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        @change="$emit('update:range', ($event.target as HTMLSelectElement).value)"
-      >
+      <AppSelect v-model="rangeModel" tone="card" size="lg" weight="normal" block>
         <option v-for="o in RANGE_OPTIONS" :key="o.value" :value="o.value">
           {{ o.label }}
         </option>
-      </select>
-      <input
+      </AppSelect>
+      <AppInput
         v-if="range === 'Special'"
-        :value="rangeCustom"
+        v-model="rangeCustomModel"
         placeholder="Describe range…"
-        class="mt-1 bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        @input="$emit('update:rangeCustom', ($event.target as HTMLInputElement).value)"
+        tone="muted"
+        size="body"
+        class="mt-1"
       />
     </div>
   </div>
@@ -58,21 +53,18 @@
       <span class="text-label-lg text-muted-foreground uppercase"
         >Duration</span
       >
-      <select
-        :value="duration"
-        class="bg-card border border-border rounded-md px-3 py-2 font-cinzel text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        @change="onDurationChange(($event.target as HTMLSelectElement).value)"
-      >
+      <AppSelect v-model="durationModel" tone="card" size="lg" weight="normal" block>
         <option v-for="o in DURATION_OPTIONS" :key="o.value" :value="o.value">
           {{ o.label }}
         </option>
-      </select>
-      <input
+      </AppSelect>
+      <AppInput
         v-if="duration === 'Special'"
-        :value="durationCustom"
+        v-model="durationCustomModel"
         placeholder="Describe duration…"
-        class="mt-1 bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        @input="$emit('update:durationCustom', ($event.target as HTMLInputElement).value)"
+        tone="muted"
+        size="body"
+        class="mt-1"
       />
     </div>
     <div class="flex flex-col gap-3 justify-end pb-1">
@@ -103,6 +95,9 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import { CASTING_TIME_OPTIONS, DURATION_OPTIONS, RANGE_OPTIONS } from "@/types/spell.types";
 
 const {
@@ -136,8 +131,36 @@ const emit = defineEmits<{
   "update:ritual": [value: boolean];
 }>();
 
-function onDurationChange(value: string) {
-  emit("update:duration", value);
-  if (value.startsWith("Concentration")) emit("update:concentration", true);
-}
+// AppInput/AppSelect require v-model, but this component receives its value through
+// props+emit rather than defineModel. Each field below is a local writable computed
+// that reads the prop and re-emits on write — the same bridge EventModalDatePicker
+// uses. durationModel's setter keeps the original onDurationChange side effect: picking
+// a "Concentration, ..." duration also turns the Concentration checkbox on.
+const castingTimeModel = computed({
+  get: () => castingTime,
+  set: (v: string) => emit("update:castingTime", v),
+});
+const castingTimeCustomModel = computed({
+  get: () => castingTimeCustom,
+  set: (v: string) => emit("update:castingTimeCustom", v),
+});
+const rangeModel = computed({
+  get: () => range,
+  set: (v: string) => emit("update:range", v),
+});
+const rangeCustomModel = computed({
+  get: () => rangeCustom,
+  set: (v: string) => emit("update:rangeCustom", v),
+});
+const durationModel = computed({
+  get: () => duration,
+  set: (v: string) => {
+    emit("update:duration", v);
+    if (v.startsWith("Concentration")) emit("update:concentration", true);
+  },
+});
+const durationCustomModel = computed({
+  get: () => durationCustom,
+  set: (v: string) => emit("update:durationCustom", v),
+});
 </script>

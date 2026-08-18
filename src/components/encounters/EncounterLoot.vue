@@ -39,18 +39,23 @@
           ><IconAdd class="h-3 w-3" /></button>
         </div>
 
-        <button
-          type="button"
-          class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground shrink-0"
-          title="Drop to chat"
+        <AppButton
+          variant="ghost"
+          size="icon-xs"
+          :icon="IconLoot"
+          tooltip="Drop to chat"
+          class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
           @click="emit('drop-item', { item, qty })"
-        ><IconLoot class="h-3.5 w-3.5" /></button>
-        <button
-          type="button"
-          class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
-          title="Remove all"
+        />
+        <AppButton
+          variant="ghost"
+          tone="danger"
+          size="icon-xs"
+          :icon="IconClose"
+          tooltip="Remove all"
+          class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
           @click="removeAllOfItem(item.id)"
-        ><IconClose class="h-3.5 w-3.5" /></button>
+        />
       </div>
 
       <!-- Currency pools -->
@@ -77,11 +82,14 @@
             <IconCoins class="h-3 w-3" />
             Drop
           </button>
-          <button
-            type="button"
-            class="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
+          <AppButton
+            variant="ghost"
+            tone="danger"
+            size="icon-xs"
+            :icon="IconClose"
+            class="shrink-0"
             @click="removePool(pool.id)"
-          ><IconClose class="h-3.5 w-3.5" /></button>
+          />
         </div>
         <div class="grid grid-cols-5 gap-1.5">
           <div v-for="coin in COIN_TYPES" :key="coin.key" class="flex flex-col gap-0.5">
@@ -120,14 +128,15 @@
           ><IconAdd class="h-4 w-4" /></button>
         </div>
         <!-- Add currency pool -->
-        <button
-          type="button"
-          class="w-full flex items-center gap-2 rounded-md border border-border px-3 py-2 text-body text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors"
+        <AppButton
+          variant="subtle"
+          size="md"
+          block
+          :icon="IconAdd"
+          label="Add currency pool"
+          class="justify-start gap-2 text-body"
           @click="addPool"
-        >
-          <IconAdd class="h-3.5 w-3.5 shrink-0" />
-          Add currency pool
-        </button>
+        />
       </div>
     </div>
   </div>
@@ -136,6 +145,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { IconAdd, IconClose, IconCoins, IconLoot, IconMinus, IconPackage } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { useEnsureOwnedItem } from "@/composables/useItems";
 import type { Item } from "@/types/item.types";

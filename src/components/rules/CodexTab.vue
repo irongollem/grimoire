@@ -84,15 +84,16 @@
                       <p class="text-eyebrow font-semibold text-muted-foreground mb-1.5">TRAITS</p>
                       <div class="flex flex-col gap-1">
                         <div v-for="trait in selectedSpecies.traits" :key="trait.name" class="rounded-md border border-border overflow-hidden">
-                          <button
-                            type="button"
-                            class="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted/20 transition-colors"
+                          <AppButton
+                            variant="menu"
+                            size="md"
+                            block
                             :class="trait.description ? 'cursor-pointer' : 'cursor-default'"
                             @click="trait.description && toggle(`sp:${selectedSpecies!.id}:t:${trait.name}`)"
                           >
                             <IconChevronRight v-if="trait.description" class="h-3 w-3 shrink-0 text-muted-foreground/60 transition-transform" :class="open.has(`sp:${selectedSpecies.id}:t:${trait.name}`) ? 'rotate-90' : ''" />
                             <span class="text-body text-foreground">{{ trait.name }}</span>
-                          </button>
+                          </AppButton>
                           <div v-if="trait.description && open.has(`sp:${selectedSpecies.id}:t:${trait.name}`)" class="px-3 pb-3 border-t border-border">
                             <RichTextViewer v-if="isRichText(trait.description)" :content="trait.description" class="mt-2" />
                             <p v-else class="text-body text-muted-foreground mt-2">{{ trait.description }}</p>
@@ -110,10 +111,10 @@
                       <p class="text-eyebrow font-semibold text-muted-foreground mb-1.5">VARIANTS</p>
                       <div class="flex flex-col gap-1.5">
                         <div v-for="sub in selectedSpecies.subraces" :key="sub.name" class="rounded-md border border-border overflow-hidden">
-                          <button type="button" class="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted/20 transition-colors" @click="toggle(`sp:${selectedSpecies!.id}:sr:${sub.name}`)">
+                          <AppButton variant="menu" size="md" block @click="toggle(`sp:${selectedSpecies!.id}:sr:${sub.name}`)">
                             <IconChevronRight class="h-3 w-3 shrink-0 text-muted-foreground/60 transition-transform" :class="open.has(`sp:${selectedSpecies.id}:sr:${sub.name}`) ? 'rotate-90' : ''" />
                             <span class="font-cinzel text-xs font-semibold text-foreground">{{ sub.name }}</span>
-                          </button>
+                          </AppButton>
                           <div v-if="open.has(`sp:${selectedSpecies.id}:sr:${sub.name}`)" class="px-3 pb-3 border-t border-border flex flex-col gap-2 pt-2">
                             <div v-if="sub.description" class="text-body text-muted-foreground">
                               <RichTextViewer v-if="isRichText(sub.description)" :content="sub.description" />
@@ -121,15 +122,16 @@
                             </div>
                             <div v-if="sub.traits?.length" class="flex flex-col gap-1">
                               <div v-for="trait in sub.traits" :key="trait.name" class="rounded border border-border/60 overflow-hidden">
-                                <button
-                                  type="button"
-                                  class="w-full flex items-center gap-2 px-2.5 py-1.5 text-left hover:bg-muted/20 transition-colors"
+                                <AppButton
+                                  variant="menu"
+                                  size="sm"
+                                  block
                                   :class="trait.description ? 'cursor-pointer' : 'cursor-default'"
                                   @click="trait.description && toggle(`sp:${selectedSpecies!.id}:sr:${sub.name}:t:${trait.name}`)"
                                 >
                                   <IconChevronRight v-if="trait.description" class="h-2.5 w-2.5 shrink-0 text-muted-foreground/60 transition-transform" :class="open.has(`sp:${selectedSpecies.id}:sr:${sub.name}:t:${trait.name}`) ? 'rotate-90' : ''" />
                                   <span class="text-body text-foreground">{{ trait.name }}</span>
-                                </button>
+                                </AppButton>
                                 <div v-if="trait.description && open.has(`sp:${selectedSpecies.id}:sr:${sub.name}:t:${trait.name}`)" class="px-2.5 pb-2.5 border-t border-border/60">
                                   <RichTextViewer v-if="isRichText(trait.description)" :content="trait.description" class="mt-2" />
                                   <p v-else class="text-body text-muted-foreground mt-2">{{ trait.description }}</p>
@@ -328,10 +330,10 @@
                       <p class="text-eyebrow font-semibold text-muted-foreground mb-1.5">SUBCLASSES</p>
                       <div class="flex flex-col gap-1.5">
                         <div v-for="sub in subclassesFor(selectedClass.class_name)" :key="sub.subclass_name" class="rounded-md border border-border overflow-hidden">
-                          <button type="button" class="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted/20 transition-colors" @click="toggle(`sub:${selectedClass!.class_name}:${sub.subclass_name}`)">
+                          <AppButton variant="menu" size="md" block @click="toggle(`sub:${selectedClass!.class_name}:${sub.subclass_name}`)">
                             <IconChevronRight class="h-3 w-3 shrink-0 text-muted-foreground/60 transition-transform" :class="open.has(`sub:${selectedClass.class_name}:${sub.subclass_name}`) ? 'rotate-90' : ''" />
                             <span class="font-cinzel text-xs font-semibold text-foreground">{{ sub.subclass_name }}</span>
-                          </button>
+                          </AppButton>
                           <div v-if="open.has(`sub:${selectedClass.class_name}:${sub.subclass_name}`)" class="px-3 pb-3 border-t border-border pt-2">
                             <div v-if="Object.keys(sub.features ?? {}).length" class="flex flex-col gap-1">
                               <div v-for="lvl in sortedLevels(sub.features)" :key="lvl" class="flex gap-3 py-1">
@@ -379,11 +381,13 @@
         No deities have been revealed to you yet.
       </p>
       <template v-else>
-        <input
+        <AppInput
           v-model="deitySearch"
           type="search"
           placeholder="Filter deities…"
-          class="w-full bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring mb-3"
+          tone="card"
+          size="body"
+          class="mb-3"
         />
         <p v-if="!filteredDeities.length" class="text-body text-muted-foreground italic text-center py-6">
           No deities match your filter.
@@ -480,6 +484,8 @@ import type { Species } from "@/types/species.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import CodexCard from "./CodexCard.vue";
 import BackgroundOriginFeatBadge from "@/components/backgrounds/BackgroundOriginFeatBadge.vue";
 import { useAllSpecies } from "@/composables/useSpecies";

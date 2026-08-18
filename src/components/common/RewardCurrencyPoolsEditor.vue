@@ -30,13 +30,14 @@
             <IconCoins class="h-3 w-3" />
             Drop
           </button>
-          <button
-            type="button"
-            class="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
+          <AppButton
+            variant="ghost"
+            tone="danger"
+            size="icon-xs"
+            :icon="IconClose"
+            class="shrink-0"
             @click="remove(pool.id)"
-          >
-            <IconClose class="h-3.5 w-3.5" />
-          </button>
+          />
         </div>
         <div class="grid grid-cols-5 gap-1.5">
           <div v-for="coin in COIN_TYPES" :key="coin.key" class="flex flex-col gap-0.5">
@@ -89,13 +90,14 @@
           <IconCoins class="h-3 w-3" />
           Drop
         </button>
-        <button
-          type="button"
-          class="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
+        <AppButton
+          variant="ghost"
+          tone="danger"
+          size="icon-xs"
+          :icon="IconClose"
+          class="shrink-0"
           @click="remove(pool.id)"
-        >
-          <IconClose class="h-3.5 w-3.5" />
-        </button>
+        />
       </div>
       <div class="grid grid-cols-5 gap-1.5">
         <div v-for="coin in COIN_TYPES" :key="coin.key" class="flex flex-col gap-0.5">
@@ -125,6 +127,7 @@
 
 <script setup lang="ts">
 import { IconAdd, IconClose, IconCoins } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import type { RewardCurrencyPool } from "@/types/quest.types";
 

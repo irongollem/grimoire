@@ -40,16 +40,19 @@
         </span>
         <span v-if="checkBadgeLabel" class="font-cinzel text-2xs md:text-sm text-amber-500">{{ checkBadgeLabel }}</span>
       </button>
-      <button
+      <AppButton
         v-else
-        class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-primary/40 bg-primary/10 hover:bg-primary/20 transition-colors shrink-0 disabled:opacity-40"
+        variant="tinted"
+        tone="primary"
+        emphasis="soft"
+        size="sm"
+        class="shrink-0"
+        :icon="IconReveal"
+        label="Reveal"
+        tooltip="Step out of hiding"
         :disabled="hiding"
-        title="Step out of hiding"
         @click="revealSelf"
-      >
-        <IconReveal class="h-3.5 w-3.5 text-primary" />
-        <span class="font-cinzel text-xs text-primary">Reveal</span>
-      </button>
+      />
     </div>
 
     <!-- ── Beast actions (when wildshaped) ───────────────────────────────────── -->
@@ -223,6 +226,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { IconHide, IconLightning, IconReveal, IconSend, IconSword } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
 import { rollParsed, combineModes } from "@/lib/dice/roller";
 import type { RollMode, DieSize } from "@/lib/dice/roller";
 import type { ParsedExpression } from "@/lib/dice/dice";

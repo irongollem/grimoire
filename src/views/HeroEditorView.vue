@@ -26,21 +26,22 @@
           ← Hall of Heroes
         </RouterLink>
         <div class="flex items-center gap-2">
-          <button
+          <AppButton
             v-if="!isNew"
             type="button"
-            class="px-3 py-1.5 text-label-lg font-semibold text-destructive border border-destructive/40 rounded-md hover:bg-destructive/10 transition-colors"
+            variant="destructive"
+            size="sm"
+            label="Delete"
             @click="handleDelete"
-          >
-            Delete
-          </button>
-          <button
+          />
+          <AppButton
             type="submit"
+            variant="primary"
+            size="sm"
+            class="px-4"
             :disabled="isSaving"
-            class="px-4 py-1.5 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
-          >
-            {{ isSaving ? "Saving…" : isNew ? "Create Hero" : "Save Changes" }}
-          </button>
+            :label="isSaving ? 'Saving…' : isNew ? 'Create Hero' : 'Save Changes'"
+          />
         </div>
       </div>
 
@@ -62,14 +63,17 @@
               class="text-label-lg font-semibold text-muted-foreground"
               >Setting</label
             >
-            <select
+            <AppSelect
               v-model="form.setting"
-              class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              tone="default"
+              size="body"
+              weight="normal"
+              block
             >
               <option v-for="s in SETTINGS" :key="s.value" :value="s.value">
                 {{ s.label }}
               </option>
-            </select>
+            </AppSelect>
           </div>
 
           <!-- Name -->
@@ -78,11 +82,12 @@
               class="text-label-lg font-semibold text-muted-foreground"
               >Name *</label
             >
-            <input
+            <AppInput
               v-model="form.name"
               required
               type="text"
-              class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              tone="default"
+              size="body"
             />
           </div>
 
@@ -92,10 +97,11 @@
               class="text-label-lg font-semibold text-muted-foreground"
               >Species
             </label>
-            <input
+            <AppInput
               v-model="form.race"
               type="text"
-              class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              tone="default"
+              size="body"
             />
           </div>
 
@@ -105,15 +111,18 @@
               class="text-label-lg font-semibold text-muted-foreground"
               >Alignment</label
             >
-            <select
+            <AppSelect
               v-model="form.alignment"
-              class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              tone="default"
+              size="body"
+              weight="normal"
+              block
             >
               <option :value="null">—</option>
               <option v-for="a in ALIGNMENTS" :key="a" :value="a">
                 {{ a }}
               </option>
-            </select>
+            </AppSelect>
           </div>
 
           <!-- Occupation -->
@@ -122,10 +131,11 @@
               class="text-label-lg font-semibold text-muted-foreground"
               >Occupation</label
             >
-            <input
+            <AppInput
               v-model="form.occupation"
               type="text"
-              class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              tone="default"
+              size="body"
             />
           </div>
 
@@ -135,10 +145,11 @@
               class="text-label-lg font-semibold text-muted-foreground"
               >Age</label
             >
-            <input
+            <AppInput
               v-model="form.age"
               type="text"
-              class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              tone="default"
+              size="body"
             />
           </div>
 
@@ -148,15 +159,18 @@
               class="text-label-lg font-semibold text-muted-foreground"
               >Status</label
             >
-            <select
+            <AppSelect
               v-model="form.status"
-              class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              tone="default"
+              size="body"
+              weight="normal"
+              block
             >
               <option value="alive">Alive</option>
               <option value="dead">Dead</option>
               <option value="missing">Missing</option>
               <option value="unknown">Unknown</option>
-            </select>
+            </AppSelect>
           </div>
 
           <!-- Tags -->
@@ -239,6 +253,9 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import TagInput from "@/components/common/TagInput.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import type { HallOfHeroInsert } from "@/types/npc.types";
 import { DND_SETTINGS } from "@/data/dndSettings";
 

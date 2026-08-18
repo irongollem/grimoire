@@ -2,32 +2,29 @@
   <div>
     <!-- Action bar -->
     <div class="flex flex-wrap items-center justify-end gap-2 mb-4">
-      <button
+      <AppButton
         v-if="!isNew"
-        type="button"
-        class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
+        variant="destructive"
+        size="md"
+        label="Delete"
+        :icon="IconDelete"
         @click="deleteFeature"
-      >
-        <IconDelete class="h-3.5 w-3.5" />
-        Delete
-      </button>
-      <button
+      />
+      <AppButton
         v-if="!isNew"
-        type="button"
-        class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-muted-foreground/50 transition-colors"
+        variant="subtle"
+        size="md"
+        label="Cancel"
         @click="onCancel"
-      >
-        Cancel
-      </button>
-      <button
-        type="button"
+      />
+      <AppButton
+        variant="primary"
+        size="md"
+        :icon="IconSave"
         :disabled="saving || !form.name.trim()"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+        :label="saving ? 'Saving…' : isNew ? 'Create' : 'Save'"
         @click="save"
-      >
-        <IconSave class="h-3.5 w-3.5" />
-        {{ saving ? "Saving…" : isNew ? "Create" : "Save" }}
-      </button>
+      />
     </div>
 
     <div class="flex flex-col gap-4 max-w-2xl">
@@ -51,20 +48,13 @@
           <div class="flex-1 grid grid-cols-2 gap-3">
             <div class="col-span-2">
               <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Name</label>
-              <input
-                v-model="form.name"
-                placeholder="Feature name…"
-                class="w-full bg-background border border-border rounded-md px-3 py-1.5 font-cinzel text-sm font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              />
+              <AppInput v-model="form.name" size="heading" placeholder="Feature name…" />
             </div>
             <div class="col-span-2">
               <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Type</label>
-              <select
-                v-model="form.feature_type"
-                class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              >
+              <AppSelect v-model="form.feature_type" size="body" weight="normal" block>
                 <option v-for="t in DUNGEON_FEATURE_TYPES" :key="t" :value="t">{{ t }}</option>
-              </select>
+              </AppSelect>
             </div>
             <div class="col-span-2">
               <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Tags</label>
@@ -82,15 +72,15 @@
         <div class="p-4 grid grid-cols-3 gap-3">
           <div>
             <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Perception DC</label>
-            <input v-model.number="form.perception_dc" type="number" min="1" max="30" placeholder="15" class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+            <AppInput v-model.number="form.perception_dc" type="number" min="1" max="30" placeholder="15" size="body" />
           </div>
           <div>
             <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Investigation DC</label>
-            <input v-model.number="form.investigation_dc" type="number" min="1" max="30" placeholder="15" class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+            <AppInput v-model.number="form.investigation_dc" type="number" min="1" max="30" placeholder="15" size="body" />
           </div>
           <div>
             <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Arcana DC</label>
-            <input v-model.number="form.arcana_dc" type="number" min="1" max="30" placeholder="—" class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+            <AppInput v-model.number="form.arcana_dc" type="number" min="1" max="30" placeholder="—" size="body" />
           </div>
         </div>
       </div>
@@ -103,20 +93,17 @@
         <div class="p-4 flex flex-col gap-3">
           <div>
             <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Trigger Type</label>
-            <select
-              v-model="form.trigger_type"
-              class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            >
+            <AppSelect v-model="form.trigger_type" size="body" weight="normal" block>
               <option :value="null">—</option>
               <option v-for="t in DUNGEON_FEATURE_TRIGGERS" :key="t" :value="t">{{ t }}</option>
-            </select>
+            </AppSelect>
           </div>
           <div>
             <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Trigger Description</label>
-            <input
+            <AppInput
               v-model="form.trigger_description"
               placeholder="A worn bookshelf that swings open when the red tome is removed…"
-              class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              size="body"
             />
           </div>
         </div>
@@ -170,6 +157,9 @@ import type { DungeonFeature, DungeonFeatureTrigger } from "@/types/dungeonFeatu
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 
 const props = defineProps<{ feature: DungeonFeature | null; isNew: boolean }>();
 
