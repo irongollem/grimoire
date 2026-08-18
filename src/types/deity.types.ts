@@ -44,6 +44,12 @@ export interface Pantheon {
   emblem_url: string | null;
   tags: string[];
   player_visible_to: string[];
+  /**
+   * Setting key that seeded this row via Populate Setting; null when the user
+   * made it. Content we ship does not count against free-tier quotas — see
+   * `check_quota` and `lib/settingContent`.
+   */
+  setting_source?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -72,6 +78,12 @@ export interface Deity {
   dm_notes: string | null;    // Tiptap JSON
   tags: string[];
   player_visible_to: string[];
+  /**
+   * Setting key that seeded this row via Populate Setting; null when the user
+   * made it. Content we ship does not count against free-tier quotas — see
+   * `check_quota` and `lib/settingContent`.
+   */
+  setting_source?: string | null;
   created_at: string;
   updated_at: string;
 }

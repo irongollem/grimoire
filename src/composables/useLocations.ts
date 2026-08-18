@@ -9,6 +9,7 @@ import type { GridCalibration, Location, LocationInsert, LocationUpdate } from "
 import { deleteByPublicUrl } from "@/lib/storage";
 import { VAGUE_LOCATION_TYPES } from "@/types/location.types";
 import { SETTING_LOCATIONS, PLANAR_LOCATIONS } from "@/data/settingLocations";
+import { matchSettingRowIds, stampSettingSource, PLANAR_SOURCE } from "@/lib/populateSetting/settingContent";
 
 /** A location enriched with the chain of vague-container names we traversed
  *  to reach it, starting with the outermost region and ending with the
@@ -407,6 +408,15 @@ export function usePopulatePlanarLocations() {
         (existing ?? []).map((l: { id: string; name: string }) => [l.name.toLowerCase(), l.id]),
       );
 
+      // Repair pass for campaigns populated before `setting_source` existed —
+      // planes we shipped were counting against the user's 10-location cap, and
+      // there are twenty of them.
+      await stampSettingSource(
+        "locations",
+        matchSettingRowIds(existing ?? [], PLANAR_LOCATIONS.map((p) => p.name)),
+        PLANAR_SOURCE,
+      );
+
       const toInsert = PLANAR_LOCATIONS
         .filter((p) => !existingNameToId.has(p.name.toLowerCase()))
         .map(({ parent: _parent, ...p }) => ({
@@ -416,6 +426,7 @@ export function usePopulatePlanarLocations() {
           parent_id: null as string | null,
           description: null,
           image_url: null,
+          setting_source: PLANAR_SOURCE,
         }));
 
       if (!toInsert.length) return 0;
@@ -496,6 +507,16 @@ export function usePopulateLocations() {
         (existing ?? []).map((l: { id: string; name: string }) => [l.name.toLowerCase(), l.id]),
       );
 
+      // Repair pass for campaigns populated before `setting_source` existed.
+      // Every setting exceeds the free 10-location cap on its own — Faerûn ships
+      // 35 — so this is the button that was most thoroughly broken by counting
+      // our own content against the user.
+      await stampSettingSource(
+        "locations",
+        matchSettingRowIds(existing ?? [], presets.map((p) => p.name)),
+        calendarId,
+      );
+
       // Pass 1 — insert all new locations (parent_id null for now)
       const toInsert = presets
         .filter((p) => !existingNameToId.has(p.name.toLowerCase()))
@@ -506,6 +527,7 @@ export function usePopulateLocations() {
           parent_id: null as string | null,
           description: null,
           image_url: null,
+          setting_source: calendarId,
         }));
 
       if (!toInsert.length) return 0;

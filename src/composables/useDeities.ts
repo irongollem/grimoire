@@ -3,6 +3,7 @@ import { computed, type Ref } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { getSetting } from "@/settings/index";
+import { matchSettingRowIds, stampSettingSource } from "@/lib/populateSetting/settingContent";
 import type {
   Deity, DeityInsert, DeityUpdate,
   Pantheon, PantheonInsert, PantheonUpdate,
@@ -248,6 +249,15 @@ export function usePopulateDeities() {
         (existingPantheons ?? []).map((p: { name: string }) => p.name.toLowerCase()),
       );
 
+      // Repair pass for campaigns populated before `setting_source` existed —
+      // shipped rows were counting against the user's own caps. Faerûn alone is
+      // 13 pantheons and 112 deities against limits of 3 and 5.
+      await stampSettingSource(
+        "pantheons",
+        matchSettingRowIds(existingPantheons ?? [], (setting.pantheons ?? []).map((p) => p.name)),
+        calendarId,
+      );
+
       const pantheonsToInsert = (setting.pantheons ?? [])
         .filter((p) => !existingPantheonNames.has(p.name.toLowerCase()))
         .map((p) => ({
@@ -256,6 +266,7 @@ export function usePopulateDeities() {
           tags: p.tags,
           emblem_url: null,
           player_visible_to: [],
+          setting_source: calendarId,
           user_id: user!.id,
           campaign_id: campaignId,
         }));
@@ -292,6 +303,12 @@ export function usePopulateDeities() {
         (existingDeities ?? []).map((d: ExistingDeity) => [d.name.toLowerCase(), d]),
       );
 
+      await stampSettingSource(
+        "deities",
+        matchSettingRowIds(existingDeities ?? [], (setting.deities ?? []).map((d) => d.name)),
+        calendarId,
+      );
+
       const deitiesToInsert: object[] = [];
       const deitiesToPatch: { id: string; pantheon_id: string | null; alternate_names: string[] }[] = [];
 
@@ -316,6 +333,7 @@ export function usePopulateDeities() {
             dm_notes: null,
             tags: d.tags,
             player_visible_to: [],
+            setting_source: calendarId,
             user_id: user!.id,
             campaign_id: campaignId,
           });

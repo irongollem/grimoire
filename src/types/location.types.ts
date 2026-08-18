@@ -174,6 +174,13 @@ export interface Location {
   related_location_ids: string[];
   source_map_id: string | null;
   /**
+   * Shipped source that seeded this row via Populate Setting — a setting key, or
+   * `'planar'` for the standard planes; null when the user made it. Content we
+   * ship does not count against free-tier quotas — see `check_quota` and
+   * `lib/populateSetting/settingContent`.
+   */
+  setting_source?: string | null;
+  /**
    * Marks this location's map as a tactical battle map. When true, the map is
    * hidden from the player atlas (so fog of war isn't trivially bypassed) and
    * the VTT layer enables grid calibration, token drag, and fog.

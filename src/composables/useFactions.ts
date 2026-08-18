@@ -3,6 +3,7 @@ import { computed, toValue, type Ref, type MaybeRefOrGetter } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { getSetting } from "@/settings/index";
+import { matchSettingRowIds, stampSettingSource } from "@/lib/populateSetting/settingContent";
 import { useToast } from "@/composables/useToast";
 import type {
   Faction,
@@ -784,6 +785,15 @@ export function usePopulateFactions() {
         (existing ?? []).map((f: { name: string }) => f.name.toLowerCase()),
       );
 
+      // Repair pass for campaigns populated before `setting_source` existed:
+      // rows we shipped were counting against the user's own faction cap. See
+      // lib/settingContent for why this is not a SQL backfill.
+      await stampSettingSource(
+        "factions",
+        matchSettingRowIds(existing ?? [], setting.factions.map((f) => f.name)),
+        calendarId,
+      );
+
       const toInsert = setting.factions
         .filter((f) => !existingNames.has(f.name.toLowerCase()))
         .map((f) => ({
@@ -796,6 +806,7 @@ export function usePopulateFactions() {
           tags: f.tags,
           emblem_url: null,
           player_visible_to: [],
+          setting_source: calendarId,
           user_id: user!.id,
           campaign_id: campaignId,
         }));

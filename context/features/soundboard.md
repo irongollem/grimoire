@@ -192,6 +192,8 @@ Free plan limits: **20 sounds, 1 soundboard page, 3 soundboard playlists.** Uplo
 
 **Curated content is exempt from both counts.** `check_quota` and `check_all_quotas` append `and library_id is null` when counting `sounds`, and `and library_scene_slug is null` when counting `soundboard_playlists` (migrations `20260728000004`, `20260728000005`). Handing a DM a library and then charging them room to keep it defeats the point of shipping one. The two functions are the same rule written twice, once per call shape — **change both or neither**.
 
+The rule is no longer soundboard-only: `20260818081308` extended it to `factions`, `deities`, `pantheons` and `locations` via `setting_source`, because the Populate buttons ship 15/112/13/35 rows on Faerûn against free caps of 5/5/3/10 and were therefore paywalling their own content. Same shape, same pair of functions, and now a pgTAP regression at `supabase/tests/setting_content_quota.test.sql` that asserts both functions agree.
+
 ## Curated library
 
 802 CC0 / CC-BY sounds hosted by us, free on every tier, plus seven ready-made scenes. This is what stops a new campaign opening to an empty grid (#572 §3).

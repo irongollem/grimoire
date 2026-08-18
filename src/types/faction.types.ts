@@ -88,6 +88,12 @@ export interface Faction {
   player_visible_to: string[];
   tags: string[];
   ai_provenance?: AiProvenance | null;
+  /**
+   * Setting key that seeded this row via Populate Setting; null when the user
+   * made it. Content we ship does not count against free-tier quotas — see
+   * `check_quota` and `lib/settingContent`.
+   */
+  setting_source?: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -365,7 +365,44 @@ row was the most-repeated reveal in the app.
 
 Both are quota'd on the free plan (`plans.quotas`: 5 deities, 3 pantheons),
 which is low enough that the fixture's own seed has to stay under it — see
-`scripts/dev-auth.ts`.
+`scripts/lib/dev-fixture-content.ts`.
+
+**Content we ship does not count against those caps** (`20260818081308`). Rows
+inserted by a Populate button carry a `setting_source` column naming the setting
+(or `'planar'` for the standard planes), and both `check_quota` and
+`check_all_quotas` skip non-null values — the same exemption sounds and playlists
+already had via `library_id` / `library_scene_slug`. **Change both functions or
+neither**; they are the same rule written twice, once per call shape, and the
+trigger disagreeing with the on-screen counter is the failure that produces.
+
+Without it the feature paywalled itself, worst of all on the Atlas:
+
+| | free cap | Faerûn populate |
+| --- | --- | --- |
+| `locations` | 10 | 35 (+20 from Populate Planes) |
+| `deities` | 5 | 112 |
+| `pantheons` | 3 | 13 |
+| `factions` | 5 | 15 (Eberron: 28) |
+
+`enforce_quota` is a BEFORE INSERT trigger, so a free user pressing the button
+got an upgrade prompt instead of the content. Every one of the nine settings
+exceeds the location cap on its own (Planescape 27, Spelljammer 12 at the low
+end), so the Atlas button had never worked on the free tier for any setting.
+
+There is no SQL backfill for campaigns populated before that shipped. The setting
+definitions live in `src/settings/*.ts`, so a migration would have had to carry
+several hundred names as a literal — a second copy of the source data, stale the
+moment a setting changes, and matched on a name the user is free to have edited.
+Instead the four populate mutations (`usePopulateFactions`, `usePopulateDeities`,
+`usePopulateLocations`, `usePopulatePlanarLocations`) stamp the rows they already
+match by name, so pressing the button again repairs an existing campaign. See
+`lib/populateSetting/settingContent`.
+
+Note for anyone adding a column to `locations`: `get_player_visible_locations`
+returns `setof locations` by listing every column **positionally** so it can null
+the DM-only ones, so a new column silently makes that list one short and the
+function fails at call time for players only. `supabase/tests/player_projections.test.sql`
+catches it; `20260818081308` had to rebuild the function for exactly this reason.
 
 ---
 
