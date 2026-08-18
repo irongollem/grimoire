@@ -12,6 +12,7 @@
       </section>
 
       <QuestBeatAttachmentsPanel :beat="beat" :attachments="attachments" />
+      <QuestBeatObjectivesPanel :beat="beat" :edges="edgesQuery.data.value ?? []" />
       <QuestBeatLootPanel :beat="beat" :loot="loot" />
 
       <section class="rounded-lg border border-border bg-card p-3">
@@ -39,6 +40,7 @@ import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import QuestBeatAttachmentsPanel from "@/components/quests/QuestBeatAttachmentsPanel.vue";
+import QuestBeatObjectivesPanel from "@/components/quests/QuestBeatObjectivesPanel.vue";
 import QuestBeatFields from "@/components/quests/QuestBeatFields.vue";
 import QuestBeatLootPanel from "@/components/quests/QuestBeatLootPanel.vue";
 

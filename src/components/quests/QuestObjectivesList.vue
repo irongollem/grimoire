@@ -16,22 +16,18 @@
       >
         <button
           type="button"
-          class="mt-0.5 shrink-0 h-4 w-4 rounded border flex items-center justify-center transition-colors"
-          :class="
-            obj.is_done
-              ? 'bg-primary border-primary text-primary-foreground'
-              : 'border-border hover:border-primary'
-          "
+          class="mt-0.5 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          :title="`${QUEST_OBJECTIVE_STATUS_LABELS[obj.status]} — click for ${QUEST_OBJECTIVE_STATUS_LABELS[nextObjectiveStatus(obj.status)].toLowerCase()}`"
           @click="$emit('toggle', obj)"
         >
-          <IconCheck v-if="obj.is_done" class="h-2.5 w-2.5" />
+          <QuestObjectiveStatusMark :status="obj.status" />
         </button>
         <span
           class="text-body flex-1 leading-snug transition-colors"
           :class="
-            obj.is_done
+            obj.status === 'complete'
               ? 'text-muted-foreground line-through'
-              : 'text-foreground'
+              : obj.status === 'failed' ? 'text-muted-foreground' : 'text-foreground'
           "
         >
           {{ obj.description }}
@@ -90,7 +86,9 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { IconAdd, IconCheck, IconClose, IconHide, IconReveal } from "@/lib/icons";
+import { IconAdd, IconClose, IconHide, IconReveal } from "@/lib/icons";
+import { countObjectivesComplete, nextObjectiveStatus, QUEST_OBJECTIVE_STATUS_LABELS } from "@/lib/quests/objectives";
+import QuestObjectiveStatusMark from "./QuestObjectiveStatusMark.vue";
 import type { QuestObjective } from "@/types/quest.types";
 
 const { objectives = [], isNew = false } = defineProps<{
@@ -107,9 +105,7 @@ const emit = defineEmits<{
 
 const newObjective = ref("");
 
-const doneCount = computed(
-  () => (objectives ?? []).filter((o) => o.is_done).length,
-);
+const doneCount = computed(() => countObjectivesComplete(objectives ?? []));
 
 function submit() {
   if (!newObjective.value.trim()) return;

@@ -73,7 +73,7 @@
             <AppButton
               v-if="objective"
               class="mt-2"
-              :label="objective.is_done ? 'Reopen objective' : 'Mark complete'"
+              :label="QUEST_OBJECTIVE_ACTION_LABELS[objective.status]"
               variant="primary"
               :loading="objectiveSaving"
               @click="toggleObjective"
@@ -130,6 +130,8 @@ import { QUEST_BEAT_ATTACHMENT_ADAPTERS } from "@/lib/quests/attachments";
 import { withQuestReturnTo } from "@/lib/quests/navigation";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useQuestObjectives, useUpdateObjective } from "@/composables/useQuests";
+import { nextObjectiveStatus } from "@/lib/quests/objectives";
+import type { QuestObjectiveStatus } from "@/types/quest.types";
 import type { QuestBeatAttachmentSummary } from "@/types/quest.types";
 import type { Sound } from "@/types/sound.types";
 import AppButton from "@/components/common/AppButton.vue";
@@ -138,6 +140,14 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 
 const EncounterRunSurface = defineAsyncComponent(() => import("@/components/encounters/EncounterRunSurface.vue"));
+
+// Named for what the click does next, so the button never reads "Mark complete"
+// on an objective the flow has already failed.
+const QUEST_OBJECTIVE_ACTION_LABELS: Record<QuestObjectiveStatus, string> = {
+  pending: "Mark complete",
+  complete: "Mark failed",
+  failed: "Reopen objective",
+};
 
 const props = defineProps<{ attachment: QuestBeatAttachmentSummary; returnTo: string }>();
 const emit = defineEmits<{ close: [] }>();
@@ -203,7 +213,7 @@ async function toggleObjective() {
     await updateObjective.mutateAsync({
       id: objective.value.id,
       questId: objective.value.quest_id,
-      update: { is_done: !objective.value.is_done },
+      update: { status: nextObjectiveStatus(objective.value.status) },
     });
   } catch (caught) {
     toolError.value = caught instanceof Error ? caught.message : "The objective could not be updated";

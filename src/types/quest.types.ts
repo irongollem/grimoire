@@ -68,14 +68,35 @@ export type QuestInsert = Omit<
 > & { flow_enabled_at?: string | null };
 export type QuestUpdate = Partial<QuestInsert>;
 
+export type QuestObjectiveStatus = "pending" | "complete" | "failed";
+
 export interface QuestObjective {
   id: string;
   quest_id: string;
   description: string;
-  is_done: boolean;
+  /**
+   * Replaces the old `is_done` boolean, which could not say that an objective
+   * *failed* — the one outcome a branching story exists to produce.
+   */
+  status: QuestObjectiveStatus;
   is_player_visible: boolean;
   sort_order: number;
 }
+
+/** A place in the flow that decides an objective. See `quest_objective_effects`. */
+export interface QuestObjectiveEffect {
+  id: string;
+  quest_id: string;
+  objective_id: string;
+  /** Exactly one of these is set: arrival at a beat, or taking one branch. */
+  trigger_beat_id: string | null;
+  trigger_edge_id: string | null;
+  effect: "reveal" | "complete" | "fail";
+  created_at: string;
+  updated_at: string;
+}
+
+export type QuestObjectiveEffectInsert = Omit<QuestObjectiveEffect, "id" | "created_at" | "updated_at">;
 
 export type QuestObjectiveInsert = Omit<QuestObjective, "id">;
 export type QuestObjectiveUpdate = Partial<

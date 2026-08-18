@@ -434,7 +434,7 @@ async function createFromHook(hook: QuestHookResult, index: number) {
         createObjective({
           quest_id: quest.id,
           description: desc,
-          is_done: false,
+          status: "pending" as const,
           is_player_visible: false,
           sort_order: i,
         }),

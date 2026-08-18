@@ -659,7 +659,7 @@ const questFormatter: AssetFormatter<{
     if (objectives.length) {
       html += `<h2>Objectives</h2>\n<ul>\n`;
       objectives.forEach((obj) => {
-        const done = obj.is_done ? " ✓" : "";
+        const done = obj.status === "complete" ? " ✓" : obj.status === "failed" ? " ✗" : "";
         html += `<li>${obj.description}${done}</li>\n`;
       });
       html += `</ul>\n`;

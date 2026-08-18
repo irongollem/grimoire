@@ -105,22 +105,13 @@
             :key="obj.id"
             class="flex items-start gap-2.5 px-2 py-1.5"
           >
-            <span
-              class="mt-0.5 shrink-0 h-4 w-4 rounded border flex items-center justify-center"
-              :class="
-                obj.is_done
-                  ? 'bg-primary border-primary text-primary-foreground'
-                  : 'border-border'
-              "
-            >
-              <IconCheck v-if="obj.is_done" class="h-2.5 w-2.5" />
-            </span>
+            <QuestObjectiveStatusMark :status="obj.status" class="mt-0.5" />
             <span
               class="text-body leading-snug"
               :class="
-                obj.is_done
+                obj.status === 'complete'
                   ? 'text-muted-foreground line-through'
-                  : 'text-foreground'
+                  : obj.status === 'failed' ? 'text-muted-foreground' : 'text-foreground'
               "
             >
               {{ obj.description }}
@@ -306,8 +297,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { RouterLink, useRoute, useRouter } from "vue-router";
-import { IconCheck, IconChevronLeft, IconClose, IconLocation, IconMonster, IconScrollText, IconUser } from '@/lib/icons';
+import { IconChevronLeft, IconClose, IconLocation, IconMonster, IconScrollText, IconUser } from '@/lib/icons';
+import { countObjectivesComplete } from "@/lib/quests/objectives";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
+import QuestObjectiveStatusMark from "@/components/quests/QuestObjectiveStatusMark.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import {
   usePlayerVisibleQuest,
@@ -404,7 +397,7 @@ const visibleObjectives = computed(() =>
   (objectives.value ?? []).filter((o) => o.is_player_visible),
 );
 const doneCount = computed(
-  () => visibleObjectives.value.filter((o) => o.is_done).length,
+  () => countObjectivesComplete(visibleObjectives.value),
 );
 
 // Name lookups — "???" marks a visible ref whose target isn't shared with

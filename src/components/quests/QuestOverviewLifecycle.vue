@@ -65,6 +65,7 @@ import {
   useUpdateObjective,
 } from "@/composables/useQuests";
 import { useCreateScriptoriumDocument } from "@/composables/useScriptorium";
+import { nextObjectiveStatus } from "@/lib/quests/objectives";
 import { formatQuestForScriptorium } from "@/lib/scriptorium/scriptoriumImport";
 import { useCampaignStore } from "@/stores/campaign";
 import type { Quest, QuestObjective } from "@/types/quest.types";
@@ -94,12 +95,16 @@ const deleting = ref(false);
 const sendingToScriptorium = ref(false);
 
 async function addObjective(description: string) {
-  await createObjective({ quest_id: props.quest.id, description, is_done: false, is_player_visible: false, sort_order: objectives.value?.length ?? 0 });
+  await createObjective({ quest_id: props.quest.id, description, status: "pending", is_player_visible: false, sort_order: objectives.value?.length ?? 0 });
 }
 
 async function toggleObjective(objective: QuestObjective) {
-  await updateObjective({ id: objective.id, questId: props.quest.id, update: { is_done: !objective.is_done } });
-  if (!objective.is_done && campaign.activeCampaignId) {
+  const status = nextObjectiveStatus(objective.status);
+  await updateObjective({ id: objective.id, questId: props.quest.id, update: { status } });
+  // Only completion schedules downstream triggers — a failed objective has not
+  // been achieved, and firing its calendar event or broadcast would announce
+  // something that did not happen.
+  if (status === "complete" && campaign.activeCampaignId) {
     void scheduleQuestTriggers(props.quest.id, "objective_done", objective.id, {
       year: campaign.todayYear,
       month: campaign.todayMonth,

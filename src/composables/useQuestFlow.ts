@@ -2,6 +2,8 @@ import { computed, isRef, ref, type Ref } from "vue";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { summarizeQuestBeatAttachment } from "@/lib/quests/attachments";
+import { QUEST_OBJECTIVE_STATUS_LABELS } from "@/lib/quests/objectives";
+import type { QuestObjectiveStatus } from "@/types/quest.types";
 import { deriveQuestBoardSummaries, type QuestBoardSummary } from "@/lib/quests/board";
 import { toQuestRuntimeRpcArgs, type QuestRuntimeCommandInput } from "@/lib/quests/runtime";
 import { useCampaignStore } from "@/stores/campaign";
@@ -22,6 +24,8 @@ import type {
   QuestBeatLootInsert,
   QuestRuntimeContext,
   QuestRuntimeJumpTarget,
+  QuestObjectiveEffect,
+  QuestObjectiveEffectInsert,
   QuestRuntimeState,
 } from "@/types/quest.types";
 
@@ -32,6 +36,7 @@ const RUNTIME_CONTEXT_KEY = "quest_runtime_context";
 const TRANSITIONS_KEY = "quest_beat_transitions";
 const ATTACHMENTS_KEY = "quest_beat_attachments";
 const LOOT_KEY = "quest_beat_loot";
+const OBJECTIVE_EFFECTS_KEY = "quest_objective_effects";
 
 /** Player projections are audience-keyed. An authored beat change can alter
  * every audience's safe DTO, so invalidating only the authored quest key leaves
@@ -126,7 +131,7 @@ async function fetchAttachmentTargets(
   const targets = new Map<string, AttachmentTarget>();
   const definitions = [
     ["encounter", "encounters", "id, name", "name"],
-    ["objective", "quest_objectives", "id, description, is_done", "description"],
+    ["objective", "quest_objectives", "id, description, status", "description"],
     ["quest_ref", "quest_refs", "id, ref_type", "ref_type"],
     ["location_set", "locations", "id, name", "name"],
     ["npc", "npcs", "id, name", "name"],
@@ -148,7 +153,7 @@ async function fetchAttachmentTargets(
     for (const raw of data ?? []) {
       const row = raw as unknown as Record<string, unknown>;
       const id = String(row.id);
-      const detail = type === "objective" ? (row.is_done ? "Completed" : "Pending") : null;
+      const detail = type === "objective" ? QUEST_OBJECTIVE_STATUS_LABELS[row.status as QuestObjectiveStatus] ?? "Open" : null;
       targets.set(`${type}:${id}`, { label: String(row[labelKey] ?? "Untitled"), detail });
     }
   }));
@@ -722,5 +727,58 @@ export function usePlayerQuestBeatHistory(questId?: string | Ref<string>, previe
         .sort((a, b) => a.visited_at.localeCompare(b.visited_at) || a.visit_id.localeCompare(b.visit_id));
     },
     enabled: () => !!campaignId.value,
+  });
+}
+
+
+/**
+ * The rules that let the flow decide an objective: arriving at a beat, or taking
+ * one branch out of it, can reveal, complete or fail it.
+ *
+ * Applied inside `transition_quest_runtime` rather than here, so the objective
+ * moves in the same transaction as the party — and so stepping back can undo it,
+ * which needs the state each rule overwrote.
+ */
+export function useQuestObjectiveEffects(questId: string | Ref<string>) {
+  const id = asRef(questId);
+  return useQuery({
+    queryKey: computed(() => [OBJECTIVE_EFFECTS_KEY, id.value]),
+    queryFn: async (): Promise<QuestObjectiveEffect[]> => {
+      const { data, error } = await supabase
+        .from("quest_objective_effects")
+        .select("*")
+        .eq("quest_id", id.value)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as QuestObjectiveEffect[];
+    },
+    enabled: () => !!id.value,
+  });
+}
+
+export function useCreateQuestObjectiveEffect() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: QuestObjectiveEffectInsert): Promise<QuestObjectiveEffect> => {
+      const { data, error } = await supabase.from("quest_objective_effects").insert(input).select().single();
+      if (error) throw error;
+      return data as QuestObjectiveEffect;
+    },
+    onSuccess: (_effect, input) => {
+      queryClient.invalidateQueries({ queryKey: [OBJECTIVE_EFFECTS_KEY, input.quest_id] });
+    },
+  });
+}
+
+export function useDeleteQuestObjectiveEffect() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; questId: string }) => {
+      const { error } = await supabase.from("quest_objective_effects").delete().eq("id", input.id);
+      if (error) throw error;
+    },
+    onSuccess: (_result, input) => {
+      queryClient.invalidateQueries({ queryKey: [OBJECTIVE_EFFECTS_KEY, input.questId] });
+    },
   });
 }
