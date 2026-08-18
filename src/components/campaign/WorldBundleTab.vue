@@ -51,21 +51,21 @@
       </div>
 
       <div class="flex items-center justify-between pt-2">
-        <button
-          class="flex items-center gap-2 px-4 py-2 text-label-lg font-semibold border border-border text-foreground rounded-md hover:bg-muted transition-colors"
+        <AppButton
+          variant="outline"
+          size="md"
+          label="Import .grimoire"
+          :icon="IconUpload"
           @click="importOpen = true"
-        >
-          <IconUpload class="h-3.5 w-3.5" />
-          Import .grimoire
-        </button>
-        <button
+        />
+        <AppButton
+          variant="primary"
+          size="md"
+          label="Continue"
+          :icon-right="IconChevronRight"
           :disabled="selectedCategories.size === 0"
-          class="flex items-center gap-2 px-4 py-2 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
           @click="goToFirstPick"
-        >
-          Continue
-          <IconChevronRight class="h-3.5 w-3.5" />
-        </button>
+        />
       </div>
     </template>
 
@@ -73,12 +73,13 @@
     <template v-else-if="phase === 'pick'">
       <!-- Progress header -->
       <div class="flex items-center gap-3">
-        <button
-          class="text-muted-foreground hover:text-foreground transition-colors"
+        <AppButton
+          variant="ghost"
+          size="icon-xs"
+          :icon="IconChevronLeft"
+          aria-label="Back"
           @click="goBack"
-        >
-          <IconChevronLeft class="h-4 w-4" />
-        </button>
+        />
         <div>
           <p class="text-eyebrow font-semibold text-muted-foreground">
             Step {{ pickIndex + 2 }} of {{ orderedCategories.length + 2 }}
@@ -100,11 +101,12 @@
       <!-- IconSearch -->
       <div class="relative">
         <IconSearch class="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-        <input
+        <AppInput
           v-model="search"
-          type="text"
+          tone="muted"
+          size="body"
           placeholder="Search…"
-          class="w-full bg-muted border border-border rounded-md pl-8 pr-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="pl-8 pr-3"
         />
       </div>
 
@@ -162,31 +164,32 @@
 
       <!-- Navigation -->
       <div class="flex justify-end gap-2 pt-2">
-        <button
-          class="px-4 py-2 text-label-lg font-semibold border border-border text-muted-foreground hover:text-foreground rounded-md transition-colors"
+        <AppButton
+          variant="subtle"
+          size="md"
+          label="Back"
           @click="goBack"
-        >
-          Back
-        </button>
-        <button
-          class="flex items-center gap-2 px-4 py-2 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity"
+        />
+        <AppButton
+          variant="primary"
+          size="md"
+          :label="isLastPick ? 'Continue to Details' : 'Next'"
+          :icon-right="IconChevronRight"
           @click="goNext"
-        >
-          {{ isLastPick ? "Continue to Details" : "Next" }}
-          <IconChevronRight class="h-3.5 w-3.5" />
-        </button>
+        />
       </div>
     </template>
 
     <!-- ── Phase: Metadata + Export ────────────────────────────────────────── -->
     <template v-else-if="phase === 'metadata'">
       <div class="flex items-center gap-3">
-        <button
-          class="text-muted-foreground hover:text-foreground transition-colors"
+        <AppButton
+          variant="ghost"
+          size="icon-xs"
+          :icon="IconChevronLeft"
+          aria-label="Back"
           @click="goBack"
-        >
-          <IconChevronLeft class="h-4 w-4" />
-        </button>
+        />
         <div>
           <p class="text-eyebrow font-semibold text-muted-foreground">
             Final step
@@ -200,11 +203,11 @@
           <label class="block text-eyebrow font-semibold text-muted-foreground mb-1">
             Bundle Name *
           </label>
-          <input
+          <AppInput
             v-model="bundleName"
-            type="text"
+            tone="muted"
+            size="body"
             placeholder="e.g. The Sunken Duchy"
-            class="w-full bg-muted border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
 
@@ -262,12 +265,12 @@
       <p v-if="exportError" class="text-caption text-destructive">{{ exportError }}</p>
 
       <div class="flex justify-end gap-2 pt-2">
-        <button
-          class="px-4 py-2 text-label-lg font-semibold border border-border text-muted-foreground hover:text-foreground rounded-md transition-colors"
+        <AppButton
+          variant="subtle"
+          size="md"
+          label="Back"
           @click="goBack"
-        >
-          Back
-        </button>
+        />
         <label
           class="flex items-center gap-2 px-4 py-2 text-label-lg font-semibold border border-border text-foreground rounded-md hover:bg-muted transition-colors cursor-pointer"
           :class="{ 'opacity-50 pointer-events-none': isAttaching || !bundleName.trim() || totalSelected === 0 }"
@@ -283,14 +286,14 @@
             @change="onAttachPdf"
           />
         </label>
-        <button
+        <AppButton
+          variant="primary"
+          size="md"
+          :label="isExporting ? 'Exporting…' : 'Export .grimoire'"
+          :icon="IconDownload"
           :disabled="isExporting || !bundleName.trim() || totalSelected === 0"
-          class="flex items-center gap-2 px-4 py-2 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
           @click="doExport"
-        >
-          <IconDownload class="h-3.5 w-3.5" />
-          {{ isExporting ? "Exporting…" : "Export .grimoire" }}
-        </button>
+        />
       </div>
     </template>
 
@@ -312,6 +315,8 @@ import {
 import type { BundleEntityKey } from "@/composables/useWorldBundle";
 import ImportBundleModal from "@/components/campaign/ImportBundleModal.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 
 const campaignStore = useCampaignStore();
 const authStore = useAuthStore();

@@ -13,21 +13,24 @@
         <ManualHelpLink v-if="auth.isDM" page="campaign-chat" />
       </div>
       <div class="flex items-center gap-1">
-        <button
+        <AppButton
           v-if="auth.isDM && messages.length > 0"
-          type="button"
-          class="text-muted-foreground/50 hover:text-destructive transition-colors p-1 rounded"
-          title="Clear all messages"
+          variant="ghost"
+          tone="danger"
+          size="icon-xs"
+          :icon="IconDelete"
+          class="text-muted-foreground/50"
+          tooltip="Clear all messages"
           @click="$emit('delete-all')"
-        >
-          <IconDelete class="h-3.5 w-3.5" />
-        </button>
-        <button
-          class="text-muted-foreground hover:text-foreground transition-colors p-1"
+        />
+        <AppButton
+          variant="ghost"
+          size="icon-xs"
+          aria-label="Close chat"
           @click="$emit('close')"
         >
-          <IconClose class="h-4 w-4" />
-        </button>
+          <template #icon><IconClose class="h-4 w-4" /></template>
+        </AppButton>
       </div>
     </div>
 
@@ -171,20 +174,24 @@
         class="shrink-0 border-t border-border bg-muted/20 px-3 py-2 space-y-2"
       >
         <p class="font-cinzel text-2xs text-muted-foreground tracking-widest uppercase">Vendor Offer</p>
-        <input
+        <AppInput
           v-model="vendorDesc"
           type="text"
+          tone="muted"
+          size="body-xs"
           placeholder="What is being offered? (e.g. Healing Potion)"
-          class="w-full bg-muted/30 border border-border rounded px-2 py-1 text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
+          class="bg-muted/30 placeholder:text-muted-foreground/60"
         />
         <!-- Item combobox -->
         <div class="relative">
-          <input
+          <AppInput
             v-model="vendorItemQuery"
             type="text"
+            tone="muted"
+            size="body-xs"
             placeholder="Vault item to give on payment (optional)"
             autocomplete="off"
-            class="w-full bg-muted/30 border border-border rounded px-2 py-1 text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
+            class="bg-muted/30 placeholder:text-muted-foreground/60"
             :class="vendorItemQuery && !vendorItemId ? 'border-amber-500/50' : ''"
             @input="vendorItemId = ''"
             @focus="vendorShowItems = true"
@@ -210,10 +217,14 @@
         <div class="grid grid-cols-5 gap-1">
           <div v-for="coin in COINS" :key="coin.key" class="flex flex-col items-center gap-0.5">
             <span class="font-cinzel text-2xs font-bold" :class="coin.color">{{ coin.symbol }}</span>
-            <input
+            <AppInput
               v-model.number="vendorPrice[coin.key]"
-              type="number" min="0"
-              class="w-full bg-muted/30 border border-border rounded px-1 py-0.5 font-cinzel text-xs text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+              type="number"
+              min="0"
+              tone="muted"
+              size="xs"
+              align="center"
+              class="bg-muted/30 px-1"
             />
           </div>
         </div>
@@ -272,19 +283,16 @@
     <div
       class="shrink-0 border-t border-border bg-card px-2 py-2 flex items-end gap-1.5"
     >
-      <button
-        type="button"
-        class="p-1.5 rounded-md transition-colors shrink-0"
-        :class="
-          diceOpen
-            ? 'text-primary bg-primary/10'
-            : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-        "
-        title="Dice roller"
+      <AppButton
+        variant="ghost"
+        size="icon-sm"
+        class="shrink-0"
+        :active="diceOpen"
+        tooltip="Dice roller"
         @click="diceOpen = !diceOpen; vendorOpen = false"
       >
-        <IconDiceRoll class="h-4 w-4" />
-      </button>
+        <template #icon><IconDiceRoll class="h-4 w-4" /></template>
+      </AppButton>
       <button
         v-if="auth.isDM"
         type="button"
@@ -310,14 +318,15 @@
         @keydown.enter.exact.prevent="send"
         @input="autoResize"
       />
-      <button
-        type="button"
+      <AppButton
+        variant="primary"
+        size="icon-sm"
+        class="shrink-0 disabled:opacity-40"
         :disabled="!inputText.trim()"
-        class="p-2 rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-40 shrink-0"
         @click="send"
       >
-        <IconSend class="h-4 w-4" />
-      </button>
+        <template #icon><IconSend class="h-4 w-4" /></template>
+      </AppButton>
     </div>
   </div>
 </template>
@@ -327,6 +336,8 @@ import { ref, reactive, computed, watch, nextTick, shallowRef, onMounted } from 
 import { renderChatMessage } from "@/lib/chatMarkdown";
 import { IconClose, IconDelete, IconDiceRoll, IconMessage, IconSend, IconShop } from '@/lib/icons';
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { formatChatTimestamp } from "@/lib/utils";
 import { useLocalePrefs } from "@/composables/useLocalePrefs";

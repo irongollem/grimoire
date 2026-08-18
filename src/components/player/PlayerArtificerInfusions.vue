@@ -38,38 +38,34 @@
               :class="expanded.has(`infusion-${inf.name}`) ? 'rotate-180' : ''"
             />
           </button>
-          <button
+          <AppButton
             v-if="isActive(inf.name)"
-            class="text-label text-muted-foreground hover:text-destructive transition-colors shrink-0"
+            variant="ghost"
+            tone="danger"
+            size="inline"
+            class="shrink-0"
             @click="emit('remove', inf.name)"
-          >Remove</button>
-          <button
+          >Remove</AppButton>
+          <AppButton
             v-else-if="!isActive(inf.name) && activeCount < slotsMax"
-            class="text-label text-primary hover:opacity-80 transition-opacity shrink-0"
+            variant="link"
+            size="inline"
+            class="shrink-0"
             @click="openApplyForm(inf.name)"
-          >Apply</button>
+          >Apply</AppButton>
         </div>
 
         <!-- Inline apply form (opens per-row) -->
         <div v-if="pendingApplyName === inf.name" class="mt-2 space-y-2">
-          <select
-            v-model="pendingItemId"
-            class="w-full rounded border border-border bg-muted/40 px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          >
+          <AppSelect v-model="pendingItemId" tone="muted" size="body" block weight="normal">
             <option value="">No specific item</option>
             <option v-for="item in inventoryItems" :key="item.id" :value="item.id">
               {{ item.name }}
             </option>
-          </select>
+          </AppSelect>
           <div class="flex gap-2">
-            <button
-              class="text-label px-3 py-1 rounded bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
-              @click="confirmApply"
-            >Confirm</button>
-            <button
-              class="text-label px-3 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors"
-              @click="cancelApplyForm"
-            >Cancel</button>
+            <AppButton variant="primary" size="xs" @click="confirmApply">Confirm</AppButton>
+            <AppButton variant="subtle" size="xs" @click="cancelApplyForm">Cancel</AppButton>
           </div>
         </div>
 
@@ -78,14 +74,8 @@
           <div v-if="editingName === inf.name" class="space-y-2">
             <RichTextEditor v-model="editingText" />
             <div class="flex gap-2">
-              <button
-                class="text-label px-3 py-1 rounded bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
-                @click="confirmEditText"
-              >Save</button>
-              <button
-                class="text-label px-3 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors"
-                @click="editingName = ''"
-              >Cancel</button>
+              <AppButton variant="primary" size="xs" @click="confirmEditText">Save</AppButton>
+              <AppButton variant="subtle" size="xs" @click="editingName = ''">Cancel</AppButton>
             </div>
           </div>
           <template v-else>
@@ -98,10 +88,7 @@
             <p v-else class="text-caption text-muted-foreground italic">
               No effect text yet — add it from your sourcebook.
             </p>
-            <button
-              class="mt-1 text-label text-muted-foreground hover:text-foreground transition-colors"
-              @click="openEditText(inf)"
-            >{{ inf.description ? "Edit text" : "+ Add effect text" }}</button>
+            <AppButton variant="ghost" size="inline" class="mt-1" @click="openEditText(inf)">{{ inf.description ? "Edit text" : "+ Add effect text" }}</AppButton>
           </template>
         </div>
       </div>
@@ -110,31 +97,18 @@
     <!-- Learn new infusion -->
     <div v-if="availableToLearn.length > 0" class="px-4 py-2.5 border-t border-border">
       <div v-if="!showLearnForm" class="flex justify-start">
-        <button
-          class="text-label text-muted-foreground hover:text-foreground transition-colors"
-          @click="showLearnForm = true"
-        >+ Learn Infusion</button>
+        <AppButton variant="ghost" size="inline" @click="showLearnForm = true">+ Learn Infusion</AppButton>
       </div>
       <div v-else class="space-y-2">
-        <select
-          v-model="pendingLearnName"
-          class="w-full rounded border border-border bg-muted/40 px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        >
+        <AppSelect v-model="pendingLearnName" tone="muted" size="body" block weight="normal">
           <option value="" disabled>Select infusion to learn…</option>
           <option v-for="inf in availableToLearn" :key="inf.name" :value="inf.name">
             {{ inf.name }}{{ inf.min_level > 2 ? ` (Lv ${inf.min_level}+)` : '' }}
           </option>
-        </select>
+        </AppSelect>
         <div class="flex gap-2">
-          <button
-            :disabled="!pendingLearnName"
-            class="text-label px-3 py-1 rounded bg-primary text-primary-foreground disabled:opacity-40 hover:opacity-90 transition-opacity"
-            @click="confirmLearn"
-          >Learn</button>
-          <button
-            class="text-label px-3 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors"
-            @click="showLearnForm = false; pendingLearnName = ''"
-          >Cancel</button>
+          <AppButton variant="primary" size="xs" :disabled="!pendingLearnName" @click="confirmLearn">Learn</AppButton>
+          <AppButton variant="subtle" size="xs" @click="showLearnForm = false; pendingLearnName = ''">Cancel</AppButton>
         </div>
       </div>
     </div>
@@ -144,6 +118,8 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { IconChevronDown } from "@/lib/icons";
+import AppButton from "@/components/common/AppButton.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import type { ArtificerInfusion } from "@/data/artificerInfusions";

@@ -17,12 +17,13 @@
           <!-- Title -->
           <div>
             <label class="block text-label-lg font-semibold text-muted-foreground mb-1">TITLE</label>
-            <input
+            <AppInput
               v-model="form.title"
               required
               type="text"
+              tone="muted"
+              size="body"
               placeholder="Event name…"
-              class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
 
@@ -31,10 +32,7 @@
             <label class="block text-label-lg font-semibold text-muted-foreground mb-1">TYPE</label>
             <div class="flex items-center gap-2">
               <div class="w-3 h-3 rounded-full shrink-0" :style="{ backgroundColor: form.color }" />
-              <select
-                v-model="form.event_type"
-                class="flex-1 bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              >
+              <AppSelect v-model="form.event_type" tone="muted" size="body" block class="min-w-0" aria-label="Event type">
                 <option value="campaign">Campaign Event</option>
                 <option value="world">World Event</option>
                 <option value="festival">Festival</option>
@@ -45,7 +43,7 @@
                 <option value="discovery">🔍 Discovery</option>
                 <option value="npc_death">🗡 NPC Death</option>
                 <option value="travel">🗺 Travel</option>
-              </select>
+              </AppSelect>
               <p class="text-caption text-muted-foreground italic mt-1">
                 Session events are created automatically from session notes.
               </p>
@@ -57,48 +55,35 @@
             <label class="block text-label-lg font-semibold text-muted-foreground mb-2">DATE</label>
 
             <!-- Toggle regular / festival -->
-            <div class="flex rounded-md border border-border overflow-hidden mb-3">
-              <button
-                type="button"
-                class="flex-1 py-1.5 text-label-lg font-semibold transition-colors"
-                :class="dateType === 'regular' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'"
-                @click="dateType = 'regular'"
-              >Regular Day</button>
-              <button
-                type="button"
-                class="flex-1 py-1.5 text-label-lg font-semibold transition-colors"
-                :class="dateType === 'festival' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'"
-                @click="dateType = 'festival'"
-              >Festival Day</button>
-            </div>
+            <SegmentedControl v-model="dateType" :options="DATE_TYPE_OPTIONS" size="sm" block class="mb-3" />
 
             <div v-if="dateType === 'regular'" class="grid grid-cols-3 gap-2">
               <div>
                 <label class="block text-caption text-muted-foreground mb-1">Year</label>
-                <input v-model.number="form.harptos_year" type="number" min="1" class="w-full bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+                <AppInput v-model.number="form.harptos_year" type="number" min="1" tone="muted" size="body-xs" align="right" />
               </div>
               <div>
                 <label class="block text-caption text-muted-foreground mb-1">Month</label>
-                <select v-model.number="form.harptos_month" class="w-full bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+                <AppSelect v-model.number="form.harptos_month" tone="muted" size="body-xs" block aria-label="Month">
                   <option v-for="m in adapter.months" :key="m.num" :value="m.num">{{ m.name }}</option>
-                </select>
+                </AppSelect>
               </div>
               <div>
                 <label class="block text-caption text-muted-foreground mb-1">Day</label>
-                <input v-model.number="form.harptos_day" type="number" min="1" max="30" class="w-full bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+                <AppInput v-model.number="form.harptos_day" type="number" min="1" max="30" tone="muted" size="body-xs" align="right" />
               </div>
             </div>
 
             <div v-else class="grid grid-cols-2 gap-2">
               <div>
                 <label class="block text-caption text-muted-foreground mb-1">Year</label>
-                <input v-model.number="form.harptos_year" type="number" min="1" class="w-full bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+                <AppInput v-model.number="form.harptos_year" type="number" min="1" tone="muted" size="body-xs" align="right" />
               </div>
               <div>
                 <label class="block text-caption text-muted-foreground mb-1">Festival</label>
-                <select v-model="form.festival_day" class="w-full bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+                <AppSelect v-model="form.festival_day" tone="muted" size="body-xs" block aria-label="Festival">
                   <option v-for="f in availableFestivals" :key="f.name" :value="f.name">{{ f.name }}</option>
-                </select>
+                </AppSelect>
               </div>
             </div>
           </div>
@@ -115,16 +100,14 @@
 
           <!-- Actions -->
           <div class="flex justify-end gap-2 pt-1">
-            <button
-              type="button"
-              class="px-4 py-2 text-label-lg font-semibold text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
-              @click="close"
-            >Cancel</button>
-            <button
+            <AppButton variant="subtle" size="md" label="Cancel" @click="close" />
+            <AppButton
               type="submit"
+              variant="primary"
+              size="md"
+              :label="isPending ? 'Creating…' : 'Insert Event'"
               :disabled="isPending || !form.title.trim()"
-              class="px-4 py-2 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
-            >{{ isPending ? 'Creating…' : 'Insert Event' }}</button>
+            />
           </div>
         </form>
       </div>
@@ -134,6 +117,10 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
+import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import { useCalendarStore } from "@/stores/calendar";
 import { useCreateCalendarEvent } from "@/composables/useCalendarEvents";
 import { useCampaignStore } from "@/stores/campaign";
@@ -158,6 +145,10 @@ const availableFestivals = computed(() =>
 
 type DateType = "regular" | "festival";
 const dateType = ref<DateType>("regular");
+const DATE_TYPE_OPTIONS = [
+  { value: "regular", label: "Regular Day" },
+  { value: "festival", label: "Festival Day" },
+] as const satisfies ReadonlyArray<{ value: DateType; label: string }>;
 
 function defaultForm(): CalendarEventInsert {
   return {

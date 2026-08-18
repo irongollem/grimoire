@@ -94,30 +94,22 @@
           </div>
         </div>
         <div class="flex items-center gap-3 px-4 py-2 border-t border-border bg-muted/20">
-          <button
-            type="button"
-            class="text-label-lg text-primary hover:opacity-80 transition-opacity"
-            @click="$emit('startEdit', entry)"
-          >Edit</button>
-          <button
-            type="button"
-            class="text-label-lg text-muted-foreground/60 hover:text-destructive transition-colors"
-            @click="$emit('removeEntry', entry)"
-          >Delete</button>
+          <AppButton variant="link" size="inline" @click="$emit('startEdit', entry)">Edit</AppButton>
+          <AppButton variant="ghost" tone="danger" size="inline" class="text-muted-foreground/60" @click="$emit('removeEntry', entry)">Delete</AppButton>
         </div>
       </template>
 
       <!-- Edit mode -->
       <div v-else class="p-4 flex flex-col gap-3">
         <div class="flex flex-wrap items-center gap-2">
-          <select
-            :value="editForm.category"
-            class="bg-muted border border-border rounded-md px-2 py-1.5 font-cinzel text-xs font-semibold focus:outline-none"
+          <AppSelect
+            v-model="categoryModel"
+            tone="muted"
+            size="sm"
             :style="{ color: JOURNAL_CATEGORIES[editForm.category as JournalCategory]?.color }"
-            @change="$emit('editFormChange', { category: ($event.target as HTMLSelectElement).value as JournalCategory })"
           >
             <option v-for="[key, cat] in JOURNAL_CATEGORY_LIST" :key="key" :value="key">{{ cat.label }}</option>
-          </select>
+          </AppSelect>
           <input
             :value="editForm.title ?? ''"
             placeholder="Entry title (optional)…"
@@ -133,11 +125,7 @@
           @update:model-value="(v: string) => $emit('editFormChange', { content: v })"
         />
         <div class="flex flex-wrap items-center gap-2">
-          <select
-            :value="editForm.ref_type"
-            class="bg-muted border border-border rounded-md px-2 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            @change="$emit('editFormChange', { ref_type: ($event.target as HTMLSelectElement).value, ref_id: '' })"
-          >
+          <AppSelect v-model="refTypeModel" tone="muted" size="sm" class="text-muted-foreground">
             <option value="">No context</option>
             <option value="quest">Quest</option>
             <option value="npc">NPC</option>
@@ -145,16 +133,13 @@
             <option value="item">Item</option>
             <option value="monster">Monster</option>
             <option value="encounter">Encounter</option>
-          </select>
-          <select
-            v-if="editForm.ref_type"
-            :value="editForm.ref_id"
-            class="flex-1 min-w-32 bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            @change="$emit('editFormChange', { ref_id: ($event.target as HTMLSelectElement).value })"
-          >
-            <option value="">— Select —</option>
-            <option v-for="opt in editRefOptions" :key="opt.id" :value="opt.id">{{ opt.name }}</option>
-          </select>
+          </AppSelect>
+          <div v-if="editForm.ref_type" class="flex-1 min-w-32">
+            <AppSelect v-model="refIdModel" tone="muted" size="body" block weight="normal">
+              <option value="">— Select —</option>
+              <option v-for="opt in editRefOptions" :key="opt.id" :value="opt.id">{{ opt.name }}</option>
+            </AppSelect>
+          </div>
         </div>
         <div class="flex items-center justify-between gap-2">
           <div class="flex items-center gap-2 flex-wrap">
@@ -181,21 +166,15 @@
             </label>
           </div>
           <div class="flex items-center gap-2">
-            <button
-              type="button"
-              class="text-label-lg text-muted-foreground hover:text-foreground"
-              @click="$emit('cancelEdit')"
-            >Cancel</button>
-            <button
-              type="button"
+            <AppButton variant="ghost" size="inline" @click="$emit('cancelEdit')">Cancel</AppButton>
+            <AppButton
+              variant="primary"
+              size="sm"
+              :icon="IconSave"
+              :loading="saving"
               :disabled="isRteEmpty(editForm.content) || saving"
-              class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-label-lg font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
               @click="$emit('submitEdit')"
-            >
-              <IconLoading v-if="saving" class="h-3.5 w-3.5 animate-spin" />
-              <IconSave v-else class="h-3.5 w-3.5" />
-              {{ saving ? 'Saving…' : 'Save' }}
-            </button>
+            >{{ saving ? 'Saving…' : 'Save' }}</AppButton>
           </div>
         </div>
       </div>
@@ -207,7 +186,9 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { VueDraggable } from 'vue-draggable-plus';
-import { IconDrag, IconLoading, IconLock, IconPopulate, IconReveal, IconSave } from '@/lib/icons';
+import { IconDrag, IconLock, IconPopulate, IconReveal, IconSave } from '@/lib/icons';
+import AppButton from '@/components/common/AppButton.vue';
+import AppSelect from '@/components/common/AppSelect.vue';
 import JournalCard from '@/components/player/JournalCard.vue';
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue';
 import RichTextEditor from '@/components/common/RichTextEditor.vue';
@@ -268,6 +249,23 @@ const emit = defineEmits<{
   (e: 'submitEdit'): void;
   (e: 'reorder', ids: string[]): void;
 }>();
+
+// Writable bridges from the parent-owned `editForm` prop onto the child
+// AppSelects, which require a v-model — each setter re-emits the same
+// 'editFormChange' patch the native @change handlers used to.
+const categoryModel = computed<JournalCategory>({
+  get: () => editForm.category,
+  set: (value) => emit('editFormChange', { category: value }),
+});
+const refTypeModel = computed<string>({
+  get: () => editForm.ref_type,
+  // Changing the reference type invalidates whatever was picked for it.
+  set: (value) => emit('editFormChange', { ref_type: value, ref_id: '' }),
+});
+const refIdModel = computed<string>({
+  get: () => editForm.ref_id,
+  set: (value) => emit('editFormChange', { ref_id: value }),
+});
 
 // Local mutable copy for drag-and-drop (manual sort); kept in sync with the
 // parent-supplied list and persisted on drag end.

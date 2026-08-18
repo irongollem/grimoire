@@ -53,18 +53,23 @@
                 {{ member.experience_points ?? 0 }}<template v-if="xpToNext !== null"> / {{ xpToNext }}</template>
               </span>
               <!-- DM: emit event (player /play/* routes aren't accessible to DMs) -->
-              <button
+              <AppButton
                 v-if="readyToLevelUp && auth.isDM"
-                type="button"
-                class="text-label md:text-sm text-primary hover:opacity-80 ml-0.5"
+                variant="link"
+                size="inline-xs"
+                class="md:text-sm ml-0.5"
+                label="Ready ↑"
                 @click="emit('level-up')"
-              >Ready ↑</button>
+              />
               <!-- Player: link to the level-up flow -->
-              <RouterLink
+              <AppButton
                 v-else-if="readyToLevelUp && !hidePlayerActions"
+                variant="link"
+                size="inline-xs"
+                class="md:text-sm ml-0.5"
                 :to="`/play/character/levelup?memberId=${member.id}`"
-                class="text-label md:text-sm text-primary hover:opacity-80 ml-0.5"
-              >Ready ↑</RouterLink>
+                label="Ready ↑"
+              />
             </div>
           </div>
         </div>
@@ -106,18 +111,21 @@
 
         <!-- HP controls (directly below the readout) -->
         <div class="flex items-center gap-1 px-3 pt-1.5 pb-1">
-          <input
+          <AppInput
             v-model.number="hpInput"
             type="number"
+            tone="muted"
+            size="xs"
+            align="center"
             min="0"
             placeholder="0"
-            class="w-10 h-6 rounded border border-border bg-muted/40 px-1 font-cinzel text-xs text-center focus:outline-none focus:ring-1 focus:ring-ring"
+            class="w-10"
             @keydown="blockInvalidChars"
             @focus="($event.target as HTMLInputElement).select()"
           />
-          <button class="h-6 px-1.5 rounded bg-destructive/15 border border-destructive/40 text-eyebrow md:text-sm text-destructive hover:bg-destructive/25 transition-colors" @click="applyDamage">DMG</button>
-          <button class="h-6 px-1.5 rounded bg-elven-green/10 border border-elven-green/40 text-label md:text-sm text-elven-green hover:bg-elven-green/20 transition-colors" @click="applyHeal">Heal</button>
-          <button class="h-6 px-1.5 rounded bg-blue-500/10 border border-blue-500/30 text-label md:text-sm text-blue-400 hover:bg-blue-500/20 transition-colors" @click="applyTempHp">Tmp</button>
+          <AppButton variant="tinted" size="xs" tone="danger" emphasis="soft" label="DMG" @click="applyDamage" />
+          <AppButton variant="tinted" size="xs" tone="success" emphasis="soft" label="HEAL" @click="applyHeal" />
+          <AppButton variant="tinted" size="xs" tone="info" emphasis="soft" label="TMP" @click="applyTempHp" />
         </div>
 
         <!-- Rest + condition picker (management actions, pinned to bottom) -->
@@ -138,12 +146,13 @@
                 :style="{ top: pickerPos.top + 'px', right: pickerPos.right + 'px' }"
               >
                 <div class="p-2 border-b border-border">
-                  <input
+                  <AppInput
                     ref="conditionSearchInput"
                     v-model="conditionSearch"
                     type="text"
+                    tone="muted"
+                    size="body-xs"
                     placeholder="Search conditions…"
-                    class="w-full rounded border border-border bg-muted/40 px-2 py-1 text-caption focus:outline-none focus:ring-1 focus:ring-ring"
                     @keydown.escape="showConditionPicker = false"
                   />
                 </div>
@@ -179,7 +188,6 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick } from "vue";
-import { RouterLink } from "vue-router";
 import { IconStar } from '@/lib/icons';
 import { useAuthStore } from "@/stores/auth";
 import { useUpdatePartyMember } from "@/composables/useParty";
@@ -208,6 +216,9 @@ import { useIsRuleEnabled } from "@/composables/useOptionalRules";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RestButtons from "@/components/player/RestButtons.vue";
 import MiniPortraitOverlay from "@/components/simulacrum/MiniPortraitOverlay.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import type { AppInputHandle } from "@/components/common/fieldVariants";
 
 const props = defineProps<{ member: PartyMember; wildshape?: WildshapeState; hidePlayerActions?: boolean }>();
 const emit = defineEmits<{ (e: "level-up"): void }>();
@@ -230,7 +241,7 @@ function blockInvalidChars(e: KeyboardEvent) {
 
 const showConditionPicker = ref(false);
 const conditionSearch = ref("");
-const conditionSearchInput = ref<HTMLInputElement | null>(null);
+const conditionSearchInput = ref<AppInputHandle | null>(null);
 const conditionPickerBtn = ref<HTMLElement | null>(null);
 const pickerPos = ref({ top: 0, right: 0 });
 

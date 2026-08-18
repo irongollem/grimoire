@@ -45,52 +45,63 @@
     </div>
 
     <!-- Add / edit form -->
-    <button
+    <AppButton
       v-if="!showForm"
-      class="text-label text-muted-foreground hover:text-foreground transition-colors"
+      variant="ghost"
+      size="inline-xs"
+      :icon="IconAdd"
+      label="Add attack"
       @click="startAdd"
-    ><IconAdd class="h-3 w-3 inline-block -mt-0.5 mr-0.5" />Add attack</button>
+    />
     <div v-else class="rounded-lg border border-border bg-card px-4 py-3 space-y-2">
-      <input
+      <AppInput
         v-model="formName"
         type="text"
+        tone="muted"
+        size="body"
         placeholder="Name (e.g. Companion Bite)"
-        class="w-full rounded border border-border bg-muted/40 px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-      >
+      />
       <label class="flex items-center gap-2 text-caption text-muted-foreground">
         <input v-model="formAutoHit" type="checkbox" class="accent-primary">
         Auto-hit / no attack roll
       </label>
-      <input
+      <AppInput
         v-if="!formAutoHit"
         v-model="formAttackBonus"
         type="number"
+        tone="muted"
+        size="body"
         placeholder="Attack bonus (e.g. 5)"
-        class="w-full rounded border border-border bg-muted/40 px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-      >
-      <input
+      />
+      <AppInput
         v-model="formDamage"
         type="text"
+        tone="muted"
+        size="body"
         placeholder="Damage (e.g. 2d4+2)"
-        class="w-full rounded border border-border bg-muted/40 px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-      >
-      <input
+      />
+      <AppInput
         v-model="formDamageType"
         type="text"
+        tone="muted"
+        size="body"
         placeholder="Damage type (optional, e.g. piercing)"
-        class="w-full rounded border border-border bg-muted/40 px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-      >
+      />
       <p v-if="formError" class="text-caption text-destructive">{{ formError }}</p>
       <div class="flex gap-2">
-        <button
+        <AppButton
+          variant="primary"
+          size="xs"
           :disabled="saving"
-          class="text-label px-3 py-1 rounded bg-primary text-primary-foreground disabled:opacity-40 hover:opacity-90 transition-opacity"
+          :label="editingId ? 'Save' : 'Add'"
           @click="confirmForm"
-        >{{ editingId ? "Save" : "Add" }}</button>
-        <button
-          class="text-label px-3 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors"
+        />
+        <AppButton
+          variant="subtle"
+          size="xs"
+          label="Cancel"
           @click="cancelForm"
-        >Cancel</button>
+        />
       </div>
     </div>
 
@@ -99,6 +110,8 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import { IconAdd, IconDelete, IconEdit, IconLightning, IconSword } from "@/lib/icons";
 import { rollParsed, combineModes } from "@/lib/dice/roller";
 import type { RollMode } from "@/lib/dice/roller";

@@ -19,13 +19,14 @@
           <h2 class="font-cinzel font-bold text-sm tracking-wide text-foreground">
             Edit Cover — <span class="capitalize text-muted-foreground">{{ variantLabel }}</span>
           </h2>
-          <button
-            type="button"
-            class="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          <AppButton
+            variant="ghost"
+            size="icon-sm"
+            :icon="IconClose"
+            tooltip="Close"
+            aria-label="Close"
             @click="$emit('close')"
-          >
-            <IconClose class="h-4 w-4" />
-          </button>
+          />
         </div>
 
         <!-- Fields -->
@@ -34,33 +35,32 @@
           <template v-if="variant === 'front' || variant === 'inside'">
             <div class="space-y-1.5">
               <label class="block text-label-lg font-semibold text-muted-foreground uppercase">Title</label>
-              <input
+              <AppInput
                 v-model="local.title"
-                type="text"
+                tone="muted"
+                size="body"
                 placeholder="Document Title"
-                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
             <div class="space-y-1.5">
               <label class="block text-label-lg font-semibold text-muted-foreground uppercase">Subtitle</label>
-              <input
+              <AppInput
                 v-model="local.subtitle"
-                type="text"
+                tone="muted"
+                size="body"
                 placeholder="An Unofficial Homebrew Supplement"
-                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
             <div class="space-y-1.5">
               <div class="flex items-center justify-between">
                 <label class="block text-label-lg font-semibold text-muted-foreground uppercase">Background Art</label>
-                <button
-                  type="button"
-                  class="inline-flex items-center gap-1 text-label text-muted-foreground hover:text-foreground transition-colors"
+                <AppButton
+                  variant="ghost"
+                  size="inline-xs"
+                  :icon="IconLibrary"
+                  label="Browse library"
                   @click="showArtPicker = true"
-                >
-                  <IconLibrary class="h-3 w-3" />
-                  Browse library
-                </button>
+                />
               </div>
               <ImageUpload
                 v-model="backgroundImageModel"
@@ -85,20 +85,20 @@
           <template v-else-if="variant === 'part'">
             <div class="space-y-1.5">
               <label class="block text-label-lg font-semibold text-muted-foreground uppercase">Part Number</label>
-              <input
+              <AppInput
                 v-model="local.partNumber"
-                type="text"
+                tone="muted"
+                size="body"
                 placeholder="I"
-                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
             <div class="space-y-1.5">
               <label class="block text-label-lg font-semibold text-muted-foreground uppercase">Subtitle</label>
-              <input
+              <AppInput
                 v-model="local.subtitle"
-                type="text"
+                tone="muted"
+                size="body"
                 placeholder="Chapter Title or Section Name"
-                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
           </template>
@@ -107,11 +107,11 @@
           <template v-else-if="variant === 'back'">
             <div class="space-y-1.5">
               <label class="block text-label-lg font-semibold text-muted-foreground uppercase">Subtitle</label>
-              <input
+              <AppInput
                 v-model="local.subtitle"
-                type="text"
+                tone="muted"
+                size="body"
                 placeholder="Document Title"
-                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
             <div class="space-y-1.5">
@@ -143,33 +143,32 @@
             </div>
             <div class="space-y-1.5">
               <label class="block text-label-lg font-semibold text-muted-foreground uppercase">Tagline</label>
-              <input
+              <AppInput
                 v-model="local.tagline"
-                type="text"
+                tone="muted"
+                size="body"
                 placeholder="An unofficial Grimoire supplement"
-                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
             <div class="space-y-1.5">
               <label class="block text-label-lg font-semibold text-muted-foreground uppercase">Product URL</label>
-              <input
+              <AppInput
                 v-model="local.productUrl"
-                type="text"
+                tone="muted"
+                size="body"
                 placeholder="grimoire.example.com"
-                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
             <div class="space-y-1.5">
               <div class="flex items-center justify-between">
                 <label class="block text-label-lg font-semibold text-muted-foreground uppercase">Background Art</label>
-                <button
-                  type="button"
-                  class="inline-flex items-center gap-1 text-label text-muted-foreground hover:text-foreground transition-colors"
+                <AppButton
+                  variant="ghost"
+                  size="inline-xs"
+                  :icon="IconLibrary"
+                  label="Browse library"
                   @click="showArtPicker = true"
-                >
-                  <IconLibrary class="h-3 w-3" />
-                  Browse library
-                </button>
+                />
               </div>
               <ImageUpload
                 v-model="backgroundImageModel"
@@ -186,21 +185,14 @@
           <p v-if="applyError" class="text-caption text-destructive italic">{{ applyError }}</p>
           <p v-else-if="!isActiveCoverPage" class="text-caption text-muted-foreground italic">Click inside a cover page in the editor to enable Apply.</p>
           <div class="flex justify-end gap-2">
-            <button
-              type="button"
-              class="px-4 py-1.5 rounded-md text-label-lg font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-              @click="$emit('close')"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
+            <AppButton variant="ghost" size="sm" label="Cancel" @click="$emit('close')" />
+            <AppButton
+              variant="primary"
+              size="sm"
+              label="Apply"
               :disabled="!isActiveCoverPage"
-              class="px-4 py-1.5 rounded-md bg-primary text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
               @click="apply"
-            >
-              Apply
-            </button>
+            />
           </div>
         </div>
       </div>
@@ -215,6 +207,8 @@ import type { Editor } from "@tiptap/vue-3";
 import type { CoverPageAttrs, CoverPageVariant } from "@/lib/tiptap/coverPage";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import ArtPickerModal from "@/components/common/ArtPickerModal.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 
 const props = defineProps<{
   show: boolean;

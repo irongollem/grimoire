@@ -3,57 +3,23 @@
     <label class="block text-label-lg font-semibold text-muted-foreground mb-2">
       DATE
     </label>
-    <div class="flex rounded-md border border-border overflow-hidden mb-3">
-      <button
-        type="button"
-        class="flex-1 py-1.5 text-label-lg font-semibold transition-colors"
-        :class="dateType === 'regular' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'"
-        @click="emit('update:dateType', 'regular')"
-      >
-        Regular Day
-      </button>
-      <button
-        type="button"
-        class="flex-1 py-1.5 text-label-lg font-semibold transition-colors"
-        :class="dateType === 'festival' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'"
-        @click="emit('update:dateType', 'festival')"
-      >
-        Festival Day
-      </button>
-    </div>
+    <SegmentedControl v-model="dateTypeModel" :options="DATE_TYPE_OPTIONS" size="sm" block class="mb-3" />
 
     <!-- Regular date fields -->
     <div v-if="dateType === 'regular'" class="grid grid-cols-3 gap-2">
       <div>
         <label class="block text-caption text-muted-foreground mb-1">Year</label>
-        <input
-          :value="harptosYear"
-          type="number"
-          min="1"
-          class="w-full bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          @input="emit('update:harptosYear', Number(($event.target as HTMLInputElement).value))"
-        />
+        <AppInput v-model.number="harptosYearModel" type="number" min="1" tone="muted" size="body-xs" align="right" />
       </div>
       <div>
         <label class="block text-caption text-muted-foreground mb-1">Month</label>
-        <select
-          :value="harptosMonth"
-          class="w-full bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          @change="emit('update:harptosMonth', Number(($event.target as HTMLSelectElement).value))"
-        >
+        <AppSelect v-model.number="harptosMonthModel" tone="muted" size="body-xs" block aria-label="Month">
           <option v-for="m in months" :key="m.num" :value="m.num">{{ m.name }}</option>
-        </select>
+        </AppSelect>
       </div>
       <div>
         <label class="block text-caption text-muted-foreground mb-1">Day</label>
-        <input
-          :value="harptosDay"
-          type="number"
-          min="1"
-          max="30"
-          class="w-full bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          @input="emit('update:harptosDay', Number(($event.target as HTMLInputElement).value))"
-        />
+        <AppInput v-model.number="harptosDayModel" type="number" min="1" max="30" tone="muted" size="body-xs" align="right" />
       </div>
     </div>
 
@@ -61,23 +27,13 @@
     <div v-else class="grid grid-cols-2 gap-2">
       <div>
         <label class="block text-caption text-muted-foreground mb-1">Year</label>
-        <input
-          :value="harptosYear"
-          type="number"
-          min="1"
-          class="w-full bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          @input="emit('update:harptosYear', Number(($event.target as HTMLInputElement).value))"
-        />
+        <AppInput v-model.number="harptosYearModel" type="number" min="1" tone="muted" size="body-xs" align="right" />
       </div>
       <div>
         <label class="block text-caption text-muted-foreground mb-1">Festival</label>
-        <select
-          :value="festivalDay"
-          class="w-full bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          @change="emit('update:festivalDay', ($event.target as HTMLSelectElement).value)"
-        >
+        <AppSelect v-model="festivalDayModel" tone="muted" size="body-xs" block aria-label="Festival">
           <option v-for="f in availableFestivals" :key="f.name" :value="f.name">{{ f.name }}</option>
-        </select>
+        </AppSelect>
       </div>
     </div>
   </div>
@@ -97,41 +53,29 @@
     <div v-if="isMultiDay" class="mt-3 grid grid-cols-3 gap-2">
       <div>
         <label class="block text-caption text-muted-foreground mb-1">End year</label>
-        <input
-          :value="endYear"
-          type="number"
-          min="1"
-          class="w-full bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          @input="emit('update:endYear', Number(($event.target as HTMLInputElement).value))"
-        />
+        <AppInput v-model.number="endYearModel" type="number" min="1" tone="muted" size="body-xs" align="right" />
       </div>
       <div>
         <label class="block text-caption text-muted-foreground mb-1">End month</label>
-        <select
-          :value="endMonth"
-          class="w-full bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          @change="emit('update:endMonth', ($event.target as HTMLSelectElement).value === '' ? null : Number(($event.target as HTMLSelectElement).value))"
-        >
+        <AppSelect v-model.number="endMonthModel" tone="muted" size="body-xs" block aria-label="End month">
           <option :value="null">—</option>
           <option v-for="m in months" :key="m.num" :value="m.num">{{ m.name }}</option>
-        </select>
+        </AppSelect>
       </div>
       <div>
         <label class="block text-caption text-muted-foreground mb-1">End day</label>
-        <input
-          :value="endDay"
-          type="number"
-          min="1"
-          max="30"
-          class="w-full bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          @input="emit('update:endDay', Number(($event.target as HTMLInputElement).value))"
-        />
+        <AppInput v-model.number="endDayModel" type="number" min="1" max="30" tone="muted" size="body-xs" align="right" />
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
+import SegmentedControl from "@/components/common/SegmentedControl.vue";
+
 interface Month {
   num: number;
   name: string;
@@ -178,4 +122,57 @@ const emit = defineEmits<{
   "update:endMonth": [value: number | null];
   "update:endDay": [value: number];
 }>();
+
+const DATE_TYPE_OPTIONS = [
+  { value: "regular", label: "Regular Day" },
+  { value: "festival", label: "Festival Day" },
+] as const satisfies ReadonlyArray<{ value: "regular" | "festival"; label: string }>;
+
+// AppInput/AppSelect require v-model, but this component receives its value through
+// props+emit rather than defineModel. Each field below is a local writable computed
+// that reads the prop and re-emits on write — the same bridge CalendarEditor uses for
+// SettingMonthDef.alias. harptosMonth/harptosDay/festivalDay/endYear/endDay are
+// nullable in the prop (the parent nulls them when the other date-type is active) but
+// these controls have no "clear" option in their own <option>/number-field range, so
+// the null guard in their setters is defensive typing, not a live path. endMonth is
+// the exception: its own "—" option means null is a real value both ways.
+const dateTypeModel = computed({
+  get: () => dateType,
+  set: (v: "regular" | "festival") => emit("update:dateType", v),
+});
+
+const harptosYearModel = computed({
+  get: () => harptosYear,
+  set: (v: number) => emit("update:harptosYear", v),
+});
+
+const harptosMonthModel = computed({
+  get: () => harptosMonth,
+  set: (v: number | null) => { if (v !== null) emit("update:harptosMonth", v); },
+});
+
+const harptosDayModel = computed({
+  get: () => harptosDay,
+  set: (v: number | null) => { if (v !== null) emit("update:harptosDay", v); },
+});
+
+const festivalDayModel = computed({
+  get: () => festivalDay,
+  set: (v: string | null) => { if (v !== null) emit("update:festivalDay", v); },
+});
+
+const endYearModel = computed({
+  get: () => endYear,
+  set: (v: number | null) => { if (v !== null) emit("update:endYear", v); },
+});
+
+const endMonthModel = computed({
+  get: () => endMonth,
+  set: (v: number | null) => emit("update:endMonth", v),
+});
+
+const endDayModel = computed({
+  get: () => endDay,
+  set: (v: number | null) => { if (v !== null) emit("update:endDay", v); },
+});
 </script>

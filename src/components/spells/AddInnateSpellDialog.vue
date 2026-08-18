@@ -25,11 +25,12 @@
               <label class="text-label-lg text-muted-foreground">SPELL</label>
               <div class="relative">
                 <IconSearch class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-                <input
+                <AppInput
                   v-model="spellSearch"
-                  type="text"
+                  tone="muted"
+                  size="body"
                   placeholder="Search by name…"
-                  class="w-full bg-muted/30 border border-border rounded-md pl-8 pr-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                  class="pl-8 pr-3"
                   @input="selectedSpell = null"
                 />
               </div>
@@ -39,7 +40,7 @@
                 <div class="h-2 w-2 rounded-full shrink-0" :class="SCHOOL_BG[selectedSpell.school]" />
                 <span class="text-body text-foreground flex-1">{{ selectedSpell.name }}</span>
                 <span class="font-cinzel text-2xs text-muted-foreground">{{ selectedSpell.level === 0 ? 'Cantrip' : `Lvl ${selectedSpell.level}` }}</span>
-                <button type="button" class="text-muted-foreground hover:text-foreground" @click="clearSpell">×</button>
+                <AppButton variant="ghost" size="inline-xs" label="×" @click="clearSpell" />
               </div>
 
               <!-- IconSearch results -->
@@ -65,26 +66,17 @@
             <!-- Source type -->
             <div class="space-y-1">
               <label class="text-label-lg text-muted-foreground">SOURCE</label>
-              <div class="flex rounded-md border border-border overflow-hidden text-label-lg font-semibold">
-                <button
-                  v-for="opt in SOURCE_TYPES"
-                  :key="opt.value"
-                  type="button"
-                  class="flex-1 px-2.5 py-1.5 transition-colors"
-                  :class="sourceType === opt.value ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
-                  @click="sourceType = opt.value"
-                >{{ opt.label }}</button>
-              </div>
+              <SegmentedControl v-model="sourceType" :options="SOURCE_TYPES" size="sm" block />
             </div>
 
             <!-- Source label -->
             <div class="space-y-1">
               <label class="text-label-lg text-muted-foreground">SOURCE LABEL <span class="text-muted-foreground/60 normal-case font-fell">(required; e.g. Tiefling, Magic Initiate)</span></label>
-              <input
+              <AppInput
                 v-model="sourceLabel"
-                type="text"
+                tone="muted"
+                size="body"
                 placeholder="What grants this spell?"
-                class="w-full bg-muted/30 border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
 
@@ -92,12 +84,14 @@
             <div class="space-y-1">
               <label class="text-label-lg text-muted-foreground">USES</label>
               <div class="flex items-center gap-2">
-                <button
-                  type="button"
-                  class="flex-1 py-1.5 rounded-md border text-label-lg font-semibold transition-colors"
-                  :class="usesPerDay === null ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400' : 'bg-card border-border text-muted-foreground hover:text-foreground'"
+                <AppButton
+                  :variant="usesPerDay === null ? 'tinted' : 'subtle'"
+                  tone="success"
+                  size="sm"
+                  label="At will"
+                  class="flex-1"
                   @click="setAtWill"
-                >At will</button>
+                />
                 <div class="flex items-center border border-border rounded-md overflow-hidden">
                   <button
                     type="button"
@@ -124,46 +118,35 @@
             <!-- Resets on (only if limited) -->
             <div v-if="usesPerDay !== null" class="space-y-1">
               <label class="text-label-lg text-muted-foreground">RESETS ON</label>
-              <div class="flex rounded-md border border-border overflow-hidden text-label-lg font-semibold">
-                <button
-                  type="button"
-                  class="flex-1 px-3 py-1.5 transition-colors"
-                  :class="resetsOn === 'long_rest' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
-                  @click="resetsOn = 'long_rest'"
-                >Long Rest</button>
-                <button
-                  type="button"
-                  class="flex-1 px-3 py-1.5 transition-colors"
-                  :class="resetsOn === 'short_rest' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
-                  @click="resetsOn = 'short_rest'"
-                >Short Rest</button>
-              </div>
+              <SegmentedControl v-model="resetsOn" :options="RESETS_ON_OPTIONS" size="sm" block />
             </div>
 
             <div class="space-y-1">
               <label class="text-label-lg text-muted-foreground">CASTING ABILITY</label>
-              <select v-model="castingAbility" class="w-full rounded-md border border-border bg-muted/30 px-3 py-1.5 text-body text-foreground">
+              <AppSelect v-model="castingAbility" tone="muted" size="body" block>
                 <option :value="null">Use class/default ability</option>
                 <option value="int">Intelligence</option>
                 <option value="wis">Wisdom</option>
                 <option value="cha">Charisma</option>
-              </select>
+              </AppSelect>
             </div>
           </div>
 
           <!-- Footer -->
           <div class="flex justify-end gap-2 px-5 pb-5">
-            <button
-              type="button"
-              class="cursor-pointer px-4 py-1.5 rounded-md border border-border text-label-lg font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+            <AppButton
+              variant="subtle"
+              size="sm"
+              label="Cancel"
               @click="$emit('close')"
-            >Cancel</button>
-            <button
-              type="button"
-              class="cursor-pointer px-4 py-1.5 rounded-md bg-primary text-primary-foreground text-label-lg font-semibold hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+            />
+            <AppButton
+              variant="primary"
+              size="sm"
+              label="Add Spell"
               :disabled="!selectedSpell || !sourceLabel.trim() || isPending"
               @click="submit"
-            >Add Spell</button>
+            />
           </div>
         </div>
       </div>
@@ -178,12 +161,21 @@ import { useAddInnateSpell } from "@/composables/useCharacterSpells";
 import { SCHOOL_BG } from "@/types/spell.types";
 import type { Spell, InnateSourceType, InnateResetsOn } from "@/types/spell.types";
 import { useSpellSearch } from "@/composables/useSpellSearch";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
+import SegmentedControl from "@/components/common/SegmentedControl.vue";
 
 const SOURCE_TYPES = [
   { value: "racial" as InnateSourceType, label: "Racial" },
   { value: "feat"   as InnateSourceType, label: "Feat" },
   { value: "item"   as InnateSourceType, label: "Item" },
   { value: "other"  as InnateSourceType, label: "Other" },
+] as const;
+
+const RESETS_ON_OPTIONS = [
+  { value: "long_rest" as InnateResetsOn, label: "Long Rest" },
+  { value: "short_rest" as InnateResetsOn, label: "Short Rest" },
 ] as const;
 
 const props = defineProps<{

@@ -23,13 +23,7 @@
               <IconTip class="h-4 w-4 text-primary" />
               Spell Level Advisor
             </h2>
-            <button
-              type="button"
-              class="text-label-lg text-muted-foreground hover:text-foreground transition-colors"
-              @click="emit('skip')"
-            >
-              Skip →
-            </button>
+            <AppButton variant="ghost" size="inline" label="Skip →" @click="emit('skip')" />
           </div>
 
           <div class="overflow-y-auto px-6 py-4 flex flex-col gap-4">
@@ -43,15 +37,11 @@
               <span class="text-eyebrow text-muted-foreground"
                 >School of Magic</span
               >
-              <select
-                :value="school"
-                class="bg-muted border border-border rounded px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring capitalize"
-                @change="emit('update:school', ($event.target as HTMLSelectElement).value)"
-              >
+              <AppSelect v-model="schoolModel" tone="muted" size="body" class="capitalize">
                 <option v-for="s in SPELL_SCHOOLS" :key="s" :value="s" class="capitalize">
                   {{ s }}
                 </option>
-              </select>
+              </AppSelect>
             </label>
 
             <!-- 2. School design notes (reactive to school above) -->
@@ -78,16 +68,13 @@
               <span class="text-eyebrow text-muted-foreground"
                 >Main Effect</span
               >
-              <select
-                v-model="adv.effectType"
-                class="bg-muted border border-border rounded px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              >
+              <AppSelect v-model="adv.effectType" tone="muted" size="body">
                 <option value="damage">Damage</option>
                 <option value="healing">Healing / Restoration</option>
                 <option value="control">Control (restrain, slow, etc.)</option>
                 <option value="buff">Buff / Enhancement</option>
                 <option value="utility">Utility / Exploration</option>
-              </select>
+              </AppSelect>
             </label>
 
             <!-- 4. Intensity (control / buff / utility only) -->
@@ -98,10 +85,7 @@
               <span class="text-eyebrow text-muted-foreground"
                 >Effect Intensity</span
               >
-              <select
-                v-model="adv.effectIntensity"
-                class="bg-muted border border-border rounded px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              >
+              <AppSelect v-model="adv.effectIntensity" tone="muted" size="body">
                 <template v-if="adv.effectType === 'control'">
                   <option value="weak">Weak — disadvantage, minor debuff (e.g. Bane)</option>
                   <option value="moderate">
@@ -134,7 +118,7 @@
                   <option value="major">Major — teleportation, legend lore (e.g. Teleport)</option>
                   <option value="extreme">World-altering — Wish, Gate level</option>
                 </template>
-              </select>
+              </AppSelect>
             </label>
 
             <!-- 5. Damage / healing dice -->
@@ -160,10 +144,7 @@
               <span class="text-eyebrow text-muted-foreground"
                 >Targeting</span
               >
-              <select
-                v-model="adv.targetingMode"
-                class="bg-muted border border-border rounded px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              >
+              <AppSelect v-model="adv.targetingMode" tone="muted" size="body">
                 <option value="self">Self only</option>
                 <option value="single">Single target</option>
                 <option value="multi_2">Up to 2 creatures</option>
@@ -172,7 +153,7 @@
                 <option value="aoe_small">Small AoE (≤15 ft cone / ≤30 ft line)</option>
                 <option value="aoe_medium">Medium AoE (20 ft radius / 60 ft line)</option>
                 <option value="aoe_large">Large AoE (30+ ft radius)</option>
-              </select>
+              </AppSelect>
             </label>
 
             <!-- 7. Save type -->
@@ -180,15 +161,12 @@
               <span class="text-eyebrow text-muted-foreground"
                 >Targeting / Save</span
               >
-              <select
-                v-model="adv.saveType"
-                class="bg-muted border border-border rounded px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              >
+              <AppSelect v-model="adv.saveType" tone="muted" size="body">
                 <option value="save_for_half">Saving throw — half on save</option>
                 <option value="save_negates">Saving throw — negates on save</option>
                 <option value="attack_roll">Attack roll (can miss)</option>
                 <option value="automatic">Automatic — no save or attack</option>
-              </select>
+              </AppSelect>
             </label>
 
             <!-- 8. Duration -->
@@ -196,17 +174,14 @@
               <span class="text-eyebrow text-muted-foreground"
                 >Duration Tier</span
               >
-              <select
-                v-model="adv.durationTier"
-                class="bg-muted border border-border rounded px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              >
+              <AppSelect v-model="adv.durationTier" tone="muted" size="body">
                 <option value="instantaneous">Instantaneous</option>
                 <option value="conc_1min">Concentration, ≤1 minute</option>
                 <option value="conc_10min">Concentration, ≤10 minutes</option>
                 <option value="conc_1hour">Concentration, ≤1 hour</option>
                 <option value="sustained_1min">1 minute (no concentration)</option>
                 <option value="sustained_long">8+ hours (no concentration)</option>
-              </select>
+              </AppSelect>
             </label>
 
             <!-- 9. Flags -->
@@ -277,24 +252,19 @@
           <div
             class="flex items-center justify-between gap-3 px-6 py-4 border-t border-border shrink-0"
           >
-            <button
-              type="button"
-              class="text-label-lg text-muted-foreground hover:text-foreground transition-colors"
+            <AppButton
+              variant="ghost"
+              size="inline"
+              label="Skip, I'll fill it in manually"
               @click="emit('skip')"
-            >
-              Skip, I'll fill it in manually
-            </button>
-            <button
-              type="button"
-              class="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
-              @click="emit('apply')"
-            >
+            />
+            <AppButton variant="primary" size="md" @click="emit('apply')">
               Apply to Spell (Level
               {{
                 advResult.suggestedMin +
                 Math.floor((advResult.suggestedMax - advResult.suggestedMin) / 2)
               }}) →
-            </button>
+            </AppButton>
           </div>
         </div>
       </div>
@@ -303,7 +273,10 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import { IconTip } from "@/lib/icons";
+import AppButton from "@/components/common/AppButton.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import DiceInput from "@/components/common/DiceInput.vue";
 import { SPELL_SCHOOLS } from "@/types/spell.types";
 import type { SpellSchool } from "@/types/spell.types";
@@ -324,6 +297,14 @@ const emit = defineEmits<{
   apply: [];
   "update:school": [value: string];
 }>();
+
+// AppSelect requires a v-model. `school` is a prop paired with an
+// `update:school` emit (the parent wires it as v-model:school) rather than a
+// local ref, so bridge the two through a writable computed.
+const schoolModel = computed<SpellSchool>({
+  get: () => school,
+  set: (value) => emit("update:school", value),
+});
 </script>
 
 <style>

@@ -8,20 +8,20 @@
       <div class="flex items-center gap-2">
         <!-- View mode actions -->
         <template v-if="!isNew && !editMode">
-          <button
-            type="button"
+          <AppButton
+            variant="destructive"
+            size="sm"
             :disabled="isDeleting"
-            class="px-3 py-1.5 text-label-lg font-semibold text-destructive border border-destructive/40 rounded-md hover:bg-destructive/10 transition-colors disabled:opacity-50"
+            :label="isDeleting ? 'Deleting…' : 'Delete'"
             @click="onDelete"
-          >{{ isDeleting ? "Deleting…" : "Delete" }}</button>
-          <button
-            type="button"
-            class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
+          />
+          <AppButton
+            variant="primary"
+            size="md"
+            :icon="IconEdit"
+            label="Edit"
             @click="editMode = true"
-          >
-            <IconEdit class="size-3.5" />
-            Edit
-          </button>
+          />
         </template>
         <!-- Edit mode actions -->
         <template v-else-if="!isNew">
@@ -31,27 +31,25 @@
             label="Cancel"
             @click="editMode = false"
           />
-          <button
-            type="button"
+          <AppButton
+            variant="primary"
+            size="md"
             :disabled="saving || !form.name.trim() || rangeError !== null"
-            :title="rangeError ?? undefined"
-            class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+            :tooltip="rangeError ?? undefined"
+            :label="saving ? 'Saving…' : 'Save'"
             @click="onSave"
-          >
-            {{ saving ? "Saving…" : "Save" }}
-          </button>
+          />
         </template>
         <!-- New table: just Save/Create -->
         <template v-else>
-          <button
-            type="button"
+          <AppButton
+            variant="primary"
+            size="md"
             :disabled="saving || !form.name.trim() || rangeError !== null"
-            :title="rangeError ?? undefined"
-            class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+            :tooltip="rangeError ?? undefined"
+            :label="saving ? 'Saving…' : 'Create'"
             @click="onSave"
-          >
-            {{ saving ? "Saving…" : "Create" }}
-          </button>
+          />
         </template>
       </div>
     </div>
@@ -124,22 +122,19 @@
           <div class="grid grid-cols-1 md:grid-cols-[1fr_8.75rem] gap-3">
             <div class="space-y-1.5">
               <label class="text-eyebrow font-semibold text-muted-foreground">Name</label>
-              <input
+              <AppInput
                 v-model="form.name"
                 required
+                size="heading"
+                tone="card"
                 placeholder="Forest Road — Daytime"
-                class="w-full bg-card border border-border rounded-md px-3 py-2 text-heading font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
             <div class="space-y-1.5">
               <label class="text-eyebrow font-semibold text-muted-foreground">Die</label>
-              <select
-                v-model="form.dice"
-                class="w-full bg-card border border-border rounded-md px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                @change="onDieChange"
-              >
+              <AppSelect v-model="form.dice" size="body" block @change="onDieChange">
                 <option v-for="d in ROLL_TABLE_DICE" :key="d" :value="d">{{ d }}</option>
-              </select>
+              </AppSelect>
             </div>
           </div>
 
@@ -196,10 +191,11 @@
                   />
                 </div>
                 <div class="flex flex-col gap-1.5 min-w-0">
-                  <input
+                  <AppInput
                     v-model="entry.label"
+                    size="body-xs"
                     placeholder="What happens?"
-                    class="w-full bg-muted border border-border rounded px-2 py-1 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                    class="bg-muted"
                   />
                   <EntityCombobox
                     :model-value="entry.encounter_id ?? ''"
@@ -208,14 +204,15 @@
                     @update:model-value="entry.encounter_id = $event || null"
                   />
                 </div>
-                <button
-                  type="button"
-                  class="text-muted-foreground hover:text-destructive transition-colors p-1 mt-0.5"
-                  title="Remove entry"
+                <AppButton
+                  variant="ghost"
+                  tone="danger"
+                  size="icon-xs"
+                  :icon="IconDelete"
+                  tooltip="Remove entry"
+                  class="mt-0.5"
                   @click="removeEntry(idx)"
-                >
-                  <IconDelete class="size-3.5" />
-                </button>
+                />
                 <textarea
                   v-if="entry.notes !== null && entry.notes !== undefined"
                   v-model="entry.notes"
@@ -256,16 +253,15 @@
       <div class="self-start">
         <div class="rounded-lg border border-border bg-card p-4 flex flex-col gap-3">
           <h3 class="font-cinzel text-sm font-bold tracking-wider text-foreground">Roll {{ form.dice }}</h3>
-          <button
-            type="button"
+          <AppButton
+            variant="primary"
+            size="md"
             :disabled="!rollableEntries.length || rangeError !== null"
-            :title="rangeError ?? undefined"
-            class="inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+            :tooltip="rangeError ?? undefined"
+            :icon="IconDiceRoll"
+            label="Roll"
             @click="onRoll"
-          >
-            <IconDiceRoll class="size-3.5" />
-            Roll
-          </button>
+          />
 
           <div v-if="lastRoll" class="rounded-md border border-border bg-muted/40 p-3 flex flex-col gap-1.5">
             <div class="flex items-center justify-between">
@@ -322,6 +318,8 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 
 const props = defineProps<{
   /** ID of an existing table to edit. Omit for new-table mode. */

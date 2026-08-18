@@ -4,224 +4,228 @@
   >
     <template v-if="editor">
       <!-- Inline -->
-      <button
-        type="button"
-        title="Bold"
-        :class="tbCls(editor.isActive('bold'))"
+      <AppButton
+        variant="ghost"
+        size="icon-xs"
+        tooltip="Bold"
+        :active="editor.isActive('bold')"
         @click="editor.chain().focus().toggleBold().run()"
       >
         <strong class="text-xs leading-none">B</strong>
-      </button>
-      <button
-        type="button"
-        title="Italic"
-        :class="tbCls(editor.isActive('italic'))"
+      </AppButton>
+      <AppButton
+        variant="ghost"
+        size="icon-xs"
+        tooltip="Italic"
+        :active="editor.isActive('italic')"
         @click="editor.chain().focus().toggleItalic().run()"
       >
         <em class="text-xs leading-none">I</em>
-      </button>
-      <button
-        type="button"
-        title="Strikethrough"
-        :class="tbCls(editor.isActive('strike'))"
+      </AppButton>
+      <AppButton
+        variant="ghost"
+        size="icon-xs"
+        tooltip="Strikethrough"
+        :active="editor.isActive('strike')"
+        :icon="IconStrikethrough"
         @click="editor.chain().focus().toggleStrike().run()"
-      >
-        <IconStrikethrough class="h-3.5 w-3.5" />
-      </button>
-      <button
-        type="button"
-        title="Inline code"
-        :class="tbCls(editor.isActive('code'))"
+      />
+      <AppButton
+        variant="ghost"
+        size="icon-xs"
+        tooltip="Inline code"
+        :active="editor.isActive('code')"
+        :icon="IconCodeInline"
         @click="editor.chain().focus().toggleCode().run()"
-      >
-        <IconCodeInline class="h-3.5 w-3.5" />
-      </button>
+      />
 
       <div class="w-px h-5 bg-border mx-0.5" />
 
       <!-- Headings -->
-      <button
-        type="button"
-        title="Heading 1"
-        :class="tbCls(editor.isActive('heading', { level: 1 }))"
+      <AppButton
+        variant="ghost"
+        size="icon-xs"
+        tooltip="Heading 1"
+        :active="editor.isActive('heading', { level: 1 })"
         @click="editor.chain().focus().toggleHeading({ level: 1 }).run()"
       >
         <span class="text-2xs font-cinzel font-bold leading-none">H1</span>
-      </button>
-      <button
-        type="button"
-        title="Heading 2"
-        :class="tbCls(editor.isActive('heading', { level: 2 }))"
+      </AppButton>
+      <AppButton
+        variant="ghost"
+        size="icon-xs"
+        tooltip="Heading 2"
+        :active="editor.isActive('heading', { level: 2 })"
         @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
       >
         <span class="text-2xs font-cinzel font-bold leading-none">H2</span>
-      </button>
-      <button
-        type="button"
-        title="Heading 3"
-        :class="tbCls(editor.isActive('heading', { level: 3 }))"
+      </AppButton>
+      <AppButton
+        variant="ghost"
+        size="icon-xs"
+        tooltip="Heading 3"
+        :active="editor.isActive('heading', { level: 3 })"
         @click="editor.chain().focus().toggleHeading({ level: 3 }).run()"
       >
         <span class="text-2xs font-cinzel font-bold leading-none">H3</span>
-      </button>
+      </AppButton>
 
       <div class="w-px h-5 bg-border mx-0.5" />
 
       <!-- Blocks -->
-      <button
-        type="button"
-        title="Bullet list"
-        :class="tbCls(editor.isActive('bulletList'))"
+      <AppButton
+        variant="ghost"
+        size="icon-xs"
+        tooltip="Bullet list"
+        :active="editor.isActive('bulletList')"
+        :icon="IconList"
         @click="editor.chain().focus().toggleBulletList().run()"
-      >
-        <IconList class="h-3.5 w-3.5" />
-      </button>
-      <button
-        type="button"
-        title="Ordered list"
-        :class="tbCls(editor.isActive('orderedList'))"
+      />
+      <AppButton
+        variant="ghost"
+        size="icon-xs"
+        tooltip="Ordered list"
+        :active="editor.isActive('orderedList')"
+        :icon="IconListOrdered"
         @click="editor.chain().focus().toggleOrderedList().run()"
-      >
-        <IconListOrdered class="h-3.5 w-3.5" />
-      </button>
-      <button
-        type="button"
-        title="Blockquote / callout"
-        :class="tbCls(editor.isActive('blockquote'))"
+      />
+      <AppButton
+        variant="ghost"
+        size="icon-xs"
+        tooltip="Blockquote / callout"
+        :active="editor.isActive('blockquote')"
+        :icon="IconQuote"
         @click="editor.chain().focus().toggleBlockquote().run()"
-      >
-        <IconQuote class="h-3.5 w-3.5" />
-      </button>
-      <button
-        type="button"
-        title="Inline block"
-        :class="tbCls(editor.isActive('codeBlock'))"
+      />
+      <AppButton
+        variant="ghost"
+        size="icon-xs"
+        tooltip="Inline block"
+        :active="editor.isActive('codeBlock')"
+        :icon="IconCodeBlock"
         @click="editor.chain().focus().toggleCodeBlock().run()"
-      >
-        <IconCodeBlock class="h-3.5 w-3.5" />
-      </button>
-      <button
-        type="button"
-        title="Wide Block (spans both columns)"
-        :class="tbCls(editor.isActive('wideBlock'))"
+      />
+      <AppButton
+        variant="ghost"
+        size="icon-xs"
+        tooltip="Wide Block (spans both columns)"
+        :active="editor.isActive('wideBlock')"
+        :icon="IconRect"
         @click="editor.chain().focus().toggleWideBlock().run()"
-      >
-        <IconRect class="h-3.5 w-3.5" />
-      </button>
-      <button
-        type="button"
-        title="Page Break (inserts new page)"
-        :class="tbCls(false)"
+      />
+      <AppButton
+        variant="ghost"
+        size="icon-xs"
+        tooltip="Page Break (inserts new page)"
+        :icon="IconMinus"
         @click="editor.chain().focus().setHorizontalRule().run()"
-      >
-        <IconMinus class="h-3.5 w-3.5" />
-      </button>
+      />
 
       <div class="w-px h-5 bg-border mx-0.5" />
 
       <!-- Insert Asset -->
-      <button
-        type="button"
-        title="Insert asset as new page (NPC, Monster…)"
-        :class="tbCls(false)"
-        class="gap-1 px-2 text-label font-semibold"
+      <AppButton
+        variant="ghost"
+        size="xs"
+        tooltip="Insert asset as new page (NPC, Monster…)"
+        :icon="IconAddItem"
+        label="Insert"
         @click="$emit('openAssetPanel')"
-      >
-        <IconAddItem class="h-3.5 w-3.5" />
-        Insert
-      </button>
+      />
 
       <!-- Insert Block picker -->
-      <button
-        type="button"
-        title="Insert block…"
-        :class="tbCls(showBlockPicker)"
-        class="gap-1 px-2 text-label font-semibold"
+      <AppButton
+        variant="ghost"
+        size="xs"
+        tooltip="Insert block…"
+        :active="showBlockPicker"
+        :icon="IconGridView"
+        label="Block"
         @click="$emit('openBlockPicker')"
-      >
-        <IconGridView class="h-3.5 w-3.5" />
-        Block
-      </button>
+      />
 
       <div class="w-px h-5 bg-border mx-0.5" />
 
       <!-- Image controls (shown when an image is selected) -->
       <template v-if="editor.isActive('image')">
         <span class="text-label text-muted-foreground px-1 self-center">IMG</span>
-        <button
+        <AppButton
           v-for="size in IMAGE_SIZES"
           :key="size.w"
-          type="button"
-          :title="`${size.label} (${size.w}px)`"
-          :class="tbCls(editor.getAttributes('image').width === String(size.w))"
+          variant="ghost"
+          size="icon-xs"
+          :tooltip="`${size.label} (${size.w}px)`"
+          :active="editor.getAttributes('image').width === String(size.w)"
           @click="editor.chain().focus().updateAttributes('image', { width: String(size.w) }).run()"
         >
           <span class="font-cinzel text-2xs font-bold leading-none">{{ size.label }}</span>
-        </button>
+        </AppButton>
         <div class="w-px h-5 bg-border mx-0.5" />
-        <button
-          type="button"
-          title="Float left"
-          :class="tbCls(editor.getAttributes('image').dataAlign === 'left')"
+        <AppButton
+          variant="ghost"
+          size="icon-xs"
+          tooltip="Float left"
+          :active="editor.getAttributes('image').dataAlign === 'left'"
+          :icon="IconAlignLeft"
           @click="editor.chain().focus().updateAttributes('image', { dataAlign: 'left', layoutMode: 'inline' }).run()"
-        >
-          <IconAlignLeft class="h-3.5 w-3.5" />
-        </button>
-        <button
-          type="button"
-          title="Center"
-          :class="tbCls(editor.getAttributes('image').dataAlign === 'center')"
+        />
+        <AppButton
+          variant="ghost"
+          size="icon-xs"
+          tooltip="Center"
+          :active="editor.getAttributes('image').dataAlign === 'center'"
+          :icon="IconAlignCenter"
           @click="editor.chain().focus().updateAttributes('image', { dataAlign: 'center', layoutMode: 'inline' }).run()"
-        >
-          <IconAlignCenter class="h-3.5 w-3.5" />
-        </button>
-        <button
-          type="button"
-          title="Float right"
-          :class="tbCls(editor.getAttributes('image').dataAlign === 'right' || !editor.getAttributes('image').dataAlign)"
+        />
+        <AppButton
+          variant="ghost"
+          size="icon-xs"
+          tooltip="Float right"
+          :active="editor.getAttributes('image').dataAlign === 'right' || !editor.getAttributes('image').dataAlign"
+          :icon="IconAlignRight"
           @click="editor.chain().focus().updateAttributes('image', { dataAlign: 'right', layoutMode: 'inline' }).run()"
-        >
-          <IconAlignRight class="h-3.5 w-3.5" />
-        </button>
+        />
         <div class="w-px h-5 bg-border mx-0.5" />
         <!-- Layout mode controls -->
         <span class="text-label text-muted-foreground px-1 self-center">LAYOUT</span>
-        <button
-          type="button"
-          title="Wrap left — text flows around right edge"
-          :class="tbCls(editor.getAttributes('image').layoutMode === 'wrapLeft')"
+        <AppButton
+          variant="ghost"
+          size="icon-xs"
+          tooltip="Wrap left — text flows around right edge"
+          :active="editor.getAttributes('image').layoutMode === 'wrapLeft'"
           @click="editor.chain().focus().updateAttributes('image', { layoutMode: 'wrapLeft' }).run()"
         >
           <IconWrapText class="h-3.5 w-3.5 scale-x-[-1]" />
-        </button>
-        <button
-          type="button"
-          title="Wrap right — text flows around left edge"
-          :class="tbCls(editor.getAttributes('image').layoutMode === 'wrapRight')"
+        </AppButton>
+        <AppButton
+          variant="ghost"
+          size="icon-xs"
+          tooltip="Wrap right — text flows around left edge"
+          :active="editor.getAttributes('image').layoutMode === 'wrapRight'"
+          :icon="IconWrapText"
           @click="editor.chain().focus().updateAttributes('image', { layoutMode: 'wrapRight' }).run()"
-        >
-          <IconWrapText class="h-3.5 w-3.5" />
-        </button>
-        <button
-          type="button"
-          title="Absolute position — pin image at exact page coordinates"
-          :class="tbCls(editor.getAttributes('image').layoutMode === 'absolute')"
+        />
+        <AppButton
+          variant="ghost"
+          size="icon-xs"
+          tooltip="Absolute position — pin image at exact page coordinates"
+          :active="editor.getAttributes('image').layoutMode === 'absolute'"
+          :icon="IconPin"
           @click="editor.chain().focus().updateAttributes('image', { layoutMode: 'absolute', posTop: '60', posLeft: '40', posRight: null, posBottom: null }).run()"
-        >
-          <IconPin class="h-3.5 w-3.5" />
-        </button>
+        />
         <!-- Bleed-into-gutter toggle (wrap modes only) -->
         <template
           v-if="editor.getAttributes('image').layoutMode === 'wrapLeft' || editor.getAttributes('image').layoutMode === 'wrapRight'"
         >
-          <button
-            type="button"
-            title="Bleed into column gutter"
-            :class="tbCls(editor.getAttributes('image').gutterBleed === true)"
+          <AppButton
+            variant="ghost"
+            size="icon-xs"
+            tooltip="Bleed into column gutter"
+            :active="editor.getAttributes('image').gutterBleed === true"
             @click="editor.chain().focus().updateAttributes('image', { gutterBleed: !editor.getAttributes('image').gutterBleed }).run()"
           >
             <span class="font-cinzel text-2xs font-bold leading-none">⇔</span>
-          </button>
+          </AppButton>
         </template>
         <!-- Absolute position inputs (absolute mode only) -->
         <template v-if="editor.getAttributes('image').layoutMode === 'absolute'">
@@ -278,14 +282,13 @@
         <!-- Edit in Illuminator — only for asset-images bucket URLs -->
         <template v-if="selectedImageIsSupabase && hasDoc">
           <div class="w-px h-5 bg-border mx-0.5" />
-          <button
-            type="button"
-            title="Edit in Illuminator"
-            :class="tbCls(false)"
+          <AppButton
+            variant="ghost"
+            size="icon-xs"
+            tooltip="Edit in Illuminator"
+            :icon="IconExternalLink"
             @click="$emit('editInIlluminator')"
-          >
-            <IconExternalLink class="h-3.5 w-3.5" />
-          </button>
+          />
         </template>
       </template>
 
@@ -293,49 +296,46 @@
       <template v-if="editor.isActive('coverPage')">
         <div class="w-px h-5 bg-border mx-0.5" />
         <span class="text-label text-muted-foreground px-1 self-center">COVER</span>
-        <button
-          type="button"
-          title="Edit cover page text"
-          :class="tbCls(showCoverInspector)"
-          class="gap-1 px-2 text-label font-semibold"
+        <AppButton
+          variant="ghost"
+          size="xs"
+          tooltip="Edit cover page text"
+          :active="showCoverInspector"
+          :icon="IconPencilLine"
+          label="Edit"
           @click="$emit('openCoverInspector')"
-        >
-          <IconPencilLine class="h-3.5 w-3.5" />
-          Edit
-        </button>
+        />
       </template>
 
       <!-- History -->
-      <button
-        type="button"
-        title="Undo"
-        :class="tbCls(false)"
+      <AppButton
+        variant="ghost"
+        size="icon-xs"
+        tooltip="Undo"
         :disabled="!editor.can().undo()"
+        :icon="IconUndo"
         @click="editor.chain().focus().undo().run()"
-      >
-        <IconUndo class="h-3.5 w-3.5" />
-      </button>
-      <button
-        type="button"
-        title="Redo"
-        :class="tbCls(false)"
+      />
+      <AppButton
+        variant="ghost"
+        size="icon-xs"
+        tooltip="Redo"
         :disabled="!editor.can().redo()"
+        :icon="IconRedo"
         @click="editor.chain().focus().redo().run()"
-      >
-        <IconRedo class="h-3.5 w-3.5" />
-      </button>
+      />
 
       <div class="w-px h-5 bg-border mx-0.5" />
 
       <!-- Layout -->
-      <button
-        type="button"
-        title="Toggle two-column preview"
-        :class="tbCls(isTwoColumn)"
+      <AppButton
+        variant="ghost"
+        size="icon-xs"
+        tooltip="Toggle two-column preview"
+        :active="isTwoColumn"
+        :icon="IconColumns"
         @click="$emit('update:isTwoColumn', !isTwoColumn)"
-      >
-        <IconColumns class="h-3.5 w-3.5" />
-      </button>
+      />
 
       <!-- Theme -->
       <div
@@ -394,21 +394,21 @@
       </div>
 
       <!-- Ink-friendly toggle -->
-      <button
-        type="button"
-        title="Ink-friendly export (strips backgrounds & decorations)"
-        :class="tbCls(inkFriendly)"
-        class="gap-1 px-2 text-label font-semibold"
+      <AppButton
+        variant="ghost"
+        size="xs"
+        tooltip="Ink-friendly export (strips backgrounds & decorations)"
+        :active="inkFriendly"
+        :icon="IconPrint"
         @click="$emit('update:inkFriendly', !inkFriendly)"
-      >
-        <IconPrint class="h-3.5 w-3.5" />
-      </button>
+      />
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
 import type { Editor } from "@tiptap/vue-3";
+import AppButton from "@/components/common/AppButton.vue";
 import {
   IMAGE_SIZES,
 } from "@/lib/scriptorium/editorConstants";
@@ -470,15 +470,6 @@ defineEmits<{
   editInIlluminator: [];
   setImagePos: [side: "posTop" | "posLeft" | "posRight" | "posBottom", value: string];
 }>();
-
-function tbCls(active: boolean) {
-  return [
-    "p-1 rounded min-w-6.5 h-6.5 flex items-center justify-center transition-colors disabled:opacity-40",
-    active
-      ? "bg-primary/20 text-primary"
-      : "text-muted-foreground hover:text-foreground hover:bg-muted",
-  ].join(" ");
-}
 </script>
 
 <style scoped>

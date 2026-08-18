@@ -29,12 +29,13 @@
           >
             Stop All
           </button>
-          <button
-            class="text-muted-foreground hover:text-foreground transition-colors p-0.5"
+          <AppButton
+            variant="ghost"
+            size="icon-xs"
+            :icon="IconClose"
+            aria-label="Close soundboard widget"
             @click="store.toggleWidget()"
-          >
-            <IconClose class="h-3.5 w-3.5" />
-          </button>
+          />
         </div>
 
         <!-- Playing sounds list -->
@@ -66,28 +67,36 @@
                 @update:model-value="spotifyStore.setVolume($event)"
               />
               <!-- Prev / IconPlay·IconPause / Next -->
-              <button
-                class="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-                title="Previous track"
+              <AppButton
+                variant="ghost"
+                size="inline-xs"
+                class="shrink-0"
+                tooltip="Previous track"
                 @click="spotifyStore.previousTrack()"
               >
-                <IconSkipBack class="h-3 w-3" />
-              </button>
-              <button
-                class="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-                :title="spotifyStore.isPlaying ? 'Pause' : 'Resume'"
+                <template #icon><IconSkipBack class="h-3 w-3" /></template>
+              </AppButton>
+              <AppButton
+                variant="ghost"
+                size="inline-xs"
+                class="shrink-0"
+                :tooltip="spotifyStore.isPlaying ? 'Pause' : 'Resume'"
                 @click="spotifyStore.isPlaying ? spotifyStore.pause() : spotifyStore.resume()"
               >
-                <IconPause v-if="spotifyStore.isPlaying" class="h-3 w-3" />
-                <IconPlay v-else class="h-3 w-3" />
-              </button>
-              <button
-                class="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-                title="Next track"
+                <template #icon>
+                  <IconPause v-if="spotifyStore.isPlaying" class="h-3 w-3" />
+                  <IconPlay v-else class="h-3 w-3" />
+                </template>
+              </AppButton>
+              <AppButton
+                variant="ghost"
+                size="inline-xs"
+                class="shrink-0"
+                tooltip="Next track"
                 @click="spotifyStore.nextTrack()"
               >
-                <IconSkipForward class="h-3 w-3" />
-              </button>
+                <template #icon><IconSkipForward class="h-3 w-3" /></template>
+              </AppButton>
             </div>
 
             <!-- Progress bar + repeat/shuffle on same row -->
@@ -156,29 +165,36 @@
                 @update:model-value="store.setMusicPlaylistEffect($event)"
               />
               <!-- Prev -->
-              <button
-                class="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-                title="Previous track"
+              <AppButton
+                variant="ghost"
+                size="inline-xs"
+                class="shrink-0"
+                tooltip="Previous track"
                 @click="store.musicPlaylistPrev()"
               >
-                <IconSkipBack class="h-3 w-3" />
-              </button>
+                <template #icon><IconSkipBack class="h-3 w-3" /></template>
+              </AppButton>
               <!-- Next -->
-              <button
-                class="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-                title="Next track"
+              <AppButton
+                variant="ghost"
+                size="inline-xs"
+                class="shrink-0"
+                tooltip="Next track"
                 @click="store.musicPlaylistNext()"
               >
-                <IconSkipForward class="h-3 w-3" />
-              </button>
+                <template #icon><IconSkipForward class="h-3 w-3" /></template>
+              </AppButton>
               <!-- Stop -->
-              <button
-                class="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
-                title="Stop playlist"
+              <AppButton
+                variant="ghost"
+                tone="danger"
+                size="inline-xs"
+                class="shrink-0"
+                tooltip="Stop playlist"
                 @click="store.stopMusicPlaylist()"
               >
-                <IconStop class="h-3 w-3" />
-              </button>
+                <template #icon><IconStop class="h-3 w-3" /></template>
+              </AppButton>
             </div>
           </div>
 
@@ -203,13 +219,16 @@
                 <CausedByChip :trigger="triggerForPlaylist(scene.playlistId)" small class="mt-0.5" />
               </div>
               <!-- Stops this scene only; the others stacked with it keep running -->
-              <button
-                class="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
-                :title="`Stop ${scene.playlistName}`"
+              <AppButton
+                variant="ghost"
+                tone="danger"
+                size="inline-xs"
+                class="shrink-0"
+                :tooltip="`Stop ${scene.playlistName}`"
                 @click="store.stopAmbientPlaylist(scene.playlistId)"
               >
-                <IconStop class="h-3 w-3" />
-              </button>
+                <template #icon><IconStop class="h-3 w-3" /></template>
+              </AppButton>
             </div>
           </div>
 
@@ -234,13 +253,15 @@
                 @update:model-value="store.setEffect(sound.id, sound.file_url, $event, sound.category)"
               />
               <!-- Stop -->
-              <button
-                class="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-                title="Stop"
+              <AppButton
+                variant="ghost"
+                size="inline-xs"
+                class="shrink-0"
+                tooltip="Stop"
                 @click="store.stop(sound.id)"
               >
-                <IconStop class="h-3 w-3" />
-              </button>
+                <template #icon><IconStop class="h-3 w-3" /></template>
+              </AppButton>
             </div>
           </template>
 
@@ -273,6 +294,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, nextTick } from "vue";
 import { IconClose, IconMusicNote, IconMute, IconPause, IconPlay, IconRepeat, IconRepeatOne, IconShuffle, IconSkipBack, IconSkipForward, IconStop, IconWind } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSpotifyStore } from "@/stores/spotify";
 import { useSounds } from "@/composables/useSounds";

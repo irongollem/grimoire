@@ -18,7 +18,7 @@
           <template v-if="grant.uses_per_day !== null"> · {{ grant.resets_on === 'short_rest' ? 'SR' : 'LR' }}</template>
         </span>
         <span v-if="grant.min_level > 1" class="font-cinzel text-2xs text-amber-500 shrink-0">Lvl {{ grant.min_level }}+</span>
-        <button type="button" class="text-muted-foreground hover:text-destructive transition-colors shrink-0 text-sm" @click="emit('remove', i)">✕</button>
+        <AppButton variant="ghost" tone="danger" size="inline-xs" label="✕" class="shrink-0" @click="emit('remove', i)" />
       </div>
     </div>
 
@@ -37,14 +37,15 @@
           <div class="h-2 w-2 rounded-full bg-violet-400 shrink-0" />
           <span class="text-body flex-1 truncate">{{ grantForm.spell.name }}</span>
           <span class="font-cinzel text-2xs text-muted-foreground">{{ grantForm.spell.level === 0 ? 'Cantrip' : `Lvl ${grantForm.spell.level}` }}</span>
-          <button type="button" class="text-muted-foreground hover:text-foreground text-xs" @click="grantForm.spell = null; grantForm.spellSearch = ''">×</button>
+          <AppButton variant="ghost" size="inline-xs" label="×" @click="grantForm.spell = null; grantForm.spellSearch = ''" />
         </div>
         <div v-else class="relative">
-          <input
+          <AppInput
             v-model="grantForm.spellSearch"
             type="text"
+            tone="card"
+            size="body"
             placeholder="Search spell…"
-            class="w-full bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
           <div
             v-if="spellResults.length > 0 && grantForm.spellSearch.length >= 2"
@@ -67,11 +68,13 @@
       <!-- Source label -->
       <div>
         <label class="text-eyebrow font-semibold text-muted-foreground">SOURCE LABEL</label>
-        <input
+        <AppInput
           v-model="grantForm.sourceLabel"
           type="text"
+          tone="card"
+          size="body"
           placeholder="e.g. Tiefling — Infernal Legacy"
-          class="mt-1 w-full bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="mt-1"
         />
       </div>
 
@@ -91,10 +94,13 @@
       <div class="flex gap-3 items-end">
         <div class="flex-1">
           <label class="text-eyebrow font-semibold text-muted-foreground">USES</label>
-          <div class="mt-1 flex rounded-md border border-border overflow-hidden text-label-lg font-semibold">
-            <button type="button" class="flex-1 px-2 py-1.5 transition-colors" :class="grantForm.usesPerDay === null ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'" @click="grantForm.usesPerDay = null">At will</button>
-            <button type="button" class="flex-1 px-2 py-1.5 transition-colors" :class="grantForm.usesPerDay !== null ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'" @click="grantForm.usesPerDay = grantForm.usesCount">{{ grantForm.usesPerDay !== null ? `${grantForm.usesCount}/day` : 'N/day' }}</button>
-          </div>
+          <SegmentedControl
+            v-model="usesMode"
+            size="sm"
+            block
+            class="mt-1"
+            :options="usesModeOptions"
+          />
           <div v-if="grantForm.usesPerDay !== null" class="mt-1 flex items-center border border-border rounded-md overflow-hidden">
             <AppButton
               variant="ghost"
@@ -116,29 +122,34 @@
         </div>
         <div v-if="grantForm.usesPerDay !== null" class="flex-1">
           <label class="text-label font-semibold text-muted-foreground">RESETS ON</label>
-          <div class="mt-1 flex rounded-md border border-border overflow-hidden text-label-lg font-semibold">
-            <button type="button" class="flex-1 px-2 py-1.5 transition-colors" :class="grantForm.resetsOn === 'long_rest' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'" @click="grantForm.resetsOn = 'long_rest'">Long</button>
-            <button type="button" class="flex-1 px-2 py-1.5 transition-colors" :class="grantForm.resetsOn === 'short_rest' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'" @click="grantForm.resetsOn = 'short_rest'">Short</button>
-          </div>
+          <SegmentedControl
+            v-model="grantForm.resetsOn"
+            size="sm"
+            block
+            class="mt-1"
+            :options="resetsOnOptions"
+          />
         </div>
         <div class="w-20">
           <label class="text-label font-semibold text-muted-foreground">MIN LEVEL</label>
-          <input
+          <AppInput
             v-model.number="grantForm.minLevel"
             type="number" min="1" max="20"
-            class="mt-1 w-full bg-card border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            tone="card"
+            size="body-xs"
+            class="mt-1"
           />
         </div>
       </div>
 
       <div>
         <label class="text-eyebrow font-semibold text-muted-foreground">CASTING ABILITY</label>
-        <select v-model="grantForm.castingAbility" class="mt-1 w-full rounded-md border border-border bg-card px-2 py-1.5 text-body text-foreground">
+        <AppSelect v-model="grantForm.castingAbility" tone="card" size="body" class="mt-1">
           <option :value="null">Class/default</option>
           <option value="int">Intelligence</option>
           <option value="wis">Wisdom</option>
           <option value="cha">Charisma</option>
-        </select>
+        </AppSelect>
       </div>
 
       <div class="flex gap-2 pt-1">
@@ -160,6 +171,8 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import type { SpeciesSpellGrant } from "@/types/species.types";
 import type { Spell, InnateResetsOn } from "@/types/spell.types";
@@ -204,6 +217,22 @@ const subraceOptions = computed(() => [
   { value: "", label: "All subraces" },
   ...subraceNames.map((name) => ({ value: name, label: name })),
 ]);
+
+// SegmentedControl needs a model value; "at_will"/"per_day" stands in for the
+// null-vs-number usesPerDay, with usesCount folded back in on select.
+const usesMode = computed<"at_will" | "per_day">({
+  get: () => (grantForm.usesPerDay === null ? "at_will" : "per_day"),
+  set: (mode) => { grantForm.usesPerDay = mode === "at_will" ? null : grantForm.usesCount; },
+});
+const usesModeOptions = computed(() => [
+  { value: "at_will" as const, label: "At will" },
+  { value: "per_day" as const, label: grantForm.usesPerDay !== null ? `${grantForm.usesCount}/day` : "N/day" },
+]);
+
+const resetsOnOptions = [
+  { value: "long_rest", label: "Long" },
+  { value: "short_rest", label: "Short" },
+] satisfies { value: InnateResetsOn; label: string }[];
 
 const { results: spellResults } = useSpellSearch(
   computed(() => grantForm.spellSearch),
