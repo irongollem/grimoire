@@ -24,67 +24,67 @@
       class="grid gap-3"
       style="grid-template-columns: repeat(auto-fill, minmax(11.25rem, 1fr))"
     >
-      <div
+      <!--
+        An item card is deliberately the leanest of the entity cards: the name
+        rides the artwork in `#image-footer`, and the body carries only a quick
+        stat line and tags. Items have far less to say at a glance than an NPC
+        or a monster, and filling the body to match them would be padding.
+      -->
+      <EntityGridCard
         v-for="item in visibleItems"
         :key="item.id"
-        class="group relative rounded-lg border border-border bg-card hover:border-primary/50 transition-colors flex flex-col"
+        :to="`/vault/${item.id}`"
+        :title="item.name"
+        :image-url="item.image_url"
+        :focal-point="item.image_focal_point"
+        placeholder="/assets/placeholders/item.webp"
+        :badge-text="ITEM_RARITY_LABELS[item.rarity]"
+        :badge-class="RARITY_BG[item.rarity]"
       >
-        <!-- Card link overlay -->
-        <RouterLink :to="`/vault/${item.id}`" class="absolute inset-0 z-2" />
-
-        <!-- Thumbnail with overlays -->
-        <div
-          class="relative h-36 bg-muted overflow-hidden shrink-0 rounded-t-lg"
-        >
-          <FocalImage
-            :src="item.image_url"
-            :alt="item.name"
-            format="landscape"
-            :focal-point="item.image_focal_point"
-            placeholder="/assets/placeholders/item.webp"
-            class="group-hover:scale-105 transition-transform duration-300"
+        <!-- Owned rows get Edit; shared rows say so and link through to the
+             detail view's Clone action, which is the only way to change them. -->
+        <template #actions-start>
+          <AppButton
+            v-if="isUuid(item.id)"
+            :to="`/vault/${item.id}?edit=true`"
+            variant="ghost"
+            size="xs"
+            :icon="IconEdit"
+            label="Edit"
+            :class="[
+              CARD_OVERLAY_SCRIM,
+              'text-white hover:text-white max-md:min-h-11 max-md:px-3',
+              '[@media(hover:hover)]:opacity-0 transition-opacity group-hover:opacity-100',
+            ]"
+            tooltip="Edit item"
           />
-          <!-- Rarity badge — top right -->
           <span
-            class="absolute top-1.5 right-1.5 text-label px-1.5 py-0.5 rounded leading-none"
-            :class="RARITY_BG[item.rarity]"
-            style="color: #fff"
-          >
-            {{ ITEM_RARITY_LABELS[item.rarity] }}
-          </span>
-          <!-- Reference badge — top left; shared/unowned rows only -->
-          <span
-            v-if="!isUuid(item.id)"
-            class="absolute top-1.5 left-1.5 text-label px-1.5 py-0.5 rounded leading-none bg-black/50 text-white"
-          >
-            Reference
-          </span>
-          <!-- Type icon + name — bottom gradient -->
-          <div
-            class="absolute bottom-0 left-0 right-0 px-2.5 py-2 bg-linear-to-t from-black/75 to-transparent flex items-end gap-1.5"
-          >
+            v-else
+            class="flex h-6 items-center rounded bg-black/50 px-1.5 text-label text-white backdrop-blur-sm"
+          >Reference</span>
+        </template>
+
+        <template #image-footer>
+          <div class="flex items-end gap-1.5">
             <component
               :is="itemTypeIcon(item.item_type)"
-              class="h-3.5 w-3.5 shrink-0 text-white/70 mb-px"
+              class="mb-px h-3.5 w-3.5 shrink-0 text-white/70"
             />
             <span
-              class="font-cinzel text-sm font-bold text-white group-hover:text-primary/90 transition-colors leading-tight line-clamp-2"
+              class="line-clamp-2 font-cinzel text-sm font-bold leading-tight text-white transition-colors group-hover:text-primary/90"
             >
               {{ item.name }}
             </span>
           </div>
-        </div>
+        </template>
 
-        <div class="px-3 py-2 flex flex-col gap-1.5 flex-1">
+        <template #body>
           <!-- Damage / AC quick stat -->
           <div
             v-if="item.damage_rolls?.length || item.armor_class || item.charges"
-            class="flex items-center gap-3 mt-auto pt-1"
+            class="mt-auto flex items-center gap-3 pt-1"
           >
-            <span
-              v-if="item.damage_rolls?.length"
-              class="text-caption text-muted-foreground"
-            >
+            <span v-if="item.damage_rolls?.length" class="text-caption text-muted-foreground">
               ⚔
               {{
                 item.damage_rolls
@@ -92,44 +92,25 @@
                   .join(" + ")
               }}
             </span>
-            <span
-              v-if="item.armor_class"
-              class="text-caption text-muted-foreground"
-            >
+            <span v-if="item.armor_class" class="text-caption text-muted-foreground">
               🛡 AC {{ item.armor_class }}
             </span>
-            <span
-              v-if="item.charges"
-              class="text-caption text-muted-foreground"
-            >
+            <span v-if="item.charges" class="text-caption text-muted-foreground">
               ✦ {{ item.charges }} charges
             </span>
           </div>
 
-          <!-- Tags -->
-          <div v-if="item.tags.length" class="flex gap-1 flex-wrap">
+          <div v-if="item.tags.length" class="flex flex-wrap gap-1">
             <span
               v-for="tag in item.tags.slice(0, 4)"
               :key="tag"
-              class="text-label text-muted-foreground bg-muted px-1 py-1 rounded"
+              class="rounded bg-muted px-1 py-1 text-label text-muted-foreground"
             >
               {{ tag }}
             </span>
           </div>
-        </div>
-
-        <!-- Edit button (floats top-left on hover) — owned rows only; SRD rows
-             are read-only and link through to the detail view's Clone action -->
-        <RouterLink
-          v-if="isUuid(item.id)"
-          :to="`/vault/${item.id}?edit=true`"
-          class="absolute top-2 left-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 text-label font-semibold text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
-          title="Edit item"
-        >
-          <IconEdit class="max-md:h-4 max-md:w-4 h-3 w-3" />
-          Edit
-        </RouterLink>
-      </div>
+        </template>
+      </EntityGridCard>
     </div>
     <div ref="sentinelRef" />
   </div>
@@ -138,7 +119,9 @@
 <script setup lang="ts">
 import { computed, type Component as VueComponent } from "vue";
 import { IconCaravan, IconCircle, IconCoins, IconComponent, IconEdit, IconFood, IconGem, IconGenerate, IconInventory, IconInvite, IconLightning, IconNavItemVault, IconPackage, IconPotion, IconScrollText, IconShield, IconSword, IconTool, IconWand } from '@/lib/icons';
-import FocalImage from "@/components/common/FocalImage.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import { CARD_OVERLAY_SCRIM } from "@/components/common/appButtonVariants";
+import EntityGridCard from "@/components/common/EntityGridCard.vue";
 import type { ItemType } from "@/types/item.types";
 
 const ITEM_TYPE_ICONS: Record<ItemType, VueComponent> = {

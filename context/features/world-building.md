@@ -1,4 +1,4 @@
-# World-Building: Atlas, Quests & Factions
+# World-Building: Atlas, Quests, Factions & Pantheons
 
 ## Overview
 
@@ -290,8 +290,8 @@ Route: `/factions` (list), `/factions/new`, `/factions/:id`, `/factions/:id?edit
 
 - Filter bar: text search (name, tags) + type dropdown; state in `useUiStore` with Clear button
 - "Populate Setting" button — bulk-inserts seed factions for the active campaign's setting (only shown when the campaign has a recognised `calendar_id` with faction seed data); idempotent, deduplicates by name
-- Responsive card grid (1–3 columns): emblem thumbnail (or shield placeholder), name, type, tags (up to 3), and an `inline`-form `AudienceRevealControl` grouped with the row's chevron — previously a bare Eye icon that reported sharing without letting the DM change it (#741)
-- The reveal is `inline`, **not** `overlay`, and it sits in the row's trailing group rather than on the title line. `overlay` is the dark-scrim chip, and the scrim is only correct on top of artwork — on a faction row there is none behind it, so it landed as a black square on parchment and its gold "shared" state disappeared into its own backdrop. On the title line it was also vertically adrift from the chevron and, being `shrink-0` beside a `truncate` name, cost the longer names a word. The pair shares one `gap-3`; split into two row children the extra gap came straight back out of the names. `PantheonListView` is the same row, same reasoning
+- Responsive grid (1–3 columns) of `EntityListRow` (`src/components/common/EntityListRow.vue`) — the shared horizontal row: 3rem emblem tile (or a fallback icon), truncating name, subtitle, tags (`maxTags`, default 3), an `#actions` slot at the trailing edge, and the chevron. `PantheonListView` is the same component with a different fallback icon and subtitle; the two had each written the same forty lines and had already drifted (one passed `render-width` to `FocalImage`, the other did not)
+- The row's reveal goes in `#actions` as the `inline` form, **not** `overlay`, and lands in the trailing group beside the chevron. `overlay` is the dark-scrim chip and the scrim is only correct on top of artwork — on a faction row there is none behind it, so it read as a black square on parchment and its gold "shared" state disappeared into its own backdrop. On the title line it was also vertically adrift from the chevron and, being `shrink-0` beside a `truncate` name, cost the longer names a word. The controls and chevron are one group so the pair spends a single `gap-3`; split into two row children the extra gap came straight back out of the names
 
 **Faction editor** (`FactionEditor.vue`) — two-column layout:
 *Left column:* emblem image (square, click to upload, `asset-images` bucket), type selector (`EntityCombobox`), alignment selector (9 standard alignments), reveal control (`AudienceRevealControl`), tags (`TagInput`)
@@ -330,6 +330,42 @@ Route: `/play/factions` (embedded in player portal via `PlayerFactionsView.vue`)
   - NPC members with `status = "Active"`: display name (shapeshifter-aware via `getNpcDisplayName`), race · occupation, role
   - Uses player-scoped queries (`usePlayerFactionNpcs`, `usePlayerFactionPartyMembers`) that only return data if the player is a faction member
 - **Player notes widget** — personal notes for this faction
+
+---
+
+## Pantheons & Deities
+
+Two thin sibling modules, documented here rather than in their own file because
+they share this doc's shared-card machinery and its per-player visibility model
+rather than having behaviour of their own.
+
+**Pantheon list** (`src/views/pantheons/PantheonListView.vue`, `/pantheons`) —
+the same `EntityListRow` the faction list uses: emblem tile with an `IconFire`
+fallback, name, a "N deities" subtitle counted from `useAllDeities`, tags, and
+an `inline`-form `AudienceRevealControl` in `#actions`.
+
+**Deity list** (`src/views/deities/DeityListView.vue`, `/deities`, nav label
+**Pantheon**) — a responsive grid (1–4 columns) of `EntityGridCard`, the same
+shell the NPC and monster grids use:
+
+- portrait through the card's own `imageUrl` / `focalPoint`, placeholder
+  `/assets/placeholders/deity.webp`
+- alignment through `badgeText`, so it wears the same corner-badge treatment as
+  a monster's CR rather than the hand-rolled `bg-black/60` pill it had
+- reveal in `#actions-start` — `overlay` form here, unlike the two row-based
+  lists, because on this card there genuinely *is* artwork under the control
+- `#body` carries name, titles, pantheon name, and up to three domain chips with
+  a `+N` overflow
+
+Filters (`deitiesFilterDomain`, `deitiesFilterPantheon`) and search live in
+`useUiStore` as the Filter State Pattern requires. "Reveal All"
+(`useRevealAllDeities`) shares every deity in the campaign with the whole party
+in one action — the pantheon is usually common knowledge, and setting it row by
+row was the most-repeated reveal in the app.
+
+Both are quota'd on the free plan (`plans.quotas`: 5 deities, 3 pantheons),
+which is low enough that the fixture's own seed has to stay under it — see
+`scripts/dev-auth.ts`.
 
 ---
 

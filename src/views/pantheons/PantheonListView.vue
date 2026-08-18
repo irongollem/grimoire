@@ -38,52 +38,39 @@
     </EmptyState>
 
     <template v-else>
+    <!--
+      Paged and position-restoring like the NPC and monster grids. No mobile
+      card swap, though, and that is deliberate rather than unfinished:
+      `EntityMobileCard`'s "rows" layout is this row, and it is a `RouterLink`
+      wrapper — so adopting it would trade a working reveal control for a
+      read-only eye at exactly the width where the control is hardest to reach
+      another way. `EntityListRow` uses the link-overlay trick precisely so it
+      can hold a button, and it already reflows to one column.
+    -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        <!--
-          A div with an absolutely-positioned link overlay rather than a
-          RouterLink wrapper: the reveal control is a button, and a button
-          inside an anchor is invalid markup that swallows its own clicks.
-        -->
-        <div
-          v-for="pantheon in filtered"
+        <EntityListRow
+          v-for="pantheon in visibleItems"
           :key="pantheon.id"
-          class="group relative flex items-center gap-3 rounded-lg border border-border bg-card hover:border-primary/50 transition-colors p-4"
+          :to="`/pantheons/${pantheon.id}`"
+          :title="pantheon.name"
+          :subtitle="`${deityCount(pantheon.id)} ${deityCount(pantheon.id) === 1 ? 'deity' : 'deities'}`"
+          :image-url="pantheon.emblem_url"
+          :fallback-icon="IconFire"
+          :tags="pantheon.tags"
         >
-          <RouterLink :to="`/pantheons/${pantheon.id}`" class="absolute inset-0 z-2" />
-          <div class="shrink-0 h-12 w-12 rounded-lg border border-border bg-muted overflow-hidden flex items-center justify-center">
-            <FocalImage v-if="pantheon.emblem_url" :src="pantheon.emblem_url" alt="" format="square" />
-            <IconFire v-else class="h-5 w-5 text-muted-foreground/40" />
-          </div>
-
-          <div class="min-w-0 flex-1">
-            <p class="font-cinzel text-sm font-bold text-foreground truncate">{{ pantheon.name }}</p>
-            <p class="text-label text-muted-foreground mt-0.5">
-              {{ deityCount(pantheon.id) }} {{ deityCount(pantheon.id) === 1 ? 'deity' : 'deities' }}
-            </p>
-            <div v-if="pantheon.tags.length" class="flex flex-wrap gap-1 mt-1.5">
-              <span
-                v-for="tag in pantheon.tags.slice(0, 3)"
-                :key="tag"
-                class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground"
-              >{{ tag }}</span>
-            </div>
-          </div>
-
-          <!-- Grouped with the chevron rather than on the title line. See FactionListView. -->
-          <div class="flex shrink-0 items-center gap-1">
-            <div class="relative z-10" @click.prevent.stop>
-              <AudienceRevealControl
-                :name="pantheon.name"
-                :visible-to="pantheon.player_visible_to"
-                form="inline"
-                @change="(next) => revealPantheon(pantheon.id, next)"
-              />
-            </div>
-            <IconChevronRight class="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-primary transition-colors" />
-          </div>
-        </div>
+          <template #actions>
+            <AudienceRevealControl
+              :name="pantheon.name"
+              :visible-to="pantheon.player_visible_to"
+              form="inline"
+              @change="(next) => revealPantheon(pantheon.id, next)"
+            />
+          </template>
+        </EntityListRow>
       </div>
     </template>
+
+    <div ref="sentinelRef" />
   </ListPageLayout>
 
   <PaywallModal v-model="showPaywall" resource="pantheons" />
@@ -91,7 +78,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { IconAdd, IconChevronRight, IconFire, IconNavPantheon, IconSun } from '@/lib/icons';
+import { IconAdd, IconFire, IconNavPantheon, IconSun } from '@/lib/icons';
 import { useAllPantheons, useAllDeities, useUpdatePantheon } from "@/composables/useDeities";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
@@ -101,8 +88,10 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
-import FocalImage from "@/components/common/FocalImage.vue";
+import EntityListRow from "@/components/common/EntityListRow.vue";
 import { useCreateGate } from "@/composables/useCreateGate";
+import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
+import { useScrollRestore } from "@/composables/useScrollRestore";
 import { useUiStore } from "@/stores/ui";
 
 const ui = useUiStore();
@@ -123,6 +112,13 @@ const filtered = computed(() => {
     return true;
   });
 });
+
+// `sentinelRef` must stay destructured — the template binds it as a plain
+// `ref="sentinelRef"` string, which is never typechecked, so dropping it leaves
+// the ref null and the list silently capped at 48 with every gate green.
+const { savedCount, linkCount } = useScrollRestore("pantheons");
+const { visibleItems, sentinelRef, visibleCount } = useInfiniteScroll(filtered, 48, savedCount);
+linkCount(visibleCount);
 
 function deityCount(pantheonId: string): number {
   return (deities.value ?? []).filter((d) => d.pantheon_id === pantheonId).length;

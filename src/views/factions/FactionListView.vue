@@ -52,60 +52,39 @@
     </EmptyState>
 
     <template v-else>
+    <!--
+      Paged and position-restoring like the NPC and monster grids. No mobile
+      card swap, though, and that is deliberate rather than unfinished:
+      `EntityMobileCard`'s "rows" layout is this row, and it is a `RouterLink`
+      wrapper — so adopting it would trade a working reveal control for a
+      read-only eye at exactly the width where the control is hardest to reach
+      another way. `EntityListRow` uses the link-overlay trick precisely so it
+      can hold a button, and it already reflows to one column.
+    -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        <!--
-          A div with an absolutely-positioned link overlay rather than a
-          RouterLink wrapper: the reveal control is a button, and a button
-          inside an anchor is invalid markup that swallows its own clicks.
-          Same shape as NpcList and NoteCard.
-        -->
-        <div
-          v-for="faction in filtered"
+        <EntityListRow
+          v-for="faction in visibleItems"
           :key="faction.id"
-          class="group relative flex items-center gap-3 rounded-lg border border-border bg-card hover:border-primary/50 transition-colors p-4"
+          :to="`/factions/${faction.id}`"
+          :title="faction.name"
+          :subtitle="faction.faction_type"
+          :image-url="faction.emblem_url"
+          :fallback-icon="IconShield"
+          :tags="faction.tags"
         >
-          <RouterLink :to="`/factions/${faction.id}`" class="absolute inset-0 z-2" />
-
-          <div class="shrink-0 h-12 w-12 rounded-lg border border-border bg-muted overflow-hidden flex items-center justify-center">
-            <FocalImage v-if="faction.emblem_url" :src="faction.emblem_url" format="square" :render-width="200" />
-            <IconShield v-else class="h-5 w-5 text-muted-foreground/40" />
-          </div>
-
-          <div class="min-w-0 flex-1">
-            <p class="font-cinzel text-sm font-bold text-foreground truncate">{{ faction.name }}</p>
-            <p v-if="faction.faction_type" class="text-label text-muted-foreground mt-0.5">
-              {{ faction.faction_type }}
-            </p>
-            <div v-if="faction.tags.length" class="flex flex-wrap gap-1 mt-1.5">
-              <span
-                v-for="tag in faction.tags.slice(0, 3)"
-                :key="tag"
-                class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground"
-              >{{ tag }}</span>
-            </div>
-          </div>
-
-          <!--
-            Reveal sits with the chevron, not on the title line: inside the text
-            block it was vertically adrift from the only other control in the
-            row. One group rather than two row children, so the pair costs the
-            row a single `gap-3` — split, the extra gap came straight out of the
-            names, which truncated a word earlier for it.
-          -->
-          <div class="flex shrink-0 items-center gap-1">
-            <div class="relative z-10" @click.prevent.stop>
-              <AudienceRevealControl
-                :name="faction.name"
-                :visible-to="faction.player_visible_to"
-                form="inline"
-                @change="(next) => revealFaction(faction.id, next)"
-              />
-            </div>
-            <IconChevronRight class="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-primary transition-colors" />
-          </div>
-        </div>
+          <template #actions>
+            <AudienceRevealControl
+              :name="faction.name"
+              :visible-to="faction.player_visible_to"
+              form="inline"
+              @change="(next) => revealFaction(faction.id, next)"
+            />
+          </template>
+        </EntityListRow>
       </div>
     </template>
+
+    <div ref="sentinelRef" />
   </ListPageLayout>
 
   <PaywallModal v-model="showPaywall" resource="factions" />
@@ -113,7 +92,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { IconAdd, IconChevronRight, IconGenerate, IconLoading, IconNavFactions, IconPopulate, IconShield } from '@/lib/icons';
+import { IconAdd, IconGenerate, IconLoading, IconNavFactions, IconPopulate, IconShield } from '@/lib/icons';
 import { useAllFactions, usePopulateFactions, useUpdateFaction } from "@/composables/useFactions";
 import { FACTION_TYPES } from "@/types/faction.types";
 import { useUiStore } from "@/stores/ui";
@@ -126,11 +105,13 @@ import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
-import FocalImage from "@/components/common/FocalImage.vue";
+import EntityListRow from "@/components/common/EntityListRow.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useCreateGate } from "@/composables/useCreateGate";
+import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
+import { useScrollRestore } from "@/composables/useScrollRestore";
 
 const ui = useUiStore();
 const campaign = useCampaignStore();
@@ -153,6 +134,13 @@ const filtered = computed(() => {
     return true;
   });
 });
+
+// `sentinelRef` must stay destructured — the template binds it as a plain
+// `ref="sentinelRef"` string, which is never typechecked, so dropping it leaves
+// the ref null and the list silently capped at 48 with every gate green.
+const { savedCount, linkCount } = useScrollRestore("factions");
+const { visibleItems, sentinelRef, visibleCount } = useInfiniteScroll(filtered, 48, savedCount);
+linkCount(visibleCount);
 
 const populateMutation = usePopulateFactions();
 const populateStatus = ref<"idle" | "done" | "uptodate">("idle");

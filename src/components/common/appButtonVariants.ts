@@ -200,18 +200,30 @@ export type AssertEmphasesListed = Assert<
 export const ICON_TOUCH_TARGET = "max-md:h-11 max-md:w-11";
 
 /**
- * The chip that floats over card artwork — Edit and Reveal in an entity card's
- * corner, and the buttons in a mobile detail screen's app bar.
+ * The dark scrim a control wears when it floats over card artwork.
  *
  * Not a `variant`, because it is not a new meaning: it is `ghost` plus a scrim,
  * and the scrim is the whole point. It is fixed dark rather than theme-tinted
  * because it sits on top of a portrait or an illustration, where a background
- * that follows the theme vanishes against half the pictures in the app.
+ * that follows the theme vanishes against half the pictures in the app — and
+ * for the same reason, whatever you pair it with needs a fixed *light* colour
+ * rather than a theme token. See `RevealControl`'s `overlay` form for what
+ * happens when that half is forgotten.
  *
  * It lives here, exported, because the alternative is what actually happened:
  * the same recipe hand-written into NpcList, MonsterList and RevealControl,
- * and then drifting. Pair it with `size="icon-xs"` and a text colour — the
- * reveal control uses that to keep saying whether anyone can see the entity.
+ * and then drifting.
  */
-export const CARD_OVERLAY_ACTION =
-  `bg-black/50 backdrop-blur-sm hover:bg-black/70 ${ICON_TOUCH_TARGET}`;
+export const CARD_OVERLAY_SCRIM = "bg-black/50 backdrop-blur-sm hover:bg-black/70";
+
+/**
+ * The icon-only version — Reveal and Edit in an entity card's corner, and the
+ * buttons in a mobile detail screen's app bar. Pair it with `size="icon-xs"`
+ * and a text colour.
+ *
+ * Kept distinct from the bare scrim because the touch override is square: a
+ * *labelled* overlay button (the item vault's "Edit") would get `w-11` forced
+ * onto it and crush its own label, so labelled ones take `CARD_OVERLAY_SCRIM`
+ * plus a `min-h` of their own.
+ */
+export const CARD_OVERLAY_ACTION = `${CARD_OVERLAY_SCRIM} ${ICON_TOUCH_TARGET}`;

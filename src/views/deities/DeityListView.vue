@@ -59,36 +59,55 @@
       <template #icon><IconNavPantheon class="h-16 w-16" /></template>
     </EmptyState>
 
+    <!--
+      Below `md`, the same swap NpcList and MonsterList make: a portrait grid
+      card is too wide for a phone, so the list becomes `EntityMobileCard` with
+      the rows/gallery toggle. The deity grid had no mobile form at all and
+      rendered the desktop card at every width.
+
+      One thing is genuinely lost in the swap and is not an oversight:
+      `EntityMobileCard` is a `RouterLink` wrapper, so it cannot hold a button —
+      hence the read-only "shared" eye rather than a working reveal. That is the
+      same trade the NPC and monster lists already make.
+    -->
+    <template v-else-if="isMobile">
+      <MobileEntityMetaRow
+        v-model:layout="layout"
+        :shown="filtered.length"
+        :total="deities?.length ?? 0"
+        plural="deities"
+      />
+      <div :class="layout === 'gallery' ? 'grid grid-cols-2 gap-3 pb-2' : 'flex flex-col gap-2 pb-2'">
+        <EntityMobileCard
+          v-for="deity in visibleItems"
+          :key="deity.id"
+          :layout="layout"
+          :to="`/deities/${deity.id}`"
+          :title="deity.name"
+          :subtitle="deity.titles ?? undefined"
+          :image-url="deity.portrait_url"
+          :focal-point="deity.portrait_focal_point ?? null"
+          placeholder="/assets/placeholders/deity.webp"
+          :badge-text="deity.alignment ?? undefined"
+          :shared="deity.player_visible_to.length > 0"
+        />
+      </div>
+    </template>
+
     <template v-else>
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-        <!--
-          A div with an absolutely-positioned link overlay rather than a
-          RouterLink wrapper: the reveal control is a button, and a button
-          inside an anchor is invalid markup that swallows its own clicks.
-        -->
-        <div
-          v-for="deity in filtered"
+        <EntityGridCard
+          v-for="deity in visibleItems"
           :key="deity.id"
-          class="group relative flex flex-col rounded-lg border border-border bg-card hover:border-primary/50 transition-colors overflow-hidden"
+          :to="`/deities/${deity.id}`"
+          :title="deity.name"
+          :image-url="deity.portrait_url"
+          :focal-point="deity.portrait_focal_point ?? null"
+          placeholder="/assets/placeholders/deity.webp"
+          :badge-text="deity.alignment"
         >
-          <RouterLink :to="`/deities/${deity.id}`" class="absolute inset-0 z-2" />
-          <!-- Portrait thumbnail -->
-          <div class="relative h-32 bg-muted overflow-hidden">
-            <FocalImage
-              :src="deity.portrait_url"
-              :focal-point="deity.portrait_focal_point ?? null"
-              :alt="deity.name"
-              format="landscape"
-              placeholder="/assets/placeholders/deity.webp"
-              class="w-full h-full"
-            />
-            <!-- Alignment badge -->
-            <span
-              v-if="deity.alignment"
-              class="absolute top-1.5 right-1.5 text-label bg-black/60 text-white px-1.5 py-0.5 rounded"
-            >{{ deity.alignment }}</span>
-            <!-- Reveal, over the portrait -->
-            <div class="absolute top-1.5 left-1.5 z-10" @click.prevent.stop>
+          <template #actions-start>
+            <div @click.prevent.stop>
               <AudienceRevealControl
                 :name="deity.name"
                 :visible-to="deity.player_visible_to"
@@ -96,33 +115,33 @@
                 @change="(next) => revealDeity(deity.id, next)"
               />
             </div>
-          </div>
+          </template>
 
-          <div class="p-3 flex flex-col gap-1.5 flex-1">
-            <p class="font-cinzel text-sm font-bold text-foreground truncate">{{ deity.name }}</p>
-            <p v-if="deity.titles" class="text-caption text-muted-foreground italic truncate">{{ deity.titles }}</p>
+          <template #body>
+            <p class="truncate font-cinzel text-sm font-bold text-foreground">{{ deity.name }}</p>
+            <p v-if="deity.titles" class="truncate text-caption italic text-muted-foreground">{{ deity.titles }}</p>
 
-            <!-- Pantheon -->
             <p v-if="deity.pantheon?.name" class="text-label text-muted-foreground">
               {{ deity.pantheon.name }}
             </p>
 
-            <!-- Domains -->
-            <div v-if="deity.domains?.length" class="flex flex-wrap gap-1 mt-auto pt-1">
+            <div v-if="deity.domains?.length" class="mt-auto flex flex-wrap gap-1 pt-1">
               <span
                 v-for="domain in deity.domains.slice(0, 3)"
                 :key="domain"
-                class="px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 text-label text-primary"
+                class="rounded border border-primary/20 bg-primary/10 px-1.5 py-0.5 text-label text-primary"
               >{{ domain }}</span>
               <span
                 v-if="deity.domains.length > 3"
-                class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground"
+                class="rounded bg-muted px-1.5 py-0.5 font-cinzel text-2xs text-muted-foreground"
               >+{{ deity.domains.length - 3 }}</span>
             </div>
-          </div>
-        </div>
+          </template>
+        </EntityGridCard>
       </div>
     </template>
+
+    <div ref="sentinelRef" />
   </ListPageLayout>
 
   <PaywallModal v-model="showPaywall" resource="deities" />
@@ -130,6 +149,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import { useMediaQuery } from "@vueuse/core";
 import { IconAdd, IconFire, IconLoading, IconNavPantheon, IconPopulate, IconReveal } from '@/lib/icons';
 import { useAllDeities, useAllPantheons, usePopulateDeities, useRevealAllDeities, useUpdateDeity } from "@/composables/useDeities";
 import { CLERIC_DOMAINS } from "@/types/deity.types";
@@ -144,9 +164,13 @@ import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
-import FocalImage from "@/components/common/FocalImage.vue";
+import EntityGridCard from "@/components/common/EntityGridCard.vue";
+import EntityMobileCard from "@/components/common/EntityMobileCard.vue";
+import MobileEntityMetaRow from "@/components/common/MobileEntityMetaRow.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useCreateGate } from "@/composables/useCreateGate";
+import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
+import { useScrollRestore } from "@/composables/useScrollRestore";
 
 const ui = useUiStore();
 const campaign = useCampaignStore();
@@ -180,6 +204,22 @@ const filtered = computed(() => {
     return true;
   });
 });
+
+const isMobile = useMediaQuery("(max-width: 767px)");
+const layout = computed({
+  get: () => ui.entityListLayout,
+  set: (v: "rows" | "gallery") => {
+    ui.entityListLayout = v;
+  },
+});
+
+const { savedCount, linkCount } = useScrollRestore("deities");
+// `sentinelRef` must stay destructured — the template binds it as a plain
+// `ref="sentinelRef"` string, which is never typechecked, so dropping it leaves
+// the ref null, the observer unattached, and the grid silently capped at 48
+// with lint, typecheck and build all green. Same note as NpcList.
+const { visibleItems, sentinelRef, visibleCount } = useInfiniteScroll(filtered, 48, savedCount);
+linkCount(visibleCount);
 
 const revealMutation = useRevealAllDeities();
 const revealStatus = ref<"idle" | "done">("idle");

@@ -68,6 +68,21 @@
         />
         <span class="relative">{{ badgeText }}</span>
       </span>
+
+      <!--
+        A strip along the bottom of the artwork, over a gradient. The item vault
+        puts its name here rather than in `#body`, because an item card carries
+        almost no other text — a name in the body would leave the picture
+        captionless and the body a single line. It is a slot rather than a prop
+        so the entity decides what earns the space; items spend it on a type
+        icon plus the name.
+      -->
+      <div
+        v-if="$slots['image-footer']"
+        class="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/75 to-transparent px-2.5 py-2"
+      >
+        <slot name="image-footer" />
+      </div>
     </div>
 
     <div class="flex flex-1 flex-col gap-1 p-3">
@@ -104,7 +119,7 @@ const { to, imageUrl = null, focalPoint = null } = defineProps<{
    * than a colour value, so the badge follows the theme. The `/50` tint matches
    * the action chips beside it.
    */
-  badgeText?: string;
+  badgeText?: string | null;
   badgeClass?: string;
   /** Optional colour-bar class above the artwork — the monster grid's CR ramp. */
   accentClass?: string;
