@@ -209,7 +209,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { IconLock, IconTool } from '@/lib/icons';
+import { IconAdd, IconDelete, IconLock, IconTool } from '@/lib/icons';
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import EntityEditorActionBar from "@/components/common/EntityEditorActionBar.vue";
 import RecipeOutputsPanel from "@/components/crafting/RecipeOutputsPanel.vue";

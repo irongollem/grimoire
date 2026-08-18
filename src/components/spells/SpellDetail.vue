@@ -494,7 +494,7 @@ watch(advisorOpen, (open) => {
   }
 });
 
-// ── IconSave / Delete ─────────────────────────────────────────────────────────────
+// ── Save / Delete ─────────────────────────────────────────────────────────────
 const { mutateAsync: create } = useCreateSpell();
 const { mutateAsync: update } = useUpdateSpell();
 const { mutateAsync: deleteSpell } = useDeleteSpell();

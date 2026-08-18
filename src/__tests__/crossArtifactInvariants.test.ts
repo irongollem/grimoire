@@ -180,3 +180,57 @@ describe("fetch* names match the data source they actually read", () => {
     expect(violations).toEqual([]);
   });
 });
+
+describe("component tags resolve to real imports", () => {
+
+  // A component used in a template but never imported renders as *nothing*. Vue
+  // resolves the unknown tag to a bare custom element, the browser draws an empty
+  // box, and no tooling objects: `vue-tsc` does not check tag resolution, oxlint
+  // has no view of the template, and the build happily emits it. An icon-only
+  // button in that state becomes an invisible, unlabelled control.
+  //
+  // Found four live instances during the #648 sweep — `RecipeEditor` (IconDelete +
+  // IconAdd, one of them the sole content of a delete button), `ItemDetail`
+  // (DiceExprInput), and `TrapEditor` and `StoreInventory`, which both used
+  // AppButton/AppInput with no import at all after the #561 migration. Every one
+  // had been shipping through a fully green suite.
+  //
+  // There are no globally registered components in this app (`app.component(` is
+  // never called), so the only legitimate unimported tags are Vue's own built-ins.
+  it("every component used in a template is imported", () => {
+    const BUILT_IN = new Set([
+      "Transition", "TransitionGroup", "KeepAlive", "Teleport", "Suspense",
+      "Component", "RouterLink", "RouterView", "Fragment",
+    ]);
+
+    const violations: string[] = [];
+    let checked = 0;
+
+    for (const file of trackedFiles("src/**/*.vue")) {
+      const source = read(file);
+      const template = source.match(/<template>([\s\S]*)<\/template>/);
+      if (!template) continue;
+
+      // Everything outside the template block: <script setup>, plain <script>, styles.
+      const outside =
+        source.slice(0, template.index) + source.slice(template.index! + template[0].length);
+
+      for (const tag of new Set([...template[1].matchAll(/<([A-Z][A-Za-z0-9_]*)/g)].map((m) => m[1]))) {
+        if (BUILT_IN.has(tag)) continue;
+        checked++;
+
+        // Imported by name, via a named/aliased import, or declared locally.
+        const bound =
+          new RegExp(`\\bimport\\s+${tag}\\b`).test(outside) ||
+          new RegExp(`\\bimport\\s*\\{[^}]*\\b${tag}\\b[^}]*\\}`, "s").test(outside) ||
+          new RegExp(`\\bas\\s+${tag}\\b`).test(outside) ||
+          new RegExp(`\\b(?:const|let|var|function|class)\\s+${tag}\\b`).test(outside);
+
+        if (!bound) violations.push(`${file} uses <${tag}> but never imports it`);
+      }
+    }
+
+    expect(checked).toBeGreaterThan(0);
+    expect(violations).toEqual([]);
+  });
+});
