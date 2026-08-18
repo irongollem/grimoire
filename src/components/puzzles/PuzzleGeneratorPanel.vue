@@ -238,6 +238,7 @@ async function generateAndCreate() {
     dungeon_feature_id:  null,
     is_shared:           false,
     shared_hints:        [],
+    player_visible_to:   [],
     read_aloud:          null,
     ai_provenance:       result.ai_provenance ?? null,
   });

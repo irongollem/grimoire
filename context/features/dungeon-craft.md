@@ -164,15 +164,20 @@ The "Generate" button opens a slide-in panel (PuzzleGeneratorPanel) with:
 
 The generator produces a complete puzzle pre-filled into the editor.
 
-#### Player Share panel (DM view)
+#### Reveal (DM view)
 
-In view mode a **Player Share** card lets the DM:
+Puzzles were the last entity that could not name an audience — a single `is_shared` boolean revealed the room to the whole campaign or to nobody, which is why the unified reveal control (#741) did not fit them. `20260817230740` added `player_visible_to`, so a DM can hand the riddle to the character standing in front of it.
 
-1. **Toggle sharing on/off** — when shared the puzzle becomes visible to all players in the campaign it's scoped to (written to `is_shared`; `campaign_id` is auto-assigned to the active campaign only if the puzzle isn't already scoped — see Campaign scope below).
-2. **Write a Read-Aloud text** — a short spoken passage the DM reads as players enter; saved on blur.
-3. **Reveal/hide individual hints** — each numbered hint has an Eye/EyeOff toggle; the set of revealed hint order numbers is stored in `shared_hints[]`. The share panel shows "Revealed hints: N / total" at a glance.
+In view mode the header carries `PuzzleRevealControl`:
 
-Turning sharing off clears all revealed hints but leaves `campaign_id` untouched.
+1. **Who** — party members, as everywhere else in the app. Writing an audience also sets `is_shared` (shared ⇔ the list is non-empty) and auto-assigns `campaign_id` to the active campaign, but only if the puzzle isn't already scoped — see Campaign scope below.
+2. **What** — which hints the party has been given, stored in `shared_hints[]`. The hint ladder is the puzzle's reveal ladder, so it sits with the audience decision. The hints list further down the page keeps its own per-hint toggle, because that is where the DM is reading the hint text; both write the same column through the same mutation.
+
+Hiding from everyone clears the revealed hints — the next group should start from the top — but leaves `campaign_id` untouched.
+
+**Read-Aloud** is no longer part of the share panel. It is prose the DM writes, not a switch they flip, so it lives in the page body with the puzzle's other text, saved on blur.
+
+`is_shared` survives as a derived flag rather than a second source of truth: it is what assigns `campaign_id`, and the player projection now gates on the audience (`private.is_puzzle_player_visible`). The migration backfilled every already-shared puzzle to its campaign's whole party, so no player lost a puzzle they could see.
 
 #### Campaign scope
 
@@ -182,7 +187,7 @@ Turning sharing off clears all revealed hints but leaves `campaign_id` untouched
 
 ### Player View
 
-Players access shared puzzles at `/play/puzzles` (list) and `/play/puzzles/:id` (detail). These routes live in the player portal (`/play/*`) and only show puzzles with `is_shared = true` in the player's active campaign.
+Players access shared puzzles at `/play/puzzles` (list) and `/play/puzzles/:id` (detail). These routes live in the player portal (`/play/*`) and only show puzzles whose `player_visible_to` includes the reader's party member, in their active campaign — enforced by `private.is_puzzle_player_visible` inside the `get_player_visible_puzzles` projection, not client-side.
 
 #### Player puzzle list (`/play/puzzles`)
 
@@ -426,7 +431,8 @@ The editor blocks saving when any entry has a drop_chance outside 1–100, an It
 | `success_outcome`     | Tiptap JSON\|null  |                                                                                          |
 | `failure_consequence` | Tiptap JSON\|null  |                                                                                          |
 | `campaign_id`         | string\|null       | NULL = every campaign, set = only that campaign; Scope control or sharing sets it (#597) |
-| `is_shared`           | boolean            | Controls player visibility                                                               |
+| `is_shared`           | boolean            | Derived: shared ⇔ `player_visible_to` is non-empty. Kept because it assigns `campaign_id` |
+| `player_visible_to`   | string[]           | Party member ids the puzzle is revealed to; `[]` is nobody (#741, `20260817230740`)      |
 | `shared_hints`        | number[]           | Orders of revealed hints                                                                 |
 | `read_aloud`          | string\|null       | Scripted narration for players                                                           |
 | `image_url`           | string\|null       |                                                                                          |

@@ -3,6 +3,7 @@
     <template #actions>
       <!-- View mode actions -->
       <template v-if="mode === 'view' && !isNew">
+        <PuzzleRevealControl v-if="puzzle" :puzzle="puzzle" />
         <PageHeaderAction
           label="Edit"
           :icon="IconEdit"
@@ -67,13 +68,38 @@
           />
         </div>
 
-        <!-- Share panel -->
-        <PuzzleSharePanel
-          :share-state="shareState"
-          :total-hints="puzzle.hints.length"
-          @toggle-share="toggleShare"
-          @save-share-state="saveShareState"
-        />
+        <!--
+          Read-aloud text. This used to sit inside a "Player Share" panel with
+          the share toggle; the sharing decision moved to the reveal control in
+          the header, and the prose stayed on the page where there is room to
+          write it. It is player-facing content, like the description below.
+        -->
+        <div class="overflow-hidden rounded-lg border border-border bg-card">
+          <div class="border-b border-border bg-muted/20 px-3 py-2">
+            <span class="text-label-lg font-semibold text-muted-foreground">
+              Read-Aloud
+              <span class="ml-1 font-fell normal-case tracking-normal text-muted-foreground/60">
+                (players will see this)
+              </span>
+            </span>
+          </div>
+          <div class="p-4">
+            <!--
+              Native <textarea> on purpose: `read_aloud` is plain text the DM
+              speaks at the table, and RichTextEditor would store Tiptap JSON
+              that the player view renders as markup. The chrome comes from
+              `fieldVariants` rather than a hand-written class string, so it
+              stays in step with AppInput.
+            -->
+            <textarea
+              v-model="readAloud"
+              rows="3"
+              placeholder="Read this aloud as the party enters the room…"
+              :class="cn(fieldVariants({ size: 'body' }), 'w-full resize-y')"
+              @blur="saveReadAloud"
+            />
+          </div>
+        </div>
 
         <!-- Setup description -->
         <div v-if="puzzle.description" class="rounded-lg border border-border bg-card overflow-hidden">
@@ -100,20 +126,23 @@
               <div class="flex-1 min-w-0">
                 <RichTextViewer :content="hint.text" />
               </div>
-              <!-- Reveal toggle -->
-              <button
-                type="button"
-                class="shrink-0 inline-flex items-center gap-1 text-label font-semibold px-2 py-1 rounded transition-colors"
-                :class="shareState.shared_hints.includes(hint.order)
-                  ? 'bg-primary/15 text-primary hover:bg-primary/25'
-                  : 'bg-muted text-muted-foreground hover:text-foreground'"
-                :title="shareState.shared_hints.includes(hint.order) ? 'Hide from players' : 'Reveal to players'"
+              <!--
+                The same decision as the reveal control's "hints given", offered
+                here because this is where the DM is reading the hint text. Both
+                write the same column through the same mutation, so they are two
+                ways to reach one state rather than two states.
+              -->
+              <AppButton
+                class="shrink-0"
+                :variant="isHintShared(hint.order) ? 'tinted' : 'chip'"
+                :tone="isHintShared(hint.order) ? 'primary' : undefined"
+                emphasis="soft"
+                size="xs"
+                :icon="isHintShared(hint.order) ? IconReveal : IconHide"
+                :label="isHintShared(hint.order) ? 'Revealed' : 'Hidden'"
+                :title="isHintShared(hint.order) ? 'Hide from players' : 'Reveal to players'"
                 @click="toggleHint(hint.order)"
-              >
-                <IconReveal v-if="shareState.shared_hints.includes(hint.order)" class="size-3" />
-                <IconHide v-else class="size-3" />
-                {{ shareState.shared_hints.includes(hint.order) ? 'Revealed' : 'Hidden' }}
-              </button>
+              />
             </div>
           </div>
         </div>
@@ -352,7 +381,8 @@ import { IconDelete, IconDungeon, IconEdit, IconHide, IconLocation, IconReveal }
 import { usePuzzle, useCreatePuzzle, useUpdatePuzzle, useDeletePuzzle } from "@/composables/usePuzzles";
 import { useCampaignStore } from "@/stores/campaign";
 import { markEdited, type AiProvenance } from "@/ai/provenance";
-import { deepEqual } from "@/lib/utils";
+import { cn, deepEqual } from "@/lib/utils";
+import { fieldVariants } from "@/components/common/fieldVariants";
 import { PUZZLE_TYPES, PUZZLE_DIFFICULTIES } from "@/types/puzzle.types";
 import type { PuzzleHint, PuzzleSkillCheck } from "@/types/puzzle.types";
 import PageHeader from "@/components/common/PageHeader.vue";
@@ -366,7 +396,7 @@ import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import PuzzleIdentityCard from "@/components/puzzles/PuzzleIdentityCard.vue";
-import PuzzleSharePanel from "@/components/puzzles/PuzzleSharePanel.vue";
+import PuzzleRevealControl from "@/components/puzzles/PuzzleRevealControl.vue";
 import PuzzleHintsEditor from "@/components/puzzles/PuzzleHintsEditor.vue";
 import PuzzleSkillChecksEditor from "@/components/puzzles/PuzzleSkillChecksEditor.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
@@ -455,58 +485,40 @@ watch(puzzle, (p) => {
   form.campaign_id         = p.campaign_id;
 }, { immediate: true });
 
-// ── Share state (view mode, autosaved) ──────────────────────────────────────
-
-const shareState = reactive({
-  is_shared:    false,
-  shared_hints: [] as number[],
-  read_aloud:   null as string | null,
-});
-
-watch(puzzle, (p) => {
-  if (!p) return;
-  shareState.is_shared    = p.is_shared;
-  shareState.shared_hints = [...p.shared_hints];
-  shareState.read_aloud   = p.read_aloud;
-}, { immediate: true });
+// ── Player-facing state (view mode, autosaved) ──────────────────────────────
+//
+// The audience and the "share this at all" toggle used to live here, in a
+// `shareState` object mirrored back to the row. Both are now the reveal control
+// in the header, which owns `player_visible_to`, `is_shared` and `campaign_id`
+// together — one writer, so they cannot drift apart. What is left is the prose
+// and the hint ladder, which the page still edits in place.
 
 const updateMutation = useUpdatePuzzle();
 
-async function saveShareState() {
-  if (!id.value) return;
+const readAloud = ref<string | null>(null);
+watch(puzzle, (p) => {
+  if (p) readAloud.value = p.read_aloud;
+}, { immediate: true });
+
+async function saveReadAloud() {
+  if (!id.value || readAloud.value === puzzle.value?.read_aloud) return;
   await updateMutation.mutateAsync({
     id: id.value,
-    update: {
-      is_shared:    shareState.is_shared,
-      shared_hints: shareState.shared_hints,
-      read_aloud:   shareState.read_aloud || null,
-      // Sharing a general puzzle scopes it here, and that is not a side effect
-      // to design away: get_player_visible_puzzles finds a puzzle by its
-      // campaign_id, so there is no such thing as "shared with everyone's
-      // players". Un-sharing leaves the scope alone — the DM chose it, and the
-      // Scope control is where they change it back.
-      campaign_id: shareState.is_shared
-        ? (puzzle.value?.campaign_id ?? campaign.activeCampaignId ?? null)
-        : (puzzle.value?.campaign_id ?? null),
-    },
+    update: { read_aloud: readAloud.value || null },
   });
 }
 
-function toggleShare() {
-  shareState.is_shared = !shareState.is_shared;
-  if (!shareState.is_shared) shareState.shared_hints = [];
-  saveShareState();
+function isHintShared(order: number): boolean {
+  return puzzle.value?.shared_hints.includes(order) ?? false;
 }
 
-function toggleHint(order: number) {
-  const idx = shareState.shared_hints.indexOf(order);
-  if (idx >= 0) {
-    shareState.shared_hints.splice(idx, 1);
-  } else {
-    shareState.shared_hints.push(order);
-    shareState.shared_hints.sort((a, b) => a - b);
-  }
-  saveShareState();
+async function toggleHint(order: number) {
+  if (!id.value || !puzzle.value) return;
+  const current = puzzle.value.shared_hints;
+  const next = current.includes(order)
+    ? current.filter((o) => o !== order)
+    : [...current, order].sort((a, b) => a - b);
+  await updateMutation.mutateAsync({ id: id.value, update: { shared_hints: next } });
 }
 
 // ── Hint helpers ────────────────────────────────────────────────────────────
@@ -604,10 +616,18 @@ async function save() {
       // finds a puzzle by its campaign_id — so a null campaign with is_shared
       // still set is a puzzle the DM believes is on the table and no player can
       // see. Narrowing the state beats leaving that lie in the row.
-      ...(form.campaign_id === null ? { is_shared: false, shared_hints: [] } : {}),
+      ...(form.campaign_id === null
+        ? { is_shared: false, shared_hints: [], player_visible_to: [] }
+        : {}),
     };
     if (isNew.value) {
-      await createMutation.mutateAsync({ ...payload, is_shared: false, shared_hints: [], read_aloud: null });
+      await createMutation.mutateAsync({
+        ...payload,
+        is_shared: false,
+        shared_hints: [],
+        player_visible_to: [],
+        read_aloud: null,
+      });
       router.push({ path: "/dungeon-craft", query: { tab: "puzzles" } });
     } else {
       await updateMutation.mutateAsync({ id: id.value!, update: payload });

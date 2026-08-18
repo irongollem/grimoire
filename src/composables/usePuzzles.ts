@@ -194,7 +194,7 @@ export function usePopulatePuzzles() {
       // taken and seed nothing.
       const toInsert = PUZZLE_TEMPLATES
         .filter((p) => !existingNames.has(p.name.toLowerCase()))
-        .map((p) => ({ ...p, user_id: user.id, image_focal_point: null, campaign_id: null, is_shared: false, shared_hints: [], read_aloud: null, location_id: null, dungeon_feature_id: null }));
+        .map((p) => ({ ...p, user_id: user.id, image_focal_point: null, campaign_id: null, is_shared: false, shared_hints: [], player_visible_to: [], read_aloud: null, location_id: null, dungeon_feature_id: null }));
 
       if (!toInsert.length) return 0;
 

@@ -69,8 +69,20 @@ export interface PuzzleRoom {
   notes: string | null;
   /** Campaign this puzzle is shared into (set automatically when is_shared = true) */
   campaign_id: string | null;
-  /** Whether players in the campaign can see this puzzle */
+  /**
+   * Whether players in the campaign can see this puzzle.
+   *
+   * Derived from `player_visible_to` and kept in lockstep with it — shared ⇔
+   * the audience is non-empty. It survives because it is what assigns
+   * `campaign_id`; the audience is the authority on who actually sees the row.
+   */
   is_shared: boolean;
+  /**
+   * Party member ids this puzzle is revealed to; `[]` is nobody. Added by
+   * `20260817230740` so puzzles can name an audience like every other
+   * shareable entity — see `PuzzleRevealControl`.
+   */
+  player_visible_to: string[];
   /** Hint orders that have been revealed to players (e.g. [1, 2]) */
   shared_hints: number[];
   /** Short spoken text the DM reads aloud when players enter the room */
