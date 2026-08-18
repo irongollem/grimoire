@@ -78,6 +78,19 @@
     </CatalogueSection>
 
     <CatalogueSection
+      title="AppButton — ghost + danger"
+      note="The chromeless remove-row ✕. `ghost` is the only non-tinted variant that reads `tone`, and only for `danger`: these sites have no box, so `destructive` — which draws a border and a resting outline — would put a visible frame around every ✕ in every editor list. Hover the middle one to see the affordance the 58 hand-rolled copies each carried inline."
+    >
+      <div class="flex flex-wrap items-center gap-4">
+        <AppButton variant="ghost" size="icon-sm" aria-label="Remove" :icon="IconDelete" />
+        <AppButton variant="ghost" tone="danger" size="icon-sm" aria-label="Remove (danger)" :icon="IconDelete" />
+        <AppButton variant="ghost" tone="danger" size="inline-xs" label="Remove" />
+        <AppButton variant="ghost" tone="danger" size="sm" label="Remove" :icon="IconDelete" />
+        <AppButton variant="ghost" tone="danger" size="icon-sm" aria-label="Disabled" :icon="IconDelete" disabled />
+      </div>
+    </CatalogueSection>
+
+    <CatalogueSection
       title="AppButton — tinted tone × emphasis"
       note="Semantic tones, not hues: each resolves through a --color-tone-* custom property, so a future theme repaints every damage/heal/arcane control by reassigning six variables."
     >
@@ -237,7 +250,7 @@
 import { computed, onBeforeUnmount, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import type { LocationQueryValue } from "vue-router";
-import { IconWand, IconChevronRight } from "@/lib/icons";
+import { IconWand, IconChevronRight, IconDelete } from "@/lib/icons";
 import { useTheme } from "@/composables/useTheme";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";

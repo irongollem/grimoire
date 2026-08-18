@@ -74,8 +74,10 @@ export const buttonVariants = cva(
       /**
        * What a `tinted` button means. Semantic rather than hue-named so the palette
        * stays changeable: each maps to a `--color-tone-*` custom property a theme
-       * can reassign, whereas `tone="red"` would pin the colour here. Ignored by
-       * every variant except `tinted`.
+       * can reassign, whereas `tone="red"` would pin the colour here.
+       *
+       * Read by `tinted` and by `ghost` (see the ghost/danger compound below).
+       * Ignored by every other variant.
        */
       tone: {
         /** The theme's accent — soundboard source tabs, "Drop chest in chat". */
@@ -127,6 +129,20 @@ export const buttonVariants = cva(
       { variant: "tinted", tone: "caution", emphasis: "soft", class: "bg-tone-caution/10 border-tone-caution/30 text-tone-caution hover:bg-tone-caution/20" },
       { variant: "tinted", tone: "caution", emphasis: "strong", class: "bg-tone-caution/25 border-tone-caution/60 text-tone-caution" },
       { variant: "tinted", tone: "caution", emphasis: "outline", class: "border-tone-caution/40 text-tone-caution hover:bg-tone-caution/10" },
+
+      /**
+       * The chromeless "remove this row" ✕ — 58 sites across 51 files, every one of
+       * them a bare button whose only affordance was `hover:text-destructive`.
+       *
+       * It has to be a compound on `ghost` rather than a use of `destructive`,
+       * because `destructive` draws a border and a resting box; these sites have no
+       * box at all, and giving them one would put a visible outline around every ✕
+       * in every editor list. Without this rule the sweep's only honest options were
+       * to leave 58 sites native or to drop the red hover — and dropping it was
+       * being independently judged "an accepted loss" file by file, which is how an
+       * affordance disappears from an app without anyone deciding to remove it.
+       */
+      { variant: "ghost", tone: "danger", class: "hover:text-destructive" },
 
       // Only the variants that already draw a border get the selected border colour.
       { variant: "outline", active: true, class: "border-primary" },

@@ -4,14 +4,14 @@
     :value="model"
     :disabled="disabled"
     :aria-label="ariaLabel"
-    :class="cn(fieldVariants({ tone: 'card', size, control: 'select', weight: 'semibold' }), block ? 'w-full' : 'shrink-0', className)"
+    :class="cn(fieldVariants({ tone, size, control: 'select', weight: 'semibold' }), block ? 'w-full' : 'shrink-0', className)"
     @change="onChange"
   >
     <slot />
   </select>
 </template>
 
-<script setup lang="ts" generic="T extends string | number | null">
+<script setup lang="ts" generic="T extends string | number | null | undefined">
 /**
  * Native <select> with the app's chrome on it (#561) — the ~49 sites that each
  * re-declared `bg-card border border-border rounded-md … font-cinzel` inline.
@@ -31,7 +31,7 @@
  */
 import { useTemplateRef, type HTMLAttributes } from "vue";
 import { cn } from "@/lib/utils";
-import { fieldVariants, type FieldSize } from "./fieldVariants";
+import { fieldVariants, type FieldSize, type FieldTone } from "./fieldVariants";
 
 /** Vue stashes a bound `<option :value="x">` on the element as `_value`. */
 type OptionWithValue = HTMLOptionElement & { _value?: unknown };
@@ -46,12 +46,21 @@ const [model, modifiers] = defineModel<T, "number">({ required: true });
 
 const {
   size = "sm",
+  tone = "card",
   block = false,
   disabled = false,
   ariaLabel,
   class: className,
 } = defineProps<{
   size?: FieldSize;
+  /**
+   * Surface it sits on — see fieldVariants. Defaults to `card`, which is what this
+   * component hard-coded before: a select nested in a `bg-muted` or `bg-background`
+   * panel came out `bg-card` regardless of depth, so call sites were overriding it
+   * with a `class="bg-muted"` string — four times in RuleEditView alone. Mirrors
+   * AppInput's prop of the same name; the asymmetry was the bug.
+   */
+  tone?: FieldTone;
   /** Stretches to the full width of the parent instead of hugging its content. */
   block?: boolean;
   disabled?: boolean;

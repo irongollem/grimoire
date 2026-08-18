@@ -20,6 +20,7 @@
 import { nextTick, onMounted, ref } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
+import type { AppInputHandle } from "@/components/common/fieldVariants";
 import AppSelect from "@/components/common/AppSelect.vue";
 import { QUEST_BEAT_KINDS, QUEST_BEAT_KIND_LABELS } from "@/types/quest.types";
 
@@ -28,7 +29,7 @@ const emit = defineEmits<{ cancel: []; submit: [value: { title: string; kind: st
 const title = ref("");
 const kind = ref("neutral");
 const edgeLabel = ref("");
-const titleInput = ref<InstanceType<typeof AppInput> | null>(null);
+const titleInput = ref<AppInputHandle | null>(null);
 const composerForm = ref<HTMLFormElement | null>(null);
 
 function submit() {

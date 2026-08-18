@@ -31,6 +31,29 @@ export const fieldVariants = cva(
         lg: "rounded-md py-2 font-cinzel text-sm tracking-wider",
         /** Crimson 14px — free text rather than a label, i.e. EntityCombobox. */
         body: "rounded-md py-1.5 text-body",
+        /**
+         * Body text at `xs` density — the tight boxes inside stat-block and
+         * inline-grid editors (companion ability scores, loot rows, custom-class
+         * steps). Neither neighbour fits: `xs` has the compact box but `text-label`,
+         * `body` has the text role but a wider box, and converting these to either
+         * visibly re-flows a 6-column grid.
+         *
+         * Measured at 20 sites across 12 files during the #648 sweep, which is why
+         * it is a size rather than a per-call-site class string.
+         */
+        "body-xs": "rounded py-1 text-body",
+        /**
+         * The entity name field at the top of every editor — the single most
+         * prominent input in the app, and until now the one with no size of its own.
+         * `text-heading` is Cinzel 1.125rem and deliberately carries NO tracking,
+         * which is why `lg` is not a substitute: it is smaller (0.875rem) *and* adds
+         * `tracking-wider`. Call sites were reaching for `size="lg" class="font-bold"`
+         * and quietly accepting the wrong type scale.
+         *
+         * Carries its own `font-bold`, because every one of the 12 files using this
+         * recipe bolds it — that is part of the role, not a per-site choice.
+         */
+        heading: "rounded-md py-2 text-heading font-bold",
       },
       /**
        * Horizontal padding only. A `<select>` has always sat 4px tighter than an
@@ -48,6 +71,13 @@ export const fieldVariants = cva(
       { control: "input", size: "md", class: "px-3" },
       { control: "input", size: "lg", class: "px-3" },
       { control: "input", size: "body", class: "px-3" },
+      // `body-xs` takes px-2 on both controls rather than the usual 4px input/select
+      // split: the corpus it was derived from is almost entirely inputs, and inventing
+      // a tighter select form would be pinning a look no call site actually asked for.
+      { control: "input", size: "body-xs", class: "px-2" },
+      { control: "select", size: "body-xs", class: "px-2" },
+      { control: "input", size: "heading", class: "px-3" },
+      { control: "select", size: "heading", class: "px-2" },
       { control: "select", size: "xs", class: "px-1.5" },
       { control: "select", size: "sm", class: "px-2" },
       { control: "select", size: "md", class: "px-2" },
@@ -62,6 +92,28 @@ export type FieldVariants = VariantProps<typeof fieldVariants>;
 export type FieldTone = NonNullable<FieldVariants["tone"]>;
 export type FieldSize = NonNullable<FieldVariants["size"]>;
 
+/**
+ * What AppInput and AppSelect hand back through `defineExpose`, for typing a
+ * template ref.
+ *
+ * Name these rather than reaching for `InstanceType<typeof AppInput>`: both
+ * components are `generic`, and `InstanceType` cannot describe a generic component
+ * — TypeScript sees the generic setup function instead of a constructor and fails
+ * with TS2344 ("does not satisfy the constraint 'abstract new (...args: any) => any'").
+ * The error surfaces at the *call site*, not in the component, so it reads as a
+ * mistake in the file that merely wanted to call `.focus()`.
+ */
+export interface AppInputHandle {
+  el: HTMLInputElement | null;
+  focus: (options?: FocusOptions) => void;
+  select: () => void;
+}
+
+export interface AppSelectHandle {
+  el: HTMLSelectElement | null;
+  focus: (options?: FocusOptions) => void;
+}
+
 /* Enumerations for the catalogue at /dev/components, guarded the same way as
    BUTTON_VARIANTS — see appButtonVariants.ts for why the assertion is shaped
    `[X] extends [never]`. */
@@ -69,7 +121,7 @@ export type FieldSize = NonNullable<FieldVariants["size"]>;
 type Assert<T extends true> = T;
 
 export const FIELD_TONES = ["default", "card", "muted", "bare"] as const satisfies readonly FieldTone[];
-export const FIELD_SIZES = ["xs", "sm", "md", "lg", "body"] as const satisfies readonly FieldSize[];
+export const FIELD_SIZES = ["xs", "sm", "md", "lg", "body", "body-xs", "heading"] as const satisfies readonly FieldSize[];
 
 export type AssertFieldTonesListed = Assert<
   [Exclude<FieldTone, (typeof FIELD_TONES)[number]>] extends [never] ? true : false

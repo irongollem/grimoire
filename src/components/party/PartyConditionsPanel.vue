@@ -86,6 +86,7 @@ import { ref, computed, nextTick } from "vue";
 import { IconAdd } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
+import type { AppInputHandle } from "@/components/common/fieldVariants";
 import { useUpdatePartyMember } from "@/composables/useParty";
 import { useRuleset } from "@/composables/useRuleset";
 import {
@@ -106,7 +107,7 @@ const conditionOpen = ref(false);
 const conditionOpenUp = ref(false);
 const curseInputOpen = ref(false);
 const curseInputText = ref("");
-const curseInputEl = ref<InstanceType<typeof AppInput> | null>(null);
+const curseInputEl = ref<AppInputHandle | null>(null);
 
 const nonExhaustionConditions = computed(() => member.conditions.filter((c) => !isExhaustion(c)));
 
