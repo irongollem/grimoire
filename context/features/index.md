@@ -42,6 +42,88 @@ problem spans features or points outside the app.
 
 ---
 
+## Navigation
+
+`src/lib/nav.ts` is the single registry. Three surfaces read it: the desktop
+sidebar, the bottom bar's tab pools (`DmBottomNav`), and the "All sections"
+sheet (`DmNavMoreSheet`). Nothing else should hold its own copy of a
+destination — the bar used to, and carried a second set of labels and icons that
+could disagree with the registry about either.
+
+### The three groups
+
+| Group | What belongs there |
+| --- | --- |
+| **Campaign** | The story you author and the things you reach for at the table |
+| **Compendium** | The 5e content a campaign draws on — statblocks, spells, items, species, rules |
+| **Publish** | Tools that turn a campaign into something outside the app |
+
+This replaced **Campaign / Reference / Assets / Publish**, and the two names that
+went were both describing a split that had stopped existing:
+
+- **"Reference" held exactly one item** (Reliquary). A group heading over a
+  single row is chrome that says nothing, and Reliquary is rules content by any
+  reading, so it joined the rest of it.
+- **"Assets" implied a global library standing apart from the campaign.** That
+  stopped being true when Bestiary, Spellbook and Item Vault gained per-campaign
+  source gating (`campaign_enabled_sources`) and `campaign_id` scoping: switching
+  campaign changes what is in them, exactly as it does for Notes.
+
+So the line between the first two groups is **not scope, it is kind** — above is
+the story you write, below is the material you write it from. Judge a new entry
+by that, not by whether it happens to be campaign-scoped.
+
+**Compendium entries stay ungated** (`requiresCampaign` unset) while every
+Campaign entry is gated. That is a preference, not an oversight: the group is a
+mix — Bestiary, Spellbook and Item Vault narrow to the active campaign, Hall of
+Heroes and most of the Codex do not — so there is no single honest answer, and
+letting a DM browse content before picking a campaign is the friendlier one.
+
+### Order
+
+Campaign is ordered by how often a DM opens each entry, not by when it was
+built, which is what the order used to be. Dashboard, Notes, Quests and Calendar
+lead as the session loop (what happened, what is next, when); NPCs and Atlas
+follow as the two things looked up mid-scene; Encounters and Soundboard sit with
+them as live-play surfaces. Party is lower than its importance suggests only
+because the Dashboard already shows it. Factions, Pantheon, Workshop and
+Interlude are world-building you set up once. Settings is last everywhere.
+
+### `SESSION_TAB_ROUTES` — the bar's ranking
+
+The bottom bar ranks by mode (`prep` / `play`) rather than following the sidebar,
+and **deliberately ignores the groups**: at the table nobody is thinking "is a
+monster campaign content or compendium content", they are thinking "I need the
+statblock". Grouping is a browsing aid and belongs to the sidebar; the bar is a
+reaching aid, ranked purely by frequency. `sessionTabs(mode)` resolves those
+routes against the registry so labels and icons come from one place.
+
+Rule-gated sections (Workshop, Interlude) stay out of the pools on purpose — the
+bar never checks campaign rules, so an entry there would show for campaigns that
+have the rule switched off.
+
+### Why two surfaces at all
+
+The bar is a *compression* of the sidebar for when there is no room, and the
+`barnav` / `sidenav` variants switch on **pointer type**, not width, so an iPad in
+landscape gets the bar and a same-width laptop gets the sidebar. Collapsing
+desktop onto the bar too would trade a grouped, fully-visible 29-item list for a
+flat top-10 plus a sheet — the grouping only pays off where there is room to show
+it. The drift risk that suggests merging them is real, and is answered by the
+shared registry rather than by deleting a surface.
+
+### `desktopOnly` is per item, not per group
+
+A4/letter-output tools (Scriptorium, Card Forge, The Mint, Character Sheet,
+Simulacrum, Illuminator, Cartographer) are impractical on a phone and hide below
+`md`. The flag lives on the **item** because Publish stopped being uniformly
+A4-bound when Gallery moved there — Gallery is a list of images a phone handles
+fine, and a group-level flag would have hidden it from the devices most likely to
+want it. `DmNavMoreSheet` filters per item and drops a group that empties out, so
+a heading never appears over an empty grid.
+
+---
+
 ## Full Feature List (marketing reference)
 
 ### Campaign Management

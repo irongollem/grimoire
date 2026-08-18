@@ -128,19 +128,24 @@ const hasCampaign = computed(() => !!campaignStore.activeCampaignId);
 const { data: campaignRules } = useOptionalRules();
 const { mode: simulacrumMode } = useSimulacrumConfig();
 
-// Drive the grid off the real nav registry. `desktopOnly` groups (A4/letter
+// Drive the grid off the real nav registry. `desktopOnly` items (A4/letter
 // output tools) are impractical on phone-sized viewports but a tablet has the
 // room — and in bar mode this sheet is a tablet's ONLY path to them (no
 // sidebar) — so they're included at md+. Rule-gated items follow their
 // campaign rule.
+//
+// Filtered per item rather than per group: Publish is no longer uniformly
+// A4-bound now that Gallery lives there, and Gallery is a list of images that a
+// phone handles fine. A group left with nothing after filtering drops out
+// entirely, so a heading never appears over an empty grid.
 const wideEnough = useAbove("md");
 const groups = computed(() =>
   NAV_GROUPS
-    .filter((g) => !g.desktopOnly || wideEnough.value)
     .map((group) => ({
       ...group,
       items: group.items.filter(
         (item) =>
+          (!item.desktopOnly || wideEnough.value) &&
           (!item.ruleKey || isRuleEffectivelyEnabled(campaignRules.value, item.ruleKey)) &&
           !navItemHiddenByFlag(item, simulacrumMode.value === "hidden"),
       ),

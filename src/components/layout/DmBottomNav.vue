@@ -70,7 +70,7 @@
             />
           </span>
           <span class="font-cinzel text-2xs leading-none">{{
-            slot.tab.label
+            slot.tab.shortLabel ?? slot.tab.label
           }}</span>
         </button>
       </template>
@@ -91,35 +91,15 @@
 import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
-  IconNavNpcs,
-  IconNavAtlas,
-  IconNavItemVault,
-  IconNavQuests,
-  IconNavDashboard,
-  IconNavEncounters,
-  IconNavParty,
-  IconNavFactions,
-  IconNavPantheon,
-  IconNavBestiary,
-  IconNavSpellbook,
-  IconNavNotes,
-  IconNavCalendar,
-  IconNavSoundboard,
   IconMore,
   IconAdd,
 } from "@/lib/icons";
-import type { Component } from "vue";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
+import { sessionTabs, type NavItem } from "@/lib/nav";
 import { useAbove } from "@/composables/useBreakpoint";
 import DiceRoller from "@/components/common/DiceRoller.vue";
 import DmNavMoreSheet from "./DmNavMoreSheet.vue";
-
-interface BarTab {
-  to: string;
-  label: string;
-  icon: Component;
-}
 
 const route = useRoute();
 const router = useRouter();
@@ -130,37 +110,10 @@ const isDm = computed(() => auth.currentRole === "dm");
 
 const moreOpen = ref(false);
 
-// Mode-aware primary-tab pools — mapped to the real nav registry routes,
-// ordered by session-importance. Rule-gated sections (Workshop, Interlude,
-// Simulacrum) are deliberately excluded — the bar never checks campaign
-// rules. Phones (no md breakpoint) show only the first 3; wider bar-mode
-// viewports (tablets) reveal more of the pool — see visibleTabCount.
-const PREP_TABS: BarTab[] = [
-  { to: "/npcs", label: "NPCs", icon: IconNavNpcs },
-  { to: "/locations", label: "Atlas", icon: IconNavAtlas },
-  { to: "/vault", label: "Items", icon: IconNavItemVault },
-  { to: "/quests", label: "Quests", icon: IconNavQuests },
-  { to: "/encounters", label: "Encounters", icon: IconNavEncounters },
-  { to: "/factions", label: "Factions", icon: IconNavFactions },
-  { to: "/deities", label: "Pantheon", icon: IconNavPantheon },
-  { to: "/monsters", label: "Bestiary", icon: IconNavBestiary },
-  { to: "/spells", label: "Spellbook", icon: IconNavSpellbook },
-  { to: "/notes", label: "Notes", icon: IconNavNotes },
-];
-const PLAY_TABS: BarTab[] = [
-  { to: "/dashboard", label: "Dashboard", icon: IconNavDashboard },
-  { to: "/encounters", label: "Encounters", icon: IconNavEncounters },
-  { to: "/npcs", label: "NPCs", icon: IconNavNpcs },
-  { to: "/party", label: "Party", icon: IconNavParty },
-  { to: "/quests", label: "Quests", icon: IconNavQuests },
-  { to: "/soundboard", label: "Soundboard", icon: IconNavSoundboard },
-  { to: "/notes", label: "Notes", icon: IconNavNotes },
-  { to: "/locations", label: "Atlas", icon: IconNavAtlas },
-  { to: "/calendar", label: "Calendar", icon: IconNavCalendar },
-  { to: "/vault", label: "Items", icon: IconNavItemVault },
-];
-
-const tabs = computed(() => (ui.dmMode === "play" ? PLAY_TABS : PREP_TABS));
+// The pools live in the nav registry alongside the sidebar's own ordering, so
+// a label or icon cannot say one thing here and another there — see
+// SESSION_TAB_ROUTES for why the bar's order ignores the sidebar's groups.
+const tabs = computed(() => sessionTabs(ui.dmMode === "play" ? "play" : "prep"));
 
 // Bar-mode viewport width decides how much of the pool actually shows: 8
 // slots (6 tabs + FAB + More) fit at md (768), 10 at lg (1024), 12 at xl
@@ -179,7 +132,7 @@ const barRoutes = computed(() => visibleTabs.value.map((t) => t.to));
 // At V=3 (phone) this reproduces the original fixed layout exactly: 2 tabs +
 // center + 1 tab + More.
 type Slot =
-  | { kind: "tab"; key: string; tab: BarTab }
+  | { kind: "tab"; key: string; tab: NavItem }
   | { kind: "fab"; key: "fab" }
   | { kind: "more"; key: "more" };
 
