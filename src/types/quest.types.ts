@@ -221,6 +221,13 @@ export interface PlayerQuestBeat {
   kind: QuestBeatKind;
   presentation_hint: string | null;
   player_text: string | null;
+  /**
+   * Position in the authored flow — depth along the longest path from the
+   * quest's opening beat, with the quest-level overview at -1. It is the only
+   * thing players learn about the graph: the edges themselves stay DM-only, so
+   * this says how far in a moment sits without saying what leads where.
+   */
+  story_order: number;
   attachments: PlayerQuestBeatAttachmentSummary[];
   visits: PlayerQuestBeatVisitSummary[];
   updated_at: string;

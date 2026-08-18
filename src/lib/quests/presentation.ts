@@ -94,7 +94,10 @@ export function deriveQuestBeatPrepGaps(
   const gaps: QuestBeatPrepGap[] = [];
   if (!beat.dm_content && !beat.how_it_plays) gaps.push({ kind: "guidance", label: "Add DM guidance" });
   if (beat.visibility === "rumored" && !beat.rumor_text) gaps.push({ kind: "player_copy", label: "Add explicit rumor copy" });
-  if (beat.visibility === "revealed" && !beat.reveal_text) gaps.push({ kind: "player_copy", label: "Add explicit reveal copy" });
+  // Named for the consequence: the player thread drops a revealed beat that has
+  // no copy rather than printing a card that says nothing, so this gap is the
+  // only place the DM learns the reveal produced nothing at the table.
+  if (beat.visibility === "revealed" && !beat.reveal_text) gaps.push({ kind: "player_copy", label: "Add reveal copy — players see nothing without it" });
   for (const attachment of attachments.filter((row) => row.prep_gap)) {
     gaps.push({ kind: "attachment", label: `Replace ${attachment.label}` });
   }

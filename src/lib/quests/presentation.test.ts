@@ -38,7 +38,7 @@ describe("quest beat presentation", () => {
     const optional = { prep_gap: false, label: "Optional sound" } as QuestBeatAttachmentSummary;
     expect(deriveQuestBeatPrepGaps(draft, [required, optional], { isDisconnected: true })).toEqual([
       { kind: "guidance", label: "Add DM guidance" },
-      { kind: "player_copy", label: "Add explicit reveal copy" },
+      { kind: "player_copy", label: "Add reveal copy — players see nothing without it" },
       { kind: "attachment", label: "Replace Missing map" },
       { kind: "improv_review", label: "Review improvised beat" },
       { kind: "connection", label: "Connect this staging beat to the story flow" },

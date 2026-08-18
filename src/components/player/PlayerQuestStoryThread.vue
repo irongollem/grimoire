@@ -17,17 +17,13 @@
     <div class="space-y-2">
       <h4 class="text-label-lg font-semibold text-muted-foreground">Confirmed journey</h4>
       <ol v-if="events.length" aria-label="Revealed quest history" class="relative space-y-3 border-l border-border pl-4 sm:pl-5">
-        <li v-for="event in events" :key="event.eventKey" class="relative min-w-0">
+        <li v-for="event in events" :key="event.beatId" class="relative min-w-0">
           <span aria-hidden="true" class="absolute -left-[1.3rem] top-2 h-2.5 w-2.5 rounded-full border-2 border-card bg-primary sm:-left-[1.55rem]" />
           <article class="min-w-0 rounded-lg bg-muted/20 p-3">
-            <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-              <h5 class="text-label-lg font-semibold text-foreground">
-                {{ event.visitNumber > 1 ? "Returned to this moment" : "Revealed story moment" }}
-              </h5>
-              <time :datetime="event.occurredAt" class="text-2xs text-muted-foreground">{{ formatVisitTime(event.occurredAt) }}</time>
-            </div>
-            <p class="mt-1 font-fell text-body leading-relaxed text-foreground">
-              {{ event.player_text || "This moment was revealed without further public details." }}
+            <p class="font-fell text-body leading-relaxed text-foreground">{{ event.playerText }}</p>
+            <p class="mt-1.5 flex flex-wrap items-baseline gap-x-2 text-2xs text-muted-foreground">
+              <time :datetime="event.occurredAt">{{ formatVisitTime(event.occurredAt) }}</time>
+              <span v-if="event.visitCount > 1">· Returned to this moment {{ event.visitCount }} times</span>
             </p>
           </article>
         </li>
@@ -49,30 +45,38 @@ const props = defineProps<{ beats: PlayerQuestBeat[] }>();
 // data must not turn a hidden node into player-facing copy.
 const safeBeats = computed(() => props.beats.filter((beat) => beat.visibility === "rumored" || beat.visibility === "revealed"));
 const rumors = computed(() => safeBeats.value.filter((beat) => beat.visibility === "rumored"));
-const events = computed(() => {
-  const visitCounts = new Map<string, number>();
-  return safeBeats.value
-    .filter((beat) => beat.visibility === "revealed")
-    .flatMap((beat) => beat.visits.length
-      ? beat.visits.map((visit) => ({
-          eventKey: visit.visit_id,
-          occurredAt: visit.visited_at,
-          beatId: beat.id,
-          player_text: beat.player_text,
-        }))
-      : [{
-          eventKey: `reveal-${beat.id}`,
-          occurredAt: beat.updated_at,
-          beatId: beat.id,
-          player_text: beat.player_text,
-        }])
-    .sort((a, b) => a.occurredAt.localeCompare(b.occurredAt) || a.eventKey.localeCompare(b.eventKey))
-    .map((event) => {
-      const visitNumber = (visitCounts.get(event.beatId) ?? 0) + 1;
-      visitCounts.set(event.beatId, visitNumber);
-      return { ...event, visitNumber };
-    });
-});
+
+/**
+ * One entry per revealed beat, in the order the story runs.
+ *
+ * It used to be one entry per *visit*, sorted by time — and for a beat the party
+ * never visited, "time" was `updated_at`, the moment the DM clicked reveal. A DM
+ * catching the log up after a session therefore got a recap in the order they
+ * happened to tick the boxes, contradicting the story it was describing. Order
+ * now comes from `story_order`, the beat's position in the authored flow.
+ *
+ * Repeat visits fold into a count rather than becoming separate entries. Split
+ * out, a loop back through an earlier beat lands that beat's second entry ahead
+ * of scenes the party had already played, which reads as if they never left.
+ *
+ * A revealed beat with no player copy is dropped rather than rendered as
+ * "This moment was revealed without further public details" — a card that says
+ * nothing is worse than no card. The DM is told: an empty reveal is already a
+ * prep gap on the beat.
+ */
+const events = computed(() => safeBeats.value
+  .filter((beat) => beat.visibility === "revealed" && !!beat.player_text)
+  .map((beat) => {
+    const firstVisit = beat.visits.map((visit) => visit.visited_at).sort()[0];
+    return {
+      beatId: beat.id,
+      playerText: beat.player_text!,
+      occurredAt: firstVisit ?? beat.updated_at,
+      visitCount: beat.visits.length,
+      storyOrder: beat.story_order,
+    };
+  })
+  .sort((a, b) => a.storyOrder - b.storyOrder || a.occurredAt.localeCompare(b.occurredAt) || a.beatId.localeCompare(b.beatId)));
 
 function formatVisitTime(value: string) {
   const date = new Date(value);
